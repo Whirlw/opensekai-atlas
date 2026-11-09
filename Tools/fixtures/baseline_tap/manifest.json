@@ -1,0 +1,22 @@
+{
+  "formatVersion": 1,
+  "id": "codexbaseline20261101tap",
+  "title": "Test",
+  "scoreTitle": "Baseline Tap 64 Notes",
+  "composer": "123",
+  "lyricist": "プレデター",
+  "arranger": "阿瓦达",
+  "singer": "Aw*@&^#",
+  "collaborationLabel": "testify",
+  "description": "Synthetic local verification chart; 64 taps, 120 BPM, generated audio.",
+  "audioFileName": "audio.wav",
+  "jacketFileName": "jacket.png",
+  "scoreFileName": "score.json",
+  "videoFileName": "",
+  "fillerSec": 9.0,
+  "secForMusicScoreMaker": 40,
+  "previewStartTimeSec": 0.0,
+  "userName": "Local baseline fixture",
+  "musicDifficultyType": "master",
+  "playLevel": 1
+}

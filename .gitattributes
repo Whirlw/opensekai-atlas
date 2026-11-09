@@ -1,0 +1,54 @@
+# Line endings: a Unity project on Windows and macOS/Linux must not fight over them.
+# C# and shader sources are text; assets and serialized data are treated as binary so
+# git never "normalises" a .prefab or .asset and silently changes it.
+* text=auto
+
+*.cs      text eol=lf
+*.shader  text eol=lf
+*.hlsl    text eol=lf
+*.cginc   text eol=lf
+*.json    text eol=lf
+*.md      text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.ps1     text eol=crlf
+*.sln     text eol=crlf
+*.csproj  text eol=crlf
+
+# Unity serialised assets: keep the bytes exactly as Unity writes them.
+*.unity        binary
+*.prefab       binary
+*.asset        binary
+*.mat          binary
+*.controller   binary
+*.anim         binary
+*.overrideController binary
+*.spriteatlas  binary
+*.spriteatlasv2 binary
+*.meta         binary
+*.unitypackage binary
+*.acb          binary
+*.bytes        binary
+
+# Media
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.psd   binary
+*.webp  binary
+*.tga   binary
+*.exr   binary
+*.wav   binary
+*.ogg   binary
+*.mp3   binary
+*.mp4   binary
+*.otf   binary
+*.ttf   binary
+*.apk   binary
+*.aab   binary
+*.keystore binary
+
+# Diffs worth reading
+*.cs      diff=csharp
+*.shader  diff

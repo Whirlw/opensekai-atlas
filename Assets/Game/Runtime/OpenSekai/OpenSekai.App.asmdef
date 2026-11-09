@@ -1,0 +1,33 @@
+{
+    "name":  "OpenSekai.App",
+    "rootNamespace":  "",
+    "references":  [
+                       "OpenSekai.Game",
+                       "Unity.TextMeshPro",
+                       "UnityEngine.UI",
+                       "Unity.InputSystem",
+                       "UniTask",
+                       "Unity.RenderPipelines.Universal.Runtime",
+                       "NativeFilePicker.Runtime",
+                       "DOTween.Modules"
+                   ],
+    "includePlatforms":  [
+
+                         ],
+    "excludePlatforms":  [
+
+                         ],
+    "allowUnsafeCode":  false,
+    "overrideReferences":  false,
+    "precompiledReferences":  [
+
+                              ],
+    "autoReferenced":  true,
+    "defineConstraints":  [
+
+                          ],
+    "versionDefines":  [
+
+                       ],
+    "noEngineReferences":  false
+}

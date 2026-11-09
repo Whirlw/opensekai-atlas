@@ -1,0 +1,37 @@
+﻿{
+    "name":  "OpenSekai.Editor",
+    "rootNamespace":  "",
+    "references":  [
+                       "OpenSekai.Game",
+                       "OpenSekai.App",
+                       "Unity.TextMeshPro",
+                       "Unity.TextMeshPro.Editor",
+                       "UnityEngine.UI",
+                       "Unity.RenderPipelines.Universal.Runtime",
+                       "Unity.RenderPipelines.Universal.Editor",
+                       "UnityEditor.UI",
+                       "DOTween.Modules",
+                       "UniTask",
+                       "Unity.InputSystem",
+                       "Unity.RenderPipelines.Core.Runtime"
+                   ],
+    "includePlatforms":  [
+                             "Editor"
+                         ],
+    "excludePlatforms":  [
+
+                         ],
+    "allowUnsafeCode":  false,
+    "overrideReferences":  false,
+    "precompiledReferences":  [
+
+                              ],
+    "autoReferenced":  true,
+    "defineConstraints":  [
+
+                          ],
+    "versionDefines":  [
+
+                       ],
+    "noEngineReferences":  false
+}

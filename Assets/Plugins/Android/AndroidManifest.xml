@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+        轻量构建不申请存储/相册权限：曲库只需要读写应用私有目录（internal storage），无需任何外部存储权限。
+        下面两条 tools:node="remove" 用来在 manifest 合并阶段删掉 Unity 生成器（Write Permission = External）
+        和 AAR 插件（如 NativeFilePicker）贡献的权限，保留它们是刻意的。
+        若开启 OPENSEKAI_VIDEO_EXPORT（录屏/导出视频到相册），需要把这两条换成普通声明，并补回：
+          android.permission.READ_MEDIA_IMAGES / READ_MEDIA_VIDEO / READ_MEDIA_AUDIO
+    -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove" />
+
+    <application>
+        <activity android:name="com.opensekai.CustomUnityPlayerActivity"
+                  android:theme="@style/UnityThemeSelector">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data android:name="unityplayer.UnityActivity" android:value="true" />
+        </activity>
+    </application>
+</manifest>

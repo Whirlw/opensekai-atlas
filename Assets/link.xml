@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  IL2CPP + Managed Stripping (Low) 的保留清单。
+
+  只列「运行时靠反射/字符串访问」的类型：
+  - Newtonsoft.Json 通过反射读写私有字段与属性；
+  - 我们自己用 JsonConvert.DeserializeObject<T> 反序列化的模型（曲包清单、谱面、设置、历史记录、AB 清单）；
+  - TextMesh Pro 通过反射访问 shader / material 属性名。
+
+  注意两点：
+  1. 工程没有 asmdef，全部游戏代码都在 Assembly-CSharp 里，类型条目必须挂在这个程序集下；
+     写成 OpenSekai.Infrastructure / OpenSekai.Charts 之类不存在的程序集名会被 IL2CPP 静默忽略。
+  2. `type fullname` 必须写**完整命名空间**，写错不会报错，只会静默失效。
+
+  新增「会被 JSON 反序列化」的类型时，记得同步加到这里；纯代码直接 new 的类型不需要。
+-->
+<linker>
+  <!-- Newtonsoft：反射序列化的基础设施 -->
+  <assembly fullname="Newtonsoft.Json" preserve="all" />
+
+  <!-- Unity 包内反射较重的部分 -->
+  <assembly fullname="Unity.TextMeshPro" preserve="all" />
+
+  <!-- 设置、曲包与 AB 清单（"AssetBundleInfo.bytes" / "manifest.json"）、谱面、历史 -->
+  <assembly fullname="Assembly-CSharp">
+    <!-- AB 清单 -->
+    <type fullname="Sekai.AssetBundleInfo" preserve="all" />
+    <type fullname="Sekai.AssetBundleElement" preserve="all" />
+    <!-- 本地设置 -->
+    <type fullname="Sekai.ApplicationLocalSettings" preserve="all" />
+    <type fullname="Sekai.LiveSettingData" preserve="all" />
+    <!-- 曲包清单与历史 -->
+    <type fullname="Sekai.MusicScoreMaker.Common.CustomMusicScoreManifest" preserve="all" />
+    <type fullname="Sekai.MusicScoreMaker.Common.CustomMusicScorePlayHistoryRecord" preserve="all" />
+    <type fullname="OpenSekai.Infrastructure.Packages.SongPackageManifest" preserve="all" />
+    <!-- 谱面 -->
+    <type fullname="OpenSekai.Charts.ChartDocument" preserve="all" />
+    <type fullname="OpenSekai.Charts.ChartNote" preserve="all" />
+    <type fullname="OpenSekai.Charts.ChartEvent" preserve="all" />
+  </assembly>
+</linker>
