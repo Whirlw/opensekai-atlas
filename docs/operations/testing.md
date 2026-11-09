@@ -73,6 +73,27 @@ PlayMode：
 - **脚手架时钟只能前进**：逐帧驱动时不要先推过头再回头补一帧（`Step(0.95)` 后 `Step(0.938)`）。时间倒退会让长条的 `lastInputTime` 落在未来、持握失效，用例会以「产品 bug」的样子失败。写法是停在事件前一帧，把事件本身作为下一步。
 - **断言消息带状态**：失败信息里拼上 `state / holder / IsTailJudgeableAt / 相关时间`，否则一次运行什么也看不出（这是 2026-11-07 用一轮就定位「时钟倒退」的原因）。
 
+## 编译报错但 Unity 不显示
+
+改完脚本先看编译，但 **Unity 的 `unity command console status` 会撒谎**：搬动/删除 `.cs` 之后它可能长时间报 `compilationFailed: true` 而 `entries` 是空的，同时 `Library/ScriptAssemblies/OpenSekai.Game.dll` 的时间戳不动——也就是说它既没告诉你错在哪，也没真的重编。2026-11-09 抽 `TouchDeduplication` 时就卡在这上面十几分钟。
+
+可靠的替代路径是把 Unity 自己生成的编译参数直接喂给它自带的 Roslyn：
+
+```powershell
+$dotnet = 'C:\Program Files\Unity\Hub\Editor\6000.6.7f1\Editor\Data\DotNetSdk\dotnet.exe'
+$csc    = 'C:\Program Files\Unity\Hub\Editor\6000.6.7f1\Editor\Data\DotNetSdk\sdk\8.0.318\Roslyn\bincore\csc.dll'
+$rsp    = (Get-ChildItem 'Library\Bee\artifacts' -Recurse -Filter 'OpenSekai.Game.rsp' |
+           Select-Object -First 1).FullName
+& $dotnet $csc "@$rsp" -nologo 2>&1 | Select-String 'error CS'
+```
+
+几点经验：
+
+- 没有 `Editor\Data\Tools\Roslyn\csc.exe`，只有 `DotNetSdk\...\Roslyn\bincore\csc.dll`，要经 `dotnet.exe` 起。
+- `.rsp` 是这次编译实际用的文件列表，**新增的 `.cs` 不在里面**时它会报 `CS0246` 找不到类型：先在 Unity 里 `AssetDatabase.Refresh(ForceSynchronousImport)` + `CompilationPipeline.RequestScriptCompilation()`，等 rsp 重新生成再跑。
+- 一条命令就能拿到全部错误（含 `CS0051` 这类可访问性不一致），比在编辑器里翻 Console 快得多。
+- 这条路径**只验证语法与类型**：它不重新生成 `Library/ScriptAssemblies`。要通过还要回到 Unity 确认 `OpenSekai.Game.dll` 的时间戳变新，再跑测试。
+
 ## 为什么没有「整首打歌」的自动化测试
 
 试过，做不了，原因是结构性的而不是偷懒：
