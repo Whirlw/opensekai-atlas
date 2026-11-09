@@ -6,6 +6,10 @@ Project Sekai 玩法的学习/研究向复刻工程。当前形态是**轻量播
 **仓库里不含任何原作素材**：代码为 MIT，字体为 OFL（思源黑体），音频、音符皮肤、HUD、判定特效、加载背景全部为自制或 CC0 资源。
 来源与替换进度见 [素材来源清单](docs/operations/asset-provenance.md)。
 
+> 本项目与 SEGA、Colorful Palette 及《Project SEKAI COLORFUL STAGE! feat. Hatsune Miku》的
+> 权利人无关，也未经其授权或认可，仅供学习与研究使用。如需游玩请支持官方版本。
+> 谱面、曲包、封面等由使用者自行导入的内容，其权利与责任归导入者。
+
 ## 开发环境
 
 - Unity: **6000.6.7f1**（Unity 6；从 2022.3 升级，过程见 [升级记录](docs/changelog/2026-11-unity6-upgrade.md)）
