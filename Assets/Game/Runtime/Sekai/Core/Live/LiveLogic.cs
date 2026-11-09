@@ -381,11 +381,8 @@ namespace Sekai.Core.Live
 		}
 
 		// Wall clock and music clock both advance in seconds at 1x, so a touch sampled N seconds
-		// before this frame must map to "current music time - N". The previous implementation
-		// multiplied that delta by TargetFrameTime (1/60), shrinking real latency by 60x, which
-		// effectively judged every input at the current frame's music time.
-		private const float MAX_INPUT_LATENCY_SECONDS = 0.25f;
-
+		// before this frame must map to "current music time - N". The mapping itself, including how
+		// far back a stale touch may reach, now lives in InputTimeMapping.
 		public float ResolveInputMusicTime(double inputTime)
 		{
 			if (LiveConfig.UseLegacyJudgeTiming)
@@ -397,35 +394,20 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>
-		/// The original formula: the wall clock delta is multiplied by one frame time, which shrinks real
-		/// latency by a factor of 60 and effectively judges every touch at the current frame's music time.
-		/// Kept verbatim behind the "legacy judge timing" option so the old feel stays available.
+		/// The original formula. See <see cref="OpenSekai.Shared.Live.Simulation.InputTimeMapping.FromLegacyClock"/>.
 		/// </summary>
 		public static float ComputeLegacyInputMusicTime(double frameMusicTime, double frameGameTime, double inputTime)
 		{
-			// One frame time at the judge table's fixed rate, matching the original formula.
-			const double OneFrameSeconds = 1d / 60d;
-			return (float)(frameMusicTime + (inputTime - frameGameTime) * OneFrameSeconds);
+			return OpenSekai.Shared.Live.Simulation.InputTimeMapping.FromLegacyClock(frameMusicTime, frameGameTime, inputTime);
 		}
 
 		/// <summary>
 		/// Maps an Input System timestamp (seconds, same clock as <see cref="Time.realtimeSinceStartupAsDouble"/>)
-		/// onto the music timeline. Latency is clamped to [-250ms, 0ms] so a stale touch that survived a
-		/// pause/resume or focus loss cannot land far outside the judgment window.
+		/// onto the music timeline. See <see cref="OpenSekai.Shared.Live.Simulation.InputTimeMapping.FromClock"/>.
 		/// </summary>
 		public static float ComputeInputMusicTime(double frameMusicTime, double frameGameTime, double inputTime)
 		{
-			double deltaSeconds = inputTime - frameGameTime;
-			if (deltaSeconds > 0d)
-			{
-				deltaSeconds = 0d;
-			}
-			else if (deltaSeconds < -MAX_INPUT_LATENCY_SECONDS)
-			{
-				deltaSeconds = -MAX_INPUT_LATENCY_SECONDS;
-			}
-
-			return (float)(frameMusicTime + deltaSeconds);
+			return OpenSekai.Shared.Live.Simulation.InputTimeMapping.FromClock(frameMusicTime, frameGameTime, inputTime);
 		}
 
 		public void Continue()
