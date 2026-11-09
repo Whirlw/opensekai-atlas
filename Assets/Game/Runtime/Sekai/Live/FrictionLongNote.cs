@@ -25,6 +25,13 @@
 				return;
 			}
 
+			if (isTouched && Progress > 1f)
+			{
+				// A rubbed bar is being held, so it stops at the judgement line instead of
+				// sliding past it while the finger keeps working the lane.
+				Progress = 1f;
+			}
+
 			if (JudgeInfo.result == NoteResult.None && State <= NoteState.Last && isTouched)
 			{
 				if (Progress < 1f)

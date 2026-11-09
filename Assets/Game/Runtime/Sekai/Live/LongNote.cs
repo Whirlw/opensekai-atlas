@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -287,7 +287,10 @@ namespace Sekai.Live
 				State = NoteState.Playing;
 			}
 
-			if (State == NoteState.Last)
+			// A bar whose head is hidden carries no note the player can answer: pressing it changes
+			// nothing, and letting it pass must change nothing either. Publishing the usual Miss here
+			// is what took life away for a note the chart never asked to be played.
+			if (State == NoteState.Last && HasJudgment)
 			{
 				JudgeInfo = (NoteResult.Miss, NoteResultDescription.None);
 				State = NoteState.Release;
