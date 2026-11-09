@@ -1,4 +1,4 @@
-// 禁止用「new LongNote(...) 后反射调内部阶段」编写判定用例。
+﻿// 禁止用「new LongNote(...) 后反射调内部阶段」编写判定用例。
 // 子音符的进度、视图、候选只在 OnUpdate 的整条扫描里推进，缺了它 IsJudgment 恒为假。
 // 需要真实音符图时，请先 ChartJson.Read → RuntimeChartConverter.Convert，再交给本脚手架逐帧驱动。
 using System;
@@ -43,7 +43,7 @@ namespace OpenSekai.Tests.EditMode.Live
         internal void Arrange(MusicScore score, NoteBase[] notes = null, float displayTimeOffset = 1f)
         {
             SetField("_musicScore", score);
-            SetField("_noteArray", notes ?? score.NoteArray);
+            Logic.Notes.Bind(notes ?? score.NoteArray);
             SetField("_noteDisplayTimeOffset", displayTimeOffset);
             SetField("_liveViews", Array.Empty<LiveViewBase>());
         }
@@ -52,7 +52,7 @@ namespace OpenSekai.Tests.EditMode.Live
         internal void BindViews(params LiveViewBase[] views)
         {
             SetField("_liveViews", views);
-            var notes = (NoteBase[])typeof(LiveLogic).GetField("_noteArray", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(Logic);
+            var notes = Logic.Notes.Notes;
             typeof(LiveLogic).GetMethod("BindNoteCallbacks", BindingFlags.Instance | BindingFlags.NonPublic,
                 null, new[] { typeof(NoteBase[]) }, null).Invoke(Logic, new object[] { notes });
         }

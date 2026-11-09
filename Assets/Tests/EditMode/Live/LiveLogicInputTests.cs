@@ -91,7 +91,7 @@ namespace OpenSekai.Tests.EditMode.Live
             notes[0].Id = startTicks;
             notes[1].Id = otherTicks;
             SetField("_musicScore", score);
-            SetField("_noteArray", notes);
+            logic.Notes.Bind(notes);
             SetField("_noteDisplayTimeOffset", 1f);
             SetField("_liveViews", Array.Empty<LiveViewBase>());
             bool[] begun = new bool[2];
@@ -176,7 +176,7 @@ namespace OpenSekai.Tests.EditMode.Live
             // Supply only the chart and empty views, avoiding Setup's storage, camera and asset loading.
             // Candidate construction and all judgment stages still run through real OnUpdate / OnInput.
             SetField("_musicScore", new MusicScore(new[] { Info(0f) }, Array.Empty<EventBase>(), notes));
-            SetField("_noteArray", notes);
+            logic.Notes.Bind(notes);
             SetField("_noteDisplayTimeOffset", 1f);
             SetField("_liveViews", Array.Empty<LiveViewBase>());
             logic.OnUpdate(frameTime, InputTime);
@@ -234,7 +234,7 @@ namespace OpenSekai.Tests.EditMode.Live
                 notes[i].LineType = i == 0 ? NoteLineType.EaseIn : NoteLineType.EaseOut;
             }
             SetField("_musicScore", new MusicScore(new[] { Info(0) }, Array.Empty<EventBase>(), notes));
-            SetField("_noteArray", notes);
+            logic.Notes.Bind(notes);
             SetField("_noteDisplayTimeOffset", 1f);
             SetField("_liveViews", Array.Empty<LiveViewBase>());
             for (int frame = 0; frame < 180; frame++)

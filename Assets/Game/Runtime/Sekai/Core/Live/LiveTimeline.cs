@@ -82,10 +82,20 @@ namespace Sekai.Core.Live
 		/// the high speed list. The two lists are separate because a note's speed ratio decides which
 		/// array it was filed into, and both cursors advance independently.
 		/// </summary>
-		public void AdvanceAutoJudgment(NoteBase[] notes, ref int noteIndex, NoteBase[] highSpeedNotes, ref int highSpeedNoteIndex)
+		public void AdvanceAutoJudgment(LiveNoteSession session)
 		{
-			AdvanceList(notes, ref noteIndex);
-			AdvanceList(highSpeedNotes, ref highSpeedNoteIndex);
+			if (session == null)
+			{
+				return;
+			}
+
+			int index = session.NoteIndex;
+			AdvanceList(session.Notes, ref index);
+			session.NoteIndex = index;
+
+			int highSpeedIndex = session.HighSpeedIndex;
+			AdvanceList(session.HighSpeedNotes, ref highSpeedIndex);
+			session.HighSpeedIndex = highSpeedIndex;
 		}
 
 		private void AdvanceList(NoteBase[] notes, ref int index)

@@ -81,8 +81,7 @@ namespace Sekai.Core.Live
 		private LiveBootDataBase _bootData;
 		private LiveViewBase[] _liveViews;
 		private MusicScore _musicScore;
-		private NoteBase[] _noteArray = Array.Empty<NoteBase>();
-		private NoteBase[] _highSpeedNoteArray = Array.Empty<NoteBase>();
+		private readonly LiveNoteSession _notes = new LiveNoteSession();
 		private EventBase[] _eventArray = Array.Empty<EventBase>();
 		private readonly LiveTimeline _timeline = new LiveTimeline();
 		private readonly List<NoteBase> _judgmentNoteList;
@@ -123,18 +122,19 @@ namespace Sekai.Core.Live
 		    get => _skillLogic;
 		    set => _skillLogic = value;
 		}
-				private int _noteStartIndex;
 		public int noteStartIndex
 		{
-		    get => _noteStartIndex;
-		    set => _noteStartIndex = value;
+		    get => _notes.NoteIndex;
+		    set => _notes.NoteIndex = value;
 		}
-				private int _highSpeedNoteStartIndex;
 		public int highSpeedNoteStartIndex
 		{
-		    get => _highSpeedNoteStartIndex;
-		    set => _highSpeedNoteStartIndex = value;
+		    get => _notes.HighSpeedIndex;
+		    set => _notes.HighSpeedIndex = value;
 		}
+		/// <summary>The notes this session walks, and how far it has walked.</summary>
+		public LiveNoteSession Notes => _notes;
+
 		public int result;
 		public int TapCount { get; set; }
 				private double _currentGameTime;
@@ -147,7 +147,7 @@ namespace Sekai.Core.Live
 
 		public LiveScore Score => scoreLogic?.Score ?? default;
 
-		public bool IsNotesAllFinished => noteStartIndex >= _noteArray.Length && highSpeedNoteStartIndex >= _highSpeedNoteArray.Length;
+		public bool IsNotesAllFinished => noteStartIndex >= _notes.Notes.Length && highSpeedNoteStartIndex >= _notes.HighSpeedNotes.Length;
 
 		public bool IsPerfectCombo => scoreLogic?.IsPerfectCombo ?? false;
 
@@ -188,10 +188,10 @@ namespace Sekai.Core.Live
 			}
 
 			_musicScore.InjectSkillFeverForCreatorScore(_bootData?.MusicData?.Vocal?.musicId ?? _bootData?.MusicData?.Music?.id ?? 0);
-			_noteArray = SortNotes(_musicScore.NoteArray);
-			_highSpeedNoteArray = _noteArray.Where(note => note != null && !Mathf.Approximately(note.speedRatio, 1f)).ToArray();
+			_notes.Bind(SortNotes(_musicScore.NoteArray));
+
 			_eventArray = SortEvents(_musicScore.EventArray);
-			BindNoteCallbacks(_noteArray);
+			BindNoteCallbacks(_notes.Notes);
 			BindEventCallbacks(_eventArray);
 			LiveViewExt.CreateNotePool(_liveViews, LiveUtility.CalculateMaxSimultaneousNotes(_musicScore, _noteDisplayTimeOffset));
 			_calcCamera = CameraUtility.GetFrontCamera();
@@ -303,7 +303,7 @@ namespace Sekai.Core.Live
 
 		public void OnAutoInput()
 		{
-			_timeline.AdvanceAutoJudgment(_noteArray, ref _noteStartIndex, _highSpeedNoteArray, ref _highSpeedNoteStartIndex);
+			_timeline.AdvanceAutoJudgment(_notes);
 		}
 
 		public void OnInput()
@@ -366,9 +366,9 @@ namespace Sekai.Core.Live
 
 		private void UpdateNote()
 		{
-			for (int i = noteStartIndex; i < _noteArray.Length; i++)
+			for (int i = noteStartIndex; i < _notes.Notes.Length; i++)
 			{
-				NoteBase note = _noteArray[i];
+				NoteBase note = _notes.Notes[i];
 				if (note == null)
 				{
 					if (i == noteStartIndex)
@@ -427,9 +427,9 @@ namespace Sekai.Core.Live
 				}
 			}
 
-			for (int i = highSpeedNoteStartIndex; i < _highSpeedNoteArray.Length; i++)
+			for (int i = highSpeedNoteStartIndex; i < _notes.HighSpeedNotes.Length; i++)
 			{
-				NoteBase note = _highSpeedNoteArray[i];
+				NoteBase note = _notes.HighSpeedNotes[i];
 				if (note == null)
 				{
 					if (i == highSpeedNoteStartIndex)
@@ -602,9 +602,9 @@ namespace Sekai.Core.Live
 
 		private void AdvanceFinishedNotes()
 		{
-			while (noteStartIndex < _noteArray.Length)
+			while (noteStartIndex < _notes.Notes.Length)
 			{
-				NoteBase note = _noteArray[noteStartIndex];
+				NoteBase note = _notes.Notes[noteStartIndex];
 				if (note != null && note.State != NoteState.Done)
 				{
 					return;

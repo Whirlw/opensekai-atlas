@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -80,7 +80,7 @@ namespace OpenSekai.Tests.EditMode.Live
             var source = new FakeTouchSource();
             logic.SetTouchSource(source);
             SetField(logic, "_musicScore", score);
-            SetField(logic, "_noteArray", notes);
+            logic.Notes.Bind(notes);
             SetField(logic, "_noteDisplayTimeOffset", 1f);
             SetField(logic, "_liveViews", Array.Empty<LiveViewBase>());
             return new Harness { Logic = logic, Source = source };
