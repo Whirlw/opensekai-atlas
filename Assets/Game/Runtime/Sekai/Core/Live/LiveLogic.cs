@@ -87,7 +87,6 @@ namespace Sekai.Core.Live
 		private NoteBase[] _highSpeedNoteArray = Array.Empty<NoteBase>();
 		private EventBase[] _eventArray = Array.Empty<EventBase>();
 		private int _eventStartIndex;
-		private readonly TouchDeduplication _touchDeduplication;
 		private readonly List<NoteBase> _judgmentNoteList;
 		private readonly InputTmp[] _inputTmpArray;
 		private readonly List<InputTmp> _activeInputList;
@@ -101,7 +100,7 @@ namespace Sekai.Core.Live
 		}
 		private InputLogInfo _recordedInputLogger;
 		private readonly List<NoteBase> _connectionNoteList;
-		private readonly Dictionary<int, (double time, Vector2 position)> touchPositionList;
+		private readonly LiveInputCollector _inputCollector;
 		private readonly List<int> _usedFingerList;
 		private readonly int[] _holdInputNotes = new int[INPUT_TMP_COUNT];
 		private readonly bool[] _holdInputVisited = new bool[INPUT_TMP_COUNT];
@@ -162,7 +161,6 @@ namespace Sekai.Core.Live
 			_touchSource = _deviceTouchSource;
 			NativeInput.Enable();
 			int fingerCapacity = Mathf.Max(NativeInput.Fingers.Count, MAX_FINGER_COUNT);
-			_touchDeduplication = new TouchDeduplication(fingerCapacity);
 			_judgmentNoteList = new List<NoteBase>();
 			_inputTmpArray = new InputTmp[INPUT_TMP_COUNT];
 			for (int i = 0; i < _inputTmpArray.Length; i++)
@@ -171,7 +169,7 @@ namespace Sekai.Core.Live
 			}
 			_activeInputList = new List<InputTmp>(INPUT_TMP_COUNT);
 			_connectionNoteList = new List<NoteBase>(5);
-			touchPositionList = new Dictionary<int, (double time, Vector2 position)>(MAX_FINGER_COUNT);
+			_inputCollector = new LiveInputCollector(MAX_FINGER_COUNT);
 			_usedFingerList = new List<int>(MAX_FINGER_COUNT);
 			InputedNormalNoteTouch = new Dictionary<int, double>(MAX_FINGER_COUNT);
 			_seScoreVolume = 1f;
@@ -230,16 +228,9 @@ namespace Sekai.Core.Live
 			}
 
 			NativeInput.Enable();
-			_touchDeduplication.Clear();
+			_inputCollector.Reset();
 			_activeInputList.Clear();
-			touchPositionList.Clear();
 			InputedNormalNoteTouch.Clear();
-			var activeTouches = _touchSource;
-			for (int i = 0; i < activeTouches.Count; i++)
-			{
-				LiveTouchSample touch = activeTouches[i];
-				_touchDeduplication.Commit(touch.touchId, touch.time, touch.phase);
-			}
 		}
 
 		private void ResetScoreState()
@@ -850,12 +841,12 @@ namespace Sekai.Core.Live
 
 		private bool ShouldProcessTouch(in LiveTouchSample touch)
 		{
-			return _touchDeduplication.ShouldProcess(in touch);
+			return _inputCollector.ShouldProcess(in touch);
 		}
 
 		private void UpdateLastTouch(in LiveTouchSample touch)
 		{
-			_touchDeduplication.Commit(in touch);
+			_inputCollector.Commit(in touch);
 		}
 
 		private void TouchExecution(in LiveTouchSample touch, ref int activeInputCount)
@@ -863,7 +854,7 @@ namespace Sekai.Core.Live
 			int touchId = touch.touchId;
 			InputTouchPhase phase = touch.phase;
 			double time = touch.time;
-			if (_touchDeduplication.IsRepeat(touchId, time))
+			if (_inputCollector.IsRepeat(touchId, time))
 			{
 				if (IsEndedOrCanceled(phase) || phase == InputTouchPhase.None)
 				{
@@ -883,29 +874,9 @@ namespace Sekai.Core.Live
 
 		private void CreateLiveTouch(int touchId, float musicTime, in LiveTouchSample processTouch, out LiveTouch liveTouch, InputTouchPhase phase)
 		{
-			Vector2 screenPosition = processTouch.screenPosition;
-			Vector3 worldPosition = processTouch.worldPosition;
-			Vector2 delta = LiveUtility.Vector2Zero;
-
-			if (processTouch.phase == InputTouchPhase.Began)
-			{
-				touchPositionList[touchId] = (processTouch.time, screenPosition);
-			}
-
-			if (touchPositionList.TryGetValue(touchId, out var cachedPosition))
-			{
-				if (processTouch.time >= cachedPosition.time)
-				{
-					delta = screenPosition - cachedPosition.position;
-				}
-			}
-			else
-			{
-				delta = screenPosition;
-			}
-
+			Vector2 delta = _inputCollector.TakeDelta(in processTouch);
 			int fingerId = processTouch.fingerId;
-			liveTouch = new LiveTouch(fingerId, touchId, delta, worldPosition, phase, musicTime);
+			liveTouch = new LiveTouch(fingerId, touchId, delta, processTouch.worldPosition, phase, musicTime);
 		}
 
 		private void OnProcessTouch(ref LiveTouch processTouch, ref int activeInputCount)
@@ -957,10 +928,10 @@ namespace Sekai.Core.Live
 			Vector2 delta = mouse.delta.ReadValue();
 			if (phase == InputTouchPhase.Began)
 			{
-				touchPositionList[MOUSE_FALLBACK_TOUCH_ID] = (time, screenPosition);
+				_inputCollector.Remember(MOUSE_FALLBACK_TOUCH_ID, time, screenPosition);
 				delta = LiveUtility.Vector2Zero;
 			}
-			else if (touchPositionList.TryGetValue(MOUSE_FALLBACK_TOUCH_ID, out var cachedPosition))
+			else if (_inputCollector.TryGetPosition(MOUSE_FALLBACK_TOUCH_ID, out var cachedPosition))
 			{
 				delta = screenPosition - cachedPosition.position;
 			}
@@ -975,36 +946,19 @@ namespace Sekai.Core.Live
 
 			if (IsEndedOrCanceled(phase))
 			{
-				touchPositionList.Remove(MOUSE_FALLBACK_TOUCH_ID);
-				_touchDeduplication.Forget(MOUSE_FALLBACK_TOUCH_ID);
+				_inputCollector.Forget(MOUSE_FALLBACK_TOUCH_ID);
 			}
 			else
 			{
-				touchPositionList[MOUSE_FALLBACK_TOUCH_ID] = (time, screenPosition);
-				_touchDeduplication.Commit(MOUSE_FALLBACK_TOUCH_ID, time, phase);
+				_inputCollector.Remember(MOUSE_FALLBACK_TOUCH_ID, time, screenPosition);
+				_inputCollector.Commit(MOUSE_FALLBACK_TOUCH_ID, time, phase);
 			}
 		}
 #endif
 
 		private void UpdateTouchPositionCache(in LiveTouchSample touch)
 		{
-			int touchId = touch.touchId;
-			if (touchPositionList.ContainsKey(touchId))
-			{
-				if (IsEndedOrCanceled(touch.phase))
-				{
-					touchPositionList.Remove(touchId);
-					return;
-				}
-
-				if (touch.time > touchPositionList[touchId].time)
-				{
-					touchPositionList[touchId] = (touch.time, touch.screenPosition);
-				}
-				return;
-			}
-
-			touchPositionList.Add(touchId, (touch.time, touch.screenPosition));
+			_inputCollector.CachePosition(in touch);
 		}
 
 		private void Judgment()
