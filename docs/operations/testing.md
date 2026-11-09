@@ -90,8 +90,59 @@ PlayMode：
 ## CI
 
 - 本地/流水线通用入口：`powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run-editmode-tests.ps1`（先关掉编辑器，CLI 才肯起实例）。脚本把 nunit 报告写到 `TestResults/editmode-ci.xml`、打印 `total/passed/failed`，并以 Unity 的退出码收尾，失败即非零。
-- GitHub Actions：`.github/workflows/editmode-tests.yml` 用 `game-ci/unity-test-runner@v4`、`unityVersion: 6000.6.7f1`、`testMode: EditMode`，上传 `TestResults` 产物。
-- 缺 license 时该 job 自动跳过（`if: secrets.UNITY_LICENSE != ''`）；启用前先 `gh secret set UNITY_LICENSE --body "<Unity_lic.ulf 的内容>"`，需要邮箱/密码登录的再加 `UNITY_EMAIL`、`UNITY_PASSWORD`。
+- GitHub Actions：`.github/workflows/editmode-tests.yml` 用 `game-ci/unity-test-runner@v4`、`unityVersion: auto`（读 `ProjectSettings/ProjectVersion.txt`）、`testMode: EditMode`，上传 `TestResults` 产物。
+
+### 为什么不开 license 时是「绿色跳过」而不是「失败」
+
+`secrets` 上下文在 **job 级 `if`** 里不可用。写 `if: ${{ secrets.UNITY_LICENSE != '' }}` 会让 GitHub 在解析阶段就判定工作流无效，运行结果是 **0 秒、没有 job、结论 failure**（本项目 2026-11-09 的 run #1/#2 就是这样）。现在的写法是先跑一个 `Check for a Unity license` 步骤，把 `present=true/false` 写进 `$GITHUB_OUTPUT`，后面的缓存 / 跑测试 / 上传都用 `if: steps.license.outputs.present == 'true'` 门控；没配就发一条 notice 跳过，运行是 success。
+
+### 配 license secret
+
+三种来源，按可用性排序：
+
+1. **从本机已激活的编辑器取 `.ulf`**（最简单，只要这台机器能正常打开工程）
+
+   Unity 把激活文件放在：
+
+   ```
+   Windows  C:\ProgramData\Unity\Unity_lic.ulf
+   macOS    /Library/Application Support/Unity/Unity_lic.ulf
+   Linux    ~/.local/share/unity3d/Unity/Unity_lic.ulf
+   ```
+
+   然后：
+
+   ```powershell
+   gh secret set UNITY_LICENSE --body (Get-Content C:\ProgramData\Unity\Unity_lic.ulf -Raw)
+   ```
+
+   没有 `gh` 也可以在仓库网页 `Settings → Secrets and variables → Actions → New repository secret` 里粘贴文件内容（整个 XML 原样贴）。
+
+   > 该路径不存在（还是走到了方式 2/3）也不奇怪：Unity 6 的 Personal 授权由 Hub 管理，部分安装方式下不会在 `ProgramData` 落这份文件。找不到就直接用下面的手动激活或邮箱密码。
+
+2. **手动激活文件**（机器上没有已激活的编辑器，或不想动本机授权）
+
+   ```powershell
+   "C:\Program Files\Unity\Hub\Editor\6000.6.7f1\Editor\Unity.exe" -batchmode -nographics -createManualActivationFile -logFile -
+   ```
+
+   会生成 `Unity_v6000.6.7f1.alf`，上传到 <https://license.unity3d.com/manual> 选版本、下载 `.ulf`，再按上面的方式塞进 secret。
+
+3. **邮箱密码**（Personal 版最省事，但要求账号没有开二步验证）
+
+   ```powershell
+   gh secret set UNITY_EMAIL    --body "you@example.com"
+   gh secret set UNITY_PASSWORD --body "<密码>"
+   ```
+
+   `game-ci` 会拿这组凭据现场激活；同样的凭据不能同时用于多个并行 job，否则先激活的会把后一个踢下线。
+
+### 已知注意点
+
+- **镜像里未必有 `6000.6.7f1`**：`game-ci` 的 unity3d 镜像按版本打 tag，新版本往往滞后。第一次真跑若卡在「找不到该 Unity 版本」，把 workflow 的 `unityVersion` 临时钉到镜像里已有的版本，或自建镜像。
+- **fork / PR 拿不到 secret**：`pull_request` 来自 fork 时 secret 为空，上面那套「未配置则跳过」的逻辑会让它绿着跳过，这是预期的，别误以为测试跑过了。
+- **付费额度**：public 仓库的 Actions 免费额度较宽松，但一次 EditMode 跑要下载并解压 Unity 镜像，通常 6–12 分钟，注意别在循环里反复触发。
+- **不要提交 `.ulf`**：它是机器绑定的授权文件，属于凭据。仓库的 `.gitignore` 没有专门列它，放本机 `LocalPacks/` 或别处，只通过 secret 传递。
 
 ## 相关文档
 
