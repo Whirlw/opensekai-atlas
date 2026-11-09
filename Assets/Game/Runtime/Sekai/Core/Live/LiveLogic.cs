@@ -17,8 +17,6 @@ namespace Sekai.Core.Live
 		private const int INPUT_TMP_COUNT = 128;
 		private const int MAX_FINGER_COUNT = 10;
 		private const float TARGET_FRAME_TIME = 1f / 60f;
-		private const int MOUSE_FALLBACK_TOUCH_ID = -1;
-		private const int MOUSE_FALLBACK_FINGER_ID = 0;
 
 		[Serializable]
 		public class InputTmp
@@ -344,30 +342,7 @@ namespace Sekai.Core.Live
 		{
 			int activeInputCount = 0;
 			_activeInputList.Clear();
-
-			// Read indexed samples directly; no per-frame array or collection copy.
-			var activeTouches = _touchSource;
-			int touchCount = activeTouches.Count;
-
-			for (int i = 0; i < touchCount; i++)
-			{
-				LiveTouchSample touch = activeTouches[i];
-				if (ShouldProcessTouch(in touch))
-				{
-					TouchExecution(in touch, ref activeInputCount);
-					UpdateLastTouch(in touch);
-				}
-			}
-
-			for (int i = 0; i < touchCount; i++)
-			{
-				LiveTouchSample touch = activeTouches[i];
-				UpdateTouchPositionCache(in touch);
-			}
-
-#if UNITY_EDITOR
-			ProcessMouseFallback(ref activeInputCount);
-#endif
+			_inputCollector.Collect(_touchSource, _calcCamera, ResolveInputMusicTime, OnProcessTouch, ref activeInputCount);
 			Judgment();
 		}
 
@@ -839,46 +814,6 @@ namespace Sekai.Core.Live
 			}
 		}
 
-		private bool ShouldProcessTouch(in LiveTouchSample touch)
-		{
-			return _inputCollector.ShouldProcess(in touch);
-		}
-
-		private void UpdateLastTouch(in LiveTouchSample touch)
-		{
-			_inputCollector.Commit(in touch);
-		}
-
-		private void TouchExecution(in LiveTouchSample touch, ref int activeInputCount)
-		{
-			int touchId = touch.touchId;
-			InputTouchPhase phase = touch.phase;
-			double time = touch.time;
-			if (_inputCollector.IsRepeat(touchId, time))
-			{
-				if (IsEndedOrCanceled(phase) || phase == InputTouchPhase.None)
-				{
-					return;
-				}
-
-				if (phase == InputTouchPhase.Began || phase == InputTouchPhase.Stationary)
-				{
-					phase = InputTouchPhase.Moved;
-				}
-			}
-
-			float musicTime = ResolveInputMusicTime(time);
-			CreateLiveTouch(touchId, musicTime, in touch, out LiveTouch liveTouch, phase);
-			OnProcessTouch(ref liveTouch, ref activeInputCount);
-		}
-
-		private void CreateLiveTouch(int touchId, float musicTime, in LiveTouchSample processTouch, out LiveTouch liveTouch, InputTouchPhase phase)
-		{
-			Vector2 delta = _inputCollector.TakeDelta(in processTouch);
-			int fingerId = processTouch.fingerId;
-			liveTouch = new LiveTouch(fingerId, touchId, delta, processTouch.worldPosition, phase, musicTime);
-		}
-
 		private void OnProcessTouch(ref LiveTouch processTouch, ref int activeInputCount)
 		{
 			float judgmentLane = GetJudgmentLane(processTouch.worldPosition, true);
@@ -895,71 +830,6 @@ namespace Sekai.Core.Live
 			}
 		}
 
-#if UNITY_EDITOR
-		private void ProcessMouseFallback(ref int activeInputCount)
-		{
-			Mouse mouse = Mouse.current;
-			if (mouse == null)
-			{
-				return;
-			}
-
-			InputTouchPhase phase;
-			if (mouse.leftButton.wasPressedThisFrame)
-			{
-				phase = InputTouchPhase.Began;
-			}
-			else if (mouse.leftButton.wasReleasedThisFrame)
-			{
-				phase = InputTouchPhase.Ended;
-			}
-			else if (mouse.leftButton.isPressed)
-			{
-				Vector2 mouseDelta = mouse.delta.ReadValue();
-				phase = mouseDelta.sqrMagnitude > 0f ? InputTouchPhase.Moved : InputTouchPhase.Stationary;
-			}
-			else
-			{
-				return;
-			}
-
-			Vector2 screenPosition = mouse.position.ReadValue();
-			double time = Time.realtimeSinceStartupAsDouble;
-			Vector2 delta = mouse.delta.ReadValue();
-			if (phase == InputTouchPhase.Began)
-			{
-				_inputCollector.Remember(MOUSE_FALLBACK_TOUCH_ID, time, screenPosition);
-				delta = LiveUtility.Vector2Zero;
-			}
-			else if (_inputCollector.TryGetPosition(MOUSE_FALLBACK_TOUCH_ID, out var cachedPosition))
-			{
-				delta = screenPosition - cachedPosition.position;
-			}
-
-			Vector3 screenPoint = new Vector3(screenPosition.x, screenPosition.y, 0f);
-			Vector3 worldPosition = _calcCamera != null
-				? _calcCamera.ScreenToWorldPoint(screenPoint)
-				: new Vector3(screenPosition.x, screenPosition.y, 0f);
-			float musicTime = ResolveInputMusicTime(time);
-			var liveTouch = new LiveTouch(MOUSE_FALLBACK_FINGER_ID, MOUSE_FALLBACK_TOUCH_ID, delta, worldPosition, phase, musicTime);
-			OnProcessTouch(ref liveTouch, ref activeInputCount);
-
-			if (IsEndedOrCanceled(phase))
-			{
-				_inputCollector.Forget(MOUSE_FALLBACK_TOUCH_ID);
-			}
-			else
-			{
-				_inputCollector.Remember(MOUSE_FALLBACK_TOUCH_ID, time, screenPosition);
-				_inputCollector.Commit(MOUSE_FALLBACK_TOUCH_ID, time, phase);
-			}
-		}
-#endif
-
-		private void UpdateTouchPositionCache(in LiveTouchSample touch)
-		{
-			_inputCollector.CachePosition(in touch);
-		}
 
 		private void Judgment()
 		{

@@ -1,6 +1,7 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using Sekai.Live;
 using InputTouchPhase = UnityEngine.InputSystem.TouchPhase;
 
 namespace Sekai.Core.Live
@@ -23,12 +24,149 @@ namespace Sekai.Core.Live
 			_positions = new Dictionary<int, (double time, Vector2 position)>(fingerCapacity);
 		}
 
-		/// <summary>Forgets every finger, for a fresh take of the same song.</summary>
+		/// <summary>
+		/// Forgets every finger, for a fresh take of the same song.
+		/// </summary>
 		public void Reset()
 		{
 			_deduplication.Clear();
 			_positions.Clear();
 		}
+
+		/// <summary>Hands one finished touch to the judging side. It owns what the touch means.</summary>
+		public delegate void TouchSink(ref LiveTouch touch, ref int activeInputCount);
+
+		/// <summary>
+		/// Turns this frame's raw samples into touches: drops the ones that repeat or arrive out of
+		/// order, keeps the newest position per finger, and forwards the rest to <paramref name="sink"/>.
+		/// The editor's mouse is fed through the same path so the two cannot drift apart.
+		/// </summary>
+		public void Collect(
+			ILiveTouchSource source,
+			Camera calcCamera,
+			System.Func<double, float> resolveMusicTime,
+			TouchSink sink,
+			ref int activeInputCount)
+		{
+			// Read indexed samples directly; no per-frame array or collection copy.
+			int touchCount = source.Count;
+
+			for (int i = 0; i < touchCount; i++)
+			{
+				LiveTouchSample touch = source[i];
+				if (ShouldProcess(in touch))
+				{
+					TouchExecution(in touch, resolveMusicTime, sink, ref activeInputCount);
+					Commit(in touch);
+				}
+			}
+
+			for (int i = 0; i < touchCount; i++)
+			{
+				LiveTouchSample touch = source[i];
+				CachePosition(in touch);
+			}
+
+#if UNITY_EDITOR
+			ProcessMouseFallback(calcCamera, resolveMusicTime, sink, ref activeInputCount);
+#endif
+		}
+
+		private void TouchExecution(
+			in LiveTouchSample touch,
+			System.Func<double, float> resolveMusicTime,
+			TouchSink sink,
+			ref int activeInputCount)
+		{
+			int touchId = touch.touchId;
+			InputTouchPhase phase = touch.phase;
+			double time = touch.time;
+			if (IsRepeat(touchId, time))
+			{
+				if (IsEndedOrCanceled(phase) || phase == InputTouchPhase.None)
+				{
+					return;
+				}
+
+				if (phase == InputTouchPhase.Began || phase == InputTouchPhase.Stationary)
+				{
+					phase = InputTouchPhase.Moved;
+				}
+			}
+
+			float musicTime = resolveMusicTime(time);
+			Vector2 delta = TakeDelta(in touch);
+			var liveTouch = new LiveTouch(touch.fingerId, touchId, delta, touch.worldPosition, phase, musicTime);
+			sink(ref liveTouch, ref activeInputCount);
+		}
+
+#if UNITY_EDITOR
+		private const int MouseFallbackTouchId = -1;
+		private const int MouseFallbackFingerId = 0;
+
+		private void ProcessMouseFallback(
+			Camera calcCamera,
+			System.Func<double, float> resolveMusicTime,
+			TouchSink sink,
+			ref int activeInputCount)
+		{
+			Mouse mouse = Mouse.current;
+			if (mouse == null)
+			{
+				return;
+			}
+
+			InputTouchPhase phase;
+			if (mouse.leftButton.wasPressedThisFrame)
+			{
+				phase = InputTouchPhase.Began;
+			}
+			else if (mouse.leftButton.wasReleasedThisFrame)
+			{
+				phase = InputTouchPhase.Ended;
+			}
+			else if (mouse.leftButton.isPressed)
+			{
+				Vector2 mouseDelta = mouse.delta.ReadValue();
+				phase = mouseDelta.sqrMagnitude > 0f ? InputTouchPhase.Moved : InputTouchPhase.Stationary;
+			}
+			else
+			{
+				return;
+			}
+
+			Vector2 screenPosition = mouse.position.ReadValue();
+			double time = Time.realtimeSinceStartupAsDouble;
+			Vector2 delta = mouse.delta.ReadValue();
+			if (phase == InputTouchPhase.Began)
+			{
+				Remember(MouseFallbackTouchId, time, screenPosition);
+				delta = LiveUtility.Vector2Zero;
+			}
+			else if (TryGetPosition(MouseFallbackTouchId, out var cachedPosition))
+			{
+				delta = screenPosition - cachedPosition.position;
+			}
+
+			Vector3 screenPoint = new Vector3(screenPosition.x, screenPosition.y, 0f);
+			Vector3 worldPosition = calcCamera != null
+				? calcCamera.ScreenToWorldPoint(screenPoint)
+				: new Vector3(screenPosition.x, screenPosition.y, 0f);
+			float musicTime = resolveMusicTime(time);
+			var liveTouch = new LiveTouch(MouseFallbackFingerId, MouseFallbackTouchId, delta, worldPosition, phase, musicTime);
+			sink(ref liveTouch, ref activeInputCount);
+
+			if (IsEndedOrCanceled(phase))
+			{
+				Forget(MouseFallbackTouchId);
+			}
+			else
+			{
+				Remember(MouseFallbackTouchId, time, screenPosition);
+				Commit(MouseFallbackTouchId, time, phase);
+			}
+		}
+#endif
 
 		/// <summary>Seeds the seen-samples table from the fingers already down when the take starts.</summary>
 		public void Seed(ILiveTouchSource source)
