@@ -84,7 +84,7 @@ namespace Sekai.Core.Live
 		private NoteBase[] _noteArray = Array.Empty<NoteBase>();
 		private NoteBase[] _highSpeedNoteArray = Array.Empty<NoteBase>();
 		private EventBase[] _eventArray = Array.Empty<EventBase>();
-		private int _eventStartIndex;
+		private readonly LiveTimeline _timeline = new LiveTimeline();
 		private readonly List<NoteBase> _judgmentNoteList;
 		private readonly InputTmp[] _inputTmpArray;
 		private readonly List<InputTmp> _activeInputList;
@@ -235,7 +235,7 @@ namespace Sekai.Core.Live
 		{
 			noteStartIndex = 0;
 			highSpeedNoteStartIndex = 0;
-			_eventStartIndex = 0;
+			_timeline.Reset();
 			result = 0;
 			TapCount = 0;
 			_tailKeyViews.Clear();
@@ -248,15 +248,15 @@ namespace Sekai.Core.Live
 		{
 			if (result > 2)
 			{
-				_musicScore?.Update(scoreInfoTime);
-				currentFrameInfo = MusicScore.CurrentFrameInfo;
+				_timeline.Update(_musicScore, scoreInfoTime, currentGameTime);
+				currentFrameInfo = _timeline.Frame;
 				TickTailKeyViews();
 				TickRetiringViews(currentFrameInfo);
 				return;
 			}
 
-			_musicScore?.Update(scoreInfoTime);
-			currentFrameInfo = MusicScore.CurrentFrameInfo;
+			_timeline.Update(_musicScore, scoreInfoTime, currentGameTime);
+			currentFrameInfo = _timeline.Frame;
 			this.currentGameTime = currentGameTime;
 
 			UpdateSeVolume();
@@ -303,39 +303,7 @@ namespace Sekai.Core.Live
 
 		public void OnAutoInput()
 		{
-			int index = noteStartIndex;
-			while (index < _noteArray.Length)
-			{
-				NoteBase note = _noteArray[index];
-				if (note == null || note.State == NoteState.Done)
-				{
-					index++;
-					continue;
-				}
-				if (note.MusicScoreInfo.time > currentFrameInfo.time)
-				{
-					break;
-				}
-				note.AutoJudgment(currentFrameInfo);
-				index++;
-			}
-
-			int highSpeedIndex = highSpeedNoteStartIndex;
-			while (highSpeedIndex < _highSpeedNoteArray.Length)
-			{
-				NoteBase note = _highSpeedNoteArray[highSpeedIndex];
-				if (note == null || note.State == NoteState.Done)
-				{
-					highSpeedIndex++;
-					continue;
-				}
-				if (note.MusicScoreInfo.time > currentFrameInfo.time)
-				{
-					break;
-				}
-				note.AutoJudgment(currentFrameInfo);
-				highSpeedIndex++;
-			}
+			_timeline.AdvanceAutoJudgment(_noteArray, ref _noteStartIndex, _highSpeedNoteArray, ref _highSpeedNoteStartIndex);
 		}
 
 		public void OnInput()
@@ -388,26 +356,7 @@ namespace Sekai.Core.Live
 
 		private void UpdateEvent()
 		{
-			while (_eventStartIndex < _eventArray.Length)
-			{
-				EventBase eventBase = _eventArray[_eventStartIndex];
-				if (eventBase == null || eventBase.State == EventState.Done)
-				{
-					_eventStartIndex++;
-					continue;
-				}
-
-				if (eventBase.MusicScoreInfo.time > currentFrameInfo.time)
-				{
-					return;
-				}
-
-				eventBase.Update(currentFrameInfo, ExecuteEvent);
-				if (eventBase.State == EventState.Done)
-				{
-					_eventStartIndex++;
-				}
-			}
+			_timeline.AdvanceEvents(_eventArray, ExecuteEvent);
 		}
 
 		private void UpdateSkill()
