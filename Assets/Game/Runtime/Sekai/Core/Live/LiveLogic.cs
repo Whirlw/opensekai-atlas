@@ -366,117 +366,71 @@ namespace Sekai.Core.Live
 
 		private void UpdateNote()
 		{
-			for (int i = noteStartIndex; i < _notes.Notes.Length; i++)
+			_notes.WalkNotes(ScanNote);
+			_notes.WalkHighSpeedNotes(ScanHighSpeedNote);
+		}
+
+		/// <summary>
+		/// One normal note on its display frame. Returns <see cref="LiveNoteSession.Scan.Stop"/> once the
+		/// array has reached notes that are still too far ahead, which ends the walk for this frame.
+		/// </summary>
+		private LiveNoteSession.Scan ScanNote(NoteBase note)
+		{
+			if (!Mathf.Approximately(note.speedRatio, 1f))
 			{
-				NoteBase note = _notes.Notes[i];
-				if (note == null)
-				{
-					if (i == noteStartIndex)
-					{
-						noteStartIndex++;
-					}
-					continue;
-				}
-
-				if (note.State == NoteState.Done)
-				{
-					if (i == noteStartIndex)
-					{
-						noteStartIndex++;
-					}
-					continue;
-				}
-
-				// Decoration notes need to be processed after Excute to check OffsetJudgeTime
-				// Skip early decoration check here - will be handled after Excute
-
-				if (!Mathf.Approximately(note.speedRatio, 1f))
-				{
-					if (i == noteStartIndex)
-					{
-						noteStartIndex++;
-					}
-					continue;
-				}
-
-				float offsetTime = CalcTimeOffset(note);
-				if (IsTooFarAheadForDisplayHighSpeed(offsetTime, note))
-				{
-					break;
-				}
-				if (offsetTime < 0f && currentFrameInfo.time >= note.MusicScoreInfo.time)
-				{
-					offsetTime = -offsetTime;
-				}
-				note.Excute(currentFrameInfo, offsetTime);
-				
-				// Handle decoration notes: auto-judge at precise judgment time (like autoplay)
-				// For long notes, trigger at both start and end times
-				if (note.IsDecoration && note.State != NoteState.Done && ShouldTriggerDecorationJudgment(note))
-				{
-					DecorationJudgment(note);
-				}
-				
-				if (note.State == NoteState.Done && i == noteStartIndex)
-				{
-					noteStartIndex++;
-				}
-				else if (note.State != NoteState.Done && (!note.IsDecoration || PlayableTailOf(note)))
-				{
-					UpdateJudgmentNoteArray(note);
-				}
+				return LiveNoteSession.Scan.Skip;
 			}
 
-			for (int i = highSpeedNoteStartIndex; i < _notes.HighSpeedNotes.Length; i++)
+			float offsetTime = CalcTimeOffset(note);
+			if (IsTooFarAheadForDisplayHighSpeed(offsetTime, note))
 			{
-				NoteBase note = _notes.HighSpeedNotes[i];
-				if (note == null)
-				{
-					if (i == highSpeedNoteStartIndex)
-					{
-						highSpeedNoteStartIndex++;
-					}
-					continue;
-				}
-
-				if (note.State == NoteState.Done)
-				{
-					if (i == highSpeedNoteStartIndex)
-					{
-						highSpeedNoteStartIndex++;
-					}
-					continue;
-				}
-
-				// Decoration notes need to be processed after Excute to check OffsetJudgeTime
-				// Skip early decoration check here - will be handled after Excute
-
-				float offsetTime = currentFrameInfo.time >= note.MusicScoreInfo.time
-					? _noteDisplayTimeOffset
-					: CalcTimeOffset(note);
-				if (IsTooFarAheadForDisplay(offsetTime, note))
-				{
-					break;
-				}
-
-				note.Excute(currentFrameInfo, offsetTime);
-				
-				// Handle decoration notes: auto-judge at precise judgment time (like autoplay)
-				// For long notes, trigger at both start and end times
-				if (note.IsDecoration && note.State != NoteState.Done && ShouldTriggerDecorationJudgment(note))
-				{
-					DecorationJudgment(note);
-				}
-				
-				if (note.State == NoteState.Done && i == highSpeedNoteStartIndex)
-				{
-					highSpeedNoteStartIndex++;
-				}
-				else if (note.State != NoteState.Done && (!note.IsDecoration || PlayableTailOf(note)))
-				{
-					UpdateJudgmentNoteArray(note);
-				}
+				return LiveNoteSession.Scan.Stop;
 			}
+			if (offsetTime < 0f && currentFrameInfo.time >= note.MusicScoreInfo.time)
+			{
+				offsetTime = -offsetTime;
+			}
+
+			note.Excute(currentFrameInfo, offsetTime);
+
+			// Decoration notes need to be processed after Excute to check OffsetJudgeTime
+			if (note.IsDecoration && note.State != NoteState.Done && ShouldTriggerDecorationJudgment(note))
+			{
+				DecorationJudgment(note);
+			}
+
+			if (note.State != NoteState.Done && (!note.IsDecoration || PlayableTailOf(note)))
+			{
+				UpdateJudgmentNoteArray(note);
+			}
+
+			return LiveNoteSession.Scan.Handle;
+		}
+
+		/// <summary>One high speed note: same shape, its own display lead.</summary>
+		private LiveNoteSession.Scan ScanHighSpeedNote(NoteBase note)
+		{
+			float offsetTime = currentFrameInfo.time >= note.MusicScoreInfo.time
+				? _noteDisplayTimeOffset
+				: CalcTimeOffset(note);
+			if (IsTooFarAheadForDisplay(offsetTime, note))
+			{
+				return LiveNoteSession.Scan.Stop;
+			}
+
+			note.Excute(currentFrameInfo, offsetTime);
+
+			if (note.IsDecoration && note.State != NoteState.Done && ShouldTriggerDecorationJudgment(note))
+			{
+				DecorationJudgment(note);
+			}
+
+			if (note.State != NoteState.Done && (!note.IsDecoration || PlayableTailOf(note)))
+			{
+				UpdateJudgmentNoteArray(note);
+			}
+
+			return LiveNoteSession.Scan.Handle;
 		}
 
 		private bool ShouldTriggerDecorationJudgment(NoteBase note)
@@ -600,18 +554,6 @@ namespace Sekai.Core.Live
 			}
 		}
 
-		private void AdvanceFinishedNotes()
-		{
-			while (noteStartIndex < _notes.Notes.Length)
-			{
-				NoteBase note = _notes.Notes[noteStartIndex];
-				if (note != null && note.State != NoteState.Done)
-				{
-					return;
-				}
-				noteStartIndex++;
-			}
-		}
 
 		private bool IsTooFarAheadForDisplayHighSpeed(float timeOffset, NoteBase note)
 		{
