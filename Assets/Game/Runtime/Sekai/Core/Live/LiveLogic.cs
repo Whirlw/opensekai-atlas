@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Sekai.Live;
@@ -87,7 +87,7 @@ namespace Sekai.Core.Live
 		private NoteBase[] _highSpeedNoteArray = Array.Empty<NoteBase>();
 		private EventBase[] _eventArray = Array.Empty<EventBase>();
 		private int _eventStartIndex;
-		private readonly Dictionary<int, (double time, InputTouchPhase phase)> lastTouches;
+		private readonly TouchDeduplication _touchDeduplication;
 		private readonly List<NoteBase> _judgmentNoteList;
 		private readonly InputTmp[] _inputTmpArray;
 		private readonly List<InputTmp> _activeInputList;
@@ -162,7 +162,7 @@ namespace Sekai.Core.Live
 			_touchSource = _deviceTouchSource;
 			NativeInput.Enable();
 			int fingerCapacity = Mathf.Max(NativeInput.Fingers.Count, MAX_FINGER_COUNT);
-			lastTouches = new Dictionary<int, (double time, InputTouchPhase phase)>(fingerCapacity);
+			_touchDeduplication = new TouchDeduplication(fingerCapacity);
 			_judgmentNoteList = new List<NoteBase>();
 			_inputTmpArray = new InputTmp[INPUT_TMP_COUNT];
 			for (int i = 0; i < _inputTmpArray.Length; i++)
@@ -230,7 +230,7 @@ namespace Sekai.Core.Live
 			}
 
 			NativeInput.Enable();
-			lastTouches.Clear();
+			_touchDeduplication.Clear();
 			_activeInputList.Clear();
 			touchPositionList.Clear();
 			InputedNormalNoteTouch.Clear();
@@ -238,7 +238,7 @@ namespace Sekai.Core.Live
 			for (int i = 0; i < activeTouches.Count; i++)
 			{
 				LiveTouchSample touch = activeTouches[i];
-				lastTouches[touch.touchId] = (touch.time, touch.phase);
+				_touchDeduplication.Commit(touch.touchId, touch.time, touch.phase);
 			}
 		}
 
@@ -850,22 +850,12 @@ namespace Sekai.Core.Live
 
 		private bool ShouldProcessTouch(in LiveTouchSample touch)
 		{
-			if (!lastTouches.TryGetValue(touch.touchId, out var lastTouch))
-			{
-				return true;
-			}
-
-			if (touch.time < lastTouch.time)
-			{
-				return false;
-			}
-
-			return lastTouch.phase != InputTouchPhase.Ended;
+			return _touchDeduplication.ShouldProcess(in touch);
 		}
 
 		private void UpdateLastTouch(in LiveTouchSample touch)
 		{
-			lastTouches[touch.touchId] = (touch.time, touch.phase);
+			_touchDeduplication.Commit(in touch);
 		}
 
 		private void TouchExecution(in LiveTouchSample touch, ref int activeInputCount)
@@ -873,8 +863,7 @@ namespace Sekai.Core.Live
 			int touchId = touch.touchId;
 			InputTouchPhase phase = touch.phase;
 			double time = touch.time;
-			if (lastTouches.TryGetValue(touchId, out var lastTouch)
-				&& time.Equals(lastTouch.time))
+			if (_touchDeduplication.IsRepeat(touchId, time))
 			{
 				if (IsEndedOrCanceled(phase) || phase == InputTouchPhase.None)
 				{
@@ -987,12 +976,12 @@ namespace Sekai.Core.Live
 			if (IsEndedOrCanceled(phase))
 			{
 				touchPositionList.Remove(MOUSE_FALLBACK_TOUCH_ID);
-				lastTouches.Remove(MOUSE_FALLBACK_TOUCH_ID);
+				_touchDeduplication.Forget(MOUSE_FALLBACK_TOUCH_ID);
 			}
 			else
 			{
 				touchPositionList[MOUSE_FALLBACK_TOUCH_ID] = (time, screenPosition);
-				lastTouches[MOUSE_FALLBACK_TOUCH_ID] = (time, phase);
+				_touchDeduplication.Commit(MOUSE_FALLBACK_TOUCH_ID, time, phase);
 			}
 		}
 #endif
