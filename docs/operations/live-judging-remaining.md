@@ -182,10 +182,17 @@
 | 独立通道（`DriveIndependentNotes`） | 摩擦、隐藏、连接、尾键等 | 每帧每音一条，不占名额、可重复；条体由 owner 或最近车道手指驱动 |
 | 中间点（`JudgeDueComboPoints`） | `LongHoldCombo` | 不占名额、不重复；判据 = 窗口内条体出现过按住/`Last` + 有手指在该点车道内 |
 
-### 仍未完成
+### 真机验收（2026-11-10 通过）
 
-- **真机三谱验收**（普通 / 长条密集 BOF / 变速）：A、B、C 改的都是手感与速度，编辑器测试覆盖不到。清单见 [device-acceptance-checklist](device-acceptance-checklist.md)。
-- 装机包：`Builds/judging-abc-2026-11-10/OpenSekaiAtlas.apk`。
+装机包 `Builds/judging-abc-2026-11-10/OpenSekaiAtlas.apk`（79.59 MB，17:53:53），设备 `3B164A00Y5600000`，启动 pid 20694。
+
+| 谱面 | 关注点 | 结果 |
+| --- | --- | --- |
+| 普通谱 | 普通键 / 普通划键 / 普通长条头尾无回归 | 通过（「手感正常」） |
+| 长条密集 BOF | 重叠摩擦条各涨各的；按住长条时另一指按普通键两者都判 | 通过（同上） |
+| 变速谱 | 段内音符疏密与落点（`NoteSpeedRatio` 修复项） | 通过（「变速正常」） |
+
+结论：A、B、C 三项在本包上真机通过；`Unity:E` 仅剩既有的 `AssetPackManager` NotClassFound（Play Asset Delivery 未接，无关）。
 
 ### 附注：任务 A 首轮为何不是「测试没设 touch id」
 
