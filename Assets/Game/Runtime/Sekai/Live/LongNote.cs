@@ -287,16 +287,20 @@ namespace Sekai.Live
 				State = NoteState.Playing;
 			}
 
-			// A bar whose head is hidden carries no note the player can answer: pressing it changes
-			// nothing, and letting it pass must change nothing either. Publishing the usual Miss here
-			// is what took life away for a note the chart never asked to be played.
-			if (State == NoteState.Last && HasJudgment)
+			// Every bar leaves Last the same way: it greys out, because its head is gone. What
+			// differs is only whether there is a head to have missed — a hidden head was never a
+			// note the player could answer, so it stays silent instead of costing life and combo.
+			if (State == NoteState.Last)
 			{
-				JudgeInfo = (NoteResult.Miss, NoteResultDescription.None);
 				State = NoteState.Release;
-				onDamage?.Invoke(this);
-				onUpdateCombo?.Invoke(this);
-				onJudgment?.Invoke(this);
+
+				if (PublishesHeadMiss)
+				{
+					JudgeInfo = (NoteResult.Miss, NoteResultDescription.None);
+					onDamage?.Invoke(this);
+					onUpdateCombo?.Invoke(this);
+					onJudgment?.Invoke(this);
+				}
 			}
 
 			Progress = CalcProgress(currentFrameInfo, offsetTime);
@@ -357,11 +361,7 @@ namespace Sekai.Live
 
 			if (State == NoteState.Playing && currentFrameInfo.time - MusicScoreInfo.time > LiveConfig.JudgeTime)
 			{
-				// A bar with no head to answer has nothing to miss, so it does not wait on the
-				// judgement line: it greys out like a released bar and lets its tail finish it.
-				// Leaving it in Last kept the body at full brightness until the tail time and,
-				// because only a held bar is refreshed, it never got there at all.
-				State = HasJudgment ? NoteState.Last : NoteState.Release;
+				State = NoteState.Last;
 			}
 
 			// Decoration notes: skip input frame check to prevent being marked as Release.
@@ -612,6 +612,13 @@ namespace Sekai.Live
 		/// ends silently: no tail result, no combo, and letting go of it early changes nothing.
 		/// </summary>
 	internal bool EndsWithoutJudgement => SkipsTailJudgement || (_lastBoundNote != null && !IsTailCandidate(_lastBoundNote));
+
+	/// <summary>
+	/// True when the head is a note the player was asked to play. Bars all travel the same states,
+	/// but only one with an answerable head has a result to publish when that head goes by; a hidden
+	/// head stays silent, the way every other hidden note in the chart does.
+	/// </summary>
+	internal bool PublishesHeadMiss => HasJudgment;
 
 	/// <summary>Finishes the bar with no result at all, once its last note has gone by.</summary>
 	internal bool CanFinishSilently(float currentTime)
