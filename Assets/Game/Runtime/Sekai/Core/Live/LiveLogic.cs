@@ -193,7 +193,7 @@ namespace Sekai.Core.Live
 			_eventArray = SortEvents(_musicScore.EventArray);
 			BindNoteCallbacks(_notes.Notes);
 			BindEventCallbacks(_eventArray);
-			LiveViewExt.CreateNotePool(_liveViews, LiveUtility.CalculateMaxSimultaneousNotes(_musicScore, _noteDisplayTimeOffset));
+			_presentation.CreatePool(_liveViews, LiveUtility.CalculateMaxSimultaneousNotes(_musicScore, _noteDisplayTimeOffset));
 			_calcCamera = CameraUtility.GetFrontCamera();
 			if (_calcCamera == null)
 			{
@@ -214,7 +214,7 @@ namespace Sekai.Core.Live
 		{
 			scoreLogic = logic;
 			scoreLogic?.Setup(_bootData, _musicScore);
-			LiveViewExt.SetupScore(_liveViews, scoreLogic?.Score ?? default);
+			_presentation.SetupScore(_liveViews, scoreLogic?.Score ?? default);
 		}
 
 		public void RefreshInput()
@@ -485,9 +485,9 @@ namespace Sekai.Core.Live
 			// Set JudgeInfo to Perfect for effect playback (TapEffectView checks Result)
 			note.SetJudgeInfoForDecoration(NoteResult.JustPerfect);
 			// For normal notes: play effect and remove
-			LiveViewExt.JudgmentNote(_liveViews, note);
+			_presentation.Judged(_liveViews, note);
 			note.SetStateUnnotice(NoteState.Done);
-			LiveViewExt.UnspawnNote(_liveViews, note);
+			_presentation.Unspawn(_liveViews, note);
 		}
 
 		private void DecorationLongNoteJudgment(LongNote longNote)
@@ -511,7 +511,7 @@ namespace Sekai.Core.Live
 				// Set JudgeInfo to Perfect for effect playback (TapEffectView checks Result)
 				longNote.SetJudgeInfoForDecoration(NoteResult.JustPerfect);
 				// Play head judgment effect (tap effect and SE)
-				LiveViewExt.JudgmentNote(_liveViews, longNote);
+				_presentation.Judged(_liveViews, longNote);
 				// Set state to InputBegan to simulate holding (without actual input)
 				longNote.SetStateUnnotice(NoteState.InputBegan);
 			}
@@ -549,7 +549,7 @@ namespace Sekai.Core.Live
 				// The bar ends here; the key at its end is only a decoration and nobody played it, so
 				// no tap effect and no hit sound: the bar must never speak for the player.
 				longNote.SetStateUnnotice(NoteState.Done);
-				LiveViewExt.UnspawnNote(_liveViews, longNote);
+				_presentation.Unspawn(_liveViews, longNote);
 			}
 		}
 
@@ -714,7 +714,7 @@ namespace Sekai.Core.Live
 
 				if (!used && input.Lane >= 0f)
 				{
-					LiveViewExt.Unpicked(_liveViews, Mathf.RoundToInt(input.Lane), ref input.Touch);
+					_presentation.Unpicked(_liveViews, Mathf.RoundToInt(input.Lane), ref input.Touch);
 				}
 
 				if (IsEndedOrCanceled(input.Touch.phase))
@@ -857,26 +857,25 @@ namespace Sekai.Core.Live
 				return;
 			}
 
-			LiveViewExt.JudgmentNote(_liveViews, note);
+			_presentation.Judged(_liveViews, note);
 		}
 
 		private void OnUpdateCombo(NoteBase note)
 		{
 			scoreLogic?.UpdateCombo(note);
-			LiveViewExt.UpdateCombo(_liveViews, scoreLogic?.Score ?? default);
+			_presentation.UpdateCombo(_liveViews, scoreLogic?.Score ?? default);
 		}
 
 		private void OnUpdateScore(NoteBase note)
 		{
 			int addScore = scoreLogic?.CalculateAddScore(note, skillLogic?.ScoreFactor(note) ?? 1f) ?? 0;
-			LiveScore score = scoreLogic?.Score ?? default;
-			LiveViewExt.UpdateScore(_liveViews, ref score, addScore);
+			_presentation.UpdateScore(_liveViews, scoreLogic?.Score ?? default, addScore);
 		}
 
 		private void OnDamage(NoteBase note)
 		{
 			scoreLogic?.Damage(note);
-			LiveViewExt.UpdateLife(_liveViews, scoreLogic?.Score ?? default);
+			_presentation.UpdateLife(_liveViews, scoreLogic?.Score ?? default);
 		}
 
 		private (NoteResult result, NoteResultDescription description) OnUpdateResult((NoteResult result, NoteResultDescription description) result)

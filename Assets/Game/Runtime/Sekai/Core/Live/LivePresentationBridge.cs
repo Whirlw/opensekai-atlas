@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using OpenSekai.Shared.Live;
 using Sekai.Live;
 
@@ -59,6 +59,52 @@ namespace Sekai.Core.Live
 			}
 
 			LiveViewExt.UnspawnNote(views, note);
+		}
+
+		/// <summary>Hands the views the pool sizes the score needs before the first note spawns.</summary>
+		public void CreatePool(LiveViewBase[] views, Dictionary<(NoteCategory, NoteType), int> notePoolCount)
+		{
+			LiveViewExt.CreateNotePool(views, notePoolCount);
+		}
+
+		/// <summary>The bar of the score bar and rank plate start empty.</summary>
+		public void SetupScore(LiveViewBase[] views, LiveScore score)
+		{
+			LiveViewExt.SetupScore(views, score);
+		}
+
+		/// <summary>A note was graded; its view plays the judgement effect.</summary>
+		public void Judged(LiveViewBase[] views, NoteBase note)
+		{
+			if (note == null)
+			{
+				return;
+			}
+
+			LiveViewExt.JudgmentNote(views, note);
+		}
+
+		/// <summary>A finger touched the lane without picking any note up.</summary>
+		public void Unpicked(LiveViewBase[] views, int lane, ref LiveTouch touch)
+		{
+			LiveViewExt.Unpicked(views, lane, ref touch);
+		}
+
+		public void UpdateCombo(LiveViewBase[] views, LiveScore score)
+		{
+			LiveViewExt.UpdateCombo(views, score);
+		}
+
+		/// <summary>The score went up by <paramref name="addScore"/>; the counter animates the delta.</summary>
+		public void UpdateScore(LiveViewBase[] views, LiveScore score, int addScore)
+		{
+			LiveViewExt.UpdateScore(views, ref score, addScore);
+		}
+
+		/// <summary>Life moved; the gauge animates to the new value.</summary>
+		public void UpdateLife(LiveViewBase[] views, LiveScore score)
+		{
+			LiveViewExt.UpdateLife(views, score);
 		}
 
 		/// <summary>
