@@ -238,3 +238,69 @@ private static void Stage(LiveLogic logic, string name) =>
 1. `Last` 的 3 帧宽限改成时间比较（16.7 ms × 3 ≈ 50 ms），现在按帧计数
 2. 长条状态收敛（`HasFinger` 已加在 `LongNote.cs:518`，读方切换与写入点清理尚未做，见第八节）
 3. 非 4/4 小节与变速段的中间点生成核对（见 9.5）
+
+## 十一、长条状态机对齐：四轮尝试后的执行顺序（2026-11-10）
+
+### 11.1 四轮的净结果（不要再重复）
+
+| 轮次 | 做法 | 结果 |
+| --- | --- | --- |
+| 1 | 按规格对齐（丢手进 `Last`、`Last` 显灰） | 5 红 → 回退 |
+| 2 | 方案 B：去掉 `IsHoldFresh` 的时间容差，宽限只留 `Last` 3 帧 | 6 红 → 回退 |
+| 3 | B + 摩擦条的 `Last` 出口 | 编辑损坏未编译 → 回退 |
+| 4 | B + 摩擦条 + `RestoreHeldState` | 行号手术把括号改坏 → 回退 |
+
+基线始终是 `main = 65e18ba`，全量 `506 / 502 通过 / 4 跳过`。
+
+### 11.2 真正卡住的地方：测试契约先于实现
+
+失败集中在 6 条，它们钉的是**旧语义**：
+
+| 测试 | 旧契约 | 新语义 |
+| --- | --- | --- |
+| `AHoldSurvivesThreeFramesWithoutAFingerAndDiesOnTheFourth` | 3 次 `Refresh` + 1 次 `Excute` 同帧到 `Release` | 到 `Release` 需要第 4 次 `Excute`（3 帧在 `Last` 里数） |
+| `IsHeld_follows_the_finger_not_the_state` | `IsHeld` 忽略状态、会因过期变假 | `IsHeld == HasFinger`，只看触摸 id |
+| `ContinuousInputKeepsBothMovingHoldsThroughOverlap(FrictionLong/FrictionHideLong)` ×4 | 摩擦条不会进 `Last` | 进 `Last` 后必须能被回来的手拉回 `Input` |
+
+**顺序：先改这 6 条（或新增 3 条新契约测试并让它们红），再改实现。** 反过来做，每轮都会因为旧断言变红而只能回退。
+
+### 11.3 先写这 3 条新测试（预期先红）
+
+文件名建议 `Assets/Tests/EditMode/Live/LongNoteGraceTests.cs`，复用 `LongHoldPipelineTests` 的 `Info(float)` / `Input(int,float)` / `Field<T>` / `Stage` 脚手架。
+
+1. `ALostFingerGreysTheBarAndReleasesThreeFramesLater`
+   `HeldNote`（State=`Input`，无手指在道内）→ 第 1 次 `Excute` 后断言 `State == Last`（灰）→ 继续 3 次后断言 `State == Release`
+2. `AFingerReturningInsideTheGraceTakesTheBarBack`
+   同上先到 `Last` → 注入 `Input(finger, 4.5f)` 调 `Stage(logic,"RefreshSustainedHolds")` → 断言 `State == InputBegan || State == Input`
+3. `HasFingerFollowsTheTouchIdOnly`
+   构造按住态 → `HasFinger` 真且 `IsHeld(0f)` 真；清空 `HoldingTouchId` → 两者俱假（不管 `State`）
+
+### 11.4 再改实现（4 处，一次做完）
+
+`Assets/Game/Runtime/Sekai/Live/LongNote.cs`
+
+| 位置（约） | 改成 |
+| --- | --- |
+| `:390` `bool covered = IsHoldFresh(...)` | `bool covered = HasFinger;` |
+| `:434` `else if (!IsDecoration && !IsHoldFresh(...)) { Release }` | `else if (!IsDecoration) { Last; _framesInLast = 0 }` |
+| `:527` `IsHeld(time)` 函数体 | `return HasFinger;` |
+| `:1378` `RestoreHeldState()` 条件 | `State == Release \|\| State == Last` |
+
+`Assets/Game/Runtime/Sekai/Live/FrictionLongNote.cs`
+
+| 位置 | 改成 |
+| --- | --- |
+| `:66` `if (State == Release \|\| State == InputBegan)` | 追加 `\|\| State == Last` |
+
+四处合起来才构成「宽限只有一条（`Last` 3 帧）+ 五条转换」。少任何一处都会出现：进 `Last` 没有出口（摩擦条那 4 条）、或 `Release` 早一帧（`AHoldSurvives…`）。
+
+### 11.5 编辑方法（这轮踩的坑）
+
+- **不要用行号替换**：`LongNote.cs` 有 1500 行、制表符缩进、中文注释，行号会连续偏移；这轮因此三次损坏括号。
+- 用**带锚点的整段替换**（锚点取函数签名或唯一注释），改完立刻 `git diff --stat` 看差异行数；一次改动应在个位行，超出就是锚点错了。
+- 保存必须 `Set-Content -Encoding UTF8 -NoNewline` + `-join "\`r\`n"`；用 `Get-Content` 数组直接 `-NoNewline` 会把整个文件压成一行。
+- 编译校验：`dotnet.exe` + `csc.dll`（Unity 自带 SDK）+ 最新 `Library\Bee\artifacts\**\OpenSekai.Game.rsp`；注意删过文件后 rsp 会过期，需先 `AssetDatabase.Refresh`。
+
+### 11.6 门禁
+
+`LongHoldPipelineTests` → `LiveLogicInputTests` → 全量（基线 506 / 502 / 4）→ 装机验：普通谱、BOF 长条密集谱、变速谱各一首，看长条丢手后是否「先灰、3 帧后消失」，以及摩擦条手指回来能否续上。
