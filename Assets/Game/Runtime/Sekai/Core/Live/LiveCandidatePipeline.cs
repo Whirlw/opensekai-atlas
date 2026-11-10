@@ -237,7 +237,7 @@ namespace Sekai.Core.Live
 		private static bool IsHeld(NoteBase note)
 		{
 			return note is LongNote longNote
-				&& (longNote.State == NoteState.InputBegan || longNote.State == NoteState.Input);
+				&& longNote.HasFinger;
 		}
 
 		/// <summary>
@@ -497,8 +497,8 @@ namespace Sekai.Core.Live
 				LiveLogic.InputTmp owner = inputs[i];
 				if (owner.Touch.fingerId != held.HoldingTouchId || LiveLogic.IsEndedOrCanceled(owner.Touch.phase)) continue;
 				float lane = laneOf(ref note, ref owner);
-				if (ShouldReserveHold(held.HoldingTouchId, input.Touch.fingerId, held.State,
-					lane >= 0f && held.IsJudgment(ref owner.Touch, lane))) return true;
+				if (held.HasFinger && held.State != NoteState.Done
+					&& lane >= 0f && held.IsJudgment(ref owner.Touch, lane)) return true;
 			}
 
 			// Only an ordinary head belongs to the finger that took it, and only until it is

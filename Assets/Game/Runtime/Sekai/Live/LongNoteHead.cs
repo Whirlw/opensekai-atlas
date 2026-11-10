@@ -76,14 +76,10 @@ namespace Sekai.Live
 			{
 				var judgeInfo = LiveConfig.CalculateLongStartNoteResult(_bar, touch.musicTime);
 				Settle(_bar.HeadResultUpdater != null ? _bar.HeadResultUpdater(judgeInfo) : judgeInfo);
-				_bar.SetHeadJudgmentState(NoteState.InputBegan);
-			}
-			else
-			{
-				_bar.SetHeadJudgmentState(_bar.State == NoteState.Release ? NoteState.InputBegan : NoteState.Input);
 			}
 
 			_bar.RecordHoldingInput(touch.fingerId, touch.musicTime);
+			_bar.RestoreHeldState();
 			_bar.MarkHeadTouched();
 			_bar.MarkPressedThisFrame();
 			if (LiveTrace.IsOn(LiveTraceCategory.Hold))
@@ -115,7 +111,7 @@ namespace Sekai.Live
 
 		internal void ConnectionNoteJudgment(ref LiveTouch touch, float lane)
 		{
-			if (_bar.State != NoteState.InputBegan && _bar.State != NoteState.Input && _bar.State != NoteState.Release)
+			if (!_bar.HasFinger && _bar.State != NoteState.Last && _bar.State != NoteState.Release)
 			{
 				return;
 			}

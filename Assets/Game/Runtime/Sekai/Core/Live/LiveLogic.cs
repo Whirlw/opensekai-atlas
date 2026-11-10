@@ -506,18 +506,16 @@ namespace Sekai.Core.Live
 			bool isAtStart = currentFrameInfo.time >= longNote.MusicScoreInfo.time && longNote.State == NoteState.Scrolling;
 
 			// At start: play head effect, but keep the long note showing (don't mark as Done)
-			if (isAtStart && !isAtEnd && longNote.State != NoteState.InputBegan)
+			if (isAtStart && !isAtEnd && longNote.Result == NoteResult.None)
 			{
 				// Set JudgeInfo to Perfect for effect playback (TapEffectView checks Result)
 				longNote.SetJudgeInfoForDecoration(NoteResult.JustPerfect);
 				// Play head judgment effect (tap effect and SE)
 				_presentation.Judged(_liveViews, longNote);
-				// Set state to InputBegan to simulate holding (without actual input)
-				longNote.SetStateUnnotice(NoteState.InputBegan);
 			}
 
 			// 头部触发之后，处理中间的LongHoldCombo自动判定
-			if (longNote.NoteList != null && longNote.State == NoteState.InputBegan)
+			if (longNote.NoteList != null && longNote.Result != NoteResult.None)
 			{
 				foreach (NoteBase childNote in longNote.NoteList)
 				{
@@ -657,8 +655,8 @@ namespace Sekai.Core.Live
 					// release grace (Last). Once it was in play anywhere inside this point's window, the
 					// point stays judicable for the rest of that window.
 					Sekai.Live.LongHoldCombo combo = (Sekai.Live.LongHoldCombo)note;
-					NoteBase bar = combo.ParentNote as NoteBase;
-					if (bar != null && (bar.State == NoteState.InputBegan || bar.State == NoteState.Input || bar.State == NoteState.Last))
+					LongNote bar = combo.ParentNote as LongNote;
+					if (bar != null && (bar.HasFinger || bar.State == NoteState.Last || bar.State == NoteState.Release))
 					{
 						combo.MarkBarInPlay();
 					}

@@ -30,6 +30,13 @@ namespace OpenSekai.Tests.EditMode.Live
 			
 		}
 
+		internal static void AssertHeldBody(LongNote bar, string message = null)
+		{
+			Assert.That(bar.HasFinger, Is.True, message);
+			Assert.That(bar.ShowsAsReleased, Is.False, message);
+			Assert.That(bar.State, Is.Not.EqualTo(NoteState.InputBegan).And.Not.EqualTo(NoteState.Input), message);
+		}
+
 		private static MusicScoreInfo Info(float time)
 		{
 			return new MusicScoreInfo(0, time / 2f, time, 120, 4, 1, 1);
@@ -64,7 +71,7 @@ namespace OpenSekai.Tests.EditMode.Live
 		private static LongNote HeldBar(int finger)
 		{
 			var bar = new LongNote(Info(0f), finger, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
-			bar.SetStateUnnotice(NoteState.Input);
+			bar.SetStateUnnotice(NoteState.Scrolling);
 			bar.RecordHoldingInput(finger, 0f);
 			return bar;
 		}
@@ -106,7 +113,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			inputs.Add(Input(3, 4.5f));
 			Stage(logic, "RefreshSustainedHolds");
 
-			Assert.That(bar.State, Is.EqualTo(NoteState.InputBegan).Or.EqualTo(NoteState.Input),
+			LongNoteGraceTests.AssertHeldBody(bar,
 				"a finger that arrives inside the grace picks the bar back up");
 		}
 
@@ -122,6 +129,34 @@ namespace OpenSekai.Tests.EditMode.Live
 
 			Assert.That(bar.HasFinger, Is.False, "no touch id means no finger, whatever the state says");
 			Assert.That(bar.IsHeld(0f), Is.False, "the time argument no longer decides anything");
+		}
+
+		[Test]
+		public void HeldBodyNeverEntersAnInputPhase()
+		{
+			var bar = new LongNote(Info(0f), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
+			bar.SetStateUnnotice(NoteState.Scrolling);
+			var touch = Input(1, 4.5f).Touch;
+			for (int frame = 0; frame < 4; frame++)
+			{
+				bar.Judgment(ref touch, 4.5f);
+				AssertHeldBody(bar);
+			}
+		}
+
+		[Test]
+		public void FingerPresenceTracksAssignmentAndReset()
+		{
+			var bar = HeldBar(1);
+			foreach (int finger in new[] { 2, -1, 0 })
+			{
+				bar.RecordHoldingInput(finger, 0f);
+				Assert.That(bar.HoldingTouchId, Is.EqualTo(finger));
+				Assert.That(bar.HasFinger, Is.EqualTo(bar.HoldingTouchId >= 0));
+			}
+			bar.ResetNote();
+			Assert.That(bar.HoldingTouchId, Is.EqualTo(-1));
+			Assert.That(bar.HasFinger, Is.False);
 		}
 	}
 }

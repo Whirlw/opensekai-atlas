@@ -148,7 +148,7 @@ namespace Sekai
 				}
 
 				// A finger on the bar right now, asked of the hold itself; the state lags a refresh behind.
-				if (note is LongNote heldBar ? heldBar.IsHeld(time) : note.State == NoteState.InputBegan || note.State == NoteState.Input)
+				if (note is LongNote heldBar ? heldBar.HasFinger : note.State == NoteState.InputBegan || note.State == NoteState.Input)
 				{
 					float x = LiveUtility.CalcLaneTransformX((note.LaneStartF + note.LaneEndF) * 0.5f);
 					float width = note.LaneEndF + 1f - note.LaneStartF;

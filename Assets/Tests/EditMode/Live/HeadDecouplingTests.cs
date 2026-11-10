@@ -155,7 +155,7 @@ namespace OpenSekai.Tests.EditMode.Live
             {
                 bar.Excute(Info(i / 60f), 0);
                 bar.RefreshHeldInput(ref touch, 4.5f);
-                Assert.That(bar.State == NoteState.InputBegan || bar.State == NoteState.Input, Is.True);
+                LongNoteGraceTests.AssertHeldBody(bar);
                 Assert.That(combos, Is.EqualTo(1));
             }
         }

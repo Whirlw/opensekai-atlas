@@ -44,7 +44,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             Assert.That(events, Is.EqualTo(new[] { "result", "damage", "combo", "judge:Scrolling:Great:0.1", "score" }));
             Assert.That(bar.Result, Is.EqualTo(NoteResult.Great));
-            Assert.That(bar.State, Is.EqualTo(NoteState.InputBegan));
+            LongNoteGraceTests.AssertHeldBody(bar);
             Assert.That(bar.HoldingTouchId, Is.EqualTo(1));
             Assert.That(bar.OffsetJudgeTime, Is.Zero);
             bar.Judgment(ref touch, 4.5f);
@@ -75,7 +75,7 @@ namespace OpenSekai.Tests.EditMode.Live
             bar.SetStateUnnotice(NoteState.Scrolling);
             bar.Judgment(ref touch, 4.5f);
             Assert.That(bar.Result, Is.EqualTo(NoteResult.JustPerfect));
-            Assert.That(bar.State, Is.EqualTo(NoteState.InputBegan));
+            LongNoteGraceTests.AssertHeldBody(bar);
         }
 
         [TestCase(false)]

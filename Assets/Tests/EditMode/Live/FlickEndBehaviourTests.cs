@@ -699,7 +699,8 @@ namespace OpenSekai.Tests.EditMode.Live
 
             // Put the bar into the held state the way the decoration pass does.
 
-            bar.SetStateUnnotice(NoteState.InputBegan);
+            bar.SetStateUnnotice(NoteState.Scrolling);
+            bar.RecordHoldingInput(1, 1f);
 
 
 
@@ -831,7 +832,8 @@ namespace OpenSekai.Tests.EditMode.Live
 
             bar.AddNoteListAndSetupChildNote(tail);
 
-            bar.SetStateUnnotice(NoteState.InputBegan);
+            bar.SetStateUnnotice(NoteState.Scrolling);
+            bar.RecordHoldingInput(1, 1f);
 
 
 
@@ -861,7 +863,8 @@ namespace OpenSekai.Tests.EditMode.Live
 
             bar.AddNoteListAndSetupChildNote(tail);
 
-            bar.SetStateUnnotice(NoteState.InputBegan);
+            bar.SetStateUnnotice(NoteState.Scrolling);
+            bar.RecordHoldingInput(1, 1f);
 
 
 
@@ -895,7 +898,8 @@ namespace OpenSekai.Tests.EditMode.Live
 
             bar.AddNoteListAndSetupChildNote(tail);
 
-            bar.SetStateUnnotice(NoteState.InputBegan);
+            bar.SetStateUnnotice(NoteState.Scrolling);
+            bar.RecordHoldingInput(1, 1f);
 
 
 
@@ -1105,7 +1109,8 @@ namespace OpenSekai.Tests.EditMode.Live
 
             bar.AddNoteListAndSetupChildNote(tail);
 
-            bar.SetStateUnnotice(NoteState.InputBegan);
+            bar.SetStateUnnotice(NoteState.Scrolling);
+            bar.RecordHoldingInput(1, 1f);
 
 
 
@@ -1135,7 +1140,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             bar.RecordHoldingInput(1, 0.9f);
 
-            bar.SetStateUnnotice(NoteState.InputBegan);
+            bar.SetStateUnnotice(NoteState.Scrolling);
 
             var logic = NewLogic(bar);
 
@@ -1165,7 +1170,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             bar.RecordHoldingInput(1, 1.9f);
 
-            bar.SetStateUnnotice(NoteState.InputBegan);
+            bar.SetStateUnnotice(NoteState.Scrolling);
 
             var logic = NewLogic(bar);
 
@@ -1199,7 +1204,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             bar.RecordHoldingInput(1, 0.9f);
 
-            bar.SetStateUnnotice(NoteState.InputBegan);
+            bar.SetStateUnnotice(NoteState.Scrolling);
 
 
 
@@ -1257,7 +1262,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             bar.RecordHoldingInput(1, 1.0f);
 
-            bar.SetStateUnnotice(NoteState.InputBegan);
+            bar.SetStateUnnotice(NoteState.Scrolling);
 
 
 
@@ -1299,7 +1304,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             bar.RecordHoldingInput(1, 1.0f);
 
-            bar.SetStateUnnotice(NoteState.InputBegan);
+            bar.SetStateUnnotice(NoteState.Scrolling);
 
 
 
@@ -1339,7 +1344,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             bar.RecordHoldingInput(1, 0.9f);
 
-            bar.SetStateUnnotice(NoteState.InputBegan);
+            bar.SetStateUnnotice(NoteState.Scrolling);
 
 
 

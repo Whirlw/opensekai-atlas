@@ -146,8 +146,9 @@ namespace OpenSekai.Tests.EditMode.Live
                 for (int i = 0; i < notes.Length; i++)
                     if (begun[i])
                     {
-                        Assert.That(notes[i].State, Is.EqualTo(NoteState.InputBegan).Or.EqualTo(NoteState.Input),
-                            $"frame={frame} time={time} note={notes[i].Id} lane={notes[i].LaneStartF}..{notes[i].LaneEndF} holder={notes[i].HoldingTouchId}");
+                        if (notes[i] is FrictionLongNote) { Assert.That(notes[i].State, Is.EqualTo(NoteState.InputBegan).Or.EqualTo(NoteState.Input),
+                            $"frame={frame} time={time} note={notes[i].Id} lane={notes[i].LaneStartF}..{notes[i].LaneEndF} holder={notes[i].HoldingTouchId}"); } else { LongNoteGraceTests.AssertHeldBody(notes[i],
+                            $"frame={frame} time={time} note={notes[i].Id} lane={notes[i].LaneStartF}..{notes[i].LaneEndF} holder={notes[i].HoldingTouchId}"); }
                         foreach (var child in notes[i].NoteList)
                             if (child is LongHoldCombo && child.MusicScoreInfo.time < time)
                                 Assert.That(child.Result, Is.EqualTo(NoteResult.JustPerfect), $"frame={frame} time={time} tick={child.MusicScoreInfo.time}");
@@ -266,7 +267,7 @@ namespace OpenSekai.Tests.EditMode.Live
                     // Trace heads finalize their first touch in the following Excute call.
                     Assert.That(note.HoldingTouchId, Is.EqualTo(note.Id + 1), $"frame={frame} note={note.Id}");
                     if (frame > 0)
-                        Assert.That(note.State, Is.EqualTo(NoteState.InputBegan).Or.EqualTo(NoteState.Input), $"frame={frame} note={note.Id}");
+                        if (note is FrictionLongNote) { Assert.That(note.State, Is.EqualTo(NoteState.InputBegan).Or.EqualTo(NoteState.Input), $"frame={frame} note={note.Id}"); } else { LongNoteGraceTests.AssertHeldBody(note, $"frame={frame} note={note.Id}"); }
                     foreach (var child in note.NoteList)
                         if (child is LongHoldCombo && child.MusicScoreInfo.time < time)
                             Assert.That(child.Result, Is.EqualTo(NoteResult.JustPerfect), $"frame={frame} note={note.Id} tick={child.MusicScoreInfo.time}");

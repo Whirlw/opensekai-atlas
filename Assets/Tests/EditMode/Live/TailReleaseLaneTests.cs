@@ -65,7 +65,7 @@ namespace OpenSekai.Tests.EditMode.Live
 				StepTo(now, LiveHarness.Touch(1, mine, 10d + now, TouchPhase.Stationary));
 			}
 
-			Assert.That(_bar.State, Is.EqualTo(NoteState.Input), "the bar is still held when the release lands");
+			LongNoteGraceTests.AssertHeldBody(_bar, "the bar is still held when the release lands");
 		}
 
 		[Test]

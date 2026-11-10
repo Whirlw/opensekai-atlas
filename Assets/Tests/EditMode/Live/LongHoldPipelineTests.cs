@@ -55,12 +55,12 @@ namespace OpenSekai.Tests.EditMode.Live
             var bar = new HeldNote(3);
 
             Assert.That(bar.IsHeld(0f), Is.True, "a finger is down and was refreshed this frame");
-            Assert.That(bar.State == NoteState.InputBegan || bar.State == NoteState.Input, Is.True);
+            LongNoteGraceTests.AssertHeldBody(bar);
 
             bar.SetLastTime(-10f);
 
             Assert.That(bar.IsHeld(0f), Is.True, "the finger is still down, so the bar is still held");
-            Assert.That(bar.State == NoteState.InputBegan || bar.State == NoteState.Input, Is.True,
+            LongNoteGraceTests.AssertHeldBody(bar,
                 "the state lags one refresh behind, which is why heldness is asked separately");
 
             Assert.That(new HeldNote(4).IsHeld(0f), Is.True);
@@ -500,7 +500,7 @@ namespace OpenSekai.Tests.EditMode.Live
         public void RubbedBarTakesAnyFingerAndClearsOwnerOnReset(bool hidden)
         {
             LongNote note = hidden ? new FrictionHideLongNote() : new FrictionLongNote();
-            note.SetStateUnnotice(NoteState.Input);
+            note.SetStateUnnotice(NoteState.Scrolling);
             note.RecordHoldingInput(1, 0f);
             var foreign = Input(2, 4.5f).Touch;
             Assert.That(note.Judgment(ref foreign, 4.5f), Is.True,
@@ -631,7 +631,7 @@ namespace OpenSekai.Tests.EditMode.Live
             // flip the state to Release; the refresh pass brings it back. What must hold is that the
             // bar is still alive, not the exact enum value it passes through within the frame.
             Assert.That(bar.IsHoldFresh(0.5f + 2f / 60f), Is.True, "A Great head must keep the bar held, not drop it.");
-            Assert.That(bar.State == NoteState.Input || bar.State == NoteState.InputBegan, Is.True, "A Great head must keep the bar held, not drop it.");
+            LongNoteGraceTests.AssertHeldBody(bar, "A Great head must keep the bar held, not drop it.");
             Assert.That(bar.JudgeInfo.result, Is.EqualTo(NoteResult.Great), "The head keeps its Great result.");
             Assert.That(bar.HoldingTouchId, Is.EqualTo(1));
         }
@@ -699,7 +699,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").AddRange(new[] { press });
             Stage(logic, "Judgment");
             Assert.That(note.HoldingTouchId, Is.EqualTo(1));
-            Assert.That(note.State == NoteState.InputBegan || note.State == NoteState.Input, Is.True);
+            LongNoteGraceTests.AssertHeldBody(note);
         }
 
         [Test]
