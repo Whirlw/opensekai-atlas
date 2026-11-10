@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -513,6 +513,13 @@ namespace Sekai.Live
 		{
 			return _holdingTouchId >= 0 && IsHoldFresh(currentTime);
 		}
+
+		/// <summary>
+		/// True once a finger has ever taken this bar. The hold itself goes stale and the bar greys
+		/// out, but the bar stays marked as one the player engaged with - that is what keeps it in
+		/// the refresh pass until its tail resolves, rather than being dropped the moment it greys.
+		/// </summary>
+		public bool WasTouched => _holdingTouchId >= 0;
 
 		/// <summary>
 		/// True when another finger is currently holding this note and its hold is still fresh.

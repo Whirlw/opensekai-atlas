@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Sekai.Live;
 using Sekai.Live.Tails;
@@ -126,7 +126,9 @@ namespace Sekai.Core.Live
 					continue;
 				}
 
-				if (held.State != NoteState.InputBegan && held.State != NoteState.Input && held.State != NoteState.Release)
+				// A bar stays in this pass once the player has taken it - not only while the state machine still
+				// says a finger is on it, because a stale hold has to reach its tail judgement too.
+				if (!held.WasTouched && held.State != NoteState.Release)
 				{
 					continue;
 				}
