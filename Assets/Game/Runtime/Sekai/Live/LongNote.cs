@@ -234,6 +234,14 @@ namespace Sekai.Live
 		longHoldCombo.speedRatio = speedRatio;
 		// 继承父note的装饰属性
 		longHoldCombo.SetDecoration(IsDecoration);
+		// The point sits on the bar's lane, so it has to judge against the bar's lane too: the
+		// constructor left it at lane zero, which is why points on any other lane never matched.
+		longHoldCombo.LaneStart = LaneStart;
+		longHoldCombo.LaneEnd = LaneEnd;
+		longHoldCombo.LaneStartF = LaneStartF;
+		longHoldCombo.LaneEndF = LaneEndF;
+		longHoldCombo.JudgeLaneStart = JudgeLaneStart;
+		longHoldCombo.JudgeLaneEnd = JudgeLaneEnd;
 		NoteList.Add(longHoldCombo);
 		longHoldCombo.SetParentNote(this, NoteParentRole.Combo);
 	}
