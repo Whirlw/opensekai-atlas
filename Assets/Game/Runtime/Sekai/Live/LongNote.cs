@@ -553,12 +553,18 @@ namespace Sekai.Live
 				return false;
 			}
 
-			if (IsHeldByAnotherFinger(touch.fingerId, touch.musicTime))
+			// Any finger on the bar may judge what is inside it and what ends it: the chart asks
+			// whether the lane is being worked, not which finger works it. Only the head needs a
+			// single owner, so that two fingers arriving together cannot both settle it.
+			bool headSettledAlready = JudgeInfo.result != NoteResult.None;
+			if (!headSettledAlready && IsHeldByAnotherFinger(touch.fingerId, touch.musicTime))
 			{
 				return false;
 			}
 
-			if ((State == NoteState.Playing || State == NoteState.Last) && JudgeInfo.result == NoteResult.None)
+			// The head is a tap note that happens to have a body behind it: it is judged on its own
+			// window, whatever the body is doing, and its result never decides how the body behaves.
+			if (JudgeInfo.result == NoteResult.None)
 			{
 				var judgeInfo = LiveConfig.CalculateLongStartNoteResult(this, touch.musicTime);
 				JudgeInfo = onUpdateResult != null ? onUpdateResult(judgeInfo) : judgeInfo;

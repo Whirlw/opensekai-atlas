@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Sekai.Live;
 
 namespace Sekai.Core.Live
@@ -492,6 +492,13 @@ namespace Sekai.Core.Live
 				float lane = laneOf(ref note, ref owner);
 				if (ShouldReserveHold(held.HoldingTouchId, input.Touch.fingerId, held.State,
 					lane >= 0f && held.IsJudgment(ref owner.Touch, lane))) return true;
+			}
+
+			// Only the head is reserved for the finger that took it. Once it is judged the bar is
+			// open to any finger, because any finger may judge what is inside it and what ends it.
+			if (held.JudgeInfo.result != NoteResult.None)
+			{
+				return false;
 			}
 
 			return held.IsHeldByAnotherFinger(input.Touch.fingerId, input.Touch.musicTime);

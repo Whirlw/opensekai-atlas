@@ -56,7 +56,9 @@
 
 		public override bool Judgment(ref LiveTouch touch, float lane)
 		{
-			if (State == NoteState.Done || IsHeldByAnotherFinger(touch.fingerId, touch.musicTime))
+			// A rubbed bar takes any finger: the whole body is worked by whichever hand is over it.
+			if (State == NoteState.Done
+				|| (JudgeInfo.result == NoteResult.None && IsHeldByAnotherFinger(touch.fingerId, touch.musicTime)))
 			{
 				return false;
 			}
