@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Sekai.Live;
 
 namespace Sekai.Core.Live
@@ -16,6 +16,59 @@ namespace Sekai.Core.Live
 	{
 		/// <summary>Maps a note and a finger to the lane that finger occupies for that note.</summary>
 		public delegate float LaneOf(ref NoteBase note, ref LiveLogic.InputTmp input);
+
+		/// <summary>
+		/// Decides whether a note joins the list the judging pass walks, and whether it is the note
+		/// itself or the one a bar ends with.
+		/// </summary>
+		/// <param name="note">The note the score just reached.</param>
+		/// <param name="judgmentNotes">The list to add to.</param>
+		/// <param name="frameTime">This frame's music time, already stepped to when the note must be ready.</param>
+		public void Register(NoteBase note, List<NoteBase> judgmentNotes, float frameTime)
+		{
+			if (note == null || judgmentNotes == null)
+			{
+				return;
+			}
+
+			// Registration uses the JUDGEABLE lead, not the display lead. A fast note is drawn very
+			// late (its display lead is divided by the speed ratio) but must still be judgeable 0.35 s
+			// early; tying registration to the display lead put a rub behind a flick into the list only
+			// ~130 ms before its time, already past the edge of the bad window.
+			if (OpenSekai.Shared.Live.JudgeListLead.IsStillTooFarAhead(frameTime, note.MusicScoreInfo.time))
+			{
+				return;
+			}
+
+			// FrictionHideLongNote itself has no scoring judgment, but it is the hidden input carrier for trace long notes.
+			// It must still receive held input frames so its generated LongHoldCombo points are judged by LongNote.Judgment.
+			// Decoration notes are auto-judged and should not receive player input.
+			// A decorative bar still owns a real tail, and that tail has to be playable, so such
+			// a bar reaches the judgement list even though the body itself takes no input.
+			NoteBase tailNote = note is LongNote barWithTail && barWithTail.ChildNote is NoteBase boundTail && boundTail.HasJudgment
+				? boundTail
+				: null;
+			// A bar answers input only when it can grade itself: a Guide bar and a decoration-flagged
+			// bar both cannot, and answering for them is what produced a bar hit effect with no note.
+			bool barAnswersInput = (note.HasJudgment && !note.IsDecoration) || note is FrictionHideLongNote;
+			if (barAnswersInput)
+			{
+				judgmentNotes.Add(note);
+			}
+
+			// A decoration bar speaks for nobody: the note at its end is the one the player plays, and
+			// it is judged only through this list, never through its bar. Registering the bar instead
+			// made the bar answer input (its own hit effect) while a flick or a rub at its end, whose
+			// key lives inside the bar, never received a candidate slot at all.
+			// A Guide bar cannot judge itself and is not flagged as decoration by the chart: its type
+			// alone says "no scoring judgment". The note at its end is a real one, so that note is
+			// registered instead of the bar - registering the bar let it answer input with its own hit
+			// effect while a flick or a rub at its end never got a candidate slot.
+			if (!barAnswersInput && tailNote != null && !judgmentNotes.Contains(tailNote))
+			{
+				judgmentNotes.Add(tailNote);
+			}
+		}
 
 		/// <summary>
 		/// Per finger: rank the candidates, then drop the farther note of any same-time pair.
