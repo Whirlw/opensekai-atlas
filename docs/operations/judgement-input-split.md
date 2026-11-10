@@ -153,3 +153,60 @@ private static void Stage(LiveLogic logic, string name) =>
 ### 8.3 门禁
 
 每一小步都跑全量 EditMode（506 条 / 基线 502 通过 / 4 跳过）；第 3 步后必须装机验证：普通谱 + 长条密集谱（BOF）+ 变速谱各一首，看长条是否按预期变灰、中间点是否仍可判。
+
+## 九、另一轮尝试的经验（2026-11-10，务必先读）
+
+### 9.1 已试过的四条路与结果
+
+| 尝试 | 结果 |
+| --- | --- |
+| 基线 | 502 条 / 498 通过 / 0 失败 |
+| 步骤 1：按下通道只收三类 + 自由通道 | 10 失败 |
+| 协调器改调 `Judgment` | 6 失败 |
+| 方案 A：协调器独占长条（`Judgment` + sweep 合并） | 23 失败 |
+| 方案 B′：长条留在按下通道，只让「未结束的长条不关槽」 | 未做（被更彻底的规则取代） |
+
+### 9.2 两堵墙（结论，不要重复踩）
+
+1. **长条每帧的判定今天是由按下通道送进去的**。一旦它退出按下通道，就没有任何东西再调 `LongNote.Judgment`——`LiveHoldCoordinator.RefreshHeldInput` 只刷新「手指还在」，不推进内部点、不判尾、不处理松手。
+2. **划键尾巴依赖协调器那趟 sweep**：`CoverHoldsWithAnyFinger` 读 delta、判 ended 样本、调 `TryFinish`。如果让 `Judgment` 先跑，sweep 被跳过，划尾用例全红。
+
+即：长条每帧该由谁判，两套机制重叠，各自都背了一部分语义（内部点/尾判 vs 滑动/松手）。
+
+### 9.3 方案 A 为什么崩（23 条）
+
+失败集中在三族：
+
+- `OverlappingHoldsJudgeBothInteriorComboPoints`（12 条）
+- `ContinuousInputKeepsBothMovingHoldsThroughOverlap`（3 条）
+- `PickupPreservesBothHoldersRegardlessOfInputOrder`（4 条）、`SecondFingerDoesNotStaleTheFirstHold`（2 条）、`OverlappingTapDoesNotConsumeTheHeldNotesDeferredCandidate`（2 条）
+
+根因：长条重叠时「哪根手指喂哪一条」本来是按下通道用候选/归属算出来的。A 把长条摘出按下通道后，协调器的 sweep 变成「哪条被覆盖就判哪条」，两指两条重叠时每个覆盖帧把两条都判一遍，内部点被**重复结算**。
+
+**关键判断：这 12 条不是回归，是旧契约在挡路。** 按新规则「一次按下判两次」，它们本就该断言双判。
+
+### 9.4 权威规则（2026-11-10，取代此前所有方案）
+
+> 完全舍弃按指分配逻辑，内部点逻辑需要重写：所有长条，除了头尾，只要在当期 BPM 段全局的 8 分音符线上，就生成中间点。中间点允许完全重叠，按上判两次完全正常。
+
+由此**整体作废**的机制（不只是绕过）：
+
+- `ShouldReserveHold`
+- `CandidateOrder.HeldRank`
+- `NoteBase.ClosesSlotAfterPress`
+- `PickUpNotBeginInputNotes`
+- `_connectionNoteList`
+
+### 9.5 生成侧（只差核对，不是重写）
+
+`RuntimeChartConverter.AddComboNote`（`RuntimeChartConverter.cs:339`）现在用 `LongNoteComboBeat`（工程值 8）把每一小节等分。4/4 下每小节 8 份正好是 8 分音符；需要核对的是**非 4/4 小节**与**中途变速段**是否仍落在「当期 BPM 段的全局 8 分音符线」上，而不是落在「该小节等分」上。
+
+### 9.6 执行顺序（取代 8.2 的第 2、3 步）
+
+1. `IsPressStepNote` 对长条一律返回 false——长条彻底退出按下通道
+2. `ConnectionNoteJudgment` 去掉「必须被按住」前置：改为在 `LiveHoldCoordinator.Refresh` 里每帧对每条未结束长条、每个活跃触摸跑一遍——**存在即判，重叠各判各**
+3. 头部/尾部保持「车道内任意手指可判」，去掉窗口内的竞争保留逻辑
+4. 删除 9.4 列出的五个机制，并把相关测试按新契约重写（断言双判）
+5. 全量回归 + 装机验：Test13、重叠长条、长条换手
+
+> 注意：第 2 步与「协调器 sweep 管划尾」冲突（见 9.2 第 2 堵墙），所以内部点与尾判必须**在同一个遍历里**分派，不能一个在 `Judgment`、一个在 sweep。
