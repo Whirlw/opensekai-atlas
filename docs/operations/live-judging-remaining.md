@@ -159,3 +159,34 @@
 3. **验收顺序**：先只跑 `LiveLogicInputTests`，这 3 条绿了再跑全量；全量回到 `522 / 518 / 0 / 4` 才提交。
 
 另外两条不要碰：`LongNote.cs` 里 `WasHoldingWhenTerminated` 必须能从 `HasFinger` 推出（或由 `RecordHoldingInput` 置位），不能变成恒 `false`；`FrictionLongNote` 等自身状态的断言原样保留。
+
+---
+
+## 5. 完成情况（2026-11-10 验收）
+
+三个任务各自独立提交，`main` 未 squash。验收由本侧独立复核：不看提交者数字，自己重跑全量、自己看 diff、逐条比对新增测试。
+
+| 任务 | 提交 | 全量 | 本侧复核要点 |
+| --- | --- | --- | --- |
+| A 条体退役 `InputBegan/Input` | `a1b6b47` | 524 / 520 / 0 / 4 | 写入点全部删除；`HasContinuingHold` 改读 `WasTouched && (HasFinger \|\| Last \|\| Release)`（这是首轮红的三条交叉用例的真因，见附注）；13 处「旧状态造按住」的测试构造迁移，断言未改 |
+| C `NoteSpeedRatio` 护栏 | `6a3e7e3` | 529 / 525 / 0 / 4 | 5 条护栏中 1 条修前为红，手算复核确认为真 bug（区间内短路返回 fallback）；修后速度类 14/14，末段之后的只读检查也正确 |
+| B 按下通道只收三类 | `2806c92` | 534 / 530 / 0 / 4 | 红线文件（协调器、摩擦/隐藏音符、`NoteState`）diff 为空；`PickBarInput` 有 owner 优先 + 最近车道 + fingerId 平手；条体统一走虚方法 `note.Judgment`；pickup 三条断言改写成更强的「条体不进候选集 + 各自 holder + `LastTime == 1`」；新增「press 与 independent 两趟不得同时驱动头部帧」护栏 |
+
+复核数字：本侧重跑 `TestResults/review-534.xml` → `534 / 530 通过 / 0 失败 / 4 跳过`（17:47:13），与提交者一致。
+
+### 现在的三条判定通道
+
+| 通道 | 收谁 | 规则 |
+| --- | --- | --- |
+| 按下通道（`IsPressStep` + `SortPressCandidates`） | 普通头 / 普通键 / 未完成的普通划键 | 每指每帧一条；重叠按中心距离归一（等距取 fingerId 小者）；判完即停 |
+| 独立通道（`DriveIndependentNotes`） | 摩擦、隐藏、连接、尾键等 | 每帧每音一条，不占名额、可重复；条体由 owner 或最近车道手指驱动 |
+| 中间点（`JudgeDueComboPoints`） | `LongHoldCombo` | 不占名额、不重复；判据 = 窗口内条体出现过按住/`Last` + 有手指在该点车道内 |
+
+### 仍未完成
+
+- **真机三谱验收**（普通 / 长条密集 BOF / 变速）：A、B、C 改的都是手感与速度，编辑器测试覆盖不到。清单见 [device-acceptance-checklist](device-acceptance-checklist.md)。
+- 装机包：`Builds/judging-abc-2026-11-10/OpenSekaiAtlas.apk`。
+
+### 附注：任务 A 首轮为何不是「测试没设 touch id」
+
+首轮三条红曾被误判为「测试从不设持有」，实际 `LongNoteHead.cs:86` 在按下路径上会调 `RecordHoldingInput`。真因是续持循环的门禁：条体退役 `InputBegan/Input` 之后停在 `Scrolling`，而 `LiveHoldCoordinator.HasContinuingHold` 要求 `State != Scrolling`，于是该条不再进入续持循环，`TryRefreshFromOwner → RefreshHeldInput → ConnectionNoteJudgment` 全不跑，中间点永远停在 `Last/None`。把门禁改成读 `WasTouched && (HasFinger || Last || Release)` 后三条转绿。
