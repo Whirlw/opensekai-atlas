@@ -626,9 +626,8 @@ namespace Sekai.Core.Live
 			_connectionNoteList.Clear();
 			JudgeDueComboPoints();
 			AllocateInputJudgableEachNotes();
-			OverlapJudgmentSorting();
-			LeaveNotesFastGeneration();
-			PickUpNotBeginInputNotes();
+			DriveIndependentNotes();
+			_candidates.SortPressCandidates(_activeInputList, currentFrameInfo, ConvertLaneBy);
 			RefreshSustainedHolds();
 			EvaluateJudgment();
 			TickTailKeyViews();
@@ -675,6 +674,59 @@ namespace Sekai.Core.Live
 					break;
 				}
 			}
+		}
+
+		private void DriveIndependentNotes()
+		{
+			for (int n = _judgmentNoteList.Count - 1; n >= 0; n--)
+			{
+				NoteBase note = _judgmentNoteList[n];
+				if (note == null || note.State == NoteState.Done || note is LongHoldCombo
+					|| LiveCandidatePipeline.IsPressStep(note)) continue;
+				int barInput = note is LongNote longNote ? PickBarInput(longNote) : -1;
+				for (int i = 0; i < _activeInputList.Count; i++)
+				{
+					InputTmp input = _activeInputList[i];
+					float lane = ConvertLaneBy(ref note, ref input);
+					if (lane < 0f) continue;
+					if (note is LongNote)
+					{
+						if (i != barInput) continue;
+						note.Judgment(ref input.Touch, lane);
+					}
+					else
+					{
+						if (!note.IsJudgment(ref input.Touch, lane)) continue;
+						note.Judgment(ref input.Touch, lane);
+					}
+					break;
+				}
+				if (note.State == NoteState.Done) _judgmentNoteList.RemoveAt(n);
+			}
+		}
+
+		private int PickBarInput(LongNote bar)
+		{
+			int selected = -1;
+			float nearest = float.MaxValue;
+			for (int i = 0; i < _activeInputList.Count; i++)
+			{
+				InputTmp input = _activeInputList[i];
+				if (IsEndedOrCanceled(input.Touch.phase)) continue;
+				if (bar.HasFinger && bar.HoldingTouchId != input.Touch.fingerId) continue;
+				NoteBase note = bar;
+				float lane = ConvertLaneBy(ref note, ref input);
+				if (lane < 0f || !bar.ContainsLane(lane)) continue;
+				if (!bar.IsOrdinaryHead && !bar.IsJudgment(ref input.Touch, lane)) continue;
+				float distance = bar.LaneDistance(ref currentFrameInfo, lane);
+				if (selected < 0 || distance < nearest || (distance == nearest
+					&& input.Touch.fingerId < _activeInputList[selected].Touch.fingerId))
+				{
+					selected = i;
+					nearest = distance;
+				}
+			}
+			return selected;
 		}
 
 		private void AllocateInputJudgableEachNotes()

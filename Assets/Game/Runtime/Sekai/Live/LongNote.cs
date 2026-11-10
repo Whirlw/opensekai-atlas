@@ -534,8 +534,44 @@ namespace Sekai.Live
 
 		public override bool Judgment(ref LiveTouch touch, float lane)
 		{
-			return Head.Judgment(ref touch, lane);
+			return DriveJudgmentFrame(ref touch, lane);
 		}
+
+		/// <summary>Feeds this bar one input frame: head, hold facts, frame stamp, points and tail.</summary>
+		internal bool DriveJudgmentFrame(ref LiveTouch touch, float lane)
+		{
+			if (!Head.TryJudge(ref touch, lane)) return false;
+			RecordHoldingInput(touch.fingerId, MusicScore.CurrentFrameInfo.time);
+			RestoreHeldState();
+			MarkHeadTouched();
+			MarkPressedThisFrame();
+			if (LiveTrace.IsOn(LiveTraceCategory.Hold))
+			{
+				LiveTrace.Write(LiveTraceCategory.Hold, $"grab barT={MusicScoreInfo.time:F3} lane={lane:F2} range={JudgeLaneStart:F2}..{JudgeLaneEnd:F2} finger={touch.fingerId} phase={touch.phase}");
+			}
+
+			ClearHeadJudgeOffset();
+			ConnectionNoteJudgment(ref touch, lane);
+
+			if (childNote != null
+				&& LiveConfig.IsLongEndJudgeTime(childNote.JudgeOffsetAt(touch.musicTime))
+				&& childNote.IsJudgment(ref touch, lane)
+				&& childNote.Judgment(ref touch, lane))
+			{
+				if (LiveTrace.IsOn(LiveTraceCategory.Hold))
+				{
+					LiveTrace.Write(LiveTraceCategory.Hold, $"headPressChild barT={MusicScoreInfo.time:F3} touchT={touch.musicTime:F3} childT={childNote.MusicScoreInfo.time:F3}");
+				}
+
+				State = NoteState.Done;
+				return true;
+			}
+
+			// Being held: the bar is kept alive by its own refresh pass, so the finger can still serve
+			// a note that sits on top of it.
+			return true;
+		}
+
 
 		/// <summary>
 		/// Keeps the bar in the held state because some finger is on it, without caring which one.
@@ -559,7 +595,7 @@ namespace Sekai.Live
 			// A bar that is still alive must never be refreshed with a time from the past: that is how
 			// a recycled note looked held long after the run that held it.
 			LiveTrace.Invariant(musicTime + 0.001f >= lastInputTime, $"keepAlive went backwards barT={MusicScoreInfo.time:F3} last={lastInputTime:F3} now={musicTime:F3}");
-			lastInputTime = musicTime;
+			lastInputTime = Mathf.Max(lastInputTime, musicTime);
 
 			// A finger on the bar means it is held, even when the head was missed: the chart lets a
 			// finger that arrives late (or was already resting there) pick the bar up.
@@ -1221,7 +1257,7 @@ namespace Sekai.Live
 
 		internal void RecordHoldingInput(int fingerId, float musicTime)
 		{
-			lastInputTime = musicTime;
+			lastInputTime = Mathf.Max(lastInputTime, musicTime);
 			_holdingTouchId = fingerId;
 		}
 

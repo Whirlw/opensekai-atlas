@@ -14,6 +14,44 @@ namespace Sekai.Core.Live
 	/// </summary>
 	internal sealed class LiveCandidatePipeline
 	{
+		internal static bool IsPressStep(NoteBase note) => note != null && !note.IsDecoration
+			&& (note is LongNote bar ? bar.IsOrdinaryHead && !bar.Head.IsSettled
+				: note.ParentRole == OpenSekai.Shared.Live.NoteParentRole.None &&
+				  (note is NormalNote && note.Category == NoteCategory.Normal || note is FlickNote && !note.FinishFirstAction));
+
+		internal void SortPressCandidates(List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame, LaneOf laneOf)
+		{
+			// Resolve every shared note before reducing any finger's list to its earliest note.
+			foreach (var input in inputs)
+			{
+				for (int i = input.CandidateNotes.Count - 1; i >= 0; i--)
+				{
+					NoteBase note = input.CandidateNotes[i];
+					var currentInput = input;
+					float distance = note.LaneDistance(ref frame, laneOf(ref note, ref currentInput));
+					bool loses = false;
+					foreach (var other in inputs)
+					{
+						if (ReferenceEquals(input, other) || !other.CandidateNotes.Contains(note)) continue;
+						NoteBase otherNote = note;
+						var contender = other;
+						float otherDistance = note.LaneDistance(ref frame, laneOf(ref otherNote, ref contender));
+						if (otherDistance < distance || (otherDistance == distance && other.Touch.fingerId < input.Touch.fingerId))
+						{
+							loses = true;
+							break;
+						}
+					}
+					if (loses) input.CandidateNotes.RemoveAt(i);
+				}
+			}
+			foreach (var input in inputs)
+			{
+				input.CandidateNotes.Sort((a, b) => a.MusicScoreInfo.time.CompareTo(b.MusicScoreInfo.time));
+				if (input.CandidateNotes.Count > 1)
+					input.CandidateNotes.RemoveRange(1, input.CandidateNotes.Count - 1);
+			}
+		}
 		/// <summary>Maps a note and a finger to the lane that finger occupies for that note.</summary>
 		public delegate float LaneOf(ref NoteBase note, ref LiveLogic.InputTmp input);
 
@@ -374,7 +412,7 @@ namespace Sekai.Core.Live
 
 				// An interior point is settled by JudgeDueComboPoints before this runs, by any finger in
 				// its lane. Nominating it here as well would let one of them spend a slot on it twice.
-				if (judgmentNote is Sekai.Live.LongHoldCombo)
+				if (!IsPressStep(judgmentNote))
 				{
 					continue;
 				}
@@ -384,6 +422,7 @@ namespace Sekai.Core.Live
 				for (int inputIndex = inputs.Count - 1; inputIndex >= 0; inputIndex--)
 				{
 					LiveLogic.InputTmp activeInput = inputs[inputIndex];
+					if (activeInput.Touch.phase != UnityEngine.InputSystem.TouchPhase.Began) continue;
 					NoteBase note = judgmentNote;
 					// A finger that owns a hold is still free to judge other notes in its lane:
 					// charts overlay a separate contact-only note on top of a bar. Only hold-vs-hold

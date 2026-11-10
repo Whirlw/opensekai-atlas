@@ -402,5 +402,58 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(note.JudgmentCalls, Is.EqualTo(1));
             Assert.That(logic.TapCount, Is.EqualTo(2));
         }
+
+        [Test]
+        public void SimultaneousPressesOnOneKeyPublishOnce()
+        {
+            var note = Arrange();
+            source.Add(Touch(2, Position()));
+            source.Add(Touch(1, Position()));
+            logic.OnInput();
+            Assert.That(note.JudgmentCalls, Is.EqualTo(1));
+            Assert.That(note.Result, Is.EqualTo(NoteResult.JustPerfect));
+        }
+
+        [Test]
+        public void AMovedFingerCannotPressAnOrdinaryKey()
+        {
+            var note = Arrange();
+            source.Add(Touch(1, Position(), InputTime, InputTouchPhase.Moved));
+            logic.OnInput();
+            Assert.That(note.JudgmentCalls, Is.Zero);
+            Assert.That(note.Result, Is.EqualTo(NoteResult.None));
+            Assert.That(note.State, Is.Not.EqualTo(NoteState.Done));
+        }
+
+        [Test]
+        public void SimultaneousPressesOnSeparateKeysBothPublish()
+        {
+            var right = new CountingNormalNote(2, 0f, 8);
+            var left = Arrange(0f, right);
+            source.Add(Touch(1, Position()));
+            source.Add(Touch(2, Position(8)));
+            logic.OnInput();
+            Assert.That(left.JudgmentCalls, Is.EqualTo(1));
+            Assert.That(right.JudgmentCalls, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void MovingForeignFingerDoesNotNominateAHeldBar()
+        {
+            var bar = new LongNote(Info(0), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
+            bar.AddNoteListAndSetupChildNote(new NormalNote(Info(3), 2, 4, 5, NoteCategory.Normal, 1, NoteType.Default, 0));
+            bar.SetStateUnnotice(NoteState.Scrolling);
+            var touch = new LiveTouch { fingerId = 1, touchId = 1, phase = InputTouchPhase.Began };
+            bar.Judgment(ref touch, 4.5f);
+            Assert.That(bar.HasFinger, Is.True);
+            Assert.That(LiveCandidatePipeline.IsPressStep(bar), Is.False);
+            var notes = new System.Collections.Generic.List<NoteBase> { bar };
+            var input = new LiveLogic.InputTmp { Lane = 4.5f, Touch = new LiveTouch { fingerId = 2, touchId = 2, phase = InputTouchPhase.Moved } };
+            new LiveCandidatePipeline().Collect(notes, new System.Collections.Generic.List<LiveLogic.InputTmp> { input },
+                new System.Collections.Generic.List<NoteBase>(), null,
+                (ref NoteBase n, ref LiveLogic.InputTmp i) => i.Lane, null);
+            Assert.That(input.CandidateNotes, Is.Empty);
+            Assert.That(bar.HoldingTouchId, Is.EqualTo(1));
+        }
     }
 }

@@ -39,10 +39,54 @@ namespace OpenSekai.Tests.EditMode.Live
             }
         }
 
+        private sealed class FrameCountedBar : LongNote
+        {
+            internal int Calls;
+            internal FrameCountedBar() : base(Info(0), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0)
+            {
+                AddNoteListAndSetupChildNote(new NormalNote(Info(10), 2, 4, 5, NoteCategory.Normal, 1, NoteType.Default, 0));
+                Excute(Info(0), 0);
+            }
+            public override bool Judgment(ref LiveTouch touch, float lane)
+            {
+                Calls++;
+                return base.Judgment(ref touch, lane);
+            }
+        }
+
+        [Test]
+        public void PressAndIndependentPassDriveTheBarOncePerFrame()
+        {
+            var logic = new LiveLogic(null);
+            var bar = new FrameCountedBar();
+            var input = Input(1, 4.5f);
+            input.Touch.phase = TouchPhase.Began;
+            Field<List<NoteBase>>(logic, "_judgmentNoteList").Add(bar);
+            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").Add(input);
+            Stage(logic, "Judgment");
+            Assert.That(bar.Calls, Is.EqualTo(1), "the press and independent pass must not both drive the head frame");
+            input.Touch.phase = TouchPhase.Moved;
+            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").Add(input);
+            Stage(logic, "Judgment");
+            Assert.That(bar.Calls, Is.EqualTo(2), "the next input frame drives the held bar exactly once");
+        }
+
         [SetUp] public void SetUp() { previous = LiveConfig.noteTypeJudgeData; previousFrame = MusicScore.CurrentFrameInfo; MusicScore.CurrentFrameInfo = Info(0); LiveConfig.LoadMasterConfig(); }
         [TearDown] public void TearDown() { LiveConfig.noteTypeJudgeData = previous; MusicScore.CurrentFrameInfo = previousFrame; }
         private static T Field<T>(LiveLogic logic, string name) => (T)typeof(LiveLogic).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
-        private static void Stage(LiveLogic logic, string name) => typeof(LiveLogic).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(logic, null);
+        private static void Stage(LiveLogic logic, string name)
+        {
+            if (name == "AssignContinuingHolds") name = "AssignContinuingHoldInputs";
+            if (name == "SortPressCandidates")
+            {
+                var laneOf = (LiveCandidatePipeline.LaneOf)Delegate.CreateDelegate(typeof(LiveCandidatePipeline.LaneOf),
+                    logic, typeof(LiveLogic).GetMethod("ConvertLaneBy", BindingFlags.Instance | BindingFlags.NonPublic));
+                Field<LiveCandidatePipeline>(logic, "_candidates").SortPressCandidates(
+                    Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList"), logic.currentFrameInfo, laneOf);
+                return;
+            }
+            typeof(LiveLogic).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(logic, null);
+        }
         private static LiveLogic.InputTmp Input(int finger, float lane) => new LiveLogic.InputTmp
         {
             Lane = lane,
@@ -93,12 +137,18 @@ namespace OpenSekai.Tests.EditMode.Live
             Field<List<NoteBase>>(logic, "_judgmentNoteList").AddRange(new NoteBase[] { a, b });
             Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").AddRange(reverse ? new[] { second, first } : new[] { first, second });
             Stage(logic, "AllocateInputJudgableEachNotes");
-            Assert.That(Field<List<NoteBase>>(logic, "_connectionNoteList"), Is.EquivalentTo(new[] { a, b }));
-            Stage(logic, "OverlapJudgmentSorting");
-            Stage(logic, "LeaveNotesFastGeneration");
-            Stage(logic, "PickUpNotBeginInputNotes");
-            Assert.That(first.CandidateNotes, Is.EqualTo(new[] { a }), "Pickup must not give the other holder's note to this input.");
-            Assert.That(second.CandidateNotes, Is.EqualTo(new[] { b }));
+            foreach (var input in Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList"))
+                Assert.That(input.CandidateNotes, Has.No.Member(a).And.No.Member(b),
+                    "a bar is driven by its own frame, never nominated as a press candidate");
+            Stage(logic, "SortPressCandidates");
+            Stage(logic, "AssignContinuingHolds");
+            Stage(logic, "DriveIndependentNotes");
+            foreach (var input in Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList"))
+                Assert.That(input.CandidateNotes, Has.No.Member(a).And.No.Member(b));
+            Assert.That(a.HoldingTouchId, Is.Not.EqualTo(b.HoldingTouchId));
+            Assert.That(a.HasFinger && b.HasFinger, Is.True);
+            Assert.That(a.LastTime, Is.EqualTo(1f).Within(1e-4));
+            Assert.That(b.LastTime, Is.EqualTo(1f).Within(1e-4));
             Stage(logic, "EvaluateJudgment");
             Assert.That(a.LastTime, Is.EqualTo(1f).Within(1e-5f));
             Assert.That(b.LastTime, Is.EqualTo(1f).Within(1e-5f));

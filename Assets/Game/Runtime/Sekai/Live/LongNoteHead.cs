@@ -54,7 +54,7 @@ namespace Sekai.Live
 			}
 		}
 
-		internal bool Judgment(ref LiveTouch touch, float lane)
+		internal bool TryJudge(ref LiveTouch touch, float lane)
 		{
 			if (_bar.State == NoteState.Done)
 			{
@@ -78,34 +78,6 @@ namespace Sekai.Live
 				Settle(_bar.HeadResultUpdater != null ? _bar.HeadResultUpdater(judgeInfo) : judgeInfo);
 			}
 
-			_bar.RecordHoldingInput(touch.fingerId, touch.musicTime);
-			_bar.RestoreHeldState();
-			_bar.MarkHeadTouched();
-			_bar.MarkPressedThisFrame();
-			if (LiveTrace.IsOn(LiveTraceCategory.Hold))
-			{
-				LiveTrace.Write(LiveTraceCategory.Hold, $"grab barT={_bar.MusicScoreInfo.time:F3} lane={lane:F2} range={_bar.JudgeLaneStart:F2}..{_bar.JudgeLaneEnd:F2} finger={touch.fingerId} phase={touch.phase}");
-			}
-
-			_bar.ClearHeadJudgeOffset();
-			ConnectionNoteJudgment(ref touch, lane);
-
-			if (_bar.HeadChildNote != null
-				&& LiveConfig.IsLongEndJudgeTime(_bar.HeadChildNote.JudgeOffsetAt(touch.musicTime))
-				&& _bar.HeadChildNote.IsJudgment(ref touch, lane)
-				&& _bar.HeadChildNote.Judgment(ref touch, lane))
-			{
-				if (LiveTrace.IsOn(LiveTraceCategory.Hold))
-				{
-					LiveTrace.Write(LiveTraceCategory.Hold, $"headPressChild barT={_bar.MusicScoreInfo.time:F3} touchT={touch.musicTime:F3} childT={_bar.HeadChildNote.MusicScoreInfo.time:F3}");
-				}
-
-				_bar.SetHeadJudgmentState(NoteState.Done);
-				return true;
-			}
-
-			// Being held: the bar is kept alive by its own refresh pass, so the finger can still serve
-			// a note that sits on top of it.
 			return true;
 		}
 
