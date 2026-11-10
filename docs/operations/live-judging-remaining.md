@@ -126,3 +126,36 @@
 4. 逐条比对新增测试是否真的覆盖任务书里的断言。
 5. 真机三谱（普通 / 长条密集 / 变速）。
 6. 报告里必须写明：改了什么、为什么、失败过什么、还剩什么没做。
+
+---
+
+## 附：任务 A 首轮失败的根因（2026-11-10 定位，第二轮据此修）
+
+首轮 `524 / 517 / 3` 的三条红都是 `LiveLogicInputTests.AuthoredCrossingAllowsFollowingOrExchangingFingers`，症状统一：中间点期望 `JustPerfect`、实得 `None`。
+
+根因不是门槛写错，而是**「按住」这件事在两个世界里表达不同**：
+
+| 世界 | 表达方式 |
+| --- | --- |
+| 生产 | `_holdingTouchId >= 0`（即 `HasFinger`），由 `RecordHoldingInput` / `AssignHoldingInput` 写入 |
+| 该测试 | 只写 `lastInputTime`（`LiveLogicInputTests.cs:104`、`:246`），**从不设 touch id** |
+
+`HasFinger` 是 touch id 的派生值，所以测试里它恒为 `false`。条体退役 `InputBegan/Input` 之后，两处「在打」的门禁都读 `HasFinger`，于是中间点永远不被判 —— 三条红由此而来，与候选排序、窗口都无关。
+
+第二轮请按下面三点改：
+
+1. **生产门禁**（两处，都要保留 `Last`，宽限期内的中间点必须仍能判）：
+   - `Assets/Game/Runtime/Sekai/Live/LongNoteHead.cs:118`
+     `if (_bar.State != InputBegan && != Input && != Release) return;`
+     → `if (!_bar.HasFinger && _bar.State != NoteState.Last && _bar.State != NoteState.Release) return;`
+   - `Assets/Game/Runtime/Sekai/Core/Live/LiveLogic.cs:661`（中间点记忆门禁）
+     → `if (bar != null && (bar.HasFinger || bar.State == NoteState.Last || bar.State == NoteState.Release))`
+
+2. **测试的按住构造**（允许改，属"构造被测状态"）：
+   `LiveLogicInputTests.cs:104` 与 `:246` 在写 `lastInputTime` 的同一处，一并写持有事实：
+   `n.RecordHoldingInput(finger, time);`（手指编号沿用该测试循环里的 `finger`/实际注入的 id）。
+   **不要**改这些测试里任何一条断言。
+
+3. **验收顺序**：先只跑 `LiveLogicInputTests`，这 3 条绿了再跑全量；全量回到 `522 / 518 / 0 / 4` 才提交。
+
+另外两条不要碰：`LongNote.cs` 里 `WasHoldingWhenTerminated` 必须能从 `HasFinger` 推出（或由 `RecordHoldingInput` 置位），不能变成恒 `false`；`FrictionLongNote` 等自身状态的断言原样保留。
