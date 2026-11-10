@@ -158,8 +158,9 @@ namespace Sekai.Core.Live
 
 		private static bool HasContinuingHold(NoteBase note)
 		{
-			return note is LongNote held && held.HoldingTouchId >= 0
-				&& (held.State == NoteState.InputBegan || held.State == NoteState.Input || held.State == NoteState.Release);
+			// A bar that was taken and has moved on from its untouched phase still has a holder to
+			// continue with, whether a finger is on it this instant or it is waiting to be re-grabbed.
+			return note is LongNote held && held.WasTouched && held.State != NoteState.Playing;
 		}
 
 		/// <summary>
@@ -244,15 +245,13 @@ namespace Sekai.Core.Live
 				// A finger resting over a bar whose head has not been judged yet must not adopt it:
 				// holding before the head arrives would otherwise let the head pass without a Miss.
 				// Once the head is judged (hit or missed) any finger inside the lane may take over.
-				bool headSettled = held.Result != NoteResult.None
-					|| held.State == NoteState.InputBegan
-					|| held.State == NoteState.Input;
+				bool headSettled = held.Result != NoteResult.None || held.WasTouched;
 				if (covered && headSettled)
 				{
 					held.KeepAlive(frame.time);
 				}
 
-				bool isBeingHeld = held.State == NoteState.InputBegan || held.State == NoteState.Input;
+				bool isBeingHeld = held.IsHeld(frame.time);
 
 				// The bar asks its tail how it ends. There is no switch here any more, and no way for a
 				// new kind of end note to be drawn by one path and judged by another: the three shapes
