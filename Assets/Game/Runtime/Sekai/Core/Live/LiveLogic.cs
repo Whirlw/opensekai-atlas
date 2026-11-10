@@ -100,6 +100,9 @@ namespace Sekai.Core.Live
 		private readonly LiveInputCollector _inputCollector;
 		private readonly List<int> _usedFingerList;
 		private readonly LiveHoldCoordinator _holds = new LiveHoldCoordinator(INPUT_TMP_COUNT);
+
+		/// <summary>Orders and prunes each finger's candidates before judging.</summary>
+		private readonly LiveCandidatePipeline _candidates = new LiveCandidatePipeline();
 		private readonly Dictionary<int, double> InputedNormalNoteTouch;
 		private float _noteDisplayTimeOffset;
 		private float _seBaseVolume = 1f;
@@ -754,178 +757,19 @@ namespace Sekai.Core.Live
 
 		private void OverlapJudgmentSorting()
 		{
-			// Original: per finger, rank candidates by the result they would get right now, then by
-			// score time, then by lane distance, and drop the farther note of any same-time pair.
-			for (int inputIndex = _activeInputList.Count - 1; inputIndex >= 0; inputIndex--)
-			{
-				InputTmp input = _activeInputList[inputIndex];
-				if (input.CandidateNotes.Count <= 1)
-				{
-					continue;
-				}
-
-				input.CandidateNotes.Sort((a, b) =>
-				{
-					if (ReferenceEquals(a, b))
-					{
-						return 0;
-					}
-
-					return OpenSekai.Shared.Live.CandidateOrder.Compare(
-						CandidateRank(a), a.CalcNoteResult(input.Touch.musicTime), a.MusicScoreInfo.time,
-						a.LaneDistance(ref currentFrameInfo, ConvertLaneBy(ref a, ref input)),
-						CandidateRank(b), b.CalcNoteResult(input.Touch.musicTime), b.MusicScoreInfo.time,
-						b.LaneDistance(ref currentFrameInfo, ConvertLaneBy(ref b, ref input)));
-				});
-
-				for (int i = input.CandidateNotes.Count - 1; i > 0; i--)
-				{
-					NoteBase current = input.CandidateNotes[i];
-					NoteBase previous = input.CandidateNotes[i - 1];
-					if (current == null || previous == null || !IsSameJudgmentTime(current, previous))
-					{
-						continue;
-					}
-
-					float currentDistance = current.LaneDistance(ref currentFrameInfo, ConvertLaneBy(ref current, ref input));
-					float previousDistance = previous.LaneDistance(ref currentFrameInfo, ConvertLaneBy(ref previous, ref input));
-					if (OpenSekai.Shared.Live.CandidateOrder.KeepsFirst(CandidateRank(previous), previousDistance, CandidateRank(current), currentDistance))
-					{
-						input.CandidateNotes.RemoveAt(i);
-					}
-					else
-					{
-						input.CandidateNotes.RemoveAt(i - 1);
-					}
-				}
-			}
-
-			ResolveOverlappingCandidatesAcrossInputs();
+			_candidates.Sort(_activeInputList, currentFrameInfo, ConvertLaneBy);
 		}
 
-		private void ResolveOverlappingCandidatesAcrossInputs()
-		{
-			for (int inputIndex = _activeInputList.Count - 1; inputIndex >= 0; inputIndex--)
-			{
-				InputTmp input = _activeInputList[inputIndex];
-				if (input.CandidateNotes.Count == 0)
-				{
-					continue;
-				}
 
-				for (int otherInputIndex = inputIndex - 1; otherInputIndex >= 0; otherInputIndex--)
-				{
-					InputTmp otherInput = _activeInputList[otherInputIndex];
-					if (otherInput.CandidateNotes.Count == 0)
-					{
-						continue;
-					}
-
-					for (int candidateIndex = input.CandidateNotes.Count - 1; candidateIndex >= 0; candidateIndex--)
-					{
-						NoteBase candidate = input.CandidateNotes[candidateIndex];
-						int otherCandidateIndex = otherInput.CandidateNotes.IndexOf(candidate);
-						if (candidate == null || otherCandidateIndex < 0)
-						{
-							continue;
-						}
-
-						NoteBase inputNote = ResolveJudgmentNote(candidate, input);
-						NoteBase otherNote = ResolveJudgmentNote(candidate, otherInput);
-						float inputDistance = inputNote != null
-							? inputNote.LaneDistance(ref currentFrameInfo, ConvertLaneBy(ref inputNote, ref input))
-							: float.MaxValue;
-						float otherDistance = otherNote != null
-							? otherNote.LaneDistance(ref currentFrameInfo, ConvertLaneBy(ref otherNote, ref otherInput))
-							: float.MaxValue;
-
-						int holdingTouchId = candidate is LongNote heldLongNote ? heldLongNote.HoldingTouchId : -1;
-						bool inputHolds = holdingTouchId >= 0 && holdingTouchId == input.Touch.fingerId;
-						bool otherInputHolds = holdingTouchId >= 0 && holdingTouchId == otherInput.Touch.fingerId;
-
-						if (OpenSekai.Shared.Live.CandidateOwnership.Loser(inputHolds, otherInputHolds, inputDistance, otherDistance) == OpenSekai.Shared.Live.CandidateSide.Current)
-						{
-							input.CandidateNotes.RemoveAt(candidateIndex);
-						}
-						else
-						{
-							otherInput.CandidateNotes.RemoveAt(otherCandidateIndex);
-						}
-					}
-				}
-			}
-		}
 
 		/// <summary>
 		/// A long note that is currently held by a finger. Such a note must stay at the front of that
 		/// finger's candidate list, because a press only judges one candidate per frame and a hold
 		/// that stops being picked stops receiving input and releases.
 		/// </summary>
-		private static bool IsHeld(NoteBase note)
-		{
-			return note is LongNote longNote
-				&& (longNote.State == NoteState.InputBegan || longNote.State == NoteState.Input);
-		}
 		private void LeaveNotesFastGeneration()
 		{
-			for (int inputIndex = _activeInputList.Count - 1; inputIndex >= 0; inputIndex--)
-			{
-				InputTmp input = _activeInputList[inputIndex];
-				for (int i = input.CandidateNotes.Count - 1; i >= 0; i--)
-				{
-					if (input.CandidateNotes.Count < 2)
-					{
-						break;
-					}
-
-					NoteBase first = ResolveFastGenerationNote(input.CandidateNotes[0], input);
-					NoteBase current = ResolveFastGenerationNote(input.CandidateNotes[i], input);
-					if (first == null || current == null)
-					{
-						continue;
-					}
-
-					int dropIndex;
-					if (IsSameJudgmentTime(first, current))
-					{
-						float firstDistance = first.LaneDistance(ref currentFrameInfo, ConvertLaneBy(ref first, ref input));
-						float currentDistance = current.LaneDistance(ref currentFrameInfo, ConvertLaneBy(ref current, ref input));
-						dropIndex = firstDistance < currentDistance ? i : 0;
-					}
-					else if (current.CalcNoteResult(input.Touch.musicTime) >= NoteResult.Great
-						&& first.CalcNoteResult(input.Touch.musicTime) <= NoteResult.Good)
-					{
-						dropIndex = 0;
-					}
-					else if (first.MusicScoreInfo.time < current.MusicScoreInfo.time)
-					{
-						dropIndex = i;
-					}
-					else
-					{
-						dropIndex = 0;
-					}
-
-					int keepIndex = dropIndex == 0 ? i : 0;
-					bool dropHeld = IsHeld(input.CandidateNotes[dropIndex]);
-					bool keepHeld = IsHeld(input.CandidateNotes[keepIndex]);
-
-					// A held note must keep receiving its finger every frame, otherwise it releases.
-					// When both are held there is nothing safe to prune, so keep both for this pass.
-					if (dropHeld && keepHeld)
-					{
-						continue;
-					}
-
-					if (dropHeld)
-					{
-						dropIndex = keepIndex;
-					}
-
-					input.CandidateNotes.RemoveAt(dropIndex);
-					i = input.CandidateNotes.Count;
-				}
-			}
+			_candidates.DropExtraFastGeneration(_activeInputList, currentFrameInfo, ConvertLaneBy);
 		}
 		private void PickUpNotBeginInputNotes()
 		{
@@ -968,17 +812,7 @@ namespace Sekai.Core.Live
 
 		internal static int CandidateRank(NoteBase note)
 		{
-			if (note is FlickNote or FrictionFlickNote)
-			{
-				return OpenSekai.Shared.Live.CandidateOrder.FlickRank;
-			}
-
-			if (note is LongNote held && held.HoldingTouchId >= 0)
-			{
-				return OpenSekai.Shared.Live.CandidateOrder.HeldRank;
-			}
-
-			return OpenSekai.Shared.Live.CandidateOrder.TouchRank;
+			return LiveCandidatePipeline.CandidateRank(note);
 		}
 		private bool IsReservedForAnotherInput(NoteBase note, InputTmp input)
 		{
@@ -1220,51 +1054,19 @@ namespace Sekai.Core.Live
 			return true;
 		}
 
-		private NoteBase ResolveJudgmentNote(NoteBase note, InputTmp input)
-		{
-			if (note?.NoteList == null || note.NoteList.Count == 1)
-			{
-				return note;
-			}
 
-			if (note.Result != NoteResult.None || input.Touch.phase != InputTouchPhase.Began)
-			{
-				return GetLastNote(note);
-			}
 
-			return GetFirstNote(note);
-		}
-
-		private NoteBase ResolveFastGenerationNote(NoteBase note, InputTmp input)
-		{
-			if (note?.NoteList == null || note.NoteList.Count == 1)
-			{
-				return note;
-			}
-
-			NoteBase resolved = note.Result != NoteResult.None || input.Touch.phase != InputTouchPhase.Began
-				? GetLastNote(note)
-				: GetFirstNote(note);
-			float lane = ConvertLaneBy(ref resolved, ref input);
-			if (lane < 0f || resolved == null || !resolved.IsJudgment(ref input.Touch, lane))
-			{
-				return note;
-			}
-
-			return resolved;
-		}
-
-		private static NoteBase GetFirstNote(NoteBase note)
+		internal static NoteBase GetFirstNote(NoteBase note)
 		{
 			return note?.NoteList != null && note.NoteList.Count > 0 ? note.NoteList[0] : note;
 		}
 
-		private static NoteBase GetLastNote(NoteBase note)
+		internal static NoteBase GetLastNote(NoteBase note)
 		{
 			return note?.NoteList != null && note.NoteList.Count > 0 ? note.NoteList[note.NoteList.Count - 1] : note;
 		}
 
-		private static bool IsSameJudgmentTime(NoteBase a, NoteBase b)
+		internal static bool IsSameJudgmentTime(NoteBase a, NoteBase b)
 		{
 			return a != null && b != null && a.MusicScoreInfo.time.Equals(b.MusicScoreInfo.time);
 		}
