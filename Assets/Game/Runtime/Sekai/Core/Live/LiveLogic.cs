@@ -238,8 +238,7 @@ namespace Sekai.Core.Live
 			_timeline.Reset();
 			result = 0;
 			TapCount = 0;
-			_tailKeyViews.Clear();
-			_retiringViews.Clear();
+			_presentation.Reset();
 			_musicScore?.ResetNote();
 			_musicScore?.ResetEvent();
 		}
@@ -589,72 +588,16 @@ namespace Sekai.Core.Live
 			return note is LongNote bar && bar.ChildNote is NoteBase tail && tail.HasJudgment;
 		}
 
-		/// <summary>
-		/// SlidingOut and Retired keys keep moving past the line until Progress reaches 1.35.
-		/// This queue owns only views; judgment candidates and result publication are independent.
-		/// </summary>
-		private readonly List<NoteBase> _retiringViews = new List<NoteBase>();
-
-		// Only spawned tail views are tracked; no retirement callback is bound to the notes.
-		private readonly HashSet<NoteBase> _tailKeyViews = new HashSet<NoteBase>();
+		private readonly LivePresentationBridge _presentation = new LivePresentationBridge();
 
 		private void TickTailKeyViews()
 		{
-			List<NoteBase> judged = null;
-			foreach (NoteBase tail in _tailKeyViews)
-			{
-				var bar = (LongNote)tail.ParentNote;
-				TailKeyPhase phase = bar.GetTailKeyPhase(currentFrameInfo.time);
-
-				// A key that was judged leaves with its result. Letting a graded key keep riding down
-				// reads as a second, phantom key hanging under the line. A key nobody judged still
-				// slides away, which is what "the bar ended while the finger was elsewhere" should look
-				// like: the note is gone, not a key stuck on the line.
-				if (tail.Result != NoteResult.None)
-				{
-					(judged ??= new List<NoteBase>()).Add(tail);
-					continue;
-				}
-
-				if ((phase is TailKeyPhase.SlidingOut or TailKeyPhase.Retired) && !_retiringViews.Contains(tail))
-				{
-					_retiringViews.Add(tail);
-				}
-			}
-
-			if (judged == null)
-			{
-				return;
-			}
-
-			for (int index = 0; index < judged.Count; index++)
-			{
-				NoteBase tail = judged[index];
-				tail.RemoveView();
-				_tailKeyViews.Remove(tail);
-				_retiringViews.Remove(tail);
-			}
+			_presentation.TickTailKeys(currentFrameInfo.time);
 		}
 
 		private void TickRetiringViews(MusicScoreInfo currentFrameInfo)
 		{
-			for (int index = _retiringViews.Count - 1; index >= 0; index--)
-			{
-				NoteBase retiring = _retiringViews[index];
-				if (retiring == null)
-				{
-					_retiringViews.RemoveAt(index);
-					continue;
-				}
-
-				retiring.TickRetire(currentFrameInfo.time);
-				if (retiring.Progress >= 1.35f)
-				{
-					retiring.RemoveView();
-					_tailKeyViews.Remove(retiring);
-					_retiringViews.RemoveAt(index);
-				}
-			}
+			_presentation.TickRetiring(currentFrameInfo);
 		}
 
 		private void UpdateJudgmentNoteArray(NoteBase note)
@@ -1590,18 +1533,12 @@ namespace Sekai.Core.Live
 
 		private void OnSpawnNote(NoteBase note)
 		{
-			if (note.ParentRole == NoteParentRole.Tail)
-			{
-				var bar = (LongNote)note.ParentNote;
-				if (!bar.ViewNoteList.Contains(note) || bar.GetTailKeyPhase(currentFrameInfo.time) != TailKeyPhase.Following) return;
-				_tailKeyViews.Add(note);
-			}
-			LiveViewExt.SpawnNote(_liveViews, note);
+			_presentation.Spawn(_liveViews, note, currentFrameInfo.time);
 		}
 
 		private void OnUnSpawnNote(NoteBase note)
 		{
-			LiveViewExt.UnspawnNote(_liveViews, note);
+			_presentation.Unspawn(_liveViews, note);
 		}
 
 		private void OnJudgmentNote(NoteBase note)
