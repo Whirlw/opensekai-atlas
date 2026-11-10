@@ -13,6 +13,7 @@ namespace OpenSekai.Tests.EditMode.Live
     public sealed class LongHoldPipelineTests
     {
         private LiveConfig.NoteTypeJudgeData previous;
+        private MusicScoreInfo previousFrame;
         private static MusicScoreInfo Info(float time) => new MusicScoreInfo(0, time / 2, time, 120, 4, 1, 1);
 
         private sealed class HeldNote : LongNote
@@ -38,8 +39,8 @@ namespace OpenSekai.Tests.EditMode.Live
             }
         }
 
-        [SetUp] public void SetUp() { previous = LiveConfig.noteTypeJudgeData; LiveConfig.LoadMasterConfig(); }
-        [TearDown] public void TearDown() { LiveConfig.noteTypeJudgeData = previous; }
+        [SetUp] public void SetUp() { previous = LiveConfig.noteTypeJudgeData; previousFrame = MusicScore.CurrentFrameInfo; MusicScore.CurrentFrameInfo = Info(0); LiveConfig.LoadMasterConfig(); }
+        [TearDown] public void TearDown() { LiveConfig.noteTypeJudgeData = previous; MusicScore.CurrentFrameInfo = previousFrame; }
         private static T Field<T>(LiveLogic logic, string name) => (T)typeof(LiveLogic).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
         private static void Stage(LiveLogic logic, string name) => typeof(LiveLogic).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(logic, null);
         private static LiveLogic.InputTmp Input(int finger, float lane) => new LiveLogic.InputTmp
@@ -401,6 +402,7 @@ namespace OpenSekai.Tests.EditMode.Live
             var a = Input(1, 4.5f);
             var b = Input(2, 4.5f);
             Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").AddRange(reverse ? new[] { b, a } : new[] { a, b });
+            logic.currentFrameInfo = MusicScore.CurrentFrameInfo = Info(0.125f);
             Stage(logic, "Judgment");
             // A missing input now becomes an irreversible combo MISS at the following update.
             foreach (var note in notes) note.Excute(Info(0.142f), 0);
@@ -652,6 +654,7 @@ namespace OpenSekai.Tests.EditMode.Live
             note.Excute(Info(0.126f), 0);
             Field<List<NoteBase>>(logic, "_judgmentNoteList").Add(note);
             Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").Add(Input(1, 4.5f));
+            logic.currentFrameInfo = MusicScore.CurrentFrameInfo = Info(0.125f);
             Stage(logic, "RefreshSustainedHolds");
             Assert.That(combo.Result, Is.EqualTo(NoteResult.JustPerfect), "A refreshed hold must still score its interior combo ticks.");
             Assert.That(note.HoldingTouchId, Is.EqualTo(1));

@@ -32,14 +32,14 @@
 				Progress = 1f;
 			}
 
-			if (JudgeInfo.result == NoteResult.None && State <= NoteState.Last && isTouched)
+			if (!Head.IsSettled && State <= NoteState.Last && isTouched)
 			{
 				if (Progress < 1f)
 				{
 					return;
 				}
 
-				JudgeInfo = (CompletedTouchResult, NoteResultDescription.None);
+				Head.Settle((CompletedTouchResult, NoteResultDescription.None));
 				State = NoteState.InputBegan;
 			}
 		}

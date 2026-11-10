@@ -372,6 +372,13 @@ namespace Sekai.Core.Live
 					continue;
 				}
 
+				// An interior point is settled by JudgeDueComboPoints before this runs, by any finger in
+				// its lane. Nominating it here as well would let one of them spend a slot on it twice.
+				if (judgmentNote is Sekai.Live.LongHoldCombo)
+				{
+					continue;
+				}
+
 				bool isConnection = true;
 				bool isJudged = false;
 				for (int inputIndex = inputs.Count - 1; inputIndex >= 0; inputIndex--)

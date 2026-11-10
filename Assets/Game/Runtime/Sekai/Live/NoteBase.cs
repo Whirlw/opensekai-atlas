@@ -609,7 +609,7 @@ namespace Sekai.Live
 		/// has a result; a note that only records the press (a held bar, a rub still approaching) does not,
 		/// so the candidate behind it still gets its frame.
 		/// </summary>
-		internal bool ClosesSlotAfterPress =>
+		internal virtual bool ClosesSlotAfterPress =>
 			State == NoteState.Done || Result != NoteResult.None;
 
 		public virtual bool Judgment(ref LiveTouch touch, float lane)

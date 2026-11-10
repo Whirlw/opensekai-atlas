@@ -1,4 +1,4 @@
-using NUnit.Framework;
+﻿using NUnit.Framework;
 using OpenSekai.Shared.Live;
 using Sekai.Live;
 using TouchPhase = UnityEngine.InputSystem.TouchPhase;
@@ -81,5 +81,17 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(flick.Judgment(ref touch, 4.5f), Is.False);
             Assert.That(flick.ClosesSlotAfterPress, Is.False);
         }
+
+		[Test]
+		public void AnInteriorPointNeverClosesTheSlot()
+		{
+			var point = new LongHoldCombo(Info(1f), NoteType.Default, 1f, 0f);
+			LiveTouch touch = Touch(TouchPhase.Began, 1f);
+
+			point.Excute(Info(1f), 0f);
+			point.Judgment(ref touch, 0f);
+
+			Assert.That(point.ClosesSlotAfterPress, Is.False, "an interior point takes no slot, so a bar's body never blocks the note behind it");
+		}
     }
 }

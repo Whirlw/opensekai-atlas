@@ -304,3 +304,79 @@ private static void Stage(LiveLogic logic, string name) =>
 ### 11.6 门禁
 
 `LongHoldPipelineTests` → `LiveLogicInputTests` → 全量（基线 506 / 502 / 4）→ 装机验：普通谱、BOF 长条密集谱、变速谱各一首，看长条丢手后是否「先灰、3 帧后消失」，以及摩擦条手指回来能否续上。
+
+## 十二、2026-11-10 进展：中间点已经退出按下通道（收口记录）
+
+### 12.1 这轮落地的三件事
+
+| 提交 | 内容 | 门禁 |
+| --- | --- | --- |
+| `c42fb7e` | `NoteBase.ClosesSlotAfterPress` 改为 `virtual`，`LongHoldCombo` 覆写为 `false`：中间点不再占用手指这一帧的名额 | 510 / 506 通过 / 0 失败 / 4 跳过 |
+| `dc3e107` | `LiveCandidatePipeline.Collect` 跳过 `LongHoldCombo`：中间点只由 `LiveLogic.JudgeDueComboPoints` 结算，不再进候选集 | 同上 |
+| （测试） | `NotePressDispositionTests.AnInteriorPointNeverClosesTheSlot` | 同上 |
+
+至此「按下通道只服务会结束的音符、中间点各判各的」在**中间点这一侧**已经成立：
+
+- 中间点不占名额（`ClosesSlotAfterPress == false`）
+- 中间点不进候选集（`Collect` 直接 `continue`）
+- 中间点每帧由 `JudgeDueComboPoints()` 对每个活跃触摸跑一次 `IsJudgment`，存在即判，重叠各判各
+
+### 12.2 仍然挂在候选集里的东西，以及为什么
+
+`Collect` 现在仍收：普通键、划键、长条头（`LongNote`）、连接键、搓键（`FrictionNote`）、隐藏键、尾键、装饰条。
+
+原因是**没人替代它们**：
+
+- 长条头：它的每帧 `Judgment` 是「按下即转 `InputBegan`」的唯一入口，协调器只做 `RefreshHeldInput`（不结算头部）。
+- 搓键 / 隐藏键 / 连接键：只有候选通道每帧调它们的 `Judgment`，没有第二条路了。
+- 尾键：由长条的 `Judgment` 与协调器 sweep（`TailBehaviour.TryFinish`）共同处理。
+
+所以 9.6 的第 1 步（`IsPressStepNote` 让长条一律退出按下通道）**不能先做**：做了就是 §9.2 的第 1 堵墙。
+
+### 12.3 下一步的唯一入口：部件 1 的前半段
+
+要让长条离开候选集，必须先让协调器负责长条的每帧判定：在 `LiveHoldCoordinator` 里对「已被覆盖」的长条调用一次 `held.Judgment(ref touch, lane)`（而不是只 `RefreshHeldInput`），使头部结算、内部点、尾键都有归属。
+
+顺序必须是：
+
+1. 协调器每帧对覆盖中的长条调 `Judgment` —— 先与候选通道**并存**，跑全量确认不双判（内部点已 Done 会早退，风险集中在尾键与 `OffsetJudgeTime`）
+2. 全绿后，`Collect` 跳过 `LongNote`
+3. 再跑全量；这一步才是真正的 9.6 第 1 步
+4. 之后再谈搓键/隐藏键/连接键的「自由通道」——它们比长条简单，但要等第 3 步稳定
+
+### 12.4 状态
+
+- `main = dc3e107`，工作区干净
+- EditMode `510 / 506 / 0 / 4`
+- 部件 3（容差）、部件 2（中间点任意手指 + 长条状态记忆）、宽限期、`Playing → Scrolling` 改名、中间点退出按下通道：已完成
+- 部件 1（长条只留生命周期）、部件 4 的剩余部分（搓键/隐藏/连接/尾键走自由通道）：未完成，入口见 12.3
+
+### 12.5 12.3 那个实验的结果（2026-11-10，已回退，不要重复）
+
+试了两步，都没过门禁，代码已 `git checkout` 回 `d7c8cf0`：
+
+| 尝试 | 改动 | 结果 |
+| --- | --- | --- |
+| 并存 | `TryRefreshFromOwner` 里把 `held.RefreshHeldInput` 换成 `held.Judgment` | 510 / 503 通过 / **3 失败**：`OverlappingTapDoesNotConsumeTheHeldNotesDeferredCandidate`×2、`SustainedHoldOnlyRefreshesWhileTheHolderStaysInLane(4.5,True)` |
+| 一并摘除 | 上一步 + `Collect` 跳过 `LongNote` | 510 / **468** 通过 / **38 失败**（`AuthoredCrossingAllowsFollowingOrExchangingFingers` 全族、`LiveLogicCharacterizationTests` 一条等） |
+
+结论：**长条不能靠「换一个调用点」离开按下通道。** `LongNote.Judgment` 不只是「判一下」——它同时做头部结算、`RecordHoldingInput`、`MarkPressedThisFrame`、`OffsetJudgeTime` 清零、内部点、尾键；把它塞进协调器等于把按下通道的语义复制一份，两条路同时存在就双判（3 条红），只留协调器则没被覆盖的长条整帧拿不到判定（38 条红）。
+
+真正的部件 1 要把 `LongNote` 拆成两半：
+
+- 生命周期（`Wait`/`Scrolling`/`InputBegan`/`Input`/`Last`/`Release`/`Done`、灰化、结束）留在条上
+- 判定（头部结算、内部点、尾键）下沉到各自的音符对象，由协调器每帧喂 `IsJudgment`/`Judgment`
+
+在此之前，候选集必须继续收长条。
+
+## 十三、部件 1 已转为外部实现者任务（2026-11-10）
+
+任务书：`docs/operations/long-note-head-split.md`（自包含，含代码地图、失败记录、工具链、验收标准）。
+
+本仓库内的判定相关工作在此暂停，接手顺序：
+
+1. 外部实现者按该文 §3.1 做结构拆分（零行为变化），交付后由本侧验收
+2. 验收通过后再做 §3.2 的换入口（协调器喂判定 + 候选集跳过长条）
+3. 之后才是搓键/隐藏键/连接键的自由通道
+
+验收方（本侧）只需跑 §5.1 的三项硬门禁 + §5.2 的红线测试清单 + §5.3 的真机三张谱。

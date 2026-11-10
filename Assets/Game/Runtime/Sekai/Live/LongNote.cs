@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -96,17 +96,6 @@ namespace Sekai.Live
 			}
 			protected set
 			{
-				if ((state == NoteState.Scrolling && value == NoteState.InputBegan)
-					|| (state == NoteState.Last && value == NoteState.InputBegan))
-				{
-					onJudgment?.Invoke(this);
-					onUpdateCombo?.Invoke(this);
-					onUpdateScore?.Invoke(this);
-					onDamage?.Invoke(this);
-					state = value;
-					return;
-				}
-
 				if (value == NoteState.Done && state == NoteState.Done) return;
 
 				if (value == NoteState.Done)
@@ -302,13 +291,7 @@ namespace Sekai.Live
 			{
 				State = NoteState.Release;
 
-				if (PublishesHeadMiss)
-				{
-					JudgeInfo = (NoteResult.Miss, NoteResultDescription.None);
-					onDamage?.Invoke(this);
-					onUpdateCombo?.Invoke(this);
-					onJudgment?.Invoke(this);
-				}
+				if (!Head.IsSettled) Head.PublishHeadMiss();
 			}
 
 			Progress = CalcProgress(currentFrameInfo, offsetTime);
@@ -370,18 +353,7 @@ namespace Sekai.Live
 			// The head has its own judgement: it is settled once, when its window closes, and whether
 			// the bar is lit or grey afterwards has nothing to do with it. A hidden head was never a
 			// note the player could answer, so it settles silently.
-			if (!_headSettled && currentFrameInfo.time - MusicScoreInfo.time > LiveConfig.JudgeTime)
-			{
-				_headSettled = true;
-
-				if (PublishesHeadMiss && JudgeInfo.result == NoteResult.None)
-				{
-					JudgeInfo = (NoteResult.Miss, NoteResultDescription.None);
-					onDamage?.Invoke(this);
-					onUpdateCombo?.Invoke(this);
-					onJudgment?.Invoke(this);
-				}
-			}
+			Head.SettleExpiredHead(currentFrameInfo.time);
 
 			// The bar's appearance is driven only by whether a finger is on it. Lit while it is being
 			// held, a three frame grace once nobody is on it any more, then grey. Touching it again at
@@ -562,61 +534,7 @@ namespace Sekai.Live
 
 		public override bool Judgment(ref LiveTouch touch, float lane)
 		{
-			if (State == NoteState.Done)
-			{
-				return false;
-			}
-
-			// Only an ordinary head has an owner: it is the press that a second finger could
-			// steal, and it is the only part of a bar the chart asks a single note to answer.
-			// A rubbed bar and a hidden head are taken by whatever finger is over the lane.
-			bool headSettledAlready = JudgeInfo.result != NoteResult.None;
-			if (!headSettledAlready && PublishesHeadMiss && IsHeldByAnotherFinger(touch.fingerId, touch.musicTime))
-			{
-				return false;
-			}
-
-			// The head is a tap note that happens to have a body behind it: it is judged on its own
-			// window, whatever the body is doing, and its result never decides how the body behaves.
-			if (JudgeInfo.result == NoteResult.None)
-			{
-				var judgeInfo = LiveConfig.CalculateLongStartNoteResult(this, touch.musicTime);
-				JudgeInfo = onUpdateResult != null ? onUpdateResult(judgeInfo) : judgeInfo;
-				State = NoteState.InputBegan;
-			}
-			else
-			{
-				State = State == NoteState.Release ? NoteState.InputBegan : NoteState.Input;
-			}
-
-			RecordHoldingInput(touch.fingerId, touch.musicTime);
-			_headTouched = true;
-			MarkPressedThisFrame();
-			if (LiveTrace.IsOn(LiveTraceCategory.Hold))
-			{
-				LiveTrace.Write(LiveTraceCategory.Hold, $"grab barT={MusicScoreInfo.time:F3} lane={lane:F2} range={JudgeLaneStart:F2}..{JudgeLaneEnd:F2} finger={touch.fingerId} phase={touch.phase}");
-			}
-
-			OffsetJudgeTime = 0f;
-			ConnectionNoteJudgment(ref touch, lane);
-
-			if (childNote != null
-				&& LiveConfig.IsLongEndJudgeTime(childNote.JudgeOffsetAt(touch.musicTime))
-				&& childNote.IsJudgment(ref touch, lane)
-				&& childNote.Judgment(ref touch, lane))
-			{
-				if (LiveTrace.IsOn(LiveTraceCategory.Hold))
-				{
-					LiveTrace.Write(LiveTraceCategory.Hold, $"headPressChild barT={MusicScoreInfo.time:F3} touchT={touch.musicTime:F3} childT={childNote.MusicScoreInfo.time:F3}");
-				}
-
-				State = NoteState.Done;
-				return true;
-			}
-
-			// Being held: the bar is kept alive by its own refresh pass, so the finger can still serve
-			// a note that sits on top of it.
-			return true;
+			return Head.Judgment(ref touch, lane);
 		}
 
 		/// <summary>
@@ -1120,7 +1038,9 @@ namespace Sekai.Live
 			{
 				// A bar that has not been held yet cannot have a deferred swipe of its own; anything
 				// left here is pool residue from the previous run.
-				if (State != NoteState.InputBegan && State != NoteState.Input)
+				// The countdown starts exactly when the bar stops being held, so Last and Release must
+				// keep counting: treating them as residue cleared every deferred swipe on its first frame.
+				if (State != NoteState.InputBegan && State != NoteState.Input && State != NoteState.Last && State != NoteState.Release)
 				{
 					_swipeTailDeferred = false;
 					_swipeTailCapped = false;
@@ -1286,6 +1206,24 @@ namespace Sekai.Live
 		internal const float TailSwipeThreshold = 5f;
 
 
+		// Body transitions remain visual/lifecycle operations. Only Head publishes head results.
+		internal void SetHeadJudgmentState(NoteState value) => State = value;
+
+		internal NoteBase HeadChildNote => childNote;
+
+		internal void SetHeadJudgeInfo((NoteResult result, NoteResultDescription description) value) => JudgeInfo = value;
+
+		internal Func<(NoteResult result, NoteResultDescription description), (NoteResult result, NoteResultDescription description)> HeadResultUpdater => onUpdateResult;
+
+		internal void MarkHeadTouched() => _headTouched = true;
+
+		internal void ClearHeadJudgeOffset() => OffsetJudgeTime = 0f;
+
+		internal Action<NoteBase> HeadDamage => onDamage;
+		internal Action<NoteBase> HeadCombo => onUpdateCombo;
+		internal Action<NoteBase> HeadJudgment => onJudgment;
+		internal Action<NoteBase> HeadScore => onUpdateScore;
+
 		internal void RecordHoldingInput(int fingerId, float musicTime)
 		{
 			lastInputTime = musicTime;
@@ -1310,8 +1248,9 @@ namespace Sekai.Live
 
 		private bool _pressedThisFrame;
 
-	/// <summary>The head's own miss has been settled; the bar's colour no longer speaks for it.</summary>
-	private bool _headSettled;
+		private LongNoteHead _head;
+
+		internal LongNoteHead Head => _head ??= new LongNoteHead(this);
 	private bool _headTouched;
 
 	/// <summary>Frames spent in <see cref="NoteState.Last"/> since the last frame a finger was on the bar.</summary>
@@ -1378,7 +1317,8 @@ namespace Sekai.Live
 		{
 			if (State == NoteState.Release || State == NoteState.Last)
 			{
-				State = NoteState.InputBegan;
+				// Restoring the lit body never settles or publishes its head.
+				State = NoteState.Input;
 			}
 		}
 
@@ -1396,24 +1336,7 @@ namespace Sekai.Live
 
 		protected void ConnectionNoteJudgment(ref LiveTouch touch, float lane)
 		{
-			if (State != NoteState.InputBegan && State != NoteState.Input && State != NoteState.Release)
-			{
-				return;
-			}
-
-			if (NoteList == null)
-			{
-				return;
-			}
-
-			for (var i = 1; i < NoteList.Count - 1; i++)
-			{
-				var note = NoteList[i];
-				if (note != null)
-				{
-					note.Judgment(ref touch, lane);
-				}
-			}
+			Head.ConnectionNoteJudgment(ref touch, lane);
 		}
 
 		protected void ConnectionNoteTerminate()
@@ -1485,7 +1408,7 @@ namespace Sekai.Live
 			}
 
 			lastInputTime = currentFrameInfo.time;
-			JudgeInfo = (NoteResult.Auto, NoteResultDescription.None);
+			Head.Settle((NoteResult.Auto, NoteResultDescription.None));
 			State = State == NoteState.Scrolling || State == NoteState.Last || State == NoteState.Release ? NoteState.InputBegan : NoteState.Input;
 			OffsetJudgeTime = 0f;
 			ConnectionNoteAutoJudgment(currentFrameInfo);
@@ -1531,7 +1454,7 @@ namespace Sekai.Live
 			_swipeTailCapped = false;
 			_framesSinceRelease = -1;
 			_pressedThisFrame = false;
-			_headSettled = false;
+			_head?.Reset();
 			_headTouched = false;
 			_framesInLast = 0;
 			_tailPressed = false;

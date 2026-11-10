@@ -59,14 +59,14 @@
 				return;
 			}
 
-			if (JudgeInfo.result == NoteResult.None && State <= NoteState.Last && isTouched)
+			if (!Head.IsSettled && State <= NoteState.Last && isTouched)
 			{
 				if (Progress < 1f)
 				{
 					return;
 				}
 
-				JudgeInfo = (NoteResult.Pass, NoteResultDescription.None);
+				Head.Settle((NoteResult.Pass, NoteResultDescription.None));
 				State = NoteState.InputBegan;
 			}
 		}

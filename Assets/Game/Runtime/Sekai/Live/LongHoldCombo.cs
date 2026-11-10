@@ -85,6 +85,12 @@
 			_barWasInPlay = true;
 		}
 
+		/// <summary>
+		/// An interior point never spends the finger's frame: it is not something the player aims at,
+		/// and two bars crossing under the same finger must both keep their points.
+		/// </summary>
+		internal override bool ClosesSlotAfterPress => false;
+
 		/// <summary>True once the owning bar has been in play inside this point's judgement window.</summary>
 		internal bool WasBarInPlay => _barWasInPlay;
 
