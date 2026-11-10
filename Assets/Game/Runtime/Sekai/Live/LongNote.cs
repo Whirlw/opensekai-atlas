@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -357,7 +357,11 @@ namespace Sekai.Live
 
 			if (State == NoteState.Playing && currentFrameInfo.time - MusicScoreInfo.time > LiveConfig.JudgeTime)
 			{
-				State = NoteState.Last;
+				// A bar with no head to answer has nothing to miss, so it does not wait on the
+				// judgement line: it greys out like a released bar and lets its tail finish it.
+				// Leaving it in Last kept the body at full brightness until the tail time and,
+				// because only a held bar is refreshed, it never got there at all.
+				State = HasJudgment ? NoteState.Last : NoteState.Release;
 			}
 
 			// Decoration notes: skip input frame check to prevent being marked as Release.
