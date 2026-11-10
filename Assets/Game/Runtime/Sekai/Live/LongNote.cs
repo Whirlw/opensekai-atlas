@@ -211,7 +211,6 @@ namespace Sekai.Live
 		{
 			return;
 		}
-
 		NoteList ??= new List<NoteBase> { this };
 		ViewNoteList ??= new List<INote> { this };
 		connectionNote.speedRatio = speedRatio;
@@ -230,7 +229,19 @@ namespace Sekai.Live
 			return;
 		}
 
-		NoteList ??= new List<NoteBase> { this };
+		// One point per moment: an authored marker sitting exactly on a generated instant replaces
+		// it, so the bar is still judged once there. Only exact equality counts - a marker a
+		// hair off the grid is an extra point, not a replacement.
+		for (var i = 0; i < NoteList.Count; i++)
+		{
+			var existing = NoteList[i];
+			if (existing != null
+				&& existing.ParentRole == NoteParentRole.Combo
+				&& existing.MusicScoreInfo.time == longHoldCombo.MusicScoreInfo.time)
+			{
+				return;
+			}
+		}
 		longHoldCombo.speedRatio = speedRatio;
 		// 继承父note的装饰属性
 		longHoldCombo.SetDecoration(IsDecoration);
