@@ -96,7 +96,7 @@ namespace Sekai.Live
 			}
 			protected set
 			{
-				if ((state == NoteState.Playing && value == NoteState.InputBegan)
+				if ((state == NoteState.Scrolling && value == NoteState.InputBegan)
 					|| (state == NoteState.Last && value == NoteState.InputBegan))
 				{
 					onJudgment?.Invoke(this);
@@ -118,7 +118,7 @@ namespace Sekai.Live
 				}
 
 				state = value;
-				if (value == NoteState.Playing)
+				if (value == NoteState.Scrolling)
 				{
 					OnSpawnNote();
 				}
@@ -292,7 +292,7 @@ namespace Sekai.Live
 			var prevResult = Result;
 			if (State == NoteState.Wait)
 			{
-				State = NoteState.Playing;
+				State = NoteState.Scrolling;
 			}
 
 			// Every bar leaves Last the same way: it greys out, because its head is gone. What
@@ -389,7 +389,7 @@ namespace Sekai.Live
 			// between two frames of the same press.
 			bool covered = HasFinger;
 
-			if (State == NoteState.Playing && currentFrameInfo.time - MusicScoreInfo.time > LiveConfig.JudgeTime)
+			if (State == NoteState.Scrolling && currentFrameInfo.time - MusicScoreInfo.time > LiveConfig.JudgeTime)
 			{
 				if (!covered)
 				{
@@ -467,7 +467,7 @@ namespace Sekai.Live
 				// The head has not even been reached yet: nothing on this bar may finish it. A swipe
 				// that lands on the tail note while the bar is still playing must not award a Miss
 				// for a bar the player never had a chance to hold.
-				if (by != null && (State == NoteState.Wait || State == NoteState.Playing))
+				if (by != null && (State == NoteState.Wait || State == NoteState.Scrolling))
 				{
 					if (LiveTrace.IsOn(LiveTraceCategory.Hold))
 					{
@@ -1457,7 +1457,7 @@ namespace Sekai.Live
 			// Judged through the frame offset on purpose: candidate admission happens after Excute for the
 			// same frame, which is the contract this cache stands for.
 			return LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(this), OffsetJudgeTime)
-				&& ((State != NoteState.Playing && State != NoteState.Last) || touch.phase == UnityEngine.InputSystem.TouchPhase.Began);
+				&& ((State != NoteState.Scrolling && State != NoteState.Last) || touch.phase == UnityEngine.InputSystem.TouchPhase.Began);
 		}
 
 		/// <summary>
@@ -1486,7 +1486,7 @@ namespace Sekai.Live
 
 			lastInputTime = currentFrameInfo.time;
 			JudgeInfo = (NoteResult.Auto, NoteResultDescription.None);
-			State = State == NoteState.Playing || State == NoteState.Last || State == NoteState.Release ? NoteState.InputBegan : NoteState.Input;
+			State = State == NoteState.Scrolling || State == NoteState.Last || State == NoteState.Release ? NoteState.InputBegan : NoteState.Input;
 			OffsetJudgeTime = 0f;
 			ConnectionNoteAutoJudgment(currentFrameInfo);
 

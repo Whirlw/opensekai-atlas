@@ -443,7 +443,7 @@ namespace Sekai.Core.Live
 			if (note is LongNote longNote)
 			{
 				// Trigger at start time (head)
-				if (currentFrameInfo.time >= longNote.MusicScoreInfo.time && longNote.State == NoteState.Playing)
+				if (currentFrameInfo.time >= longNote.MusicScoreInfo.time && longNote.State == NoteState.Scrolling)
 				{
 					return true;
 				}
@@ -503,7 +503,7 @@ namespace Sekai.Core.Live
 				: null;
 
 			bool isAtEnd = lastChild != null && currentFrameInfo.time >= lastChild.MusicScoreInfo.time;
-			bool isAtStart = currentFrameInfo.time >= longNote.MusicScoreInfo.time && longNote.State == NoteState.Playing;
+			bool isAtStart = currentFrameInfo.time >= longNote.MusicScoreInfo.time && longNote.State == NoteState.Scrolling;
 
 			// At start: play head effect, but keep the long note showing (don't mark as Done)
 			if (isAtStart && !isAtEnd && longNote.State != NoteState.InputBegan)
@@ -556,7 +556,7 @@ namespace Sekai.Core.Live
 
 		private bool IsTooFarAheadForDisplayHighSpeed(float timeOffset, NoteBase note)
 		{
-			return note != null && note.State != NoteState.Playing && IsTooFarAheadForDisplay(timeOffset, note);
+			return note != null && note.State != NoteState.Scrolling && IsTooFarAheadForDisplay(timeOffset, note);
 		}
 
 		/// <summary>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Sekai;
@@ -149,7 +149,7 @@ namespace Sekai.Live
 				return false;
 			}
 
-			if (State == NoteState.Playing)
+			if (State == NoteState.Scrolling)
 			{
 				State = NoteState.Input;
 			}

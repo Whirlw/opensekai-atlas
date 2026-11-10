@@ -1,4 +1,4 @@
-namespace Sekai.Live
+﻿namespace Sekai.Live
 {
 	public class FrictionNote : ConnectionNote
 	{
@@ -58,11 +58,11 @@ namespace Sekai.Live
 			OffsetJudgeTime = currentFrameInfo.time - MusicScoreInfo.time;
 			if (State == NoteState.Wait)
 			{
-				State = NoteState.Playing;
+				State = NoteState.Scrolling;
 			}
 
 			var progress = CalcProgress(currentFrameInfo, offsetTime);
-			if (progress < 0f && state != NoteState.Playing)
+			if (progress < 0f && state != NoteState.Scrolling)
 			{
 				return;
 			}

@@ -160,7 +160,7 @@ namespace Sekai.Core.Live
 		{
 			// A bar that was taken and has moved on from its untouched phase still has a holder to
 			// continue with, whether a finger is on it this instant or it is waiting to be re-grabbed.
-			return note is LongNote held && held.WasTouched && held.State != NoteState.Playing;
+			return note is LongNote held && held.WasTouched && held.State != NoteState.Scrolling;
 		}
 
 		/// <summary>

@@ -1,4 +1,4 @@
-namespace Sekai.Live
+﻿namespace Sekai.Live
 {
 	public class FrictionHideLongNote : FrictionLongNote
 	{
@@ -24,7 +24,7 @@ namespace Sekai.Live
 				if (value == NoteState.Done && state == NoteState.Done) return;
 				if (value == NoteState.Done)
 				{
-					WasHoldingWhenTerminated = state == NoteState.Playing
+					WasHoldingWhenTerminated = state == NoteState.Scrolling
 						|| state == NoteState.Last
 						|| state == NoteState.InputBegan
 						|| state == NoteState.Input;
@@ -34,7 +34,7 @@ namespace Sekai.Live
 				}
 
 				state = value;
-				if (value == NoteState.Playing)
+				if (value == NoteState.Scrolling)
 				{
 					OnSpawnNote();
 				}

@@ -20,7 +20,7 @@ namespace OpenSekai.Tests.EditMode.Live
             internal HeldNote(int finger, float time = 0f) : base(Info(time), finger, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0)
             {
                 AddNoteListAndSetupChildNote(new NormalNote(Info(10), 100 + finger, 4, 5, NoteCategory.Normal, 1, NoteType.Default, 0));
-                State = NoteState.Playing;
+                State = NoteState.Scrolling;
                 var touch = new LiveTouch { fingerId = finger, touchId = finger, phase = TouchPhase.Began };
                 Judgment(ref touch, 4.5f);
                 JudgmentCalls = 0;
@@ -69,7 +69,7 @@ namespace OpenSekai.Tests.EditMode.Live
         [TestCase(NoteState.InputBegan, true, true)]
         [TestCase(NoteState.Release, true, true)]
         [TestCase(NoteState.Release, false, false)]
-        [TestCase(NoteState.Playing, true, false)]
+        [TestCase(NoteState.Scrolling, true, false)]
         [TestCase(NoteState.Done, true, false)]
         public void ReservationRequiresAnEligibleOwnerAndStartedHold(NoteState state, bool eligible, bool expected)
         {

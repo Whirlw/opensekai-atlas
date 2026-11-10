@@ -56,7 +56,7 @@
 
 			if (State == NoteState.Wait)
 			{
-				State = NoteState.Playing;
+				State = NoteState.Scrolling;
 			}
 
 			Progress = CalcProgress(currentFrameInfo, offsetTime);

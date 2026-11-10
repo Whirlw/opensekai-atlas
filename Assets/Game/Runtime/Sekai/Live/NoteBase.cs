@@ -228,7 +228,7 @@ namespace Sekai.Live
 			{
 				if (value == NoteState.Done && state == NoteState.Done) return;
 				state = value;
-				if (value == NoteState.Playing)
+				if (value == NoteState.Scrolling)
 				{
 					OnSpawnNote();
 				}
@@ -572,14 +572,14 @@ namespace Sekai.Live
 			float judgeOffset = JudgeOffsetAt(currentFrameInfo.time);
 			OffsetJudgeTime = judgeOffset;
 			float progress = CalcProgress(currentFrameInfo, offsetTime);
-			if (progress < 0f && state != NoteState.Playing)
+			if (progress < 0f && state != NoteState.Scrolling)
 			{
 				return;
 			}
 
 			if (State == NoteState.Wait)
 			{
-				State = NoteState.Playing;
+				State = NoteState.Scrolling;
 			}
 
 			Progress = progress;

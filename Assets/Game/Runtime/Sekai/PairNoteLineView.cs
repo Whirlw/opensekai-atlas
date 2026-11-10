@@ -109,7 +109,7 @@ namespace Sekai
 			for (int i = 0; i < _pairNotes.Count; i++)
 			{
 				INote note = _pairNotes[i];
-				if (note == null || note.State > NoteState.Playing || note.PairNote == null || note.PairNote.State >= NoteState.InputBegan)
+				if (note == null || note.State > NoteState.Scrolling || note.PairNote == null || note.PairNote.State >= NoteState.InputBegan)
 				{
 					_pairNotes.RemoveAt(i--);
 				}
@@ -125,7 +125,7 @@ namespace Sekai
 				}
 
 				INote note = _pairNotes[i];
-				if (note.State == NoteState.Playing && note.Progress > 0f)
+				if (note.State == NoteState.Scrolling && note.Progress > 0f)
 				{
 					float progress = LiveConfig.GetNoteViewProgress(note.Progress);
 					if (musicTime >= note.MusicScoreInfo.time && note is LongNote)

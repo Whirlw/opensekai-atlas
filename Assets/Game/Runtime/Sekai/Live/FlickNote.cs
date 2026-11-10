@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Sekai;
@@ -144,7 +144,7 @@ namespace Sekai.Live
 				}
 			}
 
-			return parentNote != null || State != NoteState.Playing || touch.phase == UnityEngine.InputSystem.TouchPhase.Began;
+			return parentNote != null || State != NoteState.Scrolling || touch.phase == UnityEngine.InputSystem.TouchPhase.Began;
 		}
 
 		private bool IsLaneCheck(LiveTouch touch)
@@ -172,7 +172,7 @@ namespace Sekai.Live
 				return false;
 			}
 
-			if (State == NoteState.Playing)
+			if (State == NoteState.Scrolling)
 			{
 				State = NoteState.Input;
 			}

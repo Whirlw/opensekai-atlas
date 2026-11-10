@@ -1,4 +1,4 @@
-namespace Sekai.Live
+﻿namespace Sekai.Live
 {
 	public class GuideNote : LongNote
 	{
@@ -29,7 +29,7 @@ namespace Sekai.Live
 				{
 					OnUnSpawnNote();
 				}
-				else if (value == NoteState.Playing)
+				else if (value == NoteState.Scrolling)
 				{
 					OnSpawnNote();
 				}
@@ -51,7 +51,7 @@ namespace Sekai.Live
 			this.offsetTime = offsetTime;
 			if (State == NoteState.Wait)
 			{
-				State = NoteState.Playing;
+				State = NoteState.Scrolling;
 			}
 
 			if (State == NoteState.Last)
@@ -80,7 +80,7 @@ namespace Sekai.Live
 			var nextNote = (INote)childNote;
 			LiveUtility.CalcExcuteNoteLane(this, ref currentNote, ref nextNote, ref currentFrameInfo, MusicScoreInfo, childNote);
 
-			if (State == NoteState.Playing && LiveConfig.JudgeTime < currentFrameInfo.time - MusicScoreInfo.time)
+			if (State == NoteState.Scrolling && LiveConfig.JudgeTime < currentFrameInfo.time - MusicScoreInfo.time)
 			{
 				State = NoteState.Last;
 			}

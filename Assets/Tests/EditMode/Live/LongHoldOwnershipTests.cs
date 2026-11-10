@@ -1,4 +1,4 @@
-using NUnit.Framework;
+﻿using NUnit.Framework;
 using OpenSekai.Shared.Live;
 using Sekai.Live;
 
@@ -63,7 +63,7 @@ namespace OpenSekai.Tests.EditMode.Live
 		public void AnUnheldNoteAcceptsAnyFinger()
 		{
 			Assert.That(
-				LongNote.ShouldIgnoreTouch(-1, 7, NoteState.Playing, 0f, At(100), Tolerance),
+				LongNote.ShouldIgnoreTouch(-1, 7, NoteState.Scrolling, 0f, At(100), Tolerance),
 				Is.False);
 		}
 
