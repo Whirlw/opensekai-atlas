@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -371,7 +371,7 @@ namespace Sekai.Live
 					if (_headTouched)
 					{
 						State = NoteState.Last;
-						_framesInLast = 0;
+				_graceStartedAt = currentFrameInfo.time;
 					}
 					else
 					{
@@ -383,12 +383,12 @@ namespace Sekai.Live
 			{
 				if (covered)
 				{
-					_framesInLast = 0;
+				_graceStartedAt = currentFrameInfo.time;
 				}
-				else if (++_framesInLast > HoldGraceFrames)
+				else if (currentFrameInfo.time - _graceStartedAt > HoldGraceSeconds)
 				{
 					State = NoteState.Release;
-					_framesInLast = 0;
+				_graceStartedAt = currentFrameInfo.time;
 				}
 			}
 
@@ -406,9 +406,9 @@ namespace Sekai.Live
 				else if (!IsDecoration)
 				{
 					// The finger is gone: grey the bar now and let the countdown below decide when it
-					// is finished. There is no second clock - the grace is the three frames in Last.
+					// is finished. The grace is 50 ms of wall time, not three frames of whatever the
 					State = NoteState.Last;
-					_framesInLast = 0;
+					_graceStartedAt = currentFrameInfo.time;
 				}
 			}
 
@@ -1254,7 +1254,7 @@ namespace Sekai.Live
 	private bool _headTouched;
 
 	/// <summary>Frames spent in <see cref="NoteState.Last"/> since the last frame a finger was on the bar.</summary>
-	private int _framesInLast;
+		private float _graceStartedAt;
 
 		/// <summary>Music time this note was last updated with, used when a press needs a stamp.</summary>
 		private float _lastFrameTime;
@@ -1297,6 +1297,12 @@ namespace Sekai.Live
 		/// that does the bar become "released". The chart's own MissMesh is added on top.
 		/// </summary>
 		internal const int HoldGraceFrames = 3;
+		/// <summary>
+		/// The same grace as a duration: three frames of the 60 fps judgement tables, so 50 ms on a
+		/// 165 Hz phone and on a 60 Hz one alike.
+		/// </summary>
+		internal static float HoldGraceSeconds => ReferenceFrame.FromFrames(HoldGraceFrames);
+
 
 		/// <summary>True while this hold was refreshed recently enough to still count as held.</summary>
 		internal bool IsHoldFresh(float currentTime)
@@ -1456,7 +1462,7 @@ namespace Sekai.Live
 			_pressedThisFrame = false;
 			_head?.Reset();
 			_headTouched = false;
-			_framesInLast = 0;
+			_graceStartedAt = 0f;
 			_tailPressed = false;
 			_lastFrameTime = 0f;
 			_swipeAccum = Vector2.zero;
