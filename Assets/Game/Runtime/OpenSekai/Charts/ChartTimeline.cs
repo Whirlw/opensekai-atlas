@@ -10,7 +10,7 @@ namespace OpenSekai.Charts
     {
         public const long TICKS_PER_BAR = 1920L;
 
-		/// <summary>How many ticks one bar of this meter takes. 480 ticks to the beat, times the beats in a bar.</summary>
+		/// <summary>How many ticks one bar of this meter takes: one beat is a 480th of a 4/4 bar, and the denominator says what a beat is.</summary>
 		private static long BarTicks(float timeSignature)
 		{
 			return timeSignature > 0f ? (long)Math.Round(timeSignature * TICKS_PER_BEAT) : TICKS_PER_BAR;
@@ -255,21 +255,26 @@ namespace OpenSekai.Charts
 						throw new ArgumentOutOfRangeException();
 					}
 				}
-				// A bar is as long as the meter in force says: 1920 ticks in 4/4, 1440 in 3/4. A meter
-				// change is only ever inserted between two whole bars, so it starts a new one.
-				if (timeSignature != previousTimeSignature)
+			// A meter change sits between two whole bars: close out whatever is left of the old bar,
+			// then start a bar of the new meter here. A meter at tick zero starts the first bar and
+			// must not consume one.
+			if (timeSignature != previousTimeSignature)
+			{
+				long leaveTicks = BarTicks(previousTimeSignature);
+				while (leaveTicks > 0 && ticks - barStartTicks >= leaveTicks)
 				{
-					long leaveTicks = BarTicks(previousTimeSignature);
-					while (leaveTicks > 0 && ticks - barStartTicks >= leaveTicks)
-					{
-						barStartTicks += leaveTicks;
-						barIndex++;
-						leaveTicks = BarTicks(previousTimeSignature);
-					}
-					barStartTicks = ticks;
-					if (ticks > barStartTicks) { barIndex++; }
-					previousTimeSignature = timeSignature;
+					barStartTicks += leaveTicks;
+					barIndex++;
 				}
+
+				if (ticks > barStartTicks)
+				{
+					barIndex++;
+				}
+
+				barStartTicks = ticks;
+				previousTimeSignature = timeSignature;
+			}
 
 				long barTicks = BarTicks(timeSignature);
 				while (barTicks > 0 && ticks - barStartTicks >= barTicks)
@@ -422,8 +427,9 @@ namespace OpenSekai.Charts
 
 			float bpm = segment.bpm > 0f ? segment.bpm : DEFAULT_BPM;
 			float signature = segment.timeSignature > 0f ? segment.timeSignature : DEFAULT_TIME_SIGNATURE;
-			float barSeconds = signature * SECONDS_PER_MINUTES / bpm;
+			// The grid is time, not notation: a bar is 1920 ticks, four beats, whatever meter the chart is written in.
 			float elapsed = time - segment.time;
+			float barSeconds = signature * SECONDS_PER_MINUTES / bpm;
 			int bars = barSeconds > 0f ? (int)Math.Floor(elapsed / barSeconds + 0.0001f) : 0;
 			float progress = barSeconds > 0f ? (elapsed - bars * barSeconds) / barSeconds : 0f;
 			return new MusicScoreInfo(segment.bar + bars, progress, time, bpm, signature, segment.speedRatio, segment.seVolume);
