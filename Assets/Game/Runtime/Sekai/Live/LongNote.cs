@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -502,6 +502,17 @@ namespace Sekai.Live
 		/// that is already holding it, otherwise the hold misses a frame and releases.
 		/// </summary>
 		public int HoldingTouchId => _holdingTouchId;
+
+		/// <summary>
+		/// True while a finger is on this bar and its hold has not gone stale. This is the fact the
+		/// bar acts on: it says nothing about which input phase a finger is in, and it stops being
+		/// true as soon as the last refresh is older than the hold tolerance — earlier than the
+		/// state machine greys the bar out.
+		/// </summary>
+		public bool IsHeld(float currentTime)
+		{
+			return _holdingTouchId >= 0 && IsHoldFresh(currentTime);
+		}
 
 		/// <summary>
 		/// True when another finger is currently holding this note and its hold is still fresh.

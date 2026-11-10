@@ -48,6 +48,23 @@ namespace OpenSekai.Tests.EditMode.Live
             Touch = new LiveTouch { fingerId = finger, touchId = finger, musicTime = 0, phase = TouchPhase.Stationary }
         };
 
+        [Test]
+        public void IsHeld_follows_the_finger_not_the_state()
+        {
+            var bar = new HeldNote(3);
+
+            Assert.That(bar.IsHeld(0f), Is.True, "a finger is down and was refreshed this frame");
+            Assert.That(bar.State == NoteState.InputBegan || bar.State == NoteState.Input, Is.True);
+
+            bar.SetLastTime(-10f);
+
+            Assert.That(bar.IsHeld(0f), Is.False, "a hold older than the tolerance is not a hold, whatever the state still reads");
+            Assert.That(bar.State == NoteState.InputBegan || bar.State == NoteState.Input, Is.True,
+                "the state lags one refresh behind, which is why heldness is asked separately");
+
+            Assert.That(new HeldNote(4).IsHeld(0f), Is.True);
+        }
+
         [TestCase(NoteState.Input, true, true)]
         [TestCase(NoteState.InputBegan, true, true)]
         [TestCase(NoteState.Release, true, true)]
