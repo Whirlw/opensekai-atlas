@@ -512,6 +512,11 @@ namespace Sekai.Live
 		public int HoldingTouchId => _holdingTouchId;
 
 		/// <summary>
+		/// True while a finger is on this bar, whatever phase that finger is in. The touch id is the
+		/// truth; the InputBegan/Input states are its second spelling and are on their way out.
+		/// </summary>
+		public bool HasFinger => _holdingTouchId >= 0;
+		/// <summary>
 		/// True while a finger is on this bar and its hold has not gone stale. This is the fact the
 		/// bar acts on: it says nothing about which input phase a finger is in, and it stops being
 		/// true as soon as the last refresh is older than the hold tolerance — earlier than the
