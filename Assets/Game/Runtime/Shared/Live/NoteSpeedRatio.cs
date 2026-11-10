@@ -64,7 +64,12 @@ namespace OpenSekai.Shared.Live
                     {
                         if (segmentProgress > noteProgress)
                         {
-                            return fallbackSpeedRatio;
+                            // The note sits inside the segment that starts at scoreInfos[i - 1]: the walk never
+                            // opened a range, but the span is non-zero, so it must still be covered at that
+                            // segment's speed instead of falling back to the frame's own ratio.
+                            accumulated += (noteProgress - currentProgress) * scoreInfos[i - 1].speedRatio;
+                            hasRange = true;
+                            break;
                         }
 
                         accumulated += (segmentProgress - currentProgress) * scoreInfos[i - 1].speedRatio;

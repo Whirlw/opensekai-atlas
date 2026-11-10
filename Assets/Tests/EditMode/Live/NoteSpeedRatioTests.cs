@@ -73,5 +73,43 @@ namespace OpenSekai.Tests.EditMode.Live
         {
             Assert.That(NoteSpeedRatio.Resolve(new[] { Speed(0f, 3f) }, 1f, 1f, 4f), Is.EqualTo(4f));
         }
+
+        private static MusicScoreInfo[] ThreeSpeeds() => new[]
+        {
+            Speed(0f, 1f), Speed(2f, 2f), Speed(4f, 0.5f)
+        };
+
+        [TestCase(2f, 1f)]
+        [TestCase(4f, 1.5f)]
+        public void ThreeSegmentBoundaryUsesTheWeightedTravel(float noteProgress, float expected)
+        {
+            // At 2: (2 * 1) / 2 = 1; at 4: (2 * 1 + 2 * 2) / 4 = 1.5.
+            Assert.That(NoteSpeedRatio.Resolve(ThreeSpeeds(), 0f, noteProgress, 9f),
+                Is.EqualTo(expected).Within(1e-5f));
+        }
+
+        [Test]
+        public void TravelAcrossTheSecondAndThirdSegmentsIsWeighted()
+        {
+            // [3,4] at 2 plus [4,6] at 0.5: (1 * 2 + 2 * 0.5) / 3 = 1.
+            Assert.That(NoteSpeedRatio.Resolve(ThreeSpeeds(), 3f, 6f, 9f),
+                Is.EqualTo(1f).Within(1e-5f));
+        }
+
+        [Test]
+        public void TravelWhollyInsideTheSecondSegmentUsesItsSpeed()
+        {
+            // [2.25,3.75] is entirely at 2: (1.5 * 2) / 1.5 = 2.
+            Assert.That(NoteSpeedRatio.Resolve(ThreeSpeeds(), 2.25f, 3.75f, 9f),
+                Is.EqualTo(2f).Within(1e-5f));
+        }
+
+        [Test]
+        public void EmptyThreeSegmentInputUsesTheGivenFallback()
+        {
+            // No segment lengths exist to weight, so the supplied fallback is 9.
+            Assert.That(NoteSpeedRatio.Resolve(new MusicScoreInfo[0], 2.25f, 3.75f, 9f),
+                Is.EqualTo(9f));
+        }
     }
 }
