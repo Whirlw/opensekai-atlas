@@ -1,4 +1,4 @@
-# 判定剩余三件事（交给外部实现者）
+﻿# 判定剩余三件事（交给外部实现者）
 
 状态：2026-11-10，`main = dd1d9ad`，EditMode `522 / 518 通过 / 0 失败 / 4 跳过`。
 前序：[judgement-input-split](judgement-input-split.md)（部件 1 已完成头部拆分）、[head-decoupling](head-decoupling.md)、[interior-point-window](interior-point-window.md)。
@@ -140,7 +140,7 @@
 | 生产 | `_holdingTouchId >= 0`（即 `HasFinger`），由 `RecordHoldingInput` / `AssignHoldingInput` 写入 |
 | 该测试 | 只写 `lastInputTime`（`LiveLogicInputTests.cs:104`、`:246`），**从不设 touch id** |
 
-`HasFinger` 是 touch id 的派生值，所以测试里它恒为 `false`。条体退役 `InputBegan/Input` 之后，两处「在打」的门禁都读 `HasFinger`，于是中间点永远不被判 —— 三条红由此而来，与候选排序、窗口都无关。
+`HasFinger` 是 touch id 的派生值。**更正（2026-11-10 二次核对）**：这条测试里它并非恒为 false —— `LongNoteHead.cs:86` 在按下路径上会调 `RecordHoldingInput`。所以不要把「测试没设 touch id」当成本轮要做的事，本轮只改两处生产门禁。条体退役 `InputBegan/Input` 之后，两处「在打」的门禁都读 `HasFinger`，于是中间点永远不被判 —— 三条红由此而来，与候选排序、窗口都无关。
 
 第二轮请按下面三点改：
 
@@ -151,7 +151,7 @@
    - `Assets/Game/Runtime/Sekai/Core/Live/LiveLogic.cs:661`（中间点记忆门禁）
      → `if (bar != null && (bar.HasFinger || bar.State == NoteState.Last || bar.State == NoteState.Release))`
 
-2. **测试的按住构造**（允许改，属"构造被测状态"）：
+2. ~~**测试的按住构造**~~（**本轮不做**，理由见上条更正）：
    `LiveLogicInputTests.cs:104` 与 `:246` 在写 `lastInputTime` 的同一处，一并写持有事实：
    `n.RecordHoldingInput(finger, time);`（手指编号沿用该测试循环里的 `finger`/实际注入的 id）。
    **不要**改这些测试里任何一条断言。
