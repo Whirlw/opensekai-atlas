@@ -359,9 +359,47 @@ namespace Sekai.Live
 
 			LiveUtility.CalcExcuteNoteLane(this, ref currentNote, ref nextNote, ref currentFrameInfo, MusicScoreInfo, childNote);
 
+			// The head has its own judgement: it is settled once, when its window closes, and whether
+			// the bar is lit or grey afterwards has nothing to do with it. A hidden head was never a
+			// note the player could answer, so it settles silently.
+			if (!_headSettled && currentFrameInfo.time - MusicScoreInfo.time > LiveConfig.JudgeTime)
+			{
+				_headSettled = true;
+
+				if (PublishesHeadMiss && JudgeInfo.result == NoteResult.None)
+				{
+					JudgeInfo = (NoteResult.Miss, NoteResultDescription.None);
+					onDamage?.Invoke(this);
+					onUpdateCombo?.Invoke(this);
+					onJudgment?.Invoke(this);
+				}
+			}
+
+			// The bar's appearance is driven only by whether a finger is on it. Lit while it is being
+			// held, a three frame grace once nobody is on it any more, then grey. Touching it again at
+			// any point brings it back to lit - the grace exists so that a bar does not flicker grey
+			// between two frames of the same press.
+			bool covered = IsHoldFresh(currentFrameInfo.time);
+
 			if (State == NoteState.Playing && currentFrameInfo.time - MusicScoreInfo.time > LiveConfig.JudgeTime)
 			{
-				State = NoteState.Last;
+				if (!covered)
+				{
+					State = NoteState.Last;
+					_framesInLast = 0;
+				}
+			}
+			else if (State == NoteState.Last)
+			{
+				if (covered)
+				{
+					_framesInLast = 0;
+				}
+				else if (++_framesInLast > HoldGraceFrames)
+				{
+					State = NoteState.Release;
+					_framesInLast = 0;
+				}
 			}
 
 			// Decoration notes: skip input frame check to prevent being marked as Release.
@@ -377,6 +415,8 @@ namespace Sekai.Live
 				}
 				else if (!IsDecoration && !IsHoldFresh(currentFrameInfo.time))
 				{
+					// Reaching here means the finger has already been gone longer than the grace the
+					// freshness check allows, so the countdown below is only for a bar nobody ever took.
 					State = NoteState.Release;
 				}
 			}
@@ -614,11 +654,12 @@ namespace Sekai.Live
 	internal bool EndsWithoutJudgement => SkipsTailJudgement || (_lastBoundNote != null && !IsTailCandidate(_lastBoundNote));
 
 	/// <summary>
-	/// True when the head is a note the player was asked to play. Bars all travel the same states,
-	/// but only one with an answerable head has a result to publish when that head goes by; a hidden
-	/// head stays silent, the way every other hidden note in the chart does.
+	/// True when the bar starts with a note the player taps. Only an ordinary head is one: a rubbed
+	/// bar is played across its whole body and a decoration is carried, so neither has a head that
+	/// can go by untouched. Bars all travel the same states; this only decides whether there is a
+	/// result to publish when the head's window closes.
 	/// </summary>
-	internal bool PublishesHeadMiss => HasJudgment;
+	internal bool PublishesHeadMiss => IsOrdinaryHead && HasJudgment;
 
 	/// <summary>Finishes the bar with no result at all, once its last note has gone by.</summary>
 	internal bool CanFinishSilently(float currentTime)
@@ -1214,6 +1255,12 @@ namespace Sekai.Live
 
 		private bool _pressedThisFrame;
 
+	/// <summary>The head's own miss has been settled; the bar's colour no longer speaks for it.</summary>
+	private bool _headSettled;
+
+	/// <summary>Frames spent in <see cref="NoteState.Last"/> since the last frame a finger was on the bar.</summary>
+	private int _framesInLast;
+
 		/// <summary>Music time this note was last updated with, used when a press needs a stamp.</summary>
 		private float _lastFrameTime;
 
@@ -1428,6 +1475,8 @@ namespace Sekai.Live
 			_swipeTailCapped = false;
 			_framesSinceRelease = -1;
 			_pressedThisFrame = false;
+			_headSettled = false;
+			_framesInLast = 0;
 			_tailPressed = false;
 			_lastFrameTime = 0f;
 			_swipeAccum = Vector2.zero;
