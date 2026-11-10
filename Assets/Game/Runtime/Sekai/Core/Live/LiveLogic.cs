@@ -99,9 +99,7 @@ namespace Sekai.Core.Live
 		private readonly List<NoteBase> _connectionNoteList;
 		private readonly LiveInputCollector _inputCollector;
 		private readonly List<int> _usedFingerList;
-		private readonly int[] _holdInputNotes = new int[INPUT_TMP_COUNT];
-		private readonly bool[] _holdInputVisited = new bool[INPUT_TMP_COUNT];
-		private readonly Func<int, int, bool> _holdInputEligible;
+		private readonly LiveHoldCoordinator _holds = new LiveHoldCoordinator(INPUT_TMP_COUNT);
 		private readonly Dictionary<int, double> InputedNormalNoteTouch;
 		private float _noteDisplayTimeOffset;
 		private float _seBaseVolume = 1f;
@@ -155,7 +153,6 @@ namespace Sekai.Core.Live
 
 		public LiveLogic(LiveBundleBuildData data)
 		{
-			_holdInputEligible = CanContinueHold;
 			_touchSource = _deviceTouchSource;
 			NativeInput.Enable();
 			int fingerCapacity = Mathf.Max(NativeInput.Fingers.Count, MAX_FINGER_COUNT);
@@ -699,7 +696,7 @@ namespace Sekai.Core.Live
 					// A finger that owns a hold is still free to judge other notes in its lane:
 					// charts overlay a separate contact-only note on top of a bar. Only hold-vs-hold
 					// contention needs the reservation.
-					if (_holdInputNotes[inputIndex] >= 0 && _holdInputNotes[inputIndex] != noteIndex && judgmentNote is LongNote)
+					if (_holds.NoteOf(inputIndex) >= 0 && _holds.NoteOf(inputIndex) != noteIndex && judgmentNote is LongNote)
 					{
 						continue;
 					}
@@ -743,264 +740,16 @@ namespace Sekai.Core.Live
 			}
 		}
 
-		private bool CanContinueHold(int noteIndex, int inputIndex)
-		{
-			NoteBase note = _judgmentNoteList[noteIndex];
-			InputTmp input = _activeInputList[inputIndex];
-			float lane = ConvertLaneBy(ref note, ref input);
-			return lane >= 0f && note.IsJudgment(ref input.Touch, lane);
-		}
-
-		private static bool HasContinuingHold(NoteBase note)
-		{
-			return note is LongNote held && held.HoldingTouchId >= 0
-				&& (held.State == NoteState.InputBegan || held.State == NoteState.Input || held.State == NoteState.Release);
-		}
-
 		private void AssignContinuingHoldInputs()
 		{
-			int count = _activeInputList.Count;
-			for (int i = 0; i < count; i++) _holdInputNotes[i] = -1;
-			// First preserve every still-valid owner. Then augment the assignment for holds whose
-			// owner left their lane, allowing a wide and a narrow crossing hold to exchange fingers.
-			for (int n = 0; n < _judgmentNoteList.Count; n++)
-			{
-				if (!HasContinuingHold(_judgmentNoteList[n])) continue;
-				var held = (LongNote)_judgmentNoteList[n];
-				for (int i = 0; i < count; i++)
-				{
-					if (_holdInputNotes[i] < 0
-						&& _activeInputList[i].Touch.fingerId == held.HoldingTouchId
-						&& !IsEndedOrCanceled(_activeInputList[i].Touch.phase)
-						&& CanContinueHold(n, i))
-					{
-						_holdInputNotes[i] = n;
-						break;
-					}
-				}
-			}
-			for (int n = 0; n < _judgmentNoteList.Count; n++)
-			{
-				if (!HasContinuingHold(_judgmentNoteList[n]) || Array.IndexOf(_holdInputNotes, n, 0, count) >= 0) continue;
-				Array.Clear(_holdInputVisited, 0, count);
-				OpenSekai.Shared.Live.HoldInputMatching.TryAssign(n, count, _holdInputEligible, _holdInputNotes, _holdInputVisited);
-			}
-			for (int i = 0; i < count; i++)
-			{
-				if (_holdInputNotes[i] >= 0)
-					((LongNote)_judgmentNoteList[_holdInputNotes[i]]).AssignHoldingInput(_activeInputList[i].Touch.fingerId);
-			}
+			_holds.AssignContinuingHolds(_judgmentNoteList, _activeInputList, ConvertLaneBy);
 		}
 
 		private void RefreshSustainedHolds()
 		{
-			// A hold survives on lastInputFrame, which only Judgment() refreshes, and EvaluateJudgment
-			// spends one finger on one note per frame. That couples survival to candidate ownership:
-			// when a second finger or a second overlapping long note takes this frame's slot, the hold
-			// nobody judged goes stale and releases. Refresh every hold whose own finger is still in its
-			// lane, without consuming a candidate slot or touching ownership.
-			int count = _activeInputList.Count;
-
-			// A bar is not owned by a finger: any touch on it keeps it alive, and a touch that leaves
-			// the screen inside it is the release the tail listens for. This runs before ownership so a
-			// second finger can neither steal the hold nor swallow the tail.
-			CoverHoldsWithAnyFinger(count);
-
-			for (int noteIndex = 0; noteIndex < _judgmentNoteList.Count; noteIndex++)
-			{
-				NoteBase note = _judgmentNoteList[noteIndex];
-				if (note is not LongNote held || held.State == NoteState.Done)
-				{
-					continue;
-				}
-
-				if (held.State != NoteState.InputBegan && held.State != NoteState.Input && held.State != NoteState.Release)
-				{
-					continue;
-				}
-
-				if (TryRefreshFromOwner(held, count))
-				{
-					continue;
-				}
-
-				// The owner is gone (lifted or cancelled) while another finger already sits inside this
-				// bar. Hand the hold over on this frame instead of waiting for the old refresh to go
-				// stale: otherwise the bar greys for a moment before the new finger is allowed in.
-				if (!HasLiveOwner(held, count))
-				{
-					AdoptHoldFromAnyFinger(held, count);
-				}
-			}
+			_holds.Refresh(_judgmentNoteList, _activeInputList, currentFrameInfo, UnityEngine.Time.deltaTime, ConvertLaneBy);
 		}
 
-		/// <summary>
-		/// Feeds every live bar the fingers currently on it, and finishes the bar when a finger leaves
-		/// the screen inside it — the tail's normal judgement.
-		/// </summary>
-		private void CoverHoldsWithAnyFinger(int count)
-		{
-			for (int noteIndex = 0; noteIndex < _judgmentNoteList.Count; noteIndex++)
-			{
-				if (_judgmentNoteList[noteIndex] is not LongNote held || held.State == NoteState.Done)
-				{
-					continue;
-				}
-
-				bool covered = false;
-				bool releasedInside = false;
-				float swipeDeltaX = 0f;
-				float swipeDeltaY = 0f;
-				for (int inputIndex = 0; inputIndex < count; inputIndex++)
-				{
-					InputTmp input = _activeInputList[inputIndex];
-					if (input == null)
-					{
-						continue;
-					}
-
-					// Every note is judged against the lane that already applies the vertical gate, and a
-					// bar is covered by the same measure: a finger above the judgment line has not reached
-					// the bar yet.
-					bool endsNow = UnityEngine.InputSystem.InputExtensions.IsEndedOrCanceled(input.Touch.phase);
-					if (endsNow)
-					{
-						// A quick flick is often reported as a single ended sample carrying the whole
-						// movement, and by then the finger is above the judgement line, so the lane test
-						// below would throw that delta away. Read it first: the lift is both the swipe
-						// and the release that starts the three frame countdown.
-						if (input.Touch.delta.sqrMagnitude > 0f)
-						{
-							swipeDeltaX += input.Touch.delta.x;
-							swipeDeltaY += input.Touch.delta.y;
-						}
-
-						// Only the finger that was holding this bar releases it. A lift anywhere else -
-						// another lane, another finger - used to count as "released inside" and graded the
-						// tail on release, so lifting anywhere finished any bar. The lane test stays for
-						// the holder whose ended sample sits above the line.
-						if (input.Touch.touchId == held.HoldingTouchId
-							|| OpenSekai.Shared.Live.HoldSweep.TouchesLane(input.Lane, held.JudgeLaneStart, held.JudgeLaneEnd))
-						{
-							releasedInside = true;
-						}
-
-						continue;
-					}
-
-					if (!OpenSekai.Shared.Live.HoldSweep.TouchesLane(input.Lane, held.JudgeLaneStart, held.JudgeLaneEnd))
-					{
-						continue;
-					}
-
-					covered = true;
-
-					// A decorative bar is not played, only its tail is: a click is what turns the drag
-					// into a flick on it, matching the plain flick note it ends with.
-					if (!held.HasJudgment && input.Touch.phase == UnityEngine.InputSystem.TouchPhase.Began)
-					{
-						held.MarkTailPressed();
-					}
-
-					// A flick ended bar is finished by a swipe, so what matters is a finger moving inside
-					// it. The delta goes to the bar, which applies the tail flick's own rule, so a drag
-					// that does not go the way the flick asks for never ends the bar.
-					if (input.Touch.delta.sqrMagnitude > 0f)
-					{
-						swipeDeltaX += input.Touch.delta.x;
-						swipeDeltaY += input.Touch.delta.y;
-					}
-				}
-
-				// A finger resting over a bar whose head has not been judged yet must not adopt it:
-				// holding before the head arrives would otherwise let the head pass without a Miss.
-				// Once the head is judged (hit or missed) any finger inside the lane may take over.
-				bool headSettled = held.Result != NoteResult.None
-					|| held.State == NoteState.InputBegan
-					|| held.State == NoteState.Input;
-				if (covered && headSettled)
-				{
-					held.KeepAlive(currentFrameInfo.time);
-				}
-				bool isBeingHeld = held.State == NoteState.InputBegan || held.State == NoteState.Input;
-
-				// The bar asks its tail how it ends. There is no switch here any more, and no way for a
-				// new kind of end note to be drawn by one path and judged by another: the three shapes
-				// (lift, swipe, self judged) each own their own answer.
-				held.TailBehaviour.TryFinish(held, new TailFrame(
-					currentFrameInfo.time,
-					UnityEngine.Time.deltaTime,
-					new UnityEngine.Vector2(swipeDeltaX, swipeDeltaY),
-					releasedInside,
-					covered,
-					isBeingHeld));
-
-
-				// A bar ends when its tail window closes, whatever closed it. Only the flick path had a
-				// timeout before, so a bar ending with a friction or a hidden note could never end:
-				// a finger in its lane kept reviving it and its parts stayed judgeable afterwards.
-				held.ExpireTail(currentFrameInfo.time);
-			}
-		}
-
-		private bool TryRefreshFromOwner(LongNote held, int count)
-		{
-			for (int inputIndex = 0; inputIndex < count; inputIndex++)
-			{
-				InputTmp input = _activeInputList[inputIndex];
-				if (input.Touch.fingerId != held.HoldingTouchId || IsEndedOrCanceled(input.Touch.phase))
-				{
-					continue;
-				}
-
-				NoteBase laneNote = held;
-				float lane = ConvertLaneBy(ref laneNote, ref input);
-				if (lane >= 0f && held.ContainsLane(lane))
-				{
-					held.RefreshHeldInput(ref input.Touch, lane);
-					return true;
-				}
-			}
-
-			return false;
-		}
-
-		private bool HasLiveOwner(LongNote held, int count)
-		{
-			for (int inputIndex = 0; inputIndex < count; inputIndex++)
-			{
-				InputTmp input = _activeInputList[inputIndex];
-				if (input.Touch.fingerId == held.HoldingTouchId && !IsEndedOrCanceled(input.Touch.phase))
-				{
-					return true;
-				}
-			}
-
-			return false;
-		}
-
-		private void AdoptHoldFromAnyFinger(LongNote held, int count)
-		{
-			for (int inputIndex = 0; inputIndex < count; inputIndex++)
-			{
-				InputTmp input = _activeInputList[inputIndex];
-				if (IsEndedOrCanceled(input.Touch.phase))
-				{
-					continue;
-				}
-
-				NoteBase laneNote = held;
-				float lane = ConvertLaneBy(ref laneNote, ref input);
-				if (lane < 0f || !held.ContainsLane(lane))
-				{
-					continue;
-				}
-
-				held.AssignHoldingInput(input.Touch.fingerId);
-				held.RefreshHeldInput(ref input.Touch, lane);
-				return;
-			}
-		}
 
 
 		private void OverlapJudgmentSorting()
@@ -1186,8 +935,8 @@ namespace Sekai.Core.Live
 				for (int noteIndex = _connectionNoteList.Count - 1; noteIndex >= 0; noteIndex--)
 				{
 					NoteBase note = _connectionNoteList[noteIndex];
-					if (_holdInputNotes[inputIndex] >= 0 && note is LongNote
-						&& !ReferenceEquals(note, _judgmentNoteList[_holdInputNotes[inputIndex]])) continue;
+					if (_holds.NoteOf(inputIndex) >= 0 && note is LongNote
+						&& !ReferenceEquals(note, _judgmentNoteList[_holds.NoteOf(inputIndex)])) continue;
 					// Allocation's ownership check must also apply to this deferred path. Otherwise
 					// a newer overlapping input removes the hold before its owner can pick it up,
 					// even though LongNote.Judgment later rejects that foreign input.

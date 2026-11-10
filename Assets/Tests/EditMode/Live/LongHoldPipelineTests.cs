@@ -724,8 +724,7 @@ namespace OpenSekai.Tests.EditMode.Live
             };
             Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").Add(input);
 
-            typeof(LiveLogic).GetMethod("CoverHoldsWithAnyFinger", BindingFlags.Instance | BindingFlags.NonPublic)
-                .Invoke(logic, new object[] { 1 });
+            CoverHolds(logic);
 
             Assert.That(bar.State, Is.EqualTo(NoteState.Done),
                 "a wrong way swipe must leave the bar endable: the window has already closed here");
@@ -734,5 +733,18 @@ namespace OpenSekai.Tests.EditMode.Live
             Field<List<NoteBase>>(logic, "_judgmentNoteList").Remove(bar);
         }
 
+		/// <summary>One frame of hold coverage, driven through the coordinator the live loop uses.</summary>
+		private static void CoverHolds(Sekai.Core.Live.LiveLogic logic)
+		{
+			object holds = typeof(Sekai.Core.Live.LiveLogic)
+				.GetField("_holds", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
+			var notes = (List<NoteBase>)typeof(Sekai.Core.Live.LiveLogic)
+				.GetField("_judgmentNoteList", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
+			var inputs = (List<Sekai.Core.Live.LiveLogic.InputTmp>)typeof(Sekai.Core.Live.LiveLogic)
+				.GetField("_activeInputList", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
+			holds.GetType()
+				.GetMethod("CoverHoldsWithAnyFinger", BindingFlags.Instance | BindingFlags.NonPublic)
+				.Invoke(holds, new object[] { notes, inputs, logic.currentFrameInfo, UnityEngine.Time.deltaTime });
+		}
     }
 }
