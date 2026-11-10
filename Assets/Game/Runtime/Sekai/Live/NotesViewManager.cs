@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Sekai.Core.Live;
 using UnityEngine;
 using Sekai;
@@ -112,14 +112,14 @@ namespace Sekai.Live
 			{
 				foreach (BaseNoteView noteView in _spawnNoteDict.Values)
 				{
-					noteView?.Move();
+					noteView?.Move(time);
 				}
 			}
 			_noteLineView?.Excute(time);
 			_guideLineView?.Excute(time);
 			if (_isEnablePairNotesLine)
 			{
-				_pairNoteLineView?.Execute();
+				_pairNoteLineView?.Execute(time);
 			}
 		}
 

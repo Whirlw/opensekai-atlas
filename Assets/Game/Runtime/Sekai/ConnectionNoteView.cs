@@ -1,11 +1,11 @@
-using Sekai.Live;
+﻿using Sekai.Live;
 using UnityEngine;
 
 namespace Sekai
 {
 	public class ConnectionNoteView : BaseNoteView
 	{
-		public override void Move()
+		public override void Move(float musicTime)
 		{
 			if (note == null)
 			{

@@ -1,4 +1,4 @@
-using Sekai.Live;
+﻿using Sekai.Live;
 using UnityEngine;
 
 namespace Sekai
@@ -67,15 +67,15 @@ namespace Sekai
 			}
 		}
 
-		public override void Move()
+		public override void Move(float musicTime)
 		{
-			base.Move();
+			base.Move(musicTime);
 			if (currentMoveRoot == null || currentArrow == null)
 			{
 				return;
 			}
 
-			float t = Mathf.Repeat(MusicScore.CurrentFrameInfo.time * ScrollCount, 1f);
+			float t = Mathf.Repeat(musicTime * ScrollCount, 1f);
 			float y = t * 2f;
 			currentMoveRoot.localPosition = Vector3.up * y;
 			float alphaT = Mathf.Clamp01(y - 1f);

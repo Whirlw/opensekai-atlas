@@ -1,4 +1,4 @@
-using Sekai.Live;
+﻿using Sekai.Live;
 using OpenSekai.Shared.Diagnostics;
 using UnityEngine;
 
@@ -6,7 +6,7 @@ namespace Sekai
 {
 	public class LongNoteView : BaseNoteView
 	{
-		public override void Move()
+		public override void Move(float musicTime)
 		{
 			if (note == null)
 			{

@@ -1,4 +1,4 @@
-using Sekai.Live;
+﻿using Sekai.Live;
 using UnityEngine;
 
 namespace Sekai
@@ -38,7 +38,7 @@ namespace Sekai
 			ApplyNoteShowRate(noteShowRate);
 		}
 
-		public virtual void Move()
+		public virtual void Move(float musicTime)
 		{
 			if (note == null)
 			{

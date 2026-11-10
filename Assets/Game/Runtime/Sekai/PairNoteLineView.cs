@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Sekai.Live;
 using UnityEngine;
 
@@ -99,7 +99,7 @@ namespace Sekai
 			ApplyMesh();
 		}
 
-		public void Execute()
+		public void Execute(float musicTime)
 		{
 			if (_mesh == null || _pairNotes == null)
 			{
@@ -128,7 +128,7 @@ namespace Sekai
 				if (note.State == NoteState.Playing && note.Progress > 0f)
 				{
 					float progress = LiveConfig.GetNoteViewProgress(note.Progress);
-					if (MusicScore.CurrentFrameInfo.time >= note.MusicScoreInfo.time && note is LongNote)
+					if (musicTime >= note.MusicScoreInfo.time && note is LongNote)
 					{
 						progress = 1f;
 					}

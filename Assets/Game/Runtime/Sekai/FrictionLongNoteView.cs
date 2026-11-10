@@ -1,4 +1,4 @@
-using Sekai.Live;
+﻿using Sekai.Live;
 using UnityEngine;
 
 namespace Sekai
@@ -8,9 +8,9 @@ namespace Sekai
 		[SerializeField]
 		protected SpriteRenderer centerIconRenderer;
 
-		public override void Move()
+		public override void Move(float musicTime)
 		{
-			base.Move();
+			base.Move(musicTime);
 			if (centerIconRenderer != null && spriteRenderer != null)
 			{
 				centerIconRenderer.color = spriteRenderer.color;
