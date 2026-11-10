@@ -2,6 +2,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Sekai.Live;
+using OpenSekai.Shared.Live.Simulation;
 using InputTouchPhase = UnityEngine.InputSystem.TouchPhase;
 
 namespace Sekai.Core.Live
@@ -34,7 +35,7 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>Hands one finished touch to the judging side. It owns what the touch means.</summary>
-		public delegate void TouchSink(ref LiveTouch touch, ref int activeInputCount);
+		public delegate void TouchSink(in SimTouch touch, ref int activeInputCount);
 
 		/// <summary>
 		/// Turns this frame's raw samples into touches: drops the ones that repeat or arrive out of
@@ -96,8 +97,8 @@ namespace Sekai.Core.Live
 
 			float musicTime = resolveMusicTime(time);
 			Vector2 delta = TakeDelta(in touch);
-			var liveTouch = new LiveTouch(touch.fingerId, touchId, delta, touch.worldPosition, phase, musicTime);
-			sink(ref liveTouch, ref activeInputCount);
+			var simTouch = new SimTouch(touch.fingerId, touchId, delta, touch.worldPosition, phase, musicTime);
+			sink(in simTouch, ref activeInputCount);
 		}
 
 #if UNITY_EDITOR
@@ -153,8 +154,8 @@ namespace Sekai.Core.Live
 				? calcCamera.ScreenToWorldPoint(screenPoint)
 				: new Vector3(screenPosition.x, screenPosition.y, 0f);
 			float musicTime = resolveMusicTime(time);
-			var liveTouch = new LiveTouch(MouseFallbackFingerId, MouseFallbackTouchId, delta, worldPosition, phase, musicTime);
-			sink(ref liveTouch, ref activeInputCount);
+			var simTouch = new SimTouch(MouseFallbackFingerId, MouseFallbackTouchId, delta, worldPosition, phase, musicTime);
+			sink(in simTouch, ref activeInputCount);
 
 			if (IsEndedOrCanceled(phase))
 			{

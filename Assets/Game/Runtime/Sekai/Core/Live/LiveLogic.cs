@@ -705,17 +705,18 @@ namespace Sekai.Core.Live
 			}
 		}
 
-		private void OnProcessTouch(ref LiveTouch processTouch, ref int activeInputCount)
+		private void OnProcessTouch(in OpenSekai.Shared.Live.Simulation.SimTouch simTouch, ref int activeInputCount)
 		{
-			float judgmentLane = GetJudgmentLane(processTouch.worldPosition, true);
+			float judgmentLane = GetJudgmentLane(simTouch.WorldPosition, true);
 			if (activeInputCount <= INPUT_TMP_COUNT - 1)
 			{
+				LiveTouch processTouch = new LiveTouch(simTouch.FingerId, simTouch.TouchId, simTouch.Delta, simTouch.WorldPosition, simTouch.Phase, simTouch.MusicTime);
 				InputTmp input = _inputTmpArray[activeInputCount++];
 				input.Reset(ref processTouch, judgmentLane);
 				_activeInputList.Add(input);
 			}
 
-			if (processTouch.phase == InputTouchPhase.Began)
+			if (simTouch.Phase == InputTouchPhase.Began)
 			{
 				TapCount++;
 			}
