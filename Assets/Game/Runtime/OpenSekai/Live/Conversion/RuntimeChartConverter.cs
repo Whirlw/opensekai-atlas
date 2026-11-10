@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Sekai;
 using Sekai.Live;
@@ -342,11 +342,35 @@ namespace OpenSekai.Live.Conversion
 			{
 				return;
 			}
-			int startIndex = (int)Math.Floor(longNote.MusicScoreInfo.barProgress * longNoteComboBeat) + 1 + longNote.MusicScoreInfo.bar * longNoteComboBeat;
-			int endIndex = (int)Math.Ceiling(note.MusicScoreInfo.barProgress * longNoteComboBeat) - 1 + note.MusicScoreInfo.bar * longNoteComboBeat;
+
+			// The grid is measured in eighth notes, and an eighth is thirty seconds over the BPM
+			// whatever the meter is. A bar of four beats carries eight of them, a bar of three
+			// carries six: the step is the meter times two, not the fixed value from build data.
+			int divisions = longNoteComboBeat;
+			if (musicScoreInfoArray != null && musicScoreInfoArray.Length > 0)
+			{
+				MusicScoreInfo segment = musicScoreInfoArray[0];
+				for (int i = 0; i < musicScoreInfoArray.Length; i++)
+				{
+					if (musicScoreInfoArray[i].time > longNote.MusicScoreInfo.time)
+					{
+						break;
+					}
+
+					segment = musicScoreInfoArray[i];
+				}
+
+				int byMeter = (int)System.Math.Round(segment.timeSignature * 2.0);
+				if (byMeter > 0)
+				{
+					divisions = byMeter;
+				}
+			}
+			int startIndex = (int)Math.Floor(longNote.MusicScoreInfo.barProgress * divisions) + 1 + longNote.MusicScoreInfo.bar * divisions;
+			int endIndex = (int)Math.Ceiling(note.MusicScoreInfo.barProgress * divisions) - 1 + note.MusicScoreInfo.bar * divisions;
 			for (int i = startIndex; i <= endIndex; i++)
 			{
-				MusicScoreInfo musicScoreInfo = MusicScore.GenerateNoteMusicScoreInfo(i / longNoteComboBeat, i % longNoteComboBeat / (float)longNoteComboBeat, musicScoreInfoArray);
+				MusicScoreInfo musicScoreInfo = MusicScore.GenerateNoteMusicScoreInfo(i / divisions, i % divisions / (float)divisions, musicScoreInfoArray);
 				LongHoldCombo combo = new LongHoldCombo(musicScoreInfo, longNote.Type, speedRatio, LiveUtility.GetLaneOffset(NoteCategory.Combo, liveBundleBuildData));
 				longNote.AddHoldCombo(combo);
 				combo.SetSkip(true);
