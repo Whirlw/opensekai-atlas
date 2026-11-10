@@ -638,66 +638,7 @@ namespace Sekai.Core.Live
 
 		private void AllocateInputJudgableEachNotes()
 		{
-			AssignContinuingHoldInputs();
-			for (int noteIndex = 0; noteIndex < _judgmentNoteList.Count; noteIndex++)
-			{
-				NoteBase judgmentNote = _judgmentNoteList[noteIndex];
-				if (judgmentNote == null)
-				{
-					continue;
-				}
-
-				bool isConnection = true;
-				bool isJudged = false;
-				for (int inputIndex = _activeInputList.Count - 1; inputIndex >= 0; inputIndex--)
-				{
-					InputTmp activeInput = _activeInputList[inputIndex];
-					NoteBase note = judgmentNote;
-					// A finger that owns a hold is still free to judge other notes in its lane:
-					// charts overlay a separate contact-only note on top of a bar. Only hold-vs-hold
-					// contention needs the reservation.
-					if (_holds.NoteOf(inputIndex) >= 0 && _holds.NoteOf(inputIndex) != noteIndex && judgmentNote is LongNote)
-					{
-						continue;
-					}
-					// Another finger is already holding this long note: leave it to that finger, otherwise
-					// the second finger nominates it, steals the holder and the hold drops for a frame.
-					if (IsReservedForAnotherInput(judgmentNote, activeInput))
-					{
-						continue;
-					}
-
-					float lane = ConvertLaneBy(ref note, ref activeInput);
-
-					if (lane >= 0f && note.IsJudgment(ref activeInput.Touch, lane))
-					{
-						isJudged = true;
-						int touchId = activeInput.Touch.touchId;
-						NoteBase lastNote = GetLastNote(judgmentNote);
-						if (judgmentNote.NoteList != null && judgmentNote.NoteList.Count == 1)
-						{
-							AddCheckSingleInputedNormalNoteTouch(ref judgmentNote, ref lastNote, ref activeInput, ref isConnection, ref isJudged, ref touchId);
-						}
-						else
-						{
-							AddCheckLongInputedNormalNoteTouch(ref judgmentNote, ref lastNote, ref activeInput, ref isConnection, ref isJudged, ref touchId);
-						}
-						continue;
-					}
-
-					NoteBase firstNote = GetFirstNote(judgmentNote);
-					if (firstNote != null && TryAddConnectionCandidate(firstNote, activeInput))
-					{
-						isConnection = true;
-						isJudged = true;
-					}
-				}
-
-				if (isJudged && isConnection)
-				{
-					_connectionNoteList.Add(judgmentNote);
-				}
-			}
+			_candidates.Collect(_judgmentNoteList, _activeInputList, _connectionNoteList, _holds, ConvertLaneBy, InputedNormalNoteTouch);
 		}
 
 		private void AssignContinuingHoldInputs()
@@ -730,35 +671,12 @@ namespace Sekai.Core.Live
 		}
 		private void PickUpNotBeginInputNotes()
 		{
-			for (int inputIndex = _activeInputList.Count - 1; inputIndex >= 0; inputIndex--)
-			{
-				InputTmp input = _activeInputList[inputIndex];
-				for (int noteIndex = _connectionNoteList.Count - 1; noteIndex >= 0; noteIndex--)
-				{
-					NoteBase note = _connectionNoteList[noteIndex];
-					if (_holds.NoteOf(inputIndex) >= 0 && note is LongNote
-						&& !ReferenceEquals(note, _judgmentNoteList[_holds.NoteOf(inputIndex)])) continue;
-					// Allocation's ownership check must also apply to this deferred path. Otherwise
-					// a newer overlapping input removes the hold before its owner can pick it up,
-					// even though LongNote.Judgment later rejects that foreign input.
-					if (IsReservedForAnotherInput(note, input))
-					{
-						continue;
-					}
-					float lane = ConvertLaneBy(ref note, ref input);
-					if (lane >= 0f && note != null && note.IsJudgment(ref input.Touch, lane))
-					{
-						input.CandidateNotes.Add(note);
-						_connectionNoteList.RemoveAt(noteIndex);
-					}
-				}
-			}
+			_candidates.PickUp(_judgmentNoteList, _activeInputList, _connectionNoteList, _holds, ConvertLaneBy, InputedNormalNoteTouch);
 		}
 
 		internal static bool ShouldReserveHold(int holder, int candidate, NoteState state, bool ownerCanJudge)
 		{
-			return holder >= 0 && holder != candidate && ownerCanJudge
-				&& (state == NoteState.InputBegan || state == NoteState.Input || state == NoteState.Release);
+			return LiveCandidatePipeline.ShouldReserveHold(holder, candidate, state, ownerCanJudge);
 		}
 
 		/// <summary>
@@ -770,26 +688,6 @@ namespace Sekai.Core.Live
 		internal static int CandidateRank(NoteBase note)
 		{
 			return LiveCandidatePipeline.CandidateRank(note);
-		}
-		private bool IsReservedForAnotherInput(NoteBase note, InputTmp input)
-		{
-			if (note is not LongNote held || held.HoldingTouchId < 0 || held.HoldingTouchId == input.Touch.fingerId)
-			{
-				return false;
-			}
-
-			// Excute can mark yesterday's hold Release before today's input pass (MissMesh is zero).
-			// Reserve by the owner's actual eligible input this frame, not by yesterday's timestamp.
-			for (int i = 0; i < _activeInputList.Count; i++)
-			{
-				InputTmp owner = _activeInputList[i];
-				if (owner.Touch.fingerId != held.HoldingTouchId || IsEndedOrCanceled(owner.Touch.phase)) continue;
-				float lane = ConvertLaneBy(ref note, ref owner);
-				if (ShouldReserveHold(held.HoldingTouchId, input.Touch.fingerId, held.State,
-					lane >= 0f && held.IsJudgment(ref owner.Touch, lane))) return true;
-			}
-
-			return held.IsHeldByAnotherFinger(input.Touch.fingerId, input.Touch.musicTime);
 		}
 
 
@@ -828,92 +726,6 @@ namespace Sekai.Core.Live
 			_activeInputList.Clear();
 		}
 
-		private void AddCheckSingleInputedNormalNoteTouch(ref NoteBase judgmentNote, ref NoteBase note, ref InputTmp activeInput, ref bool isConnection, ref bool isJudged, ref int touchId)
-		{
-			if (judgmentNote is FrictionNote)
-			{
-				float lane = ConvertLaneBy(ref note, ref activeInput);
-				if (judgmentNote.IsJudgment(ref activeInput.Touch, lane))
-				{
-					isConnection = true;
-					isJudged = true;
-					return;
-				}
-			}
-
-			if (note is FrictionLongNote or FrictionHideLongNote)
-			{
-				float lane = ConvertLaneBy(ref note, ref activeInput);
-				if (note.IsJudgment(ref activeInput.Touch, lane))
-				{
-					isConnection = true;
-					isJudged = true;
-					return;
-				}
-			}
-
-			activeInput.CandidateNotes.Add(judgmentNote);
-			isConnection = false;
-			InputedNormalNoteTouch[touchId] = activeInput.Touch.musicTime;
-		}
-
-		private void AddCheckLongInputedNormalNoteTouch(ref NoteBase judgmentNote, ref NoteBase note, ref InputTmp activeInput, ref bool isConnection, ref bool isJudged, ref int touchId)
-		{
-			float lane = ConvertLaneBy(ref note, ref activeInput);
-			bool hadInput = InputedNormalNoteTouch.ContainsKey(touchId);
-			bool isLastNoteJudgment = note != null && note.IsJudgment(ref activeInput.Touch, lane);
-			if (hadInput)
-			{
-				if (isLastNoteJudgment)
-				{
-					isConnection = false;
-					if (note.CalcNoteResult(activeInput.Touch.musicTime) > NoteResult.Great
-						|| activeInput.Touch.musicTime - InputedNormalNoteTouch[touchId] > 1f / 6f)
-					{
-						activeInput.CandidateNotes.Add(judgmentNote);
-						return;
-					}
-				}
-			}
-			else if (isLastNoteJudgment)
-			{
-				activeInput.CandidateNotes.Add(judgmentNote);
-				isConnection = false;
-				return;
-			}
-
-			note = GetFirstNote(judgmentNote);
-			lane = ConvertLaneBy(ref note, ref activeInput);
-			if ((note is FrictionLongNote or FrictionHideLongNote)
-				&& note.IsJudgment(ref activeInput.Touch, lane))
-			{
-				isConnection = true;
-				isJudged = true;
-				return;
-			}
-
-			if (note != null && note.Result == NoteResult.None)
-			{
-				lane = ConvertLaneBy(ref note, ref activeInput);
-				if (note.IsJudgment(ref activeInput.Touch, lane))
-				{
-					activeInput.CandidateNotes.Add(judgmentNote);
-					isConnection = false;
-					return;
-				}
-			}
-
-
-			if (note is LongNote)
-			{
-				lane = ConvertLaneBy(ref note, ref activeInput);
-				if (note.IsJudgment(ref activeInput.Touch, lane))
-				{
-					isConnection = true;
-					isJudged = true;
-				}
-			}
-		}
 
 		private float ConvertLaneBy(ref NoteBase note, ref InputTmp input)
 		{
@@ -994,22 +806,6 @@ namespace Sekai.Core.Live
 				positions, touchPosition, checkJudgmentY, judgmentOffsetX, judgmentOffsetY);
 		}
 
-		private bool TryAddConnectionCandidate(NoteBase note, InputTmp input)
-		{
-			if (note is not LongNote and not FrictionLongNote and not FrictionHideLongNote)
-			{
-				return false;
-			}
-
-			float lane = ConvertLaneBy(ref note, ref input);
-			if (lane < 0f || !note.IsJudgment(ref input.Touch, lane))
-			{
-				return false;
-			}
-
-			input.CandidateNotes.Add(note);
-			return true;
-		}
 
 
 
@@ -1028,7 +824,7 @@ namespace Sekai.Core.Live
 			return a != null && b != null && a.MusicScoreInfo.time.Equals(b.MusicScoreInfo.time);
 		}
 
-		private static bool IsEndedOrCanceled(InputTouchPhase phase)
+		internal static bool IsEndedOrCanceled(InputTouchPhase phase)
 		{
 			return phase == InputTouchPhase.Ended || phase == InputTouchPhase.Canceled;
 		}
