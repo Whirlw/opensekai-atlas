@@ -645,20 +645,11 @@ namespace Sekai.Core.Live
 			for (int noteIndex = 0; noteIndex < _judgmentNoteList.Count; noteIndex++)
 			{
 				NoteBase note = _judgmentNoteList[noteIndex];
-				NoteBase bar = note == null ? null : note.ParentNote as NoteBase;
-				if (note == null || bar == null || note.State != NoteState.Last || !(note is Sekai.Live.LongHoldCombo))
-				// An interior point only lives while its bar does: a bar in Release or Scrolling is not
-				// being held, so a stray finger must not settle the point. Playing and Last are both
-				// 'the bar is in play' (Last is the three-frame grace after the finger lifted).
-				if (bar.State == NoteState.Playing || bar.State == NoteState.Last)
-				{
-					((Sekai.Live.LongHoldCombo)note).MarkBarInPlay();
-				}
-
-				if (!((Sekai.Live.LongHoldCombo)note).WasBarInPlay)
+				if (note == null || note.State != NoteState.Last || !(note is Sekai.Live.LongHoldCombo))
 				{
 					continue;
 				}
+
 				for (int inputIndex = 0; inputIndex < _activeInputList.Count; inputIndex++)
 				{
 					LiveLogic.InputTmp input = _activeInputList[inputIndex];
