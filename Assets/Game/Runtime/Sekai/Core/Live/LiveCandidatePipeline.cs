@@ -494,15 +494,17 @@ namespace Sekai.Core.Live
 					lane >= 0f && held.IsJudgment(ref owner.Touch, lane))) return true;
 			}
 
-			// Only the head is reserved for the finger that took it. Once it is judged the bar is
-			// open to any finger, because any finger may judge what is inside it and what ends it.
-			if (held.JudgeInfo.result != NoteResult.None)
+			// Only an ordinary head belongs to the finger that took it, and only until it is
+			// judged. Everything else about a bar - the body, the tail, a rubbed surface - is
+			// open to any finger over the lane.
+			if (held.JudgeInfo.result != NoteResult.None || !held.PublishesHeadMiss)
 			{
 				return false;
 			}
 
 			return held.IsHeldByAnotherFinger(input.Touch.fingerId, input.Touch.musicTime);
 		}
+
 
 		private static void AddCheckSingleInputedNormalNoteTouch(ref NoteBase judgmentNote, ref NoteBase note,
 			ref LiveLogic.InputTmp activeInput, ref bool isConnection, ref bool isJudged, ref int touchId,

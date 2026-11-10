@@ -553,11 +553,11 @@ namespace Sekai.Live
 				return false;
 			}
 
-			// Any finger on the bar may judge what is inside it and what ends it: the chart asks
-			// whether the lane is being worked, not which finger works it. Only the head needs a
-			// single owner, so that two fingers arriving together cannot both settle it.
+			// Only an ordinary head has an owner: it is the press that a second finger could
+			// steal, and it is the only part of a bar the chart asks a single note to answer.
+			// A rubbed bar and a hidden head are taken by whatever finger is over the lane.
 			bool headSettledAlready = JudgeInfo.result != NoteResult.None;
-			if (!headSettledAlready && IsHeldByAnotherFinger(touch.fingerId, touch.musicTime))
+			if (!headSettledAlready && PublishesHeadMiss && IsHeldByAnotherFinger(touch.fingerId, touch.musicTime))
 			{
 				return false;
 			}

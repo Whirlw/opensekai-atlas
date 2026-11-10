@@ -493,14 +493,15 @@ namespace OpenSekai.Tests.EditMode.Live
 
         [TestCase(false)]
         [TestCase(true)]
-        public void TraceHoldRejectsForeignInputAndClearsOwnerOnReset(bool hidden)
+        public void RubbedBarTakesAnyFingerAndClearsOwnerOnReset(bool hidden)
         {
             LongNote note = hidden ? new FrictionHideLongNote() : new FrictionLongNote();
             note.SetStateUnnotice(NoteState.Input);
             note.RecordHoldingInput(1, 0f);
             var foreign = Input(2, 4.5f).Touch;
-            Assert.That(note.Judgment(ref foreign, 4.5f), Is.False);
-            Assert.That(note.HoldingTouchId, Is.EqualTo(1));
+            Assert.That(note.Judgment(ref foreign, 4.5f), Is.True,
+                "a rubbed bar belongs to whichever finger is over the lane");
+            Assert.That(note.HoldingTouchId, Is.EqualTo(2), "the second finger now works it");
             note.ResetNote();
             Assert.That(note.HoldingTouchId, Is.EqualTo(-1));
         }
