@@ -210,3 +210,31 @@ private static void Stage(LiveLogic logic, string name) =>
 5. 全量回归 + 装机验：Test13、重叠长条、长条换手
 
 > 注意：第 2 步与「协调器 sweep 管划尾」冲突（见 9.2 第 2 堵墙），所以内部点与尾判必须**在同一个遍历里**分派，不能一个在 `Judgment`、一个在 sweep。
+
+## 十、最终结论（2026-11-10 收口，取代 9.4 / 9.6）
+
+> 中间点的判定：判定区间内，**所归属的长条状态出现过 `Playing` 或 `Last`**。
+
+上一节「完全舍弃按指分配、以点为中心」的说法**作废**。中间点仍然隶属于长条，判定条件依赖长条状态；因此按下通道里的归属/预留机制（`ShouldReserveHold`、`HeldRank`、`ClosesSlotAfterPress`）**保留，不删**。
+
+状态名对照（重要）：规格里的 `Playing` 在现有枚举里是 `InputBegan` / `Input`，而枚举里的 `Playing` 等于规格里的 `Scrolling`。
+
+已实现（`5b6e38a feat(live): an interior point remembers the bar was in play during its window`）：
+
+| 项 | 位置 |
+| --- | --- |
+| 记忆位 `_barWasInPlay` + `MarkBarInPlay()` / `WasBarInPlay` | `Assets/Game/Runtime/Sekai/Live/LongHoldCombo.cs` |
+| 每帧先刷新记忆位，再按触摸判定 | `LiveLogic.JudgeDueComboPoints()`（在 `AllocateInputJudgableEachNotes()` 之前） |
+
+判定流程：
+
+1. 点到期（`State == Last`）后，每帧检查其长条状态
+2. 若长条处于 `InputBegan` / `Input` / `Last`，把 `_barWasInPlay` 置真（记忆，不是当场采样）
+3. 只要 `_barWasInPlay` 为真，且有任意触摸落在该点车道内 → 判定该点
+4. 每个点独立判定，重叠时各判各的；不占「每指每帧一条」的名额
+
+剩余待办（不阻塞，按价值排序）：
+
+1. `Last` 的 3 帧宽限改成时间比较（16.7 ms × 3 ≈ 50 ms），现在按帧计数
+2. 长条状态收敛（`HasFinger` 已加在 `LongNote.cs:518`，读方切换与写入点清理尚未做，见第八节）
+3. 非 4/4 小节与变速段的中间点生成核对（见 9.5）
