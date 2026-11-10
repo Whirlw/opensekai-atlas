@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -385,8 +385,18 @@ namespace Sekai.Live
 			{
 				if (!covered)
 				{
-					State = NoteState.Last;
-					_framesInLast = 0;
+					// Crossing the line decides the bar's first picture: a finger already on the lane
+					// keeps it lit, and no finger at all means the bar was never taken, so it greys at
+					// once. The grace is only for a bar that was being held and lost its finger.
+					if (_headTouched)
+					{
+						State = NoteState.Last;
+						_framesInLast = 0;
+					}
+					else
+					{
+						State = NoteState.Release;
+					}
 				}
 			}
 			else if (State == NoteState.Last)
@@ -542,6 +552,7 @@ namespace Sekai.Live
 			}
 
 			RecordHoldingInput(touch.fingerId, touch.musicTime);
+			_headTouched = true;
 			MarkPressedThisFrame();
 			if (LiveTrace.IsOn(LiveTraceCategory.Hold))
 			{
@@ -659,6 +670,12 @@ namespace Sekai.Live
 	/// can go by untouched. Bars all travel the same states; this only decides whether there is a
 	/// result to publish when the head's window closes.
 	/// </summary>
+
+		/// <summary>
+		/// A bar whose hold has lapsed is already grey while it still has a few frames of grace,
+		/// so Last reads as released on screen but still counts as held by the state machine.
+		/// </summary>
+		public override bool ShowsAsReleased => State == NoteState.Release || State == NoteState.Last;
 	internal bool PublishesHeadMiss => IsOrdinaryHead && HasJudgment;
 
 	/// <summary>Finishes the bar with no result at all, once its last note has gone by.</summary>
@@ -1257,6 +1274,7 @@ namespace Sekai.Live
 
 	/// <summary>The head's own miss has been settled; the bar's colour no longer speaks for it.</summary>
 	private bool _headSettled;
+	private bool _headTouched;
 
 	/// <summary>Frames spent in <see cref="NoteState.Last"/> since the last frame a finger was on the bar.</summary>
 	private int _framesInLast;
@@ -1476,6 +1494,7 @@ namespace Sekai.Live
 			_framesSinceRelease = -1;
 			_pressedThisFrame = false;
 			_headSettled = false;
+			_headTouched = false;
 			_framesInLast = 0;
 			_tailPressed = false;
 			_lastFrameTime = 0f;

@@ -29,6 +29,12 @@ namespace Sekai.Live
 
 		NoteState State { get; }
 
+		/// <summary>
+		/// True when the note is drawn as let go. Only the picture follows this: a bar in its grace
+		/// window is grey on screen while it still counts as held by the state machine.
+		/// </summary>
+		bool ShowsAsReleased { get; }
+
 		(NoteResult result, NoteResultDescription description) JudgeInfo { get; }
 
 		NoteResult Result { get; }

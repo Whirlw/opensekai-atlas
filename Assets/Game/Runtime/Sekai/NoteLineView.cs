@@ -306,7 +306,7 @@ namespace Sekai
 		private Color GetNoteColor(INote baseNote)
 		{
 			// 默认颜色基于状态
-			Color defaultColor = baseNote != null && baseNote.State == NoteState.Release ? ReleaseColor : PressColor;
+			Color defaultColor = baseNote != null && baseNote.ShowsAsReleased ? ReleaseColor : PressColor;
 
 			// 检查是否为Guide相关类型
 			if (baseNote == null)

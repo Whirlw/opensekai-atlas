@@ -181,10 +181,16 @@ namespace Sekai
 					}
 				}
 
-				if (note.State == NoteState.Release)
+				if (note.ShowsAsReleased)
 				{
 					pair.Gen?.Stop();
 					pair.Aura?.Stop();
+				}
+
+				// The sound only stops once the bar is really let go: the grey window is grace,
+				// and a finger coming back inside it should not restart the hold from silence.
+				if (note.State == NoteState.Release)
+				{
 					SoundManager.Instance.StopSE(pair.PlaybackId);
 					pair.PlaybackId = 0;
 				}

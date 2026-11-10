@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Newtonsoft.Json;
@@ -333,6 +333,14 @@ namespace Sekai.Live
 				return true;
 			}
 		}
+
+		/// <summary>
+		/// True when the note is drawn as let go. Only the appearance depends on this: a bar whose
+		/// hold has lapsed is drawn grey while it still counts as held for another few frames, so
+		/// the state machine and the picture do not have to agree.
+		/// </summary>
+		[JsonIgnore]
+		public virtual bool ShowsAsReleased => State == NoteState.Release;
 
 		[JsonIgnore]
 		public virtual bool IsFever
