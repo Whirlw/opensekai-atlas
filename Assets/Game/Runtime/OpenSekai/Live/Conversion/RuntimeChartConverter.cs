@@ -55,16 +55,20 @@ namespace OpenSekai.Live.Conversion
 		{
 			ChartDocument conversionData = _document.Copy();
 			conversionData.MusicScoreEventDataList ??= new List<ChartEvent>();
-			ChartEvent existingTimeSignature = conversionData.MusicScoreEventDataList.Find(e => e != null && e.eventType == ChartEventType.TimeSignature);
-			int timeSignatureId = existingTimeSignature != null ? existingTimeSignature.id : ++_idCount;
-			conversionData.MusicScoreEventDataList.RemoveAll(e => e != null && e.eventType == ChartEventType.TimeSignature);
-			conversionData.MusicScoreEventDataList.Add(new ChartEvent
+			// The chart's own meter is kept: a chart may change time signature between bars, and the
+			// live system lays out bars from whatever meter is in force. 4/4 is only the fallback for
+			// charts that never name one.
+			bool hasTimeSignature = conversionData.MusicScoreEventDataList.Exists(e => e != null && e.eventType == ChartEventType.TimeSignature);
+			if (!hasTimeSignature)
 			{
-				id = timeSignatureId,
-				eventType = ChartEventType.TimeSignature,
-				ticks = 0L,
-				changeValue = "4/4"
-			});
+				conversionData.MusicScoreEventDataList.Add(new ChartEvent
+				{
+					id = ++_idCount,
+					eventType = ChartEventType.TimeSignature,
+					ticks = 0L,
+					changeValue = "4/4"
+				});
+			}
 			MusicScoreInfo[] musicScoreInfos = ChartTimeline.ConvertMusicScoreInfo(conversionData.MusicScoreEventDataList);
 			NoteBase[] noteArray = ConvertNoteArray(conversionData.NoteList, musicScoreInfos, liveBundleBuildData, conversionData, filterBeforeTicks);
 			EventBase[] eventArray = FilterEventArray(conversionData.EventArray, filterBeforeTicks, musicScoreInfos);
