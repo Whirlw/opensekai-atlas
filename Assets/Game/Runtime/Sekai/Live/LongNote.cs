@@ -387,7 +387,7 @@ namespace Sekai.Live
 			// held, a three frame grace once nobody is on it any more, then grey. Touching it again at
 			// any point brings it back to lit - the grace exists so that a bar does not flicker grey
 			// between two frames of the same press.
-			bool covered = IsHoldFresh(currentFrameInfo.time);
+			bool covered = HasFinger;
 
 			if (State == NoteState.Playing && currentFrameInfo.time - MusicScoreInfo.time > LiveConfig.JudgeTime)
 			{
@@ -431,11 +431,12 @@ namespace Sekai.Live
 					lastInputTime = currentFrameInfo.time;
 					_pressedThisFrame = false;
 				}
-				else if (!IsDecoration && !IsHoldFresh(currentFrameInfo.time))
+				else if (!IsDecoration)
 				{
-					// Reaching here means the finger has already been gone longer than the grace the
-					// freshness check allows, so the countdown below is only for a bar nobody ever took.
-					State = NoteState.Release;
+					// The finger is gone: grey the bar now and let the countdown below decide when it
+					// is finished. There is no second clock - the grace is the three frames in Last.
+					State = NoteState.Last;
+					_framesInLast = 0;
 				}
 			}
 
@@ -524,7 +525,7 @@ namespace Sekai.Live
 		/// </summary>
 		public bool IsHeld(float currentTime)
 		{
-			return _holdingTouchId >= 0 && IsHoldFresh(currentTime);
+			return HasFinger;
 		}
 
 		/// <summary>
@@ -1375,7 +1376,7 @@ namespace Sekai.Live
 		/// </summary>
 		internal void RestoreHeldState()
 		{
-			if (State == NoteState.Release)
+			if (State == NoteState.Release || State == NoteState.Last)
 			{
 				State = NoteState.InputBegan;
 			}

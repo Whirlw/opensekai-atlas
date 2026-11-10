@@ -63,7 +63,7 @@
 				return false;
 			}
 
-			if (State == NoteState.Release || State == NoteState.InputBegan)
+			if (State == NoteState.Release || State == NoteState.InputBegan || State == NoteState.Last)
 			{
 				State = NoteState.Input;
 			}

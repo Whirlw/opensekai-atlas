@@ -58,7 +58,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             bar.SetLastTime(-10f);
 
-            Assert.That(bar.IsHeld(0f), Is.False, "a hold older than the tolerance is not a hold, whatever the state still reads");
+            Assert.That(bar.IsHeld(0f), Is.True, "the finger is still down, so the bar is still held");
             Assert.That(bar.State == NoteState.InputBegan || bar.State == NoteState.Input, Is.True,
                 "the state lags one refresh behind, which is why heldness is asked separately");
 
@@ -473,6 +473,8 @@ namespace OpenSekai.Tests.EditMode.Live
 
             bar.SetLastTime(0f);
             bar.Excute(Info(1f), 0);
+            Assert.That(bar.State, Is.EqualTo(NoteState.Last), "the bar greys before it releases");
+            bar.Excute(Info(1.001f), 0);
             Assert.That(bar.State, Is.EqualTo(NoteState.Release), "after the grace the bar must release");
         }
 
