@@ -626,6 +626,7 @@ namespace Sekai.Core.Live
 		private void Judgment()
 		{
 			_connectionNoteList.Clear();
+			JudgeDueComboPoints();
 			AllocateInputJudgableEachNotes();
 			OverlapJudgmentSorting();
 			LeaveNotesFastGeneration();
@@ -634,6 +635,33 @@ namespace Sekai.Core.Live
 			EvaluateJudgment();
 			TickTailKeyViews();
 			TickRetiringViews(currentFrameInfo);
+		}
+
+
+		// An interior point is not a press-slot note: it belongs to no finger. Every frame it is due,
+		// any finger sitting in its lane settles it, and two overlapping points settle independently.
+		private void JudgeDueComboPoints()
+		{
+			for (int noteIndex = 0; noteIndex < _judgmentNoteList.Count; noteIndex++)
+			{
+				NoteBase note = _judgmentNoteList[noteIndex];
+				if (note == null || note.State != NoteState.Last || !(note is Sekai.Live.LongHoldCombo))
+				{
+					continue;
+				}
+
+				for (int inputIndex = 0; inputIndex < _activeInputList.Count; inputIndex++)
+				{
+					LiveLogic.InputTmp input = _activeInputList[inputIndex];
+					if (!note.IsJudgment(ref input.Touch, input.Lane))
+					{
+						continue;
+					}
+
+					note.Judgment(ref input.Touch, input.Lane);
+					break;
+				}
+			}
 		}
 
 		private void AllocateInputJudgableEachNotes()
