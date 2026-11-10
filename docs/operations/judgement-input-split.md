@@ -110,3 +110,46 @@ private static void Stage(LiveLogic logic, string name) =>
 - 不动「普通头 / 普通键 / 普通划键」的每指每帧一条，直到第 4 步
 - 每次只做一步，未通过门禁先撤工作树，不要带红测试往下做
 - 判定改动必须用「普通 4/4 谱 + 长条密集谱 + 变速谱」验证
+
+## 八、任务 1 的执行方案（2026-11-10 修订，一步到位）
+
+### 8.1 现状事实（已核实）
+
+`LongNote` 上已有两个同名家族成员，新属性必须另起名：
+
+| 名字 | 语义 | 位置 |
+| --- | --- | --- |
+| `HoldingTouchId` | 持有者手指 id（`>= 0` 即有人按着） | `LongNote.cs:512` |
+| `IsHeld(float currentTime)` | 有手指 **且** 未过期（判定用） | `LongNote.cs:519` |
+| `IsHeldByAnotherFinger(int, float)` | 别的指头占着 | `LongNote.cs:536` |
+| `IsHeld(NoteBase)` | pipeline 私有静态，读 `State` | `LiveCandidatePipeline.cs:237` |
+
+`NoteState` 目前是 `Wait / Playing / InputBegan / Input / Release / Last / Done`；长条「被按住」用 `InputBegan`/`Input`，`Playing` 实际等于规格里的 `Scrolling`。
+
+`LongNote.cs:99-100` 的状态 setter 里藏着业务副作用：`(Playing→InputBegan) || (Last→InputBegan)` 会触发 `onJudgment / onUpdateCombo / onUpdateScore / onDamage`——这就是「状态迁移顺便表达按住了」的根源。
+
+### 8.2 三步（一步到位地做完）
+
+1. **加真源**：`public bool HasFinger => _holdingTouchId >= 0;` 并补等价性测试（按住时 `HasFinger` 为真且 `State` 为 `InputBegan/Input`；未按住时两者皆假）
+2. **换读方**（只读取，不改行为）：
+   - `LiveHoldCoordinator.cs` 5 处（约 80 / 159 / 209 / 278 / 300 行附近）
+   - `LiveCandidatePipeline.cs:211-212` + 私有 `IsHeld`（237 行）改读 `HasFinger`
+   - `LongTapEffectView.cs:151`
+   - `LiveLogic.cs` 里自动接取的两处
+   - `LongNoteView.cs` 的 z 序判断
+3. **删写入点**：长条自己写 `InputBegan/Input` 的 6 处（约 547 / 551 / 612 / 1343 / 1451 及 setter 副作用），把 `onJudgment/onUpdateCombo/onUpdateScore/onDamage` 搬进显式的 `OnHoldStarted()`；测试里 `SetStateUnnotice(InputBegan)` 换成「按住」构造助手
+
+做完后长条状态收敛为 `Wait / Playing / Release / Last / Done`，此时再加 `Scrolling` 几乎免费：
+
+| 状态 | 含义 |
+| --- | --- |
+| `Wait` | 还没出现 |
+| `Playing`（原 Scrolling） | 已出现、还没被按 |
+| `Input`/`InputBegan` | **删除**，改由 `HasFinger` 表达 |
+| `Release` | 灰（没被按 / 松手超时） |
+| `Last` | 松手宽限（3 帧 ≈ 16.7 ms × 3 ≈ 50 ms，用时间比较） |
+| `Done` | 结束 |
+
+### 8.3 门禁
+
+每一小步都跑全量 EditMode（506 条 / 基线 502 通过 / 4 跳过）；第 3 步后必须装机验证：普通谱 + 长条密集谱（BOF）+ 变速谱各一首，看长条是否按预期变灰、中间点是否仍可判。
