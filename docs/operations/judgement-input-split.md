@@ -235,7 +235,7 @@ private static void Stage(LiveLogic logic, string name) =>
 
 剩余待办（不阻塞，按价值排序）：
 
-1. ~~`Last` 的 3 帧宽限改成时间比较~~ —— 已做（`HoldGraceSeconds = 50 ms`，与刷新率无关）
+1. ~~`Last` 的 3 帧宽限改成时间比较~~ —— 已做并真机确认（`HoldGraceSeconds = 50 ms`，与刷新率无关，`f3e8e25`）
 2. 长条状态收敛（`HasFinger` 已加在 `LongNote.cs:518`，读方切换与写入点清理尚未做，见第八节）
 3. 非 4/4 小节与变速段的中间点生成核对（见 9.5）
 
