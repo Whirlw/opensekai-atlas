@@ -1,8 +1,12 @@
-namespace Sekai.Live
+﻿namespace Sekai.Live
 {
 	public class LongHoldCombo : NoteBase
 	{
 		private readonly float _laneOffset;
+
+		// Whether the bar was ever held while this point was live; the window outlives the moment
+		// the point is judged, so it is remembered rather than sampled.
+		private bool _barWasInPlay;
 
 		public LongHoldCombo()
 		{
@@ -74,6 +78,15 @@ namespace Sekai.Live
 				State = NoteState.Last;
 			}
 		}
+
+		/// <summary>Records that the owning bar was held (or in its release grace) while this point was live.</summary>
+		internal void MarkBarInPlay()
+		{
+			_barWasInPlay = true;
+		}
+
+		/// <summary>True once the owning bar has been in play inside this point's judgement window.</summary>
+		internal bool WasBarInPlay => _barWasInPlay;
 
 		public override bool IsJudgment(ref LiveTouch touch, float lane)
 		{

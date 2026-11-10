@@ -653,6 +653,21 @@ namespace Sekai.Core.Live
 				for (int inputIndex = 0; inputIndex < _activeInputList.Count; inputIndex++)
 				{
 					LiveLogic.InputTmp input = _activeInputList[inputIndex];
+					// The bar counts as in play while a finger holds it (InputBegan/Input) or during the
+					// release grace (Last). Once it was in play anywhere inside this point's window, the
+					// point stays judicable for the rest of that window.
+					Sekai.Live.LongHoldCombo combo = (Sekai.Live.LongHoldCombo)note;
+					NoteBase bar = combo.ParentNote as NoteBase;
+					if (bar != null && (bar.State == NoteState.InputBegan || bar.State == NoteState.Input || bar.State == NoteState.Last))
+					{
+						combo.MarkBarInPlay();
+					}
+
+					if (!combo.WasBarInPlay)
+					{
+						continue;
+					}
+
 					if (!note.IsJudgment(ref input.Touch, input.Lane))
 					{
 						continue;
