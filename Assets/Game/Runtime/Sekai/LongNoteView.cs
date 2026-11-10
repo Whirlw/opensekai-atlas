@@ -88,7 +88,8 @@ namespace Sekai
 				progress = Mathf.Min(progress, 1f);
 			}
 			Vector2 position = Vector2.LerpUnclamped(effectiveSpawnPos, center, progress);
-			float z = note.State >= NoteState.InputBegan ? 3f - posZ : posZ;
+			// A bar that was ever taken draws in front of the line; that is a fact about the bar, not a phase of a finger.
+			float z = note is LongNote touchedBar && touchedBar.WasTouched ? 3f - posZ : posZ;
 			return new Vector3(position.x, position.y, z);
 		}
 
