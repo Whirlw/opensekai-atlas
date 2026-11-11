@@ -427,3 +427,38 @@ if (State == NoteState.Last)
 - 新增用例（红→绿）：`ABarThatCrossesTheLineUnpressedStillPublishesItsHeadMiss`（过线不按，断言头的 `OnJudgment` 恰好发一次 Miss、连击 -1）、`ABarFinishedByItsTailStillPublishesTheHead`（尾先结束条，头仍发布）。
 - 真机：Test16 全 P 必须是 7/7；不按右侧时右侧头计 Miss（连击断）。
 - 全量 EditMode 不回归（当前基线 `516 / 512 / 0 / 4`）。
+
+## 十三、flick 尾解耦后的判定范围与重复判定（2026-11-11，用户补充）
+
+### 13.1 规则
+
+解耦完成后，**flick 尾自己只探测「标准时间之后」的滑动**：
+
+- 尾的标准时间之前发生的滑动，不再由尾自己消费——那属于「按下/预备」阶段，由条的那一侧处理（若仍需要「提前划也有效」的玩法，必须由条记录意图并在尾的时间点之后转达，而不是让尾去读更早的样本）。
+- 因此 flick 尾的判定入口（`Assets/Game/Runtime/Sekai/Live/Tails/SwipeTail.cs` 的 `TryFinish`、以及 `Assets/Game/Runtime/Sekai/Live/LongNote.cs:1040` 的 `TickSwipeTail` 里那段「待结算划动」逻辑）需要按「事件时间 ≥ 尾标准时间」过滤。
+
+### 13.2 必须防的重复判定
+
+条与尾之间存在一个 **3 帧（≈50 ms，`HoldGraceFrames` / `ReferenceFrame.FromFrames`）** 的时间差：条在最后一帧仍可能把尾再判一次。典型风险序列：
+
+1. 尾在 `t = 尾标准时间` 判出结果（`JustPerfect`，连击 +1）；
+2. 条的收尾/宽限还在跑，3 帧内再次调用尾的 `Judgment`；
+3. 尾第二次发布结果 → 连击 +2、打击音双响、判定字叠两层。
+
+因此解耦的验收必须包含「**同一根尾只发布一次**」这一条，且不能依赖「`State == Done` 早退」这种间接保证——要显式保证（例如尾自己的 `_published` 标志 + 用例直断发布次数）。
+
+### 13.3 需要一起看的代码
+
+| 位置 | 关注点 |
+| --- | --- |
+| `Assets/Game/Runtime/Sekai/Live/LongNote.cs:1040` `TickSwipeTail` | 待结算划动的清空条件与计数起点 |
+| `Assets/Game/Runtime/Sekai/Live/LongNote.cs` `_swipeTailDeferred` / `_swipeTailCapped` | 谁置位、谁清、能否在解耦后整体删掉 |
+| `Assets/Game/Runtime/Sekai/Live/Tails/SwipeTail.cs` | `TryFinish` 是否读「标准时间之前」的样本 |
+| `Assets/Game/Runtime/Sekai/Live/Tails/SelfJudgedTail.cs` | 摩擦划尾的自判是否同样只看向后的样本 |
+| `Assets/Game/Runtime/Sekai/Live/Tails/ReleaseTail.cs:15` | 抬手判定的入口（已在 §4 第 1 步处理 `IsBeingHeld`） |
+
+### 13.4 验收用例
+
+- `AFlickTailIgnoresSamplesFromBeforeItsOwnTime`：标准时间之前给一串滑动样本，尾不得判定；到点后给同一方向的样本才判定。
+- `AFlickTailPublishesOnceEvenIfTheBarKeepsTicking`：尾判定之后继续驱动 5 帧（覆盖 3 帧宽限），断言发布次数恰好 1、连击只 +1。
+- 真机：Test16 + 含 flick 尾的谱面，验证「提前划」与「正点划」都不出双判定、也不吞判定。
