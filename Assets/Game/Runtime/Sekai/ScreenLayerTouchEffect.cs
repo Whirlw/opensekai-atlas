@@ -121,7 +121,7 @@ namespace Sekai
 
 				if (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled)
 				{
-					// Original keeps the tap particle alive after release so the click animation can finish.
+					// Keep the tap particle alive after release so the click animation can finish.
 					// Tap effects are stopped only when the layer is cleared or the effect slot is reused.
 				}
 			}

@@ -194,7 +194,7 @@ namespace Sekai.Live
 
 		public void InjectSkillFeverForCreatorScore(int musicId)
 		{
-			// TODO(original): restore creator-score skill/fever injection once MusicScoreFactory/SUS conversion is fully recovered.
+			// TODO: support creator-score skill/fever injection.
 			ResetEvent();
 		}
 

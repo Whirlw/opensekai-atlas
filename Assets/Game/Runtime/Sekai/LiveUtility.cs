@@ -49,19 +49,19 @@ namespace Sekai
 
 		public static void OpenNotPublishMusicErrorDialog(Action onNotPublish)
 		{
-			// TODO(original): restore original dialog flow when the live API screens are imported.
+			// TODO: implement the dialog flow.
 			onNotPublish?.Invoke();
 		}
 
 		public static void OpenStartLiveAPIErrorRetryCancelDialog(Action onRetry, Action onCancel)
 		{
-			// TODO(original): restore original retry/cancel dialog once common dialog wiring is complete.
+			// TODO: implement the retry/cancel dialog.
 			onCancel?.Invoke();
 		}
 
 		public static void OpenStartLiveAPIErrorCancelDialog(Action callback)
 		{
-			// TODO(original): restore original API error dialog once common dialog wiring is complete.
+			// TODO: implement the API error dialog.
 			callback?.Invoke();
 		}
 

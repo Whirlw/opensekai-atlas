@@ -1,4 +1,4 @@
-﻿namespace OpenSekai.Shared.Live
+namespace OpenSekai.Shared.Live
 {
     /// <summary>
     /// The note that will be judged for one candidate on this frame.
@@ -18,7 +18,7 @@
     /// <summary>
     /// How a finger spends its single judgment slot on a frame.
     ///
-    /// The original loop judged one note per finger per frame and stopped as soon as that note
+    /// The legacy loop judged one note per finger per frame and stopped as soon as that note
     /// had a result. The stop condition was wrong in a way that is hard to see: a note whose
     /// <c>Judgment</c> returned without producing a result (a rub note whose first touch only set
     /// <c>isTouched</c>, or a friction flick still waiting for the swipe to line up with its time)

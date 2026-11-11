@@ -31,8 +31,8 @@ namespace Sekai.Live
 				return view;
 			}
 
-			// Some restored prefabs still have child dependencies pending; keep the chain alive
-			// while their concrete view scripts are restored from IDA.
+			// Keep the view chain alive when a prefab has no LiveViewBase component.
+			// The fallback component is added below.
 			Debug.LogWarning($"Live view prefab has no LiveViewBase component. path: {path}");
 			return instance.AddComponent<LiveViewBase>();
 		}

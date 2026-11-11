@@ -27,7 +27,7 @@ namespace Sekai
 
 		protected override void OnBoot(BootArgBase bootArg)
 		{
-			// TODO(original): wire header view, player info, currency and menu buttons.
+			// TODO: wire the header view, player info, currency and menu buttons.
 		}
 
 		public override void OnWillExit()

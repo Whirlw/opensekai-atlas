@@ -107,13 +107,13 @@ namespace CP
 
 		public static void DelayInboke(float delay, Action callback)
 		{
-			// TODO(original): the game schedules this through a shared coroutine runner.
+			// TODO: schedule this through a shared coroutine runner.
 			callback?.Invoke();
 		}
 
 		public static void DelayInboke(int frameCount, Action callback)
 		{
-			// TODO(original): restore frame-delayed invocation when the global runner is copied.
+			// TODO: support frame-delayed invocation.
 			callback?.Invoke();
 		}
 

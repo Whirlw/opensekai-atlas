@@ -14,7 +14,7 @@ namespace Sekai
 
 		public void Show(BackgroundType type, Action<CrossFader.FinishedStatus> onFinished = null)
 		{
-			// TODO(original): restore background bundle load and crossfade.
+			// TODO: load and crossfade the background bundle.
 			CurrentBackgroundType = type;
 			onFinished?.Invoke(CrossFader.FinishedStatus.Complete);
 		}

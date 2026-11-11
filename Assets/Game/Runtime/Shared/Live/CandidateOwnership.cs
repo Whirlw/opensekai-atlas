@@ -1,7 +1,7 @@
 namespace OpenSekai.Shared.Live
 {
     /// <summary>
-    /// Two inputs can nominate the same note in one frame. The decompiled loop kept the note for the
+    /// Two inputs can nominate the same note in one frame. The loop kept the note for the
     /// input that sits closer to it and let the tie go to the input that was handled first, i.e. the
     /// older entry of the active list. The rule lives here so it can be tested without a live board.
     /// </summary>

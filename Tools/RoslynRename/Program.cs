@@ -116,7 +116,7 @@ internal static class Program
                         // setter, which is CS0188 ("this used before all fields are assigned").
                         if (isStruct) { skipped.Add($"{typeSymbol.Name}.{name}: struct"); continue; }
 
-                        // Compiler-generated state machines (decompiled as _003C..._003Ed__NN) are not
+                        // Compiler-generated state machines (_003C..._003Ed__NN) are not
                         // hand-written code: leave their fields alone.
                         if (typeSymbol.Name.Contains("_003C") || typeSymbol.Name.Contains("<>"))
                         {

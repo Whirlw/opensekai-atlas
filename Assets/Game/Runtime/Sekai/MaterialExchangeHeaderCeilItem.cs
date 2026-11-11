@@ -91,9 +91,9 @@ namespace Sekai
 
 			if (_recoveryIcon.sprite == null)
 			{
-				string atlasName = _recoveryIcon.Atlas != null ? _recoveryIcon.Atlas.name : "_recoveryIconにアトラスが設定されていません";
+				string atlasName = _recoveryIcon.Atlas != null ? _recoveryIcon.Atlas.name : "_recoveryIcon has no atlas assigned";
 				CP.LogUtility.LogError(
-					_viewData.IconName + "が見つかりませんでした。 参照先[" +
+					_viewData.IconName + " was not found. Reference [" +
 					_viewData.AssetBundleName + "/" + _viewData.AssetBundleAtlasName + "], [" + atlasName + "]");
 			}
 		}

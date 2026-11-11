@@ -548,7 +548,6 @@ namespace Sekai
 
 			bool IEnumerator.MoveNext()
 			{
-				//ILSpy generated this explicit interface implementation from .override directive in MoveNext
 				return this.MoveNext();
 			}
 
@@ -617,7 +616,6 @@ namespace Sekai
 
 			bool IEnumerator.MoveNext()
 			{
-				//ILSpy generated this explicit interface implementation from .override directive in MoveNext
 				return this.MoveNext();
 			}
 
@@ -686,7 +684,6 @@ namespace Sekai
 
 			bool IEnumerator.MoveNext()
 			{
-				//ILSpy generated this explicit interface implementation from .override directive in MoveNext
 				return this.MoveNext();
 			}
 

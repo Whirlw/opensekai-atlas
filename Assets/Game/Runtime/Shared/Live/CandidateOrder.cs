@@ -1,9 +1,9 @@
-﻿using Sekai.Live;
+using Sekai.Live;
 
 namespace OpenSekai.Shared.Live
 {
     /// <summary>
-    /// Ranking used before a press picks a note. The original game ordered a finger's candidates by
+    /// Ranking used before a press picks a note. The ranking orders a finger's candidates by
     /// the result they would get right now, then by score time, then by lane distance, so the note the
     /// finger judges is the one it is already passing and is closest to.
     ///

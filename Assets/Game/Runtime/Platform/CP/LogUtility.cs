@@ -53,7 +53,7 @@ namespace CP
 
 		public static void Initialize(ILogUtilityIO io, ILogTimeGetter logTimeGetter)
 		{
-			// TODO(original): restore filter map, file logger and report callbacks from dump.cs.
+			// TODO: restore filter map, file logger and report callbacks.
 		}
 
 		public static void WriteLog(int priority, string formatMessage, params object[] args)

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 using System.Collections.Generic;
 
@@ -1192,7 +1192,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
         {
 
-            // Original behaviour: an early swipe is only remembered, the countdown starts when the
+            // An early swipe is only remembered; the countdown starts when the
 
             // finger leaves, and the deferred swipe is graded on the third frame after that.
 

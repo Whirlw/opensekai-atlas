@@ -83,7 +83,7 @@ namespace Sekai
 
 		public void SetupOnDemandFontAsset()
 		{
-			// The original swaps in AssetBundle-loaded on-demand fonts here.
+			// An earlier implementation swaps in AssetBundle-loaded on-demand fonts here.
 			// OpenSekai currently ships the builtin font atlases locally, so this
 			// keeps the same fallback shape until the on-demand font bundle path is restored.
 			SetupBuiltinFontAsset();
@@ -106,7 +106,7 @@ namespace Sekai
 
 		private void ClearPrimaryFontAssetData(TMP_FontAsset fontAsset)
 		{
-			// Keep the original prefab/font references intact, but make the base
+			// Keep the prefab/font references intact, but make the base
 			// Rodin assets act as empty shells so text resolves through one
 			// dynamic fallback font instead of mixing Rodin and CJK glyphs.
 			SafeClearFontAssetData(fontAsset);

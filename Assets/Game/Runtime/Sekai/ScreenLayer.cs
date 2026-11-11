@@ -114,7 +114,7 @@ namespace Sekai
 
 		public IEnumerator OnScreenLayerBoot(ScreenLayerData screenData, BootArgBase bootArg = null)
 		{
-			// TODO(original): restore the original boot coroutine and in-animation state machine.
+			// TODO: implement the boot coroutine and in-animation state machine.
 			this.screenData = screenData;
 			state = State.Booting;
 			WillExitBehaviour = WillExitBehaviourStatus.None;
@@ -125,22 +125,22 @@ namespace Sekai
 
 		public void ChangeStartAnimationType(ScreenInAnimType animType)
 		{
-			// TODO(original): persist and apply ScreenInAnimType once animation helpers are copied.
+			// TODO: persist and apply ScreenInAnimType.
 		}
 
 		public void ChangeExitAnimationType(ScreenOutAnimType animType)
 		{
-			// TODO(original): persist and apply ScreenOutAnimType once animation helpers are copied.
+			// TODO: persist and apply ScreenOutAnimType.
 		}
 
 		public void ReverseStartAnimationType()
 		{
-			// TODO(original): reverse slide/mask animation direction.
+			// TODO: reverse slide/mask animation direction.
 		}
 
 		public void ReverseExitAnimationType()
 		{
-			// TODO(original): reverse slide/mask animation direction.
+			// TODO: reverse slide/mask animation direction.
 		}
 
 		public void OnScreenLayerInitComponent()
@@ -174,7 +174,7 @@ namespace Sekai
 
 		public IEnumerator OnScreenLayerExitStart()
 		{
-			// TODO(original): restore exit animation coroutine and manual-exit mode.
+			// TODO: implement the exit animation coroutine and manual-exit mode.
 			state = State.Exiting;
 			OnExitStart();
 			PlayExitAnimation();

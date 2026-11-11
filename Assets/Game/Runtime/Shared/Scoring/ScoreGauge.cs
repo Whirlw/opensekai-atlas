@@ -6,9 +6,8 @@ namespace OpenSekai.Shared.Scoring
 {
     /// <summary>
     /// Turns a running total into the gauge fill the score bar shows, and a total into a rank.
-    /// Rewritten from the decompiled <c>ScoreGaugeCalculator</c>: the behaviour is the same (the
-    /// scoring tests pinned it first), the shape is ours — no mutable list of key/value pairs, no
-    /// constructor that takes one, and the thresholds are plain fields.
+    /// The behaviour is pinned by the scoring tests; the shape is ours — no mutable list of
+    /// key/value pairs, no constructor that takes one, and the thresholds are plain fields.
     /// </summary>
     public sealed class ScoreGauge
     {

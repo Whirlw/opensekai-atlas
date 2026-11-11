@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Sekai;
@@ -195,7 +195,7 @@ namespace Sekai.Live
 			AddJudgeFrame(JudgeFrameType.Long_End_Critical, 3.5f, 4f, 6.5f, 8f, 7.5f, 8.5f, 7.5f, 8.5f);
 			AddJudgeFrame(JudgeFrameType.Long_End_Flick_Critical, 3.5f, 4f, 6.5f, 8f, 7.5f, 8.5f, 7.5f, 8.5f);
 
-			// TODO(original): confirm the friction-specific judge frames once the matching master data is imported.
+			// TODO: confirm the friction-specific judge frames.
 			CopyJudgeFrame(JudgeFrameType.Friction, JudgeFrameType.Flick);
 			CopyJudgeFrame(JudgeFrameType.Friction_Critical, JudgeFrameType.Flick_Critical);
 			CopyJudgeFrame(JudgeFrameType.Friction_Flick, JudgeFrameType.Flick);

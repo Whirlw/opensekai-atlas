@@ -25,15 +25,15 @@ namespace Sekai.Live
 		[SerializeField]
 		private float _cutinDelayTime;
 
-		[Tooltip("ノーマルノーツ、ロングノーツ終点")]
+		[Tooltip("Normal notes, long-note end")]
 		[SerializeField]
 		private float _normalNoteOffsetX;
 
-		[Tooltip("フリック開始、フリック終点")]
+		[Tooltip("Flick start, flick end")]
 		[SerializeField]
 		private float _flickNoteOffsetX;
 
-		[Tooltip("ノングノーツ開始")]
+		[Tooltip("Long-note start")]
 		[SerializeField]
 		private float _longNoteOffsetX;
 

@@ -52,7 +52,7 @@ namespace Sekai
 
 		public static void AddMasterWording()
 		{
-			// Original app reads MasterDataManager.Instance.GetWordings() from CachedMaserDataAll.
+			// The full master-data path is not loaded yet.
 			// OpenSekai does not load full master data yet, so this temporary restoration path
 			// reads the pre-extracted master wording table from a local Resources txt file.
 			LoadWordingText(MASTER_WORDING_RESOURCE_PATH, overwrite: true, logMissing: false);
@@ -65,7 +65,7 @@ namespace Sekai
 			{
 				if (logMissing)
 				{
-					Debug.LogError("wordingファイルの読み込みに失敗しました");
+					Debug.LogError("Failed to load the wording file.");
 				}
 				return;
 			}
@@ -88,14 +88,14 @@ namespace Sekai
 			string[] columns = line.Split(',');
 			if (columns.Length != 2)
 			{
-				Debug.LogError(string.Format("{0}行目のデータ\"{1}\"が想定のcsvと異なります", lineNumber, line));
+				Debug.LogError(string.Format("Line {0} data \"{1}\" does not match the expected CSV.", lineNumber, line));
 				return;
 			}
 
 			string key = columns[0];
 			if (string.IsNullOrEmpty(key))
 			{
-				Debug.LogError(string.Format("{0}行目のデータ\"{1}\"にキーが入力されていません", lineNumber, line));
+				Debug.LogError(string.Format("Line {0} data \"{1}\" has no key.", lineNumber, line));
 				return;
 			}
 
@@ -111,7 +111,7 @@ namespace Sekai
 				}
 				else
 				{
-					Debug.LogError(string.Format("{0}行目のデータ\"{1}\"のキーは既に存在しています", lineNumber, line));
+					Debug.LogError(string.Format("Line {0} data \"{1}\" has a duplicate key.", lineNumber, line));
 				}
 				return;
 			}

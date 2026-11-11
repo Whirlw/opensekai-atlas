@@ -175,7 +175,7 @@ namespace OpenSekai.App.UI
             else
             {
                 // The game only knows five judgement grades on screen: a just-perfect hit is still a
-                // PERFECT. Showing a separate "JP" column invented a grade the original never had.
+                // PERFECT. Showing a separate "JP" column would invent a grade the HUD never had.
                 _statsText.text = "最大连击  " + result.MaxCombo + " / " + result.TotalCombo;
                 _judgementText.text = "PERFECT " + result.Perfect
                     + "    GREAT " + result.Great

@@ -32,7 +32,7 @@ namespace OpenSekai.Shared.Scoring
             else if (data.PerfectBeforeJudgeTime >= offset && -data.PerfectAfterJudgeTime <= offset)
             {
                 // A flick whose direction was wrong still lands inside the perfect window, but it is not a
-                // perfect: the original reports it as a direction miss so the effect can say so.
+                // perfect: the result reports it as a direction miss so the effect can say so.
                 return (NoteResult.Great, NoteResultDescription.FlickMiss);
             }
 

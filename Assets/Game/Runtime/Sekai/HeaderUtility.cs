@@ -100,7 +100,7 @@ namespace Sekai
 				header.SetScreenSubName(data.ScreenSubName);
 			}
 
-			// IDA shows the original clearing profile-only header buttons here.
+			// These header buttons are not part of the lightweight player.
 			// The current header implementation is still simplified, so these are no-ops for now.
 			header.DeactiveFriendButton();
 			header.DetectiveCommunityReportButton();

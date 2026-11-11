@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 using OpenSekai.Shared.Live;
 using Sekai.Live;
 
@@ -13,7 +13,7 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void LowerResultValueRanksFirst()
         {
-            // The original comparator sorts by NoteResult ascending (None=0 .. JustPerfect=8), so a
+            // The comparator sorts by NoteResult ascending (None=0 .. JustPerfect=8), so a
             // candidate that would only earn Great comes before one that would earn JustPerfect.
             Assert.That(
                 CandidateOrder.Compare(Touch, NoteResult.Great, 5f, 9f, Touch, NoteResult.JustPerfect, 1f, 0f),

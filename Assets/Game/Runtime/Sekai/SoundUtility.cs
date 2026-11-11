@@ -4,7 +4,7 @@ namespace Sekai
 	{
 		public static void SetupGlobalSeSettings(GlobalSeSettings settings)
 		{
-			// TODO(original): apply global SE routing once sound system is restored.
+			// TODO: apply global SE routing.
 		}
 	}
 }

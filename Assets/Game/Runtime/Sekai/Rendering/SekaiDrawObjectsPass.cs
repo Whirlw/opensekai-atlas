@@ -69,9 +69,8 @@ namespace Sekai.Rendering
 
 		public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
 		{
-			// Original SekaiRenderer owns the SRPDefaultUnlit draw stage. In this URP
-			// port the built-in UniversalRenderer already draws that tag, so replaying
-			// Default here makes transparent UI accumulate alpha twice.
+			// The built-in UniversalRenderer already draws the SRPDefaultUnlit tag.
+			// Replaying Default here makes transparent UI accumulate alpha twice.
 			if (_skipExecution)
 			{
 				return;

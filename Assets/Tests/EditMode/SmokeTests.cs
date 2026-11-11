@@ -17,7 +17,7 @@ namespace OpenSekai.Tests.EditMode
         [Test]
         public void GameAssemblyIsReferenced()
         {
-            // Sekai.ColorUtility is decompiled code we keep using, so it is a cheap probe that
+            // Sekai.ColorUtility is part of the game assembly, so it is a cheap probe that
             // OpenSekai.Game is actually referenced by the test assembly.
             Assert.That(typeof(Sekai.ColorUtility).Assembly.GetName().Name, Is.EqualTo("OpenSekai.Game"));
         }

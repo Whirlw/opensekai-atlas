@@ -94,8 +94,8 @@ namespace Sekai
 
 		/// <summary>
 		/// Judge an input at the frame it was read (legacy) instead of at the moment the touch was sampled.
-		/// The legacy path reproduces the original decompiled formula, which multiplies the touch latency
-		/// by one frame time and therefore shrinks it 60x; it is kept for players who prefer that feel.
+		/// The legacy path multiplies the touch latency by one frame time and therefore shrinks it 60x;
+		/// it is kept for players who prefer that feel.
 		/// </summary>
 		public bool UseLegacyJudgeTiming { get; set; }
 

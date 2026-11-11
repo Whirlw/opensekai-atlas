@@ -16,14 +16,14 @@ namespace OpenSekai.Shared.Live.Simulation
 		public const float MaxInputLatencySeconds = 0.25f;
 
 		/// <summary>
-		/// The original formula: the wall clock delta is multiplied by one frame time, which shrinks
+		/// The legacy formula: the wall clock delta is multiplied by one frame time, which shrinks
 		/// real latency by a factor of 60 and effectively judges every touch at the current frame's
 		/// music time. Kept verbatim behind the "legacy judge timing" option so the old feel stays
 		/// available.
 		/// </summary>
 		public static float FromLegacyClock(double frameMusicTime, double frameGameTime, double inputTime)
 		{
-			// One frame time at the judge table's fixed rate, matching the original formula.
+			// One frame time at the judge table's fixed rate, matching the legacy formula.
 			const double OneFrameSeconds = 1d / 60d;
 			return (float)(frameMusicTime + (inputTime - frameGameTime) * OneFrameSeconds);
 		}

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Sekai.Core;
 using Sekai.Core.Live;
@@ -605,7 +605,7 @@ namespace Sekai.Live
 			frontCameraData.renderType = CameraRenderType.Base;
 			effectCameraData.renderType = CameraRenderType.Overlay;
 
-			// The original prefab is built for the legacy multi-camera path. In URP,
+			// The prefab is built for the legacy multi-camera path. In URP,
 			// leaving this camera as a standalone Base camera makes its transparent
 			// blue clear color overwrite the screen, so it has to render as an overlay
 			// stacked after FrontCamera.

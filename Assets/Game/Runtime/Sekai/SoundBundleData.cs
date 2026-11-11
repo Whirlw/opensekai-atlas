@@ -21,7 +21,7 @@ namespace Sekai
         [SerializeField]
         private string _cueSheetName;
 
-        // Keep the original serialized field typo so copied assets deserialize correctly.
+        // Keep the legacy serialized field typo so copied assets deserialize correctly.
         [SerializeField]
         private int _spilitFileNum;
 

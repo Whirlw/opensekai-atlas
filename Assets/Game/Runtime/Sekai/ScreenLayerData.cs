@@ -31,7 +31,7 @@ namespace Sekai
 
 		public GameObject LoadScreenLayerPrefab()
 		{
-			// IDA shows the original path as "Screen/Prefabs/" + data asset name.
+			// Try the legacy resource path first, then the lowercase path used by this project.
 			var prefab = Resources.Load<GameObject>("Screen/Prefabs/" + name);
 			return prefab != null ? prefab : Resources.Load<GameObject>("screen/prefabs/" + name);
 		}

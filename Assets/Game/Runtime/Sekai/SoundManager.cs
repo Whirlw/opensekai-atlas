@@ -544,7 +544,7 @@ namespace Sekai
 				return currentTapSeCueName;
 			}
 
-			// Original SoundManager.Initialize registers MenuCommon_Built_in before
+			// MenuCommon_Built_in is registered before
 			// dynamic menu bundles, so common button SE should resolve there first.
 			string builtInCueName = ResolveCueNameFromBundle(MENU_COMMON_BUILT_IN_CUE_SHEET_NAME, cueName, out acb);
 			if (builtInCueName != null)
@@ -1308,7 +1308,7 @@ namespace Sekai
 		{
 			if (!string.IsNullOrEmpty(cueName) && _warnedMissingCues.Add(cueName))
 			{
-				Debug.LogWarningFormat("{0} は登録されていません。", cueName);
+				Debug.LogWarningFormat("{0} is not registered.", cueName);
 			}
 		}
 

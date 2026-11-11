@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Sekai.Live;
@@ -327,7 +327,7 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>
-		/// The original formula. See <see cref="OpenSekai.Shared.Live.Simulation.InputTimeMapping.FromLegacyClock"/>.
+		/// The legacy formula. See <see cref="OpenSekai.Shared.Live.Simulation.InputTimeMapping.FromLegacyClock"/>.
 		/// </summary>
 		public static float ComputeLegacyInputMusicTime(double frameMusicTime, double frameGameTime, double inputTime)
 		{
@@ -1068,7 +1068,7 @@ namespace Sekai.Core.Live
 			}
 
 			_seScoreVolume = currentFrameInfo.seVolume;
-			// TODO(original): route to SoundManager.SetVolumeSEPlayer once the CRI player pool is fully mirrored.
+			// TODO: route to SoundManager.SetVolumeSEPlayer.
 		}
 
 		private static NoteBase[] SortNotes(NoteBase[] notes)

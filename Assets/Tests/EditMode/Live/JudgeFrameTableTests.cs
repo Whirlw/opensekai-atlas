@@ -6,10 +6,10 @@ namespace OpenSekai.Tests.EditMode.Live
     /// <summary>
     /// Pins the judge frame table and the frame-to-second conversion.
     ///
-    /// The numbers come from the original game's own data, cross-checked against the published
+    /// The numbers come from the shipped judge data, cross-checked against the published
     /// reverse-engineering write-up "音符判定范围详解" (the third article linked from
     /// docs/reference/judging.md). Every value below is quoted in that article in milliseconds,
-    /// so these assertions are a parity check with the original, not a preference.
+    /// so these assertions are a parity check, not a preference.
     ///
     /// If a change here is intentional, it is a gameplay feel change: update the article table in
     /// docs/reference/judging.md in the same commit so the next reader knows it was chosen.

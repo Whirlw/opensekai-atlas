@@ -95,7 +95,7 @@ namespace Sekai.UI
 
 			if (se == SeType.Other && !SoundManager.Instance.ExistsCueName(cueName))
 			{
-				LogUtility.LogError("存在しないキュー名が指定されました {0}", cueName);
+				LogUtility.LogError("Unknown cue name: {0}", cueName);
 				return;
 			}
 

@@ -14,23 +14,23 @@ namespace Sekai.UI
 		[SerializeField]
 		protected Graphic _effectGraphicIcon;
 
-		[Header("デフォルトカラー選択(ColorEntry)")]
+		[Header("Default color (ColorEntry)")]
 		[SerializeField]
 		protected ColorEntry _defaultColorPalette;
 
 		[SerializeField]
-		[Header("エフェクトカラー選択(ColorEntry)")]
+		[Header("Effect color (ColorEntry)")]
 		protected ColorEntry _effectColorPalette;
 
-		[Header("エフェクト透明度を個別指定するか")]
+		[Header("Override effect alpha")]
 		[SerializeField]
 		protected bool _useCustomAlpha;
 
 		[SerializeField]
-		[Header("個別指定のデフォルト透明度")]
+		[Header("Default override alpha")]
 		protected float _customDefaultAlpha;
 
-		[Header("個別指定のエフェクト透明度")]
+		[Header("Override effect alpha")]
 		[SerializeField]
 		protected float _customEffectAlpha;
 

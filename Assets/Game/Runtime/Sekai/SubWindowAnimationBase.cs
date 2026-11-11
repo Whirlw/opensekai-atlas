@@ -25,7 +25,6 @@ namespace Sekai
 
 			void IAsyncStateMachine.MoveNext()
 			{
-				//ILSpy generated this explicit interface implementation from .override directive in MoveNext
 				this.MoveNext();
 			}
 
@@ -37,7 +36,6 @@ namespace Sekai
 
 			void IAsyncStateMachine.SetStateMachine(IAsyncStateMachine stateMachine)
 			{
-				//ILSpy generated this explicit interface implementation from .override directive in SetStateMachine
 				this.SetStateMachine(stateMachine);
 			}
 		}
@@ -57,7 +55,6 @@ namespace Sekai
 
 			void IAsyncStateMachine.MoveNext()
 			{
-				//ILSpy generated this explicit interface implementation from .override directive in MoveNext
 				this.MoveNext();
 			}
 
@@ -69,7 +66,6 @@ namespace Sekai
 
 			void IAsyncStateMachine.SetStateMachine(IAsyncStateMachine stateMachine)
 			{
-				//ILSpy generated this explicit interface implementation from .override directive in SetStateMachine
 				this.SetStateMachine(stateMachine);
 			}
 		}
@@ -89,7 +85,6 @@ namespace Sekai
 
 			void IAsyncStateMachine.MoveNext()
 			{
-				//ILSpy generated this explicit interface implementation from .override directive in MoveNext
 				this.MoveNext();
 			}
 
@@ -101,7 +96,6 @@ namespace Sekai
 
 			void IAsyncStateMachine.SetStateMachine(IAsyncStateMachine stateMachine)
 			{
-				//ILSpy generated this explicit interface implementation from .override directive in SetStateMachine
 				this.SetStateMachine(stateMachine);
 			}
 		}

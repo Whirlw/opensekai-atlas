@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using NUnit.Framework;
 using OpenSekai.Shared.Live;
 using Sekai.Live;
@@ -80,7 +80,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
         [TestCase(false)]
         [TestCase(true)]
-        public void HeadMissKeepsItsOriginalNotificationOrder(bool fromLast)
+        public void HeadMissKeepsItsNotificationOrder(bool fromLast)
         {
             var bar = Bar();
             var events = new List<string>();

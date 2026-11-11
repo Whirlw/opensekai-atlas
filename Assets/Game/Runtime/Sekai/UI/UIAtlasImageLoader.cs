@@ -146,7 +146,7 @@ namespace Sekai.UI
 			}
 			else
 			{
-				// TODO(original): restore AssetManager/LruAssetCache based async atlas loading.
+				// TODO: load atlases asynchronously through AssetManager/LruAssetCache.
 				_onError?.Invoke(null);
 			}
 		}

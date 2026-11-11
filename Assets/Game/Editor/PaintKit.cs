@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -11,7 +11,7 @@ namespace OpenSekai.EditorTools
     /// Two-way bridge between the game's packed art and files a person can paint.
     ///
     /// Most of the in-live art is not a loose PNG any more: it was packed into a sprite atlas, so the
-    /// sprite assets point at a 2048x2048 <c>sactx-*</c> texture and the original picture exists only as
+    /// sprite assets point at a 2048x2048 <c>sactx-*</c> texture and the source picture exists only as
     /// a rectangle inside it. Export cuts every referenced sprite out to its own PNG of exactly the rect
     /// size; Apply pastes the painted file back at the same rectangle. The atlas canvas size, the sprite
     /// rects and every prefab reference stay untouched, which is what makes this reversible.

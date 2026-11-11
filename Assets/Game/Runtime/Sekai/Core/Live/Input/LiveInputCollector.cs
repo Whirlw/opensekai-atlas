@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Sekai.Live;
@@ -202,7 +202,7 @@ namespace Sekai.Core.Live
 		/// <summary>
 		/// How far the finger travelled since the sample this frame is compared against. A press has no
 		/// history, and a finger first seen mid-drag is measured against the screen origin, exactly as
-		/// the original did.
+		/// the legacy loop did.
 		/// </summary>
 		public Vector2 TakeDelta(in LiveTouchSample touch)
 		{

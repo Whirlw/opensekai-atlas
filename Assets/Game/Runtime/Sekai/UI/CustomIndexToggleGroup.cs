@@ -101,7 +101,7 @@ namespace Sekai.UI
 			CollectToggles(_selectedOnAwake);
 		}
 
-		[Obsolete("廃止予定 SelectedIndexを使用してください")]
+		[Obsolete("Use SelectedIndex instead.")]
 		public void InitializeSelectIndex(int index, bool callSelectedEvent = true)
 		{
 			initializing = !callSelectedEvent;

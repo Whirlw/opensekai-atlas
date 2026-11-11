@@ -78,7 +78,7 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         [Test]
-        public void ShippedAssetStillCarriesTheOriginalNumbers()
+        public void ShippedAssetStillCarriesTheExpectedNumbers()
         {
             var asset = UnityEditor.AssetDatabase.LoadAssetAtPath<LiveBundleBuildData>(
                 "Assets/Graphics/Resources/live/config/LiveBundleBuildData.asset");

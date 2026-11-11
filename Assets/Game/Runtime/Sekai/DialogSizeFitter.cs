@@ -53,8 +53,8 @@ namespace Sekai
 
 		static DialogSizeFitter()
 		{
-			// Restored enough for copied dialog prefabs; exact original size constants
-			// should be checked against IDA if another dialog depends on pixel parity.
+			// Size constants used by the dialog prefabs.
+			// Adjust them only with a visual check.
 			SIZE_DIC = new Dictionary<DialogSize, float>
 			{
 				{ DialogSize.Small, 720f },

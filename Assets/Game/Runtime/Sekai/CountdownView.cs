@@ -57,7 +57,6 @@ namespace Sekai
 
 			bool IEnumerator.MoveNext()
 			{
-				//ILSpy generated this explicit interface implementation from .override directive in MoveNext
 				return this.MoveNext();
 			}
 
@@ -159,7 +158,7 @@ namespace Sekai
 				return;
 			}
 
-			// The original effect relies on each child Animator replaying from the default state
+			// The effect relies on each child Animator replaying from the default state
 			// when fx_live_countdown_3/2/1 is activated. Rewind explicitly for the restored prefab.
 			Animator[] animators = effectObject.GetComponentsInChildren<Animator>(true);
 			for (int i = 0; i < animators.Length; i++)

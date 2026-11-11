@@ -129,7 +129,7 @@ namespace Sekai.SUS
 				{
 					Category = category;
 				}
-				// Match the original SUS importer: the skip flag is latched when the
+				// Match the legacy SUS importer: the skip flag is latched when the
 				// NoteInfo is first created. Official scores overlay normal skip rows
 				// with long connection rows to mark relay points that must not steer
 				// the long-note path.

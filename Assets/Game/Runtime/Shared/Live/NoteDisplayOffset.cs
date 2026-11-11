@@ -9,7 +9,7 @@ namespace OpenSekai.Shared.Live
     /// A note with a negative effective speed (a speed event and a note speed pulling in opposite
     /// directions) is flagged so the view can react, and the magnitude is used for the division so the
     /// offset stays positive. Extracted from <c>LiveLogic.CalcTimeOffset</c>; the flag is passed by
-    /// reference because the original leaves it untouched when the speed ratio is zero.
+    /// reference because the value stays untouched when the speed ratio is zero.
     /// </remarks>
     public static class NoteDisplayOffset
     {

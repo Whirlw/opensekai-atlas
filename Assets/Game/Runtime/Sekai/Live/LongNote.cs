@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -987,7 +987,7 @@ namespace Sekai.Live
 
 		/// <summary>
 		/// A swipe was seen inside this bar. Swiping before the tail time is only recorded: judging it
-		/// right away would reward an early swipe exactly like an on time one, and the original defers
+		/// right away would reward an early swipe exactly like an on time one, and the rule defers
 		/// to the third frame after the release so that the swipe is graded closer to the tail time.
 		/// </summary>
 		internal bool NotifyLaneSwipe(float magnitude, float currentTime)
@@ -1032,7 +1032,7 @@ namespace Sekai.Live
 					return false;
 				}
 
-				// The original defers an early swipe to the third frame after the release: the
+				// The rule defers an early swipe to the third frame after the release: the
 				// countdown starts when the finger leaves, not when the swipe happens.
 				_swipeTailDeferred = true;
 				_framesSinceRelease = -1;

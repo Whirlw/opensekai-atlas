@@ -7,7 +7,7 @@ namespace OpenSekai.Shared.Scoring
     /// <summary>
     /// The lane and swipe tolerances the judge uses, in one immutable place.
     ///
-    /// The numbers come from <see cref="LiveBundleBuildData"/> (the original game's configuration),
+    /// The numbers come from <see cref="LiveBundleBuildData"/> (the shipped configuration),
     /// not from code, so this type only decides how they are applied:
     /// <list type="bullet">
     /// <item>lane offsets widen a note's judge range: start - offset .. end + offset;</item>
