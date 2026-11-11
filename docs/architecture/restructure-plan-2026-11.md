@@ -423,6 +423,8 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 
 - P1-1 设置批次通过。现有读写统一改用 Game 的 `LiveSettingsStore`。DTO 和快照随 `MVQualityType`、本地 `[Skip]` 标记迁入 Core，保留字段、缺省值和快照复制行为。Core 仅显式引用 Newtonsoft.Json，`link.xml` 的设置 DTO 条目指向新程序集。完整 EditMode 包含旧设置读取、写回和开局快照检查，512 通过、0 失败、4 跳过。程序集/IDE 检查通过，缺失脚本新增 0。报告在 `TestResults/restructure-p1-1-settings-*`。
 
+- P1-4 桌面验证通过。谱面 JSON 模型随 `NoteType`、`NoteLineType`、`NoteDirection` 和 `MusicScoreInfo` 迁入 Core；曲包 manifest 与原短 ID 生成一并迁移，存储留在 Game。旧 `$type`、`$id`、`$ref` 回读和重写经 `ChartJsonTests` 验证。按实际程序集修正 `Assets/link.xml`，Unity 反射逐条验证 13 个保留类型。程序集、IDE、缺失脚本差异检查通过；全量 EditMode 512 通过、0 失败、4 跳过。报告在 `TestResults/restructure-p1-4-contracts-*` 和 `TestResults/restructure-p1-4-link-check.json`。Android IL2CPP 覆盖安装与既有数据、曲包回读待验证。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动

@@ -11,11 +11,11 @@
 
 | 程序集 | 路径 | 职责与入口 |
 | --- | --- | --- |
-| OpenSekai.Core | `Assets/Game/Runtime/OpenSekai.Core/` | 输入时钟、候选排序、判定、计分与设置数据 |
+| OpenSekai.Core | `Assets/Game/Runtime/OpenSekai.Core/` | 输入时钟、候选排序、判定、计分、设置数据、谱面 JSON 与曲包清单 |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/Bootstrap/` | `LibraryEntryPoint` 装配曲库入口 |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/UI/` | `LibraryScreen` 和导入、设置、结算面板 |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/Playback/` | `PlayService` 和 `LegacyLiveBootAdapter` 装配开局数据 |
-| OpenSekai.App | `Assets/Game/Runtime/OpenSekai/Charts/` | `ChartDocument`、`ChartTimeline` 和 `ChartJson` |
+| OpenSekai.App | `Assets/Game/Runtime/OpenSekai/Charts/` | `ChartTimeline` 和 `RuntimeChartDefinition` |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/Infrastructure/` | `ChartFileReader`、`SongPackageManager` 和曲库导入 |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/Live/Conversion/` | `RuntimeChartConverter` 和 `RuntimeChartImporter` 组装运行时谱面 |
 | OpenSekai.Game | `Assets/Game/Runtime/Sekai/` | `ScreenManager`、场景切换、Live 控制器、视图和音符 |

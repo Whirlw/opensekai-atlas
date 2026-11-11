@@ -64,7 +64,13 @@ namespace OpenSekai.Charts.Serialization
 
             public void BindToName(Type type, out string assemblyName, out string typeName)
             {
-                assemblyName = type.Assembly.GetName().Name;
+                // Keep the assembly names used in existing chart metadata across the Core move.
+                if (type == typeof(MusicScoreInfo))
+                    assemblyName = "OpenSekai.Game";
+                else if (type.Namespace == typeof(ChartDocument).Namespace)
+                    assemblyName = "OpenSekai.App";
+                else
+                    assemblyName = type.Assembly.GetName().Name;
                 typeName = type == typeof(ChartDocument) ? OLD_MODELS + "MusicScoreMakerData"
                     : type == typeof(ChartNote) ? OLD_MODELS + "MusicScoreNoteBase"
                     : type == typeof(ChartEvent) ? OLD_MODELS + "MusicScoreEventData"

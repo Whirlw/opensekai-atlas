@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Newtonsoft.Json;
 
 namespace OpenSekai.Shared.Packages
@@ -150,6 +151,24 @@ namespace OpenSekai.Shared.Packages
 		[JsonIgnore]
 		public bool HasAudioFileName => !string.IsNullOrEmpty(audioFileName);
 
+		private const string SHORT_ID_CHARS = "0123456789abcdefghijklmnopqrstuvwxyz";
+
+		internal static string GenerateShortId()
+		{
+			byte[] bytes = new byte[12];
+			using (RandomNumberGenerator rng = RandomNumberGenerator.Create())
+			{
+				rng.GetBytes(bytes);
+			}
+
+			char[] chars = new char[12];
+			for (int i = 0; i < chars.Length; i++)
+			{
+				chars[i] = SHORT_ID_CHARS[bytes[i] % SHORT_ID_CHARS.Length];
+			}
+			return new string(chars);
+		}
+
 		public void Normalize()
 		{
 			if (formatVersion <= 0)
@@ -158,7 +177,7 @@ namespace OpenSekai.Shared.Packages
 			}
 			if (string.IsNullOrWhiteSpace(id))
 			{
-				id = SongPackageStorage.GenerateShortId();
+				id = GenerateShortId();
 			}
 			if (string.IsNullOrWhiteSpace(title))
 			{

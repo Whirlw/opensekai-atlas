@@ -17,7 +17,7 @@
 | --- | --- | --- |
 | 曲包（package） | 一个目录，含 `manifest.json` / `score.json` / 音频 / 封面 | `Assets/Game/Runtime/OpenSekai/Infrastructure/Packages/` |
 | `.oskp` | 曲包的打包扩展名（ZIP 结构），导入时解开 | `LibraryImport` / `SongPackageManager` |
-| 谱面（chart） | `score.json` 的内容：音符 + 事件 + 时间信息 | `Assets/Game/Runtime/OpenSekai/Charts/ChartDocument.cs` |
+| 谱面（chart） | `score.json` 的内容：音符 + 事件 + 时间信息 | `Assets/Game/Runtime/OpenSekai.Core/Charts/ChartDocument.cs` |
 | 音符（note） | 谱面里的单个可打击对象 | `Charts/ChartNote.cs` |
 | 事件（event） | 谱面里的非音符对象（BPM、流速等） | `Charts/ChartEvent.cs` |
 | AB / AssetBundle | 运行时按需加载的资源包 | `AssetBundleManager`、`Assets/StreamingAssets/data` |

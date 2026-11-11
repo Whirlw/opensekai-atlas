@@ -86,14 +86,19 @@ namespace OpenSekai.Tests.EditMode.Charts
         [Test]
         public void LegacyNoteTypeNameIsAccepted()
         {
-            const string json = "{\"VersionCode\":1,\"NoteList\":[{\"$type\":\"" + LegacyNoteType +
-                                "\",\"id\":9,\"ticks\":960,\"laneStart\":1,\"laneEnd\":1,\"category\":3}]}";
-
+            const string json = "{\"VersionCode\":1,\"NoteList\":[{\"$id\":\"note\",\"$type\":\"" + LegacyNoteType +
+                                ", Assembly-CSharp\",\"id\":9,\"ticks\":960,\"laneStart\":1,\"laneEnd\":1,\"category\":3}," +
+                                "{\"$ref\":\"note\"}]}";
             ChartDocument loaded = ChartJson.Read(json);
-
-            Assert.That(loaded.NoteList.Count, Is.EqualTo(1));
+            Assert.That(loaded.NoteList.Count, Is.EqualTo(2));
             Assert.That(loaded.NoteList[0].id, Is.EqualTo(9));
             Assert.That(loaded.NoteList[0].category, Is.EqualTo(NoteCategory.Flick));
+            Assert.That(loaded.NoteList[1], Is.SameAs(loaded.NoteList[0]));
+
+            string written = ChartJson.Write(loaded);
+            Assert.That(written, Does.Contain("\"$id\"").And.Contain("\"$ref\""));
+            ChartDocument reread = ChartJson.Read(written);
+            Assert.That(reread.NoteList[1], Is.SameAs(reread.NoteList[0]));
         }
     }
 }

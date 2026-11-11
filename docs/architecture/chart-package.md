@@ -25,7 +25,7 @@
 
 ### `manifest.json` 主要字段
 
-定义在 `Assets/Game/Runtime/Shared/Packages/SongPackageManifest.cs`：
+定义在 `Assets/Game/Runtime/OpenSekai.Core/Packaging/SongPackageManifest.cs`：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
@@ -66,7 +66,7 @@ Windows 上 `persistentDataPath` 形如 `%USERPROFILE%\AppData\LocalLow\<公司�
 
 ### `score.json` 的结构
 
-落盘类型是 `Assets/Game/Runtime/OpenSekai/Charts/ChartDocument.cs`，字段与运行时一一对应（不再有编辑器模型）：
+落盘类型是 `Assets/Game/Runtime/OpenSekai.Core/Charts/ChartDocument.cs`，字段与运行时一一对应（不再有编辑器模型）：
 
 | 类型 | 文件 | 说明 |
 | --- | --- | --- |
@@ -75,7 +75,7 @@ Windows 上 `persistentDataPath` 形如 `%USERPROFILE%\AppData\LocalLow\<公司�
 | `ChartEvent` | `Charts/ChartEvent.cs`（12 行） | 事件（BPM、流速等） |
 | `ChartTimeline` | `Charts/ChartTimeline.cs`（366 行） | 时间轴换算 |
 
-**旧类型名兼容**：`Assets/Game/Runtime/OpenSekai/Charts/Serialization/ChartJson.cs`（74 行）里注册了一个
+**旧类型名兼容**：`Assets/Game/Runtime/OpenSekai.Core/Charts/Serialization/ChartJson.cs`里注册了一个
 `SerializationBinder`，把历史谱面 JSON 里的旧类型名（编辑器时代的 `MusicScoreData` 等）映射到
 `ChartDocument` / `ChartNote` / `ChartEvent`。这段只做**类型名映射**，不引用任何已删除类型，所以可以长期保留。
 

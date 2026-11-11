@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using CP;
 using Newtonsoft.Json;
 
@@ -17,7 +16,6 @@ namespace OpenSekai.Shared.Packages
 		public const string MANIFEST_FILE_NAME = "manifest.json";
 		public const string PLAY_HISTORY_FILE_NAME = "PlayHistory.jsonl";
 
-		private const string SHORT_ID_CHARS = "0123456789abcdefghijklmnopqrstuvwxyz";
 
 		public static string RootDirectory => Path.Combine(Application.persistentDataPath, DIRECTORY_NAME);
 
@@ -85,21 +83,7 @@ namespace OpenSekai.Shared.Packages
 
 
 
-		public static string GenerateShortId()
-		{
-			byte[] bytes = new byte[12];
-			using (RandomNumberGenerator rng = RandomNumberGenerator.Create())
-			{
-				rng.GetBytes(bytes);
-			}
-
-			char[] chars = new char[12];
-			for (int i = 0; i < chars.Length; i++)
-			{
-				chars[i] = SHORT_ID_CHARS[bytes[i] % SHORT_ID_CHARS.Length];
-			}
-			return new string(chars);
-		}
+		public static string GenerateShortId() => SongPackageManifest.GenerateShortId();
 
 		public static string CreateFolderName(SongPackageManifest manifest)
 		{
