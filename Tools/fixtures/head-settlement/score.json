@@ -1,0 +1,14 @@
+{
+  "VersionCode": 10000,
+  "MusicScoreTicksMax": 3840,
+  "MusicScoreEventDataList": [
+    { "id": 1, "ticks": 0, "eventType": 0, "changeValue": 120.0 }
+  ],
+  "EventArray": [],
+  "NoteList": [
+    { "id": 1, "ticks": 960, "laneStart": 1, "laneEnd": 3, "category": 1, "type": 0, "speedRatio": 1.0, "noteLineType": 1, "noteBaseType": 2, "previousConnectionId": -1, "nextConnectionId": 3 },
+    { "id": 2, "ticks": 960, "laneStart": 9, "laneEnd": 11, "category": 1, "type": 0, "speedRatio": 1.0, "noteLineType": 1, "noteBaseType": 2, "previousConnectionId": -1, "nextConnectionId": 4 },
+    { "id": 3, "ticks": 3840, "laneStart": 1, "laneEnd": 3, "category": 0, "type": 0, "speedRatio": 1.0, "noteLineType": 1, "noteBaseType": 1, "previousConnectionId": 1, "nextConnectionId": -1 },
+    { "id": 4, "ticks": 3840, "laneStart": 9, "laneEnd": 11, "category": 0, "type": 0, "speedRatio": 1.0, "noteLineType": 1, "noteBaseType": 1, "previousConnectionId": 2, "nextConnectionId": -1 }
+  ]
+}
