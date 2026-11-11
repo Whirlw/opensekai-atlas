@@ -407,6 +407,8 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 - 在干净检出 `TestResults/restructure-clean-editmode`（`9967b333`）使用 Unity `6000.6.7f1`，连续运行 `Tools/run-editmode-tests.ps1 -ProjectPath $checkout -ReportPath TestResults/restructure-p0-4-a.xml` 和同命令的 `-b.xml`。两份 NUnit XML 已复制到主工作区的 `TestResults/`，均为 512 通过、0 失败、4 跳过。逐项核对全名、结果、标签和跳过原因，共 516 例一致。与历史报告相比，无新增失败或跳过。四个跳过来自 `DecorationTailJudgmentTests`，现有手造音符无法进入候选，需改用转换后的谱面。用例名及比较见 `TestResults/restructure-p0-4-comparison.txt`。首次导入在隔离检出中更新了 4 份 Unity 资源或设置，主工作区未采用这些变更。
 - M0 已达标。P0-1、P0-2、P0-3 的提交分别为 `ea184b93`、`f95b32c1`、`5fdec47e`。进入 Phase 1。
 
+- P0-5 已取得可复现结果。用 `unity command test run --caller plugin --skill unity-cli --mode playmode --filter LibrarySmokeTests --async_tests --include_explicit` 启动，再用 `unity command test status --caller plugin --skill unity-cli` 读取结果。曲库装配冒烟通过。整首原型直接读取仓库 `Tools/fixtures/baseline_tap` 的 manifest、谱面、音频和封面，经 `PlayService` 启动，断言 Core 控制器、返回曲库及结算组件。两次均完成 `Library → Core → Library`，结算为 466,063 / C，自动判定 103/221，Miss 为 0。验收缺口为自动游玩的 1,000,000 / S，跟踪至 P4-3。原型保留为显式用例，默认曲库冒烟照常运行。报告为 `TestResults/restructure-p0-5-first.json` 和 `TestResults/restructure-p0-5-status.json`。自动判定游标每次调用后越过长条是待验证的排查点。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动
