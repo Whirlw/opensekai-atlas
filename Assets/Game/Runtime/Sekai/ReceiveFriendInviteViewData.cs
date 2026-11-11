@@ -93,15 +93,6 @@ namespace Sekai
 			}
 		}
 
-		public CardThumbnailViewDataBase LeaderCardInfo
-		{
-			[CompilerGenerated]
-			get
-			{
-				throw null;
-			}
-		}
-
 		public PlayerFrameModel PlayerFrameModel
 		{
 			[CompilerGenerated]

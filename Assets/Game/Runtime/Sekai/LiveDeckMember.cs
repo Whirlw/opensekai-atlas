@@ -1,72 +1,20 @@
-using System.Runtime.CompilerServices;
-
 namespace Sekai
 {
-	public class LiveDeckMember : CardViewDataBase
+	public class LiveDeckMember
 	{
-		public bool IsLeader
-		{
-			[CompilerGenerated]
-			get
-			{
-				throw null;
-			}
-			[CompilerGenerated]
-			set
-			{
-				throw null;
-			}
-		}
+		public int CardId { get; set; }
 
-		public bool IsSubLeader
-		{
-			[CompilerGenerated]
-			get
-			{
-				throw null;
-			}
-			[CompilerGenerated]
-			set
-			{
-				throw null;
-			}
-		}
+		public bool IsLeader { get; set; }
 
-		public int FormationIndex
-		{
-			[CompilerGenerated]
-			get
-			{
-				throw null;
-			}
-			[CompilerGenerated]
-			set
-			{
-				throw null;
-			}
-		}
+		public bool IsSubLeader { get; set; }
 
-		public bool UseDoubleSkill
-		{
-			get
-			{
-				throw null;
-			}
-		}
+		public int FormationIndex { get; set; }
 
-		public LiveDeckMember(UserCard userCard, MasterCard[] deckInfo = null)
-		{
-			throw null;
-		}
+		public bool UseDoubleSkill => false;
 
 		public LiveDeckMember(int cardId)
 		{
-			throw null;
-		}
-
-		public string GetMemberCutOutAssetBundleName()
-		{
-			throw null;
+			CardId = cardId;
 		}
 	}
 }
