@@ -393,7 +393,13 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 
 当前验证日志位于 `TestResults/restructure-grace-before.log`、`TestResults/restructure-missing-scripts.log` 和 `TestResults/restructure-library-smoke.log`。三次 Unity 运行均在授权服务初始化时超时，未生成扫描清单或新的测试 XML。
 
-本地 Git 索引为只读，工作包改动保留在工作区。
+上轮环境的 Git 索引为只读。本轮已在原分支提交 P0-1（`ea184b93`），包含 `docs/history/` 下迁移的七份文档。运行 `Tools/verify-structure.ps1` 复核，110 份 Markdown 的本地链接和锚点通过。
+
+#### 本地 Unity 复验
+
+- P0-3 通过。`unity status --project-path E:\DeepseekHarness\OpenSekai --format json` 在允许访问本机编辑器后返回 `ready`，版本为 `6000.6.7f1`。通过 `unity command eval --caller plugin --skill unity-cli` 执行 `OpenSekai.EditorTools.MissingScriptAudit.Run()`，生成 `TestResults/missing-scripts.tsv`，清理前副本为 `TestResults/missing-scripts-before-cleanup.tsv`。
+- `XRSystemData.asset` 的脚本 GUID 无映射，`LoadMainAssetAtPath` 返回空。`EventSystem.prefab` 的两条引用使用同一无映射 GUID、不同 fileID。Unity 的根对象缺失组件计数返回 0，序列化扫描仍检出这两条引用。直接解析见 `TestResults/restructure-p0-3-resolve.json`。三条引用保留至 P4-4 核对用途。
+- 移开四份含失效引用的旧项目文件至 `TestResults/restructure-p0-3-old-projects/`，通过 CLI 调用 `Unity.CodeEditor.CodeEditor.Editor.CurrentCodeEditor.SyncAll()` 重新同步，再运行 `Tools/verify-structure.ps1 -CheckProjects`，失效源码引用为 0。检查输出为 `TestResults/restructure-p0-3-project-check.txt`。
 
 ## 7. 迁移规则
 
