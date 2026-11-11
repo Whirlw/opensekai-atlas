@@ -4,7 +4,7 @@
 > 适用读者：接手代码的开发者、做重构的人、发版前做门禁的人。
 > 前置条件：读过 [架构总览](README.md) 与 [模块划分](modules.md)；当前基线为 `f14b717c`。
 > 最后更新：2026-11-11
-> 状态：**Phase 0 执行中**。按任务依赖推进，每个工作包独立提交并记录验收结果。
+> 状态：**M0 已达标，Phase 1 执行中**。按任务依赖推进，每个工作包独立提交并记录验收结果。
 
 ## 1. 结论与目标
 
@@ -402,6 +402,10 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 - 移开四份含失效引用的旧项目文件至 `TestResults/restructure-p0-3-old-projects/`，通过 CLI 调用 `Unity.CodeEditor.CodeEditor.Editor.CurrentCodeEditor.SyncAll()` 重新同步，再运行 `Tools/verify-structure.ps1 -CheckProjects`，失效源码引用为 0。检查输出为 `TestResults/restructure-p0-3-project-check.txt`。
 
 - P0-2 通过。通过 `unity command eval_file` 执行 `TestResults/restructure-p0-2-cleanup.cs`，删除 12 个空目录及其 `.meta`，将 `Platform/MessagePack` 移到 `Platform/Serialization`，接口 GUID 保持 `daf6a325cfd18fad813b65bd79814943`。Beebyte 存根继续提供本地 `[Skip]`。Unity 编译 0 error（`TestResults/restructure-p0-compile.json`）。重新执行 `MissingScriptAudit.Run()` 后，`TestResults/missing-scripts-after-cleanup.tsv` 与清理前副本逐字节相同，新增 0。移开旧的本地检查项目文件后，`Tools/verify-structure.ps1 -CheckProjects -RequireNoEmptyDirectories` 通过（`TestResults/restructure-p0-2-structure.txt`）。
+
+- P0-4 通过。定向 `unity command test run --mode editmode --filter HeadSettlementTests` 为 3/3 通过（`TestResults/restructure-p0-4-head-before.json`）。旧宽限期用例单跑会通过。换成仓库谱面和 `LiveHarness` 后稳定复现回按有手指但仍显示灰色。修复仅令当前手指覆盖恢复亮态，保留 `e2d6c125b` 的过线后 `Last/Release`，并验证回按手指抬起取得 `JustPerfect` 尾判。定向 `--filter LongNoteGraceTests` 为 5/5 通过，复现和修复后报告分别在 `TestResults/restructure-p0-4-grace-real-before.json` 和 `TestResults/restructure-p0-4-grace-final.json`。提交为 `1d625591`（头判 fixture）和 `9967b333`（宽限期）。
+- 在干净检出 `TestResults/restructure-clean-editmode`（`9967b333`）使用 Unity `6000.6.7f1`，连续运行 `Tools/run-editmode-tests.ps1 -ProjectPath $checkout -ReportPath TestResults/restructure-p0-4-a.xml` 和同命令的 `-b.xml`。两份 NUnit XML 已复制到主工作区的 `TestResults/`，均为 512 通过、0 失败、4 跳过。逐项核对全名、结果、标签和跳过原因，共 516 例一致。与历史报告相比，无新增失败或跳过。四个跳过来自 `DecorationTailJudgmentTests`，现有手造音符无法进入候选，需改用转换后的谱面。用例名及比较见 `TestResults/restructure-p0-4-comparison.txt`。首次导入在隔离检出中更新了 4 份 Unity 资源或设置，主工作区未采用这些变更。
+- M0 已达标。P0-1、P0-2、P0-3 的提交分别为 `ea184b93`、`f95b32c1`、`5fdec47e`。进入 Phase 1。
 
 ## 7. 迁移规则
 
