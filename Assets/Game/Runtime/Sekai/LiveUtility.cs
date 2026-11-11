@@ -47,16 +47,6 @@ namespace Sekai
 			return Screen.dpi / 2.54f * distance;
 		}
 
-		public static bool IsNotPublishMusicError(APIResult result)
-		{
-			return result?.ClientErrorInfo?.Response?.ErrorCode == "not_publish_music";
-		}
-
-		public static bool IsCustomMusicScoreUnavailableError(APIResult result)
-		{
-			return result?.ClientErrorInfo?.Response?.ErrorCode == "custom_music_score_unavailable";
-		}
-
 		public static void OpenNotPublishMusicErrorDialog(Action onNotPublish)
 		{
 			// TODO(original): restore original dialog flow when the live API screens are imported.

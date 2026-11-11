@@ -170,16 +170,6 @@ namespace Sekai
 			throw null;
 		}
 
-		public UserResource(MasterMysekaiMaterial master, int quantity)
-		{
-			throw null;
-		}
-
-		public UserResource(MasterMysekaiItem master, int quantity)
-		{
-			throw null;
-		}
-
 		public UserResource(ResourceBoxDetail boxDetail, int exchangeCount)
 		{
 			throw null;

@@ -14,7 +14,6 @@ GameObject:
   - component: {fileID: 225044625135789424}
   - component: {fileID: 114589667821646929}
   - component: {fileID: 114372920208702427}
-  - component: {fileID: 114025901758691103}
   m_Layer: 5
   m_Name: LiveOutUI
   m_TagString: Untagged
@@ -272,18 +271,6 @@ MonoBehaviour:
   m_DefaultSpriteDPI: 96
   m_DynamicPixelsPerUnit: 1
   m_PresetInfoIsWorld: 0
---- !u!114 &114025901758691103
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1709254077376921}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e473b6d9ac1e1e1a9b19dd0c38fedc55, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
 --- !u!4 &4985305603660343
 Transform:
   serializedVersion: 2

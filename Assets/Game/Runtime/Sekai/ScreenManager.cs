@@ -1492,8 +1492,6 @@ namespace Sekai
 
 		private IBackgroundChanger _layerBackgroundChanger;
 
-		private APIExecutor _apiExecutor;
-
 		private List<ChainDialogPlayer> _dialogQueuePlayers;
 
 		private ScreenConfig.ScreenSize _screenSize;
@@ -1827,9 +1825,6 @@ namespace Sekai
 			{
 				_rootRect = _rootCanvas.GetComponent<RectTransform>();
 			}
-
-			_apiExecutor = GetComponent<APIExecutor>() ?? gameObject.AddComponent<APIExecutor>();
-			_apiExecutor.SetupInstance(_apiExecutor);
 
 			if (entryScreenLayers != null && entryScreenLayers.Entries != null)
 			{
