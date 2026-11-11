@@ -372,3 +372,58 @@ internal bool CanFinishSilently(float currentTime)
 | `Assets/Game/Runtime/Sekai/Live/LongHoldCombo.cs` | 44 / 71 / 106 / 125 / 157 | 中间点判定、终结、发布 |
 
 检查要点：凡是「条收尾」相关的赋值，都应该经过 `FinishSilently` 或 `ForceTerminate` 二者之一；直接置 `Done` 且不写 `JudgeInfo` 的地方，就是会吞判定的地方。
+
+## 十二、头的判定还没解耦干净（2026-11-11，Test16 双押丢 combo 收尾）
+
+### 12.1 现象
+
+Test16 开头双押（左右各一根长条，两侧同一时刻按下），全 P 只有 6/7 连击：右侧那根条的**头**从头到尾既没有判定、也没有 Miss，条却自己 `Done/Miss` 消失了。
+
+设备日志（`live-20261111-091838.log`，带 lane 打点）关键行：
+
+```
+spawn id=39 LongNote t=0.000 lane=-1.50..4.50      ← 左条
+spawn id=44 LongNote t=0.000 lane=7.50..12.50      ← 右条（丢的那条）
+spawn id=43 NormalNote t=1.000 lane=6.50..12.50 cat=Long   ← 右条真正的尾
+[TL][Tail] expireCheck barT=0.000 now=0.002 state=Scrolling res=None child=FrictionHideNote@0.001 past=True
+[TL][Hold] forceTermIgnored by=LongNote.ForceTerminate … barState=Scrolling
+[TL][Pool] remove barT=0.000 state=Done result=Miss
+```
+
+整份日志里 `id=44` **没有任何 `judge` / `combo` 行**。
+
+### 12.2 已排除
+
+| 假设 | 结论 |
+| --- | --- |
+| 池子发出脏 `speedRatio`，`ScanNote` 静默跳过 | 已改为 `IsHighSpeedNote` 绑定标志（`73eaf25`），仍复现 |
+| 尾绑定错（把 t=0.001 的 `FrictionHideNote` 当 child） | 属实但不是丢 combo 的原因，尾不发表判定 |
+| `FinishSilently` 吞头 | 已加 `CanFinishSilently` 头门禁，仍复现 |
+| `ForceTerminate` 直接写 Miss 绕过头 | 已加「写结果前先 `Head.PublishHeadMiss()`」，仍复现（该条根本没走 `forceTerm`，只有 `forceTermIgnored`） |
+
+### 12.3 目前的判断
+
+头的**唯一**发布出口是 `LongNote.Excute` 里的这一段：
+
+```csharp
+if (State == NoteState.Last)
+{
+    State = NoteState.Release;
+    if (!Head.IsSettled) Head.PublishHeadMiss();
+}
+```
+
+只要条没有经过 `Last` 就离开游玩态，头就永远不会发布。而 `LongNote.cs:369-385` 的过线分支在 `_headTouched == false` 时**直接** `State = Release`（不经过 `Last`），随后基类 `NoteBase.Excute` 的 `if (State >= NoteState.Last) { JudgeInfo = Miss; State = Done; }`（`NoteBase.cs:565`）把条写成 `Done/Miss` —— 条结束了，头却从未结算。这与日志完全吻合（无 `judge`、`forceTerm*` 只有 ignored）。
+
+### 12.4 需要彻查的点（本任务）
+
+1. **所有让条离开游玩态的分支**都必须保证：`PublishesHeadMiss && !Head.IsSettled` ⇒ 先 `Head.PublishHeadMiss()`，再改状态。清单：`LongNote.cs:369-385`（过线 → Release）、`:387-398`（Last 宽限 → Release）、`:404-418`（丢手 → Last）、`:426-476`（ForceTerminate）、`:641-658`（`CanFinishSilently`/`FinishSilently`）、`:1153`（超时终结）、`NoteBase.cs:459`（通用判定收尾）、`NoteBase.cs:565`（`State >= Last` 超时 Miss）、`NoteBase.cs:696`（池回收）。
+2. **头不该依赖条的生命周期**：目标是「头在按下那一帧就判」+「过线未按就 Miss」，两条路径都不经过条的状态机。目前 `LongNoteHead.TryJudge` 已经「按下即 `Settle`」（`LongNoteHead.cs:67-87`），这部分是对的；缺的是「未按时由谁发布 Miss」，现在挂在 `Last → Release` 这一个分支上。
+3. **谁来写头的 Miss** 应只有一个出口（建议：`LongNote.Excute` 开头统一调用 `Head.SettleExpiredHead(currentFrameInfo.time)` 已经存在，但它只在 `IsSettled == false && 超过 JudgeTime` 时发布——需确认条被提前 `Done` 时这条路有没有机会跑）。
+4. **条结束后头还能不能判**：条 `Done` 之后 `LongNoteHead.TryJudge` 会被 `if (_bar.State == NoteState.Done) return false;` 挡掉（`LongNoteHead.cs:69`）。这条是否合理要单独定：按当前语义「头只能在自己的窗口内判」，条提前结束不应让头失去判定机会，因此这条早退很可能是多余的。
+
+### 12.5 验收
+
+- 新增用例（红→绿）：`ABarThatCrossesTheLineUnpressedStillPublishesItsHeadMiss`（过线不按，断言头的 `OnJudgment` 恰好发一次 Miss、连击 -1）、`ABarFinishedByItsTailStillPublishesTheHead`（尾先结束条，头仍发布）。
+- 真机：Test16 全 P 必须是 7/7；不按右侧时右侧头计 Miss（连击断）。
+- 全量 EditMode 不回归（当前基线 `516 / 512 / 0 / 4`）。
