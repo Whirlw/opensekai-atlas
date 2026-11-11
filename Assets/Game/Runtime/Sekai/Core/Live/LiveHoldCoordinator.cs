@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Sekai.Live;
 using Sekai.Live.Tails;
@@ -24,6 +24,9 @@ namespace Sekai.Core.Live
 
 		private readonly bool[] _holdInputVisited;
 
+		/// <summary>The bar each lifting finger finishes this frame, or -1.</summary>
+		private readonly int[] _liftTargets;
+
 		/// <summary>The call the eligibility delegate reads; set for the duration of one assignment pass.</summary>
 		private List<NoteBase> _contextNotes;
 
@@ -37,6 +40,7 @@ namespace Sekai.Core.Live
 		{
 			_holdInputNotes = new int[inputCapacity];
 			_holdInputVisited = new bool[inputCapacity];
+			_liftTargets = new int[inputCapacity];
 			_holdInputEligible = CanContinueHold;
 		}
 
@@ -166,6 +170,49 @@ namespace Sekai.Core.Live
 		private void CoverHoldsWithAnyFinger(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame, float deltaTime)
 		{
 			int count = inputs.Count;
+
+			// A lift is a judgement, so it gets the same treatment as a press: one finger may finish
+			// one bar per frame, the nearest one. Lifting a finger that sits over two overlapping
+			// bars used to grade both of them at once.
+			for (int i = 0; i < count; i++)
+			{
+				_liftTargets[i] = -1;
+			}
+
+			for (int i = 0; i < count; i++)
+			{
+				LiveLogic.InputTmp input = inputs[i];
+				if (input == null || !IsEndedOrCanceled(input.Touch.phase))
+				{
+					continue;
+				}
+
+				int best = -1;
+				float bestDistance = float.MaxValue;
+				for (int noteIndex = 0; noteIndex < judgmentNotes.Count; noteIndex++)
+				{
+					if (judgmentNotes[noteIndex] is not LongNote candidate || candidate.State == NoteState.Done)
+					{
+						continue;
+					}
+
+					if (!OpenSekai.Shared.Live.HoldSweep.TouchesLane(input.Lane, candidate.JudgeLaneStart, candidate.JudgeLaneEnd))
+					{
+						continue;
+					}
+
+					float middle = (candidate.JudgeLaneStart + candidate.JudgeLaneEnd) * 0.5f;
+					float distance = Math.Abs(input.Lane - middle);
+					if (best < 0 || distance < bestDistance)
+					{
+						best = noteIndex;
+						bestDistance = distance;
+					}
+				}
+
+				_liftTargets[i] = best;
+			}
+
 			for (int noteIndex = 0; noteIndex < judgmentNotes.Count; noteIndex++)
 			{
 				if (judgmentNotes[noteIndex] is not LongNote held || held.State == NoteState.Done)
@@ -201,9 +248,8 @@ namespace Sekai.Core.Live
 							swipeDeltaY += input.Touch.delta.y;
 						}
 
-						// A lift inside the bar is the release the tail listens for, whoever lifted:
-						// any finger sitting in the lane counts, not only the one that took the bar.
-						if (OpenSekai.Shared.Live.HoldSweep.TouchesLane(input.Lane, held.JudgeLaneStart, held.JudgeLaneEnd))
+						// The nearest bar to this lifting finger is the one it finishes.
+						if (_liftTargets[inputIndex] == noteIndex)
 						{
 							releasedInside = true;
 						}
