@@ -1,5 +1,3 @@
-using Sekai.Multiplay;
-
 namespace Sekai
 {
 	public class LiveDeckData
@@ -49,11 +47,6 @@ namespace Sekai
 		}
 
 		public LiveDeckData(int[] deckCardIds)
-			: this()
-		{
-		}
-
-		public LiveDeckData(MultiLivePartyMember member)
 			: this()
 		{
 		}

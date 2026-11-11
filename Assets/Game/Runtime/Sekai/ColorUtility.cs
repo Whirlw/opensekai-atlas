@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using Sekai.Multiplay;
 using UnityEngine;
 
 namespace Sekai
@@ -295,19 +294,9 @@ namespace Sekai
 			}
 		}
 
-		public static Color GetMultiLivePanelPlayerColor(MultiLivePartyMember member)
-		{
-			return GetMultiLivePlayerColor(member.UserId == string.Empty ? -1 : member.Index, false);
-		}
-
 		public static Color GetMultiLivePanelPlayerColor(int index)
 		{
 			return GetMultiLivePlayerColor(index, false);
-		}
-
-		public static Color GetMultiLiveThumbnailPlayerColor(MultiLivePartyMember member)
-		{
-			return GetMultiLivePlayerColor(member.UserId == string.Empty ? -1 : member.Index, true);
 		}
 
 		public static Color GetRankLiveThumbnailPlayerColor(long userId)

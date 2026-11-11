@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Sekai.Core.Live;
-using Sekai.Multiplay;
 
 namespace Sekai
 {
@@ -157,11 +156,6 @@ namespace Sekai
 		}
 
 		public SkillData(IngameLotterySkill skill, LiveDeckData deck, bool isAuto)
-		{
-			throw null;
-		}
-
-		public SkillData(MultiLivePartyMember member, string randomSeed)
 		{
 			throw null;
 		}

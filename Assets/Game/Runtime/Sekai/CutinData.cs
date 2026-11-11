@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using Sekai.Multiplay;
 
 namespace Sekai
 {
@@ -134,16 +133,6 @@ namespace Sekai
 		}
 
 		public static CutinData CreateComboCutinData(IngameComboCutin comboCutin)
-		{
-			throw null;
-		}
-
-		public static CutinData CreateOutstandingCutinData(int index, MultiIngameCutin multiCutin, MultiLivePartyMember[] multiMembers)
-		{
-			throw null;
-		}
-
-		private static CutinCardData CreateCardData(MultiLivePartyMember member, int cardId, string soundAssetName)
 		{
 			throw null;
 		}

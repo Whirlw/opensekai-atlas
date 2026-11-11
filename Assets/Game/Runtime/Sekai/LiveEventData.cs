@@ -1,5 +1,3 @@
-using Sekai.Multiplay;
-
 namespace Sekai
 {
 	public class LiveEventData
@@ -20,16 +18,6 @@ namespace Sekai
 		}
 
 		public LiveEventData(IngameLotterySkill[] skills, IngameComboCutin[] comboCutIns, int[] deckCardIds, bool isAuto)
-			: this()
-		{
-		}
-
-		public LiveEventData(LiveDeckMember[] deckMembers, MultiLivePartyMember[] multiMembers, int deckId, string randomSeed, bool isTournament)
-			: this()
-		{
-		}
-
-		public LiveEventData(LiveDeckMember[] deckMembers, MultiLivePartyMember[] ownPartyMembers, MultiLivePartyMember[] opponentPartyMembers, int deckId, string randomSeed)
 			: this()
 		{
 		}

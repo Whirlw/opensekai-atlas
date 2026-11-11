@@ -1,6 +1,4 @@
 using System.Runtime.CompilerServices;
-using Sekai.MultiLive;
-using Sekai.Multiplay;
 
 namespace Sekai
 {
@@ -64,16 +62,6 @@ namespace Sekai
 		}
 
 		public CardThumbnailViewDataBase(UserCard userCard, bool isIlustNormal)
-		{
-			throw null;
-		}
-
-		public CardThumbnailViewDataBase(MultiLivePartyMember multiLivePartyMember)
-		{
-			throw null;
-		}
-
-		public CardThumbnailViewDataBase(PlayerInfo playerInfo)
 		{
 			throw null;
 		}

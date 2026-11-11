@@ -1,7 +1,3 @@
-using Sekai.MultiLive;
-using Sekai.Mysekai.Multi;
-using Sekai.SuperVirtualLive;
-
 namespace Sekai
 {
 	public class UserProfileHonor
@@ -90,21 +86,6 @@ namespace Sekai
 		}
 
 		public UserProfileHonor(int seq)
-		{
-			throw null;
-		}
-
-		public UserProfileHonor(Sekai.SuperVirtualLive.RoomUserHonorInfo info)
-		{
-			throw null;
-		}
-
-		public UserProfileHonor(Sekai.MultiLive.RoomUserHonorInfo info)
-		{
-			throw null;
-		}
-
-		public UserProfileHonor(Sekai.Mysekai.Multi.RoomUserHonorInfo info)
 		{
 			throw null;
 		}

@@ -1,7 +1,5 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using Sekai.MultiLive;
-using Sekai.Multiplay;
 
 namespace Sekai
 {
@@ -509,17 +507,7 @@ namespace Sekai
 			throw null;
 		}
 
-		public CardViewDataBase(MultiLivePartyMember multiLivePartyMember)
-		{
-			throw null;
-		}
-
 		public CardViewDataBase(int cardId)
-		{
-			throw null;
-		}
-
-		public CardViewDataBase(PlayerInfo playerInfo)
 		{
 			throw null;
 		}
@@ -560,26 +548,6 @@ namespace Sekai
 		}
 
 		protected virtual void SetupUserCardDataExtensions(bool updatedUserCard = true)
-		{
-			throw null;
-		}
-
-		private void SetupMultiLivePartyMemberData(MultiLivePartyMember multiLivePartyMember)
-		{
-			throw null;
-		}
-
-		private void SetupMultiLivePartyMemberData(PlayerInfo playerInfo)
-		{
-			throw null;
-		}
-
-		protected virtual void SetupMultiLivePartyMemberDataExtensions(MultiLivePartyMember multiLivePartyMember)
-		{
-			throw null;
-		}
-
-		protected virtual void SetupMultiLivePartyMemberDataExtensions(PlayerInfo playerInfo)
 		{
 			throw null;
 		}
