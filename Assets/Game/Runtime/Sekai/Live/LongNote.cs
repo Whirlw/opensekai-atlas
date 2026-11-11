@@ -1314,12 +1314,6 @@ namespace Sekai.Live
 		internal static float HoldGraceSeconds => ReferenceFrame.FromFrames(HoldGraceFrames);
 
 
-		/// <summary>True while this hold was refreshed recently enough to still count as held.</summary>
-		internal bool IsHoldFresh(float currentTime)
-		{
-			return ReferenceFrame.IsStillFresh(lastInputTime, currentTime, HoldToleranceSeconds);
-		}
-
 
 		/// <summary>
 		/// A hold that is still covered by its finger must not stay greyed out: the update pass flips

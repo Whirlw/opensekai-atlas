@@ -35,10 +35,10 @@
         /// <summary>What a single <c>Judgment</c> call did to a note.</summary>
         ///
         /// <remarks>
-        /// The note decides this, not the caller: <c>NoteBase.ClosesSlotAfterPress</c> is true once the
-        /// note has a result or reached Done. Calling it "closes the slot" keeps the three completion
-        /// shapes readable in one place — a rub note that only arms itself keeps the slot open, a flick
-        /// that is still waiting for its swipe keeps it open, and a slide that finishes closes it.
+        /// The note decides this, not the caller: it is true once the note has a result or reached Done.
+        /// Calling it "closes the slot" keeps the three completion shapes readable in one place — a rub
+        /// note that only arms itself keeps the slot open, a flick that is still waiting for its swipe
+        /// keeps it open, and a slide that finishes closes it.
         /// </remarks>
         public readonly struct Outcome
         {

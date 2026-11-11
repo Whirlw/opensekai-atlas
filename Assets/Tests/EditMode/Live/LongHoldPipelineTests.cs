@@ -110,19 +110,6 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(new HeldNote(4).IsHeld(0f), Is.True);
         }
 
-        [TestCase(NoteState.Input, true, false)]
-        [TestCase(NoteState.InputBegan, true, false)]
-        [TestCase(NoteState.Release, true, false)]
-        [TestCase(NoteState.Release, false, false)]
-        [TestCase(NoteState.Scrolling, true, false)]
-        [TestCase(NoteState.Done, true, false)]
-        public void ReservationRequiresAnEligibleOwnerAndStartedHold(NoteState state, bool eligible, bool expected)
-        {
-            // Nothing reserves a candidate for a previous holder any more: every case answers false.
-            Assert.That(LiveLogic.ShouldReserveHold(1, 2, state, eligible), Is.EqualTo(expected));
-            Assert.That(LiveLogic.ShouldReserveHold(1, 1, state, eligible), Is.False);
-            Assert.That(LiveLogic.ShouldReserveHold(-1, 2, state, eligible), Is.False);
-        }
 
         [TestCase(false, false)]
         [TestCase(true, false)]
@@ -681,7 +668,6 @@ namespace OpenSekai.Tests.EditMode.Live
             // Liveness is now measured in seconds, so a frame that arrives without a fresh press would
             // flip the state to Release; the refresh pass brings it back. What must hold is that the
             // bar is still alive, not the exact enum value it passes through within the frame.
-            Assert.That(bar.IsHoldFresh(0.5f + 2f / 60f), Is.True, "A Great head must keep the bar held, not drop it.");
             LongNoteGraceTests.AssertHeldBody(bar, "A Great head must keep the bar held, not drop it.");
             Assert.That(bar.JudgeInfo.result, Is.EqualTo(NoteResult.Great), "The head keeps its Great result.");
             Assert.That(bar.HasFinger, Is.True);

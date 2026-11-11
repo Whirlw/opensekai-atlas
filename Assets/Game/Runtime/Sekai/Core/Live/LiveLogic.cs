@@ -766,13 +766,6 @@ namespace Sekai.Core.Live
 			_candidates.PickUp(_judgmentNoteList, _activeInputList, _connectionNoteList, _holds, ConvertLaneBy, InputedNormalNoteTouch);
 		}
 
-		internal static bool ShouldReserveHold(int holder, int candidate, NoteState state, bool ownerCanJudge)
-		{
-			// A hold is no longer anybody's: any finger in the lane keeps a bar alive, so nothing
-			// reserves a candidate for a previous holder. The name stays so callers of the old rule
-			// fail loudly instead of silently getting a different one.
-			return false;
-		}
 
 		/// <summary>
 		/// Which candidate wins the frame's single judgment slot. A held long note ranks last: the
@@ -877,7 +870,8 @@ namespace Sekai.Core.Live
 				}
 
 				// The note knows whether the press went into it; the schedule only needs the answer.
-				return new JudgmentSchedule.Outcome(note.ClosesSlotAfterPress);
+				bool noteFinished = note.State == NoteState.Done || note.Result != NoteResult.None;
+				return new JudgmentSchedule.Outcome(noteFinished);
 			}
 
 			public void Consumed(int candidateIndex)

@@ -605,13 +605,6 @@ namespace Sekai.Live
 		}
 
 		/// <summary>
-		/// True when this note used the finger's judgment for the frame. A note that finishes in the call
-		/// has a result; a note that only records the press (a held bar, a rub still approaching) does not,
-		/// so the candidate behind it still gets its frame.
-		/// </summary>
-		internal virtual bool ClosesSlotAfterPress =>
-			State == NoteState.Done || Result != NoteResult.None;
-
 		public virtual bool Judgment(ref LiveTouch touch, float lane)
 		{
 			return true;

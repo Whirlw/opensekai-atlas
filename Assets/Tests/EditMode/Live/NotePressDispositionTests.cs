@@ -1,5 +1,6 @@
 ﻿using NUnit.Framework;
 using OpenSekai.Shared.Live;
+using Sekai.Core.Live;
 using Sekai.Live;
 using TouchPhase = UnityEngine.InputSystem.TouchPhase;
 
@@ -16,6 +17,12 @@ namespace OpenSekai.Tests.EditMode.Live
     {
         private static MusicScoreInfo Info(float time) => new MusicScoreInfo(0, time / 2, time, 120, 4, 1, 1);
 
+        /// <summary>A press spends the finger's frame once the note it landed on actually finished.</summary>
+        private static bool Finished(NoteBase note)
+        {
+            return note.State == NoteState.Done || note.Result != NoteResult.None;
+        }
+
         private static LiveTouch Touch(TouchPhase phase, float musicTime, int fingerId = 1)
         {
             return new LiveTouch(fingerId, fingerId, UnityEngine.Vector2.zero, UnityEngine.Vector3.zero, phase, musicTime);
@@ -26,7 +33,7 @@ namespace OpenSekai.Tests.EditMode.Live
         {
             var note = new NormalNote(Info(1f), 1, 4, 5, NoteCategory.Normal, 1, NoteType.Default, 0);
 
-            Assert.That(note.ClosesSlotAfterPress, Is.False);
+            Assert.That(Finished(note), Is.False);
         }
 
         [Test]
@@ -36,7 +43,7 @@ namespace OpenSekai.Tests.EditMode.Live
             LiveTouch touch = Touch(TouchPhase.Began, 1f);
 
             Assert.That(note.Judgment(ref touch, 4.5f), Is.True);
-            Assert.That(note.ClosesSlotAfterPress, Is.True);
+            Assert.That(Finished(note), Is.True);
         }
 
         [Test]
@@ -46,7 +53,7 @@ namespace OpenSekai.Tests.EditMode.Live
             LiveTouch touch = Touch(TouchPhase.Moved, 1f);
 
             Assert.That(note.Judgment(ref touch, 4.5f), Is.False);
-            Assert.That(note.ClosesSlotAfterPress, Is.False);
+            Assert.That(Finished(note), Is.False);
         }
 
         [Test]
@@ -58,7 +65,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             Assert.That(rub.Progress, Is.LessThan(1f));
             Assert.That(rub.Judgment(ref touch, 4.5f), Is.False);
-            Assert.That(rub.ClosesSlotAfterPress, Is.False, "an armed rub must not spend the finger's frame");
+            Assert.That(Finished(rub), Is.False, "an armed rub must not spend the finger's frame");
         }
 
         [Test]
@@ -68,7 +75,7 @@ namespace OpenSekai.Tests.EditMode.Live
             LiveTouch touch = Touch(TouchPhase.Began, 0.5f);
 
             Assert.That(slide.Judgment(ref touch, 4.5f), Is.True);
-            Assert.That(slide.ClosesSlotAfterPress, Is.False);
+            Assert.That(Finished(slide), Is.False);
         }
 
         [Test]
@@ -79,19 +86,18 @@ namespace OpenSekai.Tests.EditMode.Live
             LiveTouch touch = Touch(TouchPhase.Began, 0.9f);
 
             Assert.That(flick.Judgment(ref touch, 4.5f), Is.False);
-            Assert.That(flick.ClosesSlotAfterPress, Is.False);
+            Assert.That(Finished(flick), Is.False);
         }
 
 		[Test]
-		public void AnInteriorPointNeverClosesTheSlot()
+		public void AnInteriorPointNeverEntersThePressChannel()
 		{
 			var point = new LongHoldCombo(Info(1f), NoteType.Default, 1f, 0f);
-			LiveTouch touch = Touch(TouchPhase.Began, 1f);
 
-			point.Excute(Info(1f), 0f);
-			point.Judgment(ref touch, 0f);
-
-			Assert.That(point.ClosesSlotAfterPress, Is.False, "an interior point takes no slot, so a bar's body never blocks the note behind it");
+			// The guarantee is structural now, not a flag: an interior point is not a press-step note,
+			// so it is never collected as a candidate and cannot spend anyone's frame.
+			Assert.That(LiveCandidatePipeline.IsPressStep(point), Is.False,
+				"an interior point takes no slot, so a bar's body never blocks the note behind it");
 		}
     }
 }
