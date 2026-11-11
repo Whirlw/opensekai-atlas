@@ -224,3 +224,90 @@ adb pull /sdcard/Android/data/io.github.opensekai/files/logs/live-<stamp>.log
 - 普通谱：类 2 正例（按住到尾 → 车道内抬手 → 出判定）与反例（提前抬手不判）。
 - 长条密集谱（BOF）：重叠条同帧、换手、同帧双抬手。
 - 变速谱：尾判时机不随流速漂移。
+
+## 10. 结算兜底：只补「仍然绑在条上、还没判定」的部件（2026-11-11）
+
+### 10.1 触发设计的问题
+
+Test16 双押右条 `id=44`：`endsNoJudge=True`（尾是一条 `FrictionHideNote@0.001`），
+`ExpireTail → CanFinishSilently → FinishSilently` 只把 `State` 置 `Done`，
+`JudgeInfo` 仍是 `None`（`Assets/Game/Runtime/Sekai/Live/LongNote.cs:654`），
+于是这一条的部件被「删除」而不是被结算，全 P 只有 6/7 连击。
+
+同一类「静默删除」在代码里还有三处，但它们的语义不同：
+
+| 位置 | 现状 | 是否本次范围 |
+| --- | --- | --- |
+| `LongNote.cs:654 FinishSilently` | 只置 `Done`，结果留 `None` | **是**：条自然走完、玩家没来得及判的部分 |
+| `LongNote.cs:423 ForceTerminate` 失败分支 | 写 `Miss` | 否：外部终结，有明确失败语义 |
+| `LongNote.cs:1090 FailTail` | 尾写 `Miss` + 子音符 `Miss` | 否：超时失败 |
+| `LongNote.cs:911 DetachStandaloneTail` | 未结算就写 `Miss` 并解绑 | 否：独立尾自判，已解绑 |
+
+### 10.2 规则（范围刻意保持最小）
+
+条**自然结束**时（只限 `FinishSilently` 这一条路径），把**仍然绑在这条上**、且
+`JudgeInfo.result == NoteResult.None` 的部件结算为 `(NoteResult.Perfect, NoteResultDescription.None)`，
+走正常发布（判定回调 / 连击 / 分数 / 特效）。
+
+判定「仍然绑在条上」的三个条件，缺一不可：
+
+1. 在 `NoteList` 里并且 `ParentNote == this`（已 `DetachStandaloneTail` 的不算）；
+2. `!IsSkip`（自动铺的中间点标记不算独立判定单位的那部分不重复结算）；
+3. `Result == NoteResult.None`（已经判过的不覆盖）。
+
+### 10.3 不在范围内的三件事（明确不做）
+
+- **头**：`NoteList[0]` 是条自己，头不在 `NoteList` 里；头仍走 `PublishHeadMiss`。因此
+  「一个键都不按」不会变成满分，`PublishHeadMiss` 与 `CanFinishSilently` 的头门禁都保留。
+- **已经被解绑的独立尾**：`DetachStandaloneTail` 之后它自己负责结果，条不再改写它。
+- **显式失败**：`FailTail`、`ForceTerminate` 的 `Miss` 语义不动。
+
+### 10.4 实现位置
+
+- 新增 `private void SettleLeftoverAsPerfect()`（`Assets/Game/Runtime/Sekai/Live/LongNote.cs` 尾部，
+  `FinishSilently` 之上），按 10.2 的三个条件遍历并 `FinishWith(NoteResult.Perfect)`。
+- 只在 `FinishSilently()` 里调用一次，之后再置 `State = NoteState.Done`。
+- `CanFinishSilently` 的前置门禁（`PublishesHeadMiss && !Head.IsSettled ⇒ false`）保留：
+  有条能按的头时不允许静默收尾，否则头永远没有机会。
+
+### 10.5 影响与验收
+
+- 分数、连击、HP、`PlayResult` 的判定统计都会因为「不再有 `Done/None`」而变化；
+  `RulesVersion` 是否需要 +1 待定（若只影响隐藏尾谱面，可不升）。
+- 必须先改的既有契约：`Assets/Tests/EditMode/Live/TailBehaviourTests.cs` 里
+  `AHiddenEndedBarStopsWithoutAnyResult` 断言「隐藏尾结束且无结果」，按新规则要改成
+  「隐藏尾结束、部件全部 Perfect、头未按时仍 Miss」。
+- 新增用例：
+  1. `ABarThatEndsWithAHiddenTailSettlesEveryBoundPoint`（Test16 形状，按头后中间点全 Perfect）；
+  2. `ASilentlyFinishedBarLeavesNoNoneResult`（结束后 `NoteList` 无 `None`）；
+  3. `ADetachedTailKeepsItsOwnResult`（解绑后不被改写）；
+  4. `AnUntouchedBarStillMissesItsHead`（头仍 Miss，防止满分通胀）。
+- 真机：Test16 双押 7/7；普通谱 / 长条密集谱 / 变速谱三项照 `docs/operations/device-acceptance-checklist.md`。
+
+### 10.6 执行顺序
+
+1. 落 `SettleLeftoverAsPerfect()` + 只在 `FinishSilently` 接入（最小改动，直接修 Test16）；
+2. 改 `AHiddenEndedBarStopsWithoutAnyResult` 并补 4 条新用例，跑全量（基线 514 条）；
+3. 装机复验 Test16 与三谱；
+4. 观察是否还有「`Done/None`」的条出现在日志里（`LiveTrace` 已有 `unregDone`/`headSkip` 打点）。
+### 10.7 对齐判据（2026-11-11 补充，最重要）
+
+一条铁律，代替 10.2 里「`Result == None`」这种结果导向的描述：
+
+- **能被条结束的部件** → 条结束时一定判 `Perfect`（`SettleLeftoverAsPerfect` 负责，只在 `FinishSilently` 调用）。
+- **不能由条结束的部件** → 必须从一开始就**不在 `NoteList` 里**，否则条会替它做决定（现在的 `DetachStandaloneTail` 就是留在了列表里再写 `Miss`）。
+
+按这条判据重排三类尾：
+
+| 类 | 尾能不能被判结束 | 结尾时谁结算 | `NoteList` 里是否保留 |
+| --- | --- | --- | --- |
+| 1 隐藏 / friction / friction-flick | 不能（自己判自己） | 尾自己 | **不保留**（绑定时就不加入，或加入后立即移出） |
+| 2 普通尾 | 能（条结束它，它也结束条） | 条结束时判 Perfect / 提前松手判 Release | 保留 |
+| 3 flick 尾 | 不能（尾自己结束条，条不结束尾） | 尾自己 | **不保留** |
+
+因此还要动两处结构：
+
+1. `DetachStandaloneTail`（`LongNote.cs:911` 一带）不再「留在 `NoteList` 里写 `Miss`」，改为从 `NoteList` 移除并把 `ParentNote` 置空；
+2. 类 1 的隐藏尾在绑定期（`AddNoteListAndSetupChildNote` / `AddHoldCombo`）就不进入 `NoteList` 的「可判列表」，`IsTailCandidate` 的排除名单随之简化。
+
+改完之后 `EndsWithoutJudgement`、`CanFinishSilently` 的头门禁都变成同一件事的两种说法，可以后续合并。
