@@ -18,17 +18,17 @@ MonoBehaviour:
   m_RendererData: {fileID: 0}
   m_RendererDataList:
   - {fileID: 11400000, guid: 306d808a2620d9540b92a3efe29db7dd, type: 2}
-  - {fileID: 11400000, guid: 25cf3d3551d36fd419d65fbccf06aa67, type: 2}
+  - {fileID: 0}
   - {fileID: 11400000, guid: 751ab22a218433849aa49e386471d002, type: 2}
   - {fileID: 0}
-  - {fileID: 11400000, guid: 9f82955bdbd7b534dafe52f1b2fed714, type: 2}
-  - {fileID: 11400000, guid: 3af71949db05a8c4bac2c6a8b25b144d, type: 2}
-  - {fileID: 11400000, guid: ca586f60dfbcf0c4c9a1fd124b4710dd, type: 2}
-  - {fileID: 11400000, guid: b0e957dc4ede88542ab6fcd6e3b02720, type: 2}
-  - {fileID: 11400000, guid: 4eb6079c774928a438353b8ffb91b577, type: 2}
   - {fileID: 0}
-  - {fileID: 11400000, guid: d271adc2819a9f64aa398fe0a189c58f, type: 2}
-  - {fileID: 11400000, guid: de41a962b253d2648ab72c2d0c7ddb13, type: 2}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
   m_DefaultRendererIndex: 0
   m_RequireDepthTexture: 0
   m_RequireOpaqueTexture: 0
