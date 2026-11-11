@@ -10,32 +10,9 @@ namespace Sekai.Live
 		public static LiveViewBase[] Create(LiveBootDataBase bootData, Transform root)
 		{
 			List<LiveViewBase> views = new List<LiveViewBase>();
-			string frontViewPath = GetFrontViewPath(bootData);
-			views.Add(LoadLiveView(frontViewPath, root));
-			views.Add(LoadLiveView(bootData != null && bootData.MusicCategory != MusicCategory.mv ? "Live/View/Background2DView" : "Live/View/Background3DView", root));
+			views.Add(LoadLiveView("Live/View/FrontUIView", root));
+			views.Add(LoadLiveView("Live/View/Background2DView", root));
 			return views.ToArray();
-		}
-
-		private static string GetFrontViewPath(LiveBootDataBase bootData)
-		{
-			if (bootData == null)
-			{
-				return "Live/View/FrontUIView";
-			}
-
-			switch (bootData.LivePlayMode)
-			{
-				case LivePlayMode.Multi:
-					return "Live/View/FrontMultiUIView";
-				case LivePlayMode.MusicVideo:
-					return "Live/View/FrontMusicVideoView";
-				case LivePlayMode.CheerfulCarnival:
-					return "Live/View/FrontCheerfulCarnivalUIView";
-				case LivePlayMode.Rank:
-					return "Live/View/FrontRankUIView";
-				default:
-					return "Live/View/FrontUIView";
-			}
 		}
 
 		private static LiveViewBase LoadLiveView(string path, Transform root)
