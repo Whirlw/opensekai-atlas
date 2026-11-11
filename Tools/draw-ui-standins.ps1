@@ -1,11 +1,11 @@
-﻿# Draws a plain stand-in for every remaining original UI primitive and drops it into the paint kit.
+# Draws a plain stand-in for every remaining legacy UI primitive and drops it into the paint kit.
 # The shape is redrawn from scratch, but the colour is sampled from the old atlas pixel so masks, plates
 # and gauge bases keep the tint they had: a translucent mask stays translucent, a coloured base keeps its
 # hue instead of turning white.
 param(
     [string]$Kit = 'LocalPacks\paint-kit\new_hud',
     [string]$Sprites = 'Assets\Graphics\Sprites',
-    [string]$Table = 'docs\reference\remaining-original-sprites.csv',
+    [string]$Table = 'docs\reference\remaining-uncovered-sprites.csv',
     [string]$OldAtlas = 'Temp\liveatlas-old.png',
     [switch]$Apply
 )

@@ -32,7 +32,7 @@
 | `TouchLane` / `NoteSpeedRatio` / `NoteDisplayOffset` | 车道解析、流速、显示偏移 |
 | `JudgmentAggregator` | 同帧取最差判定显示 |
 
-仍然是反编译原样、**本轮要动**的两个文件：
+仍然是遗留原样、**本轮要动**的两个文件：
 
 - `Assets/Game/Runtime/Sekai/Core/Live/LiveLogic.cs`（约 1550 行）——每帧主循环；
 - `Assets/Game/Runtime/Sekai/Live/LongNote.cs`（约 537 行）——长条状态机与 16 分 combo。

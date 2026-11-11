@@ -1,4 +1,4 @@
-﻿# 文档索引
+# 文档索引
 
 > 目的：全量登记 `docs/` 下的每一篇文档，给出标题、路径、摘要与最后更新，作为查找与维护的单一清单。
 > 适用读者：所有人，尤其是维护文档的人。
@@ -69,11 +69,11 @@
 | 长条第三轮交接 | [operations/long-hold-v3-handoff.md](operations/long-hold-v3-handoff.md) | 十节逐条记录：断连、抬起尾判、划键长条结束点、装饰条（`GuideNote`）尾判与定位方法 | 2026-11-06 | 现行 |
 | 判定通道与解耦收尾 | [operations/judgment-channel-brief.md](operations/judgment-channel-brief.md) | 任务 B 的执行计划：WP0–WP7 工作包、判定通道表、硬性约束与验收 |
 | 尾键生命周期 | [operations/tail-key-lifetime-brief.md](operations/tail-key-lifetime-brief.md) | 任务书：尾键显示/回收离开 `State`，收敛成纯函数 `TailKeyLifetime` |
-| 素材来源清单 | [operations/asset-provenance.md](operations/asset-provenance.md) | 发布前必须替换的第三方素材清单、同 GUID 重画手法、替换顺序与进度表 | 2026-11-08 | 现行 |
+| 素材来源清单 | [operations/asset-provenance.md](operations/asset-provenance.md) | 各类素材的来源与许可、同 GUID 重画手法、覆盖核对命令 | 2026-11-09 | 现行 |
 | 音符皮肤制作 | [operations/note-skin-authoring.md](operations/note-skin-authoring.md) | 自己画一套音符皮肤：目录结构、必须一致的像素尺寸表、应用与出包流程 | 2026-11-08 | 现行 |
 | 材质包导入 | [operations/material-pack-import.md](operations/material-pack-import.md) | 把画好的材质包贴回工程：两条路径、六条硬规则、九个已踩的坑、像素级校验、以及做一键导入功能的设计建议 | 2026-11-08 | 现行 |
-| 发布前素材总检 | [operations/pre-release-asset-audit.md](operations/pre-release-asset-audit.md) | 推 GitHub 前的素材来源检查：三条审计命令、图集覆盖率实测（201 精灵 / 108 已换）、剩余缺口与复检清单 | 2026-11-09 | 现行 |
-| 音频素材替换 | [operations/audio-replacement.md](operations/audio-replacement.md) | 7 个 ACB 负载（约 11 MB / 359 个 cue）的清单、代码加载点、音频规格、替换路线与验收 | 2026-11-09 | 现行 |
+| 发布前素材总检 | [operations/pre-release-asset-audit.md](operations/pre-release-asset-audit.md) | 推 GitHub 前的素材来源检查：三条审计命令、图集覆盖率实测、复检清单 | 2026-11-09 | 现行 |
+| 音频外部音源包 | [operations/audio-replacement.md](operations/audio-replacement.md) | 42 个 wav 的目录与加载链、cue 清单、音频规格、导入与验收 | 2026-11-09 | 现行 |
 | 音频来源建议 | [operations/audio-sourcing.md](operations/audio-sourcing.md) | 判定音与演出音的选源建议：自制合成优先、CC0 来源清单、CC BY 的署名义务、cue→取材映射 | 2026-11-09 | 现行 |
 | 音频需求表 | [operations/audio-spec.md](operations/audio-spec.md) | 对外交付的自包含需求书：42 个 wav 的逐条规格、两套皮肤差异规则、自检命令、交付结构与验收清单 | 2026-11-09 | 现行 |
 | Unity 6 升级清单 | [operations/unity6-upgrade.md](operations/unity6-upgrade.md) | 2022.3.62f3 → 6000.6.7f1：现状对照、准备项、API 迁移点、执行顺序、验收与回滚 | 2026-11-02 | 现行 |
@@ -100,10 +100,7 @@
 | 术语表 | [reference/glossary.md](reference/glossary.md) | 曲包/谱面/AB/判定/规则版本等名词 | 2026-11-02 | 现行 |
 | 字体 | [reference/fonts.md](reference/fonts.md) | 两套字体的角色与许可、TMP 资产与图集、重新生成步骤 | 2026-11-02 | 现行 |
 | 内置符号字符 | [reference/builtin-symbols.md](reference/builtin-symbols.md) | 文案里的 ★♪※ 等符号统计与思源黑体覆盖情况 | 2026-11-02 | 现行 |
-| 历史文档 | [reference/legacy/README.md](reference/legacy/README.md) | 三份旧文档的说明与使用建议 | 2026-11-02 | 现行 |
-| 旧工程总览 | [reference/legacy/old-project-overview.md](reference/legacy/old-project-overview.md) | 重构前的系统层面总览 | 2026-11-02 | 历史 |
-| 旧实现细节 | [reference/legacy/old-implementation-notes.md](reference/legacy/old-implementation-notes.md) | 重构前的逐文件实现梳理 | 2026-11-02 | 历史 |
-| 旧美术资产清单 | [reference/legacy/art-assets.md](reference/legacy/art-assets.md) | 重构前的资源统计与换皮肤步骤 | 2026-11-02 | 历史 |
+
 
 ## 代码规范 `coding-standards/`
 
@@ -179,4 +176,4 @@ Get-ChildItem -Recurse -Filter *.md | ForEach-Object {
 | **交接入口** | [operations/handoff-2026-11-11.md](operations/handoff-2026-11-11.md) | 现状、未做完的事、工具链、红线、文档地图——接手先看这篇 | 2026-11-11 | **现行** |
 | 条尾三类 | [operations/tail-classes.md](operations/tail-classes.md) | 条与尾谁影响谁：三类定义、唯一违规处、三步执行顺序、已踩过的坑 | 2026-11-11 | 现行 |
 
-| 判定窗口 | [reference/judging.md](reference/judging.md) | 判定帧数表、与原版对照、已知差异 | 2026-11-03 | 现行 |
+| 判定窗口 | [reference/judging.md](reference/judging.md) | 判定帧数表、判定时机、已知差异 | 2026-11-03 | 现行 |

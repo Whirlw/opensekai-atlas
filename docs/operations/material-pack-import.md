@@ -1,4 +1,4 @@
-﻿# 材质包导入：流程、教训与后续功能设计建议
+# 材质包导入：流程、教训与后续功能设计建议
 
 > 目的：把「把画好的材质包整体贴回工程并验证」这件事沉淀成可复用流程，并把 2026-11-08 一天内踩到的坑逐条固定下来，作为将来做**一键材质包导入功能**的设计依据。
 > 适用读者：要改美术素材的人、要写导入工具的人、要在真机上验收素材的人。
@@ -117,7 +117,7 @@ m_RD.texture: {guid: <图集纹理 guid>}   # 指向 sactx-*.png
 | 只有 2D 背景、SCORERANK 底板是新图，其余全旧 | 这两个是**散图**；图集那条路径压根没生效（R4） | 改用 `apply-atlas-art.ps1` |
 | 评级字母 B/C/S 一直是旧图 | 精灵名与文件名不同（R1） | 按 `m_Name` 建索引 |
 | 五种 `among` 音符一直是旧图 | 素材在子目录，脚本不递归（R2） | `-Recurse` |
-| 「素材回退到原版」 | 工程内镜像是旧快照（R3） | 导入前镜像 + 核对时间戳 |
+| 「素材回退到旧版本」 | 工程内镜像是旧快照（R3） | 导入前镜像 + 核对时间戳 |
 | COMBO 数字 `1` 左下角缺一块，只有设备上出现 | 精灵资产里**烘焙了紧致网格**（`m_RD.m_SubMeshes.vertexCount: 10`，是旧字形的轮廓多边形）。改 import 的 `spriteMeshType` 无效，因为网格随资产序列化 | 绘制端用 `SpriteDrawMode.Sliced` 自建矩形：`renderer.size = sprite.rect.size / sprite.pixelsPerUnit`（`Assets/Game/Runtime/Shared/UI/SpriteQuad.cs`） |
 | 同上的修复后，**第一局**数字尺寸异常（AP 偏小、光圈偏大） | 只在「首次可见」时才规范化渲染器，之前沿用预制体里残留的 `size` | 在 `ComboView.Setup()` 里对三组渲染器一次性规范化 |
 | AP 数字变小、灰色光圈变大 | 用 `sprite.bounds.size`（紧致网格外框，比切片小）当尺寸 | 改用 `sprite.rect.size / pixelsPerUnit` |

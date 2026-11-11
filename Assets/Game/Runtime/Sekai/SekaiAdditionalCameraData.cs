@@ -8,7 +8,7 @@ namespace UnityEngine.Rendering.Universal
 
         public void Setup(int cameraIndex, int cameraCount)
         {
-            // Original Project Sekai URP calls this once per camera before rendering.
+            // The render pipeline calls this once per camera before rendering.
             IsFinalCamera = cameraCount - 1 == cameraIndex;
         }
     }

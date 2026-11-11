@@ -6,7 +6,7 @@
 
 ## 背景
 
-这个项目从反编译的社区版本继承了一整套桌面分支持：`StandaloneFileBrowser` 的 Windows/macOS/Linux
+这个项目早期带有一整套桌面分支持：`StandaloneFileBrowser` 的 Windows/macOS/Linux
 后端与 `Ookii.Dialogs.dll`、`ScreenConfig` 里的窗口尺寸记忆与全屏切换、`LiveLogic` 的鼠标回落判定、
 `BackupService` 的桌面临时目录分支，以及文档里 Windows Player 的构建与验收步骤。
 

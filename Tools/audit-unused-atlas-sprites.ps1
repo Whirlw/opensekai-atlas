@@ -1,5 +1,5 @@
 # Reports how much of each packed atlas is actually reached by a prefab, scene or material.
-# Sprites that nothing references are dead weight in the build and still carry the original art,
+# Sprites that nothing references are dead weight in the build and still carry legacy art,
 # so the number this prints is the share of each atlas that can simply be deleted.
 param(
     [string]$SpriteFolder = 'Assets\Graphics\Sprites',

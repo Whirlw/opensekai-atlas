@@ -61,7 +61,7 @@
 - **格式**：PNG，32 位带 alpha。背景必须透明。
 - **颜色**：游戏**不做颜色染色**，颜色就是你画的颜色；不同键型靠切片区分，别指望运行时改色。
 - **斜向箭头方向**：`*_diagonal` 指向**左上**（不是右上），且箭尖要是最高点，否则眼睛会读成反向。
-- **不要放原作的素材**：仓库对外发布，原作美术不能进来。自己画的、CC0 的、买断授权的都可以。
+- **不要放没有授权的素材**：仓库对外发布，只放自己画的、CC0 的或买断授权的图。
 
 ## 4. 应用
 
@@ -96,6 +96,6 @@ unity command build run --target Android --outputPath "Builds/<名字>/OpenSekai
 ## 5. 相关
 
 - 生成器（占位图就是这么画出来的）：`Tools/replace-note-skins.ps1`，`-Apply` 落盘 / 默认只出预览。
-- 原作备份（仅本机，`LocalPacks/` 已被 git 忽略）：`LocalPacks/original-skin`，
-  `-Restore` 可一键还原原作用于对照。
+- 旧皮肤备份（仅本机，`LocalPacks/` 已被 git 忽略）：`LocalPacks/original-skin`，
+  `-Restore` 可一键还原旧版用于对照。
 - 素材来源与合规清单：`docs/operations/asset-provenance.md`。

@@ -1,4 +1,4 @@
-﻿# This .gitignore file should be placed at the root of your Unity project directory
+# This .gitignore file should be placed at the root of your Unity project directory
 #
 # Get latest from https://github.com/github/gitignore/blob/main/Unity.gitignore
 #
@@ -147,7 +147,7 @@ Assets/_Recovery/
 Assets/_Recovery/
 Assets/_Recovery.meta
 
-# 本地私用素材包：原作皮肤等不能进仓库，只留在这台机器上
+# 本地私用素材包：旧版皮肤等不能进仓库，只留在这台机器上
 /[Ll]ocal[Pp]acks/
 
 

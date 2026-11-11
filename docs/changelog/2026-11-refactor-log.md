@@ -1,4 +1,4 @@
-﻿# 2026-11 重构日志（摘要）
+# 2026-11 重构日志（摘要）
 
 清死代码与轻量化重构的逐日流水，原本有 48 KB。**完整过程只保留在本地**（`LocalPacks/archive/docs/changelog/2026-11-refactor-log.md`），仓库里只留这份摘要：提交历史本身已经记录了每一步。
 
@@ -12,7 +12,7 @@
 | 计分改累积摊分 | 任意音符数总分恰为 1,000,000（`RulesVersion` 2） | — |
 | Android-only | 删除 `StandaloneFileBrowser` 与 Windows 导出路径（ADR-0006） | — |
 | 依赖清理 | 视频导出、uPalette、SoftMask、UI Particle、MessagePack、Timeline、CRI 未用资源 | — |
-| 反编译重写 | 判定链路拆成纯函数并单测：`JudgeWindow`、`ScoreGauge`、`FlickGesture`、`TouchLane` 等 | — |
+| 判定链路重写 | 判定链路拆成纯函数并单测：`JudgeWindow`、`ScoreGauge`、`FlickGesture`、`TouchLane` 等 | — |
 | 素材替换 | 音符皮肤、HUD、判定特效、音频全部换为自制/CC0（见 `operations/pre-release-asset-audit.md`） | — |
 
 ## 为什么不再逐条记录

@@ -88,8 +88,8 @@ MSG_AD_REWARD_NOT_READY,広告を読み込むことができませんでした�
 MSG_AD_REWARD_PRESENT_BOX,毎日抽選でアイテムか★2～★4メンバーをGET！
 MSG_AD_REWARD_WORLD_LINK_EVENT_CHAPTER_EXPIRED,チャプター期間が終了したため利用することができません。
 MSG_ALBUM_PERMISSION_NOT_GRANTED,アルバムのアクセス権限がありません。\n端末の設定画面を開き、アクセスを許可してください。
-MSG_ALBUM_PERMISSION_NOT_GRANTED_WITH_REASON,スクリーンショット機能をご利用いただく場合、\n端末内のメディアやファイルへのアクセスを\n「プロセカ」に許可する必要があります。\n\n端末の設定画面を開き、アクセスを許可してください。
-MSG_ALBUM_PERMISSION_NOT_GRANTED_WITH_REASON_ANDROID,スクリーンショット機能をご利用いただく場合、\n端末内のメディアやファイルへのアクセスを\n「プロセカ」に許可する必要があります。
+MSG_ALBUM_PERMISSION_NOT_GRANTED_WITH_REASON,スクリーンショット機能をご利用いただく場合、\n端末内のメディアやファイルへのアクセスを\n「Open Sekai Atlas」に許可する必要があります。\n\n端末の設定画面を開き、アクセスを許可してください。
+MSG_ALBUM_PERMISSION_NOT_GRANTED_WITH_REASON_ANDROID,スクリーンショット機能をご利用いただく場合、\n端末内のメディアやファイルへのアクセスを\n「Open Sekai Atlas」に許可する必要があります。
 MSG_ALERT_TIME_OVER_EXCHANGE_TICKET,※交換期限を過ぎたチケットは使用できなくなります。
 MSG_ALL_EPISODE_READ_REWARD,スキップ・早送りなしで全話読む
 MSG_ALL_MV_DATA_DOWNLOAD_WARNING,ダウンロードサイズが50MBを超える場合、 \nWi-Fi環境でのダウンロードを推奨します。\n\nデータ管理でMVデータ数を制限している場合、\n設定が「すべて保存」に変更されます。
@@ -403,7 +403,7 @@ MSG_FINISHED_TODAY_CHALLENGE,本日のチャレンジは終了しました。
 MSG_FIXTURE_ACTION_WARNING_OWNER_EDIT_MODE,オーナーが編集中のため家具にさわれません。
 MSG_FIXTURE_BONUS_UP_DIALOG,家具ボーナスがアップしました。
 MSG_FIXTURE_POSSESSION,家具の所持上限が上がりました。
-MSG_FIX_MIKU_COSTUME,3DMVで常にこのミクを表示
+MSG_FIX_MIKU_COSTUME,3DMVで常にこのキャラクターを表示
 MSG_FIX_OPPONENT_PROGRESS,マッチング準備
 MSG_FONT_SELECT_BUTTON,あいうabc
 MSG_FONT_SELECT_CELL,あいう\nabc
@@ -1144,7 +1144,7 @@ MSG_VIRTUAL_LIVE_HOME_REWARD_LIST_DIALOG_BODY,バーチャルライブの報酬�
 MSG_VIRTUAL_LIVE_IN_SESSION,バーチャルライブ開演中！
 MSG_VIRTUAL_LIVE_NOT_SCHEDULE,開催中のライブはありません。
 MSG_VIRTUAL_LIVE_REWARD_DIALOG_BODY,を獲得しました。
-MSG_VIRTUAL_LIVE_SCREEN_SHOT_REQUIRED_RESON,スクリーンショット機能をご利用いただく場合、\n端末内のメディアやファイルへのアクセスを\n「プロセカ」に許可する必要があります。
+MSG_VIRTUAL_LIVE_SCREEN_SHOT_REQUIRED_RESON,スクリーンショット機能をご利用いただく場合、\n端末内のメディアやファイルへのアクセスを\n「Open Sekai Atlas」に許可する必要があります。
 MSG_VIRTUAL_LIVE_SHOP_DUPLICATE_CONFIRM,選択したセットを購入しますか？
 MSG_VIRTUAL_LIVE_SHOP_DUPLICATE_WARNING,選択したセットには既に所持しているアイテムが含まれており、\n以下のアイテムは獲得できません。
 MSG_VIRTUAL_LIVE_TO_BE_HELD_SOON,バーチャルライブまもなく開演！
@@ -1298,7 +1298,7 @@ WORD_ALREADY_COPIED,コピー済み
 WORD_ALREADY_CREATED_COSTUME,製作済み
 WORD_ALREADY_DOWNLOADED,DL済み
 WORD_AM_TIME,「00:00 ～ 11:59」
-WORD_ANDROID_RATING_TITLE,プロセカの評価をしてください
+WORD_ANDROID_RATING_TITLE,Open Sekai Atlasの評価をしてください
 WORD_ANNONYMOUS_SEND,匿名で送る
 WORD_ANOTHER_3DMV_CUTIN_DETAIL_DIALOG_MUSIC,「{0}」
 WORD_ANOTHER_COLOR,アナザーカラー

@@ -1,4 +1,4 @@
-﻿# Unity 6 升级执行记录
+# Unity 6 升级执行记录
 
 > 目的：记录真实升级的提交、证据、门禁与续接位置。
 > 适用读者：升级执行者与接手者。
@@ -184,7 +184,7 @@ passed=false
 4. **粒子网格 Read/Write 警告。** 复现：Build Android；日志 `Read/Write is disabled on 2 mesh(es)... 'sekai_PT_05' (referenced by a Particle System Renderer component)`。引擎本版本自动开启构建期可读，未来版本将停止自动开启；未改原模型导入设置。
 5. ~~**MCP ExecuteCode CodeDom 冲突。**~~ **已失效（2026-11-02）**：`com.coplaydev.unity-mcp` 已整包移除（§11），编辑器操作改走 Unity CLI/Pipeline。保留原文如下： 复现：调用 MCP execute_code；`CS1685 AsyncMethodBuilderAttribute` 重复，Roslyn 不可用。原因：MCP 包动态编译环境冲突，TODO: 待确认；本次使用官方 Pipeline CLI 驱动，不修改第三方 MCP 包。
 6. ~~**原文档数字过时。**~~ **已关闭（2026-11-03）**：README、构建页、门禁页的数字与路径已按当前代码更新。保留原文如下： 基线 manifest=39（旧表38）、实际 minSdk=26（原构建文档25）；本次工具/构建页已同步实测 minSdk。性能页旧源码路径仍属既有文档，未据此移动文件。
-7. ~~**最终 APK 保留 5 个 shader 支持警告。**~~ **已关闭（2026-11-02）**：5 个 shader 都是反编译遗留的 GLSL ES3 提取版，删除后构建警告归零（§10）。保留原文如下： 复现：Android Build；原文 `shader is not supported on this GPU (none of subshaders/fallbacks are suitable)`，名称为 Sekai/TextMeshPro/Mobile/Distance Field、Hidden/AfterPostProcess/FadeOutBlend、Hidden/Sekai/Scenario/Post、Area/Post、Sekai/Live/DrawStencil，见 六条构建警告（第六条是网格 Read/Write）。源码为旧 GLSLPROGRAM 提取版；具体 Android 后端/使用范围 TODO: 待确认。未把零编译错误等同于这些 shader 在真机已可用，尚未做真机粉色/字体门禁。
+7. ~~**最终 APK 保留 5 个 shader 支持警告。**~~ **已关闭（2026-11-02）**：5 个 shader 都是遗留的 GLSL ES3 版本，删除后构建警告归零（§10）。保留原文如下： 复现：Android Build；原文 `shader is not supported on this GPU (none of subshaders/fallbacks are suitable)`，名称为 Sekai/TextMeshPro/Mobile/Distance Field、Hidden/AfterPostProcess/FadeOutBlend、Hidden/Sekai/Scenario/Post、Area/Post、Sekai/Live/DrawStencil，见 六条构建警告（第六条是网格 Read/Write）。源码为旧 GLSLPROGRAM 写法；具体 Android 后端/使用范围 TODO: 待确认。未把零编译错误等同于这些 shader 在真机已可用，尚未做真机粉色/字体门禁。
 
 续接顺序（原文保留作历史）：先处理第 1 项体积门禁；之后才 `adb install -r` → force-stop 后 `am start -W` → 真机点“自动”完整打歌 → Unity:E → HUD 性能。**这些在 2026-11-02 之后的轮次里已全部执行**，可复现的步骤见 [Android 构建](../operations/android-build.md) 的「真机门禁」小节。构建配置示例归档在 `Builds/Unity6Upgrade-2026-11-02/evidence/Unity6UpgradeChecks.cs`；该临时文件已从 Assets 删除。需要再构建时用 `OpenSekai/AssetBundles/Build Asset Bundles And Info` + Build 界面，性能包须加入 `OPENSEKAI_PERF_HUD`。
 
@@ -309,7 +309,7 @@ Play 模式下直接跳过清理、并对 `atlasTextures` 做空判断与 try/ca
 
 ## 10. 清掉五条 `shader is not supported on this GPU` 警告
 
-构建日志里一直有 5 条 shader 警告，核对后确认它们来自同一类东西：**反编译遗留的 GLSL ES3 shader**，在 D3D11 和 Vulkan 上都编译不出可用 subshader。
+构建日志里一直有 5 条 shader 警告，核对后确认它们来自同一类东西：**遗留的 GLSL ES3 shader**，在 D3D11 和 Vulkan 上都编译不出可用 subshader。
 
 | Shader | 文件 | 谁在引用 | 结论 |
 | --- | --- | --- | --- |

@@ -1,7 +1,5 @@
 # Replaces the six long-loading backgrounds and the common background with generated art.
-# The originals are Project Sekai unit illustrations (Leoneed / MoreMoreJump / ...), so they have to go
-# before the repository is published. Sizes and file names stay identical, so the .asset references and
-# GUIDs keep working.
+# Sizes and file names stay identical, so the .asset references and GUIDs keep working.
 param(
     [string]$Target = 'Assets\Graphics\Resources',
     [string]$Backup = 'LocalPacks\original-skin\backgrounds',

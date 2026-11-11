@@ -7,7 +7,7 @@
 
 ## 概述
 
-页面系统是原工程留下的基础设施：一张注册表（`EntryScreenLayers.asset`）把「页面类型枚举」映射到
+页面系统是既有工程留下的基础设施：一张注册表（`EntryScreenLayers.asset`）把「页面类型枚举」映射到
 「`ScreenLayerData` 资产」，每个资产再按名字去 `Resources/Screen/Prefabs/` 找 prefab。
 本仓库把注册表从 218 条裁到 7 条，只留下真正会被推入的页面。
 

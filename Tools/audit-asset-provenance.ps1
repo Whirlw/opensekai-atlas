@@ -1,4 +1,4 @@
-﻿# Prints the asset-provenance table from the working tree, so the numbers in
+# Prints the asset-provenance table from the working tree, so the numbers in
 # docs/operations/asset-provenance.md can be refreshed instead of remembered.
 #
 #   powershell -NoProfile -ExecutionPolicy Bypass -File Tools/audit-asset-provenance.ps1
@@ -13,22 +13,22 @@ Set-Location $Root
 
 # group name -> path (relative), plus the provenance verdict this project has agreed on.
 $groups = @(
-    @{ Name = '音符皮肤 custom01';   Path = 'Assets/Game/Resources/live/note/custom01';  Judgement = '已换（画包）' }
-    @{ Name = '音符皮肤 custom02';   Path = 'Assets/Game/Resources/live/note/custom02';  Judgement = '已换（画包）' }
-    @{ Name = 'live 打击音';        Path = 'Assets/Game/AssetBundles/resources/startapp/live/sound'; Judgement = '已换（自制 CC0 wav）' }
-    @{ Name = 'tap 音效';           Path = 'Assets/Game/AssetBundles/resources/startapp/live/tap_se'; Judgement = '已换（自制 CC0 wav）' }
-    @{ Name = 'live 背景 2dmode';    Path = 'Assets/Game/AssetBundles/resources/startapp/live/2dmode'; Judgement = '已换（画包）' }
-    @{ Name = '加载背景 longLoading'; Path = 'Assets/Graphics/Resources/loading';        Judgement = '原作' }
-    @{ Name = 'HUD / UI 大图';        Path = 'Assets/Graphics/Resources/screen';         Judgement = '原作' }
-    @{ Name = '通用背景 commonbg';    Path = 'Assets/Graphics/Resources/commonbg';       Judgement = '原作' }
-    @{ Name = 'live UI 预制';         Path = 'Assets/Graphics/Resources/live';           Judgement = '原作' }
-    @{ Name = 'HUD sprite';           Path = 'Assets/Graphics/Sprites';                  Judgement = '部分已换（见 pre-release-asset-audit）' }
+    @{ Name = '音符皮肤 custom01';   Path = 'Assets/Game/Resources/live/note/custom01';  Judgement = '自制（画包）' }
+    @{ Name = '音符皮肤 custom02';   Path = 'Assets/Game/Resources/live/note/custom02';  Judgement = '自制（画包）' }
+    @{ Name = 'live 打击音';        Path = 'Assets/Game/AssetBundles/resources/startapp/live/sound'; Judgement = '自制 CC0 wav' }
+    @{ Name = 'tap 音效';           Path = 'Assets/Game/AssetBundles/resources/startapp/live/tap_se'; Judgement = '自制 CC0 wav' }
+    @{ Name = 'live 背景 2dmode';    Path = 'Assets/Game/AssetBundles/resources/startapp/live/2dmode'; Judgement = '自制（画包）' }
+    @{ Name = '加载背景 longLoading'; Path = 'Assets/Graphics/Resources/loading';        Judgement = '已删除' }
+    @{ Name = 'HUD / UI 大图';        Path = 'Assets/Graphics/Resources/screen';         Judgement = '自制' }
+    @{ Name = '通用背景 commonbg';    Path = 'Assets/Graphics/Resources/commonbg';       Judgement = '已删除' }
+    @{ Name = 'live UI 预制';         Path = 'Assets/Graphics/Resources/live';           Judgement = '自制（画包）' }
+    @{ Name = 'HUD sprite';           Path = 'Assets/Graphics/Sprites';                  Judgement = '自制（画包 + 程序化替身）' }
     @{ Name = '字体';                 Path = 'Assets/Game/Resources/Fonts';              Judgement = 'OFL' }
-    @{ Name = '音频 wav 包';          Path = 'Assets/StreamingAssets/sound';             Judgement = '已换（自制 CC0）' }
+    @{ Name = '音频 wav 包';          Path = 'Assets/StreamingAssets/sound';             Judgement = '自制 CC0' }
     @{ Name = '代码';                 Path = 'Assets/Game/Runtime';                      Judgement = 'MIT' }
 )
 
-'| 资源组 | 路径 | 文件 | 体积 | 判定 |'
+'| 资源组 | 路径 | 文件 | 体积 | 来源 / 许可 |'
 '| --- | --- | --- | --- | --- |'
 foreach ($g in $groups) {
     if (-not (Test-Path $g.Path)) { continue }

@@ -1,14 +1,10 @@
 # Open Sekai Atlas
 
-Project Sekai 玩法的学习/研究向复刻工程。当前形态是**轻量播放器**：曲库 → 加载 → 打歌 → 结算 → 回曲库。
+开源的下落式音游播放器：曲库 → 加载 → 打歌 → 结算 → 回曲库，一条链路跑完。
 谱面编辑器、抽卡、旧页面体系都已整块移除。
 
-**仓库里不含任何原作素材**：代码为 MIT，字体为 OFL（思源黑体），音频、音符皮肤、HUD、判定特效、加载背景全部为自制或 CC0 资源。
-来源与替换进度见 [素材来源清单](docs/operations/asset-provenance.md)。
-
-> 本项目与 SEGA、Colorful Palette 及《Project SEKAI COLORFUL STAGE! feat. Hatsune Miku》的
-> 权利人无关，也未经其授权或认可，仅供学习与研究使用。如需游玩请支持官方版本。
-> 谱面、曲包、封面等由使用者自行导入的内容，其权利与责任归导入者。
+**仓库里的素材全部可分发**：代码为 MIT，字体为 OFL（思源黑体），音频、音符皮肤、HUD、判定特效、加载背景全部为自制或 CC0 资源。
+来源与核对方式见 [素材来源清单](docs/operations/asset-provenance.md)。
 
 ## 开发环境
 
@@ -54,14 +50,12 @@ Project Sekai 玩法的学习/研究向复刻工程。当前形态是**轻量播
 | 遇到报错 | [故障排查](docs/operations/troubleshooting.md) |
 | 知道某个取舍的原因 | [ADR 索引](docs/decisions/README.md) |
 
-## 与上游的差异
+## 功能特点
 
-本仓库修改自 [kamcdev/OpenSekai_Community](https://github.com/kamcdev/OpenSekai_Community)，上游已归档停止维护。主要差异：
-
-- 升级到 Unity 6 + URP 17.6，仅新版 Input System
+- Unity 6 + URP 17.6，仅新版 Input System
 - 高帧率支持（跟随屏幕 / 120 / 144 / 165 / 185 / 240），见 [真机性能](docs/operations/android-performance.md)
-- 轻量化重构：删除谱面编辑器与抽卡、收窄页面注册表、AB 白名单、摘除依赖
-- 音视频与美术全部替换为自制/CC0；音频改为散装 wav + 运行时注册，不再依赖 CRI ACB
+- 轻量化重构：只保留曲库与打歌链路，删除谱面编辑器与抽卡、收窄页面注册表、AB 白名单、摘除依赖
+- 音视频与美术全部为自制/CC0；音频改为散装 wav + 运行时注册，不依赖 CRI ACB
 - 包体 117.05 MB → **79.65 MB**
 
 ## 资源说明
@@ -71,4 +65,4 @@ Project Sekai 玩法的学习/研究向复刻工程。当前形态是**轻量播
 - **音频**：本项目自制的 42 个 wav（CC0-1.0），逐条署名在 [audio-credits.md](docs/reference/audio-credits.md)。
 - **美术**：音符皮肤、HUD、判定特效、加载背景均为自制或程序生成，来源见 [素材来源清单](docs/operations/asset-provenance.md)。
 
-仓库**不包含**原作（Project Sekai）的任何素材。若你在本地用原作资源试玩，那是你自己的行为，不在本仓库的分发范围内。
+第三方运行库与资源按各自许可分发。

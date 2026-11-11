@@ -1,4 +1,4 @@
-﻿# 长条第三轮交接（2026-11-03，接手先读此文件）
+# 长条第三轮交接（2026-11-03，接手先读此文件）
 
 > **状态：已被后续重构取代（历史文档，不再更新）。** 现行交接看 `handoff-2026-11-11.md`。
 
@@ -119,7 +119,7 @@
 - **这个删除是错的，已 revert**。`AuthoredCrossingAllowsFollowingOrExchangingFingers` 的 `keepSides=true` 三组用例在删除后从绿变红（`note=13440`、`note=21120` 停在 `Release`）：那类谱面里长条的持有者手指会整段停在另一侧，需要**把归属交给仍在车道内的另一根手指**，而续命刷新只会沿用旧持有者，无法换手。
 - 结论：`RefreshSustainedHolds`（同一持有者跨帧续命）与 `HoldInputMatching`（跨手指换手）解决的是两件不同的事，两者都需要。`IsReservedForAnotherInput` / `ShouldReserveHold` 同理保留。
 
-### 7.5 开头 MISS 后仍可中途接上（用户反馈的原版行为）
+### 7.5 开头 MISS 后仍可中途接上（用户反馈的行为）
 
 - 机制：`LongNote.Excute` 在头部超过判定窗后走 `State = Last → Miss + Release`；过去 `AddCheckLongInputedNormalNoteTouch` 只在头部 `Result == None` 时才允许补候选，于是头部 MISS 的长条再也起不了手。
 - 现在 `LiveLogic.CatchUpMissedHeads()` 在 `RefreshSustainedHolds()` 末尾单独处理：对「`State == Release` 且 `Result == Miss` 且 `OffsetJudgeTime <= 0`（身体还没过完）」的长条，只要有空闲手指落在其车道内，就直接 `Judgment()` 把保持接上并记下归属。它**不经过候选队列**，因此不会占用每指每帧唯一的判定名额，也不改变交叉谱面的既有行为。
@@ -149,7 +149,7 @@
 
 ## 9. 尾判与划键长条结束点（2026-11-04，提交 `a87a24b` / `7992dd4` / `609c27a`）
 
-长条尾判分两种触发，规则来自原版实测：
+长条尾判分两种触发，规则来自实测：
 
 | 尾部音符 | 触发 | 评级 |
 |---|---|---|

@@ -35,7 +35,7 @@ TMP 侧有 4 个字体资产（`Assets/Graphics/Resources/font/`）：
 
 ### 为什么从 Rodin 换成了思源黑体
 
-原项目的 FOT-RodinNTLG Pro 是日文字体，随包分发有许可风险，而且没有简体中文覆盖。Unity 6 升级时 `TMP_FontAsset.ClearFontAssetData` 还会在「字体资产没有可用图集像素」的播放器包里触发空指针崩溃（`FontAssetManager.SetupBuiltinFontAsset` → `ClearAtlasTextures`）。换成 OFL 的思源黑体后，字体可以随包分发，也可以随时重烘。
+此前的日文字体随包分发有许可风险，而且没有简体中文覆盖。Unity 6 升级时 `TMP_FontAsset.ClearFontAssetData` 还会在「字体资产没有可用图集像素」的播放器包里触发空指针崩溃（`FontAssetManager.SetupBuiltinFontAsset` → `ClearAtlasTextures`）。换成 OFL 的思源黑体后，字体可以随包分发，也可以随时重烘。
 
 ### 图集尺寸与指标
 

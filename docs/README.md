@@ -7,7 +7,7 @@
 
 ## 概述
 
-这是一个 Project Sekai 玩法的学习/研究向复刻工程，当前处于「轻量播放器」形态：
+这是一个开源的下落式音游播放器工程，当前处于「轻量播放器」形态：
 **只有曲库 → 加载 → 打歌 → 结算 → 回曲库这条链路，谱面编辑器已整块移除**。
 
 - 本分支引擎：Unity 6000.6.7f1，URP 17.6.0。编辑器与 Android 真机门禁均已通过（测试谱 221 音符，结算 `1,000,000 / S`），APK 约 113–119 MB；详见 [升级清单](operations/unity6-upgrade.md) 与 [执行记录](changelog/2026-11-unity6-upgrade.md)。
@@ -41,7 +41,7 @@ docs/
   architecture/              模块、数据流、关键设计
   operations/                构建、真机性能、编辑器菜单、故障排查
   decisions/                 ADR：为什么这样取舍
-  reference/                 设置项、宏、术语；legacy/ 放历史文档
+  reference/                 设置项、宏、术语
   coding-standards/          C# / Unity 代码规范（命名、事件、序列化、Review 清单）
   changelog/                 按时间排的施工记录
   images/                    文档引用的截图与证据图

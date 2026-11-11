@@ -1,14 +1,14 @@
 # Replaces the note-skin textures with self-made placeholders, or restores a local pack.
 #
-# Why: the shipped note skins are original game art. The layouts must stay exactly as they are (sprite
-# rects, nine-slice borders and pivots live in the .asset files, the textures are referenced by GUID),
-# so this script only repaints the pixels and never touches a .asset/.meta. Every texture keeps its
-# size, its transparent padding and its slice borders; only the drawing inside changes.
+# Why: the shipped note skins are legacy art that must not be published. The layouts must stay exactly
+# as they are (sprite rects, nine-slice borders and pivots live in the .asset files, the textures are
+# referenced by GUID), so this script only repaints the pixels and never touches a .asset/.meta. Every
+# texture keeps its size, its transparent padding and its slice borders; only the drawing inside changes.
 #
-# The placeholder keeps two things from the original, both of which are facts about the game rather
-# than about the art: the silhouette family (bar / chevron / diamond) and the hue of each sprite (the
-# bar atlas is colour coded per slice - the first three slices are the long-note head, body and tail).
-# Colours are sampled from the local pack when it exists, so the placeholder stays readable in place.
+# The placeholder keeps two facts about the note design rather than about the art: the silhouette family
+# (bar / chevron / diamond) and the hue of each sprite (the bar atlas is colour coded per slice - the
+# first three slices are the long-note head, body and tail). Colours are sampled from the local pack
+# when it exists, so the placeholder stays readable in place.
 #
 # Usage:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File Tools/replace-note-skins.ps1            # preview
@@ -17,7 +17,7 @@
 #   powershell -NoProfile -ExecutionPolicy Bypass -File Tools/replace-note-skins.ps1 -Export    # backup
 #   powershell -NoProfile -ExecutionPolicy Bypass -File Tools/replace-note-skins.ps1 -Restore   # back to art
 #
-# -Export / -Restore exist for one reason: the original art must survive on this machine after the
+# -Export / -Restore exist for one reason: the legacy art must survive on this machine after the
 # placeholders land, without ever entering the repository. LocalPacks/ is git-ignored.
 param(
     [ValidateSet('custom01', 'custom02', 'all')] [string]$Set = 'custom01',

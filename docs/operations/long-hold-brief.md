@@ -1,4 +1,4 @@
-﻿# 双长条断连：交给外部执行者的任务书
+# 双长条断连：交给外部执行者的任务书
 
 > **状态：已完成并合入（历史文档，不再更新）。** 现行行为见 `tail-classes.md`。
 
@@ -64,7 +64,7 @@ EvaluateJudgment();                 // 每手指判第一条候选，判完 brea
        State = NoteState.Release;
    ```
    而 `lastInputFrame` 只在 `LongNote.Judgment` 与 `LongNote.AutoJudgment` 里刷新。
-3. **`EvaluateJudgment` 一次按下只判一条**（复刻原版）：判完 `_judgmentNoteList.Remove(note)`、`input.CandidateNotes.Clear()`、`_usedFingerList.Add(fingerId)`、`break`。
+3. **`EvaluateJudgment` 一次按下只判一条**（按规则）：判完 `_judgmentNoteList.Remove(note)`、`input.CandidateNotes.Clear()`、`_usedFingerList.Add(fingerId)`、`break`。
 4. **`LongNote.Judgment` 不校验 `fingerId`**：任何手指调它都会写 `lastInputFrame` 与 `_holdingTouchId`。
 
 ## 6. 三次已失败的尝试（含失败原因）

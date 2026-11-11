@@ -32,7 +32,7 @@
 
 ### 引擎层 `Assets/Scripts/Assembly-CSharp/`
 
-这部分是原工程遗留，全部编在一个程序集（除 3 个 asmdef：`CRIMW` Runtime/Editor、`ZString`）。
+这部分是既有工程遗留，全部编在一个程序集（除 3 个 asmdef：`CRIMW` Runtime/Editor、`ZString`）。
 
 | 路径 | 内容 |
 | --- | --- |

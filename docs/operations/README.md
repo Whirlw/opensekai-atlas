@@ -24,9 +24,9 @@
 | [判定内核纯函数化任务书](judgment-core-brief.md) | 交给外部执行者的自包含任务书：四个任务的现状、约束、验收与报告格式 |
 | [判定通道与解耦收尾](judgment-channel-brief.md) | 任务 B 的执行计划：通道枚举、三个尾实现的绞杀式替换、视图离开 State、池卫生与时间单一真源；§5.2「三条通道不要混用」、§5.3「类别在转换层被改写」、§5.4「抬手归属」是 2026-11-07 下午三个故障的定稿结论 |
 | [尾键生命周期任务书](tail-key-lifetime-brief.md) | 交给外部执行者的自包含任务书：把尾键显示/回收从 `State` 与六个开关里解耦，收敛成纯函数 |
-| [素材来源清单](asset-provenance.md) | 发布任何二进制之前的第三方素材清单（约 36 MB 待换）、同 GUID 重画的手法、替换顺序与进度表；数字用 `Tools/audit-asset-provenance.ps1` 刷新 |
+| [素材来源清单](asset-provenance.md) | 各类素材的来源与许可、同 GUID 重画的手法、覆盖核对命令；数字用 `Tools/audit-asset-provenance.ps1` 刷新 |
 | [材质包导入](material-pack-import.md) | 把画好的材质包贴回工程：图集切片与散图两条路径、六条硬规则、已踩的九个坑、像素级校验、一键导入功能的设计建议 |
-| [音频素材替换](audio-replacement.md) | 7 个 ACB 负载（约 11 MB / 359 个 cue）的清单与加载点、音频规格；路线 A 散装 wav + 运行时注册，路线 B 重做 ACB |
+| [音频外部音源包](audio-replacement.md) | 42 个 wav 的目录与加载链、cue 分布、音频规格、导入与验收 |
 | [音频来源建议](audio-sourcing.md) | 判定音/演出音该去哪找：自制合成优先，CC0（Kenney / Freesound / Wikimedia）次之，CC BY 需署名；附 cue→取材映射与合规自检 |
 | [音频需求表](audio-spec.md) | 对外交付用的自包含需求书：42 个 wav 的逐条规格（时长/声道/音色/响度）、两套皮肤差异规则、自检命令与交付结构 |
 | [Unity 6 升级清单](unity6-upgrade.md) | 升级到 6000.6.7f1 的现状对照、准备、执行与验收 |

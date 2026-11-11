@@ -1,6 +1,6 @@
-﻿# 判定窗口
+# 判定窗口
 
-本页记的是**当前实现**与**原版数据**的对照。改这里的数字等于改手感，提交时必须同时改本页。
+本页记的是**当前实现的判定窗口**。改这里的数字等于改手感，提交时必须同时改本页。
 
 ## 数据表
 
@@ -17,28 +17,22 @@
 
 两条边界规则：早于 **125 ms**（7.5 帧）一律无效；晚于 **125 ms** 单键与长条起点 MISS，其它音符晚于 **141.7 ms**（8.5 帧）MISS。
 
-## 与原版的对照
+## 数据来源与测试
 
-本表与 Project SEKAI 判定范围的逆向分析逐项吻合（83.3 / 110 / 116.7 / 125 / 125 / 141.7 全部对上），说明这些帧数是原版数据，不是估算值。测试 `Assets/Tests/EditMode/Live/JudgeFrameTableTests.cs` 把换算与窗口宽度钉死。
+这八组帧数与项目早期整理的判定分析逐项吻合（83.3 / 110 / 116.7 / 125 / 125 / 141.7 全部对上），数值已固化在 `LiveConfig` 与测试里。早期分析资料未随仓库分发。测试 `Assets/Tests/EditMode/Live/JudgeFrameTableTests.cs` 把换算与窗口宽度钉死。
 
-参考文章（第三方，未随仓库分发，放在 `docs/reference/external/`，该目录已被 `.gitignore` 忽略）：
-
-1. 音游判定原理详解——从触摸屏幕到判定音符
-2. 音符判定机制详解——单键、划键、长条
-3. 音符判定范围详解——不同音符的不同判定区间
-
-## 与原版不同之处（可在设置里切换）
+## 判定时机的两种模式（可在设置里切换）
 
 判定时机有两种模式，曲库「设置 → 判定时机」切换，写入 `LiveSettingData.UseLegacyJudgeTiming`，下次开局生效：
 
 | 模式 | 取值 | 行为 |
 | --- | --- | --- |
 | 触摸时刻（默认） | `false` | 用触摸事件自身的时间戳，延迟扣到 `[-250 ms, 0 ms]`，即 `LiveLogic.ComputeInputMusicTime` |
-| 下一帧（旧式） | `true` | 复刻原反编译公式 `(touch.time - gameTime) × 1/60 + frameTime`，延迟被缩小 60 倍，等价于按当前帧判定 |
+| 下一帧（旧式） | `true` | 沿用旧式公式 `(touch.time - gameTime) × 1/60 + frameTime`，延迟被缩小 60 倍，等价于按当前帧判定 |
 
-旧式不是「更接近原版」——它把秒当成了帧。保留它只是为了让习惯那种手感的人不用改代码。两种模式的数值差异由 `Assets/Tests/EditMode/Live/JudgeFrameTableTests.cs` 里的 `LegacyTimingShrinksLatencyByOneFrame` / `LegacyTimingDoesNotClampButSampledTimingDoes` 固定。
+旧式把秒当成了帧，不要把它当作更精确的模式。保留它只是为了让习惯那种手感的人不用改代码。两种模式的数值差异由 `Assets/Tests/EditMode/Live/JudgeFrameTableTests.cs` 里的 `LegacyTimingShrinksLatencyByOneFrame` / `LegacyTimingDoesNotClampButSampledTimingDoes` 固定。
 
-另外两处机制**已经实现**，数值来自 `Assets/Graphics/Resources/live/config/LiveBundleBuildData.asset`（原版配置数据），不是硬编码：
+另外两处机制**已经实现**，数值来自 `Assets/Graphics/Resources/live/config/LiveBundleBuildData.asset`（配置资产），不是硬编码：
 
 | 项 | 取值 | 用法 |
 | --- | --- | --- |
@@ -47,7 +41,7 @@
 | 划键滑动距离 `_flickDistance` | 0.0833 英寸/帧 | 触摸位移先按 1/60 s 归一化（`touchDelta /= Time.deltaTime / 0.016667f`），再要求 `sqrMagnitude > _flickDistance²`；经 `Screen.dpi / 2.54` 换成像素 |
 | 划键方向 | 点积 ≥ 0 | `requiredDirection` 为 `(-1,1)` / `(1,1)` / 上；`Vector2.Dot(touchDelta.normalized, requiredDirection.normalized) >= 0`（±90°，合计 180° 范围） |
 
-与原版对照只剩一处数值口径：`0.0833 in/帧 × 60 = 5 in/s ≈ 12.7 cm/s`，而文章写的是「5 cm/s」，相差约 2.5 倍，像是单位表述差异（5 in/s vs 5 cm/s），**待确认**——若确定要按文章改，只需改 `_flickDistance` 一处，但那是手感变更。
+数值口径还剩一处待确认：`0.0833 in/帧 × 60 = 5 in/s ≈ 12.7 cm/s`，而早期分析写的是「5 cm/s」，相差约 2.5 倍，像是单位表述差异（5 in/s vs 5 cm/s），**待确认**——若确定要按分析改，只需改 `_flickDistance` 一处，但那是手感变更。
 
 判定区间与滑动的分工：**时间**决定 Perfect/Great/Good/Bad，**轨道与滑动**决定这个音符收不收得到输入（`FlickNote.JudgmentFlick` 要求 `distance && trueDirection` 同时成立）。
 

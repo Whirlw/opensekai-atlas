@@ -1,4 +1,4 @@
-# 2026-11 发布前清理：素材全替换、去抽卡、体积 117 → 79.7 MB
+# 2026-11 发布前清理：素材整理、去抽卡、体积 117 → 79.7 MB
 
 > 目的：记录发 GitHub 之前这一轮清理做了什么、每件事的判据，以及「以后加素材时要守住什么」。
 > 适用读者：要往仓库里放素材或删功能的人。
@@ -7,7 +7,7 @@
 
 ## 概述
 
-仓库从「能跑但带着原作素材」变成「可以公开」：音频、音符皮肤、HUD、判定特效、加载背景全部换成自制或 CC0 资源；上游的抽卡、谱面编辑器、旧页面体系一并删掉。APK 从 117.05 MB 降到 79.65 MB。
+这一轮把仓库整理到可公开发布的状态：音频、音符皮肤、HUD、判定特效、加载背景全部为自制或 CC0 资源；抽卡、谱面编辑器、旧页面体系一并删掉。APK 从 117.05 MB 降到 79.65 MB。
 
 ## 素材替换
 
@@ -15,8 +15,8 @@
 | --- | --- | --- |
 | 音频 | 42 个自制 CC0 wav 放进 `StreamingAssets/sound/<bundle>/<cue>.wav`，启动时按 `manifest.csv` 注册为外部 cue sheet，覆盖同名 ACB；随后删掉 4 个 ACB | 真机日志四行 `external pack: 13/13/12/4 cues`；`Tools/audit-audio-provenance.ps1` 报 `AUDIT OK` |
 | 音符皮肤 | 两套 `noteskin` 分目录导入（`new_notes` → custom01、`new_notes_v2` → custom02） | 两套 `notes.png` 哈希不同，可在设置里切换对比 |
-| HUD / 判定特效 | 画包 PNG 按精灵矩形贴进 27 个图集 | `Tools/audit-atlas-coverage.ps1` 报 0 张仍是原作 |
-| 加载背景 | 6 张单元插画 + 通用背景改为程序生成（同名同尺寸） | 生成脚本 `Tools/replace-original-backgrounds.ps1` 自带 1:1 校验 |
+| HUD / 判定特效 | 画包 PNG 按精灵矩形贴进 27 个图集 | `Tools/audit-atlas-coverage.ps1` 报 0 张未覆盖 |
+| 加载背景 | 6 张单元插画 + 通用背景改为程序生成（同名同尺寸） | `Tools/replace-backgrounds.ps1` 自带 1:1 校验 |
 
 替换链路的关键教训写在 [素材包导入](../operations/material-pack-import.md)：编辑器里那个 `PaintKit` apply 会打印「applied 157」却不动像素，实际生效的是 `Tools/apply-atlas-art.ps1`。
 
@@ -24,7 +24,7 @@
 
 - 抽卡：29 个 `Gacha*` / `MasterGacha*` 脚本 + header 里 8 个 gauge 子物体 + 2 个 gauge prefab。它没有入口，但一直被 header 引用着。
 - 谱面编辑器、旧页面体系、`ScreenLayer*` 之外的全部旧 UI。
-- 菜单 UI 音（297 cue / 9.5 MB）：曲库页与 HUD 从不调用 `PlaySE`，属于移植时照抄原版初始化留下的死负载。
+- 菜单 UI 音（297 cue / 9.5 MB）：曲库页与 HUD 从不调用 `PlaySE`，属于早期初始化流程遗留的死负载。
 
 ## 体积
 

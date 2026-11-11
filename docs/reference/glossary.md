@@ -41,7 +41,7 @@
 
 | 术语 | 含义 |
 | --- | --- |
-| 引擎层 | `Assets/Scripts/Assembly-CSharp/`，反编译遗留的原游戏逻辑 |
+| 引擎层 | `Assets/Scripts/Assembly-CSharp/`，页面系统、live、音频等底层运行时逻辑 |
 | 新代码层 | `Assets/OpenSekai/`，本次重构新增的代码 |
 | `_removed/` | 重构期间的备份目录（已删除，2026-11-03）；需要旧源码时从重构前的 git 提交取回 |
 | 页面（ScreenLayer） | `ScreenManager` 管理的 UI 页面单元 |

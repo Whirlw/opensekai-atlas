@@ -76,7 +76,7 @@ UserDataManager.Instance.FreeLiveBootData = LegacyLiveBootAdapter.Create(session
 ## 常见问题
 
 - **为什么还要 `LegacyLiveBootAdapter`？** 引擎侧只认 `FreeLiveBootData`（它还带 `MasterMusic`、
-  `MasterMusicDifficulty` 等反编译类型）。适配器的职责就是把会话翻译成那套结构；等哪天 live 侧改成吃
+  `MasterMusicDifficulty` 等引擎侧类型）。适配器的职责就是把会话翻译成那套结构；等哪天 live 侧改成吃
   `PlaySession`，这个类就可以删掉。
 - **为什么 `RuntimeChartDefinition` 不放在 `Sekai` 里？** 它同时需要 `ChartDocument`（`OpenSekai.Charts`）
   和 `MusicScore`（`Sekai`）。放 `OpenSekai.Charts` 时依赖方向是「新代码 → 引擎」，符合现有的

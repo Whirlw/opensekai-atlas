@@ -1,4 +1,4 @@
-# Reports, per atlas, how many sprites the paint kit covers and how many are still original art.
+# Reports, per atlas, how many sprites the paint kit covers and how many are not covered yet.
 # A sprite counts as covered when a file of the same name exists in the kit and has the right size.
 param(
     [string]$KitRoot = 'LocalPacks\paint-kit',
@@ -34,7 +34,7 @@ foreach ($meta in Get-ChildItem 'Assets\Graphics\Textures' -Filter 'sactx-*.png.
     $atlasNames[$guid] = (Get-Item ($meta.FullName -replace '\.meta$', '')).BaseName
 }
 
-"| 图集 | 精灵 | 画包覆盖 | 仍是原作 | 其中未被引用 |"
+"| 图集 | 精灵 | 画包覆盖 | 未覆盖 | 其中未被引用 |"
 "| --- | --- | --- | --- | --- |"
 $totalSprites = 0; $totalCovered = 0; $totalOriginal = 0; $totalUnusedOriginal = 0
 foreach ($atlasGuid in $spritesByAtlas.Keys) {

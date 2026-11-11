@@ -43,8 +43,8 @@
 ### 现象
 
 进入 live 后 Unity 持续打印 `The referenced script (Unknown) on this Behaviour is missing!`。
-根因是反编译工程的历史遗留：30 个 prefab 共 361 处 `m_Script` 指向的 GUID 在整个 `Assets` 里
-（以及上游 HEAD 里）都不存在，与本次重构删除无关。
+根因是历史遗留：30 个 prefab 共 361 处 `m_Script` 指向的 GUID 在整个 `Assets` 里
+都不存在，与本次重构删除无关。
 
 ### 做了什么
 

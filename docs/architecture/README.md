@@ -11,7 +11,7 @@
 
 1. **新代码层** `Assets/OpenSekai/` —— 曲库界面、开局服务、谱面读取、包管理、设置存储。按职责分 `App / Charts /
    Infrastructure / Live / Editor`。
-2. **引擎层** `Assets/Scripts/Assembly-CSharp/` —— 反编译得到的原游戏逻辑（页面系统、live 判定、音频、UI 组件）。
+2. **引擎层** `Assets/Scripts/Assembly-CSharp/` —— 页面系统、live 判定、音频、UI 组件等运行时逻辑。
    本次重构没有重写它，只删掉与编辑器相关的部分。
 3. **编辑器/工具层** `Assets/Editor/`、`Assets/OpenSekai/Editor/` —— AssetBundle 构建、场景校验菜单，不进播放器。
 

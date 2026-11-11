@@ -1,4 +1,4 @@
-﻿# ADR-0001：去掉谱面编辑器，只保留打歌
+# ADR-0001：去掉谱面编辑器，只保留打歌
 
 > 目的：说明为什么把整个编辑器树移出工程，以及这样做的代价。
 > 适用读者：开发者。
@@ -11,7 +11,7 @@
 
 ## 背景
 
-工程来自反编译产物，编辑器（`Sekai/MusicScoreMaker/Ingame`、`OutGame`）与打歌共用一套类型：
+编辑器（`Sekai/MusicScoreMaker/Ingame`、`OutGame`）与打歌共用一套类型：
 `MusicScoreMakerData` 既是编辑器文档模型，也是 live 的输入。结果是：
 
 - 打歌路径必须携带编辑器的撤回栈、事件分发、MessagePack 标注等大量状态
