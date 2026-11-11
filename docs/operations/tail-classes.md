@@ -311,3 +311,64 @@ Test16 双押右条 `id=44`：`endsNoJudge=True`（尾是一条 `FrictionHideNot
 2. 类 1 的隐藏尾在绑定期（`AddNoteListAndSetupChildNote` / `AddHoldCombo`）就不进入 `NoteList` 的「可判列表」，`IsTailCandidate` 的排除名单随之简化。
 
 改完之后 `EndsWithoutJudgement`、`CanFinishSilently` 的头门禁都变成同一件事的两种说法，可以后续合并。
+
+## 11. 静默收尾：只看生命周期，不看尾类型（2026-11-11 追加）
+
+### 11.1 规则
+
+`FinishSilently` 的唯一触发条件是**条自己走到尽头、且没有被提前结束**，与它是哪一类尾无关。
+
+- 走到尽头 = 最后一个绑定的音符（`_lastBoundNote`）的时间已经过去。
+- 没有被提前结束 = 没有走 `ForceTerminate` / `FailTail` / 独立尾自判这些出口。
+- 由于尾在条结束前**已经解绑**（`DetachStandaloneTail` 先 `NoteList.Remove(childNote)`，再让尾自己吃超时 Miss），条结束本身不会影响尾键的判定，因此这条路径不需要按尾类型分支。
+
+### 11.2 已实现（`Assets/Game/Runtime/Sekai/Live/LongNote.cs`）
+
+```csharp
+internal bool CanFinishSilently(float currentTime)
+{
+    if (PublishesHeadMiss && !Head.IsSettled)
+    {
+        return false;
+    }
+
+    return _lastBoundNote != null && currentTime > _lastBoundNote.MusicScoreInfo.time;
+}
+```
+
+- 去掉了原来的 `EndsWithoutJudgement` 条件（它按尾类型判断，与 11.1 冲突）。
+- 头门禁保留：还能被按的条必须先经过 `Last → Release`，让 `Head.PublishHeadMiss()` 有出口，否则 Miss 会被静默吞掉（这就是 Test16 双押丢 combo 的成因）。
+- `FinishSilently()` 在置 `Done` 前调用 `SettleLeftoverAsPerfect()`，只结算 `LongHoldCombo`（中间点），不动尾。
+
+### 11.3 未完成：解绑还没有全部落地
+
+`NoteList` 目前同时承担「绘制/生命周期」和「结算」两种用途，因此尾的解绑只做了独立尾这一条路径：
+
+| 尾类型 | 是否已移出 `NoteList` | 备注 |
+| --- | --- | --- |
+| 独立尾（flick / friction-flick，`UsesStandaloneTail`） | 已解绑 | `DetachStandaloneTail` 里 `NoteList.Remove(childNote)` 后自判 |
+| 普通尾 / 隐藏尾 / friction 尾 | **尚未解绑** | 仍在 `NoteList`；一次过宽的改动（不再 `NoteList.Add(note)`）触发 61 条红，因为视图生命周期与划尾都靠 `NoteList` 遍历 |
+
+所以把普通尾也解绑之前，11.1 的「条结束不影响尾」对普通尾**还不成立**：`CanFinishSilently` 一旦对普通尾放开，会先于 `FailTail` 命中，把尾的 Miss 吞掉。
+
+结论：先把尾从 `NoteList` 里挪出去（结算走单独的列表，绘制仍走 `NoteList`），再放开 11.1。
+
+### 11.4 `State = NoteState.Done` 的 17 个赋值点（待逐个确认归属）
+
+| 文件 | 行 | 语义 |
+| --- | --- | --- |
+| `Assets/Game/Runtime/Sekai/Live/LongNote.cs` | 466 | `ForceTerminate` 写结果后收尾 |
+| 同上 | 541 | 尾部结算（`JudgeTail` 路径） |
+| 同上 | 698 | `FinishSilently` |
+| 同上 | 886 | 划尾延迟结算收尾 |
+| 同上 | 938 | 独立尾解绑后收尾 |
+| 同上 | 961 | `DetachStandaloneTail` 里未结算的独立尾 |
+| 同上 | 1153 | 超时终结 |
+| 同上 | 1484 | 池回收 |
+| `Assets/Game/Runtime/Sekai/Live/NoteBase.cs` | 459 | 通用音符判定后收尾 |
+| 同上 | 565 | `State >= Last` 超时 Miss |
+| 同上 | 696 | 池回收 |
+| `Assets/Game/Runtime/Sekai/Live/FrictionLongNote.cs` | 82 | 摩擦条自判完成 |
+| `Assets/Game/Runtime/Sekai/Live/LongHoldCombo.cs` | 44 / 71 / 106 / 125 / 157 | 中间点判定、终结、发布 |
+
+检查要点：凡是「条收尾」相关的赋值，都应该经过 `FinishSilently` 或 `ForceTerminate` 二者之一；直接置 `Done` 且不写 `JudgeInfo` 的地方，就是会吞判定的地方。
