@@ -15,13 +15,14 @@ namespace Sekai
 			public int Member5 { get; set; }
 			public int CharacterId { get; set; }
 
-			public UserData(UserDeck userDeck)
+			public UserData()
 			{
 				DeckName = string.Empty;
 			}
 
-			public UserData(UserChallengeLiveSoloDeck userChallengeLiveSoloDeck)
+			public UserData(int deckId)
 			{
+				DeckId = deckId;
 				DeckName = string.Empty;
 			}
 		}
@@ -43,7 +44,7 @@ namespace Sekai
 		public LiveDeckData(int deckId, bool is6MemberMv = false)
 			: this()
 		{
-			UserInfo = new UserData((UserDeck)null) { DeckId = deckId };
+			UserInfo = new UserData(deckId);
 		}
 
 		public LiveDeckData(int[] deckCardIds)

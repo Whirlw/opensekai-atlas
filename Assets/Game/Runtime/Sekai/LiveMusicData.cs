@@ -16,10 +16,6 @@ namespace Sekai
 
 		public MasterMusic Music { get; set; }
 
-		public bool IsCollaboration => CollaboModeState == CollaborationModeState.On;
-
-		public MasterMusicCollaboration Collaboration { get; set; }
-
 		public MasterMusicDifficulty Difficulty { get; set; }
 
 		public MusicDifficulty DifficultyEnum { get; private set; }
@@ -45,8 +41,6 @@ namespace Sekai
 		public long StartMusicTimeMs { get; set; }
 
 		public bool PlayStartEffectEnabled { get; set; }
-
-		public MasterCollaborationModeModel CollaborationMode { get; private set; }
 
 		public CollaborationModeState CollaboModeState { get; private set; }
 
@@ -83,12 +77,6 @@ namespace Sekai
 			};
 			Score = new MasterPlayLevelScore { liveType = liveType, playLevel = 0 };
 			PlayStartEffectEnabled = true;
-		}
-
-		[CanBeNull]
-		private MasterCollaborationModeModel GetMasterCollaborationMode(MasterMusicAll musicAll)
-		{
-			return null;
 		}
 
 		private static MusicDifficulty ParseDifficulty(string value)

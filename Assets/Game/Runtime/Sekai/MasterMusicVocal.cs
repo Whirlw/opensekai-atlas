@@ -41,13 +41,6 @@ namespace Sekai
 		    set => _caption = value;
 		}
 
-				private MasterMusicVocalCharacter[] _characters;
-		public MasterMusicVocalCharacter[] characters
-		{
-		    get => _characters;
-		    set => _characters = value;
-		}
-
 				private string _assetbundleName;
 		public string assetbundleName
 		{

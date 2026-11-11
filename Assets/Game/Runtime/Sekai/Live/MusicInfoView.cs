@@ -147,7 +147,7 @@ namespace Sekai.Live
 
 			if (_collaborationRibbon != null)
 			{
-				string collaborationLabel = ResolveCollaborationLabel(musicData, freeLiveBootData, isCustomScore);
+				string collaborationLabel = ResolveCollaborationLabel(freeLiveBootData, isCustomScore);
 				bool hasCollaboration = !string.IsNullOrWhiteSpace(collaborationLabel);
 				_collaborationRibbon.gameObject.SetActive(hasCollaboration);
 				if (hasCollaboration)
@@ -468,13 +468,8 @@ namespace Sekai.Live
 			return fallback ?? string.Empty;
 		}
 
-		private static string ResolveCollaborationLabel(LiveMusicData musicData, FreeLiveBootData freeLiveBootData, bool isCustomScore)
+		private static string ResolveCollaborationLabel(FreeLiveBootData freeLiveBootData, bool isCustomScore)
 		{
-			if (musicData != null && musicData.IsCollaboration && musicData.Collaboration != null)
-			{
-				return musicData.Collaboration.label;
-			}
-
 			if (isCustomScore && freeLiveBootData != null)
 			{
 				return freeLiveBootData.CustomMusicScoreCollaborationLabel;

@@ -3402,11 +3402,6 @@ namespace Sekai
 			throw null;
 		}
 
-		public void ShowConfirmPlayLoginStoryDialog(MasterSpecialStoryEpisode masterSpecialStoryEpisode, int lastOpenedSpecialStoryCellViewDataId, Action<MasterSpecialStoryEpisode> setMasterSpecialStoryEpisodeCallback, Action<int> showNewsDialogCallback)
-		{
-			throw null;
-		}
-
 		public UniTask SetUIBlurCaptureMode(UIBlurLayerManager.Mode mode)
 		{
 			if (_uiBlurLayerManager != null)
