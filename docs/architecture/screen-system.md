@@ -3,13 +3,13 @@
 > 目的：说明引擎自带的 `ScreenManager` 页面栈怎么工作、现在还剩哪些页面、曲库页为什么不在这个系统里。
 > 适用读者：开发者（加页面、改页面栈行为、排查「界面没出来」）。
 > 前置条件：读过 [模块划分](modules.md)。
-> 最后更新：2026-11-02
+> 最后更新：2026-11-11
 
 ## 概述
 
 页面系统是既有工程留下的基础设施：一张注册表（`EntryScreenLayers.asset`）把「页面类型枚举」映射到
 「`ScreenLayerData` 资产」，每个资产再按名字去 `Resources/Screen/Prefabs/` 找 prefab。
-本仓库把注册表从 218 条裁到 7 条，只留下真正会被推入的页面。
+当前注册表有三个条目。曲库由独立的 `LibraryScreen` 负责。
 
 ## 核心内容
 
@@ -27,21 +27,15 @@ PushUIScreen(type)  →  screenMap 查不到 → LogError("Not Found ScreenLayer
 - 页面栈是 `LimitedStack(16)`，超过上限会**静默丢弃最老的页面**。
 - `ScreenLayer` 的生命周期动画是空壳：`PlayStartAnimation()` / `PlayExitAnimation()` 直接返回 `Done()`。
 
-### 现存的 7 个页面
+### 已注册的三个页面
 
 | 页面 | 触发方 |
 | --- | --- |
 | `Header` | `LibraryEntryPoint.AddScreen` |
 | `TouchEffect` | 同上 |
-| `InsertNoti` | 同上 |
 | `LiveLoading` | `PlayService.StartAsync` 里 `PushUIScreen(LiveLoading, false)` |
-| `Loading` | `ScreenManager` 内部 |
-| `NetworkIndicator` | `ScreenManager` 内部 |
-| `AssetRemoving` | `ScreenManager` 内部 |
 
-`Resources/screen/prefabs` 里正好 7 个 prefab，与上表一一对应；其余 213 个 `ScreenLayerData` 与 5 个未被引用的
-`sceneentry` 里多余的条目已删（备份目录后来也清理了，需要时从重构前的 git 提交取回）。裁剪依据：`PushUIScreen` 只查 `screenMap`，
-未知类型只打日志，不会崩，所以裁剪是安全的。
+`Assets/Graphics/Resources/screen/data/` 的三个 `ScreenLayerData` 与同级 `prefabs/` 中的三个 prefab 一一对应。
 
 ### 曲库页不在页面系统里
 

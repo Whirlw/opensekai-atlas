@@ -15,7 +15,7 @@
 
 ### 开局的六个步骤
 
-`Assets/OpenSekai/App/Playback/PlayService.cs`（212 行）：
+`Assets/Game/Runtime/OpenSekai/App/Playback/PlayService.cs`（212 行）：
 
 1. 校验曲库页还活着、`LiveLoading` 页面已注册（`IsLibraryAlive` + `TryGetScreenLayerData`）
 2. 读曲包 → 检查 `score.json` / 音频存在 → `ChartFileReader.Read` → `chart.HasPlayableNotes`
@@ -43,7 +43,7 @@
 触摸事件自带的时间戳是「秒」，与当前帧的音乐时间不是同一时刻，必须回推：
 
 ```csharp
-// Assets/Scripts/Assembly-CSharp/Sekai/Core/Live/LiveLogic.cs
+// Assets/Game/Runtime/Sekai/Core/Live/LiveLogic.cs
 public static float ComputeInputMusicTime(double frameMusicTime, double frameGameTime, double inputTime)
 ```
 
@@ -55,7 +55,7 @@ public static float ComputeInputMusicTime(double frameMusicTime, double frameGam
 
 ### 计分
 
-`Assets/Scripts/Assembly-CSharp/Sekai/Core/Live/ScoreLogic.cs`：
+`Assets/Game/Runtime/Sekai/Core/Live/ScoreLogic.cs`：
 
 - 每音符基分按累积摊分：第 i 个音符（0 基）拿 `round(1e6*(i+1)/n) - round(1e6*i/n)`
 - 判定倍率：JustPerfect/Auto 1.0、Perfect 0.9、Great 0.7、Good 0.5

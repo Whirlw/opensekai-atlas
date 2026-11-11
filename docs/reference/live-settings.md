@@ -51,7 +51,7 @@
 
 ### 读取时机
 
-`Assets/Scripts/Assembly-CSharp/Sekai/Live/LiveConfig.cs` 的 `LoadOptionData()`（259–274 行）**每次开局**读盘：
+`Assets/Game/Runtime/Sekai/Live/LiveConfig.cs` 的 `LoadOptionData()`（259–274 行）**每次开局**读盘：
 
 ```csharp
 SetNoteSkinAssetBundleName(Mathf.Clamp(liveSettingData.NoteSkinIndex, 0, 1));

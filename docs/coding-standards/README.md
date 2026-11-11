@@ -66,9 +66,9 @@ docs/coding-standards/
 
 2026-11-02 核对结果：
 
-- `Assets/OpenSekai/` 下 47 个 `.cs`，私有字段已在用 `_camelCase`（如 `Assets/OpenSekai/Live/Conversion/RuntimeChartConverter.cs` 的 `_idCount`、`Assets/OpenSekai/Infrastructure/Audio/PackageAudio.cs` 的 `_audioClip`），与 03 篇一致，**不需要回头改**。
+- `Assets/Game/Runtime/OpenSekai/` 下 47 个 `.cs`，私有字段已在用 `_camelCase`（如 `Assets/Game/Runtime/OpenSekai/Live/Conversion/RuntimeChartConverter.cs` 的 `_idCount`、`Assets/Game/Runtime/Shared/Audio/PackageAudio.cs` 的 `_audioClip`），与 03 篇一致，**不需要回头改**。
 - 仓库根目录**没有** `.editorconfig`；只有 `Library/PackageCache/com.unity.ide.rider@3.0.36/.editorconfig`，那属于包缓存，不生效。要落地统一格式，按 [06 篇](06-regions-editorconfig.md) 补一份。
-- 旧目录 `Assets/Scripts/Assembly-CSharp/` 已不存在：2026-11-02 的重构把全部代码收进 `Assets/Game/`（`Runtime/` 与 `Editor/`），因此**不再有"遗留层豁免"**——`Assets/Game/` 下的代码一律按本规范执行。
+- 旧目录 `Assets/Game/Runtime/Sekai/` 已不存在：2026-11-02 的重构把全部代码收进 `Assets/Game/`（`Runtime/` 与 `Editor/`），因此**不再有"遗留层豁免"**——`Assets/Game/` 下的代码一律按本规范执行。
 - 历史代码按 Tier 分批整改（先 `Runtime/Sekai/Core`、`Live` 等关键路径，再到 UI 与数据层，最后工具），每批都要过编译与打歌门禁；尚未整改到的文件不视为"允许违反规范"，只是还没轮到。
 
 ## 使用方式

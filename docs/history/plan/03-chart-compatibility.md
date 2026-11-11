@@ -82,5 +82,5 @@ UI 不直接反序列化谱面；由读取器、校验器、转换器组成单�
 ## 相关文档
 
 - [方案索引](../player-lite-plan.md)
-- [架构总览](../README.md)
+- [架构总览](../../architecture/README.md)
 - [重构日志](../../changelog/2026-11-refactor-log.md)

@@ -15,7 +15,7 @@
 
 ### 帧率设置
 
-`Assets/Scripts/Assembly-CSharp/CP/FramerateUtility.cs`：
+`Assets/Game/Runtime/Platform/CP/FramerateUtility.cs`：
 
 - 可选档位：跟随屏幕 / 120 / 144 / 165 / 185 / 240
 - `ApplyFrameRateLimit(limit)`：`QualitySettings.vSyncCount = 0` → `RequestDisplayRefreshRate(limit)` →

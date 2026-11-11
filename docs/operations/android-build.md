@@ -3,12 +3,12 @@
 > 目的：从「工具链装没装全」到「APK 体积是多少、权限对不对」，给出可复现的出包流程。
 > 适用读者：打包与测试人员、开发者。
 > 前置条件：读过 [环境与运行](../getting-started/build-and-run.md) 与 [AssetBundle 与清单](../architecture/asset-bundles.md)。
-> 最后更新：2026-11-02
+> 最后更新：2026-11-11
 
 ## 概述
 
 出 Android 包只需要三件事：装全 Android Build Support（含 NDK）、跑一次 AssetBundle 打包、执行构建。
-产物在 `Builds/<目录>/`（已被 `.gitignore` 忽略）。2022.3 基线为 **123.9 MB**、仅 `INTERNET` 权限；Unity 6 本次结果见 [升级执行记录](../changelog/2026-11-unity6-upgrade.md)，不可将旧包指标当作新包结果。
+产物在 `Builds/<目录>/`。当前发布样本见 [0.3.0 发布包体积](#030-发布包体积)，升级过程见 [Unity 6 升级执行记录](../changelog/2026-11-unity6-upgrade.md)。
 
 ## 核心内容
 
@@ -45,8 +45,8 @@
 
 ```text
 1. 菜单 OpenSekai/AssetBundles/Build AssetBundles And Info
-   日志应出现：bundles=15, output=Assets/StreamingAssets/data
-   目录应有 42 个文件 / 13.1 MB
+   核对 Assets/StreamingAssets/data/AssetBundleInfo.bytes 及其列出的 bundle 文件
+   0.3.0 样本含 10 个 bundle 和 1 份清单，assets/sound/ 含 42 个 WAV
 2. （改过清单或权限时）删除 Library/Bee/Android/Prj/IL2CPP/Gradle
 3. Build Settings → Android → Build（或菜单/CI 调 BuildPipeline）
 4. 核对产物：aapt2 dump permissions / badging
@@ -101,7 +101,7 @@ adb pull /sdcard/gate.png gate.png
 ### 三个必踩的坑
 
 1. **AB 没进包**：`Assets/StreamingAssets/data` 为空时照打不误，APK 里就没有 `assets/data/**`。
-   Unity 把 `StreamingAssets` **平铺**到 APK 的 `assets/` 根，所以核对的是 `assets/data/*` 是否有 16 个条目。
+   Unity 把 `StreamingAssets` 内容放到 APK 的 `assets/` 根。核对 `assets/data/AssetBundleInfo.bytes` 及清单列出的文件。
 2. **权限剥离没生效**：Android 的清单合并发生在多个模块。`RecordingBuildRules` 现在扫描整个 Gradle 工程里
    所有 `AndroidManifest.xml`；同时 `Assets/Plugins/Android/AndroidManifest.xml` 用
    `tools:node="remove"` 声明要删的权限（`READ_EXTERNAL_STORAGE` / `WRITE_EXTERNAL_STORAGE`）。
@@ -109,13 +109,19 @@ adb pull /sdcard/gate.png gate.png
 3. **Unity 复用旧 APK**：只改清单不触发重建，13–35 秒「构建成功」但 APK 的 mtime 与大小都不变。
    必须删 `Library/Bee/Android/Prj/IL2CPP/Gradle`。
 
-### 体积
+### 0.3.0 发布包体积
+
+`Builds/release-0.3.0-2026-11-09/OpenSekaiAtlas.apk` 的文件长度为 **83,514,543 字节（79.65 MiB）**。
+构建配置为 Unity 6000.6.7f1、Android IL2CPP、Low 托管剥离、ARM64。用 `aapt2` 核对的 APK 元数据为
+`0.3.0`（versionCode 84）、`arm64-v8a`、targetSdk 36，仅声明 `INTERNET` 权限。
+
+### Unity 2022.3 历史包体
 
 | 配置 | APK | `libil2cpp.so`（arm64 / armv7） |
 | --- | --- | --- |
 | Minimal 剥离 + 双架构 | 156.2 MB | 74.9 / 63.5 MB |
 | Low 剥离 + 双架构 | 149.7 MB | 60.4 / 51.5 MB |
-| **Low 剥离 + 仅 ARM64（当前默认）** | **123.9–125.2 MB** | 60.4 MB / — |
+| Low 剥离 + 仅 ARM64 | 123.9–125.2 MB | 60.4 MB / — |
 
 构成（ARM64 + Low）：`assets/bin` 69.2 MB、`lib/arm64-v8a` 25.2 MB、`assets/data` 13.1 MB、`.acb` 音频约 13 MB。
 `libil2cpp.so` 未压缩 60.4 MB，进包压缩后仅 16.4 MB —— 想继续压体积要动资源和纹理/音频编码，而不是代码。

@@ -71,12 +71,12 @@ Unity 官方电子书原文用的是 **`m_` / `k_` / `s_` 前缀**（`m_` 私有
 
 ## 本项目的现状
 
-`Assets/OpenSekai/` 里私有字段已经在用 `_camelCase`，与规范一致，例如：
+`Assets/Game/Runtime/OpenSekai/` 里私有字段已经在用 `_camelCase`，与规范一致，例如：
 
-- `Assets/OpenSekai/Live/Conversion/RuntimeChartConverter.cs` 的 `private int _idCount;`
-- `Assets/OpenSekai/Infrastructure/Audio/PackageAudio.cs` 的 `private AudioClip _audioClip;`
+- `Assets/Game/Runtime/OpenSekai/Live/Conversion/RuntimeChartConverter.cs` 的 `private int _idCount;`
+- `Assets/Game/Runtime/Shared/Audio/PackageAudio.cs` 的 `private AudioClip _audioClip;`
 
-属性用的是 PascalCase 只读自动属性（`Assets/OpenSekai/App/Playback/PlayRequest.cs` 的 `PackageDirectory`、`IsAuto`），同样符合。
+属性用的是 PascalCase 只读自动属性（`Assets/Game/Runtime/OpenSekai/App/Playback/PlayRequest.cs` 的 `PackageDirectory`、`IsAuto`），同样符合。
 
 ## 相关文档
 

@@ -3,56 +3,26 @@
 > 目的：给出目录与职责的对应表，说明新旧代码的边界在哪、依赖朝哪边指。
 > 适用读者：开发者。
 > 前置条件：读过 [架构总览](README.md)。
-> 最后更新：2026-11-02
+> 最后更新：2026-11-11
 
 ## 概述
 
-判断一个文件该放哪，只看一条：**它是不是「打开曲库 → 打歌 → 回曲库」这条路径的一部分**。
-是 → `Assets/OpenSekai/`；不是但被它会用到 → `Assets/Scripts/Assembly-CSharp/`（引擎层）；只在编辑器里跑 →
-`Assets/*/Editor/`。
+运行时的依赖方向是 `OpenSekai.App → OpenSekai.Game`。编辑器程序集可调用两者，入口位于 `Assets/Game/Editor/`。
 
-## 核心内容
-
-### 新代码层 `Assets/OpenSekai/`
-
-| 目录 | 职责 | 代表文件 |
+| 程序集 | 路径 | 职责与入口 |
 | --- | --- | --- |
-| `App/Bootstrap/` | 应用入口：EventSystem、字体、音量、帧率、页面注册 | `LibraryEntryPoint.cs`（107 行） |
-| `App/Playback/` | 开局服务、请求/结果模型、会话上下文 | `PlayService.cs`（212）、`PlayResult.cs`（158）、`PlaySessionContext.cs`（40） |
-| `App/UI/` | 曲库页与它的浮层 | `LibraryScreen.cs`（815）、`LibrarySettingsPanel.cs`（348）、`LibraryResultPanel.cs`（187） |
-| `App/Scenes/` | 首场景 `Library.unity` | — |
-| `Charts/` | 运行时可用的谱面模型与 JSON 读写 | `ChartDocument.cs`、`ChartNote.cs`、`ChartTimeline.cs`（366）、`Serialization/ChartJson.cs`（74） |
-| `Charts/Formats/Sus/` | SUS 文本格式的数据类型 | `NoteInfo.cs`、`BpmInfo.cs` 等 7 个 |
-| `Infrastructure/Packages/` | 曲包发现、读取、导入、导出 | `SongPackageManager.cs`（756）、`SongPackageStorage.cs`（136） |
-| `Infrastructure/Charts/` | 谱面文件读取 | `ChartFileReader.cs`（47） |
-| `Infrastructure/Settings/` | 设置模型与存储 | `LiveSettingData.cs`（272）、`LiveSettingsStore.cs`（52） |
-| `Infrastructure/Audio/` | 曲包内音频解码 | `PackageAudio.cs`（138） |
-| `Live/Conversion/` | 谱面 → 运行时音符/事件 | `RuntimeChartConverter.cs`（624）、`SusRuntimeConverter.cs`（1275）、`RuntimeChartImporter.cs`（172） |
-| `Editor/` | 只在编辑器里跑的校验与构建规则 | `LibrarySceneSetup.cs`、`LibraryPlayCheck.cs`、`RecordingBuildRules.cs` |
+| OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/Bootstrap/` | `LibraryEntryPoint` 装配曲库入口 |
+| OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/UI/` | `LibraryScreen` 和导入、设置、结算面板 |
+| OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/Playback/` | `PlayService` 和 `LegacyLiveBootAdapter` 装配开局数据 |
+| OpenSekai.App | `Assets/Game/Runtime/OpenSekai/Charts/` | `ChartDocument`、`ChartTimeline` 和 `ChartJson` |
+| OpenSekai.App | `Assets/Game/Runtime/OpenSekai/Infrastructure/` | `ChartFileReader`、`SongPackageManager` 和曲库导入 |
+| OpenSekai.App | `Assets/Game/Runtime/OpenSekai/Live/Conversion/` | `RuntimeChartConverter` 和 `RuntimeChartImporter` 组装运行时谱面 |
+| OpenSekai.Game | `Assets/Game/Runtime/Sekai/` | `ScreenManager`、场景切换、Live 控制器、视图和音符 |
+| OpenSekai.Game | `Assets/Game/Runtime/Shared/` | 设置、计分、触摸计算、SUS 转换、曲包模型与存储 |
+| OpenSekai.Game | `Assets/Game/Runtime/Platform/` | 平台适配、CRI 音频 shim 和序列化兼容接口 |
+| OpenSekai.Editor | `Assets/Game/Editor/` | Android 构建、AssetBundle 构建、资源检查和场景校验 |
 
-### 引擎层 `Assets/Scripts/Assembly-CSharp/`
-
-这部分是既有工程遗留，全部编在一个程序集（除 3 个 asmdef：`CRIMW` Runtime/Editor、`ZString`）。
-
-| 路径 | 内容 |
-| --- | --- |
-| `Sekai/Core/Live/` | `SoloLiveController.cs`（424 行）、`LiveLogic.cs`（1524 行）、`ScoreLogic.cs`、`BaseLiveController.cs` |
-| `Sekai/`（根） | `ScreenManager`、`SceneManager`、`NativeInput`、`AssetBundleManager`、`LiveTransitioner`、`LiveOutUIController` |
-| `Sekai/UI/` | 通用 UI 组件（`UIPartsMarquee`、按钮特效等） |
-| `Sekai/MusicScoreMaker/Common/` | 曲库仍在用的存储层：`CustomMusicScoreEntry/Storage/Manifest/PlayHistory` |
-| `CP/` | 工具：`FramerateUtility`、`BinarySerializer`（现在是 Newtonsoft JSON） |
-| `CriWare/` | `CriAtomShim`（遮蔽官方 CRI 类型的本地实现） |
-
-### 依赖方向
-
-```text
-App/UI  →  App/Playback  →  Infrastructure/*  →  Charts/*
-                                   ↓
-                        引擎层（SceneManager / SoloLiveController / AssetBundleManager）
-```
-
-反向依赖只有一处：`Sekai/MusicScoreMaker/Common/CustomMusicScoreEntry` 暴露曲包路径与音频，
-供 `Infrastructure/Packages` 使用。改动时不要把新代码塞回 `Sekai/MusicScoreMaker/`。
+构建场景在 `Assets/Game/Scenes/`。依次为 `Library.unity`、`TransitionBlank.unity` 和 `Core.unity`。
 
 ### 已移出工程的部分（备份目录已于 2026-11-03 删除，源码见重构前的 git 提交）
 
@@ -86,7 +56,7 @@ App/UI  →  App/Playback  →  Infrastructure/*  →  Charts/*
 ## 常见问题与故障排查
 
 - **新代码引用了 `Sekai.MusicScoreMaker.Ingame.*`**：该命名空间已随编辑器删除，编译必然失败。
-- **想知道某文件属于哪一层**：先看它在不在 `Assets/OpenSekai/` 下，再看它是否被 `App/UI` 直接引用。
+- **想知道某文件属于哪一层**：查看包含它的最近一层 `.asmdef`。
 
 ## 相关文档
 

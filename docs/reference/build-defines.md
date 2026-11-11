@@ -15,7 +15,7 @@
 | 宏 | 作用 | 默认 | 打开后多出的内容 |
 | --- | --- | --- | --- |
 | `DOTWEEN` | 补间库 | **开** | 引擎层大量 UI/动画代码依赖它，关掉会编译失败 |
-| `OPENSEKAI_PERF_HUD` | 真机帧率 HUD | 关 | `Assets/OpenSekai/App/Diagnostics/PerformanceHud.cs` 整体编入；右上角 IMGUI + `[PerfHud]` 日志 |
+| `OPENSEKAI_PERF_HUD` | 真机帧率 HUD | 关 | `Assets/Game/Runtime/OpenSekai/App/Diagnostics/PerformanceHud.cs` 整体编入；右上角 IMGUI + `[PerfHud]` 日志 |
 | `OPENSEKAI_VIDEO_EXPORT` | 已删除 | 关 | 无：视频导出模块已删除（备份目录也已清理），该宏不再有任何作用 |
 
 历史上还有过 `UNITY_EDITOR` 之类的内置宏与 CRIWARE 的宏，那些由 Unity/插件自动注入，不需要手配。
@@ -34,7 +34,7 @@
 
 ### 与构建规则的关系
 
-- 权限剥离（`Assets/OpenSekai/Editor/RecordingBuildRules.cs`）现在**始终生效**，不再包在
+- 权限剥离（`Assets/Game/Editor/OpenSekai/RecordingBuildRules.cs`）现在**始终生效**，不再包在
   `#if !OPENSEKAI_VIDEO_EXPORT` 里。
 - Android 的 `IPostGenerateGradleAndroidProject` 只在构建时执行，不影响编辑器编译。
 

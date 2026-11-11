@@ -5,7 +5,7 @@
 | 层 | 位置 | 运行环境 | 用途 |
 | --- | --- | --- | --- |
 | EditMode | `Assets/Tests/EditMode` | 编辑器、不进包 | 纯逻辑、文件 IO、数据契约 |
-| PlayMode | `Assets/Tests/PlayMode` | 播放模式 | 场景装配冒烟（曲库、整首结算） |
+| PlayMode | `Assets/Tests/PlayMode` | 播放模式 | 曲库场景装配冒烟 |
 
 两个测试程序集都是 `autoReferenced: false`、`defineConstraints: ["UNITY_INCLUDE_TESTS"]`，EditMode 还额外限制为 `Editor` 平台，因此**不会进入 Android 包**。
 
@@ -33,6 +33,18 @@ unity test . --mode PlayMode --filter "OpenSekai.Tests.PlayMode" --retries 1
 ```
 
 报告是 NUnit 3 XML，可以直接被 CI 的测试面板读取。
+
+### 结构与缺失脚本基线
+
+```powershell
+pwsh -NoProfile -File Tools/verify-structure.ps1
+pwsh -NoProfile -File Tools/verify-structure.ps1 -CheckProjects
+unity run . --non-interactive -- -executeMethod OpenSekai.EditorTools.MissingScriptAudit.Run
+```
+
+结构检查覆盖文档链接、标题锚点和空运行时目录。`-CheckProjects` 在 Unity 重新生成 IDE 项目后检查 `.csproj` 中的源码引用。
+Unity 扫描将缺失脚本的资产路径、GUID、fileID 和数量写入 `TestResults/missing-scripts.tsv`。
+打开编辑器时也可运行 `OpenSekai/Dev/Audit Missing Scripts`。清理前保存一份扫描结果，清理后再运行并比较。
 
 ## 覆盖范围
 

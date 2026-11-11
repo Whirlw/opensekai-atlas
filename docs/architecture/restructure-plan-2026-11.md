@@ -4,18 +4,18 @@
 > 适用读者：接手代码的开发者、做重构的人、发版前做门禁的人。
 > 前置条件：读过 [架构总览](README.md) 与 [模块划分](modules.md)；当前基线为 `f14b717c`。
 > 最后更新：2026-11-11
-> 状态：**提案，未执行**。执行时按阶段开分支，每阶段独立提交、独立验收。
+> 状态：**Phase 0 执行中**。按任务依赖推进，每个工作包独立提交并记录验收结果。
 
 ## 1. 结论与目标
 
-功能清理已经把运行时压到 **440 个 `.cs` / 60,809 行**，但结构问题没有解决：
+功能清理后的运行时包含 **443 个 `.cs` / 60,885 个物理行**，仍有以下结构问题：
 
 - 文档还在描述 `Assets/OpenSekai/`、`Assets/Scripts/Assembly-CSharp/` 这类不存在的路径；
 - 运行时代码只有两个程序集，`OpenSekai.Game` 一个就装了 413 个文件，纯逻辑和 Unity 引擎混在一起；
 - `ScreenManager` 3,234 行、`LongNote` 1,346 行、`SoundManager` 1,204 行，仍是上帝对象；
 - `Sekai/` 顶层还有 191 个扁平文件；
-- `AcbDecoder` 12 个文件已经没有任何外部引用，空目录还有 12 个；
-- 56 处 `Resources.Load` 靠字符串路径，7 个以上全局单例，测试不 hermetic。
+- `AcbDecoder` 有 12 个文件，仍由 `CriAtomShim` 的 ACB 加载分支引用，空目录还有 12 个；
+- 资源加载仍分散在多处，启动和打歌仍依赖全局状态，部分测试依赖本地临时文件。
 
 本计划的目标不是“再删多少行”，而是把下面五件事做成：
 
@@ -23,31 +23,31 @@
 2. **程序集有边界**：纯逻辑 `OpenSekai.Core`、Unity 引擎 `OpenSekai.Game`、播放器 `OpenSekai.App`、编辑器 `OpenSekai.Editor`。
 3. **大类型有职责**：`ScreenManager`、`LibraryScreen`、`LongNote`、`LiveLogic`、`SoundManager`、`SusRuntimeConverter` 拆到可维护的规模。
 4. **资源加载有入口**：`Resources.Load` 字符串收敛到一个类型化目录，不再散落。
-5. **测试可重复**：不依赖 `Temp/test16-score.json` 之类的环境残留，纯逻辑测试不背 Unity。
+5. **测试可重复**：谱面样本随仓库提交，纯逻辑测试可在 Unity Test Runner 中脱离引擎 API、场景和 prefab 运行。
 
 ## 2. 当前基线（2026-11-11，`f14b717c`）
 
 | 指标 | 当前值 |
 | --- | ---: |
-| 运行时 `.cs` | 440 |
-| 运行时行数 | 60,809 |
-| 运行时程序集 | 2（`OpenSekai.Game` 约 413 文件、`OpenSekai.App` 30 文件） |
+| 运行时 `.cs` | 443 |
+| 运行时行数 | 60,885 个物理行，其中 52,703 个非空行 |
+| 运行时程序集 | 2（`OpenSekai.Game` 413 文件、`OpenSekai.App` 30 文件） |
 | `Sekai/` 顶层 `.cs` | 191 |
 | 最大文件 | `ScreenManager.cs` 3,234 行 |
 | 第二/第三 | `LongNote.cs` 1,346、`SoundManager.cs` 1,204 |
-| `Resources.Load` | 56 处 |
+| `Resources.Load*` | 48 个匹配行，含同步、异步和批量加载 |
 | 全局单例/静态入口 | 7 个以上 |
 | 空代码目录 | 12 个 |
-| 无外部引用的解码器 | `Platform/AcbDecoder`，12 文件 / 1,006 行 HCA 解码 |
-| 引用失效路径的文档 | 24 篇 |
-| 提已删页面/旧包体的文档 | 30 篇 |
+| ACB 解码器 | `Platform/AcbDecoder`，12 文件 / 1,006 行，调用链为 `SoundManager → CriAtomShim → AcbDecoder` |
 | EditMode 测试文件 / PlayMode 测试文件 | 54 / 1 |
 | 当前 EditMode 结果 | 508 passed / 4 failed / 4 skipped |
 
-已知的 4 个失败不是新逻辑问题：
+统计口径：运行时文件以 `git ls-files 'Assets/Game/Runtime/*.cs'` 为准，单文件规模统一按非空行计；`Resources.Load*` 按该目录下 `.cs` 文件中的文本匹配行计，调用清单以 P3-2 的实际调用点为准。
 
-- 3 个 `HeadSettlementTests` 依赖 `Temp/test16-score.json`，Unity 启动会清空 `Temp`；
-- 1 个 `LongNoteGraceTests` 在其文件头注明“expected to fail until the four rows land”。
+基线来自 `post-text-cleanup-editmode.xml` 和 `post-text-cleanup-editmode-2.xml`，两次结果一致：
+
+- 3 个 `HeadSettlementTests` 因 `Temp/test16-score.json` 缺失而失败，P0-4 改用随仓库提交的谱面 fixture。
+- `LongNoteGraceTests.AFingerReturningInsideTheGraceTakesTheBarBack` 触发了长条宽限期断言。P0-4 对照现行规则和最近通过的版本确认原因，文件头的旧注释仅作线索。
 
 ## 3. 目标结构
 
@@ -80,7 +80,7 @@ OpenSekai.Tests.PlayMode  引用 Game/App
 ```text
 Assets/Game/Runtime/
   OpenSekai.Core/
-    Charts/              ChartDocument、序列化、SongPackageManifest
+    Charts/              ChartDocument、谱面序列化
     Scoring/             JudgeWindow、ScoreGauge、JudgeTuning
     Simulation/          InputTimeMapping、CandidateOrder 等纯模拟
     Settings/            LiveSettingData DTO、PlaybackSettingsSnapshot
@@ -90,6 +90,9 @@ Assets/Game/Runtime/
     Audio/               SoundManager 门面、AudioCatalog、ExternalSoundPack
     Assets/              AssetBundleManager、清单、加载器
     UI/                  通用 UGUI 组件
+    Animation/           动画组件与适配
+    Data/                Unity 侧数据资产和读写
+    Platform/            CriWare、文件选择、Android 适配
     Live/
       Runtime/           LiveLogic、控制器、输入、判定
       View/              FrontUIView、Background2DView、HUD
@@ -98,8 +101,6 @@ Assets/Game/Runtime/
     Bootstrap/
     Library/
     Playback/
-  Platform/              窄适配层：CriWare 加载、文件选择、Android
-  Vendor/                第三方
 ```
 
 历史设计稿 `docs/architecture/plan/` 移到 `docs/history/`，不再作为现行架构说明。
@@ -109,86 +110,104 @@ Assets/Game/Runtime/
 1. **先边界，后搬家**：先建立程序集和依赖规则，再移动文件；不要一边改行为一边搬目录。
 2. **保留 GUID**：所有移动用 `git mv`，连同 `.meta` 一起移动；禁止删除后重建。
 3. **一次一件事**：每个任务独立提交，提交信息写清“移动/拆分/改名”，不混行为改动。
-4. **每步可编译**：任何阶段结束时 Unity 编译 0 error，`EditorUtility.scriptCompilationFailed = false`。
-5. **序列化兼容**：改字段名用 `[FormerlySerializedAs]`；改类名/命名空间不动 GUID，但要检查 `Resources.Load` 路径、`link.xml`、asmdef 与 prefab 中的字符串引用。
+4. **每步可编译**：涉及运行时或资源的提交使用仓库指定的 Unity 版本，记录编译结果与测试报告。
+5. **序列化兼容**：改字段名用 `[FormerlySerializedAs]`。移动类型时同时核对脚本 GUID、程序集限定类型名、`link.xml` 和 JSON 类型元数据，并用既有数据样本验证读取结果。
 6. **文档同步**：移动或删除文件时，同一次提交内更新文档路径与 `docs/INDEX.md`。
 7. **测试先行**：拆 `ScreenManager`、`LongNote` 之前，先补对应行为测试；拆完测试必须保持绿。
 
 ## 5. 阶段计划
 
-### Phase 0：止血与对齐（预计 3–5 人日）
+### Phase 0：文档对齐与基线
 
 **P0-1 文档对齐**
 
-- 全量替换失效路径：
+- 核对现行文档中指向旧路径的引用，逐条确认替换目标：
   - `Assets/OpenSekai/` → `Assets/Game/Runtime/OpenSekai/`
   - `Assets/Scripts/Assembly-CSharp/` → `Assets/Game/Runtime/Sekai/`
   - `Assets/Editor/` → `Assets/Game/Editor/`
 - 更新页面数：`7 个可达页面` → `3 个 ScreenLayerData + LibraryScreen`。
-- 更新包体：`113–119 MB` / `123.9 MB` → `79.65 MB`。
+- 更新现行文档里的包体记录，标明对应的 APK 文件、构建版本、构建选项和测量单位。历史版本的测量值保留原上下文。
 - 删除已删功能的描述：`InsertNoti`、`ScreenLayerLoading`、`NetworkIndicator`、`AssetRemoving`、`3D MV`、`MultiLive`、`MySekai`、`Gacha`。
 - 历史设计稿移到 `docs/history/`，`docs/INDEX.md` 标注“历史”。
 - 修 `docs/INDEX.md` 末尾拼错的表格行（现有几行挂在“相关文档”之后）。
 
-验收：`docs` 中不再出现上述失效路径；文档链接检查脚本 0 broken；随机抽 5 篇按文档能走通。
+验收：现行文档中的项目路径可解析，历史文档的相对 Markdown 链接随迁移更新；全量本地链接检查通过，并按快速开始、曲包导入、测试、Android 构建和发布五条路径逐项核对。
 
 **P0-2 空目录与死平台清理**
 
-- 删除 12 个空目录及其 `.meta`：
-  - `Runtime/CustomMusicScoreManager`
+- 核对以下 12 个目录为空后移除目录及其 `.meta`，路径均相对 `Assets/Game/Runtime/`。
+  - `CustomMusicScoreManager`
   - `OpenSekai/Charts/Formats`
   - `OpenSekai/CustomMusicScoreManager/{Controllers,Freecam,Helpers,UI}`
   - `OpenSekai/Infrastructure/{Audio,Settings}`
   - `Sekai/{APIData,Honor,UI/Interface}`
   - `Platform/OverdrawForURP`
-- 删除 `Platform/AcbDecoder`（12 文件、1,006 行）：全仓无外部引用，ACB 资产为 0；如果以后要支持 ACB，放回 `Tools/` 作为离线工具，不进运行时。
+- 仓库内 ACB 资产为 0，`SoundManager` 仍通过 `CriAtomShim` 保留 ACB 加载分支。将解码器清理移至 P2-5，随该分支一起评估，并验证 WAV 与曲包音频。
 - 评估 `Platform/Beebyte` 与 `Platform/MessagePack`：
-  - `Beebyte` 仍被 5 个文件用 `[Skip]`，保留存根并在文件头写清“仅为序列化兼容”。
+  - `Beebyte` 仍被 5 个文件用 `[Skip]`，保留现有标记存根，注明当前构建使用的是本地存根。
   - `MessagePack` 接口仍被 5 个 Master 类实现，保留，但把目录改名为 `Platform/Serialization`，避免误以为依赖 MessagePack 包。
 
-验收：空目录 0；`AcbDecoder` 删除后编译 0 error；缺失脚本仍为 2 处（见 Phase 4 收口）。
+验收：清单中的空代码目录已移除；Unity 编译 0 error；与 P0-3 记录的缺失脚本基线相比，新增 0 处。
 
 **P0-3 生成文件与检查脚本**
 
 - 本地 `Assembly-CSharp.csproj` 有 890 个 Compile 条目、361 个已不存在；删除后让 Unity 重新生成，不要提交。
 - 确认 `.gitignore` 覆盖根目录 `*.csproj`、`*.sln`、`TestResults/`、`Builds/`、`Temp/`。
-- 把文档链接检查、缺失脚本扫描、空目录检查写成 `Tools/verify-structure.ps1`，Phase 4 接进 CI。
+- 把文档链接和空代码目录检查写成 `Tools/verify-structure.ps1`。通过 Unity 解析相关场景、prefab 和资产，记录缺失脚本的资产路径与 GUID；重点核实 `XRSystemData.asset` 和 `EventSystem.prefab` 两个候选。删除资产前保存这份基线，Phase 4 接入 CI。
 
-验收：IDE 不再显示幽灵文件；`verify-structure.ps1` 可重复运行。
+验收：重新生成的 IDE 项目没有失效源文件引用；脚本可重复运行；缺失脚本清单可供后续阶段逐项比较。
 
-### Phase 1：程序集边界（预计 8–10 人日）
+**P0-4 建立可重复的 EditMode 基线**
+
+- 为三个 `HeadSettlementTests` 提交最小谱面 fixture，保留原测试需要的重叠长条和速度倍率场景。优先复用 `Tools/fixtures/hold-overlap-regression/`，先确认它能覆盖各用例的前置条件。需要落盘的测试使用独占临时目录，并在 `TearDown` 清理。
+- 单独复现 `AFingerReturningInsideTheGraceTakesTheBarBack`，核对宽限期规则和最近通过的版本。确认是回归时单独修复并保留原断言；确认是未交付契约时，登记具体测试名、原因和跟踪项。结论未确认前暂停 P2-3 的长条拆分。
+- 从干净检出用 [现有 EditMode 脚本](../../Tools/run-editmode-tests.ps1) 连续跑两次，分别指定 `-ReportPath`，保存命令、Unity 版本、两份 XML 报告及跳过用例清单。后续以这份基线比较用例结果。
+
+验收：三例可脱离本地 `Temp` 运行；两次结果一致；所有失败或跳过均有具体用例与原因，新增失败为 0。
+
+**P0-5 验证整首自动化测试的运行方式**
+
+- 从现有 `LibrarySmokeTests` 出发，使用 `Tools/fixtures/baseline_tap` 验证跨 `Library → Core → Library` 的测试运行方式。先解决 [测试文档记录的跨场景销毁问题](../operations/testing.md#为什么没有整首打歌的自动化测试)，用实际场景和组件状态断言启动、结算和返回。
+- 保存运行命令、测试报告和所需资源准备步骤。原型通过后作为 P4-3 的输入；若仍受 Test Runner 生命周期阻塞，记录失败证据，继续保留现有曲库 PlayMode 冒烟和 [Android 整首验收](../operations/android-build.md)。
+
+验收：有一份可复现的原型结果。Phase 1 依据 EditMode 和 Android 基线验收，整首 PlayMode 接入由原型结果决定。
+
+### Phase 1：程序集边界
 
 **P1-1 建立 `OpenSekai.Core`**
 
-- 新增 `Assets/Game/Runtime/OpenSekai.Core/OpenSekai.Core.asmdef`：
-  - `noEngineReferences: true`
-  - 引用 `Newtonsoft.Json`（如果曲包/设置序列化需要）
-  - 不引用 `UnityEngine.*`
-- 第一批移动（低风险、纯逻辑）：
-  - `Shared/Scoring/*`
-  - `Shared/Live/Simulation/*`
-  - `Shared/Settings/LiveSettingData.cs`（只移动 DTO，Unity 读取逻辑留在 Game）
-  - `Shared/Conversion/*`（先移纯转换，`SusRuntimeConverter` 拆分后再移）
-  - `Shared/SUS/*`
-- `OpenSekai.Game` 增加对 `OpenSekai.Core` 的引用；`OpenSekai.App` 同时引用两者。
+- 新增 `Assets/Game/Runtime/OpenSekai.Core/OpenSekai.Core.asmdef`，设置 `noEngineReferences: true`。首批迁移 `Shared/Live/Simulation/InputTimeMapping.cs`，保留命名空间，`OpenSekai.Game` 增加对 Core 的引用。App 和 Editor 在直接使用 Core 类型的提交中增加引用。
+- 为后续每批列出文件、直接依赖和归属。按下面的拆分点逐批迁移：
+
+| 候选 | 迁移前提 |
+| --- | --- |
+| `SimTouch` | 当前依赖 Input System 的 `TouchPhase`，先留在 Game。纯模拟需要触摸数据时，由 Game 在边界把原生输入转成 Core 数据。 |
+| `CandidateOrder`、`JudgeWindow`、`JudgeTuning`、`ScoreGauge` | 先核对并迁移各自使用的纯判定枚举和数据结构，例如 `NoteResult`、`JudgeTimeData`。逐个排除 Unity 和 Game 依赖，保留判定枚举值和窗口边界。 |
+| `LiveSettingData`、`PlaybackSettingsSnapshot` | 先把 `LoadFromStorage`、`SaveToStorage` 调用归到 Game 的 `LiveSettingsStore`，再迁移 DTO 和快照。保留设置字段、缺省值和旧数据读取。 |
+| `Shared/SUS`、`SusRuntimeConverter` | SUS DTO 按依赖迁移，`NoteInfo` 随其用到的纯谱面枚举一起处理。转换器在 P2-6 拆出纯阶段后再迁移，运行时 `NoteBase` 构建留在 Game。 |
+
+每批验收：Unity 编译通过，迁移类型的公开行为有原测试或等价断言覆盖，Core 依赖检查通过。涉及反射序列化的批次同时执行 P1-4 的兼容检查。
 
 **P1-2 测试拆分**
 
-- 新增 `Assets/Tests/Core/OpenSekai.Tests.Core.asmdef`，只引用 `OpenSekai.Core` + NUnit。
-- 把纯逻辑测试移过去：`JudgeWindowTests`、`ScoreGaugeTests`、`CandidateOrderTests`、`InputTimeMappingTests`、SUS 转换测试。
-- EditMode 测试保留 Unity 相关：场景、prefab、资源、输入、Live 视图。
+- 新增 `Assets/Tests/Core/OpenSekai.Tests.Core.asmdef`，作为 Unity EditMode 测试程序集。项目程序集只引用 Core，测试框架沿用现有 NUnit 和 Unity Test Runner 配置。
+- 先迁移或提取直接测试 `InputTimeMapping` 的用例。`JudgeWindowTests`、`ScoreGaugeTests`、`CandidateOrderTests` 随依赖迁移；SUS 纯转换用例随 P2-6 迁移。按测试实际依赖拆分混合文件。
+- 保留 Game/App 行为测试，包括场景、prefab、资源、输入、Live 视图和运行时音符构建。核对内部 API 的测试可见性与原用例覆盖。
 
 **P1-3 依赖门禁**
 
-- `Tools/verify-structure.ps1` 增加：
-  - `OpenSekai.Core/**/*.cs` 出现 `UnityEngine`/`UnityEditor` → fail；
-  - `OpenSekai.Game` 引用 `OpenSekai.App` → fail；
-  - 测试程序集 `autoReferenced: true` → fail。
-- 在 CI 或发版前跑。
+- `Tools/verify-structure.ps1` 核对 Core 的 `noEngineReferences`、测试程序集的 `autoReferenced` 和程序集依赖方向。解析按名称和 GUID 声明的引用，检查 Core 无 Unity 或项目上层依赖、Game 无 App/Editor 依赖、App 无 Editor 依赖。
+- 每批迁移运行该脚本和 Unity 编译；Phase 4 接入 CI。
 
-验收：Core 程序集编译不依赖 Unity；Core 测试在无场景、无 prefab 的情况下可跑；依赖门禁 0 violation。
+**P1-4 迁移谱面与曲包契约，验证 Android 兼容**
 
-### Phase 2：拆上帝对象（预计 15–20 人日）
+- 按 P1-1 的依赖清单迁移纯 `ChartDocument` 模型、`ChartJson` 和曲包 manifest DTO。先处理模型依赖的谱面类型，保留 Game 中负责资源读取或构造运行时音符的代码。
+- 对照现有 `Assets/link.xml` 的 `Assembly-CSharp` 条目逐项修正程序集和完整类型名。迁移时同步检查受影响的配置资产和 prefab，以及 `ChartJson` 对既有 `$type`、`$id`、`$ref` 元数据的读写行为。
+- 提交或复用现有旧谱面、设置、曲包清单和曲库历史样本。用 EditMode 验证读取和写回，再用 Android IL2CPP 包覆盖安装，验证既有数据和曲库可读、既有曲包可开局及结算。
+
+Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity EditMode 下脱离场景和 prefab 执行，依赖检查通过，迁移后的 Android 包通过旧数据兼容检查。
+
+### Phase 2：拆分大型类型
 
 按“先补测试、再拆、行为不变”的顺序做，每次只拆一个类。
 
@@ -202,7 +221,7 @@ Assets/Game/Runtime/
 | `DialogService` | `Show*Dialog`、队列、`ChainDialogPlayer`、`DialogType` | < 500 行 |
 | `TransitionService` | `ColorFader`、模糊、`UIBlurLayerManager`、`ScreenCameraStack` | < 500 行 |
 | `HeaderService` | `HeaderUtility`、`ScreenLayerHeader`、HeaderCategory | < 300 行 |
-| `ScreenManager` | 兼容门面，转发调用 | < 500 行 |
+| `ScreenManager` | 兼容门面，转发调用 | < 800 行 |
 
 验收：现有公开方法签名不变；EditMode 场景测试全绿；`ScreenManager` 行数 < 800；无新增单例。
 
@@ -218,10 +237,10 @@ Assets/Game/Runtime/
 **P2-3 `LongNote`（1,346 行）**
 
 - 保留 `LongNote` 门面与状态机。
-- 拆 `LongNoteHead`、`LongNoteBody`、`LongNoteTail`；尾的四种实现已经在 `Live/Tails/`，把判定/显示/回收分别归位。
-- 先补 `LongNoteGraceTests`、`TailReleaseLaneTests`、`HoldQuotaTests` 的回归，再移动代码。
+- 复用现有 `LongNoteHead` 和 `Live/Tails/` 的四种尾行为；分离条体状态、尾判和显示回收职责，沿用现有的状态与判定契约。
+- P0-4 确认宽限期契约后，先补 `LongNoteGraceTests`、`TailReleaseLaneTests`、`HoldQuotaTests` 的缺失覆盖，再移动代码。
 
-验收：`LongNote` < 500 行；长条相关测试全绿；`LongNoteGraceTests` 的已知失败要么修掉，要么显式 `[Ignore]` 并注明原因。
+验收：`LongNote` < 500 个非空行；长条测试满足 P0-4 基线；按 [真机验收清单](../operations/device-acceptance-checklist.md) 核对宽限期内回按、换手、双长条重叠和尾判时序。
 
 **P2-4 `LiveLogic`（933 行）**
 
@@ -240,21 +259,23 @@ Assets/Game/Runtime/
 - `VolumeService`：BGM/SE/Voice 音量与持久化。
 - `SoundManager`：门面与播放调度。
 - 评估删除 `CriAtomShim` 的空实现分支；如果外部 wav 已完全覆盖，保留最小 shim。
+- 跟踪 `SoundManager` 到 `CriAtomShim` 的 ACB 调用，验证内置 WAV、曲包音频和缺失资源处理后，再清理确认可移除的分支及 `Platform/AcbDecoder`。
 
 验收：`SoundManager` < 500 行；42 个 wav 的 `AUDIT OK` 不变；真机开局/结算音效无回归。
 
 **P2-6 `SusRuntimeConverter`（1,158 行）**
 
-- 拆 `SusParser`、`SusTimingConverter`、`SusEventConverter`、`SusNoteConverter`。
-- 每个转换阶段可单测，输入/输出用纯 DTO。
+- 拆 `SusParser`、`SusTimingConverter`、`SusEventConverter`、`SusNoteConverter`。纯阶段以 DTO 为输入和输出，按 P1-1 迁入 Core；运行时音符与 Unity 对象的组装留在 Game。
+- 同一输入对照拆分前后的时间戳、事件顺序、音符类型和长条连接关系。已有转换测试继续覆盖运行时产物，纯阶段单独验证。
 
 验收：每类 < 400 行；SUS 相关测试全绿。
 
-### Phase 3：目录、命名与资源入口（预计 8–10 人日）
+### Phase 3：目录、命名与资源入口
 
 **P3-1 `Sekai/` 顶层收敛**
 
-- 建 `Game/{Screens,Audio,Assets,UI,Animation,Data}`，按职责移动顶层 191 个文件。
+- 在 `Assets/Game/Runtime/OpenSekai.Game/` 下建立 `Screens`、`Audio`、`Assets`、`UI`、`Animation`、`Data` 等职责目录，分批移动现有 `Sekai/` 顶层代码。
+- 移动 `OpenSekai.Game.asmdef` 时保留 `.meta`，核对所有归属 Game 的源码均位于其作用范围内；单独移动 App 的目录与 asmdef，确保每批之后编译通过。
 - `Sekai/Core/Live` 与 `Sekai/Live` 合并为 `Live/{Runtime,View,Notes}`，消除“Core 里有 Live、Live 里有 Logic”的分裂。
 - 保留 `Sekai` 命名空间不动，只动目录；避免一次性改命名空间导致大量 serialized 引用与文档失效。
 
@@ -262,20 +283,18 @@ Assets/Game/Runtime/
 
 **P3-2 `ResourceCatalog`**
 
-- 新增 `Assets/Game/Runtime/OpenSekai.Game/Assets/ResourceCatalog.cs`（ScriptableObject）：
-  - 页面 prefab、live view prefab、UI prefab、字体、材质；
-  - 每个条目有稳定 `id` 与 `Resources` 路径；
-  - 提供 `LoadPrefab(id)`、`LoadSprite(id)`、`LoadFont(id)`。
-- 替换 56 处 `Resources.Load`；只允许 `ResourceCatalog` 和平台加载器出现字符串路径。
-- `verify-resource-paths.ps1` 保留，作为回归检查。
+- 先清点运行时代码里的 `Resources.Load`、`LoadAll`、`LoadAsync` 调用，记录资源类型、来源、路径构造方式、同步或异步、查找顺序和缺失行为。
+- 固定资源走 `ResourceCatalog`，为页面 prefab、Live 视图、字体、材质和固定配置定义稳定的类型化 ID。明确启动时如何取得目录本身，以及曲库和 Live 场景如何共用它。
+- 动态资源继续通过 `ResourceLoader` 或 `AssetBundleUtility`，保留现有动态键、AssetBundle 与 Resources 回退优先级、大小写回退、批量及异步行为。静态条目和动态加载分批迁移。
+- `verify-resource-paths.ps1` 继续检查字面路径。用 Unity 加载测试逐条核对目录 ID 和资源类型，并用代表性用例覆盖动态路径、回退命中及全部缺失。
 
-验收：`git grep 'Resources.Load'` 只出现在 catalog/loader；曲库、打歌、结算、加载全部资源可解析；缺失引用 0。
+验收：运行时 `Resources.Load*` 只出现在列出的目录和加载器实现中；曲库、打歌、结算能加载所需资源；动态回退、异步、批量和缺失行为的测试通过。
 
 **P3-3 命名与 typo**
 
 - `ScreenLayerExtention` → `ScreenLayerExtension`（目录、文件、namespace 同步）。
-- `OpenSekai/CustomMusicScoreManager` → `OpenSekai/Storage`（或 `Library/Storage`）；删除根目录空壳。
-- `Platform/CP` → `Platform/Common` 或 `Platform/Core`，并在 README 写清 `CP` 的原意。
+- `CustomMusicScoreManager` 中与玩家曲库相关的存储代码归入 App 的 `Library/Storage`；按 P3-1 的文件归属清单核对共享类型后移除空壳。
+- `Platform/CP` 中继续使用的平台适配代码归入 Game 的 `Platform/Common`，在目录说明中记录旧路径与职责。
 - `RankLive/NumberView`：如果只是通用数字组件，移到 `UI/NumberView`；不要用一个玩法名目录装通用组件。
 - `Sekai` 命名空间是否改成 `OpenSekai.Game`：单独开 ADR，不混在本次目录整理里。
 
@@ -283,79 +302,98 @@ Assets/Game/Runtime/
 
 **P3-4 动画入口统一**
 
-- 现状：9 个自研 `Tween*` 组件 + 25 处直接 `DG.Tweening` 调用。
-- 决策：保留 `Tween*` 作为 Inspector 可配入口，禁止新代码直接 `DG.Tweening`；或者反过来统一到 DOTween。
-- 在 `docs/coding-standards` 加一条规则，并在 `Tools/verify-structure.ps1` 里检查新增文件。
+- `TweenBase` 已使用 DOTween。由 Inspector 配置和驱动的动画继续使用现有 `Tween*` 组件，代码管理生命周期的动画沿用 DOTween。
+- 在 `docs/coding-standards` 记录这两个入口的适用场景、现有调用以及动画随组件禁用、销毁或场景切换时的清理责任。
 
-验收：新代码不再出现第二种用法；现有调用有清单，不强行迁移。
+验收：新增或迁移的动画有明确的入口和生命周期归属，既有 Inspector 引用和动画行为保持一致。
 
-### Phase 4：状态、测试与发布门禁（预计 8–10 人日）
+### Phase 4：状态、测试与发布门禁
 
 **P4-1 单例收敛**
 
-- 新增 `AppContext`，在 `LibraryEntryPoint` 创建，持有：
-  - `IScreenService`、`IAudioService`、`IAssetService`、`ISceneService`、`IUserDataService`、`IPlayService`。
-- `LibraryScreen`、`PlayService`、`SoloLiveController` 通过构造/方法参数拿依赖，不再直接 `ScreenManager.Instance`。
-- `LiveLogic` 不再访问 `ScreenManager`/`SoundManager` 单例；通过 `LiveContext` 注入。
-- 保留单例作为兼容门面，逐步删调用点。
+- `LibraryEntryPoint` 装配 App 层的 `AppContext`。`LibraryScreen` 和 `PlayService` 只接收各自需要的依赖。
+- `SoloLiveController` 和 `LiveLogic` 使用 Game 层的 `LiveContext`，沿现有 `LegacyLiveBootAdapter` 和 `FreeLiveBootData` 开局边界传递本局依赖。由 Game 持有其使用的接口，保持依赖方向为 App → Game。Unity 组件在现有初始化入口接收依赖，普通服务可用构造参数。
+- 明确依赖的生命周期。开局失败时恢复原有启动状态，退出、返回曲库和重新开局时释放上一局的引用。迁移选定调用点，其余调用点继续经兼容门面运行。
 
-验收：新增代码 0 处 `*.Instance`；EditMode 测试可构造 fake context；现有行为不变。
+验收：迁移的调用点通过显式依赖访问服务；EditMode 可替换服务实现；验证开局失败后重试、退出返回和连续两局，且 Game 不引用 App。
 
-**P4-2 测试 hermetic**
+**P4-2 核对测试隔离**
 
-- 3 个 `HeadSettlementTests`：在 `SetUp` 里生成 fixture 到 `Application.temporaryCachePath`，`TearDown` 删除；不再依赖 `Temp/test16-score.json`。
-- `LongNoteGraceTests`：确认是未实现还是回归；未实现则 `[Ignore("waiting for hold work")]` 并记录在 `docs/operations/tail-classes.md`；回归则修。
-- 测试不允许写项目根 `Temp/`、`TestResults/` 之外的固定路径。
+- 复用 P0-4 的基线，从干净检出核对测试所需的谱面、设置和历史样本。需要写入文件时按用例使用独占临时目录，并在结束后清理；报告统一输出到 `TestResults/`。
+- 核对基线登记的跳过项。原因已消除的用例恢复执行，仍未交付的行为保留具体跟踪项。
 
 验收：连续跑两次 EditMode，结果一致；无环境型失败。
 
 **P4-3 PlayMode 冒烟**
 
-- 新增 1 个 PlayMode 用例：加载 `Library.unity` → 确保 `[LibraryCheck] valid:true` → 自动打一首基线谱 → 断言 `1,000,000 / S` → 返回曲库。
-- 该用例进 CI，作为“播放器还能跑”的最低保障。
+- P0-5 原型通过后，接入整首 PlayMode 测试。准备 `Tools/fixtures/baseline_tap`，从 `Library.unity` 启动，断言曲库入口就绪、基线谱自动结算为 `1,000,000 / S`、返回曲库。读取场景和结果状态，编辑器菜单日志仅用于诊断。
+- 若整首自动化仍受跨场景生命周期阻塞，CI 执行现有曲库 PlayMode 冒烟，整首流程由 Android 发布验收覆盖。记录阻塞证据和后续跟踪项。
 
-验收：PlayMode 用例稳定通过；失败时能定位到场景/prefab/资源。
+验收：记录 CI 实际覆盖的 PlayMode 范围和报告；整首流程保留可复核的自动化或 Android 验收记录。
 
 **P4-4 结构门禁与文档检查**
 
 - `Tools/verify-structure.ps1` 检查：
-  - 空目录 0；
+  - 运行时代码目录无遗留空壳；
   - Core 无 Unity 引用；
   - 程序集依赖方向；
-  - `Resources.Load` 白名单；
-  - 缺失脚本 = 0（修掉 `XRSystemData.asset` 与 `EventSystem.prefab` 的 2 处）；
-  - 文档路径 0 broken；
-  - `ScreenManager`/`LibraryScreen`/`LongNote` 行数上限。
-- 接进 CI 或 `.github/workflows`。
+  - 运行时 `Resources.Load*` 白名单；
+  - Markdown 本地链接和现行文档中的项目路径；
+  - `ScreenManager`、`LibraryScreen`、`LongNote` 的非空行上限，沿用各任务的同一口径。
+- 修复 P0-3 确认的缺失脚本。对 `XRSystemData.asset`、`EventSystem.prefab` 先确认解析结果和资产用途，再决定是否修改。用同一 Unity 扫描复核，相关资产的缺失脚本为 0。
+- 接入 `.github/workflows`。结构脚本独立于 Unity 许可证执行；Unity 测试和资产扫描记录实际运行、通过或因许可证缺失而跳过的状态。发布验收需要实际通过的 Unity 报告。
 
-验收：门禁全绿；新增违规会 fail。
+验收：各门禁均有可追溯结果，新增违规使对应检查失败。
 
-## 6. 任务清单（可勾选）
+## 6. 任务清单与依赖
 
-| ID | 任务 | 产出 | 验收 | 预计 |
-| --- | --- | --- | --- | ---: |
-| P0-1 | 文档路径/页面数/包体对齐 | 24 篇路径、30 处说明 | 链接检查 0 broken | 2d |
-| P0-2 | 空目录 + AcbDecoder | 删除 12 空目录、12 文件 | 编译 0 error | 1d |
-| P0-3 | 生成文件 + 检查脚本 | 重新生成 csproj、`verify-structure.ps1` | 脚本可跑 | 1–2d |
-| P1-1 | Core 程序集 | asmdef + 首批移动 | Core 无 Unity 引用 | 4–5d |
-| P1-2 | Core 测试拆分 | Tests.Core asmdef | 纯逻辑测试可跑 | 2d |
-| P1-3 | 依赖门禁 | 脚本规则 | 0 violation | 1d |
-| P2-1 | 拆 ScreenManager | 4 服务 + 门面 | < 800 行、测试绿 | 3–4d |
-| P2-2 | 拆 LibraryScreen | View/Presenter/Model | 各 < 350 行 | 2–3d |
-| P2-3 | 拆 LongNote | Head/Body/Tail | < 500 行、测试绿 | 3–4d |
-| P2-4 | 拆 LiveLogic | Clock/Input/Judgment/State | 各 < 400 行 | 3d |
-| P2-5 | 拆 SoundManager | Catalog/ExternalPack/Volume | < 500 行、音频无回归 | 2d |
-| P2-6 | 拆 SusRuntimeConverter | Parser/Timing/Event/Note | 各 < 400 行 | 2d |
-| P3-1 | Sekai 顶层收敛 | 6 个职责目录 | 顶层 < 20 | 3d |
-| P3-2 | ResourceCatalog | 类型化目录 | 无散落 Resources.Load | 3d |
-| P3-3 | 命名/typo | 目录与文件名 | 0 `Extention` | 1–2d |
-| P3-4 | 动画入口统一 | 规范 + 检查 | 新代码 0 第二种用法 | 1d |
-| P4-1 | 单例收敛 | AppContext/LiveContext | 新增代码 0 `.Instance` | 3–4d |
-| P4-2 | 测试 hermetic | fixture 修正 | 连续两次一致 | 2d |
-| P4-3 | PlayMode 冒烟 | 1 个端到端用例 | 稳定通过 | 2d |
-| P4-4 | 门禁/CI | verify 脚本接入 | 全绿 | 1–2d |
+| ID | 任务 | 直接依赖 | 交付与验收证据 |
+| --- | --- | --- | --- |
+| P0-1 | 文档对齐 | P0-3 的链接检查 | 现行路径和本地链接通过，五条流程核对记录 |
+| P0-2 | 清理空目录和平台存根目录 | P0-3 的缺失脚本基线 | 编译通过，缺失脚本新增 0 |
+| P0-3 | 生成项目和基线检查 | 当前基线 | 可重复运行的脚本、缺失脚本清单 |
+| P0-4 | 建立 EditMode 基线 | 当前基线 | 仓库 fixture、两份 XML、宽限期用例结论 |
+| P0-5 | 验证整首自动化运行方式 | 现有曲库冒烟、基线谱 | 原型命令和报告，或可复现的阻塞证据 |
+| P1-1 | 建立 Core，分批迁移 | P0-3、P0-4 | asmdef、依赖清单、每批编译和行为测试 |
+| P1-2 | 拆分 Core 测试 | P1-1 的对应类型 | Tests.Core asmdef，既有覆盖可追溯 |
+| P1-3 | 核对程序集边界 | P0-3、P1-1 首批 | 依赖检查加入结构脚本 |
+| P1-4 | 迁移谱面及曲包契约 | P1-1 的相关依赖、P1-3 | 类型与序列化映射、Android 旧数据验收 |
+| P2-1 | 拆 ScreenManager | M1 | 门面兼容，场景行为测试通过 |
+| P2-2 | 拆 LibraryScreen | M1 | Presenter 测试和曲库流程通过 |
+| P2-3 | 拆 LongNote | M1、P0-4 宽限期结论 | 长条回归和真机判定清单 |
+| P2-4 | 拆 LiveLogic | M1；与 P2-3 共用判定代码时串行 | 输入、判定顺序和统计测试通过 |
+| P2-5 | 拆 SoundManager | M1 | 音频审计和真机开局、结算通过 |
+| P2-6 | 拆 SusRuntimeConverter | M1 | 纯阶段测试与运行时转换等价验证 |
+| P3-1 | 移动目录 | M2 | `.meta` 成对迁移、编译和缺失脚本扫描 |
+| P3-2 | 收敛资源入口 | P3-1 | 加载调用清单、目录校验、动态回退测试 |
+| P3-3 | 统一目录与命名 | P3-1 | 更新引用、序列化检查和文档链接 |
+| P3-4 | 明确动画入口 | P3-1 | 使用规范、既有调用清单和生命周期检查 |
+| P4-1 | 收敛启动和会话依赖 | M3 | 显式依赖，失败重试和连续两局通过 |
+| P4-2 | 核对测试隔离 | P0-4、P4-1 | 干净检出连续两次测试结果一致 |
+| P4-3 | 接入 PlayMode 冒烟 | P0-5、P4-1 | 实际冒烟范围、测试报告和整首验收记录 |
+| P4-4 | 接入结构与发布门禁 | P1-3、M3、P4-1 至 P4-3 | CI 结果、缺失脚本为 0、发布验收记录 |
 
-合计约 **40–55 人日**，按单人 6–8 周排；如果多人并行，Phase 2 的五个拆分可以按文件所有权拆开，但 Phase 1 必须先完成。
+按直接依赖领取任务。每个工作包记录基线提交、改动范围、验证命令和结果；多个任务涉及相同文件或 Unity 工程状态时按顺序执行。阶段里程碑见 §10。
+
+### Phase 0 执行记录（2026-11-11）
+
+工作分支为 `codex/long-note-head-split`，起点 `4249628b`。
+
+| 任务 | 当前结果 | 验收缺口 |
+| --- | --- | --- |
+| P0-1 | 已对照源码、设置、注册表与 APK 更新文档，核对快速开始、曲包导入、测试、Android 构建和发布五条路径。 | 110 份 Markdown 的本地链接及锚点检查通过，`docs/` 文档均已入索引。 |
+| P0-2 | 核实 12 个空目录、五处 `[Skip]` 和五个序列化接口实现。发现 ACB 解码器仍被调用，已调整其清理顺序。 | 等 P0-3 缺失脚本基线后再移动或删除。 |
+| P0-3 | 结构脚本确认忽略规则及失效的 IDE 项目引用，其中 `Assembly-CSharp.csproj` 有 361 项。新增 Unity 缺失脚本扫描入口。 | Unity 授权服务连接超时，扫描与 IDE 项目重新生成待验证。 |
+| P0-4 | 三个头判用例已改用仓库内合成谱面，Editor 和 EditMode 代码通过 Unity 自带 Roslyn 类型检查。 | Unity EditMode 报告和宽限期修复验证待完成。 |
+| P0-5 | 已核对曲库冒烟入口与 `baseline_tap` 准备步骤。现有 PlayMode 冒烟在启动时因授权连接超时。 | 需要可运行的 PlayMode 环境复现跨场景问题，再验证原型。 |
+
+两份历史 EditMode 报告中，宽限期用例都通过了 `HasFinger` 断言，失败点是回按后仍显示释放态。上一份已找到的通过记录是 `TestResults/grace50ms.xml`。
+`e2d6c125b` 为防止过线后的长条回到 `Scrolling` 并在下一帧再次进入宽限期，保留了过线后的 `Last/Release` 状态。
+现用例还直接调用私有阶段，使用共享帧时钟。复验应使用真实谱面和 `LiveHarness`，同时覆盖回按后显示与尾判，避免恢复会重复进入宽限期的旧行为。
+
+当前验证日志位于 `TestResults/restructure-grace-before.log`、`TestResults/restructure-missing-scripts.log` 和 `TestResults/restructure-library-smoke.log`。三次 Unity 运行均在授权服务初始化时超时，未生成扫描清单或新的测试 XML。
+
+本地 Git 索引为只读，工作包改动保留在工作区。
 
 ## 7. 迁移规则
 
@@ -372,69 +410,64 @@ git mv Old/Path.cs.meta New/Path.cs.meta
 
 ### 7.2 命名空间与类名
 
-- 改 namespace/类名不改 GUID，prefab 的 `m_Script` 仍能解析；但以下位置要一起改：
-  - `Resources.Load` 的路径字符串；
-  - `link.xml` 的 `type fullname`；
-  - asmdef 的 `rootNamespace`（如使用）；
-  - 文档与 `Tools` 脚本中的路径；
-  - 测试里的 `typeof(...)`。
+- 改 namespace、类名或程序集时保留 GUID，并在 Unity 重新导入后检查场景和 prefab 的脚本与序列化字段。核对 `link.xml`、JSON 类型别名、反射引用和项目中的程序集限定类型名。
+- 移动实际资源时同步核对 `Resources` 相对路径。移动源码时更新 `Tools` 脚本、文档和构建配置中受影响的路径。
 - 改序列化字段名用 `[FormerlySerializedAs("OldName")]`。
 
 ### 7.3 asmdef
 
-- 移动文件到新程序集时，先建 asmdef，再移动一批，再编译；不要一次移动整个 `Sekai/`。
-- 每次移动后检查：
-  - EditMode 测试程序集引用是否完整；
-  - `OpenSekai.Editor` 是否仍能引用；
-  - `link.xml` 是否仍写对程序集名。
+- 先建 asmdef，再按依赖清单移动一批。用 Unity 编译和依赖检查验证归属，核对运行时、测试和 Editor 的直接引用。
+- 受影响的 `link.xml` 和兼容测试与类型迁移同一批提交；涉及反射读写时运行 P1-4 的 Android 兼容检查。
 
 ### 7.4 Resources 与 AB
 
 - 移动 `Resources` 下的 prefab/asset 会改变 `Resources.Load` 路径；必须先建 `ResourceCatalog`，再移动。
 - AssetBundle 白名单在 `OpenSekaiAssetBundleBuildPipeline`，移动源资源后同步改白名单与 `AssetBundleInfo`。
-- 每次构建后跑 `Tools/verify-resource-paths.ps1` 与真机开局。
+- 资源相关提交执行 `Tools/verify-resource-paths.ps1`、P3-2 的目录和回退检查，并在 Android 上走一遍受影响的加载流程。
 
 ## 8. 验收门禁
 
-每个阶段结束必须全部满足：
+各阶段执行当前已具备的门禁。运行时或资源变更须通过 Unity 编译、受影响的测试和资源检查；EditMode 相比 P0-4 基线新增失败或跳过均为 0。移动、删除或改名涉及的文档链接在同一提交中通过检查。
 
-1. Unity 编译 **0 error**，`EditorUtility.scriptCompilationFailed = false`。
-2. `Tools/verify-structure.ps1` 全绿（空目录、Core 依赖、Resources 白名单、缺失脚本、文档链接）。
-3. 缺失脚本 **0**（当前 2 处必须在 Phase 4 前修掉）。
-4. EditMode 测试：除显式 `[Ignore]` 外全绿；连续跑两次结果一致。
-5. PlayMode 冒烟：Library → 自动打歌 → 结算 → 返回，分数 `1,000,000 / S`。
-6. Android 构建可安装，冷启动进曲库，手动/自动各打一首。
-7. 文档路径 0 broken，页面数/包体数字与当前一致。
-8. `git status` 干净，提交信息能看出“移动/拆分/改名”，不混行为改动。
+| 阶段 | 退出条件 | 验收证据 |
+| --- | --- | --- |
+| Phase 0 | 现行文档对齐；缺失脚本基线可复现且清理工作无新增缺失；EditMode 基线可复现 | 本地链接检查、Unity 扫描清单、两份 EditMode XML 和已知例外 |
+| Phase 1 | Core 边界和测试就绪；迁移后的 Android 包能读取现有数据 | 依赖检查、Core/EditMode 报告、旧数据覆盖安装记录 |
+| Phase 2 | 六项拆分满足各自的行为验收；判定和音频在真机通过针对性回归 | 相关测试、Android 判定清单和音频验收记录 |
+| Phase 3 | 目录、资源入口与命名检查通过；无新增缺失引用 | 结构检查、动态加载测试、Android 冷启动与打歌验收 |
+| Phase 4 | CI 执行已具备的结构、EditMode 和 PlayMode 检查；确认的缺失脚本清零；发布包可安装、冷启动，手动与自动各打一首 | CI 和 Unity 报告、缺失脚本扫描、Android 整首验收。自动谱结算 `1,000,000 / S` 并返回曲库 |
+
+每阶段结束记录提交 ID、实际运行命令、报告位置和阻塞项。P0-5 的结果用于确定 Phase 4 的 PlayMode 范围。Phase 0 至 Phase 3 对已登记的缺失脚本执行新增为零的检查，Phase 4 执行清零检查。
 
 ## 9. 风险与回滚
 
 | 风险 | 影响 | 处理 |
 | --- | --- | --- |
 | 移动文件丢 `.meta`，GUID 变化 | prefab/scene 引用断，missing script 激增 | 只用 `git mv` 连同 `.meta`；每批跑缺失扫描 |
-| 改 namespace 导致 `Resources.Load` 路径失效 | 运行时报“找不到 prefab” | 先建 ResourceCatalog；路径字符串集中管理 |
-| asmdef 拆分后 Editor 程序集引用断 | Unity 编译失败 | 每批只移动一个目录，先编译再继续 |
+| 移动资源导致 `Resources` 路径或 AssetBundle 键失效 | 曲库、打歌或结算缺资源 | 先建目录与加载器入口，同步更新路径和清单，验证现有回退 |
+| asmdef 拆分后项目引用或反射保留条目失效 | Unity 编译失败或 Android 读档失败 | 按依赖分批移动，逐批编译，更新 `link.xml` 并验证旧数据 |
 | 拆 ScreenManager 改变公开 API | 调用点大面积编译错误 | 保留门面，方法签名不变；先加委托再搬实现 |
 | 拆 LongNote 改判定行为 | 手感回归，测试红 | 先补行为测试；纯移动，不改公式 |
-| 测试 fixture 写固定 Temp | CI/本地随机失败 | 用 `Application.temporaryCachePath` + `TearDown` |
+| 测试依赖本地固定路径 | CI 或干净检出失败 | 复用仓库 fixture，需要落盘时使用独占临时目录并清理 |
+| 整首冒烟跨场景时销毁测试宿主 | CI 无法可靠验收整首流程 | 先完成 P0-5 原型，保留现有曲库冒烟和 Android 整首验收 |
 | 文档再次落后 | 新人误读 | 移动/删除文件时同提交改文档；CI 链接检查 |
-| 一次提交太大无法回滚 | 定位困难 | 每任务一提交；Phase 结束打 tag |
+| 一次提交太大无法回滚 | 定位困难 | 同一迁移的源码、`.meta`、配置与兼容测试同批提交，保留阶段通过验收的提交 ID |
 
-回滚策略：
+### 回滚策略
 
-- Phase 0/1 的移动类改动可以直接 revert 单个提交；
-- Phase 2 的拆分保留原类作门面，回滚只需恢复门面实现；
-- 每个 Phase 结束在分支打 `restructure/phase-N` tag，出问题回 tag，不在主干上硬回滚。
+- 从失败的工作包定位依赖它的后续提交。若存在后续依赖，按依赖的逆序回退，再回退原变更。
+- 同时恢复该工作包的实现、程序集引用、`.meta`、资源映射及兼容配置。回退后重跑受影响的编译、测试和场景检查。
+- 需要对照上一个已通过的阶段时，从里程碑记录的提交 ID 检出复验。
 
 ## 10. 里程碑
 
-| 里程碑 | 内容 | 预计 |
+| 里程碑 | 完成条件 | 可开始的后续工作 |
 | --- | --- | --- |
-| M0 | 文档/空目录/死平台/检查脚本完成 | 第 1 周 |
-| M1 | Core 程序集 + Core 测试 + 依赖门禁 | 第 3 周 |
-| M2 | ScreenManager / LibraryScreen / LongNote / LiveLogic 拆分 | 第 6 周 |
-| M3 | SoundManager / SUS 拆分 + 目录/资源入口 | 第 8 周 |
-| M4 | 单例收敛 + 测试 hermetic + PlayMode + CI 门禁 | 第 9–10 周 |
+| M0 | P0-1 至 P0-4 通过，文档、缺失脚本和 EditMode 有可复现基线 | Phase 1；P0-5 可独立验证 |
+| M1 | P1-1 至 P1-4 通过，Core 与 Android 旧数据兼容得到验证 | Phase 2 的六项拆分 |
+| M2 | P2-1 至 P2-6 通过，六项拆分各有行为验收 | Phase 3 的目录和资源入口迁移 |
+| M3 | P3-1 至 P3-4 通过，目录、加载行为和命名检查有结果 | Phase 4 的会话依赖与发布门禁 |
+| M4 | P4-1 至 P4-4 通过，实际 PlayMode 范围和 Android 整首验收有记录 | 提交发布 |
 
 ## 11. 本计划不做什么
 
@@ -442,7 +475,7 @@ git mv Old/Path.cs.meta New/Path.cs.meta
 - 不在本计划里重命名 `Sekai` 命名空间；单独 ADR 评估。
 - 不重写渲染管线；只保留已收敛的两个 Renderer。
 - 不引入 Addressables/ECS/新框架；先把现有 Resources + AB 收进类型化入口。
-- 不重写全部测试；只修 hermetic 问题并补一条端到端冒烟。
+- 保留现有测试体系，补齐迁移所需的行为回归、可重复基线和整首流程验收。
 
 ## 12. 相关文档
 
