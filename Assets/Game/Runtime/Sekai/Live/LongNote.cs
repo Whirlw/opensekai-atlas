@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -257,19 +257,22 @@ namespace Sekai.Live
 		}
 
 		_lastBoundNote = note;
-		// The draw list holds every note the bar owns. Whether a note shows anything is the note's own
-		// business - a combo tick carries no view and a hidden marker is invisible by nature - so the
-		// bar has no business deciding here, least of all by looking at its own head type. That rule is
-		// what hid friction and guide tail keys while still grading them.
-		note.SetParentNote(this, NoteParentRole.Tail);
 		NoteList ??= new List<NoteBase> { this };
 		ViewNoteList ??= new List<INote> { this };
+		// The draw list holds every note the bar owns. Whether a note shows anything is the note's own
+		// business; settlement is decided separately, in SettleLeftoverAsPerfect, where only the points
+		// the bar itself ends are graded.
+		note.SetParentNote(this, NoteParentRole.Tail);
 		NoteList.Add(note);
-		if (!note.IsSkip && !ViewNoteList.Contains(note)) ViewNoteList.Add(note);
+
+		if (!note.IsSkip && !ViewNoteList.Contains(note))
+		{
+			ViewNoteList.Add(note);
+		}
+
 		LineNoteList.Add(note);
 		SortNoteList();
 	}
-
 		public override void Excute(MusicScoreInfo currentFrameInfo, float offsetTime)
 		{
 			this.offsetTime = offsetTime;
@@ -640,9 +643,46 @@ namespace Sekai.Live
 	/// <summary>Finishes the bar with no result at all, once its last note has gone by.</summary>
 	internal bool CanFinishSilently(float currentTime)
 	{
+		// A bar with a head the player could press is not over until that head has had its say:
+		// finishing silently first would swallow its miss, and the bar would vanish with no result at all.
+		if (PublishesHeadMiss && !Head.IsSettled)
+		{
+			return false;
+		}
+
 		return EndsWithoutJudgement && _lastBoundNote != null
 			&& currentTime > _lastBoundNote.MusicScoreInfo.time;
 	}
+
+	/// <summary>
+	/// Settles whatever is still bound to the bar and unjudged, so a bar never ends with holes in it.
+	/// Only parts that are still attached count: a detached standalone tail owns its own result and a
+	/// skipped marker is not a unit of judgement.
+	/// </summary>
+	private void SettleLeftoverAsPerfect()
+	{
+		if (NoteList == null)
+		{
+			return;
+		}
+
+		for (int i = 0; i < NoteList.Count; i++)
+		{
+			NoteBase part = NoteList[i];
+			if (part == null || !(part is LongHoldCombo))
+			{
+				continue;
+			}
+
+			if (part.ParentNote != this || part.Result != NoteResult.None)
+			{
+				continue;
+			}
+
+			part.FinishWith(NoteResult.Perfect);
+		}
+	}
+
 
 	internal void FinishSilently()
 	{
@@ -654,6 +694,7 @@ namespace Sekai.Live
 		_swipeTailDeferred = false;
 		_swipeTailCapped = false;
 		_framesSinceRelease = -1;
+		SettleLeftoverAsPerfect();
 		State = NoteState.Done;
 	}
 
@@ -919,9 +960,15 @@ namespace Sekai.Live
 				: (NoteResult.Miss, NoteResultDescription.None);
 			State = NoteState.Done;
 
-			// The tail is judged by itself, but nothing ever failed it: once its window is gone an
-			// untouched tail has to be graded Miss, otherwise it is the one note in the chart that can
-			// never be missed.
+			// The tail judges itself, so the bar must not grade it: it leaves the list instead. The parent
+			// link stays, because the tail still belongs to this bar - it just is not a part the bar can end.
+			if (NoteList != null)
+			{
+				NoteList.Remove(childNote);
+			}
+
+			// Nobody graded this tail and its window is gone, so it fails itself here: the bar only
+			// noticed the time, the verdict is still the tail's own.
 			if (!settled && childNote.Result == NoteResult.None && childNote.State != NoteState.Done)
 			{
 				childNote.FinishWith(NoteResult.Miss);
