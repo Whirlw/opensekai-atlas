@@ -1,4 +1,4 @@
-# 判定窗口
+﻿# 判定窗口
 
 本页记的是**当前实现**与**原版数据**的对照。改这里的数字等于改手感，提交时必须同时改本页。
 
@@ -88,15 +88,20 @@ if (!barAnswersInput && tailNote != null) _judgmentNoteList.Add(tailNote);
 
 一次性的打击音只对**有判定的**摩擦音符成立；载体上的摩擦是全静音的，`TapEffectView` 对 `FrictionHide*` 类别显式 `return`。
 
-## 长条尾巴怎么松开
+## 长条尾巴怎么判
 
-普通尾的判定属于**抬手**事件，判据是「松手发生在条内」：
+尾的判定属于**抬手**事件，2026-11-11 起不再有「归属/持握者」概念（owner 已删除）：
 
-- 松手的手指必须是这根条的**持握者**（`HoldingTouchId`），或者落点在条的车道范围内；
-- 车道范围用的是 `JudgeLaneStart/JudgeLaneEnd`，即 `lane ± JudgeTuning.LongLaneOffset`（**左右各 1.5 轨**），与单键的 1.25 轨不同；
-- 任何**别的手指**在别处抬起，都不构成本条条的松手，也不许判它的尾。
+- 每根抬手的手指，收集「抬手落在**尾键自己的判定车道内**、且尾在判定时间窗口内」的条；
+- 一根抬手手指最多结束**一条**：取尾时间最早的，同时间取尾键车道中心最近的；
+- 车道范围用尾键的 `JudgeLaneStart/JudgeLaneEnd`，容差按**尾键类别**取（普通尾与单键同口径 1.25 轨，划键尾 1.5 轨），不再统一用条的 1.5 轨；
+- 手指**滑出**车道不算释放——抬手只认抬起这个动作本身（滑出去之后条会走丢手宽限，见下）。
 
-回归用例：`Assets/Tests/EditMode/Live/TailReleaseLaneTests.cs`。
+条丢手后的宽限只有一套：进入 `Last`（灰），`HoldGraceSeconds = 3/60 s ≈ 50 ms`（时间比较，不是帧计数）；期间手指回到车道即回到按住态，否则 `Release`。
+
+回归用例：`Assets/Tests/EditMode/Live/TailReleaseLaneTests.cs`、`Assets/Tests/EditMode/Live/HoldQuotaTests.cs`。
+
+> 头、体、尾的解耦仍未收尾，待办见 [`operations/tail-classes.md`](../operations/tail-classes.md) §十二/§十三。
 
 ## 谁会黏在判定线上
 
