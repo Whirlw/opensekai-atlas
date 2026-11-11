@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -1316,15 +1316,28 @@ namespace Sekai.Live
 
 
 		/// <summary>
-		/// A hold that is still covered by its finger must not stay greyed out: the update pass flips
-		/// State to Release when lastInputTime is stale, so a refresh has to bring the state back.
+		/// Brings a bar back to its held picture when a finger lands on it again. A bar that has already
+		/// crossed its own line is left alone: Scrolling means "never taken yet", and sending a bar that
+		/// has moved on back there made the crossing branch fire again every frame (Scrolling to Last),
+		/// so the grace that leads to Release never finished and the tail was left unjudged until its
+		/// window shut. What a bar looks like after the line follows ShowsAsReleased, not this.
 		/// </summary>
 		internal void RestoreHeldState()
 		{
-			if (State == NoteState.Release || State == NoteState.Last)
+			if (State != NoteState.Release && State != NoteState.Last)
 			{
-				// Rub notes retain their input phase; ordinary bodies only restore their picture.
-				SetStateUnnotice(this is FrictionLongNote ? NoteState.Input : NoteState.Scrolling);
+				return;
+			}
+
+			if (this is FrictionLongNote)
+			{
+				SetStateUnnotice(NoteState.Input);
+				return;
+			}
+
+			if (MusicScore.CurrentFrameInfo.time - MusicScoreInfo.time <= LiveConfig.JudgeTime)
+			{
+				SetStateUnnotice(NoteState.Scrolling);
 			}
 		}
 
