@@ -21,27 +21,13 @@ namespace Sekai.Core.Live
 		public delegate float LaneOf(ref NoteBase note, ref LiveLogic.InputTmp input);
 
 		private readonly int[] _holdInputNotes;
-
-		private readonly bool[] _holdInputVisited;
-
 		/// <summary>The bar each lifting finger finishes this frame, or -1.</summary>
 		private readonly int[] _liftTargets;
-
-		/// <summary>The call the eligibility delegate reads; set for the duration of one assignment pass.</summary>
-		private List<NoteBase> _contextNotes;
-
-		private List<LiveLogic.InputTmp> _contextInputs;
-
-		private LaneOf _contextLaneOf;
-
-		private readonly Func<int, int, bool> _holdInputEligible;
 
 		public LiveHoldCoordinator(int inputCapacity)
 		{
 			_holdInputNotes = new int[inputCapacity];
-			_holdInputVisited = new bool[inputCapacity];
 			_liftTargets = new int[inputCapacity];
-			_holdInputEligible = CanContinueHold;
 		}
 
 		/// <summary>
@@ -61,9 +47,6 @@ namespace Sekai.Core.Live
 		/// </summary>
 		public void AssignContinuingHolds(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs, LaneOf laneOf)
 		{
-			_contextNotes = judgmentNotes;
-			_contextInputs = inputs;
-			_contextLaneOf = laneOf;
 
 			int count = inputs.Count;
 			for (int i = 0; i < count; i++)
@@ -147,13 +130,6 @@ namespace Sekai.Core.Live
 			}
 		}
 
-		private bool CanContinueHold(int noteIndex, int inputIndex)
-		{
-			NoteBase note = _contextNotes[noteIndex];
-			LiveLogic.InputTmp input = _contextInputs[inputIndex];
-			float lane = _contextLaneOf(ref note, ref input);
-			return lane >= 0f && note.IsJudgment(ref input.Touch, lane);
-		}
 
 		private static bool HasContinuingHold(NoteBase note)
 		{
