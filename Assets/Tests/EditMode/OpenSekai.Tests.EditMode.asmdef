@@ -2,6 +2,7 @@
     "name": "OpenSekai.Tests.EditMode",
     "rootNamespace": "OpenSekai.Tests.EditMode",
     "references": [
+        "OpenSekai.Core",
         "OpenSekai.Game",
         "OpenSekai.App",
         "OpenSekai.Editor",

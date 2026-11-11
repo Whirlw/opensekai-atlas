@@ -417,6 +417,8 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 
 - P1-3 通过。`Tools/verify-structure.ps1 -CheckAssemblies -RequireNoEmptyDirectories` 校验 Core 的 Unity 引用限制、Game/App 的依赖方向和测试程序集的自动引用设置。在隔离样本中分别用名称和 GUID 让 Game 引用 App，两次均按预期返回 1，详见 `TestResults/restructure-p1-3-probe.txt`。
 
+- P1-1 / P1-2 候选排序和计分批次通过。`CandidateOrder` 随 `NoteResult` 迁入 Core，`ScoreGauge` 随 `ScoreRank`、`LiveScore`、`MasterPlayLevelScore` 迁入，均只使用基础类型。Game、App 及直接调用的测试程序集按需引用 Core。两个测试类随实现移动，保留用例全名和脚本 GUID。通过 `unity recompile`、`Tools/verify-structure.ps1 -CheckAssemblies -CheckProjects -RequireNoEmptyDirectories`、缺失脚本清单比对和全量 EditMode。512 通过、0 失败、4 跳过，逐项与上一批一致。报告在 `TestResults/restructure-p1-1-scoring-*`。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动
