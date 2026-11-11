@@ -425,6 +425,8 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 
 - P1-4 桌面验证通过。谱面 JSON 模型随 `NoteType`、`NoteLineType`、`NoteDirection` 和 `MusicScoreInfo` 迁入 Core；曲包 manifest 与原短 ID 生成一并迁移，存储留在 Game。旧 `$type`、`$id`、`$ref` 回读和重写经 `ChartJsonTests` 验证。按实际程序集修正 `Assets/link.xml`，Unity 反射逐条验证 13 个保留类型。程序集、IDE、缺失脚本差异检查通过；全量 EditMode 512 通过、0 失败、4 跳过。报告在 `TestResults/restructure-p1-4-contracts-*` 和 `TestResults/restructure-p1-4-link-check.json`。Android IL2CPP 覆盖安装与既有数据、曲包回读待验证。
 
+- P1-1 的 SUS 数据批次通过。七个 `Sekai.SUS` 数据类型随既有谱面枚举归入 Core，保留源码、命名空间和 GUID。实际 Unity 输入和资源转换仍由 Game 提供，`SusRuntimeConverter` 的纯阶段按计划等 P2-6。全量 512 通过、0 失败、4 跳过，程序集与 IDE 检查通过，缺失脚本新增 0。报告在 `TestResults/restructure-p1-1-sus-*`。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动
