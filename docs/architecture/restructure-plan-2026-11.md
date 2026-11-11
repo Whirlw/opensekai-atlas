@@ -401,6 +401,8 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 - `XRSystemData.asset` 的脚本 GUID 无映射，`LoadMainAssetAtPath` 返回空。`EventSystem.prefab` 的两条引用使用同一无映射 GUID、不同 fileID。Unity 的根对象缺失组件计数返回 0，序列化扫描仍检出这两条引用。直接解析见 `TestResults/restructure-p0-3-resolve.json`。三条引用保留至 P4-4 核对用途。
 - 移开四份含失效引用的旧项目文件至 `TestResults/restructure-p0-3-old-projects/`，通过 CLI 调用 `Unity.CodeEditor.CodeEditor.Editor.CurrentCodeEditor.SyncAll()` 重新同步，再运行 `Tools/verify-structure.ps1 -CheckProjects`，失效源码引用为 0。检查输出为 `TestResults/restructure-p0-3-project-check.txt`。
 
+- P0-2 通过。通过 `unity command eval_file` 执行 `TestResults/restructure-p0-2-cleanup.cs`，删除 12 个空目录及其 `.meta`，将 `Platform/MessagePack` 移到 `Platform/Serialization`，接口 GUID 保持 `daf6a325cfd18fad813b65bd79814943`。Beebyte 存根继续提供本地 `[Skip]`。Unity 编译 0 error（`TestResults/restructure-p0-compile.json`）。重新执行 `MissingScriptAudit.Run()` 后，`TestResults/missing-scripts-after-cleanup.tsv` 与清理前副本逐字节相同，新增 0。移开旧的本地检查项目文件后，`Tools/verify-structure.ps1 -CheckProjects -RequireNoEmptyDirectories` 通过（`TestResults/restructure-p0-2-structure.txt`）。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动
