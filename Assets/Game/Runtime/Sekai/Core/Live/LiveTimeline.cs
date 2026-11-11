@@ -89,16 +89,13 @@ namespace Sekai.Core.Live
 				return;
 			}
 
-			int index = session.NoteIndex;
-			AdvanceList(session.Notes, ref index);
-			session.NoteIndex = index;
-
-			int highSpeedIndex = session.HighSpeedIndex;
-			AdvanceList(session.HighSpeedNotes, ref highSpeedIndex);
-			session.HighSpeedIndex = highSpeedIndex;
+			// The note session advances past completed notes. Autoplay revisits a long note
+			// through its interior ticks and tail while judging later due notes on the same frame.
+			AdvanceList(session.Notes, session.NoteIndex);
+			AdvanceList(session.HighSpeedNotes, session.HighSpeedIndex);
 		}
 
-		private void AdvanceList(NoteBase[] notes, ref int index)
+		private void AdvanceList(NoteBase[] notes, int index)
 		{
 			if (notes == null)
 			{

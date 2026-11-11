@@ -409,6 +409,8 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 
 - P0-5 已取得可复现结果。用 `unity command test run --caller plugin --skill unity-cli --mode playmode --filter LibrarySmokeTests --async_tests --include_explicit` 启动，再用 `unity command test status --caller plugin --skill unity-cli` 读取结果。曲库装配冒烟通过。整首原型直接读取仓库 `Tools/fixtures/baseline_tap` 的 manifest、谱面、音频和封面，经 `PlayService` 启动，断言 Core 控制器、返回曲库及结算组件。两次均完成 `Library → Core → Library`，结算为 466,063 / C，自动判定 103/221，Miss 为 0。验收缺口为自动游玩的 1,000,000 / S，跟踪至 P4-3。原型保留为显式用例，默认曲库冒烟照常运行。报告为 `TestResults/restructure-p0-5-first.json` 和 `TestResults/restructure-p0-5-status.json`。自动判定游标每次调用后越过长条是待验证的排查点。
 
+- P0-5 后续复验通过。对照 `b9aa453d` 前后的 `OnAutoInput`，发现自动判定开始写回场景的已完成游标，长条头已处理便从游标前消失。修复后判定扫描每帧从已完成游标读取，长条仍参与后续帧。沿用上面的异步命令，曲库装配和整首原型 2/2 通过，整首达到 1,000,000 / S；报告为 `TestResults/restructure-p0-5-autoplay-status.json`。全量 EditMode 为 512 通过、0 失败、4 跳过，结构和缺失脚本检查通过。原型的默认 CI 接入仍归 P4-3。PlayMode 生成的字体纹理数据已撤回，两份 Medium 字体资产恢复到开工时记录的大小，未纳入提交。开工时未记录文件哈希。
+
 ### Phase 1 执行记录（2026-11-11）
 
 - P1-1 首批完成。Unity CLI 编译 0 error，并在编辑器中确认 `InputTimeMapping` 归属 `OpenSekai.Core`。该类型只有基础数值运算，无项目或 Unity 依赖。脚本 GUID 和命名空间保留，Game 引用 Core，原 LiveLogic 入口继续转发。定向 `JudgeFrameTableTests` 11/11、`LiveLogicCharacterizationTests` 5/5 通过。编译、归属和测试报告在 `TestResults/restructure-p1-1-*.json`。

@@ -108,12 +108,14 @@ $rsp    = (Get-ChildItem 'Library\Bee\artifacts' -Recurse -Filter 'OpenSekai.Gam
 
 ## 为什么没有「整首打歌」的自动化测试
 
-试过，做不了，原因是结构性的而不是偷懒：
+P0-5 的显式用例 `LibrarySmokeTests.BaselineTapAutoplaysAndReturnsToTheLibrary` 使用仓库中的 `Tools/fixtures/baseline_tap`，通过 `PlayService` 自动开局，再读取 Core 控制器、返回后的曲库组件和结算结果。Unity Pipeline 的异步测试支持跨域重载和场景切换。
 
-- PlayMode 测试跑在 Test Runner 自己的场景里，而整首流程必须 `LoadScene` 切到 `Library`、再由 `PlayService` 经 `Sekai.SceneManager` 切到 `Core`。单场景加载会连 Test Runner 的场景一起销毁（实测 `MissingReferenceException: The object of type 'Sekai.Core.EntryPoint' has been destroyed`，`EntryPoint.cs:35`），改成 additive 也在切 `Core` 时同样炸。
-- 进播放模式又会触发域重载，把 `TestRunnerApi` 的回调连同报告一起带走（见上）。
+```powershell
+unity command test run --caller plugin --skill unity-cli --mode playmode --filter LibrarySmokeTests --async_tests --include_explicit
+unity command test status --caller plugin --skill unity-cli --format json
+```
 
-所以「转换 → 打歌 → 计分 → 结算」这条链的端到端验证仍然靠真机门禁：装机、点「自动」、看结算是不是 `1,000,000`（见 [Android 构建与门禁](../operations/android-build.md)）。分工是：EditMode 管逻辑，真机门禁管装配。
+本地复现了完整场景往返后的计分缺口（`466,063 / C`，自动判定 103/221）。修正自动判定游标后，整首用例通过 `1,000,000 / S` 断言。默认 PlayMode 运行曲库装配冒烟，整首用例可按上方命令单独运行。后续接入见[结构重整计划](../architecture/restructure-plan-2026-11.md)和[真机门禁](android-build.md)。
 
 ## 待补
 

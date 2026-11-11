@@ -47,7 +47,7 @@ namespace OpenSekai.Tests.PlayMode
         }
 
         [UnityTest]
-        [Explicit("P0-5 prototype. Full-score autoplay is tracked by the restructure plan.")]
+        [Explicit("Whole-song prototype for P4-3 integration.")]
         public IEnumerator BaselineTapAutoplaysAndReturnsToTheLibrary()
         {
             yield return LibrarySceneBootsAndShowsThePage();
