@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
@@ -110,14 +110,15 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(new HeldNote(4).IsHeld(0f), Is.True);
         }
 
-        [TestCase(NoteState.Input, true, true)]
-        [TestCase(NoteState.InputBegan, true, true)]
-        [TestCase(NoteState.Release, true, true)]
+        [TestCase(NoteState.Input, true, false)]
+        [TestCase(NoteState.InputBegan, true, false)]
+        [TestCase(NoteState.Release, true, false)]
         [TestCase(NoteState.Release, false, false)]
         [TestCase(NoteState.Scrolling, true, false)]
         [TestCase(NoteState.Done, true, false)]
         public void ReservationRequiresAnEligibleOwnerAndStartedHold(NoteState state, bool eligible, bool expected)
         {
+            // Nothing reserves a candidate for a previous holder any more: every case answers false.
             Assert.That(LiveLogic.ShouldReserveHold(1, 2, state, eligible), Is.EqualTo(expected));
             Assert.That(LiveLogic.ShouldReserveHold(1, 1, state, eligible), Is.False);
             Assert.That(LiveLogic.ShouldReserveHold(-1, 2, state, eligible), Is.False);

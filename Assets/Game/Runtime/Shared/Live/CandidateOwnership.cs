@@ -24,20 +24,5 @@ namespace OpenSekai.Shared.Live
         {
             return otherDistance <= currentDistance ? CandidateSide.Current : CandidateSide.Other;
         }
-
-        /// <summary>
-        /// Same decision, but a note that one finger is already holding stays with that finger no
-        /// matter how the lanes line up. Two overlapping long notes are shared candidates of both
-        /// fingers; handing a held note to the other finger made the hold skip a frame and release.
-        /// </summary>
-        public static CandidateSide Loser(bool currentHolds, bool otherHolds, float currentDistance, float otherDistance)
-        {
-            if (currentHolds != otherHolds)
-            {
-                return currentHolds ? CandidateSide.Other : CandidateSide.Current;
-            }
-
-            return Loser(currentDistance, otherDistance);
-        }
     }
 }

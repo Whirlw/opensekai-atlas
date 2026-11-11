@@ -38,37 +38,5 @@ namespace OpenSekai.Tests.EditMode.Live
                 CandidateOwnership.Loser(0.4f, float.MaxValue),
                 Is.EqualTo(CandidateSide.Other));
         }
-
-        [Test]
-        public void AHeldNoteStaysWithItsHolderEvenWhenTheOtherFingerIsCloser()
-        {
-            Assert.That(
-                CandidateOwnership.Loser(currentHolds: true, otherHolds: false, currentDistance: 40f, otherDistance: 0.5f),
-                Is.EqualTo(CandidateSide.Other));
-        }
-
-        [Test]
-        public void AHeldNoteIsGivenUpByTheFingerThatDoesNotHoldIt()
-        {
-            Assert.That(
-                CandidateOwnership.Loser(currentHolds: false, otherHolds: true, currentDistance: 0.5f, otherDistance: 40f),
-                Is.EqualTo(CandidateSide.Current));
-        }
-
-        [Test]
-        public void TwoHeldNotesFallBackToTheDistanceRule()
-        {
-            Assert.That(
-                CandidateOwnership.Loser(currentHolds: true, otherHolds: true, currentDistance: 5f, otherDistance: 1f),
-                Is.EqualTo(CandidateSide.Current));
-        }
-
-        [Test]
-        public void TwoUnheldNotesFallBackToTheDistanceRule()
-        {
-            Assert.That(
-                CandidateOwnership.Loser(currentHolds: false, otherHolds: false, currentDistance: 1f, otherDistance: 5f),
-                Is.EqualTo(CandidateSide.Other));
-        }
     }
 }

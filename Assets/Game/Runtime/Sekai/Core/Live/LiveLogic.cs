@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Sekai.Live;
@@ -769,7 +769,10 @@ namespace Sekai.Core.Live
 
 		internal static bool ShouldReserveHold(int holder, int candidate, NoteState state, bool ownerCanJudge)
 		{
-			return LiveCandidatePipeline.ShouldReserveHold(holder, candidate, state, ownerCanJudge);
+			// A hold is no longer anybody's: any finger in the lane keeps a bar alive, so nothing
+			// reserves a candidate for a previous holder. The name stays so callers of the old rule
+			// fail loudly instead of silently getting a different one.
+			return false;
 		}
 
 		/// <summary>

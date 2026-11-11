@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Sekai.Live;
 
 namespace Sekai.Core.Live
@@ -370,11 +370,9 @@ namespace Sekai.Core.Live
 							otherDistance = otherNote.LaneDistance(ref frame, laneOf(ref laneNote, ref otherInput));
 						}
 
-						int holdingTouchId = candidate is LongNote heldLongNote ? heldLongNote.HoldingTouchId : -1;
-						bool inputHolds = holdingTouchId >= 0 && holdingTouchId == input.Touch.fingerId;
-						bool otherInputHolds = holdingTouchId >= 0 && holdingTouchId == otherInput.Touch.fingerId;
-
-						if (OpenSekai.Shared.Live.CandidateOwnership.Loser(inputHolds, otherInputHolds, inputDistance, otherDistance) == OpenSekai.Shared.Live.CandidateSide.Current)
+						// The closer finger takes it; an exact tie keeps the older input, which is what a
+						// single pass over the list yields anyway.
+						if (OpenSekai.Shared.Live.CandidateOwnership.Loser(inputDistance, otherDistance) == OpenSekai.Shared.Live.CandidateSide.Current)
 						{
 							input.CandidateNotes.RemoveAt(candidateIndex);
 						}
@@ -429,13 +427,6 @@ namespace Sekai.Core.Live
 					// contention needs the reservation.
 					int heldNote = holds?.NoteOf(inputIndex) ?? -1;
 					if (heldNote >= 0 && heldNote != noteIndex && judgmentNote is LongNote)
-					{
-						continue;
-					}
-
-					// Another finger is already holding this long note: leave it to that finger, otherwise
-					// the second finger nominates it, steals the holder and the hold drops for a frame.
-					if (IsReservedForAnotherInput(judgmentNote, activeInput, inputs, laneOf))
 					{
 						continue;
 					}
@@ -496,14 +487,6 @@ namespace Sekai.Core.Live
 					int heldNote = holds?.NoteOf(inputIndex) ?? -1;
 					if (heldNote >= 0 && note is LongNote
 						&& !ReferenceEquals(note, judgmentNotes[heldNote])) continue;
-					// Allocation's ownership check must also apply to this deferred path. Otherwise
-					// a newer overlapping input removes the hold before its owner can pick it up,
-					// even though LongNote.Judgment later rejects that foreign input.
-					if (IsReservedForAnotherInput(note, input, inputs, laneOf))
-					{
-						continue;
-					}
-
 					float lane = laneOf(ref note, ref input);
 					if (lane >= 0f && note != null && note.IsJudgment(ref input.Touch, lane))
 					{
@@ -513,44 +496,6 @@ namespace Sekai.Core.Live
 				}
 			}
 		}
-
-		/// <summary>Whether a hold already belongs to a different finger this frame.</summary>
-		public static bool ShouldReserveHold(int holder, int candidate, NoteState state, bool ownerCanJudge)
-		{
-			return holder >= 0 && holder != candidate && ownerCanJudge
-				&& (state == NoteState.InputBegan || state == NoteState.Input || state == NoteState.Release);
-		}
-
-		private static bool IsReservedForAnotherInput(NoteBase note, LiveLogic.InputTmp input,
-			List<LiveLogic.InputTmp> inputs, LaneOf laneOf)
-		{
-			if (note is not LongNote held || held.HoldingTouchId < 0 || held.HoldingTouchId == input.Touch.fingerId)
-			{
-				return false;
-			}
-
-			// Excute can mark yesterday's hold Release before today's input pass (MissMesh is zero).
-			// Reserve by the owner's actual eligible input this frame, not by yesterday's timestamp.
-			for (int i = 0; i < inputs.Count; i++)
-			{
-				LiveLogic.InputTmp owner = inputs[i];
-				if (owner.Touch.fingerId != held.HoldingTouchId || LiveLogic.IsEndedOrCanceled(owner.Touch.phase)) continue;
-				float lane = laneOf(ref note, ref owner);
-				if (held.HasFinger && held.State != NoteState.Done
-					&& lane >= 0f && held.IsJudgment(ref owner.Touch, lane)) return true;
-			}
-
-			// Only an ordinary head belongs to the finger that took it, and only until it is
-			// judged. Everything else about a bar - the body, the tail, a rubbed surface - is
-			// open to any finger over the lane.
-			if (held.JudgeInfo.result != NoteResult.None || !held.PublishesHeadMiss)
-			{
-				return false;
-			}
-
-			return held.IsHeldByAnotherFinger(input.Touch.fingerId, input.Touch.musicTime);
-		}
-
 
 		private static void AddCheckSingleInputedNormalNoteTouch(ref NoteBase judgmentNote, ref NoteBase note,
 			ref LiveLogic.InputTmp activeInput, ref bool isConnection, ref bool isJudged, ref int touchId,
