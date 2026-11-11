@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using OpenSekai.Shared.Diagnostics;
+using OpenSekai.Shared.Live;
 using Sekai.Live;
 using Sekai.Live.Tails;
 
@@ -163,30 +165,21 @@ namespace Sekai.Core.Live
 					continue;
 				}
 
-				int best = -1;
-				float bestDistance = float.MaxValue;
-				for (int noteIndex = 0; noteIndex < judgmentNotes.Count; noteIndex++)
-				{
-					if (judgmentNotes[noteIndex] is not LongNote candidate || candidate.State == NoteState.Done)
-					{
-						continue;
-					}
-
-					if (!OpenSekai.Shared.Live.HoldSweep.TouchesLane(input.Lane, candidate.JudgeLaneStart, candidate.JudgeLaneEnd))
-					{
-						continue;
-					}
-
-					float middle = (candidate.JudgeLaneStart + candidate.JudgeLaneEnd) * 0.5f;
-					float distance = Math.Abs(input.Lane - middle);
-					if (best < 0 || distance < bestDistance)
-					{
-						best = noteIndex;
-						bestDistance = distance;
-					}
-				}
-
+				// A lift belongs to the bar the finger is actually standing on, not to whichever bar's
+				// widened judge range happens to reach it. Two bars end side by side, the finger lifts
+				// in one of them, and the old rule handed the lift to the neighbour because that
+				// neighbour's range was wider: the finger's own bar never got its release, and the
+				// neighbour got one it never earned. Narrow lanes first, widened ranges only as a
+				// fallback for a finger that is between two bars.
+				int best = PickLiftTarget(judgmentNotes, input.Lane, frame.time);
 				_liftTargets[i] = best;
+
+				if (LiveTrace.IsOn(LiveTraceCategory.Tail))
+				{
+					float barTime = best < 0 ? -1f : ((LongNote)judgmentNotes[best]).MusicScoreInfo.time;
+					LiveTrace.Write(LiveTraceCategory.Tail,
+						$"liftPick finger={input.Touch.fingerId} lane={input.Lane:F2} phase={input.Touch.phase} barT={barTime:F3}");
+				}
 			}
 
 			for (int noteIndex = 0; noteIndex < judgmentNotes.Count; noteIndex++)
@@ -268,6 +261,12 @@ namespace Sekai.Core.Live
 
 				bool isBeingHeld = held.IsHeld(frame.time);
 
+				if (LiveTrace.IsOn(LiveTraceCategory.Tail))
+				{
+					LiveTrace.Write(LiveTraceCategory.Tail,
+						$"tailFrame barT={held.MusicScoreInfo.time:F3} now={frame.time:F3} state={held.State} covered={covered} released={releasedInside} held={isBeingHeld} settled={headSettled} child={(held.ChildNote == null ? -1f : held.ChildNote.MusicScoreInfo.time):F3} childRes={(held.ChildNote == null ? NoteResult.None : held.ChildNote.Result)}");
+				}
+
 				// The bar asks its tail how it ends. There is no switch here any more, and no way for a
 				// new kind of end note to be drawn by one path and judged by another: the three shapes
 				// (lift, swipe, self judged) each own their own answer.
@@ -309,6 +308,42 @@ namespace Sekai.Core.Live
 			}
 
 			return refreshed;
+		}
+
+
+		/// <summary>
+		/// The bars a lifting finger may finish: its lane must hold the finger and its tail must be
+		/// judgeable right now. Of those, the earliest tail wins - a lift finishes one bar, the one
+		/// that is already due.
+		/// </summary>
+		private static int PickLiftTarget(List<NoteBase> judgmentNotes, float lane, float time)
+		{
+			int best = -1;
+			float bestTime = float.MaxValue;
+			float bestDistance = float.MaxValue;
+			for (int noteIndex = 0; noteIndex < judgmentNotes.Count; noteIndex++)
+			{
+				if (judgmentNotes[noteIndex] is not LongNote candidate || candidate.State == NoteState.Done)
+				{
+					continue;
+				}
+
+				if (!candidate.ContainsLane(lane) || !candidate.IsTailJudgeableAt(time))
+				{
+					continue;
+				}
+
+				float tailTime = candidate.ChildNote == null ? candidate.MusicScoreInfo.time : candidate.ChildNote.MusicScoreInfo.time;
+				float distance = Math.Abs(lane - (candidate.LaneStartF + candidate.LaneEndF) * 0.5f);
+				if (best < 0 || tailTime < bestTime || (tailTime == bestTime && distance < bestDistance))
+				{
+					best = noteIndex;
+					bestTime = tailTime;
+					bestDistance = distance;
+				}
+			}
+
+			return best;
 		}
 
 		private static bool IsEndedOrCanceled(UnityEngine.InputSystem.TouchPhase phase)
