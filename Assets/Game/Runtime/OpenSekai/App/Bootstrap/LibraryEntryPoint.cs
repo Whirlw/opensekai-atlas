@@ -1,4 +1,4 @@
-﻿using CP;
+using CP;
 using Sekai;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -59,7 +59,6 @@ namespace OpenSekai.App.Bootstrap
             screens.FadeIn(0f, returningFromTransition ? 0.3f : 0f, null);
             screens.AddScreen(MenuScreenType.Header);
             screens.AddScreen(MenuScreenType.TouchEffect);
-            screens.AddScreen(MenuScreenType.InsertNoti);
             LiveTransitioner.SafeForceFinish(null);
 
             // Lightweight library page: no ScreenLayerData registration and no editor page.
