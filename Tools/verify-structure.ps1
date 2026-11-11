@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [switch]$RequireNoEmptyDirectories,
-    [switch]$CheckProjects
+    [switch]$CheckProjects,
+    [switch]$CheckAssemblies
 )
 
 $ErrorActionPreference = 'Stop'
@@ -87,6 +88,71 @@ if ($CheckProjects) {
             }
         }
     }
+}
+
+if ($CheckAssemblies) {
+    $definitions = @{}
+    $namesByGuid = @{}
+    $definitionRoots = @('Assets', 'Packages', 'Library/PackageCache') |
+        ForEach-Object { Join-Path $root $_ } | Where-Object { Test-Path -LiteralPath $_ }
+    foreach ($file in Get-ChildItem -LiteralPath $definitionRoots -Recurse -File -Filter '*.asmdef') {
+        $definition = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+        $definitions[$definition.name] = $definition
+        $metaPath = $file.FullName + '.meta'
+        if (Test-Path -LiteralPath $metaPath) {
+            $guid = Select-String -LiteralPath $metaPath -Pattern '^guid: ([a-f0-9]{32})$'
+            if ($guid) { $namesByGuid[$guid.Matches[0].Groups[1].Value] = $definition.name }
+        }
+    }
+
+    foreach ($name in @('OpenSekai.Core', 'OpenSekai.Game', 'OpenSekai.App')) {
+        if (!$definitions.ContainsKey($name)) { $issues.Add("Missing assembly definition: $name") }
+    }
+
+    $core = $definitions['OpenSekai.Core']
+    if ($core -and (!$core.noEngineReferences -or !$core.overrideReferences)) {
+        $issues.Add('OpenSekai.Core must opt out of implicit Unity engine and plugin references.')
+    }
+    foreach ($reference in $core.precompiledReferences) {
+        if ($reference -match '^Unity') {
+            $issues.Add("OpenSekai.Core references a Unity library: $reference")
+        }
+    }
+
+    $coreTests = $definitions['OpenSekai.Tests.Core']
+    if ($coreTests -and @($coreTests.references).Count -ne 1) {
+        $issues.Add('OpenSekai.Tests.Core must reference exactly one project assembly.')
+    }
+
+    foreach ($definition in $definitions.Values) {
+        $name = $definition.name
+        if ($name -like 'OpenSekai.Tests.*' -and $definition.autoReferenced -ne $false) {
+            $issues.Add("$name must set autoReferenced to false.")
+        }
+
+        if ($name -notin @('OpenSekai.Core', 'OpenSekai.Game', 'OpenSekai.App', 'OpenSekai.Tests.Core')) {
+            continue
+        }
+        foreach ($reference in $definition.references) {
+            $target = $reference
+            if ($reference -match '^GUID:(?<id>[a-f0-9]{32})$') {
+                $target = $namesByGuid[$Matches['id']]
+                if (!$target) {
+                    $issues.Add("$name has an unresolved assembly reference: $reference")
+                    continue
+                }
+            }
+
+            $invalid = switch ($name) {
+                'OpenSekai.Core' { $true }
+                'OpenSekai.Game' { $target -in @('OpenSekai.App', 'OpenSekai.Editor') -or $target -like 'OpenSekai.Tests.*' }
+                'OpenSekai.App' { $target -eq 'OpenSekai.Editor' -or $target -like 'OpenSekai.Tests.*' }
+                'OpenSekai.Tests.Core' { $target -ne 'OpenSekai.Core' }
+            }
+            if ($invalid) { $issues.Add("$name has a forbidden assembly reference: $target") }
+        }
+    }
+    Write-Host 'Checked OpenSekai assembly boundaries.'
 }
 
 Write-Host "Checked $($markdown.Count) Markdown files and found $($empty.Count) empty runtime directories."

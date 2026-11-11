@@ -415,6 +415,8 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 
 - P1-2 首批通过。将四个时间映射用例从两份混合测试迁入 `OpenSekai.Tests.Core.InputTimeMappingTests`，保留 LiveLogic 实际帧输入和设置开关用例。Unity 编译 0 error，`test run --mode editmode --filter InputTimeMappingTests` 为 4/4。通过 `TestRunnerBridge.Run("EditMode", reportPath)` 生成 `TestResults/restructure-p1-2-editmode.xml`，全量仍为 512 通过、0 失败、4 跳过，按四例迁移后的全名对照 M0 结果一致。
 
+- P1-3 通过。`Tools/verify-structure.ps1 -CheckAssemblies -RequireNoEmptyDirectories` 校验 Core 的 Unity 引用限制、Game/App 的依赖方向和测试程序集的自动引用设置。在隔离样本中分别用名称和 GUID 让 Game 引用 App，两次均按预期返回 1，详见 `TestResults/restructure-p1-3-probe.txt`。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动
