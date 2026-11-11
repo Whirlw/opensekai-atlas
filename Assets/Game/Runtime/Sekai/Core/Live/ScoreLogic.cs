@@ -1,3 +1,4 @@
+using OpenSekai.Shared.Settings;
 using Sekai.Live;
 using OpenSekai.Shared.Scoring;
 using Sekai;
@@ -97,7 +98,7 @@ namespace Sekai.Core.Live
 
 			NoteResult effectiveResult = note.Result;
 			// In Fake Perfect mode, treat Auto as Perfect for combo counting
-			if (effectiveResult == NoteResult.Auto && LiveSettingData.LoadFromStorage()?.UsesAutoFakePerfectMode == true)
+			if (effectiveResult == NoteResult.Auto && LiveSettingsStore.Shared.Load()?.UsesAutoFakePerfectMode == true)
 			{
 				effectiveResult = NoteResult.Perfect;
 			}

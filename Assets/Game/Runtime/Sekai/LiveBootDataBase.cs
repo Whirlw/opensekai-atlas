@@ -1,3 +1,4 @@
+using OpenSekai.Shared.Settings;
 using Sekai.Live;
 
 namespace Sekai
@@ -61,7 +62,7 @@ namespace Sekai
 			LiveType = liveType;
 			MusicData = new LiveMusicData(musicId, difficulty, vocalId, liveType.ToString(), collaboModeState);
 			DeckData = new LiveDeckData(deckId, is6MemberMv);
-			LiveSettingData = LiveSettingData.LoadFromStorage();
+			LiveSettingData = LiveSettingsStore.Shared.Load();
 			LiveModelData = new LiveModelData(DeckData);
 			LiveEventData = new LiveEventData();
 			MusicCategory = MusicCategory.original;

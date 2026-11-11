@@ -1,3 +1,4 @@
+using OpenSekai.Shared.Settings;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -66,7 +67,7 @@ namespace Sekai.CustomMusicScoreManager
 					File.WriteAllText(appSettingsPath, appSettingsJson);
 
 					// Save LiveSettingData
-					LiveSettingData liveSettings = LiveSettingData.LoadFromStorage();
+					LiveSettingData liveSettings = LiveSettingsStore.Shared.Load();
 					string liveSettingsPath = Path.Combine(settingsDir, "LiveSettingData.json");
 					string liveSettingsJson = JsonConvert.SerializeObject(liveSettings, Formatting.Indented);
 					File.WriteAllText(liveSettingsPath, liveSettingsJson);
@@ -143,7 +144,7 @@ namespace Sekai.CustomMusicScoreManager
 								LiveSettingData liveSettings = JsonConvert.DeserializeObject<LiveSettingData>(json);
 								if (liveSettings != null)
 								{
-									LiveSettingData.SaveToStorage(liveSettings);
+									LiveSettingsStore.Shared.Save(liveSettings);
 								}
 							}
 						}

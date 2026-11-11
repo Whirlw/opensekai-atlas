@@ -1,3 +1,4 @@
+using OpenSekai.Shared.Settings;
 using System.Collections;
 using Sekai.Live;
 using Sekai.MusicScoreMaker.Common;
@@ -385,7 +386,7 @@ namespace Sekai.Core.Live
 			LiveScore score = _liveLogic?.Score ?? default;
 			// Check if this is an Auto play
 			bool isAutoPlay = BootData?.IsAuto == true;
-			int autoResultAnimation = LiveSettingData.LoadFromStorage()?.AutoResultAnimationMode ?? LiveSettingData.AUTO_RESULT_ANIMATION_NONE;
+			int autoResultAnimation = LiveSettingsStore.Shared.Load()?.AutoResultAnimationMode ?? LiveSettingData.AUTO_RESULT_ANIMATION_NONE;
 
 			// If all notes were Auto, handle based on settings
 			if (score.totalComboCount > 0 && score.autoCount == score.totalComboCount)

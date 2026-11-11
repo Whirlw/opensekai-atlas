@@ -1,3 +1,4 @@
+using OpenSekai.Shared.Settings;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -256,7 +257,7 @@ namespace Sekai.Live
 
 		public static void LoadOptionData()
 		{
-			LiveSettingData liveSettingData = LiveSettingData.LoadFromStorage();
+			LiveSettingData liveSettingData = LiveSettingsStore.Shared.Load();
 			LongNoteAlpha = liveSettingData.GetNoteAlpha();
 			GuideAlpha = liveSettingData.GetGuideAlpha();
 			JudgeLineAlpha = liveSettingData.GetJudgeLineAlpha();

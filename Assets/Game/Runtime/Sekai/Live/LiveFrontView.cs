@@ -1,3 +1,4 @@
+using OpenSekai.Shared.Settings;
 using System;
 using System.Collections.Generic;
 using Sekai.Core;
@@ -582,7 +583,7 @@ namespace Sekai.Live
 		{
 			if (_autoLabel != null)
 			{
-				bool useFakePerfect = LiveSettingData.LoadFromStorage()?.UsesAutoFakePerfectMode ?? false;
+				bool useFakePerfect = LiveSettingsStore.Shared.Load()?.UsesAutoFakePerfectMode ?? false;
 				_autoLabel.SetActive(_isAuto && !useFakePerfect);
 			}
 		}

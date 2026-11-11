@@ -1,10 +1,5 @@
-using System;
 using Beebyte.Obfuscator;
 using Newtonsoft.Json;
-using UnityEngine;
-using OpenSekai.Shared.Settings;
-using CP;
-using Sekai.Live;
 
 namespace Sekai
 {
@@ -88,7 +83,7 @@ namespace Sekai
 
 		/// <summary>
 		/// Frame rate cap for live play, in Hz. 0 follows the display refresh rate.
-		/// Supported values come from <see cref="CP.FramerateUtility.SupportedLimits"/>.
+		/// The runtime limits this to supported refresh rates.
 		/// </summary>
 		public int FrameRateLimit { get; set; }
 
@@ -224,11 +219,6 @@ namespace Sekai
 			CustomMusicScoreLiveBackgroundMode = CUSTOM_MUSIC_SCORE_BACKGROUND_MODE2_DMV;
 			UseMaimaiMusicInfoSe = false;
 		}
-
-		public static LiveSettingData LoadFromStorage() => OpenSekai.Shared.Settings.LiveSettingsStore.Shared.Load();
-
-		[Skip]
-		public static void SaveToStorage(LiveSettingData data) => OpenSekai.Shared.Settings.LiveSettingsStore.Shared.Save(data);
 
         internal LiveSettingData CopyForPlayback()
         {

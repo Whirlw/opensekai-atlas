@@ -1,3 +1,4 @@
+using OpenSekai.Shared.Settings;
 using System;
 using System.Collections;
 using CP;
@@ -51,7 +52,7 @@ namespace Sekai.Core.Live
 		{
 			Application.backgroundLoadingPriority = ThreadPriority.High;
 			liveBundleBuildData = Resources.Load<LiveBundleBuildData>(LiveConfig.ConfigBundleNamePath);
-			Settings = LiveSettingData.LoadFromStorage();
+			Settings = LiveSettingsStore.Shared.Load();
 			LiveConfig.LoadMasterConfig();
 			LiveConfig.LoadOptionData();
 			LiveConfig.CacheSpeedTime = 0f;

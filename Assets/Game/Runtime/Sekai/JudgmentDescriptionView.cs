@@ -1,3 +1,4 @@
+using OpenSekai.Shared.Settings;
 using System.Collections.Generic;
 using Sekai.Live;
 using UnityEngine;
@@ -37,7 +38,7 @@ namespace Sekai
 				{ NoteResultDescription.Late, _late },
 				{ NoteResultDescription.FlickMiss, _flickMiss }
 			};
-			LiveSettingData liveSetting = LiveSettingData.LoadFromStorage();
+			LiveSettingData liveSetting = LiveSettingsStore.Shared.Load();
 			_isFastLateFlick = liveSetting == null || liveSetting.IsFastLateFlick;
 			Hide();
 		}

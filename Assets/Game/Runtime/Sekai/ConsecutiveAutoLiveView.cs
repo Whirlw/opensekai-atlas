@@ -1,3 +1,4 @@
+using OpenSekai.Shared.Settings;
 using System;
 using UnityEngine;
 
@@ -60,7 +61,7 @@ namespace Sekai
 
 		public void Show()
 		{
-			bool useFakePerfect = LiveSettingData.LoadFromStorage()?.UsesAutoFakePerfectMode ?? false;
+			bool useFakePerfect = LiveSettingsStore.Shared.Load()?.UsesAutoFakePerfectMode ?? false;
 			SetActive(_pauseButton, false);
 			SetActive(_pauseButtonDisable, false);
 			// Hide auto pause button in Fake Perfect mode

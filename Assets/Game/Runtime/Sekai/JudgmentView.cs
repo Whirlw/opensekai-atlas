@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using OpenSekai.Shared.Settings;
+using System.Collections.Generic;
 using OpenSekai.Shared.Live;
 using Sekai.Live;
 using UnityEngine;
@@ -52,7 +53,7 @@ namespace Sekai
 
 		private void InitSprites()
 		{
-			bool useFakePerfect = LiveSettingData.LoadFromStorage()?.UsesAutoFakePerfectMode ?? false;
+			bool useFakePerfect = LiveSettingsStore.Shared.Load()?.UsesAutoFakePerfectMode ?? false;
 			Sprite autoSprite = useFakePerfect ? _perfect : _auto;
 			_sprites = new Dictionary<NoteResult, Sprite>
 			{

@@ -421,6 +421,8 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 
 - P1-1 / P1-2 判定批次通过。`JudgeWindow` 随 `JudgeTimeData`、`JudgeFrameType`、`NoteResultDescription` 迁入 Core，`JudgeTuning` 随 `NoteCategory` 迁入。移除仓库中没有调用的 Master 对象构造入口，保留同一数值构造方式。ScriptableObject 配置适配留在 Game 的 `LiveBundleBuildData.GetJudgeTuning`，两例资产检查随之拆出。编译和程序集/IDE 检查通过，缺失脚本新增 0。全量 512 通过、0 失败、4 跳过，计入两例资产测试改归属后与上一批逐项一致。报告在 `TestResults/restructure-p1-1-judgement-*`。
 
+- P1-1 设置批次通过。现有读写统一改用 Game 的 `LiveSettingsStore`。DTO 和快照随 `MVQualityType`、本地 `[Skip]` 标记迁入 Core，保留字段、缺省值和快照复制行为。Core 仅显式引用 Newtonsoft.Json，`link.xml` 的设置 DTO 条目指向新程序集。完整 EditMode 包含旧设置读取、写回和开局快照检查，512 通过、0 失败、4 跳过。程序集/IDE 检查通过，缺失脚本新增 0。报告在 `TestResults/restructure-p1-1-settings-*`。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动

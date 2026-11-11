@@ -28,7 +28,6 @@
     <type fullname="Sekai.AssetBundleElement" preserve="all" />
     <!-- 本地设置 -->
     <type fullname="Sekai.ApplicationLocalSettings" preserve="all" />
-    <type fullname="Sekai.LiveSettingData" preserve="all" />
     <!-- 曲包清单与历史 -->
     <type fullname="Sekai.MusicScoreMaker.Common.CustomMusicScoreManifest" preserve="all" />
     <type fullname="Sekai.MusicScoreMaker.Common.CustomMusicScorePlayHistoryRecord" preserve="all" />
@@ -37,5 +36,8 @@
     <type fullname="OpenSekai.Charts.ChartDocument" preserve="all" />
     <type fullname="OpenSekai.Charts.ChartNote" preserve="all" />
     <type fullname="OpenSekai.Charts.ChartEvent" preserve="all" />
+  </assembly>
+  <assembly fullname="OpenSekai.Core">
+    <type fullname="Sekai.LiveSettingData" preserve="all" />
   </assembly>
 </linker>
