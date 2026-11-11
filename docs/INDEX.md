@@ -51,6 +51,7 @@
 | 方案 04 启动与 Live | [architecture/plan/04-startup-pages-live.md](architecture/plan/04-startup-pages-live.md) | 启动链、页面收敛、Live 会话、时间与输入 | 2026-11-02 | 历史设计 |
 | 方案 05 资源与数据 | [architecture/plan/05-resources-deps-data.md](architecture/plan/05-resources-deps-data.md) | 资源裁剪、依赖分批、构建规则、用户数据 | 2026-11-02 | 历史设计 |
 | 方案 06 阶段与验收 | [architecture/plan/06-phases-and-acceptance.md](architecture/plan/06-phases-and-acceptance.md) | 阶段与退出条件、待改清单、验收、风险 | 2026-11-02 | 历史设计 |
+| 结构重整计划（2026-11） | [architecture/restructure-plan-2026-11.md](architecture/restructure-plan-2026-11.md) | 分阶段：文档/空目录、Core 程序集、拆 ScreenManager/LibraryScreen/LongNote、ResourceCatalog、测试门禁 | 2026-11-11 | 提案 |
 
 ## 运维 `operations/`
 

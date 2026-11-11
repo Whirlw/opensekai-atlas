@@ -27,6 +27,7 @@
 | [AssetBundle 与清单](asset-bundles.md) | 15 个白名单 bundle、JSON 清单、`StreamingAssets` 平铺 |
 | [音频](audio.md) | `CriAtomShim`、`AcbDecoder`、为什么时钟不用 `dspTime` |
 | [轻量化方案（历史设计稿）](player-lite-plan.md) | 重构前的目标结构与阶段划分，末尾列出与现状的偏差 |
+| [结构重整计划（2026-11）](restructure-plan-2026-11.md) | 从止血、程序集拆分到上帝对象/资源入口/测试门禁的完整计划 |
 
 ## 相关文档
 
