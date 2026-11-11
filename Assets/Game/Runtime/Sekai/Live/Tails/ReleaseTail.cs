@@ -14,9 +14,11 @@ namespace Sekai.Live.Tails
 
 		public bool TryFinish(LongNote bar, in TailFrame frame)
 		{
-			// Only a lift inside the bar earns the end. The window check itself lives in
-			// JudgeTailAsRelease, so an early lift during the hold is never graded here.
-			if (!frame.ReleasedInside || !frame.IsBeingHeld)
+			// Only the lift matters. Whether the bar still counts as held on this very frame is the
+			// bar's own bookkeeping, and letting it decide here is how a finger that held to the end
+			// and then lifted could never finish a bar: the lift sample is already "finger gone".
+			// The window check itself lives in JudgeTailAsRelease, so an early lift is never graded.
+			if (!frame.ReleasedInside)
 			{
 				return false;
 			}
