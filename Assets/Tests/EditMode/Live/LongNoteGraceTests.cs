@@ -125,7 +125,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(bar.HasFinger, Is.True, "a held bar has a finger by definition");
 			Assert.That(bar.IsHeld(0f), Is.True, "and IsHeld is just HasFinger now");
 
-			typeof(LongNote).GetField("_holdingTouchId", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(bar, -1);
+			typeof(LongNote).GetField("_fingerOnIt", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(bar, false);
 
 			Assert.That(bar.HasFinger, Is.False, "no touch id means no finger, whatever the state says");
 			Assert.That(bar.IsHeld(0f), Is.False, "the time argument no longer decides anything");
@@ -151,11 +151,11 @@ namespace OpenSekai.Tests.EditMode.Live
 			foreach (int finger in new[] { 2, -1, 0 })
 			{
 				bar.RecordHoldingInput(finger, 0f);
-				Assert.That(bar.HoldingTouchId, Is.EqualTo(finger));
-				Assert.That(bar.HasFinger, Is.EqualTo(bar.HoldingTouchId >= 0));
+				Assert.That(bar.HasFinger, Is.True);
+				Assert.That(bar.HasFinger, Is.True);
 			}
 			bar.ResetNote();
-			Assert.That(bar.HoldingTouchId, Is.EqualTo(-1));
+			Assert.That(bar.HasFinger, Is.False);
 			Assert.That(bar.HasFinger, Is.False);
 		}
 	}

@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using OpenSekai.Charts.Serialization;
@@ -55,7 +55,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			Vector3 mine = LanePosition(_bar.JudgeLaneStart);
 			StepTo(_bar.MusicScoreInfo.time - 0.02f);
 			StepTo(_bar.MusicScoreInfo.time, LiveHarness.Touch(1, mine, 10d + _bar.MusicScoreInfo.time, TouchPhase.Began));
-			Assert.That(_bar.HoldingTouchId, Is.EqualTo(1), "the real candidate path must acquire the hold");
+			Assert.That(_bar.HasFinger, Is.True, "the real candidate path must acquire the hold");
 
 			// Stop just short of the tail: the next step must be the release itself, and the clock never
 			// goes backwards, which would leave the hold's freshness in the past.
@@ -91,7 +91,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			StepTo(TailTime, LiveHarness.Touch(1, LanePosition(_bar.JudgeLaneStart), 10d + TailTime, TouchPhase.Ended));
 
 			Assert.That(Tail.Result, Is.Not.EqualTo(NoteResult.None),
-				$"the holder's release grades the tail (state={_bar.State} holder={_bar.HoldingTouchId}"
+				$"the holder release grades the tail (state={_bar.State} finger={_bar.HasFinger}"
 				+ $" judgeable={_bar.IsTailJudgeableAt(TailTime)} tail={TailTime:F3} bar={_bar.MusicScoreInfo.time:F3})");
 			Assert.That(_bar.State, Is.EqualTo(NoteState.Done));
 		}

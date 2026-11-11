@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Sekai.Live;
@@ -713,7 +713,6 @@ namespace Sekai.Core.Live
 			{
 				InputTmp input = _activeInputList[i];
 				if (IsEndedOrCanceled(input.Touch.phase)) continue;
-				if (bar.HasFinger && bar.HoldingTouchId != input.Touch.fingerId) continue;
 				NoteBase note = bar;
 				float lane = ConvertLaneBy(ref note, ref input);
 				if (lane < 0f || !bar.ContainsLane(lane)) continue;

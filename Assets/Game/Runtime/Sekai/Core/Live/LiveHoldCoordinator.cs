@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Sekai.Live;
 using Sekai.Live.Tails;
@@ -50,9 +50,10 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>
-		/// Rebuilds the finger-to-bar assignment: first keep every owner that is still valid, then
-		/// augment it for bars whose owner left their lane, so a wide and a narrow crossing bar can
-		/// exchange fingers.
+		/// Rebuilds the finger-to-bar assignment every frame. No bar belongs to a finger any more:
+		/// each finger may drive one bar per frame, and the bar it drives is the nearest one it can
+		/// reach, so two overlapping bars are shared out by distance instead of by who grabbed first.
+		/// The quota is what keeps an overlapping pair from being driven twice on the same frame.
 		/// </summary>
 		public void AssignContinuingHolds(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs, LaneOf laneOf)
 		{
@@ -68,41 +69,40 @@ namespace Sekai.Core.Live
 
 			for (int n = 0; n < judgmentNotes.Count; n++)
 			{
-				if (!HasContinuingHold(judgmentNotes[n]))
+				if (judgmentNotes[n] is not LongNote held || !HasContinuingHold(held))
 				{
 					continue;
 				}
 
-				LongNote held = (LongNote)judgmentNotes[n];
+				float middle = (held.JudgeLaneStart + held.JudgeLaneEnd) * 0.5f;
+				int best = -1;
+				float bestDistance = float.MaxValue;
 				for (int i = 0; i < count; i++)
 				{
-					if (_holdInputNotes[i] < 0
-						&& inputs[i].Touch.fingerId == held.HoldingTouchId
-						&& !IsEndedOrCanceled(inputs[i].Touch.phase)
-						&& CanContinueHold(n, i))
+					if (_holdInputNotes[i] >= 0 || IsEndedOrCanceled(inputs[i].Touch.phase))
 					{
-						_holdInputNotes[i] = n;
-						break;
+						continue;
+					}
+
+					NoteBase laneNote = held;
+					LiveLogic.InputTmp candidate = inputs[i];
+					float lane = laneOf(ref laneNote, ref candidate);
+					if (lane < 0f || !held.IsJudgment(ref candidate.Touch, lane))
+					{
+						continue;
+					}
+
+					float distance = Math.Abs(lane - middle);
+					if (best < 0 || distance < bestDistance)
+					{
+						best = i;
+						bestDistance = distance;
 					}
 				}
-			}
 
-			for (int n = 0; n < judgmentNotes.Count; n++)
-			{
-				if (!HasContinuingHold(judgmentNotes[n]) || Array.IndexOf(_holdInputNotes, n, 0, count) >= 0)
+				if (best >= 0)
 				{
-					continue;
-				}
-
-				Array.Clear(_holdInputVisited, 0, count);
-				OpenSekai.Shared.Live.HoldInputMatching.TryAssign(n, count, _holdInputEligible, _holdInputNotes, _holdInputVisited);
-			}
-
-			for (int i = 0; i < count; i++)
-			{
-				if (_holdInputNotes[i] >= 0)
-				{
-					((LongNote)judgmentNotes[_holdInputNotes[i]]).AssignHoldingInput(inputs[i].Touch.fingerId);
+					_holdInputNotes[best] = n;
 				}
 			}
 		}
@@ -126,6 +126,10 @@ namespace Sekai.Core.Live
 					continue;
 				}
 
+				// "A finger is on this bar" is a fact about this frame only, so it is rebuilt here
+				// rather than remembered: whatever the bar knew last frame is stale by now.
+				held.ClearFinger();
+
 				// A bar stays in this pass once the player has taken it - not only while the state machine still
 				// says a finger is on it, because a stale hold has to reach its tail judgement too.
 				if (!held.WasTouched && held.State != NoteState.Release)
@@ -133,18 +137,9 @@ namespace Sekai.Core.Live
 					continue;
 				}
 
-				if (TryRefreshFromOwner(held, count, inputs, laneOf))
-				{
-					continue;
-				}
-
-				// The owner is gone (lifted or cancelled) while another finger already sits inside this
-				// bar. Hand the hold over on this frame instead of waiting for the old refresh to go
-				// stale: otherwise the bar greys for a moment before the new finger is allowed in.
-				if (!HasLiveOwner(held, count, inputs))
-				{
-					AdoptHoldFromAnyFinger(held, count, inputs, laneOf);
-				}
+				// Any finger inside the bar refreshes it. There is no owner to hand it to and nobody
+				// to take it from: the bar lives while a finger is on it, whoever that is.
+				RefreshFromAnyFinger(held, count, inputs, laneOf);
 			}
 		}
 
@@ -206,12 +201,9 @@ namespace Sekai.Core.Live
 							swipeDeltaY += input.Touch.delta.y;
 						}
 
-						// Only the finger that was holding this bar releases it. A lift anywhere else -
-						// another lane, another finger - used to count as "released inside" and graded the
-						// tail on release, so lifting anywhere finished any bar. The lane test stays for
-						// the holder whose ended sample sits above the line.
-						if (input.Touch.touchId == held.HoldingTouchId
-							|| OpenSekai.Shared.Live.HoldSweep.TouchesLane(input.Lane, held.JudgeLaneStart, held.JudgeLaneEnd))
+						// A lift inside the bar is the release the tail listens for, whoever lifted:
+						// any finger sitting in the lane counts, not only the one that took the bar.
+						if (OpenSekai.Shared.Live.HoldSweep.TouchesLane(input.Lane, held.JudgeLaneStart, held.JudgeLaneEnd))
 						{
 							releasedInside = true;
 						}
@@ -272,44 +264,9 @@ namespace Sekai.Core.Live
 			}
 		}
 
-		private static bool TryRefreshFromOwner(LongNote held, int count, List<LiveLogic.InputTmp> inputs, LaneOf laneOf)
+		private static bool RefreshFromAnyFinger(LongNote held, int count, List<LiveLogic.InputTmp> inputs, LaneOf laneOf)
 		{
-			for (int inputIndex = 0; inputIndex < count; inputIndex++)
-			{
-				LiveLogic.InputTmp input = inputs[inputIndex];
-				if (input.Touch.fingerId != held.HoldingTouchId || IsEndedOrCanceled(input.Touch.phase))
-				{
-					continue;
-				}
-
-				NoteBase laneNote = held;
-				float lane = laneOf(ref laneNote, ref input);
-				if (lane >= 0f && held.ContainsLane(lane))
-				{
-					held.RefreshHeldInput(ref input.Touch, lane);
-					return true;
-				}
-			}
-
-			return false;
-		}
-
-		private static bool HasLiveOwner(LongNote held, int count, List<LiveLogic.InputTmp> inputs)
-		{
-			for (int inputIndex = 0; inputIndex < count; inputIndex++)
-			{
-				LiveLogic.InputTmp input = inputs[inputIndex];
-				if (input.Touch.fingerId == held.HoldingTouchId && !IsEndedOrCanceled(input.Touch.phase))
-				{
-					return true;
-				}
-			}
-
-			return false;
-		}
-
-		private static void AdoptHoldFromAnyFinger(LongNote held, int count, List<LiveLogic.InputTmp> inputs, LaneOf laneOf)
-		{
+			bool refreshed = false;
 			for (int inputIndex = 0; inputIndex < count; inputIndex++)
 			{
 				LiveLogic.InputTmp input = inputs[inputIndex];
@@ -325,10 +282,11 @@ namespace Sekai.Core.Live
 					continue;
 				}
 
-				held.AssignHoldingInput(input.Touch.fingerId);
 				held.RefreshHeldInput(ref input.Touch, lane);
-				return;
+				refreshed = true;
 			}
+
+			return refreshed;
 		}
 
 		private static bool IsEndedOrCanceled(UnityEngine.InputSystem.TouchPhase phase)

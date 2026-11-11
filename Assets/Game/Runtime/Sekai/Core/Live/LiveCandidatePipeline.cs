@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Sekai.Live;
 
 namespace Sekai.Core.Live
@@ -290,7 +290,7 @@ namespace Sekai.Core.Live
 				return OpenSekai.Shared.Live.CandidateOrder.FlickRank;
 			}
 
-			if (note is LongNote held && held.HoldingTouchId >= 0)
+			if (note is LongNote held && held.HasFinger)
 			{
 				return OpenSekai.Shared.Live.CandidateOrder.HeldRank;
 			}

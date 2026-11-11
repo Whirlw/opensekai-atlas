@@ -61,14 +61,9 @@ namespace Sekai.Live
 				return false;
 			}
 
-			// Only an ordinary head has an owner: it is the press that a second finger could
-			// steal, and it is the only part of a bar the chart asks a single note to answer.
-			// A rubbed bar and a hidden head are taken by whatever finger is over the lane.
+			// A bar has no owner any more, so a second finger landing on it cannot steal the head:
+			// the head is settled once, by whichever touch reaches the window first.
 			bool headSettledAlready = IsSettled;
-			if (!headSettledAlready && _bar.PublishesHeadMiss && _bar.IsHeldByAnotherFinger(touch.fingerId, touch.musicTime))
-			{
-				return false;
-			}
 
 			// The head is a tap note that happens to have a body behind it: it is judged on its own
 			// window, whatever the body is doing, and its result never decides how the body behaves.

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using NUnit.Framework;
 using OpenSekai.Shared.Live;
 using Sekai.Live;
@@ -45,7 +45,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(events, Is.EqualTo(new[] { "result", "damage", "combo", "judge:Scrolling:Great:0.1", "score" }));
             Assert.That(bar.Result, Is.EqualTo(NoteResult.Great));
             LongNoteGraceTests.AssertHeldBody(bar);
-            Assert.That(bar.HoldingTouchId, Is.EqualTo(1));
+            Assert.That(bar.HasFinger, Is.True);
             Assert.That(bar.OffsetJudgeTime, Is.Zero);
             bar.Judgment(ref touch, 4.5f);
             Assert.That(events.Count, Is.EqualTo(5), "continuing the hold must not publish the head again");

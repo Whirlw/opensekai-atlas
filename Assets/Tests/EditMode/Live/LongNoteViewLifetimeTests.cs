@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
@@ -71,7 +71,7 @@ namespace OpenSekai.Tests.EditMode.Live
         {
             Step(_bar.MusicScoreInfo.time - 0.01f);
             Step(_bar.MusicScoreInfo.time, TouchPhase.Began);
-            Assert.That(_bar.HoldingTouchId, Is.EqualTo(1), "the real candidate/input path must acquire the hold");
+            Assert.That(_bar.HasFinger, Is.True, "the real candidate/input path must acquire the hold");
         }
 
         // A key that can be graded must be on screen, whatever head the bar starts with. The old rule

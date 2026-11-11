@@ -147,8 +147,8 @@ namespace OpenSekai.Tests.EditMode.Live
                     if (begun[i])
                     {
                         if (notes[i] is FrictionLongNote) { Assert.That(notes[i].State, Is.EqualTo(NoteState.InputBegan).Or.EqualTo(NoteState.Input),
-                            $"frame={frame} time={time} note={notes[i].Id} lane={notes[i].LaneStartF}..{notes[i].LaneEndF} holder={notes[i].HoldingTouchId}"); } else { LongNoteGraceTests.AssertHeldBody(notes[i],
-                            $"frame={frame} time={time} note={notes[i].Id} lane={notes[i].LaneStartF}..{notes[i].LaneEndF} holder={notes[i].HoldingTouchId}"); }
+                            $"frame={frame} time={time} note={notes[i].Id} lane={notes[i].LaneStartF}..{notes[i].LaneEndF} finger={notes[i].HasFinger}"); } else { LongNoteGraceTests.AssertHeldBody(notes[i],
+                            $"frame={frame} time={time} note={notes[i].Id} lane={notes[i].LaneStartF}..{notes[i].LaneEndF} finger={notes[i].HasFinger}"); }
                         foreach (var child in notes[i].NoteList)
                             if (child is LongHoldCombo && child.MusicScoreInfo.time < time)
                                 Assert.That(child.Result, Is.EqualTo(NoteResult.JustPerfect), $"frame={frame} time={time} tick={child.MusicScoreInfo.time}");
@@ -265,7 +265,7 @@ namespace OpenSekai.Tests.EditMode.Live
                 foreach (var note in notes)
                 {
                     // Trace heads finalize their first touch in the following Excute call.
-                    Assert.That(note.HoldingTouchId, Is.EqualTo(note.Id + 1), $"frame={frame} note={note.Id}");
+                    Assert.That(note.HasFinger, Is.True, $"frame={frame} note={note.Id}");
                     if (frame > 0)
                         if (note is FrictionLongNote) { Assert.That(note.State, Is.EqualTo(NoteState.InputBegan).Or.EqualTo(NoteState.Input), $"frame={frame} note={note.Id}"); } else { LongNoteGraceTests.AssertHeldBody(note, $"frame={frame} note={note.Id}"); }
                     foreach (var child in note.NoteList)
@@ -453,7 +453,7 @@ namespace OpenSekai.Tests.EditMode.Live
                 new System.Collections.Generic.List<NoteBase>(), null,
                 (ref NoteBase n, ref LiveLogic.InputTmp i) => i.Lane, null);
             Assert.That(input.CandidateNotes, Is.Empty);
-            Assert.That(bar.HoldingTouchId, Is.EqualTo(1));
+            Assert.That(bar.HasFinger, Is.True);
         }
     }
 }

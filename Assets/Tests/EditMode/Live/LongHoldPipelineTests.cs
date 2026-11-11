@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
@@ -146,7 +146,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Stage(logic, "DriveIndependentNotes");
             foreach (var input in Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList"))
                 Assert.That(input.CandidateNotes, Has.No.Member(a).And.No.Member(b));
-            Assert.That(a.HoldingTouchId, Is.Not.EqualTo(b.HoldingTouchId));
+            Assert.That(a.HasFinger && b.HasFinger, Is.True, "each bar is driven by a finger of its own");
             Assert.That(a.HasFinger && b.HasFinger, Is.True);
             Assert.That(a.LastTime, Is.EqualTo(1f).Within(1e-4));
             Assert.That(b.LastTime, Is.EqualTo(1f).Within(1e-4));
@@ -155,8 +155,8 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(b.LastTime, Is.EqualTo(1f).Within(1e-5f));
             Assert.That(a.JudgmentCalls, Is.EqualTo(1));
             Assert.That(b.JudgmentCalls, Is.EqualTo(1));
-            Assert.That(a.HoldingTouchId, Is.EqualTo(1));
-            Assert.That(b.HoldingTouchId, Is.EqualTo(2));
+            Assert.That(a.HasFinger, Is.True);
+            Assert.That(b.HasFinger, Is.True);
         }
 
         [TestCase(NoteCategory.Normal, OpenSekai.Shared.Live.CandidateOrder.TouchRank)]
@@ -239,7 +239,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(bar.State, Is.EqualTo(NoteState.Wait));
             Assert.That(bar.Result, Is.EqualTo(NoteResult.None));
             Assert.That((float)typeof(LongNote).GetField("lastInputTime", Private).GetValue(bar), Is.EqualTo(0f));
-            Assert.That((int)typeof(LongNote).GetField("_holdingTouchId", Private).GetValue(bar), Is.EqualTo(-1));
+            Assert.That((bool)typeof(LongNote).GetField("_fingerOnIt", Private).GetValue(bar), Is.False);
             Assert.That((bool)typeof(LongNote).GetField("_swipeTailDeferred", Private).GetValue(bar), Is.False);
             Assert.That((int)typeof(LongNote).GetField("_framesSinceRelease", Private).GetValue(bar), Is.EqualTo(-1));
             Assert.That((bool)typeof(LongNote).GetField("_pressedThisFrame", Private).GetValue(bar), Is.False);
@@ -406,7 +406,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Stage(logic, "Judgment");
             Assert.That(held.LastTime, Is.EqualTo(1f).Within(1e-5f));
             Assert.That(held.JudgmentCalls, Is.EqualTo(1));
-            Assert.That(held.HoldingTouchId, Is.EqualTo(1));
+            Assert.That(held.HasFinger, Is.True);
             Assert.That(tap.State, Is.EqualTo(NoteState.Done));
             Assert.That(tap.Result, Is.EqualTo(NoteResult.JustPerfect));
         }
@@ -459,8 +459,8 @@ namespace OpenSekai.Tests.EditMode.Live
             foreach (var note in notes) note.Excute(Info(0.142f), 0);
             Assert.That(combos[0].Result, Is.EqualTo(NoteResult.JustPerfect));
             Assert.That(combos[1].Result, Is.EqualTo(NoteResult.JustPerfect));
-            Assert.That(notes[0].HoldingTouchId, Is.EqualTo(1));
-            Assert.That(notes[1].HoldingTouchId, Is.EqualTo(2));
+            Assert.That(notes[0].HasFinger, Is.True);
+            Assert.That(notes[1].HasFinger, Is.True);
         }
 
         [TestCase(0f, NoteResult.JustPerfect)]
@@ -556,9 +556,9 @@ namespace OpenSekai.Tests.EditMode.Live
             var foreign = Input(2, 4.5f).Touch;
             Assert.That(note.Judgment(ref foreign, 4.5f), Is.True,
                 "a rubbed bar belongs to whichever finger is over the lane");
-            Assert.That(note.HoldingTouchId, Is.EqualTo(2), "the second finger now works it");
+            Assert.That(note.HasFinger, Is.True, "the second finger now works it");
             note.ResetNote();
-            Assert.That(note.HoldingTouchId, Is.EqualTo(-1));
+            Assert.That(note.HasFinger, Is.False);
         }
 
         [TestCase(false)]
@@ -574,7 +574,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").AddRange(new[] { owner, newcomer });
             Stage(logic, "Judgment");
             Assert.That(held.LastTime, Is.EqualTo(1f).Within(1e-5f), "The holder must keep refreshing while a second finger is inside the lane.");
-            Assert.That(held.HoldingTouchId, Is.EqualTo(1));
+            Assert.That(held.HasFinger, Is.True);
         }
 
         // One finger sustaining two overlapping bars is real behaviour (checked on device), but this
@@ -596,7 +596,7 @@ namespace OpenSekai.Tests.EditMode.Live
             var press = Input(1, 4.5f);
             press.Touch.phase = TouchPhase.Began;
             bar.Judgment(ref press.Touch, 4.5f);
-            Assert.That(bar.HoldingTouchId, Is.EqualTo(1));
+            Assert.That(bar.HasFinger, Is.True);
 
             // A separate contact note sits on top of the bar, a hair later.
             var tap = new NormalNote(Info(0.5f), 12, 4, 5, NoteCategory.Normal, 1, NoteType.Default, 0);
@@ -605,7 +605,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Stage(logic, "Judgment");
 
             Assert.That(tap.Result, Is.Not.EqualTo(NoteResult.Miss), "The finger holding the bar must also judge the overlaid note.");
-            Assert.That(bar.HoldingTouchId, Is.EqualTo(1), "Judging the overlaid note must not drop the bar.");
+            Assert.That(bar.HasFinger, Is.True, "Judging the overlaid note must not drop the bar.");
             Assert.That((float)typeof(LongNote).GetField("lastInputTime", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(bar), Is.EqualTo(0f).Within(0.0001f),
                 "Judging the overlaid note must still refresh the hold's liveness");
         }
@@ -623,7 +623,7 @@ namespace OpenSekai.Tests.EditMode.Live
             var edge = Input(1, 2.5f);
             edge.Touch.phase = TouchPhase.Began;
             bar.Judgment(ref edge.Touch, 2.5f);
-            Assert.That(bar.HoldingTouchId, Is.EqualTo(1));
+            Assert.That(bar.HasFinger, Is.True);
 
             var inside = new NormalNote(Info(0.5f), 14, 2, 8, NoteCategory.Normal, 1, NoteType.Default, 0);
             Field<List<NoteBase>>(logic, "_judgmentNoteList").AddRange(new NoteBase[] { bar, inside });
@@ -631,7 +631,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Stage(logic, "Judgment");
 
             Assert.That(inside.Result, Is.Not.EqualTo(NoteResult.Miss), "A second finger inside the bar must judge the note it lands on.");
-            Assert.That(bar.HoldingTouchId, Is.EqualTo(1), "The edge holder keeps the bar.");
+            Assert.That(bar.HasFinger, Is.True, "The edge holder keeps the bar.");
         }
 
         [TestCase(NoteResult.Miss, NoteResult.Perfect, NoteResult.Miss)]
@@ -661,7 +661,7 @@ namespace OpenSekai.Tests.EditMode.Live
             press.Touch.musicTime = 0.06f;
             bar.Judgment(ref press.Touch, 4.5f);
             Assert.That(bar.JudgeInfo.result, Is.EqualTo(NoteResult.Great));
-            Assert.That(bar.HoldingTouchId, Is.EqualTo(1));
+            Assert.That(bar.HasFinger, Is.True);
 
             // Keep holding for a few frames through the normal pipeline.
             Field<List<NoteBase>>(logic, "_judgmentNoteList").Add(bar);
@@ -684,7 +684,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(bar.IsHoldFresh(0.5f + 2f / 60f), Is.True, "A Great head must keep the bar held, not drop it.");
             LongNoteGraceTests.AssertHeldBody(bar, "A Great head must keep the bar held, not drop it.");
             Assert.That(bar.JudgeInfo.result, Is.EqualTo(NoteResult.Great), "The head keeps its Great result.");
-            Assert.That(bar.HoldingTouchId, Is.EqualTo(1));
+            Assert.That(bar.HasFinger, Is.True);
         }
 
         [Test]
@@ -708,7 +708,7 @@ namespace OpenSekai.Tests.EditMode.Live
             logic.currentFrameInfo = MusicScore.CurrentFrameInfo = Info(0.125f);
             Stage(logic, "RefreshSustainedHolds");
             Assert.That(combo.Result, Is.EqualTo(NoteResult.JustPerfect), "A refreshed hold must still score its interior combo ticks.");
-            Assert.That(note.HoldingTouchId, Is.EqualTo(1));
+            Assert.That(note.HasFinger, Is.True);
         }
 
         [TestCase(4.5f, true)]
@@ -749,7 +749,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Field<List<NoteBase>>(logic, "_judgmentNoteList").AddRange(new NoteBase[] { note });
             Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").AddRange(new[] { press });
             Stage(logic, "Judgment");
-            Assert.That(note.HoldingTouchId, Is.EqualTo(1));
+            Assert.That(note.HasFinger, Is.True);
             LongNoteGraceTests.AssertHeldBody(note);
         }
 

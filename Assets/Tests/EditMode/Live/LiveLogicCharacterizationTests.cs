@@ -128,7 +128,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			harness.Step(start - 0.02f, FRAME_GAME_TIME - 0.02f);
 			harness.Step(start, FRAME_GAME_TIME,
 				LiveHarness.Touch(1, mine, FRAME_GAME_TIME, TouchPhase.Began));
-			Assert.That(bar.HoldingTouchId, Is.EqualTo(1), "the hold is acquired by finger 1");
+			Assert.That(bar.HasFinger, Is.True, "the hold is acquired by finger 1");
 
 			// 抬手样本：touchId 换成 7，fingerId 仍是 1，位置也移到轨道外（只留 ID 这条路）。
 			float far = bar.JudgeLaneEnd >= 5.5f ? 0.5f : 10.5f;

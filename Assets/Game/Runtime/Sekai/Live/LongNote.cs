@@ -16,7 +16,9 @@ namespace Sekai.Live
 		internal List<INote> LineNoteList { get; private set; } = new List<INote>();
 
 		protected float lastInputTime;
-		private int _holdingTouchId = -1;
+		private bool _fingerOnIt;
+
+		private bool _everTouched;
 
 		protected string _guideColor = null;
 
@@ -477,18 +479,12 @@ namespace Sekai.Live
 			RemoveView();
 		}
 
-		/// <summary>
-		/// Finger currently holding this note, or -1. Two long notes that overlap in lanes can both be
-		/// candidates of both fingers; ownership resolution must not take a note away from the finger
-		/// that is already holding it, otherwise the hold misses a frame and releases.
-		/// </summary>
-		public int HoldingTouchId => _holdingTouchId;
 
 		/// <summary>
 		/// True while a finger is on this bar, whatever phase that finger is in. The touch id is the
 		/// truth; the InputBegan/Input states are its second spelling and are on their way out.
 		/// </summary>
-		public bool HasFinger => _holdingTouchId >= 0;
+		public bool HasFinger => _fingerOnIt;
 		/// <summary>
 		/// True while a finger is on this bar and its hold has not gone stale. This is the fact the
 		/// bar acts on: it says nothing about which input phase a finger is in, and it stops being
@@ -505,32 +501,8 @@ namespace Sekai.Live
 		/// out, but the bar stays marked as one the player engaged with - that is what keeps it in
 		/// the refresh pass until its tail resolves, rather than being dropped the moment it greys.
 		/// </summary>
-		public bool WasTouched => _holdingTouchId >= 0;
+		public bool WasTouched => _everTouched;
 
-		/// <summary>
-		/// True when another finger is currently holding this note and its hold is still fresh.
-		/// A second finger landing on an overlapping lane must not take the note away: stealing it
-		/// rewrites the holder, the real holder stops refreshing lastInputTime and the hold releases.
-		/// </summary>
-		public bool IsHeldByAnotherFinger(int fingerId, float currentTime)
-		{
-			return ShouldIgnoreTouch(_holdingTouchId, fingerId, State, lastInputTime, currentTime, HoldToleranceSeconds);
-		}
-
-		internal static bool ShouldIgnoreTouch(int holdingTouchId, int fingerId, NoteState state, float lastInputTime, float currentTime, float toleranceSeconds)
-		{
-			if (holdingTouchId < 0 || holdingTouchId == fingerId)
-			{
-				return false;
-			}
-
-			if (state == NoteState.Wait || state == NoteState.Last || state == NoteState.Release || state == NoteState.Done)
-			{
-				return false;
-			}
-
-			return ReferenceFrame.IsStillFresh(lastInputTime, currentTime, toleranceSeconds);
-		}
 
 		public override bool Judgment(ref LiveTouch touch, float lane)
 		{
@@ -1258,7 +1230,14 @@ namespace Sekai.Live
 		internal void RecordHoldingInput(int fingerId, float musicTime)
 		{
 			lastInputTime = Mathf.Max(lastInputTime, musicTime);
-			_holdingTouchId = fingerId;
+			_fingerOnIt = true;
+			_everTouched = true;
+		}
+
+		/// <summary>Rebuilds the per-frame fact; the coordinator clears it for every bar each frame.</summary>
+		internal void ClearFinger()
+		{
+			_fingerOnIt = false;
 		}
 
 		/// <summary>
@@ -1341,10 +1320,6 @@ namespace Sekai.Live
 			return ReferenceFrame.IsStillFresh(lastInputTime, currentTime, HoldToleranceSeconds);
 		}
 
-		internal void AssignHoldingInput(int fingerId)
-		{
-			_holdingTouchId = fingerId;
-		}
 
 		/// <summary>
 		/// A hold that is still covered by its finger must not stay greyed out: the update pass flips
@@ -1485,7 +1460,8 @@ namespace Sekai.Live
 		{
 			base.ResetNote();
 			lastInputTime = 0f;
-			_holdingTouchId = -1;
+			_fingerOnIt = false;
+			_everTouched = false;
 			WasHoldingWhenTerminated = false;
 			_swipeTailDeferred = false;
 			_swipeTailCapped = false;
