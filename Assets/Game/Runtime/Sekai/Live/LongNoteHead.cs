@@ -1,4 +1,4 @@
-using OpenSekai.Shared.Diagnostics;
+﻿using OpenSekai.Shared.Diagnostics;
 
 namespace Sekai.Live
 {
@@ -25,7 +25,17 @@ namespace Sekai.Live
 
 		internal void Settle((NoteResult result, NoteResultDescription description) result, bool updateScore = true)
 		{
-			if (IsSettled || _headPublished || result.result == NoteResult.None) return;
+			if (IsSettled || _headPublished || result.result == NoteResult.None)
+			{
+				if (LiveTrace.IsOn(LiveTraceCategory.Judge))
+				{
+					LiveTrace.Write(LiveTraceCategory.Judge, string.Concat(
+						"headSkip id=", _bar.Id, " settled=", IsSettled, " published=", _headPublished,
+						" want=", result.result, " t=", _bar.MusicScoreInfo.time.ToString("F3")));
+				}
+
+				return;
+			}
 			_result = result;
 			_bar.SetHeadJudgeInfo(result);
 			// Guard before invoking user callbacks, including reentrant state changes or presses.

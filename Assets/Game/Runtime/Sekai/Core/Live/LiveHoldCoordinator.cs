@@ -328,13 +328,22 @@ namespace Sekai.Core.Live
 					continue;
 				}
 
-				if (!candidate.ContainsLane(lane) || !candidate.IsTailJudgeableAt(time))
+				// The lift finishes a tail, so it is the tail's own lane that decides - a tail may sit
+				// on another lane than the body it hangs from, and the body's range is the widened
+				// judge range anyway, which reaches into the neighbours.
+				NoteBase tail = candidate.ChildNote as NoteBase;
+				if (tail == null || lane < tail.JudgeLaneStart || lane > tail.JudgeLaneEnd)
 				{
 					continue;
 				}
 
-				float tailTime = candidate.ChildNote == null ? candidate.MusicScoreInfo.time : candidate.ChildNote.MusicScoreInfo.time;
-				float distance = Math.Abs(lane - (candidate.LaneStartF + candidate.LaneEndF) * 0.5f);
+				if (!candidate.IsTailJudgeableAt(time))
+				{
+					continue;
+				}
+
+				float tailTime = tail.MusicScoreInfo.time;
+				float distance = Math.Abs(lane - (tail.JudgeLaneStart + tail.JudgeLaneEnd) * 0.5f);
 				if (best < 0 || tailTime < bestTime || (tailTime == bestTime && distance < bestDistance))
 				{
 					best = noteIndex;

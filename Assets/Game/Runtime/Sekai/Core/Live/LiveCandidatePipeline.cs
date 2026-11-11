@@ -75,6 +75,7 @@ namespace Sekai.Core.Live
 			// ~130 ms before its time, already past the edge of the bad window.
 			if (OpenSekai.Shared.Live.JudgeListLead.IsStillTooFarAhead(frameTime, note.MusicScoreInfo.time))
 			{
+				OpenSekai.Shared.Diagnostics.LiveTrace.Write(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Judge, $"regSkip id={note.Id} t={note.MusicScoreInfo.time:F3} now={frameTime:F3}");
 				return;
 			}
 
@@ -187,10 +188,20 @@ namespace Sekai.Core.Live
 					float previousDistance = previous.LaneDistance(ref frame, laneOf(ref previousLaneNote, ref input));
 					if (OpenSekai.Shared.Live.CandidateOrder.KeepsFirst(CandidateRank(previous), previousDistance, CandidateRank(current), currentDistance))
 					{
+					if (OpenSekai.Shared.Diagnostics.LiveTrace.IsOn(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Judge))
+					{
+						OpenSekai.Shared.Diagnostics.LiveTrace.Write(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Judge, string.Concat("dedup drop=", current.Id, " keep=", previous.Id, " finger=", input.Touch.fingerId, " t=", current.MusicScoreInfo.time.ToString("F3")));
+					}
+
 						input.CandidateNotes.RemoveAt(i);
 					}
 					else
 					{
+					if (OpenSekai.Shared.Diagnostics.LiveTrace.IsOn(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Judge))
+					{
+						OpenSekai.Shared.Diagnostics.LiveTrace.Write(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Judge, string.Concat("dedup drop=", previous.Id, " keep=", current.Id, " finger=", input.Touch.fingerId, " t=", previous.MusicScoreInfo.time.ToString("F3")));
+					}
+
 						input.CandidateNotes.RemoveAt(i - 1);
 					}
 				}

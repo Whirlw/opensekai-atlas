@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Sekai.Live;
 
@@ -54,7 +54,12 @@ namespace Sekai.Core.Live
 				NoteBase note = Notes[i];
 				if (note != null && !UnityEngine.Mathf.Approximately(note.speedRatio, 1f))
 				{
+					note.IsHighSpeedNote = true;
 					_highSpeedScratch.Add(note);
+				}
+				else if (note != null)
+				{
+					note.IsHighSpeedNote = false;
 				}
 			}
 

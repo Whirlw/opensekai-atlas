@@ -375,7 +375,7 @@ namespace Sekai.Core.Live
 		/// </summary>
 		private LiveNoteSession.Scan ScanNote(NoteBase note)
 		{
-			if (!Mathf.Approximately(note.speedRatio, 1f))
+			if (note.IsHighSpeedNote)
 			{
 				return LiveNoteSession.Scan.Skip;
 			}
@@ -701,6 +701,7 @@ namespace Sekai.Core.Live
 					}
 					break;
 				}
+					OpenSekai.Shared.Diagnostics.LiveTrace.Write(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Judge, $"unregDone id={note.Id} n={n}");
 				if (note.State == NoteState.Done) _judgmentNoteList.RemoveAt(n);
 			}
 		}
@@ -866,6 +867,7 @@ namespace Sekai.Core.Live
 				bool keepsReceivingFrames = note is LongNote && note.State != NoteState.Done;
 				if (!keepsReceivingFrames && (note.State == NoteState.Done || note.Result != NoteResult.None))
 				{
+				OpenSekai.Shared.Diagnostics.LiveTrace.Write(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Judge, $"unregPick id={note.Id} state={note.State} res={note.Result}");
 					Logic._judgmentNoteList.Remove(note);
 				}
 
@@ -936,6 +938,15 @@ namespace Sekai.Core.Live
 
 		private void OnJudgmentNote(NoteBase note)
 		{
+			if (OpenSekai.Shared.Diagnostics.LiveTrace.IsOn(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Judge))
+			{
+				OpenSekai.Shared.Diagnostics.LiveTrace.Write(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Judge, string.Concat(
+					"judge id=", note.Id, " type=", note.GetType().Name, " cat=", note.Category,
+					" lane=", note.LaneStartF.ToString("F2"), "..", note.LaneEndF.ToString("F2"),
+					" t=", note.MusicScoreInfo.time.ToString("F3"), " res=", note.Result,
+					" skip=", note.IsSkip, " now=", currentFrameInfo.time.ToString("F3")));
+			}
+
 			scoreLogic?.UpdateNoteResult(note);
 
 			// A marker that is not drawn is silent by construction: the half beat points inside a bar
@@ -951,6 +962,13 @@ namespace Sekai.Core.Live
 
 		private void OnUpdateCombo(NoteBase note)
 		{
+			if (OpenSekai.Shared.Diagnostics.LiveTrace.IsOn(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Judge))
+			{
+				OpenSekai.Shared.Diagnostics.LiveTrace.Write(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Judge, string.Concat(
+					"combo id=", note.Id, " res=", note.Result, " t=", note.MusicScoreInfo.time.ToString("F3"),
+					" now=", currentFrameInfo.time.ToString("F3")));
+			}
+
 			scoreLogic?.UpdateCombo(note);
 			_presentation.UpdateCombo(_liveViews, scoreLogic?.Score ?? default);
 		}
