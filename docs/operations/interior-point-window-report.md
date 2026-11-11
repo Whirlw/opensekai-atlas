@@ -1,4 +1,6 @@
-# 中间点判定窗口交付报告
+﻿# 中间点判定窗口交付报告
+
+> **状态：已验收合入（历史）。**
 
 日期：2026-11-10。权威任务书：[interior-point-window.md](interior-point-window.md)。
 

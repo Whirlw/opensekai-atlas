@@ -176,6 +176,7 @@ Get-ChildItem -Recurse -Filter *.md | ForEach-Object {
 - [故障排查](operations/troubleshooting.md)
 
 | Unity 6 升级提示词 | [operations/unity6-upgrade-brief.md](operations/unity6-upgrade-brief.md) | 给外部执行者的完整提示词：约束、顺序、验收、已知坑、交付格式 | 2026-11-02 | 现行 |
+| **交接入口** | [operations/handoff-2026-11-11.md](operations/handoff-2026-11-11.md) | 现状、未做完的事、工具链、红线、文档地图——接手先看这篇 | 2026-11-11 | **现行** |
 | 条尾三类 | [operations/tail-classes.md](operations/tail-classes.md) | 条与尾谁影响谁：三类定义、唯一违规处、三步执行顺序、已踩过的坑 | 2026-11-11 | 现行 |
 
 | 判定窗口 | [reference/judging.md](reference/judging.md) | 判定帧数表、与原版对照、已知差异 | 2026-11-03 | 现行 |

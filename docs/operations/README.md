@@ -38,3 +38,5 @@
 - [全量索引](../INDEX.md)
 - [AssetBundle 与清单](../architecture/asset-bundles.md)
 | [音符皮肤制作](note-skin-authoring.md) | 自己画一套音符皮肤：`custom01`/`custom02` 目录结构、像素尺寸硬约束表、`-From` 导入校验与出包步骤 |
+
+> 接手/换人先看 [handoff-2026-11-11.md](handoff-2026-11-11.md)：现状、未做完的事、工具链、红线。
