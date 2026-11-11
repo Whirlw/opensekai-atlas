@@ -401,7 +401,7 @@ namespace Sekai.Live
 			// The frame that grabbed this bar never runs the freshness check: the press carries the
 			// touch's start time, so a finger that went down before the head arrived would look stale
 			// the instant it was recorded and the bar would grey out immediately.
-			if (HasFinger && !ShowsAsReleased)
+			if (HasFinger && State != NoteState.Last && State != NoteState.Release)
 			{
 				if (_pressedThisFrame)
 				{
@@ -634,10 +634,10 @@ namespace Sekai.Live
 	/// </summary>
 
 		/// <summary>
-		/// A bar whose hold has lapsed is already grey while it still has a few frames of grace,
-		/// so Last reads as released on screen but still counts as held by the state machine.
+		/// A bar greys when its hold lapses. A returning finger lights it again while the
+		/// post-head state still drives grace and tail judgement.
 		/// </summary>
-		public override bool ShowsAsReleased => State == NoteState.Release || State == NoteState.Last;
+		public override bool ShowsAsReleased => !HasFinger && (State == NoteState.Release || State == NoteState.Last);
 	internal bool PublishesHeadMiss => IsOrdinaryHead && HasJudgment;
 
 	/// <summary>Finishes the bar with no result at all, once its last note has gone by.</summary>
@@ -1446,7 +1446,7 @@ namespace Sekai.Live
 			// Judged through the frame offset on purpose: candidate admission happens after Excute for the
 			// same frame, which is the contract this cache stands for.
 			return LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(this), OffsetJudgeTime)
-				&& ((HasFinger && !ShowsAsReleased) || (State != NoteState.Scrolling && State != NoteState.Last) || touch.phase == UnityEngine.InputSystem.TouchPhase.Began);
+				&& ((HasFinger && State == NoteState.Scrolling) || (State != NoteState.Scrolling && State != NoteState.Last) || touch.phase == UnityEngine.InputSystem.TouchPhase.Began);
 		}
 
 		/// <summary>
