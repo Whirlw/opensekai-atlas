@@ -4,7 +4,7 @@
 > 适用读者：接手代码的开发者、做重构的人、发版前做门禁的人。
 > 前置条件：读过 [架构总览](README.md) 与 [模块划分](modules.md)；当前基线为 `f14b717c`。
 > 最后更新：2026-11-11
-> 状态：**M0 已达标，Phase 1 执行中**。按任务依赖推进，每个工作包独立提交并记录验收结果。
+> 状态：**M1 已达标**。按任务依赖推进，每个工作包独立提交并记录验收结果。
 
 ## 1. 结论与目标
 
@@ -428,6 +428,10 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 - P1-4 桌面验证通过。谱面 JSON 模型随 `NoteType`、`NoteLineType`、`NoteDirection` 和 `MusicScoreInfo` 迁入 Core；曲包 manifest 与原短 ID 生成一并迁移，存储留在 Game。旧 `$type`、`$id`、`$ref` 回读和重写经 `ChartJsonTests` 验证。按实际程序集修正 `Assets/link.xml`，Unity 反射逐条验证 13 个保留类型。程序集、IDE、缺失脚本差异检查通过；全量 EditMode 512 通过、0 失败、4 跳过。报告在 `TestResults/restructure-p1-4-contracts-*` 和 `TestResults/restructure-p1-4-link-check.json`。Android IL2CPP 覆盖安装与既有数据、曲包回读待验证。
 
 - P1-1 的 SUS 数据批次通过。七个 `Sekai.SUS` 数据类型随既有谱面枚举归入 Core，保留源码、命名空间和 GUID。实际 Unity 输入和资源转换仍由 Game 提供，`SusRuntimeConverter` 的纯阶段按计划等 P2-6。全量 512 通过、0 失败、4 跳过，程序集与 IDE 检查通过，缺失脚本新增 0。报告在 `TestResults/restructure-p1-1-sus-*`。
+
+- P1-4 Android 通过，M1 已达标。将隔离检出切到 `cac16b65`，使用 `unity build $checkout --target Android --execute-method PhaseOneAndroidBuild.Run --output-path $apk --timeout 900 --non-interactive --no-tail --format json`。隔离的构建入口重建 Android AssetBundles，再生成 ARM64 IL2CPP APK。构建报告为 `TestResults/restructure-p1-4-android-final-build.json`，产物为 `Builds/restructure-phase1/OpenSekaiAtlas-compat-final.apk`。
+- 验证新旧 APK 签名一致后，使用 `TestResults/restructure-p1-4-device-smoke.ps1` 执行 `adb install -r`。隔离测试包通过启动参数运行检查，从已有设置读取音符速度，从已有历史读取成绩，曲库识别 20 个可播放曲包。已存在的 `baseline_tap` 经 `Library → Core → Library` 结算为 1,000,000 / S，自动判定 221/221。恢复原 APK 后，设置与历史文件的 SHA-256 和覆盖前一致。设备报告为 `TestResults/restructure-p1-4-device-smoke.txt`。验收脚本和探针保留在本地报告目录与隔离检出中。
+- Phase 1 批次提交为 `f5fadb0e`（Core）、`37ab4a8f`（Core 测试）、`1b35d8e5`（程序集门禁）、`aba7a970`（候选排序和计分）、`bd0f79f1`（判定窗口和容差）、`257bbfbb`（设置）、`7b2a5e08`（谱面和曲包契约）、`7066ac1a`（SUS 数据）。整首自动判定修复为 `cac16b65`。Phase 2 可按依赖领取。
 
 ## 7. 迁移规则
 
