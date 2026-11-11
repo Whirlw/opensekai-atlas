@@ -7,8 +7,9 @@
 
 ## 概述
 
-运行时由两个程序集组成。
+运行时由三个程序集组成。
 
+- `OpenSekai.Core` 位于 `Assets/Game/Runtime/OpenSekai.Core/`，存放不依赖 Unity 的纯逻辑。
 - `OpenSekai.App` 位于 `Assets/Game/Runtime/OpenSekai/`，负责曲库入口、页面、开局和谱面载入。
 - `OpenSekai.Game` 覆盖 `Assets/Game/Runtime/` 中 App 之外的运行时代码，负责页面栈、判定、音频、资源加载和共享数据。
 - `OpenSekai.Editor` 位于 `Assets/Game/Editor/`，提供 AssetBundle 构建、场景校验和测试菜单。

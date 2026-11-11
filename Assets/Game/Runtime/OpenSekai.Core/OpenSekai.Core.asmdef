@@ -1,0 +1,10 @@
+{
+    "name": "OpenSekai.Core",
+    "rootNamespace": "",
+    "references": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "noEngineReferences": true
+}

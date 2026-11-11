@@ -409,6 +409,10 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 
 - P0-5 已取得可复现结果。用 `unity command test run --caller plugin --skill unity-cli --mode playmode --filter LibrarySmokeTests --async_tests --include_explicit` 启动，再用 `unity command test status --caller plugin --skill unity-cli` 读取结果。曲库装配冒烟通过。整首原型直接读取仓库 `Tools/fixtures/baseline_tap` 的 manifest、谱面、音频和封面，经 `PlayService` 启动，断言 Core 控制器、返回曲库及结算组件。两次均完成 `Library → Core → Library`，结算为 466,063 / C，自动判定 103/221，Miss 为 0。验收缺口为自动游玩的 1,000,000 / S，跟踪至 P4-3。原型保留为显式用例，默认曲库冒烟照常运行。报告为 `TestResults/restructure-p0-5-first.json` 和 `TestResults/restructure-p0-5-status.json`。自动判定游标每次调用后越过长条是待验证的排查点。
 
+### Phase 1 执行记录（2026-11-11）
+
+- P1-1 首批完成。Unity CLI 编译 0 error，并在编辑器中确认 `InputTimeMapping` 归属 `OpenSekai.Core`。该类型只有基础数值运算，无项目或 Unity 依赖。脚本 GUID 和命名空间保留，Game 引用 Core，原 LiveLogic 入口继续转发。定向 `JudgeFrameTableTests` 11/11、`LiveLogicCharacterizationTests` 5/5 通过。编译、归属和测试报告在 `TestResults/restructure-p1-1-*.json`。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动

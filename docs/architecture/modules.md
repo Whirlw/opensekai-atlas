@@ -7,10 +7,11 @@
 
 ## 概述
 
-运行时的依赖方向是 `OpenSekai.App → OpenSekai.Game`。编辑器程序集可调用两者，入口位于 `Assets/Game/Editor/`。
+运行时的依赖方向是 `OpenSekai.App → OpenSekai.Game → OpenSekai.Core`。编辑器程序集可调用两者，入口位于 `Assets/Game/Editor/`。
 
 | 程序集 | 路径 | 职责与入口 |
 | --- | --- | --- |
+| OpenSekai.Core | `Assets/Game/Runtime/OpenSekai.Core/` | 输入时钟映射与其他纯运行时逻辑 |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/Bootstrap/` | `LibraryEntryPoint` 装配曲库入口 |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/UI/` | `LibraryScreen` 和导入、设置、结算面板 |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/Playback/` | `PlayService` 和 `LegacyLiveBootAdapter` 装配开局数据 |

@@ -1,7 +1,8 @@
-﻿{
+{
     "name":  "OpenSekai.Game",
     "rootNamespace":  "",
     "references":  [
+                       "OpenSekai.Core",
                        "Unity.TextMeshPro",
                        "UnityEngine.UI",
                        "Unity.InputSystem",
