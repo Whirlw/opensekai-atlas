@@ -1,3 +1,4 @@
+using OpenSekai.Shared.Scoring;
 using UnityEngine;
 
 namespace Sekai.Live
@@ -148,6 +149,17 @@ namespace Sekai.Live
 
 		public LiveBundleBuildData()
 		{
+		}
+
+		public static JudgeTuning GetJudgeTuning(LiveBundleBuildData data)
+		{
+			if (data == null)
+			{
+				return default;
+			}
+
+			return new JudgeTuning(
+				data.NormalNoteOffsetX, data.LongNoteOffsetX, data.FlickNoteOffsetX, data.FlickDistance);
 		}
 	}
 }

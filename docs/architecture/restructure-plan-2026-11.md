@@ -419,6 +419,8 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 
 - P1-1 / P1-2 候选排序和计分批次通过。`CandidateOrder` 随 `NoteResult` 迁入 Core，`ScoreGauge` 随 `ScoreRank`、`LiveScore`、`MasterPlayLevelScore` 迁入，均只使用基础类型。Game、App 及直接调用的测试程序集按需引用 Core。两个测试类随实现移动，保留用例全名和脚本 GUID。通过 `unity recompile`、`Tools/verify-structure.ps1 -CheckAssemblies -CheckProjects -RequireNoEmptyDirectories`、缺失脚本清单比对和全量 EditMode。512 通过、0 失败、4 跳过，逐项与上一批一致。报告在 `TestResults/restructure-p1-1-scoring-*`。
 
+- P1-1 / P1-2 判定批次通过。`JudgeWindow` 随 `JudgeTimeData`、`JudgeFrameType`、`NoteResultDescription` 迁入 Core，`JudgeTuning` 随 `NoteCategory` 迁入。移除仓库中没有调用的 Master 对象构造入口，保留同一数值构造方式。ScriptableObject 配置适配留在 Game 的 `LiveBundleBuildData.GetJudgeTuning`，两例资产检查随之拆出。编译和程序集/IDE 检查通过，缺失脚本新增 0。全量 512 通过、0 失败、4 跳过，计入两例资产测试改归属后与上一批逐项一致。报告在 `TestResults/restructure-p1-1-judgement-*`。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动

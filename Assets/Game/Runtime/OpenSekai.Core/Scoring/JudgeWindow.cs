@@ -1,5 +1,4 @@
 using Sekai.Live;
-using UnityEngine;
 
 namespace OpenSekai.Shared.Scoring
 {

@@ -1,5 +1,4 @@
 using System;
-using Sekai;
 using Sekai.Live;
 
 namespace OpenSekai.Shared.Scoring
@@ -7,7 +6,7 @@ namespace OpenSekai.Shared.Scoring
     /// <summary>
     /// The lane and swipe tolerances the judge uses, in one immutable place.
     ///
-    /// The numbers come from <see cref="LiveBundleBuildData"/> (the shipped configuration),
+    /// The numbers come from the shipped configuration,
     /// not from code, so this type only decides how they are applied:
     /// <list type="bullet">
     /// <item>lane offsets widen a note's judge range: start - offset .. end + offset;</item>
@@ -40,17 +39,6 @@ namespace OpenSekai.Shared.Scoring
 
         public static JudgeTuning Shipped { get; } = new JudgeTuning(
             ShippedNormalLaneOffset, ShippedLongLaneOffset, ShippedFlickLaneOffset, ShippedFlickDistanceInches);
-
-        public static JudgeTuning From(LiveBundleBuildData data)
-        {
-            if (data == null)
-            {
-                return default;
-            }
-
-            return new JudgeTuning(
-                data.NormalNoteOffsetX, data.LongNoteOffsetX, data.FlickNoteOffsetX, data.FlickDistance);
-        }
 
         /// <summary>Lane offset for a note category; unknown categories fall back to the normal one.</summary>
         public float LaneOffsetFor(NoteCategory category)

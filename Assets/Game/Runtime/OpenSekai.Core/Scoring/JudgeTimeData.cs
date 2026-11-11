@@ -75,25 +75,7 @@ namespace Sekai.Live
 			private set;
 		}
 
-		public JudgeTimeData(MasterIngameJudgeFrame masterIngameJudgeFrame)
-		{
-			if (masterIngameJudgeFrame == null)
-			{
-				throw new System.ArgumentNullException(nameof(masterIngameJudgeFrame));
-			}
-
-			NoteType = masterIngameJudgeFrame.NoteType;
-			PerfectBeforeJudgeTime = masterIngameJudgeFrame.PerfectBeforeJudgeTime;
-			PerfectAfterJudgeTime = masterIngameJudgeFrame.PerfectAfterJudgeTime;
-			GreatBeforeJudgeTime = masterIngameJudgeFrame.GreatBeforeJudgeTime;
-			GreatAfterJudgeTime = masterIngameJudgeFrame.GreatAfterJudgeTime;
-			GoodBeforeJudgeTime = masterIngameJudgeFrame.GoodBeforeJudgeTime;
-			GoodAfterJudgeTime = masterIngameJudgeFrame.GoodAfterJudgeTime;
-			BadBeforeJudgeTime = masterIngameJudgeFrame.BadBeforeJudgeTime;
-			BadAfterJudgeTime = masterIngameJudgeFrame.BadAfterJudgeTime;
-		}
-
-		internal JudgeTimeData(JudgeFrameType noteType, float perfectBeforeJudgeTime, float perfectAfterJudgeTime, float greatBeforeJudgeTime, float greatAfterJudgeTime, float goodBeforeJudgeTime, float goodAfterJudgeTime, float badBeforeJudgeTime, float badAfterJudgeTime)
+		public JudgeTimeData(JudgeFrameType noteType, float perfectBeforeJudgeTime, float perfectAfterJudgeTime, float greatBeforeJudgeTime, float greatAfterJudgeTime, float goodBeforeJudgeTime, float goodAfterJudgeTime, float badBeforeJudgeTime, float badAfterJudgeTime)
 		{
 			NoteType = noteType;
 			PerfectBeforeJudgeTime = perfectBeforeJudgeTime;

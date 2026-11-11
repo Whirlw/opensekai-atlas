@@ -238,7 +238,7 @@ namespace Sekai
 
 		public static float GetLaneOffset(NoteCategory category, LiveBundleBuildData bundleBuildData)
 		{
-			return OpenSekai.Shared.Scoring.JudgeTuning.From(bundleBuildData).LaneOffsetFor(category);
+			return LiveBundleBuildData.GetJudgeTuning(bundleBuildData).LaneOffsetFor(category);
 		}
 
 		public static Dictionary<(NoteCategory, NoteType), int> CalculateMaxSimultaneousNotes(MusicScore musicScore, float baseDisplayTime)
