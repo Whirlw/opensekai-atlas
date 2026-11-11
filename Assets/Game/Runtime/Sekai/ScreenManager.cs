@@ -2604,10 +2604,7 @@ namespace Sekai
 
 			BootArgObject = bootArg;
 			yield return StartCoroutine(layer.ScreenLayer.OnScreenLayerBoot(layer.Data, bootArg));
-			if (layer.Data.ScreenType != MenuScreenType.NetworkIndicator)
-			{
-				BootArgObject = null;
-			}
+			BootArgObject = null;
 
 			if (!isForward)
 			{
@@ -2681,90 +2678,6 @@ namespace Sekai
 			{
 				yield return null;
 			}
-		}
-
-		public void SwitchNetworkIndicatorDisplayType(ScreenLayerNetworkIndicator.DisplayType displayType)
-		{
-			ScreenLayerNetworkIndicator.CurrentDisplayType = displayType;
-			var layer = GetLayerComponent<ScreenLayerNetworkIndicator>(MenuScreenType.NetworkIndicator);
-			if (layer != null)
-			{
-				layer.UpdateDisplayType();
-			}
-		}
-
-		public ScreenLayerNetworkIndicator ShowNetworkIndicatorScreen(UnityEngine.Object holdObject)
-		{
-			var layer = GetLayerComponent<ScreenLayerNetworkIndicator>(MenuScreenType.NetworkIndicator);
-			if (layer == null)
-			{
-				AddScreen(MenuScreenType.NetworkIndicator);
-				layer = GetLayerComponent<ScreenLayerNetworkIndicator>(MenuScreenType.NetworkIndicator);
-			}
-
-			layer?.Hold(holdObject);
-			return layer;
-		}
-
-		public void ReleaseNetworkIndicatorScreen(UnityEngine.Object holdObject)
-		{
-			GetLayerComponent<ScreenLayerNetworkIndicator>(MenuScreenType.NetworkIndicator)?.Release(holdObject);
-		}
-
-		public void ReleaseNetworkIndicatorScreenForce()
-		{
-			GetLayerComponent<ScreenLayerNetworkIndicator>(MenuScreenType.NetworkIndicator)?.ForceRelease();
-		}
-
-		public ScreenLayerLoading ShowLoadingScreen(UnityEngine.Object holdObject)
-		{
-			var layer = GetLayerComponent<ScreenLayerLoading>(MenuScreenType.Loading);
-			if (layer == null)
-			{
-				AddScreen(MenuScreenType.Loading);
-				layer = GetLayerComponent<ScreenLayerLoading>(MenuScreenType.Loading);
-			}
-
-			layer?.Hold(holdObject);
-			return layer;
-		}
-
-		public void ReleaseLoadingScreen(UnityEngine.Object holdObject)
-		{
-			GetLayerComponent<ScreenLayerLoading>(MenuScreenType.Loading)?.Release(holdObject);
-		}
-
-		public ScreenLayerAssetRemoving ShowAssetRemovingScreen(UnityEngine.Object holdObject)
-		{
-			var layer = GetLayerComponent<ScreenLayerAssetRemoving>(MenuScreenType.AssetRemoving);
-			if (layer == null)
-			{
-				AddScreen(MenuScreenType.AssetRemoving);
-				layer = GetLayerComponent<ScreenLayerAssetRemoving>(MenuScreenType.AssetRemoving);
-			}
-
-			layer?.Hold(holdObject);
-			return layer;
-		}
-
-		public void ReleaseAssetRemovingScreen(UnityEngine.Object holdObject)
-		{
-			GetLayerComponent<ScreenLayerAssetRemoving>(MenuScreenType.AssetRemoving)?.Release(holdObject);
-		}
-
-		public void ReleaseLoadingScreenForce()
-		{
-			GetLayerComponent<ScreenLayerLoading>(MenuScreenType.Loading)?.ForceRelease();
-		}
-
-		public ScreenLayerLoading.DownloadStatus GetLoadingScreenState()
-		{
-			return GetLayerComponent<ScreenLayerLoading>(MenuScreenType.Loading)?.CurrentDownloadStatus ?? default;
-		}
-
-		public int GetLoadingScreenHoldingCount()
-		{
-			return GetLayerComponent<ScreenLayerLoading>(MenuScreenType.Loading)?.CurrentHoldObjectCount ?? 0;
 		}
 
 		private ColorFader ResolveFadeController()
