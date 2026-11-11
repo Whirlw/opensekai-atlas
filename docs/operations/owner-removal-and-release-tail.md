@@ -222,3 +222,29 @@ contenders = _judgmentNoteList 里
 - 部件 4（按下通道只收三类）把长条移出候选集，于是机制 1、2 失去作用对象，但代码留下了。
 
 而「记住是哪个手指」这个字段同时被用来表达「有没有手指」(`HasFinger`)、「抬手算不算释放」(`touchId == HoldingTouchId`)、「别人碰过就不算 Miss」，所以它没能随同一起消失。这一步就是把它连根拔掉。
+
+---
+
+## 十一、执行记录（2026-11-11）
+
+| 步骤 | 状态 | 提交 |
+| --- | --- | --- |
+| 1 删死代码（名额保留 / 抢音符优先级） | 完成 | `4908d6b` |
+| 2 字段布尔化（`HoldingTouchId` 删除，`IsHeldByAnotherFinger` / `ShouldIgnoreTouch` / `AssignHoldingInput` 一并删除） | 完成 | `59f183c` |
+| 3 每帧按车道配额（每指一条、取车道中心最近，同距取 fingerId 小） | 完成（含在 2 里） | `59f183c` |
+| 4 抬手改车道 + 每根抬手手指至多结束一条（就近） | 完成 | `71d5d2d` |
+| 5 删残留（`_holdInputVisited` / 上下文三件套 / `CanContinueHold` / `HoldInputMatching` 及其用例） | 完成，-119 行 | `87b7219` |
+| 护栏测试（两指同头只判一次；两重叠条一次抬手只结束一条） | 完成 | `0cb75a3` |
+
+- `_fingerOnIt` 每帧由协调器 `ClearFinger()` 重建，`_everTouched` 只增不减——这就是「条有没有人按着」与「条有没有被按过」的全部状态。
+- 抬手的目标预先算进 `_liftTargets`（按输入容量分配，零 GC）。
+- EditMode：`519 / 515 通过 / 0 失败 / 4 跳过`（删掉的 8 条为 `ShouldIgnoreTouch` 7 条 + `HoldInputMatching` 1 条）。
+- 装机包：`Builds/ownerless-2026-11-11/OpenSekaiAtlas.apk`（79.59 MB，04:23:14），已安装启动。
+
+### 待真机验收
+
+| # | 谱面 | 看什么 |
+| --- | --- | --- |
+| 1 | 普通谱（BOF） | 长条按住不断、换手不断、松手先灰 50 ms 再断；普通尾抬手判正常 |
+| 2 | 长条密集谱 | 两条重叠时各按各的、互不抢；一次抬手只断最近那条 |
+| 3 | 变速谱 | 位置与判定都对，中间点不再晚按连判 |
