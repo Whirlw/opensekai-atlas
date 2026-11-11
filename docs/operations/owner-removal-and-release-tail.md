@@ -1,4 +1,4 @@
-# 删掉 owner 机制，并把普通尾的抬手判定改成独立池子
+﻿# 删掉 owner 机制，并把普通尾的抬手判定改成独立池子
 
 状态：2026-11-10。`main = 2375dc5`，EditMode `534 / 530 通过 / 0 失败 / 4 跳过`（另有既有的 4 条 Ignore）。
 前序：[judgement-input-split](judgement-input-split.md)、[live-judging-remaining](live-judging-remaining.md)、[head-decoupling](head-decoupling.md)。
@@ -47,7 +47,13 @@
 | 4 | 别人碰过就忽略 | 5 | `LongNote.cs:515`、`:520`；用户 `LongNoteHead.cs:68` |
 | 5 | 字段本体与派生属性 | 17 | 见 2.1 表 |
 
-### 2.2 已确认的死代码（第 1 步直接删）
+### 2.2 第 1 步的实际结果（2026-11-11 更正）
+
+原判断「机制 1、2 是纯死代码、删除不改变任何行为」**只对了一半**：长条的**头**在未判定时仍是按下候选（`IsPressStep` 对 `bar.IsOrdinaryHead && !Head.IsSettled` 为真），所以 `IsReservedForAnotherInput` 对「一指先按住、头尚未判」的场景是**有效**的。
+
+已按计划删除（`4908d6b`）：`IsReservedForAnotherInput` 及其两个调用点、`ShouldReserveHold` 的 pipeline 实现（`LiveLogic` 侧转发保留但恒 `false`）、`ResolveSharedCandidates` 的 owner 分支、`CandidateOwnership.Loser(bool,bool,float,float)` 重载。全量 **530 / 526 / 0 / 4**（原 534 减 4 条被删的 owner 用例），无回归。
+
+结论：删掉之后「第二根手指也能提名一个已被别人按住、头还没判的条」——这在「彻底不要 owner」的目标下是**期望行为**（头只会判一次），但现有测试没有覆盖它。第 3 步应补一条护栏：*一指按住、头未判时，第二指在同一车道按下 → 头只判一次，条继续被推进*。
 
 任务 B（`2806c92`）把长条移出了按下通道：`LiveCandidatePipeline.IsPressStep` 对 `LongNote` 一律 false。于是机制 1、2 对长条已经没有作用对象；而普通键没有 owner 概念，这两处对它们也从未生效。**结论：机制 1、2 是纯死代码，删除不改变任何行为。**
 
