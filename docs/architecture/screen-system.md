@@ -3,7 +3,7 @@
 > 目的：说明引擎自带的 `ScreenManager` 页面栈怎么工作、现在还剩哪些页面、曲库页为什么不在这个系统里。
 > 适用读者：开发者（加页面、改页面栈行为、排查「界面没出来」）。
 > 前置条件：读过 [模块划分](modules.md)。
-> 最后更新：2026-11-11
+> 最后更新：2026-11-12
 
 ## 概述
 
@@ -11,12 +11,14 @@
 「`ScreenLayerData` 资产」，每个资产再按名字去 `Resources/Screen/Prefabs/` 找 prefab。
 当前注册表有三个条目。曲库由独立的 `LibraryScreen` 负责。
 
+`ScreenManager` 保留场景组件与公开入口。页面栈由 `ScreenStackService` 处理，对话框队列由 `DialogService` 管理，淡入淡出、相机和模糊由 `TransitionService` 协调，`HeaderService` 应用页头配置。
+
 ## 核心内容
 
 ### 加载与推送
 
 ```text
-ScreenManager.LoadEntryScreenLayers()                 Sekai/ScreenManager.cs
+ScreenStackService.LoadEntryScreenLayers()            Sekai/ScreenStackService.cs
   Resources.Load<ScreenLayerDataList>("Screen/SceneEntry/EntryScreenLayers")
     → 遍历 Entries，写入 screenMap[entry.ScreenType]
 PushUIScreen(type)  →  screenMap 查不到 → LogError("Not Found ScreenLayer;")
