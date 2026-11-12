@@ -216,39 +216,33 @@ namespace Sekai.Core.Live
 
 		private bool IsTooFarAheadForDisplayHighSpeed(float timeOffset, NoteBase note)
 		{
-			return note != null && note.State != NoteState.Scrolling && IsTooFarAheadForDisplay(timeOffset, note);
+			return note != null && IsTooFarAheadForDisplay(timeOffset, note);
 		}
 
 		/// <summary>
-		/// True while the scan may stop here: everything from this note on is still outside the display
-		/// window this frame.
+		/// True while a note is still outside the display window this frame.
 		/// </summary>
 		/// <remarks>
-		/// The gate uses the DISPLAY lead, which shrinks as the scroll speed rises, but a lead can shrink
-		/// far below anything a frame can draw: the notes at bar 80.5078 of the shipped chart get a lead of
-		/// 0.0007 s because the span behind them holds a 9 ms 799 event. The scan walks notes in chart
-		/// order and stops at the first note still outside its lead, so such a note parked the cursor and
-		/// the whole stretch behind it was first looked at once the playhead got past - a dozen notes
-		/// created in one frame, each at whatever progress it happened to have (p 0.62, 0.04, 0.037 ...).
-		/// That is the "notes are generated in the middle of the screen, at a position that keeps moving"
-		/// report. The lead is therefore floored at one whole display window: no note can be drawn before
-		/// the frame loop has looked at it at least that far ahead.
+		/// This is a TIME window, not the note's own lead. The scan has always walked the chart in order and
+		/// stopped at the first note still outside its lead, and a lead can collapse far below a frame: the
+		/// eight notes at bar 80.5078 of the shipped chart get 0.0007 s because the span behind them holds a
+		/// 9 ms 799 event. Such a note parked the cursor, so the dozen notes behind it were first looked at
+		/// only once the playhead got past - each created in the same frame at whatever progress it had
+		/// (p 0.62, 0.04, 0.037 ...). Notes are sorted by time, so the walk simply reads everything inside
+		/// <see cref="LiveSessionState.MaxDisplayLead"/> and never gets stuck on a single note.
 		///
-		/// Nothing about how a note's lead is computed changes here; this only decides how far the walk
-		/// goes. Registration into the judgement list is a different question with a fixed lead; see
-		/// <see cref="OpenSekai.Shared.Live.JudgeListLead"/> in LiveInputRouter.Register. This gate must
-		/// never be reused for registration: doing that is what put a note behind a flick into the list
-		/// already past its bad window.
+		/// Nothing about how a note's lead is computed changes here. Registration into the judgement list is
+		/// a different question with a fixed lead; see <see cref="OpenSekai.Shared.Live.JudgeListLead"/> in
+		/// LiveInputRouter.Register, and never reuse this gate for it.
 		/// </remarks>
 		internal bool IsTooFarAheadForDisplay(float timeOffset, NoteBase note)
 		{
-			if (note == null || Mathf.Approximately(timeOffset, 0f))
+			if (note == null)
 			{
 				return false;
 			}
 
-			float lead = Mathf.Max(timeOffset, _session.NoteDisplayTimeOffset);
-			return Frame.time + lead + LiveClock.ReferenceFrameSeconds <= note.MusicScoreInfo.time;
+			return note.MusicScoreInfo.time - Frame.time > _session.MaxDisplayLead + LiveClock.ReferenceFrameSeconds;
 		}
 
 		/// <summary>

@@ -16,6 +16,81 @@ namespace Sekai.Core.Live
 		internal ScoreLogic ScoreLogic { get; set; }
 		internal SkillLogic SkillLogic { get; set; } = new NullSkillLogic();
 		internal float NoteDisplayTimeOffset { get; set; }
+
+		private float _maxDisplayLead;
+		private float _maxDisplayLeadForOffset = float.NaN;
+
+		/// <summary>
+		/// How far ahead of the playhead a note can ever be drawn, in seconds of music time. The scan is a
+		/// time window of this width: notes are sorted by time, so the frame loop can read everything inside
+		/// the window instead of walking until a note's own lead says stop - a lead that collapses (the 325x
+		/// sections of the shipped chart give 0.0018 s) would otherwise park the cursor and starve the notes
+		/// behind it, which is what created a dozen notes in one frame part way down the screen.
+		///
+		/// Recomputes whenever the display window changes, which is the only input that scales it.
+		/// </summary>
+		internal float MaxDisplayLead
+		{
+			get
+			{
+				if (_maxDisplayLead > 0f && _maxDisplayLeadForOffset.Equals(NoteDisplayTimeOffset))
+				{
+					return _maxDisplayLead;
+				}
+
+				_maxDisplayLeadForOffset = NoteDisplayTimeOffset;
+				_maxDisplayLead = ComputeMaxDisplayLead(NoteDisplayTimeOffset, MusicScore, Notes.Notes);
+				return _maxDisplayLead;
+			}
+		}
+
+		/// <summary>
+		/// A note is drawn over <c>window / speed</c> seconds, so the widest window any note needs is the
+		/// window divided by the slowest speed the chart uses. Sign flips can cancel the average and ask for
+		/// more than that, so the answer is capped: a lead beyond half a minute is a chart that is not
+		/// drawing anything anyway.
+		/// </summary>
+		private static float ComputeMaxDisplayLead(float window, MusicScore score, NoteBase[] notes)
+		{
+			float minSpeed = float.MaxValue;
+			MusicScoreInfo[] infos = score?.musicScoreInfoArray;
+			if (infos != null)
+			{
+				foreach (MusicScoreInfo info in infos)
+				{
+					float speed = Math.Abs(info.speedRatio);
+					if (speed > 1e-4f)
+					{
+						minSpeed = Math.Min(minSpeed, speed);
+					}
+				}
+			}
+
+			if (notes != null)
+			{
+				foreach (NoteBase note in notes)
+				{
+					if (note == null)
+					{
+						continue;
+					}
+
+					float speed = Math.Abs(note.speedRatio);
+					if (speed > 1e-4f)
+					{
+						minSpeed = Math.Min(minSpeed, speed);
+					}
+				}
+			}
+
+			if (window <= 0f || minSpeed == float.MaxValue)
+			{
+				return Math.Max(window, 0.5f);
+			}
+
+			return Math.Min(Math.Max(window / minSpeed, window), 30f);
+		}
+
 		internal int TapCount { get; set; }
 
 		internal LiveScore Score => ScoreLogic?.Score ?? default;
