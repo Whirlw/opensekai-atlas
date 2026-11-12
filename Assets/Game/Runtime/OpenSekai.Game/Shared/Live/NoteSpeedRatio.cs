@@ -14,17 +14,9 @@ namespace OpenSekai.Shared.Live
     /// live session. The behaviour, including every fallback, is intended to be identical: when the
     /// note is at or behind the playhead, when the chart carries no speed events, and when the span is
     /// zero, the frame's own speed ratio is returned.
-    ///
-    /// One deliberate difference: every answer is bounded by <see cref="MaxSegmentSpeedRatio"/>. A chart
-    /// can spike the value (one shipped chart has 799 on a bar line) to make notes appear abruptly, and an
-    /// unbounded spike turns the display offset into a millisecond, which squashes whatever is already on
-    /// screen. Bounding the magnitude keeps the abrupt appearance and the sign (reverse scroll).
     /// </remarks>
     public static class NoteSpeedRatio
     {
-        /// <summary>Largest magnitude the view is allowed to divide the display window by.</summary>
-        public const float MaxSegmentSpeedRatio = 20f;
-
         /// <summary>
         /// Length-weighted average of the speed events between the current playhead and the note.
         /// </summary>
@@ -36,12 +28,12 @@ namespace OpenSekai.Shared.Live
         {
             if (noteProgress <= currentProgress)
             {
-                return Clamp(fallbackSpeedRatio);
+                return fallbackSpeedRatio;
             }
 
             if (scoreInfos == null || scoreInfos.Length == 0)
             {
-                return Clamp(fallbackSpeedRatio);
+                return fallbackSpeedRatio;
             }
 
             float accumulated = 0f;
@@ -101,16 +93,11 @@ namespace OpenSekai.Shared.Live
 
             if (!hasRange)
             {
-                return Clamp(previousSpeedRatio);
+                return previousSpeedRatio;
             }
 
             float range = noteProgress - currentProgress;
-            return Mathf.Approximately(range, 0f) ? Clamp(fallbackSpeedRatio) : Clamp(accumulated / range);
-        }
-
-        private static float Clamp(float speedRatio)
-        {
-            return Mathf.Clamp(speedRatio, -MaxSegmentSpeedRatio, MaxSegmentSpeedRatio);
+            return Mathf.Approximately(range, 0f) ? fallbackSpeedRatio : accumulated / range;
         }
     }
 }
