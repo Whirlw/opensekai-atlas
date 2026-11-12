@@ -50,13 +50,16 @@ namespace OpenSekai.Tests.EditMode.Live
 			// A note whose lead is shorter than a few frames can only ever be caught part way down the
 			// screen: it crosses the whole screen inside one frame. Those are the chart's deliberate
 			// flashes, so only notes with a lead a frame can hold are expected at the top edge.
+			//
+			// The region is the one this pins: bar 80.5's 9 ms 799 event used to park the scan and create a
+			// dozen notes in a single frame. Elsewhere the chart still jumps a note's lead when the playhead
+			// crosses a sub-frame speed event (bar 15.0: 0.31 s of lead becomes 0.74 s in one frame), which
+			// is a different, measured item and not what this test is about.
 			foreach (var pair in spawn)
 			{
 				float bar = pair.Key.MusicScoreInfo.bar + pair.Key.MusicScoreInfo.barProgress;
 				if (bar < 80.4f || bar > 82.2f)
 				{
-					// Outside the spike region the scan can still lag behind a long lead; measured as a
-					// separate item (37 notes chart wide) and not pinned by this test.
 					continue;
 				}
 
