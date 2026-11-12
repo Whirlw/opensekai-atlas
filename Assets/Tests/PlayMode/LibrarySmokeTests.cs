@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Collections;
 using NUnit.Framework;
@@ -79,6 +80,56 @@ namespace OpenSekai.Tests.PlayMode
             Assert.That(result.Score, Is.EqualTo(1_000_000),
                 $"Rank={result.Rank}, auto={result.AutoCount}/{result.TotalCombo}, misses={result.Miss}");
             Assert.That(result.Rank, Is.EqualTo(ScoreRank.S));
+        }
+
+        [UnityTest]
+        public IEnumerator ShippedWavePackRegistersEveryManifestCue()
+        {
+            var sound = new SoundManager();
+            bool loaded = false;
+            sound.LoadExternalSoundPack(() => loaded = true);
+            yield return WaitFor(() => loaded, BootTimeoutSeconds, "loading the built-in WAV manifest");
+
+            string manifest = Path.Combine(Application.streamingAssetsPath, "sound", "manifest.csv");
+            var bundles = File.ReadLines(manifest).Skip(1)
+                .Where(line => !string.IsNullOrWhiteSpace(line))
+                .Select(line => line.Trim().Split(','))
+                .GroupBy(row => row[0].Trim(), row => row[1].Trim());
+
+            foreach (var bundle in bundles)
+            {
+                Assert.That(sound.IsLoadedSoundBundle(bundle.Key), Is.True, bundle.Key);
+                var cues = sound.GetCueInfos(bundle.Key);
+                Assert.That(cues.Select(cue => cue.name), Is.EquivalentTo(bundle), bundle.Key);
+                Assert.That(cues.All(cue => cue.length > 0), Is.True, bundle.Key);
+            }
+
+            uint playback = sound.PlaySE("se_live_clear");
+            Assert.That(playback, Is.Not.Zero, "the result cue can start playback");
+            sound.StopSE(playback);
+
+            const string missing = "__opensekai_missing_sound_fixture__";
+            Assert.That(sound.ExistsCueName(missing), Is.False);
+            string message = missing + " is not registered.";
+            int warningCount = 0;
+            void CountMissingCueWarning(string condition, string stackTrace, LogType type)
+            {
+                if (type == LogType.Warning && condition == message)
+                    warningCount++;
+            }
+
+            Application.logMessageReceived += CountMissingCueWarning;
+            try
+            {
+                LogAssert.Expect(LogType.Warning, message);
+                Assert.That(sound.PlaySE(missing), Is.Zero);
+                Assert.That(sound.PlaySE(missing), Is.Zero);
+                Assert.That(warningCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                Application.logMessageReceived -= CountMissingCueWarning;
+            }
         }
 
         private static IEnumerator WaitFor(System.Func<bool> condition, float timeout, string stage)

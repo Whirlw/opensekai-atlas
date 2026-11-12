@@ -3,15 +3,15 @@
 > 目的：说清游戏里的判定音与演出音放在哪、怎么被加载、怎么新增或替换，以及交付时的规格与验收。
 > 适用读者：做音频素材的人、改 `SoundManager` 的人、发版前做素材检查的人。
 > 前置条件：读过 [素材来源清单](asset-provenance.md)、[音频需求表](audio-spec.md)。
-> 最后更新：2026-11-09
+> 最后更新：2026-11-12
 
 ## 现状
 
-游戏音频走**散装 wav + 运行时注册**，不依赖 CRI ACB：
+内置音效与曲包音频通过 WAV 注册，ACB 保留为兼容来源。
 
 - 42 个 wav 放在 `Assets/StreamingAssets/sound/<bundle>/<cue>.wav`；
 - `Assets/StreamingAssets/sound/manifest.csv` 列出每个 bundle 的 cue；
-- 启动时 `SoundManager.LoadExternalSoundPack()` 读 manifest，把每组 wav 注册成一份外部 cue sheet，**优先于 ACB**：同名 bundle 的 `_acbByBundleName` 会被覆盖，之后 `LoadSoundBundle` 因为 `ContainsKey` 直接返回；
+- 启动时 `SoundManager.LoadExternalSoundPack()` 由 `ExternalSoundPack` 读 manifest，把每组 WAV 注册为一份外部 cue sheet。同名 bundle 以 WAV 注册结果优先；
 - 设备日志应出现四行 `[SoundManager] external pack: N cues for <bundle>`。
 
 相关代码：
@@ -19,9 +19,10 @@
 | 位置 | 作用 |
 | --- | --- |
 | `Assets/Game/Runtime/Platform/CriWare/SoundClipLoader.cs` | 用 `UnityWebRequestMultimedia` 读 wav（Android 上 StreamingAssets 在 apk 内，不能直接 `File.ReadAllBytes`） |
-| `SoundManager.cs:204` | `RegisterExternalAudioClip(bundleName, cueName, AudioClip)` |
-| `SoundManager.cs:548` | 判定音 bundle = `live/tap_se/` + `LiveConfig.NoteSeName` |
-| `SoundManager.cs:27-83` | `LIVE_DEFAULT_SOUND_BUNDLE_NAME`、`LIVE_TAP_SE_*`、预解码 cue 列表 |
+| `ExternalSoundPack.cs` | 加载内置 WAV 清单，注册曲包音频及其音乐 bundle 别名 |
+| `AudioCatalog.cs` | cue 查找、bundle 注册和预解码名单。判定音优先使用 `live/tap_se/` + `LiveConfig.NoteSeName` |
+| `AcbAssetSource.cs` | 兼容 AssetBundle、编辑器资源和 StreamingAssets 的 ACB 读取路径 |
+| `VolumeService.cs` | 计算 BGM 和 SE 的播放音量。设置仍由 `ApplicationLocalSettings` 保存 |
 | `Assets/Game/Runtime/Sekai/Live/LiveConfig.cs:143-171` | `GetNoteSeName(index)` → `custom01` / `custom02`，对应设置里的「音符音效 1 / 2」 |
 | `Assets/Game/Runtime/Sekai/Core/Live/BaseLiveController.cs:126,141` | 进场时加载 `live/sound/live_se/default` 与 `live/tap_se/<皮肤>` |
 | `Assets/Game/Runtime/Shared/Audio/PackageAudio.cs:33` | 曲包自带曲目音频，走同一注册入口（属于用户数据） |
@@ -59,7 +60,7 @@
    ```
 
    脚本会检查 44100 / 16-bit PCM，并把文件登记进 `manifest.csv`。
-3. 如果新增或删除了 cue，同步改 `SoundManager` 里的 `LiveTapPredecodeCueNames` / `LiveDefaultPredecodeCueNames` 两个硬编码数组，否则预解码不会覆盖到。
+3. 如果新增或删除了 cue，同步改 `AudioCatalog` 里的 `LiveTapPredecodeCueNames` / `LiveDefaultPredecodeCueNames` 两个硬编码数组，否则预解码不会覆盖到。
 4. 在 `docs/reference/audio-credits.md` 增加或更新一行署名（来源只能是自制 / CC0 / CC BY）。
 5. 跑一次 `Tools/audit-audio-provenance.ps1`，期望 `AUDIT OK`。
 

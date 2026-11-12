@@ -452,6 +452,9 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 - P2-4 通过，起点 `5d3b4dcf`。`LiveLogic` 协调帧阶段，`LiveClock` 管理帧采样与触摸时间映射，暂停和恢复沿用控制器对帧调用的控制。`LiveInputRouter` 复用触摸采集、候选和去重逻辑，`JudgmentScheduler` 保留判定和结果回调顺序，`LiveSessionState` 管理谱面、事件、计分和会话统计，`LiveNoteFrame` 管理音符扫描及显示。上述文件依次为 265、33、143、323、78、285 行。通过 Unity 反射核对 67 项公开接口及参数，拆分前后一致。
 - `unity recompile` 为 0 error。拆分前后全量 EditMode 均为 525 通过、0 失败、4 跳过，529 项逐项一致。`LiveLogicInputTests` 34 项、`JudgeFrameTableTests` 9 项全部通过。两项异步 `LibrarySmokeTests` 通过，整首结算 1,000,000 / S 并返回曲库。通过 `Tools/verify-structure.ps1 -CheckProjects -CheckAssemblies -RequireNoEmptyDirectories`，缺失脚本新增 0。报告在 `TestResults/restructure-p2-4-*`。
 
+- P2-5 桌面验收通过，起点 `181b36d6`。`SoundManager` 门面 341 行，保留播放调度与同步计时。`AudioCatalog` 管理 bundle、cue 和预解码，`ExternalSoundPack` 注册内置 WAV 和曲包音频，`VolumeService` 管理播放音量，持久化沿用 `ApplicationLocalSettings`。移除无实际配置效果的 ACF 注册探测和空转换表。兼容入口 `LoadSoundBundle → AcbAssetSource → CriAtomShim → AcbDecoder` 仍能读取外部 ACB，因此保留解码器。
+- `unity recompile` 为 0 error。44 项公开接口和 529 项 EditMode 结果逐项一致，525 通过、0 失败、4 跳过。三项 PlayMode 全通过，包含 42 个内置 WAV 注册及长度、结算音启动、缺失 cue 仅警告一次并返回 0、曲包自动判定 1,000,000 / S 返回曲库。42 个 WAV 的 `AUDIT OK` 输出与基线一致，结构检查通过，新增缺失脚本为零。报告在 `TestResults/restructure-p2-5-*`。真机开局和结算音效仍待核对。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动
