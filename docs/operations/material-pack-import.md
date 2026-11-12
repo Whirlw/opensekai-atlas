@@ -48,6 +48,8 @@ powershell -File Tools\compare-atlas-art.ps1     # differ 里应只剩整纹理/
 | `apply-atlas-art.ps1` | `painted=N wholeTexture=M noSprite=K sizeDiff=0 shadowed=S atlases=T` | `noSprite` 是「整图」类，正常；`shadowed` 是同一精灵的多个画包文件，正常应只剩替身 |
 | `verify-hud-art.ps1` | 生成对比图，左画包 / 右图集 | 逐张必须一致 |
 
+最近一次全量导入（2026-11-12，`0d153e68` 之后）的实测输出，可作参照：`apply-paint-kit.ps1` 为 `copied=17 same=112 missed=200 mismatch=0`（`missed` 是画包里还没进工程的新素材与预览图），`apply-atlas-art.ps1` 为 `painted=160 wholeTexture=6 noSprite=44 sizeDiff=0 shadowed=0 atlases=21`——`shadowed` 归零是因为镜像里 15 个程序生成的 `*_0.png` 替身已删除（`number_48px_shadow_0`、`skillEffect_text_0` 是作者自己的文件名，保留）。
+
 ## 七条硬规则
 
 ### R1 精灵名 ≠ 资产文件名
