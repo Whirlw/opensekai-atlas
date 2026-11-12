@@ -482,6 +482,10 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 - 62 份 `.meta` 随文件移动，缺失脚本清单仍与 P0-2 基线逐字节相同。`unity recompile` 0 error；全量 EditMode 538 通过、0 失败、4 跳过，与此前逐项一致。`Sekai/` 顶层 `.cs` 由 120 降到 58，累计 196 → 58。
 - 搬动这批时编辑器经历了一次域重载，Pipeline 服务短暂不可达；等待重连后编译为 `up_to_date`，不影响结果。
 
+- P3-1 第四批 b 完成，起点 `8baf68ea`。共 70 个文件：`OpenSekai.Game/UI/` 42 个（顶层 `UIParts*` 九个、数字/图集/颜色/字体工具 11 个，以及 `Sekai/UI/` 整个目录的 22 个自定义控件），`OpenSekai.Game/Live/View/` 27 个（音符视图与 `NotePool`、HUD 与判定计分反馈、Live 特写与过场），`EffectPool` 归 `Animation/`。搬空的 `Sekai/UI` 目录已删除。
+- 70 份 `.meta` 随文件移动，缺失脚本清单仍与 P0-2 基线逐字节相同。`unity recompile` 0 error；全量 EditMode 538 通过、0 失败、4 跳过，与此前逐项一致。
+- **`Sekai/` 顶层 `.cs` 降到 10，已满足 P3-1 的“顶层 < 20”。** 累计 196 → 10。剩余待收尾：`Sekai/` 顶层 10 个（输入、相机、背景、单例与 `LiveUtility`）、`Rendering/` 21、`Core/` 6、`MusicScoreMaker/Common` 3、`ScreenLayerExtention/` 2、`RankLive/` 与 `View/` 各 1，以及 `Shared/`、`Platform/`、`Runtime/` 根上的三个文件；最后一步才搬 `OpenSekai.Game.asmdef`。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动
