@@ -507,6 +507,10 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
   - `NoteResourcesFallbackTests` 三项：音符 prefab 从 `Resources` 供给（`live/note/custom01` + 扁平名 `FlickNote`）；带扩展名的旧名字先 `StripExtension` 再查；非音符 bundle 名不得解析到 `Resources`（否则陈旧资源会遮蔽真正的 bundle）。
 - 全量 EditMode 557 项、553 通过、0 失败、4 跳过。AB 侧的真实优先级（先 AB 后 `Resources`、下载与缓存）仍需真机整首验收覆盖，EditMode 里没有 `AssetBundleManager` 实例。
 
+- P3-3 第一批完成，起点 `a9da45b5`。`ScreenLayerExtention` 的拼写修正收尾：目录在 P3-1 已并入 `Screens/`，本次把两个接口的命名空间改成 `Sekai.ScreenLayerExtension`，并同步 `ScreenManager` 与 `ScreenStackService` 的两处 `using`。代码里已无该拼写；计划书里保留旧写法仅因为它描述改名前的状态。
+- 同一批纠正文档失实：`docs/reference/fonts.md` 原称曲库页用 1.4 MB 的 Noto Sans SC 子集，实际 `Fonts/NotoSansSC-UI` 在仓库中不存在，`LibraryUi.LoadBundledFont()` 恒返回 null，曲库走 OS 字体探测再退到项目 TMP 资产。文档已改为陈述事实并标注“删死路径或补字体”待定；代码本轮未动，避免在同一提交里混合文档修正与行为删除。
+- `unity recompile` 0 error；`verify-structure.ps1 -CheckAssemblies -RequireNoEmptyDirectories` 通过。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动

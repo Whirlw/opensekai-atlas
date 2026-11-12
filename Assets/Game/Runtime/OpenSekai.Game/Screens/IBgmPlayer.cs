@@ -1,4 +1,4 @@
-namespace Sekai.ScreenLayerExtention
+namespace Sekai.ScreenLayerExtension
 {
 	public interface IBgmPlayer
 	{

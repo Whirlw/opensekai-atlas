@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using CP;
 using Cysharp.Threading.Tasks;
 using System.Threading;
-using Sekai.ScreenLayerExtention;
+using Sekai.ScreenLayerExtension;
 using UnityEngine;
 
 namespace Sekai

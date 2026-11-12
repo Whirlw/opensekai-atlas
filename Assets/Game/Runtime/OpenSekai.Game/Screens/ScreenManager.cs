@@ -9,7 +9,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using Sekai.Live;
-using Sekai.ScreenLayerExtention;
+using Sekai.ScreenLayerExtension;
 
 namespace Sekai
 {

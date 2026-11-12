@@ -93,7 +93,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File Tools/verify-structure.ps1 -
 先确认 `m_FaceInfo.m_LineHeight` 是否等于 70（与被替换的 Rodin 对齐）；再确认 `m_PointSize` 是 35。两者任一不对都会让换行与基线整体偏移。
 
 **能不能只用一套字体？**
-曲库页面仍用 Noto Sans SC 子集（1.4 MB，只覆盖 GB2312 一级字与符号），因为它是被 `Resources.Load` 直接加载的 TTF。要合并的话需要把曲库也改成加载 TMP 资产。
+现在实际上已经是这样：曲库页与打歌都用思源黑体，`LibraryUi.LoadBundledFont()` 里那条 `Fonts/NotoSansSC-UI` 的加载在 2026-11 已确认指向一个**仓库里不存在的资源**，所以它一直返回 null，曲库随后走 OS 字体探测、再退到项目 TMP 资产。要么删掉这条死路径，要么把子集字体补回来，两者都需要单独决定；在那之前不要把它当成可用字体。
 
 ## 相关文档
 
