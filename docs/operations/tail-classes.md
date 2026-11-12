@@ -461,6 +461,10 @@ if (State == NoteState.Last)
 
 因此解耦的验收必须包含「**同一根尾只发布一次**」这一条，且不能依赖「`State == Done` 早退」这种间接保证——要显式保证（例如尾自己的 `_published` 标志 + 用例直断发布次数）。
 
+> **2026-11-12 落地**：`LongNoteTail` 有了 `_tailPublished` 与单一发布出口 `PublishTail(result)`（写条的结果 + `CompleteTail`）。三条结算路径 `JudgeTailCore`（抬手/划动判定）、`FailTail`（窗口过期）、`DetachStandaloneTail`（自判尾解绑）全部走它；`ResetDecision()` 不清这个标志（它跑在正要发布的路径上），只有 `Reset()`（池复用）清。`DetachStandaloneTail` 里「把尾从 `NoteList` 摘掉」被挪到发布之后——否则一次被拒的重复结算已经动了列表。
+>
+> 用例（`Live/TailBehaviourContractTests`）：`ASecondVerdictOnTheSameTailChangesNothing` **先红**（`FailTail` 返回 true 并把条的结果从 `JustPerfect` 改写成 `Miss`），把条硬塞回 `Scrolling` 来证明这个保证不靠 `State == Done`；`AReusedBarCanPublishItsTailAgain` 盯「复位后能再发布一次」，防止标志在池里粘住。
+
 ### 13.3 需要一起看的代码
 
 | 位置 | 关注点 |

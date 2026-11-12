@@ -33,6 +33,7 @@ namespace Sekai.Live
 			_swipeWindowStart = -1f;
 			_windowTraced = false;
 			_expireTraced = false;
+			_tailPublished = false;
 		}
 
 		internal static bool IsTailCandidate(NoteBase note)
@@ -246,10 +247,9 @@ namespace Sekai.Live
 				Child.FinishWith(result);
 			}
 
-			_bar.SetTailResult(result);
-			_bar.CompleteTail();
+			bool published = PublishTail(result);
 			ResetDecision();
-			return true;
+			return published;
 		}
 
 		internal bool DetachStandaloneTail(float currentTime)
@@ -265,8 +265,13 @@ namespace Sekai.Live
 				return false;
 			}
 
-			_bar.SetTailResult(settled ? Child.Result : NoteResult.Miss);
-			_bar.CompleteTail();
+			// Publish before touching anything else: if this tail already has a verdict, the refusal has
+			// to happen while the bar and the note list are still exactly as they were.
+			if (!PublishTail(settled ? Child.Result : NoteResult.Miss))
+			{
+				ResetDecision();
+				return false;
+			}
 
 			// The tail judges itself, so the bar must not grade it: it leaves the list instead. The parent
 			// link stays, because the tail still belongs to this bar - it just is not a part the bar can end.
@@ -451,7 +456,35 @@ namespace Sekai.Live
 				Child.FinishWith(NoteResult.Miss);
 			}
 
-			_bar.SetTailResult(NoteResult.Miss);
+			return PublishTail(NoteResult.Miss);
+		}
+
+		private bool _tailPublished;
+
+		/// <summary>
+		/// Writes the bar's side of a tail verdict, once. Every route that can settle a tail - a release,
+		/// a swipe, the window closing, a standalone tail that graded itself - ends up here, and the flag
+		/// is what makes "one tail, one publication" a fact of its own rather than a consequence of
+		/// <c>State == Done</c> and the child's own result, which are the indirect guards
+		/// tail-classes.md §13.2 warns about.
+		///
+		/// The flag is per run. Only <see cref="Reset"/> clears it: <see cref="ResetDecision"/> runs on
+		/// the very paths that are supposed to publish, so clearing it there would re-open the door.
+		/// </summary>
+		private bool PublishTail(NoteResult result)
+		{
+			if (_tailPublished)
+			{
+				if (LiveTrace.IsOn(LiveTraceCategory.Tail))
+				{
+					LiveTrace.Write(LiveTraceCategory.Tail, $"tailRepublish barT={_bar.MusicScoreInfo.time:F3} result={result} state={_bar.State}");
+				}
+
+				return false;
+			}
+
+			_tailPublished = true;
+			_bar.SetTailResult(result);
 			_bar.CompleteTail();
 			return true;
 		}

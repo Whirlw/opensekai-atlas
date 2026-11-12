@@ -66,5 +66,64 @@ namespace OpenSekai.Tests.EditMode.Live
 
 			Assert.That(offenders, Is.Empty, "a bar answers with TailBehaviour.TryFinish, not with three booleans");
 		}
+
+		[Test]
+		public void ASecondVerdictOnTheSameTailChangesNothing()
+		{
+			// tail-classes.md §13.2: one tail, one publication. The guarantee has to live in the tail
+			// itself, not in "State == Done" or the child's own result - those are the indirect guards
+			// the document warns about. So the bar is deliberately put back into the play state here:
+			// every route must still find the tail settled and leave both verdicts alone.
+			(LongNote bar, NoteBase tail) = BarAtItsTail();
+			int published = 0;
+			tail.OnJudgment = _ => published++;
+
+			Assert.That(bar.JudgeTailAsRelease(1f), Is.True, "the lift at the tail grades it");
+			Assert.That(tail.Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(published, Is.EqualTo(1));
+			NoteResult barResult = bar.Result;
+
+			bar.SetStateUnnotice(NoteState.Scrolling);
+
+			Assert.That(bar.FailTail(), Is.False, "the window closing again must not write a second verdict");
+			Assert.That(bar.JudgeTailAsRelease(1f), Is.False, "nor may the same lift be graded twice");
+			Assert.That(bar.ExpireTail(2f), Is.False, "nor may the timeout");
+			Assert.That(bar.DetachStandaloneTail(2f), Is.False, "nor may the standalone detach");
+			Assert.That(bar.TickSwipeTail(2f), Is.False, "and a release tail is never graded by the swipe path");
+
+			Assert.That(published, Is.EqualTo(1), "the tail is published exactly once");
+			Assert.That(tail.Result, Is.EqualTo(NoteResult.JustPerfect), "and keeps its verdict");
+			Assert.That(bar.Result, Is.EqualTo(barResult), "the bar keeps it too");
+		}
+
+		[Test]
+		public void AReusedBarCanPublishItsTailAgain()
+		{
+			// The "published once" flag is per run: the pool hands the same objects back, and a bar that
+			// could never publish again would swallow every tail of the second play.
+			(LongNote bar, NoteBase tail) = BarAtItsTail();
+			int published = 0;
+			tail.OnJudgment = _ => published++;
+			Assert.That(bar.JudgeTailAsRelease(1f), Is.True);
+
+			bar.ResetNote();
+			tail.ResetNote();
+			bar.SetStateUnnotice(NoteState.Scrolling);
+
+			Assert.That(bar.JudgeTailAsRelease(1f), Is.True, "a reused bar has to grade its tail again");
+			Assert.That(published, Is.EqualTo(2), "one publication per run");
+			Assert.That(tail.Result, Is.EqualTo(NoteResult.JustPerfect));
+		}
+
+		/// <summary>A bar held at its own tail time, with an ordinary end note at 1 s.</summary>
+		private static (LongNote bar, NoteBase tail) BarAtItsTail()
+		{
+			var bar = new LongNote(Info(0f), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
+			var tail = new NormalNote(Info(1f), 2, 4, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f);
+			bar.AddNoteListAndSetupChildNote(tail);
+			bar.SetStateUnnotice(NoteState.Scrolling);
+			bar.RecordHoldingInput(1, 1f);
+			return (bar, tail);
+		}
 	}
 }
