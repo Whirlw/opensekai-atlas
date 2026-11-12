@@ -18,6 +18,7 @@
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/Charts/` | `ChartTimeline` 和 `RuntimeChartDefinition` |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/Infrastructure/` | `ChartFileReader`、`SongPackageManager` 和曲库导入 |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/Live/Conversion/` | `RuntimeChartConverter` 和 `RuntimeChartImporter` 组装运行时谱面 |
+| OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Screens/` | `ScreenManager` 门面与页面栈、对话框、过场与模糊、页头、页面层基类、子窗口、场景入口与返回键 |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Audio/` | `SoundManager` 门面、`AudioCatalog`、`ExternalSoundPack`、`VolumeService`，以及 ACB 兼容入口 `AcbAssetSource` |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Animation/` | `Tween*` 组件与目标适配、加载指示与粒子动画组件 |
 | OpenSekai.Game | `Assets/Game/Runtime/Sekai/` | 待收敛：Live 控制器与视图、音符、页面栈、UI 部件和数据类（P3-1 分批搬入 `OpenSekai.Game/`） |

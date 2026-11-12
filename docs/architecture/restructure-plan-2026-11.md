@@ -469,6 +469,9 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 - `Sekai/` 顶层 `.cs` 由 196 降到 175。命名空间未改，因此没有代码改动；`docs/architecture/modules.md` 补了 `OpenSekai.Game/` 的目录职责，以及 asmdef 要等到最后才搬的原因。
 - 同一时段编辑器又烘了 Bold 字形资产（`SDF_Base` 6,570 → 8,395,194 字节），`verify-structure.ps1` 的生成资产校验直接报错，`Tools/restore-generated-assets.ps1` 一条命令还原——这套流程第一次在真实会话里生效。
 
+- P3-1 第二批完成，起点 `1acddffc`。把页面与场景机械收进 `OpenSekai.Game/Screens/`，共 56 个文件：`ScreenManager` 门面与服务四件（`ScreenStackService`、`DialogService`、`TransitionService`、`HeaderService`）、`ScreenLayer*` 基类与变体、页头与页面枚举、`ScreenIn/Out` 动画与模糊、`ColorFader`/`CrossFader`、`Dialog*` 与三个通用对话框、`ChainDialogPlayer`、`SubWindow*`、`Scene*` 场景入口与过渡、`BackKeyChecker`。顺带把 `Sekai/SubWindow/WindowType.cs` 并入并删掉清空后的 `SubWindow/` 目录。
+- 56 份 `.meta` 的 GUID 与 `HEAD` 逐项一致（0 不一致），缺失脚本清单仍与 P0-2 基线逐字节相同。`unity recompile` 0 error；全量 EditMode 538 通过、0 失败、4 跳过，与第一批之后逐项一致。`Sekai/` 顶层 `.cs` 由 175 降到 120，`Sekai/` 顶层已经没有页面相关文件，只剩 Live、资源、UI 部件与数据类。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动
