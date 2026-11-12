@@ -50,14 +50,14 @@ namespace Sekai
 
 		private void Awake()
 		{
-			_liveBundleBuildData = Resources.Load<LiveBundleBuildData>(LiveConfig.ConfigBundleNamePath);
+			_liveBundleBuildData = ResourceCatalog.LiveBundleConfig.Load();
 		}
 
 		public void Setup(Action callback = null)
 		{
 			if (_liveBundleBuildData == null)
 			{
-				_liveBundleBuildData = Resources.Load<LiveBundleBuildData>(LiveConfig.ConfigBundleNamePath);
+				_liveBundleBuildData = ResourceCatalog.LiveBundleConfig.Load();
 			}
 			_maxLife = _liveBundleBuildData != null && _liveBundleBuildData.Life > 0 ? _liveBundleBuildData.Life : 1000;
 			_lifeDefaultGaugeSize = _lifeDefaultGauge != null ? _lifeDefaultGauge.size : Vector2.one;

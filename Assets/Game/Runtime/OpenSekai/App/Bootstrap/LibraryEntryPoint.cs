@@ -80,7 +80,7 @@ namespace OpenSekai.App.Bootstrap
                 return;
             }
 
-            GameObject prefab = Resources.Load<GameObject>(EVENT_SYSTEM_PREFAB_PATH);
+            GameObject prefab = ResourceCatalog.EventSystem.Load();
             GameObject input = prefab != null
                 ? Instantiate(prefab)
                 : new GameObject("EventSystem", typeof(EventSystem));

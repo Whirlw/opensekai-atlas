@@ -281,8 +281,7 @@ namespace Sekai
 				return;
 			}
 
-			var prefab = Resources.Load<GameObject>(BACKGROUND_COVER_PREFAB_PATH)
-				?? Resources.Load<GameObject>(BACKGROUND_COVER_PREFAB_PATH.ToLowerInvariant());
+			var prefab = ResourceCatalog.DialogFillCover.Load();
 			if (prefab == null)
 			{
 				return;

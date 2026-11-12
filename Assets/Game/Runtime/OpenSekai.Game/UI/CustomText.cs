@@ -117,7 +117,7 @@ namespace Sekai.UI
 
 		public void SetDefaultFontDB()
 		{
-			var loadedFont = Resources.Load<Font>("Fonts/SourceHanSansSC-Medium");
+			var loadedFont = ResourceCatalog.MediumTtfFont.Load();
 			if (loadedFont != null)
 			{
 				font = loadedFont;
@@ -126,7 +126,7 @@ namespace Sekai.UI
 
 		public void SetDefaultFontEB()
 		{
-			var loadedFont = Resources.Load<Font>("Fonts/SourceHanSansSC-Bold");
+			var loadedFont = ResourceCatalog.BoldTtfFont.Load();
 			if (loadedFont != null)
 			{
 				font = loadedFont;

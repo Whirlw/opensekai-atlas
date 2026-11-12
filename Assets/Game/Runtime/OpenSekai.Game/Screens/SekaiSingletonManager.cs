@@ -86,7 +86,7 @@ namespace Sekai
 				return;
 			}
 
-			GameObject prefab = Resources.Load<GameObject>(EVENT_SYSTEM_PREFAB_PATH);
+			GameObject prefab = ResourceCatalog.EventSystem.Load();
 			GameObject eventSystemObject = prefab != null
 				? Instantiate(prefab)
 				: new GameObject("EventSystem", typeof(EventSystem));

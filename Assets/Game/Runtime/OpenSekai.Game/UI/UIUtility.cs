@@ -17,10 +17,10 @@ namespace Sekai
 		{
 			DestroyLiveTransition();
 
-			GameObject prefab = Resources.Load<GameObject>(LIVE_TRANSITIONER_PREFAB_PATH);
+			GameObject prefab = ResourceCatalog.LiveTransitioner.Load();
 			if (prefab == null)
 			{
-				Debug.LogWarningFormat("LiveTransitioner prefab could not be loaded. path:{0}", LIVE_TRANSITIONER_PREFAB_PATH);
+				Debug.LogWarningFormat("LiveTransitioner prefab could not be loaded. path:{0}", ResourceCatalog.LiveTransitioner.Path);
 				onFinished?.Invoke();
 				return null;
 			}

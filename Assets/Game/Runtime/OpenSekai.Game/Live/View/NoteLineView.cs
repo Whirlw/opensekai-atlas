@@ -86,8 +86,7 @@ namespace Sekai
 			_filter = gameObject.AddComponent<MeshFilter>();
 			_renderer = gameObject.AddComponent<MeshRenderer>();
 
-			Material source = Resources.Load<Material>("Materials/Ingame/LongNoteLine")
-				?? Resources.Load<Material>("materials/ingame/LongNoteLine");
+			Material source = ResourceCatalog.LongNoteLineMaterial.Load();
 			Material = source != null ? new Material(source) : new Material(Shader.Find("Sprites/Default"));
 			Texture texture = AssetBundleUtility.LoadAsset<Texture>(LiveConfig.NoteBundleName, textureName, false);
 			if (texture != null)

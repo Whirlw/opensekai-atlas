@@ -1,4 +1,5 @@
 using System;
+using Sekai;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
@@ -232,10 +233,10 @@ namespace OpenSekai.Shared.UI
             }
 
             _fontResolved = true;
-            _font = Resources.Load<TMP_FontAsset>("font/SourceHanSansSC-Medium SDF_Dynamic");
+            _font = ResourceCatalog.MediumDynamicFont.Load();
             if (_font == null)
             {
-                _font = Resources.Load<TMP_FontAsset>("font/SourceHanSansSC-Bold SDF_Dynamic");
+                _font = ResourceCatalog.BoldDynamicFont.Load();
             }
 
             return _font;

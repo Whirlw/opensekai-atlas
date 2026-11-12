@@ -21,8 +21,7 @@ namespace Sekai
 
 		public void Initialize(LivePlayMode livePlayMode, Camera _baseCamera)
 		{
-			_uiPrefab = Resources.Load<GameObject>(LIVE_OUT_UI_PREFAB_PATH)
-				?? Resources.Load<GameObject>(LIVE_OUT_UI_PREFAB_FALLBACK_PATH);
+			_uiPrefab = ResourceCatalog.LiveOutUi.Load();
 			_uiRootObject = null;
 			_screenManager = null;
 			_activeDialog = null;
@@ -120,8 +119,7 @@ namespace Sekai
 		{
 			if (_uiPrefab == null)
 			{
-				_uiPrefab = Resources.Load<GameObject>(LIVE_OUT_UI_PREFAB_PATH)
-					?? Resources.Load<GameObject>(LIVE_OUT_UI_PREFAB_FALLBACK_PATH);
+				_uiPrefab = ResourceCatalog.LiveOutUi.Load();
 			}
 			if (_uiPrefab == null)
 			{

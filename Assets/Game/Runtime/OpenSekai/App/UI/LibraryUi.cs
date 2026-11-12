@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using OpenSekai.Shared.Packages;
+using Sekai;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -142,10 +143,10 @@ namespace OpenSekai.App.UI
         /// </summary>
         private static TMP_FontAsset LoadProjectFontFallback()
         {
-            TMP_FontAsset asset = Resources.Load<TMP_FontAsset>("font/SourceHanSansSC-Medium SDF_Dynamic");
+            TMP_FontAsset asset = ResourceCatalog.MediumDynamicFont.Load();
             if (asset == null)
             {
-                asset = Resources.Load<TMP_FontAsset>("font/SourceHanSansSC-Bold SDF_Dynamic");
+                asset = ResourceCatalog.BoldDynamicFont.Load();
             }
             return asset;
         }

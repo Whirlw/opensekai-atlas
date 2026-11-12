@@ -95,7 +95,7 @@ namespace OpenSekai.App.Playback
                 }
                 cancellationToken.ThrowIfCancellationRequested();
                 PlaybackSettingsSnapshot settings = LiveSettingsStore.Shared.CaptureSnapshot();
-                LiveBundleBuildData config = Resources.Load<LiveBundleBuildData>(LiveConfig.ConfigBundleNamePath);
+                LiveBundleBuildData config = ResourceCatalog.LiveBundleConfig.Load();
                 if(config == null) throw new InvalidOperationException("Live bundle configuration is missing.");
                 PlaySession session = PlaySession.Create(request, entry, chart, config, settings);
                 FreeLiveBootData boot = LegacyLiveBootAdapter.Create(session);

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Sekai.Live;
 using UnityEngine;
 
@@ -23,8 +23,7 @@ namespace Sekai
 			_filter = gameObject.AddComponent<MeshFilter>();
 			_renderer = gameObject.AddComponent<MeshRenderer>();
 
-			Material source = Resources.Load<Material>("Materials/Ingame/PairNoteLine")
-				?? Resources.Load<Material>("materials/ingame/PairNoteLine");
+			Material source = ResourceCatalog.PairNoteLineMaterial.Load();
 			_renderer.material = source != null ? new Material(source) : new Material(Shader.Find("Sprites/Default"));
 			Material = _renderer.material;
 

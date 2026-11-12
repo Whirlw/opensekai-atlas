@@ -51,7 +51,7 @@ namespace Sekai.Core.Live
 		protected override void OnAwake()
 		{
 			Application.backgroundLoadingPriority = ThreadPriority.High;
-			liveBundleBuildData = Resources.Load<LiveBundleBuildData>(LiveConfig.ConfigBundleNamePath);
+			liveBundleBuildData = ResourceCatalog.LiveBundleConfig.Load();
 			Settings = LiveSettingsStore.Shared.Load();
 			LiveConfig.LoadMasterConfig();
 			LiveConfig.LoadOptionData();

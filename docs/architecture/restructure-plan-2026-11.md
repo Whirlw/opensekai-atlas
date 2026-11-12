@@ -494,6 +494,14 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 - P3-1 收尾（三）完成：`OpenSekai.Game.asmdef` 搬进 `OpenSekai.Game/`，GUID `ba080aefd1693004f9db5fdfd3cd0175` 保持不变。搬前脚本先扫描 `Runtime/` 下所有 `.cs`，确认没有落在三个程序集目录之外的源码（否则会被编进 `Assembly-CSharp`），确认后才移动。
 - 收尾后 `Runtime/` 只剩 `OpenSekai/`（App）、`OpenSekai.Core/`、`OpenSekai.Game/` 三个程序集目录。`unity recompile` 0 error；全量 EditMode 538 通过、0 失败、4 跳过；`verify-structure.ps1 -CheckAssemblies -CheckProjects -RequireNoEmptyDirectories` 通过；缺失脚本清单仍与 P0-2 基线逐字节相同。**P3-1 完成。**
 
+### Phase 3 的 P3-2 执行记录（2026-11-12）
+
+- P3-2 第一批完成，起点 `ebb0b2ad`。新增 `OpenSekai.Game/Assets/ResourceCatalog.cs`：`ResourceEntry<T>` 是「路径 + 可选大小写回退 + 类型」的值类型，`Load()` 仍是同步 `Resources.Load`，回退只在主路径返回 null 时尝试，语义与原调用点一致；`ResourceCatalog` 以静态条目登记固定资源，没有实例，也就没有初始化顺序问题。
+- 已收敛 14 个条目、16 处调用点：六个字体（Bold/Medium × Base/Dynamic 的 TMP 资产，以及 Medium/Bold 的 TTF）、`LiveBundleBuildData`、`LiveTransitioner`、`EventSystem`、`DialogFillCover`、`LiveOutUI`、`EntryScreenLayers`、两条音符线材质（`PairNoteLine`、`LongNoteLine`）。按数据取址的八处仍留在动态路径（对话框名、页面 prefab、按配置选的视图 prefab、文案表、图集 sprite、模糊 prefab 的可序列化路径）。
+- `Tools/verify-resource-paths.ps1` 扩展为同时校验 `Resources.Load("…")` 与 `new ResourceEntry<T>("…")` 两种字面路径（含回退路径）。当前 `calls=31 missing=0`。
+- 新增 `ResourceCatalogTests` 六项：逐条加载并断言非空、缺失路径返回 null 而不抛、回退只在主路径失败时生效。全量 EditMode 548 项、544 通过、0 失败、4 跳过。
+- 清点发现一处既有缺陷：`LibraryUi` 的 `Fonts/NotoSansSC-UI` 在仓库里并不存在（`docs/reference/fonts.md` 仍把它记作曲库页字体），所以那条 `Resources.Load<Font>` 一直返回 null，曲库实际走 TMP fallback。该条目因此未纳入目录；是删掉这条死路径还是补回字体，需要单独决定。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动

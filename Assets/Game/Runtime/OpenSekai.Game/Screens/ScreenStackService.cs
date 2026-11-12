@@ -46,7 +46,7 @@ namespace Sekai
 			return map;
 		}
 
-		internal static ScreenLayerDataList LoadEntryScreenLayers() => Resources.Load<ScreenLayerDataList>("Screen/SceneEntry/EntryScreenLayers");
+		internal static ScreenLayerDataList LoadEntryScreenLayers() => ResourceCatalog.EntryScreenLayers.Load();
 
 		internal void SetupBgmPlayer(IBgmPlayer _layerBgmPlayer) => this._layerBgmPlayer = _layerBgmPlayer;
 

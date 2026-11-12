@@ -7,6 +7,7 @@
         "OpenSekai.App",
         "OpenSekai.Editor",
         "Unity.InputSystem",
+        "Unity.TextMeshPro",
         "UniTask"
     ],
     "includePlatforms": [

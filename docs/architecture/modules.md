@@ -22,7 +22,7 @@
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Audio/` | `SoundManager` 门面、`AudioCatalog`、`ExternalSoundPack`、`VolumeService`，以及 ACB 兼容入口 `AcbAssetSource` |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Animation/` | `Tween*` 组件与目标适配、加载指示、粒子控制与特效池 |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/UI/` | `UIParts*` 部件、自定义 UGUI 控件（`Custom*`、`Touch*` 反馈）、数字与图集工具、字体与颜色工具 |
-| OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Assets/` | AssetBundle 下载、加载与管理、清单、`Resources` 回退与 LRU 缓存 |
+| OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Assets/` | `ResourceCatalog`（固定资源的类型化目录）、AssetBundle 下载、加载与管理、清单、`Resources` 回退与 LRU 缓存 |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Data/` | Master 数据模型、曲目与 Live 数据、设置与本地存储入口、玩法枚举 |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Live/Runtime/` | Live 帧循环与时钟、输入路由与候选、判定调度、会话状态与统计、控制器、技能逻辑、曲目配置与时间轴 DTO |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Live/View/` | 前场与结算视图、背景、曲目信息、屏幕特效与遮罩、特写与技能文字、音符视图与 HUD、判定与计分反馈、Live 过场 |
@@ -35,6 +35,8 @@
 | OpenSekai.Editor | `Assets/Game/Editor/` | Android 构建、AssetBundle 构建、资源检查和场景校验 |
 
 构建场景在 `Assets/Game/Scenes/`。依次为 `Library.unity`、`TransitionBlank.unity` 和 `Core.unity`。
+
+固定资源走 `Sekai.ResourceCatalog`：字体、`LiveBundleBuildData`、几个固定 prefab 与音符线材质都以 `ResourceEntry<T>`（路径 + 可选大小写回退 + 类型）登记在那里，调用点写 `ResourceCatalog.LiveBundleConfig.Load()`，不再各自拼 `Resources` 路径。它是静态类，没有实例也没有初始化顺序问题，曲库与 Live 场景取到的是同一份条目。按数据取址的资源（按名字的页面 prefab、按配置选的音符 prefab、文案表、图集 sprite）继续走 `ResourceLoader` 的 `Resources.Load`/`LoadAsync`，那是动态路径。`Tools/verify-resource-paths.ps1` 同时校验这两种写法的字面路径。
 
 `Assets/Game/Runtime/OpenSekai.Game/` 是 P3-1 目录收敛的结果，按职责分为 `Screens`、`Audio`、`Assets`、`UI`、`Animation`、`Data`、`Live/{Runtime,View,Notes}`、`Rendering`、`Platform`、`Shared`、`Extensions`。代码命名空间保持 `Sekai` 不变，所以搬目录不影响序列化引用，但 `.meta` 必须随文件一起移动（GUID 不变，场景与 prefab 才不会断）。
 

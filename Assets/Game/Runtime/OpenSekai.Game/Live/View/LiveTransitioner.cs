@@ -55,7 +55,7 @@ namespace Sekai
 
 		public static LiveTransitioner Create()
 		{
-			var prefab = Resources.Load<GameObject>(PREFAB_PATH);
+			var prefab = ResourceCatalog.LiveTransitioner.Load();
 			if (prefab == null)
 			{
 				Debug.LogWarningFormat("LiveTransitioner prefab could not be loaded. path:{0}", PREFAB_PATH);

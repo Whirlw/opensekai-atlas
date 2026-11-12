@@ -8,14 +8,6 @@ namespace Sekai
 {
 	public sealed class FontAssetManager : SingletonMonoBehaviour<FontAssetManager>
 	{
-		private const string BASE_FONT_EB_PATH = "font/SourceHanSansSC-Bold SDF_Base";
-
-		private const string DYNAMIC_FONT_EB_PATH = "font/SourceHanSansSC-Bold SDF_Dynamic";
-
-		private const string BASE_FONT_DB_PATH = "font/SourceHanSansSC-Medium SDF_Base";
-
-		private const string DYNAMIC_FONT_DB_PATH = "font/SourceHanSansSC-Medium SDF_Dynamic";
-
 		private TMP_FontAsset _baseFontEB;
 
 		private TMP_FontAsset _dynamicFontEB;
@@ -40,13 +32,13 @@ namespace Sekai
 				return;
 			}
 
-			_baseFontEB = Resources.Load<TMP_FontAsset>(BASE_FONT_EB_PATH);
+			_baseFontEB = ResourceCatalog.BoldBaseFont.Load();
 			ClearFallbackFontAsset(_baseFontEB);
-			_dynamicFontEB = Resources.Load<TMP_FontAsset>(DYNAMIC_FONT_EB_PATH);
+			_dynamicFontEB = ResourceCatalog.BoldDynamicFont.Load();
 
-			_baseFontDB = Resources.Load<TMP_FontAsset>(BASE_FONT_DB_PATH);
+			_baseFontDB = ResourceCatalog.MediumBaseFont.Load();
 			ClearFallbackFontAsset(_baseFontDB);
-			_dynamicFontDB = Resources.Load<TMP_FontAsset>(DYNAMIC_FONT_DB_PATH);
+			_dynamicFontDB = ResourceCatalog.MediumDynamicFont.Load();
 
 			_isInitialized = true;
 		}
