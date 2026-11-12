@@ -478,6 +478,10 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
   - `Notes/` 29 个：`INote`、`NoteBase`、`NoteState`、各类音符与引导/连接笔画、`LongNote` 的四个 partial、`LongNoteHead`/`Tail`、`LongHoldCombo`，以及 `Tails/` 的七份尾行为。
 - 88 份 `.meta` 随文件移动，git 全部识别为 100% rename；缺失脚本清单仍与 P0-2 基线逐字节相同。`unity recompile` 0 error；全量 EditMode 538 通过、0 失败、4 跳过，与前两批逐项一致。搬空的 `Sekai/Core/Live` 与 `Sekai/Live`（含空的 `Tails/`）已删除，`-RequireNoEmptyDirectories` 通过。
 
+- P3-1 第四批 a 完成，起点 `54b1895b`。把资源系统与数据模型从 `Sekai/` 顶层搬出，共 62 个文件：`OpenSekai.Game/Assets/` 17 个（`AssetBundle*` 九个、`AssetManager`、`AssetLoader`、`ResourceLoader`、`LruAssetCache*` 四个及接口），`OpenSekai.Game/Data/` 45 个（Master 数据 11、曲目与 Live 数据 10、设置与存储 3、其余玩法枚举与数据类）。
+- 62 份 `.meta` 随文件移动，缺失脚本清单仍与 P0-2 基线逐字节相同。`unity recompile` 0 error；全量 EditMode 538 通过、0 失败、4 跳过，与此前逐项一致。`Sekai/` 顶层 `.cs` 由 120 降到 58，累计 196 → 58。
+- 搬动这批时编辑器经历了一次域重载，Pipeline 服务短暂不可达；等待重连后编译为 `up_to_date`，不影响结果。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动
