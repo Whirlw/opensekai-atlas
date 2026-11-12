@@ -28,8 +28,10 @@ namespace Sekai.Core.Live
 
 		internal void UpdateNotes()
 		{
-			_session.Notes.WalkNotes(ScanNote);
-			_session.Notes.WalkHighSpeedNotes(ScanHighSpeedNote);
+			// The appearance table is sorted by the moment each note becomes visible, so the walk is a cursor:
+			// notes that are not due yet are simply not reached, and no note can park it.
+			_session.EnsureAppearTable();
+			_session.Notes.WalkAppearing(Frame.time, ScanNote);
 		}
 
 		/// <summary>
@@ -38,16 +40,7 @@ namespace Sekai.Core.Live
 		/// </summary>
 		private LiveNoteSession.Scan ScanNote(NoteBase note)
 		{
-			if (note.IsHighSpeedNote)
-			{
-				return LiveNoteSession.Scan.Skip;
-			}
-
 			float offsetTime = CalcTimeOffset(note);
-			if (IsTooFarAheadForDisplayHighSpeed(offsetTime, note))
-			{
-				return LiveNoteSession.Scan.Stop;
-			}
 			if (offsetTime < 0f && Frame.time >= note.MusicScoreInfo.time)
 			{
 				offsetTime = -offsetTime;

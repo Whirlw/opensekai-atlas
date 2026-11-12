@@ -96,7 +96,7 @@ namespace Sekai.Core.Live
 		internal LiveScore Score => ScoreLogic?.Score ?? default;
 
 		internal bool AreNotesFinished =>
-			Notes.NoteIndex >= Notes.Notes.Length && Notes.HighSpeedIndex >= Notes.HighSpeedNotes.Length;
+			Notes.AppearIndex >= Notes.AppearingCount;
 
 		internal void Bind(LiveBootDataBase bootData, LiveViewBase[] views)
 		{
@@ -113,6 +113,105 @@ namespace Sekai.Core.Live
 			MusicScore.InjectSkillFeverForCreatorScore(bootData?.MusicData?.Vocal?.musicId ?? bootData?.MusicData?.Music?.id ?? 0);
 			Notes.Bind(SortNotes(MusicScore.NoteArray));
 			_events = SortEvents(MusicScore.EventArray);
+		}
+
+		private int _appearTableCount = -1;
+		private float _appearTableWindow = float.NaN;
+
+		/// <summary>
+		/// Builds the appearance table once per chart (and again if the notes or the display window change).
+		/// Cheap enough to call every frame: the guard is two comparisons.
+		/// </summary>
+		internal void EnsureAppearTable()
+		{
+			int count = Notes.Notes?.Length ?? 0;
+			if (_appearTableCount == count
+				&& _appearTableWindow.Equals(NoteDisplayTimeOffset)
+				&& Notes.AppearingCount == count)
+			{
+				return;
+			}
+
+			_appearTableCount = count;
+			_appearTableWindow = NoteDisplayTimeOffset;
+			BuildAppearTable();
+		}
+
+		/// <summary>
+		/// Builds the appearance table once per chart: for every note, the moment it becomes visible, solved
+		/// from exactly the lead the frame loop draws it with. Sorted by that moment, so playing only has to
+		/// move one cursor and never asks "how far ahead is this note".
+		/// </summary>
+		private void BuildAppearTable()
+		{
+			NoteBase[] notes = Notes.Notes;
+			var order = new System.Collections.Generic.List<(float appear, NoteBase note)>(notes.Length);
+			foreach (NoteBase note in notes)
+			{
+				if (note != null)
+				{
+					order.Add((SolveAppearTime(note), note));
+				}
+			}
+
+			order.Sort((left, right) => left.appear.CompareTo(right.appear));
+			var sorted = new NoteBase[order.Count];
+			var times = new float[order.Count];
+			for (int i = 0; i < order.Count; i++)
+			{
+				sorted[i] = order[i].note;
+				times[i] = order[i].appear;
+			}
+
+			Notes.BindAppearTable(sorted, times);
+		}
+
+		/// <summary>
+		/// The moment the note reaches progress 0, i.e. the top of the screen. Progress rises with time and
+		/// the lead is the only thing that is not monotone, so a bisection over one display lead is enough.
+		/// </summary>
+		private float SolveAppearTime(NoteBase note)
+		{
+			float high = note.MusicScoreInfo.time;
+			float low = high - MaxDisplayLead;
+			if (ProgressAt(note, low) >= 0f)
+			{
+				return low;
+			}
+
+			for (int i = 0; i < 20; i++)
+			{
+				float mid = (low + high) * 0.5f;
+				if (ProgressAt(note, mid) >= 0f)
+				{
+					high = mid;
+				}
+				else
+				{
+					low = mid;
+				}
+			}
+
+			return high;
+		}
+
+		/// <summary>The progress the note would be drawn with if the playhead were at <paramref name="time"/>.</summary>
+		private float ProgressAt(NoteBase note, float time)
+		{
+			MusicScore.GetMusicScoreInfoFromTime(time, out MusicScoreInfo info);
+			float currentProgress = info.bar + info.barProgress;
+			float noteProgress = note.MusicScoreInfo.bar + note.MusicScoreInfo.barProgress;
+			float speedRatio = OpenSekai.Shared.Live.NoteSpeedRatio.Resolve(
+				MusicScore?.musicScoreInfoArray, currentProgress, noteProgress, info.speedRatio);
+			bool isNegativeSpeed = note.IsNegativeSpeed;
+			float lead = OpenSekai.Shared.Live.NoteDisplayOffset.Resolve(
+				NoteDisplayTimeOffset, speedRatio, note.speedRatio, ref isNegativeSpeed);
+			if (lead <= 0f)
+			{
+				return 1f;
+			}
+
+			return 1f - ((note.MusicScoreInfo.time - time) / lead);
 		}
 
 		internal void Reset(LivePresentationBridge presentation)
