@@ -2,13 +2,66 @@
 param(
     [switch]$RequireNoEmptyDirectories,
     [switch]$CheckProjects,
-    [switch]$CheckAssemblies
+    [switch]$CheckAssemblies,
+    [switch]$UpdateGeneratedAssets
 )
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $issues = [System.Collections.Generic.List[string]]::new()
 $anchors = @{}
+
+# ---- generated assets -------------------------------------------------------------------------
+# Unity and TextMeshPro rewrite a handful of tracked files while the game runs (font feature tables,
+# glyph caches). Those files must stay in their cold state; Tools/generated-assets.txt lists them and
+# is the only place that knows which files they are.
+$generatedManifest = Join-Path $root 'Tools/generated-assets.txt'
+
+function Read-GeneratedEntries([string]$Manifest) {
+    $entries = [System.Collections.Generic.List[object]]::new()
+    foreach ($line in Get-Content -LiteralPath $Manifest -Encoding UTF8) {
+        if ($line -match '^\s*#' -or $line -notmatch '\S') { continue }
+        if ($line -notmatch '^(?<hash>[0-9a-f]{64})\s+(?<size>\d+)\s+(?<path>.+?)\s*$') {
+            $entries.Add([pscustomobject]@{ Bad = $line })
+            continue
+        }
+        $entries.Add([pscustomobject]@{
+            Hash = $Matches['hash']
+            Size = [long]$Matches['size']
+            Path = $Matches['path']
+        })
+    }
+    return ,$entries
+}
+
+if ($UpdateGeneratedAssets) {
+    if (!(Test-Path -LiteralPath $generatedManifest)) {
+        Write-Host "Missing generated asset manifest: Tools/generated-assets.txt"
+        exit 1
+    }
+    $written = [System.Collections.Generic.List[string]]::new()
+    $changed = 0
+    foreach ($line in Get-Content -LiteralPath $generatedManifest -Encoding UTF8) {
+        if ($line -match '^\s*#' -or $line -notmatch '\S') { $written.Add($line); continue }
+        if ($line -notmatch '^(?<hash>[0-9a-f]{64})\s+(?<size>\d+)\s+(?<path>.+?)\s*$') {
+            Write-Host "Unreadable generated asset entry: $line"
+            exit 1
+        }
+        $relative = $Matches['path']
+        $target = Join-Path $root $relative
+        if (!(Test-Path -LiteralPath $target -PathType Leaf)) {
+            Write-Host "Generated asset listed but missing: $relative"
+            exit 1
+        }
+        $entry = '{0}  {1}  {2}' -f (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant(), (Get-Item -LiteralPath $target).Length, $relative
+        if ($entry -ne $line) { $changed++ }
+        $written.Add($entry)
+    }
+    Set-Content -LiteralPath $generatedManifest -Value $written -Encoding UTF8
+    Write-Host "Updated Tools/generated-assets.txt ($changed entries changed). Commit it with the assets."
+    exit 0
+}
+
 
 function Get-HeadingAnchors([string]$Path) {
     if (!$anchors.ContainsKey($Path)) {
@@ -153,6 +206,43 @@ if ($CheckAssemblies) {
         }
     }
     Write-Host 'Checked OpenSekai assembly boundaries.'
+}
+
+if (!(Test-Path -LiteralPath $generatedManifest)) {
+    $issues.Add('Missing generated asset manifest: Tools/generated-assets.txt')
+} else {
+    $generatedChecked = 0
+    $generatedDrifted = 0
+    foreach ($entry in (Read-GeneratedEntries $generatedManifest)) {
+        if ($entry.Bad) {
+            $issues.Add("Tools/generated-assets.txt: unreadable entry '$($entry.Bad)'")
+            $generatedDrifted++
+            continue
+        }
+        $generatedChecked++
+        $target = Join-Path $root $entry.Path
+        if (!(Test-Path -LiteralPath $target -PathType Leaf)) {
+            $issues.Add("Generated asset is missing: $($entry.Path)")
+            $generatedDrifted++
+            continue
+        }
+        $size = (Get-Item -LiteralPath $target).Length
+        if ($size -ne $entry.Size) {
+            $issues.Add("Generated asset drifted: $($entry.Path) ($size bytes, expected $($entry.Size))")
+            $generatedDrifted++
+            continue
+        }
+        if ((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant() -ne $entry.Hash) {
+            $issues.Add("Generated asset drifted: $($entry.Path) (same size, different content)")
+            $generatedDrifted++
+        }
+    }
+    Write-Host "Checked $generatedChecked generated assets against Tools/generated-assets.txt."
+    if ($generatedDrifted -gt 0) {
+        $issues.Add('Unity/TextMeshPro rewrote these generated files while the game ran; their baked cache is not source.')
+        $issues.Add('  accidental drift : powershell -NoProfile -ExecutionPolicy Bypass -File Tools/restore-generated-assets.ps1')
+        $issues.Add('  intentional bake : powershell -NoProfile -ExecutionPolicy Bypass -File Tools/verify-structure.ps1 -UpdateGeneratedAssets')
+    }
 }
 
 Write-Host "Checked $($markdown.Count) Markdown files and found $($empty.Count) empty runtime directories."

@@ -66,10 +66,28 @@ AddFallbackFontAsset(_baseFontDB, _dynamicFontDB);
 
 `ClearPrimaryFontAssetData` 走 `SafeClearFontAssetData`：只有图集边长大于 1 时才真正调用 `ClearFontAssetData`，否则跳过——1×1 占位图集正是播放器崩溃的原因。
 
+## 跑过游戏后变脏的字体资产
+
+TMP 会在运行时把 kerning、连字和字形按需烘进资产文件本身。这四份资产被 prefab 和材质按 GUID 引用，所以必须留在仓库里，但内容只应是最初的冷状态（1×1 占位图集、空的特性表）。
+
+实测（2026-11-12）：`SourceHanSansSC-Medium SDF_Dynamic.asset` 跑过一次后从 6,516 字节涨到约 967 KB——2,316 条 kerning 对、113 条连字替换，共 35,222 行 YAML，而字形表仍是空的；`SourceHanSansSC-Medium SDF_Base.asset` 同时丢掉一条连字记录。提交这种缓存会让仓库和安装包都变大，diff 无法审阅、无法合并，换台机器内容还不一样。
+
+受管清单只有一处：[`Tools/generated-assets.txt`](../../Tools/generated-assets.txt)（sha256 + 字节数 + 路径）。两道闸门：
+
+```powershell
+# 刚跑过游戏、资产变脏：还原（只会动真正脏了的条目）
+powershell -NoProfile -ExecutionPolicy Bypass -File Tools/restore-generated-assets.ps1
+
+# 确实要重新烘（菜单 OpenSekai/Dev/Fonts/Build Source Han Sans Assets 之后）
+powershell -NoProfile -ExecutionPolicy Bypass -File Tools/verify-structure.ps1 -UpdateGeneratedAssets
+```
+
+`Tools/verify-structure.ps1` 发现任一条目与清单不符就返回 1，CI 的 `structure` 作业也会跑它，所以误提交会被拦住。第二条命令把新哈希写回清单，**清单要和字体资产一起提交**——这样"重新烘过字"是一次可见的改动，而不是混在别的提交里。要新增受管资产，往清单里加一行路径即可。
+
 ## 常见问题
 
 **为什么新克隆仓库里字体资产只有 6 KB？**
-因为图集是 1×1 占位，字形按需烘焙。跑一次游戏后编辑器里的资产会变大，这是正常的。
+因为图集是 1×1 占位，字形按需烘焙。跑一次游戏后编辑器里的资产会变大，这是正常的，但**不要把变大的版本提交**，见上一节。
 
 **换成思源黑体后正文看起来偏小 / 行距不同？**
 先确认 `m_FaceInfo.m_LineHeight` 是否等于 70（与被替换的 Rodin 对齐）；再确认 `m_PointSize` 是 35。两者任一不对都会让换行与基线整体偏移。

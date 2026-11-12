@@ -340,6 +340,7 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
   - 运行时 `Resources.Load*` 白名单；
   - Markdown 本地链接和现行文档中的项目路径；
   - `ScreenManager`、`LibraryScreen`、`LongNote` 的非空行上限，沿用各任务的同一口径。
+- 结构脚本已提前具备生成资产校验，并由 `.github/workflows/structure.yml` 在无需 Unity 许可证的作业里执行（2026-11-12，见 §7.4）。Unity 侧的缺失脚本扫描、测试与发布验收仍按本节执行。
 - 修复 P0-3 确认的缺失脚本。对 `XRSystemData.asset`、`EventSystem.prefab` 先确认解析结果和资产用途，再决定是否修改。用同一 Unity 扫描复核，相关资产的缺失脚本为 0。
 - 接入 `.github/workflows`。结构脚本独立于 Unity 许可证执行；Unity 测试和资产扫描记录实际运行、通过或因许可证缺失而跳过的状态。发布验收需要实际通过的 Unity 报告。
 
@@ -490,6 +491,7 @@ git mv Old/Path.cs.meta New/Path.cs.meta
 - 移动 `Resources` 下的 prefab/asset 会改变 `Resources.Load` 路径；必须先建 `ResourceCatalog`，再移动。
 - AssetBundle 白名单在 `OpenSekaiAssetBundleBuildPipeline`，移动源资源后同步改白名单与 `AssetBundleInfo`。
 - 资源相关提交执行 `Tools/verify-resource-paths.ps1`、P3-2 的目录和回退检查，并在 Android 上走一遍受影响的加载流程。
+- Unity 与 TMP 会在运行时改写被跟踪的资产（当前是四份 `SourceHanSansSC-* SDF_*.asset`）。受管清单只在 `Tools/generated-assets.txt`：提交前用 `Tools/restore-generated-assets.ps1` 还原，确认要重烘才用 `verify-structure.ps1 -UpdateGeneratedAssets` 并连同清单一起提交。`verify-structure.ps1` 与 `.github/workflows/structure.yml` 会拦住烘焙缓存。
 
 ## 8. 验收门禁
 
