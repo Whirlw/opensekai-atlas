@@ -44,6 +44,10 @@ namespace OpenSekai.Tests.PlayMode
             Assert.That(screen, Is.Not.Null, "LibraryScreen was not created within " + BootTimeoutSeconds + " s");
             Assert.That(screen.IsReady, Is.True, "the library view should be assembled");
             Assert.That(ScreenManager.ExistsInstance, Is.True, "ScreenManager should be alive after boot");
+            // Without an EventSystem the page renders but nothing is clickable: uGUI pointer events
+            // never fire. The only EventSystem in the project is the one this boot path instantiates.
+            Assert.That(UnityEngine.EventSystems.EventSystem.current, Is.Not.Null,
+                "the library boot must register an EventSystem for pointer input");
         }
 
         [UnityTest]

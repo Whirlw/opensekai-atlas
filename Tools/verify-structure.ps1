@@ -245,6 +245,60 @@ if (!(Test-Path -LiteralPath $generatedManifest)) {
     }
 }
 
+# ---- facade size and direct resource access ---------------------------------------------------
+# P4-4: the two splits that this plan cares most about must not quietly grow back. Limits are
+# non-empty lines, the same unit the plan uses everywhere (see the plan's 统计口径 note). They are
+# ratchets: if a limit is genuinely too tight, raising it belongs in the same commit as the code that
+# needs it, so the raise is visible in review.
+$lineLimits = @(
+    @{ Path = 'Assets/Game/Runtime/OpenSekai.Game/Screens/ScreenManager.cs'; Limit = 600 },
+    @{ Path = 'Assets/Game/Runtime/OpenSekai/App/UI/LibraryScreen.cs'; Limit = 100 },
+    @{ Path = 'Assets/Game/Runtime/OpenSekai.Game/Live/Notes/LongNote.cs'; Limit = 500 }
+)
+foreach ($entry in $lineLimits) {
+    $target = Join-Path $root $entry.Path
+    if (!(Test-Path -LiteralPath $target -PathType Leaf)) {
+        $issues.Add("Line-limit target is missing: $($entry.Path)")
+        continue
+    }
+    $nonEmpty = @(Get-Content -LiteralPath $target -Encoding UTF8 | Where-Object { $_.Trim() -ne '' }).Count
+    if ($nonEmpty -gt $entry.Limit) {
+        $issues.Add("$($entry.Path) has $nonEmpty non-empty lines (limit $($entry.Limit)); split it instead of growing the facade.")
+    }
+}
+
+# Every file below reaches Resources directly for a reason; anything else must go through
+# ResourceCatalog (fixed assets) or ResourceLoader (dynamic keys) so the path stays in one place.
+$resourcesAllowlist = @{
+    'Assets/Game/Runtime/OpenSekai.Game/Assets/ResourceCatalog.cs' = 'the typed catalog'
+    'Assets/Game/Runtime/OpenSekai.Game/Assets/ResourceLoader.cs' = 'dynamic loader'
+    'Assets/Game/Runtime/OpenSekai.Game/Assets/AssetBundleUtility.cs' = 'bundle-then-Resources fallback'
+    'Assets/Game/Runtime/OpenSekai.Game/Assets/AssetManager.cs' = 'asset manager'
+    'Assets/Game/Runtime/OpenSekai.Game/Screens/ScreenLayerData.cs' = 'page prefab named by data'
+    'Assets/Game/Runtime/OpenSekai.Game/Screens/DialogService.cs' = 'dialog prefab named by the caller'
+    'Assets/Game/Runtime/OpenSekai.Game/Screens/ScreenBlurController.cs' = 'serialized blur prefab path'
+    'Assets/Game/Runtime/OpenSekai.Game/Live/View/LiveViewFactory.cs' = 'view prefab chosen by config'
+    'Assets/Game/Runtime/OpenSekai.Game/Live/View/LiveResultView.cs' = 'result prefab name'
+    'Assets/Game/Runtime/OpenSekai.Game/Data/WordingManager.cs' = 'wording table path'
+    'Assets/Game/Runtime/OpenSekai.Game/UI/UIAtlasImageLoader.cs' = 'atlas and sprite names'
+    'Assets/Game/Runtime/OpenSekai.Game/Rendering/CameraUtility.cs' = 'camera prefab by path'
+}
+$resourcesOffenders = [System.Collections.Generic.List[string]]::new()
+$runtimeRoot = Join-Path $root 'Assets/Game'
+foreach ($file in Get-ChildItem -LiteralPath $runtimeRoot -Recurse -File -Filter '*.cs') {
+    $relative = $file.FullName.Substring($root.Length + 1).Replace('\', '/')
+    if ($resourcesAllowlist.ContainsKey($relative)) { continue }
+    if (Select-String -LiteralPath $file.FullName -Pattern 'Resources\.Load(All|Async)?(<|\()' -Quiet) {
+        $resourcesOffenders.Add($relative)
+    }
+}
+if ($resourcesOffenders.Count -gt 0) {
+    $issues.Add('Direct Resources.Load in a file that is not on the allowlist; use ResourceCatalog or ResourceLoader,')
+    $issues.Add('or add the file to $resourcesAllowlist in Tools/verify-structure.ps1 with the reason it must stay dynamic:')
+    $resourcesOffenders | ForEach-Object { $issues.Add("  $_") }
+}
+Write-Host ("Checked {0} facade line limits and {1} allowlisted direct Resources.Load files." -f $lineLimits.Count, $resourcesAllowlist.Count)
+
 Write-Host "Checked $($markdown.Count) Markdown files and found $($empty.Count) empty runtime directories."
 if ($issues.Count -gt 0) {
     $issues | ForEach-Object { Write-Host $_ }

@@ -99,7 +99,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File Tools\compare-test-runs.ps1 
 
 2026-11-12 的结果：两次都是 **569 项 / 565 通过 / 0 失败 / 4 跳过**，逐项完全相同，耗时 8.11 s 与 8.11 s。4 个跳过全部来自已停放的 `Live/DecorationTailJudgmentTests`（原因见上文「覆盖范围」，替代用例是 `DecorationTailFromChartTests`）。
 
-同轮做的隔离审计：
+结构门禁（P4-4 起，`Tools/verify-structure.ps1` 默认执行，无需额外开关）：
+
+- **门面规模**：`ScreenManager.cs` ≤ 600、`LibraryScreen.cs` ≤ 100、`LongNote.cs` ≤ 500 个非空行。超过就报错并提示「拆开而不是把门面养大」；要放宽得和用到它的代码同批提交，改动可见。
+- **直接 `Resources.Load*` 白名单**：只有 12 个文件可以直连（目录与加载器 4 个 + P3-2 记录在案的动态取址 8 个，每个都在脚本里带一句理由）。新文件要直连就得往白名单里加，否则失败——正常路径是 `ResourceCatalog`（固定资产）或 `ResourceLoader`（动态键）。
+- **缺失脚本为 0**：`MissingScriptAuditTests` 在 EditMode 里跑一遍扫描，断言 `TestResults/missing-scripts.tsv` 只有表头。P4-4 之前这张表有 3 行，来自两个真缺失的脚本；修完为 0，之后由这条测试盯住。
+
+隔离审计（同轮核对）：
 
 - 测试输入全部来自仓库内的 `Tools/fixtures/`，没有本机绝对路径。这些路径按**项目根**解析，所以跑测试的进程工作目录必须是项目根——编辑器内与 `-executeMethod` 都满足，用 `unity test` 从别的目录起会读不到文件。
 - 需要落盘的 5 个 fixture 都用 `Path.GetTempPath() + Guid` 建独占目录，并在 `[TearDown]` 删除：`ChartFileReaderTests`、`SongPackageManagerTests`、`PlaySessionTests`、`LiveSettingsStoreTests`、`LibraryPresenterTests`。
@@ -155,7 +161,8 @@ $rsp    = (Get-ChildItem 'Library\Bee\artifacts' -Recurse -Filter 'OpenSekai.Gam
 ## CI
 
 - 本地/流水线通用入口：`powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run-editmode-tests.ps1`（先关掉编辑器，CLI 才肯起实例）。脚本把 nunit 报告写到 `TestResults/editmode-ci.xml`、打印 `total/passed/failed`，并以 Unity 的退出码收尾，失败即非零。
-- GitHub Actions：`.github/workflows/editmode-tests.yml` 用 `game-ci/unity-test-runner@v4`、`unityVersion: auto`（读 `ProjectSettings/ProjectVersion.txt`）、`testMode: EditMode`，上传 `TestResults` 产物。
+- GitHub Actions：`.github/workflows/structure.yml` 不需要 Unity 许可，跑 `verify-structure.ps1`（含上面三项结构门禁）；`.github/workflows/editmode-tests.yml` 用 `game-ci/unity-test-runner@v4`、`unityVersion: auto`、`testMode: EditMode`，上传 `TestResults` 产物。缺失脚本扫描是 EditMode 里的一条测试（`MissingScriptAuditTests`），所以**现有 EditMode 作业已经覆盖它**，不需要额外的 YAML。
+- **PlayMode 没有进 CI**：整首用例需要音频设备与 ~48 s 的连续运行，headless 跑既慢又容易假红。它由本地/发布前跑：`unity command test run --mode playmode --async_tests true` + `test status`。这条是明确的覆盖边界，不是遗漏。
 
 ### 为什么不开 license 时是「绿色跳过」而不是「失败」
 

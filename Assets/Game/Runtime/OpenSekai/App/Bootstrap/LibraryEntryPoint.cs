@@ -18,7 +18,6 @@ namespace OpenSekai.App.Bootstrap
     /// </summary>
     public sealed class LibraryEntryPoint : SceneEntryPoint
     {
-        private const string EVENT_SYSTEM_PREFAB_PATH = "Common/Input/EventSystem";
         private SekaiSceneManager _sceneManager;
 
         protected override void Awake()

@@ -596,6 +596,20 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
   - 文档：`docs/operations/testing.md` 的 PlayMode 段重写成异步配方 + 实测数字，并把「为什么没有整首打歌自动化」改成「整首打歌的自动化」，写清它默认参与运行、什么时候必须跑。
   - 留给 P4-4：CI 要把 `test run --mode playmode --async_tests` + `test status` 轮询接进工作流；这条属于需要 Unity 许可的作业，且依赖 PlayMode 场景与 `StreamingAssets/sound` 的 42 个 WAV，与 P4-4 现有的无许可结构检查分开跑。
 
+- P4-4 完成，起点 `9f8c4e9d`。四项门禁逐一落地，其中两项是新增的机器检查：
+  - **门面规模**：`verify-structure.ps1` 新增非空行上限——`ScreenManager.cs` 600（现 574）、`LibraryScreen.cs` 100（现 48）、`LongNote.cs` 500（现 454，来自 P2-3 的验收口径）。口径与计划书 §1 的「单文件规模统一按非空行计」一致；上限是棘轮，放宽必须与用到它的代码同批提交。
+  - **直接 `Resources.Load*` 白名单**：只允许 12 个文件直连——目录与加载器 4 个（`ResourceCatalog`、`ResourceLoader`、`AssetBundleUtility`、`AssetManager`），其余 8 个是 P3-2 记录在案的动态取址（页面 prefab、对话框名、按配置选视图、结果 prefab、文案表、图集 sprite、模糊 prefab、相机 prefab），每个在脚本里带理由。新文件要直连必须显式加白名单，否则失败。
+  - 两项新检查都做了**反向验证**：把白名单里的 `ResourceCatalog` 摘掉、把 `LongNote` 上限压到 100，脚本按预期报错并以非零退出。门禁不能只证明「现在通过」。
+  - **缺失脚本清零**。P0-2 基线里的 3 行，两条 GUID 在项目里根本不存在（`307a7367…`、`f70555f1…` 都不在任何 `.meta` 中），说明对应脚本早已不在：
+    - `XRSystemData.asset`：Unity 旧 XR 的系统数据资产，全仓 `.unity`/`.prefab`/`.asset` 对它的 guid **0 处引用**，脚本也没了 → 删除。
+    - `EventSystem.prefab`：**仍在使用**（`ResourceCatalog.EventSystem` → `LibraryEntryPoint.EnsureEventSystem`），但内容只有两个挂着死脚本的组件、**没有 `EventSystem` 组件**，实例化出来的对象等于没有事件系统。重建为 `GameObject + EventSystem`，让 `NativeInput.ConfigureEventSystem` 在运行时补 `InputSystemUIInputModule` 并 `AssignDefaultActions`（它只在模块缺失时才补，所以预制体里刻意不放模块，保证动作一定是它赋的）。
+    - 复核：审计表只剩表头；新增 `MissingScriptAuditTests` 把它变成 EditMode 里的一条测试，现有 CI 的 EditMode 作业因此自动覆盖，不必改 YAML。
+  - **PlayMode 覆盖边界写清楚了**：整首用例需要音频与约 48 s 连续运行，headless 既慢又易假红，因此**不进 CI**，由本地/发布前用 `test run --mode playmode --async_tests` + `test status` 跑；这条边界写进 `testing.md` 的 CI 段，不是遗漏。
+  - PlayMode 装配用例补了一条断言：`EventSystem.current != null`。项目里唯一的事件系统就是这条开机路径实例化的那个，少了它页面能画但点不动。
+  - 验证：`unity recompile` 0 error；全量 EditMode 570 项、566 通过、0 失败、4 跳过（+1 条结构测试）；`verify-structure.ps1` 通过（含两项新检查）；`verify-resource-paths.ps1` `calls=31 missing=0`；PlayMode 三项在重建预制体后仍 3/3 通过（48.07 s）。
+  - 待办：`EntryPoint` 里那条 `EVENT_SYSTEM_PREFAB_PATH` 常量已随本轮删除（实际走 `ResourceCatalog`）；`SekaiSingletonManager` 里还留着同名字符串常量与自己的 `EnsureEventSystem`，那是旧入口，等它的调用点收敛完再一起清。
+  - **重建后的预制体上过真机**（设备 `3B164A00Y5600000`，包 `Builds/phase4/OpenSekai-P4-4-input.apk`）：曲库点「自动/手动」开局 → 打歌 HUD 正常计分 → 点暂停出现「继续/重开/退出到曲库」→ 退出后回到曲库并显示结算（`DEINOS PHAINEIN · 手动 · Lv.35 · 中途退出`，134,764 / D，最大连击 137/2019，PERFECT 262 · GREAT 13 · GOOD 2 · BAD 3 · MISS 5）。三个独立的 uGUI 指针目标都响应，说明 `EventSystem` + 运行时补的 `InputSystemUIInputModule` 在真机上工作正常。截图在 `TestResults/p4-4-device-0{1,2,3}-*.png`。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动
