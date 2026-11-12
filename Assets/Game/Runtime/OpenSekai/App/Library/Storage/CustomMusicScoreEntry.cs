@@ -5,7 +5,7 @@ using UnityEngine;
 using OpenSekai.Shared.Audio;
 using OpenSekai.Shared.Packages;
 using CriWare;
-namespace Sekai.MusicScoreMaker.Common
+namespace OpenSekai.App.Library
 {
     public sealed class CustomMusicScoreEntry
     {

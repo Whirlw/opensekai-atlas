@@ -1,6 +1,6 @@
 using System.IO;
 using Sekai.Core.Live;
-using Sekai.MusicScoreMaker.Common;
+using OpenSekai.Shared.Packages;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Video;
@@ -301,8 +301,10 @@ namespace Sekai.Live
 				return null;
 			}
 
-			CustomMusicScoreEntry entry = CustomMusicScoreStorage.LoadEntry(bootData.CustomMusicScorePath);
-			string moviePath = entry?.VideoPath;
+			// Only the resolved paths are needed here: reading the package manifest is packaging, and
+			// the App-side entry wrapper would also build an audio object for nothing.
+			SongPackage package = SongPackageStorage.LoadEntry(bootData.CustomMusicScorePath);
+			string moviePath = package?.VideoPath;
 			return string.IsNullOrEmpty(moviePath) ? null : moviePath;
 		}
 
@@ -742,8 +744,8 @@ namespace Sekai.Live
 				return null;
 			}
 
-			CustomMusicScoreEntry entry = CustomMusicScoreStorage.LoadEntry(bootData.CustomMusicScorePath);
-			string jacketPath = entry?.JacketPath;
+			SongPackage package = SongPackageStorage.LoadEntry(bootData.CustomMusicScorePath);
+			string jacketPath = package?.JacketPath;
 			if (string.IsNullOrEmpty(jacketPath) || !File.Exists(jacketPath))
 			{
 				return null;

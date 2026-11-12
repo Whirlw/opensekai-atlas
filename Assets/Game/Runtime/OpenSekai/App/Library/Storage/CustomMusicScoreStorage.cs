@@ -1,7 +1,7 @@
 using System.Linq;
 using CriWare;
 using OpenSekai.Shared.Packages;
-namespace Sekai.MusicScoreMaker.Common
+namespace OpenSekai.App.Library
 {
     public static class CustomMusicScoreStorage
     {

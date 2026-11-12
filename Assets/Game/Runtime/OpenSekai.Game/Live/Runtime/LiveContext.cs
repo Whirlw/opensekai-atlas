@@ -16,13 +16,15 @@ namespace Sekai.Core.Live
             PlayMode playMode,
             string sessionId,
             string chartHash,
-            int rulesVersion)
+            int rulesVersion,
+            IPlayHistoryRecorder playHistory = null)
         {
             BootData = bootData;
             PlayMode = playMode;
             SessionId = sessionId ?? string.Empty;
             ChartHash = chartHash ?? string.Empty;
             RulesVersion = rulesVersion;
+            PlayHistory = playHistory;
         }
 
         public LiveBootDataBase BootData { get; }
@@ -36,6 +38,12 @@ namespace Sekai.Core.Live
         public int RulesVersion { get; }
 
         /// <summary>
+        /// The player library's recorder, handed in by the App layer: the live writes a finished run
+        /// down through it instead of reaching for the package store it no longer owns.
+        /// </summary>
+        public IPlayHistoryRecorder PlayHistory { get; }
+
+        /// <summary>
         /// Reads the retained boot boundary once, at the scene entry point, so the live controller can
         /// be handed a context instead of reading three statics during its own Awake.
         /// </summary>
@@ -46,7 +54,8 @@ namespace Sekai.Core.Live
                 EntryPoint.PlayMode,
                 PlaySessionContext.SessionId,
                 PlaySessionContext.ChartHash,
-                PlaySessionContext.RULES_VERSION);
+                PlaySessionContext.RULES_VERSION,
+                PlayHistoryRecorder.Current);
         }
     }
 }

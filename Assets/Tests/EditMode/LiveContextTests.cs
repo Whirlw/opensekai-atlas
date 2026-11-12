@@ -16,12 +16,14 @@ namespace OpenSekai.Tests.EditMode
     {
         private FreeLiveBootData _previousBoot;
         private PlayMode _previousMode;
+        private IPlayHistoryRecorder _previousRecorder;
 
         [SetUp]
         public void SetUp()
         {
             _previousBoot = UserDataManager.Instance.FreeLiveBootData;
             _previousMode = EntryPoint.PlayMode;
+            _previousRecorder = PlayHistoryRecorder.Current;
             PlaySessionContext.Clear();
         }
 
@@ -30,6 +32,7 @@ namespace OpenSekai.Tests.EditMode
         {
             UserDataManager.Instance.FreeLiveBootData = _previousBoot;
             EntryPoint.PlayMode = _previousMode;
+            PlayHistoryRecorder.Current = _previousRecorder;
             PlaySessionContext.Clear();
         }
 
@@ -74,6 +77,25 @@ namespace OpenSekai.Tests.EditMode
         }
 
         [Test]
+        public void ReadingTheRetainedBootCarriesTheRegisteredRecorder()
+        {
+            var recorder = new FakeRecorder();
+            PlayHistoryRecorder.Current = recorder;
+
+            LiveContext context = LiveContext.FromRetainedBoot();
+
+            Assert.That(context.PlayHistory, Is.SameAs(recorder));
+        }
+
+        [Test]
+        public void AContextWithoutARecorderLeavesHistoryOff()
+        {
+            var context = new LiveContext(null, PlayMode.None, null, null, 0);
+
+            Assert.That(context.PlayHistory, Is.Null);
+        }
+
+        [Test]
         public void ReadingTwiceReturnsIndependentCopies()
         {
             UserDataManager.Instance.FreeLiveBootData = new FreeLiveBootData(1, "master", 0)
@@ -90,6 +112,20 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(first.BootData, Is.Not.SameAs(second.BootData));
             Assert.That(((FreeLiveBootData)first.BootData).CustomMusicScoreTitle, Is.EqualTo("first"));
             Assert.That(((FreeLiveBootData)second.BootData).CustomMusicScoreTitle, Is.EqualTo("second"));
+        }
+
+        private sealed class FakeRecorder : IPlayHistoryRecorder
+        {
+            public void AppendLiveResult(
+                FreeLiveBootData bootData,
+                LiveScore score,
+                long musicTimeMs,
+                long musicLengthMs,
+                string sessionId,
+                string chartHash,
+                int rulesVersion)
+            {
+            }
         }
     }
 }

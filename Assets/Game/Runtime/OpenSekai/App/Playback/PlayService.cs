@@ -11,6 +11,7 @@ using OpenSekai.Shared.Packages;
 using OpenSekai.Shared.Settings;
 using OpenSekai.Live.Conversion;
 using Sekai.Core;
+using Sekai.Core.Live;
 
 namespace OpenSekai.App.Playback
 {
@@ -21,6 +22,7 @@ namespace OpenSekai.App.Playback
         private readonly IPlaySurface _surface;
         private readonly IPackageAudioRegistrar _audio;
         private readonly ILiveDeckSelection _deckSelection;
+        private readonly IPlayHistoryRecorder _playHistory;
         private bool _releaseOnSceneExit;
 
         /// <summary>The process-wide service, wired to the retained singletons.</summary>
@@ -28,7 +30,8 @@ namespace OpenSekai.App.Playback
             new LegacyPlayBootPublisher(),
             new LegacyPlaySurface(),
             new LegacyPackageAudioRegistrar(),
-            new LegacyLiveDeckSelection());
+            new LegacyLiveDeckSelection(),
+            new Library.CustomScorePlayHistoryRecorder());
 
         public bool IsStarting { get; private set; }
 
@@ -37,12 +40,14 @@ namespace OpenSekai.App.Playback
             IPlayBootPublisher boot,
             IPlaySurface surface,
             IPackageAudioRegistrar audio,
-            ILiveDeckSelection deckSelection)
+            ILiveDeckSelection deckSelection,
+            IPlayHistoryRecorder playHistory)
         {
             _boot = boot ?? throw new ArgumentNullException(nameof(boot));
             _surface = surface ?? throw new ArgumentNullException(nameof(surface));
             _audio = audio ?? throw new ArgumentNullException(nameof(audio));
             _deckSelection = deckSelection ?? throw new ArgumentNullException(nameof(deckSelection));
+            _playHistory = playHistory ?? throw new ArgumentNullException(nameof(playHistory));
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -131,6 +136,10 @@ namespace OpenSekai.App.Playback
                 _surface.SubscribeSceneExit(ReleaseStartLock);
                 _releaseOnSceneExit = true;
                 previousBoot = _boot.Capture();
+                // The same boundary that hands the boot over hands the recorder over: the live scene
+                // builds its own context, so the App-side implementation travels through the Game's
+                // registration slot, never through a Game -> App reference.
+                PlayHistoryRecorder.Current = _playHistory;
                 _boot.Publish(boot);
                 bootPublished = true;
                 _surface.ForceFinishTransition();

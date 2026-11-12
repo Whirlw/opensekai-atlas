@@ -4,7 +4,7 @@
 > 适用读者：接手代码的开发者、做重构的人、发版前做门禁的人。
 > 前置条件：读过 [架构总览](README.md) 与 [模块划分](modules.md)；当前基线为 `f14b717c`。
 > 最后更新：2026-11-12
-> 状态：**M1、M2 已达标，Phase 4 执行中**（M3 只剩 P3-3 的 `MusicScoreMaker/Common` 一项，它阻塞在 P4-1 的依赖改造上；M2 保留一条开局音既有缺陷，见 Phase 2 记录）。按任务依赖推进，每个工作包独立提交并记录验收结果。
+> 状态：**M1、M2、M3 已达标，M4 收尾中**（P4-1 至 P4-4 的主体已完成；剩余为发布前的门禁复跑与两条已知缺陷的处置，见各批记录。M2 保留一条开局音既有缺陷，见 Phase 2 记录）。按任务依赖推进，每个工作包独立提交并记录验收结果。
 
 ## 1. 结论与目标
 
@@ -615,6 +615,16 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
   - 真机日志：`[LibraryScreen] ellipsis seed: asset=SourceHanSansSC-Medium id=9593:256 has=True chars=1`，**0.79 s 之后**同一资产名的 20 条 TMP 告警仍然说该字符不可用，并把溢出方式降级成截断。
   - 已排除三种解释：①代码没进包——`global-metadata.dat` 里 `EnsureRequiredGlyphs` 与告警文案都在；②`ReadFontAssetDefinition()` 把字形冲掉——编辑器实测 `TryAdd → ReadFontAssetDefinition → HasCharacter` 仍为 `True`；③每个文本克隆了资产——`CreateText` 直接赋 `ResolveCjkFont()` 的同一实例，全仓只有一处 `CreateFontAsset` 会起这个名字。
   - 剩下的假设：首次渲染时 TMP 对"运行时构建的动态资产"做了重构，设备端（IL2CPP）与编辑器路径不同。修法有两条——在 `text.font = font` 之后逐文本再补一次，或改为预烘一份静态字体资产；两条都要重新上真机才能确认，诊断日志已撤掉，代码回到 `EnsureRequiredGlyphs` 单点调用。
+
+- P3-3 收尾完成，起点 `94d3ec53`。`MusicScoreMaker/Common` 三个存储类按依赖方向归位，Game 侧不再读包存储、也不再持有播放历史格式：
+  - **文件**：`CustomMusicScoreEntry`、`CustomMusicScoreStorage`、`CustomMusicScorePlayHistoryStorage` 从 `OpenSekai.Game/Data/` 移到 `OpenSekai/App/Library/Storage/`，走 `AssetDatabase.MoveAsset`（GUID 随文件走），命名空间 `Sekai.MusicScoreMaker.Common` → `OpenSekai.App.Library`。Core 里那 4 行的 `CustomMusicScoreManifest` 一并从 `Sekai.MusicScoreMaker.Common` 改成 `OpenSekai.Shared.Packages`，与它继承的 `SongPackageManifest` 同处一个命名空间。全仓 `MusicScoreMaker.Common` 现在 0 处。
+  - **Game 侧只解析路径**：`Background2DView` 两处（视频、封面）与 `MusicInfoView` 一处（封面）改用 `SongPackageStorage.LoadEntry(path)?.JacketPath / ?.VideoPath`。原来经 `CustomMusicScoreEntry` 绕一圈，除了路径还会 `new PackageAudio`，视图根本用不到——现在这一步没有了。
+  - **结算写历史走端口**：新增 Game 侧 `IPlayHistoryRecorder`（`Live/Runtime/IPlayHistoryRecorder.cs`）与注册槽 `PlayHistoryRecorder.Current`；`LiveContext` 增 `PlayHistory`，由 `FromRetainedBoot()` 从槽里取；`SoloLiveController.TryAppendPlayHistory` 改调 `_context.PlayHistory`，端口为空时整段跳过且不置 `_playHistoryRecorded`。App 侧 `CustomScorePlayHistoryRecorder` 实现它，`PlayService` 把它作为第 5 个构造依赖，并在 `_boot.Publish(boot)` **之前**写槽。
+  - **为什么这里还得有一个静态槽**：live 场景的 `LiveContext` 是 Game 的 `EntryPoint` 自己建的，App 在切场景时没有传参通道。写槽-读槽是仓库既有约定（`EntryPoint.PlayMode`、`PlaySessionContext` 都是 App 先写、Game 后读），本批沿用而不是新造模式；Game 对 App 的引用仍为 0，`verify-structure.ps1 -CheckAssemblies` 保证。
+  - **测试**：`LiveContextTests` +2（槽里的记录器被复制进上下文；无记录器时 `PlayHistory` 为 null，`TearDown` 恢复槽）；`PlayServiceDependencyTests` +1（开局成功后槽里就是注入的那个实现），并补了假记录器与第 5 个构造参数。
+  - **验证**：`unity recompile` 0 error；全量 EditMode **573 项、569 通过、0 失败、4 跳过**（比上批 +3）；`verify-structure.ps1 -CheckAssemblies -CheckProjects -RequireNoEmptyDirectories` 通过；`verify-resource-paths.ps1` 为 `calls=31 missing=0`。跑结构门禁前先执行了 `Tools/restore-generated-assets.ps1`——`ResourceCatalogTests` 会真的调用 `TMP_FontAsset.CreateFontAsset`，三份被跟踪的字体资产因此烘脏，这是既定流程而非新问题。
+  - 顺带记一条：`CustomMusicScorePlayHistoryStorage.TryLoadBestResult` 全仓 **0 处调用**（播放历史只写不读）。归位后原样保留在 App 侧，删不删是另一个决定，不在本批。
+  - **P3-3 至此完成，M3 达成。** `Sekai/`、`Shared/`、`Platform/` 三个遗留目录早已清空，`MusicScoreMaker/Common` 是最后一项。
 
 ## 7. 迁移规则
 

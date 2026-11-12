@@ -3,10 +3,11 @@ using System.IO;
 using Newtonsoft.Json;
 using Sekai.Core.Live;
 using UnityEngine;
+using OpenSekai.Shared.Packages;
 using CriWare;
 using Sekai;
 
-namespace Sekai.MusicScoreMaker.Common
+namespace OpenSekai.App.Library
 {
 	public static class CustomMusicScorePlayHistoryStorage
 	{

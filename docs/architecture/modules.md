@@ -16,6 +16,7 @@
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/Bootstrap/` | `LibraryEntryPoint` 装配曲库入口 |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/UI/` | `LibraryScreen` 和导入、设置、结算面板 |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/Playback/` | `PlayService` 和 `LegacyLiveBootAdapter` 装配开局数据；`IPlayBootPublisher`/`IPlaySurface`/`IPackageAudioRegistrar`/`ILiveDeckSelection` 四个端口及其 `LegacyPlayPorts` 兼容实现（App 里唯一读 `UserDataManager` 的地方） |
+| OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/Library/` | 玩家曲库的存储与端口实现：`CustomMusicScoreEntry`/`CustomMusicScoreStorage`（`SongPackageStorage` 之上的入口包装）、`CustomMusicScorePlayHistoryStorage`（播放历史 JSONL 的读写与记录模型）、`CustomScorePlayHistoryRecorder`（实现 Game 的 `IPlayHistoryRecorder`） |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/Charts/` | `ChartTimeline` 和 `RuntimeChartDefinition` |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/Infrastructure/` | `ChartFileReader`、`SongPackageManager` 和曲库导入 |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/Live/Conversion/` | `RuntimeChartConverter` 和 `RuntimeChartImporter` 组装运行时谱面 |
@@ -25,7 +26,7 @@
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/UI/` | `UIParts*` 部件、自定义 UGUI 控件（`Custom*`、`Touch*` 反馈）、数字与图集工具、字体与颜色工具 |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Assets/` | `ResourceCatalog`（固定资源的类型化目录）、AssetBundle 下载、加载与管理、清单、`Resources` 回退与 LRU 缓存 |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Data/` | Master 数据模型、曲目与 Live 数据、设置与本地存储入口、玩法枚举 |
-| OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Live/Runtime/` | Live 帧循环与时钟、输入路由与候选、判定调度、会话状态与统计、控制器、技能逻辑、曲目配置与时间轴 DTO；`LiveContext` 是本局从开局边界拿到的唯一一份依赖（开局数据、模式、会话标识） |
+| OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Live/Runtime/` | Live 帧循环与时钟、输入路由与候选、判定调度、会话状态与统计、控制器、技能逻辑、曲目配置与时间轴 DTO；`LiveContext` 是本局从开局边界拿到的唯一一份依赖（开局数据、模式、会话标识、播放历史记录端口）；`IPlayHistoryRecorder` 是 Game 侧定义、App 侧实现的结算写入口 |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Live/View/` | 前场与结算视图、背景、曲目信息、屏幕特效与遮罩、特写与技能文字、音符视图与 HUD、判定与计分反馈、Live 过场 |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Live/Notes/` | `NoteBase` 与各类音符、长条主体/接缝/尾判、`Tails/` 四种尾行为 |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Rendering/` | URP Renderer Feature 与 Pass、UI 模糊与特效参数、相机与背景组件、shader 预载 |
@@ -42,6 +43,8 @@
 `Assets/Game/Runtime/OpenSekai.Game/` 是 P3-1 目录收敛的结果，按职责分为 `Screens`、`Audio`、`Assets`、`UI`、`Animation`、`Data`、`Live/{Runtime,View,Notes}`、`Rendering`、`Platform`、`Shared`、`Extensions`。代码命名空间保持 `Sekai` 不变，所以搬目录不影响序列化引用，但 `.meta` 必须随文件一起移动（GUID 不变，场景与 prefab 才不会断）。
 
 `OpenSekai.Game.asmdef` 已随目录收敛搬进 `Assets/Game/Runtime/OpenSekai.Game/`（GUID `ba080aef…` 保留），所以它的作用范围就是该目录。`Runtime/` 下现在只有三个程序集目录：`OpenSekai/`（App）、`OpenSekai.Core/`、`OpenSekai.Game/`；新增 Game 侧代码必须落在 `OpenSekai.Game/` 内，落在 `Runtime/` 根下会被编进 `Assembly-CSharp` 并失去对 Core 与插件程序集的引用。
+
+玩家曲库的存储住在 `App/Library/`。Game 侧只剩两件事：解析曲包里的文件路径（`Background2DView`、`MusicInfoView` 直接 `SongPackageStorage.LoadEntry(...)` 取 `JacketPath`/`VideoPath`），以及结算时写播放历史——后者走 Game 定义的 `IPlayHistoryRecorder`，实现在 App 的 `CustomScorePlayHistoryRecorder`，由 `PlayService` 在发布开局数据前写进 `PlayHistoryRecorder.Current`，再由 `LiveContext.FromRetainedBoot()` 读出来交给控制器。写槽-读槽与 `EntryPoint.PlayMode`、`PlaySessionContext` 是同一套边界约定：live 场景的 `LiveContext` 由 Game 的 `EntryPoint` 自己建，App 在切场景时没有传参通道，而 Game 不能引用 App。
 
 ### 已移出工程的部分（备份目录已于 2026-11-03 删除，源码见重构前的 git 提交）
 

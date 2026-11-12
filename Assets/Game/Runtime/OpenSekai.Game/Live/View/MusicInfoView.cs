@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using DG.Tweening;
 using SafeArea;
-using Sekai.MusicScoreMaker.Common;
+using OpenSekai.Shared.Packages;
 using Sekai.UI;
 using UnityEngine;
 using CriWare;
@@ -510,8 +510,10 @@ namespace Sekai.Live
 
 			try
 			{
-				CustomMusicScoreEntry entry = CustomMusicScoreStorage.LoadEntry(bootData.CustomMusicScorePath);
-				string jacketPath = entry?.JacketPath;
+				// The jacket path alone is all this needs; the App-side entry wrapper also allocates
+				// an audio object, which a view has no use for.
+				SongPackage package = SongPackageStorage.LoadEntry(bootData.CustomMusicScorePath);
+				string jacketPath = package?.JacketPath;
 				if (string.IsNullOrEmpty(jacketPath) || !File.Exists(jacketPath))
 				{
 					return null;

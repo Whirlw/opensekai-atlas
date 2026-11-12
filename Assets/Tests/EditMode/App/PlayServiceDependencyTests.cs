@@ -6,6 +6,7 @@ using OpenSekai.App.Playback;
 using OpenSekai.Shared.Packages;
 using Sekai;
 using Sekai.Core;
+using Sekai.Core.Live;
 using Cysharp.Threading.Tasks;
 
 namespace OpenSekai.Tests.EditMode
@@ -22,6 +23,8 @@ namespace OpenSekai.Tests.EditMode
         private FakeBootPublisher _boot;
         private FakeAudioRegistrar _audio;
         private FakeDeckSelection _deck;
+        private FakePlayHistoryRecorder _playHistory;
+        private IPlayHistoryRecorder _previousRecorder;
         private PlayService _service;
 
         [SetUp]
@@ -31,7 +34,15 @@ namespace OpenSekai.Tests.EditMode
             _boot = new FakeBootPublisher();
             _audio = new FakeAudioRegistrar { Result = true };
             _deck = new FakeDeckSelection { SelectedDeckId = 7 };
-            _service = new PlayService(_boot, _surface, _audio, _deck);
+            _playHistory = new FakePlayHistoryRecorder();
+            _previousRecorder = PlayHistoryRecorder.Current;
+            _service = new PlayService(_boot, _surface, _audio, _deck, _playHistory);
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            PlayHistoryRecorder.Current = _previousRecorder;
         }
 
         [Test]
@@ -139,12 +150,21 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(_surface.SubscribeCount, Is.EqualTo(2));
         }
 
+        [Test]
+        public async System.Threading.Tasks.Task AStartedLiveRegistersTheRecorderTheSceneWillRead()
+        {
+            PlayHistoryRecorder.Current = null;
+
+            PlayStartResult result = await _service.StartAsync(Request(FixtureDirectory), CancellationToken.None);
+
+            Assert.That(result.Status, Is.EqualTo(PlayStartStatus.Started));
+            Assert.That(PlayHistoryRecorder.Current, Is.SameAs(_playHistory));
+        }
+
         private static PlayRequest Request()
         {
             return Request(FixtureDirectory);
-        }
-
-        private static PlayRequest Request(string directory)
+        }        private static PlayRequest Request(string directory)
         {
             return new PlayRequest(directory, false, SceneManager.Scene.Library);
         }
@@ -190,6 +210,20 @@ namespace OpenSekai.Tests.EditMode
         private sealed class FakeDeckSelection : ILiveDeckSelection
         {
             public int SelectedDeckId { get; set; }
+        }
+
+        private sealed class FakePlayHistoryRecorder : IPlayHistoryRecorder
+        {
+            public void AppendLiveResult(
+                FreeLiveBootData bootData,
+                LiveScore score,
+                long musicTimeMs,
+                long musicLengthMs,
+                string sessionId,
+                string chartHash,
+                int rulesVersion)
+            {
+            }
         }
 
         private sealed class FakeSurface : IPlaySurface

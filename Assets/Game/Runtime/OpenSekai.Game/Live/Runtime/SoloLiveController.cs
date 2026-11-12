@@ -1,7 +1,6 @@
 using OpenSekai.Shared.Settings;
 using System.Collections;
 using Sekai.Live;
-using Sekai.MusicScoreMaker.Common;
 using UnityEngine;
 using OpenSekai.Shared.Playback;
 using OpenSekai.Shared.UI;
@@ -311,7 +310,10 @@ namespace Sekai.Core.Live
 
 		private void TryAppendPlayHistory()
 		{
-			if (_playHistoryRecorded || result != 3 || BootData?.IsAuto == true || _context == null)
+			// The recorder is the App layer's; without one the run simply is not written down. Both
+			// halves of the guard are checked before _playHistoryRecorded is set, so a recorder that
+			// arrives later still gets the run.
+			if (_playHistoryRecorded || result != 3 || BootData?.IsAuto == true || _context?.PlayHistory == null)
 			{
 				return;
 			}
@@ -319,7 +321,7 @@ namespace Sekai.Core.Live
 			_playHistoryRecorded = true;
 			if (BootData is FreeLiveBootData freeLiveBootData)
 			{
-				CustomMusicScorePlayHistoryStorage.AppendLiveResult(
+				_context.PlayHistory.AppendLiveResult(
 					freeLiveBootData,
 					_liveLogic?.Score ?? default,
 					currentMusicTimeMs,
