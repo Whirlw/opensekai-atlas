@@ -62,7 +62,10 @@ namespace OpenSekai.App.Bootstrap
             LiveTransitioner.SafeForceFinish(null);
 
             // Lightweight library page: no ScreenLayerData registration and no editor page.
-            LibraryScreen library = LibraryScreen.Create();
+            // The composition root for this scene: everything the page needs is assembled here and
+            // handed over, so no App-layer type has to reach for a singleton.
+            AppContext context = AppContext.CreateDefault();
+            LibraryScreen library = LibraryScreen.Create(context);
             if (library == null)
             {
                 Debug.LogError("[Library] Could not create the lightweight library screen.");

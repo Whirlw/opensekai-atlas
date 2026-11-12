@@ -4,7 +4,7 @@
 > 适用读者：接手代码的开发者、做重构的人、发版前做门禁的人。
 > 前置条件：读过 [架构总览](README.md) 与 [模块划分](modules.md)；当前基线为 `f14b717c`。
 > 最后更新：2026-11-12
-> 状态：**M1、M2 已达标，Phase 3 执行中**（M2 保留一条开局音既有缺陷，见 Phase 2 记录）。按任务依赖推进，每个工作包独立提交并记录验收结果。
+> 状态：**M1、M2 已达标，Phase 4 执行中**（M3 只剩 P3-3 的 `MusicScoreMaker/Common` 一项，它阻塞在 P4-1 的依赖改造上；M2 保留一条开局音既有缺陷，见 Phase 2 记录）。按任务依赖推进，每个工作包独立提交并记录验收结果。
 
 ## 1. 结论与目标
 
@@ -534,6 +534,18 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
   - 全局配置只有 `Assets/Graphics/Resources/DOTweenSettings.asset`：`useSafeMode=1`、`defaultAutoKill=1`、`defaultEaseType=6`；全仓没有 `DOTween.Init`、`DOTween.KillAll`、`SetLink`。文档据此说明 safe mode 是兜底而非清理，并给出"转场里不要 `KillAll`"的理由——`LiveTransitioner` 转场时自己也在跑 tween。
 - 记录 5 条现状缺口，均未在本批改代码：`ScreenLayerHeader` 的 `Manual` tween 没有任何驱动（Header 仍是空壳，`isAnim` 参数没接）；`ScreenLayerLiveLoading:45` 的 `DOTween.To` 不存句柄；`ScoreView` 的 `SetAutoKill(false)` Sequence 缺销毁兜底；7 个 DOTween 消费类没有 `OnDisable`/`OnDestroy` 钩子；`syncGameTime` 从未启用。这些都是"行为可能变"的改动，混进文档提交会让 P3-4 的"不改行为"前提失效，留给各自工作包。
 - `verify-structure.ps1 -CheckAssemblies -CheckProjects -RequireNoEmptyDirectories` 通过，112 份 Markdown 的链接与锚点 0 处失效。
+
+- P4-1 第一批完成，起点 `9d56a0f6`。只做 App 层：`AppContext` 加三个端口，`PlayService` 改走端口；Game 侧的 `LiveContext` 留到第二批。
+  - 选这三个口子的依据是"真正碰全局状态的地方只有三处"：写开局（`UserDataManager.Instance.FreeLiveBootData` 与 `EntryPoint.PlayMode`）、读屏幕与场景状态（`ScreenManager`、`SceneManager`、`LiveTransitioner`、`PlaySessionContext`）、包音频注册（`new PackageAudio(...)`）。曲包读取、谱面解析、设置快照与 bundle 配置本来就是静态纯调用，本轮不动。
+  - `IPlayBootPublisher` + `LiveBootState`：`Capture` / `Publish` / `Restore` 三步，把原来散在 `try`/`finally` 里的 `previousBoot`、`previousMode` 两个变量和四处赋值收进一个类型；`LegacyPlayBootPublisher` 是这两个静态的唯一写入点。
+  - `IPlaySurface`：`Exists`、`CurrentScene`、`IsLibraryReady`、`IsLiveLoadingReady`、`BeginSession`、`ForceFinishTransition`、`PushLiveLoading` 与退场订阅；`LibraryPageRegistry` 和 `MusicScoreMakerTop` 那条兼容判断原样搬进 `LegacyPlaySurface`。
+  - `IPackageAudioRegistrar`：让开局路径的测试不必准备真实音频与外部音频注册表。
+  - `PlayService.Instance` 保持原签名（Editor 侧的 `LibraryPlayCheck`、`DirectPlayValidation`、`LibrarySceneSetup` 仍在用），新增 `internal` 构造函数注入端口；`OpenSekai.App` 已有 `InternalsVisibleTo("OpenSekai.Tests.EditMode")`，不需要为此放开 public API。
+  - `AppContext`（`App/AppContext.cs`）只装 `Packages` 与 `Playback`：`LibraryEntryPoint.Start` 里 `CreateDefault()` 之后直接交给 `LibraryScreen.Create(context)`，后者从参数取这两个依赖，不再直接读 `SongPackageManager.Shared` 与 `PlayService.Instance`。没有加静态 `Current` 门面——今天没有任何读取点，加上去只是又造一个全局。
+  - 新增 `PlayServiceDependencyTests` 六项，全部用假端口：曲库未就绪、加载界面未就绪、请求目标不是曲库、当前不在曲库场景，四种都在写开局之前拒绝且 `Capture`/`Publish` 一次不调；推入加载界面抛异常时 `Restore` 一次、锁释放、退场订阅清零；正常开局后持锁、第二次返回 `Busy`、场景退场后订阅归零并允许第二局（连续两局）。
+  - 写测试时踩到一个真实区分：原以为"当前不在曲库场景"会报"无法从当前场景开始游玩"，跑出来才发现那条走的是"曲库界面尚未就绪"——前者看请求里的目标场景，后者看运行时场景，语义不同，测试据此拆成两项，两条消息各自钉住。
+  - 验证：`unity recompile` 0 error；全量 EditMode 564 项、560 通过、0 失败、4 跳过（比上批 +6）；缺失脚本清单 sha256 与 P0-2 基线逐字节相同；`verify-structure.ps1` 与 `verify-resource-paths.ps1`（`calls=31 missing=0`）通过。
+  - 未做：`SoloLiveController`/`LiveLogic` 的 `LiveContext`、`LegacyLiveBootAdapter` 里的 `UserDataManager.Instance.SelectedDeckId`、`LibraryUi` 等仍读静态的调用点。第二批按"Game 持有接口、App 装配"的方向做，并保持 Game 不引用 App。
 
 ## 7. 迁移规则
 
