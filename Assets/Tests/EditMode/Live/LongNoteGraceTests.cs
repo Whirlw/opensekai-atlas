@@ -1,6 +1,5 @@
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using NUnit.Framework;
 using OpenSekai.Charts.Serialization;
 using OpenSekai.Live.Conversion;
@@ -152,7 +151,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(bar.HasFinger, Is.True, "a held bar has a finger by definition");
 			Assert.That(bar.IsHeld(0f), Is.True, "and IsHeld is just HasFinger now");
 
-			typeof(LongNote).GetField("_fingerOnIt", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(bar, false);
+			bar.ClearFinger();
 
 			Assert.That(bar.HasFinger, Is.False, "no touch id means no finger, whatever the state says");
 			Assert.That(bar.IsHeld(0f), Is.False, "the time argument no longer decides anything");

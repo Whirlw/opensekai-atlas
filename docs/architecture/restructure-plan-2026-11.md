@@ -442,7 +442,12 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 - `unity recompile` 为 0 error。五个无场景 Presenter 用例验证排序、文件夹导入、手动/自动请求及失败重开。全量 EditMode 522 通过、0 失败、4 跳过，上一批 521 例结果逐项一致。异步 `LibrarySmokeTests` 两例均通过，整首用例从实际结算面板「再玩一次」进入 Core，再返回曲库结算为 1,000,000 / S。程序集与 IDE 检查通过，缺失脚本新增 0。报告在 `TestResults/restructure-p2-2-*`。
 
 - P2-3 宽限期契约确认，起点 `280a3244`。真实谱面经 LiveHarness 在 60 Hz 和 165 Hz 复现下一帧提前结束宽限期。保留未结算头判的漏击路径，已结算长条在首次失去覆盖时变灰，并按经过 50 ms 结束宽限期。原有回按恢复亮态、尾判和头判通知顺序均通过。真实谱面另覆盖重叠尾需要两次抬指和超窗抬指保持 Miss。
-- `unity recompile` 为 0 error。通过 `unity command eval_file` 调用 TestRunnerBridge 运行全量 EditMode，525 通过、0 失败、4 跳过。修正前复现见 `TestResults/restructure-p2-3-early-release-before.xml`，修正后见 `TestResults/restructure-p2-3-baseline-editmode.xml`。已将一项以毫秒间隔硬编码帧数的模拟用例替换为真实谱面边界用例。长条拆分与 Android 手动判定清单仍待完成。
+- `unity recompile` 为 0 error。通过 `unity command eval_file` 调用 TestRunnerBridge 运行全量 EditMode，525 通过、0 失败、4 跳过。修正前复现见 `TestResults/restructure-p2-3-early-release-before.xml`，修正后见 `TestResults/restructure-p2-3-baseline-editmode.xml`。已将一项以毫秒间隔硬编码帧数的模拟用例替换为真实谱面边界用例。拆分以这份 EditMode 报告为基线。
+
+- P2-3 代码拆分完成。门面保留状态机、继承入口和回调顺序。尾部窗口、释放、划键和尾判复位移到 `LongNoteTail`，继续使用既有尾行为。条体覆盖和宽限期移到 `HoldBody`，轨道显示与回收由 `BarView` 处理，谱面部件装配单独归档。门面 454 个非空行。
+- `unity recompile` 为 0 error。最终全量 EditMode 525 通过、0 失败、4 跳过，529 例与修正后的基线逐项一致。异步 `LibrarySmokeTests` 两例通过，整首结算 1,000,000 / S 并返回曲库。程序集、IDE 项目和空目录检查通过，缺失脚本新增 0。报告在 `TestResults/restructure-p2-3-*`。
+- P2-3 真机验收待完成。`adb devices -l` 未列出设备，见 `TestResults/restructure-p2-3-android-devices.txt`。连接设备后仍需手动核对宽限期内回按、换手、双条重叠和尾判时序。
+- P2-5 已留存独立音频基线。`Tools/audit-audio-provenance.ps1` 核对 42 个内置 WAV，结果为 `AUDIT OK`。报告在 `TestResults/restructure-p2-5-audio-baseline.txt`。
 
 ## 7. 迁移规则
 

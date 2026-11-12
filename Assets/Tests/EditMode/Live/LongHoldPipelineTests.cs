@@ -226,11 +226,13 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(bar.State, Is.EqualTo(NoteState.Wait));
             Assert.That(bar.Result, Is.EqualTo(NoteResult.None));
             Assert.That((float)typeof(LongNote).GetField("lastInputTime", Private).GetValue(bar), Is.EqualTo(0f));
-            Assert.That((bool)typeof(LongNote).GetField("_fingerOnIt", Private).GetValue(bar), Is.False);
-            Assert.That((bool)typeof(LongNote).GetField("_swipeTailDeferred", Private).GetValue(bar), Is.False);
-            Assert.That((int)typeof(LongNote).GetField("_framesSinceRelease", Private).GetValue(bar), Is.EqualTo(-1));
-            Assert.That((bool)typeof(LongNote).GetField("_pressedThisFrame", Private).GetValue(bar), Is.False);
-            Assert.That((float)typeof(LongNote).GetField("_lastFrameTime", Private).GetValue(bar), Is.EqualTo(0f));
+            Assert.That(bar.HasFinger, Is.False);
+            Assert.That(bar.HasDeferredSwipe, Is.False);
+            var tail = (LongNoteTail)typeof(LongNote).GetField("_tail", Private).GetValue(bar);
+            Assert.That((int)typeof(LongNoteTail).GetField("_framesSinceRelease", Private).GetValue(tail), Is.EqualTo(-1));
+            var body = typeof(LongNote).GetField("_body", Private).GetValue(bar);
+            Assert.That((bool)body.GetType().GetField("_pressedThisFrame", Private).GetValue(body), Is.False);
+            Assert.That((float)body.GetType().GetField("_lastFrameTime", Private).GetValue(body), Is.EqualTo(0f));
         }
 
         [Test]
