@@ -103,7 +103,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File Tools\compare-test-runs.ps1 
 
 2026-11-12 的结果：两次都是 **569 项 / 565 通过 / 0 失败 / 4 跳过**，逐项完全相同，耗时 8.11 s 与 8.11 s。4 个跳过全部来自已停放的 `Live/DecorationTailJudgmentTests`（原因见上文「覆盖范围」，替代用例是 `DecorationTailFromChartTests`）。
 
-> 此后基线继续增长：2026-11-12 判定解耦这一轮收尾时为 **590 项 / 586 通过 / 0 失败 / 4 跳过**（`Live/DecouplingAcceptanceTests` 六条 + `Live/HeadDecouplingTests` 的出口三条 + `Live/TailBehaviourContractTests` 的发布与「Done 不再判」三条 + `Live/FlickEndBehaviourTests` 类 1 的改写三条与新增五条）。上面的 569 是那次一致性实验的记录，不是当前基线。
+> 此后基线继续增长：2026-11-12 判定解耦这一轮收尾时为 **598 项 / 594 通过 / 0 失败 / 4 跳过**（`Live/DecouplingAcceptanceTests` 六条 + `Live/HeadDecouplingTests` 的出口三条 + `Live/TailBehaviourContractTests` 的发布与「Done 不再判」三条 + `Live/FlickEndBehaviourTests` 类 1 的改写三条与新增五条）。上面的 569 是那次一致性实验的记录，不是当前基线。
 
 结构门禁（P4-4 起，`Tools/verify-structure.ps1` 默认执行，无需额外开关）：
 

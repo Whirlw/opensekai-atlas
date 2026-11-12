@@ -75,12 +75,13 @@ return ReleaseTail.Instance;                                     // 普通尾（
 | **R3** | **条只和中间点共进退**：条结束后没判的中间点**立刻判 Perfect**，已判的保留原判。 | `LongNote.State` 的 Done 分支里 `SettleLeftoverAsPerfect()` |
 | **R4** | **条只有两种结束方式**：被划键/普通尾结束，或**到达尾的标准时间**。 | 前者 `ForceTerminate`；后者 `IsPastTailWindow`（尾时间 + 它自己的判定窗，否则正常的 +125 ms 迟抬手会被吃掉） |
 
-原「待确认的三个问题」的答案：
-1. **谁写超时 Miss** → 独立尾自己写（R1）。条只负责驱动它、读它的结果、然后退场；`DetachStandaloneTail` 里给未结算尾写 Miss 的那段已删除。
+**分派落地（2026-11-12 第二轮）**：`TailBehaviours.For` 现在只有两种结局——划键尾 `SwipeTail`、其余一切（friction、摩擦划、隐藏载体）`SelfJudgedTail`；普通尾 `ReleaseTail` 仍给 `NormalNote` 这类。自判尾**进候选集自己判**（`LiveCandidatePipeline.Register` 在条自身能应答输入时额外给它一个槽位），条的 `DriveJudgmentFrame` 不再代判它（`!TailBehaviour.JudgesItself` 才走 `childNote.Judgment`），`FailTail` 也拒绝代写。隐藏载体 `HasJudgment == false`，因此拿不到槽位、也不会被条判——「没有任何判定」。\n\n**自动播放那一侧的三处修复（2026-11-12，同一轮）**：① 条的 `AutoJudgment` 以前只在「子音符的 AutoJudgment 返回 true」时才 Done，而已经自判完的子音符（rub、隐藏载体）会回答 false，于是条永远不结束、会话游标停在它身上——满分之后不结算。现在「子音符已 Done」也算完成；`GuideNote` 在末端没有可判音符时按自己的时间直接结束。② `LongNote.IsAutoPlaying` 让自动播放的条过线后保持亮色（没有手指就没有 `HasFinger`）。③ `KeepsHeadOnTheLine` 不再挂在 `IsOrdinaryHead` 上（后者还决定「谁能被判」「谁发布头 Miss」），所以 friction 栏的条体头也停在判定线上，只有 guide 条继续下流。
+
+原「待确认的三个问题」的答案：1. **谁写超时 Miss** → 独立尾自己写（R1）。条只负责驱动它、读它的结果、然后退场；`DetachStandaloneTail` 里给未结算尾写 Miss 的那段已删除。
 2. **尾先判时条何时退场** → 不因尾判定而退场（R2）。条走到自己的时间才走（R4）。
 3. **条先结束时尾还能不能判** → **不判**（用户 2026-11-12 明确）：尾的判定到达时条已经 `Done`，就**不要**再判一次，也不许借这次判定把条唤醒或改写任何结果。代码现状正是如此（`JudgeTailAsRelease` / `TrySwipeTail` / `ExpireTail` / `FailTail` 都以 `_bar.State == Done` 早退，`PublishTail` 再把它挡一层），用例 `AVerdictThatArrivesAfterTheBarIsDoneIsNotAskedAgain` 把它钉住。
 
-实施后的登记：`DetachStandaloneTail` 现在要求「已过自己的时间」**且**「尾已有自己的判定」才退场；未结算就等一两帧（条还活着，子音符仍被它的子循环驱动，`NoteBase.Excute` 会把过窗的音符判成自己的 Miss），所以不会卡住。用例：`AnUntouchedFrictionFlickTailIsGradedMiss`、`AnUnsettledFrictionFlickTailEndsTheBarOnlyWhenItsWindowCloses`、`AFrictionFlickTailIsJudgedByItselfAndTheBarJustDetaches`、`AMissedStandaloneTailShowsItsCharacterEvenThoughTheBarDidNotGradeIt`、`AComboPointTheBarsEndNeverReachedIsSettledPerfect`、`AVerdictIsPublishedBeforeItsBarIsAllowedToLeave`（均在 `Live/FlickEndBehaviourTests`）。
+实施后的登记：`DetachStandaloneTail` 只要求「已过自己的时间」就退场，**不等**尾、也**不写**尾：有判定就读过来，没有就按条自己的 Miss 收场（尾自己的 Miss 由它自己那一轮产生，隐藏尾本来就永不结算）。用例：`AnUntouchedFrictionFlickTailIsGradedMiss`、`AnUnsettledFrictionFlickTailEndsTheBarOnlyWhenItsWindowCloses`、`AFrictionFlickTailIsJudgedByItselfAndTheBarJustDetaches`、`AMissedStandaloneTailShowsItsCharacterEvenThoughTheBarDidNotGradeIt`、`AComboPointTheBarsEndNeverReachedIsSettledPerfect`、`AVerdictIsPublishedBeforeItsBarIsAllowedToLeave`（均在 `Live/FlickEndBehaviourTests`）。
 
 > **时序那一处是修出来的，不是审出来的**：`AVerdictIsPublishedBeforeItsBarIsAllowedToLeave` 先红——尾发布自己的判定那一刻，条已经是 `Done`（四个音符类型都在 `OnUnSpawnNote()` 之前调 `NotifyParentFinished()`）。把两者对调后条才「被这条判定结束」，而不是「先结束了再收到判定」。
 

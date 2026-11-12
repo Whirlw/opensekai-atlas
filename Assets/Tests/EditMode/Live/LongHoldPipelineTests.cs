@@ -461,15 +461,17 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         [Test]
-        public void AFrictionBarIsFinishedByAReleaseLikeAnyOtherTail()
+        public void AFrictionEndNoteIsNotFinishedByAReleaseAnyMore()
         {
             var bar = new FrictionLongNote(Info(0), 5, 4, 5, NoteCategory.FrictionLong, NoteType.Default, null, 1);
             bar.AddNoteListAndSetupChildNote(new FrictionNote(Info(1), 105, 4, 5, NoteCategory.Friction, null, NoteType.Default, 1));
 
-            // Pinning the release tail to NoteCategory.Long used to make every friction-ended bar
-            // unable to end: the friction note only finishes itself when the finger still touches it
-            // at the line, so a release anywhere in the window left the bar stuck forever.
-            Assert.That(bar.IsTailJudgeableAt(0.99f), Is.True, "a release inside the window finishes a friction bar");
+            // A rub end note is played like a note that hangs on no bar at all (tail-classes.md §3 R2):
+            // it judges itself and the lift is not its end point. The bar is not stuck either - its own
+            // end no longer waits for the note to be finished by a release.
+            Assert.That(bar.TailBehaviour.JudgesItself, Is.True, "the rub end note judges itself");
+            Assert.That(bar.TailBehaviour.AcceptsRelease, Is.False, "so a lift does not finish the bar");
+            Assert.That(bar.IsTailJudgeableAt(0.99f), Is.False, "a release inside the window does nothing now");
             Assert.That(bar.IsTailJudgeableAt(0.7f), Is.False, "a release far before the window still does nothing");
         }
 

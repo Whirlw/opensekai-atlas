@@ -1,4 +1,4 @@
-﻿namespace Sekai.Live
+namespace Sekai.Live
 {
 	public class GuideNote : LongNote
 	{
@@ -114,19 +114,32 @@
 
 		public override bool AutoJudgment(MusicScoreInfo currentFrameInfo)
 		{
+			if (MusicScoreInfo.time > currentFrameInfo.time)
+			{
+				return false;
+			}
+
 			// A guide note is not scored, but a bar that starts with one can still end with a real key.
 			// Autoplay has no finger to swipe with, so the tail has to be judged here or that key is
 			// the only note in the chart which autoplay can never hit.
 			if (childNote == null || !childNote.HasJudgment)
 			{
-				return false;
+				// Nothing at the end can be played, so there is no verdict to wait for: the bar simply
+				// ends where it ends. Without this the note stayed alive forever and the session's cursor
+				// never walked past it - autoplay scored full marks and then never settled.
+				IsAutoPlaying = true;
+				State = NoteState.Done;
+				return true;
 			}
 
-			if (!childNote.AutoJudgment(currentFrameInfo))
+			// The end key may have settled itself already (a rub, a hidden carrier): a second
+			// AutoJudgment on it answers "no", and waiting for a "yes" left the bar alive forever.
+			if (childNote.State != NoteState.Done && !childNote.AutoJudgment(currentFrameInfo))
 			{
 				return false;
 			}
 
+			IsAutoPlaying = true;
 			State = NoteState.Done;
 			return true;
 		}

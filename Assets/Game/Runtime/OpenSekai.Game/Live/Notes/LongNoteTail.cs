@@ -267,18 +267,14 @@ namespace Sekai.Live
 			}
 
 			// And the bar writes nothing onto that note: the verdict is the tail's own, so the bar only
-			// reads it. A note that has not settled yet gets another frame - it is driven by the bar's
-			// own child pass (NoteBase.Excute turns a note past its window into its own Miss) and the bar
-			// is still alive here, so this cannot stall.
+			// reads it - and it does not wait for it either, because the bar leaves on its own time and
+			// nothing about that depends on the note. A note that is still open here (a hidden carrier
+			// never settles at all) simply is not read: the bar's own end is a Miss of its own.
 			bool settled = Child.Result != NoteResult.None || Child.State == NoteState.Done;
-			if (!settled)
-			{
-				return false;
-			}
 
 			// Publish before touching anything else: if this tail already has a verdict, the refusal has
 			// to happen while the bar and the note list are still exactly as they were.
-			if (!PublishTail(Child.Result))
+			if (!PublishTail(settled ? Child.Result : NoteResult.Miss))
 			{
 				ResetDecision();
 				return false;
@@ -443,7 +439,9 @@ namespace Sekai.Live
 		/// </summary>
 		internal bool FailTail()
 		{
-			if (_bar.State == NoteState.Done || Child == null)
+			// Only a decisive end is the bar's to fail: a note that judges itself writes its own Miss,
+			// and the bar must not do it for them (tail-classes.md §3 R1/R2).
+			if (_bar.State == NoteState.Done || Child == null || _bar.TailBehaviour.JudgesItself)
 			{
 				return false;
 			}

@@ -220,7 +220,10 @@ namespace Sekai.Live
 			ClearHeadJudgeOffset();
 			ConnectionNoteJudgment(ref touch, lane);
 
-			if (childNote != null
+			// A tail that judges itself takes its own turn in the candidate list, so pressing near its
+			// time must not judge it through the bar as well: that would be two judges for one note.
+			if (!TailBehaviour.JudgesItself
+				&& childNote != null
 				&& LiveConfig.IsLongEndJudgeTime(childNote.JudgeOffsetAt(touch.musicTime))
 				&& childNote.IsJudgment(ref touch, lane)
 				&& childNote.Judgment(ref touch, lane))
@@ -270,13 +273,11 @@ namespace Sekai.Live
 		internal bool IsOrdinaryHead => Category == NoteCategory.Long && this is not GuideNote && this is not FrictionLongNote;
 
 		/// <summary>
-		/// Whether the bar's body starts at the judgement line while the head's time has passed. Only an
-		/// ordinary bar does: that is where its body is supposed to shrink from, taken or not. A rub or a
-		/// guide bar has no such state to stand in - it is played across its whole body, so its head must
-		/// keep descending. An unplayed one therefore flows past the line and reads as a miss that went
-		/// by, instead of freezing there.
+		/// Whether the bar's body starts at the judgement line instead of flowing past it. Every bar the
+		/// player holds does; a guide bar sweeps across the lane. It used to be tied to
+		/// <see cref="IsOrdinaryHead"/>, which also decides who may be judged, so a rub's head slid off.
 		/// </summary>
-		internal bool KeepsHeadOnTheLine => IsOrdinaryHead;
+		internal bool KeepsHeadOnTheLine => this is not GuideNote;
 
 		/// <summary>
 		/// The note that really ends this bar: the latest one that is neither skipped nor decorative.
@@ -298,7 +299,10 @@ namespace Sekai.Live
 		/// A bar greys when its hold lapses. A returning finger lights it again while the
 		/// post-head state still drives grace and tail judgement.
 		/// </summary>
-		public override bool ShowsAsReleased => !HasFinger && (State == NoteState.Release || State == NoteState.Last);
+		public override bool ShowsAsReleased => !IsAutoPlaying && !HasFinger && (State == NoteState.Release || State == NoteState.Last);
+
+		/// <summary>True while autoplay plays this bar - there is no finger to keep it lit.</summary>
+		internal bool IsAutoPlaying { get; set; }
 
 		internal bool PublishesHeadMiss => IsOrdinaryHead && HasJudgment;
 
@@ -527,12 +531,17 @@ namespace Sekai.Live
 			}
 
 			lastInputTime = currentFrameInfo.time;
+			IsAutoPlaying = true;
 			Head.Settle((NoteResult.Auto, NoteResultDescription.None));
 			RestoreHeldState();
 			OffsetJudgeTime = 0f;
 			ConnectionNoteAutoJudgment(currentFrameInfo);
 
-			if (childNote != null && childNote.AutoJudgment(currentFrameInfo))
+			// A tail that has already settled itself (a rub, a hidden carrier) answers "no" to a second
+			// AutoJudgment, so it has to count as finished here: otherwise the bar waits forever for a
+			// verdict that already exists and the session never walks past it.
+			if (childNote != null
+				&& (childNote.State == NoteState.Done || childNote.AutoJudgment(currentFrameInfo)))
 			{
 				State = NoteState.Done;
 			}
@@ -569,6 +578,7 @@ namespace Sekai.Live
 			lastInputTime = 0f;
 			_body?.Reset();
 			WasHoldingWhenTerminated = false;
+			IsAutoPlaying = false;
 			_tail?.Reset();
 			_head?.Reset();
 			_lastBoundNote = null;

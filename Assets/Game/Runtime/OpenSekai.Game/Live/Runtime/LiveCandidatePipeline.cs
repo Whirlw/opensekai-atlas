@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Sekai.Live;
 
 namespace Sekai.Core.Live
@@ -93,6 +93,16 @@ namespace Sekai.Core.Live
 			if (barAnswersInput)
 			{
 				judgmentNotes.Add(note);
+
+				// A bar answers input for its own head and hold, but it does not grade a tail that judges
+				// itself: a rub, a rub flick or a hidden carrier is played exactly like a note that hangs
+				// on no bar at all, so it needs a slot of its own. Without this the note could only ever
+				// time out, never be played.
+				if (note is LongNote selfJudgingBar && selfJudgingBar.TailBehaviour.JudgesItself
+					&& tailNote != null && !judgmentNotes.Contains(tailNote))
+				{
+					judgmentNotes.Add(tailNote);
+				}
 			}
 
 			// A decoration bar speaks for nobody: the note at its end is the one the player plays, and

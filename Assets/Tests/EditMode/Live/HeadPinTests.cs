@@ -51,12 +51,13 @@ namespace OpenSekai.Tests.EditMode.Live
 		}
 
 		[Test]
-		public void AnUntakenFrictionBarDoesNotKeepItsHeadOnTheLine()
+		public void AnUntakenFrictionBarKeepsItsHeadOnTheLine()
 		{
-			// Nobody is rubbing it, so there is no body to hold at the line: it flows down and reads
-			// as a miss that passed by.
+			// A rub bar is held like any other bar, so its head parks on the line too. It used to keep
+			// descending because the pin was tied to IsOrdinaryHead, which also answers "who may be
+			// judged" - the head looked like an unpressed key sliding off the line.
 			Assert.That(_friction.IsOrdinaryHead, Is.False);
-			Assert.That(_friction.KeepsHeadOnTheLine, Is.False);
+			Assert.That(_friction.KeepsHeadOnTheLine, Is.True);
 		}
 
 		[Test]

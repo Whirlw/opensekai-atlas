@@ -134,6 +134,78 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(bar.State, Is.EqualTo(NoteState.Done), "nor is the bar brought back");
 		}
 
+		[Test]
+		public void OnlyAFlickOrAnOrdinaryEndNoteIsGradedByItsBar()
+		{
+			// R2 is a mapping, not a switch in the caller: a flick is finished by a swipe, an ordinary
+			// end note by a lift, and everything else judges itself - including the hidden carriers,
+			// which carry no judgement at all.
+			Assert.That(TailBehaviours.For(new NormalNote(Info(1f), 1, 4, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f)).AcceptsRelease,
+				Is.True, "an ordinary end note is finished by the bar on a lift");
+			Assert.That(TailBehaviours.For(new FlickNote(Info(1f), 2, 4, 5, NoteCategory.Flick, 1f, NoteType.Default, NoteDirection.Default, 0, 0f)).AcceptsSwipe,
+				Is.True, "a flick end note is finished by the bar on a swipe");
+
+			NoteBase[] others =
+			{
+				new FrictionNote(Info(1f), 3, 4, 5, NoteCategory.Friction, null, NoteType.Default, 1f),
+				new FrictionFlickNote(Info(1f), 4, 4, 5, NoteCategory.FrictionFlick, 1f, NoteType.Default, NoteDirection.Default, 0.0833f, 0f),
+				new HiddenConnectionNote(Info(1f), 5, 4, 5, NoteCategory.Hidden, NoteType.Default, 1f, 0f),
+			};
+			foreach (NoteBase other in others)
+			{
+				ITailBehaviour behaviour = TailBehaviours.For(other);
+				Assert.That(behaviour.JudgesItself, Is.True, other.GetType().Name + " judges itself");
+				Assert.That(behaviour.AcceptsRelease, Is.False, other.GetType().Name + " is not finished by a lift");
+				Assert.That(behaviour.AcceptsSwipe, Is.False, other.GetType().Name + " is not finished by the bar's swipe");
+			}
+		}
+
+		[Test]
+		public void AReleaseNeverGradesAnOtherEndNote()
+		{
+			// The bar must not grade it in any direction: not on a lift, and not by its own timeout.
+			var bar = new LongNote(Info(0f), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
+			var tail = new FrictionNote(Info(1f), 2, 4, 5, NoteCategory.Friction, null, NoteType.Default, 1f);
+			bar.AddNoteListAndSetupChildNote(tail);
+			bar.SetStateUnnotice(NoteState.Scrolling);
+			bar.RecordHoldingInput(1, 1f);
+
+			Assert.That(bar.JudgeTailAsRelease(1f), Is.False, "a lift is not this note's judgement");
+			Assert.That(bar.FailTail(), Is.False, "and the bar's timeout does not grade it either");
+			Assert.That(tail.Result, Is.EqualTo(NoteResult.None), "nothing was written onto it");
+			Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done));
+		}
+
+		[Test]
+		public void AnIndependentTailGetsItsOwnCandidateSlot()
+		{
+			using var harness = new LiveHarness();
+			var bar = new LongNote(Info(0f), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
+			var tail = new FrictionNote(Info(1f), 2, 4, 5, NoteCategory.Friction, null, NoteType.Default, 1f);
+			bar.AddNoteListAndSetupChildNote(tail);
+			harness.Arrange(new MusicScore(new[] { Info(0f) }, System.Array.Empty<EventBase>(), new NoteBase[] { bar }));
+
+			harness.Step(1f, 11d);
+
+			Assert.That(harness.Logic.Input.JudgmentNotes, Does.Contain(tail),
+				"a tail that judges itself is played like a note on no bar at all");
+		}
+
+		[Test]
+		public void AHiddenTailIsNeverACandidate()
+		{
+			using var harness = new LiveHarness();
+			var bar = new LongNote(Info(0f), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
+			var tail = new HiddenConnectionNote(Info(1f), 2, 4, 5, NoteCategory.Hidden, NoteType.Default, 1f, 0f);
+			bar.AddNoteListAndSetupChildNote(tail);
+			harness.Arrange(new MusicScore(new[] { Info(0f) }, System.Array.Empty<EventBase>(), new NoteBase[] { bar }));
+
+			harness.Step(1f, 11d);
+
+			Assert.That(harness.Logic.Input.JudgmentNotes, Has.No.Member(tail),
+				"a hidden carrier carries no judgement, so it never reaches the list");
+		}
+
 		/// <summary>A bar held at its own tail time, with an ordinary end note at 1 s.</summary>
 		private static (LongNote bar, NoteBase tail) BarAtItsTail()
 		{
