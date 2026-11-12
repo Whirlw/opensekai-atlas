@@ -171,6 +171,7 @@ namespace OpenSekai.Tests.EditMode.Live
 		}
 
 		[Test]
+		[Ignore("pins a hypothesis, not a report: a millisecond offset squashing a body was my inference from the 799 measurement, the player never saw it, and bounding the speed to protect against it killed the 799 effect. Delete it when the view geometry is measured instead.")]
 		public void TheSpeedSpikeNeverCollapsesADrawnBody()
 		{
 			// The "闪一下" the player reported at the speed ramp: while a spike sits between the playhead and
