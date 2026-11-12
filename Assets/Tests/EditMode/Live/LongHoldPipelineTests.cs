@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
@@ -514,7 +514,9 @@ namespace OpenSekai.Tests.EditMode.Live
             bar.SetLastTime(0f);
             bar.Excute(Info(1f), 0);
             Assert.That(bar.State, Is.EqualTo(NoteState.Last), "the bar greys before it releases");
-            bar.Excute(Info(1.001f), 0);
+            bar.Excute(Info(1.049f), 0);
+            Assert.That(bar.State, Is.EqualTo(NoteState.Last));
+            bar.Excute(Info(1.051f), 0);
             Assert.That(bar.State, Is.EqualTo(NoteState.Release), "after the grace the bar must release");
         }
 

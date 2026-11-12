@@ -441,6 +441,9 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 - P2-2 通过，起点 `76f2c656`。拆出 `LibraryView`、`LibraryPresenter`、`LibraryModel` 和控件辅助类 `LibraryUi`，`LibraryScreen` 保留组件生命周期和依赖装配。门面、视图、Presenter、Model、控件辅助类依次为 50、342、326、85、298 行。沿用原有行重建行为和曲包存储入口。
 - `unity recompile` 为 0 error。五个无场景 Presenter 用例验证排序、文件夹导入、手动/自动请求及失败重开。全量 EditMode 522 通过、0 失败、4 跳过，上一批 521 例结果逐项一致。异步 `LibrarySmokeTests` 两例均通过，整首用例从实际结算面板「再玩一次」进入 Core，再返回曲库结算为 1,000,000 / S。程序集与 IDE 检查通过，缺失脚本新增 0。报告在 `TestResults/restructure-p2-2-*`。
 
+- P2-3 宽限期契约确认，起点 `280a3244`。真实谱面经 LiveHarness 在 60 Hz 和 165 Hz 复现下一帧提前结束宽限期。保留未结算头判的漏击路径，已结算长条在首次失去覆盖时变灰，并按经过 50 ms 结束宽限期。原有回按恢复亮态、尾判和头判通知顺序均通过。真实谱面另覆盖重叠尾需要两次抬指和超窗抬指保持 Miss。
+- `unity recompile` 为 0 error。通过 `unity command eval_file` 调用 TestRunnerBridge 运行全量 EditMode，525 通过、0 失败、4 跳过。修正前复现见 `TestResults/restructure-p2-3-early-release-before.xml`，修正后见 `TestResults/restructure-p2-3-baseline-editmode.xml`。已将一项以毫秒间隔硬编码帧数的模拟用例替换为真实谱面边界用例。长条拆分与 Android 手动判定清单仍待完成。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动

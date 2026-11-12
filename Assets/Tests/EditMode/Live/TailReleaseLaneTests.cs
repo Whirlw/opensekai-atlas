@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using OpenSekai.Charts.Serialization;
@@ -80,6 +80,24 @@ namespace OpenSekai.Tests.EditMode.Live
 
 			Assert.That(Tail.Result, Is.EqualTo(NoteResult.None), "a lift outside the bar is not its release");
 			Assert.That(_bar.State, Is.Not.EqualTo(NoteState.Done), "and it does not finish the bar either");
+		}
+
+		[Test]
+		public void AReleaseAfterTheWindowKeepsTheExpiredTailAtMiss()
+		{
+			HoldUntilTailTime();
+			var position = LanePosition(_bar.JudgeLaneStart);
+			StepTo(TailTime, LiveHarness.Touch(1, position, 10d + TailTime, TouchPhase.Stationary));
+			Assert.That(Tail.Result, Is.EqualTo(NoteResult.None));
+
+			float expired = TailTime + 0.25f;
+			StepTo(expired, LiveHarness.Touch(1, position, 10d + expired, TouchPhase.Stationary));
+			Assert.That(Tail.Result, Is.EqualTo(NoteResult.Miss));
+			Assert.That(_bar.State, Is.EqualTo(NoteState.Done));
+
+			float lift = expired + 1f / 60f;
+			StepTo(lift, LiveHarness.Touch(1, position, 10d + lift, TouchPhase.Ended));
+			Assert.That(Tail.Result, Is.EqualTo(NoteResult.Miss));
 		}
 
 		[Test]

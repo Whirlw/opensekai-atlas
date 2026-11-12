@@ -1,12 +1,9 @@
-using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
 using OpenSekai.Charts.Serialization;
 using OpenSekai.Live.Conversion;
-using OpenSekai.Shared.Live;
 using Sekai;
 using Sekai.Core.Live;
 using Sekai.Live;
@@ -47,12 +44,6 @@ namespace OpenSekai.Tests.EditMode.Live
 			};
 		}
 
-		private static T Field<T>(LiveLogic logic, string name)
-		{
-			return (T)typeof(LiveLogic).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
-		}
-
-
 		/// <summary>A bar of lanes 4..5 that is already being held by <paramref name="finger"/>.</summary>
 		private static LongNote HeldBar(int finger)
 		{
@@ -60,29 +51,6 @@ namespace OpenSekai.Tests.EditMode.Live
 			bar.SetStateUnnotice(NoteState.Scrolling);
 			bar.RecordHoldingInput(finger, 0f);
 			return bar;
-		}
-
-		[Test]
-		public void ALostFingerGreysTheBarAndReleasesThreeFramesLater()
-		{
-			var logic = new LiveLogic(null);
-			var bar = HeldBar(1);
-			Field<List<NoteBase>>(logic, "_judgmentNoteList").Add(bar);
-			// A finger sits somewhere else entirely: lanes 9..10 are not the bar's 4..5.
-			Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").Add(Input(2, 9f));
-
-			bar.Excute(Info(1f), 0f);
-
-			Assert.That(bar.State, Is.EqualTo(NoteState.Last),
-				"the frame the finger goes away the bar greys, it does not vanish");
-
-			for (int frame = 0; frame < 4; frame++)
-			{
-				bar.Excute(Info(1f + frame * 0.001f), 0f);
-			}
-
-			Assert.That(bar.State, Is.EqualTo(NoteState.Release),
-				"after the grace the bar releases without a judgement of its own");
 		}
 
 		[Test]
@@ -136,6 +104,44 @@ namespace OpenSekai.Tests.EditMode.Live
 			Step(tailTime, 3, TouchPhase.Ended);
 			Assert.That(tail.Result, Is.EqualTo(NoteResult.JustPerfect), "the returning finger can finish the tail on time");
 			Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+		}
+
+		[TestCase(60)]
+		[TestCase(165)]
+		public void AnUncoveredBarExpiresOnTheSameClockAtEitherRefreshRate(int refreshRate)
+		{
+			using var harness = new LiveHarness();
+			var chart = ChartJson.Read(File.ReadAllText("Tools/fixtures/deco-tail-test10/score.json"));
+			var score = RuntimeChartConverter.Convert(chart, Resources.Load<LiveBundleBuildData>("live/config/LiveBundleBuildData"));
+			var bar = score.NoteArray.OfType<LongNote>().First(note => note.ChildNote is NormalNote && note.HasJudgment);
+			harness.Arrange(score, new NoteBase[] { bar });
+
+			float step = 1f / refreshRate;
+			float headTime = bar.MusicScoreInfo.time;
+			int lane = Mathf.Clamp(Mathf.RoundToInt(bar.JudgeLaneStart), 0, LiveConfig.JudgmentPositions.Length - 1);
+			Vector3 position = LiveConfig.JudgmentPositions[lane];
+			harness.Step(headTime - step, 10d + headTime - step);
+			harness.Step(headTime, 10d + headTime, LiveHarness.Touch(1, position, 10d + headTime));
+			AssertHeldBody(bar);
+			float releaseTime = headTime + Mathf.Max(0.25f, LiveConfig.JudgeTime + step);
+			for (float now = headTime + step; now < releaseTime; now += step)
+			{
+				harness.Step(now, 10d + now, LiveHarness.Touch(1, position, 10d + now, TouchPhase.Stationary));
+			}
+
+			harness.Step(releaseTime, 10d + releaseTime, LiveHarness.Touch(1, position, 10d + releaseTime, TouchPhase.Ended));
+			float greyTime = releaseTime + step;
+			harness.Step(greyTime, 10d + greyTime);
+			Assert.That(bar.State, Is.EqualTo(NoteState.Last));
+			Assert.That(bar.ShowsAsReleased, Is.True);
+
+			float beforeExpiry = greyTime + 0.05f - 0.001f;
+			float afterExpiry = greyTime + 0.05f + 0.001f;
+			harness.Step(beforeExpiry, 10d + beforeExpiry);
+			Assert.That(bar.State, Is.EqualTo(NoteState.Last));
+			harness.Step(afterExpiry, 10d + afterExpiry);
+			Assert.That(bar.State, Is.EqualTo(NoteState.Release));
+			Assert.That(bar.ChildNote.Result, Is.EqualTo(NoteResult.None), "grace expiry does not judge a tail that is still ahead");
 		}
 
 		[Test]

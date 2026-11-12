@@ -289,14 +289,12 @@ namespace Sekai.Live
 				State = NoteState.Scrolling;
 			}
 
-			// Every bar leaves Last the same way: it greys out, because its head is gone. What
-			// differs is only whether there is a head to have missed — a hidden head was never a
-			// note the player could answer, so it stays silent instead of costing life and combo.
-			if (State == NoteState.Last)
+			// An unsettled head in Last still follows the legacy head-miss path.
+			// A held bar has already settled its head and leaves Last through the timed grace below.
+			if (State == NoteState.Last && !Head.IsSettled && !_headTouched)
 			{
 				State = NoteState.Release;
-
-				if (!Head.IsSettled) Head.PublishHeadMiss();
+				Head.PublishHeadMiss();
 			}
 
 			Progress = CalcProgress(currentFrameInfo, offsetTime);
@@ -411,7 +409,7 @@ namespace Sekai.Live
 				else if (!IsDecoration)
 				{
 					// The finger is gone: grey the bar now and let the countdown below decide when it
-					// is finished. The grace is 50 ms of wall time, not three frames of whatever the
+					// is finished. The grace uses 50 ms of elapsed time.
 					State = NoteState.Last;
 					_graceStartedAt = currentFrameInfo.time;
 				}
