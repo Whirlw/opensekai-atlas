@@ -580,6 +580,14 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 - P4-1 的代码部分至此完成：App 侧由 `AppContext` 装配、四个端口承载全部跨层读写、Game 侧由 `LiveContext` 接收。验收四条里，"迁移的调用点通过显式依赖访问服务"与"EditMode 可替换服务实现"（6 项测试）已具备；"开局失败重试、退出返回、连续两局"有 EditMode 与真机两套证据。
 - 未做：这一批没有上真机。改动只换了 `SelectedDeckId` 的读取来源，当前它恒为默认值 0，行为等价；真机复验并入下一次发包一起做。
 
+- P4-2 完成，起点 `b08f9f3e`。验收要的"连续两次 EditMode 结果一致"用可复跑的脚本落地，而不是肉眼看两份报告：
+  - 新增 `Tools/compare-test-runs.ps1`：读两份 NUnit XML，按「测试全名 + 结果」逐项比较，缺项/多项/结果变化都算差异并非零退出，可直接进 CI。
+  - 两次运行（`TestRunnerBridge` → `TestResults/p4-2-editmode-run{1,2}.xml`）：都是 **569 项、565 通过、0 失败、4 跳过**，逐项完全相同，8.11 s / 8.11 s。
+  - 4 个跳过全部来自已停放的 `Live/DecorationTailJudgmentTests`。核对结论是**原因仍在**：手工 `new` 出来的条与尾进不了候选，缺的是 `OnUpdate` 的整条扫描；替代用例 `DecorationTailFromChartTests` 已存在且通过，停放项与其理由、替代路径都写在 `docs/operations/testing.md`，跟踪项保留。
+  - 隔离审计（写进 `docs/operations/testing.md` 的新章节）：测试输入全部是仓库内 `Tools/fixtures/`，无本机绝对路径；5 个需要落盘的 fixture 都用 `GetTempPath + Guid` 独占目录并在 `[TearDown]` 删除；没有任何测试写仓库目录或 `persistentDataPath`；唯一共享状态读是开局路径里 `FreeLiveBootData` 构造读 `LiveSettingsStore.Shared`，而 `Load()` 只读、只有 `Save()` 写盘，已核对无副作用；`LiveContextTests` 对 `UserDataManager` 与 `EntryPoint.PlayMode` 的静态改动用例内配对恢复。
+  - 记录一条隐含前提：这些 fixture 路径按**项目根**解析，跑测试的进程工作目录必须是项目根（编辑器内与 `-executeMethod` 满足），`unity test` 从别的目录起会读不到文件。
+- 顺带补了 `testing.md` 的覆盖范围：`PlayServiceDependencyTests`、`LiveContextTests`、`ResourceCatalogTests` 三条新 fixture 各自钉住什么、什么时候必须跑。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动

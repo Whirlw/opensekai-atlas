@@ -67,11 +67,34 @@ EditMode：
 - `Live/DecorationTailFromChartTests`：**真实谱面驱动**——读 `Tools/fixtures/deco-tail-test10/score.json`（取自报告者 `Test10.zip`），`ChartJson.Read` → `RuntimeChartConverter.Convert` → 用真实 `OnUpdate`/`OnInput` 把手指依次送到每根 `GuideNote` 条的尾时间（flick / friction-flick 给划动采样，普通尾给按下），断言每种尾都判出结果。这是目前唯一能验证「尾进不进候选」的用例，**动到 `_judgmentNoteList` 注册时必须跑它**。
 - `Live/DecorationTailJudgmentTests`：**已停放**（`[Ignore]`）。它手工 `new` 条与尾再反射调内部阶段，结果连普通尾都进不了候选——说明缺了 `OnUpdate` 的整条扫描，子音符的进度与候选根本没推进。不要再拿它下结论；需要新用例请照 `DecorationTailFromChartTests` 的写法。
 - `Live/TailReleaseLaneTests`：真实谱面 + `LiveHarness` 逐帧驱动一根普通尾长条，验证**抬手归属**——另一根手指在别的轨道按下再抬起时尾不许被判定、条也不许结束；持握者自己在条内抬手时尾必须被判。**动到 `CoverHoldsWithAnyFinger` 的松手分支时必须跑它**。
+- `App/PlayServiceDependencyTests`：开局路径依赖全部换成假端口，覆盖四种前置拒绝（曲库未就绪、加载界面未就绪、请求目标不是曲库、当前不在曲库场景）、推入加载界面失败后的回滚与锁释放、开局成功后的持锁与场景退场释放、以及连续两局；并断言发布的 `FreeLiveBootData.DeckData.UserInfo.DeckId` 取自端口而不是单例。**动开局流程或 `PlayService` 的前置判断时必须跑它**。
+- `LiveContextTests`：`LiveContext.FromRetainedBoot()` 把 `UserDataManager`、`EntryPoint.PlayMode`、`PlaySessionContext` 的五个事实逐项抄进上下文；缺 Boot 时其余字段仍完整，null 会话字段降级成空串，两次读取互不影响。用例在 `[SetUp]/[TearDown]` 里存旧值并写回，不会污染同一进程里的其它用例。
+- `Resources/ResourceCatalogTests`：`ResourceCatalog` 里每条固定 `Resources` 路径都能加载、类型正确、回退只在主路径失败时生效；另含两条字体相关断言——`Fonts/SourceHanSansSC-Medium` 能被 TMP 建成字面、以及 `LibraryUi.EnsureRequiredGlyphs` 能对三条来源（bundled / OS / 项目资产）补上省略号字形。项目 SDF 资产在用例里是**克隆**后操作的，避免编辑器回写被跟踪的 `.asset`。
 
 PlayMode：
 
 - `LibrarySmokeTests`：载入 `Assets/Game/Scenes/Library.unity`，等 `LibraryScreen` 起来并断言 `ScreenManager.ExistsInstance`。
 - **限制**：从编辑器桥接跑 PlayMode 时，进播放模式会触发域重载，桥接注册的回调随之销毁，`playmode.xml` 不会生成，编辑器会停在播放模式；跑完必须先 `editor.playmode.stop` 才能再跑 EditMode。要看报告请用 Test Runner 窗口，或关掉编辑器后跑 `unity test --mode PlayMode`。
+
+## 两次运行一致性（P4-2）
+
+`TestRunnerBridge`（菜单 `OpenSekai/Dev/Run EditMode Tests`，或在 `unity_eval` 里调 `TestRunnerBridge.RunEditMode()`）把报告写到 `TestResults/editmode.xml`；两次运行各存一份后比对：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File Tools\compare-test-runs.ps1 `
+  -First TestResults/p4-2-editmode-run1.xml -Second TestResults/p4-2-editmode-run2.xml
+```
+
+脚本按「测试全名 + 结果」逐项比较，出现缺项、多项或结果变化就以非零退出，因此也可以直接进 CI。
+
+2026-11-12 的结果：两次都是 **569 项 / 565 通过 / 0 失败 / 4 跳过**，逐项完全相同，耗时 8.11 s 与 8.11 s。4 个跳过全部来自已停放的 `Live/DecorationTailJudgmentTests`（原因见上文「覆盖范围」，替代用例是 `DecorationTailFromChartTests`）。
+
+同轮做的隔离审计：
+
+- 测试输入全部来自仓库内的 `Tools/fixtures/`，没有本机绝对路径。这些路径按**项目根**解析，所以跑测试的进程工作目录必须是项目根——编辑器内与 `-executeMethod` 都满足，用 `unity test` 从别的目录起会读不到文件。
+- 需要落盘的 5 个 fixture 都用 `Path.GetTempPath() + Guid` 建独占目录，并在 `[TearDown]` 删除：`ChartFileReaderTests`、`SongPackageManagerTests`、`PlaySessionTests`、`LiveSettingsStoreTests`、`LibraryPresenterTests`。
+- 没有测试写仓库目录，也没有写 `persistentDataPath`。唯一的共享状态读是开局路径：`FreeLiveBootData` 构造时读 `LiveSettingsStore.Shared`，而 `Load()` 只读缓存、只有 `Save()` 会写盘，已核对无副作用。
+- 静态状态在用例内配对恢复：`LiveContextTests` 在 `[SetUp]` 存 `UserDataManager.FreeLiveBootData` 与 `EntryPoint.PlayMode` 的旧值，在 `[TearDown]` 写回并 `PlaySessionContext.Clear()`。
 
 ## 写测试的约定
 
