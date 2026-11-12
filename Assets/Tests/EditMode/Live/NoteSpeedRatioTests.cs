@@ -1,3 +1,4 @@
+using System.Linq;
 using NUnit.Framework;
 using OpenSekai.Shared.Live;
 using Sekai.Live;
@@ -110,6 +111,91 @@ namespace OpenSekai.Tests.EditMode.Live
             // No segment lengths exist to weight, so the supplied fallback is 9.
             Assert.That(NoteSpeedRatio.Resolve(new MusicScoreInfo[0], 2.25f, 3.75f, 9f),
                 Is.EqualTo(9f));
+        }
+
+        private static MusicScoreInfo At(float bar, float time, float speedRatio)
+        {
+            return new MusicScoreInfo(0, bar, time, 120f, 4f, speedRatio, 1f);
+        }
+
+        /// <summary>799 for 0.0078 bar (about 9 ms), then 1.0: the spike at bar 80.5 of the fixture.</summary>
+        private static MusicScoreInfo[] AFlashThenNormal() => new[]
+        {
+            At(0f, 0f, 1f), At(2f, 4f, 799f), At(2.0078f, 4.009f, 1f), At(6f, 12f, 1f)
+        };
+
+        [Test]
+        public void AFlashSegmentAddsNoTravelToTheNotesBehindIt()
+        {
+            // Folding the flash into the span gave this note an average of ~9.4 instead of 1: the lead was a
+            // few milliseconds long, so the note only appeared once the flash had left the playhead, part
+            // way down the screen.
+            Assert.That(NoteSpeedRatio.Resolve(AFlashThenNormal(), 0f, 5f, 1f), Is.EqualTo(1f).Within(1e-4f));
+            Assert.That(NoteSpeedRatio.Resolve(AFlashThenNormal(), 2.5f, 5f, 1f), Is.EqualTo(1f).Within(1e-4f));
+        }
+
+        [Test]
+        public void TheNoteInsideAFlashIsDrawnWithTheFlashSpeed()
+        {
+            Assert.That(NoteSpeedRatio.Resolve(AFlashThenNormal(), 0f, 2.004f, 1f), Is.EqualTo(799f).Within(1e-4f));
+        }
+
+        [Test]
+        public void TheLastEventIsNeverTreatedAsAFlash()
+        {
+            // Nothing follows it, so there is no width to compare; the span uses its speed as written.
+            // (2 bars at 1 plus half a bar at 40 over 2.5 bars = 8.8.)
+            MusicScoreInfo[] events = { At(0f, 0f, 1f), At(2f, 4f, 40f) };
+
+            Assert.That(NoteSpeedRatio.Resolve(events, 0f, 2.5f, 1f), Is.EqualTo(8.8f).Within(1e-4f));
+        }
+
+        [Test]
+        public void TheNotesBehindTheBar80SpikeKeepOneSteadyLead()
+        {
+            // The chart itself: at bar 81+3/4 the lead must stay the 1.1 segment's lead (2 s / 1.1 = 1.818 s)
+            // for the whole approach, so those notes fall in from the top edge instead of appearing part way
+            // down the screen once the spike has left the playhead.
+            const float window = 2f;
+            using var harness = new LiveHarness();
+            harness.Arrange(AutoplayCompletionTests.LoadFixture("deinos-phainein"), null, window);
+
+            var track = harness.Logic.Notes.Notes
+                .Where(note => note != null
+                    && System.Math.Abs(note.MusicScoreInfo.bar + note.MusicScoreInfo.barProgress - 81.75f) < 0.002f)
+                .ToArray();
+            Assert.That(track.Length, Is.GreaterThanOrEqualTo(3), "the fixture must still hold the notes at tick 156960");
+
+            var leads = new System.Collections.Generic.List<float>();
+            var fastLeads = new System.Collections.Generic.List<float>();
+            float end = track.Max(note => note.MusicScoreInfo.time) + 1f;
+            for (float now = 0f; now < end; now += 1f / 60f)
+            {
+                harness.OnUpdate(now, 10d + now);
+                harness.Logic.OnAutoInput();
+                foreach (Sekai.Live.NoteBase note in track)
+                {
+                    if (note.offsetTime == 0f || now >= note.MusicScoreInfo.time)
+                    {
+                        continue;
+                    }
+
+                    (System.Math.Abs(note.speedRatio - 1f) < 0.01f ? leads : fastLeads).Add(note.offsetTime);
+                }
+            }
+
+            Assert.That(leads.Count, Is.GreaterThan(0), "the ordinary notes at tick 156960");
+            float expected = window / 1.1f;
+            float smallest = leads.OrderBy(value => value).First();
+            float largest = leads.OrderByDescending(value => value).First();
+            Assert.That(smallest, Is.EqualTo(expected).Within(expected * 0.02f),
+                $"smallest lead {smallest:F4}s, largest {largest:F4}s; the spike must not shorten them");
+            Assert.That(largest, Is.EqualTo(expected).Within(expected * 0.02f),
+                $"largest lead {largest:F4}s, smallest {smallest:F4}s");
+            Assert.That(fastLeads.Count, Is.GreaterThan(0), "the notes written at 3x speed");
+            Assert.That(fastLeads.OrderBy(value => value).First(),
+                Is.EqualTo(expected / 3f).Within(expected / 3f * 0.02f),
+                "a 3x note keeps a third of the lead from the start, not just at the end");
         }
     }
 }
