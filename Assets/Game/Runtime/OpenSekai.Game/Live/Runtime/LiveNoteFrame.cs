@@ -53,6 +53,7 @@ namespace Sekai.Core.Live
 				offsetTime = -offsetTime;
 			}
 
+			PreloadView(note, offsetTime);
 			note.Excute(Frame, offsetTime);
 
 			// Decoration notes need to be processed after Excute to check OffsetJudgeTime
@@ -69,6 +70,35 @@ namespace Sekai.Core.Live
 			return LiveNoteSession.Scan.Handle;
 		}
 
+		/// <summary>
+		/// How much earlier than its own display window a note's view is built, so that building it can never
+		/// decide where the note first appears.
+		/// </summary>
+		internal const float PreloadMarginSeconds = 0.1f;
+
+		/// <summary>
+		/// Builds the note's view a little before it can be seen. Creating a view is what used to happen at
+		/// whatever progress the frame loop reached it at; doing it a fixed 100 ms early means the note is
+		/// already there when its window opens, and the drawn position is what decides where it appears.
+		/// </summary>
+		private void PreloadView(NoteBase note, float offsetTime)
+		{
+			if (note.State == NoteState.Done || offsetTime <= 0f)
+			{
+				return;
+			}
+
+			float timeLeft = note.MusicScoreInfo.time - Frame.time;
+			if (timeLeft > offsetTime + PreloadMarginSeconds)
+			{
+				return;
+			}
+
+			// Idempotent on the view side (the note pool keys off the note), so it can simply be asked every
+			// frame of the margin instead of remembering that it was asked.
+			_presentation.Spawn(_session.Views, note, Frame.time);
+		}
+
 		/// <summary>One high speed note: same shape, its own display lead.</summary>
 		private LiveNoteSession.Scan ScanHighSpeedNote(NoteBase note)
 		{
@@ -80,6 +110,7 @@ namespace Sekai.Core.Live
 				return LiveNoteSession.Scan.Stop;
 			}
 
+			PreloadView(note, offsetTime);
 			note.Excute(Frame, offsetTime);
 
 			if (note.IsDecoration && note.State != NoteState.Done && ShouldTriggerDecorationJudgment(note))
