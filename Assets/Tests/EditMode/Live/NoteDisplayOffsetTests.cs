@@ -40,5 +40,18 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(NoteDisplayOffset.Resolve(2f, 1.5f, 0f, ref negative), Is.EqualTo(0f));
             Assert.That(negative, Is.False);
         }
+
+        [Test]
+        public void AnExtremeSpeedSpikeIsDividedOutInFull()
+        {
+            // Upstream behaviour, pinned because it looks like a bug and is not one: the chart uses a huge
+            // speed value to make notes appear abruptly, and the display offset really does become tiny.
+            // The clamp that was tried here did not fix the reported flash (the chart never produced a
+            // collapsed offset), so nothing clamps it - do not "fix" this by flooring it.
+            bool negative = false;
+
+            Assert.That(NoteDisplayOffset.Resolve(1f, 799f, 1f, ref negative), Is.EqualTo(1f / 799f).Within(1e-6f));
+            Assert.That(negative, Is.False);
+        }
     }
 }
