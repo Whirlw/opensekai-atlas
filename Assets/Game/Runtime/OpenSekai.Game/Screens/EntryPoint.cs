@@ -32,7 +32,12 @@ namespace Sekai.Core
 			switch (PlayMode)
 			{
 				case PlayMode.SoloLive:
-					controller = gameObject.AddComponent<Live.SoloLiveController>();
+					// The one place that reads the retained boot boundary for a live: the controller
+					// receives a context instead of reaching for the statics during its own Awake.
+					LiveContext context = LiveContext.FromRetainedBoot();
+					Live.SoloLiveController solo = gameObject.AddComponent<Live.SoloLiveController>();
+					solo.Initialize(context);
+					controller = solo;
 					break;
 				default:
 					Debug.LogWarning($"Unsupported Core PlayMode: {PlayMode}");

@@ -547,6 +547,15 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
   - 验证：`unity recompile` 0 error；全量 EditMode 564 项、560 通过、0 失败、4 跳过（比上批 +6）；缺失脚本清单 sha256 与 P0-2 基线逐字节相同；`verify-structure.ps1` 与 `verify-resource-paths.ps1`（`calls=31 missing=0`）通过。
   - 未做：`SoloLiveController`/`LiveLogic` 的 `LiveContext`、`LegacyLiveBootAdapter` 里的 `UserDataManager.Instance.SelectedDeckId`、`LibraryUi` 等仍读静态的调用点。第二批按"Game 持有接口、App 装配"的方向做，并保持 Game 不引用 App。
 
+- P4-1 第二批完成，起点 `002490ab`。Game 侧新增 `LiveContext`（`OpenSekai.Game/Live/Runtime/LiveContext.cs`），把本局需要的东西收成一个类型：`BootData`、`PlayMode`、`SessionId`、`ChartHash`、`RulesVersion`。
+  - `EntryPoint.CreateController` 是唯一的读取点：`LiveContext.FromRetainedBoot()` 一次性从 `UserDataManager`、`EntryPoint.PlayMode`、`PlaySessionContext` 取值，然后 `AddComponent<SoloLiveController>()` 之后立刻 `Initialize(context)`。写入侧（App 的端口）一行没动。
+  - `SoloLiveController` 不再是"在 `Awake` 里摸单例"：原来的 `OnAwake` 主体拆成 `BeginLive()`，`OnAwake` 只做 `base.OnAwake()`（不碰 `BootData`），`Initialize` 设好 `BootData` 再跑 `BeginLive()`。因为 `Initialize` 紧跟 `AddComponent`，时序与旧版同帧一致；播放历史的三个字段改读 `_context`，`_context` 为空时连 `_playHistoryRecorded` 都不置位。
+  - 为什么不用构造函数注入：`BaseController.Awake` 里直接调 `OnAwake()`，而 `AddComponent` 会同步触发 `Awake`，构造参数没地方塞。改用"`AddComponent` 后同帧`Initialize`"这条既有初始化入口，避免为一个赋值点去改控制器生命周期。
+  - 新增 `LiveContextTests` 四项：五个字段逐个对上静态值、缺 Boot 时其余字段仍完整、null 会话字段降级成空串、连续两次读取拿到互不影响的副本。
+  - 复查残留：运行时读 `FreeLiveBootData` 单例的地方只剩两处——App 的 `LegacyPlayBootPublisher`（写入与回滚）与 Game 的 `LiveContext.FromRetainedBoot`（读取）；`PlaySessionContext` 的三字段读取也只剩 `LiveContext` 一处。Editor 侧的 `DirectPlayValidation`、`LibraryPlayCheck` 仍直接读，属诊断工具，本轮不动。Game 程序集对 App 的引用为 0 处。
+  - 验证：`unity recompile` 0 error；全量 EditMode 568 项、564 通过、0 失败、4 跳过（比上批 +4）；缺失脚本清单 sha256 与 P0-2 基线逐字节相同；`verify-structure.ps1` 与 `verify-resource-paths.ps1`（`calls=31 missing=0`）通过。
+  - 未做：`LiveLogic` 目前通过 `_baseController`/参数拿数据，不需要 `LiveContext`，第二轮没有硬塞；`LegacyLiveBootAdapter` 的 `SelectedDeckId` 读取仍直连单例（写入侧的事，等 P4-1 第三批把它也交给端口）。真机验收仍是 M2 那一轮记录，本批只保证"开局时机与数据不变"。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动

@@ -25,7 +25,7 @@
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/UI/` | `UIParts*` 部件、自定义 UGUI 控件（`Custom*`、`Touch*` 反馈）、数字与图集工具、字体与颜色工具 |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Assets/` | `ResourceCatalog`（固定资源的类型化目录）、AssetBundle 下载、加载与管理、清单、`Resources` 回退与 LRU 缓存 |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Data/` | Master 数据模型、曲目与 Live 数据、设置与本地存储入口、玩法枚举 |
-| OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Live/Runtime/` | Live 帧循环与时钟、输入路由与候选、判定调度、会话状态与统计、控制器、技能逻辑、曲目配置与时间轴 DTO |
+| OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Live/Runtime/` | Live 帧循环与时钟、输入路由与候选、判定调度、会话状态与统计、控制器、技能逻辑、曲目配置与时间轴 DTO；`LiveContext` 是本局从开局边界拿到的唯一一份依赖（开局数据、模式、会话标识） |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Live/View/` | 前场与结算视图、背景、曲目信息、屏幕特效与遮罩、特写与技能文字、音符视图与 HUD、判定与计分反馈、Live 过场 |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Live/Notes/` | `NoteBase` 与各类音符、长条主体/接缝/尾判、`Tails/` 四种尾行为 |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Rendering/` | URP Renderer Feature 与 Pass、UI 模糊与特效参数、相机与背景组件、shader 预载 |

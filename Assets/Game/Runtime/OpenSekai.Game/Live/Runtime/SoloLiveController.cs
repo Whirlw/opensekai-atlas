@@ -20,16 +20,48 @@ namespace Sekai.Core.Live
 		private LiveViewBase[] _liveViews;
 		private LiveLogic _liveLogic;
 
+		private LiveContext _context;
+
 		protected override void OnAwake()
 		{
 			base.OnAwake();
-			BootData = UserDataManager.Instance.FreeLiveBootData;
-			if (BootData == null)
+			// The context arrives from the scene entry point right after AddComponent, so the boot body
+			// runs from Initialize. Awake only prepares the base state.
+			if (_context != null)
 			{
-				Debug.LogWarning("FreeLiveBootData is null. Test play cannot start.");
-				return;
+				BeginLive();
+			}
+		}
+
+		/// <summary>
+		/// Takes the context the entry point assembled and starts the live. Called once, immediately
+		/// after AddComponent, so the timing matches the old OnAwake body exactly.
+		/// </summary>
+		public void Initialize(LiveContext context)
+		{
+			if (context == null)
+			{
+				throw new System.ArgumentNullException(nameof(context));
+			}
+			if (_context != null)
+			{
+				throw new System.InvalidOperationException("The live has already been initialized.");
 			}
 
+			_context = context;
+			BootData = context.BootData;
+			if (BootData != null)
+			{
+				BeginLive();
+			}
+			else
+			{
+				Debug.LogWarning("FreeLiveBootData is null. Test play cannot start.");
+			}
+		}
+
+		private void BeginLive()
+		{
 			currentMusicTimeMs = System.Math.Max(0L, BootData.MusicData?.StartMusicTimeMs ?? 0L);
 			Setup();
 			LoadSound();
@@ -279,7 +311,7 @@ namespace Sekai.Core.Live
 
 		private void TryAppendPlayHistory()
 		{
-			if (_playHistoryRecorded || result != 3 || BootData?.IsAuto == true)
+			if (_playHistoryRecorded || result != 3 || BootData?.IsAuto == true || _context == null)
 			{
 				return;
 			}
@@ -292,9 +324,9 @@ namespace Sekai.Core.Live
 					_liveLogic?.Score ?? default,
 					currentMusicTimeMs,
 					musicLength,
-					PlaySessionContext.SessionId,
-					PlaySessionContext.ChartHash,
-					PlaySessionContext.RULES_VERSION);
+					_context.SessionId,
+					_context.ChartHash,
+					_context.RulesVersion);
 			}
 		}
 
