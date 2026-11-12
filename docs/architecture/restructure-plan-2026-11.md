@@ -630,6 +630,11 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
   - `SekaiSingletonManager.EnsureEventSystem()` **保留**：它是直接进 `Core.unity`（编辑器里单场景直跑）时的唯一兜底。曲库路径上 `LibraryEntryPoint.EnsureEventSystem` 先建好，它走到 `EventSystem.current != null` 就复用同一个实例，两条路不会各自造一个。
   - 验证：`unity recompile` 0 error；全量 EditMode 573 项、569 通过、0 失败、4 跳过（与删除前逐项相同）；`verify-structure.ps1 -CheckAssemblies -CheckProjects -RequireNoEmptyDirectories` 通过。
 
+- **开局音缺失已修**（起点 `a564828b`）。真机日志给出唯一线索：`SE_AREA_TRANSITION_SEKAI is not registered.`——转场音效在 `LiveTransitioner` 与 `UIUtility.PlayLiveTransition` 里是默认值，但换成自制音效包时漏掉了这一条，于是开局转场全程无声。P2-5 记的“开局音不播放”就是它；倒计时那记 beep 只在暂停恢复时响（`OnResume` → `LiveViewExt.Countdown`），不是开局音。
+  - 补一个自制 whoosh 进去：仓库里没有现成的音频生成器，本次用一次性脚本合成（扫频噪声 + 两个 D6 铃音，0.75 s、44.1 kHz、立体声、−3 dBFS），落在 `Assets/StreamingAssets/sound/live/sound/live_se/common/SE_AREA_TRANSITION_SEKAI.wav`。
+  - 三张表各补一行：运行时清单 `Assets/StreamingAssets/sound/manifest.csv`、审计用的 `docs/reference/audio-cues.csv`、署名表 `docs/reference/audio-credits.md`（自制 / CC0 / 2026-11-12）。
+  - 验证：`Tools/audit-audio-provenance.ps1` 为 `AUDIT OK`（43 条 cue）；PlayMode 的 `ShippedWavePackRegistersEveryManifestCue` 本来就按 manifest 逐 bundle 校验注册与长度，新 cue 自动纳入，并新增一条断言 `PlaySE("SE_AREA_TRANSITION_SEKAI")` 能真正起播；PlayMode 3/3 通过（48.1 s）。真机复验并入下次发包。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动

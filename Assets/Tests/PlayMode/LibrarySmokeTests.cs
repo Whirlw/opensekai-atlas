@@ -111,6 +111,12 @@ namespace OpenSekai.Tests.PlayMode
             Assert.That(playback, Is.Not.Zero, "the result cue can start playback");
             sound.StopSE(playback);
 
+            // The transition into a live used to warn "SE_AREA_TRANSITION_SEKAI is not registered."
+            // on device: the cue was referenced by LiveTransitioner but never shipped.
+            uint transition = sound.PlaySE("SE_AREA_TRANSITION_SEKAI");
+            Assert.That(transition, Is.Not.Zero, "the live transition cue can start playback");
+            sound.StopSE(transition);
+
             const string missing = "__opensekai_missing_sound_fixture__";
             Assert.That(sound.ExistsCueName(missing), Is.False);
             string message = missing + " is not registered.";
