@@ -1,18 +1,16 @@
 using System.IO;
 using System.Reflection;
-using System.Threading;
 using System.Collections;
 using NUnit.Framework;
-using OpenSekai.App.Playback;
 using OpenSekai.App.UI;
 using OpenSekai.Shared.Playback;
 using Sekai;
 using Sekai.Core.Live;
-using GameSceneManager = Sekai.SceneManager;
 using UnityEngine;
 using SceneLoader = UnityEngine.SceneManagement.SceneManager;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
+using UnityEngine.UI;
 
 namespace OpenSekai.Tests.PlayMode
 {
@@ -43,6 +41,7 @@ namespace OpenSekai.Tests.PlayMode
             }
 
             Assert.That(screen, Is.Not.Null, "LibraryScreen was not created within " + BootTimeoutSeconds + " s");
+            Assert.That(screen.IsReady, Is.True, "the library view should be assembled");
             Assert.That(ScreenManager.ExistsInstance, Is.True, "ScreenManager should be alive after boot");
         }
 
@@ -53,12 +52,12 @@ namespace OpenSekai.Tests.PlayMode
             yield return LibrarySceneBootsAndShowsThePage();
             var originalLibrary = Object.FindFirstObjectByType<LibraryScreen>();
             string fixture = Path.GetFullPath(Path.Combine(Application.dataPath, "../Tools/fixtures/baseline_tap"));
-            var request = new PlayRequest(fixture, true, GameSceneManager.Scene.Library);
-            using var cancellation = new CancellationTokenSource();
-            var start = PlayService.Instance.StartAsync(request, cancellation.Token).GetAwaiter();
-            yield return WaitFor(() => start.IsCompleted, BootTimeoutSeconds, "starting baseline playback");
-            var started = start.GetResult();
-            Assert.That(started.Started, Is.True, started.Message);
+            originalLibrary.ShowResult(PlayResult.FromLoadError("Baseline Tap", true, fixture, "Retry smoke setup"));
+            var retryPanel = Object.FindFirstObjectByType<LibraryResultPanel>();
+            Assert.That(retryPanel, Is.Not.Null, "the library should display the retry panel");
+            var retry = retryPanel.transform.Find("Panel/Retry")?.GetComponent<Button>();
+            Assert.That(retry, Is.Not.Null, "the result panel should wire its retry button");
+            retry.onClick.Invoke();
 
             yield return WaitFor(
                 () => SceneLoader.GetActiveScene().name == "Core" && Object.FindFirstObjectByType<SoloLiveController>() != null,

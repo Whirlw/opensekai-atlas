@@ -438,6 +438,9 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 - P2-1 通过，起点 `1a7c084d`。拆分前后均通过 `unity command test run --mode editmode --filter ScreenManagerTests` 所覆盖的五项契约。通过 Unity 反射逐项比对 `ScreenManager`、其公开嵌套类型和 `HeaderUtility`，225 项公开 API 的签名、参数名、默认值和泛型约束一致。门面保留 Unity 组件、序列化字段和单例入口，页面栈、对话框、过场和页头由实例服务处理。门面 658 行，四个服务依次为 597、304、369、174 行，模糊捕获辅助类由过场服务持有。
 - `unity recompile` 为 0 error。全量 EditMode 517 通过、0 失败、4 跳过，原 516 例结果逐项一致。通过 `Tools/verify-structure.ps1 -CheckProjects -CheckAssemblies -RequireNoEmptyDirectories`，缺失脚本清单与基线一致。异步 `LibrarySmokeTests` 两例均通过，整首结算为 1,000,000 / S 并返回曲库。报告、命令与差异检查在 `TestResults/restructure-p2-1-*`。
 
+- P2-2 通过，起点 `76f2c656`。拆出 `LibraryView`、`LibraryPresenter`、`LibraryModel` 和控件辅助类 `LibraryUi`，`LibraryScreen` 保留组件生命周期和依赖装配。门面、视图、Presenter、Model、控件辅助类依次为 50、342、326、85、298 行。沿用原有行重建行为和曲包存储入口。
+- `unity recompile` 为 0 error。五个无场景 Presenter 用例验证排序、文件夹导入、手动/自动请求及失败重开。全量 EditMode 522 通过、0 失败、4 跳过，上一批 521 例结果逐项一致。异步 `LibrarySmokeTests` 两例均通过，整首用例从实际结算面板「再玩一次」进入 Core，再返回曲库结算为 1,000,000 / S。程序集与 IDE 检查通过，缺失脚本新增 0。报告在 `TestResults/restructure-p2-2-*`。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动

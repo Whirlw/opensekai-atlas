@@ -55,8 +55,8 @@ namespace OpenSekai.App.UI
 
         public static LibrarySettingsPanel Create(Transform parent, Action _onChanged)
         {
-            RectTransform root = LibraryScreen.CreateRect("SettingsPanel", parent);
-            LibraryScreen.Stretch(root);
+            RectTransform root = LibraryUi.CreateRect("SettingsPanel", parent);
+            LibraryUi.Stretch(root);
             LibrarySettingsPanel panel = root.gameObject.AddComponent<LibrarySettingsPanel>();
             panel._onChanged = _onChanged;
             panel.Build();
@@ -85,10 +85,10 @@ namespace OpenSekai.App.UI
 
         private void Build()
         {
-            Image overlay = LibraryScreen.CreateImage("Overlay", transform, OverlayColor);
-            LibraryScreen.Stretch(overlay.rectTransform);
+            Image overlay = LibraryUi.CreateImage("Overlay", transform, OverlayColor);
+            LibraryUi.Stretch(overlay.rectTransform);
 
-            RectTransform panel = LibraryScreen.CreateRect("Panel", transform);
+            RectTransform panel = LibraryUi.CreateRect("Panel", transform);
             panel.anchorMin = new Vector2(0.5f, 0.5f);
             panel.anchorMax = new Vector2(0.5f, 0.5f);
             panel.pivot = new Vector2(0.5f, 0.5f);
@@ -96,7 +96,7 @@ namespace OpenSekai.App.UI
             Image panelImage = panel.gameObject.AddComponent<Image>();
             panelImage.color = PanelColor;
 
-            TextMeshProUGUI title = LibraryScreen.CreateText(
+            TextMeshProUGUI title = LibraryUi.CreateText(
                 "Title", panel, "设置", 36f, FontStyles.Bold, TextAlignmentOptions.Left);
             title.rectTransform.anchorMin = new Vector2(0f, 1f);
             title.rectTransform.anchorMax = new Vector2(0.6f, 1f);
@@ -104,14 +104,14 @@ namespace OpenSekai.App.UI
             title.rectTransform.offsetMin = new Vector2(36f, -84f);
             title.rectTransform.offsetMax = new Vector2(0f, -28f);
 
-            Button close = LibraryScreen.CreateButton("Close", panel, "关闭", Hide, 140f, 52f);
+            Button close = LibraryUi.CreateButton("Close", panel, "关闭", Hide, 140f, 52f);
             RectTransform closeRect = (RectTransform)close.transform;
             closeRect.anchorMin = new Vector2(1f, 1f);
             closeRect.anchorMax = new Vector2(1f, 1f);
             closeRect.pivot = new Vector2(1f, 1f);
             closeRect.anchoredPosition = new Vector2(-28f, -28f);
 
-            RectTransform rows = LibraryScreen.CreateRect("Rows", panel);
+            RectTransform rows = LibraryUi.CreateRect("Rows", panel);
             rows.anchorMin = new Vector2(0f, 0f);
             rows.anchorMax = new Vector2(1f, 1f);
             rows.offsetMin = new Vector2(32f, 60f);
@@ -172,7 +172,7 @@ namespace OpenSekai.App.UI
                 value => { LiveTrace.Enabled = value; SaveSettings(); },
                 () => LiveTrace.Enabled ? TraceOnLabel : TraceOffLabel);
 
-            TextMeshProUGUI hint = LibraryScreen.CreateText(
+            TextMeshProUGUI hint = LibraryUi.CreateText(
                 "Hint", panel, "皮肤、打击音与打击特效在下一次开局时生效。", 20f,
                 FontStyles.Normal, TextAlignmentOptions.Left);
             hint.color = new Color32(150, 160, 174, 255);
@@ -190,27 +190,27 @@ namespace OpenSekai.App.UI
         {
             RectTransform row = CreateRow(parent, index++);
 
-            TextMeshProUGUI labelText = LibraryScreen.CreateText(
+            TextMeshProUGUI labelText = LibraryUi.CreateText(
                 "Label", row, label, 26f, FontStyles.Normal, TextAlignmentOptions.Left);
             labelText.rectTransform.anchorMin = new Vector2(0f, 0f);
             labelText.rectTransform.anchorMax = new Vector2(0.55f, 1f);
             labelText.rectTransform.offsetMin = new Vector2(20f, 0f);
             labelText.rectTransform.offsetMax = Vector2.zero;
 
-            TextMeshProUGUI valueText = LibraryScreen.CreateText(
+            TextMeshProUGUI valueText = LibraryUi.CreateText(
                 "Value", row, string.Empty, 26f, FontStyles.Bold, TextAlignmentOptions.Right);
             valueText.rectTransform.anchorMin = new Vector2(0.45f, 0f);
             valueText.rectTransform.anchorMax = new Vector2(0.72f, 1f);
             valueText.rectTransform.offsetMin = Vector2.zero;
             valueText.rectTransform.offsetMax = Vector2.zero;
 
-            Button minus = LibraryScreen.CreateButton("Minus", row, "－", () =>
+            Button minus = LibraryUi.CreateButton("Minus", row, "－", () =>
             {
                 float next = Mathf.Clamp(get() - step, min, max);
                 set(next);
                 RefreshValues();
             }, 64f, 44f);
-            Button plus = LibraryScreen.CreateButton("Plus", row, "＋", () =>
+            Button plus = LibraryUi.CreateButton("Plus", row, "＋", () =>
             {
                 float next = Mathf.Clamp(get() + step, min, max);
                 set(next);
@@ -231,21 +231,21 @@ namespace OpenSekai.App.UI
         {
             RectTransform row = CreateRow(parent, index++);
 
-            TextMeshProUGUI labelText = LibraryScreen.CreateText(
+            TextMeshProUGUI labelText = LibraryUi.CreateText(
                 "Label", row, label, 26f, FontStyles.Normal, TextAlignmentOptions.Left);
             labelText.rectTransform.anchorMin = new Vector2(0f, 0f);
             labelText.rectTransform.anchorMax = new Vector2(0.55f, 1f);
             labelText.rectTransform.offsetMin = new Vector2(20f, 0f);
             labelText.rectTransform.offsetMax = Vector2.zero;
 
-            TextMeshProUGUI valueText = LibraryScreen.CreateText(
+            TextMeshProUGUI valueText = LibraryUi.CreateText(
                 "Value", row, string.Empty, 26f, FontStyles.Bold, TextAlignmentOptions.Right);
             valueText.rectTransform.anchorMin = new Vector2(0.45f, 0f);
             valueText.rectTransform.anchorMax = new Vector2(0.72f, 1f);
             valueText.rectTransform.offsetMin = Vector2.zero;
             valueText.rectTransform.offsetMax = Vector2.zero;
 
-            Button toggle = LibraryScreen.CreateButton("Toggle", row, "切换", () =>
+            Button toggle = LibraryUi.CreateButton("Toggle", row, "切换", () =>
             {
                 set(!get());
                 RefreshValues();
@@ -263,21 +263,21 @@ namespace OpenSekai.App.UI
         {
             RectTransform row = CreateRow(parent, index++);
 
-            TextMeshProUGUI labelText = LibraryScreen.CreateText(
+            TextMeshProUGUI labelText = LibraryUi.CreateText(
                 "Label", row, label, 26f, FontStyles.Normal, TextAlignmentOptions.Left);
             labelText.rectTransform.anchorMin = new Vector2(0f, 0f);
             labelText.rectTransform.anchorMax = new Vector2(0.55f, 1f);
             labelText.rectTransform.offsetMin = new Vector2(20f, 0f);
             labelText.rectTransform.offsetMax = Vector2.zero;
 
-            TextMeshProUGUI valueText = LibraryScreen.CreateText(
+            TextMeshProUGUI valueText = LibraryUi.CreateText(
                 "Value", row, string.Empty, 26f, FontStyles.Bold, TextAlignmentOptions.Right);
             valueText.rectTransform.anchorMin = new Vector2(0.45f, 0f);
             valueText.rectTransform.anchorMax = new Vector2(0.72f, 1f);
             valueText.rectTransform.offsetMin = Vector2.zero;
             valueText.rectTransform.offsetMax = Vector2.zero;
 
-            Button toggle = LibraryScreen.CreateButton("Cycle", row, "切换", () =>
+            Button toggle = LibraryUi.CreateButton("Cycle", row, "切换", () =>
             {
                 int next = Mathf.Clamp(get(), 0, optionCount - 1) + 1;
                 set(next >= optionCount ? 0 : next);
@@ -289,7 +289,7 @@ namespace OpenSekai.App.UI
         }
 
         private static RectTransform CreateRow(Transform parent, int index)        {
-            RectTransform row = LibraryScreen.CreateRect("Row" + index, parent);
+            RectTransform row = LibraryUi.CreateRect("Row" + index, parent);
             row.anchorMin = new Vector2(0f, 1f);
             row.anchorMax = new Vector2(1f, 1f);
             row.pivot = new Vector2(0.5f, 1f);

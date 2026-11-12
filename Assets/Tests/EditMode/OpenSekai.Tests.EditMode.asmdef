@@ -6,7 +6,8 @@
         "OpenSekai.Game",
         "OpenSekai.App",
         "OpenSekai.Editor",
-        "Unity.InputSystem"
+        "Unity.InputSystem",
+        "UniTask"
     ],
     "includePlatforms": [
         "Editor"

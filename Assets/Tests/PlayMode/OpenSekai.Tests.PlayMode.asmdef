@@ -6,6 +6,7 @@
         "OpenSekai.Game",
         "OpenSekai.App",
         "UniTask",
+        "UnityEngine.UI",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

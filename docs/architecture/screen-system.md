@@ -41,8 +41,8 @@ PushUIScreen(type)  →  screenMap 查不到 → LogError("Not Found ScreenLayer
 
 ### 曲库页不在页面系统里
 
-`LibraryScreen` 自己建 Canvas 与相机（`LibraryScreenCamera`，`ScreenSpaceCamera` + `cullDepth 100`），
-不走 `ScreenLayerData`，只通过 `LibraryPageRegistry` 对外暴露 `ILibraryPage`（`IsReady` 等）。
+`LibraryScreen` 装配曲库组件，`LibraryView` 建 Canvas 与相机（`LibraryScreenCamera`，`ScreenSpaceCamera` + `cullDepth 100`），
+页面通过 `LibraryPageRegistry` 对外暴露 `ILibraryPage`（`IsReady` 等）。`LibraryPresenter` 处理导入、开局及结果，`LibraryModel` 负责列表排序。
 这样做的原因：曲库页是全新写的，不需要旧的 prefab/注册表链路，也能被相机截图工具直接渲染。
 
 `PlayService.IsLibraryAlive()` 的判定顺序因此是：先看 `LibraryPageRegistry.Current`，为空才回退到旧的

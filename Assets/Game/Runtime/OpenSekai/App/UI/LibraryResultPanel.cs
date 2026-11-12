@@ -31,8 +31,8 @@ namespace OpenSekai.App.UI
 
         public static LibraryResultPanel Create(Transform parent, Action<PlayResult> _onRetry)
         {
-            RectTransform root = LibraryScreen.CreateRect("ResultPanel", parent);
-            LibraryScreen.Stretch(root);
+            RectTransform root = LibraryUi.CreateRect("ResultPanel", parent);
+            LibraryUi.Stretch(root);
             LibraryResultPanel panel = root.gameObject.AddComponent<LibraryResultPanel>();
             panel._onRetry = _onRetry;
             panel.Build();
@@ -61,10 +61,10 @@ namespace OpenSekai.App.UI
 
         private void Build()
         {
-            Image overlay = LibraryScreen.CreateImage("Overlay", transform, OverlayColor);
-            LibraryScreen.Stretch(overlay.rectTransform);
+            Image overlay = LibraryUi.CreateImage("Overlay", transform, OverlayColor);
+            LibraryUi.Stretch(overlay.rectTransform);
 
-            RectTransform panel = LibraryScreen.CreateRect("Panel", transform);
+            RectTransform panel = LibraryUi.CreateRect("Panel", transform);
             panel.anchorMin = new Vector2(0.5f, 0.5f);
             panel.anchorMax = new Vector2(0.5f, 0.5f);
             panel.pivot = new Vector2(0.5f, 0.5f);
@@ -72,7 +72,7 @@ namespace OpenSekai.App.UI
             Image panelImage = panel.gameObject.AddComponent<Image>();
             panelImage.color = PanelColor;
 
-            _titleText = LibraryScreen.CreateText("Song", panel, string.Empty, 34f, FontStyles.Bold, TextAlignmentOptions.Center);
+            _titleText = LibraryUi.CreateText("Song", panel, string.Empty, 34f, FontStyles.Bold, TextAlignmentOptions.Center);
             _titleText.rectTransform.anchorMin = new Vector2(0f, 1f);
             _titleText.rectTransform.anchorMax = new Vector2(1f, 1f);
             _titleText.rectTransform.pivot = new Vector2(0.5f, 1f);
@@ -81,7 +81,7 @@ namespace OpenSekai.App.UI
             _titleText.textWrappingMode = TextWrappingModes.NoWrap;
             _titleText.overflowMode = TextOverflowModes.Ellipsis;
 
-            _subtitleText = LibraryScreen.CreateText("Subtitle", panel, string.Empty, 22f, FontStyles.Normal, TextAlignmentOptions.Center);
+            _subtitleText = LibraryUi.CreateText("Subtitle", panel, string.Empty, 22f, FontStyles.Normal, TextAlignmentOptions.Center);
             _subtitleText.rectTransform.anchorMin = new Vector2(0f, 1f);
             _subtitleText.rectTransform.anchorMax = new Vector2(1f, 1f);
             _subtitleText.rectTransform.pivot = new Vector2(0.5f, 1f);
@@ -89,14 +89,14 @@ namespace OpenSekai.App.UI
             _subtitleText.rectTransform.offsetMax = new Vector2(-40f, -96f);
             _subtitleText.color = new Color32(168, 182, 198, 255);
 
-            _scoreText = LibraryScreen.CreateText("Score", panel, "0", 92f, FontStyles.Bold, TextAlignmentOptions.Center);
+            _scoreText = LibraryUi.CreateText("Score", panel, "0", 92f, FontStyles.Bold, TextAlignmentOptions.Center);
             _scoreText.rectTransform.anchorMin = new Vector2(0f, 1f);
             _scoreText.rectTransform.anchorMax = new Vector2(1f, 1f);
             _scoreText.rectTransform.pivot = new Vector2(0.5f, 1f);
             _scoreText.rectTransform.offsetMin = new Vector2(40f, -260f);
             _scoreText.rectTransform.offsetMax = new Vector2(-40f, -140f);
 
-            _rankText = LibraryScreen.CreateText("Rank", panel, string.Empty, 44f, FontStyles.Bold, TextAlignmentOptions.Center);
+            _rankText = LibraryUi.CreateText("Rank", panel, string.Empty, 44f, FontStyles.Bold, TextAlignmentOptions.Center);
             _rankText.rectTransform.anchorMin = new Vector2(0f, 1f);
             _rankText.rectTransform.anchorMax = new Vector2(1f, 1f);
             _rankText.rectTransform.pivot = new Vector2(0.5f, 1f);
@@ -104,14 +104,14 @@ namespace OpenSekai.App.UI
             _rankText.rectTransform.offsetMax = new Vector2(-40f, -268f);
             _rankText.color = AccentColor;
 
-            _statsText = LibraryScreen.CreateText("Stats", panel, string.Empty, 26f, FontStyles.Normal, TextAlignmentOptions.Center);
+            _statsText = LibraryUi.CreateText("Stats", panel, string.Empty, 26f, FontStyles.Normal, TextAlignmentOptions.Center);
             _statsText.rectTransform.anchorMin = new Vector2(0f, 1f);
             _statsText.rectTransform.anchorMax = new Vector2(1f, 1f);
             _statsText.rectTransform.pivot = new Vector2(0.5f, 1f);
             _statsText.rectTransform.offsetMin = new Vector2(40f, -372f);
             _statsText.rectTransform.offsetMax = new Vector2(-40f, -328f);
 
-            _judgementText = LibraryScreen.CreateText("Judgements", panel, string.Empty, 22f, FontStyles.Normal, TextAlignmentOptions.Center);
+            _judgementText = LibraryUi.CreateText("Judgements", panel, string.Empty, 22f, FontStyles.Normal, TextAlignmentOptions.Center);
             _judgementText.rectTransform.anchorMin = new Vector2(0f, 1f);
             _judgementText.rectTransform.anchorMax = new Vector2(1f, 1f);
             _judgementText.rectTransform.pivot = new Vector2(0.5f, 1f);
@@ -119,14 +119,14 @@ namespace OpenSekai.App.UI
             _judgementText.rectTransform.offsetMax = new Vector2(-40f, -376f);
             _judgementText.color = new Color32(168, 182, 198, 255);
 
-            Button retry = LibraryScreen.CreateButton("Retry", panel, "再玩一次", Retry, 240f, 64f);
+            Button retry = LibraryUi.CreateButton("Retry", panel, "再玩一次", Retry, 240f, 64f);
             RectTransform retryRect = (RectTransform)retry.transform;
             retryRect.anchorMin = new Vector2(0.5f, 0f);
             retryRect.anchorMax = new Vector2(0.5f, 0f);
             retryRect.pivot = new Vector2(1f, 0f);
             retryRect.anchoredPosition = new Vector2(-16f, 40f);
 
-            Button close = LibraryScreen.CreateButton("Back", panel, "返回曲库", Close, 240f, 64f);
+            Button close = LibraryUi.CreateButton("Back", panel, "返回曲库", Close, 240f, 64f);
             RectTransform closeRect = (RectTransform)close.transform;
             closeRect.anchorMin = new Vector2(0.5f, 0f);
             closeRect.anchorMax = new Vector2(0.5f, 0f);

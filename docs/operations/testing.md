@@ -108,7 +108,7 @@ $rsp    = (Get-ChildItem 'Library\Bee\artifacts' -Recurse -Filter 'OpenSekai.Gam
 
 ## 为什么没有「整首打歌」的自动化测试
 
-P0-5 的显式用例 `LibrarySmokeTests.BaselineTapAutoplaysAndReturnsToTheLibrary` 使用仓库中的 `Tools/fixtures/baseline_tap`，通过 `PlayService` 自动开局，再读取 Core 控制器、返回后的曲库组件和结算结果。Unity Pipeline 的异步测试支持跨域重载和场景切换。
+P0-5 的显式用例 `LibrarySmokeTests.BaselineTapAutoplaysAndReturnsToTheLibrary` 使用仓库中的 `Tools/fixtures/baseline_tap`，通过结算面板的「再玩一次」触发 `PlayService` 自动开局，再读取 Core 控制器、返回后的曲库组件和结算结果。Unity Pipeline 的异步测试支持跨域重载和场景切换。
 
 ```powershell
 unity command test run --caller plugin --skill unity-cli --mode playmode --filter LibrarySmokeTests --async_tests --include_explicit
