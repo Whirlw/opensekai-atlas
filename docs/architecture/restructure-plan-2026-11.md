@@ -446,7 +446,7 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 
 - P2-3 代码拆分完成。门面保留状态机、继承入口和回调顺序。尾部窗口、释放、划键和尾判复位移到 `LongNoteTail`，继续使用既有尾行为。条体覆盖和宽限期移到 `HoldBody`，轨道显示与回收由 `BarView` 处理，谱面部件装配单独归档。门面 454 个非空行。
 - `unity recompile` 为 0 error。最终全量 EditMode 525 通过、0 失败、4 跳过，529 例与修正后的基线逐项一致。异步 `LibrarySmokeTests` 两例通过，整首结算 1,000,000 / S 并返回曲库。程序集、IDE 项目和空目录检查通过，缺失脚本新增 0。报告在 `TestResults/restructure-p2-3-*`。
-- P2-3 真机验收待完成。`adb devices -l` 未列出设备，见 `TestResults/restructure-p2-3-android-devices.txt`。连接设备后仍需手动核对宽限期内回按、换手、双条重叠和尾判时序。
+- P2-3 已完成 Android 验收准备。设备连接后从 `76ad6c33` 的隔离检出使用 `unity build --target Android --execute-method PhaseTwoDeviceBuild.Run` 重建 AssetBundles 和 ARM64 IL2CPP APK，产物为 `Builds/restructure-phase2/OpenSekai-P2-3-76ad6c33.apk`。通过 `adb install -r` 安装独立应用 `io.github.opensekai.p23check`，启动并导入专用六长条谱。原版 APK 路径、设置与历史 SHA-256 在安装前后一致。构建报告为 `TestResults/restructure-p2-3-android-build.json`，装机报告为 `TestResults/restructure-p2-3-device-setup.txt`，谱面时间及操作表见 `TestResults/restructure-p2-3-device-chart-validation.txt` 和 `TestResults/restructure-p2-3-device-checklist.md`。宽限期回按、换手、双条重叠和尾判时序仍待手机上的手动操作与日志核对。
 - P2-5 已留存独立音频基线。`Tools/audit-audio-provenance.ps1` 核对 42 个内置 WAV，结果为 `AUDIT OK`。报告在 `TestResults/restructure-p2-5-audio-baseline.txt`。
 
 ## 7. 迁移规则
