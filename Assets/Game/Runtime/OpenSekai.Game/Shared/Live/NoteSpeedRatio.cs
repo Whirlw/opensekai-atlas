@@ -5,41 +5,36 @@ using UnityEngine;
 namespace OpenSekai.Shared.Live
 {
     /// <summary>
-    /// The scroll speed a note travels at: the speed of the segment the note itself sits in.
+    /// Average scroll speed a note travels through between the current frame and its own position.
+    /// Speed events split the chart into segments, so the answer is the length-weighted average of
+    /// the segment speeds inside [currentProgress, noteProgress].
     /// </summary>
     /// <remarks>
-    /// This used to be the length-weighted average of the segments between the playhead and the note. That
-    /// average depends on where the playhead is, so the same note was drawn at different speeds on different
-    /// frames: a bar crossing a speed change was re-measured every frame, a segment behind the note (a 50x
-    /// entry four bars back) was still charged into the span, and the whole speed effect looked like it
-    /// started a bar early.
+    /// Extracted from <c>LiveLogic.CalcNoteSpeedRatio</c> so the segment walk can be tested without a
+    /// live session. The behaviour, including every fallback, is intended to be identical: when the
+    /// note is at or behind the playhead, when the chart carries no speed events, and when the span is
+    /// zero, the frame's own speed ratio is returned.
     ///
-    /// What the view needs is the integral of the speed profile: the screen length of a span must be
-    /// proportional to speed * chart distance, so the stretch of a 20x segment is visible as 20x. A
-    /// per-segment speed gives exactly that, because each note's display offset becomes window / its own
-    /// segment speed, and the distance between two notes then scales with the speed they travelled at. It
-    /// also stops depending on the playhead, so a body cannot change shape while it is on screen.
+    /// One deliberate difference: every answer is bounded by <see cref="MaxSegmentSpeedRatio"/>. A chart
+    /// can spike the value (one shipped chart has 799 on a bar line) to make notes appear abruptly, and an
+    /// unbounded spike turns the display offset into a millisecond, which squashes whatever is already on
+    /// screen. Bounding the magnitude keeps the abrupt appearance and the sign (reverse scroll).
     /// </remarks>
     public static class NoteSpeedRatio
     {
-        /// <summary>
-        /// Above this, a segment's speed is treated as a display spike rather than a scroll speed. Charts
-        /// spike the value on purpose (one shipped chart goes to 799 on a bar line) to make notes appear
-        /// abruptly. A spike still appears abruptly under the clamp, but charging it in full would turn the
-        /// display offset into a millisecond and squash whatever is already drawn.
-        /// </summary>
+        /// <summary>Largest magnitude the view is allowed to divide the display window by.</summary>
         public const float MaxSegmentSpeedRatio = 20f;
 
         /// <summary>
-        /// Speed of the segment that contains <paramref name="noteProgress"/>, clamped to a sane magnitude.
+        /// Length-weighted average of the speed events between the current playhead and the note.
         /// </summary>
         /// <param name="scoreInfos">Speed events in chart order; may be null or empty.</param>
-        /// <param name="currentProgress">Playhead position in bars; only gates the "not reached yet" case.</param>
+        /// <param name="currentProgress">Playhead position in bars (bar + barProgress).</param>
         /// <param name="noteProgress">Note position in bars.</param>
-        /// <param name="fallbackSpeedRatio">Speed to use when no event applies (a note before the first one).</param>
+        /// <param name="fallbackSpeedRatio">Speed ratio to use when no averaging applies.</param>
         public static float Resolve(MusicScoreInfo[] scoreInfos, float currentProgress, float noteProgress, float fallbackSpeedRatio)
         {
-            if (noteProgress < currentProgress)
+            if (noteProgress <= currentProgress)
             {
                 return Clamp(fallbackSpeedRatio);
             }
@@ -49,34 +44,70 @@ namespace OpenSekai.Shared.Live
                 return Clamp(fallbackSpeedRatio);
             }
 
-            bool found = false;
-            float speed = fallbackSpeedRatio;
-            for (int i = 0; i < scoreInfos.Length; i++)
+            float accumulated = 0f;
+            bool hasRange = false;
+            float previousProgress = scoreInfos[0].bar + scoreInfos[0].barProgress;
+            float previousSpeedRatio = scoreInfos[0].speedRatio;
+
+            for (int i = 0; i <= scoreInfos.Length; i++)
             {
-                MusicScoreInfo info = scoreInfos[i];
-                if (info.bar + info.barProgress > noteProgress)
+                float segmentProgress = i < scoreInfos.Length
+                    ? scoreInfos[i].bar + scoreInfos[i].barProgress
+                    : noteProgress;
+                float segmentSpeedRatio = i < scoreInfos.Length ? scoreInfos[i].speedRatio : previousSpeedRatio;
+
+                if (segmentProgress >= currentProgress)
+                {
+                    if (hasRange)
+                    {
+                        if (segmentProgress > noteProgress)
+                        {
+                            accumulated += (noteProgress - previousProgress) * previousSpeedRatio;
+                            break;
+                        }
+
+                        accumulated += (segmentProgress - previousProgress) * previousSpeedRatio;
+                    }
+                    else if (i > 0)
+                    {
+                        if (segmentProgress > noteProgress)
+                        {
+                            // The note sits inside the segment that starts at scoreInfos[i - 1]: the walk never
+                            // opened a range, but the span is non-zero, so it must still be covered at that
+                            // segment's speed instead of falling back to the frame's own ratio.
+                            accumulated += (noteProgress - currentProgress) * scoreInfos[i - 1].speedRatio;
+                            hasRange = true;
+                            break;
+                        }
+
+                        accumulated += (segmentProgress - currentProgress) * scoreInfos[i - 1].speedRatio;
+                    }
+                    else
+                    {
+                        accumulated += segmentProgress - currentProgress;
+                    }
+
+                    hasRange = true;
+                }
+
+                if (segmentProgress >= noteProgress)
                 {
                     break;
                 }
 
-                speed = info.speedRatio;
-                found = true;
+                previousProgress = segmentProgress;
+                previousSpeedRatio = segmentSpeedRatio;
             }
 
-            if (!found)
+            if (!hasRange)
             {
-                return Clamp(fallbackSpeedRatio);
+                return Clamp(previousSpeedRatio);
             }
 
-            // A spike is a display trick, not a speed to charge a note with; the sign (reverse scroll) stays.
-            return Clamp(speed);
+            float range = noteProgress - currentProgress;
+            return Mathf.Approximately(range, 0f) ? Clamp(fallbackSpeedRatio) : Clamp(accumulated / range);
         }
 
-        /// <summary>
-        /// Every path is bounded, including the frame's own fallback: the current section can itself be the
-        /// spike (a note the playhead has just passed still uses it), and an unbounded 799 there collapses
-        /// whatever is on screen exactly like the unbounded segment would.
-        /// </summary>
         private static float Clamp(float speedRatio)
         {
             return Mathf.Clamp(speedRatio, -MaxSegmentSpeedRatio, MaxSegmentSpeedRatio);
