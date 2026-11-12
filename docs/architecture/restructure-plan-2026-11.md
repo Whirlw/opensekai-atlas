@@ -626,6 +626,10 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
   - 顺带记一条：`CustomMusicScorePlayHistoryStorage.TryLoadBestResult` 全仓 **0 处调用**（播放历史只写不读）。归位后原样保留在 App 侧，删不删是另一个决定，不在本批。
   - **P3-3 至此完成，M3 达成。** `Sekai/`、`Shared/`、`Platform/` 三个遗留目录早已清空，`MusicScoreMaker/Common` 是最后一项。
 
+- P4-4 待办收尾（起点 `c9b8c6bf`）：删掉 `SekaiSingletonManager` 里那条 `EVENT_SYSTEM_PREFAB_PATH` 常量。它已经没有任何引用——实际取址早就走 `ResourceCatalog.EventSystem`，和 `EntryPoint` 里被删的那条是同一种重复。
+  - `SekaiSingletonManager.EnsureEventSystem()` **保留**：它是直接进 `Core.unity`（编辑器里单场景直跑）时的唯一兜底。曲库路径上 `LibraryEntryPoint.EnsureEventSystem` 先建好，它走到 `EventSystem.current != null` 就复用同一个实例，两条路不会各自造一个。
+  - 验证：`unity recompile` 0 error；全量 EditMode 573 项、569 通过、0 失败、4 跳过（与删除前逐项相同）；`verify-structure.ps1 -CheckAssemblies -CheckProjects -RequireNoEmptyDirectories` 通过。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动

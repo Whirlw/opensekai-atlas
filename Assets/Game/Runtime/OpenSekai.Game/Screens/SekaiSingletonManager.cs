@@ -7,8 +7,6 @@ namespace Sekai
 {
 	public class SekaiSingletonManager : MonoBehaviour
 	{
-		private const string EVENT_SYSTEM_PREFAB_PATH = "Common/Input/EventSystem";
-
 		private static SekaiSingletonManager _instance;
 		private static float _deltaK = 1f;
 
