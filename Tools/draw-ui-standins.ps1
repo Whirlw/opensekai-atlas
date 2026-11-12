@@ -39,7 +39,10 @@ function Get-OldColour($rect, [string]$atlasName) {
 }
 
 function Get-Rect([string]$name) {
-    $asset = Join-Path $Sprites "$name.asset"
+    # Sprite assets do not always share their file name (badge_attention_rd lives in
+    # badge_attention_rd_0.asset), so resolve through m_Name first, exactly like the applier does.
+    $asset = $spriteByName[$name]
+    if (-not $asset) { $asset = Join-Path $Sprites "$name.asset" }
     if (-not (Test-Path $asset)) { return $null }
     $m = [regex]::Match((Get-Content $asset -Raw), 'm_Rect:\s*\r?\n\s*serializedVersion: 2\s*\r?\n\s*x: ([\d.]+)\s*\r?\n\s*y: ([\d.]+)\s*\r?\n\s*width: ([\d.]+)\s*\r?\n\s*height: ([\d.]+)')
     if (-not $m.Success) { return $null }
@@ -125,6 +128,13 @@ function New-LetterImage([string]$letter, [int]$w, [int]$h, [System.Drawing.Colo
 }
 
 $rows = Import-Csv $Table
+# Index the sprite assets by m_Name once: the file name is not the sprite name for several of them.
+$spriteByName = @{}
+Get-ChildItem $Sprites -Filter '*.asset' | ForEach-Object {
+    $head = (Get-Content $_.FullName -TotalCount 20) -join "`n"
+    $m = [regex]::Match($head, 'm_Name: (.+)')
+    if ($m.Success) { $spriteByName[$m.Groups[1].Value.Trim()] = $_.FullName }
+}
 $made = 0; $skipped = @(); $notes = @()
 foreach ($row in $rows) {
     $name = $row.sprite

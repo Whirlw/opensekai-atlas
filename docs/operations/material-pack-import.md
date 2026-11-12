@@ -48,7 +48,7 @@ powershell -File Tools\compare-atlas-art.ps1     # differ 里应只剩整纹理/
 | `apply-atlas-art.ps1` | `painted=N wholeTexture=M noSprite=K sizeDiff=0 shadowed=S atlases=T` | `noSprite` 是「整图」类，正常；`shadowed` 是同一精灵的多个画包文件，正常应只剩替身 |
 | `verify-hud-art.ps1` | 生成对比图，左画包 / 右图集 | 逐张必须一致 |
 
-最近一次全量导入（2026-11-12，`0d153e68` 之后）的实测输出，可作参照：`apply-paint-kit.ps1` 为 `copied=17 same=112 missed=200 mismatch=0`（`missed` 是画包里还没进工程的新素材与预览图），`apply-atlas-art.ps1` 为 `painted=160 wholeTexture=6 noSprite=44 sizeDiff=0 shadowed=0 atlases=21`——`shadowed` 归零是因为镜像里 15 个程序生成的 `*_0.png` 替身已删除（`number_48px_shadow_0`、`skillEffect_text_0` 是作者自己的文件名，保留）。
+最近一次全量导入（2026-11-12，`0d153e68`+`a564828b` 之后）的实测输出，可作参照：`apply-paint-kit.ps1` 为 `copied=17 same=112 missed=200 mismatch=0`（`missed` 是画包里还没进工程的新素材与预览图），`apply-atlas-art.ps1` 为 `painted=168 wholeTexture=6 noSprite=44 sizeDiff=0 shadowed=0 atlases=21`——`shadowed` 归零是因为镜像里 15 个程序生成的 `*_0.png` 替身已删除（`number_48px_shadow_0`、`skillEffect_text_0` 是作者自己的文件名，保留），随后又按精灵名为 9 个未覆盖的白色底片重新生成了替身。
 
 ## 七条硬规则
 
@@ -160,7 +160,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File Tools/compare-atlas-art.ps1
 # kit=225 match=168 differ=6 noSprite=44 noRect=0 shadowed=7
 ```
 
-`differ` 的基线是 6 个，全部属于已经记录过的两类：整纹理替换/内边距裁剪（`lane_line`、`lane_skill`、`judgeLine`、`bg_2dmode_window_mirror`），以及阈值附近的 `mask_line`（18×6）与 `tex_lifeZero`（480×480，8.7）。**出现别的名字就意味着那一格还是旧图**——`AUTO LIVE` 那次就是这样查出来的。`shadowed` 列的是同一个精灵的多个画包文件（见 R7），正常应只剩替身。
+`differ` 的基线是 2 个，都是**整纹理替换/内边距裁剪**：`judgeLine`（画包给整张 1608×114，精灵 rect 只取中间 1583×84）与 `bg_2dmode_window_mirror`（画包 800×800，rect 542×526）。**出现别的名字就意味着那一格还是旧图**——`AUTO LIVE` 那次就是这样查出来的。`shadowed` 列的是同一个精灵的多个画包文件（见 R7），正常应为 0 或只剩作者按资产文件名命名的那几个。
 
 ### 真机验收清单
 
