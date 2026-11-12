@@ -573,6 +573,13 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 - 验证：`unity recompile` 0 error；全量 EditMode 569 项、565 通过、0 失败、4 跳过；`verify-structure.ps1` 通过且四份生成字体资产**无漂移**（证明测试没有写脏被跟踪的资产）；`verify-resource-paths.ps1` 为 `calls=31 missing=0`。
 - 未做：没有重新打包上真机做视觉复验。省略号走的是 TMP 生成路径，EditMode 已覆盖"字形存在"这一层；真机确认并入下一次发包。
 
+- P4-1 第三批完成，起点 `313883f0`，写入侧收尾。`LegacyLiveBootAdapter` 原本自己读 `UserDataManager.Instance.SelectedDeckId`，是 App 里最后一处绕过端口的直连；现在拆成 `ILiveDeckSelection`（`SelectedDeckId`）+ `LegacyLiveDeckSelection`，`PlayService` 作为第四个构造依赖注入，`LegacyLiveBootAdapter.Create(session, deckId)` 变成纯映射。
+- 结果：`OpenSekai.App` 对 `UserDataManager` 的引用只剩 `LegacyPlayPorts.cs` 一处 4 行——`Capture`/`Publish`/`Restore` 三个写读点加 `SelectedDeckId` 一个读取点。Game 侧对 App 的引用仍为 0 处（`verify-structure.ps1 -CheckAssemblies` 保证）。
+- 测试：`PlayServiceDependencyTests` 的假端口补了 `ILiveDeckSelection`（返回 7），并在开局成功用例里断言发布出去的 `FreeLiveBootData.DeckData.UserInfo.DeckId == 7`，把"开局数据取的是端口值而不是单例值"钉在行为上，而不是靠代码评审。
+- 验证：`unity recompile` 0 error；全量 EditMode 569 项、565 通过、0 失败、4 跳过；缺失脚本清单与 P0-2 基线逐字节相同；`verify-structure.ps1` 与 `verify-resource-paths.ps1`（`calls=31 missing=0`）通过。
+- P4-1 的代码部分至此完成：App 侧由 `AppContext` 装配、四个端口承载全部跨层读写、Game 侧由 `LiveContext` 接收。验收四条里，"迁移的调用点通过显式依赖访问服务"与"EditMode 可替换服务实现"（6 项测试）已具备；"开局失败重试、退出返回、连续两局"有 EditMode 与真机两套证据。
+- 未做：这一批没有上真机。改动只换了 `SelectedDeckId` 的读取来源，当前它恒为默认值 0，行为等价；真机复验并入下一次发包一起做。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动

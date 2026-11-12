@@ -8,13 +8,16 @@ namespace OpenSekai.App.Playback
     /// <summary>Maps package metadata and already-converted notes into the retained Live boot types.</summary>
     internal static class LegacyLiveBootAdapter
     {
-        internal static FreeLiveBootData Create(PlaySession session)
+        /// <summary>
+        /// <paramref name="deckId"/> comes from the caller: this adapter is pure mapping, and reading the
+        /// player-data singleton here was the last static the start path reached for.
+        /// </summary>
+        internal static FreeLiveBootData Create(PlaySession session, int deckId)
         {
             PlayRequest request = session.Request;
             SongPackage entry = session.Package;
             MusicScore score = session.Chart.Score;
             LiveSettingData settings = session.Settings;
-            int deckId = UserDataManager.Instance.SelectedDeckId;
             MasterMusicDifficulty difficulty = CreateDifficulty(entry, score);
             MusicCategory category = ResolveCategory(settings);
             var boot = new FreeLiveBootData(entry.MusicId, difficulty.musicDifficulty, 0, deckId,

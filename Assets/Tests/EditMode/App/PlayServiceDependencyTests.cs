@@ -21,6 +21,7 @@ namespace OpenSekai.Tests.EditMode
         private FakeSurface _surface;
         private FakeBootPublisher _boot;
         private FakeAudioRegistrar _audio;
+        private FakeDeckSelection _deck;
         private PlayService _service;
 
         [SetUp]
@@ -29,7 +30,8 @@ namespace OpenSekai.Tests.EditMode
             _surface = new FakeSurface();
             _boot = new FakeBootPublisher();
             _audio = new FakeAudioRegistrar { Result = true };
-            _service = new PlayService(_boot, _surface, _audio);
+            _deck = new FakeDeckSelection { SelectedDeckId = 7 };
+            _service = new PlayService(_boot, _surface, _audio, _deck);
         }
 
         [Test]
@@ -117,6 +119,10 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(_service.IsStarting, Is.True);
             Assert.That(_surface.SceneExitHandlers, Is.EqualTo(1));
             Assert.That(_surface.PushedLiveLoading, Is.EqualTo(1));
+            // The published boot must carry the deck the port reported, not one read from a singleton.
+            var published = _boot.State.Boot as FreeLiveBootData;
+            Assert.That(published, Is.Not.Null);
+            Assert.That(published.DeckData.UserInfo.DeckId, Is.EqualTo(7));
 
             PlayStartResult whileRunning = await _service.StartAsync(Request(FixtureDirectory), CancellationToken.None);
             Assert.That(whileRunning.Status, Is.EqualTo(PlayStartStatus.Busy));
@@ -179,6 +185,11 @@ namespace OpenSekai.Tests.EditMode
             {
                 return UniTask.FromResult(Result);
             }
+        }
+
+        private sealed class FakeDeckSelection : ILiveDeckSelection
+        {
+            public int SelectedDeckId { get; set; }
         }
 
         private sealed class FakeSurface : IPlaySurface

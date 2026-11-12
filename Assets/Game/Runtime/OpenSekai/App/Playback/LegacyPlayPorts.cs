@@ -131,4 +131,13 @@ namespace OpenSekai.App.Playback
             return new PackageAudio(package).RegisterAudioAsync(cancellationToken);
         }
     }
+
+    /// <summary>Deck selection still lives on the retained player-data singleton.</summary>
+    internal sealed class LegacyLiveDeckSelection : ILiveDeckSelection
+    {
+        public int SelectedDeckId
+        {
+            get { return UserDataManager.Instance.SelectedDeckId; }
+        }
+    }
 }

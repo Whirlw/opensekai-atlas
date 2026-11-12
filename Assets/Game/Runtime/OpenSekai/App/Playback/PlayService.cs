@@ -20,20 +20,29 @@ namespace OpenSekai.App.Playback
         private readonly IPlayBootPublisher _boot;
         private readonly IPlaySurface _surface;
         private readonly IPackageAudioRegistrar _audio;
+        private readonly ILiveDeckSelection _deckSelection;
         private bool _releaseOnSceneExit;
 
         /// <summary>The process-wide service, wired to the retained singletons.</summary>
         public static PlayService Instance { get; } = new PlayService(
-            new LegacyPlayBootPublisher(), new LegacyPlaySurface(), new LegacyPackageAudioRegistrar());
+            new LegacyPlayBootPublisher(),
+            new LegacyPlaySurface(),
+            new LegacyPackageAudioRegistrar(),
+            new LegacyLiveDeckSelection());
 
         public bool IsStarting { get; private set; }
 
         /// <summary>Used by tests and by the composition root to supply substitutes.</summary>
-        internal PlayService(IPlayBootPublisher boot, IPlaySurface surface, IPackageAudioRegistrar audio)
+        internal PlayService(
+            IPlayBootPublisher boot,
+            IPlaySurface surface,
+            IPackageAudioRegistrar audio,
+            ILiveDeckSelection deckSelection)
         {
             _boot = boot ?? throw new ArgumentNullException(nameof(boot));
             _surface = surface ?? throw new ArgumentNullException(nameof(surface));
             _audio = audio ?? throw new ArgumentNullException(nameof(audio));
+            _deckSelection = deckSelection ?? throw new ArgumentNullException(nameof(deckSelection));
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -109,7 +118,7 @@ namespace OpenSekai.App.Playback
                 LiveBundleBuildData config = ResourceCatalog.LiveBundleConfig.Load();
                 if(config == null) throw new InvalidOperationException("Live bundle configuration is missing.");
                 PlaySession session = PlaySession.Create(request, entry, chart, config, settings);
-                FreeLiveBootData boot = LegacyLiveBootAdapter.Create(session);
+                FreeLiveBootData boot = LegacyLiveBootAdapter.Create(session, _deckSelection.SelectedDeckId);
                 cancellationToken.ThrowIfCancellationRequested();
                 string message = request.IsAuto ? "正在开始自动游玩..." : "正在开始游玩...";
                 progress?.Invoke(message);

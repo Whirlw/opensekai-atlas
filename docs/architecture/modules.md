@@ -15,7 +15,7 @@
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/` | 组合根 `AppContext`：装配曲库页需要的 `SongPackageManager` 与 `PlayService`，由 `LibraryEntryPoint` 创建并交给 `LibraryScreen` |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/Bootstrap/` | `LibraryEntryPoint` 装配曲库入口 |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/UI/` | `LibraryScreen` 和导入、设置、结算面板 |
-| OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/Playback/` | `PlayService` 和 `LegacyLiveBootAdapter` 装配开局数据；`IPlayBootPublisher`/`IPlaySurface`/`IPackageAudioRegistrar` 三个端口及其 `LegacyPlayPorts` 兼容实现 |
+| OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/Playback/` | `PlayService` 和 `LegacyLiveBootAdapter` 装配开局数据；`IPlayBootPublisher`/`IPlaySurface`/`IPackageAudioRegistrar`/`ILiveDeckSelection` 四个端口及其 `LegacyPlayPorts` 兼容实现（App 里唯一读 `UserDataManager` 的地方） |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/Charts/` | `ChartTimeline` 和 `RuntimeChartDefinition` |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/Infrastructure/` | `ChartFileReader`、`SongPackageManager` 和曲库导入 |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/Live/Conversion/` | `RuntimeChartConverter` 和 `RuntimeChartImporter` 组装运行时谱面 |
