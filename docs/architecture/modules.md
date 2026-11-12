@@ -21,7 +21,10 @@
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Screens/` | `ScreenManager` 门面与页面栈、对话框、过场与模糊、页头、页面层基类、子窗口、场景入口与返回键 |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Audio/` | `SoundManager` 门面、`AudioCatalog`、`ExternalSoundPack`、`VolumeService`，以及 ACB 兼容入口 `AcbAssetSource` |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Animation/` | `Tween*` 组件与目标适配、加载指示与粒子动画组件 |
-| OpenSekai.Game | `Assets/Game/Runtime/Sekai/` | 待收敛：Live 控制器与视图、音符、页面栈、UI 部件和数据类（P3-1 分批搬入 `OpenSekai.Game/`） |
+| OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Live/Runtime/` | Live 帧循环与时钟、输入路由与候选、判定调度、会话状态与统计、控制器、技能逻辑、曲目配置与时间轴 DTO |
+| OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Live/View/` | 前场与结算视图、背景、曲目信息、屏幕特效与遮罩、特写与技能文字、音符视图管理 |
+| OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Live/Notes/` | `NoteBase` 与各类音符、长条主体/接缝/尾判、`Tails/` 四种尾行为 |
+| OpenSekai.Game | `Assets/Game/Runtime/Sekai/` | 待收敛：资源与 AssetBundle 系统、UI 部件、数据类、渲染管线（P3-1 分批搬入 `OpenSekai.Game/`） |
 | OpenSekai.Game | `Assets/Game/Runtime/Shared/` | 设置存储、触摸计算、SUS 运行时音符与事件组装、曲包模型与存储 |
 | OpenSekai.Game | `Assets/Game/Runtime/Platform/` | 平台适配、CRI 音频 shim 和序列化兼容接口 |
 | OpenSekai.Editor | `Assets/Game/Editor/` | Android 构建、AssetBundle 构建、资源检查和场景校验 |

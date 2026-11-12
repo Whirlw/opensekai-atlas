@@ -4,7 +4,7 @@
 > 适用读者：接手代码的开发者、做重构的人、发版前做门禁的人。
 > 前置条件：读过 [架构总览](README.md) 与 [模块划分](modules.md)；当前基线为 `f14b717c`。
 > 最后更新：2026-11-12
-> 状态：**M1 已达标，Phase 2 执行中**。按任务依赖推进，每个工作包独立提交并记录验收结果。
+> 状态：**M1、M2 已达标，Phase 3 执行中**（M2 保留一条开局音既有缺陷，见 Phase 2 记录）。按任务依赖推进，每个工作包独立提交并记录验收结果。
 
 ## 1. 结论与目标
 
@@ -460,7 +460,7 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 - 等价验证先于拆分建立。`TestResults/restructure-p2-6-capture-sus.cs` 对 `Tools/fixtures/sus-p2-6/{timing,linked}.sus` 与空谱，各跑镜像开/关、长按连击开/关四种组合，共 12 次转换，记录帧（bar、进度、时间、BPM、拍号、速度、SE 音量）、事件发布顺序、每个根音符与子音符的类名、类别、类型、方向、线型、车道区间、速度倍率、跳过/装饰标记、父角色与父子配对 id。拆分前后输出逐字节一致（sha256 `FC1B33B4…`，138 行）。该文本转为 `Tools/fixtures/sus-p2-6/expected.txt`，由 `SusChartSnapshotTests` 在 EditMode 中继续守住；`Tools/fixtures/sus-p2-6/README.md` 记录重新生成方式。
 - `unity recompile` 为 0 error。全量 EditMode 538 通过、0 失败、4 跳过（共 542 项）；拆分前基线 530 项逐项一致（缺失 0，结果变化 0），新增 12 项为 `SusParserTests` 8 项与 `SusTimingConverterTests` 4 项，均不依赖场景与 prefab。四个跳过来自 `DecorationTailJudgmentTests`，与基线相同。
 - 规模（非空行）：门面 34、`SusParser` 387、`SusTimingConverter` 217、`SusNoteConverter` 365、`SusEventConverter` 82，辅助类 `SusChartData` 57、`SusTokens` 147、`SusSkipNoteResolver` 109，全部 < 400。`Tools/verify-structure.ps1 -CheckProjects -CheckAssemblies -RequireNoEmptyDirectories` 通过，缺失脚本清单与 P0-2 基线逐字节相同（新增 0）。报告、命令与逐项对照在 `TestResults/restructure-p2-6-*`。
-- Phase 2 的六项拆分至此全部完成。M2 仍待 P2-5 的真机开局与结算音效回归，其余退出条件已具备。
+- Phase 2 的六项拆分至此全部完成。P2-5 的真机音频回归已完成：结算音正常；开局音不播放。该现象经确认为既有缺陷、不由本轮拆分引入，按决定暂不修复，作为已知缺陷保留跟踪——M2 以这条例外通过，Phase 2 其余退出条件均已具备。
 
 ### Phase 3 执行记录（2026-11-12）
 
@@ -471,6 +471,12 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 
 - P3-1 第二批完成，起点 `1acddffc`。把页面与场景机械收进 `OpenSekai.Game/Screens/`，共 56 个文件：`ScreenManager` 门面与服务四件（`ScreenStackService`、`DialogService`、`TransitionService`、`HeaderService`）、`ScreenLayer*` 基类与变体、页头与页面枚举、`ScreenIn/Out` 动画与模糊、`ColorFader`/`CrossFader`、`Dialog*` 与三个通用对话框、`ChainDialogPlayer`、`SubWindow*`、`Scene*` 场景入口与过渡、`BackKeyChecker`。顺带把 `Sekai/SubWindow/WindowType.cs` 并入并删掉清空后的 `SubWindow/` 目录。
 - 56 份 `.meta` 的 GUID 与 `HEAD` 逐项一致（0 不一致），缺失脚本清单仍与 P0-2 基线逐字节相同。`unity recompile` 0 error；全量 EditMode 538 通过、0 失败、4 跳过，与第一批之后逐项一致。`Sekai/` 顶层 `.cs` 由 175 降到 120，`Sekai/` 顶层已经没有页面相关文件，只剩 Live、资源、UI 部件与数据类。
+
+- P3-1 第三批完成，起点 `6a9520c3`。合并 `Sekai/Core/Live`（32 文件）与 `Sekai/Live`（56 文件）为 `OpenSekai.Game/Live/{Runtime,View,Notes}`，共 88 个文件，消除“Core 里有 Live、Live 里有 Logic”的分裂。
+  - `Runtime/` 45 个：控制器与帧循环、时钟、输入路由与去重、判定调度、候选管线、会话与统计、技能逻辑、`LiveConfig`/`LiveBundleBuildData`/`LivePrefabDefine`/`LiveSoundDefine`/`ScreenConfig`、`MusicScore` 与时间轴事件 DTO、触摸采样。
+  - `View/` 14 个：`LiveFrontView`、`LiveResultView`、`Background2DView`、`MusicInfoView`、`ScreenEffectView`、`OverlayMask`、`NotesViewManager`、`LiveViewFactory`、`Cutin*`、`LiveViewBase`/`Ext`、`SkillTextView`、`SoloSkillTextViewGroup`。
+  - `Notes/` 29 个：`INote`、`NoteBase`、`NoteState`、各类音符与引导/连接笔画、`LongNote` 的四个 partial、`LongNoteHead`/`Tail`、`LongHoldCombo`，以及 `Tails/` 的七份尾行为。
+- 88 份 `.meta` 随文件移动，git 全部识别为 100% rename；缺失脚本清单仍与 P0-2 基线逐字节相同。`unity recompile` 0 error；全量 EditMode 538 通过、0 失败、4 跳过，与前两批逐项一致。搬空的 `Sekai/Core/Live` 与 `Sekai/Live`（含空的 `Tails/`）已删除，`-RequireNoEmptyDirectories` 通过。
 
 ## 7. 迁移规则
 
