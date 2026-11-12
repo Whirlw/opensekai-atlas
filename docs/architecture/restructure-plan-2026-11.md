@@ -486,6 +486,10 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 - 70 份 `.meta` 随文件移动，缺失脚本清单仍与 P0-2 基线逐字节相同。`unity recompile` 0 error；全量 EditMode 538 通过、0 失败、4 跳过，与此前逐项一致。
 - **`Sekai/` 顶层 `.cs` 降到 10，已满足 P3-1 的“顶层 < 20”。** 累计 196 → 10。剩余待收尾：`Sekai/` 顶层 10 个（输入、相机、背景、单例与 `LiveUtility`）、`Rendering/` 21、`Core/` 6、`MusicScoreMaker/Common` 3、`ScreenLayerExtention/` 2、`RankLive/` 与 `View/` 各 1，以及 `Shared/`、`Platform/`、`Runtime/` 根上的三个文件；最后一步才搬 `OpenSekai.Game.asmdef`。
 
+- P3-1 收尾（一）完成，起点 `3b76e30c`。`Sekai/` 从 51 个文件降到 4 个，顶层归零：`Rendering/` 21 个整批进 `OpenSekai.Game/Rendering/`；顶层 10 个按职责分散（相机与背景 → `Rendering/`，`InputManager`/`NativeInput` → `Platform/`，`SekaiSingletonManager` → `Screens/`，`SpineModel` → `Data/`，`LiveUtility` → `Live/Runtime/`）；`Core/` 6 个拆进 `Screens/`（入口与控制器）和 `Rendering/`（相机工具与 shader 预载）；`View/TailKeyLifetime` → `Live/Notes/`；`Extensions/GameObjectExtensions` → 新建 `Extensions/`；`ScreenLayerExtention/` 的两个接口进 `Screens/`，该目录随之消失——P3-3 只剩“命名空间同步”一项要做。
+- 搬空的 `Core`、`View`、`Extensions`、`ScreenLayerExtention` 目录已删除；`Sekai/` 现在只剩 P3-3 负责的 `MusicScoreMaker/Common` 3 个与 `RankLive/NumberView` 1 个。缺失脚本清单仍与 P0-2 基线逐字节相同，`unity recompile` 0 error，全量 EditMode 538 通过、0 失败、4 跳过。
+- 过程记录：第一次尝试用 `AssetDatabase.MoveAsset` 整目录搬 `Sekai/Rendering`，因脚本先把目标目录建好而报“Destination path name does already exist”，21 个文件原地未动；改成逐文件移动后一次成功。整目录移动必须先 `EnsureFolder` 父目录、但不能预先创建目标目录本身。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动
