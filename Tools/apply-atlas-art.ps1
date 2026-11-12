@@ -1,4 +1,4 @@
-﻿# Pastes painted PNGs straight into the packed atlas textures, using the rect stored in each sprite asset.
+# Pastes painted PNGs straight into the packed atlas textures, using the rect stored in each sprite asset.
 # PaintKit's own apply reported success but left the regions untouched, so this does the paste itself and
 # reports any sprite that has no matching kit file.
 param(
@@ -42,16 +42,45 @@ $painted = 0; $wholeCopied = 0; $whole = @(); $noSprite = @(); $sizeDiff = @(); 
 
 # sprite assets do not always share their file name (B/C/S live in files named after a hash), so index by m_Name
 $spriteByName = @{}
+$spriteNameByFile = @{}
 Get-ChildItem $SpriteFolder -Filter '*.asset' | ForEach-Object {
     $head = (Get-Content $_.FullName -TotalCount 20) -join "`n"
     $m = [regex]::Match($head, 'm_Name: (.+)')
-    if ($m.Success) { $spriteByName[$m.Groups[1].Value.Trim()] = $_.FullName }
+    if ($m.Success) {
+        $spriteByName[$m.Groups[1].Value.Trim()] = $_.FullName
+        $spriteNameByFile[$_.FullName] = $m.Groups[1].Value.Trim()
+    }
         if (-not $spriteByName.ContainsKey($_.BaseName)) { $spriteByName[$_.BaseName] = $_.FullName }
 }
 
-foreach ($name in $kitFiles.Keys) {
-    if (-not $spriteByName.ContainsKey($name)) { $noSprite += $name; continue }
-    $asset = $spriteByName[$name]
+# One sprite can be reached by more than one kit file. A stand-in drawn as `label_autolive_0.png` sorted
+# after the real `label_autolive.png` and won, so the build shipped a plain plate instead of the art.
+# Resolve every sprite to exactly one kit file, preferring the one named like the sprite itself.
+$kitForSprite = @{}
+$exactChosen = @{}
+$shadowed = @()
+foreach ($kitName in ($kitFiles.Keys | Sort-Object)) {
+    if (-not $spriteByName.ContainsKey($kitName)) { $noSprite += $kitName; continue }
+    $spritePath = $spriteByName[$kitName]
+    $isExact = ($kitName -eq $spriteNameByFile[$spritePath])
+    if (-not $kitForSprite.ContainsKey($spritePath)) {
+        $kitForSprite[$spritePath] = $kitFiles[$kitName]
+        $exactChosen[$spritePath] = $isExact
+    }
+    elseif ($isExact -and -not $exactChosen[$spritePath]) {
+        $shadowed += ("{0} (replaces {1})" -f (Split-Path $kitFiles[$kitName] -Leaf), (Split-Path $kitForSprite[$spritePath] -Leaf))
+        $kitForSprite[$spritePath] = $kitFiles[$kitName]
+        $exactChosen[$spritePath] = $true
+    }
+    else {
+        $shadowed += ("{0} (shadowed by {1})" -f (Split-Path $kitFiles[$kitName] -Leaf), (Split-Path $kitForSprite[$spritePath] -Leaf))
+    }
+}
+
+foreach ($spritePath in $kitForSprite.Keys) {
+    $kitPath = $kitForSprite[$spritePath]
+    $name = [System.IO.Path]::GetFileNameWithoutExtension($kitPath)
+    $asset = $spritePath
     $yaml = Get-Content $asset -Raw
     $rx = [regex]::Match($yaml, 'm_Rect:\s*\r?\n\s*serializedVersion: 2\s*\r?\n\s*x: ([\d.]+)\s*\r?\n\s*y: ([\d.]+)\s*\r?\n\s*width: ([\d.]+)\s*\r?\n\s*height: ([\d.]+)').Groups
     if (-not $rx[0].Success) { continue }
@@ -61,7 +90,7 @@ foreach ($name in $kitFiles.Keys) {
     $atlasPath = $guidMap[$guid]
     if (-not $atlasPath -or -not (Test-Path $atlasPath)) { continue }
 
-    $kb = [System.Drawing.Bitmap]::FromFile($kitFiles[$name])
+    $kb = [System.Drawing.Bitmap]::FromFile($kitPath)
     $atlasDim = (Get-Size $atlasPath) -split 'x'
     $atlasW = [int]$atlasDim[0]; $atlasH = [int]$atlasDim[1]
 
@@ -70,7 +99,7 @@ foreach ($name in $kitFiles.Keys) {
     # the line lands a few pixels off. When the painted file matches the texture, replace the texture.
     if ($kb.Width -eq $atlasW -and $kb.Height -eq $atlasH -and ($w -lt $atlasW -or $h -lt $atlasH)) {
         $whole += $name
-        if ($Apply) { Copy-Item $kitFiles[$name] $atlasPath -Force; $wholeCopied++ }
+        if ($Apply) { Copy-Item $kitPath $atlasPath -Force; $wholeCopied++ }
         $kb.Dispose()
         continue
     }
@@ -106,4 +135,5 @@ if ($Apply) {
 "painted=$painted wholeTexture=$wholeCopied noSprite=$($noSprite.Count) sizeDiff=$($sizeDiff.Count) atlases=$($dirty.Count)"
 if ($sizeDiff.Count) { '--- size difference (scaled to rect) ---'; $sizeDiff | Select-Object -First 10 }
 if ($whole.Count) { '--- whole texture (rect is inset, file replaced) ---'; $whole | Select-Object -First 10 }
+if ($shadowed.Count) { '--- two kit files target the same sprite (one was dropped) ---'; $shadowed | Select-Object -First 10 }
 if ($noSprite.Count) { '--- cleared sprites without kit file (leave as is) --- ' + $noSprite.Count }
