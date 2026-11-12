@@ -1,3 +1,4 @@
+using System;
 using Sekai.Live;
 using UnityEngine;
 
@@ -9,39 +10,15 @@ namespace OpenSekai.Shared.Live
     /// the segment speeds inside [currentProgress, noteProgress].
     /// </summary>
     /// <remarks>
-    /// Extracted from <c>LiveLogic.CalcNoteSpeedRatio</c>. One rule is added on top of the plain
-    /// length-weighted average, and it is about a segment narrower than a frame.
-    ///
-    /// Such a segment is a flash: the chart at bar 80.5 has a 799 event that lasts 15 ticks (about 9 ms).
-    /// No frame ever lands inside it, so its travel can never be drawn - but folded into the span of a
-    /// note a bar later it still added several bars of travel, and the frame the playhead crossed it that
-    /// travel left the span again: those notes were thrown about four screens up and came back part way
-    /// down the screen instead of falling in from the top. A flash therefore adds no width to the span.
-    ///
-    /// The notes that sit INSIDE the flash are still drawn with its speed, which is what makes them appear
-    /// abruptly - the effect the chart author asked for.
-    ///
-    /// A narrow segment only counts as a flash when it also carries a lot of travel; the same chart writes
-    /// its ramps as 24 steps of 15 ticks each, and those are a fast ramp, not a flash. Making them flashes
-    /// would draw every note of the ramp with its own step's speed (from 0.05 to 1.1), i.e. with leads
-    /// between 40 s and 1.8 s in a quarter of a bar, and the notes there would cross each other.
+    /// Extracted from <c>LiveLogic.CalcNoteSpeedRatio</c> so the segment walk can be tested without a
+    /// live session. The behaviour, including every fallback, is intended to be identical: when the
+    /// note is at or behind the playhead, when the chart carries no speed events, and when the span is
+    /// zero, the frame's own speed ratio is returned.
     /// </remarks>
     public static class NoteSpeedRatio
     {
-        /// <summary>The width below which a speed segment is shorter than a frame.</summary>
-        public const float FlashSegmentSeconds = 1f / 60f;
-
         /// <summary>
-        /// How much travel (speed times width, in bars) a narrow segment has to add before it counts as a
-        /// flash. A 799 event over 15 ticks adds six bars and is clearly a flash; the 24 ramp steps of the
-        /// same width add a hundredth of a bar each and are just a fast ramp, so they stay in the average
-        /// and the notes inside them keep the speed of the ramp, not of their own step.
-        /// </summary>
-        public const float FlashTravelBars = 0.5f;
-
-        /// <summary>
-        /// Length-weighted average of the speed events between the playhead and the note, with flash
-        /// segments left out unless the note sits inside one.
+        /// Length-weighted average of the speed events between the current playhead and the note.
         /// </summary>
         /// <param name="scoreInfos">Speed events in chart order; may be null or empty.</param>
         /// <param name="currentProgress">Playhead position in bars (bar + barProgress).</param>
@@ -59,82 +36,68 @@ namespace OpenSekai.Shared.Live
                 return fallbackSpeedRatio;
             }
 
-            int own = -1;
-            for (int i = 0; i < scoreInfos.Length; i++)
-            {
-                if (scoreInfos[i].bar + scoreInfos[i].barProgress > noteProgress)
-                {
-                    break;
-                }
-
-                own = i;
-            }
-
-            if (own >= 0 && IsFlash(scoreInfos, own))
-            {
-                // The note is one of the flash's own: it is drawn with the flash's speed, which is the
-                // whole point of writing one.
-                return scoreInfos[own].speedRatio;
-            }
-
             float accumulated = 0f;
-            float range = 0f;
-            float cursor = currentProgress;
-            float speed = scoreInfos[0].speedRatio;
-            for (int i = 0; i < scoreInfos.Length; i++)
+            bool hasRange = false;
+            float previousProgress = scoreInfos[0].bar + scoreInfos[0].barProgress;
+            float previousSpeedRatio = scoreInfos[0].speedRatio;
+
+            for (int i = 0; i <= scoreInfos.Length; i++)
             {
-                float at = scoreInfos[i].bar + scoreInfos[i].barProgress;
-                if (at <= currentProgress)
+                float segmentProgress = i < scoreInfos.Length
+                    ? scoreInfos[i].bar + scoreInfos[i].barProgress
+                    : noteProgress;
+                float segmentSpeedRatio = i < scoreInfos.Length ? scoreInfos[i].speedRatio : previousSpeedRatio;
+
+                if (segmentProgress >= currentProgress)
                 {
-                    speed = scoreInfos[i].speedRatio;
-                    continue;
+                    if (hasRange)
+                    {
+                        if (segmentProgress > noteProgress)
+                        {
+                            accumulated += (noteProgress - previousProgress) * previousSpeedRatio;
+                            break;
+                        }
+
+                        accumulated += (segmentProgress - previousProgress) * previousSpeedRatio;
+                    }
+                    else if (i > 0)
+                    {
+                        if (segmentProgress > noteProgress)
+                        {
+                            // The note sits inside the segment that starts at scoreInfos[i - 1]: the walk never
+                            // opened a range, but the span is non-zero, so it must still be covered at that
+                            // segment's speed instead of falling back to the frame's own ratio.
+                            accumulated += (noteProgress - currentProgress) * scoreInfos[i - 1].speedRatio;
+                            hasRange = true;
+                            break;
+                        }
+
+                        accumulated += (segmentProgress - currentProgress) * scoreInfos[i - 1].speedRatio;
+                    }
+                    else
+                    {
+                        accumulated += segmentProgress - currentProgress;
+                    }
+
+                    hasRange = true;
                 }
 
-                // The segment that ends here began at the previous event; when that event opened a flash the
-                // span has no width across it.
-                if (IsFlash(scoreInfos, i - 1))
-                {
-                    cursor = at;
-                    speed = scoreInfos[i].speedRatio;
-                    continue;
-                }
-
-                float end = Mathf.Min(at, noteProgress);
-                accumulated += (end - cursor) * speed;
-                range += end - cursor;
-                cursor = at;
-                speed = scoreInfos[i].speedRatio;
-                if (at >= noteProgress)
+                if (segmentProgress >= noteProgress)
                 {
                     break;
                 }
+
+                previousProgress = segmentProgress;
+                previousSpeedRatio = segmentSpeedRatio;
             }
 
-            if (cursor < noteProgress)
+            if (!hasRange)
             {
-                accumulated += (noteProgress - cursor) * speed;
-                range += noteProgress - cursor;
+                return previousSpeedRatio;
             }
 
-            return range <= 0f ? fallbackSpeedRatio : accumulated / range;
-        }
-
-        private static bool IsFlash(MusicScoreInfo[] scoreInfos, int index)
-        {
-            if (index < 0 || index + 1 >= scoreInfos.Length)
-            {
-                return false;
-            }
-
-            MusicScoreInfo start = scoreInfos[index];
-            float width = scoreInfos[index + 1].bar + scoreInfos[index + 1].barProgress
-                - (start.bar + start.barProgress);
-            if (width <= 0f || scoreInfos[index + 1].time - start.time >= FlashSegmentSeconds)
-            {
-                return false;
-            }
-
-            return Mathf.Abs(start.speedRatio) * width >= FlashTravelBars;
+            float range = noteProgress - currentProgress;
+            return Mathf.Approximately(range, 0f) ? fallbackSpeedRatio : accumulated / range;
         }
     }
 }
