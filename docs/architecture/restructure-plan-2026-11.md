@@ -462,6 +462,13 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 - 规模（非空行）：门面 34、`SusParser` 387、`SusTimingConverter` 217、`SusNoteConverter` 365、`SusEventConverter` 82，辅助类 `SusChartData` 57、`SusTokens` 147、`SusSkipNoteResolver` 109，全部 < 400。`Tools/verify-structure.ps1 -CheckProjects -CheckAssemblies -RequireNoEmptyDirectories` 通过，缺失脚本清单与 P0-2 基线逐字节相同（新增 0）。报告、命令与逐项对照在 `TestResults/restructure-p2-6-*`。
 - Phase 2 的六项拆分至此全部完成。M2 仍待 P2-5 的真机开局与结算音效回归，其余退出条件已具备。
 
+### Phase 3 执行记录（2026-11-12）
+
+- P3-1 第一批完成，起点 `59dfd9a4`。新建 `Assets/Game/Runtime/OpenSekai.Game/`，先落 `Audio/` 与 `Animation/` 两个职责目录，从 `Sekai/` 顶层搬入 21 个文件。音频 9 个：`SoundManager`、`AudioCatalog`、`ExternalSoundPack`、`VolumeService`、`AcbAssetSource`、`SoundBundleData`、`SoundBundleBuildData`、`SoundUtility`、`GlobalSeSettings`；动画 12 个：七个 `Tween*`、`ITweenTargetComponent`、`LoadingIndicatorAnimation`、`ParticleSystemController`。
+- 移动经 `AssetDatabase.MoveAsset` 完成，`.meta` 随文件走；逐个比对 21 份 `.meta` 的 GUID 与 `HEAD` 一致。`unity recompile` 0 error；全量 EditMode 538 通过、0 失败、4 跳过（542 项），与搬动前逐项一致（缺失 0、结果变化 0、新增 0）；缺失脚本清单与 P0-2 基线逐字节相同。
+- `Sekai/` 顶层 `.cs` 由 196 降到 175。命名空间未改，因此没有代码改动；`docs/architecture/modules.md` 补了 `OpenSekai.Game/` 的目录职责，以及 asmdef 要等到最后才搬的原因。
+- 同一时段编辑器又烘了 Bold 字形资产（`SDF_Base` 6,570 → 8,395,194 字节），`verify-structure.ps1` 的生成资产校验直接报错，`Tools/restore-generated-assets.ps1` 一条命令还原——这套流程第一次在真实会话里生效。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动

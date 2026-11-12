@@ -18,12 +18,18 @@
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/Charts/` | `ChartTimeline` 和 `RuntimeChartDefinition` |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/Infrastructure/` | `ChartFileReader`、`SongPackageManager` 和曲库导入 |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/Live/Conversion/` | `RuntimeChartConverter` 和 `RuntimeChartImporter` 组装运行时谱面 |
-| OpenSekai.Game | `Assets/Game/Runtime/Sekai/` | `ScreenManager`、场景切换、Live 控制器、视图和音符 |
+| OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Audio/` | `SoundManager` 门面、`AudioCatalog`、`ExternalSoundPack`、`VolumeService`，以及 ACB 兼容入口 `AcbAssetSource` |
+| OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Animation/` | `Tween*` 组件与目标适配、加载指示与粒子动画组件 |
+| OpenSekai.Game | `Assets/Game/Runtime/Sekai/` | 待收敛：Live 控制器与视图、音符、页面栈、UI 部件和数据类（P3-1 分批搬入 `OpenSekai.Game/`） |
 | OpenSekai.Game | `Assets/Game/Runtime/Shared/` | 设置存储、触摸计算、SUS 运行时音符与事件组装、曲包模型与存储 |
 | OpenSekai.Game | `Assets/Game/Runtime/Platform/` | 平台适配、CRI 音频 shim 和序列化兼容接口 |
 | OpenSekai.Editor | `Assets/Game/Editor/` | Android 构建、AssetBundle 构建、资源检查和场景校验 |
 
 构建场景在 `Assets/Game/Scenes/`。依次为 `Library.unity`、`TransitionBlank.unity` 和 `Core.unity`。
+
+`Assets/Game/Runtime/OpenSekai.Game/` 是 P3-1 目录收敛的目标位置，按职责分为 `Screens`、`Audio`、`Assets`、`UI`、`Animation`、`Data`、`Live/{Runtime,View,Notes}`、`Platform`。每个目录的职责就是上表对应行；当前已搬入的目录见重构计划 P3-1 的执行记录。代码命名空间保持 `Sekai` 不变，所以搬目录不影响序列化引用，但 `.meta` 必须随文件一起移动（GUID 不变，场景与 prefab 才不会断）。
+
+`Assets/Game/Runtime/OpenSekai.Game.asmdef` 目前仍在 `Assets/Game/Runtime/` 根下，因此覆盖 `Sekai/`、`Shared/`、`Platform/` 与新建的 `OpenSekai.Game/`。等 `Sekai/` 顶层清空、其余 Game 归属目录都进 `OpenSekai.Game/` 之后，再把 asmdef 连同 `.meta` 搬进该目录——提前搬会让仍留在 `Runtime/` 根下的源码掉出程序集。
 
 ### 已移出工程的部分（备份目录已于 2026-11-03 删除，源码见重构前的 git 提交）
 
