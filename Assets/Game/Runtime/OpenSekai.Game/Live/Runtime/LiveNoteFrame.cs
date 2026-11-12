@@ -220,14 +220,26 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>
-		/// True while a note is still too far ahead to be drawn or updated this frame. This uses the
-		/// DISPLAY lead, which shrinks as the scroll speed rises: a fast note is drawn late, so stopping
-		/// the scan earlier than its own display lead would make it pop in mid-lane.
+		/// True while the scan may stop here: everything from this note on is still outside the display
+		/// window this frame. The gate uses the DISPLAY lead, which shrinks as the scroll speed rises,
+		/// and the scan walks notes in chart order - so the lead of the note it happens to stand on says
+		/// nothing about the notes behind it. A fast note's lead is a few milliseconds (that is what
+		/// makes its notes appear abruptly), while a note a bar later can already be on screen. Stopping
+		/// on the fast note therefore starved the slower ones behind it: they were first executed when
+		/// the scan got past the fast note, i.e. already part way down the screen - the "notes appear
+		/// from the middle of the screen" report at the 799 spikes.
+		/// </summary>
+		/// <remarks>
+		/// The lead is floored at the whole display window, which is what makes the stop sound: the scan
+		/// now reaches every note at least a window before its time, and a note is only ever visible
+		/// inside its own lead - which is at least that window - so no note can be skipped and then
+		/// appear. A note with a larger lead of its own (a slow section) still stops the scan at its own
+		/// gate, exactly as before.
 		/// Registration into the judgement list is a different question with a fixed lead; see
 		/// <see cref="OpenSekai.Shared.Live.JudgeListLead"/> in LiveInputRouter.Register. This gate must
 		/// never be reused for registration: doing that is what put a note behind a flick into the list
 		/// already past its bad window.
-		/// </summary>
+		/// </remarks>
 		internal bool IsTooFarAheadForDisplay(float timeOffset, NoteBase note)
 		{
 			if (note == null || Mathf.Approximately(timeOffset, 0f))
@@ -235,7 +247,8 @@ namespace Sekai.Core.Live
 				return false;
 			}
 
-			return Frame.time + timeOffset + LiveClock.ReferenceFrameSeconds <= note.MusicScoreInfo.time;
+			float lead = Mathf.Max(timeOffset, _session.NoteDisplayTimeOffset);
+			return Frame.time + lead + LiveClock.ReferenceFrameSeconds <= note.MusicScoreInfo.time;
 		}
 
 		/// <summary>
