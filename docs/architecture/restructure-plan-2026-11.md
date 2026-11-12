@@ -564,6 +564,14 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
   - 顺带记一条本批之外的既有问题：返回值里的 `PlayService` 单例在**未订阅**状态下也可能被 `ResetForNewRun` 碰到，这次靠标记堵住了；但 `LegacyPlaySurface` 其余方法仍会在需要时才去取 `SceneManager.Instance`，属于同一个"懒创建 + DontDestroyOnLoad"陷阱，改 `SceneManager` 本身要单独评估，不在本批。
 - P4-1 真机验收暴露的第二处问题（**来自 P3-3 的字体改动**，不是本批引入）：logcat 里 64 条 `The character used for Ellipsis is not available in font asset [SourceHanSansSC-Medium]`，TMP 把省略号溢出方式降级成截断。原因是用思源黑体 TTF 在运行时 `CreateFontAsset` 出来的动态资产还没把 U+2026 加进图集，而 TMP 的 `TextOverflowModes.Ellipsis` 只做 `HasCharacter` 不做 `TryAddCharacters`。两个修法：创建后 `TryAddCharacters("\u2026")`；或者干脆让 `LoadBundledFont()` 直接返回项目里预烘的 `SDF_Dynamic` 资产（顺带省掉启动时的建资产开销）。未在本批改，等下一轮有空闲编辑器时一起做。
 - 环境留痕：本轮为打包与测试临时用了隔离副本（`%TEMP%/OpenSekai-p4-build`，`Assets`/`ProjectSettings`/`Packages`/`Tools/signing`/`Tools/fixtures` 拷入），因为主工程的 `Temp/UnityLockfile` 被已退出的编辑器（PID 13152）残留句柄占住，`unity open`/`unity build` 都报"项目已在编辑器中打开"，而 `Library/EditorInstance.json` 删除后无效、`Remove-Item` 报共享冲突。隔离副本里跑出的 `PlayServiceDependencyTests` 6/6 通过、Android 包与主工程同源同构。主工程编辑器锁需要重启后释放，那条路径上的 `unity recompile`/全量 EditMode 待恢复后补跑。
+- 重启后已补跑并通过：主工程 `unity recompile` 0 error、全量 EditMode 564/568（0 失败、4 跳过）、缺失脚本清单与 P0-2 基线逐字节相同、`verify-structure.ps1` 与 `verify-resource-paths.ps1`（`calls=31 missing=0`）。隔离副本结论与主工程一致；先前对锁的判断是误判——句柄属主就是重启后重新打开的编辑器，沙箱当时只暴露 30 个进程，看不到它。
+- 字体省略号项已修，起点 `c69253a0`。放在 `ResolveCjkFont` 的出口而不是 `LoadBundledFont` 里：新增 `LibraryUi.EnsureRequiredGlyphs(asset)` 对最终选中的资产调 `TryAddCharacters("\u2026")`，bundled、OS 探测、项目资产三条来源一起覆盖；同时去掉 bundled 分支原来的提前 `return`（正是它绕过了出口）。
+- 这一项连带纠正了两条此前写在记录里的判断，都是实测出来的：
+  - 项目里的 `SourceHanSansSC-Medium SDF_Dynamic` 是**空图集的动态资产**——`characterTable` 0 条、`glyphTable` 0 条、图集 1×1、`HasCharacter('…')` 为 `False`。所以"改用项目资产就有省略号"不成立；两条候选方案都必须补同一句 `TryAddCharacters`。
+  - `CreateFontAsset(OTF)` 实测 **0.2 ms**（`Instantiate` 项目资产 0.4 ms），建出来的资产同样是空图集。之前说的"运行时建资产有启动开销"在数量级上不成立；真正的开销在首个字形光栅化，两条路径完全相同。因此保留现有三层探测链、按 A 方案修，是唯一不需要额外代价的选择。
+- 测试：`TheBundledUiFontCanBecomeATmpAsset` 增加两段断言（新建资产没有省略号 → `EnsureRequiredGlyphs` 之后有）；新增 `TheProjectSdfAssetCanBeSeededWithTheEllipsisToo` 在克隆上验证项目资产同样可被喂字形。克隆销毁前要把 `atlasTextures` 置空、`material` 置 null，否则 TMP 的 `OnDestroy` 会去 `DestroyImmediate` 磁盘上的资产并抛 "Destroying assets is not permitted"。
+- 验证：`unity recompile` 0 error；全量 EditMode 569 项、565 通过、0 失败、4 跳过；`verify-structure.ps1` 通过且四份生成字体资产**无漂移**（证明测试没有写脏被跟踪的资产）；`verify-resource-paths.ps1` 为 `calls=31 missing=0`。
+- 未做：没有重新打包上真机做视觉复验。省略号走的是 TMP 生成路径，EditMode 已覆盖"字形存在"这一层；真机确认并入下一次发包。
 
 ## 7. 迁移规则
 

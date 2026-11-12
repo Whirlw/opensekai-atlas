@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using OpenSekai.App.UI;
 using Sekai;
 using TMPro;
 using UnityEngine;
@@ -50,6 +51,9 @@ namespace OpenSekai.Tests.EditMode.ResourceLoading
             {
                 Assert.That(asset, Is.Not.Null, "TMP must be able to build a face from the bundled TTF");
                 Assert.That(asset.faceInfo.pointSize, Is.GreaterThan(0));
+                Assert.That(asset.HasCharacter('\u2026'), Is.False, "a fresh dynamic asset starts empty");
+                Assert.That(LibraryUi.EnsureRequiredGlyphs(asset).HasCharacter('\u2026'), Is.True,
+                    "the ellipsis glyph must be seeded before TMP checks the overflow mode");
             }
             finally
             {
@@ -57,6 +61,30 @@ namespace OpenSekai.Tests.EditMode.ResourceLoading
                 {
                     Object.DestroyImmediate(asset);
                 }
+            }
+        }
+
+        [Test]
+        public void TheProjectSdfAssetCanBeSeededWithTheEllipsisToo()
+        {
+            // Cloned first: the tracked asset must not gain glyphs from a test run, because the editor
+            // then reserialises it and the generated-asset guard reports drift.
+            TMP_FontAsset source = ResourceCatalog.MediumDynamicFont.Load();
+            Assert.That(source, Is.Not.Null, "Fonts/SourceHanSansSC-Medium SDF_Dynamic");
+
+            TMP_FontAsset clone = Object.Instantiate(source);
+            try
+            {
+                Assert.That(LibraryUi.EnsureRequiredGlyphs(clone).HasCharacter('\u2026'), Is.True,
+                    "the project fallback font needs the same seeding as the bundled one");
+            }
+            finally
+            {
+                // The clone still points at the asset's own atlas texture and material. Detaching both
+                // keeps TMP's destroy path from trying to delete on-disk assets.
+                clone.atlasTextures = System.Array.Empty<Texture2D>();
+                clone.material = null;
+                Object.DestroyImmediate(clone);
             }
         }
 

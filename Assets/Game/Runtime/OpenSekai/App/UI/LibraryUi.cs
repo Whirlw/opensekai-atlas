@@ -41,9 +41,10 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>
-        /// The project font is a Japanese Rodin SDF asset; simplified Chinese labels would fall
-        /// back to missing glyphs. Resolve one OS font that actually contains CJK and use it for
-        /// this page. Returns null when the platform has no usable font, leaving TMP's default.
+        /// The library labels mix simplified Chinese with the project's Japanese typeface, so this page
+        /// resolves a CJK font itself: the bundled one first, then an installed OS family, then the
+        /// project's dynamic asset. Whatever wins goes through <see cref="EnsureRequiredGlyphs"/>,
+        /// because all three sources start with an empty character table.
         /// </summary>
         private static TMP_FontAsset ResolveCjkFont()
         {
@@ -54,14 +55,9 @@ namespace OpenSekai.App.UI
 
             _cjkFontResolved = true;
 
-            // Preferred: the bundled UI font (Noto Sans SC subset, OFL). It is the only source
-            // that is guaranteed to exist on every target and cannot be affected by OS fonts.
+            // Preferred: the bundled UI font. It is the only source that is guaranteed to exist on
+            // every target and cannot be affected by OS fonts.
             _cjkFontAsset = LoadBundledFont();
-            if (_cjkFontAsset != null)
-            {
-                Debug.Log("[LibraryScreen] CJK font: " + _cjkFontAsset.name);
-                return _cjkFontAsset;
-            }
 
             string[] installed = Font.GetOSInstalledFontNames();
             for (int i = 0; i < CjkFontCandidates.Length && _cjkFontAsset == null; i++)
@@ -97,7 +93,31 @@ namespace OpenSekai.App.UI
             Debug.Log("[LibraryScreen] CJK font: " + (_cjkFontAsset != null ? _cjkFontAsset.name : "<none>")
                 + " / os fonts: " + installed.Length
                 + " / first: " + string.Join(" | ", installed, 0, Math.Min(12, installed.Length)));
-            return _cjkFontAsset;
+            return EnsureRequiredGlyphs(_cjkFontAsset);
+        }
+
+        /// <summary>Horizontal ellipsis, the only character TMP asks for that no label spells out.</summary>
+        private const char EllipsisCharacter = '\u2026';
+
+        /// <summary>
+        /// Seeds the glyph TMP's ellipsis overflow asks for. TMP only calls HasCharacter when it decides
+        /// how to overflow a label, and every font this page can resolve starts with an empty character
+        /// table, so without this the labels truncate instead of ellipsizing (64 warnings on one device
+        /// run). Applied to whichever asset won, so the bundled, OS and project sources are all covered.
+        /// </summary>
+        internal static TMP_FontAsset EnsureRequiredGlyphs(TMP_FontAsset asset)
+        {
+            if (asset == null)
+            {
+                return null;
+            }
+
+            if (!asset.HasCharacter(EllipsisCharacter) && !asset.TryAddCharacters("\u2026"))
+            {
+                Debug.LogWarning("[LibraryScreen] Font asset " + asset.name + " cannot add the ellipsis glyph.");
+            }
+
+            return asset;
         }
 
         private static TMP_FontAsset LoadBundledFont()
