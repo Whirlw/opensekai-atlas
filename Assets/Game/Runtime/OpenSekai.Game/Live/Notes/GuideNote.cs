@@ -112,6 +112,23 @@ namespace Sekai.Live
 			RemoveView();
 		}
 
+		/// <summary>
+		/// The time of the bar's last point: the place its body is drawn to. A guide bar owns no
+		/// verdict, so this is the only fact that says how long the bar is on screen.
+		/// </summary>
+		private float BodyEndTime
+		{
+			get
+			{
+				if (NoteList == null || NoteList.Count == 0)
+				{
+					return MusicScoreInfo.time;
+				}
+
+				return NoteList[NoteList.Count - 1].MusicScoreInfo.time;
+			}
+		}
+
 		public override bool AutoJudgment(MusicScoreInfo currentFrameInfo)
 		{
 			if (MusicScoreInfo.time > currentFrameInfo.time)
@@ -127,7 +144,17 @@ namespace Sekai.Live
 				// Nothing at the end can be played, so there is no verdict to wait for: the bar simply
 				// ends where it ends. Without this the note stayed alive forever and the session's cursor
 				// never walked past it - autoplay scored full marks and then never settled.
+				//
+				// "Where it ends" is the bar's last point, not its head. Ending the bar the frame its
+				// head crossed the line took the whole body off the screen at once: on Test16 the
+				// decorative bars vanished on the judgement line while their tails were still up to a
+				// second away. The bar is drawn until that last point passes, so it now ends there.
 				IsAutoPlaying = true;
+				if (currentFrameInfo.time < BodyEndTime)
+				{
+					return false;
+				}
+
 				State = NoteState.Done;
 				return true;
 			}
