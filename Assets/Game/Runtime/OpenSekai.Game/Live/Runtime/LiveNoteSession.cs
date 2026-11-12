@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Sekai.Live;
 
@@ -102,6 +102,57 @@ namespace Sekai.Core.Live
 		public void WalkHighSpeedNotes(NoteVisitor visit)
 		{
 			Walk(HighSpeedNotes, ref _highSpeedIndex, visit);
+		}
+
+		private NoteBase[] _appearing = Empty;
+		private float[] _appearTimes = System.Array.Empty<float>();
+		private int _appearIndex;
+
+		/// <summary>How many entries of the appearance table the cursor has walked past.</summary>
+		public int AppearIndex => _appearIndex;
+
+		public int AppearingCount => _appearing.Length;
+
+		/// <summary>
+		/// Installs the appearance table built at load: every note ordered by the moment it becomes visible,
+		/// with that moment in the parallel time array.
+		/// </summary>
+		public void BindAppearTable(NoteBase[] order, float[] appearTimes)
+		{
+			_appearing = order ?? Empty;
+			_appearTimes = appearTimes ?? System.Array.Empty<float>();
+			_appearIndex = 0;
+		}
+
+		/// <summary>
+		/// Visits every note whose appearance time has passed. The table is sorted by that time, so the walk
+		/// stops at the first note that is not due yet and never has to ask how far ahead a note is - that
+		/// question is what let one note with a collapsed lead park the scan and starve everything behind it.
+		/// </summary>
+		public void WalkAppearing(float now, NoteVisitor visit)
+		{
+			for (int i = _appearIndex; i < _appearing.Length; i++)
+			{
+				NoteBase note = _appearing[i];
+				if (note == null || note.State == NoteState.Done)
+				{
+					if (i == _appearIndex)
+					{
+						_appearIndex++;
+					}
+					continue;
+				}
+
+				if (_appearTimes[i] > now)
+				{
+					return;
+				}
+
+				if (visit(note) == Scan.Stop)
+				{
+					return;
+				}
+			}
 		}
 
 		private static void Walk(NoteBase[] notes, ref int cursor, NoteVisitor visit)
