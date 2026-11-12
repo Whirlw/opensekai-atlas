@@ -303,7 +303,7 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 **P3-4 动画入口统一**
 
 - `TweenBase` 已使用 DOTween。由 Inspector 配置和驱动的动画继续使用现有 `Tween*` 组件，代码管理生命周期的动画沿用 DOTween。
-- 在 `docs/coding-standards` 记录这两个入口的适用场景、现有调用以及动画随组件禁用、销毁或场景切换时的清理责任。
+- 在 `docs/coding-standards` 记录这两个入口的适用场景、现有调用以及动画随组件禁用、销毁或场景切换时的清理责任。（已落到 `11-animation.md`，见执行记录。）
 
 验收：新增或迁移的动画有明确的入口和生命周期归属，既有 Inspector 引用和动画行为保持一致。
 
@@ -526,6 +526,14 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
   - 验证：`unity recompile` 0 error；全量 EditMode 558 项、554 通过、0 失败、4 跳过（与删除前逐项相同）；缺失脚本清单 sha256 `90358BD4…` 与 P0-2 基线逐字节相同，删除没有制造任何断裂引用；`verify-structure.ps1 -CheckAssemblies -CheckProjects -RequireNoEmptyDirectories` 通过（四份生成字体资产无烘焙漂移）；`verify-resource-paths.ps1` 为 `calls=31 missing=0`。
 - 顺带记一条事实：清理后全仓仍有 28 个文件含 `throw null;` 占位（共 340 处），反编译未还原的方法体还大量存在。`RankLive/NumberView` 能安全删除不是因为它是占位类，而是因为它**重复**了一个已实现类型且零引用；其余占位类都有实际调用点，删它们属于另一件事，不在 P3-3 范围内。
 - P3-3 至此只剩 `MusicScoreMaker/Common` 三个存储类，阻塞在 P4-1 的显式依赖改造。
+
+- P3-4 完成，起点 `cfa00048`。新增 `docs/coding-standards/11-animation.md`，并把它挂进 `docs/coding-standards/README.md`（分册树、导航、速查表）与 `docs/INDEX.md`。规范给的是一条决策线：Inspector 能配的走 `Tween*` 组件，时机与目标要由运行时状态算的走 DOTween，谁创建谁在禁用或销毁时 Kill；美术已有 clip 的两处 Animator 记为既有例外，不作为新动画的入口。
+- 盘点结论（写进文档，附文件与行号）：
+  - `Tween*` 家族 9 个脚本：1 个抽象 `TweenBase`、3 个实现（`TweenAlpha`/`TweenPosition`/`TweenScale`）、5 个目标适配器；适配器不挂 prefab，由 `SetupTarget()` 按 `componentType` 在 `Awake` 里 new。全仓只有 3 个 prefab、11 个组件在用（`FrontUIView` 的 `TweenAlpha` ×2、`LiveTransitioner` 的 `TweenScale` ×8、`ScreenLayerHeader` 的 `TweenPosition` ×1），`.unity` 场景 0 处。唯一的代码消费者是 `UIPartsLoadingCircle` 的 Master/Reference 复用。
+  - 代码侧 12 个文件直接调 DOTween，按清理方式分三类记录：缓存句柄重建前 Kill（6 个）、按目标 `DOKill()` 兜底（3 个）、链式一次性与即发即忘（3 个）。
+  - 全局配置只有 `Assets/Graphics/Resources/DOTweenSettings.asset`：`useSafeMode=1`、`defaultAutoKill=1`、`defaultEaseType=6`；全仓没有 `DOTween.Init`、`DOTween.KillAll`、`SetLink`。文档据此说明 safe mode 是兜底而非清理，并给出"转场里不要 `KillAll`"的理由——`LiveTransitioner` 转场时自己也在跑 tween。
+- 记录 5 条现状缺口，均未在本批改代码：`ScreenLayerHeader` 的 `Manual` tween 没有任何驱动（Header 仍是空壳，`isAnim` 参数没接）；`ScreenLayerLiveLoading:45` 的 `DOTween.To` 不存句柄；`ScoreView` 的 `SetAutoKill(false)` Sequence 缺销毁兜底；7 个 DOTween 消费类没有 `OnDisable`/`OnDestroy` 钩子；`syncGameTime` 从未启用。这些都是"行为可能变"的改动，混进文档提交会让 P3-4 的"不改行为"前提失效，留给各自工作包。
+- `verify-structure.ps1 -CheckAssemblies -CheckProjects -RequireNoEmptyDirectories` 通过，112 份 Markdown 的链接与锚点 0 处失效。
 
 ## 7. 迁移规则
 

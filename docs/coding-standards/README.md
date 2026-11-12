@@ -32,6 +32,7 @@
 | 注释 | 自解释优先；只注释公共 API；Inspector 字段用 `[Tooltip]` | [07-design-practices.md](07-design-practices.md) |
 | UI 命名 | BEM：`块__元素--修饰符` | [07-design-practices.md](07-design-practices.md) |
 | 代码气味 | 命名模糊 / 职责混乱 / 耦合过高 / 重复代码 / 过度注释 | [08-code-smells.md](08-code-smells.md) |
+| 动画 | Inspector 配的用 `Tween*` 组件，代码算的用 DOTween；谁创建谁在禁用/销毁时 Kill | [11-animation.md](11-animation.md) |
 
 ## 分册
 
@@ -48,6 +49,7 @@ docs/coding-standards/
   08-code-smells.md               常见代码陷阱
   09-tooling-and-resources.md     脚本模板、单元测试、权威参考
   10-odin-toolkits.md             Data / Model 的职责划分
+  11-animation.md                 Tween* 组件与 DOTween 两个动画入口、调用清单、清理责任
   references/                     外链原文摘录（电子书、GitHub、MS Learn 等）
 ```
 
@@ -61,6 +63,7 @@ docs/coding-standards/
 - [08-code-smells.md](08-code-smells.md) —— Review 时对照
 - [09-tooling-and-resources.md](09-tooling-and-resources.md) —— 模板、测试、扩展阅读
 - [10-odin-toolkits.md](10-odin-toolkits.md) —— 数据该放 Data 还是 Model
+- [11-animation.md](11-animation.md) —— 加动画前先定入口：`Tween*` 还是 DOTween
 
 ## 与项目现状的关系
 

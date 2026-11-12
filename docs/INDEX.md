@@ -145,6 +145,7 @@
 | 代码陷阱 | [coding-standards/08-code-smells.md](coding-standards/08-code-smells.md) | 五条 Code Smell 的症状/原因/改法 + Review 清单 | 2026-11-02 | 现行 |
 | 工具与扩展资源 | [coding-standards/09-tooling-and-resources.md](coding-standards/09-tooling-and-resources.md) | 脚本模板命名、单元测试、权威参考、架构文章 | 2026-11-02 | 现行 |
 | Data 与 Model | [coding-standards/10-odin-toolkits.md](coding-standards/10-odin-toolkits.md) | 静态数据 vs 运行时状态、变更通知、判断流程 | 2026-11-02 | 现行 |
+| 动画入口 | [coding-standards/11-animation.md](coding-standards/11-animation.md) | `Tween*` 与 DOTween 的适用场景、现有挂载点与调用清单、禁用/销毁时的清理责任 | 2026-11-12 | 现行 |
 | 外部资料整理 | [coding-standards/references/README.md](coding-standards/references/README.md) | 9 份外链的可得性说明与摘录索引 | 2026-11-02 | 现行 |
 | 电子书整理 | [coding-standards/references/unity-csharp-style-guide-ebook.md](coding-standards/references/unity-csharp-style-guide-ebook.md) | Unity 6 版 C# 风格指南电子书的章节骨架与可核实要点 | 2026-11-02 | 现行 |
 | 风格指南仓库 | [coding-standards/references/unity-code-style-guide-repo.md](coding-standards/references/unity-code-style-guide-repo.md) | Unity-Code-Style-Guide 仓库的规则条款摘录 | 2026-11-02 | 现行 |
