@@ -93,7 +93,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File Tools/verify-structure.ps1 -
 先确认 `m_FaceInfo.m_LineHeight` 是否等于 70（与被替换的 Rodin 对齐）；再确认 `m_PointSize` 是 35。两者任一不对都会让换行与基线整体偏移。
 
 **能不能只用一套字体？**
-现在实际上已经是这样：曲库页与打歌都用思源黑体，`LibraryUi.LoadBundledFont()` 里那条 `Fonts/NotoSansSC-UI` 的加载在 2026-11 已确认指向一个**仓库里不存在的资源**，所以它一直返回 null，曲库随后走 OS 字体探测、再退到项目 TMP 资产。要么删掉这条死路径，要么把子集字体补回来，两者都需要单独决定；在那之前不要把它当成可用字体。
+可以，现在就是这么做的：曲库页与打歌都走思源黑体。`LibraryUi.LoadBundledFont()` 用 `ResourceCatalog.MediumTtfFont`（`Fonts/SourceHanSansSC-Medium`）在运行时建一个 TMP 资产，OS 字体探测和项目内的 `SDF_Dynamic` 资产只是它失败时的后备。2026-11 之前这里指向 `Fonts/NotoSansSC-UI`——一个仓库里并不存在的 Noto 子集，导致该分支恒返回 null、曲库一直在走后备。
 
 ## 相关文档
 

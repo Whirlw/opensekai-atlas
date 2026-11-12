@@ -516,6 +516,9 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
   - **`MusicScoreMaker/Common` 三个存储类**：它们仍被 Game 侧四处调用——`SoloLiveController` 结算时写播放历史、`Background2DView` 两处读 entry、`MusicInfoView` 一处读 entry。直接搬到 App 会形成 Game → App 的反向依赖，违反 §3.1 的依赖方向。这项要等 P4-1 把 `LiveContext`/`AppContext` 的显式依赖做完，让这些读取走注入，才能真归位 App。当前保持 Game 内。
   - 因此 P3-3 剩下的都是“需要决策或需要看编辑器实际引用”的项，不是机械搬迁。`NotoSansSC-UI` 死路径同样待定。
 
+- P3-3 字体项已决并落地：曲库页的 bundled 字体改用思源黑体。`LibraryUi.LoadBundledFont()` 不再拼 `Fonts/NotoSansSC-UI`（仓库里不存在），改走 `ResourceCatalog.MediumTtfFont`（`Fonts/SourceHanSansSC-Medium`），运行时建出的 TMP 资产命名为 `SourceHanSansSC-Medium`；`BUNDLED_FONT_RESOURCE_PATH` 常量删除。OS 字体探测与 `SDF_Dynamic` 资产仍是失败时的后备。
+- 新增一项测试 `TheBundledUiFontCanBecomeATmpAsset`：不只断言 TTF 能加载，还真实调用 `TMP_FontAsset.CreateFontAsset` 并检查 `faceInfo.pointSize > 0`——这才是曲库页实际执行的那一步。`docs/reference/fonts.md` 同步改成“只用一套字体，就是思源黑体”，并记下旧 Noto 路径为何一直返回 null。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动

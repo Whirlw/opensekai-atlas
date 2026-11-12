@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using Sekai;
+using TMPro;
 using UnityEngine;
 
 namespace OpenSekai.Tests.EditMode.ResourceLoading
@@ -31,6 +32,32 @@ namespace OpenSekai.Tests.EditMode.ResourceLoading
             AssertEntry(ResourceCatalog.MediumDynamicFont, "medium dynamic TMP font");
             AssertEntry(ResourceCatalog.MediumTtfFont, "medium TTF");
             AssertEntry(ResourceCatalog.BoldTtfFont, "bold TTF");
+        }
+
+        /// <summary>
+        /// The library screen builds its own TMP asset from the bundled TTF. The TTF resolving is not
+        /// enough — TMP has to be able to read a face out of it — so this exercises the step the
+        /// library actually performs.
+        /// </summary>
+        [Test]
+        public void TheBundledUiFontCanBecomeATmpAsset()
+        {
+            Font font = ResourceCatalog.MediumTtfFont.Load();
+            Assert.That(font, Is.Not.Null, "Fonts/SourceHanSansSC-Medium");
+
+            TMP_FontAsset asset = TMP_FontAsset.CreateFontAsset(font);
+            try
+            {
+                Assert.That(asset, Is.Not.Null, "TMP must be able to build a face from the bundled TTF");
+                Assert.That(asset.faceInfo.pointSize, Is.GreaterThan(0));
+            }
+            finally
+            {
+                if (asset != null)
+                {
+                    Object.DestroyImmediate(asset);
+                }
+            }
         }
 
         [Test]

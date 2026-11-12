@@ -11,8 +11,6 @@ namespace OpenSekai.App.UI
 {
     internal static class LibraryUi
     {
-        private const string BUNDLED_FONT_RESOURCE_PATH = "Fonts/NotoSansSC-UI";
-
         private static readonly Color32 ButtonColor = new Color32(54, 67, 80, 255);
         private static readonly Color32 AccentColor = new Color32(72, 148, 214, 255);
         private static readonly string[] CjkFontCandidates =
@@ -107,7 +105,7 @@ namespace OpenSekai.App.UI
             Font font;
             try
             {
-                font = Resources.Load<Font>(BUNDLED_FONT_RESOURCE_PATH);
+                font = ResourceCatalog.MediumTtfFont.Load();
             }
             catch (Exception exception)
             {
@@ -125,7 +123,7 @@ namespace OpenSekai.App.UI
                 TMP_FontAsset asset = TMP_FontAsset.CreateFontAsset(font);
                 if (asset != null)
                 {
-                    asset.name = "NotoSansSC-UI";
+                    asset.name = "SourceHanSansSC-Medium";
                 }
                 return asset;
             }
