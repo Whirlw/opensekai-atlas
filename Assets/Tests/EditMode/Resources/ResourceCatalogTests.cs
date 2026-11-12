@@ -100,6 +100,10 @@ namespace OpenSekai.Tests.EditMode.ResourceLoading
             TMP_FontAsset asset = ResourceCatalog.MediumDynamicFont.Load();
 
             Assert.That(asset, Is.Not.Null, "Fonts/SourceHanSansSC-Medium SDF_Dynamic");
+            // TMP builds its lookup lazily from the serialised tables. Without this the same asset answers
+            // differently depending on what the editor did earlier in the session (hasCharacter came back
+            // false on a fresh load and true after another test had touched it), which is not a font bug.
+            asset.ReadFontAssetDefinition();
             Assert.That(asset.HasCharacter('\u2026'), Is.True,
                 "the tracked font asset must ship with U+2026 baked in; rerun the bake if this fails");
             Assert.That(asset.glyphTable, Is.Not.Empty, "a character row without its glyph is not enough");
