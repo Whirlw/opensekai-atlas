@@ -70,6 +70,7 @@ EditMode：
 - `Live/DecouplingAcceptanceTests`：判定解耦的六条验收用例（[交接](handoff-2026-11-11.md) §10 第 1 条）。两条头（过线未按仍然发布 Miss、被尾结束时头的结果不被覆盖）、两条抬手归属（尾键横移到另一条车道后要在尾的位置抬手；抬手落在相邻装饰条车道、但仍在条身放宽范围内时不判目标条）、两条 flick 尾（标准时间之前的样本既不判也不记；判定之后继续驱动 30 帧，尾只发布一次、连击只 +1）。前四条走真实 `OnUpdate`/`OnInput` 并断言手指确实被候选路径接住，后两条只驱动尾的决策入口。**动到 `PickLiftTarget`、`Head.Settle`、`LongNoteTail` 的窗口或发布路径时必须跑它**。六条在写入时全部通过：它们固定的是现有行为，不是待修的缺口。
 - `Live/HeadDecouplingTests`：头的离场出口。除原有的「按住头只发布一次」「判过的头不被宽限结束覆盖」外，新增三条盯 `LongNote.LeavePlayState()`：条在头结算前被 `ForceTerminate(tail)` 结束仍要补发 Miss（**这条是先红后绿的**）、重复调用只发布一次、已结束的条再按不改变任何结果。**动到 `ForceTerminate` / `FinishSilently` / `SettleExpiredHead` 或 `LongNoteHead.TryJudge` 时必须跑它**。
 - `Live/TailBehaviourContractTests`：尾的策略契约（`ITailBehaviour.TryFinish` 一处决定，bar 上不许再出现三个布尔开关）。另有两项盯「**同一根尾只发布一次**」：把已判过的条硬塞回 `Scrolling` 后，窗口过期 / 抬手 / 自判解绑三条路径都必须被拒且不改写任何结果（**先红后绿**）；以及池复用后能重新发布一次。**动到 `LongNoteTail` 的 `PublishTail` / `FailTail` / `DetachStandaloneTail` 或 `Reset` 时必须跑它**。
+- `Live/FlickEndBehaviourTests`：划键尾的窗口、延迟结算、方向与速度门槛。其中的独立尾（摩擦划）几条按 `tail-classes.md` §3 的 R1/R2/R3 改写：尾自己写 Miss（条只驱动与读取）、尾判定不结束条、条结束把没判的中间点判 Perfect。**动到 `DetachStandaloneTail`、`ForceTerminate` 对尾的判定、或 `SettleLeftoverAsPerfect` 时必须跑它**。
 - `App/PlayServiceDependencyTests`：开局路径依赖全部换成假端口，覆盖四种前置拒绝（曲库未就绪、加载界面未就绪、请求目标不是曲库、当前不在曲库场景）、推入加载界面失败后的回滚与锁释放、开局成功后的持锁与场景退场释放、以及连续两局；并断言发布的 `FreeLiveBootData.DeckData.UserInfo.DeckId` 取自端口而不是单例。**动开局流程或 `PlayService` 的前置判断时必须跑它**。
 - `LiveContextTests`：`LiveContext.FromRetainedBoot()` 把 `UserDataManager`、`EntryPoint.PlayMode`、`PlaySessionContext` 的五个事实逐项抄进上下文；缺 Boot 时其余字段仍完整，null 会话字段降级成空串，两次读取互不影响。用例在 `[SetUp]/[TearDown]` 里存旧值并写回，不会污染同一进程里的其它用例。
 - `Resources/ResourceCatalogTests`：`ResourceCatalog` 里每条固定 `Resources` 路径都能加载、类型正确、回退只在主路径失败时生效；另含两条字体相关断言——`Fonts/SourceHanSansSC-Medium` 能被 TMP 建成字面、以及 `LibraryUi.EnsureRequiredGlyphs` 能对三条来源（bundled / OS / 项目资产）补上省略号字形。项目 SDF 资产在用例里是**克隆**后操作的，避免编辑器回写被跟踪的 `.asset`。
@@ -102,7 +103,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File Tools\compare-test-runs.ps1 
 
 2026-11-12 的结果：两次都是 **569 项 / 565 通过 / 0 失败 / 4 跳过**，逐项完全相同，耗时 8.11 s 与 8.11 s。4 个跳过全部来自已停放的 `Live/DecorationTailJudgmentTests`（原因见上文「覆盖范围」，替代用例是 `DecorationTailFromChartTests`）。
 
-> 此后基线继续增长：2026-11-12 判定解耦这一轮收尾时为 **583 项 / 579 通过 / 0 失败 / 4 跳过**（`Live/DecouplingAcceptanceTests` 六条 + `Live/HeadDecouplingTests` 的出口三条）。上面的 569 是那次一致性实验的记录，不是当前基线。
+> 此后基线继续增长：2026-11-12 判定解耦这一轮收尾时为 **590 项 / 586 通过 / 0 失败 / 4 跳过**（`Live/DecouplingAcceptanceTests` 六条 + `Live/HeadDecouplingTests` 的出口三条 + `Live/TailBehaviourContractTests` 的发布与「Done 不再判」三条 + `Live/FlickEndBehaviourTests` 类 1 的改写三条与新增五条）。上面的 569 是那次一致性实验的记录，不是当前基线。
 
 结构门禁（P4-4 起，`Tools/verify-structure.ps1` 默认执行，无需额外开关）：
 

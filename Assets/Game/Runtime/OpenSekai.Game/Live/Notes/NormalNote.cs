@@ -10,8 +10,10 @@ namespace Sekai.Live
 				if (value == NoteState.Done && state != NoteState.Done)
 				{
 					state = NoteState.Done;
-					NotifyParentFinished();
+					// Publish first, then tell the bar: the ordinary end note ends its bar through its
+					// verdict, not before it (tail-classes.md §3 R2).
 					OnUnSpawnNote();
+					NotifyParentFinished();
 					return;
 				}
 				base.State = value;

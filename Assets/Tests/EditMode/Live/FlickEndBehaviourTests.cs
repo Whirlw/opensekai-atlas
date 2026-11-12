@@ -816,22 +816,43 @@ namespace OpenSekai.Tests.EditMode.Live
 
             // has to end up Miss once its window is gone, or it is the one note that cannot be missed.
 
+            // That Miss is the note's own verdict (tail-classes.md §3 类 1): the bar drives the note and
+
+            // reads the result, it never writes it.
+
             var bar = new LongNote(Info(0f), 311, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
 
             var tail = new FrictionFlickNote(Info(1f), 312, 4, 5, NoteCategory.FrictionFlick, 1, NoteType.Default, NoteDirection.Default, 0.0833f, 0f);
 
             bar.AddNoteListAndSetupChildNote(tail);
 
+            int published = 0;
+
+            tail.OnJudgment = _ => published++;
+
             bar.SetStateUnnotice(NoteState.Scrolling);
             bar.RecordHoldingInput(1, 1f);
 
 
 
-            Assert.That(bar.DetachStandaloneTail(2f), Is.True, "the bar detaches once the tail window is gone");
+            bar.Excute(Info(1.2f), 0f);
+            bar.Excute(Info(1.3f), 0f);
+
+            Assert.That(tail.State, Is.EqualTo(NoteState.Done), "the tail is finished");
 
             Assert.That(tail.Result, Is.EqualTo(NoteResult.Miss), "the untouched tail is graded Miss");
 
-            Assert.That(tail.State, Is.EqualTo(NoteState.Done), "the tail is finished");
+            Assert.That(published, Is.EqualTo(1), "and it publishes that verdict itself, once");
+
+            Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done), "an independent tail does not end its bar");
+
+
+
+            Assert.That(bar.DetachStandaloneTail(1.4f), Is.True, "the bar detaches once its own time has gone");
+
+            Assert.That(published, Is.EqualTo(1), "the bar adds no publication of its own");
+
+            Assert.That(bar.Result, Is.EqualTo(NoteResult.Miss), "it only reads the verdict the note wrote");
 
         }
 
@@ -878,9 +899,15 @@ namespace OpenSekai.Tests.EditMode.Live
 
         [Test]
 
-        public void AMissedTailShowsItsCharacterEvenWhenTheBarIsTheOneThatFailedIt()
+        public void AMissedStandaloneTailShowsItsCharacterEvenThoughTheBarDidNotGradeIt()
 
         {
+
+            // An independent tail writes its own Miss (tail-classes.md §3 类 1), and that Miss still has
+
+            // to reach the view layer: the popup is what tells the player the note was missed. The bar
+
+            // is not the one failing it any more, so this pins the note's own reporting.
 
             var bar = new LongNote(Info(0f), 331, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
 
@@ -899,15 +926,18 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-            bar.DetachStandaloneTail(2f);
+            bar.Excute(Info(1.2f), 0f);
+            bar.Excute(Info(1.3f), 0f);
 
 
 
             Assert.That(tail.Result, Is.EqualTo(NoteResult.Miss));
 
-            Assert.That(tail.SuppressJudgmentEffect, Is.False, "the popup must not be suppressed any more");
+            Assert.That(tail.SuppressJudgmentEffect, Is.False, "the popup must not be suppressed");
 
             Assert.That(reported, Does.Contain(tail), "the Miss character has to be shown for the tail");
+
+            Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done), "and the bar is not the one that failed it");
 
         }
 
@@ -1262,15 +1292,23 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-            // The tail judges itself, and its own state change already ends the bar through the
-
-            // tail role; the detach path is only the fallback for a tail that never settles.
+            // The tail judges itself. Its verdict must NOT end the bar (tail-classes.md §3 类 1): an
+            // independent tail does not touch the bar in either direction, so the bar leaves on its own
+            // time and only reads the verdict.
 
             tail.FinishWith(NoteResult.JustPerfect);
 
-            Assert.That(bar.State, Is.EqualTo(NoteState.Done), "the bar follows its own tail");
+            Assert.That(tail.State, Is.EqualTo(NoteState.Done), "the tail settles itself");
 
-            Assert.That(bar.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done), "an independent tail does not end its bar");
+
+
+
+            Assert.That(bar.DetachStandaloneTail(1.4f), Is.True, "the bar leaves on its own time");
+
+            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+
+            Assert.That(bar.Result, Is.EqualTo(NoteResult.JustPerfect), "and takes the verdict it read");
 
         }
 
@@ -1302,9 +1340,178 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-            Assert.That(bar.DetachStandaloneTail(1.30f), Is.True, "past the window the bar has to end");
+            // The note times itself out: the bar drives its children, and NoteBase.Excute turns a note
+
+            // past its window into its own Miss. The bar waits for that verdict instead of writing one.
+
+            bar.Excute(Info(1.2f), 0f);
+            bar.Excute(Info(1.3f), 0f);
+
+            Assert.That(tail.Result, Is.EqualTo(NoteResult.Miss), "the tail writes its own Miss");
+
+            Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done), "and that does not end the bar");
+
+
+
+            Assert.That(bar.DetachStandaloneTail(1.4f), Is.True, "past the window the bar has to end");
 
             Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+
+        }
+
+
+
+        [Test]
+
+        public void AVerdictIsPublishedBeforeItsBarIsAllowedToLeave()
+
+        {
+
+            // The ordering R2 depends on: the bar hands the frame to its tail, the tail writes and
+
+            // publishes its own verdict, and only then does that verdict end the bar. A bar that left
+
+            // first would recycle its views before the tail could show the judgement.
+
+            var bar = new LongNote(Info(0f), 411, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
+
+            var tail = new FlickNote(Info(1f), 412, 4, 5, NoteCategory.Flick, 1, NoteType.Default, NoteDirection.Left, 0, 0f);
+
+            bar.AddNoteListAndSetupChildNote(tail);
+
+            bar.RecordHoldingInput(1, 1f);
+
+            bar.SetStateUnnotice(NoteState.Scrolling);
+
+
+
+            int published = 0;
+
+            bool aliveWhenPublished = false;
+
+            tail.OnJudgment = _ => { published++; aliveWhenPublished = bar.State != NoteState.Done; };
+
+
+
+            Assert.That(bar.NotifyLaneSwipe(10f, 1.02f), Is.True, "the swipe settles the tail");
+
+
+
+            Assert.That(published, Is.EqualTo(1), "the tail publishes its verdict");
+
+            Assert.That(aliveWhenPublished, Is.True, "and the bar is still in play at that moment");
+
+            Assert.That(bar.State, Is.EqualTo(NoteState.Done), "the verdict is what ends the bar");
+
+        }
+
+
+
+        [Test]
+
+        public void AJudgementOnTheTailTimeFrameWinsOverTheBarsOwnEnding()
+
+        {
+
+            // The tail-time frame gives the bar two chances on the same frame: the tail's judgement first,
+
+            // then its own ending (R4). Whichever arrives second must add nothing - so the lift at exactly
+
+            // the tail's time is graded before expiry is even consulted.
+
+            var bar = new LongNote(Info(0f), 421, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
+
+            var tail = new NormalNote(Info(1f), 422, 4, 5, NoteCategory.Normal, 1, NoteType.Default, 0f);
+
+            bar.AddNoteListAndSetupChildNote(tail);
+
+            bar.RecordHoldingInput(1, 1f);
+
+            bar.SetStateUnnotice(NoteState.Scrolling);
+
+
+
+            Assert.That(bar.JudgeTailAsRelease(1f), Is.True, "the lift at the tail's own time grades it");
+
+            Assert.That(bar.ExpireTail(1f), Is.False, "and the bar's own ending on the same frame adds nothing");
+
+            Assert.That(bar.Result, Is.EqualTo(NoteResult.JustPerfect), "the verdict stands");
+
+            Assert.That(tail.Result, Is.EqualTo(NoteResult.JustPerfect), "for the note too");
+
+        }
+
+
+
+        [Test]
+
+        public void ADeferredSwipeKeepsTheBarAliveOnTheTailTimeFrame()
+
+        {
+
+            // A flick tail graded by a deferred swipe is not due on its own time frame: that frame only
+
+            // starts the countdown, so the bar must not take it as its own ending.
+
+            var bar = FlickEndedBar(NoteDirection.Left);
+
+            Assert.That(bar.TrySwipeTail(new UnityEngine.Vector2(-60f, 0f), 1f / 60f, 0.9f), Is.False);
+
+            Assert.That(bar.HasDeferredSwipe, Is.True, "the early swipe is remembered");
+
+
+
+            Assert.That(bar.TickSwipeTail(1.0f), Is.False, "the tail-time frame starts the countdown");
+
+            Assert.That(bar.ExpireTail(1.0f), Is.False, "and the bar must not end on it");
+
+            Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done));
+
+        }
+
+
+
+        [Test]
+
+        public void AComboPointTheBarsEndNeverReachedIsSettledPerfect()
+
+        {
+
+            // The bar shares its fate with its interior points and nothing else: whichever way it ends,
+
+            // a point it never reached is settled Perfect right there, and a point that already has a
+
+            // verdict keeps it.
+
+            var bar = new LongNote(Info(0f), 401, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
+
+            var tail = new NormalNote(Info(1f), 402, 4, 5, NoteCategory.Normal, 1, NoteType.Default, 0f);
+
+            bar.AddNoteListAndSetupChildNote(tail);
+
+            var late = new LongHoldCombo(Info(0.9f), NoteType.Default, 1, 0f);
+
+            var earned = new LongHoldCombo(Info(0.5f), NoteType.Default, 1, 0f);
+
+            bar.AddHoldCombo(late);
+
+            bar.AddHoldCombo(earned);
+
+            earned.FinishWith(NoteResult.Great);
+
+            bar.SetStateUnnotice(NoteState.Scrolling);
+
+            bar.RecordHoldingInput(1, 1f);
+
+
+
+            Assert.That(bar.JudgeTailAsRelease(1f), Is.True, "the lift at the tail ends the bar");
+
+            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+
+            Assert.That(late.Result, Is.EqualTo(NoteResult.Perfect), "the bar's end settles what it made unreachable");
+
+            Assert.That(earned.Result, Is.EqualTo(NoteResult.Great), "and leaves an earned verdict alone");
 
         }
 

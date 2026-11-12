@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Sekai;
@@ -39,8 +39,11 @@ namespace Sekai.Live
 					}
 
 					state = NoteState.Done;
-					NotifyParentFinished();
+					// The verdict is written and published first, and only then does it end the bar: a bar
+					// that left before the tail published could recycle its views while the note was still
+					// showing its judgement (tail-classes.md §3 R2).
 					OnUnSpawnNote();
+					NotifyParentFinished();
 					return;
 				}
 				base.State = value;

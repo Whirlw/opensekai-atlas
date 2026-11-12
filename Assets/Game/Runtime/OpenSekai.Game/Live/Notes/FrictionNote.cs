@@ -1,4 +1,4 @@
-﻿namespace Sekai.Live
+namespace Sekai.Live
 {
 	public class FrictionNote : ConnectionNote
 	{
@@ -12,8 +12,10 @@
 				if (value == NoteState.Done && state != NoteState.Done)
 				{
 					state = NoteState.Done;
-					NotifyParentFinished();
+					// Publish first, then tell the bar: the same order as every other end note
+					// (tail-classes.md §3 R2).
 					OnUnSpawnNote();
+					NotifyParentFinished();
 					return;
 				}
 				base.State = value;

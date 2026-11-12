@@ -56,25 +56,33 @@
 
 ## 3. 逐类核对（v2）
 
-### 类 1：**部分违规**，需先确定结算责任
+### 类 1：结算责任**已定案**（2026-11-12，用户口述）
 
 现状分派（`TailBehaviours.For`）：
 
 ```csharp
-if (tail is FlickNote) return SwipeTail.Instance;                // 类 3
-if (tail is FrictionFlickNote) return SelfJudgedTail.Instance;   // 类 1（仅此一种）
-return ReleaseTail.Instance;                                     // 类 2（普通 friction 尾、隐藏尾也落在这里）
+if (tail is FlickNote) return SwipeTail.Instance;                // 划键尾：判定即结束条
+if (tail is FrictionFlickNote) return SelfJudgedTail.Instance;   // 独立尾（摩擦划）
+return ReleaseTail.Instance;                                     // 普通尾（含普通 friction 尾、隐藏尾）
 ```
 
-也就是说「friction 尾」「隐藏尾」目前按类 2 处理，与定义冲突。
+规则（用户原话整理成四条，实现以此为准）：
 
-`DetachStandaloneTail()`（`LongNote.cs:904`）对独立尾做三件事：读尾结果 → 把结果抄进条 → **未结算就写 Miss 给尾**（`:917-928`）。第三条是「条影响尾」。
+| # | 规则 | 落点 |
+| --- | --- | --- |
+| **R1** | **超时 Miss 只有中间点由条写；头和尾各写各的。** 条不给尾写任何结果。 | 头：`LongNoteHead.PublishHeadMiss`；尾：`LongNoteTail.PublishTail`（划键/普通尾由条代判，也是"尾自己的出口"）；中间点：`LongNote` 的 Done 转移 + `NoteBase.Excute` 的自超时 |
+| **R2** | **划键尾与普通尾判定时让条立刻退场；其他尾不影响条。** 时序：条把帧交给尾 → 尾**先写并发布**自己的结果 → 这条结果**才**结束条（尾的 `State = Done` 里 `OnUnSpawnNote()` 必须在 `NotifyParentFinished()` 之前，否则条会先回收视图）。 | `ForceTerminate` 忽略 `JudgesItself` 的尾的 Done；`DetachStandaloneTail` 只读尾的结果；`FlickNote` / `FrictionFlickNote` / `FrictionNote` / `NormalNote` 四个 Done 分支的调用顺序 |
+| **R3** | **条只和中间点共进退**：条结束后没判的中间点**立刻判 Perfect**，已判的保留原判。 | `LongNote.State` 的 Done 分支里 `SettleLeftoverAsPerfect()` |
+| **R4** | **条只有两种结束方式**：被划键/普通尾结束，或**到达尾的标准时间**。 | 前者 `ForceTerminate`；后者 `IsPastTailWindow`（尾时间 + 它自己的判定窗，否则正常的 +125 ms 迟抬手会被吃掉） |
 
-待确认的三个问题（写进实现前必须先答）：
+原「待确认的三个问题」的答案：
+1. **谁写超时 Miss** → 独立尾自己写（R1）。条只负责驱动它、读它的结果、然后退场；`DetachStandaloneTail` 里给未结算尾写 Miss 的那段已删除。
+2. **尾先判时条何时退场** → 不因尾判定而退场（R2）。条走到自己的时间才走（R4）。
+3. **条先结束时尾还能不能判** → **不判**（用户 2026-11-12 明确）：尾的判定到达时条已经 `Done`，就**不要**再判一次，也不许借这次判定把条唤醒或改写任何结果。代码现状正是如此（`JudgeTailAsRelease` / `TrySwipeTail` / `ExpireTail` / `FailTail` 都以 `_bar.State == Done` 早退，`PublishTail` 再把它挡一层），用例 `AVerdictThatArrivesAfterTheBarIsDoneIsNotAskedAgain` 把它钉住。
 
-1. **谁写超时 Miss**：独立尾自己超时 Miss，还是由条在窗口关闭时代写？若由尾自己写，条只负责「解绑并收场」。
-2. **尾先判时条何时退场**：尾在条还亮着时判完了，条立刻 `Done`，还是等自己的可视长度走完？
-3. **条先结束时尾还能不能判**：条因超时收场、尾还在窗口内 —— 允许吗？
+实施后的登记：`DetachStandaloneTail` 现在要求「已过自己的时间」**且**「尾已有自己的判定」才退场；未结算就等一两帧（条还活着，子音符仍被它的子循环驱动，`NoteBase.Excute` 会把过窗的音符判成自己的 Miss），所以不会卡住。用例：`AnUntouchedFrictionFlickTailIsGradedMiss`、`AnUnsettledFrictionFlickTailEndsTheBarOnlyWhenItsWindowCloses`、`AFrictionFlickTailIsJudgedByItselfAndTheBarJustDetaches`、`AMissedStandaloneTailShowsItsCharacterEvenThoughTheBarDidNotGradeIt`、`AComboPointTheBarsEndNeverReachedIsSettledPerfect`、`AVerdictIsPublishedBeforeItsBarIsAllowedToLeave`（均在 `Live/FlickEndBehaviourTests`）。
+
+> **时序那一处是修出来的，不是审出来的**：`AVerdictIsPublishedBeforeItsBarIsAllowedToLeave` 先红——尾发布自己的判定那一刻，条已经是 `Done`（四个音符类型都在 `OnUnSpawnNote()` 之前调 `NotifyParentFinished()`）。把两者对调后条才「被这条判定结束」，而不是「先结束了再收到判定」。
 
 ### 类 2：**违规一处（已定位，可立即改）**
 

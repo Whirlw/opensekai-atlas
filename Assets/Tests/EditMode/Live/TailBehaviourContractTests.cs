@@ -115,6 +115,25 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(tail.Result, Is.EqualTo(NoteResult.JustPerfect));
 		}
 
+		[Test]
+		public void AVerdictThatArrivesAfterTheBarIsDoneIsNotAskedAgain()
+		{
+			// One point, stated plainly by the rules: when the tail's verdict comes back to a bar that is
+			// already done, it is not judged a second time. Nothing is resurrected and nothing is
+			// written onto the note.
+			(LongNote bar, NoteBase tail) = BarAtItsTail();
+			bar.ForceTerminate(tail);
+			Assert.That(bar.State, Is.EqualTo(NoteState.Done), "the bar is done for some other reason");
+
+			Assert.That(bar.JudgeTailAsRelease(1f), Is.False, "a done bar is not judged again");
+			Assert.That(bar.ExpireTail(1f), Is.False);
+			Assert.That(bar.FailTail(), Is.False);
+			Assert.That(bar.DetachStandaloneTail(2f), Is.False);
+
+			Assert.That(tail.Result, Is.EqualTo(NoteResult.None), "and nothing is written onto the note");
+			Assert.That(bar.State, Is.EqualTo(NoteState.Done), "nor is the bar brought back");
+		}
+
 		/// <summary>A bar held at its own tail time, with an ordinary end note at 1 s.</summary>
 		private static (LongNote bar, NoteBase tail) BarAtItsTail()
 		{

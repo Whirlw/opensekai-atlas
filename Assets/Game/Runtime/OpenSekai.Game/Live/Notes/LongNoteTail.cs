@@ -259,15 +259,26 @@ namespace Sekai.Live
 				return false;
 			}
 
+			// The bar lives its own length: an end note that already judged itself does not shorten it.
+			// (tail-classes.md §3 类 1 - an independent tail does not touch the bar, in either direction.)
+			if (!IsPastTailWindow(currentTime))
+			{
+				return false;
+			}
+
+			// And the bar writes nothing onto that note: the verdict is the tail's own, so the bar only
+			// reads it. A note that has not settled yet gets another frame - it is driven by the bar's
+			// own child pass (NoteBase.Excute turns a note past its window into its own Miss) and the bar
+			// is still alive here, so this cannot stall.
 			bool settled = Child.Result != NoteResult.None || Child.State == NoteState.Done;
-			if (!settled && !IsPastTailWindow(currentTime))
+			if (!settled)
 			{
 				return false;
 			}
 
 			// Publish before touching anything else: if this tail already has a verdict, the refusal has
 			// to happen while the bar and the note list are still exactly as they were.
-			if (!PublishTail(settled ? Child.Result : NoteResult.Miss))
+			if (!PublishTail(Child.Result))
 			{
 				ResetDecision();
 				return false;
@@ -280,12 +291,6 @@ namespace Sekai.Live
 				_bar.NoteList.Remove(Child);
 			}
 
-			// Nobody graded this tail and its window is gone, so it fails itself here: the bar only
-			// noticed the time, the verdict is still the tail's own.
-			if (!settled && Child.Result == NoteResult.None && Child.State != NoteState.Done)
-			{
-				Child.FinishWith(NoteResult.Miss);
-			}
 			ResetDecision();
 			return true;
 		}

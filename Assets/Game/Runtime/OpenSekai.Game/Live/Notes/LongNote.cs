@@ -33,6 +33,11 @@ namespace Sekai.Live
 
 				if (value == NoteState.Done)
 				{
+					// The bar shares its fate with its interior points and nothing else: whatever point the
+					// bar's own end made unreachable is settled Perfect here, so the bar leaving can never
+					// leave a marker unjudged. A point that already has a verdict keeps it (its own Miss,
+					// its own hit), which is why the settle only touches what is still open.
+					SettleLeftoverAsPerfect();
 					WasHoldingWhenTerminated = HasFinger;
 					state = value;
 					OnUnSpawnNote();
@@ -108,6 +113,19 @@ namespace Sekai.Live
 
 			if (State != NoteState.Done)
 			{
+				// An independent end note does not end its bar, in either direction: its Done only means
+				// its own verdict is in. The bar leaves on its own time, through the tail's detach
+				// (tail-classes.md §3 类 1). Only a decisive end - a flick or an ordinary one - may end it.
+				if (by != null && by.ParentRole == NoteParentRole.Tail && TailBehaviour.JudgesItself)
+				{
+					if (LiveTrace.IsOn(LiveTraceCategory.Hold))
+					{
+						LiveTrace.Write(LiveTraceCategory.Hold, $"forceTermIndependentTail type={by.GetType().Name} res={by.Result} barT={MusicScoreInfo.time:F3}");
+					}
+
+					return;
+				}
+
 				// Only the tail may end the bar. A connection note, a combo or a plain note that we
 				// carry becomes Done on its own schedule; letting that finish the whole bar is how a
 				// bar could be judged the moment it appeared, long before the head reached the line.
@@ -332,7 +350,8 @@ namespace Sekai.Live
 			// invariant does not depend on which guard happened to run first.
 			LeavePlayState();
 			_tail?.ResetDecision();
-			SettleLeftoverAsPerfect();
+			// The leftover interior points are settled by the Done transition itself (see State), so this
+			// path and every other ending agree without each one remembering to do it.
 			State = NoteState.Done;
 		}
 

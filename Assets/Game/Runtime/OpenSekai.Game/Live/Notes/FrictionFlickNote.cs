@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Sekai;
@@ -28,8 +28,10 @@ namespace Sekai.Live
 				if (value == NoteState.Done && state != NoteState.Done)
 				{
 					state = NoteState.Done;
-					NotifyParentFinished();
+					// Publish first, then tell the bar: the same order as every other end note
+					// (tail-classes.md §3 R2).
 					OnUnSpawnNote();
+					NotifyParentFinished();
 					return;
 				}
 				base.State = value;
