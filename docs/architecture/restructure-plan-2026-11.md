@@ -502,6 +502,11 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 - 新增 `ResourceCatalogTests` 六项：逐条加载并断言非空、缺失路径返回 null 而不抛、回退只在主路径失败时生效。全量 EditMode 548 项、544 通过、0 失败、4 跳过。
 - 清点发现一处既有缺陷：`LibraryUi` 的 `Fonts/NotoSansSC-UI` 在仓库里并不存在（`docs/reference/fonts.md` 仍把它记作曲库页字体），所以那条 `Resources.Load<Font>` 一直返回 null，曲库实际走 TMP fallback。该条目因此未纳入目录；是删掉这条死路径还是补回字体，需要单独决定。
 
+- P3-2 第二批完成，起点 `b99a869a`。为动态路径补行为测试，不再改调用点：
+  - `ResourceLoaderTests` 六项：同步加载返回资产并报 `Done`；缺失返回 null 并报 `Error`；按目录 `LoadAll` 返回整组；无宿主 `MonoBehaviour` 的异步加载同步解析且只回调一次；异步缺失同样只回调一次且为 null；二次加载替换而非累积（AB 与热重载都依赖这一点）。
+  - `NoteResourcesFallbackTests` 三项：音符 prefab 从 `Resources` 供给（`live/note/custom01` + 扁平名 `FlickNote`）；带扩展名的旧名字先 `StripExtension` 再查；非音符 bundle 名不得解析到 `Resources`（否则陈旧资源会遮蔽真正的 bundle）。
+- 全量 EditMode 557 项、553 通过、0 失败、4 跳过。AB 侧的真实优先级（先 AB 后 `Resources`、下载与缓存）仍需真机整首验收覆盖，EditMode 里没有 `AssetBundleManager` 实例。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动
