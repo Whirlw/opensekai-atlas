@@ -3,7 +3,7 @@
 > 目的：把当前“旧引擎 + 新播放器外壳”的代码结构整理成边界清晰、可测试、可继续裁剪的工程，并让文档与真实目录重新一致。
 > 适用读者：接手代码的开发者、做重构的人、发版前做门禁的人。
 > 前置条件：读过 [架构总览](README.md) 与 [模块划分](modules.md)；当前基线为 `f14b717c`。
-> 最后更新：2026-11-11
+> 最后更新：2026-11-12
 > 状态：**M1 已达标，Phase 2 执行中**。按任务依赖推进，每个工作包独立提交并记录验收结果。
 
 ## 1. 结论与目标
@@ -454,6 +454,12 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 
 - P2-5 桌面验收通过，起点 `181b36d6`。`SoundManager` 门面 341 行，保留播放调度与同步计时。`AudioCatalog` 管理 bundle、cue 和预解码，`ExternalSoundPack` 注册内置 WAV 和曲包音频，`VolumeService` 管理播放音量，持久化沿用 `ApplicationLocalSettings`。移除无实际配置效果的 ACF 注册探测和空转换表。兼容入口 `LoadSoundBundle → AcbAssetSource → CriAtomShim → AcbDecoder` 仍能读取外部 ACB，因此保留解码器。
 - `unity recompile` 为 0 error。44 项公开接口和 529 项 EditMode 结果逐项一致，525 通过、0 失败、4 跳过。三项 PlayMode 全通过，包含 42 个内置 WAV 注册及长度、结算音启动、缺失 cue 仅警告一次并返回 0、曲包自动判定 1,000,000 / S 返回曲库。42 个 WAV 的 `AUDIT OK` 输出与基线一致，结构检查通过，新增缺失脚本为零。报告在 `TestResults/restructure-p2-5-*`。真机开局和结算音效仍待核对。
+
+- P2-6 通过，起点 `b7da0bb0`。`SusRuntimeConverter` 拆成 Core 的 `SusParser`、`SusTimingConverter` 和 Game 的 `SusNoteConverter`、`SusEventConverter`，门面只按顺序装配四个阶段并保留原 `Convert` 签名。行级词法与数字解析收进 Core 内部类 `SusTokens`，跳过引导点的车道插值收进 Game 的 `SusSkipNoteResolver`；解析产物是纯 DTO `SusChartData`。
+- 等价验证先于拆分建立。`TestResults/restructure-p2-6-capture-sus.cs` 对 `Tools/fixtures/sus-p2-6/{timing,linked}.sus` 与空谱，各跑镜像开/关、长按连击开/关四种组合，共 12 次转换，记录帧（bar、进度、时间、BPM、拍号、速度、SE 音量）、事件发布顺序、每个根音符与子音符的类名、类别、类型、方向、线型、车道区间、速度倍率、跳过/装饰标记、父角色与父子配对 id。拆分前后输出逐字节一致（sha256 `FC1B33B4…`，138 行）。该文本转为 `Tools/fixtures/sus-p2-6/expected.txt`，由 `SusChartSnapshotTests` 在 EditMode 中继续守住；`Tools/fixtures/sus-p2-6/README.md` 记录重新生成方式。
+- `unity recompile` 为 0 error。全量 EditMode 538 通过、0 失败、4 跳过（共 542 项）；拆分前基线 530 项逐项一致（缺失 0，结果变化 0），新增 12 项为 `SusParserTests` 8 项与 `SusTimingConverterTests` 4 项，均不依赖场景与 prefab。四个跳过来自 `DecorationTailJudgmentTests`，与基线相同。
+- 规模（非空行）：门面 34、`SusParser` 387、`SusTimingConverter` 217、`SusNoteConverter` 365、`SusEventConverter` 82，辅助类 `SusChartData` 57、`SusTokens` 147、`SusSkipNoteResolver` 109，全部 < 400。`Tools/verify-structure.ps1 -CheckProjects -CheckAssemblies -RequireNoEmptyDirectories` 通过，缺失脚本清单与 P0-2 基线逐字节相同（新增 0）。报告、命令与逐项对照在 `TestResults/restructure-p2-6-*`。
+- Phase 2 的六项拆分至此全部完成。M2 仍待 P2-5 的真机开局与结算音效回归，其余退出条件已具备。
 
 ## 7. 迁移规则
 

@@ -3,7 +3,7 @@
 > 目的：给出目录与职责的对应表，说明新旧代码的边界在哪、依赖朝哪边指。
 > 适用读者：开发者。
 > 前置条件：读过 [架构总览](README.md)。
-> 最后更新：2026-11-11
+> 最后更新：2026-11-12
 
 ## 概述
 
@@ -11,7 +11,7 @@
 
 | 程序集 | 路径 | 职责与入口 |
 | --- | --- | --- |
-| OpenSekai.Core | `Assets/Game/Runtime/OpenSekai.Core/` | 输入时钟、候选排序、判定、计分、设置数据、谱面 JSON 与曲包清单 |
+| OpenSekai.Core | `Assets/Game/Runtime/OpenSekai.Core/` | 输入时钟、候选排序、判定、计分、设置数据、谱面 JSON 与曲包清单、SUS 解析与时间轴（纯阶段） |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/Bootstrap/` | `LibraryEntryPoint` 装配曲库入口 |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/UI/` | `LibraryScreen` 和导入、设置、结算面板 |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/Playback/` | `PlayService` 和 `LegacyLiveBootAdapter` 装配开局数据 |
@@ -19,7 +19,7 @@
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/Infrastructure/` | `ChartFileReader`、`SongPackageManager` 和曲库导入 |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/Live/Conversion/` | `RuntimeChartConverter` 和 `RuntimeChartImporter` 组装运行时谱面 |
 | OpenSekai.Game | `Assets/Game/Runtime/Sekai/` | `ScreenManager`、场景切换、Live 控制器、视图和音符 |
-| OpenSekai.Game | `Assets/Game/Runtime/Shared/` | 设置存储、触摸计算、SUS 转换、曲包模型与存储 |
+| OpenSekai.Game | `Assets/Game/Runtime/Shared/` | 设置存储、触摸计算、SUS 运行时音符与事件组装、曲包模型与存储 |
 | OpenSekai.Game | `Assets/Game/Runtime/Platform/` | 平台适配、CRI 音频 shim 和序列化兼容接口 |
 | OpenSekai.Editor | `Assets/Game/Editor/` | Android 构建、AssetBundle 构建、资源检查和场景校验 |
 
