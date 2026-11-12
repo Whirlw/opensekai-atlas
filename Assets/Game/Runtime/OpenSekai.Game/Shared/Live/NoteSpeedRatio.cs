@@ -20,11 +20,24 @@ namespace OpenSekai.Shared.Live
     ///
     /// The notes that sit INSIDE the flash are still drawn with its speed, which is what makes them appear
     /// abruptly - the effect the chart author asked for.
+    ///
+    /// A narrow segment only counts as a flash when it also carries a lot of travel; the same chart writes
+    /// its ramps as 24 steps of 15 ticks each, and those are a fast ramp, not a flash. Making them flashes
+    /// would draw every note of the ramp with its own step's speed (from 0.05 to 1.1), i.e. with leads
+    /// between 40 s and 1.8 s in a quarter of a bar, and the notes there would cross each other.
     /// </remarks>
     public static class NoteSpeedRatio
     {
-        /// <summary>The width below which a speed segment is a flash no frame can land in.</summary>
+        /// <summary>The width below which a speed segment is shorter than a frame.</summary>
         public const float FlashSegmentSeconds = 1f / 60f;
+
+        /// <summary>
+        /// How much travel (speed times width, in bars) a narrow segment has to add before it counts as a
+        /// flash. A 799 event over 15 ticks adds six bars and is clearly a flash; the 24 ramp steps of the
+        /// same width add a hundredth of a bar each and are just a fast ramp, so they stay in the average
+        /// and the notes inside them keep the speed of the ramp, not of their own step.
+        /// </summary>
+        public const float FlashTravelBars = 0.5f;
 
         /// <summary>
         /// Length-weighted average of the speed events between the playhead and the note, with flash
@@ -113,7 +126,15 @@ namespace OpenSekai.Shared.Live
                 return false;
             }
 
-            return scoreInfos[index + 1].time - scoreInfos[index].time < FlashSegmentSeconds;
+            MusicScoreInfo start = scoreInfos[index];
+            float width = scoreInfos[index + 1].bar + scoreInfos[index + 1].barProgress
+                - (start.bar + start.barProgress);
+            if (width <= 0f || scoreInfos[index + 1].time - start.time >= FlashSegmentSeconds)
+            {
+                return false;
+            }
+
+            return Mathf.Abs(start.speedRatio) * width >= FlashTravelBars;
         }
     }
 }

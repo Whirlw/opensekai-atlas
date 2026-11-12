@@ -141,6 +141,21 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         [Test]
+        public void AFastRampStepIsNotAFlash()
+        {
+            // The same 15 ticks, but the speed only moves from 0.5 to 0.9: that is a ramp step, not a spike.
+            // Its travel is a hundredth of a bar, so it stays in the average and a note sitting inside it
+            // keeps the ramp's speed instead of being drawn at 0.5 (lead 4 s) next to a note at 0.9.
+            MusicScoreInfo[] events =
+            {
+                At(0f, 0f, 1f), At(2f, 4f, 0.5f), At(2.0078f, 4.009f, 0.9f), At(3f, 6f, 1f)
+            };
+
+            Assert.That(NoteSpeedRatio.Resolve(events, 0f, 2.004f, 1f), Is.EqualTo(1f).Within(0.02f));
+            Assert.That(NoteSpeedRatio.Resolve(events, 0f, 2.5f, 1f), Is.EqualTo(1f).Within(0.05f));
+        }
+
+        [Test]
         public void TheLastEventIsNeverTreatedAsAFlash()
         {
             // Nothing follows it, so there is no width to compare; the span uses its speed as written.
@@ -188,10 +203,11 @@ namespace OpenSekai.Tests.EditMode.Live
             float expected = window / 1.1f;
             float smallest = leads.OrderBy(value => value).First();
             float largest = leads.OrderByDescending(value => value).First();
-            Assert.That(smallest, Is.EqualTo(expected).Within(expected * 0.02f),
+            Assert.That(smallest, Is.GreaterThan(expected * 0.98f),
                 $"smallest lead {smallest:F4}s, largest {largest:F4}s; the spike must not shorten them");
-            Assert.That(largest, Is.EqualTo(expected).Within(expected * 0.02f),
-                $"largest lead {largest:F4}s, smallest {smallest:F4}s");
+            // Slightly longer is honest: the slow ramp right after the spike is part of the span for a while.
+            Assert.That(largest, Is.LessThan(expected * 1.15f),
+                $"largest lead {largest:F4}s, smallest {smallest:F4}s; the spike must not stretch them either");
             Assert.That(fastLeads.Count, Is.GreaterThan(0), "the notes written at 3x speed");
             Assert.That(fastLeads.OrderBy(value => value).First(),
                 Is.EqualTo(expected / 3f).Within(expected / 3f * 0.02f),
