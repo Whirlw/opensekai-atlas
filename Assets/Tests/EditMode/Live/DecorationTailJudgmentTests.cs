@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Reflection;
 
 using NUnit.Framework;
 
@@ -55,15 +54,10 @@ namespace OpenSekai.Tests.EditMode.Live
             LiveConfig.noteTypeJudgeData = _previousJudgeData;
         }
 
-        private static void Stage(LiveLogic logic, string name) =>
-            typeof(LiveLogic).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(logic, null);
 
-        private static T Field<T>(LiveLogic logic, string name) =>
-            (T)typeof(LiveLogic).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
 
         private static void Register(LiveLogic logic, NoteBase note) =>
-            typeof(LiveLogic).GetMethod("UpdateJudgmentNoteArray", BindingFlags.Instance | BindingFlags.NonPublic)
-                .Invoke(logic, new object[] { note });
+            logic.Input.Register(note);
 
         private static LiveLogic.InputTmp Input(int finger, float lane, TouchPhase phase = TouchPhase.Began) => new LiveLogic.InputTmp
         {
@@ -116,13 +110,13 @@ namespace OpenSekai.Tests.EditMode.Live
             bar.Excute(logic.currentFrameInfo, 0f);
             Register(logic, bar);
 
-            Assert.That(Field<List<NoteBase>>(logic, "_judgmentNoteList"), Contains.Item(tail),
+            Assert.That(logic.Input.JudgmentNotes, Contains.Item(tail),
                 "the key at the end of a decorative bar has to be registered itself");
-            Assert.That(Field<List<NoteBase>>(logic, "_judgmentNoteList"), Has.No.Member(bar),
+            Assert.That(logic.Input.JudgmentNotes, Has.No.Member(bar),
                 "the decorative bar itself must never answer input");
 
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").Add(Input(1, 4.5f, phase));
-            Stage(logic, "AllocateInputJudgableEachNotes");
+            logic.Input.ActiveInputs.Add(Input(1, 4.5f, phase));
+            logic.Input.CollectCandidates();
             return logic;
         }
 
@@ -130,9 +124,9 @@ namespace OpenSekai.Tests.EditMode.Live
         public void AnOrdinaryEndOfADecorativeBarIsPressed()
         {
             LiveLogic logic = Drive(NormalTail, out NoteBase tail, TouchPhase.Began);
-            Assert.That(Field<List<NoteBase>>(logic, "_connectionNoteList"), Contains.Item(tail),
+            Assert.That(logic.Input.ConnectionNotes, Contains.Item(tail),
                 "a press inside the end note's lane has to make it a candidate");
-            Stage(logic, "EvaluateJudgment");
+            logic.Scheduler.EvaluateJudgment();
             Assert.That(tail.Result, Is.Not.EqualTo(NoteResult.None), "the press has to grade the end note");
         }
 
@@ -140,9 +134,9 @@ namespace OpenSekai.Tests.EditMode.Live
         public void AFlickEndOfADecorativeBarIsSwiped()
         {
             LiveLogic logic = Drive(FlickTail, out NoteBase tail, TouchPhase.Moved);
-            Assert.That(Field<List<NoteBase>>(logic, "_connectionNoteList"), Contains.Item(tail),
+            Assert.That(logic.Input.ConnectionNotes, Contains.Item(tail),
                 "a swipe over the flick end has to make it a candidate");
-            Stage(logic, "EvaluateJudgment");
+            logic.Scheduler.EvaluateJudgment();
             Assert.That(tail.Result, Is.Not.EqualTo(NoteResult.None), "the swipe has to grade the flick end");
         }
 
@@ -150,9 +144,9 @@ namespace OpenSekai.Tests.EditMode.Live
         public void AFrictionEndOfADecorativeBarIsRubbed()
         {
             LiveLogic logic = Drive(FrictionTail, out NoteBase tail, TouchPhase.Moved);
-            Assert.That(Field<List<NoteBase>>(logic, "_connectionNoteList"), Contains.Item(tail),
+            Assert.That(logic.Input.ConnectionNotes, Contains.Item(tail),
                 "a rub inside the friction end has to make it a candidate");
-            Stage(logic, "EvaluateJudgment");
+            logic.Scheduler.EvaluateJudgment();
             Assert.That(tail.Result, Is.Not.EqualTo(NoteResult.None), "the rub has to grade the friction end");
         }
 
@@ -160,9 +154,9 @@ namespace OpenSekai.Tests.EditMode.Live
         public void AFrictionFlickEndOfADecorativeBarIsSwiped()
         {
             LiveLogic logic = Drive(FrictionFlickTail, out NoteBase tail, TouchPhase.Moved);
-            Assert.That(Field<List<NoteBase>>(logic, "_connectionNoteList"), Contains.Item(tail),
+            Assert.That(logic.Input.ConnectionNotes, Contains.Item(tail),
                 "a swipe over the friction flick end has to make it a candidate");
-            Stage(logic, "EvaluateJudgment");
+            logic.Scheduler.EvaluateJudgment();
             Assert.That(tail.Result, Is.Not.EqualTo(NoteResult.None), "the swipe has to grade the friction flick end");
         }
     }

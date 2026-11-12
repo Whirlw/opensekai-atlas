@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Reflection;
 using System.Linq;
 using NUnit.Framework;
@@ -90,10 +90,10 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(notes.Length, Is.EqualTo(2));
             notes[0].Id = startTicks;
             notes[1].Id = otherTicks;
-            SetField("_musicScore", score);
+            logic.Session.MusicScore = score;
             logic.Notes.Bind(notes);
-            SetField("_noteDisplayTimeOffset", 1f);
-            SetField("_liveViews", Array.Empty<LiveViewBase>());
+            logic.Session.NoteDisplayTimeOffset = 1f;
+            logic.Session.Views = Array.Empty<LiveViewBase>();
             bool[] begun = new bool[2];
             float start = notes[0].MusicScoreInfo.time;
             float end = notes.Min(n => n.ChildNote.MusicScoreInfo.time);
@@ -163,10 +163,6 @@ namespace OpenSekai.Tests.EditMode.Live
             return new LiveTouchSample(id, new Vector2(800f, 600f), position, time, phase, new Vector2(3f, 4f));
         }
 
-        private void SetField(string name, object value)
-        {
-            typeof(LiveLogic).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).SetValue(logic, value);
-        }
 
         private CountingNormalNote Arrange(float frameTime = 0f, params CountingNormalNote[] additionalNotes)
         {
@@ -176,10 +172,10 @@ namespace OpenSekai.Tests.EditMode.Live
             Array.Copy(additionalNotes, 0, notes, 1, additionalNotes.Length);
             // Supply only the chart and empty views, avoiding Setup's storage, camera and asset loading.
             // Candidate construction and all judgment stages still run through real OnUpdate / OnInput.
-            SetField("_musicScore", new MusicScore(new[] { Info(0f) }, Array.Empty<EventBase>(), notes));
+            logic.Session.MusicScore = new MusicScore(new[] { Info(0f) }, Array.Empty<EventBase>(), notes);
             logic.Notes.Bind(notes);
-            SetField("_noteDisplayTimeOffset", 1f);
-            SetField("_liveViews", Array.Empty<LiveViewBase>());
+            logic.Session.NoteDisplayTimeOffset = 1f;
+            logic.Session.Views = Array.Empty<LiveViewBase>();
             logic.OnUpdate(frameTime, InputTime);
             return note;
         }
@@ -234,10 +230,10 @@ namespace OpenSekai.Tests.EditMode.Live
                 notes[i].AddNoteListAndSetupChildNote(new NormalNote(Info(3), 100 + i, endLeft, endRight, NoteCategory.Normal, 1, NoteType.Default, 0));
                 notes[i].LineType = i == 0 ? NoteLineType.EaseIn : NoteLineType.EaseOut;
             }
-            SetField("_musicScore", new MusicScore(new[] { Info(0) }, Array.Empty<EventBase>(), notes));
+            logic.Session.MusicScore = new MusicScore(new[] { Info(0) }, Array.Empty<EventBase>(), notes);
             logic.Notes.Bind(notes);
-            SetField("_noteDisplayTimeOffset", 1f);
-            SetField("_liveViews", Array.Empty<LiveViewBase>());
+            logic.Session.NoteDisplayTimeOffset = 1f;
+            logic.Session.Views = Array.Empty<LiveViewBase>();
             for (int frame = 0; frame < 180; frame++)
             {
                 // EditMode executes these simulated frames in one engine frame. Age the last input

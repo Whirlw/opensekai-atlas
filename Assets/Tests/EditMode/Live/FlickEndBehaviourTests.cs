@@ -643,15 +643,11 @@ namespace OpenSekai.Tests.EditMode.Live
 
             logic.currentFrameInfo = Info(0.98f);
 
-            typeof(Sekai.Core.Live.LiveLogic).GetMethod("UpdateJudgmentNoteArray", BindingFlags.Instance | BindingFlags.NonPublic)
-
-                .Invoke(logic, new object[] { bar });
+            logic.Input.Register(bar);
 
 
 
-            var noteList = (List<NoteBase>)typeof(Sekai.Core.Live.LiveLogic)
-
-                .GetField("_judgmentNoteList", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
+            var noteList = logic.Input.JudgmentNotes;
 
             Assert.That(noteList, Contains.Item(tail),
 
@@ -689,9 +685,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             logic.currentFrameInfo = Info(1.0f);
 
-            var listField = typeof(Sekai.Core.Live.LiveLogic).GetField("_judgmentNoteList", BindingFlags.Instance | BindingFlags.NonPublic);
-
-            var list = (List<NoteBase>)listField.GetValue(logic);
+            var list = logic.Input.JudgmentNotes;
 
             list.Add(bar);
 
@@ -728,9 +722,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             };
 
-            ((List<Sekai.Core.Live.LiveLogic.InputTmp>)typeof(Sekai.Core.Live.LiveLogic)
-
-                .GetField("_activeInputList", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic)).Add(input);
+            logic.Input.ActiveInputs.Add(input);
 
 
 
@@ -780,9 +772,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             logic.currentFrameInfo = Info(0.6f);
 
-            var list = (List<NoteBase>)typeof(Sekai.Core.Live.LiveLogic)
-
-                .GetField("_judgmentNoteList", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
+            var list = logic.Input.JudgmentNotes;
 
             list.Add(bar);
 
@@ -975,9 +965,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             var logic = new Sekai.Core.Live.LiveLogic(null);
 
-            var list = (List<NoteBase>)typeof(Sekai.Core.Live.LiveLogic)
-
-                .GetField("_judgmentNoteList", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
+            var list = logic.Input.JudgmentNotes;
 
             foreach (var note in notes)
 
@@ -999,9 +987,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
         {
 
-            var list = (List<Sekai.Core.Live.LiveLogic.InputTmp>)typeof(Sekai.Core.Live.LiveLogic)
-
-                .GetField("_activeInputList", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
+            var list = logic.Input.ActiveInputs;
 
             list.Clear();
 
@@ -1350,15 +1336,11 @@ namespace OpenSekai.Tests.EditMode.Live
 
             var logic = new Sekai.Core.Live.LiveLogic(null);
 
-            var list = (List<NoteBase>)typeof(Sekai.Core.Live.LiveLogic)
-
-                .GetField("_judgmentNoteList", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
+            var list = logic.Input.JudgmentNotes;
 
             list.Add(bar);
 
-            var inputs = (List<Sekai.Core.Live.LiveLogic.InputTmp>)typeof(Sekai.Core.Live.LiveLogic)
-
-                .GetField("_activeInputList", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
+            var inputs = logic.Input.ActiveInputs;
 
             
 
@@ -1537,12 +1519,9 @@ namespace OpenSekai.Tests.EditMode.Live
 		/// <summary>One frame of hold coverage, driven through the coordinator the live loop uses.</summary>
 		private static void CoverHolds(Sekai.Core.Live.LiveLogic logic)
 		{
-			object holds = typeof(Sekai.Core.Live.LiveLogic)
-				.GetField("_holds", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
-			var notes = (List<NoteBase>)typeof(Sekai.Core.Live.LiveLogic)
-				.GetField("_judgmentNoteList", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
-			var inputs = (List<Sekai.Core.Live.LiveLogic.InputTmp>)typeof(Sekai.Core.Live.LiveLogic)
-				.GetField("_activeInputList", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
+			var holds = logic.Input.Holds;
+			var notes = logic.Input.JudgmentNotes;
+			var inputs = logic.Input.ActiveInputs;
 			holds.GetType()
 				.GetMethod("CoverHoldsWithAnyFinger", BindingFlags.Instance | BindingFlags.NonPublic)
 				.Invoke(holds, new object[] { notes, inputs, logic.currentFrameInfo, UnityEngine.Time.deltaTime });

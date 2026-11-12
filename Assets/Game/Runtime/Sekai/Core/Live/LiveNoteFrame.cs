@@ -1,0 +1,285 @@
+using Sekai.Live;
+using UnityEngine;
+
+namespace Sekai.Core.Live
+{
+	internal sealed class LiveNoteFrame
+	{
+		private readonly LiveLogic _logic;
+		private readonly LiveSessionState _session;
+		private readonly LiveInputRouter _input;
+		private readonly LivePresentationBridge _presentation;
+
+		internal LiveNoteFrame(LiveLogic logic, LiveSessionState session, LiveInputRouter input, LivePresentationBridge presentation)
+		{
+			_logic = logic;
+			_session = session;
+			_input = input;
+			_presentation = presentation;
+		}
+
+		private MusicScoreInfo Frame => _logic.currentFrameInfo;
+
+		internal void TickViews()
+		{
+			_presentation.TickTailKeys(Frame.time);
+			_presentation.TickRetiring(Frame);
+		}
+
+		internal void UpdateNotes()
+		{
+			_session.Notes.WalkNotes(ScanNote);
+			_session.Notes.WalkHighSpeedNotes(ScanHighSpeedNote);
+		}
+
+		/// <summary>
+		/// One normal note on its display frame. Returns <see cref="LiveNoteSession.Scan.Stop"/> once the
+		/// array has reached notes that are still too far ahead, which ends the walk for this frame.
+		/// </summary>
+		private LiveNoteSession.Scan ScanNote(NoteBase note)
+		{
+			if (note.IsHighSpeedNote)
+			{
+				return LiveNoteSession.Scan.Skip;
+			}
+
+			float offsetTime = CalcTimeOffset(note);
+			if (IsTooFarAheadForDisplayHighSpeed(offsetTime, note))
+			{
+				return LiveNoteSession.Scan.Stop;
+			}
+			if (offsetTime < 0f && Frame.time >= note.MusicScoreInfo.time)
+			{
+				offsetTime = -offsetTime;
+			}
+
+			note.Excute(Frame, offsetTime);
+
+			// Decoration notes need to be processed after Excute to check OffsetJudgeTime
+			if (note.IsDecoration && note.State != NoteState.Done && ShouldTriggerDecorationJudgment(note))
+			{
+				DecorationJudgment(note);
+			}
+
+			if (note.State != NoteState.Done && (!note.IsDecoration || PlayableTailOf(note)))
+			{
+				_input.Register(note);
+			}
+
+			return LiveNoteSession.Scan.Handle;
+		}
+
+		/// <summary>One high speed note: same shape, its own display lead.</summary>
+		private LiveNoteSession.Scan ScanHighSpeedNote(NoteBase note)
+		{
+			float offsetTime = Frame.time >= note.MusicScoreInfo.time
+				? _session.NoteDisplayTimeOffset
+				: CalcTimeOffset(note);
+			if (IsTooFarAheadForDisplay(offsetTime, note))
+			{
+				return LiveNoteSession.Scan.Stop;
+			}
+
+			note.Excute(Frame, offsetTime);
+
+			if (note.IsDecoration && note.State != NoteState.Done && ShouldTriggerDecorationJudgment(note))
+			{
+				DecorationJudgment(note);
+			}
+
+			if (note.State != NoteState.Done && (!note.IsDecoration || PlayableTailOf(note)))
+			{
+				_input.Register(note);
+			}
+
+			return LiveNoteSession.Scan.Handle;
+		}
+
+		private bool ShouldTriggerDecorationJudgment(NoteBase note)
+		{
+			if (note == null)
+			{
+				return false;
+			}
+
+			// For long notes, trigger at both start and end times
+			if (note is LongNote longNote)
+			{
+				// Trigger at start time (head)
+				if (Frame.time >= longNote.MusicScoreInfo.time && longNote.State == NoteState.Scrolling)
+				{
+					return true;
+				}
+
+				// Trigger at end time (tail)
+				if (longNote.NoteList != null && longNote.NoteList.Count > 0)
+				{
+					NoteBase lastChild = longNote.NoteList[longNote.NoteList.Count - 1];
+					if (lastChild != null && Frame.time >= lastChild.MusicScoreInfo.time)
+					{
+						return true;
+					}
+				}
+
+				return false;
+			}
+
+			// For normal notes, trigger at the judgment time
+			return Frame.time >= note.MusicScoreInfo.time;
+		}
+
+		private void DecorationJudgment(NoteBase note)
+		{
+			if (note == null || note.State == NoteState.Done)
+			{
+				return;
+			}
+
+			// Decoration notes are auto-judged when reaching judgment time
+			// Play tap effect and SE, but do not trigger score/combo callbacks or judgment text
+
+			// For long notes, handle specially: play head effect at start, keep body showing, play end effect at end
+			if (note is LongNote longNote)
+			{
+				DecorationLongNoteJudgment(longNote);
+				return;
+			}
+
+			// Set JudgeInfo to Perfect for effect playback (TapEffectView checks Result)
+			note.SetJudgeInfoForDecoration(NoteResult.JustPerfect);
+			// For normal notes: play effect and remove
+			_presentation.Judged(_session.Views, note);
+			note.SetStateUnnotice(NoteState.Done);
+			_presentation.Unspawn(_session.Views, note);
+		}
+
+		private void DecorationLongNoteJudgment(LongNote longNote)
+		{
+			if (longNote == null)
+			{
+				return;
+			}
+
+			// Check if we are at the start or end of the long note
+			NoteBase lastChild = longNote.NoteList != null && longNote.NoteList.Count > 0
+				? longNote.NoteList[longNote.NoteList.Count - 1]
+				: null;
+
+			bool isAtEnd = lastChild != null && Frame.time >= lastChild.MusicScoreInfo.time;
+			bool isAtStart = Frame.time >= longNote.MusicScoreInfo.time && longNote.State == NoteState.Scrolling;
+
+			// At start: play head effect, but keep the long note showing (don't mark as Done)
+			if (isAtStart && !isAtEnd && longNote.Result == NoteResult.None)
+			{
+				// Set JudgeInfo to Perfect for effect playback (TapEffectView checks Result)
+				longNote.SetJudgeInfoForDecoration(NoteResult.JustPerfect);
+				// Play head judgment effect (tap effect and SE)
+				_presentation.Judged(_session.Views, longNote);
+			}
+
+			// 头部触发之后，处理中间的LongHoldCombo自动判定
+			if (longNote.NoteList != null && longNote.Result != NoteResult.None)
+			{
+				foreach (NoteBase childNote in longNote.NoteList)
+				{
+					// 跳过LongNote自身和尾部，已经处理过
+					if (childNote == longNote || childNote == lastChild)
+					{
+						continue;
+					}
+
+					// 只处理LongHoldCombo
+					if (childNote is LongHoldCombo holdCombo && childNote.State != NoteState.Done)
+					{
+						// 检查该combo点是否到达判定时间
+						if (childNote.MusicScoreInfo.time <= Frame.time)
+						{
+							// 自动判定该combo点；它只是隐形刻度，不发声也不出特效
+							holdCombo.SetJudgeInfoForDecoration(NoteResult.JustPerfect);
+							holdCombo.SetStateUnnotice(NoteState.Done);
+						}
+					}
+				}
+			}
+
+			// At end: play end effect using the last child note's type and remove the long note
+			// The end note is a real note now and judges itself; settling it here would take the
+			// hit away from the player and end the bar before it could be made.
+			if (isAtEnd && lastChild != null && lastChild.IsDecoration)
+			{
+				// The bar ends here; the key at its end is only a decoration and nobody played it, so
+				// no tap effect and no hit sound: the bar must never speak for the player.
+				longNote.SetStateUnnotice(NoteState.Done);
+				_presentation.Unspawn(_session.Views, longNote);
+			}
+		}
+
+		private bool IsTooFarAheadForDisplayHighSpeed(float timeOffset, NoteBase note)
+		{
+			return note != null && note.State != NoteState.Scrolling && IsTooFarAheadForDisplay(timeOffset, note);
+		}
+
+		/// <summary>
+		/// True while a note is still too far ahead to be drawn or updated this frame. This uses the
+		/// DISPLAY lead, which shrinks as the scroll speed rises: a fast note is drawn late, so stopping
+		/// the scan earlier than its own display lead would make it pop in mid-lane.
+		/// Registration into the judgement list is a different question with a fixed lead; see
+		/// <see cref="OpenSekai.Shared.Live.JudgeListLead"/> in LiveInputRouter.Register. This gate must
+		/// never be reused for registration: doing that is what put a note behind a flick into the list
+		/// already past its bad window.
+		/// </summary>
+		internal bool IsTooFarAheadForDisplay(float timeOffset, NoteBase note)
+		{
+			if (note == null || Mathf.Approximately(timeOffset, 0f))
+			{
+				return false;
+			}
+
+			return Frame.time + timeOffset + LiveClock.ReferenceFrameSeconds <= note.MusicScoreInfo.time;
+		}
+
+		/// <summary>
+		/// A decorative bar takes no input itself, but the note at its end is a real note of its
+		/// own kind (flick, slide, rub) and has to stay playable. Such a bar therefore keeps being
+		/// fed to the judgement list even though it is decoration.
+		/// </summary>
+		private static bool PlayableTailOf(NoteBase note)
+		{
+			return note is LongNote bar && bar.ChildNote is NoteBase tail && tail.HasJudgment;
+		}
+
+		internal void Spawn(NoteBase note)
+		{
+			_presentation.Spawn(_session.Views, note, Frame.time);
+		}
+
+		internal void Unspawn(NoteBase note)
+		{
+			_presentation.Unspawn(_session.Views, note);
+		}
+
+		internal float CalcTimeOffset(NoteBase note)
+		{
+			if (note == null)
+			{
+				return 0f;
+			}
+
+			float currentProgress = Frame.bar + Frame.barProgress;
+			float noteProgress = note.MusicScoreInfo.bar + note.MusicScoreInfo.barProgress;
+			float speedRatio = CalcNoteSpeedRatio(currentProgress, noteProgress);
+
+			bool isNegativeSpeed = note.IsNegativeSpeed;
+			float timeOffset = OpenSekai.Shared.Live.NoteDisplayOffset.Resolve(
+				_session.NoteDisplayTimeOffset, speedRatio, note.speedRatio, ref isNegativeSpeed);
+			note.IsNegativeSpeed = isNegativeSpeed;
+			return timeOffset;
+		}
+
+		private float CalcNoteSpeedRatio(float currentProgress, float noteProgress)
+		{
+			return OpenSekai.Shared.Live.NoteSpeedRatio.Resolve(
+				_session.MusicScore?.musicScoreInfoArray, currentProgress, noteProgress, Frame.speedRatio);
+		}
+	}
+}

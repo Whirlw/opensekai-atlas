@@ -4,7 +4,6 @@ using OpenSekai.Charts.Serialization;
 using OpenSekai.Live.Conversion;
 using UnityEngine;
 using System.Collections.Generic;
-using System.Reflection;
 using NUnit.Framework;
 using Sekai.Core.Live;
 using Sekai.Live;
@@ -22,7 +21,6 @@ namespace OpenSekai.Tests.EditMode.Live
         private LiveConfig.NoteTypeJudgeData _config;
         private MusicScoreInfo _frame;
 
-        private const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
 
         private static MusicScoreInfo Info(float time) => new MusicScoreInfo(0, time / 2, time, 120, 4, 1, 1);
 
@@ -50,15 +48,6 @@ namespace OpenSekai.Tests.EditMode.Live
             }
         }
 
-        private static T Field<T>(object target, string name)
-        {
-            return (T)target.GetType().GetField(name, Private).GetValue(target);
-        }
-
-        private static void Stage(object target, string name)
-        {
-            target.GetType().GetMethod(name, Private).Invoke(target, null);
-        }
 
         [SetUp]
         public void SetUp()
@@ -154,11 +143,11 @@ namespace OpenSekai.Tests.EditMode.Live
             right.Judgment(ref held, 4.4f);
 
             var logic = new LiveLogic(null);
-            Field<List<NoteBase>>(logic, "_judgmentNoteList").Add(left);
-            Field<List<NoteBase>>(logic, "_judgmentNoteList").Add(right);
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").Add(Input(1, 4.4f, TouchPhase.Ended));
+            logic.Input.JudgmentNotes.Add(left);
+            logic.Input.JudgmentNotes.Add(right);
+            logic.Input.ActiveInputs.Add(Input(1, 4.4f, TouchPhase.Ended));
 
-            Stage(logic, "RefreshSustainedHolds");
+            logic.Scheduler.RefreshSustainedHolds();
 
             int graded = 0;
             if (left.ChildNote != null && left.ChildNote.Result != NoteResult.None) graded++;

@@ -61,32 +61,18 @@ namespace OpenSekai.Tests.EditMode.Live
             var bar = new FrameCountedBar();
             var input = Input(1, 4.5f);
             input.Touch.phase = TouchPhase.Began;
-            Field<List<NoteBase>>(logic, "_judgmentNoteList").Add(bar);
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").Add(input);
-            Stage(logic, "Judgment");
+            logic.Input.JudgmentNotes.Add(bar);
+            logic.Input.ActiveInputs.Add(input);
+            logic.Scheduler.Run();
             Assert.That(bar.Calls, Is.EqualTo(1), "the press and independent pass must not both drive the head frame");
             input.Touch.phase = TouchPhase.Moved;
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").Add(input);
-            Stage(logic, "Judgment");
+            logic.Input.ActiveInputs.Add(input);
+            logic.Scheduler.Run();
             Assert.That(bar.Calls, Is.EqualTo(2), "the next input frame drives the held bar exactly once");
         }
 
         [SetUp] public void SetUp() { previous = LiveConfig.noteTypeJudgeData; previousFrame = MusicScore.CurrentFrameInfo; MusicScore.CurrentFrameInfo = Info(0); LiveConfig.LoadMasterConfig(); }
         [TearDown] public void TearDown() { LiveConfig.noteTypeJudgeData = previous; MusicScore.CurrentFrameInfo = previousFrame; }
-        private static T Field<T>(LiveLogic logic, string name) => (T)typeof(LiveLogic).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
-        private static void Stage(LiveLogic logic, string name)
-        {
-            if (name == "AssignContinuingHolds") name = "AssignContinuingHoldInputs";
-            if (name == "SortPressCandidates")
-            {
-                var laneOf = (LiveCandidatePipeline.LaneOf)Delegate.CreateDelegate(typeof(LiveCandidatePipeline.LaneOf),
-                    logic, typeof(LiveLogic).GetMethod("ConvertLaneBy", BindingFlags.Instance | BindingFlags.NonPublic));
-                Field<LiveCandidatePipeline>(logic, "_candidates").SortPressCandidates(
-                    Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList"), logic.currentFrameInfo, laneOf);
-                return;
-            }
-            typeof(LiveLogic).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(logic, null);
-        }
         private static LiveLogic.InputTmp Input(int finger, float lane) => new LiveLogic.InputTmp
         {
             Lane = lane,
@@ -122,22 +108,22 @@ namespace OpenSekai.Tests.EditMode.Live
             var b = new HeldNote(2);
             var first = Input(1, crossed ? 4.8f : 4.2f);
             var second = Input(2, crossed ? 4.2f : 4.8f);
-            Field<List<NoteBase>>(logic, "_judgmentNoteList").AddRange(new NoteBase[] { a, b });
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").AddRange(reverse ? new[] { second, first } : new[] { first, second });
-            Stage(logic, "AllocateInputJudgableEachNotes");
-            foreach (var input in Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList"))
+            logic.Input.JudgmentNotes.AddRange(new NoteBase[] { a, b });
+            logic.Input.ActiveInputs.AddRange(reverse ? new[] { second, first } : new[] { first, second });
+            logic.Input.CollectCandidates();
+            foreach (var input in logic.Input.ActiveInputs)
                 Assert.That(input.CandidateNotes, Has.No.Member(a).And.No.Member(b),
                     "a bar is driven by its own frame, never nominated as a press candidate");
-            Stage(logic, "SortPressCandidates");
-            Stage(logic, "AssignContinuingHolds");
-            Stage(logic, "DriveIndependentNotes");
-            foreach (var input in Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList"))
+            logic.Input.SortPressCandidates();
+            logic.Input.AssignContinuingHolds();
+            logic.Scheduler.DriveIndependentNotes();
+            foreach (var input in logic.Input.ActiveInputs)
                 Assert.That(input.CandidateNotes, Has.No.Member(a).And.No.Member(b));
             Assert.That(a.HasFinger && b.HasFinger, Is.True, "each bar is driven by a finger of its own");
             Assert.That(a.HasFinger && b.HasFinger, Is.True);
             Assert.That(a.LastTime, Is.EqualTo(1f).Within(1e-4));
             Assert.That(b.LastTime, Is.EqualTo(1f).Within(1e-4));
-            Stage(logic, "EvaluateJudgment");
+            logic.Scheduler.EvaluateJudgment();
             Assert.That(a.LastTime, Is.EqualTo(1f).Within(1e-5f));
             Assert.That(b.LastTime, Is.EqualTo(1f).Within(1e-5f));
             Assert.That(a.JudgmentCalls, Is.EqualTo(1));
@@ -254,12 +240,12 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(slide.State, Is.EqualTo(NoteState.Last), "the slide becomes judgeable when its time passes");
             slide.Excute(Info(1f + lateness), 0);
             Assert.That(slide.State, Is.EqualTo(NoteState.Last), "it must survive a few late frames");
-            Field<List<NoteBase>>(logic, "_judgmentNoteList").Add(slide);
+            logic.Input.JudgmentNotes.Add(slide);
             var finger = Input(1, 4.5f);
             finger.Touch.musicTime = 1f + lateness;
             finger.Touch.phase = TouchPhase.Moved;
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").Add(finger);
-            Stage(logic, "Judgment");
+            logic.Input.ActiveInputs.Add(finger);
+            logic.Scheduler.Run();
             Assert.That(slide.Result, Is.EqualTo(NoteResult.JustPerfect));
             Assert.That(slide.State, Is.EqualTo(NoteState.Done));
         }
@@ -274,13 +260,13 @@ namespace OpenSekai.Tests.EditMode.Live
             var rub = new FrictionNote(Info(2f), 21, 4, 5, NoteCategory.Friction, null, NoteType.Default, 1);
             rub.Excute(Info(1.9f), 0.5f);
             var tap = new NormalNote(Info(2f), 22, 4, 5, NoteCategory.Normal, 1, NoteType.Default, 0);
-            Field<List<NoteBase>>(logic, "_judgmentNoteList").Add(rub);
-            Field<List<NoteBase>>(logic, "_judgmentNoteList").Add(tap);
+            logic.Input.JudgmentNotes.Add(rub);
+            logic.Input.JudgmentNotes.Add(tap);
             var finger = Input(1, 4.5f);
             finger.Touch.musicTime = 2f;
             finger.Touch.phase = TouchPhase.Began;
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").Add(finger);
-            Stage(logic, "Judgment");
+            logic.Input.ActiveInputs.Add(finger);
+            logic.Scheduler.Run();
             Assert.That(tap.State, Is.EqualTo(NoteState.Done), "the tap behind the rub must still be judged");
             Assert.That(tap.Result, Is.GreaterThan(NoteResult.Pass));
         }
@@ -292,36 +278,26 @@ namespace OpenSekai.Tests.EditMode.Live
             // only processed 0.35 s before its time), and gating registration by the display lead put
             // a rub behind a flick into the list ~130 ms before its time, past the bad-window edge.
             var logic = new LiveLogic(null);
-            typeof(LiveLogic).GetField("currentFrameInfo").SetValue(logic, Info(1.0f));
-            var scan = typeof(LiveLogic).GetMethod("IsTooFarAheadForDisplay", BindingFlags.Instance | BindingFlags.NonPublic);
-            var register = typeof(LiveLogic).GetMethod("UpdateJudgmentNoteArray", BindingFlags.Instance | BindingFlags.NonPublic);
-            Assert.That(scan, Is.Not.Null);
-            Assert.That(register, Is.Not.Null);
-            var list = Field<List<NoteBase>>(logic, "_judgmentNoteList");
+            logic.currentFrameInfo = Info(1.0f);
+            var list = logic.Input.JudgmentNotes;
 
             // The scan stops at the display lead: 600 ms ahead with a 100 ms lead is not drawn yet.
             var distant = new FrictionNote(Info(1.6f), 1, 0, 1, NoteCategory.Friction, null, NoteType.Default, 1);
-            Assert.That((bool)scan.Invoke(logic, new object[] { 0.1f, distant }), Is.True,
+            Assert.That(logic.NoteFrame.IsTooFarAheadForDisplay(0.1f, distant), Is.True,
                 "a note beyond its display lead is not processed yet, or it would pop in mid-lane");
 
             // 80 ms ahead is inside that lead, so the update pass runs and the note is on screen.
             var drawn = new FrictionNote(Info(1.08f), 2, 0, 1, NoteCategory.Friction, null, NoteType.Default, 1);
-            Assert.That((bool)scan.Invoke(logic, new object[] { 0.1f, drawn }), Is.False,
+            Assert.That(logic.NoteFrame.IsTooFarAheadForDisplay(0.1f, drawn), Is.False,
                 "a note inside its display lead must be processed");
 
             // Registration ignores the display lead entirely.
             list.Clear();
-            register.Invoke(logic, new object[]
-            {
-                new FrictionNote(Info(1.25f), 3, 0, 1, NoteCategory.Friction, null, NoteType.Default, 1)
-            });
+            logic.Input.Register(new FrictionNote(Info(1.25f), 3, 0, 1, NoteCategory.Friction, null, NoteType.Default, 1));
             Assert.That(list.Count, Is.EqualTo(1), "a note 250 ms ahead must already be in the judge list");
 
             list.Clear();
-            register.Invoke(logic, new object[]
-            {
-                new FrictionNote(Info(2f), 4, 0, 1, NoteCategory.Friction, null, NoteType.Default, 1)
-            });
+            logic.Input.Register(new FrictionNote(Info(2f), 4, 0, 1, NoteCategory.Friction, null, NoteType.Default, 1));
             Assert.That(list.Count, Is.EqualTo(0), "a note a second ahead is not registered yet");
         }
         [Test]
@@ -334,22 +310,22 @@ namespace OpenSekai.Tests.EditMode.Live
             var rub = new FrictionNote(Info(2f), 11, 4, 5, NoteCategory.Friction, null, NoteType.Default, 1);
             rub.Excute(Info(1.9f), 0.5f);
             Assert.That(rub.Progress, Is.LessThan(1f), "precondition: the rub is still approaching");
-            Field<List<NoteBase>>(logic, "_judgmentNoteList").Add(rub);
+            logic.Input.JudgmentNotes.Add(rub);
             var finger = Input(1, 4.5f);
             finger.Touch.musicTime = 1.9f;
             finger.Touch.phase = TouchPhase.Moved;
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").Add(finger);
-            Stage(logic, "Judgment");
+            logic.Input.ActiveInputs.Add(finger);
+            logic.Scheduler.Run();
             Assert.That(rub.State, Is.EqualTo(NoteState.Input), "the first touch starts the rub");
-            Assert.That(Field<List<NoteBase>>(logic, "_judgmentNoteList"), Contains.Item(rub),
+            Assert.That(logic.Input.JudgmentNotes, Contains.Item(rub),
                 "a started rub must stay judgeable until it reaches the line");
 
             rub.Excute(Info(2.05f), 0.5f);
             var second = Input(1, 4.5f);
             second.Touch.musicTime = 2.05f;
             second.Touch.phase = TouchPhase.Moved;
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").Add(second);
-            Stage(logic, "Judgment");
+            logic.Input.ActiveInputs.Add(second);
+            logic.Scheduler.Run();
             Assert.That(rub.Result, Is.EqualTo(NoteResult.JustPerfect));
         }
         [Test]
@@ -370,12 +346,12 @@ namespace OpenSekai.Tests.EditMode.Live
             var slide = new ConnectionNote(Info(1f), 8, 4, 5, NoteCategory.Connection, NoteType.Default, 1, 0);
             slide.Excute(Info(0.9f), 0);
             slide.Excute(Info(1f), 0);
-            Field<List<NoteBase>>(logic, "_judgmentNoteList").AddRange(new NoteBase[] { bar, slide });
+            logic.Input.JudgmentNotes.AddRange(new NoteBase[] { bar, slide });
             var finger = Input(1, 4.5f);
             finger.Touch.musicTime = 1f;
             finger.Touch.phase = TouchPhase.Moved;
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").Add(finger);
-            Stage(logic, "Judgment");
+            logic.Input.ActiveInputs.Add(finger);
+            logic.Scheduler.Run();
             Assert.That(slide.Result, Is.EqualTo(NoteResult.JustPerfect));
             Assert.That(bar.LastTime, Is.EqualTo(1f).Within(1e-5f), "the bar keeps being refreshed");
         }
@@ -390,9 +366,9 @@ namespace OpenSekai.Tests.EditMode.Live
             var owner = Input(1, 4.5f);
             var newcomer = Input(2, 4.5f);
             newcomer.Touch.phase = TouchPhase.Began;
-            Field<List<NoteBase>>(logic, "_judgmentNoteList").AddRange(new NoteBase[] { held, tap });
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").AddRange(reverse ? new[] { newcomer, owner } : new[] { owner, newcomer });
-            Stage(logic, "Judgment");
+            logic.Input.JudgmentNotes.AddRange(new NoteBase[] { held, tap });
+            logic.Input.ActiveInputs.AddRange(reverse ? new[] { newcomer, owner } : new[] { owner, newcomer });
+            logic.Scheduler.Run();
             Assert.That(held.LastTime, Is.EqualTo(1f).Within(1e-5f));
             Assert.That(held.JudgmentCalls, Is.EqualTo(1));
             Assert.That(held.HasFinger, Is.True);
@@ -415,8 +391,7 @@ namespace OpenSekai.Tests.EditMode.Live
         public void OverlappingHoldsJudgeBothInteriorComboPoints(NoteCategory category, bool reverse, bool nested)
         {
             var logic = new LiveLogic(null);
-            typeof(LiveLogic).GetField("_liveViews", BindingFlags.Instance | BindingFlags.NonPublic)
-                .SetValue(logic, Array.Empty<LiveViewBase>());
+            logic.Session.Views = Array.Empty<LiveViewBase>();
             var notes = new LongNote[2];
             var combos = new LongHoldCombo[2];
             for (int i = 0; i < 2; i++)
@@ -438,12 +413,12 @@ namespace OpenSekai.Tests.EditMode.Live
                 // Advance to an interior sixteenth-note scoring point, through the real update path.
                 notes[i].Excute(Info(0.126f), 0);
             }
-            Field<List<NoteBase>>(logic, "_judgmentNoteList").AddRange(notes);
+            logic.Input.JudgmentNotes.AddRange(notes);
             var a = Input(1, 4.5f);
             var b = Input(2, 4.5f);
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").AddRange(reverse ? new[] { b, a } : new[] { a, b });
+            logic.Input.ActiveInputs.AddRange(reverse ? new[] { b, a } : new[] { a, b });
             logic.currentFrameInfo = MusicScore.CurrentFrameInfo = Info(0.125f);
-            Stage(logic, "Judgment");
+            logic.Scheduler.Run();
             // A missing input now becomes an irreversible combo MISS at the following update.
             foreach (var note in notes) note.Excute(Info(0.142f), 0);
             Assert.That(combos[0].Result, Is.EqualTo(NoteResult.JustPerfect));
@@ -503,14 +478,14 @@ namespace OpenSekai.Tests.EditMode.Live
         {
             var logic = new LiveLogic(null);
             var bar = new HeldNote(3);
-            Field<List<NoteBase>>(logic, "_judgmentNoteList").Add(bar);
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").Add(Input(1, 9f));
+            logic.Input.JudgmentNotes.Add(bar);
+            logic.Input.ActiveInputs.Add(Input(1, 9f));
 
             // No finger on the bar at all: three frames of grace, then it releases.
             for (int frame = 0; frame < 3; frame++)
             {
                 bar.SetLastTime(0f);
-                Stage(logic, "RefreshSustainedHolds");
+                logic.Scheduler.RefreshSustainedHolds();
             }
 
             bar.SetLastTime(0f);
@@ -528,10 +503,10 @@ namespace OpenSekai.Tests.EditMode.Live
             var logic = new LiveLogic(null);
             var bar = new HeldNote(4);
             bar.SetLastTime(-10f);
-            Field<List<NoteBase>>(logic, "_judgmentNoteList").Add(bar);
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").Add(Input(7, 4.5f));
+            logic.Input.JudgmentNotes.Add(bar);
+            logic.Input.ActiveInputs.Add(Input(7, 4.5f));
 
-            Stage(logic, "RefreshSustainedHolds");
+            logic.Scheduler.RefreshSustainedHolds();
 
             Assert.That(bar.LastTime, Is.EqualTo(0f).Within(1e-5f),
                 "any finger on the bar keeps it alive, whichever finger started it");
@@ -561,9 +536,9 @@ namespace OpenSekai.Tests.EditMode.Live
             var owner = Input(1, 4.5f);
             var newcomer = Input(2, 4.5f);
             newcomer.Touch.phase = newcomerBegan ? TouchPhase.Began : TouchPhase.Stationary;
-            Field<List<NoteBase>>(logic, "_judgmentNoteList").AddRange(new NoteBase[] { held });
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").AddRange(new[] { owner, newcomer });
-            Stage(logic, "Judgment");
+            logic.Input.JudgmentNotes.AddRange(new NoteBase[] { held });
+            logic.Input.ActiveInputs.AddRange(new[] { owner, newcomer });
+            logic.Scheduler.Run();
             Assert.That(held.LastTime, Is.EqualTo(1f).Within(1e-5f), "The holder must keep refreshing while a second finger is inside the lane.");
             Assert.That(held.HasFinger, Is.True);
         }
@@ -579,8 +554,7 @@ namespace OpenSekai.Tests.EditMode.Live
         public void HoldOwnerStillJudgesAnOverlappingPlainNote()
         {
             var logic = new LiveLogic(null);
-            typeof(LiveLogic).GetField("_liveViews", BindingFlags.Instance | BindingFlags.NonPublic)
-                .SetValue(logic, Array.Empty<LiveViewBase>());
+            logic.Session.Views = Array.Empty<LiveViewBase>();
             var bar = new LongNote(Info(0), 11, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
             bar.AddNoteListAndSetupChildNote(new NormalNote(Info(10), 111, 4, 5, NoteCategory.Normal, 1, NoteType.Default, 0));
             bar.Excute(Info(0), 0);
@@ -591,9 +565,9 @@ namespace OpenSekai.Tests.EditMode.Live
 
             // A separate contact note sits on top of the bar, a hair later.
             var tap = new NormalNote(Info(0.5f), 12, 4, 5, NoteCategory.Normal, 1, NoteType.Default, 0);
-            Field<List<NoteBase>>(logic, "_judgmentNoteList").AddRange(new NoteBase[] { bar, tap });
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").Add(Input(1, 4.5f));
-            Stage(logic, "Judgment");
+            logic.Input.JudgmentNotes.AddRange(new NoteBase[] { bar, tap });
+            logic.Input.ActiveInputs.Add(Input(1, 4.5f));
+            logic.Scheduler.Run();
 
             Assert.That(tap.Result, Is.Not.EqualTo(NoteResult.Miss), "The finger holding the bar must also judge the overlaid note.");
             Assert.That(bar.HasFinger, Is.True, "Judging the overlaid note must not drop the bar.");
@@ -605,8 +579,7 @@ namespace OpenSekai.Tests.EditMode.Live
         public void SecondFingerJudgesANoteInsideAWideBarHeldAtItsEdge()
         {
             var logic = new LiveLogic(null);
-            typeof(LiveLogic).GetField("_liveViews", BindingFlags.Instance | BindingFlags.NonPublic)
-                .SetValue(logic, Array.Empty<LiveViewBase>());
+            logic.Session.Views = Array.Empty<LiveViewBase>();
             // Wide bar: finger 1 only touches its left edge.
             var bar = new LongNote(Info(0), 13, 2, 8, NoteCategory.Long, NoteType.Default, 1, 0);
             bar.AddNoteListAndSetupChildNote(new NormalNote(Info(10), 113, 2, 8, NoteCategory.Normal, 1, NoteType.Default, 0));
@@ -617,9 +590,9 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(bar.HasFinger, Is.True);
 
             var inside = new NormalNote(Info(0.5f), 14, 2, 8, NoteCategory.Normal, 1, NoteType.Default, 0);
-            Field<List<NoteBase>>(logic, "_judgmentNoteList").AddRange(new NoteBase[] { bar, inside });
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").AddRange(new[] { Input(1, 2.5f), Input(2, 5.5f) });
-            Stage(logic, "Judgment");
+            logic.Input.JudgmentNotes.AddRange(new NoteBase[] { bar, inside });
+            logic.Input.ActiveInputs.AddRange(new[] { Input(1, 2.5f), Input(2, 5.5f) });
+            logic.Scheduler.Run();
 
             Assert.That(inside.Result, Is.Not.EqualTo(NoteResult.Miss), "A second finger inside the bar must judge the note it lands on.");
             Assert.That(bar.HasFinger, Is.True, "The edge holder keeps the bar.");
@@ -640,8 +613,7 @@ namespace OpenSekai.Tests.EditMode.Live
         public void GreatHeadStillKeepsTheHoldAlive()
         {
             var logic = new LiveLogic(null);
-            typeof(LiveLogic).GetField("_liveViews", BindingFlags.Instance | BindingFlags.NonPublic)
-                .SetValue(logic, Array.Empty<LiveViewBase>());
+            logic.Session.Views = Array.Empty<LiveViewBase>();
             var bar = new LongNote(Info(0), 15, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
             bar.AddNoteListAndSetupChildNote(new NormalNote(Info(10), 115, 4, 5, NoteCategory.Normal, 1, NoteType.Default, 0));
             bar.Excute(Info(0), 0);
@@ -655,10 +627,10 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(bar.HasFinger, Is.True);
 
             // Keep holding for a few frames through the normal pipeline.
-            Field<List<NoteBase>>(logic, "_judgmentNoteList").Add(bar);
+            logic.Input.JudgmentNotes.Add(bar);
             var held = Input(1, 4.5f);
             held.Touch.musicTime = 0.06f;
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").Add(held);
+            logic.Input.ActiveInputs.Add(held);
             for (var frame = 0; frame < 3; frame++)
             {
                 // The finger keeps pressing, so the hold is refreshed each frame; liveness is now
@@ -681,8 +653,7 @@ namespace OpenSekai.Tests.EditMode.Live
         public void SustainedHoldStillJudgesItsInteriorTicks()
         {
             var logic = new LiveLogic(null);
-            typeof(LiveLogic).GetField("_liveViews", BindingFlags.Instance | BindingFlags.NonPublic)
-                .SetValue(logic, Array.Empty<LiveViewBase>());
+            logic.Session.Views = Array.Empty<LiveViewBase>();
             var note = new LongNote(Info(0), 9, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
             var combo = new LongHoldCombo(Info(0.125f), NoteType.Default, 1, 0);
             note.AddHoldCombo(combo);
@@ -693,10 +664,10 @@ namespace OpenSekai.Tests.EditMode.Live
             note.Judgment(ref press.Touch, 4.5f);
             // An interior sixteenth-note marker is due: it only scores inside ConnectionNoteJudgment.
             note.Excute(Info(0.126f), 0);
-            Field<List<NoteBase>>(logic, "_judgmentNoteList").Add(note);
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").Add(Input(1, 4.5f));
+            logic.Input.JudgmentNotes.Add(note);
+            logic.Input.ActiveInputs.Add(Input(1, 4.5f));
             logic.currentFrameInfo = MusicScore.CurrentFrameInfo = Info(0.125f);
-            Stage(logic, "RefreshSustainedHolds");
+            logic.Scheduler.RefreshSustainedHolds();
             Assert.That(combo.Result, Is.EqualTo(NoteResult.JustPerfect), "A refreshed hold must still score its interior combo ticks.");
             Assert.That(note.HasFinger, Is.True);
         }
@@ -708,12 +679,12 @@ namespace OpenSekai.Tests.EditMode.Live
             var logic = new LiveLogic(null);
             var held = new HeldNote(1);
             var input = Input(1, lane);
-            Field<List<NoteBase>>(logic, "_judgmentNoteList").AddRange(new NoteBase[] { held });
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").AddRange(new[] { input });
+            logic.Input.JudgmentNotes.AddRange(new NoteBase[] { held });
+            logic.Input.ActiveInputs.AddRange(new[] { input });
             // Make the hold stale so only an explicit refresh can bring it back to this frame.
             typeof(LongNote).GetField("lastInputTime", BindingFlags.Instance | BindingFlags.NonPublic)
                 .SetValue(held, -0.5f);
-            Stage(logic, "RefreshSustainedHolds");
+            logic.Scheduler.RefreshSustainedHolds();
             Assert.That(held.LastTime, Is.EqualTo(expected ? 0f : -0.5f).Within(0.0001f));
         }
 
@@ -721,8 +692,7 @@ namespace OpenSekai.Tests.EditMode.Live
         public void MissedHeadDoesNotBlockCatchingTheHoldUpMidBody()
         {
             var logic = new LiveLogic(null);
-            typeof(LiveLogic).GetField("_liveViews", BindingFlags.Instance | BindingFlags.NonPublic)
-                .SetValue(logic, Array.Empty<LiveViewBase>());
+            logic.Session.Views = Array.Empty<LiveViewBase>();
             var note = new LongNote(Info(0), 7, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
             note.AddNoteListAndSetupChildNote(new NormalNote(Info(4), 107, 4, 5, NoteCategory.Normal, 1, NoteType.Default, 0));
             note.Excute(Info(0), 0);
@@ -736,9 +706,9 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(note.IsJudgment(ref press.Touch, 4.5f), Is.True,
                 "A missed head must not block catching the hold up in the middle of the body.");
 
-            Field<List<NoteBase>>(logic, "_judgmentNoteList").AddRange(new NoteBase[] { note });
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").AddRange(new[] { press });
-            Stage(logic, "Judgment");
+            logic.Input.JudgmentNotes.AddRange(new NoteBase[] { note });
+            logic.Input.ActiveInputs.AddRange(new[] { press });
+            logic.Scheduler.Run();
             Assert.That(note.HasFinger, Is.True);
             LongNoteGraceTests.AssertHeldBody(note);
         }
@@ -772,7 +742,7 @@ namespace OpenSekai.Tests.EditMode.Live
             bar.Judgment(ref head, 4.5f);
             bar.RecordHoldingInput(1, 0f);
 
-            Field<List<NoteBase>>(logic, "_judgmentNoteList").Add(bar);
+            logic.Input.JudgmentNotes.Add(bar);
 
             var input = new LiveLogic.InputTmp
             {
@@ -786,7 +756,7 @@ namespace OpenSekai.Tests.EditMode.Live
                     delta = new UnityEngine.Vector2(40f, 0f)
                 }
             };
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").Add(input);
+            logic.Input.ActiveInputs.Add(input);
 
             CoverHolds(logic);
 
@@ -794,18 +764,15 @@ namespace OpenSekai.Tests.EditMode.Live
                 "a wrong way swipe must leave the bar endable: the window has already closed here");
             Assert.That(bar.Result, Is.EqualTo(NoteResult.Miss), "and it is a miss");
 
-            Field<List<NoteBase>>(logic, "_judgmentNoteList").Remove(bar);
+            logic.Input.JudgmentNotes.Remove(bar);
         }
 
 		/// <summary>One frame of hold coverage, driven through the coordinator the live loop uses.</summary>
 		private static void CoverHolds(Sekai.Core.Live.LiveLogic logic)
 		{
-			object holds = typeof(Sekai.Core.Live.LiveLogic)
-				.GetField("_holds", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
-			var notes = (List<NoteBase>)typeof(Sekai.Core.Live.LiveLogic)
-				.GetField("_judgmentNoteList", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
-			var inputs = (List<Sekai.Core.Live.LiveLogic.InputTmp>)typeof(Sekai.Core.Live.LiveLogic)
-				.GetField("_activeInputList", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
+			var holds = logic.Input.Holds;
+			var notes = logic.Input.JudgmentNotes;
+			var inputs = logic.Input.ActiveInputs;
 			holds.GetType()
 				.GetMethod("CoverHoldsWithAnyFinger", BindingFlags.Instance | BindingFlags.NonPublic)
 				.Invoke(holds, new object[] { notes, inputs, logic.currentFrameInfo, UnityEngine.Time.deltaTime });

@@ -449,6 +449,9 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 - P2-3 已完成 Android 验收准备。设备连接后从 `76ad6c33` 的隔离检出使用 `unity build --target Android --execute-method PhaseTwoDeviceBuild.Run` 重建 AssetBundles 和 ARM64 IL2CPP APK，产物为 `Builds/restructure-phase2/OpenSekai-P2-3-76ad6c33.apk`。通过 `adb install -r` 安装独立应用 `io.github.opensekai.p23check`，启动并导入专用六长条谱。原版 APK 路径、设置与历史 SHA-256 在安装前后一致。构建报告为 `TestResults/restructure-p2-3-android-build.json`，装机报告为 `TestResults/restructure-p2-3-device-setup.txt`，谱面时间及操作表见 `TestResults/restructure-p2-3-device-chart-validation.txt` 和 `TestResults/restructure-p2-3-device-checklist.md`。操作者确认宽限期回按、换手、双条重叠和尾判时序四项均已实际测试并通过。该局中途退出，设备未生成可供复核的判定追踪文件，四项结果以操作者观察为证据。手测后再次核对原版 APK 路径、设置与历史 SHA-256，均一致。验收记录为 `TestResults/restructure-p2-3-device-acceptance.txt`。
 - P2-5 已留存独立音频基线。`Tools/audit-audio-provenance.ps1` 核对 42 个内置 WAV，结果为 `AUDIT OK`。报告在 `TestResults/restructure-p2-5-audio-baseline.txt`。
 
+- P2-4 通过，起点 `5d3b4dcf`。`LiveLogic` 协调帧阶段，`LiveClock` 管理帧采样与触摸时间映射，暂停和恢复沿用控制器对帧调用的控制。`LiveInputRouter` 复用触摸采集、候选和去重逻辑，`JudgmentScheduler` 保留判定和结果回调顺序，`LiveSessionState` 管理谱面、事件、计分和会话统计，`LiveNoteFrame` 管理音符扫描及显示。上述文件依次为 265、33、143、323、78、285 行。通过 Unity 反射核对 67 项公开接口及参数，拆分前后一致。
+- `unity recompile` 为 0 error。拆分前后全量 EditMode 均为 525 通过、0 失败、4 跳过，529 项逐项一致。`LiveLogicInputTests` 34 项、`JudgeFrameTableTests` 9 项全部通过。两项异步 `LibrarySmokeTests` 通过，整首结算 1,000,000 / S 并返回曲库。通过 `Tools/verify-structure.ps1 -CheckProjects -CheckAssemblies -RequireNoEmptyDirectories`，缺失脚本新增 0。报告在 `TestResults/restructure-p2-4-*`。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动
