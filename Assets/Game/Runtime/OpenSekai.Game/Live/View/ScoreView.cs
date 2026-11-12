@@ -2,7 +2,6 @@ using OpenSekai.Shared.Scoring;
 using Sekai.Core.Live;
 using DG.Tweening;
 using UnityEngine;
-using Sekai.RankLive;
 
 namespace Sekai
 {

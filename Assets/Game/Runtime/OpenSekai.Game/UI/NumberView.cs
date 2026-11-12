@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.Serialization;
 using CP;
-using Sekai.RankLive;
 
 namespace Sekai
 {

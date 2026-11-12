@@ -1,7 +1,6 @@
 using System;
 using Sekai.Live;
 using UnityEngine;
-using Sekai.RankLive;
 
 namespace Sekai
 {

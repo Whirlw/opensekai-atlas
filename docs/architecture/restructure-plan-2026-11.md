@@ -295,7 +295,7 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 - `ScreenLayerExtention` → `ScreenLayerExtension`（目录、文件、namespace 同步）。
 - `CustomMusicScoreManager` 中与玩家曲库相关的存储代码归入 App 的 `Library/Storage`；按 P3-1 的文件归属清单核对共享类型后移除空壳。
 - `Platform/CP` 中继续使用的平台适配代码归入 Game 的 `Platform/Common`，在目录说明中记录旧路径与职责。
-- `RankLive/NumberView`：如果只是通用数字组件，移到 `UI/NumberView`；不要用一个玩法名目录装通用组件。
+- `RankLive/NumberView`：如果只是通用数字组件，移到 `UI/NumberView`；不要用一个玩法名目录装通用组件。（结论是删除：它是反编译占位类，与 `UI/NumberView` 重复，见第三批记录。）
 - `Sekai` 命名空间是否改成 `OpenSekai.Game`：单独开 ADR，不混在本次目录整理里。
 
 验收：目录名与职责一致；`ScreenLayerExtention` 0 处；文档同步。
@@ -518,6 +518,14 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 
 - P3-3 字体项已决并落地：曲库页的 bundled 字体改用思源黑体。`LibraryUi.LoadBundledFont()` 不再拼 `Fonts/NotoSansSC-UI`（仓库里不存在），改走 `ResourceCatalog.MediumTtfFont`（`Fonts/SourceHanSansSC-Medium`），运行时建出的 TMP 资产命名为 `SourceHanSansSC-Medium`；`BUNDLED_FONT_RESOURCE_PATH` 常量删除。OS 字体探测与 `SDF_Dynamic` 资产仍是失败时的后备。
 - 新增一项测试 `TheBundledUiFontCanBecomeATmpAsset`：不只断言 TTF 能加载，还真实调用 `TMP_FontAsset.CreateFontAsset` 并检查 `faceInfo.pointSize > 0`——这才是曲库页实际执行的那一步。`docs/reference/fonts.md` 同步改成“只用一套字体，就是思源黑体”，并记下旧 Noto 路径为何一直返回 null。
+
+- P3-3 第三批完成，起点 `e81a1a33`。`RankLive/NumberView` 走**删除**路线，依据取自编辑器里的实际挂载：
+  - `Assets/Graphics/Resources/live/view/FrontUIView.prefab` 的 6 个数字控件全部指向 GUID `2511c41582e46428c467919322468788`，即 `OpenSekai.Game/UI/NumberView.cs` 的 `Sekai.NumberView`（实现版，280 行）；RankLive 版的 `cfd345f4…` 一处都没挂。
+  - 上一批“字段从不被赋值”的判断是错的：`LifeView` 与 `ScoreView` 都在 `namespace Sekai` 里声明这些字段，未限定的 `NumberView` 先在外层命名空间 `Sekai` 命中，也就是实现版；字段由 prefab 的 `[SerializeField]` 填充，一直指着实现版。三个文件里的 `using Sekai.RankLive;` 从头到尾没被用到，所以删 stub 不改任何运行时绑定，也不需要动那六个字段。
+  - 落地：用 `AssetDatabase.DeleteAsset` 删掉 `Live/View/RankLive/NumberView.cs`（连同 `.meta`）与随之变空的目录（插件禁止 shell 写，删除只能走编辑器 API）；三处 `using Sekai.RankLive;` 同步移除。`Sekai.RankLive` 命名空间与 `Live/View/RankLive/` 目录在全仓 0 处。
+  - 验证：`unity recompile` 0 error；全量 EditMode 558 项、554 通过、0 失败、4 跳过（与删除前逐项相同）；缺失脚本清单 sha256 `90358BD4…` 与 P0-2 基线逐字节相同，删除没有制造任何断裂引用；`verify-structure.ps1 -CheckAssemblies -CheckProjects -RequireNoEmptyDirectories` 通过（四份生成字体资产无烘焙漂移）；`verify-resource-paths.ps1` 为 `calls=31 missing=0`。
+- 顺带记一条事实：清理后全仓仍有 28 个文件含 `throw null;` 占位（共 340 处），反编译未还原的方法体还大量存在。`RankLive/NumberView` 能安全删除不是因为它是占位类，而是因为它**重复**了一个已实现类型且零引用；其余占位类都有实际调用点，删它们属于另一件事，不在 P3-3 范围内。
+- P3-3 至此只剩 `MusicScoreMaker/Common` 三个存储类，阻塞在 P4-1 的显式依赖改造。
 
 ## 7. 迁移规则
 
