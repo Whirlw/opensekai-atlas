@@ -44,6 +44,10 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(_boot.CaptureCount, Is.Zero);
             Assert.That(_boot.PublishCount, Is.Zero);
             Assert.That(_service.IsStarting, Is.False);
+            // A refused start must not touch the scene-exit subscription: subscribing is the only
+            // part that reaches into the scene manager.
+            Assert.That(_surface.SubscribeCount, Is.Zero);
+            Assert.That(_surface.UnsubscribeCount, Is.Zero);
         }
 
         [Test]
@@ -98,6 +102,8 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(_boot.LastRestored.Mode, Is.EqualTo(PlayMode.None));
             Assert.That(_service.IsStarting, Is.False);
             Assert.That(_surface.SceneExitHandlers, Is.Zero);
+            Assert.That(_surface.SubscribeCount, Is.EqualTo(1));
+            Assert.That(_surface.UnsubscribeCount, Is.EqualTo(1));
         }
 
         [Test]
@@ -119,10 +125,12 @@ namespace OpenSekai.Tests.EditMode
 
             Assert.That(_service.IsStarting, Is.False);
             Assert.That(_surface.SceneExitHandlers, Is.Zero);
+            Assert.That(_surface.UnsubscribeCount, Is.EqualTo(1));
 
             PlayStartResult second = await _service.StartAsync(Request(FixtureDirectory), CancellationToken.None);
             Assert.That(second.Status, Is.EqualTo(PlayStartStatus.Started));
             Assert.That(_boot.PublishCount, Is.EqualTo(2));
+            Assert.That(_surface.SubscribeCount, Is.EqualTo(2));
         }
 
         private static PlayRequest Request()
@@ -183,6 +191,8 @@ namespace OpenSekai.Tests.EditMode
             public bool LiveLoadingReady { get; set; } = true;
             public bool FailOnPush { get; set; }
             public int PushedLiveLoading { get; private set; }
+            public int SubscribeCount { get; private set; }
+            public int UnsubscribeCount { get; private set; }
             public int SceneExitHandlers => _sceneExit?.GetInvocationList().Length ?? 0;
 
             public SceneManager.Scene CurrentScene => Scene;
@@ -210,11 +220,13 @@ namespace OpenSekai.Tests.EditMode
 
             public void SubscribeSceneExit(Action handler)
             {
+                SubscribeCount++;
                 _sceneExit += handler;
             }
 
             public void UnsubscribeSceneExit(Action handler)
             {
+                UnsubscribeCount++;
                 _sceneExit -= handler;
             }
 

@@ -556,6 +556,15 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
   - 验证：`unity recompile` 0 error；全量 EditMode 568 项、564 通过、0 失败、4 跳过（比上批 +4）；缺失脚本清单 sha256 与 P0-2 基线逐字节相同；`verify-structure.ps1` 与 `verify-resource-paths.ps1`（`calls=31 missing=0`）通过。
   - 未做：`LiveLogic` 目前通过 `_baseController`/参数拿数据，不需要 `LiveContext`，第二轮没有硬塞；`LegacyLiveBootAdapter` 的 `SelectedDeckId` 读取仍直连单例（写入侧的事，等 P4-1 第三批把它也交给端口）。真机验收仍是 M2 那一轮记录，本批只保证"开局时机与数据不变"。
 
+- P4-1 真机验收（设备 `3B164A00Y5600000`）：用从 `09d127b2` 打包的 `Builds/phase4/OpenSekai-P4-1.apk` 跑出**一处本批引入的回归**，修掉后复验通过。
+  - 现象：曲库点"自动"直接弹「加载失败 / 曲库界面尚未就绪。」，任何一局都开不起来。
+  - 根因：`PlayService.ReleaseStartLock()` 无条件调 `_surface.UnsubscribeSceneExit(...)`，而它在 `ResetForNewRun`（`SubsystemRegistration`）里也会被调用——那时还没有任何场景。`LegacyPlaySurface` 的退订走 `SceneManager.Instance`，而这个 getter 是**懒创建**的：于是启动瞬间凭空造出一个 `SceneManager`，`Awake` 里 `CurrentScene = GetActiveScene()` 记下空场景值并 `DontDestroyOnLoad`；随后 `Library.unity` 自带的那个在 `Awake` 里看到 `_instance` 已存在，把自己 `Destroy` 掉。结果全程留着一个 `CurrentScene != Library` 的常驻实例，`PlayService` 的第一道门（`CurrentScene == ReturnScene`）永远不成立。改动前 `ReleaseStartLock` 只在 `_transitionOwner != null` 时才碰场景，所以没有这个副作用。
+  - 修法：加 `_releaseOnSceneExit` 标记，只在真的订阅过之后才退订；`ResetForNewRun` 不再触碰 surface。注释写进了代码，说明为什么不许在冷启动路径上问场景要东西。
+  - 复验（`OpenSekai-P4-1-fixed.apk`，同一台设备）：曲库 → 自动开局 → 打歌 HUD 正常计分（截图为证）→ 暂停 →「退出到曲库」→ 回到曲库且底部显示「BOF · 中途退出」→ 再点自动 → 第二局正常开局计分。logcat 里 `[Library] Player library started` 出现 3 次（启动、两次返回），对应"开局、退出返回、连续两局"三条验收。截图与日志留在 `TestResults/p4-1-device-0*.png` 与 `TestResults/p4-1-device-logcat2.txt`。
+  - 顺带记一条本批之外的既有问题：返回值里的 `PlayService` 单例在**未订阅**状态下也可能被 `ResetForNewRun` 碰到，这次靠标记堵住了；但 `LegacyPlaySurface` 其余方法仍会在需要时才去取 `SceneManager.Instance`，属于同一个"懒创建 + DontDestroyOnLoad"陷阱，改 `SceneManager` 本身要单独评估，不在本批。
+- P4-1 真机验收暴露的第二处问题（**来自 P3-3 的字体改动**，不是本批引入）：logcat 里 64 条 `The character used for Ellipsis is not available in font asset [SourceHanSansSC-Medium]`，TMP 把省略号溢出方式降级成截断。原因是用思源黑体 TTF 在运行时 `CreateFontAsset` 出来的动态资产还没把 U+2026 加进图集，而 TMP 的 `TextOverflowModes.Ellipsis` 只做 `HasCharacter` 不做 `TryAddCharacters`。两个修法：创建后 `TryAddCharacters("\u2026")`；或者干脆让 `LoadBundledFont()` 直接返回项目里预烘的 `SDF_Dynamic` 资产（顺带省掉启动时的建资产开销）。未在本批改，等下一轮有空闲编辑器时一起做。
+- 环境留痕：本轮为打包与测试临时用了隔离副本（`%TEMP%/OpenSekai-p4-build`，`Assets`/`ProjectSettings`/`Packages`/`Tools/signing`/`Tools/fixtures` 拷入），因为主工程的 `Temp/UnityLockfile` 被已退出的编辑器（PID 13152）残留句柄占住，`unity open`/`unity build` 都报"项目已在编辑器中打开"，而 `Library/EditorInstance.json` 删除后无效、`Remove-Item` 报共享冲突。隔离副本里跑出的 `PlayServiceDependencyTests` 6/6 通过、Android 包与主工程同源同构。主工程编辑器锁需要重启后释放，那条路径上的 `unity recompile`/全量 EditMode 待恢复后补跑。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动

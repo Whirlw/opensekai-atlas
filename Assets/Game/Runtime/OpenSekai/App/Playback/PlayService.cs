@@ -20,6 +20,7 @@ namespace OpenSekai.App.Playback
         private readonly IPlayBootPublisher _boot;
         private readonly IPlaySurface _surface;
         private readonly IPackageAudioRegistrar _audio;
+        private bool _releaseOnSceneExit;
 
         /// <summary>The process-wide service, wired to the retained singletons.</summary>
         public static PlayService Instance { get; } = new PlayService(
@@ -119,6 +120,7 @@ namespace OpenSekai.App.Playback
                 }
 
                 _surface.SubscribeSceneExit(ReleaseStartLock);
+                _releaseOnSceneExit = true;
                 previousBoot = _boot.Capture();
                 _boot.Publish(boot);
                 bootPublished = true;
@@ -165,7 +167,16 @@ namespace OpenSekai.App.Playback
 
         private void ReleaseStartLock()
         {
-            _surface.UnsubscribeSceneExit(ReleaseStartLock);
+            // Only touch the surface when this service actually subscribed. ResetForNewRun runs at
+            // subsystem registration, before any scene exists, and asking the surface for the scene
+            // manager there makes SceneManager's lazy Instance create one: that phantom survives as
+            // the DontDestroyOnLoad singleton with the wrong CurrentScene, and every later start is
+            // refused as "library not ready".
+            if (_releaseOnSceneExit)
+            {
+                _surface.UnsubscribeSceneExit(ReleaseStartLock);
+                _releaseOnSceneExit = false;
+            }
             IsStarting = false;
         }
 
