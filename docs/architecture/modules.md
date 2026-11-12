@@ -28,18 +28,17 @@
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Live/View/` | 前场与结算视图、背景、曲目信息、屏幕特效与遮罩、特写与技能文字、音符视图与 HUD、判定与计分反馈、Live 过场 |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Live/Notes/` | `NoteBase` 与各类音符、长条主体/接缝/尾判、`Tails/` 四种尾行为 |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Rendering/` | URP Renderer Feature 与 Pass、UI 模糊与特效参数、相机与背景组件、shader 预载 |
-| OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Platform/` | 平台输入适配（`InputManager`、`NativeInput`）、CRI 音频 shim 与序列化兼容接口 |
+| OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Platform/` | 平台输入适配（`InputManager`、`NativeInput`）、ACB 解码器、CRI 音频 shim、`CP` 通用工具、序列化接口、`UiEffect`、`LetterSpacing` |
+| OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Shared/` | 判定与触摸的纯移植逻辑、SUS 运行时转换、曲包模型与存储、播放会话上下文、设置存储、诊断 |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Extensions/` | 通用 `GameObject` 扩展 |
-| OpenSekai.Game | `Assets/Game/Runtime/Sekai/` | 仅剩 `MusicScoreMaker/Common` 存储与 `RankLive/NumberView`，由 P3-3 归位后删除 |
-| OpenSekai.Game | `Assets/Game/Runtime/Shared/` | 设置存储、触摸计算、SUS 运行时音符与事件组装、曲包模型与存储 |
-| OpenSekai.Game | `Assets/Game/Runtime/Platform/` | 平台适配、CRI 音频 shim 和序列化兼容接口 |
+| OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/OpenSekai.Game.asmdef` | 程序集定义；`Runtime/` 下只有 App、Core、Game 三个程序集目录 |
 | OpenSekai.Editor | `Assets/Game/Editor/` | Android 构建、AssetBundle 构建、资源检查和场景校验 |
 
 构建场景在 `Assets/Game/Scenes/`。依次为 `Library.unity`、`TransitionBlank.unity` 和 `Core.unity`。
 
-`Assets/Game/Runtime/OpenSekai.Game/` 是 P3-1 目录收敛的目标位置，按职责分为 `Screens`、`Audio`、`Assets`、`UI`、`Animation`、`Data`、`Live/{Runtime,View,Notes}`、`Platform`。每个目录的职责就是上表对应行；当前已搬入的目录见重构计划 P3-1 的执行记录。代码命名空间保持 `Sekai` 不变，所以搬目录不影响序列化引用，但 `.meta` 必须随文件一起移动（GUID 不变，场景与 prefab 才不会断）。
+`Assets/Game/Runtime/OpenSekai.Game/` 是 P3-1 目录收敛的结果，按职责分为 `Screens`、`Audio`、`Assets`、`UI`、`Animation`、`Data`、`Live/{Runtime,View,Notes}`、`Rendering`、`Platform`、`Shared`、`Extensions`。代码命名空间保持 `Sekai` 不变，所以搬目录不影响序列化引用，但 `.meta` 必须随文件一起移动（GUID 不变，场景与 prefab 才不会断）。
 
-`Assets/Game/Runtime/OpenSekai.Game.asmdef` 目前仍在 `Assets/Game/Runtime/` 根下，因此覆盖 `Sekai/`、`Shared/`、`Platform/` 与新建的 `OpenSekai.Game/`。等 `Sekai/` 顶层清空、其余 Game 归属目录都进 `OpenSekai.Game/` 之后，再把 asmdef 连同 `.meta` 搬进该目录——提前搬会让仍留在 `Runtime/` 根下的源码掉出程序集。
+`OpenSekai.Game.asmdef` 已随目录收敛搬进 `Assets/Game/Runtime/OpenSekai.Game/`（GUID `ba080aef…` 保留），所以它的作用范围就是该目录。`Runtime/` 下现在只有三个程序集目录：`OpenSekai/`（App）、`OpenSekai.Core/`、`OpenSekai.Game/`；新增 Game 侧代码必须落在 `OpenSekai.Game/` 内，落在 `Runtime/` 根下会被编进 `Assembly-CSharp` 并失去对 Core 与插件程序集的引用。
 
 ### 已移出工程的部分（备份目录已于 2026-11-03 删除，源码见重构前的 git 提交）
 

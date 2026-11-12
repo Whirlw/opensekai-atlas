@@ -490,6 +490,10 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 - 搬空的 `Core`、`View`、`Extensions`、`ScreenLayerExtention` 目录已删除；`Sekai/` 现在只剩 P3-3 负责的 `MusicScoreMaker/Common` 3 个与 `RankLive/NumberView` 1 个。缺失脚本清单仍与 P0-2 基线逐字节相同，`unity recompile` 0 error，全量 EditMode 538 通过、0 失败、4 跳过。
 - 过程记录：第一次尝试用 `AssetDatabase.MoveAsset` 整目录搬 `Sekai/Rendering`，因脚本先把目标目录建好而报“Destination path name does already exist”，21 个文件原地未动；改成逐文件移动后一次成功。整目录移动必须先 `EnsureFolder` 父目录、但不能预先创建目标目录本身。
 
+- P3-1 收尾（二）完成，起点 `05a6a09d`。`Runtime/Shared/`（27 文件）与 `Runtime/Platform/` 的六个子目录（`AcbDecoder`、`CP`、`CriWare`、`Serialization`、`UiEffect`、`UnityEngine/UI`，共 32 文件）整批并入 `OpenSekai.Game/`；`Runtime/` 根上的 `UIBlurAnimator`、`UIBlurController` 进 `Screens/`，`AssemblyInfo.cs` 进 `OpenSekai.Game/`。`Sekai/` 最后 4 个文件暂时安置：`MusicScoreMaker/Common` 三个存储类进 `Data/`，`RankLive/NumberView` 进 `Live/View/RankLive/`（保持文件名与类名一致，避免 MonoBehaviour 的脚本查找失效；P3-3 再决定合并或删除）。搬空的 `Sekai/`、`Shared/`、`Platform/` 目录及 `.meta` 已删除。
+- P3-1 收尾（三）完成：`OpenSekai.Game.asmdef` 搬进 `OpenSekai.Game/`，GUID `ba080aefd1693004f9db5fdfd3cd0175` 保持不变。搬前脚本先扫描 `Runtime/` 下所有 `.cs`，确认没有落在三个程序集目录之外的源码（否则会被编进 `Assembly-CSharp`），确认后才移动。
+- 收尾后 `Runtime/` 只剩 `OpenSekai/`（App）、`OpenSekai.Core/`、`OpenSekai.Game/` 三个程序集目录。`unity recompile` 0 error；全量 EditMode 538 通过、0 失败、4 跳过；`verify-structure.ps1 -CheckAssemblies -CheckProjects -RequireNoEmptyDirectories` 通过；缺失脚本清单仍与 P0-2 基线逐字节相同。**P3-1 完成。**
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动
