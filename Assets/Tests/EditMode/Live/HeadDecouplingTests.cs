@@ -159,5 +159,65 @@ namespace OpenSekai.Tests.EditMode.Live
                 Assert.That(combos, Is.EqualTo(1));
             }
         }
+        [Test]
+        public void ABarEndedBeforeItsHeadIsJudgedStillPublishesTheMiss()
+        {
+            // The head is published by whoever ends the bar, not by the state machine that happens to
+            // reach the publishing branch: a bar can leave the play state in more than one way, and
+            // the one that ends it short (a tail finishing before the head window closed) used to
+            // write Done without ever settling the head.
+            var bar = new Bar();
+            int published = 0;
+            bar.OnJudgment = n => { if (ReferenceEquals(n, bar)) published++; };
+            bar.Visual(NoteState.Last); // the bar is past the point a press could still take it
+            Assert.That(bar.Head.IsSettled, Is.False, "nothing has settled the head yet");
+
+            bar.ForceTerminate((NoteBase)bar.ChildNote); // the tail ends the bar
+
+            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+            Assert.That(bar.Head.IsSettled, Is.True, "ending the bar is the head's last chance to be settled");
+            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.Miss), "a head nobody took is a Miss");
+            Assert.That(published, Is.EqualTo(1), "and it is published on the way out");
+        }
+
+        [Test]
+        public void AnEndingAskedTwiceStillPublishesTheHeadOnce()
+        {
+            var bar = new Bar();
+            int published = 0;
+            bar.OnJudgment = n => { if (ReferenceEquals(n, bar)) published++; };
+            bar.Visual(NoteState.Last);
+
+            bar.ForceTerminate((NoteBase)bar.ChildNote);
+            NoteResult headResult = bar.Head.Result;
+            NoteResult barResult = bar.Result;
+
+            bar.ForceTerminate((NoteBase)bar.ChildNote);
+            bar.ForceTerminate();
+
+            Assert.That(bar.Head.Result, Is.EqualTo(headResult), "a repeated ending must not rewrite the head");
+            Assert.That(bar.Result, Is.EqualTo(barResult), "nor the bar's own result");
+            Assert.That(published, Is.EqualTo(1), "and it publishes once, however many times it is asked");
+        }
+
+        [Test]
+        public void APressOnAFinishedBarChangesNothing()
+        {
+            // Answers §12.4-4 of tail-classes.md: TryJudge still refuses a bar that is already Done.
+            // The refusal is redundant with IsJudgment (a Done bar is never a candidate again), so it
+            // is kept as a second lock rather than removed for tidiness - what matters is that the
+            // outcome is "nothing changes", which is what this pins.
+            var bar = new Bar();
+            bar.Visual(NoteState.Last);
+            bar.ForceTerminate((NoteBase)bar.ChildNote);
+            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+
+            var touch = Touch(0);
+            bool judged = bar.Judgment(ref touch, 4.5f);
+
+            Assert.That(judged, Is.False, "a finished bar takes no input");
+            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.Miss), "and its head keeps the result it left with");
+            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+        }
     }
 }

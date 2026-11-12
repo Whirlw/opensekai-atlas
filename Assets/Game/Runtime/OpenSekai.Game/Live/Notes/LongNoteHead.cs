@@ -58,14 +58,23 @@ namespace Sekai.Live
 
 		internal void SettleExpiredHead(float currentTime)
 		{
+			// The timeout is one of the ways out of the play state, so it goes through the bar's single
+			// door rather than publishing on its own: a head the window has passed and a bar its tail
+			// ended must not be two different pieces of publishing logic that happen to agree.
 			if (!IsSettled && currentTime - _bar.MusicScoreInfo.time > LiveConfig.JudgeTime)
 			{
-				PublishHeadMiss();
+				_bar.LeavePlayState();
 			}
 		}
 
 		internal bool TryJudge(ref LiveTouch touch, float lane)
 		{
+			// Kept as a second lock, not as the answer to "may a finished bar be pressed". The input
+			// path already refuses a Done bar in LongNote.IsJudgment, and the bar publishes its head
+			// on the way out (LongNote.LeavePlayState), so by the time this line can be reached the
+			// head is settled anyway and this only saves the frame's bookkeeping. tail-classes.md
+			// §12.4-4 asked whether it is redundant: it is, and it stays because removing it would let
+			// a direct caller drive a finished bar's child note.
 			if (_bar.State == NoteState.Done)
 			{
 				return false;

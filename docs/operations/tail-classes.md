@@ -428,13 +428,19 @@ if (State == NoteState.Last)
 3. **谁来写头的 Miss** 应只有一个出口（建议：`LongNote.Excute` 开头统一调用 `Head.SettleExpiredHead(currentFrameInfo.time)` 已经存在，但它只在 `IsSettled == false && 超过 JudgeTime` 时发布——需确认条被提前 `Done` 时这条路有没有机会跑）。
 4. **条结束后头还能不能判**：条 `Done` 之后 `LongNoteHead.TryJudge` 会被 `if (_bar.State == NoteState.Done) return false;` 挡掉（`LongNoteHead.cs:69`）。这条是否合理要单独定：按当前语义「头只能在自己的窗口内判」，条提前结束不应让头失去判定机会，因此这条早退很可能是多余的。
 
+> **2026-11-12 结案**：第 3 条已做——`LongNote.LeavePlayState()` 是唯一的门，`Head.PublishHeadMiss()` 只从这一个方法里出；四个调用点是过线（`Excute` 的 `Last → Release`）、超时（`SettleExpiredHead`）、`ForceTerminate`、`FinishSilently`。§12.4-1 清单里的 `NoteBase` 三个入口与「池回收」**刻意不纳入**：`NoteBase` 那三处要么在条自己被 `Done` 之后运行（那时头已在出口发布），要么是复用时的 `ResetNote()`，在那里发布会把 Miss 写进下一局。
+>
+> 第 4 条**定为保留**：输入路径已由 `LongNote.IsJudgment` 挡掉 `Done`，而条离场时头必然已发布，所以这行既不会误伤也不会被依赖，只是第二把锁；删掉它反而让直接调用者能驱动已结束条的子音符。理由写在 `LongNoteHead.cs` 该行上方。
+
 ### 12.5 验收
 
 - 新增用例（红→绿）：`ABarThatCrossesTheLineUnpressedStillPublishesItsHeadMiss`（过线不按，断言头的 `OnJudgment` 恰好发一次 Miss、连击 -1）、`ABarFinishedByItsTailStillPublishesTheHead`（尾先结束条，头仍发布）。
 - 真机：Test16 全 P 必须是 7/7；不按右侧时右侧头计 Miss（连击断）。
-- 全量 EditMode 不回归（当前基线 `580 / 576 / 0 / 4`）。
+- 全量 EditMode 不回归（当前基线 `583 / 579 / 0 / 4`）。
 
-> **2026-11-12 补记**：两条用例已写进 `Live/DecouplingAcceptanceTests`，**写入时即通过**——「过线未按」由 `SettleExpiredHead` 兜底、「被尾结束」时头早在按下那一帧就发过，所以 §12.5 剩下的真正缺口是第 3、4 条（`ForceTerminate` 漏发头、`TryJudge` 的 `Done` 早退），它们要造「头还没结算就离开游玩态」的场景才会红。「连击 −1」这一半没断言：`LiveHarness` 不接 `ScoreLogic`，要断它得另开一条带计分的用例。真机那条仍未做。
+> **2026-11-12 补记**：两条用例已写进 `Live/DecouplingAcceptanceTests`，**写入时即通过**——「过线未按」由 `SettleExpiredHead` 兜底、「被尾结束」时头早在按下那一帧就发过。「连击 −1」这一半没断言：`LiveHarness` 不接 `ScoreLogic`，要断它得另开一条带计分的用例。真机那条仍未做。
+>
+> **出口那一轮之后**：`ForceTerminate` 与 `FinishSilently` 已并入 `LeavePlayState()`，红→绿的用例是 `Live/HeadDecouplingTests.ABarEndedBeforeItsHeadIsJudgedStillPublishesTheMiss`（条被 `ForceTerminate(tail)` 结束、头补 Miss、只发布一次），另加 `AnEndingAskedTwiceStillPublishesTheHeadOnce` 与 `APressOnAFinishedBarChangesNothing`。
 
 ## 十三、flick 尾解耦后的判定范围与重复判定（2026-11-11，用户补充）
 

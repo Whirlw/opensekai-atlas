@@ -68,7 +68,7 @@ namespace Sekai.Live
 			if (State == NoteState.Last && !Head.IsSettled && !Body.HeadTouched)
 			{
 				State = NoteState.Release;
-				Head.PublishHeadMiss();
+				LeavePlayState();
 			}
 
 			Progress = CalcProgress(currentFrameInfo, offsetTime);
@@ -138,6 +138,10 @@ namespace Sekai.Live
 				{
 					LiveTrace.Write(LiveTraceCategory.Hold, $"forceTerm by={CallerName(1)} barT={MusicScoreInfo.time:F3} childT={childNote.MusicScoreInfo.time:F3} childRes={childNote.Result} childState={childNote.State} barState={State}");
 				}
+
+				// The bar is about to stop being played, so this is the head's last chance to be
+				// published. Everything that leaves the play state goes through the same door.
+				LeavePlayState();
 
 				JudgeInfo = childNote != null
 					&& (childNote.Result > NoteResult.Pass || childNote.State == NoteState.Input)
@@ -323,10 +327,26 @@ namespace Sekai.Live
 				return;
 			}
 
+			// CanFinishSilently already waits for a visible head, but the wait belongs to the caller
+			// and this is the function that ends the bar: the head is published here too, so the
+			// invariant does not depend on which guard happened to run first.
+			LeavePlayState();
 			_tail?.ResetDecision();
 			SettleLeftoverAsPerfect();
 			State = NoteState.Done;
 		}
+
+		/// <summary>
+		/// The one door out of the play state. Once the bar stops being playable the head can no longer
+		/// be taken, so whatever it deserves is published now: crossing the line unplayed, the window
+		/// timing out, a tail ending the bar and a silent finish all come through here. That is what
+		/// turns "a bar that left the play state has published its head" into one fact, instead of
+		/// four arrangements that happen to agree, and it is the only place that needs to know.
+		///
+		/// <see cref="LongNoteHead.PublishHeadMiss"/> is safe to repeat and does nothing for a bar whose
+		/// head nobody could take (a guide or a rub), so a caller never has to ask which kind it holds.
+		/// </summary>
+		internal void LeavePlayState() => Head.PublishHeadMiss();
 
 		private LongNoteTail _tail;
 		private LongNoteTail Tail => _tail ??= new LongNoteTail(this);
