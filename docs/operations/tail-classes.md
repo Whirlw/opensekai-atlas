@@ -52,6 +52,8 @@
 - `ATailShiftedToAnotherLaneIsFinishedByLiftingThere` —— 尾键横移后，在尾键位置抬手能判，在条身原位置抬手不能。
 - `ALiftInsideADecorationLaneDoesNotFinishTheNeighbour` —— 抬手落在相邻装饰条车道内、但落入目标条放宽范围时，不判目标条。
 
+> **2026-11-12 补记**：两条已写进 `Assets/Tests/EditMode/Live/DecouplingAcceptanceTests.cs`，**写入时即通过**——`LiveHoldCoordinator.PickLiftTarget` 已经按尾键自己的 `JudgeLane*` 分配抬手（`LiveHoldCoordinator.cs:331-347`），正是本节建议的方案。所以这里不再是待改项，只剩回归保护。
+
 ## 3. 逐类核对（v2）
 
 ### 类 1：**部分违规**，需先确定结算责任
@@ -106,6 +108,8 @@ if (!frame.ReleasedInside || !frame.IsBeingHeld) { return false; }
 ### 第 0 步（前置）：定义边界 + 两个用例
 
 答完 §2 的两个问题，写 `ATailShiftedToAnotherLaneIsFinishedByLiftingThere`、`ALiftInsideADecorationLaneDoesNotFinishTheNeighbour`，先红后有实现。
+
+**状态（2026-11-12）**：已完成。两个用例在 `Live/DecouplingAcceptanceTests`，且没有变红——实现早就是 §2 建议的方案（抬手按尾键自己的判定范围归属）。§2 的两个问题因此由代码给出了答案：**用尾键的范围，容差取尾键类别自己的**。
 
 ### 第 1 步：`ReleaseTail` 去掉 `IsBeingHeld`
 
@@ -428,7 +432,9 @@ if (State == NoteState.Last)
 
 - 新增用例（红→绿）：`ABarThatCrossesTheLineUnpressedStillPublishesItsHeadMiss`（过线不按，断言头的 `OnJudgment` 恰好发一次 Miss、连击 -1）、`ABarFinishedByItsTailStillPublishesTheHead`（尾先结束条，头仍发布）。
 - 真机：Test16 全 P 必须是 7/7；不按右侧时右侧头计 Miss（连击断）。
-- 全量 EditMode 不回归（当前基线 `516 / 512 / 0 / 4`）。
+- 全量 EditMode 不回归（当前基线 `580 / 576 / 0 / 4`）。
+
+> **2026-11-12 补记**：两条用例已写进 `Live/DecouplingAcceptanceTests`，**写入时即通过**——「过线未按」由 `SettleExpiredHead` 兜底、「被尾结束」时头早在按下那一帧就发过，所以 §12.5 剩下的真正缺口是第 3、4 条（`ForceTerminate` 漏发头、`TryJudge` 的 `Done` 早退），它们要造「头还没结算就离开游玩态」的场景才会红。「连击 −1」这一半没断言：`LiveHarness` 不接 `ScoreLogic`，要断它得另开一条带计分的用例。真机那条仍未做。
 
 ## 十三、flick 尾解耦后的判定范围与重复判定（2026-11-11，用户补充）
 
@@ -464,3 +470,5 @@ if (State == NoteState.Last)
 - `AFlickTailIgnoresSamplesFromBeforeItsOwnTime`：标准时间之前给一串滑动样本，尾不得判定；到点后给同一方向的样本才判定。
 - `AFlickTailPublishesOnceEvenIfTheBarKeepsTicking`：尾判定之后继续驱动 5 帧（覆盖 3 帧宽限），断言发布次数恰好 1、连击只 +1。
 - 真机：Test16 + 含 flick 尾的谱面，验证「提前划」与「正点划」都不出双判定、也不吞判定。
+
+**状态（2026-11-12）**：前两条已写进 `Live/DecouplingAcceptanceTests`（分别按"400 ms 前"和"连续 30 帧"驱动，比这里的口径更宽），写入时通过。真机那条仍未做。
