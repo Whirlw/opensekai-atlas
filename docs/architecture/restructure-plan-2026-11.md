@@ -511,6 +511,11 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 - 同一批纠正文档失实：`docs/reference/fonts.md` 原称曲库页用 1.4 MB 的 Noto Sans SC 子集，实际 `Fonts/NotoSansSC-UI` 在仓库中不存在，`LibraryUi.LoadBundledFont()` 恒返回 null，曲库走 OS 字体探测再退到项目 TMP 资产。文档已改为陈述事实并标注“删死路径或补字体”待定；代码本轮未动，避免在同一提交里混合文档修正与行为删除。
 - `unity recompile` 0 error；`verify-structure.ps1 -CheckAssemblies -RequireNoEmptyDirectories` 通过。
 
+- P3-3 第二批：两项剩余清理的前提已核查完，结论都是**先不动**，证据如下（起点 `1c79fb00`）。
+  - **`RankLive/NumberView`**：脚本 GUID `cfd345f4947355508f7ff4739f83cfd3` 在全部 `.prefab`/`.unity`/`.asset` 中检索到 **0 处**引用，缺失脚本基线也没有变化，说明没有任何序列化引用指向它。代码侧只有 `LifeView`（`_number`、`_outlineNumber`）和 `ScoreView`（`_number`、`_outlineNumber`、`_addScoreNumber`、`_addScoreOutlineNumber`）声明了这个类型的私有字段，而两份文件里都没有给这些字段赋值。也就是说：字段从不被填充，类型本身也没有实例化点。清理它必须同时删掉这六个字段（碰打歌 HUD），或把它并进 `UI/NumberView` 并迁移序列化类型；两条路都要先在编辑器里确认 HUD 的数字控件实际挂的是哪一个 `NumberView`，否则可能在真机上把分数显示改没。
+  - **`MusicScoreMaker/Common` 三个存储类**：它们仍被 Game 侧四处调用——`SoloLiveController` 结算时写播放历史、`Background2DView` 两处读 entry、`MusicInfoView` 一处读 entry。直接搬到 App 会形成 Game → App 的反向依赖，违反 §3.1 的依赖方向。这项要等 P4-1 把 `LiveContext`/`AppContext` 的显式依赖做完，让这些读取走注入，才能真归位 App。当前保持 Game 内。
+  - 因此 P3-3 剩下的都是“需要决策或需要看编辑器实际引用”的项，不是机械搬迁。`NotoSansSC-UI` 死路径同样待定。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动
