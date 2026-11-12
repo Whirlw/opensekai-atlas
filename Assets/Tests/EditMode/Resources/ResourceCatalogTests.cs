@@ -88,6 +88,23 @@ namespace OpenSekai.Tests.EditMode.ResourceLoading
             }
         }
 
+        /// <summary>
+        /// The shipped asset must already carry the glyph. On device, seeding a runtime-built asset was
+        /// not enough: it gained the character entry but not its glyph, and TMP truncated every
+        /// ellipsised label anyway. This reads the tracked asset and never calls TryAdd, so a test run
+        /// cannot dirty it.
+        /// </summary>
+        [Test]
+        public void TheShippedProjectFontCarriesTheEllipsisGlyph()
+        {
+            TMP_FontAsset asset = ResourceCatalog.MediumDynamicFont.Load();
+
+            Assert.That(asset, Is.Not.Null, "Fonts/SourceHanSansSC-Medium SDF_Dynamic");
+            Assert.That(asset.HasCharacter('\u2026'), Is.True,
+                "the tracked font asset must ship with U+2026 baked in; rerun the bake if this fails");
+            Assert.That(asset.glyphTable, Is.Not.Empty, "a character row without its glyph is not enough");
+        }
+
         [Test]
         public void TheLiveBundleConfigResolves()
         {

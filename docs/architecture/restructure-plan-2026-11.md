@@ -635,6 +635,13 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
   - 三张表各补一行：运行时清单 `Assets/StreamingAssets/sound/manifest.csv`、审计用的 `docs/reference/audio-cues.csv`、署名表 `docs/reference/audio-credits.md`（自制 / CC0 / 2026-11-12）。
   - 验证：`Tools/audit-audio-provenance.ps1` 为 `AUDIT OK`（43 条 cue）；PlayMode 的 `ShippedWavePackRegistersEveryManifestCue` 本来就按 manifest 逐 bundle 校验注册与长度，新 cue 自动纳入，并新增一条断言 `PlaySE("SE_AREA_TRANSITION_SEKAI")` 能真正起播；PlayMode 3/3 通过（48.1 s）。真机复验并入下次发包。
 
+- **省略号真机缺陷已修**（起点 `347dbdf1`）。上面那段“未修、先搁置”的记录作废。根因是**运行时建出来的字体资产只拿到了 character 行、没有拿到 glyph**：`TryAddCharacters` 在 `CreateFontAsset` 产生的动态资产上返回 true、`characterTable` 变成 1 条，但字形表是空的——这正好解释“当场 `HasCharacter` 为真、0.79 秒后 TMP 又说没有”：TMP 重建字符查找表时把没有字形的行丢掉了。
+  - 修法：把 U+2026 **预烘进项目自带的 `SourceHanSansSC-Medium SDF_Dynamic`**（编辑期 `TryAddCharacters` 后保存，图集 2048×2048，文件 6,516 → 8,395,651 字节），并让 `LibraryUi.ResolveCjkFont()` 优先返回它；`LoadBundledFont()` 的运行时 `CreateFontAsset` 降为后备。省略号的字形随包分发，不再依赖设备端光栅化。
+  - 这是一次**有意的重烘**：`Tools/generated-assets.txt` 的期望大小同步改成 8,395,651，文件头写明这是唯一例外。于是 `restore-generated-assets.ps1` 还原的是“带省略号的版本”，不会把缺陷带回来。
+  - 守住它的测试：`ResourceCatalogTests.TheShippedProjectFontCarriesTheEllipsisGlyph` 读资产、断言 `HasCharacter('…')` 且 `glyphTable` 非空（只读，不写脏资产）。
+  - 验证：全量 EditMode 574 项、570 通过、0 失败、4 跳过（+1）；`verify-structure.ps1` 通过（四份生成资产与基线一致，含这次重烘）；`verify-resource-paths.ps1` 为 `calls=31 missing=0`。**真机视觉复验仍待下次发包**——这一项在编辑器里复现不出来。
+  - 文档：`docs/reference/fonts.md` 新增“省略号为什么要预烘”一节，并把字体优先级改成 ①项目资产 ②运行时 TTF ③OS 字体 ④Bold 后备。
+
 ## 7. 迁移规则
 
 ### 7.1 文件移动

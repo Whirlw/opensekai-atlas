@@ -42,9 +42,9 @@ namespace OpenSekai.App.UI
 
         /// <summary>
         /// The library labels mix simplified Chinese with the project's Japanese typeface, so this page
-        /// resolves a CJK font itself: the bundled one first, then an installed OS family, then the
-        /// project's dynamic asset. Whatever wins goes through <see cref="EnsureRequiredGlyphs"/>,
-        /// because all three sources start with an empty character table.
+        /// resolves a CJK font itself: the project's dynamic asset first (it ships with the ellipsis
+        /// glyph already baked), then the bundled TTF, then an installed OS family. Every source still
+        /// goes through <see cref="EnsureRequiredGlyphs"/> as a belt-and-braces guard.
         /// </summary>
         private static TMP_FontAsset ResolveCjkFont()
         {
@@ -55,9 +55,18 @@ namespace OpenSekai.App.UI
 
             _cjkFontResolved = true;
 
-            // Preferred: the bundled UI font. It is the only source that is guaranteed to exist on
-            // every target and cannot be affected by OS fonts.
-            _cjkFontAsset = LoadBundledFont();
+            // Preferred: the project's own dynamic asset. It is a real serialized TMP asset, and the
+            // ellipsis glyph is baked into it at edit time, so TMP's overflow mode finds the character
+            // without any runtime rasterization. That mattered: building an asset from the TTF with
+            // CreateFontAsset at runtime only produced the character entry, not its glyph, on device —
+            // the seed logged "has=True chars=1" and TMP still truncated every label 0.8 s later.
+            _cjkFontAsset = LoadProjectFontFallback();
+
+            // Second: the bundled TTF, for a build whose font asset is missing from Resources.
+            if (_cjkFontAsset == null)
+            {
+                _cjkFontAsset = LoadBundledFont();
+            }
 
             string[] installed = Font.GetOSInstalledFontNames();
             for (int i = 0; i < CjkFontCandidates.Length && _cjkFontAsset == null; i++)
@@ -101,9 +110,10 @@ namespace OpenSekai.App.UI
 
         /// <summary>
         /// Seeds the glyph TMP's ellipsis overflow asks for. TMP only calls HasCharacter when it decides
-        /// how to overflow a label, and every font this page can resolve starts with an empty character
-        /// table, so without this the labels truncate instead of ellipsizing (64 warnings on one device
-        /// run). Applied to whichever asset won, so the bundled, OS and project sources are all covered.
+        /// how to overflow a label, so a font asset without the character truncates instead of
+        /// ellipsizing. The project asset now ships the glyph baked in, which makes this a no-op on the
+        /// normal path; it still covers the bundled-TTF and OS-font fallbacks, whose assets start with an
+        /// empty character table.
         /// </summary>
         internal static TMP_FontAsset EnsureRequiredGlyphs(TMP_FontAsset asset)
         {

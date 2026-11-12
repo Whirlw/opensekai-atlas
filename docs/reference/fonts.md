@@ -3,7 +3,7 @@
 目的：说明项目里用到的字体、它们各自的角色、许可，以及如何重新生成 TMP 字体资产。
 适用读者：需要改 UI 文案、替换字体或排查「文字空白 / 方块 / 大小异常」的开发者。
 前置条件：Unity 6000.6.7f1，项目已打开一次（`Library/` 已生成）。
-最后更新：2026-11-02
+> 最后更新：2026-11-12
 
 ## 概述
 
@@ -19,7 +19,9 @@ TMP 侧有 4 个字体资产（`Assets/Graphics/Resources/font/`）：
 - `SourceHanSansSC-Medium SDF_Base` / `SourceHanSansSC-Bold SDF_Base`：绝大多数 `TMP_Text` 的 `m_fontAsset`
 - `SourceHanSansSC-Medium SDF_Dynamic` / `SourceHanSansSC-Bold SDF_Dynamic`：作为前两者的 fallback
 
-四个资产都是 **Dynamic** 图集（2048×2048，point size 35，padding 5）。第一次用到某个字时 TMP 才把字形烘进图集，所以新克隆仓库里它们的图集是 1×1 占位，这属于正常状态。
+四个资产都是 **Dynamic** 图集（2048×2048，point size 35，padding 5）。第一次用到某个字时 TMP 才把字形烘进图集，所以新克隆仓库里它们的图集通常是 1×1 占位，这属于正常状态。
+
+一个例外：`SourceHanSansSC-Medium SDF_Dynamic` 现在**预烘了省略号 U+2026**（图集 2048×2048、文件约 8.4 MB）。原因见下面「省略号为什要预烘」。
 
 ## 快速开始
 
@@ -68,9 +70,17 @@ AddFallbackFontAsset(_baseFontDB, _dynamicFontDB);
 
 ## 跑过游戏后变脏的字体资产
 
-TMP 会在运行时把 kerning、连字和字形按需烘进资产文件本身。这四份资产被 prefab 和材质按 GUID 引用，所以必须留在仓库里，但内容只应是最初的冷状态（1×1 占位图集、空的特性表）。
+TMP 会在运行时把 kerning、连字和字形按需烘进资产文件本身。这四份资产被 prefab 和材质按 GUID 引用，所以必须留在仓库里，但内容一般只应是最初的冷状态（1×1 占位图集、空的特性表）。
 
 实测（2026-11-12）：`SourceHanSansSC-Medium SDF_Dynamic.asset` 跑过一次后从 6,516 字节涨到约 967 KB——2,316 条 kerning 对、113 条连字替换，共 35,222 行 YAML，而字形表仍是空的；`SourceHanSansSC-Medium SDF_Base.asset` 同时丢掉一条连字记录。提交这种缓存会让仓库和安装包都变大，diff 无法审阅、无法合并，换台机器内容还不一样。
+
+### 省略号为什么要预烘
+
+TMP 的 `TextOverflowModes.Ellipsis` 只做 `HasCharacter('…')`，不会自己去加字形。曲库页的字体是运行时解析的，真机实测：给运行时 `CreateFontAsset` 出来的资产调 `TryAddCharacters("…")` **只写进了 character 行、没写进 glyph**（日志 `has=True chars=1`），0.8 秒后 TMP 仍把 20 个标签降级成截断。所以改成让资产自带这个字形：
+
+- `SourceHanSansSC-Medium SDF_Dynamic` 在编辑期烘入 U+2026，`LibraryUi.ResolveCjkFont()` 优先用它，不再依赖运行时光栅化。
+- 这条预烘是**有意为之**，因此 `Tools/generated-assets.txt` 里它的期望大小是 8,395,651 字节而不是 6,516。改动它只需重烘（`-UpdateGeneratedAssets`），不要"还原"回冷状态——还原会让省略号缺陷复现。
+- `ResourceCatalogTests.TheShippedProjectFontCarriesTheEllipsisGlyph` 守住这一点：读资产、断言 `HasCharacter('…')` 且 `glyphTable` 非空（只读，不改资产）。
 
 受管清单只有一处：[`Tools/generated-assets.txt`](../../Tools/generated-assets.txt)（sha256 + 字节数 + 路径）。两道闸门：
 
@@ -93,7 +103,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File Tools/verify-structure.ps1 -
 先确认 `m_FaceInfo.m_LineHeight` 是否等于 70（与被替换的 Rodin 对齐）；再确认 `m_PointSize` 是 35。两者任一不对都会让换行与基线整体偏移。
 
 **能不能只用一套字体？**
-可以，现在就是这么做的：曲库页与打歌都走思源黑体。`LibraryUi.LoadBundledFont()` 用 `ResourceCatalog.MediumTtfFont`（`Fonts/SourceHanSansSC-Medium`）在运行时建一个 TMP 资产，OS 字体探测和项目内的 `SDF_Dynamic` 资产只是它失败时的后备。2026-11 之前这里指向 `Fonts/NotoSansSC-UI`——一个仓库里并不存在的 Noto 子集，导致该分支恒返回 null、曲库一直在走后备。
+可以，现在就是这么做的：曲库页与打歌都走思源黑体。`LibraryUi.ResolveCjkFont()` 的优先级是 ①项目内预烘的 `SourceHanSansSC-Medium SDF_Dynamic`（自带省略号）②`ResourceCatalog.MediumTtfFont` 在运行时建的 TMP 资产 ③OS 已装字体 ④`Bold SDF_Dynamic` 后备。2026-11 之前第 ① 项指向 `Fonts/NotoSansSC-UI`——一个仓库里并不存在的 Noto 子集，导致那条分支恒返回 null、曲库一直在走后备。
 
 ## 相关文档
 
