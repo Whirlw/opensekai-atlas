@@ -47,7 +47,6 @@ namespace OpenSekai.Tests.PlayMode
         }
 
         [UnityTest]
-        [Explicit("Whole-song prototype for P4-3 integration.")]
         public IEnumerator BaselineTapAutoplaysAndReturnsToTheLibrary()
         {
             yield return LibrarySceneBootsAndShowsThePage();

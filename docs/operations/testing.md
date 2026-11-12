@@ -73,8 +73,18 @@ EditMode：
 
 PlayMode：
 
-- `LibrarySmokeTests`：载入 `Assets/Game/Scenes/Library.unity`，等 `LibraryScreen` 起来并断言 `ScreenManager.ExistsInstance`。
-- **限制**：从编辑器桥接跑 PlayMode 时，进播放模式会触发域重载，桥接注册的回调随之销毁，`playmode.xml` 不会生成，编辑器会停在播放模式；跑完必须先 `editor.playmode.stop` 才能再跑 EditMode。要看报告请用 Test Runner 窗口，或关掉编辑器后跑 `unity test --mode PlayMode`。
+- `LibrarySmokeTests.LibrarySceneBootsAndShowsThePage`：载入 `Assets/Game/Scenes/Library.unity`，等 `LibraryScreen` 起来并断言 `IsReady` 与 `ScreenManager.ExistsInstance`。单独跑 0.43 s，不依赖同一轮里前面的用例留下的场景。
+- `LibrarySmokeTests.BaselineTapAutoplaysAndReturnsToTheLibrary`：**整首打歌**。从曲库结算面板的「再玩一次」触发 `PlayService` 自动开局，等 Core 场景建出 `SoloLiveController`，再等返回 Library 并检查结算 `Completed / IsAuto / Score=1,000,000 / Rank S`；谱面用仓库里的 `Tools/fixtures/baseline_tap`。约 47.5 s。
+- `LibrarySmokeTests.ShippedWavePackRegistersEveryManifestCue`：按 `StreamingAssets/sound/manifest.csv` 核对 42 个内置 WAV 全部注册、长度非零、结算音能起播，以及缺失 cue 只警告一次并返回 0。
+
+跑 PlayMode **必须走异步**：进播放模式会触发域重载，同步请求会被丢掉（CLI 会直接拒绝并提示改用 `--async_tests`）。
+
+```powershell
+unity command test run --mode playmode --async_tests true --timeout 420
+unity command test status --format json
+```
+
+2026-11-12 实测：3 项全部通过，总 48.08 s（整首 47.47 s、装配 0.03 s、音频 0.54 s）。不要再走「桥接注册回调 + `playmode.xml`」那条路：域重载会把回调一起销毁，报告不会生成，编辑器还会停在播放模式。
 
 ## 两次运行一致性（P4-2）
 
@@ -129,16 +139,13 @@ $rsp    = (Get-ChildItem 'Library\Bee\artifacts' -Recurse -Filter 'OpenSekai.Gam
 - 一条命令就能拿到全部错误（含 `CS0051` 这类可访问性不一致），比在编辑器里翻 Console 快得多。
 - 这条路径**只验证语法与类型**：它不重新生成 `Library/ScriptAssemblies`。要通过还要回到 Unity 确认 `OpenSekai.Game.dll` 的时间戳变新，再跑测试。
 
-## 为什么没有「整首打歌」的自动化测试
+## 「整首打歌」的自动化
 
-P0-5 的显式用例 `LibrarySmokeTests.BaselineTapAutoplaysAndReturnsToTheLibrary` 使用仓库中的 `Tools/fixtures/baseline_tap`，通过结算面板的「再玩一次」触发 `PlayService` 自动开局，再读取 Core 控制器、返回后的曲库组件和结算结果。Unity Pipeline 的异步测试支持跨域重载和场景切换。
+`LibrarySmokeTests.BaselineTapAutoplaysAndReturnsToTheLibrary` 是完整的整首往返：仓库里的 `Tools/fixtures/baseline_tap` → 曲库结算面板的「再玩一次」→ `PlayService` 自动开局 → Core 场景的 `SoloLiveController` → 返回 Library → 断言结算 `1,000,000 / S`。**P4-3 起不再标 `[Explicit]`**，默认参与 PlayMode 运行，单次约 47.5 s。
 
-```powershell
-unity command test run --caller plugin --skill unity-cli --mode playmode --filter LibrarySmokeTests --async_tests --include_explicit
-unity command test status --caller plugin --skill unity-cli --format json
-```
+它历史上抓到过一次真实回归：完整场景往返后计分缺口（`466,063 / C`，自动判定 103/221），修正自动判定游标后回到 `1,000,000 / S`。**改判定游标、开局边界或结算回传时必须跑它**。
 
-本地复现了完整场景往返后的计分缺口（`466,063 / C`，自动判定 103/221）。修正自动判定游标后，整首用例通过 `1,000,000 / S` 断言。默认 PlayMode 运行曲库装配冒烟，整首用例可按上方命令单独运行。后续接入见[结构重整计划](../architecture/restructure-plan-2026-11.md)和[真机门禁](android-build.md)。
+跨域重载和场景切换靠 Unity Pipeline 的异步测试支持：`test run --async_tests` 立即返回、结果用 `test status` 轮询。此前文档里那句「从桥接跑 PlayMode 会丢回调」只适用于自建回调 + `playmode.xml` 的写法，不适用于这条异步路径。
 
 ## 待补
 

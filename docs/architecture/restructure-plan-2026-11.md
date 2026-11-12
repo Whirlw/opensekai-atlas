@@ -167,7 +167,7 @@ Assets/Game/Runtime/
 
 **P0-5 验证整首自动化测试的运行方式**
 
-- 从现有 `LibrarySmokeTests` 出发，使用 `Tools/fixtures/baseline_tap` 验证跨 `Library → Core → Library` 的测试运行方式。先解决 [测试文档记录的跨场景销毁问题](../operations/testing.md#为什么没有整首打歌的自动化测试)，用实际场景和组件状态断言启动、结算和返回。
+- 从现有 `LibrarySmokeTests` 出发，使用 `Tools/fixtures/baseline_tap` 验证跨 `Library → Core → Library` 的测试运行方式。先解决 [测试文档记录的跨场景销毁问题](../operations/testing.md#整首打歌的自动化)——这个问题后来证伪了：异步测试路径不受域重载影响，见 P4-3 执行记录。
 - 保存运行命令、测试报告和所需资源准备步骤。原型通过后作为 P4-3 的输入；若仍受 Test Runner 生命周期阻塞，记录失败证据，继续保留现有曲库 PlayMode 冒烟和 [Android 整首验收](../operations/android-build.md)。
 
 验收：有一份可复现的原型结果。Phase 1 依据 EditMode 和 Android 基线验收，整首 PlayMode 接入由原型结果决定。
@@ -587,6 +587,14 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
   - 隔离审计（写进 `docs/operations/testing.md` 的新章节）：测试输入全部是仓库内 `Tools/fixtures/`，无本机绝对路径；5 个需要落盘的 fixture 都用 `GetTempPath + Guid` 独占目录并在 `[TearDown]` 删除；没有任何测试写仓库目录或 `persistentDataPath`；唯一共享状态读是开局路径里 `FreeLiveBootData` 构造读 `LiveSettingsStore.Shared`，而 `Load()` 只读、只有 `Save()` 写盘，已核对无副作用；`LiveContextTests` 对 `UserDataManager` 与 `EntryPoint.PlayMode` 的静态改动用例内配对恢复。
   - 记录一条隐含前提：这些 fixture 路径按**项目根**解析，跑测试的进程工作目录必须是项目根（编辑器内与 `-executeMethod` 满足），`unity test` 从别的目录起会读不到文件。
 - 顺带补了 `testing.md` 的覆盖范围：`PlayServiceDependencyTests`、`LiveContextTests`、`ResourceCatalogTests` 三条新 fixture 各自钉住什么、什么时候必须跑。
+
+- P4-3 完成，起点 `bfcd88a1`，而且**不需要**计划里写的退路：整首打歌的自动化真的跑通了。
+  - 先证伪了旧结论。`testing.md` 原写「从桥接跑 PlayMode，进播放模式触发域重载，回调被销毁，`playmode.xml` 不生成」——这只对**自建回调**那条路成立。Unity Pipeline 自己的异步测试支持跨域重载：`unity command test run --mode playmode --async_tests true` 立即返回，`test status` 轮询结果。同步调用会被 CLI 直接拒绝并给出这条提示。
+  - 落地：`LibrarySmokeTests.BaselineTapAutoplaysAndReturnsToTheLibrary` 去掉 `[Explicit]`，PlayMode 套件默认就是「装配冒烟 + 整首往返 + 内置音频核对」三件套，不再需要 `--include_explicit` 才能覆盖主流程。
+  - 实测（2026-11-12）：三项全通过，总 48.08 s——整首 47.47 s、装配 0.03 s、音频 0.54 s。整首单独跑同样通过（47.5 s）；装配单独跑 0.43 s，说明它不靠同一轮里前面用例残留的场景。
+  - 整首用例的断言是完整闭环：`Completed`、`IsAuto`、`Score=1,000,000`、`Rank=S`，并核对原始 `LibraryScreen` 已随场景卸载、返回后的实例是新的。它历史上抓到过一次真实回归（场景往返后 `466,063 / C`、自动判定 103/221），这条断言因此不是形式主义。
+  - 文档：`docs/operations/testing.md` 的 PlayMode 段重写成异步配方 + 实测数字，并把「为什么没有整首打歌自动化」改成「整首打歌的自动化」，写清它默认参与运行、什么时候必须跑。
+  - 留给 P4-4：CI 要把 `test run --mode playmode --async_tests` + `test status` 轮询接进工作流；这条属于需要 Unity 许可的作业，且依赖 PlayMode 场景与 `StreamingAssets/sound` 的 42 个 WAV，与 P4-4 现有的无许可结构检查分开跑。
 
 ## 7. 迁移规则
 
