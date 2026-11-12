@@ -609,6 +609,12 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
   - 验证：`unity recompile` 0 error；全量 EditMode 570 项、566 通过、0 失败、4 跳过（+1 条结构测试）；`verify-structure.ps1` 通过（含两项新检查）；`verify-resource-paths.ps1` `calls=31 missing=0`；PlayMode 三项在重建预制体后仍 3/3 通过（48.07 s）。
   - 待办：`EntryPoint` 里那条 `EVENT_SYSTEM_PREFAB_PATH` 常量已随本轮删除（实际走 `ResourceCatalog`）；`SekaiSingletonManager` 里还留着同名字符串常量与自己的 `EnsureEventSystem`，那是旧入口，等它的调用点收敛完再一起清。
   - **重建后的预制体上过真机**（设备 `3B164A00Y5600000`，包 `Builds/phase4/OpenSekai-P4-4-input.apk`）：曲库点「自动/手动」开局 → 打歌 HUD 正常计分 → 点暂停出现「继续/重开/退出到曲库」→ 退出后回到曲库并显示结算（`DEINOS PHAINEIN · 手动 · Lv.35 · 中途退出`，134,764 / D，最大连击 137/2019，PERFECT 262 · GREAT 13 · GOOD 2 · BAD 3 · MISS 5）。三个独立的 uGUI 指针目标都响应，说明 `EventSystem` + 运行时补的 `InputSystemUIInputModule` 在真机上工作正常。截图在 `TestResults/p4-4-device-0{1,2,3}-*.png`。
+  - 同一版包上，操作者自己也打了一局：表现与以前一致，开局音仍不播放（M2 保留的既有缺陷），事件系统重建没有带来输入回归。
+
+- **省略号项的真机结论（未修，按决定先搁置）**。P3-3 之后那次 `EnsureRequiredGlyphs` 修复在编辑器里成立、在真机上不成立：
+  - 真机日志：`[LibraryScreen] ellipsis seed: asset=SourceHanSansSC-Medium id=9593:256 has=True chars=1`，**0.79 s 之后**同一资产名的 20 条 TMP 告警仍然说该字符不可用，并把溢出方式降级成截断。
+  - 已排除三种解释：①代码没进包——`global-metadata.dat` 里 `EnsureRequiredGlyphs` 与告警文案都在；②`ReadFontAssetDefinition()` 把字形冲掉——编辑器实测 `TryAdd → ReadFontAssetDefinition → HasCharacter` 仍为 `True`；③每个文本克隆了资产——`CreateText` 直接赋 `ResolveCjkFont()` 的同一实例，全仓只有一处 `CreateFontAsset` 会起这个名字。
+  - 剩下的假设：首次渲染时 TMP 对"运行时构建的动态资产"做了重构，设备端（IL2CPP）与编辑器路径不同。修法有两条——在 `text.font = font` 之后逐文本再补一次，或改为预烘一份静态字体资产；两条都要重新上真机才能确认，诊断日志已撤掉，代码回到 `EnsureRequiredGlyphs` 单点调用。
 
 ## 7. 迁移规则
 
