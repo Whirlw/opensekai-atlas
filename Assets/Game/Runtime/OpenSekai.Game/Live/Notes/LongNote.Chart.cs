@@ -178,6 +178,9 @@ namespace Sekai.Live
 			{
 				ViewNoteList = ViewNoteList.OrderBy(note => note.MusicScoreInfo.time).ToList();
 			}
+
+			// The judged-point list is derived from NoteList and its ordering.
+			_judgedPoints = null;
 		}
 
 		private void ApplyToChildNotes(Action<NoteBase> apply)

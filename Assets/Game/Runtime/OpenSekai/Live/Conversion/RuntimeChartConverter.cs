@@ -329,7 +329,15 @@ namespace OpenSekai.Live.Conversion
 
 			foreach (NoteBase part in longNote.NoteList)
 			{
-				if (part == null || part is LongHoldCombo)
+				if (part == null)
+				{
+					continue;
+				}
+
+				// An auto point (the skipped kind) does not own a position - it is what is being
+				// generated. Everything else the bar carries does: its head, its preset connections,
+				// its hidden ones, its end, and the points added without changing the shape.
+				if (part is LongHoldCombo combo && combo.IsSkip)
 				{
 					continue;
 				}

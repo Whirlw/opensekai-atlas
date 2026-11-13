@@ -149,9 +149,8 @@ namespace Sekai.Live
 			// MusicScoreInfo is a value type: an uninitialized frame safely defaults to time zero.
 			// A held touch can retain its original press stamp; only the frame clock gates points.
 			float now = MusicScore.CurrentFrameInfo.time;
-			for (var i = 1; i < _bar.NoteList.Count - 1; i++)
+			foreach (NoteBase note in _bar.JudgedPoints)
 			{
-				var note = _bar.NoteList[i];
 				if (note != null
 					&& now - note.MusicScoreInfo.time >= -OpenSekai.Shared.Live.LongEndJudgement.EarlyGoodMs / 1000f
 					&& now - note.MusicScoreInfo.time <= OpenSekai.Shared.Live.LongEndJudgement.LateGoodMs / 1000f)

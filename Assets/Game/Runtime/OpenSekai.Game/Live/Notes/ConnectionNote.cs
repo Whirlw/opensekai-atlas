@@ -1,4 +1,4 @@
-﻿namespace Sekai.Live
+namespace Sekai.Live
 {
 	public class ConnectionNote : NoteBase
 	{
@@ -33,7 +33,9 @@
 
 			// Decoration connection notes should not be marked as Last/Miss
 			// Check parent note's decoration status
-			bool isDecorationConnection = IsDecoration || (parentNote != null && parentNote.IsDecoration);
+			// A skipped connection is the hidden kind of interior point: it shapes the bar and is never
+			// judged, so it may not fail either - a Miss there is a judgement nobody could make.
+			bool isDecorationConnection = IsDecoration || IsSkip || (parentNote != null && parentNote.IsDecoration);
 
 			if (State == NoteState.Last)
 			{
@@ -94,8 +96,22 @@
 				return;
 			}
 
-			JudgeInfo = (NoteResult.JustPerfect, NoteResultDescription.None);
+			// A hidden point changes the bar's shape only: ending the bar may not award it a hit.
+			JudgeInfo = IsSkip
+				? (NoteResult.Pass, NoteResultDescription.None)
+				: (NoteResult.JustPerfect, NoteResultDescription.None);
 			State = NoteState.Done;
+		}
+
+		protected override void PublishResult()
+		{
+			// The hidden kind never speaks: no judgement text, no sound, no score.
+			if (IsSkip)
+			{
+				return;
+			}
+
+			base.PublishResult();
 		}
 
 		public override bool AutoJudgment(MusicScoreInfo currentFrameInfo)
