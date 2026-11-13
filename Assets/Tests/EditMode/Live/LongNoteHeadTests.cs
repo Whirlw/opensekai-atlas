@@ -91,7 +91,9 @@ namespace OpenSekai.Tests.EditMode.Live
             bar.OnUpdateScore = n => events.Add("score");
             if (fromLast) bar.SetStateUnnotice(NoteState.Last);
 
-            bar.Excute(Info(fromLast ? 0f : 1f), 0);
+            // The head settles on its own window, not on a lifecycle branch: give it a frame past the
+            // window and the Miss comes straight from the head, whether or not the bar was left in Last.
+            bar.Excute(Info(1f), 0);
 
             var state = fromLast ? "Release" : "Scrolling";
             Assert.That(events, Is.EqualTo(new[] { $"damage:{state}:Miss", "combo", "judge" }));

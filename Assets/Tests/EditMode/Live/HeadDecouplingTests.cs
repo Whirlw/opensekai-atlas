@@ -160,12 +160,12 @@ namespace OpenSekai.Tests.EditMode.Live
             }
         }
         [Test]
-        public void ABarEndedBeforeItsHeadIsJudgedStillPublishesTheMiss()
+        public void AnEndedBarLeavesItsHeadToItsOwnWindow()
         {
-            // The head is published by whoever ends the bar, not by the state machine that happens to
-            // reach the publishing branch: a bar can leave the play state in more than one way, and
-            // the one that ends it short (a tail finishing before the head window closed) used to
-            // write Done without ever settling the head.
+            // The head answers to its own window and to nothing else. A bar ended by its tail before the
+            // head window closed used to publish the head's Miss on the way out; that made the bar's
+            // lifecycle decide a result the head owns. Now the ending changes no head at all, and the
+            // head settles the frame its own window closes.
             var bar = new Bar();
             int published = 0;
             bar.OnJudgment = n => { if (ReferenceEquals(n, bar)) published++; };
@@ -175,9 +175,14 @@ namespace OpenSekai.Tests.EditMode.Live
             bar.ForceTerminate((NoteBase)bar.ChildNote); // the tail ends the bar
 
             Assert.That(bar.State, Is.EqualTo(NoteState.Done));
-            Assert.That(bar.Head.IsSettled, Is.True, "ending the bar is the head's last chance to be settled");
+            Assert.That(bar.Head.IsSettled, Is.False, "ending the bar is not a verdict on its head");
+            Assert.That(published, Is.Zero);
+
+            bar.Head.SettleExpiredHead(1f); // the head's own window closes, one second past the bar
+
+            Assert.That(bar.Head.IsSettled, Is.True);
             Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.Miss), "a head nobody took is a Miss");
-            Assert.That(published, Is.EqualTo(1), "and it is published on the way out");
+            Assert.That(published, Is.EqualTo(1), "and it is published once, from the head's own clock");
         }
 
         [Test]
@@ -197,7 +202,13 @@ namespace OpenSekai.Tests.EditMode.Live
 
             Assert.That(bar.Head.Result, Is.EqualTo(headResult), "a repeated ending must not rewrite the head");
             Assert.That(bar.Result, Is.EqualTo(barResult), "nor the bar's own result");
-            Assert.That(published, Is.EqualTo(1), "and it publishes once, however many times it is asked");
+            Assert.That(published, Is.Zero, "an ending is not the head's verdict, so it publishes nothing");
+
+            bar.Head.SettleExpiredHead(1f);
+            Assert.That(published, Is.EqualTo(1), "the head's own clock publishes it exactly once");
+
+            bar.Head.SettleExpiredHead(1.2f);
+            Assert.That(published, Is.EqualTo(1), "however many times its window is ticked");
         }
 
         [Test]
@@ -216,7 +227,8 @@ namespace OpenSekai.Tests.EditMode.Live
             bool judged = bar.Judgment(ref touch, 4.5f);
 
             Assert.That(judged, Is.False, "a finished bar takes no input");
-            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.Miss), "and its head keeps the result it left with");
+            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.None),
+                "and nothing settles the head here: its own window does, on its own clock");
             Assert.That(bar.State, Is.EqualTo(NoteState.Done));
         }
     }
