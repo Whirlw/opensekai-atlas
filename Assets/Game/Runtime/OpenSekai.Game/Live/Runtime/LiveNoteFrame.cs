@@ -337,7 +337,7 @@ namespace Sekai.Core.Live
 
 			bool isNegativeSpeed = note.IsNegativeSpeed;
 			float timeOffset = OpenSekai.Shared.Live.NoteDisplayOffset.Resolve(
-				_session.NoteDisplayTimeOffset, speedRatio, note.speedRatio, ref isNegativeSpeed, note.offsetTime);
+				_session.NoteDisplayTimeOffset, speedRatio, note.speedRatio, ref isNegativeSpeed);
 			note.IsNegativeSpeed = isNegativeSpeed;
 			return timeOffset;
 		}
