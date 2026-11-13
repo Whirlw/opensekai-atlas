@@ -292,11 +292,12 @@ namespace Sekai.Live
 		internal bool IsOrdinaryHead => Category == NoteCategory.Long && this is not GuideNote && this is not FrictionLongNote;
 
 		/// <summary>
-		/// Whether the bar's body starts at the judgement line instead of flowing past it. Every bar the
-		/// player holds does; a guide bar sweeps across the lane. It used to be tied to
-		/// <see cref="IsOrdinaryHead"/>, which also decides who may be judged, so a rub's head slid off.
+		/// Whether the bar's body starts at the judgement line instead of flowing past it. Only an ordinary
+		/// head parks there: that is the head the player presses and holds, so its body has to shrink from
+		/// the line. A rub head plays like a standalone friction note and a guide bar sweeps across the lane,
+		/// so both keep travelling past the line instead of freezing on it.
 		/// </summary>
-		internal bool KeepsHeadOnTheLine => this is not GuideNote;
+		internal bool KeepsHeadOnTheLine => IsOrdinaryHead;
 
 		/// <summary>
 		/// The note that really ends this bar: the latest one that is neither skipped nor decorative.

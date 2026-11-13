@@ -73,14 +73,16 @@ namespace OpenSekai.Tests.EditMode.Live
 		}
 
 		[Test]
-		public void ARubBarsHeadStaysOnTheLine()
+		public void AOnlyAnOrdinaryHeadStaysOnTheLine()
 		{
-			// "长条的 friction 头会流下判定线" - the pin at the line used to be tied to IsOrdinaryHead,
-			// which also answers "who may be judged", so a rub could not be pinned without changing judging.
+			// The player's ruling: a friction-headed bar looks like a standalone friction note, so its key
+			// keeps travelling past the line. Only the ordinary head - the one you press and hold - parks.
 			var rub = new FrictionLongNote(Info(0f), 1, 4, 5, NoteCategory.FrictionLong, NoteType.Default, null, 1f);
 			var guide = new GuideNote(Info(0f), 2, 4, 5, NoteCategory.Long, NoteType.Default, null, 1f);
+			var ordinary = new LongNote(Info(0f), 3, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
 
-			Assert.That(rub.KeepsHeadOnTheLine, Is.True, "a rub bar is held like any other, so its head parks");
+			Assert.That(ordinary.KeepsHeadOnTheLine, Is.True, "an ordinary head is pressed and held: it parks");
+			Assert.That(rub.KeepsHeadOnTheLine, Is.False, "a rub head is played like a standalone friction note");
 			Assert.That(guide.KeepsHeadOnTheLine, Is.False, "a guide bar sweeps across the lane, it does not park");
 		}
 
