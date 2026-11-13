@@ -346,6 +346,23 @@ namespace Sekai
 			return lane * 0.84f - 4.62f;
 		}
 
+		/// <summary>
+		/// Whether a note is being held right now in the sense the hold effect and its sound mean: a finger on
+		/// it AND the hold has begun. A finger merely resting in the lane before an ordinary bar's head is not
+		/// a hold - the head has not been pressed and is not even due yet - and starting the long-note effect
+		/// there put the veil and the hold SE on empty track, which is the "the effect still appears at that
+		/// point" report.
+		/// </summary>
+		public static bool IsBeingHeldForEffect(INote note, float time)
+		{
+			if (note is LongNote bar)
+			{
+				return bar.HasFinger && (bar.Head.IsSettled || time >= bar.MusicScoreInfo.time);
+			}
+
+			return note != null && (note.State == NoteState.InputBegan || note.State == NoteState.Input);
+		}
+
 		public static float CalcLaneTransformX(float lane)
 		{
 			return lane * 0.84f - 4.62f;
