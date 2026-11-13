@@ -40,5 +40,29 @@ namespace OpenSekai.Shared.Live
 		{
 			return LiveConfig.GetNoteViewProgress(progress);
 		}
+
+		/// <summary>
+		/// The offset one end of a body is drawn with. A note that has been executed carries the offset it
+		/// was drawn with, and that is what the mesh uses - except when it is zero, which is not a speed but
+		/// "never executed". A friction end or a hidden end reaches <see cref="NoteState.Input"/> when the
+		/// player presses it, before any frame has executed it, and taking the zero made the whole bar draw
+		/// no mesh at all until the next frame that executed it: measured on the device, a friction-hide bar
+		/// was invisible for 18 frames (0.2 s) right after the press, which is the "整个消失几帧再出现"
+		/// report. Such an end is measured instead.
+		/// </summary>
+		public static float SampleOffset(NoteBase note)
+		{
+			if (note == null)
+			{
+				return 0f;
+			}
+
+			if (note.State != NoteState.Wait && !Mathf.Approximately(note.offsetTime, 0f))
+			{
+				return note.offsetTime;
+			}
+
+			return note.CalcTimeOffset != null ? note.CalcTimeOffset(note) : note.offsetTime;
+		}
 	}
 }

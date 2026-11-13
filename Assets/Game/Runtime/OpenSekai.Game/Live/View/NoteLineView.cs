@@ -446,7 +446,10 @@ namespace Sekai
 			}
 
 			float startOffset = startNoteBase.CalcTimeOffset(startNoteBase);
-			float endOffset = endNote.State != NoteState.Wait ? endNoteBase.offsetTime : endNoteBase.CalcTimeOffset(endNoteBase);
+			// A stored offset of zero is not a speed: it means this end has never been executed (a friction
+			// or hidden end goes straight to Input when the player presses it), and taking it would draw no
+			// body at all for as long as that lasts.
+			float endOffset = OpenSekai.Shared.Live.NoteLineProgress.SampleOffset(endNoteBase);
 			float duration = endNote.MusicScoreInfo.time - startNote.MusicScoreInfo.time;
 			if (Mathf.Approximately(startOffset, 0f) || Mathf.Approximately(endOffset, 0f) || Mathf.Approximately(duration, 0f))
 			{
