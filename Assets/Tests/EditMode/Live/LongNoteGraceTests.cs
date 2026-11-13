@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using OpenSekai.Charts.Serialization;
@@ -155,6 +155,23 @@ namespace OpenSekai.Tests.EditMode.Live
 
 			Assert.That(bar.HasFinger, Is.False, "no touch id means no finger, whatever the state says");
 			Assert.That(bar.IsHeld(0f), Is.False, "the time argument no longer decides anything");
+		}
+
+		[Test]
+		public void AHeldLaneBeforeTheHeadIsNotAHoldForTheEffect()
+		{
+			// "到那个点仍然会出现长条特效": the hold veil and its SE started for a finger merely resting in the
+			// lane before an ordinary bar's head - empty track, no press, no note. The effect belongs to a
+			// hold that has begun: the head was taken, or its own moment has arrived.
+			var bar = new LongNote(Info(1f), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
+			bar.SetStateUnnotice(NoteState.Scrolling);
+			bar.RecordHoldingInput(1, 0.75f);
+
+			Assert.That(bar.HasFinger, Is.True, "the finger is on it");
+			Assert.That(Sekai.LiveUtility.IsBeingHeldForEffect(bar, 0.75f), Is.False,
+				"but the head has not been taken and is not even due: no hold effect");
+			Assert.That(Sekai.LiveUtility.IsBeingHeldForEffect(bar, 1f), Is.True,
+				"from the head's own moment the same finger is a hold");
 		}
 
 		[Test]

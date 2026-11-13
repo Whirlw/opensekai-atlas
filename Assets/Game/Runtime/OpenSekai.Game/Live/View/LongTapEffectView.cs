@@ -1,4 +1,4 @@
-﻿using Sekai.Live;
+using Sekai.Live;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -148,7 +148,8 @@ namespace Sekai
 				}
 
 				// A finger on the bar right now, asked of the hold itself; the state lags a refresh behind.
-				if (note is LongNote heldBar ? heldBar.HasFinger : note.State == NoteState.InputBegan || note.State == NoteState.Input)
+				// The rule lives in LiveUtility so a plain note can be tested for it without the prefabs.
+				if (LiveUtility.IsBeingHeldForEffect(note, time))
 				{
 					float x = LiveUtility.CalcLaneTransformX((note.LaneStartF + note.LaneEndF) * 0.5f);
 					float width = note.LaneEndF + 1f - note.LaneStartF;
