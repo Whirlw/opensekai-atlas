@@ -24,11 +24,16 @@ namespace Sekai.Live
 		internal LongNoteHead Head => _head;
 
 		/// <summary>
-		/// True when the head is a note the player answers - an ordinary head, drawn, and judged. The body is
-		/// never a press candidate any more; the head is the only part of a bar that can take a press, and a
-		/// hidden head takes none.
+		/// True when the head is a note the player answers - an ordinary head, drawn, judged, and still
+		/// unsettled. The body is never a press candidate any more; the head is the only part of a bar that
+		/// can take a press, and a hidden head takes none.
+		///
+		/// A head is an instant key like a tap note: the press settles it once, so once it is settled it is
+		/// not a key any more and must leave the candidate list. Leaving it in let an already-judged bar
+		/// answer a press with "I have nothing to do" and claim the finger's single judgement slot, which is
+		/// how a second press in a lane where a bar was being held never reached the next head.
 		/// </summary>
-		internal bool IsAnswerable => _bar.HeadIsANote;
+		internal bool IsAnswerable => _bar.HeadIsANote && !_head.IsSettled;
 
 		/// <summary>The head is judged on its own window; the bar's own gate is the window it has always used.</summary>
 		public override bool IsJudgment(ref LiveTouch touch, float lane)
