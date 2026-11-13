@@ -173,6 +173,50 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(bar.Result, Is.EqualTo(NoteResult.JustPerfect), "the bar's mirror is unchanged");
         }
 
+        [Test]
+        public void TheHeadIsItsOwnPressCandidate()
+        {
+            // The judgement list holds the head's candidate, not the bar: a press that reaches this
+            // object is answered by the head's entry, and the bar's Judgement is never on that path.
+            var bar = Bar();
+            var touch = Touch();
+            NoteBase candidate = bar.Head.Candidate;
+
+            Assert.That(candidate, Is.Not.SameAs(bar));
+            Assert.That(Sekai.Core.Live.LiveCandidatePipeline.IsPressStep(candidate), Is.True);
+            Assert.That(candidate.IsJudgment(ref touch, 4.5f), Is.True);
+            Assert.That(candidate.Judgment(ref touch, 4.5f), Is.True);
+
+            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(bar.HasFinger, Is.True, "the same frame still takes the hold");
+            Assert.That(candidate.IsJudgment(ref touch, 4.5f), Is.False, "a settled head leaves the candidate list");
+        }
+
+        [Test]
+        public void OnlyAnOrdinaryHeadBorrowsTheBarsVisualIdentity()
+        {
+            // The "judgement effect plays on the bar" bridge is for the ordinary head only. Every other
+            // head is expected to be visually unrelated to the bar, so it hands its own object to the
+            // judgement callback instead.
+            var ordinary = Bar();
+            var ordinaryVisual = new List<NoteBase>();
+            ordinary.OnJudgment = n => ordinaryVisual.Add(n);
+            var touch = Touch();
+            ordinary.Judgment(ref touch, 4.5f);
+            Assert.That(ordinaryVisual, Is.EqualTo(new[] { ordinary }), "an ordinary head still plays on the bar");
+
+            var rub = new FrictionLongNote(Info(0), 3, 4, 5, NoteCategory.FrictionLong, NoteType.Default, null, 1);
+            rub.AddNoteListAndSetupChildNote(new NormalNote(Info(10), 4, 4, 5, NoteCategory.Normal, 1, NoteType.Default, 0));
+            var rubVisual = new List<NoteBase>();
+            rub.OnJudgment = n => rubVisual.Add(n);
+            rub.Excute(Info(0), 0);
+            rub.Head.Settle((NoteResult.JustPerfect, NoteResultDescription.None));
+
+            Assert.That(rubVisual.Count, Is.EqualTo(1));
+            Assert.That(rubVisual[0], Is.SameAs(rub.Head.Identity), "a rub head speaks for itself");
+            Assert.That(rubVisual[0], Is.Not.SameAs(rub));
+        }
+
         private sealed class TailProbe : NoteBase
         {
             internal readonly List<string> Calls = new List<string>();

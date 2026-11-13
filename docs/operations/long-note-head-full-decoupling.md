@@ -46,14 +46,14 @@
 - 每步：EditMode 全量 0 失败；九个红线类（见 `long-note-head-split-report.md` §5.2）数字不变或有说明。
 - 头相关用例改写只允许**语义解释**，不允许为了让红的变绿而放宽断言。
 
-## 4. 红线：只动判定，不动视觉（用户，2026-11-13）
+## 4. 红线：只动判定，不动视觉（用户，2026-11-13；同日补充）
 
 - 条的视觉状态机 `Wait → Scrolling → InputBegan/Input → Last → Release → Done`、`ShowsAsReleased`、
   `Body.HeadTouched`（决定过线后是「立刻灰」还是「3 帧宽限」）**一律不改**。
-- 头的判定可以独立，但**判定特效仍然发生在条上**：`Head.Settle` 继续写 `LongNote.JudgeInfo`，
-  这样 `LivePresentationBridge` / `TapEffectView` 看到的还是原来那个对象、原来那一帧。
-- 因此「头的结果不再写在条上」（第 ② 步）只有在头拥有自己的视觉身份之后才能做；在那之前，
-  条的 `Result` 同时承担「头的判定结果」和「视觉特效的触发值」两件事，这是有意保留的过渡态。
+- **「判定特效借用条对象」这条只对普通头**（`IsOrdinaryHead`）：普通头的特效仍打在条上，视觉零变化。
+- **其它头（搓条/隐藏条等）的预期行为是视觉上与条完全无关**：`Settle` 的 `onJudgment` 传的是头自己的
+  身份 `Identity`，不是条。
+- 因此「头的结果不再写在条上」（第 ② 步）在普通头上仍保留一个视觉镜像；其它头已经完全没有。
 
 ## 5. 进度（2026-11-13）
 
@@ -90,9 +90,10 @@
   `LongNoteHead.PublishHeadMiss()`（头已没有「现在就补 Miss」的入口，只有自己的窗口）与
   `LongNote.SetHeadJudgmentState()`（零调用、零用例的死桥）。`AnEndedBarLeavesItsHeadToItsOwnWindow`
   之外的用例改用 `SettleExpiredHead` 驱动，断言数量不变。
-- **③b（未做）**：把 `LiveNoteFrame.ScanNote` 的注册对象从条换成头（`Identity` 需要一个带
-  `IsJudgment`/`Judgment` 的派生类型），并处理与 `LiveHoldCoordinator`（按 `LongNote` 过滤
-  `JudgmentNotes`）的共存。这条链路上带着判定特效与视图查找，**会动到视觉**，按 §4 的红线
-  需要先定「头自己的视觉身份」或「特效继续借用条对象」的桥，再动手。2026-11-10 的第二阶段
-  （`da11063`，28 红）就是死在这一层。
+- **③b（本次，已做）**：头的候选对象 `LongNoteHeadNote` 进了判定列表——注册时把头候选加入
+  `JudgmentNotes`，`LiveCandidatePipeline.IsPressStep` 承认它，一次按下由**头**回答
+  （`LongNoteHeadNote.Judgment` → `LongNoteHead.Judgment`），不再经过 `LongNote.Judgment`；
+  条继续留在列表里给 `LiveHoldCoordinator`（按住/换手/抬手归属全部不变），判定特效仍打在条上
+  （`onJudgment` 传条），视觉零变化。
+  新增 `LongNoteHeadTests.TheHeadIsItsOwnPressCandidate`。
 

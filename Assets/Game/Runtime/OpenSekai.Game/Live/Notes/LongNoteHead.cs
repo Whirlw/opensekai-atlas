@@ -12,6 +12,14 @@ namespace Sekai.Live
 		internal bool IsSettled => _result.result != NoteResult.None;
 		internal NoteResult Result => _result.result;
 
+		private LongNoteHeadNote _candidate;
+
+		/// <summary>
+		/// The head as the judgement list sees it: its own candidate object, so a press reaches the
+		/// head's entry and not the bar's. The visual side keeps using the bar.
+		/// </summary>
+		internal LongNoteHeadNote Candidate => _candidate ??= new LongNoteHeadNote(_bar, this);
+
 		/// <summary>
 		/// The note the head's verdict is scored as. The bar carries the same number for the picture -
 		/// the judgement effect is played on the bar, and the views read the bar - but the head's own
@@ -63,8 +71,10 @@ namespace Sekai.Live
 			if (!_bar.HasJudgment) return;
 			_bar.HeadDamage?.Invoke(Identity);
 			_bar.HeadCombo?.Invoke(Identity);
-			// The judgement effect belongs to the bar: it is the object the view layer knows.
-			_bar.HeadJudgment?.Invoke(_bar);
+			// Only an ordinary head borrows the bar as its visual object: its judgement effect is played
+			// on the bar the view layer knows. Every other head is expected to be visually unrelated to
+			// the bar, so it speaks for itself.
+			_bar.HeadJudgment?.Invoke(_bar.IsOrdinaryHead ? (NoteBase)_bar : Identity);
 			// Timeout misses historically omit score; a press keeps its score callback even if Miss.
 			if (updateScore) _bar.HeadScore?.Invoke(Identity);
 		}
