@@ -29,7 +29,7 @@ namespace OpenSekai.Shared.Conversion
 		private bool _isMirror;
 		private bool _isShowPair;
 		private NoteBase _pair;
-		private List<float> _chartPositions;
+		private Dictionary<int, List<float>> _chainPositions;
 
 		/// <summary>
 		/// Converts the note tables of <paramref name="chart"/> into note roots, sorted by time and
@@ -45,7 +45,7 @@ namespace OpenSekai.Shared.Conversion
 			_isMirror = isMirror;
 			_isShowPair = showPair;
 			_pair = null;
-			_chartPositions = chart.NoteInfos.Keys.Concat(chart.GuideInfos.Keys).ToList();
+			_chainPositions = new Dictionary<int, List<float>>();
 
 			ConvertNoteTable(chart.NoteInfos, isNeedCombo);
 			ConvertNoteTable(chart.GuideInfos, false);
@@ -72,6 +72,18 @@ namespace OpenSekai.Shared.Conversion
 				foreach (int laneKey in laneDict.Keys.OrderBy(value => value).ToArray())
 				{
 					NoteInfo noteInfo = laneDict[laneKey];
+					if (noteInfo != null && noteInfo.LongNo != -1)
+					{
+						// Only the bar's own chain occupies a position; another bar at the same moment
+						// is a different note and must not suppress this bar's middle point.
+						if (!_chainPositions.TryGetValue(noteInfo.LongNo, out List<float> chain))
+						{
+							chain = new List<float>();
+							_chainPositions[noteInfo.LongNo] = chain;
+						}
+
+						chain.Add(key);
+					}
 					MusicScoreInfo info = MusicScore.GenerateNoteMusicScoreInfo(noteInfo.Bar, noteInfo.BarProgress, _frames);
 					int laneStart = noteInfo.Lane;
 					int laneEnd = noteInfo.Lane + noteInfo.Width - 1;
@@ -257,10 +269,10 @@ namespace OpenSekai.Shared.Conversion
 			int startIndex = Mathf.FloorToInt(longNote.MusicScoreInfo.barProgress * longNoteComboBeat) + 1 + longNote.MusicScoreInfo.bar * longNoteComboBeat;
 			int endIndex = Mathf.CeilToInt(note.MusicScoreInfo.barProgress * longNoteComboBeat) - 1 + note.MusicScoreInfo.bar * longNoteComboBeat;
 
-			// A grid position that already holds a note is not a middle: the dense friction runs put a
-			// head or a tail on almost every 8th, and a point there judged a position that was a note's
-			// own. Only the bare grid positions in between are middles.
-			HashSet<int> occupied = ComboOccupiedIndices(longNoteComboBeat);
+			// A grid position this bar's own chain already occupies is not a middle: the head, the
+			// connection notes and the end own their positions. Other bars at the same moment are
+			// separate notes and do not suppress this bar's middles.
+			HashSet<int> occupied = ComboOccupiedIndices(noteInfo.LongNo, longNoteComboBeat);
 
 			for (int i = startIndex; i <= endIndex; i++)
 			{
@@ -277,16 +289,17 @@ namespace OpenSekai.Shared.Conversion
 			longNote.SortNoteList();
 		}
 
-		/// <summary>Grid positions (in combo-beat indices) that the chart itself already occupies.</summary>
-		private HashSet<int> ComboOccupiedIndices(int longNoteComboBeat)
+		/// <summary>Grid positions (in combo-beat indices) that this bar's own chain already occupies.</summary>
+		private HashSet<int> ComboOccupiedIndices(int longNo, int longNoteComboBeat)
 		{
 			var indices = new HashSet<int>();
-			if (_chartPositions == null || longNoteComboBeat <= 0)
+			if (_chainPositions == null || longNoteComboBeat <= 0
+				|| !_chainPositions.TryGetValue(longNo, out List<float> chain))
 			{
 				return indices;
 			}
 
-			foreach (float position in _chartPositions)
+			foreach (float position in chain)
 			{
 				float beat = position * longNoteComboBeat;
 				float rounded = Mathf.Round(beat);
