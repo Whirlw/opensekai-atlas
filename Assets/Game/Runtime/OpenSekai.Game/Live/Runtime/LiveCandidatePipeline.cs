@@ -15,9 +15,10 @@ namespace Sekai.Core.Live
 	internal sealed class LiveCandidatePipeline
 	{
 		internal static bool IsPressStep(NoteBase note) => note != null && !note.IsDecoration
-			&& (note is LongNote bar ? bar.IsOrdinaryHead && !bar.Head.IsSettled
+			&& (note is LongNoteHeadNote
+				|| (note is LongNote bar ? bar.IsOrdinaryHead && !bar.Head.IsSettled
 				: note.ParentRole == OpenSekai.Shared.Live.NoteParentRole.None &&
-				  (note is NormalNote && note.Category == NoteCategory.Normal || note is FlickNote && !note.FinishFirstAction));
+				  (note is NormalNote && note.Category == NoteCategory.Normal || note is FlickNote && !note.FinishFirstAction)));
 
 		internal void SortPressCandidates(List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame, LaneOf laneOf)
 		{

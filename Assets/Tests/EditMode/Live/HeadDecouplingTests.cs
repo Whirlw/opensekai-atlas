@@ -77,7 +77,9 @@ namespace OpenSekai.Tests.EditMode.Live
                     : new FrictionLongNote(Info(0), 3, 4, 5, NoteCategory.FrictionLong, NoteType.Default, null, 1);
                 friction.AddNoteListAndSetupChildNote(new NormalNote(Info(10), 4, 4, 5, NoteCategory.Normal, 1, NoteType.Default, 0));
                 int heads = 0;
-                friction.OnJudgment = n => { if (ReferenceEquals(n, friction)) heads++; };
+                // Only an ordinary head borrows the bar as its visual object; a rub head speaks for
+                // itself, so its judgement callback carries the head's identity, not the bar.
+                friction.OnJudgment = n => { if (ReferenceEquals(n, friction.Head.Identity)) heads++; };
                 touch = Touch(0);
                 friction.Excute(Info(0), 0);
                 friction.Judgment(ref touch, 4.5f);

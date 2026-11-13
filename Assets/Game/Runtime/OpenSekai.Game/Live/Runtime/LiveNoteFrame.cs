@@ -84,6 +84,10 @@ namespace Sekai.Core.Live
 			if (note is LongNote bar && bar.PublishesHeadMiss)
 			{
 				_session.Notes.RegisterHead(bar.Head);
+				// The head is a candidate of its own: the press loop asks this object, so the verdict
+				// never travels through the bar's Judgement. The bar stays in the list for the hold
+				// coordinator, which finds bars by type.
+				_input.Register(bar.Head.Candidate);
 			}
 		}
 
