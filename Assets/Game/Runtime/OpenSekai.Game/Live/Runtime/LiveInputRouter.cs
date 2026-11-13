@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Sekai.Live;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -21,7 +21,6 @@ namespace Sekai.Core.Live
 
 		internal List<NoteBase> JudgmentNotes { get; } = new List<NoteBase>();
 		internal List<LiveLogic.InputTmp> ActiveInputs { get; } = new List<LiveLogic.InputTmp>(InputCapacity);
-		internal List<NoteBase> ConnectionNotes { get; } = new List<NoteBase>(5);
 		internal LiveHoldCoordinator Holds { get; } = new LiveHoldCoordinator(InputCapacity);
 
 		private readonly Dictionary<int, double> _judgedTouchTimes = new Dictionary<int, double>(FingerCapacity);
@@ -76,7 +75,7 @@ namespace Sekai.Core.Live
 
 		internal void CollectCandidates()
 		{
-			_candidates.Collect(JudgmentNotes, ActiveInputs, ConnectionNotes, Holds, ConvertLaneBy, _judgedTouchTimes);
+			_candidates.Collect(JudgmentNotes, ActiveInputs, Holds, ConvertLaneBy, _judgedTouchTimes);
 		}
 
 		internal void AssignContinuingHolds() => Holds.AssignContinuingHolds(JudgmentNotes, ActiveInputs, ConvertLaneBy);

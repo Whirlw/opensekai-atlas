@@ -29,7 +29,6 @@ namespace Sekai.Core.Live
 
 		internal void Run()
 		{
-			_input.ConnectionNotes.Clear();
 			JudgeDueComboPoints();
 			_input.CollectCandidates();
 			DriveIndependentNotes();
