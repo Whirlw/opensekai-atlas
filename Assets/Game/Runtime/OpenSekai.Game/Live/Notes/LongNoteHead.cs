@@ -133,6 +133,22 @@ namespace Sekai.Live
 			// window, whatever the body is doing, and its result never decides how the body behaves.
 			if (!IsSettled)
 			{
+				// An ordinary head is decided by a PRESS, never by a finger that happens to rest in the lane.
+				// The resident hold pass drives this method every frame with whatever touch it picked, and a
+				// held finger carries the timestamp of when it first landed - so "holding the lane" graded
+				// the head (Miss, -80 life) up to a third of a second before it reached the line. A hold is
+				// not a press: the head keeps its own clock and expires on its own.
+				if (touch.phase != UnityEngine.InputSystem.TouchPhase.Began)
+				{
+					return false;
+				}
+
+				float offset = touch.musicTime - _bar.MusicScoreInfo.time;
+				if (!LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(_bar), offset))
+				{
+					return false;
+				}
+
 				var judgeInfo = LiveConfig.CalculateLongStartNoteResult(_bar, touch.musicTime);
 				Settle(_bar.HeadResultUpdater != null ? _bar.HeadResultUpdater(judgeInfo) : judgeInfo);
 			}
