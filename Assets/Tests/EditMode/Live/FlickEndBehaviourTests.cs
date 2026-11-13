@@ -307,17 +307,67 @@ namespace OpenSekai.Tests.EditMode.Live
 
         [Test]
 
-        public void ABarEndingWithARubOrHiddenTailStillEndsWhenItsWindowCloses()
+        public void ARubTailIsNotEndedBeforeItHasDecidedItself()
 
         {
 
-            // Only the flick path had a timeout, so a bar closed by a friction or hidden note could
+            // A tail that carries a judgement of its own keeps its own clock: it is executed while it stays
 
-            // never end: a finger in its lane revived it every frame and its parts stayed judgeable.
+            // in the bar's note list and publishes its own Miss when its window closes. The bar used to
+
+            // detach it at its own end instead, which orphaned it: a friction or friction-flick end was
+
+            // then never judged and never missed.
 
             var bar = new LongNote(Info(0f), 63, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
 
             var tail = new FrictionNote(Info(1f), 64, 4, 5, NoteCategory.Friction, null, NoteType.Default, 1);
+
+            bar.AddNoteListAndSetupChildNote(tail);
+
+            bar.RecordHoldingInput(1, 0.5f);
+
+
+
+            Assert.That(bar.IsPastTailWindow(2f), Is.True, "way past the tail window");
+
+            Assert.That(bar.ExpireTail(2f), Is.False, "but the note is still open, so the bar waits");
+
+            Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done));
+
+
+
+            // The note misses on its own clock; only then does the bar leave, reading that verdict.
+
+            tail.Excute(Info(1.2f), 0.5f);
+
+            tail.Excute(Info(1.3f), 0.5f);
+
+
+
+            Assert.That(tail.Result, Is.EqualTo(NoteResult.Miss), "the rub end misses on its own");
+
+            Assert.That(bar.ExpireTail(2f), Is.True, "and now the bar ends");
+
+            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+
+            Assert.That(bar.Result, Is.EqualTo(NoteResult.Miss), "reading the verdict the note published");
+
+        }
+
+        [Test]
+
+        public void AHiddenTailThatNeverSettlesStillLetsTheBarEnd()
+
+        {
+
+            // The one tail the bar does not wait for: a hidden carrier carries no judgement of its own, so
+
+            // it never settles and the bar's own end is a Miss of its own.
+
+            var bar = new LongNote(Info(0f), 63, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
+
+            var tail = new HiddenConnectionNote(Info(1f), 64, 4, 5, NoteCategory.Hidden, NoteType.Default, 1, 0);
 
             bar.AddNoteListAndSetupChildNote(tail);
 
@@ -330,8 +380,6 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(bar.ExpireTail(0.9f), Is.False);
 
 
-
-            Assert.That(bar.IsPastTailWindow(2f), Is.True, "way past the tail window");
 
             Assert.That(bar.ExpireTail(2f), Is.True, "the bar must end");
 

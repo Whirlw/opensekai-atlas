@@ -22,6 +22,34 @@ namespace OpenSekai.Tests.EditMode.Live
 		private static void Bind(LongNote bar, NoteBase tail) => bar.AddNoteListAndSetupChildNote(tail);
 
 		[Test]
+		public void ASelfJudgedTailMissesOnItsOwnClockBeforeTheBarLeaves()
+		{
+			// "条尾的 friction flick 没有解耦干净，没判定上也不 miss": the bar detached the end note as soon as its
+			// own window closed, which orphaned the note before its own clock could publish anything. The
+			// note judges itself, so it gets to finish its own window; the bar then reads what it decided.
+			LongNote bar = Bar();
+			var tail = new FrictionFlickNote(Info(1f), 96, 4, 5, NoteCategory.FrictionFlick, 1f,
+				NoteType.Default, NoteDirection.Default, 0.0833f, 0f);
+			Bind(bar, tail);
+
+			bool settled = bar.TailBehaviour.TryFinish(bar, new TailFrame(2f, 1f / 60f, default, false, false, false));
+
+			Assert.That(settled, Is.False, "the bar waits for a note it does not grade");
+			Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done), "and it is still there");
+			Assert.That(tail.Result, Is.EqualTo(NoteResult.None), "nothing was written onto the note");
+
+			// The note's own clock: past its late window it misses itself, exactly like a standalone flick.
+			tail.Excute(Info(1.2f), 0.5f);
+			tail.Excute(Info(1.3f), 0.5f);
+
+			Assert.That(tail.Result, Is.EqualTo(NoteResult.Miss), "the end note misses on its own");
+
+			bool then = bar.TailBehaviour.TryFinish(bar, new TailFrame(2f, 1f / 60f, default, false, false, false));
+			Assert.That(then, Is.True, "and only then does the bar leave");
+			Assert.That(bar.Result, Is.EqualTo(NoteResult.Miss), "reading the verdict the note published");
+		}
+
+		[Test]
 		public void AReleaseTailIgnoresAFrameWithoutALift()
 		{
 			// A frame where the finger stayed down cannot end the bar, even though the caller hands
@@ -174,6 +202,30 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(bar.FailTail(), Is.False, "and the bar's timeout does not grade it either");
 			Assert.That(tail.Result, Is.EqualTo(NoteResult.None), "nothing was written onto it");
 			Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done));
+		}
+
+		[Test]
+		public void AFrictionFlickTailThatNobodyPlaysMissesInTheRealLoop()
+		{
+			// The acceptance of the report, through the real frame loop: a bar whose end is a friction flick
+			// that nobody plays. The note judges itself, so the bar must keep ticking it until it decides -
+			// detaching it any earlier left it with no verdict at all.
+			using var harness = new LiveHarness();
+			var bar = new LongNote(Info(0f), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
+			var tail = new FrictionFlickNote(Info(1f), 2, 4, 5, NoteCategory.FrictionFlick, 1f,
+				NoteType.Default, NoteDirection.Default, 0.0833f, 0f);
+			bar.AddNoteListAndSetupChildNote(tail);
+			harness.Arrange(new MusicScore(new[] { Info(0f) }, System.Array.Empty<EventBase>(),
+				new NoteBase[] { bar }));
+
+			for (float now = 0f; now < 3f; now += 1f / 60f)
+			{
+				harness.Step(now, 10d + now);
+			}
+
+			Assert.That(tail.Result, Is.EqualTo(NoteResult.Miss), "the friction-flick end misses on its own");
+			Assert.That(bar.State, Is.EqualTo(NoteState.Done), "and the bar leaves after reading it");
+			Assert.That(bar.Result, Is.EqualTo(NoteResult.Miss), "with the verdict the note published");
 		}
 
 		[Test]

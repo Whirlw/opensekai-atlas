@@ -267,10 +267,17 @@ namespace Sekai.Live
 			}
 
 			// And the bar writes nothing onto that note: the verdict is the tail's own, so the bar only
-			// reads it - and it does not wait for it either, because the bar leaves on its own time and
-			// nothing about that depends on the note. A note that is still open here (a hidden carrier
-			// never settles at all) simply is not read: the bar's own end is a Miss of its own.
+			// reads it. A note that carries a judgement of its own keeps its own clock: it is executed for
+			// as long as it stays in this list, and when its window closes with no verdict it publishes its
+			// own Miss. Detaching it here orphaned it first, which is how a friction or friction-flick end
+			// was never judged and never missed. A tail with no judgement of its own (a hidden carrier)
+			// never settles, so it is not waited for: the bar's own end is a Miss of its own.
 			bool settled = Child.Result != NoteResult.None || Child.State == NoteState.Done;
+
+			if (!settled && Child.HasJudgment)
+			{
+				return false;
+			}
 
 			// Publish before touching anything else: if this tail already has a verdict, the refusal has
 			// to happen while the bar and the note list are still exactly as they were.
