@@ -49,7 +49,7 @@ namespace Sekai.Core.Live
 		/// the high speed list. The two lists are separate because a note's speed ratio decides which
 		/// array it was filed into, and both cursors advance independently.
 		/// </summary>
-		internal void AdvanceAutoJudgment(MusicScoreInfo frame, LiveNoteSession session)
+		internal void AdvanceAutoJudgment(MusicScoreInfo frame, LiveNoteSession session, bool skipDecoration = false)
 		{
 			if (session == null)
 			{
@@ -58,11 +58,11 @@ namespace Sekai.Core.Live
 
 			// The note session advances past completed notes. Autoplay revisits a long note
 			// through its interior ticks and tail while judging later due notes on the same frame.
-			AdvanceList(frame, session.Notes, session.NoteIndex);
-			AdvanceList(frame, session.HighSpeedNotes, session.HighSpeedIndex);
+			AdvanceList(frame, session.Notes, session.NoteIndex, skipDecoration);
+			AdvanceList(frame, session.HighSpeedNotes, session.HighSpeedIndex, skipDecoration);
 		}
 
-		private static void AdvanceList(MusicScoreInfo frame, NoteBase[] notes, int index)
+		private static void AdvanceList(MusicScoreInfo frame, NoteBase[] notes, int index, bool skipDecoration)
 		{
 			if (notes == null)
 			{
@@ -81,6 +81,14 @@ namespace Sekai.Core.Live
 				if (note.MusicScoreInfo.time > frame.time)
 				{
 					return;
+				}
+
+				// A decorative note is not judged by autoplay at all: the frame walk plays its effect
+				// and takes it off the board itself. Judging it here would silence that effect.
+				if (skipDecoration && note.IsDecoration)
+				{
+					index++;
+					continue;
 				}
 
 				note.AutoJudgment(frame);

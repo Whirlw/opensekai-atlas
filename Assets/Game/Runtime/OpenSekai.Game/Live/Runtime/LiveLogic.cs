@@ -174,6 +174,17 @@ namespace Sekai.Core.Live
 			Input.BeginFrame();
 			Session.UpdateEvents(_clock.Frame);
 			skillLogic?.Update(this.currentGameTime);
+
+			// Autoplay answers every note at its own time, and that answer has to exist before the walk:
+			// the walk turns anything already past its window into a Miss, so a frame that skipped time
+			// (a hitch, the first frame after the chart loaded) missed notes autoplay never got to see.
+			// Judging here is the same pass OnAutoInput runs; a note already settled is skipped, so the
+			// controller's call after this frame is a no-op.
+			if (Session.IsAuto)
+			{
+				Session.AdvanceAutoJudgment(currentFrameInfo, skipDecoration: true);
+			}
+
 			NoteFrame.UpdateNotes();
 			NoteFrame.TickViews();
 
