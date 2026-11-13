@@ -104,7 +104,13 @@ namespace Sekai.Live
 		/// list will call once the head is its own candidate; today the bar's <c>Judgment</c> only
 		/// forwards here, so the head is already the place the press is answered.
 		/// </summary>
-		internal bool Judgment(ref LiveTouch touch, float lane) => _bar.DriveJudgmentFrame(ref touch, lane);
+		/// <summary>
+		/// The head takes a press only when it is a note the player answers. A hidden head (a skip point,
+		/// a carrier) has nothing to answer, so a press that lands on its lane - the ordinary note that sits
+		/// on the same lane and time, say - must not reach it: driving the bar's frame from that press lit
+		/// the bar up and greyed it again, one frame later.
+		/// </summary>
+		internal bool Judgment(ref LiveTouch touch, float lane) => _bar.HeadIsANote && _bar.DriveJudgmentFrame(ref touch, lane);
 
 		internal bool TryJudge(ref LiveTouch touch, float lane)
 		{

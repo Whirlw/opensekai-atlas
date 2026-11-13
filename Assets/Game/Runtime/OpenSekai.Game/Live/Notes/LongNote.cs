@@ -305,7 +305,15 @@ namespace Sekai.Live
 		/// <summary>True while autoplay plays this bar - there is no finger to keep it lit.</summary>
 		internal bool IsAutoPlaying { get; set; }
 
-		internal bool PublishesHeadMiss => IsOrdinaryHead && HasJudgment;
+		internal bool PublishesHeadMiss => HeadIsANote;
+
+		/// <summary>
+		/// True when this bar's head is a note the player answers: an ordinary head, drawn, and judged.
+		/// A hidden head (a skip point, a carrier, a decoration) is not something anybody can press, and
+		/// letting the bar be a press candidate for it made the bar light up and grey again whenever the
+		/// player pressed the ordinary note sitting on the same lane and time - the "灰一下" report.
+		/// </summary>
+		internal bool HeadIsANote => IsOrdinaryHead && HasJudgment && !IsSkip;
 
 		internal bool CanFinishSilently(float currentTime)
 		{
