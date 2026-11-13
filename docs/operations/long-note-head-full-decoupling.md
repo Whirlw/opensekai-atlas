@@ -80,9 +80,15 @@
   不是条，`Identity.Result` 与条上的镜像同为 JustPerfect；`onJudgment` 仍然收到条。
 - 全量 EditMode **611 / 605 通过 / 0 失败 / 6 跳过**。
 
-### 第 ③ 步：头进候选集（未做，等视觉身份的决定）
+### 第 ③ 步：头进候选集
 
-头现在是独立判定身份，但入口仍是 `LongNote.Judgment`。要把入口也搬走，头必须能被候选集收集、
-被 `LiveInputRouter` 注册，而那条链路上带着判定特效与视图查找——**这一层会动到视觉**，
-按 §4 的红线需要先定「头自己的视觉身份」（或明确「特效继续借用条对象」的桥），再动手。
+- **③a（本次，已做）**：头有自己的判定入口 `LongNoteHead.Judgment(ref touch, lane)`；
+  `LongNote.Judgment` 只转发到它，不再直接进 `DriveJudgmentFrame`。行为逐帧不变（同一个
+  `DriveJudgmentFrame`），但入口从此在头上——候选集将来直接调这一个口即可。
+  新增 `LongNoteHeadTests.TheHeadEntryAnswersThePress`。
+- **③b（未做）**：把 `LiveNoteFrame.ScanNote` 的注册对象从条换成头（`Identity` 需要一个带
+  `IsJudgment`/`Judgment` 的派生类型），并处理与 `LiveHoldCoordinator`（按 `LongNote` 过滤
+  `JudgmentNotes`）的共存。这条链路上带着判定特效与视图查找，**会动到视觉**，按 §4 的红线
+  需要先定「头自己的视觉身份」或「特效继续借用条对象」的桥，再动手。2026-11-10 的第二阶段
+  （`da11063`，28 红）就是死在这一层。
 
