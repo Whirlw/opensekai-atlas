@@ -39,11 +39,12 @@ namespace OpenSekai.Tests.EditMode.Live
             Logic.SetTouchSource(Source);
         }
 
-        internal void Arrange(MusicScore score, NoteBase[] notes = null, float displayTimeOffset = 1f)
+        internal void Arrange(MusicScore score, NoteBase[] notes = null, float displayTimeOffset = 1f, bool auto = false)
         {
             Logic.Session.MusicScore = score;
             Logic.Notes.Bind(notes ?? score.NoteArray);
             Logic.Session.NoteDisplayTimeOffset = displayTimeOffset;
+            Logic.Session.IsAuto = auto;
             Logic.Session.Views = Array.Empty<LiveViewBase>();
         }
 

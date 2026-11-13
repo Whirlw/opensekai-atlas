@@ -18,6 +18,13 @@ namespace Sekai.Core.Live
 		internal float NoteDisplayTimeOffset { get; set; }
 		internal int TapCount { get; set; }
 
+		/// <summary>
+		/// True when nobody is playing: the session answers every note itself. The frame loop needs it
+		/// because its own walk turns anything past its window into a Miss, which must not outrun the
+		/// auto judgement pass.
+		/// </summary>
+		internal bool IsAuto { get; set; }
+
 		internal LiveScore Score => ScoreLogic?.Score ?? default;
 
 		internal bool AreNotesFinished =>
@@ -26,6 +33,7 @@ namespace Sekai.Core.Live
 		internal void Bind(LiveBootDataBase bootData, LiveViewBase[] views)
 		{
 			BootData = bootData;
+			IsAuto = bootData?.IsAuto == true;
 			Views = views;
 			ApplicationLocalSettings.LoadFromStorage();
 			NoteDisplayTimeOffset = LiveConfig.GetNoteDisplayOffsetTime(bootData?.LiveSettingData?.NoteSpeed ?? 6f);
@@ -53,7 +61,8 @@ namespace Sekai.Core.Live
 
 		internal void UpdateEvents(MusicScoreInfo frame) => _timeline.AdvanceEvents(frame, _events, ExecuteEvent);
 
-		internal void AdvanceAutoJudgment(MusicScoreInfo frame) => _timeline.AdvanceAutoJudgment(frame, Notes);
+		internal void AdvanceAutoJudgment(MusicScoreInfo frame, bool skipDecoration = false) =>
+			_timeline.AdvanceAutoJudgment(frame, Notes, skipDecoration);
 
 		private void ExecuteEvent(EventBase eventBase)
 		{
