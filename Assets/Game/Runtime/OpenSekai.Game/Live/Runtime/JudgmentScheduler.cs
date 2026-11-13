@@ -242,6 +242,14 @@ namespace Sekai.Core.Live
 			// included: the tap effect decides for itself whether the result deserves a sound.
 			if (note.IsSkip)
 			{
+				// Autoplay is the one place where a silent marker is all there is to grade for a whole
+				// stretch (the friction section of DEINOS), so its exclusion also switched the AUTO
+				// popup off there. The text refreshes; the effect and the sound stay off.
+				if (_session.IsAuto)
+				{
+					_presentation.JudgmentText(_session.Views, note);
+				}
+
 				return;
 			}
 

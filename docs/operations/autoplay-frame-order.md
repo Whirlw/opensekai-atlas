@@ -67,7 +67,31 @@ NoteFrame.UpdateNotes();
 - A/B（同一段跑两遍，只改判定顺序）：旧顺序 3 miss（`LongHoldCombo#15248 / #15249 / #15250`），新顺序 0 miss。
 - 全量 EditMode：617 / 611 通过 / 0 失败 / 6 跳过。
 
-## 7. 回退
+## 7. 屏幕中间的 AUTO 不刷新
+
+判定修好之后仍然看的两个问题，都是表现层的：
+
+**7.1 有一段没有任何判定文字。** 实测 98.5–101.5 s（第 78–79 小节）这一个窗口里，
+真正走判定表现的只有 42 次，最长间隔 **1.263 s**——那段 friction 全是隐藏载体：
+`FrictionHideLongNote` 的 `OnUnSpawnNote` 不发布结果，`FrictionHideNote.PublishResult` 是空的，
+自动生成中间点又被 `JudgmentScheduler.OnJudgmentNote` 的 `note.IsSkip` 直接挡掉。
+所以那一段屏幕上什么都不弹。
+
+修法：静默中间点在**自动播放**时只刷新判定文字，特效与音效照旧不播。
+`LiveViewBase.JudgmentText` → `LiveViewExt.JudgmentText` → `LivePresentationBridge.JudgmentText`
+→ `LiveFrontView.ShowJudgmentText`（只走 `JudgmentView` / `JudgmentDescriptionView`）。
+人类游玩时 `IsSkip` 仍然完全静默，没有变化。
+
+**7.2 密集段落里弹窗被每帧重置。** `JudgmentView.Excute` 每次判定都把 `_time` 归零，
+而 friction 段几帧就有一个判定，于是弹窗永远停在第 0 帧的缩放上，看起来「不刷新」。
+现在一次弹窗（0.3 s）内不再重启，弹完或换成更差的结果才重开。
+
+验证：`AutoplayJudgmentTextTests`（窗口内文字刷新 ≥ 5 次；跳过点绝不进特效路径）+
+`JudgmentPopupTests`（弹到一半不重启、弹完再弹、更差的结果立刻接管）。
+
+## 8. 回退
 
 `LiveLogic.OnUpdate` 里去掉那段 `if (Session.IsAuto)`，并把 `Session.AdvanceAutoJudgment` 的
 `skipDecoration` 参数一起撤掉即可；`Session.IsAuto` 只是 `Bind` 读 `BootData.IsAuto`，不影响其它路径。
+表现层回退：去掉 `JudgmentText` 那条支路（三处 override/转发），`JudgmentView` 把
+`restart` 判断改回无条件重置。

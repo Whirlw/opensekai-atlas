@@ -259,6 +259,26 @@ namespace Sekai.Live
 			// Normal notes: play effect and show judgment text. Several notes can land on the same frame;
 			// only the worst of them owns the popup, and the fast/late caption follows that same note.
 			Effect(note);
+			ShowJudgmentText(note);
+		}
+
+		/// <summary>
+		/// The same popup without the effect. An autoplay session grades the interior markers of a bar
+		/// through stretches where nothing else is graded (the friction section of DEINOS); those
+		/// markers are not drawn, so the popup was the one thing that stopped refreshing.
+		/// </summary>
+		public override void JudgmentText(NoteBase note)
+		{
+			if (note == null || note.IsDecoration)
+			{
+				return;
+			}
+
+			ShowJudgmentText(note);
+		}
+
+		private void ShowJudgmentText(NoteBase note)
+		{
 			if (_judgmentView == null || _judgmentView.Excute(note.JudgeInfo))
 			{
 				_judgmentDescriptionView?.Excute(note.JudgeInfo);

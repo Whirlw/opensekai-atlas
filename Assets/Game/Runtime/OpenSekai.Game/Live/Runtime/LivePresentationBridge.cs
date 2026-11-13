@@ -84,6 +84,17 @@ namespace Sekai.Core.Live
 			LiveViewExt.JudgmentNote(views, note);
 		}
 
+		/// <summary>A silent marker was graded; only the judgement text updates.</summary>
+		public void JudgmentText(LiveViewBase[] views, NoteBase note)
+		{
+			if (note == null)
+			{
+				return;
+			}
+
+			LiveViewExt.JudgmentText(views, note);
+		}
+
 		/// <summary>A finger touched the lane without picking any note up.</summary>
 		public void Unpicked(LiveViewBase[] views, int lane, ref LiveTouch touch)
 		{
