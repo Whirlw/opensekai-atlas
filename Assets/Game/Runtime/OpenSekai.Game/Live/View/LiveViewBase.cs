@@ -47,6 +47,14 @@ namespace Sekai.Core.Live
 		{
 		}
 
+		/// <summary>
+		/// Refreshes the judgement text only. A note whose result is silent by design (an interior
+		/// marker nobody drew) still says what it was judged as; its effect and its sound stay off.
+		/// </summary>
+		public virtual void JudgmentText(NoteBase note)
+		{
+		}
+
 		public virtual void InputLane(int lane)
 		{
 		}

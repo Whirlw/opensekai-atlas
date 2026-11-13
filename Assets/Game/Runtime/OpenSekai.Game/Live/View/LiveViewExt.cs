@@ -56,6 +56,11 @@ namespace Sekai.Core.Live
 			ForEach(views, view => view.JudgmentNote(note));
 		}
 
+		public static void JudgmentText(LiveViewBase[] views, NoteBase note)
+		{
+			ForEach(views, view => view.JudgmentText(note));
+		}
+
 		public static void InputLane(LiveViewBase[] views, int lane)
 		{
 			ForEach(views, view => view.InputLane(lane));
