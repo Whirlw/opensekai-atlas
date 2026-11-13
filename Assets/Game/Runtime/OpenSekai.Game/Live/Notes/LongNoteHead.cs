@@ -12,6 +12,17 @@ namespace Sekai.Live
 		internal bool IsSettled => _result.result != NoteResult.None;
 		internal NoteResult Result => _result.result;
 
+		/// <summary>
+		/// The note the head's verdict is scored as. The bar carries the same number for the picture -
+		/// the judgement effect is played on the bar, and the views read the bar - but the head's own
+		/// result lives here, on an object of its own, so score, combo and damage stop being answers
+		/// about the bar's Result. One object per bar, rearmed by <see cref="Reset"/>.
+		/// </summary>
+		private NoteBase _identity;
+
+		internal NoteBase Identity => _identity ??= new NoteBase(
+			_bar.MusicScoreInfo, _bar.Id, _bar.LaneStart, _bar.LaneEnd, _bar.Category, _bar.speedRatio, _bar.LaneOffset, _bar.Type);
+
 		internal LongNoteHead(LongNote bar)
 		{
 			_bar = bar;
@@ -21,6 +32,11 @@ namespace Sekai.Live
 		{
 			_headPublished = false;
 			_result = (NoteResult.None, NoteResultDescription.None);
+			if (_identity != null)
+			{
+				_identity.ResetNote();
+				_identity.SetDecoration(_bar.IsDecoration);
+			}
 		}
 
 		internal void Settle((NoteResult result, NoteResultDescription description) result, bool updateScore = true)
@@ -37,15 +53,20 @@ namespace Sekai.Live
 				return;
 			}
 			_result = result;
+			// The bar keeps the same number for the picture; the verdict itself is the head's.
 			_bar.SetHeadJudgeInfo(result);
+			// NoteBase's JudgeInfo setter is protected, so this uses its one public write. It is the same
+			// assignment: the head's own object carries the head's own verdict.
+			Identity.SetJudgeInfoForDecoration(result.result);
 			// Guard before invoking user callbacks, including reentrant state changes or presses.
 			_headPublished = true;
 			if (!_bar.HasJudgment) return;
-			_bar.HeadDamage?.Invoke(_bar);
-			_bar.HeadCombo?.Invoke(_bar);
+			_bar.HeadDamage?.Invoke(Identity);
+			_bar.HeadCombo?.Invoke(Identity);
+			// The judgement effect belongs to the bar: it is the object the view layer knows.
 			_bar.HeadJudgment?.Invoke(_bar);
 			// Timeout misses historically omit score; a press keeps its score callback even if Miss.
-			if (updateScore) _bar.HeadScore?.Invoke(_bar);
+			if (updateScore) _bar.HeadScore?.Invoke(Identity);
 		}
 
 		internal void PublishHeadMiss()
