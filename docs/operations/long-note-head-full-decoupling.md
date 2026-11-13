@@ -86,6 +86,10 @@
   `LongNote.Judgment` 只转发到它，不再直接进 `DriveJudgmentFrame`。行为逐帧不变（同一个
   `DriveJudgmentFrame`），但入口从此在头上——候选集将来直接调这一个口即可。
   新增 `LongNoteHeadTests.TheHeadEntryAnswersThePress`。
+- **③a 收尾（同一轮）**：删掉最后两扇「按需」的门——
+  `LongNoteHead.PublishHeadMiss()`（头已没有「现在就补 Miss」的入口，只有自己的窗口）与
+  `LongNote.SetHeadJudgmentState()`（零调用、零用例的死桥）。`AnEndedBarLeavesItsHeadToItsOwnWindow`
+  之外的用例改用 `SettleExpiredHead` 驱动，断言数量不变。
 - **③b（未做）**：把 `LiveNoteFrame.ScanNote` 的注册对象从条换成头（`Identity` 需要一个带
   `IsJudgment`/`Judgment` 的派生类型），并处理与 `LiveHoldCoordinator`（按 `LongNote` 过滤
   `JudgmentNotes`）的共存。这条链路上带着判定特效与视图查找，**会动到视觉**，按 §4 的红线
