@@ -72,6 +72,9 @@ namespace Sekai.Core.Live
 			NoteIndex = 0;
 			HighSpeedIndex = 0;
 			_heads.Clear();
+			// A new take starts with no open notes: carrying the previous take's lists over meant a retry
+			// ticked notes it had never scanned, before their own bar was on screen at all.
+			_tails.Clear();
 		}
 
 		/// <summary>

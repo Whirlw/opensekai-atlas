@@ -44,6 +44,26 @@ namespace OpenSekai.Tests.EditMode.Live
 		}
 
 		[Test]
+		public void ARetryStartsWithNoOpenEndNotes()
+		{
+			// Every take starts clean: the session's tick lists belong to the take that is running. Carrying
+			// them over meant a retry ticked a note it had never scanned, before that note's own bar was on
+			// screen - the friction-flick end vanishing on a restart.
+			var session = new LiveNoteSession();
+			var bar = new LongNote(Info(0f), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
+			var tail = new FrictionFlickNote(Info(1f), 2, 4, 5, NoteCategory.FrictionFlick, 1f,
+				NoteType.Default, NoteDirection.Default, 0.0833f, 0f);
+			bar.AddNoteListAndSetupChildNote(tail);
+			session.RegisterTail(tail);
+
+			Assert.That(session.PendingTailCount, Is.EqualTo(1));
+
+			session.Reset();
+
+			Assert.That(session.PendingTailCount, Is.Zero, "a retry starts with no open end notes");
+		}
+
+		[Test]
 		public void ATailKeyIsRetiredWhateverPhaseItWasBuiltIn()
 		{
 			var bridge = new LivePresentationBridge();

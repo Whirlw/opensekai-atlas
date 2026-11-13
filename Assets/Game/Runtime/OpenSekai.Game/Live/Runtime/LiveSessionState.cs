@@ -50,8 +50,9 @@ namespace Sekai.Core.Live
 
 		internal void Reset(LivePresentationBridge presentation)
 		{
-			Notes.NoteIndex = 0;
-			Notes.HighSpeedIndex = 0;
+			// Notes.Reset clears the cursors AND the per-frame tick lists (open heads, open end notes).
+			// Setting only the two cursors left a retry ticking notes from the take that had just ended.
+			Notes.Reset();
 			_timeline.Reset();
 			TapCount = 0;
 			presentation.Reset();
