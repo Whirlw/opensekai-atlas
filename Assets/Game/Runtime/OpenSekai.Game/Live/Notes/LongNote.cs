@@ -208,14 +208,24 @@ namespace Sekai.Live
 		/// <summary>Feeds this bar one input frame: head, hold facts, frame stamp, points and tail.</summary>
 		internal bool DriveJudgmentFrame(ref LiveTouch touch, float lane)
 		{
-			if (!Head.TryJudge(ref touch, lane)) return false;
+			// A finished bar takes nothing: no hold, no points, no tail.
+			if (State == NoteState.Done)
+			{
+				return false;
+			}
+
+			// The head is the press's business; the hold is the body's. A finger resting in the lane does
+			// not decide an ordinary head (the head is judged by a press, through the press channel), but it
+			// does keep the bar held and its points refreshing - returning early here left a held bar with
+			// no finger at all, which is how a hold could grey out or vanish from the resident pass.
+			bool headTaken = Head.TryJudge(ref touch, lane);
 			RecordHoldingInput(touch.fingerId, MusicScore.CurrentFrameInfo.time);
 			RestoreHeldState();
 			MarkHeadTouched();
 			MarkPressedThisFrame();
 			if (LiveTrace.IsOn(LiveTraceCategory.Hold))
 			{
-				LiveTrace.Write(LiveTraceCategory.Hold, $"grab barT={MusicScoreInfo.time:F3} lane={lane:F2} range={JudgeLaneStart:F2}..{JudgeLaneEnd:F2} finger={touch.fingerId} phase={touch.phase}");
+				LiveTrace.Write(LiveTraceCategory.Hold, $"grab barT={MusicScoreInfo.time:F3} lane={lane:F2} range={JudgeLaneStart:F2}..{JudgeLaneEnd:F2} finger={touch.fingerId} phase={touch.phase} head={headTaken}");
 			}
 
 			ClearHeadJudgeOffset();
@@ -240,7 +250,7 @@ namespace Sekai.Live
 
 			// Being held: the bar is kept alive by its own refresh pass, so the finger can still serve
 			// a note that sits on top of it.
-			return true;
+			return headTaken;
 		}
 
 		/// <summary>

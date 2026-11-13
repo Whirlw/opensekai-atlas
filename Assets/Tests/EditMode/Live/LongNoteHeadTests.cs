@@ -29,6 +29,41 @@ namespace OpenSekai.Tests.EditMode.Live
         public void TearDown() { LiveConfig.noteTypeJudgeData = _previous; MusicScore.CurrentFrameInfo = _previousFrame; }
 
         [Test]
+        public void AFingerHeldInTheLaneNeverJudgesTheHead()
+        {
+            // The report: holding the lane graded an ordinary bar's head (Miss, -80 life) up to a third of
+            // a second BEFORE it reached the line, because the resident pass hands over a held touch whose
+            // timestamp is when the finger first landed. A hold is not a press: the head is judged by a
+            // press through the press channel, and otherwise keeps its own clock.
+            var bar = Bar();
+            var held = Touch(-0.25f);
+            held.phase = TouchPhase.Stationary;
+
+            Assert.That(bar.Head.Judgment(ref held, 4.5f), Is.False, "a hold does not decide the head");
+            Assert.That(bar.Head.IsSettled, Is.False, "and nothing was settled: no phantom Miss");
+            Assert.That(bar.Result, Is.EqualTo(NoteResult.None), "the bar keeps no verdict either");
+
+            var heldAtTheHead = Touch(-0.01f);
+            heldAtTheHead.phase = TouchPhase.Stationary;
+            Assert.That(bar.Head.Judgment(ref heldAtTheHead, 4.5f), Is.False,
+                "not even at the head's own moment: a hold is still not a press");
+            Assert.That(bar.Head.IsSettled, Is.False);
+        }
+
+        [Test]
+        public void APressOutsideTheWindowDoesNotSettleTheHead()
+        {
+            // Outside the head's own Bad window the ladder can only answer Miss; grading there is the
+            // damage the player sees in empty space, before the head arrives.
+            var bar = Bar();
+            var press = Touch(-0.25f);
+
+            Assert.That(bar.Head.Judgment(ref press, 4.5f), Is.False);
+            Assert.That(bar.Head.IsSettled, Is.False);
+            Assert.That(bar.Result, Is.EqualTo(NoteResult.None));
+        }
+
+        [Test]
         public void HeadResultAndCallbacksAreVisibleInThePressFrameOnlyOnce()
         {
             var bar = Bar();
