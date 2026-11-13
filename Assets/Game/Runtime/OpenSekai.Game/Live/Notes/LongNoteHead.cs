@@ -81,6 +81,14 @@ namespace Sekai.Live
 
 		internal void SettleExpiredHead(float currentTime)
 		{
+			// A carrier has no judgement at all: its head is not a note the player answers, so it has
+			// no window to time out either. Settling it here gave the bar a result (and a Miss) that
+			// the bar's own contract says it does not have.
+			if (!_bar.HasJudgment)
+			{
+				return;
+			}
+
 			// The head answers to its own window and to nothing else. The bar leaving the play state -
 			// a release, a tail that ends it early, the bar being recycled - is not a verdict on the
 			// head: one door out of the play state used to settle this head, which let the bar's

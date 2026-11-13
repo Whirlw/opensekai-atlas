@@ -29,6 +29,7 @@ namespace OpenSekai.Shared.Conversion
 		private bool _isMirror;
 		private bool _isShowPair;
 		private NoteBase _pair;
+		private List<float> _chartPositions;
 
 		/// <summary>
 		/// Converts the note tables of <paramref name="chart"/> into note roots, sorted by time and
@@ -44,6 +45,7 @@ namespace OpenSekai.Shared.Conversion
 			_isMirror = isMirror;
 			_isShowPair = showPair;
 			_pair = null;
+			_chartPositions = chart.NoteInfos.Keys.Concat(chart.GuideInfos.Keys).ToList();
 
 			ConvertNoteTable(chart.NoteInfos, isNeedCombo);
 			ConvertNoteTable(chart.GuideInfos, false);
@@ -254,14 +256,49 @@ namespace OpenSekai.Shared.Conversion
 
 			int startIndex = Mathf.FloorToInt(longNote.MusicScoreInfo.barProgress * longNoteComboBeat) + 1 + longNote.MusicScoreInfo.bar * longNoteComboBeat;
 			int endIndex = Mathf.CeilToInt(note.MusicScoreInfo.barProgress * longNoteComboBeat) - 1 + note.MusicScoreInfo.bar * longNoteComboBeat;
+
+			// A grid position that already holds a note is not a middle: the dense friction runs put a
+			// head or a tail on almost every 8th, and a point there judged a position that was a note's
+			// own. Only the bare grid positions in between are middles.
+			HashSet<int> occupied = ComboOccupiedIndices(longNoteComboBeat);
+
 			for (int i = startIndex; i <= endIndex; i++)
 			{
+				if (occupied.Contains(i))
+				{
+					continue;
+				}
+
 				MusicScoreInfo comboInfo = MusicScore.GenerateNoteMusicScoreInfo(i / longNoteComboBeat, i % longNoteComboBeat / (float)longNoteComboBeat, _frames);
 				LongHoldCombo combo = new LongHoldCombo(comboInfo, longNote.Type, 0, longNote.speedRatio, LiveUtility.GetLaneOffset(NoteCategory.Combo, _config));
 				combo.SetSkip(true);
 				longNote.AddHoldCombo(combo);
 			}
 			longNote.SortNoteList();
+		}
+
+		/// <summary>Grid positions (in combo-beat indices) that the chart itself already occupies.</summary>
+		private HashSet<int> ComboOccupiedIndices(int longNoteComboBeat)
+		{
+			var indices = new HashSet<int>();
+			if (_chartPositions == null || longNoteComboBeat <= 0)
+			{
+				return indices;
+			}
+
+			foreach (float position in _chartPositions)
+			{
+				float beat = position * longNoteComboBeat;
+				float rounded = Mathf.Round(beat);
+				if (Mathf.Abs(beat - rounded) > 0.01f)
+				{
+					continue;
+				}
+
+				indices.Add(Mathf.RoundToInt(beat));
+			}
+
+			return indices;
 		}
 
 		private void GuideJoinCheck(NoteInfo noteInfo, NoteBase note)

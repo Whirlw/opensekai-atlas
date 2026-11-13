@@ -32,6 +32,14 @@ namespace OpenSekai.Tests.EditMode.Charts
             }
         }
 
+        /// <summary>The combo grid is a serialized asset value; a test config starts at zero, i.e. no grid.</summary>
+        private void EnableComboGrid()
+        {
+            typeof(LiveBundleBuildData)
+                .GetField("_longNoteComboBeat", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(_config, 8);
+        }
+
         private static ChartDocument Document(params ChartNote[] notes)
         {
             var document = new ChartDocument { MusicScoreTicksMax = 3840 };
@@ -283,6 +291,56 @@ namespace OpenSekai.Tests.EditMode.Charts
             var carrier = score.NoteArray.OfType<FrictionHideLongNote>().FirstOrDefault();
             Assert.That(carrier, Is.Not.Null, "the hidden pair keeps its carrier");
             Assert.That(carrier.HasJudgment, Is.False, "a hidden carrier grades nothing");
+        }
+
+        [Test]
+        public void APointNeverLandsOnAnotherNotesPosition()
+        {
+            // The bar runs from tick 0 to 1920 and the grid puts a point on every 8th. A tap on 960 is
+            // already a note's own position there, so the bar must not generate a middle point on top
+            // of it: in DEINOS bar 78 the point at 78.000 sat on the head of the next bar, while the
+            // three bare 8ths were the only real middles.
+            EnableComboGrid();
+            var head = new ChartNote(1, 0, 0, 0, NoteCategory.Long, NoteType.Default, 1f,
+                NoteLineType.Linear, ChartNote.NoteBaseType.Long, isSkip: false,
+                direction: NoteDirection.Default, previousConnectionId: -1, nextConnectionId: 2);
+            var tail = new ChartNote(2, 1920, 0, 0, NoteCategory.Long, NoteType.Default, 1f,
+                NoteLineType.Linear, ChartNote.NoteBaseType.Long, isSkip: false,
+                direction: NoteDirection.Default, previousConnectionId: 1, nextConnectionId: -1);
+            var tap = Tap(3, NoteCategory.Normal, 960);
+
+            MusicScore score = Convert(Document(head, tail, tap));
+            var points = score.NoteArray.OfType<LongNote>()
+                .SelectMany(bar => bar.NoteList.OfType<LongHoldCombo>())
+                .Select(point => (int)System.Math.Round(point.MusicScoreInfo.time * 1000f))
+                .ToArray();
+            var tapNote = score.NoteArray.OfType<NormalNote>().Single();
+            int tapMilliseconds = (int)System.Math.Round(tapNote.MusicScoreInfo.time * 1000f);
+
+            Assert.That(points, Is.Not.Empty, "the bare 8ths still carry points");
+            Assert.That(points, Has.None.EqualTo(tapMilliseconds),
+                "the 8th the tap already owns is not a middle");
+        }
+
+        [Test]
+        public void ABodyShorterThanAStepKeepsItsSinglePoint()
+        {
+            // A 30 tick friction sliver: its body is the grid point, so dropping the point would drop
+            // the note. The three 8th-note bodies of DEINOS bars 78 are this case.
+            EnableComboGrid();
+            var head = new ChartNote(1, 2385, 0, 0, NoteCategory.FrictionHideLong, NoteType.Default, 1f,
+                NoteLineType.Linear, ChartNote.NoteBaseType.FrictionHideLong, isSkip: false,
+                direction: NoteDirection.Default, previousConnectionId: -1, nextConnectionId: 2);
+            var tail = new ChartNote(2, 2415, 0, 0, NoteCategory.FrictionHideLong, NoteType.Default, 1f,
+                NoteLineType.Linear, ChartNote.NoteBaseType.FrictionHideLong, isSkip: false,
+                direction: NoteDirection.Default, previousConnectionId: 1, nextConnectionId: -1);
+
+            MusicScore score = Convert(Document(head, tail));
+            var points = score.NoteArray.OfType<LongNote>()
+                .SelectMany(bar => bar.NoteList.OfType<LongHoldCombo>())
+                .ToArray();
+
+            Assert.That(points, Has.Length.EqualTo(1), "the sliver keeps the point its body sits on");
         }
     }
 }

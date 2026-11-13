@@ -242,10 +242,12 @@ namespace Sekai.Core.Live
 			// included: the tap effect decides for itself whether the result deserves a sound.
 			if (note.IsSkip)
 			{
-				// Autoplay is the one place where a silent marker is all there is to grade for a whole
+				// Autoplay is the one place where a marker can be all there is to grade for a whole
 				// stretch (the friction section of DEINOS), so its exclusion also switched the AUTO
-				// popup off there. The text refreshes; the effect and the sound stay off.
-				if (_session.IsAuto)
+				// popup off there. Only a marker on a carrier refreshes the text: a marker inside a bar
+				// that speaks for itself already got its popup from that bar, and doubling it there
+				// would make the popup faster than the notes.
+				if (_session.IsAuto && note.ParentNote is NoteBase carrier && !carrier.HasJudgment)
 				{
 					_presentation.JudgmentText(_session.Views, note);
 				}

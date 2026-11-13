@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Sekai;
 using Sekai.Live;
@@ -314,9 +314,41 @@ namespace OpenSekai.Live.Conversion
 			if (liveNote is LongNote longNote && liveNote.NoteList != null && liveNote.NoteList.Count > 0 && liveBundleBuildData != null)
 			{
 				NoteBase lastNote = liveNote.NoteList[liveNote.NoteList.Count - 1];
-				AddComboNote(lastNote, longNote, liveBundleBuildData.LongNoteComboBeat, liveBundleBuildData, musicScoreInfos, liveNote.speedRatio);
+				AddComboNote(lastNote, longNote, noteArray, liveBundleBuildData.LongNoteComboBeat, liveBundleBuildData, musicScoreInfos, liveNote.speedRatio);
 			}
 			return liveNote;
+		}
+
+		private static HashSet<int> OccupiedGridIndices(List<ChartNote> noteArray, int comboStepTicks)
+		{
+			var indices = new HashSet<int>();
+			if (noteArray == null || comboStepTicks <= 0)
+			{
+				return indices;
+			}
+
+			foreach (ChartNote chartNote in noteArray)
+			{
+				if (chartNote == null)
+				{
+					continue;
+				}
+
+				double grid = chartNote.ticks / (double)comboStepTicks;
+				double rounded = System.Math.Round(grid);
+				if (System.Math.Abs(grid - rounded) > 0.001)
+				{
+					continue;
+				}
+
+				// A note that sits exactly on the grid owns that position: no middle point there.
+				if (rounded >= int.MinValue && rounded <= int.MaxValue)
+				{
+					indices.Add((int)rounded);
+				}
+			}
+
+			return indices;
 		}
 
 		private static void CalcSkipNoteLane(LiveBundleBuildData liveBundleBuildData, NoteBase childNote)
@@ -336,7 +368,7 @@ namespace OpenSekai.Live.Conversion
 			childNote.JudgeLaneEnd = judgeEnd;
 		}
 
-		private static void AddComboNote(NoteBase note, LongNote longNote, int longNoteComboBeat, LiveBundleBuildData liveBundleBuildData, MusicScoreInfo[] musicScoreInfoArray, float speedRatio)
+		private static void AddComboNote(NoteBase note, LongNote longNote, List<ChartNote> noteArray, int longNoteComboBeat, LiveBundleBuildData liveBundleBuildData, MusicScoreInfo[] musicScoreInfoArray, float speedRatio)
 		{
 			if (note == null || longNote == null || longNoteComboBeat <= 0)
 			{
@@ -349,8 +381,20 @@ namespace OpenSekai.Live.Conversion
 			int divisions = OpenSekai.Charts.ChartTimeline.TICKS_PER_BAR > 0 ? (int)(OpenSekai.Charts.ChartTimeline.TICKS_PER_BAR / comboStepTicks) : 8;
 			int startIndex = (int)Math.Floor(longNote.MusicScoreInfo.barProgress * divisions) + 1 + longNote.MusicScoreInfo.bar * divisions;
 			int endIndex = (int)Math.Ceiling(note.MusicScoreInfo.barProgress * divisions) - 1 + note.MusicScoreInfo.bar * divisions;
+
+			// A grid point is only a middle if no note already sits on it. The dense friction runs of
+			// DEINOS put a head or a tail on almost every 8th: generating a point there made the bar
+			// judge a position that was already a note's own (bar 78: a point at 78.000 on the head of
+			// the next bar, while the three bare 8ths at 78.125/78.375/78.625 are the only real middles).
+			HashSet<int> occupied = OccupiedGridIndices(noteArray, comboStepTicks);
+
 			for (int i = startIndex; i <= endIndex; i++)
 			{
+				if (occupied.Contains(i))
+				{
+					continue;
+				}
+
 				MusicScoreInfo musicScoreInfo = MusicScore.GenerateNoteMusicScoreInfo(i / divisions, i % divisions / (float)divisions, musicScoreInfoArray);
 				LongHoldCombo combo = new LongHoldCombo(musicScoreInfo, longNote.Type, speedRatio, LiveUtility.GetLaneOffset(NoteCategory.Combo, liveBundleBuildData));
 				longNote.AddHoldCombo(combo);
