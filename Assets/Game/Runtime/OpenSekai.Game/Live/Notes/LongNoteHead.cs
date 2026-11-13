@@ -125,6 +125,14 @@ namespace Sekai.Live
 				return false;
 			}
 
+			// The head settles itself, so it checks its own lane: this entry is reached from the head's
+			// candidate and from the hold pass, neither of which goes through LongNote.IsJudgment's lane gate
+			// on every path. A press in another lane must never take a right to this head.
+			if (lane < _bar.JudgeLaneStart || lane > _bar.JudgeLaneEnd)
+			{
+				return false;
+			}
+
 			// A bar has no owner any more, so a second finger landing on it cannot steal the head:
 			// the head is settled once, by whichever touch reaches the window first.
 			bool headSettledAlready = IsSettled;
