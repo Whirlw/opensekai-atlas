@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Newtonsoft.Json;
@@ -653,7 +653,14 @@ namespace Sekai.Live
 		protected virtual void OnUnSpawnNote()
 		{
 			PublishResult();
-			if (ParentRole != NoteParentRole.Tail) RemoveView();
+
+			// A bar's ending key is the note's own view, so the note releases it when the note is done -
+			// that is the "it has a result" half of the rule (the other half, "its own time has arrived",
+			// is the presentation pass). Tail keys used to be excluded here because the bar owned that
+			// key; keeping the exclusion left every drawn end key with no owner once its bar was gone,
+			// which is why only a hidden end (no key at all) seemed to disappear promptly.
+			// A note with no judgement is not drawn, so asking it to release nothing is skipped.
+			if (ParentRole != NoteParentRole.Tail || HasJudgment) RemoveView();
 		}
 
 		protected virtual void PublishResult()
