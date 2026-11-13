@@ -1,4 +1,4 @@
-# 架构
+﻿# 架构
 
 > 目的：说明这套代码为什么这样分层、数据从曲包流到画面经过哪些环节，供改代码的人定位。
 > 适用读者：开发者。
@@ -21,6 +21,7 @@
 | [模块划分](modules.md) | 目录职责、依赖方向、`Assets` 下剩余代码的归属 |
 | [曲包与谱面数据](chart-package.md) | `.oskp` 结构、`ChartDocument`、兼容旧类型名的 binder |
 | [打歌运行时](live-runtime.md) | 场景切换、时钟、输入回填、判定、计分、结算 |
+| [判定规则设计](judging-design.md) | 判定权归属、三条通道、时间与轨道规则、长条四段结构、不变量清单 |
 | [开局数据契约](play-session.md) | `PlaySession` / `RuntimeChartDefinition`，以及它们与 `FreeLiveBootData` 的关系 |
 | [页面系统](screen-system.md) | `ScreenManager` 的三个注册页面与独立的曲库页 |
 | [AssetBundle 与清单](asset-bundles.md) | 11 个白名单条目、0.3.0 的 10 个实际 bundle 与 JSON 清单 |
