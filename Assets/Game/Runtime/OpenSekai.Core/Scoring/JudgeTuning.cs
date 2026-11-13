@@ -19,8 +19,9 @@ namespace OpenSekai.Shared.Scoring
         public const float ShippedNormalLaneOffset = 1.25f;
         public const float ShippedLongLaneOffset = 1.5f;
         public const float ShippedFlickLaneOffset = 1.5f;
-        // 5 inches per second expressed per 1/60 s frame, which is what the judge compares against.
-        public const float ShippedFlickDistanceInches = 5f / 60f;
+        // 5 cm per second expressed per 1/60 s frame, which is what the judge compares against. The units
+        // the asset stores are inches, so the centimetre figure is divided by 2.54 here and nowhere else.
+        public const float ShippedFlickDistanceInches = 5f / 2.54f / 60f;
 
         public JudgeTuning(float normalLaneOffset, float longLaneOffset, float flickLaneOffset, float flickDistanceInches)
         {

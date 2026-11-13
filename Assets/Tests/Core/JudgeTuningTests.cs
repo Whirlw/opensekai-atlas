@@ -38,19 +38,19 @@ namespace OpenSekai.Tests.EditMode.Live
         {
             var tuning = JudgeTuning.Shipped;
 
-            // 5/60 in at 100 dpi is (5/60) * 100 / 2.54 = 3.28 px.
-            Assert.That(tuning.FlickDistanceInPixels(100f), Is.EqualTo(3.2808f).Within(1e-3f));
+            // 5 cm/s = 5/2.54 in/s, per 1/60 s frame that is 5/2.54/60 in; at 100 dpi it is
+            // (5/2.54/60) * 100 / 2.54 = 1.29 px.
+            Assert.That(tuning.FlickDistanceInPixels(100f), Is.EqualTo(1.2919f).Within(1e-3f));
             // A zero or negative DPI must not produce a negative threshold.
             Assert.That(tuning.FlickDistanceInPixels(0f), Is.EqualTo(0f));
         }
 
         [Test]
-        public void FlickDistanceIsFiveInchesPerSecondAtSixtyFrames()
+        public void FlickDistanceIsFiveCentimetresPerSecondAtSixtyFrames()
         {
-            // 5/60 in per frame * 60 frames = 5 in/s, i.e. about 12.7 cm/s.
-            float inchesPerSecond = JudgeTuning.Shipped.FlickDistanceInches * 60f;
-            Assert.That(inchesPerSecond, Is.EqualTo(5f).Within(0.01f));
-            Assert.That(inchesPerSecond * 2.54f, Is.EqualTo(12.7f).Within(0.02f));
+            // The judge compares one 60 fps frame of travel, so a threshold of 5 cm/s is 5/2.54/60 inches.
+            float centimetresPerSecond = JudgeTuning.Shipped.FlickDistanceInches * 60f * 2.54f;
+            Assert.That(centimetresPerSecond, Is.EqualTo(5f).Within(0.01f));
         }
 
         [Test]
