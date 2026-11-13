@@ -1,4 +1,4 @@
-﻿using OpenSekai.Shared.Diagnostics;
+using OpenSekai.Shared.Diagnostics;
 
 namespace Sekai.Live
 {
@@ -131,23 +131,40 @@ namespace Sekai.Live
 				return false;
 			}
 
-			// An ordinary head is decided by a PRESS, never by a finger that happens to rest in the lane.
-			// The resident hold pass drives this method every frame with whatever touch it picked, and a
-			// held finger carries the timestamp of when it first landed - so "holding the lane" graded
-			// the head (Miss, -80 life) up to a third of a second before it reached the line. A hold is
-			// not a press: the head keeps its own clock and expires on its own.
-			if (touch.phase != UnityEngine.InputSystem.TouchPhase.Began)
+			// A press decides the head. The press is the touch's own Began event, judged at the touch's own
+			// time - never at the frame clock - and it has to land inside the head's window.
+			//
+			// A finger that was pressed too early is refused here, and the refusal is the report: it stayed
+			// down for the whole window as Moved, so the head had nothing to answer and missed. What the
+			// player did was press for this head and hold, so a finger that is already holding this lane when
+			// the head reaches the line is the same press, one window later. It is graded at the head's own
+			// time, which is what holding through the line means.
+			float now = MusicScore.CurrentFrameInfo.time;
+			bool began = touch.phase == UnityEngine.InputSystem.TouchPhase.Began;
+			bool held = !began && _bar.HasFinger && now >= _bar.MusicScoreInfo.time - LiveConfig.JustPerfectJudgeTimeHalf;
+
+			float judgeTime;
+			if (began)
+			{
+				float offset = touch.musicTime - _bar.MusicScoreInfo.time;
+				if (!LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(_bar), offset))
+				{
+					return false;
+				}
+
+				judgeTime = touch.musicTime;
+			}
+			else if (held)
+			{
+				// Graded at the line: the finger was already there when the head arrived.
+				judgeTime = _bar.MusicScoreInfo.time;
+			}
+			else
 			{
 				return false;
 			}
 
-			float offset = touch.musicTime - _bar.MusicScoreInfo.time;
-			if (!LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(_bar), offset))
-			{
-				return false;
-			}
-
-			var judgeInfo = LiveConfig.CalculateLongStartNoteResult(_bar, touch.musicTime);
+			var judgeInfo = LiveConfig.CalculateLongStartNoteResult(_bar, judgeTime);
 			Settle(_bar.HeadResultUpdater != null ? _bar.HeadResultUpdater(judgeInfo) : judgeInfo);
 			return true;
 		}
