@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
@@ -136,20 +136,20 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         [Test]
-        public void UnjudgedTailSlidesOutAndIsRecycledOnce()
+        public void AnUnjudgedTailIsTakenOffAtItsOwnTime()
         {
             Arrange();
             StartHolding();
             Step(TailTime, TouchPhase.Stationary);
-            // The bar ends at the tail's time; nobody graded the key, so it slides away instead of
-            // vanishing on the line, and it is recycled exactly once when it has scrolled off.
+            // The bar ends at the tail's time and nobody graded the key. The key belongs to the note, and
+            // the rule is: it leaves when the note has a verdict OR when its own time arrives - whichever
+            // comes first. Sliding it out below the line was what kept it on screen after the note was over.
             Assert.That(Tail.Result, Is.EqualTo(NoteResult.None));
-            Assert.That(_bar.GetTailKeyPhase(TailTime), Is.EqualTo(TailKeyPhase.SlidingOut));
-            Assert.That(_view.Removals(Tail), Is.Zero);
             Step(TailTime + 0.2f);
+            Assert.That(_view.Removals(Tail), Is.EqualTo(1), "an unjudged key is taken off at its own time");
             Step(TailTime + 0.6f);
             Step(TailTime + 1f);
-            Assert.That(_view.Removals(Tail), Is.EqualTo(1), "an unjudged key slides off, it does not vanish");
+            Assert.That(_view.Removals(Tail), Is.EqualTo(1), "and it is recycled exactly once");
         }
 
         [Test]

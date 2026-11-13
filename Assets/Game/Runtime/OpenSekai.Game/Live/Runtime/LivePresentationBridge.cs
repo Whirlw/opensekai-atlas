@@ -124,26 +124,21 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>
-		/// A judged key leaves with its result. Letting a graded key keep riding down reads as a
-		/// second, phantom key hanging under the line. A key nobody judged still slides away, which
-		/// is what "the bar ended while the finger was elsewhere" should look like: the note is gone,
-		/// not a key stuck on the line.
+		/// A bar's ending key leaves when it has its own verdict, or when its own time arrives - whichever
+		/// comes first. Letting a graded key keep riding down reads as a second, phantom key hanging under
+		/// the line; and a key whose time has come has nothing left to show, so it is taken off rather than
+		/// slid out (a friction, friction-flick or ordinary end has no verdict of its own when its bar ends,
+		/// which is how such a key used to sit on the line for a few frames after the bar was gone).
 		/// </summary>
 		public void TickTailKeys(float now)
 		{
-			List<NoteBase> judged = null;
+			List<NoteBase> leaving = null;
 			foreach (NoteBase tail in _tailKeys)
 			{
 				LongNote bar = tail.ParentNote as LongNote;
-				if (bar == null)
+				if (bar == null || tail.Result != NoteResult.None || now >= tail.MusicScoreInfo.time)
 				{
-					(judged ??= new List<NoteBase>()).Add(tail);
-					continue;
-				}
-
-				if (tail.Result != NoteResult.None)
-				{
-					(judged ??= new List<NoteBase>()).Add(tail);
+					(leaving ??= new List<NoteBase>()).Add(tail);
 					continue;
 				}
 
@@ -154,14 +149,14 @@ namespace Sekai.Core.Live
 				}
 			}
 
-			if (judged == null)
+			if (leaving == null)
 			{
 				return;
 			}
 
-			for (int index = 0; index < judged.Count; index++)
+			for (int index = 0; index < leaving.Count; index++)
 			{
-				NoteBase tail = judged[index];
+				NoteBase tail = leaving[index];
 				tail.RemoveView();
 				_tailKeys.Remove(tail);
 				_retiring.Remove(tail);

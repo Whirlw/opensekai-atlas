@@ -81,19 +81,20 @@ namespace OpenSekai.Tests.EditMode.Live
 
 			Assert.That(_view.Spawned, Does.Contain(tail), "the key was drawn");
 
+			// A verdict before the note's own time retires it at once.
 			tail.FinishWith(NoteResult.JustPerfect);
-			bridge.TickTailKeys(bar.MusicScoreInfo.time + 1f);
+			bridge.TickTailKeys(bar.MusicScoreInfo.time);
 
 			Assert.That(_view.Unspawned, Does.Contain(tail), "a settled end key leaves the line");
 		}
 
 		[Test]
-		public void TheBarsEndKeyLeavesWithTheBar()
+		public void TheEndKeyLeavesWhenItsOwnTimeArrives()
 		{
 			// A friction, friction-flick or ordinary end has no verdict of its own when its bar ends (the bar
-			// speaks for it), so the retirement pass only starts sliding it out - the key sat on the line for
-			// a few frames after the bar was gone. It now leaves with the bar, like a hidden end (which has
-			// no key at all).
+			// speaks for it), so the retirement pass used to keep sliding it out for a few frames and the key
+			// sat on the judgement line. Now the key's own time is enough: it is taken off the moment that
+			// time arrives. A hidden end draws nothing and behaves the same way in that it shows nothing.
 			var bridge = new LivePresentationBridge();
 			var bar = new LongNote(Info(0f), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
 			var tail = new FrictionNote(Info(1f), 2, 4, 5, NoteCategory.Friction, null, NoteType.Default, 1f);
@@ -104,10 +105,14 @@ namespace OpenSekai.Tests.EditMode.Live
 			bridge.Spawn(views, tail, bar.MusicScoreInfo.time);
 			bar.RecordHoldingInput(1, 0.5f);
 
-			Assert.That(bar.ExpireTail(2f), Is.True, "the bar ends");
-			Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+			Assert.That(bar.ExpireTail(2f), Is.True, "the bar ends first, with no verdict written on the note");
+			Assert.That(tail.Result, Is.EqualTo(NoteResult.None));
 
-			Assert.That(_view.Unspawned, Does.Contain(tail), "and its end key went with it");
+			bridge.TickTailKeys(0.5f);
+			Assert.That(_view.Unspawned, Is.Empty, "before the end note's time its key stays");
+
+			bridge.TickTailKeys(tail.MusicScoreInfo.time);
+			Assert.That(_view.Unspawned, Does.Contain(tail), "and at its own time the key is taken off");
 		}
 	}
 }
