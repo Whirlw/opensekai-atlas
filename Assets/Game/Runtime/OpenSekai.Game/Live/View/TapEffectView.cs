@@ -321,6 +321,12 @@ namespace Sekai
 				case NoteCategory.Connection:
 					Connection();
 					break;
+				// A Combo point that reaches this far was drawn (an undrawn one is filtered out before
+				// the presentation): it has a diamond, so it pops one. A point added in the editor is
+				// exactly this case.
+				case NoteCategory.Combo:
+					Connection();
+					break;
 				case NoteCategory.Flick:
 				case NoteCategory.FrictionFlick:
 					PlayLaneEffect();
@@ -334,7 +340,6 @@ namespace Sekai
 					break;
 				case NoteCategory.FrictionHide:
 				case NoteCategory.FrictionHideLong:
-				case NoteCategory.Combo:
 				case NoteCategory.Hidden:
 					return;
 				default:

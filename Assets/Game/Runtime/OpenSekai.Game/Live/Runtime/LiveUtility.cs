@@ -169,11 +169,21 @@ namespace Sekai
 
 				foreach (NoteBase note in rootNote.NoteList)
 				{
-					// Decoration notes do not count toward combo
-					if (note != null && !note.IsDecoration && note.HasJudgment)
+					// Decoration notes do not count toward combo.
+					if (note == null || note.IsDecoration || !note.HasJudgment)
 					{
-						count++;
+						continue;
 					}
+
+					// A hidden interior point is never judged, so it may not be counted either: the
+					// score has to stay reachable when every judged note is a hit.
+					bool isInteriorPoint = note is LongHoldCombo || note is ConnectionNote || note is HiddenConnectionNote;
+					if (isInteriorPoint && !LongNote.IsJudgedInteriorPoint(note))
+					{
+						continue;
+					}
+
+					count++;
 				}
 			}
 
