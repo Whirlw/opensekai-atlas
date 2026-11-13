@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using OpenSekai.Shared.Diagnostics;
 using OpenSekai.Shared.Live;
 using UnityEngine;
@@ -170,6 +170,17 @@ namespace Sekai.Live
 			{
 				_bar.FinishSilently();
 				return true;
+			}
+
+			// A bar never leaves before its own head has a verdict. A bar shorter than its head's window - a
+			// one-tick bar, which is what every broken chart in the reports has - was past its tail window
+			// about six milliseconds in, so it finished, went back to the pool and took the head's remaining
+			// ~125 ms of window with it: a press that landed after that had nothing left to answer and the
+			// head missed. The head settles itself (LongNoteHead.SettleExpiredHead) at exactly that window.
+			if (_bar.PublishesHeadMiss && !_bar.Head.IsSettled
+				&& currentTime - _bar.MusicScoreInfo.time <= LiveConfig.JudgeTime)
+			{
+				return false;
 			}
 
 			if (!IsPastTailWindow(currentTime))
