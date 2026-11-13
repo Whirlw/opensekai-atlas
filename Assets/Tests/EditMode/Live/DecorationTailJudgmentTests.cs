@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 using NUnit.Framework;
 
@@ -124,7 +124,7 @@ namespace OpenSekai.Tests.EditMode.Live
         public void AnOrdinaryEndOfADecorativeBarIsPressed()
         {
             LiveLogic logic = Drive(NormalTail, out NoteBase tail, TouchPhase.Began);
-            Assert.That(logic.Input.ConnectionNotes, Contains.Item(tail),
+            Assert.That(logic.Input.JudgmentNotes, Contains.Item(tail),
                 "a press inside the end note's lane has to make it a candidate");
             logic.Scheduler.EvaluateJudgment();
             Assert.That(tail.Result, Is.Not.EqualTo(NoteResult.None), "the press has to grade the end note");
@@ -134,7 +134,7 @@ namespace OpenSekai.Tests.EditMode.Live
         public void AFlickEndOfADecorativeBarIsSwiped()
         {
             LiveLogic logic = Drive(FlickTail, out NoteBase tail, TouchPhase.Moved);
-            Assert.That(logic.Input.ConnectionNotes, Contains.Item(tail),
+            Assert.That(logic.Input.JudgmentNotes, Contains.Item(tail),
                 "a swipe over the flick end has to make it a candidate");
             logic.Scheduler.EvaluateJudgment();
             Assert.That(tail.Result, Is.Not.EqualTo(NoteResult.None), "the swipe has to grade the flick end");
@@ -144,7 +144,7 @@ namespace OpenSekai.Tests.EditMode.Live
         public void AFrictionEndOfADecorativeBarIsRubbed()
         {
             LiveLogic logic = Drive(FrictionTail, out NoteBase tail, TouchPhase.Moved);
-            Assert.That(logic.Input.ConnectionNotes, Contains.Item(tail),
+            Assert.That(logic.Input.JudgmentNotes, Contains.Item(tail),
                 "a rub inside the friction end has to make it a candidate");
             logic.Scheduler.EvaluateJudgment();
             Assert.That(tail.Result, Is.Not.EqualTo(NoteResult.None), "the rub has to grade the friction end");
@@ -154,7 +154,7 @@ namespace OpenSekai.Tests.EditMode.Live
         public void AFrictionFlickEndOfADecorativeBarIsSwiped()
         {
             LiveLogic logic = Drive(FrictionFlickTail, out NoteBase tail, TouchPhase.Moved);
-            Assert.That(logic.Input.ConnectionNotes, Contains.Item(tail),
+            Assert.That(logic.Input.JudgmentNotes, Contains.Item(tail),
                 "a swipe over the friction flick end has to make it a candidate");
             logic.Scheduler.EvaluateJudgment();
             Assert.That(tail.Result, Is.Not.EqualTo(NoteResult.None), "the swipe has to grade the friction flick end");

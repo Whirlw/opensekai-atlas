@@ -214,12 +214,11 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         [Test]
-        public void APressOnAFinishedBarChangesNothing()
+        public void APressOnAFinishedBarStillJudgesTheHeadOnItsOwnClock()
         {
-            // Answers §12.4-4 of tail-classes.md: TryJudge still refuses a bar that is already Done.
-            // The refusal is redundant with IsJudgment (a Done bar is never a candidate again), so it
-            // is kept as a second lock rather than removed for tidiness - what matters is that the
-            // outcome is "nothing changes", which is what this pins.
+            // The head is an instant key on its own clock: the bar pinning it on the line, and the bar being
+            // finished, are both pictures. So a press inside the head's window still settles the head, while
+            // the bar itself stays done and takes nothing else.
             var bar = new Bar();
             bar.Visual(NoteState.Last);
             bar.ForceTerminate((NoteBase)bar.ChildNote);
@@ -228,10 +227,9 @@ namespace OpenSekai.Tests.EditMode.Live
             var touch = Touch(0);
             bool judged = bar.Judgment(ref touch, 4.5f);
 
-            Assert.That(judged, Is.False, "a finished bar takes no input");
-            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.None),
-                "and nothing settles the head here: its own window does, on its own clock");
-            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+            Assert.That(judged, Is.True, "the press reaches the head, which is still open");
+            Assert.That(bar.Head.Result, Is.Not.EqualTo(NoteResult.None), "the head keeps its own verdict");
+            Assert.That(bar.State, Is.EqualTo(NoteState.Done), "and the bar stays finished");
         }
     }
 }

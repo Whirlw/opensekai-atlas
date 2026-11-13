@@ -439,14 +439,17 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>
-		/// Fills each finger's candidate list from the judgement list for this frame, and returns the
-		/// notes that are only being connected to (they may still be picked up later).
+		/// Fills each finger's press candidates from the judgement list for this frame.
+		///
+		/// Only a press step is ever nominated: an ordinary note, a flick's press part, or an ordinary bar
+		/// head. A bar's body, a hidden point or an interior combo point is never a press candidate - they are
+		/// driven by their own per-frame passes - so nothing here can spend a finger's press on something the
+		/// press cannot answer.
 		/// </summary>
 		public void Collect(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs,
-			List<NoteBase> connectionNotes, LiveHoldCoordinator holds, LaneOf laneOf,
-			Dictionary<int, double> pressed)
+			LiveHoldCoordinator holds, LaneOf laneOf, Dictionary<int, double> pressed)
 		{
-			if (judgmentNotes == null || inputs == null || connectionNotes == null)
+			if (judgmentNotes == null || inputs == null)
 			{
 				return;
 			}
@@ -456,209 +459,53 @@ namespace Sekai.Core.Live
 			for (int noteIndex = 0; noteIndex < judgmentNotes.Count; noteIndex++)
 			{
 				NoteBase judgmentNote = judgmentNotes[noteIndex];
-				if (judgmentNote == null)
+				if (judgmentNote == null || !IsPressStep(judgmentNote))
 				{
 					continue;
 				}
 
-				// An interior point is settled by JudgeDueComboPoints before this runs, by any finger in
-				// its lane. Nominating it here as well would let one of them spend a slot on it twice.
-				if (!IsPressStep(judgmentNote))
-				{
-					continue;
-				}
-
-				bool isConnection = true;
-				bool isJudged = false;
 				for (int inputIndex = inputs.Count - 1; inputIndex >= 0; inputIndex--)
 				{
 					LiveLogic.InputTmp activeInput = inputs[inputIndex];
 					if (activeInput.Touch.phase != UnityEngine.InputSystem.TouchPhase.Began) continue;
-					NoteBase note = judgmentNote;
-					// A finger that owns a hold is still free to judge other notes in its lane:
-					// charts overlay a separate contact-only note on top of a bar. Only hold-vs-hold
-					// contention needs the reservation.
+
+					// A finger that owns a hold is still free to judge other notes in its lane: charts
+					// overlay a separate contact-only note on top of a bar. Only hold-vs-hold contention
+					// needs the reservation.
 					int heldNote = holds?.NoteOf(inputIndex) ?? -1;
 					if (heldNote >= 0 && heldNote != noteIndex && judgmentNote is LongNote)
 					{
 						continue;
 					}
 
+					NoteBase note = judgmentNote;
 					float lane = laneOf(ref note, ref activeInput);
-
-					if (lane >= 0f && note.IsJudgment(ref activeInput.Touch, lane))
+					if (lane < 0f || !note.IsJudgment(ref activeInput.Touch, lane))
 					{
-						isJudged = true;
-						int touchId = activeInput.Touch.touchId;
-						NoteBase lastNote = LiveLogic.GetLastNote(judgmentNote);
-						if (judgmentNote.NoteList != null && judgmentNote.NoteList.Count == 1)
-						{
-							AddCheckSingleInputedNormalNoteTouch(ref judgmentNote, ref lastNote, ref activeInput, ref isConnection, ref isJudged, ref touchId, laneOf, pressed);
-						}
-						else
-						{
-							AddCheckLongInputedNormalNoteTouch(ref judgmentNote, ref lastNote, ref activeInput, ref isConnection, ref isJudged, ref touchId, laneOf, pressed);
-						}
-
 						continue;
 					}
 
-					NoteBase firstNote = LiveLogic.GetFirstNote(judgmentNote);
-					if (firstNote != null && TryAddConnectionCandidate(firstNote, activeInput, laneOf))
+					// One touch judges one note. Another note may claim the same touch only when its grade
+					// would be worse than Great or a sixth of a second has passed, which is what lets a fast
+					// run of notes still be played with one finger.
+					int touchId = activeInput.Touch.touchId;
+					bool spent = pressed != null && pressed.ContainsKey(touchId);
+					if (spent
+						&& note.CalcNoteResult(activeInput.Touch.musicTime) <= NoteResult.Great
+						&& activeInput.Touch.musicTime - pressed[touchId] <= 1f / 6f)
 					{
-						isConnection = true;
-						isJudged = true;
+						continue;
 					}
-				}
 
-				if (isJudged && isConnection)
-				{
-					connectionNotes.Add(judgmentNote);
-				}
-			}
-		}
-
-		/// <summary>
-		/// Promotes notes that were only connected to on an earlier frame, once a finger is close
-		/// enough to actually judge them.
-		/// </summary>
-		public void PickUp(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs,
-			List<NoteBase> connectionNotes, LiveHoldCoordinator holds, LaneOf laneOf,
-			Dictionary<int, double> pressed)
-		{
-			if (judgmentNotes == null || inputs == null || connectionNotes == null)
-			{
-				return;
-			}
-
-			for (int inputIndex = inputs.Count - 1; inputIndex >= 0; inputIndex--)
-			{
-				LiveLogic.InputTmp input = inputs[inputIndex];
-				for (int noteIndex = connectionNotes.Count - 1; noteIndex >= 0; noteIndex--)
-				{
-					NoteBase note = connectionNotes[noteIndex];
-					int heldNote = holds?.NoteOf(inputIndex) ?? -1;
-					if (heldNote >= 0 && note is LongNote
-						&& !ReferenceEquals(note, judgmentNotes[heldNote])) continue;
-					float lane = laneOf(ref note, ref input);
-					if (lane >= 0f && note != null && note.IsJudgment(ref input.Touch, lane))
-					{
-						input.CandidateNotes.Add(note);
-						connectionNotes.RemoveAt(noteIndex);
-					}
-				}
-			}
-		}
-
-		private static void AddCheckSingleInputedNormalNoteTouch(ref NoteBase judgmentNote, ref NoteBase note,
-			ref LiveLogic.InputTmp activeInput, ref bool isConnection, ref bool isJudged, ref int touchId,
-			LaneOf laneOf, Dictionary<int, double> pressed)
-		{
-			if (judgmentNote is FrictionNote)
-			{
-				float frictionLane = laneOf(ref note, ref activeInput);
-				if (judgmentNote.IsJudgment(ref activeInput.Touch, frictionLane))
-				{
-					isConnection = true;
-					isJudged = true;
-					return;
-				}
-			}
-
-			if (note is FrictionLongNote or FrictionHideLongNote)
-			{
-				float frictionLane = laneOf(ref note, ref activeInput);
-				if (note.IsJudgment(ref activeInput.Touch, frictionLane))
-				{
-					isConnection = true;
-					isJudged = true;
-					return;
-				}
-			}
-
-			activeInput.CandidateNotes.Add(judgmentNote);
-			isConnection = false;
-			if (pressed != null)
-			{
-				pressed[touchId] = activeInput.Touch.musicTime;
-			}
-		}
-
-		private static void AddCheckLongInputedNormalNoteTouch(ref NoteBase judgmentNote, ref NoteBase note,
-			ref LiveLogic.InputTmp activeInput, ref bool isConnection, ref bool isJudged, ref int touchId,
-			LaneOf laneOf, Dictionary<int, double> pressed)
-		{
-			float lane = laneOf(ref note, ref activeInput);
-			bool hadInput = pressed != null && pressed.ContainsKey(touchId);
-			bool isLastNoteJudgment = note != null && note.IsJudgment(ref activeInput.Touch, lane);
-			if (hadInput)
-			{
-				if (isLastNoteJudgment)
-				{
-					isConnection = false;
-					if (note.CalcNoteResult(activeInput.Touch.musicTime) > NoteResult.Great
-						|| activeInput.Touch.musicTime - pressed[touchId] > 1f / 6f)
-					{
-						activeInput.CandidateNotes.Add(judgmentNote);
-						return;
-					}
-				}
-			}
-			else if (isLastNoteJudgment)
-			{
-				activeInput.CandidateNotes.Add(judgmentNote);
-				isConnection = false;
-				return;
-			}
-
-			note = LiveLogic.GetFirstNote(judgmentNote);
-			lane = laneOf(ref note, ref activeInput);
-			if ((note is FrictionLongNote or FrictionHideLongNote)
-				&& note.IsJudgment(ref activeInput.Touch, lane))
-			{
-				isConnection = true;
-				isJudged = true;
-				return;
-			}
-
-			if (note != null && note.Result == NoteResult.None)
-			{
-				lane = laneOf(ref note, ref activeInput);
-				if (note.IsJudgment(ref activeInput.Touch, lane))
-				{
 					activeInput.CandidateNotes.Add(judgmentNote);
-					isConnection = false;
-					return;
-				}
-			}
-
-			if (note is LongNote)
-			{
-				lane = laneOf(ref note, ref activeInput);
-				if (note.IsJudgment(ref activeInput.Touch, lane))
-				{
-					isConnection = true;
-					isJudged = true;
+					if (pressed != null)
+					{
+						pressed[touchId] = activeInput.Touch.musicTime;
+					}
 				}
 			}
 		}
 
-		private static bool TryAddConnectionCandidate(NoteBase note, LiveLogic.InputTmp input, LaneOf laneOf)
-		{
-			if (note is not LongNote and not FrictionLongNote and not FrictionHideLongNote)
-			{
-				return false;
-			}
-
-			float lane = laneOf(ref note, ref input);
-			if (lane < 0f || !note.IsJudgment(ref input.Touch, lane))
-			{
-				return false;
-			}
-
-			input.CandidateNotes.Add(note);
-			return true;
-		}
 
 		private static NoteBase ResolveJudgmentNote(NoteBase note, LiveLogic.InputTmp input)
 		{
