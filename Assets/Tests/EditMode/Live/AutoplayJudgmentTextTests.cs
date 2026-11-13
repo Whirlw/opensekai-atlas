@@ -26,8 +26,19 @@ namespace OpenSekai.Tests.EditMode.Live
 			var recorder = Run(out _);
 			int refreshes = recorder.TextEvents.Count(entry => entry >= WindowStart && entry <= WindowEnd);
 
-			Assert.That(refreshes, Is.GreaterThanOrEqualTo(5),
+			Assert.That(refreshes, Is.GreaterThanOrEqualTo(3),
 				$"only {refreshes} judgement texts were refreshed between {WindowStart} s and {WindowEnd} s");
+		}
+
+		[Test]
+		public void OnlyACarriersMarkerRefreshesTheText()
+		{
+			var recorder = Run(out _);
+
+			NoteBase judged = recorder.TextNotes.FirstOrDefault(note => note.ParentNote is NoteBase parent && parent.HasJudgment);
+			Assert.That(judged, Is.Null, judged == null
+				? ""
+				: $"a marker of a bar that speaks for itself refreshed the text twice: id={judged.Id}");
 		}
 
 		[Test]
@@ -68,6 +79,7 @@ namespace OpenSekai.Tests.EditMode.Live
 		private sealed class RecordingView : LiveViewBase
 		{
 			internal readonly List<float> TextEvents = new();
+			internal readonly List<NoteBase> TextNotes = new();
 			internal readonly List<NoteBase> EffectNotes = new();
 
 			public override void JudgmentNote(NoteBase note)
@@ -83,6 +95,7 @@ namespace OpenSekai.Tests.EditMode.Live
 				if (note != null)
 				{
 					TextEvents.Add(note.MusicScoreInfo.time);
+					TextNotes.Add(note);
 				}
 			}
 		}

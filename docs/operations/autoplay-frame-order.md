@@ -89,9 +89,32 @@ NoteFrame.UpdateNotes();
 验证：`AutoplayJudgmentTextTests`（窗口内文字刷新 ≥ 5 次；跳过点绝不进特效路径）+
 `JudgmentPopupTests`（弹到一半不重启、弹完再弹、更差的结果立刻接管）。
 
-## 8. 回退
+## 8. 中间点不再落在别的音符身上（连带隐藏载体的头尾）
+
+用户在编辑器里对着第 78 小节画了三条红线：**78.125 / 78.375 / 78.625**。那正是这一小节里
+仅有的三个「裸 8 分」位置——其余每个 8 分上都压着一个音符的头或尾（这曲子这一段是密集的
+friction 跑动，每 16 分就有一对头尾）。
+
+所以生成规则是：**中间点的网格位置必须没有被任何音符占住**。生成器原来只看「在条体内部」
+（`floor(头)+1 … ceil(尾)-1`），于是会在别人家的头上再放一个判定点，例如 78.000 正好压在下一根
+条的头上。现在 `RuntimeChartConverter` 与 `SusNoteConverter` 都会先收集整张谱里落在组合网格上的
+音符位置，命中就跳过。
+
+效果（DEINOS 整曲）：中间点 337 → **143**；第 78 小节只剩 78.125 / 78.375 / 78.625 三个。
+SUS 快照因此少两行（每个 mirror 各一行）——`Tools/fixtures/sus-p2-6/expected.txt` 按 README 的
+流程重新生成，diff 只有删掉的这两处。
+
+顺带把「隐藏载体」的判定收干净：`HasJudgment == false` 的条，头不再因为超时被判 Miss
+（`LongNoteHead.SettleExpiredHead` 直接返回），自动播放也不再替它编一个头的结果；它仍然是一条
+被手指接住的载体，8 分上的中间点照常判，末尾的真音符照常判。
+`HiddenCarrierJudgingTests` 钉住这三件事。
+
+## 9. 回退
 
 `LiveLogic.OnUpdate` 里去掉那段 `if (Session.IsAuto)`，并把 `Session.AdvanceAutoJudgment` 的
 `skipDecoration` 参数一起撤掉即可；`Session.IsAuto` 只是 `Bind` 读 `BootData.IsAuto`，不影响其它路径。
 表现层回退：去掉 `JudgmentText` 那条支路（三处 override/转发），`JudgmentView` 把
 `restart` 判断改回无条件重置。
+生成规则回退：两个转换器里去掉 `OccupiedGridIndices` / `ComboOccupiedIndices` 的跳过分支，
+并用 README 的脚本重新生成 SUS 快照。
+隐藏载体回退：`SettleExpiredHead` 去掉 `!HasJudgment` 的提前返回，`AutoJudgment` 去掉载体分支。

@@ -516,6 +516,23 @@ namespace Sekai.Live
 
 			lastInputTime = currentFrameInfo.time;
 			IsAutoPlaying = true;
+
+			// A carrier is not a note: it is the lane a rub travels along. Nobody judges its head, so
+			// autoplay does not invent a verdict for it either - only the interior points it carries
+			// are answered. The note it ends with is a real one and keeps its own say, and the bar
+			// still has to leave, or the session would stop walking at it.
+			if (!HasJudgment)
+			{
+				ConnectionNoteAutoJudgment(currentFrameInfo);
+				if (childNote != null
+					&& (childNote.State == NoteState.Done || childNote.AutoJudgment(currentFrameInfo)))
+				{
+					State = NoteState.Done;
+				}
+
+				return true;
+			}
+
 			Head.Settle((NoteResult.Auto, NoteResultDescription.None));
 			RestoreHeldState();
 			OffsetJudgeTime = 0f;
@@ -535,7 +552,9 @@ namespace Sekai.Live
 
 		private void ConnectionNoteAutoJudgment(MusicScoreInfo currentFrameInfo)
 		{
-			if (Head.Result != NoteResult.Auto)
+			// A carrier never settles its head, so "the head was answered" cannot be the gate there:
+			// the points it carries are exactly what it exists for.
+			if (HasJudgment && Head.Result != NoteResult.Auto)
 			{
 				return;
 			}
