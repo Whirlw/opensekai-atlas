@@ -69,14 +69,6 @@ namespace Sekai.Live
 			if (updateScore) _bar.HeadScore?.Invoke(Identity);
 		}
 
-		internal void PublishHeadMiss()
-		{
-			if (_bar.PublishesHeadMiss && !IsSettled)
-			{
-				Settle((NoteResult.Miss, NoteResultDescription.None), updateScore: false);
-			}
-		}
-
 		internal void SettleExpiredHead(float currentTime)
 		{
 			// The head answers to its own window and to nothing else. The bar leaving the play state -

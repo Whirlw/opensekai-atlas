@@ -382,9 +382,7 @@ namespace Sekai.Live
 		/// <summary>Kept for callers that still describe a swipe by its magnitude.</summary>
 		internal const float TailSwipeThreshold = 5f;
 
-		// Body transitions remain visual/lifecycle operations. Only Head publishes head results.
-		internal void SetHeadJudgmentState(NoteState value) => State = value;
-
+		// Body transitions remain visual/lifecycle operations. Only Head settles head results.
 		internal NoteBase HeadChildNote => childNote;
 
 		internal void SetHeadJudgeInfo((NoteResult result, NoteResultDescription description) value) => JudgeInfo = value;

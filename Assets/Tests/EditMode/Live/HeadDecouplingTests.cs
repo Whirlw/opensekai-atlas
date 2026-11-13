@@ -103,7 +103,7 @@ namespace OpenSekai.Tests.EditMode.Live
             bar.Excute(Info(0.04f), 0); // No refresh: enter Last.
             Assert.That(bar.State, Is.EqualTo(NoteState.Last));
             bar.Excute(Info(0.06f), 0); // Leave Last through the real lifecycle.
-            bar.Head.PublishHeadMiss();
+            bar.Head.SettleExpiredHead(1f); // The head's own clock: it is already settled, so this is a no-op.
             Assert.That(bar.Result, Is.EqualTo(NoteResult.JustPerfect));
             Assert.That(judgments, Is.EqualTo(1));
 
