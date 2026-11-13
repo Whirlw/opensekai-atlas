@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using OpenSekai.Shared.Live;
@@ -29,30 +29,41 @@ namespace OpenSekai.Tests.EditMode.Live
         public void TearDown() { LiveConfig.noteTypeJudgeData = _previous; MusicScore.CurrentFrameInfo = _previousFrame; }
 
         [Test]
-        public void AFingerHeldInTheLaneJudgesTheHeadOnlyWhenItReachesTheLine()
+        public void AFingerHeldInTheLaneNeverJudgesTheHead()
         {
-            // Two reports meet here. First: holding the lane graded an ordinary bar's head (Miss, -80 life)
-            // up to a third of a second BEFORE it reached the line, because the resident pass hands over a
-            // held touch whose timestamp is when the finger first landed. Second: a press that landed
-            // outside the head's window was refused and then the finger stayed down as Moved for the whole
-            // window, so a head the player did press for missed anyway.
-            //
-            // The rule that satisfies both: a held finger never decides the head early, and it is the press
-            // once the head has reached the line - graded at the line, because the finger was already there.
+            // The report: holding the lane graded an ordinary bar's head (Miss, -80 life) up to a third of
+            // a second BEFORE it reached the line, because the resident pass hands over a held touch whose
+            // timestamp is when the finger first landed. A hold is not a press: the head is judged by a
+            // press through the press channel, and otherwise keeps its own clock.
             var bar = Bar();
             var held = Touch(-0.25f);
             held.phase = TouchPhase.Stationary;
 
-            Assert.That(bar.Head.Judgment(ref held, 4.5f), Is.False, "a hold decides nothing while the head is ahead");
+            Assert.That(bar.Head.Judgment(ref held, 4.5f), Is.False, "a hold does not decide the head");
             Assert.That(bar.Head.IsSettled, Is.False, "and nothing was settled: no phantom Miss");
             Assert.That(bar.Result, Is.EqualTo(NoteResult.None), "the bar keeps no verdict either");
 
             var heldAtTheHead = Touch(-0.01f);
             heldAtTheHead.phase = TouchPhase.Stationary;
-            Assert.That(bar.Head.Judgment(ref heldAtTheHead, 4.5f), Is.True,
-                "once the head reaches the line, the finger that is already there is its press");
-            Assert.That(bar.Head.IsSettled, Is.True);
-            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.JustPerfect), "graded at the line, not at the finger's stamp");
+            Assert.That(bar.Head.Judgment(ref heldAtTheHead, 4.5f), Is.False,
+                "not even at the head's own moment: a hold is still not a press");
+            Assert.That(bar.Head.IsSettled, Is.False);
+        }
+
+        [Test]
+        public void ALatePressInsideTheHeadWindowStillJudgesTheHead()
+        {
+            // The head is judged like an ordinary note: a press early or late inside its window counts. The
+            // window is the Long table's (bad before/after), and the offset is "note minus touch" - passing
+            // "touch minus note" inverted both sides, so a late press fell outside on the wrong end.
+            var bar = Bar();
+            var press = Touch(0.11f);
+
+            bar.Head.SettleExpiredHead(0.11f);
+            Assert.That(bar.Head.IsSettled, Is.False, "the head is still open inside its late window");
+
+            Assert.That(bar.Head.Judgment(ref press, 4.5f), Is.True, "the late press judges it");
+            Assert.That(bar.Head.Result, Is.Not.EqualTo(NoteResult.Miss), "and it is not a miss");
         }
 
         [Test]

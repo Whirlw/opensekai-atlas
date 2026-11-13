@@ -47,12 +47,16 @@ namespace Sekai.Live
 				return false;
 			}
 
+			// The head's lane is the bar's, widened by the long-note tolerance - kept as it is on purpose.
 			if (lane < _bar.JudgeLaneStart || lane > _bar.JudgeLaneEnd)
 			{
 				return false;
 			}
 
-			float offset = touch.musicTime - _bar.MusicScoreInfo.time;
+			// Admission uses the same window as the press gate, with the same "note minus touch" offset that
+			// every other note uses. It used to pass "touch minus note", which inverted both sides of the
+			// window - the same inversion LongNoteHead.TryJudge had.
+			float offset = _bar.MusicScoreInfo.time - touch.musicTime;
 			return LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(_bar), offset);
 		}
 
