@@ -222,6 +222,21 @@ namespace Sekai.Live
 				return false;
 			}
 
+			// A bar is driven only by a finger inside its own judge range. The candidate pipe gates on
+			// LongNote.IsJudgment, but this entry is also reached from the head's candidate and from the hold
+			// pass, and the device traces show a finger at lane 8.85 driving a bar whose range is -1.50..4.50
+			// (146 of 170 grabs in one run). That is how a bar nobody is touching gets a finger, keeps
+			// refreshing, and has its end graded by the release of a finger in another lane.
+			if (lane < JudgeLaneStart || lane > JudgeLaneEnd)
+			{
+				if (LiveTrace.IsOn(LiveTraceCategory.Hold))
+				{
+					LiveTrace.Write(LiveTraceCategory.Hold, $"grabRejected barT={MusicScoreInfo.time:F3} lane={lane:F2} range={JudgeLaneStart:F2}..{JudgeLaneEnd:F2} finger={touch.fingerId} phase={touch.phase}");
+				}
+
+				return false;
+			}
+
 			// The head is the press's business; the hold is the body's. A finger resting in the lane does
 			// not decide an ordinary head (the head is judged by a press, through the press channel), but it
 			// does keep the bar held and its points refreshing - returning early here left a held bar with
