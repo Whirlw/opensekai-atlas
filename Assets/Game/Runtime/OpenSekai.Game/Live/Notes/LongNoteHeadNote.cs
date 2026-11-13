@@ -23,6 +23,13 @@ namespace Sekai.Live
 
 		internal LongNoteHead Head => _head;
 
+		/// <summary>
+		/// True when the head is a note the player answers - an ordinary head, drawn, and judged. The body is
+		/// never a press candidate any more; the head is the only part of a bar that can take a press, and a
+		/// hidden head takes none.
+		/// </summary>
+		internal bool IsAnswerable => _bar.HeadIsANote;
+
 		/// <summary>The head is judged on its own window; the bar's own gate is the window it has always used.</summary>
 		public override bool IsJudgment(ref LiveTouch touch, float lane)
 		{

@@ -14,11 +14,16 @@ namespace Sekai.Core.Live
 	/// </summary>
 	internal sealed class LiveCandidatePipeline
 	{
+		/// <summary>
+		/// Whether a note spends a finger's single press slot. Only notes the player presses are here: an
+		/// ordinary note, a flick, and a long note's HEAD as its own candidate. A bar's body is never a press
+		/// step - the resident hold pass drives it every frame instead - which is what keeps a press on an
+		/// ordinary note that overlaps a hidden head from touching the bar.
+		/// </summary>
 		internal static bool IsPressStep(NoteBase note) => note != null && !note.IsDecoration
-			&& (note is LongNoteHeadNote
-				|| (note is LongNote bar ? bar.IsOrdinaryHead && !bar.Head.IsSettled
+			&& (note is LongNoteHeadNote head ? head.IsAnswerable
 				: note.ParentRole == OpenSekai.Shared.Live.NoteParentRole.None &&
-				  (note is NormalNote && note.Category == NoteCategory.Normal || note is FlickNote && !note.FinishFirstAction)));
+				  (note is NormalNote && note.Category == NoteCategory.Normal || note is FlickNote && !note.FinishFirstAction));
 
 		internal void SortPressCandidates(List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame, LaneOf laneOf)
 		{
