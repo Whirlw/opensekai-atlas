@@ -112,6 +112,43 @@ namespace Sekai.Core.Live
 			}
 		}
 
+		/// <summary>
+		/// End notes that judge themselves - a rub, a rub flick, a hidden carrier. They are ticked here rather
+		/// than by the bar's own note loop: the note's clock is what publishes its Miss, and a bar that ends
+		/// first (it leaves on its own time, whatever its end does) used to take that clock away with it,
+		/// leaving a friction-flick end that was never judged and never missed. Decoupling the tick is what
+		/// lets the bar leave whenever it likes without changing the note's verdict.
+		/// </summary>
+		private readonly List<NoteBase> _tails = new List<NoteBase>();
+
+		/// <summary>Tails still waiting for their own clock, for tests and invariants.</summary>
+		public int PendingTailCount => _tails.Count;
+
+		internal void RegisterTail(NoteBase tail)
+		{
+			if (tail != null && tail.State != NoteState.Done && !_tails.Contains(tail))
+			{
+				_tails.Add(tail);
+			}
+		}
+
+		/// <summary>Ticks every self-judging end note with its own display offset, and forgets the finished.</summary>
+		internal void TickTails(MusicScoreInfo frame)
+		{
+			for (int i = _tails.Count - 1; i >= 0; i--)
+			{
+				NoteBase tail = _tails[i];
+				if (tail == null || tail.State == NoteState.Done)
+				{
+					_tails.RemoveAt(i);
+					continue;
+				}
+
+				float offset = tail.CalcTimeOffset != null ? tail.CalcTimeOffset(tail) : tail.offsetTime;
+				tail.Excute(frame, offset);
+			}
+		}
+
 		/// <summary>What the walker should do with the note it was handed.</summary>
 		public enum Scan
 		{
