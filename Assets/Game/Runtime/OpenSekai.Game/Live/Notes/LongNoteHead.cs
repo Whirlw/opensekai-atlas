@@ -93,6 +93,9 @@ namespace Sekai.Live
 			// a release, a tail that ends it early, the bar being recycled - is not a verdict on the
 			// head: one door out of the play state used to settle this head, which let the bar's
 			// lifecycle decide a result the head owns.
+			//
+			// LiveConfig.JudgeTime is the head's own late bound (the Long table's bad-after), so this is the
+			// same 125 ms the press gate uses - one window for both questions, and no second number to drift.
 			if (!IsSettled && currentTime - _bar.MusicScoreInfo.time > LiveConfig.JudgeTime)
 			{
 				Settle((NoteResult.Miss, NoteResultDescription.None), updateScore: false);
@@ -123,48 +126,30 @@ namespace Sekai.Live
 				return false;
 			}
 
-			// The head settles itself, so it checks its own lane: this entry is reached from the head's
-			// candidate and from the hold pass, neither of which goes through LongNote.IsJudgment's lane gate
-			// on every path. A press in another lane must never take a right to this head.
+			// The head settles itself, so it checks its own lane - the bar's, widened by the long-note
+			// tolerance, which is kept as it is. This entry is reached from the head's candidate and from the
+			// hold pass, neither of which goes through LongNote.IsJudgment's lane gate on every path.
 			if (lane < _bar.JudgeLaneStart || lane > _bar.JudgeLaneEnd)
 			{
 				return false;
 			}
 
-			// A press decides the head. The press is the touch's own Began event, judged at the touch's own
-			// time - never at the frame clock - and it has to land inside the head's window.
-			//
-			// A finger that was pressed too early is refused here, and the refusal is the report: it stayed
-			// down for the whole window as Moved, so the head had nothing to answer and missed. What the
-			// player did was press for this head and hold, so a finger that is already holding this lane when
-			// the head reaches the line is the same press, one window later. It is graded at the head's own
-			// time, which is what holding through the line means.
-			float now = MusicScore.CurrentFrameInfo.time;
-			bool began = touch.phase == UnityEngine.InputSystem.TouchPhase.Began;
-			bool held = !began && _bar.HasFinger && now >= _bar.MusicScoreInfo.time - LiveConfig.JustPerfectJudgeTimeHalf;
-
-			float judgeTime;
-			if (began)
-			{
-				float offset = touch.musicTime - _bar.MusicScoreInfo.time;
-				if (!LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(_bar), offset))
-				{
-					return false;
-				}
-
-				judgeTime = touch.musicTime;
-			}
-			else if (held)
-			{
-				// Graded at the line: the finger was already there when the head arrived.
-				judgeTime = _bar.MusicScoreInfo.time;
-			}
-			else
+			// The head is judged exactly like an ordinary note: a press inside the head's window, graded by
+			// that window's table. The offset is "note minus touch" - the convention NormalNote uses, and the
+			// one IsJudgmentTiming expects. Passing "touch minus note" inverted both sides of the window: an
+			// early press was read as a late one and a late press fell outside on the wrong end.
+			if (touch.phase != UnityEngine.InputSystem.TouchPhase.Began)
 			{
 				return false;
 			}
 
-			var judgeInfo = LiveConfig.CalculateLongStartNoteResult(_bar, judgeTime);
+			float offset = _bar.MusicScoreInfo.time - touch.musicTime;
+			if (!LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(_bar), offset))
+			{
+				return false;
+			}
+
+			var judgeInfo = LiveConfig.CalculateLongStartNoteResult(_bar, touch.musicTime);
 			Settle(_bar.HeadResultUpdater != null ? _bar.HeadResultUpdater(judgeInfo) : judgeInfo);
 			return true;
 		}
