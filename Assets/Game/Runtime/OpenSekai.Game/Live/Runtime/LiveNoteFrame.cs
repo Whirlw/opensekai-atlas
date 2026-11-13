@@ -90,8 +90,12 @@ namespace Sekai.Core.Live
 				_session.Notes.RegisterHead(bar.Head);
 				// The head is a candidate of its own: the press loop asks this object, so the verdict
 				// never travels through the bar's Judgement. The bar stays in the list for the hold
-				// coordinator, which finds bars by type.
-				_input.Register(bar.Head.Candidate);
+				// coordinator, which finds bars by type. Only a head that is still a key is registered -
+				// a settled head is not a note the player can answer any more.
+				if (bar.Head.Candidate.IsAnswerable)
+				{
+					_input.Register(bar.Head.Candidate);
+				}
 			}
 
 			// A judged end note that judges itself is ticked by the session, not by the bar's note loop, for

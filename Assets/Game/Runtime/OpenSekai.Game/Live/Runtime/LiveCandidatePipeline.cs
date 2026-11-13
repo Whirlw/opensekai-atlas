@@ -54,8 +54,34 @@ namespace Sekai.Core.Live
 			foreach (var input in inputs)
 			{
 				input.CandidateNotes.Sort((a, b) => a.MusicScoreInfo.time.CompareTo(b.MusicScoreInfo.time));
+
+				// The finger's single press slot goes to the earliest note the press channel can actually
+				// answer. A bar's body is always earlier than the notes it overlaps and the press loop skips
+				// it, so taking it "because it is earliest" threw the press away: a second press in a lane
+				// where a bar is being held never reached the next head, which then missed. Device log
+				// live-20261113-155947.log line 212781: a Began at lane 9.49 delivered to the held bar
+				// barT=39.158 instead of the head at t=40.421, which missed at 40.565.
+				int pressIndex = -1;
+				for (int i = 0; i < input.CandidateNotes.Count; i++)
+				{
+					if (IsPressStep(input.CandidateNotes[i]))
+					{
+						pressIndex = i;
+						break;
+					}
+				}
+
+				if (pressIndex > 0)
+				{
+					NoteBase press = input.CandidateNotes[pressIndex];
+					input.CandidateNotes.RemoveAt(pressIndex);
+					input.CandidateNotes.Insert(0, press);
+				}
+
 				if (input.CandidateNotes.Count > 1)
+				{
 					input.CandidateNotes.RemoveRange(1, input.CandidateNotes.Count - 1);
+				}
 			}
 		}
 		/// <summary>Maps a note and a finger to the lane that finger occupies for that note.</summary>

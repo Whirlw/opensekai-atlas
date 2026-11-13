@@ -1,9 +1,9 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using OpenSekai.Shared.Diagnostics;
 using OpenSekai.Shared.Live;
 using Sekai.Live;
 using UnityEngine;
 using InputTmp = Sekai.Core.Live.LiveLogic.InputTmp;
-
 namespace Sekai.Core.Live
 {
 	internal sealed class JudgmentScheduler
@@ -192,7 +192,20 @@ namespace Sekai.Core.Live
 					return default(JudgmentSchedule.Outcome);
 				}
 
-				note.Judgment(ref Input.Touch, lane);
+				// One line per press delivery, so "a press happened but the note it should answer missed" can
+				// be answered from the log instead of guessed: it says which note the press was handed to, the
+				// lane it was converted to, and what the note became.
+				if (LiveTrace.IsOn(LiveTraceCategory.Judge))
+				{
+					int idBefore = note.Id;
+					string typeBefore = note.GetType().Name;
+					note.Judgment(ref Input.Touch, lane);
+					LiveTrace.Write(LiveTraceCategory.Judge, $"pressPick finger={Input.Touch.fingerId} touch={Input.Touch.touchId} id={idBefore} type={typeBefore} lane={lane:F2} touchT={Input.Touch.musicTime:F3} res={note.Result} now={MusicScore.CurrentFrameInfo.time:F3}");
+				}
+				else
+				{
+					note.Judgment(ref Input.Touch, lane);
+				}
 
 				if (note.Result == NoteResult.None || note.Result == NoteResult.Bad)
 				{
