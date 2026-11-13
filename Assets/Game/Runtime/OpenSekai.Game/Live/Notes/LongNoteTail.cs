@@ -490,15 +490,9 @@ namespace Sekai.Live
 			_bar.SetTailResult(result);
 			_bar.CompleteTail();
 
-			// The bar's ending key leaves with the bar. It used to be handed to the retirement pass, which
-			// only starts sliding a judged key out once it has a verdict of its own - and a friction,
-			// friction-flick or ordinary end has none here (the bar speaks for it), so the key sat on the
-			// judgement line for a few frames after the bar was gone. A hidden end has no key at all, which
-			// is the behaviour every drawn end key now follows.
-			if (Child != null && Child.HasJudgment)
-			{
-				Child.RemoveView();
-			}
+			// The bar's ending key is not released here: it belongs to the note, and the note leaves when it
+			// has its own verdict or when its own time arrives (LivePresentationBridge.TickTailKeys). Releasing
+			// it with the bar dropped the key on the bar's schedule instead of the note's.
 
 			return true;
 		}
