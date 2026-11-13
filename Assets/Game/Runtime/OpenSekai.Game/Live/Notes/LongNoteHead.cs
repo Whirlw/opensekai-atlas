@@ -1,4 +1,4 @@
-﻿using OpenSekai.Shared.Diagnostics;
+using OpenSekai.Shared.Diagnostics;
 
 namespace Sekai.Live
 {
@@ -58,12 +58,13 @@ namespace Sekai.Live
 
 		internal void SettleExpiredHead(float currentTime)
 		{
-			// The timeout is one of the ways out of the play state, so it goes through the bar's single
-			// door rather than publishing on its own: a head the window has passed and a bar its tail
-			// ended must not be two different pieces of publishing logic that happen to agree.
+			// The head answers to its own window and to nothing else. The bar leaving the play state -
+			// a release, a tail that ends it early, the bar being recycled - is not a verdict on the
+			// head: one door out of the play state used to settle this head, which let the bar's
+			// lifecycle decide a result the head owns.
 			if (!IsSettled && currentTime - _bar.MusicScoreInfo.time > LiveConfig.JudgeTime)
 			{
-				_bar.LeavePlayState();
+				Settle((NoteResult.Miss, NoteResultDescription.None), updateScore: false);
 			}
 		}
 

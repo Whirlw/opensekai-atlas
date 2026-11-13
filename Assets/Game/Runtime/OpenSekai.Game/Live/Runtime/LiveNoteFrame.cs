@@ -28,6 +28,9 @@ namespace Sekai.Core.Live
 
 		internal void UpdateNotes()
 		{
+			// Heads first: a head settles on its own window, and that window may close on a frame the
+			// bar itself is no longer walked (a tail ended it earlier).
+			_session.Notes.TickHeads(Frame.time);
 			_session.Notes.WalkNotes(ScanNote);
 			_session.Notes.WalkHighSpeedNotes(ScanHighSpeedNote);
 		}
@@ -55,6 +58,7 @@ namespace Sekai.Core.Live
 
 			PreloadView(note, offsetTime);
 			note.Excute(Frame, offsetTime);
+			RegisterOpenHead(note);
 
 			// Decoration notes need to be processed after Excute to check OffsetJudgeTime
 			if (note.IsDecoration && note.State != NoteState.Done && ShouldTriggerDecorationJudgment(note))
@@ -68,6 +72,19 @@ namespace Sekai.Core.Live
 			}
 
 			return LiveNoteSession.Scan.Handle;
+		}
+
+		/// <summary>
+		/// Hands the bar's head to the head sweep. The head has its own window and may outlive the bar's
+		/// being walked (a tail can end the bar before the head window closes), so it cannot rely on
+		/// this scan to reach it every frame.
+		/// </summary>
+		private void RegisterOpenHead(NoteBase note)
+		{
+			if (note is LongNote bar && bar.PublishesHeadMiss)
+			{
+				_session.Notes.RegisterHead(bar.Head);
+			}
 		}
 
 		/// <summary>
@@ -112,6 +129,7 @@ namespace Sekai.Core.Live
 
 			PreloadView(note, offsetTime);
 			note.Excute(Frame, offsetTime);
+			RegisterOpenHead(note);
 
 			if (note.IsDecoration && note.State != NoteState.Done && ShouldTriggerDecorationJudgment(note))
 			{

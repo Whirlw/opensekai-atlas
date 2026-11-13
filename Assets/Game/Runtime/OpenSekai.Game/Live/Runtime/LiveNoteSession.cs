@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Sekai.Live;
 
@@ -71,6 +71,45 @@ namespace Sekai.Core.Live
 		{
 			NoteIndex = 0;
 			HighSpeedIndex = 0;
+			_heads.Clear();
+		}
+
+		/// <summary>
+		/// Bars whose head has not been settled yet. A head answers to its own window, so it has to keep
+		/// being ticked after the bar it belongs to is finished - the note walk steps over a Done note
+		/// and would never give that head its last frame. This is the head's own tick list, not the bar's.
+		/// </summary>
+		private readonly List<LongNoteHead> _heads = new List<LongNoteHead>();
+
+		/// <summary>Heads still waiting for their window to close, for tests and invariants.</summary>
+		public int PendingHeadCount => _heads.Count;
+
+		internal void RegisterHead(LongNoteHead head)
+		{
+			if (head != null && !head.IsSettled && !_heads.Contains(head))
+			{
+				_heads.Add(head);
+			}
+		}
+
+		/// <summary>Gives every open head its own clock: a head whose window has passed settles itself.</summary>
+		internal void TickHeads(float now)
+		{
+			for (int i = _heads.Count - 1; i >= 0; i--)
+			{
+				LongNoteHead head = _heads[i];
+				if (head == null || head.IsSettled)
+				{
+					_heads.RemoveAt(i);
+					continue;
+				}
+
+				head.SettleExpiredHead(now);
+				if (head.IsSettled)
+				{
+					_heads.RemoveAt(i);
+				}
+			}
 		}
 
 		/// <summary>What the walker should do with the note it was handed.</summary>
