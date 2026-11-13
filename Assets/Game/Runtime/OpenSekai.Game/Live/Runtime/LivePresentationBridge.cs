@@ -124,11 +124,10 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>
-		/// A bar's ending key leaves when it has its own verdict, or when its own time arrives - whichever
-		/// comes first. Letting a graded key keep riding down reads as a second, phantom key hanging under
-		/// the line; and a key whose time has come has nothing left to show, so it is taken off rather than
-		/// slid out (a friction, friction-flick or ordinary end has no verdict of its own when its bar ends,
-		/// which is how such a key used to sit on the line for a few frames after the bar was gone).
+		/// A bar's ending key leaves when the bar is done, or when the key's own time arrives - whichever
+		/// comes first. Those are the only two conditions: a key that has a verdict always belongs to a bar
+		/// that is already done, so asking about the verdict as well said nothing new. A key nobody judged
+		/// is not slid out below the line any more, which is what kept it on screen after its bar was gone.
 		/// </summary>
 		public void TickTailKeys(float now)
 		{
@@ -136,7 +135,7 @@ namespace Sekai.Core.Live
 			foreach (NoteBase tail in _tailKeys)
 			{
 				LongNote bar = tail.ParentNote as LongNote;
-				if (bar == null || tail.Result != NoteResult.None || now >= tail.MusicScoreInfo.time)
+				if (bar == null || bar.State == NoteState.Done || now >= tail.MusicScoreInfo.time)
 				{
 					(leaving ??= new List<NoteBase>()).Add(tail);
 					continue;
