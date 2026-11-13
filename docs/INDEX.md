@@ -1,4 +1,4 @@
-# 文档索引
+﻿# 文档索引
 
 > 目的：全量登记 `docs/` 下的每一篇文档，给出标题、路径、摘要与最后更新，作为查找与维护的单一清单。
 > 适用读者：所有人，尤其是维护文档的人。
@@ -41,6 +41,7 @@
 | 模块划分 | [architecture/modules.md](architecture/modules.md) | 目录职责、依赖方向、已移出工程的备份清单 | 2026-11-02 | 现行 |
 | 曲包与谱面数据 | [architecture/chart-package.md](architecture/chart-package.md) | `.oskp` 目录结构、manifest 字段、ChartDocument 读取链路 | 2026-11-02 | 现行 |
 | 打歌运行时 | [architecture/live-runtime.md](architecture/live-runtime.md) | 开局六步、时钟、输入回填、计分、结算与暂停 | 2026-11-02 | 现行 |
+| 判定规则设计 | [architecture/judging-design.md](architecture/judging-design.md) | 判定权归属、三条通道、时间/轨道规则、长条四段结构、不变量清单 | 2026-11-13 | 现行 |
 | 开局数据契约 | [architecture/play-session.md](architecture/play-session.md) | PlaySession / RuntimeChartDefinition 的字段、构造与和 FreeLiveBootData 的关系 | 2026-11-03 | 现行 |
 | 页面系统 | [architecture/screen-system.md](architecture/screen-system.md) | ScreenManager 注册表、三个注册页面与曲库页、曲库页为何独立 | 2026-11-02 | 现行 |
 | AssetBundle 与清单 | [architecture/asset-bundles.md](architecture/asset-bundles.md) | 11 个白名单条目、10 个发布 bundle、JSON 清单 | 2026-11-02 | 现行 |

@@ -1,4 +1,6 @@
-# 判定窗口
+﻿# 判定窗口
+
+> 本页只列**数值**。判定权归属、通道分工、长条四段结构与不变量见[判定规则设计](../architecture/judging-design.md)。
 
 本页记的是**当前实现的判定窗口**。改这里的数字等于改手感，提交时必须同时改本页。
 
@@ -38,10 +40,10 @@
 | --- | --- | --- |
 | 单键轨道容差 `_normalNoteOffsetX` | 1.25 轨 | `JudgeLaneStart = laneStart − offset`、`JudgeLaneEnd = laneEnd + offset`，判定时看触摸轨道是否落在区间内 |
 | 长条 / 划键容差 `_longNoteOffsetX` / `_flickNoteOffsetX` | 1.5 轨 | 同上，按 `LiveUtility.GetLaneOffset(category)` 选择 |
-| 划键滑动距离 `_flickDistance` | 0.0833 英寸/帧 | 触摸位移先按 1/60 s 归一化（`touchDelta /= Time.deltaTime / 0.016667f`），再要求 `sqrMagnitude > _flickDistance²`；经 `Screen.dpi / 2.54` 换成像素 |
+| 划键滑动距离 `_flickDistance` | 0.0328 英寸/帧（**5 cm/s**） | 触摸位移先按 1/60 s 归一化，再要求 `sqrMagnitude > _flickDistance²`；经 `Screen.dpi / 2.54` 换成像素 |
 | 划键方向 | 点积 ≥ 0 | `requiredDirection` 为 `(-1,1)` / `(1,1)` / 上；`Vector2.Dot(touchDelta.normalized, requiredDirection.normalized) >= 0`（±90°，合计 180° 范围） |
 
-数值口径还剩一处待确认：`0.0833 in/帧 × 60 = 5 in/s ≈ 12.7 cm/s`，而早期分析写的是「5 cm/s」，相差约 2.5 倍，像是单位表述差异（5 in/s vs 5 cm/s），**待确认**——若确定要按分析改，只需改 `_flickDistance` 一处，但那是手感变更。
+数值口径已定：划键距离现在是 **5 cm/s**（`JudgeTuning.ShippedFlickDistanceInches = 5/2.54/60`，资产 `_flickDistance = 0.032808` 英寸/帧），即先前分析里的「5 cm/s」；资产里曾经是 5 in/s ≈ 12.7 cm/s。
 
 判定区间与滑动的分工：**时间**决定 Perfect/Great/Good/Bad，**轨道与滑动**决定这个音符收不收得到输入（`FlickNote.JudgmentFlick` 要求 `distance && trueDirection` 同时成立）。
 
