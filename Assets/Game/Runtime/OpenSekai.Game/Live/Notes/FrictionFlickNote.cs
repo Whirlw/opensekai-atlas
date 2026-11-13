@@ -53,12 +53,18 @@ namespace Sekai.Live
 
 		public override void Excute(MusicScoreInfo currentFrameInfo, float offsetTime)
 		{
-			base.Excute(currentFrameInfo, offsetTime);
-			if ((_isTrueDirection || (State == NoteState.Input && _lastInputTime + ReferenceFrame.Seconds < currentFrameInfo.time))
-				&& CalcProgress(currentFrameInfo, offsetTime) >= 1f)
+			// A caught note settles the moment it reaches the line, and that has to be decided BEFORE the base
+			// class can close the window. Waiting one more frame after the last input (the old shape of this
+			// check) dropped the note on the very frame its window closed: device log
+			// live-20261113-152906.log shows the single combo break of that run as childState=Input at
+			// now=19.824, Last at 19.830 and res=Miss at 19.836 for t=19.688 - a caught note with a recorded
+			// flick, one frame of grace short.
+			if (State == NoteState.Input && CalcProgress(currentFrameInfo, offsetTime) >= 1f)
 			{
 				JudgmentFlick(currentFrameInfo.time);
 			}
+
+			base.Excute(currentFrameInfo, offsetTime);
 		}
 
 		private bool JudgmentFlick(float musicTime)
