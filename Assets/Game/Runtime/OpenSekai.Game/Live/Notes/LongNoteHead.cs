@@ -1,4 +1,4 @@
-using OpenSekai.Shared.Diagnostics;
+﻿using OpenSekai.Shared.Diagnostics;
 
 namespace Sekai.Live
 {
@@ -114,13 +114,11 @@ namespace Sekai.Live
 
 		internal bool TryJudge(ref LiveTouch touch, float lane)
 		{
-			// Kept as a second lock, not as the answer to "may a finished bar be pressed". The input
-			// path already refuses a Done bar in LongNote.IsJudgment, and the bar publishes its head
-			// on the way out (LongNote.LeavePlayState), so by the time this line can be reached the
-			// head is settled anyway and this only saves the frame's bookkeeping. tail-classes.md
-			// §12.4-4 asked whether it is redundant: it is, and it stays because removing it would let
-			// a direct caller drive a finished bar's child note.
-			if (_bar.State == NoteState.Done)
+			// The head answers to its own state and its own window. Nothing about the bar - playing, held,
+			// released, greyed, finished - is consulted: the bar pinning the head on the line is only a
+			// picture, and the judgement has to be independent of it. A head that has its verdict is settled
+			// and never judged twice, which is the only lock this needs.
+			if (IsSettled)
 			{
 				return false;
 			}
@@ -133,34 +131,24 @@ namespace Sekai.Live
 				return false;
 			}
 
-			// A bar has no owner any more, so a second finger landing on it cannot steal the head:
-			// the head is settled once, by whichever touch reaches the window first.
-			bool headSettledAlready = IsSettled;
-
-			// The head is a tap note that happens to have a body behind it: it is judged on its own
-			// window, whatever the body is doing, and its result never decides how the body behaves.
-			if (!IsSettled)
+			// An ordinary head is decided by a PRESS, never by a finger that happens to rest in the lane.
+			// The resident hold pass drives this method every frame with whatever touch it picked, and a
+			// held finger carries the timestamp of when it first landed - so "holding the lane" graded
+			// the head (Miss, -80 life) up to a third of a second before it reached the line. A hold is
+			// not a press: the head keeps its own clock and expires on its own.
+			if (touch.phase != UnityEngine.InputSystem.TouchPhase.Began)
 			{
-				// An ordinary head is decided by a PRESS, never by a finger that happens to rest in the lane.
-				// The resident hold pass drives this method every frame with whatever touch it picked, and a
-				// held finger carries the timestamp of when it first landed - so "holding the lane" graded
-				// the head (Miss, -80 life) up to a third of a second before it reached the line. A hold is
-				// not a press: the head keeps its own clock and expires on its own.
-				if (touch.phase != UnityEngine.InputSystem.TouchPhase.Began)
-				{
-					return false;
-				}
-
-				float offset = touch.musicTime - _bar.MusicScoreInfo.time;
-				if (!LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(_bar), offset))
-				{
-					return false;
-				}
-
-				var judgeInfo = LiveConfig.CalculateLongStartNoteResult(_bar, touch.musicTime);
-				Settle(_bar.HeadResultUpdater != null ? _bar.HeadResultUpdater(judgeInfo) : judgeInfo);
+				return false;
 			}
 
+			float offset = touch.musicTime - _bar.MusicScoreInfo.time;
+			if (!LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(_bar), offset))
+			{
+				return false;
+			}
+
+			var judgeInfo = LiveConfig.CalculateLongStartNoteResult(_bar, touch.musicTime);
+			Settle(_bar.HeadResultUpdater != null ? _bar.HeadResultUpdater(judgeInfo) : judgeInfo);
 			return true;
 		}
 
