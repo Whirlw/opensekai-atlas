@@ -42,7 +42,12 @@ namespace Sekai.Core.Live
 			if (note.ParentRole == NoteParentRole.Tail)
 			{
 				LongNote bar = note.ParentNote as LongNote;
-				if (bar != null && bar.ViewNoteList.Contains(note) && bar.GetTailKeyPhase(now) == TailKeyPhase.Following)
+				// Every key a bar ends with is tracked, whatever phase it was in when its view was built.
+				// Tracking only the ones that happened to be "Following" at spawn left the others with no
+				// owner: a settled note never removes its own view (a tail's Done skips RemoveView, because
+				// the bar used to own that key), so the sprite stayed on the judgement line for good - the
+				// "friction tail sticks to the line after it is caught" report.
+				if (bar != null && bar.ViewNoteList.Contains(note))
 				{
 					_tailKeys.Add(note);
 				}
