@@ -24,6 +24,23 @@ namespace Sekai
 				return;
 			}
 
+			// A bar's key stands on the line after its head has been taken - that is the pin. It must not
+			// outlive the note: once the bar is done, or its end note's own time has arrived (whichever comes
+			// first), the key has nothing left to show and is taken off instead of staying pinned there with
+			// the body.
+			if (note.State == NoteState.Done
+				|| (note is LongNote endedBar && endedBar.ChildNote != null
+					&& musicTime >= endedBar.ChildNote.MusicScoreInfo.time))
+			{
+				if (LiveTrace.IsOn(LiveTraceCategory.View))
+				{
+					LiveTrace.Write(LiveTraceCategory.View, "viewHide barT=" + note.MusicScoreInfo.time.ToString("F3") + " state=" + note.State + " now=" + musicTime.ToString("F3") + " end");
+				}
+
+				transform.localScale = Vector3.zero;
+				return;
+			}
+
 			float progress = CalcProgress();
 			if (LiveTrace.IsOn(LiveTraceCategory.View))
 			{
