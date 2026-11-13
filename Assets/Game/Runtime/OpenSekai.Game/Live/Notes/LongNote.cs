@@ -216,12 +216,6 @@ namespace Sekai.Live
 		/// <summary>Feeds this bar one input frame: head, hold facts, frame stamp, points and tail.</summary>
 		internal bool DriveJudgmentFrame(ref LiveTouch touch, float lane)
 		{
-			// A finished bar takes nothing: no hold, no points, no tail.
-			if (State == NoteState.Done)
-			{
-				return false;
-			}
-
 			// A bar is driven only by a finger inside its own judge range. The candidate pipe gates on
 			// LongNote.IsJudgment, but this entry is also reached from the head's candidate and from the hold
 			// pass, and the device traces show a finger at lane 8.85 driving a bar whose range is -1.50..4.50
@@ -237,11 +231,22 @@ namespace Sekai.Live
 				return false;
 			}
 
-			// The head is the press's business; the hold is the body's. A finger resting in the lane does
-			// not decide an ordinary head (the head is judged by a press, through the press channel), but it
-			// does keep the bar held and its points refreshing - returning early here left a held bar with
-			// no finger at all, which is how a hold could grey out or vanish from the resident pass.
+			// The head answers here, before anything about the bar's own life is consulted. The head is an
+			// instant key with its own window, and the bar sticking it to the body is only a picture: whether
+			// the bar is still playing, released, greyed or already finished says nothing about the head.
+			// The head's own guard is IsSettled, so a settled head is never judged twice.
 			bool headTaken = Head.TryJudge(ref touch, lane);
+
+			// Everything below is the body's business, and a finished bar has none: no hold, no points.
+			if (State == NoteState.Done)
+			{
+				return headTaken;
+			}
+
+			// The hold is the body's. A finger resting in the lane does not decide an ordinary head (the
+			// head is judged by a press, through the press channel), but it does keep the bar held and its
+			// points refreshing - returning early here left a held bar with no finger at all, which is how a
+			// hold could grey out or vanish from the resident pass.
 			RecordHoldingInput(touch.fingerId, MusicScore.CurrentFrameInfo.time);
 			RestoreHeldState();
 			MarkHeadTouched();

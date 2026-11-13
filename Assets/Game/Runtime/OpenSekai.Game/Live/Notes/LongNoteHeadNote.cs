@@ -35,10 +35,25 @@ namespace Sekai.Live
 		/// </summary>
 		internal bool IsAnswerable => _bar.HeadIsANote && !_head.IsSettled;
 
-		/// <summary>The head is judged on its own window; the bar's own gate is the window it has always used.</summary>
+		/// <summary>
+		/// The head is admitted on its own window and lane, never on the bar's life. Going through the bar's
+		/// own gate tied admission to its state - a bar that had ended refused the head, which took the rest
+		/// of the head's window away with it.
+		/// </summary>
 		public override bool IsJudgment(ref LiveTouch touch, float lane)
 		{
-			return !_head.IsSettled && _bar.IsJudgment(ref touch, lane);
+			if (_head.IsSettled)
+			{
+				return false;
+			}
+
+			if (lane < _bar.JudgeLaneStart || lane > _bar.JudgeLaneEnd)
+			{
+				return false;
+			}
+
+			float offset = touch.musicTime - _bar.MusicScoreInfo.time;
+			return LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(_bar), offset);
 		}
 
 		/// <summary>The candidate's verdict entry: this is the head answering, not the bar.</summary>
