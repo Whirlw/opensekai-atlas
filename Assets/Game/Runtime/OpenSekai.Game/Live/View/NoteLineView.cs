@@ -53,7 +53,10 @@ namespace Sekai
 		private Vector3[] _vertices;
 		private Vector2[] _uv;
 		private int[] _triangles;
-		private List<NoteBase> _longNotes;
+		private List<NoteBase> _longNotes = new List<NoteBase>(DEFAULT_LIST_CAPACITY);
+
+		/// <summary>How many bars the draw list holds; a bar must be in it exactly once.</summary>
+		internal int BarCount => _longNotes?.Count ?? 0;
 		private Vector2[] _leftPoint;
 		private Vector2[] _rightPoint;
 		private Vector2[] _uvOffsetLeft;
@@ -150,9 +153,16 @@ namespace Sekai
 			}
 		}
 
+		/// <summary>
+		/// Puts a bar in the draw list, once. The scan asks for the same note every frame while it is
+		/// inside its preload margin (a spawn request has to be repeatable), and a bar whose category has
+		/// no note pool - a friction-hide bar, a guide bar - never reaches the dictionary the manager uses
+		/// to remember it. Adding it again then stacks an identical mesh on top of it: the bar looks
+		/// brighter, and the mesh budget it eats is what made the live stutter.
+		/// </summary>
 		public void Add(LongNote note)
 		{
-			if (note != null)
+			if (note != null && !_longNotes.Contains(note))
 			{
 				_longNotes.Add(note);
 			}
@@ -171,7 +181,7 @@ namespace Sekai
 
 		public void Add(GuideNote note)
 		{
-			if (note != null)
+			if (note != null && !_longNotes.Contains(note))
 			{
 				_longNotes.Add(note);
 			}

@@ -88,7 +88,10 @@ namespace Sekai
 				return;
 			}
 
-			_pairNotes.Add(note);
+			if (!_pairNotes.Contains(note))
+			{
+				_pairNotes.Add(note);
+			}
 		}
 
 		public void Clear()
