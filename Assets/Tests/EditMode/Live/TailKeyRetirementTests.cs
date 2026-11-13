@@ -86,5 +86,28 @@ namespace OpenSekai.Tests.EditMode.Live
 
 			Assert.That(_view.Unspawned, Does.Contain(tail), "a settled end key leaves the line");
 		}
+
+		[Test]
+		public void TheBarsEndKeyLeavesWithTheBar()
+		{
+			// A friction, friction-flick or ordinary end has no verdict of its own when its bar ends (the bar
+			// speaks for it), so the retirement pass only starts sliding it out - the key sat on the line for
+			// a few frames after the bar was gone. It now leaves with the bar, like a hidden end (which has
+			// no key at all).
+			var bridge = new LivePresentationBridge();
+			var bar = new LongNote(Info(0f), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
+			var tail = new FrictionNote(Info(1f), 2, 4, 5, NoteCategory.Friction, null, NoteType.Default, 1f);
+			bar.AddNoteListAndSetupChildNote(tail);
+			var views = new LiveViewBase[] { _view };
+			tail.OnSpawn = note => LiveViewExt.SpawnNote(views, note);
+			tail.OnUnspawn = note => LiveViewExt.UnspawnNote(views, note);
+			bridge.Spawn(views, tail, bar.MusicScoreInfo.time);
+			bar.RecordHoldingInput(1, 0.5f);
+
+			Assert.That(bar.ExpireTail(2f), Is.True, "the bar ends");
+			Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+
+			Assert.That(_view.Unspawned, Does.Contain(tail), "and its end key went with it");
+		}
 	}
 }
