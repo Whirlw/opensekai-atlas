@@ -1,4 +1,4 @@
-﻿using Sekai.Live;
+using Sekai.Live;
 using OpenSekai.Shared.Diagnostics;
 using UnityEngine;
 
@@ -60,8 +60,9 @@ namespace Sekai
 				progress = Mathf.Max(progress, 0.001f);
 			}
 
-			// The bar's own key stops on the line only for the kinds that stand there. A rub or a guide
-			// bar that nobody took keeps travelling past it, like a missed single note does.
+			// The bar's own key stops on the line only for the kinds that stand there - an ordinary head, the
+			// one the player presses and holds. A rub plays like a standalone friction note and a guide bar
+			// sweeps across the lane, so both keep travelling past the line like a missed single note.
 			LongNote bar = note as LongNote;
 			bool pinsAtLine = bar == null || bar.KeepsHeadOnTheLine;
 			if (note.ChildNote != null)
