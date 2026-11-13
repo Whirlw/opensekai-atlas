@@ -319,29 +319,31 @@ namespace OpenSekai.Live.Conversion
 			return liveNote;
 		}
 
-		private static HashSet<int> OccupiedGridIndices(List<ChartNote> noteArray, int comboStepTicks)
+		private static HashSet<int> OccupiedGridIndices(LongNote longNote, int comboStepTicks)
 		{
 			var indices = new HashSet<int>();
-			if (noteArray == null || comboStepTicks <= 0)
+			if (longNote?.NoteList == null || comboStepTicks <= 0)
 			{
 				return indices;
 			}
 
-			foreach (ChartNote chartNote in noteArray)
+			foreach (NoteBase part in longNote.NoteList)
 			{
-				if (chartNote == null)
+				if (part == null || part is LongHoldCombo)
 				{
 					continue;
 				}
 
-				double grid = chartNote.ticks / (double)comboStepTicks;
+				MusicScoreInfo info = part.MusicScoreInfo;
+				double grid = (info.bar + info.barProgress)
+					* (double)OpenSekai.Charts.ChartTimeline.TICKS_PER_BAR / comboStepTicks;
 				double rounded = System.Math.Round(grid);
 				if (System.Math.Abs(grid - rounded) > 0.001)
 				{
 					continue;
 				}
 
-				// A note that sits exactly on the grid owns that position: no middle point there.
+				// A note of the bar that sits exactly on the grid owns that position: no middle there.
 				if (rounded >= int.MinValue && rounded <= int.MaxValue)
 				{
 					indices.Add((int)rounded);
@@ -382,11 +384,10 @@ namespace OpenSekai.Live.Conversion
 			int startIndex = (int)Math.Floor(longNote.MusicScoreInfo.barProgress * divisions) + 1 + longNote.MusicScoreInfo.bar * divisions;
 			int endIndex = (int)Math.Ceiling(note.MusicScoreInfo.barProgress * divisions) - 1 + note.MusicScoreInfo.bar * divisions;
 
-			// A grid point is only a middle if no note already sits on it. The dense friction runs of
-			// DEINOS put a head or a tail on almost every 8th: generating a point there made the bar
-			// judge a position that was already a note's own (bar 78: a point at 78.000 on the head of
-			// the next bar, while the three bare 8ths at 78.125/78.375/78.625 are the only real middles).
-			HashSet<int> occupied = OccupiedGridIndices(noteArray, comboStepTicks);
+			// A grid point only counts as a middle of THIS bar. Every note of the bar's own chain - its
+			// head, its connection notes, its end - already owns its position, so no middle goes there;
+			// what other bars and other lanes do at the same moment is their own business.
+			HashSet<int> occupied = OccupiedGridIndices(longNote, comboStepTicks);
 
 			for (int i = startIndex; i <= endIndex; i++)
 			{
