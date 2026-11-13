@@ -57,9 +57,32 @@
 
 ## 5. 进度（2026-11-13）
 
-- 第 ① 步已写：`LongNoteHead.SettleExpiredHead` 自己判 Miss；`LongNote.LeavePlayState()` 及其三处调用
-  （`Last→Release`、`ForceTerminate`、`FinishSilently`）删除；头登记到 `LiveNoteSession` 的每帧头扫描
-  `TickHeads`，条的 `Done` 不再阻止头结算。`HeadDecouplingTests.AnEndedBarLeavesItsHeadToItsOwnWindow`
-  与 `LongNoteHeadTests.HeadMissKeepsItsNotificationOrder` 按新语义改写。
-- 编译无 `error CS`；**全量用例尚未跑**（Unity 编辑器在收尾时退出，需重开后再跑）。
+### 第 ① 步：头的结论由自己的窗口给出（已提交 `9103e301`）
+
+- `LongNoteHead.SettleExpiredHead` 自己判 Miss；`LongNote.LeavePlayState()` 及其三处调用
+  （`Last→Release`、`ForceTerminate`、`FinishSilently`）删除，`State` 转移一处未改。
+- 头登记进 `LiveNoteSession.TickHeads`，条已经 `Done` 也继续走时钟。
+- 用例改写：`HeadDecouplingTests.AnEndedBarLeavesItsHeadToItsOwnWindow`（原 `ABarEndedBefore…`）、
+  `AnEndingAskedTwiceStillPublishesTheHeadOnce`、`APressOnAFinishedBarChangesNothing`、
+  `LongNoteHeadTests.HeadMissKeepsItsNotificationOrder`。
+- 全量 EditMode **610 / 604 通过 / 0 失败 / 6 跳过**。
+
+### 第 ② 步：头的判定有自己的身份（本次）
+
+- `LongNoteHead.Identity`：每根条一个 `NoteBase`，携带**头自己的** `JudgeInfo`，只用于判定侧。
+- `Settle` 的发布拆成两半：
+  - `onDamage` / `onUpdateCombo` / `onUpdateScore` 传 **Identity** —— 计分、连击、扣血从此回答的是
+    「头的结果」，不是「条的 `Result`」；
+  - `onJudgment` 仍传**条** —— 判定特效、弹字、视图都还打在原来那个对象、原来那一帧；
+  - `LongNote.JudgeInfo` 继续写同一个结果，仅作为视觉镜像（红线 §4）。
+- `Reset` 一并复位 Identity（池复用不会带回上一次的头结果）。
+- 新增用例 `LongNoteHeadTests.TheHeadScoresThroughItsOwnIdentity`：三个计分回调拿到的是 Identity、
+  不是条，`Identity.Result` 与条上的镜像同为 JustPerfect；`onJudgment` 仍然收到条。
+- 全量 EditMode **611 / 605 通过 / 0 失败 / 6 跳过**。
+
+### 第 ③ 步：头进候选集（未做，等视觉身份的决定）
+
+头现在是独立判定身份，但入口仍是 `LongNote.Judgment`。要把入口也搬走，头必须能被候选集收集、
+被 `LiveInputRouter` 注册，而那条链路上带着判定特效与视图查找——**这一层会动到视觉**，
+按 §4 的红线需要先定「头自己的视觉身份」（或明确「特效继续借用条对象」的桥），再动手。
 

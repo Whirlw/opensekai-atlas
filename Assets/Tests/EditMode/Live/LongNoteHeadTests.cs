@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using OpenSekai.Shared.Live;
 using Sekai.Live;
@@ -85,7 +86,7 @@ namespace OpenSekai.Tests.EditMode.Live
             var bar = Bar();
             var events = new List<string>();
             bar.OnUpdateResult = result => { events.Add("result"); return result; };
-            bar.OnDamage = n => events.Add($"damage:{n.State}:{n.Result}");
+            bar.OnDamage = n => events.Add($"damage:{(ReferenceEquals(n, bar) ? "bar" : "head")}:{n.Result}");
             bar.OnUpdateCombo = n => events.Add("combo");
             bar.OnJudgment = n => events.Add("judge");
             bar.OnUpdateScore = n => events.Add("score");
@@ -95,8 +96,7 @@ namespace OpenSekai.Tests.EditMode.Live
             // window and the Miss comes straight from the head, whether or not the bar was left in Last.
             bar.Excute(Info(1f), 0);
 
-            var state = fromLast ? "Release" : "Scrolling";
-            Assert.That(events, Is.EqualTo(new[] { $"damage:{state}:Miss", "combo", "judge" }));
+            Assert.That(events, Is.EqualTo(new[] { "damage:head:Miss", "combo", "judge" }));
             bar.Excute(Info(1.1f), 0);
             Assert.That(events.Count, Is.EqualTo(3));
         }
@@ -127,6 +127,32 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(combo.Result, Is.EqualTo(NoteResult.JustPerfect));
             Assert.That(points, Is.EqualTo(1));
             Assert.That(heads, Is.Zero);
+        }
+
+        [Test]
+        public void TheHeadScoresThroughItsOwnIdentity()
+        {
+            // The head's verdict is the head's. Score, combo and damage answer about the head's own
+            // result object, not about the bar's JudgeInfo; the bar keeps the same number only because
+            // the judgement effect and the views read the bar, and that mirror is the last shared edge.
+            var bar = Bar();
+            var scored = new List<NoteBase>();
+            var visual = new List<NoteBase>();
+            bar.OnDamage = n => scored.Add(n);
+            bar.OnUpdateCombo = n => scored.Add(n);
+            bar.OnUpdateScore = n => scored.Add(n);
+            bar.OnJudgment = n => visual.Add(n);
+            var touch = Touch();
+
+            Assert.That(bar.Judgment(ref touch, 4.5f), Is.True);
+
+            Assert.That(scored, Has.Count.EqualTo(3), "damage, combo and score each fire once");
+            Assert.That(scored, Has.None.SameAs(bar), "and none of them answers about the bar");
+            Assert.That(scored.Select(n => n.Result), Is.All.EqualTo(NoteResult.JustPerfect));
+            Assert.That(scored, Has.All.SameAs(bar.Head.Identity), "all three read the head's own result");
+            Assert.That(visual, Is.EqualTo(new[] { bar }), "the judgement effect still plays on the bar");
+            Assert.That(bar.Head.Identity.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(bar.Result, Is.EqualTo(NoteResult.JustPerfect), "the bar's mirror is unchanged");
         }
 
         private sealed class TailProbe : NoteBase
