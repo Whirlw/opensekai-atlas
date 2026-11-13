@@ -33,9 +33,7 @@ namespace Sekai.Live
 
 			// Decoration connection notes should not be marked as Last/Miss
 			// Check parent note's decoration status
-			// A skipped connection is the hidden kind of interior point: it shapes the bar and is never
-			// judged, so it may not fail either - a Miss there is a judgement nobody could make.
-			bool isDecorationConnection = IsDecoration || IsSkip || (parentNote != null && parentNote.IsDecoration);
+			bool isDecorationConnection = IsDecoration || (parentNote != null && parentNote.IsDecoration);
 
 			if (State == NoteState.Last)
 			{
@@ -49,7 +47,12 @@ namespace Sekai.Live
 					OffsetJudgeTime = currentFrameInfo.time - MusicScoreInfo.time;
 					if (OffsetJudgeTime > SlideLateWindowSeconds)
 					{
-						JudgeInfo = (NoteResult.Miss, NoteResultDescription.None);
+						// A skipped connection is the hidden kind of interior point: it shapes the bar and
+						// is never judged, so it ends as Pass instead of failing. It still has to end, or
+						// it would keep sliding down the line forever.
+						JudgeInfo = IsSkip
+							? (NoteResult.Pass, NoteResultDescription.None)
+							: (NoteResult.Miss, NoteResultDescription.None);
 						State = NoteState.Done;
 					}
 				}
@@ -101,6 +104,18 @@ namespace Sekai.Live
 				? (NoteResult.Pass, NoteResultDescription.None)
 				: (NoteResult.JustPerfect, NoteResultDescription.None);
 			State = NoteState.Done;
+		}
+
+		protected override void OnSpawnNote()
+		{
+			// The hidden kind shapes the bar and draws nothing: giving it a view is what put a diamond
+			// on screen that nobody was meant to press.
+			if (IsSkip)
+			{
+				return;
+			}
+
+			base.OnSpawnNote();
 		}
 
 		protected override void PublishResult()

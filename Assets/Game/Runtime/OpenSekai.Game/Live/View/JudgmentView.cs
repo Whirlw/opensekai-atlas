@@ -36,9 +36,6 @@ namespace Sekai
 
 		private float _time;
 
-		/// <summary>How long one pop lasts before the next judgement may start a new one.</summary>
-		private const float PopSeconds = 0.3f;
-
 		private int _frame = -1;
 
 		private NoteResult _frameResult;
@@ -102,18 +99,9 @@ namespace Sekai
 				return false;
 			}
 
-			// A pop that is still playing is left alone: in a dense stretch (DEINOS' friction section
-			// grades a note every few frames) resetting the clock on every judgement held the popup at
-			// zero scale, so it never appeared to refresh at all. It restarts once the pop has finished,
-			// or at once when the result on screen changes.
-			bool restart = _spriteRenderer.sprite != sprite || _time > PopSeconds;
 			_spriteRenderer.sprite = sprite;
-			if (restart)
-			{
-				_time = 0f;
-				_spriteRenderer.transform.localScale = Vector3.zero;
-			}
-
+			_time = 0f;
+			_spriteRenderer.transform.localScale = Vector3.zero;
 			return true;
 		}
 
@@ -123,7 +111,7 @@ namespace Sekai
 			{
 				return;
 			}
-			if (_time > PopSeconds)
+			if (_time > 0.3f)
 			{
 				_spriteRenderer.transform.localScale = Vector3.zero;
 				return;
