@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using OpenSekai.Shared.Diagnostics;
 using OpenSekai.Shared.Live;
 using UnityEngine;
@@ -489,6 +489,17 @@ namespace Sekai.Live
 			_tailPublished = true;
 			_bar.SetTailResult(result);
 			_bar.CompleteTail();
+
+			// The bar's ending key leaves with the bar. It used to be handed to the retirement pass, which
+			// only starts sliding a judged key out once it has a verdict of its own - and a friction,
+			// friction-flick or ordinary end has none here (the bar speaks for it), so the key sat on the
+			// judgement line for a few frames after the bar was gone. A hidden end has no key at all, which
+			// is the behaviour every drawn end key now follows.
+			if (Child != null && Child.HasJudgment)
+			{
+				Child.RemoveView();
+			}
+
 			return true;
 		}
 
