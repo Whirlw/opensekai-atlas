@@ -64,5 +64,36 @@ namespace OpenSekai.Tests.EditMode.Live
 			// A key at 1.2 has to land below the line, so the curve must not fold it back onto 1.
 			Assert.That(NoteLineProgress.View(1.2f), Is.GreaterThan(1f));
 		}
+
+		[Test]
+		public void AnEndThatWasNeverExecutedIsMeasuredInsteadOfDrawnAtZero()
+		{
+			// Device report: a friction-hide bar was invisible for 18 frames (0.2 s) right after the press.
+			// Its end note reaches Input when the player presses it, before any frame executed it, so its
+			// stored offset was still 0 - and the mesh refuses to build a segment at an offset of 0.
+			var note = new Sekai.Live.FrictionNote(
+				new Sekai.Live.MusicScoreInfo(0, 0f, 5f, 120f, 4f, 1f, 1f), 1, 4, 5,
+				Sekai.Live.NoteCategory.Friction, null, Sekai.Live.NoteType.Default, 1f);
+			note.SetStateUnnotice(Sekai.Live.NoteState.Input);
+			note.CalcTimeOffset = _ => 0.4f;
+
+			Assert.That(note.offsetTime, Is.EqualTo(0f), "the note has never been executed");
+			Assert.That(NoteLineProgress.SampleOffset(note), Is.EqualTo(0.4f).Within(1e-5f),
+				"a zero offset is not a speed, it is a body nobody would draw");
+		}
+
+		[Test]
+		public void AnExecutedEndKeepsTheOffsetItWasDrawnWith()
+		{
+			var note = new Sekai.Live.FrictionNote(
+				new Sekai.Live.MusicScoreInfo(0, 0f, 5f, 120f, 4f, 1f, 1f), 1, 4, 5,
+				Sekai.Live.NoteCategory.Friction, null, Sekai.Live.NoteType.Default, 1f);
+			note.SetStateUnnotice(Sekai.Live.NoteState.Scrolling);
+			note.offsetTime = 0.25f;
+			note.CalcTimeOffset = _ => 9f;
+
+			Assert.That(NoteLineProgress.SampleOffset(note), Is.EqualTo(0.25f).Within(1e-5f),
+				"an executed note is drawn with the offset its frame gave it");
+		}
 	}
 }
