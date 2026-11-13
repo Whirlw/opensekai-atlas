@@ -89,6 +89,13 @@ namespace Sekai.Live
 			}
 		}
 
+		/// <summary>
+		/// The head's own judgement entry: one touch, one lane, this frame. It is the door the candidate
+		/// list will call once the head is its own candidate; today the bar's <c>Judgment</c> only
+		/// forwards here, so the head is already the place the press is answered.
+		/// </summary>
+		internal bool Judgment(ref LiveTouch touch, float lane) => _bar.DriveJudgmentFrame(ref touch, lane);
+
 		internal bool TryJudge(ref LiveTouch touch, float lane)
 		{
 			// Kept as a second lock, not as the answer to "may a finished bar be pressed". The input

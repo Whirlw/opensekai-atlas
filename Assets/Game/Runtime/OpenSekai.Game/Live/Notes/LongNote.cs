@@ -199,7 +199,9 @@ namespace Sekai.Live
 
 		public override bool Judgment(ref LiveTouch touch, float lane)
 		{
-			return DriveJudgmentFrame(ref touch, lane);
+			// The head answers the press. The bar only forwards, so the entry the candidate list will
+			// call (the head's own) is the same one every existing caller already reaches.
+			return Head.Judgment(ref touch, lane);
 		}
 
 		/// <summary>Feeds this bar one input frame: head, hold facts, frame stamp, points and tail.</summary>

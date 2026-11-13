@@ -130,6 +130,24 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         [Test]
+        public void TheHeadEntryAnswersThePress()
+        {
+            // The head is the door a press goes through; the bar's Judgment only forwards to it. This
+            // pins the entry so the candidate list can be pointed at the head without moving the work.
+            var bar = Bar();
+            var touch = Touch();
+
+            Assert.That(bar.Head.Judgment(ref touch, 4.5f), Is.True, "the head's own entry takes the press");
+            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(bar.Result, Is.EqualTo(NoteResult.JustPerfect), "the picture mirror follows");
+            Assert.That(bar.HasFinger, Is.True, "and the bar is held by that press, exactly as before");
+
+            bar.Excute(Info(0.5f), 0);
+            bar.Head.Judgment(ref touch, 4.5f);
+            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.JustPerfect), "a second frame does not re-settle it");
+        }
+
+        [Test]
         public void TheHeadScoresThroughItsOwnIdentity()
         {
             // The head's verdict is the head's. Score, combo and damage answer about the head's own
