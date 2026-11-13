@@ -31,6 +31,10 @@ namespace Sekai.Core.Live
 			// Heads first: a head settles on its own window, and that window may close on a frame the
 			// bar itself is no longer walked (a tail ended it earlier).
 			_session.Notes.TickHeads(Frame.time);
+
+			// End notes that judge themselves get the same treatment: their clock is theirs, not the
+			// bar's, so the bar leaving never takes their verdict away.
+			_session.Notes.TickTails(Frame);
 			_session.Notes.WalkNotes(ScanNote);
 			_session.Notes.WalkHighSpeedNotes(ScanHighSpeedNote);
 		}
@@ -88,6 +92,14 @@ namespace Sekai.Core.Live
 				// never travels through the bar's Judgement. The bar stays in the list for the hold
 				// coordinator, which finds bars by type.
 				_input.Register(bar.Head.Candidate);
+			}
+
+			// A judged end note that judges itself is ticked by the session, not by the bar's note loop, for
+			// the same reason: the bar ends on its own time and the note's clock has to outlive that.
+			if (note is LongNote judgedBar && judgedBar.TailBehaviour.JudgesItself
+				&& judgedBar.ChildNote is NoteBase tail && tail.HasJudgment)
+			{
+				_session.Notes.RegisterTail(tail);
 			}
 		}
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 using System.Collections.Generic;
 
@@ -307,17 +307,15 @@ namespace OpenSekai.Tests.EditMode.Live
 
         [Test]
 
-        public void ARubTailIsNotEndedBeforeItHasDecidedItself()
+        public void ARubTailIsNotGradedByTheBarAndEndsWithIt()
 
         {
 
-            // A tail that carries a judgement of its own keeps its own clock: it is executed while it stays
+            // The bar leaves on its own time and writes nothing onto a self-judged end note. The note's
 
-            // in the bar's note list and publishes its own Miss when its window closes. The bar used to
+            // clock is its own now (LiveNoteSession.TickTails), so the bar ending first cannot take its
 
-            // detach it at its own end instead, which orphaned it: a friction or friction-flick end was
-
-            // then never judged and never missed.
+            // verdict away: it still publishes its own Miss afterwards.
 
             var bar = new LongNote(Info(0f), 63, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
 
@@ -331,13 +329,15 @@ namespace OpenSekai.Tests.EditMode.Live
 
             Assert.That(bar.IsPastTailWindow(2f), Is.True, "way past the tail window");
 
-            Assert.That(bar.ExpireTail(2f), Is.False, "but the note is still open, so the bar waits");
+            Assert.That(bar.ExpireTail(2f), Is.True, "the bar ends on its own time");
 
-            Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done));
+            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+
+            Assert.That(tail.Result, Is.EqualTo(NoteResult.None), "and it graded the note nothing");
 
 
 
-            // The note misses on its own clock; only then does the bar leave, reading that verdict.
+            // The note keeps its own clock after the bar is gone.
 
             tail.Excute(Info(1.2f), 0.5f);
 
@@ -346,12 +346,6 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
             Assert.That(tail.Result, Is.EqualTo(NoteResult.Miss), "the rub end misses on its own");
-
-            Assert.That(bar.ExpireTail(2f), Is.True, "and now the bar ends");
-
-            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
-
-            Assert.That(bar.Result, Is.EqualTo(NoteResult.Miss), "reading the verdict the note published");
 
         }
 
@@ -883,8 +877,8 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-            bar.Excute(Info(1.2f), 0f);
-            bar.Excute(Info(1.3f), 0f);
+            tail.Excute(Info(1.2f), 0f);
+            tail.Excute(Info(1.3f), 0f);
 
             Assert.That(tail.State, Is.EqualTo(NoteState.Done), "the tail is finished");
 
@@ -974,8 +968,8 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-            bar.Excute(Info(1.2f), 0f);
-            bar.Excute(Info(1.3f), 0f);
+            tail.Excute(Info(1.2f), 0f);
+            tail.Excute(Info(1.3f), 0f);
 
 
 
@@ -1392,8 +1386,8 @@ namespace OpenSekai.Tests.EditMode.Live
 
             // past its window into its own Miss. The bar waits for that verdict instead of writing one.
 
-            bar.Excute(Info(1.2f), 0f);
-            bar.Excute(Info(1.3f), 0f);
+            tail.Excute(Info(1.2f), 0f);
+            tail.Excute(Info(1.3f), 0f);
 
             Assert.That(tail.Result, Is.EqualTo(NoteResult.Miss), "the tail writes its own Miss");
 

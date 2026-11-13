@@ -17,19 +17,9 @@ namespace Sekai.Live.Tails
 			// The end note settles itself, so the bar only detaches once that note has a result or its
 			// window has closed. The bar never writes a grade onto it.
 			//
-			// A judged end note keeps its own clock: it is executed for as long as it stays in the bar's
-			// note list, and when its window closes with no verdict it publishes its own Miss. Detaching it
-			// at the bar's own end instead orphaned it before that could happen - the friction-flick end
-			// that was never judged and never missed. The bar waits for the note it does not grade; the
-			// forced expiry (LongNoteTail.ExpireTail) still ends the bar regardless.
-			if (bar.ChildNote is NoteBase tail
-				&& tail.HasJudgment
-				&& tail.State != NoteState.Done
-				&& tail.Result == NoteResult.None)
-			{
-				return false;
-			}
-
+			// The note does not depend on this bar for its clock any more: a judged end note is ticked by
+			// the session (LiveNoteSession.TickTails), so a bar that leaves first cannot orphan it, and the
+			// note still publishes its own Miss when its own window closes.
 			return bar.DetachStandaloneTail(frame.Now);
 		}
 

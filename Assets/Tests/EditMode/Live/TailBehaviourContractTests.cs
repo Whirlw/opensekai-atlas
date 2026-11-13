@@ -22,11 +22,13 @@ namespace OpenSekai.Tests.EditMode.Live
 		private static void Bind(LongNote bar, NoteBase tail) => bar.AddNoteListAndSetupChildNote(tail);
 
 		[Test]
-		public void ASelfJudgedTailMissesOnItsOwnClockBeforeTheBarLeaves()
+		public void ASelfJudgedTailKeepsItsOwnClockAfterTheBarHasGone()
 		{
-			// "条尾的 friction flick 没有解耦干净，没判定上也不 miss": the bar detached the end note as soon as its
-			// own window closed, which orphaned the note before its own clock could publish anything. The
-			// note judges itself, so it gets to finish its own window; the bar then reads what it decided.
+			// "条尾的 friction flick 没有解耦干净，没判定上也不 miss": the bar detaches the end note on its own time and
+			// writes nothing onto it. That no longer orphans the note - a judged end note is ticked by the
+			// session (LiveNoteSession.TickTails) - so it still finishes its own window and publishes its
+			// own Miss. AFrictionFlickTailThatNobodyPlaysMissesInTheRealLoop is the proof through the real
+			// loop; this pins the bar's half.
 			LongNote bar = Bar();
 			var tail = new FrictionFlickNote(Info(1f), 96, 4, 5, NoteCategory.FrictionFlick, 1f,
 				NoteType.Default, NoteDirection.Default, 0.0833f, 0f);
@@ -34,19 +36,9 @@ namespace OpenSekai.Tests.EditMode.Live
 
 			bool settled = bar.TailBehaviour.TryFinish(bar, new TailFrame(2f, 1f / 60f, default, false, false, false));
 
-			Assert.That(settled, Is.False, "the bar waits for a note it does not grade");
-			Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done), "and it is still there");
-			Assert.That(tail.Result, Is.EqualTo(NoteResult.None), "nothing was written onto the note");
-
-			// The note's own clock: past its late window it misses itself, exactly like a standalone flick.
-			tail.Excute(Info(1.2f), 0.5f);
-			tail.Excute(Info(1.3f), 0.5f);
-
-			Assert.That(tail.Result, Is.EqualTo(NoteResult.Miss), "the end note misses on its own");
-
-			bool then = bar.TailBehaviour.TryFinish(bar, new TailFrame(2f, 1f / 60f, default, false, false, false));
-			Assert.That(then, Is.True, "and only then does the bar leave");
-			Assert.That(bar.Result, Is.EqualTo(NoteResult.Miss), "reading the verdict the note published");
+			Assert.That(settled, Is.True, "the bar leaves on its own time");
+			Assert.That(tail.Result, Is.EqualTo(NoteResult.None), "and it wrote no verdict onto the note");
+			Assert.That(tail.State, Is.Not.EqualTo(NoteState.Done), "the note is still open, on its own clock");
 		}
 
 		[Test]

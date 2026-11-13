@@ -89,6 +89,14 @@ namespace Sekai.Live
 						break;
 					}
 
+					// A judged end note that judges itself has its own clock in the session (LiveNoteSession
+					// .TickTails): ticking it here as well would run it twice, and it must keep ticking
+					// after this bar has left. Only the bar's own children are ticked from here.
+					if (ReferenceEquals(note, childNote) && TailBehaviour.JudgesItself && note.HasJudgment)
+					{
+						continue;
+					}
+
 					note.Excute(currentFrameInfo, childOffsetTime);
 				}
 			}
