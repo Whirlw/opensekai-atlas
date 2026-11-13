@@ -32,6 +32,21 @@ namespace Sekai.Core.Live
 			// bar itself is no longer walked (a tail ended it earlier).
 			_session.Notes.TickHeads(Frame.time);
 
+			// A head is a press candidate for as long as the head is open, not for as long as its bar is on
+			// screen. The walk below only visits bars that are still playing, and a short bar is done a few
+			// milliseconds after its head - which took the rest of the head's 125 ms window with it, so a
+			// press that landed after that had nothing to answer. Registering from the head list keeps the
+			// promise the head makes: it answers inside its own window, whatever the body is doing.
+			System.Collections.Generic.List<LongNoteHead> openHeads = _session.Notes.PendingHeads;
+			for (int i = 0; i < openHeads.Count; i++)
+			{
+				LongNoteHead head = openHeads[i];
+				if (head != null && head.Candidate.IsAnswerable)
+				{
+					_input.Register(head.Candidate);
+				}
+			}
+
 			// End notes that judge themselves get the same treatment: their clock is theirs, not the
 			// bar's, so the bar leaving never takes their verdict away.
 			_session.Notes.TickTails(Frame);

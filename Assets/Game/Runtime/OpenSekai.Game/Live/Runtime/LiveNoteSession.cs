@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Sekai.Live;
 
@@ -86,6 +86,14 @@ namespace Sekai.Core.Live
 
 		/// <summary>Heads still waiting for their window to close, for tests and invariants.</summary>
 		public int PendingHeadCount => _heads.Count;
+
+		/// <summary>
+		/// Every head still waiting for its verdict, whatever its bar is doing. The frame asks this list to
+		/// keep those heads registered as press candidates: the note walk only sees bars that are still being
+		/// played, and a short bar is done milliseconds after its head - which used to take the head's own
+		/// window away with it.
+		/// </summary>
+		internal List<LongNoteHead> PendingHeads => _heads;
 
 		internal void RegisterHead(LongNoteHead head)
 		{
