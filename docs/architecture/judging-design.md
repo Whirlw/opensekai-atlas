@@ -58,6 +58,8 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 
 三个通道按顺序读取本帧样本。抬起阶段直接选择并结算普通尾。常驻阶段独立处理条身覆盖和划键尾手势。
 
+每个音符每帧只被推进一次：`LiveNoteSession.Bind` 按音符自己的 `speedRatio` 把它归入普通或高速列表，并写下 `NoteBase.IsHighSpeedNote`，`WalkNotes` 据此跳过高速音符。这个标志是绑定时的归属，不是每局状态，`ResetNote` 不清除它（开局在绑定之后会重置一次音符）。内部点只有到点后的一次输入判定，被推进两次就会在输入前直接 Miss。
+
 自动播放在 ① 扫描音符前先结算到时的非装饰音符，以免掉帧时先被超时逻辑判为 Miss。控制器随后调用 `OnAutoInput` 补跑自动判定，③ 处理尾键和退场动画。① 的扫描也会推进音符表现。
 
 **三个时机补偿与两条时钟**（`TimingCompensation`，设置里各一个毫秒输入框）

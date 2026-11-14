@@ -367,7 +367,10 @@ namespace Sekai.Live
 			set;
 		}
 
-		/// <summary>Whether this note is walked by the high speed pass, decided when the chart was bound.</summary>
+		/// <summary>
+		/// Whether this note is walked by the high speed pass, decided when the chart was bound. Only
+		/// <see cref="Sekai.Core.Live.LiveNoteSession.Bind"/> sets it; a reset keeps it.
+		/// </summary>
 		internal bool IsHighSpeedNote { get; set; }
 
 		/// <summary>
@@ -720,7 +723,11 @@ namespace Sekai.Live
 			resultPublished = false;
 			JudgeInfo = (NoteResult.None, NoteResultDescription.None);
 			offsetTime = 0f;
-			IsHighSpeedNote = false;
+			// IsHighSpeedNote is not play state: it says which walk the bound chart filed this note in, and
+			// only LiveNoteSession.Bind decides it. Clearing it here - every live start resets the notes
+			// right after binding them - left each high speed note in the high speed list while the normal
+			// walk stopped skipping it, so it was advanced twice a frame: an interior point went due and
+			// Miss in one update, before input could judge it (DEINOS PHAINEIN's rub chain, 2026-11-14).
 		}
 	}
 }
