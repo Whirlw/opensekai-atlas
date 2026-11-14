@@ -458,11 +458,6 @@ namespace Sekai.Live
 
 		internal void ClearHeadJudgeOffset() => OffsetJudgeTime = 0f;
 
-		internal Action<NoteBase> HeadDamage => onDamage;
-		internal Action<NoteBase> HeadCombo => onUpdateCombo;
-		internal Action<NoteBase> HeadJudgment => onJudgment;
-		internal Action<NoteBase> HeadScore => onUpdateScore;
-
 		internal void RecordHoldingInput(float musicTime) => Body.RecordInput(musicTime);
 		internal void ClearFinger() => _body?.ClearFinger();
 		internal void MarkPressedThisFrame() => Body.MarkPressed();

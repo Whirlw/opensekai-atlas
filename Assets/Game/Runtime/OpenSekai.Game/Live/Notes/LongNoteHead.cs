@@ -6,7 +6,6 @@ namespace Sekai.Live
 	internal sealed class LongNoteHead
 	{
 		private readonly LongNote _bar;
-		private bool _headPublished;
 		private (NoteResult result, NoteResultDescription description) _result;
 
 		internal bool IsSettled => _result.result != NoteResult.None;
@@ -43,7 +42,6 @@ namespace Sekai.Live
 
 		internal void Reset()
 		{
-			_headPublished = false;
 			_result = (NoteResult.None, NoteResultDescription.None);
 			if (_identity != null)
 			{
@@ -54,12 +52,12 @@ namespace Sekai.Live
 
 		internal void Settle((NoteResult result, NoteResultDescription description) result, bool updateScore = true)
 		{
-			if (IsSettled || _headPublished || result.result == NoteResult.None)
+			if (IsSettled || Identity.HasPublishedResult || result.result == NoteResult.None)
 			{
 				if (LiveTrace.IsOn(LiveTraceCategory.Judge))
 				{
 					LiveTrace.Write(LiveTraceCategory.Judge, string.Concat(
-						"headSkip id=", _bar.Id, " settled=", IsSettled, " published=", _headPublished,
+						"headSkip id=", _bar.Id, " settled=", IsSettled, " published=", Identity.HasPublishedResult,
 						" want=", result.result, " t=", _bar.MusicScoreInfo.time.ToString("F3")));
 				}
 
@@ -71,17 +69,19 @@ namespace Sekai.Live
 			// NoteBase's JudgeInfo setter is protected, so this uses its one public write. It is the same
 			// assignment: the head's own object carries the head's own verdict.
 			Identity.SetJudgeInfoForDecoration(result.result);
-			// Guard before invoking user callbacks, including reentrant state changes or presses.
-			_headPublished = true;
-			if (!_bar.HasJudgment) return;
-			_bar.HeadDamage?.Invoke(Identity);
-			_bar.HeadCombo?.Invoke(Identity);
-			// Only an ordinary head borrows the bar as its visual object: its judgement effect is played
-			// on the bar the view layer knows. Every other head is expected to be visually unrelated to
-			// the bar, so it speaks for itself.
-			_bar.HeadJudgment?.Invoke(_bar.IsOrdinaryHead ? (NoteBase)_bar : Identity);
-			// Timeout misses historically omit score; a press keeps its score callback even if Miss.
-			if (updateScore) _bar.HeadScore?.Invoke(Identity);
+			// A carrier's head has nothing to say, but it is closed all the same.
+			if (!_bar.HasJudgment)
+			{
+				Identity.ClaimPublication();
+				return;
+			}
+
+			// The head is counted as its own identity. Only an ordinary head borrows the bar as the object
+			// its judgement effect is shown on, because that is the object the view layer knows; every
+			// other head shows itself. A timeout Miss omits the score callback; a press keeps it even when
+			// it is a Miss.
+			ResultPublication.Publish(Identity, _bar.Callbacks, _bar.IsOrdinaryHead ? (NoteBase)_bar : Identity,
+				updateScore ? PublishShape.Head : PublishShape.ExpiredHead);
 		}
 
 		internal void SettleExpiredHead(float currentTime)
