@@ -306,39 +306,6 @@ namespace Sekai.Live
 		internal void KeepAlive(float musicTime) => Body.KeepAlive(musicTime);
 
 		/// <summary>
-		/// How this bar is meant to end, derived from the note that ends it. Deliberately not cached:
-		/// the chart is built once but bars are reset between runs, and any cached copy of this answer
-		/// is wiped by that reset while the binding survives it.
-		/// </summary>
-		/// <summary>
-		/// The note that ends this bar, as the chart bound it (an ordinary note, a flick, a rub, a hidden
-		/// marker). The behaviour is chosen from this note and the tail pass grades this note, so the two
-		/// questions always answer the same object.
-		/// 
-		/// It is not "the last child in the list": a hidden interior point appended after the end must not
-		/// steal the tail (TailBehaviourTests.AHiddenMarkerAfterTheTailDoesNotStealIt), and it is not "the
-		/// latest by time" either - what matters is which note the bar was told is its end.
-		/// </summary>
-		internal NoteBase TailNote => Tail.EndNote ?? childNote;
-
-		internal static bool IsIndependentTail(NoteBase note) =>
-			note is FrictionFlickNote || note is FrictionNote and not FrictionHideNote;
-
-		internal bool HasIndependentTail => IsIndependentTail(TailNote);
-
-		internal bool HasManagedTail => TailNote is { HasJudgment: true, IsDecoration: false }
-			&& (TailBehaviour.AcceptsRelease || TailBehaviour.AcceptsSwipe)
-			&& IsTailCandidate(TailNote);
-
-		internal bool HasPendingManagedTail => HasManagedTail && TailNote.State != NoteState.Done;
-
-		internal bool CanReceiveTailSwipe => Tail.CanReceiveSwipe;
-
-		internal ITailBehaviour TailBehaviour => SkipsTailJudgement
-			? SilentTail.Instance
-			: TailNote == null ? ReleaseTail.Instance : TailBehaviours.For(TailNote);
-
-		/// <summary>
 		/// An ordinary bar: a plain long note, not a rub and not a decoration. Its head is where the
 		/// body is supposed to shrink from, so it is the only kind that holds its head on the line while
 		/// nobody is holding it.
@@ -352,9 +319,6 @@ namespace Sekai.Live
 		/// so both keep travelling past the line instead of freezing on it.
 		/// </summary>
 		internal bool KeepsHeadOnTheLine => IsOrdinaryHead;
-
-		/// <summary>Whether the final chart point ends the bar without its own judgement.</summary>
-		internal bool EndsWithoutJudgement => SkipsTailJudgement || (_lastBoundNote != null && !IsTailCandidate(_lastBoundNote));
 
 		/// <summary>
 		/// A bar greys when its hold lapses. A returning finger lights it again while the
@@ -375,81 +339,6 @@ namespace Sekai.Live
 		/// </summary>
 		internal bool HeadIsANote => IsOrdinaryHead && HasJudgment && !IsSkip;
 
-		internal bool CanFinishSilently(float currentTime)
-		{
-			// Allow a visible head to publish its result before ending a silent tail.
-			if (PublishesHeadMiss && !Head.IsSettled)
-			{
-				return false;
-			}
-
-			return EndsWithoutJudgement && _lastBoundNote != null
-				&& currentTime > _lastBoundNote.MusicScoreInfo.time;
-		}
-
-		private void SettleLeftoverAsPerfect()
-		{
-			if (NoteList == null)
-			{
-				return;
-			}
-
-			for (int i = 0; i < NoteList.Count; i++)
-			{
-				NoteBase part = NoteList[i];
-				if (part == null || !(part is LongHoldCombo))
-				{
-					continue;
-				}
-
-				if (part.ParentNote != this || part.Result != NoteResult.None)
-				{
-					continue;
-				}
-
-				part.FinishWith(NoteResult.Perfect);
-			}
-		}
-
-		internal void FinishSilently()
-		{
-			if (State == NoteState.Done)
-			{
-				return;
-			}
-
-			// CanFinishSilently already waits for a visible head, but that wait is about the head's own
-			// window: the head settles itself and is not touched here.
-			_tail?.ResetDecision();
-			// The leftover interior points are settled by the Done transition itself (see State), so this
-			// path and every other ending agree without each one remembering to do it.
-			State = NoteState.Done;
-		}
-
-		private LongNoteTail _tail;
-		private LongNoteTail Tail => _tail ??= new LongNoteTail(this);
-
-		internal static bool IsTailCandidate(NoteBase note) => LongNoteTail.IsTailCandidate(note);
-		internal bool TryGetTail(out NoteBase tail) => Tail.TryGetTail(out tail);
-		internal bool IsTailJudgeableAt(float currentTime) => Tail.IsTailJudgeableAt(currentTime);
-		internal bool IsTailWindowOpenAt(float currentTime) => Tail.IsTailWindowOpenAt(currentTime);
-		internal bool IsPastTailWindow(float currentTime) => Tail.IsPastTailWindow(currentTime);
-		internal bool ExpireTail(float currentTime) => Tail.ExpireTail(currentTime);
-		internal bool JudgeTailAsRelease(float currentTime) => Tail.JudgeTailAsRelease(currentTime);
-		internal bool DetachStandaloneTail(float currentTime) => Tail.DetachStandaloneTail(currentTime);
-		internal bool NotifyLaneSwipe(float magnitude, float currentTime) => Tail.NotifyLaneSwipe(magnitude, currentTime);
-		internal bool HasDeferredSwipe => _tail?.HasDeferredSwipe ?? false;
-		internal void MarkTailPressed() => Tail.MarkTailPressed();
-		internal void NotifyLaneRelease() => _tail?.NotifyLaneRelease();
-		internal bool TickSwipeTail(float currentTime) => Tail.TickSwipeTail(currentTime);
-		internal bool FailTail() => Tail.FailTail();
-		internal int? DeferredSwipeTouchId => _tail?.DeferredSwipeTouchId;
-		internal bool TrySwipeTail(Vector2 delta, float deltaTime, float currentTime, int? touchId = null) =>
-			Tail.TrySwipeTail(delta, deltaTime, currentTime, touchId);
-
-		internal void SetTailResult(NoteResult result) => JudgeInfo = (result, NoteResultDescription.None);
-		internal void CompleteTail() => State = NoteState.Done;
-
 		internal void SetHeadJudgeInfo((NoteResult result, NoteResultDescription description) value) => JudgeInfo = value;
 
 		internal Func<(NoteResult result, NoteResultDescription description), (NoteResult result, NoteResultDescription description)> HeadResultUpdater => onUpdateResult;
@@ -464,24 +353,6 @@ namespace Sekai.Live
 		private LongNoteHead _head;
 
 		internal LongNoteHead Head => _head ??= new LongNoteHead(this);
-		private NoteBase _lastBoundNote;
-
-		/// <summary>
-		/// A decorative bar never owns its end: the tail is a note of its own that the player judges.
-		/// The bar just stops when that note's time passes, with no result of its own.
-		/// </summary>
-		private bool _skipTailJudgement;
-
-		public void SkipTailJudgement()
-		{
-			_skipTailJudgement = true;
-		}
-
-		/// <summary>
-		/// A bar type may decide by itself that the note at its end is played by the player.
-		/// <see cref="GuideNote"/> does, so the converter flag is only a fallback.
-		/// </summary>
-		protected virtual bool SkipsTailJudgement => _skipTailJudgement;
 
 		/// <summary>
 		/// Releasing or stepping out of the bar keeps the hold alive for this many frames; only after
@@ -511,24 +382,6 @@ namespace Sekai.Live
 		protected void ConnectionNoteJudgment(ref LiveTouch touch, float lane)
 		{
 			Head.ConnectionNoteJudgment(ref touch, lane);
-		}
-
-		protected void ConnectionNoteTerminate()
-		{
-			if (NoteList == null)
-			{
-				return;
-			}
-
-			for (var i = 1; i < NoteList.Count - 1; i++)
-			{
-				var note = NoteList[i];
-				if (note != null && note.State != NoteState.Done
-					&& !((HasIndependentTail || HasManagedTail) && ReferenceEquals(note, TailNote)))
-				{
-					note.Terminate();
-				}
-			}
 		}
 
 		public override bool IsJudgment(ref LiveTouch touch, float lane)
@@ -604,75 +457,6 @@ namespace Sekai.Live
 			}
 
 			return true;
-		}
-
-		private void ConnectionNoteAutoJudgment(MusicScoreInfo currentFrameInfo)
-		{
-			// A carrier never settles its head, so "the head was answered" cannot be the gate there:
-			// the points it carries are exactly what it exists for.
-			if (HasJudgment && Head.Result != NoteResult.Auto)
-			{
-				return;
-			}
-
-			foreach (NoteBase point in JudgedPoints)
-			{
-				point?.AutoJudgment(currentFrameInfo);
-			}
-		}
-
-		private List<NoteBase> _judgedPoints;
-
-		/// <summary>
-		/// The interior points this bar really judges: the generated ones, the chart's preset ones, and
-		/// the ones added without changing the shape. A hidden point only changes the shape, and two
-		/// points on one position are one judgement for this bar (two bars at the same position still
-		/// judge twice, each for itself).
-		/// </summary>
-		internal List<NoteBase> JudgedPoints => _judgedPoints ??= BuildJudgedPoints();
-
-		private List<NoteBase> BuildJudgedPoints()
-		{
-			var points = new List<NoteBase>();
-			if (NoteList == null)
-			{
-				return points;
-			}
-
-			var seen = new HashSet<int>();
-			for (int i = 1; i < NoteList.Count - 1; i++)
-			{
-				NoteBase part = NoteList[i];
-				if (part == null || !IsJudgedInteriorPoint(part)
-					|| ((HasIndependentTail || HasManagedTail) && ReferenceEquals(part, TailNote)))
-				{
-					continue;
-				}
-
-				if (!seen.Add(JudgementPosition(part.MusicScoreInfo)))
-				{
-					continue;
-				}
-
-				points.Add(part);
-			}
-
-			return points;
-		}
-
-		/// <summary>
-		/// Auto play generates a point without changing the bar's shape, so an undrawn one is always an
-		/// auto point; a chart connection is judged only when it is drawn; a point added in the editor
-		/// is a drawn <see cref="LongHoldCombo"/>. A hidden point is neither judged nor automatic.
-		/// </summary>
-		internal static bool IsJudgedInteriorPoint(NoteBase part)
-		{
-			return part != null && (part is LongHoldCombo || (part.HasJudgment && !part.IsSkip));
-		}
-
-		private static int JudgementPosition(MusicScoreInfo info)
-		{
-			return (int)Math.Round(info.time * 1000f);
 		}
 
 		public override NoteResult CalcNoteResult(float musicTime)
