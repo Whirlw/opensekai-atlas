@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using OpenSekai.Shared.Diagnostics;
 using OpenSekai.Shared.Live;
 using UnityEngine;
@@ -16,7 +16,17 @@ namespace Sekai.Live
 			_bar = bar;
 		}
 
-		private NoteBase Child => (NoteBase)_bar.ChildNote;
+		/// <summary>
+		/// The note the bar was bound to as its end - what the chart calls the end of this bar, whatever kind
+		/// it is (an ordinary note, a flick, a rub, a hidden marker). It is set only by the end-note binding,
+		/// so a hidden interior point appended after it cannot steal it (pinned by
+		/// TailBehaviourTests.AHiddenMarkerAfterTheTailDoesNotStealIt).
+		///
+		/// Whether this note can be graded at all is a different question, answered by TryGetTail.
+		/// </summary>
+		internal NoteBase EndNote => (NoteBase)_bar.ChildNote;
+
+		private NoteBase Child => EndNote;
 
 		internal void ResetDecision()
 		{
@@ -540,12 +550,10 @@ namespace Sekai.Live
 				return false;
 			}
 
-			float flickDistance = Child switch
-			{
-				FlickNote flick => flick.FlickDistance,
-				FrictionFlickNote frictionFlick => frictionFlick.FlickDistance,
-				_ => 0f
-			};
+			// Only a flick's end is graded by a swipe (SwipeTail is chosen for a FlickNote tail and nothing
+			// else), so the distance comes from that note. The friction-flick arm that used to sit here was
+			// dead: a friction-flick end judges itself, and its behaviour refuses swipes before this point.
+			float flickDistance = Child is FlickNote flick ? flick.FlickDistance : 0f;
 
 			// A flick is judged on one 60 fps frame of travel, not on a single 165 Hz sample: a held
 			// finger jitters by a few tenths of a millimetre per frame, which reads as 5-14 cm/s and
