@@ -342,20 +342,16 @@ namespace Sekai.Core.Live
 				return;
 			}
 
-			// Decoration notes are auto-judged when reaching judgment time
-			// Play tap effect and SE, but do not trigger score/combo callbacks or judgment text
-
-			// For long notes, handle specially: play head effect at start, keep body showing, play end effect at end
+			// A decorative note is not judged, exactly like a guide bar: when its time comes it is retired
+			// with an internal Pass, and it plays no effect, no sound and no text. It used to be graded
+			// JustPerfect here and handed to the views, so a note nobody played still flashed and clicked.
 			if (note is LongNote longNote)
 			{
 				DecorationLongNoteJudgment(longNote);
 				return;
 			}
 
-			// Set JudgeInfo to Perfect for effect playback (TapEffectView checks Result)
-			note.SetJudgeInfoForDecoration(NoteResult.JustPerfect);
-			// For normal notes: play effect and remove
-			_presentation.Judged(_session.Views, note);
+			note.SetJudgeInfoForDecoration(NoteResult.Pass);
 			note.SetStateUnnotice(NoteState.Done);
 			_presentation.Unspawn(_session.Views, note);
 		}
@@ -375,13 +371,10 @@ namespace Sekai.Core.Live
 			bool isAtEnd = lastChild != null && Frame.time >= lastChild.MusicScoreInfo.time;
 			bool isAtStart = Frame.time >= longNote.MusicScoreInfo.time && longNote.State == NoteState.Scrolling;
 
-			// At start: play head effect, but keep the long note showing (don't mark as Done)
+			// At start: the head is passed silently and the body keeps showing (the bar is not Done).
 			if (isAtStart && !isAtEnd && longNote.Result == NoteResult.None)
 			{
-				// Set JudgeInfo to Perfect for effect playback (TapEffectView checks Result)
-				longNote.SetJudgeInfoForDecoration(NoteResult.JustPerfect);
-				// Play head judgment effect (tap effect and SE)
-				_presentation.Judged(_session.Views, longNote);
+				longNote.SetJudgeInfoForDecoration(NoteResult.Pass);
 			}
 
 			// 头部触发之后，处理中间的LongHoldCombo自动判定
@@ -401,8 +394,8 @@ namespace Sekai.Core.Live
 						// 检查该combo点是否到达判定时间
 						if (childNote.MusicScoreInfo.time <= Frame.time)
 						{
-							// 自动判定该combo点；它只是隐形刻度，不发声也不出特效
-							holdCombo.SetJudgeInfoForDecoration(NoteResult.JustPerfect);
+							// 该combo点没有判定：静默结束，不发声也不出特效
+							holdCombo.SetJudgeInfoForDecoration(NoteResult.Pass);
 							holdCombo.SetStateUnnotice(NoteState.Done);
 						}
 					}

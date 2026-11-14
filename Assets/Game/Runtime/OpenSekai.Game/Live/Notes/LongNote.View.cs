@@ -88,9 +88,9 @@ namespace Sekai.Live
 
 			internal static TailKeyPhase GetTailKeyPhase(LongNote bar, float currentTime)
 			{
-				// A bar whose end carries no judgement has no key phase at all: there is nothing to see
-				// arrive, nothing to grade and nothing to retire.
-				if (bar.childNote == null || !bar.childNote.HasJudgment) return TailKeyPhase.Hidden;
+				// A bar whose end is not drawn has no key phase at all: there is nothing to see arrive and
+				// nothing to retire.
+				if (bar.childNote == null || !bar.childNote.IsVisible) return TailKeyPhase.Hidden;
 				float visibleFrom = bar.childNote.MusicScoreInfo.time - (bar.CalcTimeOffset?.Invoke(bar.childNote) ?? bar.offsetTime);
 				return TailKeyLifetime.Of(bar.childNote.MusicScoreInfo.time, visibleFrom, currentTime,
 					bar.childNote.Result, !bar.HasManagedTail && bar.State == NoteState.Done);

@@ -386,7 +386,7 @@ namespace Sekai.Core.Live
 				: null;
 			// A bar answers input only when it can grade itself: a Guide bar and a decoration-flagged
 			// bar both cannot, and answering for them is what produced a bar hit effect with no note.
-			bool barAnswersInput = (note.HasJudgment && !note.IsDecoration) || note is FrictionHideLongNote;
+			bool barAnswersInput = note.HasJudgment || note is FrictionHideLongNote;
 			if (barAnswersInput)
 			{
 				judgmentNotes.Add(note);

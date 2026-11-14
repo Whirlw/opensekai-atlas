@@ -310,14 +310,21 @@ namespace Sekai.Live
 			private set;
 		}
 
+		/// <summary>
+		/// Whether the player is judged on this note. A note without judgement takes no press, never
+		/// misses and publishes nothing: no effect, no sound, no text, no score, no combo. A type can turn
+		/// it off (hidden points, guide bars, the rub carrier), and so can the chart's decoration flag:
+		/// a decorative note is exactly as silent as a guide bar.
+		/// </summary>
 		[JsonIgnore]
-		public virtual bool HasJudgment
-		{
-			get
-			{
-				return true;
-			}
-		}
+		public virtual bool HasJudgment => !IsDecoration;
+
+		/// <summary>
+		/// Whether the note is drawn. Independent of <see cref="HasJudgment"/>: a guide bar and a
+		/// decorative note are drawn and not judged; the hidden points are neither.
+		/// </summary>
+		[JsonIgnore]
+		public virtual bool IsVisible => true;
 
 		/// <summary>
 		/// True when the note is drawn as let go. Only the appearance depends on this: a bar whose
@@ -562,8 +569,8 @@ namespace Sekai.Live
 			}
 
 			Progress = progress;
-			// Decoration notes should not be marked as Last/Miss, they are auto-judged in LiveLogic
-			if (settleTimeout && !IsDecoration
+			// A note without judgement never misses: it is retired silently when its time comes.
+			if (settleTimeout && HasJudgment
 				&& LiveConfig.IsPastJudgeWindow(LiveUtility.GetINoteToJudgeFrameType(this), -judgeOffset))
 			{
 				State = NoteState.Last;
@@ -637,8 +644,8 @@ namespace Sekai.Live
 			// is the presentation pass). Tail keys used to be excluded here because the bar owned that
 			// key; keeping the exclusion left every drawn end key with no owner once its bar was gone,
 			// which is why only a hidden end (no key at all) seemed to disappear promptly.
-			// A note with no judgement is not drawn, so asking it to release nothing is skipped.
-			if (ParentRole != NoteParentRole.Tail || HasJudgment) RemoveView();
+			// An end that is not drawn has no key to release.
+			if (ParentRole != NoteParentRole.Tail || IsVisible) RemoveView();
 		}
 
 		/// <summary>Publishes this note's verdict as a key: judgement, combo, score, damage.</summary>

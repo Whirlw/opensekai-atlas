@@ -249,10 +249,10 @@ namespace Sekai.Live
 				return;
 			}
 
-			// Decoration notes: play tap effect and SE, but do not show judgment text
-			if (note.IsDecoration)
+			// A note without judgement shows nothing at all. Publication already stops it; this guards
+			// direct callers.
+			if (!note.HasJudgment)
 			{
-				Effect(note);
 				return;
 			}
 
@@ -269,7 +269,7 @@ namespace Sekai.Live
 		/// </summary>
 		public override void JudgmentText(NoteBase note)
 		{
-			if (note == null || note.IsDecoration)
+			if (note == null || !note.HasJudgment)
 			{
 				return;
 			}
