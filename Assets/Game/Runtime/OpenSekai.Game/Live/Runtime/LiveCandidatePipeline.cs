@@ -26,7 +26,7 @@ namespace Sekai.Core.Live
 				: note.ParentRole == OpenSekai.Shared.Live.NoteParentRole.None &&
 				  note is NormalNote && note.Category == NoteCategory.Normal);
 
-		internal void SortPressCandidates(List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame, LaneOf laneOf)
+		internal void SortPressCandidates(List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame)
 		{
 			// Resolve every shared note before reducing any finger's list to its earliest note.
 			foreach (var input in inputs)
@@ -34,15 +34,12 @@ namespace Sekai.Core.Live
 				for (int i = input.CandidateNotes.Count - 1; i >= 0; i--)
 				{
 					NoteBase note = input.CandidateNotes[i];
-					var currentInput = input;
-					float distance = note.LaneDistance(ref frame, laneOf(ref note, ref currentInput));
+					float distance = note.LaneDistance(ref frame, input.Lane);
 					bool loses = false;
 					foreach (var other in inputs)
 					{
 						if (ReferenceEquals(input, other) || !other.CandidateNotes.Contains(note)) continue;
-						NoteBase otherNote = note;
-						var contender = other;
-						float otherDistance = note.LaneDistance(ref frame, laneOf(ref otherNote, ref contender));
+						float otherDistance = note.LaneDistance(ref frame, other.Lane);
 						if (otherDistance < distance || (otherDistance == distance && other.Touch.fingerId < input.Touch.fingerId))
 						{
 							loses = true;
@@ -85,8 +82,6 @@ namespace Sekai.Core.Live
 				}
 			}
 		}
-		/// <summary>Maps a note and a finger to the lane that finger occupies for that note.</summary>
-		public delegate float LaneOf(ref NoteBase note, ref LiveLogic.InputTmp input);
 
 		/// <summary>
 		/// Decides whether a note joins the list the judging pass walks, and whether it is the note
@@ -161,14 +156,14 @@ namespace Sekai.Core.Live
 		/// press cannot answer.
 		/// </summary>
 		public void Collect(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs,
-			LiveHoldCoordinator holds, LaneOf laneOf, Dictionary<int, double> pressed)
+			LiveHoldCoordinator holds, Dictionary<int, double> pressed)
 		{
 			if (judgmentNotes == null || inputs == null)
 			{
 				return;
 			}
 
-			holds?.AssignContinuingHolds(judgmentNotes, inputs, new LiveHoldCoordinator.LaneOf(laneOf));
+			holds?.AssignContinuingHolds(judgmentNotes, inputs);
 
 			for (int noteIndex = 0; noteIndex < judgmentNotes.Count; noteIndex++)
 			{
@@ -192,9 +187,8 @@ namespace Sekai.Core.Live
 						continue;
 					}
 
-					NoteBase note = judgmentNote;
-					float lane = laneOf(ref note, ref activeInput);
-					if (lane < 0f || !note.IsJudgment(ref activeInput.Touch, lane))
+					float lane = activeInput.Lane;
+					if (lane < 0f || !judgmentNote.IsJudgment(ref activeInput.Touch, lane))
 					{
 						continue;
 					}
@@ -205,7 +199,7 @@ namespace Sekai.Core.Live
 					int touchId = activeInput.Touch.touchId;
 					bool spent = pressed != null && pressed.ContainsKey(touchId);
 					if (spent
-						&& note.CalcNoteResult(activeInput.Touch.musicTime) <= NoteResult.Great
+						&& judgmentNote.CalcNoteResult(activeInput.Touch.musicTime) <= NoteResult.Great
 						&& activeInput.Touch.musicTime - pressed[touchId] <= 1f / 6f)
 					{
 						continue;

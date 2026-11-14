@@ -446,8 +446,7 @@ namespace OpenSekai.Tests.EditMode.Live
             var notes = new System.Collections.Generic.List<NoteBase> { bar };
             var input = new LiveLogic.InputTmp { Lane = 4.5f, Touch = new LiveTouch { fingerId = 2, touchId = 2, phase = InputTouchPhase.Moved } };
             new LiveCandidatePipeline().Collect(notes, new System.Collections.Generic.List<LiveLogic.InputTmp> { input },
-                null,
-                (ref NoteBase n, ref LiveLogic.InputTmp i) => i.Lane, null);
+                null, null);
             Assert.That(input.CandidateNotes, Is.Empty);
             Assert.That(bar.HasFinger, Is.True);
         }

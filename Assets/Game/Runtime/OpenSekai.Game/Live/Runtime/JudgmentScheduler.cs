@@ -149,7 +149,7 @@ namespace Sekai.Core.Live
 				for (int i = 0; i < _input.ActiveInputs.Count; i++)
 				{
 					InputTmp input = _input.ActiveInputs[i];
-					float lane = _input.ConvertLaneBy(ref note, ref input);
+					float lane = input.Lane;
 					if (lane < 0f) continue;
 					if (note is LongNote)
 					{
@@ -176,8 +176,7 @@ namespace Sekai.Core.Live
 			{
 				InputTmp input = _input.ActiveInputs[i];
 				if (LiveInputRouter.IsEndedOrCanceled(input.Touch.phase)) continue;
-				NoteBase note = bar;
-				float lane = _input.ConvertLaneBy(ref note, ref input);
+				float lane = input.Lane;
 				if (lane < 0f || !bar.ContainsLane(lane)) continue;
 				if (!bar.IsOrdinaryHead && !bar.IsJudgment(ref input.Touch, lane)) continue;
 				float distance = bar.LaneDistance(ref Frame, lane);
@@ -193,7 +192,7 @@ namespace Sekai.Core.Live
 
 		internal void RefreshSustainedHolds()
 		{
-			_input.Holds.Refresh(_input.JudgmentNotes, _input.ActiveInputs, Frame, UnityEngine.Time.deltaTime, _input.ConvertLaneBy);
+			_input.Holds.Refresh(_input.JudgmentNotes, _input.ActiveInputs, Frame, UnityEngine.Time.deltaTime);
 		}
 
 		internal void EvaluateJudgment()
@@ -237,7 +236,7 @@ namespace Sekai.Core.Live
 			public JudgmentSchedule.Outcome Judge(int candidateIndex)
 			{
 				NoteBase note = Input.CandidateNotes[candidateIndex];
-				float lane = Scheduler._input.ConvertLaneBy(ref note, ref Input);
+				float lane = Input.Lane;
 				if (note == null)
 				{
 					return default(JudgmentSchedule.Outcome);
