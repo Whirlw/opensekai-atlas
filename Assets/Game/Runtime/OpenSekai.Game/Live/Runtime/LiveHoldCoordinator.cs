@@ -19,8 +19,6 @@ namespace Sekai.Core.Live
 	/// </summary>
 	internal sealed class LiveHoldCoordinator
 	{
-		/// <summary>Maps a note and a finger to the lane that finger occupies for that note.</summary>
-		public delegate float LaneOf(ref NoteBase note, ref LiveLogic.InputTmp input);
 
 		private readonly int[] _holdInputNotes;
 		/// <summary>The bar each lifting finger finishes this frame, or -1.</summary>
@@ -49,7 +47,7 @@ namespace Sekai.Core.Live
 		/// reach, so two overlapping bars are shared out by distance instead of by who grabbed first.
 		/// The quota is what keeps an overlapping pair from being driven twice on the same frame.
 		/// </summary>
-		public void AssignContinuingHolds(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs, LaneOf laneOf)
+		public void AssignContinuingHolds(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs)
 		{
 
 			int count = inputs.Count;
@@ -75,9 +73,8 @@ namespace Sekai.Core.Live
 						continue;
 					}
 
-					NoteBase laneNote = held;
 					LiveLogic.InputTmp candidate = inputs[i];
-					float lane = laneOf(ref laneNote, ref candidate);
+					float lane = candidate.Lane;
 					if (lane < 0f || !held.IsJudgment(ref candidate.Touch, lane))
 					{
 						continue;
@@ -102,7 +99,7 @@ namespace Sekai.Core.Live
 		/// One frame of hold upkeep: cover every live bar with the fingers on it, then refresh each
 		/// bar from its owner. Neither step consumes a candidate slot or moves ownership.
 		/// </summary>
-		public void Refresh(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame, float deltaTime, LaneOf laneOf)
+		public void Refresh(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame, float deltaTime)
 		{
 			// A bar is not owned by a finger: any touch on it keeps it alive, and a touch that leaves
 			// the screen inside it is the release the tail listens for. This runs before ownership so a
@@ -130,7 +127,7 @@ namespace Sekai.Core.Live
 
 				// Any finger inside the bar refreshes it. There is no owner to hand it to and nobody
 				// to take it from: the bar lives while a finger is on it, whoever that is.
-				RefreshFromAnyFinger(held, count, inputs, laneOf);
+				RefreshFromAnyFinger(held, count, inputs);
 			}
 		}
 
@@ -314,7 +311,7 @@ namespace Sekai.Core.Live
 			}
 		}
 
-		private static bool RefreshFromAnyFinger(LongNote held, int count, List<LiveLogic.InputTmp> inputs, LaneOf laneOf)
+		private static bool RefreshFromAnyFinger(LongNote held, int count, List<LiveLogic.InputTmp> inputs)
 		{
 			bool refreshed = false;
 			for (int inputIndex = 0; inputIndex < count; inputIndex++)
@@ -325,8 +322,7 @@ namespace Sekai.Core.Live
 					continue;
 				}
 
-				NoteBase laneNote = held;
-				float lane = laneOf(ref laneNote, ref input);
+				float lane = input.Lane;
 				if (lane < 0f || !held.ContainsLane(lane))
 				{
 					continue;

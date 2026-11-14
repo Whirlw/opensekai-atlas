@@ -82,12 +82,12 @@ namespace Sekai.Core.Live
 
 		internal void CollectCandidates()
 		{
-			_candidates.Collect(JudgmentNotes, ActiveInputs, Holds, ConvertLaneBy, _judgedTouchTimes);
+			_candidates.Collect(JudgmentNotes, ActiveInputs, Holds, _judgedTouchTimes);
 		}
 
-		internal void AssignContinuingHolds() => Holds.AssignContinuingHolds(JudgmentNotes, ActiveInputs, ConvertLaneBy);
+		internal void AssignContinuingHolds() => Holds.AssignContinuingHolds(JudgmentNotes, ActiveInputs);
 
-		internal void SortPressCandidates() => _candidates.SortPressCandidates(ActiveInputs, _logic.currentFrameInfo, ConvertLaneBy);
+		internal void SortPressCandidates() => _candidates.SortPressCandidates(ActiveInputs, _logic.currentFrameInfo);
 
 		internal void RecordJudgedTouch(LiveTouch touch) => _judgedTouchTimes[touch.touchId] = touch.musicTime;
 
@@ -115,16 +115,6 @@ namespace Sekai.Core.Live
 			}
 		}
 
-		/// <summary>
-		/// The lane a note is judged against. There is exactly one: the lane the raw sample was resolved
-		/// to when it arrived. Nothing here looks at the touch again - in particular nothing re-decides the
-		/// vertical question, which was answered once when the touch was born - so a note can no longer
-		/// get a different lane than the one the frame was built on.
-		/// </summary>
-		internal float ConvertLaneBy(ref NoteBase note, ref LiveLogic.InputTmp input)
-		{
-			return input?.Lane ?? OpenSekai.Shared.Live.TouchLane.Outside;
-		}
 
 		/// <summary>
 		/// Resolves one raw sample to a lane. This is the only place the vertical gate is consulted: the
