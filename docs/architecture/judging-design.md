@@ -229,16 +229,18 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 
 ### 7.3 单槽与归属
 
-`SortPressCandidates` 按两个显式排序裁剪候选：
+每根手指先有一张自己能判定的按键列表。`SortPressCandidates` 分三步去重，再让每根手指从剩下的列表里取一个键。列表去重后为空的手指本帧不判定。
 
-1. **共享归属**（`ClaimsSharedNote`）：同一音符被两根手指同时够到时，给离音符车道中心更近的那根。距离相同取较小的 `fingerId`。同一手指的多个样本之间不互相争夺。
-2. **单槽**（`PrecedesForOneFinger`）：每根手指剩下的候选按谱面时间排序，同时间按谱面顺序 `ChartOrder` 排序。`ChartOrder` 由 `LiveNoteSession.Bind` 按谱面数组下标写入，头沿用所属条的值。排序是稳定的，结果与本帧注册顺序无关。随后取第一个按下步骤。
+1. **唯一选择优先**（`KeepSoleOptions`）：某个键出现在多根手指的列表里时，如果其中一根只剩这一个键，就把它从其余还有别的键可打的手指列表里删掉。删除后可能产生新的“只剩一个”，所以重复到没有变化为止。共享这个键的手指都只剩它时，这一步不动它们，也不会清空任何一根。
+2. **两指两键配对**（`AssignMatchedPairs`）：恰好两根手指的列表都恰好是同样两个键时，按谱面顺序分配：较早的键给离它更近的那根，较晚的键给另一根。只处理两指两键；三根及以上手指、或键数不等的情况留给第 3 步。配对后这两个键即分配完毕，从其他所有手指的列表里剔除，即使剔除后列表为空。
+3. **距离归属**（`ClaimsSharedNote`）：仍然共享的键给离音符车道中心更近的手指，距离相同取较小的 `fingerId`。同一手指的多个样本之间不互相争夺。
+4. **单指取键**（`PickForOneFinger`）：每根手指剩下的键按谱面时间排序，同时间按谱面顺序 `ChartOrder` 排序（`LiveNoteSession.Bind` 按谱面数组下标写入，头沿用所属条的值；排序稳定，与本帧注册顺序无关）。取最早的按下步骤；如果它按这次触摸的时间只能拿 Good 或更低，而后面某个键能拿 Great 及以上，就取其中最早的那个。头的评级用所属条的起点窗口（`LongNoteHeadNote.CalcNoteResult`）。
 
 执行前每个输入的候选列表已裁到最多一项。`JudgmentSchedule.Run` 把产生结果或进入 `Done` 记作消费。
 
 按下只在消费处记账（`JudgmentPass.Consumed`）：写入 `_judgedTouchTimes`，并把该手指记为本帧已用。一根手指一帧只有一个按下额度，同一手指同帧的多个 `Began` 样本共用它，第一个被消费后其余样本不再判定。
 
-落选的手指不重配。手指 A 同时够到较早的音符 X 和共享音符 Y、手指 B 只够到 Y 且离 Y 更远时，Y 归 A，A 的单槽取 X，B 本帧不判定，Y 留待后续帧。是否让 B 接手 Y 是单独的手感决策，当前行为由 `PressOwnershipTests.TheFingerThatWinsASharedNoteSpendsItsPressOnItsEarlierNote` 固定。
+例：手指 A 同时够到较早的 X 和共享的 Y，手指 B 只够到 Y 且离 Y 更远。第 1 步把 Y 从 A 的列表删掉，A 打 X，B 打 Y，与注册顺序无关。各步骤由 `PressOwnershipTests` 固定。
 
 ### 7.4 抬起的归属
 

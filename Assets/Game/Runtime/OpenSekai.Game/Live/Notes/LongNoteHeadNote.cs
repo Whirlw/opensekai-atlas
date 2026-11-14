@@ -66,6 +66,13 @@ namespace Sekai.Live
 			return _head.AcceptsPressAt(touch.musicTime);
 		}
 
+		/// <summary>
+		/// The grade a press at <paramref name="musicTime"/> would get: the bar's start window, the table
+		/// <see cref="LongNoteHead.TryJudge"/> grades with. Without it a head read as <c>None</c> to anyone
+		/// comparing candidates by grade.
+		/// </summary>
+		public override NoteResult CalcNoteResult(float musicTime) => _bar.CalcNoteResult(musicTime);
+
 		/// <summary>The candidate's verdict entry: this is the head answering, not the bar.</summary>
 		public override bool Judgment(ref LiveTouch touch, float lane)
 		{

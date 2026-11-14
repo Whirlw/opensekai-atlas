@@ -6,16 +6,20 @@ namespace Sekai.Core.Live
 	/// <summary>
 	/// Orders and prunes the candidates each finger carries into judging.
 	///
-	/// A finger may touch several notes at once — overlapping lanes, a bar with a contact note laid
-	/// over it — but a press only judges one candidate per frame. Who wins is decided here, by two
-	/// orders written out as functions: a note two fingers both reach goes to the finger nearer its
-	/// lane centre, then the smaller finger id (<see cref="ClaimsSharedNote"/>); what one finger has
-	/// left is ranked by chart time, then chart order (<see cref="PrecedesForOneFinger"/>).
+	/// A finger may touch several notes at once - overlapping lanes, a bar with a contact note laid
+	/// over it - but a press only judges one candidate per frame. Each finger starts with its own list
+	/// of the keys it can judge; the lists are de-duplicated in three steps, and then each finger picks
+	/// one key from what it has left (<see cref="SortPressCandidates"/>). A finger whose list ends up
+	/// empty does not judge.
 	///
 	/// Nothing here spends a press. The scheduler records a press when a note consumes it.
 	/// </summary>
 	internal sealed class LiveCandidatePipeline
 	{
+		private readonly List<int> _group = new List<int>(10);
+		private readonly List<NoteBase> _groupKeys = new List<NoteBase>(10);
+		private readonly List<bool> _assigned = new List<bool>(10);
+
 		/// <summary>
 		/// Whether a note spends a finger's single press slot. Only notes a press answers on one frame are
 		/// here: an ordinary note and a long note's HEAD as its own candidate. A flick is not one of them -
@@ -29,66 +33,216 @@ namespace Sekai.Core.Live
 				  note is NormalNote && note.Category == NoteCategory.Normal);
 
 		/// <summary>
-		/// Leaves every finger at most one press candidate, by two explicit orders.
+		/// Leaves every finger at most one press candidate.
 		///
-		/// A note two fingers both reach goes to one of them first: <see cref="ClaimsSharedNote"/> says
-		/// which. What each finger has left is then ranked by <see cref="PrecedesForOneFinger"/>, and the
-		/// first press step is the one it keeps. A finger that lost a shared note is not offered another
-		/// one in its place: that is the single-slot policy, and re-pairing it is a separate decision.
+		/// <list type="number">
+		/// <item>A finger that can judge only one key keeps it: the key leaves the list of every other
+		/// finger that still has something else (<see cref="KeepSoleOptions"/>). When every finger sharing
+		/// the key has only that key, this step leaves them alone.</item>
+		/// <item>When exactly two fingers can judge exactly the same two keys, the keys are handed out in
+		/// chart order: the earlier one to the nearer finger, the later one to the other
+		/// (<see cref="AssignMatchedPairs"/>). The two keys are then assigned for good and leave every
+		/// other finger's list. Larger groups are left to step 3.</item>
+		/// <item>What is still shared goes by distance (<see cref="ClaimsSharedNote"/>).</item>
+		/// <item>Each finger judges the earliest key it has left, unless that key would grade Good or
+		/// worse and a later one would grade Great or better (<see cref="PickForOneFinger"/>).</item>
+		/// </list>
 		/// </summary>
 		internal void SortPressCandidates(List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame)
 		{
-			// Resolve every shared note before reducing any finger's list to its earliest note.
+			KeepSoleOptions(inputs);
+			AssignMatchedPairs(inputs, ref frame);
+			ResolveByDistance(inputs, ref frame);
+
+			foreach (var input in inputs)
+			{
+				SortForOneFinger(input.CandidateNotes);
+				int pick = PickForOneFinger(input.CandidateNotes, input.Touch.musicTime);
+				if (pick < 0)
+				{
+					input.CandidateNotes.Clear();
+					continue;
+				}
+
+				NoteBase chosen = input.CandidateNotes[pick];
+				input.CandidateNotes.Clear();
+				input.CandidateNotes.Add(chosen);
+			}
+		}
+
+		/// <summary>
+		/// Step 1. A key that some finger can judge alone leaves every other finger that still has another
+		/// key. Removing a key can leave that finger with only one key in turn, so this repeats until
+		/// nothing changes. A finger is never emptied here.
+		/// </summary>
+		internal static void KeepSoleOptions(List<LiveLogic.InputTmp> inputs)
+		{
+			bool changed = true;
+			while (changed)
+			{
+				changed = false;
+				foreach (var input in inputs)
+				{
+					for (int i = input.CandidateNotes.Count - 1; i >= 0 && input.CandidateNotes.Count > 1; i--)
+					{
+						if (i >= input.CandidateNotes.Count) continue;
+						if (IsSoleOptionOfAnother(inputs, input, input.CandidateNotes[i]))
+						{
+							input.CandidateNotes.RemoveAt(i);
+							changed = true;
+						}
+					}
+				}
+			}
+		}
+
+		private static bool IsSoleOptionOfAnother(List<LiveLogic.InputTmp> inputs, LiveLogic.InputTmp self, NoteBase note)
+		{
+			foreach (var other in inputs)
+			{
+				if (!ReferenceEquals(other, self) && other.CandidateNotes.Count == 1
+					&& ReferenceEquals(other.CandidateNotes[0], note))
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		/// <summary>
+		/// Step 2. Finds every pair of fingers whose lists are exactly the same two keys, with no third
+		/// finger holding that same list, and hands the keys out in chart order: the earlier key goes to
+		/// the nearer finger by <see cref="ClaimsSharedNote"/>, the later key to the other. Each finger of
+		/// the pair is left with its own key only. The two keys are then assigned: they leave the list of
+		/// every other finger, even when that empties it. Any other group size is left to step 3.
+		/// </summary>
+		internal void AssignMatchedPairs(List<LiveLogic.InputTmp> inputs, ref MusicScoreInfo frame)
+		{
+			for (int i = 0; i < inputs.Count; i++)
+			{
+				List<NoteBase> keys = inputs[i].CandidateNotes;
+				if (keys.Count != 2)
+				{
+					continue;
+				}
+
+				_group.Clear();
+				for (int j = 0; j < inputs.Count; j++)
+				{
+					if (SameKeys(keys, inputs[j].CandidateNotes))
+					{
+						_group.Add(j);
+					}
+				}
+
+				// Exactly two fingers, and only the first of them does the work.
+				if (_group.Count != 2 || _group[0] != i)
+				{
+					continue;
+				}
+
+				_groupKeys.Clear();
+				_groupKeys.AddRange(keys);
+				SortForOneFinger(_groupKeys);
+				_assigned.Clear();
+				for (int g = 0; g < _group.Count; g++) _assigned.Add(false);
+
+				for (int k = 0; k < _groupKeys.Count; k++)
+				{
+					NoteBase key = _groupKeys[k];
+					int nearest = -1;
+					for (int g = 0; g < _group.Count; g++)
+					{
+						if (_assigned[g]) continue;
+						if (nearest < 0 || ClaimsSharedNote(key, inputs[_group[g]], inputs[_group[nearest]], ref frame))
+						{
+							nearest = g;
+						}
+					}
+
+					_assigned[nearest] = true;
+					List<NoteBase> list = inputs[_group[nearest]].CandidateNotes;
+					list.Clear();
+					list.Add(key);
+				}
+
+				for (int j = 0; j < inputs.Count; j++)
+				{
+					if (j == _group[0] || j == _group[1]) continue;
+					List<NoteBase> other = inputs[j].CandidateNotes;
+					other.Remove(_groupKeys[0]);
+					other.Remove(_groupKeys[1]);
+				}
+			}
+		}
+
+		private static bool SameKeys(List<NoteBase> a, List<NoteBase> b)
+		{
+			if (a.Count != b.Count)
+			{
+				return false;
+			}
+
+			for (int i = 0; i < a.Count; i++)
+			{
+				if (!b.Contains(a[i]))
+				{
+					return false;
+				}
+			}
+
+			return true;
+		}
+
+		/// <summary>Step 3. A key still on several lists stays only with the finger that claims it.</summary>
+		private static void ResolveByDistance(List<LiveLogic.InputTmp> inputs, ref MusicScoreInfo frame)
+		{
 			foreach (var input in inputs)
 			{
 				for (int i = input.CandidateNotes.Count - 1; i >= 0; i--)
 				{
 					NoteBase note = input.CandidateNotes[i];
-					bool loses = false;
 					foreach (var other in inputs)
 					{
 						if (ReferenceEquals(input, other) || !other.CandidateNotes.Contains(note)) continue;
 						if (ClaimsSharedNote(note, other, input, ref frame))
 						{
-							loses = true;
+							input.CandidateNotes.RemoveAt(i);
 							break;
 						}
 					}
-					if (loses) input.CandidateNotes.RemoveAt(i);
 				}
 			}
-			foreach (var input in inputs)
+		}
+
+		/// <summary>
+		/// Step 4. The key one finger judges from its sorted list: the earliest press step, unless that key
+		/// would grade Good or worse at this touch and a later press step would grade Great or better - then
+		/// the earliest such later key. Only press steps are ever picked: a bar's body is always earlier
+		/// than the notes it overlaps and the press loop cannot answer it (device log
+		/// live-20261113-155947.log line 212781: a Began delivered to a held bar instead of the next head,
+		/// which then missed).
+		/// </summary>
+		/// <returns>The index of the key, or -1 when the list has no press step.</returns>
+		internal static int PickForOneFinger(List<NoteBase> sorted, float touchTime)
+		{
+			int earliest = -1;
+			for (int i = 0; i < sorted.Count; i++)
 			{
-				SortForOneFinger(input.CandidateNotes);
-
-				// The finger's single press slot goes to the earliest note the press channel can actually
-				// answer. A bar's body is always earlier than the notes it overlaps and the press loop skips
-				// it, so taking it "because it is earliest" threw the press away: a second press in a lane
-				// where a bar is being held never reached the next head, which then missed. Device log
-				// live-20261113-155947.log line 212781: a Began at lane 9.49 delivered to the held bar
-				// barT=39.158 instead of the head at t=40.421, which missed at 40.565.
-				int pressIndex = -1;
-				for (int i = 0; i < input.CandidateNotes.Count; i++)
+				if (!IsPressStep(sorted[i])) continue;
+				if (sorted[i].CalcNoteResult(touchTime) >= NoteResult.Great)
 				{
-					if (IsPressStep(input.CandidateNotes[i]))
-					{
-						pressIndex = i;
-						break;
-					}
+					return i;
 				}
 
-				if (pressIndex > 0)
+				if (earliest < 0)
 				{
-					NoteBase press = input.CandidateNotes[pressIndex];
-					input.CandidateNotes.RemoveAt(pressIndex);
-					input.CandidateNotes.Insert(0, press);
-				}
-
-				if (input.CandidateNotes.Count > 1)
-				{
-					input.CandidateNotes.RemoveRange(1, input.CandidateNotes.Count - 1);
+					earliest = i;
 				}
 			}
+
+			return earliest;
 		}
 
 		/// <summary>
