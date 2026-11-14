@@ -1,4 +1,4 @@
-﻿# 判定窗口
+# 判定窗口
 
 > 本页只列**数值**。判定权归属、通道分工、长条四段结构与不变量见[判定规则设计](../architecture/judging-design.md)。
 
@@ -61,12 +61,12 @@
 | `FrictionNote` | 自判摩擦 | 按住在轨道上蹭 |
 | `FrictionHideLongNote` | 无判定（隐藏点由父条驱动） | 无 |
 
-判据（`LiveLogic.UpdateJudgmentNoteArray`）：能不能自己判，决定谁进判定列表。
+判据（`LiveCandidatePipeline.Register`）：能不能自己判，决定谁进判定列表。
 
 ```csharp
 bool barAnswersInput = (note.HasJudgment && !note.IsDecoration) || note is FrictionHideLongNote;
-if (barAnswersInput) _judgmentNoteList.Add(note);
-if (!barAnswersInput && tailNote != null) _judgmentNoteList.Add(tailNote);
+if (barAnswersInput) judgmentNotes.Add(note);
+if (!barAnswersInput && tailNote != null) judgmentNotes.Add(tailNote);
 ```
 
 真实谱面驱动用例：`Assets/Tests/EditMode/Live/DecorationTailFromChartTests.cs`（夹具 `Tools/fixtures/deco-tail-test10/score.json`）。设计与教训见 [判定通道与解耦收尾](../operations/judgment-channel-brief.md) §5.1 与 §11。
