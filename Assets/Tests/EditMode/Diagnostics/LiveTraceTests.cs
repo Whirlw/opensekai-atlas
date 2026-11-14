@@ -90,6 +90,36 @@ namespace EditMode.Diagnostics
         }
 
         [Test]
+        public void FlushingPutsTheLineOnDiskBeforeTheProcessCanDie()
+        {
+            LiveTrace.Enabled = true;
+            LiveTrace.Categories = LiveTraceCategory.Hold;
+
+            LiveTrace.Write(LiveTraceCategory.Hold, "flush-marker");
+            LiveTrace.Flush();
+
+            Assert.That(LiveTrace.LogFilePath, Is.Not.Null.And.Not.Empty);
+
+            // The writer still holds the file, so the reader has to permit it: FileShare.ReadWrite.
+            using (var stream = new System.IO.FileStream(LiveTrace.LogFilePath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite))
+            using (var reader = new System.IO.StreamReader(stream))
+            {
+                StringAssert.Contains("flush-marker", reader.ReadToEnd());
+            }
+        }
+
+        [Test]
+        public void FlushAndShutdownAreFreeWhileTracingIsOff()
+        {
+            Assert.DoesNotThrow(LiveTrace.Flush);
+
+            LiveTrace.Shutdown();
+
+            Assert.DoesNotThrow(LiveTrace.Shutdown);
+            Assert.DoesNotThrow(LiveTrace.Flush);
+        }
+
+        [Test]
         public void AViolationThatDoesNotHoldIsSilent()
         {
             LiveTrace.Enabled = true;

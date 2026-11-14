@@ -281,7 +281,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
 			var head = new LiveTouch(1, 1, Vector2.zero, Vector3.zero, TouchPhase.Began, 0f);
 			bar.Judgment(ref head, 4.5f);
-			bar.RecordHoldingInput(1, 0f);
+			bar.RecordHoldingInput(0f);
 			return bar;
 		}
 	}

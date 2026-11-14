@@ -1,4 +1,5 @@
 using CP;
+using OpenSekai.Shared.Diagnostics;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using CriWare;
@@ -64,15 +65,20 @@ namespace Sekai
 
 		private void OnApplicationQuit()
 		{
+			LiveTrace.Shutdown();
 			_instance = null;
 		}
 
 		private void OnApplicationPause(bool pauseStatus)
 		{
-			if (!pauseStatus)
+			if (pauseStatus)
 			{
-				System.GC.Collect();
+				// The process can be killed while paused: get what we have onto disk first.
+				LiveTrace.Flush();
+				return;
 			}
+
+			System.GC.Collect();
 		}
 
 		private void EnsureEventSystem()

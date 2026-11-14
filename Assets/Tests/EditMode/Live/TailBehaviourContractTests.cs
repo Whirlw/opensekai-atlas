@@ -188,7 +188,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			var tail = new FrictionNote(Info(1f), 2, 4, 5, NoteCategory.Friction, null, NoteType.Default, 1f);
 			bar.AddNoteListAndSetupChildNote(tail);
 			bar.SetStateUnnotice(NoteState.Scrolling);
-			bar.RecordHoldingInput(1, 1f);
+			bar.RecordHoldingInput(1f);
 
 			Assert.That(bar.JudgeTailAsRelease(1f), Is.False, "a lift is not this note's judgement");
 			Assert.That(bar.FailTail(), Is.False, "and the bar's timeout does not grade it either");
@@ -257,7 +257,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			var tail = new NormalNote(Info(1f), 2, 4, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f);
 			bar.AddNoteListAndSetupChildNote(tail);
 			bar.SetStateUnnotice(NoteState.Scrolling);
-			bar.RecordHoldingInput(1, 1f);
+			bar.RecordHoldingInput(1f);
 			return (bar, tail);
 		}
 	}

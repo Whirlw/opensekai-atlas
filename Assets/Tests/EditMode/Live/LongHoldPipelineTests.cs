@@ -498,7 +498,7 @@ namespace OpenSekai.Tests.EditMode.Live
         {
             LongNote note = hidden ? new FrictionHideLongNote() : new FrictionLongNote();
             note.SetStateUnnotice(NoteState.Scrolling);
-            note.RecordHoldingInput(1, 0f);
+            note.RecordHoldingInput(0f);
             var foreign = Input(2, 4.5f).Touch;
             Assert.That(note.Judgment(ref foreign, 4.5f), Is.True,
                 "a rubbed bar belongs to whichever finger is over the lane");
@@ -720,7 +720,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             var head = new LiveTouch { fingerId = 1, touchId = 1, musicTime = 0f, phase = TouchPhase.Began };
             bar.Judgment(ref head, 4.5f);
-            bar.RecordHoldingInput(1, 0f);
+            bar.RecordHoldingInput(0f);
 
             logic.Input.JudgmentNotes.Add(bar);
 
