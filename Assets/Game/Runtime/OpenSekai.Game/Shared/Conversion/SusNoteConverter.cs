@@ -349,7 +349,6 @@ namespace OpenSekai.Shared.Conversion
 			}
 			else
 			{
-				note.SetParentNote(parent);
 				parent.AddNoteListAndSetupChildNote(note);
 			}
 			parent.SortNoteList();
@@ -369,7 +368,6 @@ namespace OpenSekai.Shared.Conversion
 			}
 			else
 			{
-				note.SetParentNote(parent);
 				parent.AddNoteListAndSetupChildNote(note);
 			}
 			parent.SortNoteList();

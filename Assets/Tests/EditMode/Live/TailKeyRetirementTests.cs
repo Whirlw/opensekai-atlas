@@ -87,7 +87,7 @@ namespace OpenSekai.Tests.EditMode.Live
 		{
 			var bridge = new LivePresentationBridge();
 			var bar = new LongNote(Info(0f), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
-			var tail = new FrictionNote(Info(1f), 2, 4, 5, NoteCategory.Friction, null, NoteType.Default, 1f);
+			var tail = new NormalNote(Info(1f), 2, 4, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f);
 			bar.AddNoteListAndSetupChildNote(tail);
 
 			// The view is built while the bar is still far from its end, which is not the "following" phase.
@@ -108,14 +108,11 @@ namespace OpenSekai.Tests.EditMode.Live
 		}
 
 		[Test]
-		public void TheEndKeyLeavesWithItsBarOrAtItsOwnTime()
+		public void TheEndKeyStaysVisibleAtItsOwnTimeUntilItSettles()
 		{
-			// The two conditions, and nothing else: the bar is done, or the key's own time has arrived.
-			// "The key has a verdict" said nothing extra - a key with a verdict always belongs to a bar that
-			// is already done - and the slide-out it used to fall back on is what kept the key on screen.
 			var bridge = new LivePresentationBridge();
 			var bar = new LongNote(Info(0f), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
-			var tail = new FrictionNote(Info(1f), 2, 4, 5, NoteCategory.Friction, null, NoteType.Default, 1f);
+			var tail = new NormalNote(Info(1f), 2, 4, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f);
 			bar.AddNoteListAndSetupChildNote(tail);
 			var views = new LiveViewBase[] { _view };
 			tail.OnSpawn = note => LiveViewExt.SpawnNote(views, note);
@@ -127,17 +124,17 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(_view.Unspawned, Is.Empty, "the bar is alive and the key is not due yet, so it stays");
 
 			bridge.TickTailKeys(tail.MusicScoreInfo.time);
-			Assert.That(_view.Unspawned, Does.Contain(tail), "and at its own time the key is taken off");
+			Assert.That(_view.Unspawned, Is.Empty);
+			tail.FinishWith(NoteResult.Miss);
+			Assert.That(_view.Unspawned, Does.Contain(tail));
 		}
 
 		[Test]
-		public void TheEndKeyLeavesWhenItsBarIsDone()
+		public void TheEndKeyOutlivesItsBar()
 		{
-			// The other condition, on its own: the bar ends before the key's own time, and the key still goes
-			// with it instead of waiting on the line.
 			var bridge = new LivePresentationBridge();
 			var bar = new LongNote(Info(0f), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
-			var tail = new FrictionNote(Info(1f), 2, 4, 5, NoteCategory.Friction, null, NoteType.Default, 1f);
+			var tail = new NormalNote(Info(1f), 2, 4, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f);
 			bar.AddNoteListAndSetupChildNote(tail);
 			var views = new LiveViewBase[] { _view };
 			tail.OnSpawn = note => LiveViewExt.SpawnNote(views, note);
@@ -148,10 +145,12 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(bar.ExpireTail(0.6f), Is.False, "the bar is still inside its own window");
 			Assert.That(_view.Unspawned, Is.Empty, "so the key stays");
 
-			Assert.That(bar.ExpireTail(2f), Is.True, "the bar ends");
-			bridge.TickTailKeys(2f);
+			bar.SetStateUnnotice(NoteState.Done);
+			bridge.TickTailKeys(0.7f);
 
-			Assert.That(_view.Unspawned, Does.Contain(tail), "and the key went with its bar");
+			Assert.That(_view.Unspawned, Is.Empty);
+			Assert.That(bar.JudgeTailAsRelease(1.02f), Is.True);
+			Assert.That(_view.Unspawned, Does.Contain(tail));
 		}
 	}
 }

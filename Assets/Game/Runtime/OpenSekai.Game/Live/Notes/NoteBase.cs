@@ -464,7 +464,9 @@ namespace Sekai.Live
 			}
 		}
 
-				public virtual void SetParentNote(LongNote note)
+		internal void BindGeometryParent(LongNote note) => parentNote = note;
+
+		public virtual void SetParentNote(LongNote note)
 		{
 			parentNote = note;
 			if (note.Type == NoteType.Critical)
@@ -480,7 +482,7 @@ namespace Sekai.Live
 		/// </summary>
 		protected void NotifyParentFinished()
 		{
-			if (parentNote == null)
+			if (parentNote == null || (ParentRole == NoteParentRole.Tail && LongNote.IsIndependentTail(this)))
 			{
 				return;
 			}
@@ -518,7 +520,10 @@ namespace Sekai.Live
 			IsDecoration = decoration;
 		}
 
-		public virtual void Excute(MusicScoreInfo currentFrameInfo, float offsetTime)
+		public virtual void Excute(MusicScoreInfo currentFrameInfo, float offsetTime) =>
+			AdvanceNote(currentFrameInfo, offsetTime, settleTimeout: true);
+
+		internal void AdvanceNote(MusicScoreInfo currentFrameInfo, float offsetTime, bool settleTimeout)
 		{
 			this.offsetTime = offsetTime;
 			if (State == NoteState.Done)
@@ -526,7 +531,7 @@ namespace Sekai.Live
 				return;
 			}
 
-			if (State >= NoteState.Last)
+			if (settleTimeout && State >= NoteState.Last)
 			{
 				JudgeInfo = (NoteResult.Miss, NoteResultDescription.None);
 				State = NoteState.Done;
@@ -551,7 +556,8 @@ namespace Sekai.Live
 
 			Progress = progress;
 			// Decoration notes should not be marked as Last/Miss, they are auto-judged in LiveLogic
-			if (judgeOffset > LiveConfig.noteTypeJudgeData.JudgeTimeAfter && !IsDecoration)
+			if (settleTimeout && !IsDecoration
+				&& LiveConfig.IsPastJudgeWindow(LiveUtility.GetINoteToJudgeFrameType(this), -judgeOffset))
 			{
 				State = NoteState.Last;
 			}

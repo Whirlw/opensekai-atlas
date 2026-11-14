@@ -97,10 +97,6 @@ namespace Sekai.Core.Live
 			UpdateMusicTime();
 			float fillerSec = BootData?.MusicData?.Music?.fillerSec ?? 0f;
 			_liveLogic?.OnUpdate(currentAudioLatencyMusicTimeMs - fillerSec, currentGameTime);
-			if (_liveLogic?.result == 2 && _liveLogic.IsNotesAllFinished)
-			{
-				OnFinished();
-			}
 			if (BootData?.IsAuto == true)
 			{
 				_liveLogic?.OnAutoInput();
@@ -108,6 +104,10 @@ namespace Sekai.Core.Live
 			else
 			{
 				_liveLogic?.OnInput();
+			}
+			if (_liveLogic?.result == 2 && _liveLogic.IsNotesAllFinished)
+			{
+				OnFinished();
 			}
 
 			// The view block, last: it draws what the two blocks above decided.

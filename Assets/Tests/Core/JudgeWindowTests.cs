@@ -34,6 +34,18 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         [Test]
+        public void AdmissionAndExpiryUseTheSameAsymmetricBounds()
+        {
+            var window = new JudgeTimeData(JudgeFrameType.Normal, 1f, 1f, 2f, 2f, 3f, 3f, 4f, 5f);
+            Assert.That(JudgeWindow.Accepts(window, 3.99f), Is.True);
+            Assert.That(JudgeWindow.Accepts(window, 4f), Is.False);
+            Assert.That(JudgeWindow.Accepts(window, -4.99f), Is.True);
+            Assert.That(JudgeWindow.Accepts(window, -5f), Is.False);
+            Assert.That(JudgeWindow.IsPast(window, -5f), Is.False);
+            Assert.That(JudgeWindow.IsPast(window, -5.01f), Is.True);
+        }
+
+        [Test]
         public void DeadOnIsJustPerfect()
         {
             Assert.That(Result(Window(), 0f), Is.EqualTo(NoteResult.JustPerfect));

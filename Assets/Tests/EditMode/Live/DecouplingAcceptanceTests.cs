@@ -129,7 +129,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			(NoteResult tailLift, NoteState tailState) = ShiftedTailLift(liftLane: 9f);
 
 			Assert.That(bodyLift, Is.EqualTo(NoteResult.None), "lifting where the body is leaves the tail alone");
-			Assert.That(bodyState, Is.Not.EqualTo(NoteState.Done), "and the bar keeps running");
+			Assert.That(bodyState, Is.EqualTo(NoteState.Done), "the body ends at its chart time");
 			Assert.That(tailLift, Is.Not.EqualTo(NoteResult.None).And.Not.EqualTo(NoteResult.Miss),
 				"lifting where the tail moved to grades it");
 			Assert.That(tailState, Is.EqualTo(NoteState.Done), "and finishes the bar");
@@ -166,7 +166,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
 			Assert.That(decorationLane, Is.EqualTo(NoteResult.None),
 				"lane 3 is inside the body's widened range but outside the tail's own range");
-			Assert.That(neighbourState, Is.Not.EqualTo(NoteState.Done), "so the neighbour keeps running");
+			Assert.That(neighbourState, Is.EqualTo(NoteState.Done), "the body's endpoint has passed");
 			Assert.That(ownLane, Is.Not.EqualTo(NoteResult.None).And.Not.EqualTo(NoteResult.Miss),
 				"its own lane still grades the tail");
 			Assert.That(ownState, Is.EqualTo(NoteState.Done), "and finishes the bar");

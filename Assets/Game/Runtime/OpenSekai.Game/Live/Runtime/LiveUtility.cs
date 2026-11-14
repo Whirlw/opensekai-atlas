@@ -101,6 +101,7 @@ namespace Sekai
 
 					return isCritical ? JudgeFrameType.Flick_Critical : JudgeFrameType.Flick;
 				case NoteCategory.Friction:
+					return isCritical ? JudgeFrameType.Friction_Critical : JudgeFrameType.Friction;
 				case NoteCategory.FrictionHide:
 					if (hasParent)
 					{
@@ -117,26 +118,14 @@ namespace Sekai
 
 					return isCritical ? JudgeFrameType.Friction_Long_Critical : JudgeFrameType.Friction_Long;
 				case NoteCategory.FrictionFlick:
-					if (hasParent)
-					{
-						return isCritical ? JudgeFrameType.Long_End_Flick_Critical : JudgeFrameType.Long_End_Flick;
-					}
-
 					return isCritical ? JudgeFrameType.Friction_Flick_Critical : JudgeFrameType.Friction_Flick;
 				default:
 					return JudgeFrameType.Normal;
 			}
 		}
 
-		public static bool IsJudgmentTiming(JudgeFrameType frameType, float offsetJudgeTime)
-		{
-			if (!LiveConfig.noteTypeJudgeData.JudgeTimes.TryGetValue(frameType, out var judgeTimeData))
-			{
-				judgeTimeData = LiveConfig.noteTypeJudgeData.JudgeTimes[JudgeFrameType.Normal];
-			}
-
-			return judgeTimeData.BadBeforeJudgeTime > offsetJudgeTime && -judgeTimeData.BadAfterJudgeTime < offsetJudgeTime;
-		}
+		public static bool IsJudgmentTiming(JudgeFrameType frameType, float noteMinusInput) =>
+			OpenSekai.Shared.Scoring.JudgeWindow.Accepts(LiveConfig.GetJudgeWindow(frameType), noteMinusInput);
 
 		public static int CalculateTotalComboCount(MusicScore musicScore)
 		{

@@ -34,6 +34,7 @@ namespace Sekai.Core.Live
 			// this frame before the next one looks at them: a press is a Began, a release is an Ended,
 			// and whatever is left over is the resident upkeep.
 			JudgePressChannel();
+			_noteFrame.SettleExpiredPresses();
 			JudgeReleaseChannel();
 			JudgeResidentChannel();
 

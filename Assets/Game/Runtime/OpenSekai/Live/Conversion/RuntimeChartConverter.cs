@@ -626,7 +626,6 @@ namespace OpenSekai.Live.Conversion
 				return;
 			}
 			longNote.AddNoteListAndSetupChildNote(note);
-			note?.SetParentNote(longNote);
 			// A decorative bar only moves the lane around: the note at its end is played by
 			// the player, so the bar must not grade it. It just stops when that note passes.
 			if (longNote.IsDecoration && note != null && !note.IsDecoration && note.HasJudgment)

@@ -126,7 +126,7 @@ namespace Sekai.Core.Live
 				// itself: a rub, a rub flick or a hidden carrier is played exactly like a note that hangs
 				// on no bar at all, so it needs a slot of its own. Without this the note could only ever
 				// time out, never be played.
-				if (note is LongNote selfJudgingBar && selfJudgingBar.TailBehaviour.JudgesItself
+				if (note is LongNote selfJudgingBar && selfJudgingBar.HasIndependentTail
 					&& tailNote != null && !judgmentNotes.Contains(tailNote))
 				{
 					judgmentNotes.Add(tailNote);

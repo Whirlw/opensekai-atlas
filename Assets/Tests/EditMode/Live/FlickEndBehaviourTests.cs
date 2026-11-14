@@ -281,13 +281,14 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-        private static LongNote FlickEndedBar(NoteDirection direction = NoteDirection.Default)
+        private static LongNote FlickEndedBar(NoteDirection direction = NoteDirection.Default, float flickDistance = 0f)
 
         {
 
             var bar = new LongNote(Info(0f), 45, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
 
-            bar.AddNoteListAndSetupChildNote(new FlickNote(Info(1f), 46, 4, 5, NoteCategory.Flick, 1, NoteType.Default, direction, 0, 0f));
+            bar.AddNoteListAndSetupChildNote(new FlickNote(Info(1f), 46, 4, 5, NoteCategory.Flick, 1,
+                NoteType.Default, direction, laneOffset: 0f, screenDpiToInch: flickDistance));
 
 
 
@@ -858,9 +859,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             // has to end up Miss once its window is gone, or it is the one note that cannot be missed.
 
-            // That Miss is the note's own verdict (tail-classes.md §3 类 1): the bar drives the note and
-
-            // reads the result, it never writes it.
+            // The note settles and publishes the Miss on its own clock.
 
             var bar = new LongNote(Info(0f), 311, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
 
@@ -894,7 +893,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             Assert.That(published, Is.EqualTo(1), "the bar adds no publication of its own");
 
-            Assert.That(bar.Result, Is.EqualTo(NoteResult.Miss), "it only reads the verdict the note wrote");
+            Assert.That(bar.Result, Is.EqualTo(NoteResult.None), "the tail's Miss belongs to the tail");
 
         }
 
@@ -1153,8 +1152,30 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-        [Test]
+        [TestCase(60f, NoteResult.JustPerfect)]
+        [TestCase(12f, NoteResult.Great)]
+        public void AFollowUpSwipeUpdatesDirectionOnlyIfItMeetsTheSpeedThreshold(float distance, NoteResult expected)
+        {
+            const int touchId = 1;
+            const float frame = 1f / 60f;
+            var bar = FlickEndedBar(NoteDirection.Left, flickDistance: 10f);
+            var tail = (NoteBase)bar.ChildNote;
 
+            // First arm a wrong-way swipe. The next sample moves in the correct direction
+            // and exceeds the reference distance, but only the 60 px sample is fast enough.
+            bar.TrySwipeTail(new Vector2(60f, 0f), frame, 0.89f, touchId);
+            Assert.That(bar.HasDeferredSwipe, Is.True);
+            bar.TrySwipeTail(new Vector2(-distance, 0f), frame, 0.94f, touchId);
+            Assert.That(tail.Result, Is.EqualTo(NoteResult.None));
+
+            bar.NotifyLaneRelease();
+            Assert.That(bar.TickSwipeTail(0.96f), Is.False);
+            Assert.That(bar.TickSwipeTail(0.98f), Is.False);
+            Assert.That(bar.TickSwipeTail(1f), Is.True);
+            Assert.That(tail.Result, Is.EqualTo(expected));
+        }
+
+        [Test]
         public void OnlyTheTailRidesAlongWithTheBar()
 
         {
@@ -1332,9 +1353,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-            // The tail judges itself. Its verdict must NOT end the bar (tail-classes.md §3 类 1): an
-            // independent tail does not touch the bar in either direction, so the bar leaves on its own
-            // time and only reads the verdict.
+            // The tail grades itself. The bar ends at the chart endpoint.
 
             tail.FinishWith(NoteResult.JustPerfect);
 
@@ -1348,7 +1367,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             Assert.That(bar.State, Is.EqualTo(NoteState.Done));
 
-            Assert.That(bar.Result, Is.EqualTo(NoteResult.JustPerfect), "and takes the verdict it read");
+            Assert.That(bar.Result, Is.EqualTo(NoteResult.None), "the result belongs to the tail");
 
         }
 
@@ -1356,7 +1375,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
         [Test]
 
-        public void AnUnsettledFrictionFlickTailEndsTheBarOnlyWhenItsWindowCloses()
+        public void AnUnsettledFrictionFlickTailKeepsJudgingAfterTheBarEnds()
 
         {
 
@@ -1372,30 +1391,22 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-            Assert.That(bar.DetachStandaloneTail(1.0f), Is.False, "the window is still open");
-
-            Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done));
+            Assert.That(bar.DetachStandaloneTail(0.99f), Is.False, "the chart endpoint is ahead");
+            Assert.That(bar.DetachStandaloneTail(1f), Is.True);
+            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
 
             Assert.That(tail.Result, Is.EqualTo(NoteResult.None), "the bar must not grade a standalone tail");
 
 
 
-            // The note times itself out: the bar drives its children, and NoteBase.Excute turns a note
-
-            // past its window into its own Miss. The bar waits for that verdict instead of writing one.
+            // The note's own clock closes its window after the body has left.
 
             tail.Excute(Info(1.2f), 0f);
             tail.Excute(Info(1.3f), 0f);
 
             Assert.That(tail.Result, Is.EqualTo(NoteResult.Miss), "the tail writes its own Miss");
 
-            Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done), "and that does not end the bar");
-
-
-
-            Assert.That(bar.DetachStandaloneTail(1.4f), Is.True, "past the window the bar has to end");
-
-            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+            Assert.That(bar.Result, Is.EqualTo(NoteResult.None));
 
         }
 
@@ -1599,7 +1610,8 @@ namespace OpenSekai.Tests.EditMode.Live
 
             {
 
-                Lane = -1f, // above the judgment line, like a real lift
+                Lane = -1f, // the swipe finished outside the playfield
+                PreviousLane = 4.5f,
 
                 Touch = new LiveTouch
 

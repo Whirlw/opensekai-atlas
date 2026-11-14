@@ -79,7 +79,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			StepTo(TailTime, LiveHarness.Touch(2, LanePosition(far), 10d + TailTime, TouchPhase.Ended));
 
 			Assert.That(Tail.Result, Is.EqualTo(NoteResult.None), "a lift outside the bar is not its release");
-			Assert.That(_bar.State, Is.Not.EqualTo(NoteState.Done), "and it does not finish the bar either");
+			Assert.That(_bar.State, Is.EqualTo(NoteState.Done), "the body has reached its endpoint");
 		}
 
 		[Test]
@@ -113,5 +113,91 @@ namespace OpenSekai.Tests.EditMode.Live
 				+ $" judgeable={_bar.IsTailJudgeableAt(TailTime)} tail={TailTime:F3} bar={_bar.MusicScoreInfo.time:F3})");
 			Assert.That(_bar.State, Is.EqualTo(NoteState.Done));
 		}
+
+		[TestCase(false)]
+		[TestCase(true)]
+		public void AFinalSwipeOnlyReachesTheBarItStartedOn(bool endOutside)
+		{
+			LongNote left = FlickBar(101, 2);
+			LongNote right = FlickBar(103, 8);
+			var score = new MusicScore(new[] { left.MusicScoreInfo },
+				System.Array.Empty<EventBase>(), new NoteBase[] { left, right });
+			_harness.Arrange(score);
+			Vector3 leftPosition = LanePosition(2);
+			Vector3 rightPosition = LanePosition(8);
+			StepTo(0f, Sample(1, leftPosition, 0f, TouchPhase.Began),
+				Sample(2, rightPosition, 0f, TouchPhase.Began));
+			StepTo(0.98f, Sample(1, leftPosition, 0.98f, TouchPhase.Stationary),
+				Sample(2, rightPosition, 0.98f, TouchPhase.Stationary));
+			Assert.That(left.HasFinger && right.HasFinger, Is.True);
+
+			Vector3 endPosition = endOutside ? leftPosition + Vector3.left * 100f : rightPosition;
+			StepTo(1f, Sample(1, endPosition, 1f, TouchPhase.Ended, 700f),
+				Sample(2, rightPosition, 1f, TouchPhase.Stationary));
+
+			Assert.That(((NoteBase)left.ChildNote).Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(((NoteBase)right.ChildNote).Result, Is.EqualTo(NoteResult.None));
+		}
+
+		[Test]
+		public void ADeferredSwipeFollowsItsFingerWhenAnotherFingerKeepsHolding()
+		{
+			LongNote bar = FlickBar(101, 4);
+			var score = new MusicScore(new[] { bar.MusicScoreInfo },
+				System.Array.Empty<EventBase>(), new NoteBase[] { bar });
+			_harness.Arrange(score);
+			Vector3 position = LanePosition(4);
+			StepTo(0f, Sample(1, position, 0f, TouchPhase.Began));
+			StepTo(0.88f, Sample(1, position, 0.88f, TouchPhase.Stationary),
+				Sample(2, position, 0.88f, TouchPhase.Began));
+			StepTo(0.90f, Sample(1, position, 0.90f, TouchPhase.Moved, 700f),
+				Sample(2, position, 0.90f, TouchPhase.Stationary));
+			Assert.That(bar.HasDeferredSwipe, Is.True);
+
+			StepTo(0.92f, Sample(1, position, 0.92f, TouchPhase.Ended, 700f),
+				Sample(2, position, 0.92f, TouchPhase.Stationary));
+			StepTo(0.94f, Sample(2, position, 0.94f, TouchPhase.Stationary));
+			StepTo(0.96f, Sample(2, position, 0.96f, TouchPhase.Stationary));
+			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.None));
+			StepTo(0.98f, Sample(2, position, 0.98f, TouchPhase.Stationary));
+			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.JustPerfect));
+		}
+
+		[Test]
+		public void AFinalSwipeInsideTwoJudgeRangesGoesToTheCloserBar()
+		{
+			LongNote left = FlickBar(101, 4, 1.5f);
+			LongNote right = FlickBar(103, 5, 1.5f);
+			var score = new MusicScore(new[] { left.MusicScoreInfo },
+				System.Array.Empty<EventBase>(), new NoteBase[] { left, right });
+			_harness.Arrange(score);
+			Vector3 leftPosition = LanePosition(4);
+			Vector3 rightPosition = LanePosition(5);
+			StepTo(0f, Sample(1, leftPosition, 0f, TouchPhase.Began),
+				Sample(2, rightPosition, 0f, TouchPhase.Began));
+			StepTo(0.98f, Sample(1, leftPosition, 0.98f, TouchPhase.Stationary),
+				Sample(2, rightPosition, 0.98f, TouchPhase.Stationary));
+			Assert.That(left.HasFinger && right.HasFinger, Is.True);
+
+			StepTo(1f, Sample(1, leftPosition, 1f, TouchPhase.Ended, 700f),
+				Sample(2, rightPosition, 1f, TouchPhase.Stationary));
+
+			Assert.That(((NoteBase)left.ChildNote).Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(((NoteBase)right.ChildNote).Result, Is.EqualTo(NoteResult.None));
+		}
+
+		private static LongNote FlickBar(int id, int lane, float laneOffset = 0f)
+		{
+			var head = new MusicScoreInfo(0, 0f, 0f, 120, 4, 1, 1);
+			var end = new MusicScoreInfo(0, 0.5f, 1f, 120, 4, 1, 1);
+			var bar = new LongNote(head, id, lane, lane, NoteCategory.Long, NoteType.Default, 1f, laneOffset);
+			bar.AddNoteListAndSetupChildNote(new FlickNote(end, id + 1, lane, lane,
+				NoteCategory.Flick, 1f, NoteType.Default, NoteDirection.Default, 1f, 0f));
+			return bar;
+		}
+
+		private static LiveTouchSample Sample(int id, Vector3 position, float time, TouchPhase phase,
+			float screenX = 800f) =>
+			new LiveTouchSample(id, new Vector2(screenX, 600f), position, 10d + time, phase, Vector2.zero);
 	}
 }

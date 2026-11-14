@@ -24,6 +24,7 @@ namespace Sekai.Core.Live
 		internal LiveHoldCoordinator Holds { get; } = new LiveHoldCoordinator(InputCapacity);
 
 		private readonly Dictionary<int, double> _judgedTouchTimes = new Dictionary<int, double>(FingerCapacity);
+		private readonly Dictionary<int, float> _previousTouchLanes = new Dictionary<int, float>(FingerCapacity);
 
 		/// <summary>
 		/// Touches that landed above the judgement line. The vertical gate is asked once, when a touch is
@@ -63,6 +64,7 @@ namespace Sekai.Core.Live
 			_collector.Reset();
 			ActiveInputs.Clear();
 			_judgedTouchTimes.Clear();
+			_previousTouchLanes.Clear();
 			_touchesAboveTheLine.Clear();
 		}
 
@@ -71,6 +73,14 @@ namespace Sekai.Core.Live
 			int activeInputCount = 0;
 			ActiveInputs.Clear();
 			_collector.Collect(_touchSource, _camera, _logic.ResolveInputMusicTime, OnProcessTouch, ref activeInputCount);
+			foreach (LiveLogic.InputTmp input in ActiveInputs)
+			{
+				int touchId = input.Touch.touchId;
+				if (IsEndedOrCanceled(input.Touch.phase))
+					_previousTouchLanes.Remove(touchId);
+				else
+					_previousTouchLanes[touchId] = input.Lane;
+			}
 		}
 
 		internal void BeginFrame() => JudgmentNotes.Clear();
@@ -101,11 +111,19 @@ namespace Sekai.Core.Live
 		private void OnProcessTouch(in OpenSekai.Shared.Live.Simulation.SimTouch simTouch, ref int activeInputCount)
 		{
 			float judgmentLane = ResolveJudgmentLane(in simTouch);
+			int touchId = simTouch.TouchId;
+			// The collector measures displacement from the previous frame's position, or from
+			// Began when this contact started in the current frame.
+			if (simTouch.Phase == InputTouchPhase.Began)
+				_previousTouchLanes[touchId] = judgmentLane;
+
 			if (activeInputCount <= _inputBuffer.Length - 1)
 			{
 				LiveTouch processTouch = new LiveTouch(simTouch.FingerId, simTouch.TouchId, simTouch.Delta, simTouch.WorldPosition, simTouch.Phase, simTouch.MusicTime);
 				LiveLogic.InputTmp input = _inputBuffer[activeInputCount++];
 				input.Reset(ref processTouch, judgmentLane);
+				if (_previousTouchLanes.TryGetValue(touchId, out float previousLane))
+					input.PreviousLane = previousLane;
 				ActiveInputs.Add(input);
 			}
 

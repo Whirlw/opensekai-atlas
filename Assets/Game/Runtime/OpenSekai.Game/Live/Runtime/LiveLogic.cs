@@ -11,6 +11,7 @@ namespace Sekai.Core.Live
 		public class InputTmp
 		{
 			public LiveTouch Touch;
+			internal float PreviousLane { get; set; } = -1f;
 			private float _Lane;
 			public float Lane
 			{
@@ -39,6 +40,7 @@ namespace Sekai.Core.Live
 
 				Touch = source.Touch;
 				Lane = source.Lane;
+				PreviousLane = source.PreviousLane;
 				CandidateNotes.AddRange(source.CandidateNotes);
 			}
 
@@ -46,6 +48,7 @@ namespace Sekai.Core.Live
 			{
 				Touch = touch;
 				Lane = lane;
+				PreviousLane = -1f;
 				CandidateNotes.Clear();
 			}
 		}
@@ -208,6 +211,7 @@ namespace Sekai.Core.Live
 		{
 			Input.CollectTouches();
 			Scheduler.Run();
+			ApplyFrameOutcome();
 		}
 
 		/// <summary>Reads the frame that just ran and moves the session out of play when it has to.</summary>

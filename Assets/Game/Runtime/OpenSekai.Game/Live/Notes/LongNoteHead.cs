@@ -11,6 +11,11 @@ namespace Sekai.Live
 
 		internal bool IsSettled => _result.result != NoteResult.None;
 		internal NoteResult Result => _result.result;
+		internal bool IsPastWindow(float now) =>
+			LiveConfig.IsPastJudgeWindow(LiveUtility.GetINoteToJudgeFrameType(_bar), _bar.MusicScoreInfo.time - now);
+
+		internal bool AcceptsPressAt(float sampleTime) =>
+			LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(_bar), _bar.MusicScoreInfo.time - sampleTime);
 
 		private LongNoteHeadNote _candidate;
 
@@ -94,9 +99,7 @@ namespace Sekai.Live
 			// head: one door out of the play state used to settle this head, which let the bar's
 			// lifecycle decide a result the head owns.
 			//
-			// LiveConfig.JudgeTime is the head's own late bound (the Long table's bad-after), so this is the
-			// same 125 ms the press gate uses - one window for both questions, and no second number to drift.
-			if (!IsSettled && currentTime - _bar.MusicScoreInfo.time > LiveConfig.JudgeTime)
+			if (!IsSettled && IsPastWindow(currentTime))
 			{
 				Settle((NoteResult.Miss, NoteResultDescription.None), updateScore: false);
 			}
@@ -143,8 +146,7 @@ namespace Sekai.Live
 				return false;
 			}
 
-			float offset = _bar.MusicScoreInfo.time - touch.musicTime;
-			if (!LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(_bar), offset))
+			if (!AcceptsPressAt(touch.musicTime))
 			{
 				return false;
 			}

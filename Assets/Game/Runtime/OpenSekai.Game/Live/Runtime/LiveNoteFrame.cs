@@ -58,21 +58,22 @@ namespace Sekai.Core.Live
 			}
 
 			UpdateNotes();
-			_logic.ApplyFrameOutcome();
+			if (_session.IsAuto)
+			{
+				_logic.ApplyFrameOutcome();
+			}
 		}
 
 		/// <summary>Autoplay has no touch block: the automatic answer stands in for it.</summary>
 		internal void AutoUpdate()
 		{
 			_session.AdvanceAutoJudgment(_logic.Clock.Frame);
+			_session.Notes.TickHeads(Frame.time);
+			_logic.ApplyFrameOutcome();
 		}
 
 		internal void UpdateNotes()
 		{
-			// Heads first: a head settles on its own window, and that window may close on a frame the
-			// bar itself is no longer walked (a tail ended it earlier).
-			_session.Notes.TickHeads(Frame.time);
-
 			// A head is a press candidate for as long as the head is open, not for as long as its bar is on
 			// screen. The walk below only visits bars that are still playing, and a short bar is done a few
 			// milliseconds after its head - which took the rest of the head's 125 ms window with it, so a
@@ -88,11 +89,57 @@ namespace Sekai.Core.Live
 				}
 			}
 
-			// End notes that judge themselves get the same treatment: their clock is theirs, not the
-			// bar's, so the bar leaving never takes their verdict away.
-			_session.Notes.TickTails(Frame);
+			// Register open ends during the walk, then keep advancing them after their bodies finish.
 			_session.Notes.WalkNotes(ScanNote);
 			_session.Notes.WalkHighSpeedNotes(ScanHighSpeedNote);
+			_session.Notes.TickTails(AdvancePendingTail);
+			if (!_session.IsAuto)
+			{
+				foreach (NoteBase tail in _session.Notes.PendingTails)
+				{
+					if (tail.ParentNote is LongNote bar && bar.HasManagedTail)
+					{
+						if (!_input.JudgmentNotes.Contains(bar))
+						{
+							_input.Register(bar);
+						}
+					}
+					else if (!_input.JudgmentNotes.Contains(tail))
+					{
+						_input.Register(tail);
+					}
+				}
+			}
+		}
+
+		internal void SettleExpiredPresses()
+		{
+			for (int i = 0; i < _input.JudgmentNotes.Count; i++)
+			{
+				NoteBase note = _input.JudgmentNotes[i];
+				if (note is NormalNote normal && LiveCandidatePipeline.IsPressStep(normal))
+				{
+					normal.SettleExpiredPress(Frame.time);
+				}
+			}
+
+			_session.Notes.TickHeads(Frame.time);
+		}
+
+		private void AdvanceNote(NoteBase note, float offsetTime)
+		{
+			if (!_session.IsAuto && note is LongNote bar && bar.PublishesHeadMiss)
+			{
+				bar.AdvanceBeforeInput(Frame, offsetTime);
+			}
+			else if (!_session.IsAuto && note is NormalNote && LiveCandidatePipeline.IsPressStep(note))
+			{
+				note.AdvanceNote(Frame, offsetTime, settleTimeout: false);
+			}
+			else
+			{
+				note.Excute(Frame, offsetTime);
+			}
 		}
 
 		/// <summary>
@@ -106,18 +153,13 @@ namespace Sekai.Core.Live
 				return LiveNoteSession.Scan.Skip;
 			}
 
-			float offsetTime = CalcTimeOffset(note);
+			float offsetTime = DisplayOffsetForFrame(note, highSpeed: false);
 			if (IsTooFarAheadForDisplayHighSpeed(offsetTime, note))
 			{
 				return LiveNoteSession.Scan.Stop;
 			}
-			if (offsetTime < 0f && Frame.time >= note.MusicScoreInfo.time)
-			{
-				offsetTime = -offsetTime;
-			}
-
 			PreloadView(note, offsetTime);
-			note.Excute(Frame, offsetTime);
+			AdvanceNote(note, offsetTime);
 			RegisterOpenHead(note);
 
 			// Decoration notes need to be processed after Excute to check OffsetJudgeTime
@@ -156,11 +198,53 @@ namespace Sekai.Core.Live
 
 			// A judged end note that judges itself is ticked by the session, not by the bar's note loop, for
 			// the same reason: the bar ends on its own time and the note's clock has to outlive that.
-			if (note is LongNote judgedBar && judgedBar.TailBehaviour.JudgesItself
-				&& judgedBar.TailNote is NoteBase tail && tail.HasJudgment)
+			if (note is LongNote judgedBar && (judgedBar.HasIndependentTail || judgedBar.HasManagedTail))
 			{
-				_session.Notes.RegisterTail(tail);
+				_session.Notes.RegisterTail(judgedBar.TailNote);
+				// Guide and decorative bodies may never reach the hold pass.
+				if (!_session.IsAuto && judgedBar.HasIndependentTail && (judgedBar is GuideNote || judgedBar.IsDecoration))
+				{
+					judgedBar.DetachStandaloneTail(Frame.time);
+				}
 			}
+		}
+
+		private void AdvancePendingTail(NoteBase tail)
+		{
+			if (tail.ParentNote is LongNote bar && bar.HasManagedTail)
+			{
+				// A live bar already advances the key. Once the body has ended, keep the key moving
+				// while its release or swipe rule owns the remaining judgement window.
+				if (bar.State == NoteState.Done)
+				{
+					float lead = DisplayOffsetForFrame(tail, !Mathf.Approximately(tail.speedRatio, 1f));
+					tail.AdvanceNote(Frame, lead, settleTimeout: false);
+				}
+				return;
+			}
+
+			bool highSpeed = !Mathf.Approximately(tail.speedRatio, 1f);
+			float offset = DisplayOffsetForFrame(tail, highSpeed);
+			bool tooFarAhead = highSpeed
+				? IsTooFarAheadForDisplay(offset, tail)
+				: IsTooFarAheadForDisplayHighSpeed(offset, tail);
+			if (!tooFarAhead)
+			{
+				PreloadView(tail, offset);
+				tail.Excute(Frame, offset);
+			}
+		}
+
+		private float DisplayOffsetForFrame(NoteBase note, bool highSpeed)
+		{
+			bool due = Frame.time >= note.MusicScoreInfo.time;
+			if (highSpeed && due)
+			{
+				return _session.NoteDisplayTimeOffset;
+			}
+
+			float offset = CalcTimeOffset(note);
+			return due ? Mathf.Abs(offset) : offset;
 		}
 
 		/// <summary>
@@ -195,16 +279,14 @@ namespace Sekai.Core.Live
 		/// <summary>One high speed note: same shape, its own display lead.</summary>
 		private LiveNoteSession.Scan ScanHighSpeedNote(NoteBase note)
 		{
-			float offsetTime = Frame.time >= note.MusicScoreInfo.time
-				? _session.NoteDisplayTimeOffset
-				: CalcTimeOffset(note);
+			float offsetTime = DisplayOffsetForFrame(note, highSpeed: true);
 			if (IsTooFarAheadForDisplay(offsetTime, note))
 			{
 				return LiveNoteSession.Scan.Stop;
 			}
 
 			PreloadView(note, offsetTime);
-			note.Excute(Frame, offsetTime);
+			AdvanceNote(note, offsetTime);
 			RegisterOpenHead(note);
 
 			if (note.IsDecoration && note.State != NoteState.Done && ShouldTriggerDecorationJudgment(note))

@@ -28,7 +28,8 @@ namespace Sekai.Core.Live
 		internal LiveScore Score => ScoreLogic?.Score ?? default;
 
 		internal bool AreNotesFinished =>
-			Notes.NoteIndex >= Notes.Notes.Length && Notes.HighSpeedIndex >= Notes.HighSpeedNotes.Length;
+			Notes.NoteIndex >= Notes.Notes.Length && Notes.HighSpeedIndex >= Notes.HighSpeedNotes.Length
+			&& Notes.PendingHeads.Count == 0 && Notes.PendingTailCount == 0;
 
 		internal void Bind(LiveBootDataBase bootData, LiveViewBase[] views)
 		{

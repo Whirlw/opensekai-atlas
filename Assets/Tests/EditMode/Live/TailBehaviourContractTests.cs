@@ -57,10 +57,10 @@ namespace OpenSekai.Tests.EditMode.Live
 		}
 
 		[Test]
-		public void ASelfJudgedTailDetachesOnceItsNoteHasAResult()
+		public void ASelfJudgedTailDoesNotOverwriteTheBarsResult()
 		{
-			// The friction flick end grades itself; the bar only follows it and takes its result.
 			LongNote bar = Bar();
+			bar.Head.Settle((NoteResult.Great, NoteResultDescription.None));
 			Bind(bar, new FrictionFlickNote(Info(1f), 96, 4, 5, NoteCategory.FrictionFlick, 1f, NoteType.Default, NoteDirection.Default, 0.0833f, 0f));
 			((NoteBase)bar.ChildNote).FinishWith(NoteResult.JustPerfect);
 
@@ -68,7 +68,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
 			Assert.That(settled, Is.True);
 			Assert.That(bar.State, Is.EqualTo(NoteState.Done));
-			Assert.That(bar.Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(bar.Result, Is.EqualTo(NoteResult.Great));
 		}
 
 		[Test]
@@ -136,21 +136,22 @@ namespace OpenSekai.Tests.EditMode.Live
 		}
 
 		[Test]
-		public void AVerdictThatArrivesAfterTheBarIsDoneIsNotAskedAgain()
+		public void AVerdictThatArrivesAfterTheBarIsDoneStillPublishesOnlyOnce()
 		{
-			// One point, stated plainly by the rules: when the tail's verdict comes back to a bar that is
-			// already done, it is not judged a second time. Nothing is resurrected and nothing is
-			// written onto the note.
 			(LongNote bar, NoteBase tail) = BarAtItsTail();
+			int published = 0;
+			tail.OnJudgment = _ => published++;
 			bar.ForceTerminate(tail);
 			Assert.That(bar.State, Is.EqualTo(NoteState.Done), "the bar is done for some other reason");
 
-			Assert.That(bar.JudgeTailAsRelease(1f), Is.False, "a done bar is not judged again");
+			Assert.That(bar.JudgeTailAsRelease(1f), Is.True, "the unjudged tail keeps its window");
+			Assert.That(bar.JudgeTailAsRelease(1.01f), Is.False);
 			Assert.That(bar.ExpireTail(1f), Is.False);
 			Assert.That(bar.FailTail(), Is.False);
 			Assert.That(bar.DetachStandaloneTail(2f), Is.False);
 
-			Assert.That(tail.Result, Is.EqualTo(NoteResult.None), "and nothing is written onto the note");
+			Assert.That(published, Is.EqualTo(1));
+			Assert.That(tail.Result, Is.EqualTo(NoteResult.JustPerfect));
 			Assert.That(bar.State, Is.EqualTo(NoteState.Done), "nor is the bar brought back");
 		}
 
@@ -216,7 +217,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			}
 
 			Assert.That(tail.Result, Is.EqualTo(NoteResult.Miss), "the friction-flick end misses on its own");
-			Assert.That(bar.State, Is.EqualTo(NoteState.Done), "and the bar leaves after reading it");
+			Assert.That(bar.State, Is.EqualTo(NoteState.Done), "and the bar leaves on its own time");
 			Assert.That(bar.Result, Is.EqualTo(NoteResult.Miss), "with the verdict the note published");
 		}
 

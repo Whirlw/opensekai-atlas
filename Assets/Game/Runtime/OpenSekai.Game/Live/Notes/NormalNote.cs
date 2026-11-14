@@ -56,6 +56,14 @@ namespace Sekai.Live
 				|| (Category == NoteCategory.Long && UnityEngine.InputSystem.InputExtensions.IsEndedOrCanceled(touch.phase));
 		}
 
+		internal void SettleExpiredPress(float now)
+		{
+			if (LiveConfig.IsPastJudgeWindow(LiveUtility.GetINoteToJudgeFrameType(this), MusicScoreInfo.time - now))
+			{
+				FinishWith(NoteResult.Miss);
+			}
+		}
+
 		public override bool Judgment(ref LiveTouch touch, float lane)
 		{
 			if (State == NoteState.Done)

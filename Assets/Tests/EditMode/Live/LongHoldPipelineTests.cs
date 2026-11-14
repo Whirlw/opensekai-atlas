@@ -423,6 +423,8 @@ namespace OpenSekai.Tests.EditMode.Live
             // The end point has its own table: generous early, tighter late, no bad band, and nothing
             // at all more than 125 ms before the tail - a release there must not finish the bar.
             Assert.That(OpenSekai.Shared.Live.LongEndJudgement.Evaluate(offset), Is.EqualTo(expected));
+            Assert.That(OpenSekai.Shared.Live.LongEndJudgement.Accepts(offset), Is.EqualTo(expected != NoteResult.None));
+            Assert.That(OpenSekai.Shared.Live.LongEndJudgement.IsPast(offset), Is.EqualTo(offset > 0f && expected == NoteResult.None));
         }
 
         [Test]
