@@ -138,7 +138,7 @@ namespace OpenSekai.Tests.EditMode.Live
             var bar = new LongNote(Info(0f), 81, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
             bar.AddNoteListAndSetupChildNote(new NormalNote(Info(2f), 82, 4, 5, NoteCategory.Normal, 1, NoteType.Default, 0));
             var connection = new NormalNote(Info(1f), 83, 4, 5, NoteCategory.Connection, 1, NoteType.Default, 0);
-            connection.SetParentNote(bar, NoteParentRole.Connection);
+            connection.SetParentNote(bar);
             bar.Excute(Info(0f), 0);
 
             connection.FinishWith(NoteResult.Perfect);
@@ -154,7 +154,7 @@ namespace OpenSekai.Tests.EditMode.Live
             var bar = new LongNote(Info(0f), 84, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
             bar.AddNoteListAndSetupChildNote(new NormalNote(Info(2f), 85, 4, 5, NoteCategory.Normal, 1, NoteType.Default, 0));
             var combo = new LongHoldCombo(Info(1f), NoteType.Default, 1, 0);
-            combo.SetParentNote(bar, NoteParentRole.Combo);
+            combo.SetParentNote(bar);
             bar.Excute(Info(0f), 0);
 
             combo.FinishWith(NoteResult.JustPerfect);

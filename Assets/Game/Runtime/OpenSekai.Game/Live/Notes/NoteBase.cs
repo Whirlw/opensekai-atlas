@@ -165,15 +165,6 @@ namespace Sekai.Live
 			set;
 		}
 
-		[JsonIgnore]
-		public virtual bool FinishFirstAction
-		{
-			get
-			{
-				return true;
-			}
-		}
-
 		public MusicScoreInfo MusicScoreInfo
 		{
 			[CompilerGenerated]
@@ -480,13 +471,6 @@ namespace Sekai.Live
 			{
 				Type = note.Type;
 			}
-		}
-
-		public void SetParentNote(LongNote note, NoteParentRole role)
-		{
-			// The role follows the binding (see ParentRole); the argument is kept so callers can
-			// say what they mean without changing behaviour.
-			SetParentNote(note);
 		}
 
 		/// <summary>

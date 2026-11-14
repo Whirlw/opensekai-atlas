@@ -125,7 +125,7 @@ namespace Sekai.Live
 			longHoldCombo.JudgeLaneStart = JudgeLaneStart;
 			longHoldCombo.JudgeLaneEnd = JudgeLaneEnd;
 			NoteList.Add(longHoldCombo);
-			longHoldCombo.SetParentNote(this, NoteParentRole.Combo);
+			longHoldCombo.SetParentNote(this);
 		}
 
 		public void AddNoteListAndSetupChildNote(NoteBase note)
@@ -153,7 +153,7 @@ namespace Sekai.Live
 			// The draw list holds every note the bar owns. Whether a note shows anything is the note's own
 			// business; settlement is decided separately, in SettleLeftoverAsPerfect, where only the points
 			// the bar itself ends are graded.
-			note.SetParentNote(this, NoteParentRole.Tail);
+			note.SetParentNote(this);
 			NoteList.Add(note);
 
 			if (!note.IsSkip && !ViewNoteList.Contains(note))

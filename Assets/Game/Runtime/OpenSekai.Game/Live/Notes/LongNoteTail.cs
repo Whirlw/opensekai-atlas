@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using OpenSekai.Shared.Diagnostics;
 using OpenSekai.Shared.Live;
 using UnityEngine;
@@ -98,15 +98,14 @@ namespace Sekai.Live
 				return false;
 			}
 
-			// Every kind of end note is release-finishable: a bar closing on a friction or a hidden
-			// note ends exactly like a plain one. Only a decorative point is not a real end.
+			// A release only ever finishes a ReleaseTail, which the check above already established: a
+			// flick end waits for the swipe (TrySwipeTail) and a rub, a rub flick or a hidden carrier
+			// grades itself, and all three refuse a release before the question of which window is open
+			// can be asked. The category used to be pinned to Long here, which silently disabled the
+			// release tail for every bar ending on FrictionLong/FrictionHideLong.
 			//
-			// The category used to be pinned to Long here, which silently disabled the release tail
-			// for every bar ending on FrictionLong/FrictionHideLong: the tail was never judged,
-			// nothing else could end the bar, and the note stayed stuck on the line.
-			// A flick-ended bar is not finished by a release: it waits for the swipe, which is the
-			// separate path in TrySwipeTail. Every other kind of end note is release-finishable.
-			if (Child.IsDecoration || Child is FlickNote || Child is FrictionFlickNote)
+			// A decoration end is not an end anybody plays.
+			if (Child.IsDecoration)
 			{
 				return false;
 			}
