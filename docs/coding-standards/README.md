@@ -32,6 +32,7 @@
 | 注释 | 自解释优先；只注释公共 API；Inspector 字段用 `[Tooltip]` | [07-design-practices.md](07-design-practices.md) |
 | UI 命名 | BEM：`块__元素--修饰符` | [07-design-practices.md](07-design-practices.md) |
 | 代码气味 | 命名模糊 / 职责混乱 / 耦合过高 / 重复代码 / 过度注释 | [08-code-smells.md](08-code-smells.md) |
+| 动画 | Inspector 配的用 `Tween*` 组件，代码算的用 DOTween；谁创建谁在禁用/销毁时 Kill | [11-animation.md](11-animation.md) |
 
 ## 分册
 
@@ -48,6 +49,7 @@ docs/coding-standards/
   08-code-smells.md               常见代码陷阱
   09-tooling-and-resources.md     脚本模板、单元测试、权威参考
   10-odin-toolkits.md             Data / Model 的职责划分
+  11-animation.md                 Tween* 组件与 DOTween 两个动画入口、调用清单、清理责任
   references/                     外链原文摘录（电子书、GitHub、MS Learn 等）
 ```
 
@@ -61,14 +63,15 @@ docs/coding-standards/
 - [08-code-smells.md](08-code-smells.md) —— Review 时对照
 - [09-tooling-and-resources.md](09-tooling-and-resources.md) —— 模板、测试、扩展阅读
 - [10-odin-toolkits.md](10-odin-toolkits.md) —— 数据该放 Data 还是 Model
+- [11-animation.md](11-animation.md) —— 加动画前先定入口：`Tween*` 还是 DOTween
 
 ## 与项目现状的关系
 
 2026-11-02 核对结果：
 
-- `Assets/OpenSekai/` 下 47 个 `.cs`，私有字段已在用 `_camelCase`（如 `Assets/OpenSekai/Live/Conversion/RuntimeChartConverter.cs` 的 `_idCount`、`Assets/OpenSekai/Infrastructure/Audio/PackageAudio.cs` 的 `_audioClip`），与 03 篇一致，**不需要回头改**。
+- `Assets/Game/Runtime/OpenSekai/` 下 47 个 `.cs`，私有字段已在用 `_camelCase`（如 `Assets/Game/Runtime/OpenSekai/Live/Conversion/RuntimeChartConverter.cs` 的 `_idCount`、`Assets/Game/Runtime/Shared/Audio/PackageAudio.cs` 的 `_audioClip`），与 03 篇一致，**不需要回头改**。
 - 仓库根目录**没有** `.editorconfig`；只有 `Library/PackageCache/com.unity.ide.rider@3.0.36/.editorconfig`，那属于包缓存，不生效。要落地统一格式，按 [06 篇](06-regions-editorconfig.md) 补一份。
-- 旧目录 `Assets/Scripts/Assembly-CSharp/` 已不存在：2026-11-02 的重构把全部代码收进 `Assets/Game/`（`Runtime/` 与 `Editor/`），因此**不再有"遗留层豁免"**——`Assets/Game/` 下的代码一律按本规范执行。
+- 旧目录 `Assets/Game/Runtime/Sekai/` 已不存在：2026-11-02 的重构把全部代码收进 `Assets/Game/`（`Runtime/` 与 `Editor/`），因此**不再有"遗留层豁免"**——`Assets/Game/` 下的代码一律按本规范执行。
 - 历史代码按 Tier 分批整改（先 `Runtime/Sekai/Core`、`Live` 等关键路径，再到 UI 与数据层，最后工具），每批都要过编译与打歌门禁；尚未整改到的文件不视为"允许违反规范"，只是还没轮到。
 
 ## 使用方式

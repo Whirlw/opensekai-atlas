@@ -1,15 +1,8 @@
-using System.Collections.Generic;
-using System.Reflection;
-
 using NUnit.Framework;
-
+using Sekai;
 using Sekai.Core.Live;
 using Sekai.Live;
-
 using UnityEngine;
-
-using Sekai;
-
 using TouchPhase = UnityEngine.InputSystem.TouchPhase;
 
 namespace OpenSekai.Tests.EditMode.Live
@@ -17,153 +10,139 @@ namespace OpenSekai.Tests.EditMode.Live
     /// <summary>
     /// A decorative bar is only a moving lane. The note at its end is a real note of its own kind and
     /// has to be judgeable exactly like a free-standing one: pressed for an ordinary end, swiped for a
-    /// flick, rubbed for a friction end. These cases drive the real pipeline
-    /// (registration → candidate allocation → judgment) once per end type, so a difference between the
-    /// types shows up here instead of only on device.
+    /// flick, rubbed for a friction end. Each end type is driven through the real OnUpdate / OnInput
+    /// loop once, so a difference between the types shows up here instead of only on device.
+    /// <see cref="DecorationTailFromChartTests"/> covers the same promise on a converted chart.
     /// </summary>
-    // Parked: hand-built notes never reach the candidate list even for an ordinary end, so this
-    // fixture measures its own scaffolding, not the game. Rebuild it from RuntimeChartConverter
-    // output before trusting it again.
-    [Ignore("parked: hand-built notes do not become candidates; rebuild from a converted chart")]
     [TestFixture]
-    public class DecorationTailJudgmentTests
+    public sealed class DecorationTailJudgmentTests
     {
-        private LiveBundleBuildData _config;
+        private const float Frame = 1f / 60f;
+        private const double InputBase = 10d;
+
+        private LiveHarness _harness;
+
+        [SetUp]
+        public void SetUp() => _harness = new LiveHarness();
+
+        [TearDown]
+        public void TearDown() => _harness.Dispose();
 
         private static MusicScoreInfo Info(float time) => new MusicScoreInfo(0, time / 2, time, 120, 4, 1, 1);
 
-        private bool _previousLegacyTiming;
+        private static Vector3 Position =>
+            Vector3.Lerp(LiveConfig.JudgmentPositions[4], LiveConfig.JudgmentPositions[5], 0.5f);
 
-        private LiveConfig.NoteTypeJudgeData _previousJudgeData;
-
-        [SetUp]
-        public void SetUp()
-        {
-            _config = ScriptableObject.CreateInstance<LiveBundleBuildData>();
-            _previousLegacyTiming = LiveConfig.UseLegacyJudgeTiming;
-            _previousJudgeData = LiveConfig.noteTypeJudgeData;
-            LiveConfig.LoadMasterConfig();
-            // The shipped windows are the tables the game judges with; the legacy frame-based path
-            // needs real frames and would silently reject every end note in an editor test.
-            LiveConfig.UseLegacyJudgeTiming = false;
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            LiveConfig.UseLegacyJudgeTiming = _previousLegacyTiming;
-            LiveConfig.noteTypeJudgeData = _previousJudgeData;
-        }
-
-        private static void Stage(LiveLogic logic, string name) =>
-            typeof(LiveLogic).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic).Invoke(logic, null);
-
-        private static T Field<T>(LiveLogic logic, string name) =>
-            (T)typeof(LiveLogic).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
-
-        private static void Register(LiveLogic logic, NoteBase note) =>
-            typeof(LiveLogic).GetMethod("UpdateJudgmentNoteArray", BindingFlags.Instance | BindingFlags.NonPublic)
-                .Invoke(logic, new object[] { note });
-
-        private static LiveLogic.InputTmp Input(int finger, float lane, TouchPhase phase = TouchPhase.Began) => new LiveLogic.InputTmp
-        {
-            Lane = lane,
-            Touch = new LiveTouch
-            {
-                fingerId = finger,
-                touchId = finger,
-                musicTime = 1f,
-                phase = phase,
-                worldPosition = LiveConfig.JudgmentPositions[Mathf.RoundToInt(lane)],
-                delta = new Vector2(-240f, 0f)
-            }
-        };
-
-        private LongNote DecorationBar(out NoteBase tail, System.Func<MusicScoreInfo, NoteBase> make)
+        private NoteBase ArrangeDecorativeBar(NoteBase tail)
         {
             var bar = new LongNote(Info(0f), 10, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
             bar.SetDecoration(true);
-            tail = make(Info(1f));
             bar.AddNoteListAndSetupChildNote(tail);
-            return bar;
+            _harness.Arrange(new MusicScore(new[] { bar.MusicScoreInfo },
+                System.Array.Empty<EventBase>(), new NoteBase[] { bar }));
+            Assert.That(tail.IsDecoration, Is.False, "the end of a decorative bar is a real note");
+            return tail;
         }
 
-        private NoteBase NormalTail(MusicScoreInfo info) =>
-            new NormalNote(info, 11, 4, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f);
+        private void Step(float now, params LiveTouchSample[] touches) =>
+            _harness.Step(now, InputBase + now, touches);
 
-        private NoteBase FlickTail(MusicScoreInfo info) =>
-            new FlickNote(info, 12, 4, 5, NoteCategory.Flick, 1f, NoteType.Default, NoteDirection.Left, 0f, 0f);
-
-        private NoteBase FrictionTail(MusicScoreInfo info) =>
-            new FrictionNote(info, 13, 4, 5, NoteCategory.Friction, _config, NoteType.Default, 1f);
-
-        private NoteBase FrictionFlickTail(MusicScoreInfo info) =>
-            new FrictionFlickNote(info, 14, 4, 5, NoteCategory.FrictionFlick, 1f, NoteType.Default, NoteDirection.Left, 0f, 0f);
-
-        private LiveLogic Drive(System.Func<MusicScoreInfo, NoteBase> make, out NoteBase tail, TouchPhase phase)
+        private void Idle(float from, float until)
         {
-            var logic = new LiveLogic(null);
-            LongNote bar = DecorationBar(out tail, make);
-            // Let the bar drive its own end note to the judgement line the way a frame does: the
-            // child only gets its judge lane range from its parent's per-frame pass.
-            for (int frame = 0; frame <= 4; frame++)
+            for (float now = from; now < until - Frame * 0.5f; now += Frame)
             {
-                logic.currentFrameInfo = Info(0.5f + frame * 0.125f);
-                bar.Excute(logic.currentFrameInfo, 0f);
+                Step(now);
             }
-
-            logic.currentFrameInfo = Info(1f);
-            bar.Excute(logic.currentFrameInfo, 0f);
-            Register(logic, bar);
-
-            Assert.That(Field<List<NoteBase>>(logic, "_judgmentNoteList"), Contains.Item(tail),
-                "the key at the end of a decorative bar has to be registered itself");
-            Assert.That(Field<List<NoteBase>>(logic, "_judgmentNoteList"), Has.No.Member(bar),
-                "the decorative bar itself must never answer input");
-
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").Add(Input(1, 4.5f, phase));
-            Stage(logic, "AllocateInputJudgableEachNotes");
-            return logic;
         }
+
+        private static LiveTouchSample Sample(TouchPhase phase, float now, float screenX = 800f) =>
+            new LiveTouchSample(1, new Vector2(screenX, 600f), Position, InputBase + now, phase, Vector2.zero);
+
+        /// <summary>A finger rests on the end from <paramref name="from"/> until just before <paramref name="until"/>.</summary>
+        private void Rest(float from, float until)
+        {
+            Step(from, Sample(TouchPhase.Began, from));
+            for (float now = from + Frame; now < until - Frame * 0.5f; now += Frame)
+            {
+                Step(now, Sample(TouchPhase.Stationary, now));
+            }
+        }
+
+        /// <summary>A leftward drag starting at <paramref name="at"/>, then the finger leaves.</summary>
+        private void SwipeLeft(float at)
+        {
+            Step(at, Sample(TouchPhase.Moved, at, 560f));
+            Step(at + Frame, Sample(TouchPhase.Ended, at + Frame, 320f));
+            Idle(at + Frame * 2f, at + 0.2f);
+        }
+
+        private static void AssertPlayed(NoteBase tail, string what) =>
+            Assert.That(tail.Result, Is.Not.EqualTo(NoteResult.None).And.Not.EqualTo(NoteResult.Miss), what);
 
         [Test]
         public void AnOrdinaryEndOfADecorativeBarIsPressed()
         {
-            LiveLogic logic = Drive(NormalTail, out NoteBase tail, TouchPhase.Began);
-            Assert.That(Field<List<NoteBase>>(logic, "_connectionNoteList"), Contains.Item(tail),
-                "a press inside the end note's lane has to make it a candidate");
-            Stage(logic, "EvaluateJudgment");
-            Assert.That(tail.Result, Is.Not.EqualTo(NoteResult.None), "the press has to grade the end note");
+            NoteBase tail = ArrangeDecorativeBar(
+                new NormalNote(Info(1f), 11, 4, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f));
+            Idle(0f, 1f);
+            Step(1f, Sample(TouchPhase.Began, 1f));
+            Step(1f + Frame, Sample(TouchPhase.Ended, 1f + Frame));
+            AssertPlayed(tail, "the press has to grade the end note");
         }
 
         [Test]
         public void AFlickEndOfADecorativeBarIsSwiped()
         {
-            LiveLogic logic = Drive(FlickTail, out NoteBase tail, TouchPhase.Moved);
-            Assert.That(Field<List<NoteBase>>(logic, "_connectionNoteList"), Contains.Item(tail),
-                "a swipe over the flick end has to make it a candidate");
-            Stage(logic, "EvaluateJudgment");
-            Assert.That(tail.Result, Is.Not.EqualTo(NoteResult.None), "the swipe has to grade the flick end");
+            NoteBase tail = ArrangeDecorativeBar(new FlickNote(Info(1f), 12, 4, 5,
+                NoteCategory.Flick, 1f, NoteType.Default, NoteDirection.Left, 0f, 0f));
+            Idle(0f, 1f - Frame);
+            Step(1f - Frame, Sample(TouchPhase.Began, 1f - Frame));
+            SwipeLeft(1f);
+            AssertPlayed(tail, "the swipe has to grade the flick end");
         }
 
         [Test]
         public void AFrictionEndOfADecorativeBarIsRubbed()
         {
-            LiveLogic logic = Drive(FrictionTail, out NoteBase tail, TouchPhase.Moved);
-            Assert.That(Field<List<NoteBase>>(logic, "_connectionNoteList"), Contains.Item(tail),
-                "a rub inside the friction end has to make it a candidate");
-            Stage(logic, "EvaluateJudgment");
-            Assert.That(tail.Result, Is.Not.EqualTo(NoteResult.None), "the rub has to grade the friction end");
+            NoteBase tail = ArrangeDecorativeBar(new FrictionNote(Info(1f), 13, 4, 5,
+                NoteCategory.Friction, null, NoteType.Default, 1f));
+            Idle(0f, 0.9f);
+            Rest(0.9f, 1.2f);
+            AssertPlayed(tail, "a finger on the friction end has to grade it");
         }
 
         [Test]
         public void AFrictionFlickEndOfADecorativeBarIsSwiped()
         {
-            LiveLogic logic = Drive(FrictionFlickTail, out NoteBase tail, TouchPhase.Moved);
-            Assert.That(Field<List<NoteBase>>(logic, "_connectionNoteList"), Contains.Item(tail),
-                "a swipe over the friction flick end has to make it a candidate");
-            Stage(logic, "EvaluateJudgment");
-            Assert.That(tail.Result, Is.Not.EqualTo(NoteResult.None), "the swipe has to grade the friction flick end");
+            NoteBase tail = ArrangeDecorativeBar(new FrictionFlickNote(Info(1f), 14, 4, 5,
+                NoteCategory.FrictionFlick, 1f, NoteType.Default, NoteDirection.Left, 0f, 0f));
+            Idle(0f, 0.9f);
+            Rest(0.9f, 1f);
+            SwipeLeft(1f);
+            AssertPlayed(tail, "the swipe has to grade the friction flick end");
+        }
+
+        // Controls: the cases above must be graded by the gesture, not by the scaffolding.
+
+        [Test]
+        public void AnUntouchedEndOfADecorativeBarIsNotPlayed()
+        {
+            NoteBase tail = ArrangeDecorativeBar(
+                new NormalNote(Info(1f), 15, 4, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f));
+            Idle(0f, 1.5f);
+            Assert.That(tail.Result, Is.EqualTo(NoteResult.None).Or.EqualTo(NoteResult.Miss));
+        }
+
+        [Test]
+        public void AFlickEndOfADecorativeBarIsNotPlayedByAPressAlone()
+        {
+            NoteBase tail = ArrangeDecorativeBar(new FlickNote(Info(1f), 16, 4, 5,
+                NoteCategory.Flick, 1f, NoteType.Default, NoteDirection.Left, 0f, 0f));
+            Idle(0f, 1f - Frame);
+            Rest(1f - Frame, 1.1f);
+            Step(1.1f, Sample(TouchPhase.Ended, 1.1f));
+            Idle(1.1f + Frame, 1.5f);
+            Assert.That(tail.Result, Is.EqualTo(NoteResult.None).Or.EqualTo(NoteResult.Miss));
         }
     }
 }

@@ -1,0 +1,36 @@
+{
+    "name":  "OpenSekai.Game",
+    "rootNamespace":  "",
+    "references":  [
+                       "OpenSekai.Core",
+                       "Unity.TextMeshPro",
+                       "UnityEngine.UI",
+                       "Unity.InputSystem",
+                       "UniTask",
+                       "Unity.RenderPipelines.Universal.Runtime",
+                       "Unity.RenderPipelines.Core.Runtime",
+                       "NativeFilePicker.Runtime",
+                       "ZString",
+                       "UniSafeAreaAdjuster",
+                       "DOTween.Modules"
+                   ],
+    "includePlatforms":  [
+
+                         ],
+    "excludePlatforms":  [
+
+                         ],
+    "allowUnsafeCode":  true,
+    "overrideReferences":  false,
+    "precompiledReferences":  [
+
+                              ],
+    "autoReferenced":  true,
+    "defineConstraints":  [
+
+                          ],
+    "versionDefines":  [
+
+                       ],
+    "noEngineReferences":  false
+}

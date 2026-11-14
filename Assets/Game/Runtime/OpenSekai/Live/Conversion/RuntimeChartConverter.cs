@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Sekai;
 using Sekai.Live;
@@ -314,9 +314,51 @@ namespace OpenSekai.Live.Conversion
 			if (liveNote is LongNote longNote && liveNote.NoteList != null && liveNote.NoteList.Count > 0 && liveBundleBuildData != null)
 			{
 				NoteBase lastNote = liveNote.NoteList[liveNote.NoteList.Count - 1];
-				AddComboNote(lastNote, longNote, liveBundleBuildData.LongNoteComboBeat, liveBundleBuildData, musicScoreInfos, liveNote.speedRatio);
+				AddComboNote(lastNote, longNote, noteArray, liveBundleBuildData.LongNoteComboBeat, liveBundleBuildData, musicScoreInfos, liveNote.speedRatio);
 			}
 			return liveNote;
+		}
+
+		private static HashSet<int> OccupiedGridIndices(LongNote longNote, int comboStepTicks)
+		{
+			var indices = new HashSet<int>();
+			if (longNote?.NoteList == null || comboStepTicks <= 0)
+			{
+				return indices;
+			}
+
+			foreach (NoteBase part in longNote.NoteList)
+			{
+				if (part == null)
+				{
+					continue;
+				}
+
+				// An auto point (the skipped kind) does not own a position - it is what is being
+				// generated. Everything else the bar carries does: its head, its preset connections,
+				// its hidden ones, its end, and the points added without changing the shape.
+				if (part is LongHoldCombo combo && combo.IsSkip)
+				{
+					continue;
+				}
+
+				MusicScoreInfo info = part.MusicScoreInfo;
+				double grid = (info.bar + info.barProgress)
+					* (double)OpenSekai.Charts.ChartTimeline.TICKS_PER_BAR / comboStepTicks;
+				double rounded = System.Math.Round(grid);
+				if (System.Math.Abs(grid - rounded) > 0.001)
+				{
+					continue;
+				}
+
+				// A note of the bar that sits exactly on the grid owns that position: no middle there.
+				if (rounded >= int.MinValue && rounded <= int.MaxValue)
+				{
+					indices.Add((int)rounded);
+				}
+			}
+
+			return indices;
 		}
 
 		private static void CalcSkipNoteLane(LiveBundleBuildData liveBundleBuildData, NoteBase childNote)
@@ -336,7 +378,7 @@ namespace OpenSekai.Live.Conversion
 			childNote.JudgeLaneEnd = judgeEnd;
 		}
 
-		private static void AddComboNote(NoteBase note, LongNote longNote, int longNoteComboBeat, LiveBundleBuildData liveBundleBuildData, MusicScoreInfo[] musicScoreInfoArray, float speedRatio)
+		private static void AddComboNote(NoteBase note, LongNote longNote, List<ChartNote> noteArray, int longNoteComboBeat, LiveBundleBuildData liveBundleBuildData, MusicScoreInfo[] musicScoreInfoArray, float speedRatio)
 		{
 			if (note == null || longNote == null || longNoteComboBeat <= 0)
 			{
@@ -349,8 +391,19 @@ namespace OpenSekai.Live.Conversion
 			int divisions = OpenSekai.Charts.ChartTimeline.TICKS_PER_BAR > 0 ? (int)(OpenSekai.Charts.ChartTimeline.TICKS_PER_BAR / comboStepTicks) : 8;
 			int startIndex = (int)Math.Floor(longNote.MusicScoreInfo.barProgress * divisions) + 1 + longNote.MusicScoreInfo.bar * divisions;
 			int endIndex = (int)Math.Ceiling(note.MusicScoreInfo.barProgress * divisions) - 1 + note.MusicScoreInfo.bar * divisions;
+
+			// A grid point only counts as a middle of THIS bar. Every note of the bar's own chain - its
+			// head, its connection notes, its end - already owns its position, so no middle goes there;
+			// what other bars and other lanes do at the same moment is their own business.
+			HashSet<int> occupied = OccupiedGridIndices(longNote, comboStepTicks);
+
 			for (int i = startIndex; i <= endIndex; i++)
 			{
+				if (occupied.Contains(i))
+				{
+					continue;
+				}
+
 				MusicScoreInfo musicScoreInfo = MusicScore.GenerateNoteMusicScoreInfo(i / divisions, i % divisions / (float)divisions, musicScoreInfoArray);
 				LongHoldCombo combo = new LongHoldCombo(musicScoreInfo, longNote.Type, speedRatio, LiveUtility.GetLaneOffset(NoteCategory.Combo, liveBundleBuildData));
 				longNote.AddHoldCombo(combo);
@@ -573,7 +626,6 @@ namespace OpenSekai.Live.Conversion
 				return;
 			}
 			longNote.AddNoteListAndSetupChildNote(note);
-			note?.SetParentNote(longNote);
 			// A decorative bar only moves the lane around: the note at its end is played by
 			// the player, so the bar must not grade it. It just stops when that note passes.
 			if (longNote.IsDecoration && note != null && !note.IsDecoration && note.HasJudgment)

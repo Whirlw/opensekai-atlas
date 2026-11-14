@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Reflection;
 using System.Linq;
 using NUnit.Framework;
@@ -90,10 +90,10 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(notes.Length, Is.EqualTo(2));
             notes[0].Id = startTicks;
             notes[1].Id = otherTicks;
-            SetField("_musicScore", score);
+            logic.Session.MusicScore = score;
             logic.Notes.Bind(notes);
-            SetField("_noteDisplayTimeOffset", 1f);
-            SetField("_liveViews", Array.Empty<LiveViewBase>());
+            logic.Session.NoteDisplayTimeOffset = 1f;
+            logic.Session.Views = Array.Empty<LiveViewBase>();
             bool[] begun = new bool[2];
             float start = notes[0].MusicScoreInfo.time;
             float end = notes.Min(n => n.ChildNote.MusicScoreInfo.time);
@@ -163,10 +163,6 @@ namespace OpenSekai.Tests.EditMode.Live
             return new LiveTouchSample(id, new Vector2(800f, 600f), position, time, phase, new Vector2(3f, 4f));
         }
 
-        private void SetField(string name, object value)
-        {
-            typeof(LiveLogic).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).SetValue(logic, value);
-        }
 
         private CountingNormalNote Arrange(float frameTime = 0f, params CountingNormalNote[] additionalNotes)
         {
@@ -176,10 +172,10 @@ namespace OpenSekai.Tests.EditMode.Live
             Array.Copy(additionalNotes, 0, notes, 1, additionalNotes.Length);
             // Supply only the chart and empty views, avoiding Setup's storage, camera and asset loading.
             // Candidate construction and all judgment stages still run through real OnUpdate / OnInput.
-            SetField("_musicScore", new MusicScore(new[] { Info(0f) }, Array.Empty<EventBase>(), notes));
+            logic.Session.MusicScore = new MusicScore(new[] { Info(0f) }, Array.Empty<EventBase>(), notes);
             logic.Notes.Bind(notes);
-            SetField("_noteDisplayTimeOffset", 1f);
-            SetField("_liveViews", Array.Empty<LiveViewBase>());
+            logic.Session.NoteDisplayTimeOffset = 1f;
+            logic.Session.Views = Array.Empty<LiveViewBase>();
             logic.OnUpdate(frameTime, InputTime);
             return note;
         }
@@ -234,10 +230,10 @@ namespace OpenSekai.Tests.EditMode.Live
                 notes[i].AddNoteListAndSetupChildNote(new NormalNote(Info(3), 100 + i, endLeft, endRight, NoteCategory.Normal, 1, NoteType.Default, 0));
                 notes[i].LineType = i == 0 ? NoteLineType.EaseIn : NoteLineType.EaseOut;
             }
-            SetField("_musicScore", new MusicScore(new[] { Info(0) }, Array.Empty<EventBase>(), notes));
+            logic.Session.MusicScore = new MusicScore(new[] { Info(0) }, Array.Empty<EventBase>(), notes);
             logic.Notes.Bind(notes);
-            SetField("_noteDisplayTimeOffset", 1f);
-            SetField("_liveViews", Array.Empty<LiveViewBase>());
+            logic.Session.NoteDisplayTimeOffset = 1f;
+            logic.Session.Views = Array.Empty<LiveViewBase>();
             for (int frame = 0; frame < 180; frame++)
             {
                 // EditMode executes these simulated frames in one engine frame. Age the last input
@@ -301,14 +297,36 @@ namespace OpenSekai.Tests.EditMode.Live
         public void TouchThreeTenthsLateFallsOutsideWindowAndMisses()
         {
             var note = Arrange(0.3f);
+            Assert.That(note.Result, Is.EqualTo(NoteResult.None), "Expiry waits for the input pass.");
             source.Add(Touch(1, Position()));
             logic.OnInput();
             Assert.That(note.CalcNoteResult(0.3f), Is.EqualTo(NoteResult.Miss));
-            Assert.That(note.Result, Is.EqualTo(NoteResult.None), "Out-of-window touch is not accepted.");
             Assert.That(note.JudgmentCalls, Is.Zero);
-            logic.OnUpdate(0.3f, InputTime);
             Assert.That(note.Result, Is.EqualTo(NoteResult.Miss));
             Assert.That(note.State, Is.EqualTo(NoteState.Done));
+        }
+
+        [TestCase(1f, 0.1f, 0.1f, NoteResult.JustPerfect)]
+        [TestCase(1f, 0.25f, 0.1f, NoteResult.JustPerfect)]
+        [TestCase(2f, 0.25f, 0.1f, NoteResult.JustPerfect)]
+        [TestCase(1f, 0.26f, 0.24f, NoteResult.Miss)]
+        public void BufferedPressUsesItsSampleTimeWhenTheFrameCrossesTheWindow(
+            float speed, float frameTime, float sampleTime, NoteResult expected)
+        {
+            using var harness = new LiveHarness();
+            var tap = new NormalNote(Info(0.1f), 1, 2, 2, NoteCategory.Normal, speed, NoteType.Default, 0f);
+            var bar = new LongNote(Info(0.1f), 2, 8, 8, NoteCategory.Long, NoteType.Default, speed, 0f);
+            bar.AddNoteListAndSetupChildNote(new FrictionHideNote(Info(0.102f), 3, 8, 8,
+                NoteCategory.Hidden, null, NoteType.Default, speed, 0f));
+            harness.Arrange(new MusicScore(new[] { Info(0f) }, Array.Empty<EventBase>(), new NoteBase[] { tap, bar }));
+            harness.Step(0f, InputTime);
+
+            harness.Step(frameTime, InputTime + frameTime,
+                LiveHarness.Touch(1, Position(2), InputTime + sampleTime),
+                LiveHarness.Touch(2, Position(8), InputTime + sampleTime));
+
+            Assert.That(tap.Result, Is.EqualTo(expected));
+            Assert.That(bar.Head.Result, Is.EqualTo(expected));
         }
 
         [Test]
@@ -450,8 +468,7 @@ namespace OpenSekai.Tests.EditMode.Live
             var notes = new System.Collections.Generic.List<NoteBase> { bar };
             var input = new LiveLogic.InputTmp { Lane = 4.5f, Touch = new LiveTouch { fingerId = 2, touchId = 2, phase = InputTouchPhase.Moved } };
             new LiveCandidatePipeline().Collect(notes, new System.Collections.Generic.List<LiveLogic.InputTmp> { input },
-                new System.Collections.Generic.List<NoteBase>(), null,
-                (ref NoteBase n, ref LiveLogic.InputTmp i) => i.Lane, null);
+                null, null);
             Assert.That(input.CandidateNotes, Is.Empty);
             Assert.That(bar.HasFinger, Is.True);
         }

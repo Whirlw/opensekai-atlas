@@ -18,7 +18,6 @@ namespace OpenSekai.App.Bootstrap
     /// </summary>
     public sealed class LibraryEntryPoint : SceneEntryPoint
     {
-        private const string EVENT_SYSTEM_PREFAB_PATH = "Common/Input/EventSystem";
         private SekaiSceneManager _sceneManager;
 
         protected override void Awake()
@@ -62,7 +61,10 @@ namespace OpenSekai.App.Bootstrap
             LiveTransitioner.SafeForceFinish(null);
 
             // Lightweight library page: no ScreenLayerData registration and no editor page.
-            LibraryScreen library = LibraryScreen.Create();
+            // The composition root for this scene: everything the page needs is assembled here and
+            // handed over, so no App-layer type has to reach for a singleton.
+            AppContext context = AppContext.CreateDefault();
+            LibraryScreen library = LibraryScreen.Create(context);
             if (library == null)
             {
                 Debug.LogError("[Library] Could not create the lightweight library screen.");
@@ -80,7 +82,7 @@ namespace OpenSekai.App.Bootstrap
                 return;
             }
 
-            GameObject prefab = Resources.Load<GameObject>(EVENT_SYSTEM_PREFAB_PATH);
+            GameObject prefab = ResourceCatalog.EventSystem.Load();
             GameObject input = prefab != null
                 ? Instantiate(prefab)
                 : new GameObject("EventSystem", typeof(EventSystem));

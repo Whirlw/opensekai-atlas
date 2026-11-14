@@ -9,13 +9,13 @@
 
 设备是 OnePlus `PLQ110`（Android 16，Adreno 830，8 核，11.1 GB，1272×2800，最高 165 Hz 自适应）。
 在 165 Hz 下打歌的稳态帧时 **p95 = 6.04 ms**（= 1/165.6），几乎没有掉帧。
-采集工具是应用内 HUD，默认不编译，需要 `OPENSEKAI_PERF_HUD` 宏。
+采集工具是应用内 HUD，默认关闭，可在设置中的「追踪选项」启用。
 
 ## 核心内容
 
 ### 帧率设置
 
-`Assets/Scripts/Assembly-CSharp/CP/FramerateUtility.cs`：
+`Assets/Game/Runtime/Platform/CP/FramerateUtility.cs`：
 
 - 可选档位：跟随屏幕 / 120 / 144 / 165 / 185 / 240
 - `ApplyFrameRateLimit(limit)`：`QualitySettings.vSyncCount = 0` → `RequestDisplayRefreshRate(limit)` →
@@ -29,8 +29,8 @@ Android 抛 `CalledFromWrongThreadException`，导致显示模式从没真正切
 ### 采集方法
 
 ```text
-1. Player Settings 宏加 OPENSEKAI_PERF_HUD（例如 DOTWEEN;OPENSEKAI_PERF_HUD）
-2. 出包、安装、启动，让 HUD 出现在左上角
+1. 出包、安装并启动应用
+2. 设置 → 追踪选项 → 开启性能 HUD，让 HUD 出现在左上角
 3. adb logcat -s Unity > perfhud.log，打一首歌
 4. 按 [PerfHud] 行聚合
 ```
@@ -75,7 +75,7 @@ adb logcat -d -s Unity | Select-String '\[PerfHud\] fps=' | Select-String -NotMa
 
 ## 常见问题与故障排查
 
-- **HUD 不显示**：宏没加或没重新出包；`PerformanceHud.cs` 整体在 `#if OPENSEKAI_PERF_HUD` 里。
+- **HUD 不显示**：检查设置 → 追踪选项中的性能 HUD 是否开启。
 - **帧率锁在 60**：设置里选了「跟随屏幕」而系统此时是 55/60 Hz；选 165 档位才会请求高刷。
 - **只有触摸时才是 165**：系统自适应策略，见「已知限制」。
 

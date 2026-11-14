@@ -48,7 +48,7 @@
 
 最终全量 EditMode：**total 518 / passed 514 / failed 0 / skipped 4**。对比任务书基线 516 / 512 / 0 / 4，恰好新增两条通过用例。
 
-验收 XML：[interior-point-window-final.xml](../../TestResults/interior-point-window-final.xml)，根节点 `test-run` 的开始/结束时间为 2026-11-10 15:04:53Z / 15:04:55Z。两条 `InteriorPointWindowTests` 均为 Passed，14 条既有契约用例全部通过。XML 位于测试输出目录，不作为源代码提交。
+验收 XML：`TestResults/interior-point-window-final.xml`，根节点 `test-run` 的开始/结束时间为 2026-11-10 15:04:53Z / 15:04:55Z。两条 `InteriorPointWindowTests` 均为 Passed，14 条既有契约用例全部通过。XML 位于测试输出目录，不作为源代码提交。
 
 验证过程：
 

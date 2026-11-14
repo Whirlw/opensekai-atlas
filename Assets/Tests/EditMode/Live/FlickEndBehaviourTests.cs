@@ -281,13 +281,14 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-        private static LongNote FlickEndedBar(NoteDirection direction = NoteDirection.Default)
+        private static LongNote FlickEndedBar(NoteDirection direction = NoteDirection.Default, float flickDistance = 0f)
 
         {
 
             var bar = new LongNote(Info(0f), 45, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
 
-            bar.AddNoteListAndSetupChildNote(new FlickNote(Info(1f), 46, 4, 5, NoteCategory.Flick, 1, NoteType.Default, direction, 0, 0f));
+            bar.AddNoteListAndSetupChildNote(new FlickNote(Info(1f), 46, 4, 5, NoteCategory.Flick, 1,
+                NoteType.Default, direction, laneOffset: 0f, screenDpiToInch: flickDistance));
 
 
 
@@ -297,7 +298,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             bar.Judgment(ref head, 4.5f);
 
-            bar.RecordHoldingInput(1, 0f);
+            bar.RecordHoldingInput(0f);
 
             return bar;
 
@@ -307,13 +308,15 @@ namespace OpenSekai.Tests.EditMode.Live
 
         [Test]
 
-        public void ABarEndingWithARubOrHiddenTailStillEndsWhenItsWindowCloses()
+        public void ARubTailIsNotGradedByTheBarAndEndsWithIt()
 
         {
 
-            // Only the flick path had a timeout, so a bar closed by a friction or hidden note could
+            // The bar leaves on its own time and writes nothing onto a self-judged end note. The note's
 
-            // never end: a finger in its lane revived it every frame and its parts stayed judgeable.
+            // clock is its own now (LiveNoteSession.TickTails), so the bar ending first cannot take its
+
+            // verdict away: it still publishes its own Miss afterwards.
 
             var bar = new LongNote(Info(0f), 63, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
 
@@ -321,7 +324,49 @@ namespace OpenSekai.Tests.EditMode.Live
 
             bar.AddNoteListAndSetupChildNote(tail);
 
-            bar.RecordHoldingInput(1, 0.5f);
+            bar.RecordHoldingInput(0.5f);
+
+
+
+            Assert.That(bar.IsPastTailWindow(2f), Is.True, "way past the tail window");
+
+            Assert.That(bar.ExpireTail(2f), Is.True, "the bar ends on its own time");
+
+            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+
+            Assert.That(tail.Result, Is.EqualTo(NoteResult.None), "and it graded the note nothing");
+
+
+
+            // The note keeps its own clock after the bar is gone.
+
+            tail.Excute(Info(1.2f), 0.5f);
+
+            tail.Excute(Info(1.3f), 0.5f);
+
+
+
+            Assert.That(tail.Result, Is.EqualTo(NoteResult.Miss), "the rub end misses on its own");
+
+        }
+
+        [Test]
+
+        public void AHiddenTailThatNeverSettlesStillLetsTheBarEnd()
+
+        {
+
+            // The one tail the bar does not wait for: a hidden carrier carries no judgement of its own, so
+
+            // it never settles and the bar's own end is a Miss of its own.
+
+            var bar = new LongNote(Info(0f), 63, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
+
+            var tail = new HiddenConnectionNote(Info(1f), 64, 4, 5, NoteCategory.Hidden, NoteType.Default, 1, 0);
+
+            bar.AddNoteListAndSetupChildNote(tail);
+
+            bar.RecordHoldingInput(0.5f);
 
 
 
@@ -330,8 +375,6 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(bar.ExpireTail(0.9f), Is.False);
 
 
-
-            Assert.That(bar.IsPastTailWindow(2f), Is.True, "way past the tail window");
 
             Assert.That(bar.ExpireTail(2f), Is.True, "the bar must end");
 
@@ -643,15 +686,11 @@ namespace OpenSekai.Tests.EditMode.Live
 
             logic.currentFrameInfo = Info(0.98f);
 
-            typeof(Sekai.Core.Live.LiveLogic).GetMethod("UpdateJudgmentNoteArray", BindingFlags.Instance | BindingFlags.NonPublic)
-
-                .Invoke(logic, new object[] { bar });
+            logic.Input.Register(bar);
 
 
 
-            var noteList = (List<NoteBase>)typeof(Sekai.Core.Live.LiveLogic)
-
-                .GetField("_judgmentNoteList", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
+            var noteList = logic.Input.JudgmentNotes;
 
             Assert.That(noteList, Contains.Item(tail),
 
@@ -689,9 +728,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             logic.currentFrameInfo = Info(1.0f);
 
-            var listField = typeof(Sekai.Core.Live.LiveLogic).GetField("_judgmentNoteList", BindingFlags.Instance | BindingFlags.NonPublic);
-
-            var list = (List<NoteBase>)listField.GetValue(logic);
+            var list = logic.Input.JudgmentNotes;
 
             list.Add(bar);
 
@@ -700,7 +737,7 @@ namespace OpenSekai.Tests.EditMode.Live
             // Put the bar into the held state the way the decoration pass does.
 
             bar.SetStateUnnotice(NoteState.Scrolling);
-            bar.RecordHoldingInput(1, 1f);
+            bar.RecordHoldingInput(1f);
 
 
 
@@ -728,9 +765,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             };
 
-            ((List<Sekai.Core.Live.LiveLogic.InputTmp>)typeof(Sekai.Core.Live.LiveLogic)
-
-                .GetField("_activeInputList", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic)).Add(input);
+            logic.Input.ActiveInputs.Add(input);
 
 
 
@@ -780,9 +815,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             logic.currentFrameInfo = Info(0.6f);
 
-            var list = (List<NoteBase>)typeof(Sekai.Core.Live.LiveLogic)
-
-                .GetField("_judgmentNoteList", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
+            var list = logic.Input.JudgmentNotes;
 
             list.Add(bar);
 
@@ -826,22 +859,41 @@ namespace OpenSekai.Tests.EditMode.Live
 
             // has to end up Miss once its window is gone, or it is the one note that cannot be missed.
 
+            // The note settles and publishes the Miss on its own clock.
+
             var bar = new LongNote(Info(0f), 311, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
 
             var tail = new FrictionFlickNote(Info(1f), 312, 4, 5, NoteCategory.FrictionFlick, 1, NoteType.Default, NoteDirection.Default, 0.0833f, 0f);
 
             bar.AddNoteListAndSetupChildNote(tail);
 
+            int published = 0;
+
+            tail.OnJudgment = _ => published++;
+
             bar.SetStateUnnotice(NoteState.Scrolling);
-            bar.RecordHoldingInput(1, 1f);
+            bar.RecordHoldingInput(1f);
 
 
 
-            Assert.That(bar.DetachStandaloneTail(2f), Is.True, "the bar detaches once the tail window is gone");
+            tail.Excute(Info(1.2f), 0f);
+            tail.Excute(Info(1.3f), 0f);
+
+            Assert.That(tail.State, Is.EqualTo(NoteState.Done), "the tail is finished");
 
             Assert.That(tail.Result, Is.EqualTo(NoteResult.Miss), "the untouched tail is graded Miss");
 
-            Assert.That(tail.State, Is.EqualTo(NoteState.Done), "the tail is finished");
+            Assert.That(published, Is.EqualTo(1), "and it publishes that verdict itself, once");
+
+            Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done), "an independent tail does not end its bar");
+
+
+
+            Assert.That(bar.DetachStandaloneTail(1.4f), Is.True, "the bar detaches once its own time has gone");
+
+            Assert.That(published, Is.EqualTo(1), "the bar adds no publication of its own");
+
+            Assert.That(bar.Result, Is.EqualTo(NoteResult.None), "the tail's Miss belongs to the tail");
 
         }
 
@@ -864,7 +916,7 @@ namespace OpenSekai.Tests.EditMode.Live
             bar.AddNoteListAndSetupChildNote(tail);
 
             bar.SetStateUnnotice(NoteState.Scrolling);
-            bar.RecordHoldingInput(1, 1f);
+            bar.RecordHoldingInput(1f);
 
 
 
@@ -888,9 +940,15 @@ namespace OpenSekai.Tests.EditMode.Live
 
         [Test]
 
-        public void AMissedTailShowsItsCharacterEvenWhenTheBarIsTheOneThatFailedIt()
+        public void AMissedStandaloneTailShowsItsCharacterEvenThoughTheBarDidNotGradeIt()
 
         {
+
+            // An independent tail writes its own Miss (tail-classes.md §3 类 1), and that Miss still has
+
+            // to reach the view layer: the popup is what tells the player the note was missed. The bar
+
+            // is not the one failing it any more, so this pins the note's own reporting.
 
             var bar = new LongNote(Info(0f), 331, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
 
@@ -899,7 +957,7 @@ namespace OpenSekai.Tests.EditMode.Live
             bar.AddNoteListAndSetupChildNote(tail);
 
             bar.SetStateUnnotice(NoteState.Scrolling);
-            bar.RecordHoldingInput(1, 1f);
+            bar.RecordHoldingInput(1f);
 
 
 
@@ -909,15 +967,16 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-            bar.DetachStandaloneTail(2f);
+            tail.Excute(Info(1.2f), 0f);
+            tail.Excute(Info(1.3f), 0f);
 
 
 
             Assert.That(tail.Result, Is.EqualTo(NoteResult.Miss));
 
-            Assert.That(tail.SuppressJudgmentEffect, Is.False, "the popup must not be suppressed any more");
-
             Assert.That(reported, Does.Contain(tail), "the Miss character has to be shown for the tail");
+
+            Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done), "and the bar is not the one that failed it");
 
         }
 
@@ -975,9 +1034,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             var logic = new Sekai.Core.Live.LiveLogic(null);
 
-            var list = (List<NoteBase>)typeof(Sekai.Core.Live.LiveLogic)
-
-                .GetField("_judgmentNoteList", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
+            var list = logic.Input.JudgmentNotes;
 
             foreach (var note in notes)
 
@@ -999,9 +1056,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
         {
 
-            var list = (List<Sekai.Core.Live.LiveLogic.InputTmp>)typeof(Sekai.Core.Live.LiveLogic)
-
-                .GetField("_activeInputList", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
+            var list = logic.Input.ActiveInputs;
 
             list.Clear();
 
@@ -1097,8 +1152,30 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-        [Test]
+        [TestCase(60f, NoteResult.JustPerfect)]
+        [TestCase(12f, NoteResult.Great)]
+        public void AFollowUpSwipeUpdatesDirectionOnlyIfItMeetsTheSpeedThreshold(float distance, NoteResult expected)
+        {
+            const int touchId = 1;
+            const float frame = 1f / 60f;
+            var bar = FlickEndedBar(NoteDirection.Left, flickDistance: 10f);
+            var tail = (NoteBase)bar.ChildNote;
 
+            // First arm a wrong-way swipe. The next sample moves in the correct direction
+            // and exceeds the reference distance, but only the 60 px sample is fast enough.
+            bar.TrySwipeTail(new Vector2(60f, 0f), frame, 0.89f, touchId);
+            Assert.That(bar.HasDeferredSwipe, Is.True);
+            bar.TrySwipeTail(new Vector2(-distance, 0f), frame, 0.94f, touchId);
+            Assert.That(tail.Result, Is.EqualTo(NoteResult.None));
+
+            bar.NotifyLaneRelease();
+            Assert.That(bar.TickSwipeTail(0.96f), Is.False);
+            Assert.That(bar.TickSwipeTail(0.98f), Is.False);
+            Assert.That(bar.TickSwipeTail(1f), Is.True);
+            Assert.That(tail.Result, Is.EqualTo(expected));
+        }
+
+        [Test]
         public void OnlyTheTailRidesAlongWithTheBar()
 
         {
@@ -1110,7 +1187,7 @@ namespace OpenSekai.Tests.EditMode.Live
             bar.AddNoteListAndSetupChildNote(tail);
 
             bar.SetStateUnnotice(NoteState.Scrolling);
-            bar.RecordHoldingInput(1, 1f);
+            bar.RecordHoldingInput(1f);
 
 
 
@@ -1138,7 +1215,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             bar.AddNoteListAndSetupChildNote(new FlickNote(Info(2f), 222, 4, 5, NoteCategory.Flick, 1, NoteType.Default, NoteDirection.Left, 0, 0f));
 
-            bar.RecordHoldingInput(1, 0.9f);
+            bar.RecordHoldingInput(0.9f);
 
             bar.SetStateUnnotice(NoteState.Scrolling);
 
@@ -1168,7 +1245,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             bar.AddNoteListAndSetupChildNote(new FlickNote(Info(2f), 232, 4, 5, NoteCategory.Flick, 1, NoteType.Default, NoteDirection.Left, 0, 0f));
 
-            bar.RecordHoldingInput(1, 1.9f);
+            bar.RecordHoldingInput(1.9f);
 
             bar.SetStateUnnotice(NoteState.Scrolling);
 
@@ -1202,7 +1279,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             bar.AddNoteListAndSetupChildNote(tail);
 
-            bar.RecordHoldingInput(1, 0.9f);
+            bar.RecordHoldingInput(0.9f);
 
             bar.SetStateUnnotice(NoteState.Scrolling);
 
@@ -1260,7 +1337,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             bar.AddNoteListAndSetupChildNote(tail);
 
-            bar.RecordHoldingInput(1, 1.0f);
+            bar.RecordHoldingInput(1.0f);
 
             bar.SetStateUnnotice(NoteState.Scrolling);
 
@@ -1276,15 +1353,21 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-            // The tail judges itself, and its own state change already ends the bar through the
-
-            // tail role; the detach path is only the fallback for a tail that never settles.
+            // The tail grades itself. The bar ends at the chart endpoint.
 
             tail.FinishWith(NoteResult.JustPerfect);
 
-            Assert.That(bar.State, Is.EqualTo(NoteState.Done), "the bar follows its own tail");
+            Assert.That(tail.State, Is.EqualTo(NoteState.Done), "the tail settles itself");
 
-            Assert.That(bar.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done), "an independent tail does not end its bar");
+
+
+
+            Assert.That(bar.DetachStandaloneTail(1.4f), Is.True, "the bar leaves on its own time");
+
+            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+
+            Assert.That(bar.Result, Is.EqualTo(NoteResult.None), "the result belongs to the tail");
 
         }
 
@@ -1292,7 +1375,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
         [Test]
 
-        public void AnUnsettledFrictionFlickTailEndsTheBarOnlyWhenItsWindowCloses()
+        public void AnUnsettledFrictionFlickTailKeepsJudgingAfterTheBarEnds()
 
         {
 
@@ -1302,23 +1385,184 @@ namespace OpenSekai.Tests.EditMode.Live
 
             bar.AddNoteListAndSetupChildNote(tail);
 
-            bar.RecordHoldingInput(1, 1.0f);
+            bar.RecordHoldingInput(1.0f);
 
             bar.SetStateUnnotice(NoteState.Scrolling);
 
 
 
-            Assert.That(bar.DetachStandaloneTail(1.0f), Is.False, "the window is still open");
-
-            Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done));
+            Assert.That(bar.DetachStandaloneTail(0.99f), Is.False, "the chart endpoint is ahead");
+            Assert.That(bar.DetachStandaloneTail(1f), Is.True);
+            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
 
             Assert.That(tail.Result, Is.EqualTo(NoteResult.None), "the bar must not grade a standalone tail");
 
 
 
-            Assert.That(bar.DetachStandaloneTail(1.30f), Is.True, "past the window the bar has to end");
+            // The note's own clock closes its window after the body has left.
+
+            tail.Excute(Info(1.2f), 0f);
+            tail.Excute(Info(1.3f), 0f);
+
+            Assert.That(tail.Result, Is.EqualTo(NoteResult.Miss), "the tail writes its own Miss");
+
+            Assert.That(bar.Result, Is.EqualTo(NoteResult.None));
+
+        }
+
+
+
+        [Test]
+
+        public void AVerdictIsPublishedBeforeItsBarIsAllowedToLeave()
+
+        {
+
+            // The ordering R2 depends on: the bar hands the frame to its tail, the tail writes and
+
+            // publishes its own verdict, and only then does that verdict end the bar. A bar that left
+
+            // first would recycle its views before the tail could show the judgement.
+
+            var bar = new LongNote(Info(0f), 411, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
+
+            var tail = new FlickNote(Info(1f), 412, 4, 5, NoteCategory.Flick, 1, NoteType.Default, NoteDirection.Left, 0, 0f);
+
+            bar.AddNoteListAndSetupChildNote(tail);
+
+            bar.RecordHoldingInput(1f);
+
+            bar.SetStateUnnotice(NoteState.Scrolling);
+
+
+
+            int published = 0;
+
+            bool aliveWhenPublished = false;
+
+            tail.OnJudgment = _ => { published++; aliveWhenPublished = bar.State != NoteState.Done; };
+
+
+
+            Assert.That(bar.NotifyLaneSwipe(10f, 1.02f), Is.True, "the swipe settles the tail");
+
+
+
+            Assert.That(published, Is.EqualTo(1), "the tail publishes its verdict");
+
+            Assert.That(aliveWhenPublished, Is.True, "and the bar is still in play at that moment");
+
+            Assert.That(bar.State, Is.EqualTo(NoteState.Done), "the verdict is what ends the bar");
+
+        }
+
+
+
+        [Test]
+
+        public void AJudgementOnTheTailTimeFrameWinsOverTheBarsOwnEnding()
+
+        {
+
+            // The tail-time frame gives the bar two chances on the same frame: the tail's judgement first,
+
+            // then its own ending (R4). Whichever arrives second must add nothing - so the lift at exactly
+
+            // the tail's time is graded before expiry is even consulted.
+
+            var bar = new LongNote(Info(0f), 421, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
+
+            var tail = new NormalNote(Info(1f), 422, 4, 5, NoteCategory.Normal, 1, NoteType.Default, 0f);
+
+            bar.AddNoteListAndSetupChildNote(tail);
+
+            bar.RecordHoldingInput(1f);
+
+            bar.SetStateUnnotice(NoteState.Scrolling);
+
+
+
+            Assert.That(bar.JudgeTailAsRelease(1f), Is.True, "the lift at the tail's own time grades it");
+
+            Assert.That(bar.ExpireTail(1f), Is.False, "and the bar's own ending on the same frame adds nothing");
+
+            Assert.That(bar.Result, Is.EqualTo(NoteResult.JustPerfect), "the verdict stands");
+
+            Assert.That(tail.Result, Is.EqualTo(NoteResult.JustPerfect), "for the note too");
+
+        }
+
+
+
+        [Test]
+
+        public void ADeferredSwipeKeepsTheBarAliveOnTheTailTimeFrame()
+
+        {
+
+            // A flick tail graded by a deferred swipe is not due on its own time frame: that frame only
+
+            // starts the countdown, so the bar must not take it as its own ending.
+
+            var bar = FlickEndedBar(NoteDirection.Left);
+
+            Assert.That(bar.TrySwipeTail(new UnityEngine.Vector2(-60f, 0f), 1f / 60f, 0.9f), Is.False);
+
+            Assert.That(bar.HasDeferredSwipe, Is.True, "the early swipe is remembered");
+
+
+
+            Assert.That(bar.TickSwipeTail(1.0f), Is.False, "the tail-time frame starts the countdown");
+
+            Assert.That(bar.ExpireTail(1.0f), Is.False, "and the bar must not end on it");
+
+            Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done));
+
+        }
+
+
+
+        [Test]
+
+        public void AComboPointTheBarsEndNeverReachedIsSettledPerfect()
+
+        {
+
+            // The bar shares its fate with its interior points and nothing else: whichever way it ends,
+
+            // a point it never reached is settled Perfect right there, and a point that already has a
+
+            // verdict keeps it.
+
+            var bar = new LongNote(Info(0f), 401, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
+
+            var tail = new NormalNote(Info(1f), 402, 4, 5, NoteCategory.Normal, 1, NoteType.Default, 0f);
+
+            bar.AddNoteListAndSetupChildNote(tail);
+
+            var late = new LongHoldCombo(Info(0.9f), NoteType.Default, 1, 0f);
+
+            var earned = new LongHoldCombo(Info(0.5f), NoteType.Default, 1, 0f);
+
+            bar.AddHoldCombo(late);
+
+            bar.AddHoldCombo(earned);
+
+            earned.FinishWith(NoteResult.Great);
+
+            bar.SetStateUnnotice(NoteState.Scrolling);
+
+            bar.RecordHoldingInput(1f);
+
+
+
+            Assert.That(bar.JudgeTailAsRelease(1f), Is.True, "the lift at the tail ends the bar");
 
             Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+
+            Assert.That(late.Result, Is.EqualTo(NoteResult.Perfect), "the bar's end settles what it made unreachable");
+
+            Assert.That(earned.Result, Is.EqualTo(NoteResult.Great), "and leaves an earned verdict alone");
 
         }
 
@@ -1342,7 +1586,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             bar.AddNoteListAndSetupChildNote(tail);
 
-            bar.RecordHoldingInput(1, 0.9f);
+            bar.RecordHoldingInput(0.9f);
 
             bar.SetStateUnnotice(NoteState.Scrolling);
 
@@ -1350,15 +1594,11 @@ namespace OpenSekai.Tests.EditMode.Live
 
             var logic = new Sekai.Core.Live.LiveLogic(null);
 
-            var list = (List<NoteBase>)typeof(Sekai.Core.Live.LiveLogic)
-
-                .GetField("_judgmentNoteList", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
+            var list = logic.Input.JudgmentNotes;
 
             list.Add(bar);
 
-            var inputs = (List<Sekai.Core.Live.LiveLogic.InputTmp>)typeof(Sekai.Core.Live.LiveLogic)
-
-                .GetField("_activeInputList", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
+            var inputs = logic.Input.ActiveInputs;
 
             
 
@@ -1370,7 +1610,8 @@ namespace OpenSekai.Tests.EditMode.Live
 
             {
 
-                Lane = -1f, // above the judgment line, like a real lift
+                Lane = -1f, // the swipe finished outside the playfield
+                PreviousLane = 4.5f,
 
                 Touch = new LiveTouch
 
@@ -1537,12 +1778,9 @@ namespace OpenSekai.Tests.EditMode.Live
 		/// <summary>One frame of hold coverage, driven through the coordinator the live loop uses.</summary>
 		private static void CoverHolds(Sekai.Core.Live.LiveLogic logic)
 		{
-			object holds = typeof(Sekai.Core.Live.LiveLogic)
-				.GetField("_holds", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
-			var notes = (List<NoteBase>)typeof(Sekai.Core.Live.LiveLogic)
-				.GetField("_judgmentNoteList", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
-			var inputs = (List<Sekai.Core.Live.LiveLogic.InputTmp>)typeof(Sekai.Core.Live.LiveLogic)
-				.GetField("_activeInputList", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
+			var holds = logic.Input.Holds;
+			var notes = logic.Input.JudgmentNotes;
+			var inputs = logic.Input.ActiveInputs;
 			holds.GetType()
 				.GetMethod("CoverHoldsWithAnyFinger", BindingFlags.Instance | BindingFlags.NonPublic)
 				.Invoke(holds, new object[] { notes, inputs, logic.currentFrameInfo, UnityEngine.Time.deltaTime });

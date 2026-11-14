@@ -29,7 +29,7 @@ namespace OpenSekai.Infrastructure.Charts
                 throw new InvalidDataException("不支持的谱面格式：" + extension);
 
             // Match the old import: never bake mirror or generated hold-combo notes into source JSON.
-            var config = Resources.Load<LiveBundleBuildData>(LiveConfig.ConfigBundleNamePath);
+            var config = ResourceCatalog.LiveBundleConfig.Load();
             var score = new SusRuntimeConverter().Convert(text, config, isNeedCombo: false, _isMirror: false);
             var document = RuntimeChartImporter.FromMusicScore(score);
             document.MusicId = musicId;

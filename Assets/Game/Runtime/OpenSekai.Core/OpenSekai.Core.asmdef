@@ -1,0 +1,10 @@
+{
+    "name": "OpenSekai.Core",
+    "rootNamespace": "",
+    "references": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": ["Newtonsoft.Json.dll"],
+    "autoReferenced": true,
+    "noEngineReferences": true
+}

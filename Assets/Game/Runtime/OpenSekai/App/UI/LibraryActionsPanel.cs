@@ -30,7 +30,7 @@ namespace OpenSekai.App.UI
             GameObject go = new GameObject("LibraryActionsPanel", typeof(RectTransform));
             go.transform.SetParent(parent, false);
             RectTransform rect = (RectTransform)go.transform;
-            LibraryScreen.Stretch(rect);
+            LibraryUi.Stretch(rect);
 
             LibraryActionsPanel panel = go.AddComponent<LibraryActionsPanel>();
             panel.Build();
@@ -46,25 +46,25 @@ namespace OpenSekai.App.UI
 
             RectTransform root = (RectTransform)transform;
 
-            Image scrim = LibraryScreen.CreateImage("Scrim", root, new Color32(0, 0, 0, 150));
-            LibraryScreen.Stretch(scrim.rectTransform);
+            Image scrim = LibraryUi.CreateImage("Scrim", root, new Color32(0, 0, 0, 150));
+            LibraryUi.Stretch(scrim.rectTransform);
             scrim.raycastTarget = true;
 
-            Image cardImage = LibraryScreen.CreateImage("Card", root, new Color32(24, 29, 36, 245));
+            Image cardImage = LibraryUi.CreateImage("Card", root, new Color32(24, 29, 36, 245));
             _card = cardImage.rectTransform;
             _card.anchorMin = new Vector2(0.5f, 0.5f);
             _card.anchorMax = new Vector2(0.5f, 0.5f);
             _card.pivot = new Vector2(0.5f, 0.5f);
             _card.sizeDelta = new Vector2(CARD_WIDTH, CARD_HEIGHT);
 
-            _titleText = LibraryScreen.CreateText("Title", _card, string.Empty, 32f, FontStyles.Bold, TextAlignmentOptions.Center);
+            _titleText = LibraryUi.CreateText("Title", _card, string.Empty, 32f, FontStyles.Bold, TextAlignmentOptions.Center);
             _titleText.rectTransform.anchorMin = new Vector2(0f, 1f);
             _titleText.rectTransform.anchorMax = new Vector2(1f, 1f);
             _titleText.rectTransform.pivot = new Vector2(0.5f, 1f);
             _titleText.rectTransform.offsetMin = new Vector2(32f, -60f);
             _titleText.rectTransform.offsetMax = new Vector2(-32f, -20f);
 
-            _hintText = LibraryScreen.CreateText("Hint", _card, string.Empty, 20f, FontStyles.Normal, TextAlignmentOptions.Center);
+            _hintText = LibraryUi.CreateText("Hint", _card, string.Empty, 20f, FontStyles.Normal, TextAlignmentOptions.Center);
             _hintText.rectTransform.anchorMin = new Vector2(0f, 1f);
             _hintText.rectTransform.anchorMax = new Vector2(1f, 1f);
             _hintText.rectTransform.pivot = new Vector2(0.5f, 1f);
@@ -72,13 +72,13 @@ namespace OpenSekai.App.UI
             _hintText.rectTransform.offsetMax = new Vector2(-32f, -64f);
             _hintText.color = new Color32(150, 160, 174, 255);
 
-            _exportButton = LibraryScreen.CreateButton("Export", _card, "导出 ZIP", OnExportClicked, 560f, 56f);
+            _exportButton = LibraryUi.CreateButton("Export", _card, "导出 ZIP", OnExportClicked, 560f, 56f);
             PlaceButton((RectTransform)_exportButton.transform, -132f);
 
-            _deleteButton = LibraryScreen.CreateButton("Delete", _card, "删除曲包", OnDeleteClicked, 560f, 56f);
+            _deleteButton = LibraryUi.CreateButton("Delete", _card, "删除曲包", OnDeleteClicked, 560f, 56f);
             PlaceButton((RectTransform)_deleteButton.transform, -200f);
 
-            _cancelButton = LibraryScreen.CreateButton("Cancel", _card, "取消", Hide, 560f, 56f);
+            _cancelButton = LibraryUi.CreateButton("Cancel", _card, "取消", Hide, 560f, 56f);
             PlaceButton((RectTransform)_cancelButton.transform, -268f);
 
             gameObject.SetActive(false);

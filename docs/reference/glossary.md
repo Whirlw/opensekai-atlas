@@ -15,9 +15,9 @@
 
 | 术语 | 含义 | 位置 |
 | --- | --- | --- |
-| 曲包（package） | 一个目录，含 `manifest.json` / `score.json` / 音频 / 封面 | `Assets/OpenSekai/Infrastructure/Packages/` |
+| 曲包（package） | 一个目录，含 `manifest.json` / `score.json` / 音频 / 封面 | `Assets/Game/Runtime/OpenSekai/Infrastructure/Packages/` |
 | `.oskp` | 曲包的打包扩展名（ZIP 结构），导入时解开 | `LibraryImport` / `SongPackageManager` |
-| 谱面（chart） | `score.json` 的内容：音符 + 事件 + 时间信息 | `Assets/OpenSekai/Charts/ChartDocument.cs` |
+| 谱面（chart） | `score.json` 的内容：音符 + 事件 + 时间信息 | `Assets/Game/Runtime/OpenSekai.Core/Charts/ChartDocument.cs` |
 | 音符（note） | 谱面里的单个可打击对象 | `Charts/ChartNote.cs` |
 | 事件（event） | 谱面里的非音符对象（BPM、流速等） | `Charts/ChartEvent.cs` |
 | AB / AssetBundle | 运行时按需加载的资源包 | `AssetBundleManager`、`Assets/StreamingAssets/data` |
@@ -41,8 +41,8 @@
 
 | 术语 | 含义 |
 | --- | --- |
-| 引擎层 | `Assets/Scripts/Assembly-CSharp/`，页面系统、live、音频等底层运行时逻辑 |
-| 新代码层 | `Assets/OpenSekai/`，本次重构新增的代码 |
+| 引擎层 | `Assets/Game/Runtime/Sekai/`，页面系统、live、音频等底层运行时逻辑 |
+| 新代码层 | `Assets/Game/Runtime/OpenSekai/`，本次重构新增的代码 |
 | `_removed/` | 重构期间的备份目录（已删除，2026-11-03）；需要旧源码时从重构前的 git 提交取回 |
 | 页面（ScreenLayer） | `ScreenManager` 管理的 UI 页面单元 |
 | `[LibraryCheck]` | `OpenSekai/Library/Verify Running Scene` 打出的自检日志 |

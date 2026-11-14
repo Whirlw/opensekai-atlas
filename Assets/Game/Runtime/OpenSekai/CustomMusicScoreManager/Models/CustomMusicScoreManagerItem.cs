@@ -1,5 +1,5 @@
 using System;
-using Sekai.MusicScoreMaker.Common;
+using OpenSekai.App.Library;
 using CriWare;
 
 namespace Sekai.CustomMusicScoreManager

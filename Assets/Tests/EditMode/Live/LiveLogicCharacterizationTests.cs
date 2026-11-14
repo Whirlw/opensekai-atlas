@@ -1,4 +1,4 @@
-﻿// 第 1 步：特征测试（Characterization）。
+// 第 1 步：特征测试（Characterization）。
 // 这里不断言「应该怎样」，只把 0.3.0 这一刻的真实行为钉住，供后续 11 步重构逐阶段对照。
 // 断言里出现「quirk / 现状」字样的，都是已登记、要单独修的问题，不要在重构里顺手改掉。
 using System.IO;
@@ -15,47 +15,15 @@ using TouchPhase = UnityEngine.InputSystem.TouchPhase;
 namespace OpenSekai.Tests.EditMode.Live
 {
 	/// <summary>
-	/// Pins the behaviour the refactor must not change: the two input-time mappings, the frame a late
+	/// Pins the behaviour the refactor must not change: the frame a late
 	/// touch is judged on, the notification order of a note's lifetime, and the finger identity quirk
 	/// in hold release.
 	/// </summary>
 	public sealed class LiveLogicCharacterizationTests
 	{
 		private const double FRAME_GAME_TIME = 100d;
-		private const float FRAME_MUSIC_TIME = 10f;
 
-		// ---- 1. 两套时间映射 -------------------------------------------------
-
-		[Test]
-		public void TheLegacyMappingShrinksLatencyToSixtieths()
-		{
-			// 旧的公式把墙钟位移乘 1/60 秒：120 ms 的真实延迟只算 2 ms。
-			float mapped = LiveLogic.ComputeLegacyInputMusicTime(FRAME_MUSIC_TIME, FRAME_GAME_TIME, FRAME_GAME_TIME + 0.12);
-
-			Assert.That(mapped, Is.EqualTo(FRAME_MUSIC_TIME + 0.12f / 60f).Within(1e-5f));
-			Assert.That(mapped, Is.LessThan(FRAME_MUSIC_TIME + 0.005f), "latency is shrunk sixty times, not passed through");
-		}
-
-		[Test]
-		public void TheCurrentMappingPassesLatencyAndClampsItToAQuarterSecond()
-		{
-			// 早到：原样通过。
-			Assert.That(
-				LiveLogic.ComputeInputMusicTime(FRAME_MUSIC_TIME, FRAME_GAME_TIME, FRAME_GAME_TIME - 0.1),
-				Is.EqualTo(FRAME_MUSIC_TIME - 0.1f).Within(1e-5f));
-
-			// 迟到（inputTime 在帧之后）：夹到 0，不把未来的时间算进来。
-			Assert.That(
-				LiveLogic.ComputeInputMusicTime(FRAME_MUSIC_TIME, FRAME_GAME_TIME, FRAME_GAME_TIME + 0.1),
-				Is.EqualTo(FRAME_MUSIC_TIME).Within(1e-5f));
-
-			// 过期太久（暂停/失焦后残留的触摸）：夹到 -250 ms。
-			Assert.That(
-				LiveLogic.ComputeInputMusicTime(FRAME_MUSIC_TIME, FRAME_GAME_TIME, FRAME_GAME_TIME - 5d),
-				Is.EqualTo(FRAME_MUSIC_TIME - 0.25f).Within(1e-5f));
-		}
-
-		// ---- 2. 迟到触摸落在哪一帧 -------------------------------------------
+		// ---- 1. 迟到触摸落在哪一帧 -------------------------------------------
 
 		[Test]
 		public void ALateTouchIsJudgedAtTheFrameTime()
@@ -75,7 +43,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(note.OffsetJudgeTime, Is.EqualTo(0f).Within(0.02f), "and it is judged exactly on the frame's music time");
 		}
 
-		// ---- 3. 遗留开关如何影响整条链路 -------------------------------------
+		// ---- 2. 遗留开关如何影响整条链路 -------------------------------------
 
 		[Test]
 		public void TheLegacySwitchChangesHowTheLiveLoopMapsTouches()
@@ -106,7 +74,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			}
 		}
 
-		// ---- 4. 抬手用哪个 ID 认人 -------------------------------------------
+		// ---- 3. 抬手用哪个 ID 认人 -------------------------------------------
 
 		[Test]
 		public void AReleaseWhoseTouchIdDiffersFromTheFingerIdDoesNotEndTheBar()

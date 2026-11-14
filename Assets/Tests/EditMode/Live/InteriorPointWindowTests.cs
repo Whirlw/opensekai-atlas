@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Reflection;
 using NUnit.Framework;
 using Sekai.Core.Live;
 using Sekai.Live;
@@ -29,11 +28,8 @@ namespace OpenSekai.Tests.EditMode.Live
             LiveConfig.noteTypeJudgeData = _previousConfig;
         }
 
-        private static T Field<T>(LiveLogic logic, string name) =>
-            (T)typeof(LiveLogic).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).GetValue(logic);
 
-        private static void Refresh(LiveLogic logic) => typeof(LiveLogic)
-            .GetMethod("RefreshSustainedHolds", BindingFlags.Instance | BindingFlags.NonPublic).Invoke(logic, null);
+        private static void Refresh(LiveLogic logic) => logic.Scheduler.RefreshSustainedHolds();
 
         private static LongNote Bar()
         {
@@ -54,8 +50,8 @@ namespace OpenSekai.Tests.EditMode.Live
             // Exercise both the initial friction press and the sustained refresh entry.
             bar.Judgment(ref input.Touch, input.Lane);
             input.Touch.phase = TouchPhase.Stationary;
-            Field<List<NoteBase>>(logic, "_judgmentNoteList").Add(bar);
-            Field<List<LiveLogic.InputTmp>>(logic, "_activeInputList").Add(input);
+            logic.Input.JudgmentNotes.Add(bar);
+            logic.Input.ActiveInputs.Add(input);
             Refresh(logic);
             return logic;
         }

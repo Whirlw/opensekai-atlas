@@ -77,7 +77,9 @@ namespace OpenSekai.Tests.EditMode.Live
                     : new FrictionLongNote(Info(0), 3, 4, 5, NoteCategory.FrictionLong, NoteType.Default, null, 1);
                 friction.AddNoteListAndSetupChildNote(new NormalNote(Info(10), 4, 4, 5, NoteCategory.Normal, 1, NoteType.Default, 0));
                 int heads = 0;
-                friction.OnJudgment = n => { if (ReferenceEquals(n, friction)) heads++; };
+                // Only an ordinary head borrows the bar as its visual object; a rub head speaks for
+                // itself, so its judgement callback carries the head's identity, not the bar.
+                friction.OnJudgment = n => { if (ReferenceEquals(n, friction.Head.Identity)) heads++; };
                 touch = Touch(0);
                 friction.Excute(Info(0), 0);
                 friction.Judgment(ref touch, 4.5f);
@@ -103,7 +105,7 @@ namespace OpenSekai.Tests.EditMode.Live
             bar.Excute(Info(0.04f), 0); // No refresh: enter Last.
             Assert.That(bar.State, Is.EqualTo(NoteState.Last));
             bar.Excute(Info(0.06f), 0); // Leave Last through the real lifecycle.
-            bar.Head.PublishHeadMiss();
+            bar.Head.SettleExpiredHead(1f); // The head's own clock: it is already settled, so this is a no-op.
             Assert.That(bar.Result, Is.EqualTo(NoteResult.JustPerfect));
             Assert.That(judgments, Is.EqualTo(1));
 
@@ -158,6 +160,76 @@ namespace OpenSekai.Tests.EditMode.Live
                 LongNoteGraceTests.AssertHeldBody(bar);
                 Assert.That(combos, Is.EqualTo(1));
             }
+        }
+        [Test]
+        public void AnEndedBarLeavesItsHeadToItsOwnWindow()
+        {
+            // The head answers to its own window and to nothing else. A bar ended by its tail before the
+            // head window closed used to publish the head's Miss on the way out; that made the bar's
+            // lifecycle decide a result the head owns. Now the ending changes no head at all, and the
+            // head settles the frame its own window closes.
+            var bar = new Bar();
+            int published = 0;
+            bar.OnJudgment = n => { if (ReferenceEquals(n, bar)) published++; };
+            bar.Visual(NoteState.Last); // the bar is past the point a press could still take it
+            Assert.That(bar.Head.IsSettled, Is.False, "nothing has settled the head yet");
+
+            bar.ForceTerminate((NoteBase)bar.ChildNote); // the tail ends the bar
+
+            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+            Assert.That(bar.Head.IsSettled, Is.False, "ending the bar is not a verdict on its head");
+            Assert.That(published, Is.Zero);
+
+            bar.Head.SettleExpiredHead(1f); // the head's own window closes, one second past the bar
+
+            Assert.That(bar.Head.IsSettled, Is.True);
+            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.Miss), "a head nobody took is a Miss");
+            Assert.That(published, Is.EqualTo(1), "and it is published once, from the head's own clock");
+        }
+
+        [Test]
+        public void AnEndingAskedTwiceStillPublishesTheHeadOnce()
+        {
+            var bar = new Bar();
+            int published = 0;
+            bar.OnJudgment = n => { if (ReferenceEquals(n, bar)) published++; };
+            bar.Visual(NoteState.Last);
+
+            bar.ForceTerminate((NoteBase)bar.ChildNote);
+            NoteResult headResult = bar.Head.Result;
+            NoteResult barResult = bar.Result;
+
+            bar.ForceTerminate((NoteBase)bar.ChildNote);
+            bar.ForceTerminate();
+
+            Assert.That(bar.Head.Result, Is.EqualTo(headResult), "a repeated ending must not rewrite the head");
+            Assert.That(bar.Result, Is.EqualTo(barResult), "nor the bar's own result");
+            Assert.That(published, Is.Zero, "an ending is not the head's verdict, so it publishes nothing");
+
+            bar.Head.SettleExpiredHead(1f);
+            Assert.That(published, Is.EqualTo(1), "the head's own clock publishes it exactly once");
+
+            bar.Head.SettleExpiredHead(1.2f);
+            Assert.That(published, Is.EqualTo(1), "however many times its window is ticked");
+        }
+
+        [Test]
+        public void APressOnAFinishedBarStillJudgesTheHeadOnItsOwnClock()
+        {
+            // The head is an instant key on its own clock: the bar pinning it on the line, and the bar being
+            // finished, are both pictures. So a press inside the head's window still settles the head, while
+            // the bar itself stays done and takes nothing else.
+            var bar = new Bar();
+            bar.Visual(NoteState.Last);
+            bar.ForceTerminate((NoteBase)bar.ChildNote);
+            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+
+            var touch = Touch(0);
+            bool judged = bar.Judgment(ref touch, 4.5f);
+
+            Assert.That(judged, Is.True, "the press reaches the head, which is still open");
+            Assert.That(bar.Head.Result, Is.Not.EqualTo(NoteResult.None), "the head keeps its own verdict");
+            Assert.That(bar.State, Is.EqualTo(NoteState.Done), "and the bar stays finished");
         }
     }
 }

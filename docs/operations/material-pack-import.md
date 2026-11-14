@@ -3,7 +3,7 @@
 > 目的：把「把画好的材质包整体贴回工程并验证」这件事沉淀成可复用流程，并把 2026-11-08 一天内踩到的坑逐条固定下来，作为将来做**一键材质包导入功能**的设计依据。
 > 适用读者：要改美术素材的人、要写导入工具的人、要在真机上验收素材的人。
 > 前置条件：读过 [编辑器菜单](editor-menus.md)、[Android 构建](android-build.md)；本机 Unity 6000.6.7f1 与 adb 可用。
-> 最后更新：2026-11-08
+> 最后更新：2026-11-12
 
 ## 概述
 
@@ -31,6 +31,7 @@ powershell -File Tools\apply-paint-kit.ps1 -KitRoot "$dst" -Apply
 
 # 2) 图集切片
 powershell -File Tools\apply-atlas-art.ps1 -Apply
+powershell -File Tools\compare-atlas-art.ps1     # differ 里应只剩整纹理/内边距那几张
 
 # 3) 让 Unity 落盘 → 重打 bundle → 出包
 #    unity_eval: AssetDatabase.Refresh(ForceSynchronousImport)
@@ -44,10 +45,12 @@ powershell -File Tools\apply-atlas-art.ps1 -Apply
 | 工具 | 期望输出 | 含义 |
 | --- | --- | --- |
 | `apply-paint-kit.ps1` | `copied=N same=M missed=K mismatch=2` | `missed` 里应只剩预览图/对比图 |
-| `apply-atlas-art.ps1` | `painted=N noSprite=23 sizeDiff=6 atlases=27` | `noSprite` 是「整图」类，正常 |
+| `apply-atlas-art.ps1` | `painted=N wholeTexture=M noSprite=K sizeDiff=0 shadowed=S atlases=T` | `noSprite` 是「整图」类，正常；`shadowed` 是同一精灵的多个画包文件，正常应只剩替身 |
 | `verify-hud-art.ps1` | 生成对比图，左画包 / 右图集 | 逐张必须一致 |
 
-## 六条硬规则
+最近一次全量导入（2026-11-12，`0d153e68`+`a564828b` 之后）的实测输出，可作参照：`apply-paint-kit.ps1` 为 `copied=17 same=112 missed=200 mismatch=0`（`missed` 是画包里还没进工程的新素材与预览图），`apply-atlas-art.ps1` 为 `painted=168 wholeTexture=6 noSprite=44 sizeDiff=0 shadowed=0 atlases=21`——`shadowed` 归零是因为镜像里 15 个程序生成的 `*_0.png` 替身已删除（`number_48px_shadow_0`、`skillEffect_text_0` 是作者自己的文件名，保留），随后又按精灵名为 9 个未覆盖的白色底片重新生成了替身。
+
+## 七条硬规则
 
 ### R1 精灵名 ≠ 资产文件名
 
@@ -110,6 +113,12 @@ m_RD.texture: {guid: <图集纹理 guid>}   # 指向 sactx-*.png
 
 还有 2 个**拒绝导入**的：`tex_transition_01.png`（画包 1024×1011 / 工程 1024×1024）、`tex_transition_03.png`（502×512 / 512×512）。这两个需要作者按工程尺寸重导，或明确同意缩放。
 
+### R7 一个精灵只能有一个画包文件
+
+- 画包里同时存在 `label_autolive.png`（真图）与 `label_autolive_0.png`（替身）时，两者都能经文件名索引落到**同一个**精灵资产上。旧版 `apply-atlas-art.ps1` 按名字遍历、后写的赢，于是替身盖掉了真图——`AUTO LIVE` 标牌因此显示成一块纯色。
+- 现行实现先按精灵归并再挑一个：**与精灵 `m_Name` 同名的文件优先**，其余的记进 `shadowed` 一起列出来。一个精灵只贴一次。
+- 替身只在真图缺失时才有意义。真图到位后替身要改名或删掉；否则它只是被"同名优先"挡住，报告里会一直挂着。
+
 ## 已踩过的坑（现象 → 根因 → 处置）
 
 | 现象 | 根因 | 处置 |
@@ -125,6 +134,7 @@ m_RD.texture: {guid: <图集纹理 guid>}   # 指向 sactx-*.png
 | 判定特效只有第一套是新的 | 画包里 `all` 与 `all_v2` 是**两套**，第二套对应 `tap_effect/1` | 映射规则见下节 |
 | 画包里的 `tex_transition_01/03` 比工程小（1024×1011 / 502×512 vs 1024×1024 / 512×512） | 这两张在工程里是 **Sprite** 导入（`textureType: 8`、`spriteMode: 1`），导出时按精灵 rect 裁掉了边缘 | 以工程 PNG 为准：把工程原件拷进画包再重画，不要用导出件当底图 |
 | `judgeLine` 永远和底下的线对不上，轮廓画得一模一样也没用 | 它是**独立纹理**（1608×114），精灵 rect 只取中间 1583×84（去掉了 13/15 px 内边距）。画包给的是整张纹理，按 rect 粘贴就被压缩、线条错位 | 画包尺寸等于纹理尺寸时按**整纹理替换**，不做矩形贴合（`apply-atlas-art.ps1` 的 wholeTexture 分支，同类还有 `lane_base`、`bg_2dmode_window_*`、`mask_2dmode_floor_grd`、`label_grd_h40_dbl`） |
+| 打歌界面右下角的 `AUTO LIVE` 标牌是**纯色薄荷块** | 画包里同时有真图 `label_autolive.png` 与程序生成的替身 `label_autolive_0.png`，两者指向同一精灵；旧版按名字遍历、后写的替身赢了，真图从没进过图集（R7）。同批被替身盖掉的还有评级字母 `B`/`C`/`S`、`gauge_base_h16_dbl`、`bg_base_wh`、`bg_base_ingame_wh` | 按矩形重贴真图 + 改成「同名优先」；用 `compare-atlas-art.ps1` 逐格比对可当场发现 |
 
 ### 两套判定特效的映射
 
@@ -143,12 +153,14 @@ m_RD.texture: {guid: <图集纹理 guid>}   # 指向 sactx-*.png
 
 `Tools/verify-hud-art.ps1` 生成对比图：左列画包原图、右列图集实际像素。抽查项固定包含 `btn_stop`、`bar_lifeGauge_gn`、`bg_scoreGauge`、`judge_perfect`、`number_combo_154px_1_pr`、`number_48px_4_wh`。
 
-也可以做数值核对（字母类，矩形小、跑得快）：
+`Tools/compare-atlas-art.ps1` 是数值版，覆盖画包里**每一张**图，不只是抽查的那几张：
 
 ```powershell
-# 平均每通道差 ≈ 0.1 视为一致（矩形取整的舍入）
-A 0.12 | B 0.16 | C 0.14 | S 0.13
+powershell -NoProfile -ExecutionPolicy Bypass -File Tools/compare-atlas-art.ps1
+# kit=225 match=168 differ=6 noSprite=44 noRect=0 shadowed=7
 ```
+
+`differ` 的基线是 2 个，都是**整纹理替换/内边距裁剪**：`judgeLine`（画包给整张 1608×114，精灵 rect 只取中间 1583×84）与 `bg_2dmode_window_mirror`（画包 800×800，rect 542×526）。**出现别的名字就意味着那一格还是旧图**——`AUTO LIVE` 那次就是这样查出来的。`shadowed` 列的是同一个精灵的多个画包文件（见 R7），正常应为 0 或只剩作者按资产文件名命名的那几个。
 
 ### 真机验收清单
 
@@ -205,7 +217,8 @@ A 0.12 | B 0.16 | C 0.14 | S 0.13
 | 工具 | 职责 | 备注 |
 | --- | --- | --- |
 | `Tools/apply-paint-kit.ps1` | 散图整文件覆盖（递归、按叶子名匹配、尺寸校验） | `-KitRoot` 必填工程内镜像 |
-| `Tools/apply-atlas-art.ps1` | 图集切片贴像素（按 `m_Name` 索引、按 rect+guid 定位、SourceCopy） | 权威路径 |
+| `Tools/apply-atlas-art.ps1` | 图集切片贴像素（按 `m_Name` 索引、按 rect+guid 定位、SourceCopy；同名画包文件优先，其余进 `shadowed`） | 权威路径 |
+| `Tools/compare-atlas-art.ps1` | 逐格比对：画包每张图 vs 图集里那一格的实际像素 | 查出「贴过但其实没进图集」的格子 |
 | `Tools/verify-hud-art.ps1` | 画包 vs 图集逐张对比图 | 导入后必跑 |
 | `Tools/replace-note-skins.ps1` | 早期音符皮肤替换（`-Set` / `-Restore`） | 已被上面两个脚本覆盖 |
 | `OpenSekai/Paint Kit/1,3,4` | 导出画包 | 只用于导出 |

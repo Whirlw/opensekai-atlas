@@ -51,10 +51,11 @@ namespace OpenSekai.Tests.EditMode.Live
 		}
 
 		[Test]
-		public void AnUntakenFrictionBarDoesNotKeepItsHeadOnTheLine()
+		public void AnUntakenFrictionBarKeepsItsHeadTravelling()
 		{
-			// Nobody is rubbing it, so there is no body to hold at the line: it flows down and reads
-			// as a miss that passed by.
+			// A rub is played like a standalone friction note, so its visual is the standalone one: the key
+			// keeps descending past the line instead of parking on it. Only an ordinary head - the one the
+			// player presses and holds - pins there.
 			Assert.That(_friction.IsOrdinaryHead, Is.False);
 			Assert.That(_friction.KeepsHeadOnTheLine, Is.False);
 		}

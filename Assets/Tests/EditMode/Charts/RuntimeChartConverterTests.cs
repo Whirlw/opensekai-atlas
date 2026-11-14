@@ -32,6 +32,14 @@ namespace OpenSekai.Tests.EditMode.Charts
             }
         }
 
+        /// <summary>The combo grid is a serialized asset value; a test config starts at zero, i.e. no grid.</summary>
+        private void EnableComboGrid()
+        {
+            typeof(LiveBundleBuildData)
+                .GetField("_longNoteComboBeat", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?.SetValue(_config, 8);
+        }
+
         private static ChartDocument Document(params ChartNote[] notes)
         {
             var document = new ChartDocument { MusicScoreTicksMax = 3840 };
@@ -283,6 +291,84 @@ namespace OpenSekai.Tests.EditMode.Charts
             var carrier = score.NoteArray.OfType<FrictionHideLongNote>().FirstOrDefault();
             Assert.That(carrier, Is.Not.Null, "the hidden pair keeps its carrier");
             Assert.That(carrier.HasJudgment, Is.False, "a hidden carrier grades nothing");
+        }
+
+        [Test]
+        public void APointNeverLandsOnTheBarsOwnNote()
+        {
+            // A bar runs from tick 0 to 1920 and the grid puts a point on every 8th. Its own connection
+            // note on 960 already owns that position, so the bar must not generate a middle there.
+            EnableComboGrid();
+            var head = new ChartNote(1, 0, 0, 0, NoteCategory.Long, NoteType.Default, 1f,
+                NoteLineType.Linear, ChartNote.NoteBaseType.Long, isSkip: false,
+                direction: NoteDirection.Default, previousConnectionId: -1, nextConnectionId: 2);
+            var connection = new ChartNote(2, 960, 0, 0, NoteCategory.Connection, NoteType.Default, 1f,
+                NoteLineType.Linear, ChartNote.NoteBaseType.Connection, isSkip: false,
+                direction: NoteDirection.Default, previousConnectionId: 1, nextConnectionId: 3);
+            var tail = new ChartNote(3, 1920, 0, 0, NoteCategory.Long, NoteType.Default, 1f,
+                NoteLineType.Linear, ChartNote.NoteBaseType.Long, isSkip: false,
+                direction: NoteDirection.Default, previousConnectionId: 2, nextConnectionId: -1);
+
+            MusicScore score = Convert(Document(head, connection, tail));
+            var points = score.NoteArray.OfType<LongNote>()
+                .SelectMany(bar => bar.NoteList.OfType<LongHoldCombo>())
+                .Select(point => (int)System.Math.Round(point.MusicScoreInfo.time * 1000f))
+                .ToArray();
+            var connectionNote = score.NoteArray.OfType<LongNote>().Single()
+                .NoteList.OfType<ConnectionNote>().Single();
+            int connectionMilliseconds = (int)System.Math.Round(connectionNote.MusicScoreInfo.time * 1000f);
+
+            Assert.That(points, Is.Not.Empty, "the bare 8ths still carry points");
+            Assert.That(points, Has.None.EqualTo(connectionMilliseconds),
+                "the 8th the bar's own connection note owns is not a middle");
+        }
+
+        [Test]
+        public void AnotherNotesPositionDoesNotSuppressAPoint()
+        {
+            // A tap on 960 that belongs to a different note is not this bar's business: the bar is held
+            // through that moment, so it keeps its middle point there (DEINOS bar 78 keeps 78.000 even
+            // though the next bar starts on that tick).
+            EnableComboGrid();
+            var head = new ChartNote(1, 0, 0, 0, NoteCategory.Long, NoteType.Default, 1f,
+                NoteLineType.Linear, ChartNote.NoteBaseType.Long, isSkip: false,
+                direction: NoteDirection.Default, previousConnectionId: -1, nextConnectionId: 2);
+            var tail = new ChartNote(2, 1920, 0, 0, NoteCategory.Long, NoteType.Default, 1f,
+                NoteLineType.Linear, ChartNote.NoteBaseType.Long, isSkip: false,
+                direction: NoteDirection.Default, previousConnectionId: 1, nextConnectionId: -1);
+            var tap = Tap(3, NoteCategory.Normal, 960);
+
+            MusicScore score = Convert(Document(head, tail, tap));
+            var points = score.NoteArray.OfType<LongNote>()
+                .SelectMany(bar => bar.NoteList.OfType<LongHoldCombo>())
+                .Select(point => (int)System.Math.Round(point.MusicScoreInfo.time * 1000f))
+                .ToArray();
+            var tapNote = score.NoteArray.OfType<NormalNote>().Single();
+            int tapMilliseconds = (int)System.Math.Round(tapNote.MusicScoreInfo.time * 1000f);
+
+            Assert.That(points, Has.Some.EqualTo(tapMilliseconds),
+                "another note at the same moment does not remove this bar's middle");
+        }
+
+        [Test]
+        public void ABodyShorterThanAStepKeepsItsSinglePoint()
+        {
+            // A 30 tick friction sliver: its body is the grid point, so dropping the point would drop
+            // the note. The three 8th-note bodies of DEINOS bars 78 are this case.
+            EnableComboGrid();
+            var head = new ChartNote(1, 2385, 0, 0, NoteCategory.FrictionHideLong, NoteType.Default, 1f,
+                NoteLineType.Linear, ChartNote.NoteBaseType.FrictionHideLong, isSkip: false,
+                direction: NoteDirection.Default, previousConnectionId: -1, nextConnectionId: 2);
+            var tail = new ChartNote(2, 2415, 0, 0, NoteCategory.FrictionHideLong, NoteType.Default, 1f,
+                NoteLineType.Linear, ChartNote.NoteBaseType.FrictionHideLong, isSkip: false,
+                direction: NoteDirection.Default, previousConnectionId: 1, nextConnectionId: -1);
+
+            MusicScore score = Convert(Document(head, tail));
+            var points = score.NoteArray.OfType<LongNote>()
+                .SelectMany(bar => bar.NoteList.OfType<LongHoldCombo>())
+                .ToArray();
+
+            Assert.That(points, Has.Length.EqualTo(1), "the sliver keeps the point its body sits on");
         }
     }
 }

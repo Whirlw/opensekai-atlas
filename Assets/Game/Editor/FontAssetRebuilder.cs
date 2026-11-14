@@ -42,13 +42,18 @@ namespace OpenSekai.EditorTools
             Font medium = LoadFont(MediumFontPath);
             Font bold = LoadFont(BoldFontPath);
 
-            CreateFontAsset(medium, NewMediumBase, "SourceHanSansSC-Medium SDF_Base");
-            CreateFontAsset(medium, NewMediumDynamic, "SourceHanSansSC-Medium SDF_Dynamic");
-            CreateFontAsset(bold, NewBoldBase, "SourceHanSansSC-Bold SDF_Base");
-            CreateFontAsset(bold, NewBoldDynamic, "SourceHanSansSC-Bold SDF_Dynamic");
+            // These files are guarded against saves (GeneratedAssetSaveGuard); a re-bake is the one time
+            // they are meant to change on disk.
+            using (GeneratedAssetSaveGuard.AllowSaves())
+            {
+                CreateFontAsset(medium, NewMediumBase, "SourceHanSansSC-Medium SDF_Base");
+                CreateFontAsset(medium, NewMediumDynamic, "SourceHanSansSC-Medium SDF_Dynamic");
+                CreateFontAsset(bold, NewBoldBase, "SourceHanSansSC-Bold SDF_Base");
+                CreateFontAsset(bold, NewBoldDynamic, "SourceHanSansSC-Bold SDF_Dynamic");
 
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
+                AssetDatabase.SaveAssets();
+                AssetDatabase.Refresh();
+            }
 
             Debug.Log("[FontRebuild] created fonts:\n" + Describe(NewMediumBase) + Describe(NewMediumDynamic) +
                       Describe(NewBoldBase) + Describe(NewBoldDynamic));

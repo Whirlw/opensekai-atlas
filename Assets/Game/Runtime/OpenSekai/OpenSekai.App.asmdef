@@ -2,6 +2,7 @@
     "name":  "OpenSekai.App",
     "rootNamespace":  "",
     "references":  [
+                       "OpenSekai.Core",
                        "OpenSekai.Game",
                        "Unity.TextMeshPro",
                        "UnityEngine.UI",

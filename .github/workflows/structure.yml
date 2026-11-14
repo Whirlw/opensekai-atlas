@@ -1,0 +1,28 @@
+# Structure checks that need no Unity licence: Markdown links and anchors, assembly boundaries,
+# empty runtime directories, and the generated-asset manifest.
+#
+# The generated-asset check is the one that keeps TextMeshPro's runtime cache out of the repository:
+# TMP rewrites the font assets whenever the game runs, and Tools/generated-assets.txt is the list that
+# says which files those are and what they must contain. See docs/reference/fonts.md.
+#
+# This is the CI half of P4-4 in docs/architecture/restructure-plan-2026-11.md; the Unity-side gates
+# (test run, asset scan) still need a licence and stay on the editmode-tests workflow.
+name: structure
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  structure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Check structure, links and generated assets
+        shell: pwsh
+        run: ./Tools/verify-structure.ps1 -CheckAssemblies -RequireNoEmptyDirectories

@@ -1,7 +1,8 @@
-﻿{
+{
     "name":  "OpenSekai.Editor",
     "rootNamespace":  "",
     "references":  [
+                       "OpenSekai.Core",
                        "OpenSekai.Game",
                        "OpenSekai.App",
                        "Unity.TextMeshPro",

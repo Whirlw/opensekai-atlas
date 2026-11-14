@@ -162,3 +162,11 @@ Assets/_Recovery.meta
 # Unity activation files are machine-bound credentials: never commit them.
 *.ulf
 *.alf
+
+# ---- DSNLE (dsh-cognition 项目记忆插件) 本地产物 ----
+# 若某个会话以本工程为工作区调用 nle_*,这些会被生成;不要进版本库。
+/.dsnle-state.json
+/.dsh/skills/nle-reflections/
+/.nle-semantic/
+*.req.json
+*.res.json

@@ -2,13 +2,15 @@
 
 > 任务书 v2（2026-11-11 修订，依据外部评审）。v1 的三处判断已被代码推翻，见 §0。
 > 分支 `codex/long-note-head-split`，HEAD `8906a59`，工作区干净。
+>
+> **2026-11-12 复核**：文件路径已按 P3-1 之后的目录更新（`Runtime/Sekai/Live/...` → `Runtime/OpenSekai.Game/Live/Notes/...`），但**文中 `:行号` 仍是 11-11 的旧行号**——`LongNote` 现在是四个 partial，行号普遍漂移几十行，请按锚点（方法名/字段名）定位，不要按行号跳。§3、§4、§10、§11 的结论仍然有效；§11.3（解绑没全部落地）与 §11.4（`State = Done` 的 17 个赋值点待确认归属）截至 11-12 **仍未完成**，与交接页 §4 的"未完成"是同一批事。
 
 ## 0. 修订记录
 
 | v1 的说法 | 实际情况 | 出处 |
 | --- | --- | --- |
-| 抬手候选「只看条自己的车道」 | 用的是 `LongNote.ContainsLane()`，它按**头部是否已判**在 `JudgeLane*` / `JudgedLane*` 之间切换，两套都带容差。删掉显式兜底后范围仍可能超出可见条身 | `Assets/Game/Runtime/Sekai/Live/LongNote.cs:1410` |
-| 类 1（隐藏 / friction / friction-flick）在代码里是 `SelfJudgedTail`，合规 | 只有 **friction-flick** 走 `SelfJudgedTail`；普通 friction 尾与隐藏尾都走 `ReleaseTail`。且 `DetachStandaloneTail()` 对未结算的尾**写 Miss**，属「条影响尾」 | `Assets/Game/Runtime/Sekai/Live/Tails/TailBehaviours.cs:13`、`LongNote.cs:904` |
+| 抬手候选「只看条自己的车道」 | 用的是 `LongNote.ContainsLane()`，它按**头部是否已判**在 `JudgeLane*` / `JudgedLane*` 之间切换，两套都带容差。删掉显式兜底后范围仍可能超出可见条身 | `Assets/Game/Runtime/OpenSekai.Game/Live/Notes/LongNote.cs:1410` |
+| 类 1（隐藏 / friction / friction-flick）在代码里是 `SelfJudgedTail`，合规 | 只有 **friction-flick** 走 `SelfJudgedTail`；普通 friction 尾与隐藏尾都走 `ReleaseTail`。且 `DetachStandaloneTail()` 对未结算的尾**写 Miss**，属「条影响尾」 | `Assets/Game/Runtime/OpenSekai.Game/Live/Notes/Tails/TailBehaviours.cs:13`、`LongNote.cs:904` |
 | 类 3 已合规 | `TickSwipeTail()` 仍用 `HasFinger` + `Last`/`Release` 决定是否清掉待结算划动，条体状态参与尾的结算 | `LongNote.cs:1040` |
 
 另：`ShowsAsReleased` 不只被绘制读，还被**条体状态推进**（`LongNote.cs:401`）和**判定入口**（`LongNote.cs:1400`）读，改它等于改判定路径。
@@ -50,31 +52,42 @@
 - `ATailShiftedToAnotherLaneIsFinishedByLiftingThere` —— 尾键横移后，在尾键位置抬手能判，在条身原位置抬手不能。
 - `ALiftInsideADecorationLaneDoesNotFinishTheNeighbour` —— 抬手落在相邻装饰条车道内、但落入目标条放宽范围时，不判目标条。
 
+> **2026-11-12 补记**：两条已写进 `Assets/Tests/EditMode/Live/DecouplingAcceptanceTests.cs`，**写入时即通过**——`LiveHoldCoordinator.PickLiftTarget` 已经按尾键自己的 `JudgeLane*` 分配抬手（`LiveHoldCoordinator.cs:331-347`），正是本节建议的方案。所以这里不再是待改项，只剩回归保护。
+
 ## 3. 逐类核对（v2）
 
-### 类 1：**部分违规**，需先确定结算责任
+### 类 1：结算责任**已定案**（2026-11-12，用户口述）
 
 现状分派（`TailBehaviours.For`）：
 
 ```csharp
-if (tail is FlickNote) return SwipeTail.Instance;                // 类 3
-if (tail is FrictionFlickNote) return SelfJudgedTail.Instance;   // 类 1（仅此一种）
-return ReleaseTail.Instance;                                     // 类 2（普通 friction 尾、隐藏尾也落在这里）
+if (tail is FlickNote) return SwipeTail.Instance;                // 划键尾：判定即结束条
+if (tail is FrictionFlickNote) return SelfJudgedTail.Instance;   // 独立尾（摩擦划）
+return ReleaseTail.Instance;                                     // 普通尾（含普通 friction 尾、隐藏尾）
 ```
 
-也就是说「friction 尾」「隐藏尾」目前按类 2 处理，与定义冲突。
+规则（用户原话整理成四条，实现以此为准）：
 
-`DetachStandaloneTail()`（`LongNote.cs:904`）对独立尾做三件事：读尾结果 → 把结果抄进条 → **未结算就写 Miss 给尾**（`:917-928`）。第三条是「条影响尾」。
+| # | 规则 | 落点 |
+| --- | --- | --- |
+| **R1** | **超时 Miss 只有中间点由条写；头和尾各写各的。** 条不给尾写任何结果。 | 头：`LongNoteHead.PublishHeadMiss`；尾：`LongNoteTail.PublishTail`（划键/普通尾由条代判，也是"尾自己的出口"）；中间点：`LongNote` 的 Done 转移 + `NoteBase.Excute` 的自超时 |
+| **R2** | **划键尾与普通尾判定时让条立刻退场；其他尾不影响条。** 时序：条把帧交给尾 → 尾**先写并发布**自己的结果 → 这条结果**才**结束条（尾的 `State = Done` 里 `OnUnSpawnNote()` 必须在 `NotifyParentFinished()` 之前，否则条会先回收视图）。 | `ForceTerminate` 忽略 `JudgesItself` 的尾的 Done；`DetachStandaloneTail` 只读尾的结果；`FlickNote` / `FrictionFlickNote` / `FrictionNote` / `NormalNote` 四个 Done 分支的调用顺序 |
+| **R3** | **条只和中间点共进退**：条结束后没判的中间点**立刻判 Perfect**，已判的保留原判。 | `LongNote.State` 的 Done 分支里 `SettleLeftoverAsPerfect()` |
+| **R4** | **条只有两种结束方式**：被划键/普通尾结束，或**到达尾的标准时间**。 | 前者 `ForceTerminate`；后者 `IsPastTailWindow`（尾时间 + 它自己的判定窗，否则正常的 +125 ms 迟抬手会被吃掉） |
 
-待确认的三个问题（写进实现前必须先答）：
+**分派落地（2026-11-12 第二轮）**：`TailBehaviours.For` 现在只有两种结局——划键尾 `SwipeTail`、其余一切（friction、摩擦划、隐藏载体）`SelfJudgedTail`；普通尾 `ReleaseTail` 仍给 `NormalNote` 这类。自判尾**进候选集自己判**（`LiveCandidatePipeline.Register` 在条自身能应答输入时额外给它一个槽位），条的 `DriveJudgmentFrame` 不再代判它（`!TailBehaviour.JudgesItself` 才走 `childNote.Judgment`），`FailTail` 也拒绝代写。隐藏载体 `HasJudgment == false`，因此拿不到槽位、也不会被条判——「没有任何判定」。\n\n**自动播放那一侧的三处修复（2026-11-12，同一轮）**：① 条的 `AutoJudgment` 以前只在「子音符的 AutoJudgment 返回 true」时才 Done，而已经自判完的子音符（rub、隐藏载体）会回答 false，于是条永远不结束、会话游标停在它身上——满分之后不结算。现在「子音符已 Done」也算完成；`GuideNote` 在末端没有可判音符时按自己的时间直接结束。② `LongNote.IsAutoPlaying` 让自动播放的条过线后保持亮色（没有手指就没有 `HasFinger`）。③ `KeepsHeadOnTheLine` 不再挂在 `IsOrdinaryHead` 上（后者还决定「谁能被判」「谁发布头 Miss」），所以 friction 栏的条体头也停在判定线上，只有 guide 条继续下流。
 
-1. **谁写超时 Miss**：独立尾自己超时 Miss，还是由条在窗口关闭时代写？若由尾自己写，条只负责「解绑并收场」。
-2. **尾先判时条何时退场**：尾在条还亮着时判完了，条立刻 `Done`，还是等自己的可视长度走完？
-3. **条先结束时尾还能不能判**：条因超时收场、尾还在窗口内 —— 允许吗？
+原「待确认的三个问题」的答案：1. **谁写超时 Miss** → 独立尾自己写（R1）。条只负责驱动它、读它的结果、然后退场；`DetachStandaloneTail` 里给未结算尾写 Miss 的那段已删除。
+2. **尾先判时条何时退场** → 不因尾判定而退场（R2）。条走到自己的时间才走（R4）。
+3. **条先结束时尾还能不能判** → **不判**（用户 2026-11-12 明确）：尾的判定到达时条已经 `Done`，就**不要**再判一次，也不许借这次判定把条唤醒或改写任何结果。代码现状正是如此（`JudgeTailAsRelease` / `TrySwipeTail` / `ExpireTail` / `FailTail` 都以 `_bar.State == Done` 早退，`PublishTail` 再把它挡一层），用例 `AVerdictThatArrivesAfterTheBarIsDoneIsNotAskedAgain` 把它钉住。
+
+实施后的登记：`DetachStandaloneTail` 只要求「已过自己的时间」就退场，**不等**尾、也**不写**尾：有判定就读过来，没有就按条自己的 Miss 收场（尾自己的 Miss 由它自己那一轮产生，隐藏尾本来就永不结算）。用例：`AnUntouchedFrictionFlickTailIsGradedMiss`、`AnUnsettledFrictionFlickTailEndsTheBarOnlyWhenItsWindowCloses`、`AFrictionFlickTailIsJudgedByItselfAndTheBarJustDetaches`、`AMissedStandaloneTailShowsItsCharacterEvenThoughTheBarDidNotGradeIt`、`AComboPointTheBarsEndNeverReachedIsSettledPerfect`、`AVerdictIsPublishedBeforeItsBarIsAllowedToLeave`（均在 `Live/FlickEndBehaviourTests`）。
+
+> **时序那一处是修出来的，不是审出来的**：`AVerdictIsPublishedBeforeItsBarIsAllowedToLeave` 先红——尾发布自己的判定那一刻，条已经是 `Done`（四个音符类型都在 `OnUnSpawnNote()` 之前调 `NotifyParentFinished()`）。把两者对调后条才「被这条判定结束」，而不是「先结束了再收到判定」。
 
 ### 类 2：**违规一处（已定位，可立即改）**
 
-`Assets/Game/Runtime/Sekai/Live/Tails/ReleaseTail.cs:19`
+`Assets/Game/Runtime/OpenSekai.Game/Live/Notes/Tails/ReleaseTail.cs:19`
 
 ```csharp
 if (!frame.ReleasedInside || !frame.IsBeingHeld) { return false; }
@@ -104,6 +117,8 @@ if (!frame.ReleasedInside || !frame.IsBeingHeld) { return false; }
 ### 第 0 步（前置）：定义边界 + 两个用例
 
 答完 §2 的两个问题，写 `ATailShiftedToAnotherLaneIsFinishedByLiftingThere`、`ALiftInsideADecorationLaneDoesNotFinishTheNeighbour`，先红后有实现。
+
+**状态（2026-11-12）**：已完成。两个用例在 `Live/DecouplingAcceptanceTests`，且没有变红——实现早就是 §2 建议的方案（抬手按尾键自己的判定范围归属）。§2 的两个问题因此由代码给出了答案：**用尾键的范围，容差取尾键类别自己的**。
 
 ### 第 1 步：`ReleaseTail` 去掉 `IsBeingHeld`
 
@@ -184,7 +199,7 @@ adb pull /sdcard/Android/data/io.github.opensekai/files/logs/live-<stamp>.log
 
 ## 7. 红线
 
-- 不改 `Assets/Game/Runtime/Sekai/Live/LongNoteHead.cs`（头部判定已收口）。
+- 不改 `Assets/Game/Runtime/OpenSekai.Game/Live/Notes/LongNoteHead.cs`（头部判定已收口）。
 - 不把 `LongHoldCombo`（内部点）放回候选集。
 - 不改判定窗口常量（`LongEndJudgement`、`JudgeTuning`）。
 - 不在 `ShowsAsReleased` 里读 `MusicScore.CurrentFrameInfo`（视图每帧读，静态读会绑死帧序）。
@@ -231,7 +246,7 @@ adb pull /sdcard/Android/data/io.github.opensekai/files/logs/live-<stamp>.log
 
 Test16 双押右条 `id=44`：`endsNoJudge=True`（尾是一条 `FrictionHideNote@0.001`），
 `ExpireTail → CanFinishSilently → FinishSilently` 只把 `State` 置 `Done`，
-`JudgeInfo` 仍是 `None`（`Assets/Game/Runtime/Sekai/Live/LongNote.cs:654`），
+`JudgeInfo` 仍是 `None`（`Assets/Game/Runtime/OpenSekai.Game/Live/Notes/LongNote.cs:654`），
 于是这一条的部件被「删除」而不是被结算，全 P 只有 6/7 连击。
 
 同一类「静默删除」在代码里还有三处，但它们的语义不同：
@@ -264,7 +279,7 @@ Test16 双押右条 `id=44`：`endsNoJudge=True`（尾是一条 `FrictionHideNot
 
 ### 10.4 实现位置
 
-- 新增 `private void SettleLeftoverAsPerfect()`（`Assets/Game/Runtime/Sekai/Live/LongNote.cs` 尾部，
+- 新增 `private void SettleLeftoverAsPerfect()`（`Assets/Game/Runtime/OpenSekai.Game/Live/Notes/LongNote.cs` 尾部，
   `FinishSilently` 之上），按 10.2 的三个条件遍历并 `FinishWith(NoteResult.Perfect)`。
 - 只在 `FinishSilently()` 里调用一次，之后再置 `State = NoteState.Done`。
 - `CanFinishSilently` 的前置门禁（`PublishesHeadMiss && !Head.IsSettled ⇒ false`）保留：
@@ -322,7 +337,7 @@ Test16 双押右条 `id=44`：`endsNoJudge=True`（尾是一条 `FrictionHideNot
 - 没有被提前结束 = 没有走 `ForceTerminate` / `FailTail` / 独立尾自判这些出口。
 - 由于尾在条结束前**已经解绑**（`DetachStandaloneTail` 先 `NoteList.Remove(childNote)`，再让尾自己吃超时 Miss），条结束本身不会影响尾键的判定，因此这条路径不需要按尾类型分支。
 
-### 11.2 已实现（`Assets/Game/Runtime/Sekai/Live/LongNote.cs`）
+### 11.2 已实现（`Assets/Game/Runtime/OpenSekai.Game/Live/Notes/LongNote.cs`）
 
 ```csharp
 internal bool CanFinishSilently(float currentTime)
@@ -357,7 +372,7 @@ internal bool CanFinishSilently(float currentTime)
 
 | 文件 | 行 | 语义 |
 | --- | --- | --- |
-| `Assets/Game/Runtime/Sekai/Live/LongNote.cs` | 466 | `ForceTerminate` 写结果后收尾 |
+| `Assets/Game/Runtime/OpenSekai.Game/Live/Notes/LongNote.cs` | 466 | `ForceTerminate` 写结果后收尾 |
 | 同上 | 541 | 尾部结算（`JudgeTail` 路径） |
 | 同上 | 698 | `FinishSilently` |
 | 同上 | 886 | 划尾延迟结算收尾 |
@@ -365,11 +380,11 @@ internal bool CanFinishSilently(float currentTime)
 | 同上 | 961 | `DetachStandaloneTail` 里未结算的独立尾 |
 | 同上 | 1153 | 超时终结 |
 | 同上 | 1484 | 池回收 |
-| `Assets/Game/Runtime/Sekai/Live/NoteBase.cs` | 459 | 通用音符判定后收尾 |
+| `Assets/Game/Runtime/OpenSekai.Game/Live/Notes/NoteBase.cs` | 459 | 通用音符判定后收尾 |
 | 同上 | 565 | `State >= Last` 超时 Miss |
 | 同上 | 696 | 池回收 |
-| `Assets/Game/Runtime/Sekai/Live/FrictionLongNote.cs` | 82 | 摩擦条自判完成 |
-| `Assets/Game/Runtime/Sekai/Live/LongHoldCombo.cs` | 44 / 71 / 106 / 125 / 157 | 中间点判定、终结、发布 |
+| `Assets/Game/Runtime/OpenSekai.Game/Live/Notes/FrictionLongNote.cs` | 82 | 摩擦条自判完成 |
+| `Assets/Game/Runtime/OpenSekai.Game/Live/Notes/LongHoldCombo.cs` | 44 / 71 / 106 / 125 / 157 | 中间点判定、终结、发布 |
 
 检查要点：凡是「条收尾」相关的赋值，都应该经过 `FinishSilently` 或 `ForceTerminate` 二者之一；直接置 `Done` 且不写 `JudgeInfo` 的地方，就是会吞判定的地方。
 
@@ -422,11 +437,19 @@ if (State == NoteState.Last)
 3. **谁来写头的 Miss** 应只有一个出口（建议：`LongNote.Excute` 开头统一调用 `Head.SettleExpiredHead(currentFrameInfo.time)` 已经存在，但它只在 `IsSettled == false && 超过 JudgeTime` 时发布——需确认条被提前 `Done` 时这条路有没有机会跑）。
 4. **条结束后头还能不能判**：条 `Done` 之后 `LongNoteHead.TryJudge` 会被 `if (_bar.State == NoteState.Done) return false;` 挡掉（`LongNoteHead.cs:69`）。这条是否合理要单独定：按当前语义「头只能在自己的窗口内判」，条提前结束不应让头失去判定机会，因此这条早退很可能是多余的。
 
+> **2026-11-12 结案**：第 3 条已做——`LongNote.LeavePlayState()` 是唯一的门，`Head.PublishHeadMiss()` 只从这一个方法里出；四个调用点是过线（`Excute` 的 `Last → Release`）、超时（`SettleExpiredHead`）、`ForceTerminate`、`FinishSilently`。§12.4-1 清单里的 `NoteBase` 三个入口与「池回收」**刻意不纳入**：`NoteBase` 那三处要么在条自己被 `Done` 之后运行（那时头已在出口发布），要么是复用时的 `ResetNote()`，在那里发布会把 Miss 写进下一局。
+>
+> 第 4 条**定为保留**：输入路径已由 `LongNote.IsJudgment` 挡掉 `Done`，而条离场时头必然已发布，所以这行既不会误伤也不会被依赖，只是第二把锁；删掉它反而让直接调用者能驱动已结束条的子音符。理由写在 `LongNoteHead.cs` 该行上方。
+
 ### 12.5 验收
 
 - 新增用例（红→绿）：`ABarThatCrossesTheLineUnpressedStillPublishesItsHeadMiss`（过线不按，断言头的 `OnJudgment` 恰好发一次 Miss、连击 -1）、`ABarFinishedByItsTailStillPublishesTheHead`（尾先结束条，头仍发布）。
 - 真机：Test16 全 P 必须是 7/7；不按右侧时右侧头计 Miss（连击断）。
-- 全量 EditMode 不回归（当前基线 `516 / 512 / 0 / 4`）。
+- 全量 EditMode 不回归（当前基线 `583 / 579 / 0 / 4`）。
+
+> **2026-11-12 补记**：两条用例已写进 `Live/DecouplingAcceptanceTests`，**写入时即通过**——「过线未按」由 `SettleExpiredHead` 兜底、「被尾结束」时头早在按下那一帧就发过。「连击 −1」这一半没断言：`LiveHarness` 不接 `ScoreLogic`，要断它得另开一条带计分的用例。真机那条仍未做。
+>
+> **出口那一轮之后**：`ForceTerminate` 与 `FinishSilently` 已并入 `LeavePlayState()`，红→绿的用例是 `Live/HeadDecouplingTests.ABarEndedBeforeItsHeadIsJudgedStillPublishesTheMiss`（条被 `ForceTerminate(tail)` 结束、头补 Miss、只发布一次），另加 `AnEndingAskedTwiceStillPublishesTheHeadOnce` 与 `APressOnAFinishedBarChangesNothing`。
 
 ## 十三、flick 尾解耦后的判定范围与重复判定（2026-11-11，用户补充）
 
@@ -435,7 +458,7 @@ if (State == NoteState.Last)
 解耦完成后，**flick 尾自己只探测「标准时间之后」的滑动**：
 
 - 尾的标准时间之前发生的滑动，不再由尾自己消费——那属于「按下/预备」阶段，由条的那一侧处理（若仍需要「提前划也有效」的玩法，必须由条记录意图并在尾的时间点之后转达，而不是让尾去读更早的样本）。
-- 因此 flick 尾的判定入口（`Assets/Game/Runtime/Sekai/Live/Tails/SwipeTail.cs` 的 `TryFinish`、以及 `Assets/Game/Runtime/Sekai/Live/LongNote.cs:1040` 的 `TickSwipeTail` 里那段「待结算划动」逻辑）需要按「事件时间 ≥ 尾标准时间」过滤。
+- 因此 flick 尾的判定入口（`Assets/Game/Runtime/OpenSekai.Game/Live/Notes/Tails/SwipeTail.cs` 的 `TryFinish`、以及 `Assets/Game/Runtime/OpenSekai.Game/Live/Notes/LongNote.cs:1040` 的 `TickSwipeTail` 里那段「待结算划动」逻辑）需要按「事件时间 ≥ 尾标准时间」过滤。
 
 ### 13.2 必须防的重复判定
 
@@ -447,18 +470,24 @@ if (State == NoteState.Last)
 
 因此解耦的验收必须包含「**同一根尾只发布一次**」这一条，且不能依赖「`State == Done` 早退」这种间接保证——要显式保证（例如尾自己的 `_published` 标志 + 用例直断发布次数）。
 
+> **2026-11-12 落地**：`LongNoteTail` 有了 `_tailPublished` 与单一发布出口 `PublishTail(result)`（写条的结果 + `CompleteTail`）。三条结算路径 `JudgeTailCore`（抬手/划动判定）、`FailTail`（窗口过期）、`DetachStandaloneTail`（自判尾解绑）全部走它；`ResetDecision()` 不清这个标志（它跑在正要发布的路径上），只有 `Reset()`（池复用）清。`DetachStandaloneTail` 里「把尾从 `NoteList` 摘掉」被挪到发布之后——否则一次被拒的重复结算已经动了列表。
+>
+> 用例（`Live/TailBehaviourContractTests`）：`ASecondVerdictOnTheSameTailChangesNothing` **先红**（`FailTail` 返回 true 并把条的结果从 `JustPerfect` 改写成 `Miss`），把条硬塞回 `Scrolling` 来证明这个保证不靠 `State == Done`；`AReusedBarCanPublishItsTailAgain` 盯「复位后能再发布一次」，防止标志在池里粘住。
+
 ### 13.3 需要一起看的代码
 
 | 位置 | 关注点 |
 | --- | --- |
-| `Assets/Game/Runtime/Sekai/Live/LongNote.cs:1040` `TickSwipeTail` | 待结算划动的清空条件与计数起点 |
-| `Assets/Game/Runtime/Sekai/Live/LongNote.cs` `_swipeTailDeferred` / `_swipeTailCapped` | 谁置位、谁清、能否在解耦后整体删掉 |
-| `Assets/Game/Runtime/Sekai/Live/Tails/SwipeTail.cs` | `TryFinish` 是否读「标准时间之前」的样本 |
-| `Assets/Game/Runtime/Sekai/Live/Tails/SelfJudgedTail.cs` | 摩擦划尾的自判是否同样只看向后的样本 |
-| `Assets/Game/Runtime/Sekai/Live/Tails/ReleaseTail.cs:15` | 抬手判定的入口（已在 §4 第 1 步处理 `IsBeingHeld`） |
+| `Assets/Game/Runtime/OpenSekai.Game/Live/Notes/LongNote.cs:1040` `TickSwipeTail` | 待结算划动的清空条件与计数起点 |
+| `Assets/Game/Runtime/OpenSekai.Game/Live/Notes/LongNote.cs` `_swipeTailDeferred` / `_swipeTailCapped` | 谁置位、谁清、能否在解耦后整体删掉 |
+| `Assets/Game/Runtime/OpenSekai.Game/Live/Notes/Tails/SwipeTail.cs` | `TryFinish` 是否读「标准时间之前」的样本 |
+| `Assets/Game/Runtime/OpenSekai.Game/Live/Notes/Tails/SelfJudgedTail.cs` | 摩擦划尾的自判是否同样只看向后的样本 |
+| `Assets/Game/Runtime/OpenSekai.Game/Live/Notes/Tails/ReleaseTail.cs:15` | 抬手判定的入口（已在 §4 第 1 步处理 `IsBeingHeld`） |
 
 ### 13.4 验收用例
 
 - `AFlickTailIgnoresSamplesFromBeforeItsOwnTime`：标准时间之前给一串滑动样本，尾不得判定；到点后给同一方向的样本才判定。
 - `AFlickTailPublishesOnceEvenIfTheBarKeepsTicking`：尾判定之后继续驱动 5 帧（覆盖 3 帧宽限），断言发布次数恰好 1、连击只 +1。
 - 真机：Test16 + 含 flick 尾的谱面，验证「提前划」与「正点划」都不出双判定、也不吞判定。
+
+**状态（2026-11-12）**：前两条已写进 `Live/DecouplingAcceptanceTests`（分别按"400 ms 前"和"连续 30 帧"驱动，比这里的口径更宽），写入时通过。真机那条仍未做。
