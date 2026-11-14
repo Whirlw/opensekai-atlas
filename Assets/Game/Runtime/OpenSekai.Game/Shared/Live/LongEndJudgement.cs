@@ -28,6 +28,13 @@ namespace OpenSekai.Shared.Live
             return ms >= -EarlyGoodMs && ms <= LateGoodMs;
         }
 
+        /// <summary>Whether a release at this offset lands in the Perfect band (graded JustPerfect).</summary>
+        public static bool IsPerfect(float offsetSeconds)
+        {
+            float ms = offsetSeconds * 1000f;
+            return ms >= -EarlyPerfectMs && ms <= LatePerfectMs;
+        }
+
         public static bool IsPast(float offsetSeconds) => offsetSeconds * 1000f > LateGoodMs;
 
         /// <summary>
