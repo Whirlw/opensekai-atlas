@@ -137,6 +137,10 @@ namespace OpenSekai.Shared.Diagnostics
                 return;
             }
 
+            // A quit closes the file while the switch stays on: the next line has to start a new one,
+            // or a resumed session would log to the console and the ring buffer only.
+            EnsureSink();
+
             string line = string.Concat("[TL][", category.ToString(), "] ", message);
             Push(line);
             Debug.Log(line);
@@ -157,6 +161,8 @@ namespace OpenSekai.Shared.Diagnostics
             {
                 return;
             }
+
+            EnsureSink();
 
             string line = string.Concat("[TL][INVARIANT] ", message);
             Push(line);
@@ -215,6 +221,14 @@ namespace OpenSekai.Shared.Diagnostics
             }
         }
 
+        private static void EnsureSink()
+        {
+            if (_sink == null)
+            {
+                OpenSink();
+            }
+        }
+
         private static void OpenSink()
         {
             if (_sink != null)
@@ -226,7 +240,16 @@ namespace OpenSekai.Shared.Diagnostics
             {
                 string directory = Path.Combine(Application.persistentDataPath, "logs");
                 Directory.CreateDirectory(directory);
-                _logFilePath = Path.Combine(directory, "live-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".log");
+                // A run can be opened twice inside one second (leaving play mode and entering it
+                // again): the second sink must not truncate the first run in that case.
+                string stamp = "live-" + DateTime.Now.ToString("yyyyMMdd-HHmmss");
+                string candidate = Path.Combine(directory, stamp + ".log");
+                for (int suffix = 1; File.Exists(candidate); suffix++)
+                {
+                    candidate = Path.Combine(directory, stamp + "-" + suffix + ".log");
+                }
+
+                _logFilePath = candidate;
                 // FileShare.Read so a running capture can be pulled and read while the game is still
                 // writing it; without it the sink locks its own file on this platform.
                 var stream = new FileStream(_logFilePath, FileMode.Create, FileAccess.Write, FileShare.Read);

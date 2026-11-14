@@ -120,6 +120,31 @@ namespace EditMode.Diagnostics
         }
 
         [Test]
+        public void ALineAfterAShutdownStartsANewFileInsteadOfTruncatingTheOldOne()
+        {
+            LiveTrace.Enabled = true;
+            LiveTrace.Write(LiveTraceCategory.Hold, "before-quit");
+            string first = LiveTrace.LogFilePath;
+
+            LiveTrace.Shutdown();
+            LiveTrace.Write(LiveTraceCategory.Hold, "after-quit");
+
+            Assert.That(LiveTrace.LogFilePath, Is.Not.EqualTo(first), "a resumed run gets its own file");
+            Assert.That(System.IO.File.Exists(first), Is.True, "and the finished run is still on disk");
+            StringAssert.Contains("before-quit", ReadAll(first));
+        }
+
+        private static string ReadAll(string path)
+        {
+            // The current sink still holds its own file, so the reader has to permit it.
+            using (var stream = new System.IO.FileStream(path, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite))
+            using (var reader = new System.IO.StreamReader(stream))
+            {
+                return reader.ReadToEnd();
+            }
+        }
+
+        [Test]
         public void AViolationThatDoesNotHoldIsSilent()
         {
             LiveTrace.Enabled = true;
