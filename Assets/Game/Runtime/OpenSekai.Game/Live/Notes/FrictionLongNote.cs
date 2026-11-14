@@ -81,6 +81,11 @@ namespace Sekai.Live
 
 			isTouched = true;
 			RecordHoldingInput(touch.musicTime);
+			// The body's freshness check reads "a finger was recorded but this frame was not marked" as the
+			// finger leaving. An ordinary bar marks it in DriveJudgmentFrame; without the mark here every
+			// held rub bar dropped to Last on each update and was put back to Input by the next input pass
+			// (292 of 319 state changes in the 2026-11-14 trace).
+			MarkPressedThisFrame();
 			OffsetJudgeTime = 0f;
 			ConnectionNoteJudgment(ref touch, lane);
 
