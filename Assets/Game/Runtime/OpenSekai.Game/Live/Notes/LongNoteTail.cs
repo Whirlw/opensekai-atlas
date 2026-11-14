@@ -327,13 +327,21 @@ namespace Sekai.Live
 		/// right away would reward an early swipe exactly like an on time one, and the rule defers
 		/// to the third frame after the release so that the swipe is graded closer to the tail time.
 		/// </summary>
-		internal bool NotifyLaneSwipe(float magnitude, float currentTime)
+		internal bool NotifyLaneSwipe(float magnitude, float currentTime, bool fromTailLane = false)
 		{
 			// The speed gate already ran in TrySwipeTail; a raw displacement threshold here would
 			// reject a 5 cm/s swipe at high frame rates, where one frame moves under a millimetre.
 			if (!CanSettle() || !_bar.TailBehaviour.AcceptsSwipe || magnitude <= 0f)
 			{
 				return false;
+			}
+
+			// A swipe outside the bar but inside its tail's lane is the one way in that does not go
+			// through the bar: it is graded now or not at all, never deferred.
+			if (fromTailLane)
+			{
+				// A wrong-way swipe is capped at Great, so it cannot pass the Perfect bar either.
+				return !_swipeTailCapped && AcceptsSwipeFromTailLane(currentTime) && JudgeTail(currentTime);
 			}
 
 			// The end point only exists once the bar is being held. Without this a swipe made right
@@ -364,6 +372,28 @@ namespace Sekai.Live
 			}
 
 			return JudgeTail(currentTime);
+		}
+
+		/// <summary>
+		/// The opening for a swipe that is not on the bar. Before the tail time a swipe inside the bar
+		/// waits for the release; a swipe outside it used to be dropped. It is now taken when it is inside
+		/// the tail note's own lane and would be graded Perfect right now: the finger is already where
+		/// the bar ends, and only close enough to the tail time to deserve that grade.
+		/// </summary>
+		internal bool AcceptsSwipeFromTailLane(float lane, float currentTime) =>
+			Child != null && lane >= Child.JudgeLaneStart && lane <= Child.JudgeLaneEnd
+			&& AcceptsSwipeFromTailLane(currentTime);
+
+		private bool AcceptsSwipeFromTailLane(float currentTime)
+		{
+			if (!CanSettle() || !_bar.TailBehaviour.AcceptsSwipe || _swipeTailDeferred
+				|| currentTime >= Child.MusicScoreInfo.time || !IsTailWindowOpenAt(currentTime))
+			{
+				return false;
+			}
+
+			NoteResult grade = LongEndJudgement.Evaluate(currentTime - Child.MusicScoreInfo.time);
+			return grade >= NoteResult.Perfect;
 		}
 
 		/// <summary>A swipe was seen and is waiting for the release that starts the countdown.</summary>
@@ -519,15 +549,17 @@ namespace Sekai.Live
 		/// a left flick is not finished by a swipe to the right, and a vertical drag inside a single
 		/// lane is only a flick when the tail accepts any direction.
 		/// </summary>
-		internal bool TrySwipeTail(Vector2 delta, float deltaTime, float currentTime, int? touchId = null)
+		internal bool TrySwipeTail(Vector2 delta, float deltaTime, float currentTime, int? touchId = null,
+			bool fromTailLane = false)
 		{
 			if (!CanSettle() || !_bar.TailBehaviour.AcceptsSwipe)
 			{
 				return false;
 			}
 
-			// The end point only exists while the bar is being held and inside its tail window.
-			if (!CanReceiveSwipe)
+			// The end point only exists while the bar is being held and inside its tail window. A swipe
+			// in the tail's lane is not on the bar, so whether the bar is held is not its question.
+			if (fromTailLane ? !AcceptsSwipeFromTailLane(currentTime) : !CanReceiveSwipe)
 			{
 				return false;
 			}
@@ -609,7 +641,7 @@ namespace Sekai.Live
 
 			// The latest qualifying swipe supplies the direction cap for deferred grading.
 			_swipeTailCapped = !trueDirection;
-			return NotifyLaneSwipe(delta.magnitude, currentTime);
+			return NotifyLaneSwipe(delta.magnitude, currentTime, fromTailLane);
 		}
 	}
 }

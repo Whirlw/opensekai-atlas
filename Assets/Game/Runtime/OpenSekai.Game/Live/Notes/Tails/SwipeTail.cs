@@ -19,7 +19,8 @@ namespace Sekai.Live.Tails
 			// easier to turn into a good grade.
 			if (frame.SwipeDelta.x != 0f || frame.SwipeDelta.y != 0f)
 			{
-				bar.TrySwipeTail(frame.SwipeDelta, frame.DeltaTime, frame.Now, frame.SwipeTouchId);
+				bar.TrySwipeTail(frame.SwipeDelta, frame.DeltaTime, frame.Now, frame.SwipeTouchId,
+					frame.SwipeFromTailLane);
 			}
 
 			// The release frame itself is frame zero: ticking before recording it keeps the countdown

@@ -10,7 +10,7 @@ namespace Sekai.Live.Tails
 	public readonly struct TailFrame
 	{
 		public TailFrame(float now, float deltaTime, Vector2 swipeDelta, bool releasedInside, bool covered,
-			int? swipeTouchId = null)
+			int? swipeTouchId = null, bool swipeFromTailLane = false)
 		{
 			Now = now;
 			DeltaTime = deltaTime;
@@ -18,6 +18,7 @@ namespace Sekai.Live.Tails
 			ReleasedInside = releasedInside;
 			Covered = covered;
 			SwipeTouchId = swipeTouchId;
+			SwipeFromTailLane = swipeFromTailLane;
 		}
 
 		/// <summary>Music time of this frame.</summary>
@@ -29,6 +30,13 @@ namespace Sekai.Live.Tails
 		/// <summary>Net finger travel seen this frame inside the bar.</summary>
 		public Vector2 SwipeDelta { get; }
 		public int? SwipeTouchId { get; }
+
+		/// <summary>
+		/// The swipe started outside the bar but inside its tail's lane, before the tail time. It is not
+		/// deferred like a swipe inside the bar: it is graded at once, and only when that grade is
+		/// Perfect (<see cref="LongNote.AcceptsSwipeFromTailLane"/>).
+		/// </summary>
+		public bool SwipeFromTailLane { get; }
 
 		/// <summary>A finger was lifted inside the bar (holder, or a finger inside its judge lane).</summary>
 		public bool ReleasedInside { get; }

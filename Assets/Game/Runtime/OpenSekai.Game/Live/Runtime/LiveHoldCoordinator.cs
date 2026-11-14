@@ -23,12 +23,14 @@ namespace Sekai.Core.Live
 
 		private readonly int[] _holdInputNotes;
 		private readonly LongNote[] _swipeTargets;
+		private readonly bool[] _swipeFromTailLane;
 		private readonly HashSet<int> _usedLiftFingers = new HashSet<int>();
 
 		public LiveHoldCoordinator(int inputCapacity)
 		{
 			_holdInputNotes = new int[inputCapacity];
 			_swipeTargets = new LongNote[inputCapacity];
+			_swipeFromTailLane = new bool[inputCapacity];
 		}
 
 		/// <summary>
@@ -190,7 +192,7 @@ namespace Sekai.Core.Live
 			int count = inputs.Count;
 			for (int i = 0; i < count; i++)
 			{
-				_swipeTargets[i] = PickSwipeTarget(judgmentNotes, inputs[i], frame.time);
+				_swipeTargets[i] = PickSwipeTarget(judgmentNotes, inputs[i], frame.time, out _swipeFromTailLane[i]);
 			}
 
 			for (int noteIndex = 0; noteIndex < judgmentNotes.Count; noteIndex++)
@@ -204,6 +206,7 @@ namespace Sekai.Core.Live
 				bool covered = false;
 				int? deferredTouch = held.DeferredSwipeTouchId;
 				LiveLogic.InputTmp swipe = null;
+				bool swipeFromTailLane = false;
 				for (int inputIndex = 0; inputIndex < count; inputIndex++)
 				{
 					LiveLogic.InputTmp input = inputs[inputIndex];
@@ -212,10 +215,16 @@ namespace Sekai.Core.Live
 						continue;
 					}
 
+					// A swipe on the bar is preferred over one through the tail-lane opening; between two of
+					// the same kind the larger movement wins.
+					bool fromTailLane = _swipeFromTailLane[inputIndex];
 					if (ReferenceEquals(_swipeTargets[inputIndex], held)
-						&& (swipe == null || input.Touch.delta.sqrMagnitude > swipe.Touch.delta.sqrMagnitude))
+						&& (swipe == null || (swipeFromTailLane && !fromTailLane)
+							|| (swipeFromTailLane == fromTailLane
+								&& input.Touch.delta.sqrMagnitude > swipe.Touch.delta.sqrMagnitude)))
 					{
 						swipe = input;
+						swipeFromTailLane = fromTailLane;
 					}
 
 					if (IsEndedOrCanceled(input.Touch.phase) || !TouchesBar(input.Lane, held))
@@ -258,7 +267,8 @@ namespace Sekai.Core.Live
 					bool gestureCovered = gestureTouch.HasValue
 						? IsTouchStillOnBar(inputs, gestureTouch.Value, held) : covered;
 					held.TailBehaviour.TryFinish(held, new TailFrame(frame.time, deltaTime,
-						swipe?.Touch.delta ?? Vector2.zero, swipeEnded, gestureCovered, swipe?.Touch.touchId));
+						swipe?.Touch.delta ?? Vector2.zero, swipeEnded, gestureCovered, swipe?.Touch.touchId,
+						swipeFromTailLane));
 				}
 
 				// The tail can keep judging after the body reaches its endpoint.
@@ -271,6 +281,7 @@ namespace Sekai.Core.Live
 			}
 
 			Array.Clear(_swipeTargets, 0, count);
+			Array.Clear(_swipeFromTailLane, 0, count);
 		}
 
 		// Where the bar is now: a bending body leaves its head's lanes, and the finger that follows it
@@ -292,8 +303,16 @@ namespace Sekai.Core.Live
 			return false;
 		}
 
-		private static LongNote PickSwipeTarget(List<NoteBase> judgmentNotes, LiveLogic.InputTmp input, float time)
+		/// <summary>
+		/// The one bar a finger's movement this frame is offered to. A bar the finger is on wins, nearest
+		/// first. Only when the finger is on no bar may it go to a flick tail it is not on, through the
+		/// tail-lane opening (<see cref="LongNote.AcceptsSwipeFromTailLane"/>); <paramref name="fromTailLane"/>
+		/// says the target came that way.
+		/// </summary>
+		private static LongNote PickSwipeTarget(List<NoteBase> judgmentNotes, LiveLogic.InputTmp input, float time,
+			out bool fromTailLane)
 		{
+			fromTailLane = false;
 			if (input == null || input.Touch.delta.sqrMagnitude == 0f)
 			{
 				return null;
@@ -310,11 +329,29 @@ namespace Sekai.Core.Live
 
 			LongNote best = null;
 			float bestDistance = float.MaxValue;
+			LongNote outside = null;
+			float outsideTime = float.MaxValue;
 			foreach (NoteBase note in judgmentNotes)
 			{
-				if (note is not LongNote bar || !bar.CanReceiveTailSwipe
-					|| !bar.TailBehaviour.AcceptsSwipe || !TouchesBar(lane, bar)
-					|| !bar.IsTailWindowOpenAt(time))
+				if (note is not LongNote bar || !bar.TailBehaviour.AcceptsSwipe)
+				{
+					continue;
+				}
+
+				if (!TouchesBar(lane, bar))
+				{
+					// Before the tail time a swipe outside the bar used to be dropped. Inside the tail's
+					// lane and inside its Perfect band it finishes the tail; the earliest such tail wins.
+					if (bar.AcceptsSwipeFromTailLane(lane, time)
+						&& bar.TailNote.MusicScoreInfo.time < outsideTime)
+					{
+						outside = bar;
+						outsideTime = bar.TailNote.MusicScoreInfo.time;
+					}
+					continue;
+				}
+
+				if (!bar.CanReceiveTailSwipe || !bar.IsTailWindowOpenAt(time))
 				{
 					continue;
 				}
@@ -335,6 +372,12 @@ namespace Sekai.Core.Live
 					best = bar;
 					bestDistance = distance;
 				}
+			}
+
+			if (best == null && outside != null)
+			{
+				fromTailLane = true;
+				return outside;
 			}
 
 			return best;

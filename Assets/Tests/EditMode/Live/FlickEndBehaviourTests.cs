@@ -1775,6 +1775,86 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
+		// Before the tail time a swipe on the bar waits for the release; a swipe off the bar used to be
+		// dropped. The opening: off the bar, inside the tail note's lane, and inside the Perfect band.
+		private static (LongNote bar, FlickNote tail) BarEndingInAnotherLane(NoteDirection direction = NoteDirection.Default)
+		{
+			var bar = new LongNote(Info(0f), 201, 2, 3, NoteCategory.Long, NoteType.Default, 1, 0);
+			var tail = new FlickNote(Info(1f), 202, 8, 9, NoteCategory.Flick, 1, NoteType.Default, direction, 0, 0f);
+			bar.AddNoteListAndSetupChildNote(tail);
+			var head = Touch(0f, TouchPhase.Began);
+			bar.Judgment(ref head, 2.5f);
+			bar.RecordHoldingInput(0f);
+			return (bar, tail);
+		}
+
+		private static Sekai.Core.Live.LiveLogic.InputTmp SwipeAtLane(float time, float lane, Vector2 delta, int fingerId)
+		{
+			var input = Finger(time, TouchPhase.Moved, lane, delta, fingerId);
+			input.PreviousLane = lane;
+			return input;
+		}
+
+		private static void SwipeOffTheBar(LongNote bar, FlickNote tail, float time, Vector2 delta)
+		{
+			const float tailLane = 8.5f;
+			Assume.That(tailLane, Is.InRange(tail.JudgeLaneStart, tail.JudgeLaneEnd), "the swipe is in the tail's lane");
+			Assume.That(tailLane < bar.BodyLaneStart || tailLane > bar.BodyLaneEnd, Is.True, "and off the bar");
+
+			var logic = NewLogic(bar);
+			logic.currentFrameInfo = Info(time);
+			Cover(logic, Finger(time, TouchPhase.Stationary, 2.5f, Vector2.zero, 1),
+				SwipeAtLane(time, tailLane, delta, 2));
+		}
+
+		[Test]
+		public void AnEarlySwipeOffTheBarInTheTailsLaneIsTakenWhenItIsPerfect()
+		{
+			var (bar, tail) = BarEndingInAnotherLane();
+
+			SwipeOffTheBar(bar, tail, 0.96f, new Vector2(60f, 0f));
+
+			Assert.That(bar.HasDeferredSwipe, Is.False, "it is not deferred like a swipe on the bar");
+			Assert.That(tail.Result, Is.EqualTo(NoteResult.JustPerfect), "40 ms early is inside the Perfect band");
+			Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+		}
+
+		[Test]
+		public void AnEarlySwipeOffTheBarThatWouldOnlyBeGreatIsStillIgnored()
+		{
+			var (bar, tail) = BarEndingInAnotherLane();
+
+			SwipeOffTheBar(bar, tail, 0.92f, new Vector2(60f, 0f));
+
+			Assert.That(bar.HasDeferredSwipe, Is.False);
+			Assert.That(tail.Result, Is.EqualTo(NoteResult.None), "80 ms early is Great, not Perfect");
+			Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done));
+		}
+
+		[Test]
+		public void AWrongWaySwipeOffTheBarIsIgnoredBecauseItCannotBePerfect()
+		{
+			var (bar, tail) = BarEndingInAnotherLane(NoteDirection.Left);
+
+			SwipeOffTheBar(bar, tail, 0.96f, new Vector2(60f, 0f));
+
+			Assert.That(tail.Result, Is.EqualTo(NoteResult.None), "a wrong-way swipe is capped at Great");
+			Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done));
+		}
+
+		[Test]
+		public void AnEarlySwipeOffTheBarOutsideTheTailsLaneIsStillIgnored()
+		{
+			var (bar, tail) = BarEndingInAnotherLane();
+			var logic = NewLogic(bar);
+			logic.currentFrameInfo = Info(0.96f);
+			Cover(logic, Finger(0.96f, TouchPhase.Stationary, 2.5f, Vector2.zero, 1),
+				SwipeAtLane(0.96f, 5.5f, new Vector2(60f, 0f), 2));
+
+			Assert.That(tail.Result, Is.EqualTo(NoteResult.None));
+			Assert.That(bar.HasDeferredSwipe, Is.False);
+		}
+
 		/// <summary>One frame of hold coverage, driven through the coordinator the live loop uses.</summary>
 		private static void CoverHolds(Sekai.Core.Live.LiveLogic logic)
 		{
