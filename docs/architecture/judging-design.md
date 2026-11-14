@@ -314,6 +314,7 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 | 不变量 | 位置 |
 | --- | --- |
 | 头的 key 停不停在判定线，只由 `KeepsHeadOnTheLine` 决定（普通头停、摩擦头与 guide 走） | `LongNoteView` |
+| 摩擦头的 key 与独立 friction 音符同生命周期：判定（搓到、自动或 Miss）的那一帧即消失，判定特效按头的 `FrictionLong` 身份播放，条身继续；判据 `LongNote.HeadKeyLeftWithItsVerdict` | `LongNoteView` |
 | 条的 key 在「条结束」或「末端标准时间到」时立即消失 | `LongNoteView.Move` |
 | 普通尾、划键尾、摩擦尾和摩擦划键尾持续移动，在自身命中或 Miss 时释放视图 | `LiveNoteSession.TickTails`、`NoteBase.OnUnSpawnNote` |
 | 隐藏尾为无可见键的几何锚点 | `LongNote.LineNoteList` |
@@ -360,5 +361,5 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 | 按下通道只收按下步 | `LiveLogicInputTests`、`HiddenCarrierJudgingTests`、`NotePressDispositionTests` |
 | 自己判定的尾 | `TailBehaviourContractTests`、`FrictionFlickTailArmingTests`、`LongNoteViewLifetimeTests` |
 | 短条与头的窗口 | `ShortBarHeadWindowTests` |
-| 贴图生命周期 | `LongNoteKeyLifetimeTests`、`TailKeyRetirementTests` |
+| 贴图生命周期 | `LongNoteKeyLifetimeTests`、`TailKeyRetirementTests`、`FrictionHeadLifetimeTests` |
 | 车道、抬起与划键尾归属 | `TouchLaneTests`、`TailReleaseLaneTests`、`HoldQuotaTests` |

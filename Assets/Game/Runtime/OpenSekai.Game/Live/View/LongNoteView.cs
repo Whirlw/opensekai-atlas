@@ -28,9 +28,10 @@ namespace Sekai
 			// outlive the note: once the bar is done, or its end note's own time has arrived (whichever comes
 			// first), the key has nothing left to show and is taken off instead of staying pinned there with
 			// the body.
+			// A rub head's key goes the moment the head is judged, like a standalone friction note.
 			if (note.State == NoteState.Done
-				|| (note is LongNote endedBar && endedBar.ChildNote != null
-					&& musicTime >= endedBar.ChildNote.MusicScoreInfo.time))
+				|| (note is LongNote endedBar && (endedBar.HeadKeyLeftWithItsVerdict
+					|| (endedBar.ChildNote != null && musicTime >= endedBar.ChildNote.MusicScoreInfo.time))))
 			{
 				if (LiveTrace.IsOn(LiveTraceCategory.View))
 				{

@@ -321,6 +321,13 @@ namespace Sekai.Live
 		internal bool KeepsHeadOnTheLine => IsOrdinaryHead;
 
 		/// <summary>
+		/// Whether the bar's key has left with the head's verdict. A rub head lives like a standalone
+		/// friction note: it travels to the line, and the moment it is judged (rubbed, auto-played or
+		/// missed) its key disappears while the judgement effect plays. The body goes on without it.
+		/// </summary>
+		internal bool HeadKeyLeftWithItsVerdict => this is FrictionLongNote && Head.IsSettled;
+
+		/// <summary>
 		/// A bar greys when its hold lapses. A returning finger lights it again while the
 		/// post-head state still drives grace and tail judgement.
 		/// </summary>
