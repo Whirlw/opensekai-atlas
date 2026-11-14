@@ -32,10 +32,11 @@ namespace OpenSekai.Tests.EditMode.Live
             internal float LastTime => lastInputTime;
             internal void SetLastTime(float time) { lastInputTime = time; }
             internal int JudgmentCalls;
-            public override bool Judgment(ref LiveTouch touch, float lane)
+            // Counts the resident pass's drives: that is the entry the scheduler gives a held bar.
+            internal override bool DriveResidentFrame(ref LiveTouch touch, float lane)
             {
                 JudgmentCalls++;
-                return base.Judgment(ref touch, lane);
+                return base.DriveResidentFrame(ref touch, lane);
             }
         }
 
@@ -47,10 +48,10 @@ namespace OpenSekai.Tests.EditMode.Live
                 AddNoteListAndSetupChildNote(new NormalNote(Info(10), 2, 4, 5, NoteCategory.Normal, 1, NoteType.Default, 0));
                 Excute(Info(0), 0);
             }
-            public override bool Judgment(ref LiveTouch touch, float lane)
+            internal override bool DriveResidentFrame(ref LiveTouch touch, float lane)
             {
                 Calls++;
-                return base.Judgment(ref touch, lane);
+                return base.DriveResidentFrame(ref touch, lane);
             }
         }
 

@@ -174,10 +174,11 @@ namespace Sekai.Core.Live
 					InputTmp input = _input.ActiveInputs[i];
 					float lane = input.Lane;
 					if (lane < 0f) continue;
-					if (note is LongNote)
+					if (note is LongNote bar)
 					{
 						if (i != barInput) continue;
-						note.Judgment(ref input.Touch, lane);
+						// The body's frame only: the head was the press channel's to answer.
+						bar.DriveResidentFrame(ref input.Touch, lane);
 					}
 					else
 					{

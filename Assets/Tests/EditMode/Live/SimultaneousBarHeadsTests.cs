@@ -123,5 +123,33 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(longBar.Head.Result, Is.Not.EqualTo(NoteResult.None).And.Not.EqualTo(NoteResult.Miss),
 				"the long bar's head is pressed on the same frame and must be judged too");
 		}
+
+		[Test]
+		public void APressSpentOnATapDoesNotAlsoJudgeTheHeadsUnderTheSameFinger()
+		{
+			// Device trace 2026-11-14, touch 1781: one press at 11.270 picked the tap at 11.211 (Great), and
+			// the resident pass then handed the same Began sample to the two bars under the finger, whose
+			// heads at 11.289 and 11.368 came out Perfect and Good. Same layout, shifted to start at 0.5.
+			using var harness = new LiveHarness();
+			var tap = new NormalNote(Info(0.5f), 1, 3, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f);
+			var near = new LongNote(Info(0.578f), 2, 0, 3, NoteCategory.Long, NoteType.Default, 1f, 0f);
+			near.AddNoteListAndSetupChildNote(new NormalNote(Info(1.5f), 3, 0, 3, NoteCategory.Normal, 1f, NoteType.Default, 0f));
+			var far = new LongNote(Info(0.657f), 4, 0, 3, NoteCategory.Long, NoteType.Default, 1f, 0f);
+			far.AddNoteListAndSetupChildNote(new NormalNote(Info(1.6f), 5, 0, 3, NoteCategory.Normal, 1f, NoteType.Default, 0f));
+			harness.Arrange(ScoreOf(tap, near, far));
+
+			const float press = 0.559f;
+			for (int frame = 0; frame * Frame < press; frame++)
+			{
+				harness.Step(frame * Frame, InputBase + frame * Frame);
+			}
+
+			harness.Step(press, InputBase + press,
+				LiveHarness.Touch(1, LanePosition(3f), InputBase + press, InputTouchPhase.Began));
+
+			Assert.That(tap.Result, Is.Not.EqualTo(NoteResult.None), "the press channel spends the press on the tap");
+			Assert.That(near.Head.Result, Is.EqualTo(NoteResult.None), "the finger's one press is already spent");
+			Assert.That(far.Head.Result, Is.EqualTo(NoteResult.None), "the finger's one press is already spent");
+		}
 	}
 }

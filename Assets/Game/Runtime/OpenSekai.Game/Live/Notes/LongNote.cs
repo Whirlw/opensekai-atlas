@@ -220,8 +220,18 @@ namespace Sekai.Live
 			return Head.Judgment(ref touch, lane);
 		}
 
+		/// <summary>
+		/// The resident pass's entry: the body, points and tail, never the head. A head is an instant key
+		/// the press channel answers with the finger's single press credit. Reaching it from here handed the
+		/// same Began sample to every bar under the finger after the press channel had already spent it on
+		/// another note - one tap judged a tap note and two heads in the same frame (device trace: touch
+		/// 1781 at 11.270 graded tap 13981 Great, then heads 13984 Good and 13982 Perfect).
+		/// </summary>
+		internal virtual bool DriveResidentFrame(ref LiveTouch touch, float lane) =>
+			DriveJudgmentFrame(ref touch, lane, judgeHead: false);
+
 		/// <summary>Feeds this bar one input frame: head, hold facts, frame stamp, points and tail.</summary>
-		internal bool DriveJudgmentFrame(ref LiveTouch touch, float lane)
+		internal bool DriveJudgmentFrame(ref LiveTouch touch, float lane, bool judgeHead = true)
 		{
 			// A bar is driven only by a finger inside its own judge range. The candidate pipe gates on
 			// LongNote.IsJudgment, but this entry is also reached from the head's candidate and from the hold
@@ -242,7 +252,7 @@ namespace Sekai.Live
 			// instant key with its own window, and the bar sticking it to the body is only a picture: whether
 			// the bar is still playing, released, greyed or already finished says nothing about the head.
 			// The head's own guard is IsSettled, so a settled head is never judged twice.
-			bool headTaken = Head.TryJudge(ref touch, lane);
+			bool headTaken = judgeHead && Head.TryJudge(ref touch, lane);
 
 			// Everything below is the body's business, and a finished bar has none: no hold, no points.
 			if (State == NoteState.Done)
