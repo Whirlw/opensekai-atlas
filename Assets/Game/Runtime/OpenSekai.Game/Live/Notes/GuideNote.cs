@@ -54,11 +54,6 @@ namespace Sekai.Live
 				State = NoteState.Scrolling;
 			}
 
-			if (State == NoteState.Last)
-			{
-				JudgeInfo = (NoteResult.Pass, NoteResultDescription.None);
-			}
-
 			Progress = CalcProgress(currentFrameInfo, offsetTime);
 			if (NoteList != null)
 			{
@@ -85,11 +80,28 @@ namespace Sekai.Live
 			var nextNote = (INote)childNote;
 			LiveUtility.CalcExcuteNoteLane(this, ref currentNote, ref nextNote, ref currentFrameInfo, MusicScoreInfo, childNote);
 
-			if (State == NoteState.Scrolling && LiveConfig.JudgeTime < currentFrameInfo.time - MusicScoreInfo.time)
+			// A guide bar is never held, so it never goes Last: that state is the grace of a bar that lost
+			// its finger, and it is what greyed every guide bar the moment its head reached the line. Its
+			// head is passed silently and the bar stays Scrolling, lit, until its last point; the body
+			// mesh already stops at the judgement line.
+			if (Result == NoteResult.None && currentFrameInfo.time >= MusicScoreInfo.time)
 			{
-				State = NoteState.Last;
+				JudgeInfo = (NoteResult.Pass, NoteResultDescription.None);
+			}
+
+			// Nothing else ends a guide bar outside autoplay: it takes no input, so it never joins the
+			// judgement list and the tail pass never sees it. It ends once its last point has passed - and
+			// when it ends on a key the player plays, once that key has its verdict too, so the key keeps
+			// its late window (ending the bar stops the scan that registers that key).
+			if (currentFrameInfo.time > BodyEndTime
+				&& (childNote == null || !childNote.HasJudgment || childNote.State == NoteState.Done))
+			{
+				State = NoteState.Done;
 			}
 		}
+
+		/// <summary>A guide bar is drawn lit for its whole life: nobody holds it, so nobody can let go.</summary>
+		public override bool ShowsAsReleased => false;
 
 		public override bool IsJudgment(ref LiveTouch touch, float lane)
 		{
