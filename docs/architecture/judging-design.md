@@ -5,7 +5,7 @@
 > 前置条件：读过[打歌运行时](live-runtime.md)、[判定窗口](../reference/judging.md)。
 > 最后更新：2026-11-14
 
-本文描述现行实现。判定窗口由 `LiveConfig` 和长条尾实际使用的 `LongEndJudgement` 定义，轨道容差与划键距离来自 `LiveBundleBuildData.asset`。
+本文以当前工作区代码为准，描述手动判定、自动播放及排查入口；它不是上游版本的规则说明。判定窗口由 `LiveConfig` 和长条尾实际使用的 `LongEndJudgement` 定义，轨道容差与划键距离来自 `LiveBundleBuildData.asset`。文中的时间单位为毫秒时，数值是便于阅读的近似值；边界是否包含以对应代码为准。`Last` 是状态名，在长条、内部点和普通音符上有不同含义，不能一概解释为已经 Miss。
 
 ---
 
@@ -68,7 +68,9 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 | 画面延迟 V | 画面晚多少毫秒到眼睛 | 只移画面（提前 V 绘制） |
 | 判定偏移 J | 玩家习惯，正 = 打得晚 | 只移判定 |
 
-所有判定点（按下、抬起、超时 Miss、内部点）都在同一条逻辑时钟上，所以 J 通过移动逻辑时钟实现，再让画面多提前 J 抵消：`逻辑 = 音频 − (L + J)`，`画面 = 逻辑 + (V + J) = 音频 − L + V`。控制器把逻辑时钟交给 `LiveLogic.OnUpdate`，把画面时钟交给各视图；键的精灵由 `LiveConfig.ViewProgressOf` 在逻辑进度上加 `ViewLeadSeconds`，还没到线的键提前、最多到线为止，已在线上或越过线的键（被钉住、按住、越线）按逻辑位置画。条身直接用画面时钟。自动播放不应用 J。打击音不补偿：它只能在知道按下之后才开始。旧的 `TimingAdjustData`（整钟平移、单位 1/60 s）读取时一次性迁移为 `AudioLatencyMs = −帧数 × 16.67`。
+所有判定点使用逻辑时钟，按下和独立划键还会在其基础上映射触摸样本时间。未触及零点时，`逻辑 = 音频 − (L + J)`，`画面 = 音频 − L + V`；实际 `LogicTime` 和 `ViewTime` 分别把结果下限限制为 0，接近开头时不能直接套用未截断的等式。控制器把逻辑时钟交给 `LiveLogic.OnUpdate`，把画面时钟交给各视图；键的精灵由 `LiveConfig.ViewProgressOf` 在逻辑进度上加 `ViewLeadSeconds`，还没到线的键提前、最多到线为止，已在线上或越过线的键按逻辑位置画。条身直接用画面时钟。自动播放不应用 J。打击音不补偿：它只能在知道按下之后才开始。旧的 `TimingAdjustData`（单位 1/60 s）读取时迁移为 `AudioLatencyMs = −帧数 × 16.67`，并受音频延迟范围限制。
+
+设置值范围分别为：音频延迟 −200..500 ms、画面延迟 −200..300 ms、判定偏移 −200..200 ms；无效的 NaN 按 0 处理。默认「触摸时刻」把事件与当前帧的时间差夹在 −250..0 ms；「下一帧（旧式）」将事件与帧的秒差乘以 1/60 后叠到帧时间，不作同样的夹取。两种模式只影响使用样本时间的判定，普通尾抬手和条内托管尾按当前帧时间评分。
 
 **三条通道与②内三步的对应关系**
 
@@ -92,7 +94,7 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 | y 轴门（唯一一道） | `TouchLane.IsAboveTheLine` | 只在触摸**出生**（`Began` 样本）时问一次：高出判定线超过 `_judgmentOffsetY` 的触摸被记进 `_touchesAboveTheLine`，此后它所有样本都算 Outside。落在线上的手指后来划到线以上，仍然是有效输入 |
 | 判定时机 | `LiveLogic.ResolveInputMusicTime` | 默认把样本时间转成音乐时间，偏移限制在 `[-250 ms, 0]`。旧式模式为逐帧近似。普通尾的抬起评分使用当前帧音乐时间 |
 
-`-1` 表示当前样本在判定范围外。划键尾可用同一触摸上一采样帧的车道识别从条内划出的最后一段位移。启用判定 trace 后，可用 `rawTouch` 核对输入采集和初步过滤。
+`-1` 表示当前样本在判定范围外。划键尾可用同一触摸上一采样帧的车道识别从条内划出的最后一段位移。启用「原始触摸」追踪后，可用 `rawTouch` 核对输入采集和初步过滤；这与「判定结果」追踪是两个独立选项。每帧输入缓冲上限为 128 个样本，超出容量的样本不加入活动输入列表。
 
 **y 轴只在输入口检查。** 各通道读取已解析的 `InputTmp.Lane`。划键尾还能读取同一触摸已解析的上一采样帧车道。
 
@@ -120,9 +122,9 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 | `FrictionFlickNote` | 摩擦划键 | 是 | 常驻通道 | 按住 + 位移 + 方向 |
 | `LongNote`（普通条） | 长条 | 头/尾各一次 | 头：按下通道；尾：抬手或划键 | 见第六节 |
 | `FrictionLongNote` | 摩擦长条 | 头/尾 | 头：常驻；尾：自判 | 按住 |
-| `FrictionHideLongNote` | 隐藏摩擦条 | 尾 | 尾：自判 | — |
-| `LongHoldCombo` | 条内 combo 点 | 是 | 常驻（`JudgeDueComboPoints`） | 任意手指在该轨道 |
-| `ConnectionNote` | 连接点 | 否 | — | — |
+| `FrictionHideLongNote` | 隐藏摩擦条载体 | 头无计分判定；内部点与末端看各自类型 | 持续输入驱动载体；末端另行判定或推进内部状态 | 持续接触 |
+| `LongHoldCombo` | 条内 combo 点 | 是 | 长条驱动；已注册时也可由常驻通道处理 | 到点后结合父条状态和车道检查，见 6.4 |
+| `ConnectionNote` | 连接点 | 取决于具体实例的 `HasJudgment` / `IsSkip` | 有判定权时由所属路径处理 | 按实例类型 |
 | `HiddenConnectionNote` / `FrictionHideNote` | 隐藏点 | 否 | — | — |
 | `GuideNote` | 装饰条 | 否 | — | — |
 | `GuideEndNote` | 继承 `FrictionHideNote` 的隐藏末端 | 否 | 可写入内部 `Pass` | — |
@@ -150,7 +152,9 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 | `Friction` / `Friction_Flick` | 复制对应的 `Flick` 表，含 Critical 版本 | — | — | — | — | — |
 | `Friction_Long` / `Friction_Long_End` | 分别复制对应的 `Long` / `Long_End` 表，含 Critical 版本 | — | — | — | — | — |
 
-按下准入使用 `note.time − touch.time`（正值表示早），`IsJudgmentTiming` 要求 `−晚界 < offset < 早界`。普通尾和划键尾的条内结算走 `LongEndJudgement`，使用 `frame.time − tail.time`（负值表示早）。该表的 Perfect、Great、Good 早侧为 58.3 / 108.3 / 125 ms，晚侧为 66.7 / 133.3 / 141.7 ms，边界包含等号。
+按下候选先以 `touch.time − note.time` 检查 `PressCandidateWindow`；其常量边界含等号并有 0.001 ms 的浮点容差。随后还会经过音符自己的 `IsJudgmentTiming`：该检查使用 `note.time − touch.time`（正值表示早），外边界是开区间。因此不能只凭候选窗口含等号断言恰在边界的按下一定会被接收。普通尾和划键尾的条内结算走 `LongEndJudgement`，使用 `frame.time − tail.time`（负值表示早）。该表的 Perfect、Great、Good 早侧为 58.3 / 108.3 / 125 ms，晚侧为 66.7 / 133.3 / 141.7 ms，边界包含等号；它没有 Bad 档，Perfect 区间返回 `JustPerfect`。
+
+通用结果表在方向有效时，正中 ±1/120 秒（约 ±8.33 ms）返回 `JustPerfect`，其余表内 Perfect 区间返回 `Perfect`；显示统计中 `perfectCount` 已包含 `JustPerfect`。有方向划键若方向不符，在 Perfect 区间返回 Great / `FlickMiss`，更宽的时间区间仍按 Great、Good、Bad 表评级。无方向的 `Default` 划键接受任意方向。`onUpdateResult` 还可通过技能逻辑调整部分音符的结果，因此最终显示以实际发布结果为准。
 
 单键与普通头的准入、评级和超时从同一类型表取窗口。跨窗口掉帧时，本帧已收到的按下先按样本时间判定。摩擦和摩擦划键分别使用 `Friction` 和 `Friction_Flick` 表。独立键与长条尾键按同一规则选择普通或 Critical 窗口。
 
@@ -177,7 +181,7 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 | --- | --- | --- | --- | --- |
 | **头** | `LongNoteHead` + 候选 `LongNoteHeadNote` | 普通头与可计分摩擦头 | 普通头走按下，摩擦头走持续接触 | 按对应类型选表 |
 | **身** | `LongNote.Body`（`HoldBody`） | 无 | — | 负责覆盖、刷新和丢手宽限 |
-| **内部点** | `LongHoldCombo` | 有 | 常驻（`JudgeDueComboPoints`） | 自己的窗口 |
+| **内部点** | `LongHoldCombo` 及有判定权的连接点 | 视类型而定 | 长条驱动；已注册的 combo 点也可由常驻通道处理 | 见 6.4，不能简单等同于完整的早晚窗口 |
 | **尾** | `LongNoteTail` + 末端音符 | 取决于末端音符 | 见下表 | `Long_End` / 自判 |
 
 ### 6.1 头的规则（最重要的一条）
@@ -210,6 +214,20 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 
 有效抬手或划键可以提前结束条。条身抵达几何终点时也会结束，会话继续保留未结算的普通尾、划键尾和自判尾。普通尾和划键尾由原规则判到窗口关闭，到期未命中才结算 Miss。条结束后，普通头仍由会话独立登记。条进入 `Done` 时会给未结算的内部 combo 点补 `Perfect`。
 
+### 6.4 条内点与条身状态
+
+`LongNoteHead.ConnectionNoteJudgment` 对每个实际可判的内部点，以**当前帧音乐时间**检查相对该点 −125..+141.7 ms，防止使用一直按住的手指最初按下时间反复补判。这个检查只是长条驱动点的外层门禁，不代表 `LongHoldCombo` 在整段时间内都可命中：
+
+1. 普通 combo 点到自身时间前不会进入待判 `Last`，此时调用其 `Judgment` 不会结算。
+2. 到点后，若尾已结算或处于相关输入状态，点可直接得到 `JustPerfect`；否则进入 `Last`。
+3. 在待判阶段，长条驱动或已注册点的常驻处理可以让符合条件的接触结算为 `JustPerfect`。常驻路径要求父条曾被记录为有手指、`Last` 或 `Release`，并检查该点的车道范围；其状态记录是在处理活动输入时建立的。
+4. 如果到下一次执行仍处于 `Last`，该点成为 Miss。窗口是否有机会被命中取决于更新／输入时序和帧率，并不是承诺能在 +141.7 ms 内任意补按。
+5. 普通长条进入 `Done` 时，仅对属于该条且结果仍为 `None` 的 `LongHoldCombo` 补 `Perfect`；已有结果保留。这包括提前结束时尚未到点的点。其他类型的连接点另按各自的终止规则处理，不能把此补判推广到所有内部对象。
+
+`JudgedPoints` 收集 combo 点和 `HasJudgment && !IsSkip` 的点，按谱面时间四舍五入到毫秒后在**同一条**内去重；两条的点仍各自处理。隐藏点可以参与条形几何，但不因此获得可计分判定。普通长条与隐藏摩擦载体的结束路径有区别，排查时应核对实例类型，不能只看 `LongNote` 基类。
+
+条身丢手后，已被接触过的条进入 `Last`，宽限为 `3/60 s`，即约 50 ms 的音乐时间；重新覆盖可恢复，严格超过宽限后进入 `Release`。从未接触过的条越过头部时间后走不同的释放分支。多手指覆盖是每帧重新计算的：一条只要有合格手指覆盖即可维持，条身覆盖与按下额度分开。50 ms 的条身宽限使用音乐时间；划尾的三帧倒计时使用实际游戏帧，不能把二者都写成固定 50 ms。
+
 ---
 
 ## 七、按下通道
@@ -228,11 +246,11 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 
 **时间**（`PressCandidateWindow`，偏移 = 触摸 − 音符，负为早）：单键与普通头 −125 ms 到 +125 ms；划键 −125 ms 到 +141.7 ms。
 
+候选还必须通过音符自己的 `IsJudgment`，其开区间时间门可能在候选常量的边缘拒绝输入；候选表记录的范围不单独构成最终准入保证。可判列表提前量为 0.35 秒，注册调用使用本帧时间加一个 1/60 秒参考帧；显示提前量不决定输入能否进入列表。
+
 **划键的按下**：划键被选中时，这次按下把它推进到接收滑动阶段（`Scrolling → Input`，记下这个触摸），并按消费处理——这根手指本帧的按下额度用在它身上。推进后它不再是按下候选。滑动阶段不限手指：常驻通道把本帧每根手指的样本都交给它，直到它完成（`DriveIndependentNotes`）。样本须在划键自己的车道内、在它的判定窗口内（`FlickNote.IsJudgment`），速度超过划键距离（5 cm/s，`FlickGesture`）。评分仍由滑动完成。挂在条上的划键是尾，不走这里。
 
 **条身、内部点、隐藏点、摩擦键、装饰键和所有尾键永远不进入按下候选。** 曾经的 `PickUp` / `TryAddConnectionCandidate` 两条路径会把整条 `LongNote` 塞进候选，已删除——它们会让一次按下被「一条已经判完的条」吃掉。
-
-**条身、内部点、隐藏点、装饰条永远不进入按下候选。** 曾经的 `PickUp` / `TryAddConnectionCandidate` 两条路径会把整条 `LongNote` 塞进候选，已删除——它们会让一次按下被「一条已经判完的条」吃掉。
 
 ### 7.2 一个音符的按下准入
 
@@ -283,7 +301,7 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 | 职责 | 实现 |
 | --- | --- |
 | 条身是否被按住 | `HoldBody` + `RecordHoldingInput` |
-| 条内 combo 点结算 | `JudgeDueComboPoints`：点进入 `Last` 后，父条已被记录为按住或进入释放宽限时，车道内样本可结算该点。两条重叠的点各自结算 |
+| 条内 combo 点结算 | `JudgeDueComboPoints`：已注册的点进入 `Last` 后，在有活动输入时记录父条 `HasFinger`、`Last` 或 `Release`，再检查点的车道。两条重叠的点各自结算；长条直接驱动点另有 6.4 的时间门 |
 | 长条结束（超时） | `LongNoteTail.ExpireTail` |
 | 自判定尾的输入 | `DriveIndependentNotes`。其时钟由更新阶段的 `LiveNoteSession.TickTails` 推进 |
 | 划键尾 | `LiveHoldCoordinator` 分配位移，`SwipeTail` 推进手势 |
@@ -291,6 +309,19 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 条身覆盖和刷新检查当前样本车道。划键尾按位移起点车道选择最近的可接收长条，同一段位移只送给该条，累计窗口按触摸 ID 隔离。早划进入等待后，释放时机跟随触发划动的手指，即使另一根手指仍按着条身。
 
 延迟结算使用同一触摸最近一次通过划动门槛的方向判断。默认速度门槛为 5 cm/s，低于门槛的后续位移保留上一次的方向判断。
+
+### 8.1 独立划键、摩擦键与划尾的区别
+
+| 类型 | 接触与评分 |
+| --- | --- |
+| 独立 `FlickNote` | 先由按下推进到 `Input`；之后活动输入中的任意手指可在自身车道和时间门内提供有效位移。有效位移达到速度门槛即可结算，方向错误按通用表降级。 |
+| `FrictionNote` | 常驻接触可在到点前进入 `Input`；到点执行时给 `JustPerfect`。到点后符合条件的接触也可完成；没有接触则超时 Miss。 |
+| `FrictionFlickNote` | 由常驻输入记录有效位移；已记录手势可在到点时结算，满足条件的正确方向晚划也可即时完成。其评级使用 `GetINoteToJudgeFrameType` 所选表，不把摩擦尾一律当成普通尾。 |
+| 普通条的 `FlickNote` 尾 | 由条的 `SwipeTail` 而非普通尾抬手通道完成。车道归属优先使用同一触摸的上一采样车道；一段位移只给一个目标，已进入延迟等待的目标优先保留给原触摸。 |
+
+一般划键将每帧位移按 `deltaTime` 换算成 1/60 秒参考帧，长度必须**严格大于**阈值；方向键以目标向量的点积 ≥ 0 判断方向，左／右分别以左上／右上为目标，`Default` 接受任意方向。默认配置对应 5 cm/s，实际像素门槛受设备 DPI 和配置影响。
+
+划尾额外按触摸 ID 汇总净位移：等满一个参考帧，或提前累计到一个划动距离后尝试；同时检查净位移门槛及实际平均速度。只有条已被覆盖、尾窗开放且尾行为接受划动时才可推进。提前有效划动进入等待：触发手指抬起、离开条道或到达尾时刻开始计数，在其后的第三个游戏帧按**结算时刻**评分；尾时刻及以后有效划动立即评分。延迟期间若尾窗关闭，不能承诺一定得到原先手势的等级，最终由实际超时／结算路径决定。反方向只对 Perfect 档施加最高 Great 的限制；不把时间本来只能得到 Good 的手势提升到 Great。
 
 ---
 
@@ -320,10 +351,12 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 | 尾 | 尾音符自己的 `Done` 转换走 `Key` 发布。条侧的 `LongNoteTail.PublishTail` 只写条的镜像结果并结束条，不触发回调，它有自己的 `_tailPublished` 守卫 |
 | 不发布 | `FrictionHideNote`、`HiddenConnectionNote` 与 `IsSkip` 的 `ConnectionNote` 不发布。结果为 `None` 的内部点不发布 |
 | 基分 | 累计计分每次分数回调推进一个基分序号（`ScoreLogic.TakeNextNoteBaseScore`）。超时头不调用分数回调，因此不消耗基分 |
-| 条身结束 | 条进入 `Done` 时给未结算的内部点补 `Perfect`，它们在结束条的那次尾发布之后发布 |
+| 条身结束 | 普通 `LongNote` 进入 `Done` 时给其结果仍为 `None` 的 `LongHoldCombo` 补 `Perfect`；在由尾结果触发结束的路径上，尾先发布，然后补内部点。特殊载体重写了状态处理，不能一概套用 |
 | Miss 也发 combo | 断连击来自「结果发布」，不是来自视觉效果；谁发布结果谁断连击 |
 
 回调次数、顺序、基分序号、总分、连击和伤害由 `ResultPublicationTests` 固定，手动和自动播放各有用例。
+
+`ScoreLogic` 将 `JustPerfect`、`Perfect`、`Auto` 按基分的 100% 计分，Great 为 70%、Good 为 50%，Bad / Miss 等为 0；之后再应用技能倍率。基分通过累计差分把 1,000,000 分摊到谱面总连击点数，避免每点固定取整造成的尾差。Great 及以上维持连击，Good、Bad、Miss 重置连击；装饰和 `None` 不参与普通连击统计。这里的分摊依赖实际分数回调次数，不能把“满分 1,000,000”推广成所有带技能、漏判、特殊回调或异常谱面都必然得到同一个结果。更完整的计分口径见 [累计计分决策](../decisions/0004-cumulative-scoring.md)。
 
 ---
 
@@ -346,9 +379,29 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 
 `IsAuto` 时判定不经过输入：`LiveTimeline.AdvanceAutoJudgment` 按时间给音符写 `Auto` 结果，并跳过装饰。自动播放走的是同一套结果槽与发布回调，因此计分路径与手动一致。
 
+自动播放也会在扫描音符前先推进到期判定，避免掉帧时先超时。它不使用玩家的判定偏移 J；`Auto` 的显示／连击还受 Fake Perfect 设置影响。自动播放的输入、效果和结果显示并不等于模拟一组真实手指操作。
+
 ---
 
-## 十二、可以写成断言的不变量
+## 十二、追踪与现场排查
+
+曲库「设置 → 测试模式」是追踪总开关；「追踪选项」中分别选择类别。设置通过 `PlayerPrefs` 保存，立即生效；总开关默认关闭，首次无分类记录时默认只选 `Judge`。所有分类都关闭时不会自动变成全部开启。开启总开关后，`Invariant` 异常仍会写入，不受类别筛选。追踪写入 Unity 日志、内存中最近 4096 行的环形缓冲，以及 `persistentDataPath/logs/live-*.log`；文件采用自动刷新，暂停时也会显式刷新。开启高频项会增加 CPU、分配和日志 I/O，采集性能数据时应只开必要项。
+
+| 设置项／类别 | 主要内容 | 阅读时的限制 |
+| --- | --- | --- |
+| 原始触摸 `RawTouch` | `rawTouch`：手指 ID、触摸 ID、相位、世界坐标、事件时间、是否通过初步处理 | 在按下候选和车道判定之前；这是高频日志。没有该行只能说明这次采集未记录到该样本，不能单独证明平台哪里丢了输入。 |
+| 按下事件 `Press` | `pressCandidates` 为收集后的原始候选，`pressSelected` 为排序分配后的候选，`pressPick` 为实际交给音符后的结果 | 候选列表已经过种类、车道、时间及音符自身条件过滤，不是谱面中所有邻近音符；`pressSelected` 仍可能因同手指本帧额度已消费而未实际执行。列表中的 `grade` 是按样本时间预测值。 |
+| 常驻通道 `Resident` | 活动输入与候选数量、条身覆盖、划尾接触等逐帧情况 | 逐帧输出可能很密集；列表中的某个音符出现在日志里不等于它发布了判定。 |
+| 抬起事件 `Release` | `liftCandidates`、`liftCrowded`、`liftSelected`、`liftResult` | 初始候选指已通过普通尾类型、车道和时间门的条；`crowded=true` 表示因其他触摸而跳过。选择不保证结算成功，以 `liftResult.settled` 为准。 |
+| 判定结果 `Judge` | `judge`、`combo`、重复发布拒绝等 | 判定点 ID 不总是唯一，生成的内部点可能共享 ID；结合类型、谱面时间与日志顺序看。 |
+| 长条持握 `Hold`、长条尾键 `Tail`、划动 `Swipe` | 条身状态变化、尾窗／尾结算、划动方向与速度等专项信息 | 必要时组合开启；不自动包含按下或抬起候选。 |
+| 对象回收 `Pool`、画面表现 `View`、画面逐帧 `Frame` | 回收、几何／显示以及逐帧视图状态 | 画面状态不是判定结果；`Frame` 是高频项。 |
+
+「性能 HUD」和「Last 长条标红」各有独立开关，均不依赖测试模式。性能 HUD 显示 FPS、最差帧时、分辨率和当前 Tick；Tick 根据当前逻辑帧的小节与进度以及谱面时间签名换算，非活动打歌或缺少谱面时显示 `--`。标红只把 `State == Last` 的长条**条身**画成红色，不改变状态或判定；退出 Last 或关掉选项恢复原色。长条的 Last 是丢手宽限，内部 combo 点的 Last 是到点待判，普通音符的 Last 通常是超时流程中的状态；不要仅凭名称把三者混为一谈。日志提取方法见 [Android 日志](../operations/android-logs.md)。
+
+---
+
+## 十三、可以写成断言的不变量
 
 1. 每个可计分判定点只发布一次。
 2. 一根手指一帧最多消费一次按下。
@@ -361,9 +414,9 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 
 ---
 
-## 十三、不覆盖范围
+## 十四、不覆盖范围
 
-- **计分公式**（权重、gauge、rank）不在本文范围，见 `docs/decisions/0004-cumulative-scoring.md`。
+- **完整计分公式**（技能权重、gauge、rank）不在本文范围，基础倍率与发布关系见第九节，完整说明见 `docs/decisions/0004-cumulative-scoring.md`。
 - **谱面转换**（`score.json` → 运行时音符）见 `docs/architecture/chart-package.md`。
 - **音频与时钟漂移**不影响判定规则本身：判定只用音乐时间，时钟校正见 `docs/architecture/audio.md`。
 
@@ -383,3 +436,9 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 | 短条与头的窗口 | `ShortBarHeadWindowTests` |
 | 贴图生命周期 | `LongNoteKeyLifetimeTests`、`TailKeyRetirementTests`、`FrictionHeadLifetimeTests` |
 | 车道、抬起与划键尾归属 | `TouchLaneTests`、`TailReleaseLaneTests`、`HoldQuotaTests` |
+| 内部点的时间和结算 | `InteriorPointWindowTests`、`InteriorPointJudgingTests`、`LongHoldPipelineTests` |
+| 按下归属与长条宽限 | `PressOwnershipTests`、`LongNoteGraceTests`、`LongHeadGradeTests` |
+| 划动门槛与划尾 | `FlickGestureTests`、`FlickEndBehaviourTests` |
+| 追踪总开关与分类 | `LiveTraceTests` |
+
+测试名指向仓库中的回归用例，并不表示本文更新时已重新运行这些用例。排查时从实现入口入手：帧内顺序看 `JudgmentScheduler`；候选和分配看 `LiveCandidatePipeline`；持握、抬手和划动归属看 `LiveHoldCoordinator`；头、体、尾和点分别看 `LongNoteHead`、`LongNote.Body`、`LongNoteTail` 与 `LongHoldCombo`；评级与时间换算看 `JudgeWindow`、`LongEndJudgement` 和 `InputTimeMapping`。
