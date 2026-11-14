@@ -11,7 +11,7 @@
 
 | 程序集 | 路径 | 职责与入口 |
 | --- | --- | --- |
-| OpenSekai.Core | `Assets/Game/Runtime/OpenSekai.Core/` | 输入时钟、候选排序、判定、计分、设置数据、谱面 JSON 与曲包清单、SUS 解析与时间轴（纯阶段） |
+| OpenSekai.Core | `Assets/Game/Runtime/OpenSekai.Core/` | 输入时钟、判定、计分、设置数据、谱面 JSON 与曲包清单、SUS 解析与时间轴（纯阶段） |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/` | 组合根 `AppContext`：装配曲库页需要的 `SongPackageManager` 与 `PlayService`，由 `LibraryEntryPoint` 创建并交给 `LibraryScreen` |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/Bootstrap/` | `LibraryEntryPoint` 装配曲库入口 |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/UI/` | `LibraryScreen` 和导入、设置、结算面板 |
