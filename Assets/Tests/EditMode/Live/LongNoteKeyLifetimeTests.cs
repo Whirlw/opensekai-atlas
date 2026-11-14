@@ -77,5 +77,33 @@ namespace OpenSekai.Tests.EditMode.Live
 
 			Assert.That(_view.transform.localScale, Is.EqualTo(Vector3.zero), "a finished bar keeps no key");
 		}
+
+		[Test]
+		public void ARubHeadsKeyIsTakenOffWithItsVerdict()
+		{
+			// A rub head lives like a standalone friction note: the key goes on the frame it is judged,
+			// while the body still has a second to run.
+			var host = new GameObject("rub key");
+			try
+			{
+				var view = host.AddComponent<FrictionLongNoteView>();
+				var bar = new FrictionLongNote(Info(0f), 3, 4, 5, NoteCategory.FrictionLong, NoteType.Default, null, 1f);
+				bar.AddNoteListAndSetupChildNote(new FrictionNote(Info(1f), 4, 4, 5, NoteCategory.Friction, null, NoteType.Default, 1f));
+				bar.Excute(Info(0f), 0.5f);
+				view.Spawn(bar, 0f);
+
+				view.Move(0f);
+				Assert.That(view.transform.localScale.x, Is.GreaterThan(0f), "the key is drawn before its verdict");
+
+				bar.Head.Settle((NoteResult.JustPerfect, NoteResultDescription.None));
+				view.Move(0f);
+				Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done));
+				Assert.That(view.transform.localScale, Is.EqualTo(Vector3.zero), "the judged rub key is gone");
+			}
+			finally
+			{
+				Object.DestroyImmediate(host);
+			}
+		}
 	}
 }
