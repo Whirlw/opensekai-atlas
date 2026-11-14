@@ -1,4 +1,4 @@
-using Sekai.Live;
+﻿using Sekai.Live;
 using UnityEngine;
 
 namespace Sekai.Core.Live
@@ -116,7 +116,7 @@ namespace Sekai.Core.Live
 			// A judged end note that judges itself is ticked by the session, not by the bar's note loop, for
 			// the same reason: the bar ends on its own time and the note's clock has to outlive that.
 			if (note is LongNote judgedBar && judgedBar.TailBehaviour.JudgesItself
-				&& judgedBar.ChildNote is NoteBase tail && tail.HasJudgment)
+				&& judgedBar.TailNote is NoteBase tail && tail.HasJudgment)
 			{
 				_session.Notes.RegisterTail(tail);
 			}
@@ -342,7 +342,7 @@ namespace Sekai.Core.Live
 		/// </summary>
 		private static bool PlayableTailOf(NoteBase note)
 		{
-			return note is LongNote bar && bar.ChildNote is NoteBase tail && tail.HasJudgment;
+			return note is LongNote bar && bar.TailNote is NoteBase tail && tail.HasJudgment;
 		}
 
 		internal void Spawn(NoteBase note)

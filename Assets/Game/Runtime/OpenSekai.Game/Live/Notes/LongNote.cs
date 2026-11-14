@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using UnityEngine;
@@ -92,7 +92,7 @@ namespace Sekai.Live
 					// A judged end note that judges itself has its own clock in the session (LiveNoteSession
 					// .TickTails): ticking it here as well would run it twice, and it must keep ticking
 					// after this bar has left. Only the bar's own children are ticked from here.
-					if (ReferenceEquals(note, childNote) && TailBehaviour.JudgesItself && note.HasJudgment)
+					if (ReferenceEquals(note, TailNote) && TailBehaviour.JudgesItself && note.HasJudgment)
 					{
 						continue;
 					}
@@ -137,7 +137,7 @@ namespace Sekai.Live
 				// Only the tail may end the bar. A connection note, a combo or a plain note that we
 				// carry becomes Done on its own schedule; letting that finish the whole bar is how a
 				// bar could be judged the moment it appeared, long before the head reached the line.
-				if (by != null && by.ParentRole != NoteParentRole.Tail && !ReferenceEquals(by, childNote))
+				if (by != null && by.ParentRole != NoteParentRole.Tail && !ReferenceEquals(by, TailNote))
 				{
 					if (LiveTrace.IsOn(LiveTraceCategory.Hold))
 					{
@@ -261,15 +261,17 @@ namespace Sekai.Live
 
 			// A tail that judges itself takes its own turn in the candidate list, so pressing near its
 			// time must not judge it through the bar as well: that would be two judges for one note.
+			// The note that counts is the real tail - the latest child, not the last one bound.
+			NoteBase pressTail = TailNote;
 			if (!TailBehaviour.JudgesItself
-				&& childNote != null
-				&& LiveConfig.IsLongEndJudgeTime(childNote.JudgeOffsetAt(touch.musicTime))
-				&& childNote.IsJudgment(ref touch, lane)
-				&& childNote.Judgment(ref touch, lane))
+				&& pressTail != null
+				&& LiveConfig.IsLongEndJudgeTime(pressTail.JudgeOffsetAt(touch.musicTime))
+				&& pressTail.IsJudgment(ref touch, lane)
+				&& pressTail.Judgment(ref touch, lane))
 			{
 				if (LiveTrace.IsOn(LiveTraceCategory.Hold))
 				{
-					LiveTrace.Write(LiveTraceCategory.Hold, $"headPressChild barT={MusicScoreInfo.time:F3} touchT={touch.musicTime:F3} childT={childNote.MusicScoreInfo.time:F3}");
+					LiveTrace.Write(LiveTraceCategory.Hold, $"headPressChild barT={MusicScoreInfo.time:F3} touchT={touch.musicTime:F3} childT={pressTail.MusicScoreInfo.time:F3}");
 				}
 
 				State = NoteState.Done;
@@ -300,9 +302,20 @@ namespace Sekai.Live
 		/// the chart is built once but bars are reset between runs, and any cached copy of this answer
 		/// is wiped by that reset while the binding survives it.
 		/// </summary>
+		/// <summary>
+		/// The note that ends this bar, as the chart bound it (an ordinary note, a flick, a rub, a hidden
+		/// marker). The behaviour is chosen from this note and the tail pass grades this note, so the two
+		/// questions always answer the same object.
+		/// 
+		/// It is not "the last child in the list": a hidden interior point appended after the end must not
+		/// steal the tail (TailBehaviourTests.AHiddenMarkerAfterTheTailDoesNotStealIt), and it is not "the
+		/// latest by time" either - what matters is which note the bar was told is its end.
+		/// </summary>
+		internal NoteBase TailNote => Tail.EndNote ?? childNote;
+
 		internal ITailBehaviour TailBehaviour => SkipsTailJudgement
 			? SilentTail.Instance
-			: childNote == null ? ReleaseTail.Instance : TailBehaviours.For(childNote);
+			: TailNote == null ? ReleaseTail.Instance : TailBehaviours.For(TailNote);
 
 		/// <summary>
 		/// An ordinary bar: a plain long note, not a rub and not a decoration. Its head is where the
