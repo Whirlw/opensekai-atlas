@@ -5,7 +5,9 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using OpenSekai.Shared.Diagnostics;
+using OpenSekai.Diagnostics;
 using OpenSekai.Shared.Settings;
+using OpenSekai.Shared.Live.Simulation;
 using Sekai.Live;
 
 namespace OpenSekai.App.UI
@@ -19,7 +21,7 @@ namespace OpenSekai.App.UI
     public sealed class LibrarySettingsPanel : MonoBehaviour
     {
         private const float PANEL_WIDTH = 960f;
-        private const float PANEL_HEIGHT = 784f;
+        private const float PANEL_HEIGHT = 896f;
         private const float ROW_HEIGHT = 56f;
 
         // LiveConfig clamps the note skin to 0..1 and both skins ship as custom01/custom02.
@@ -36,7 +38,9 @@ namespace OpenSekai.App.UI
         private ApplicationLocalSettings _localSettings;
         private Action _onChanged;
 
-        private TextMeshProUGUI _timingValue;
+        private TMP_InputField _audioLatencyInput;
+        private TMP_InputField _visualLatencyInput;
+        private TMP_InputField _judgeOffsetInput;
         private TextMeshProUGUI _speedValue;
         private TextMeshProUGUI _lineValue;
         private TextMeshProUGUI _frameRateValue;
@@ -47,6 +51,16 @@ namespace OpenSekai.App.UI
         private const string TraceOnLabel = "已开启";
         private const string TraceOffLabel = "关闭";
         private TextMeshProUGUI _traceValue;
+        private GameObject _tracePanel;
+        private TextMeshProUGUI _performanceHudValue;
+        private TextMeshProUGUI _highlightLastValue;
+        private readonly TextMeshProUGUI[] _traceCategoryValues = new TextMeshProUGUI[11];
+        private static readonly LiveTraceCategory[] TraceCategories =
+        {
+            LiveTraceCategory.RawTouch, LiveTraceCategory.Press, LiveTraceCategory.Resident,
+            LiveTraceCategory.Release, LiveTraceCategory.Judge, LiveTraceCategory.Hold, LiveTraceCategory.Tail,
+            LiveTraceCategory.Swipe, LiveTraceCategory.Pool, LiveTraceCategory.View, LiveTraceCategory.Frame
+        };
         private TextMeshProUGUI _bgmValue;
         private TextMeshProUGUI _seValue;
         private TextMeshProUGUI _skinValue;
@@ -80,6 +94,7 @@ namespace OpenSekai.App.UI
 
         public void Hide()
         {
+            if (_tracePanel != null) _tracePanel.SetActive(false);
             gameObject.SetActive(false);
         }
 
@@ -111,6 +126,12 @@ namespace OpenSekai.App.UI
             closeRect.pivot = new Vector2(1f, 1f);
             closeRect.anchoredPosition = new Vector2(-28f, -28f);
 
+            Button traceOptions = LibraryUi.CreateButton("TraceOptions", panel, "追踪选项", () => _tracePanel.SetActive(true), 180f, 52f);
+            RectTransform traceOptionsRect = (RectTransform)traceOptions.transform;
+            traceOptionsRect.anchorMin = traceOptionsRect.anchorMax = new Vector2(1f, 1f);
+            traceOptionsRect.pivot = new Vector2(1f, 1f);
+            traceOptionsRect.anchoredPosition = new Vector2(-184f, -28f);
+
             RectTransform rows = LibraryUi.CreateRect("Rows", panel);
             rows.anchorMin = new Vector2(0f, 0f);
             rows.anchorMax = new Vector2(1f, 1f);
@@ -118,10 +139,13 @@ namespace OpenSekai.App.UI
             rows.offsetMax = new Vector2(-32f, -96f);
 
             int index = 0;
-            _timingValue = AddStepperRow(rows, ref index, "判定延迟",
-                () => _settings.TimingAdjustData,
-                value => { _settings.TimingAdjustData = value; SaveSettings(); },
-                -5f, 5f, 0.1f, "0.0");
+            // Temporary rows: whole milliseconds typed in. See TimingCompensation for what each moves.
+            _audioLatencyInput = AddMillisecondsRow(rows, ref index, "音频延迟 (ms)",
+                value => { _settings.AudioLatencyMs = TimingCompensation.ClampAudioLatency(value); SaveSettings(); });
+            _visualLatencyInput = AddMillisecondsRow(rows, ref index, "画面延迟 (ms)",
+                value => { _settings.VisualLatencyMs = TimingCompensation.ClampVisualLatency(value); SaveSettings(); });
+            _judgeOffsetInput = AddMillisecondsRow(rows, ref index, "判定偏移 (ms, 正=打得晚)",
+                value => { _settings.JudgeOffsetMs = TimingCompensation.ClampJudgeOffset(value); SaveSettings(); });
 
             _speedValue = AddStepperRow(rows, ref index, "音符流速",
                 () => _settings.NoteSpeed,
@@ -181,6 +205,57 @@ namespace OpenSekai.App.UI
             hint.rectTransform.pivot = new Vector2(0.5f, 0f);
             hint.rectTransform.offsetMin = new Vector2(32f, 22f);
             hint.rectTransform.offsetMax = new Vector2(-32f, 50f);
+            BuildTracePanel(panel);
+        }
+
+        private void BuildTracePanel(Transform parent)
+        {
+            RectTransform panel = LibraryUi.CreateRect("TracePanel", parent);
+            LibraryUi.Stretch(panel);
+            panel.gameObject.AddComponent<Image>().color = PanelColor;
+            _tracePanel = panel.gameObject;
+
+            TextMeshProUGUI title = LibraryUi.CreateText("Title", panel, "追踪选项", 36f,
+                FontStyles.Bold, TextAlignmentOptions.Left);
+            title.rectTransform.anchorMin = new Vector2(0f, 1f);
+            title.rectTransform.anchorMax = new Vector2(0.6f, 1f);
+            title.rectTransform.pivot = new Vector2(0f, 1f);
+            title.rectTransform.offsetMin = new Vector2(36f, -84f);
+            title.rectTransform.offsetMax = new Vector2(0f, -28f);
+            Button back = LibraryUi.CreateButton("Back", panel, "返回", () => _tracePanel.SetActive(false), 140f, 52f);
+            RectTransform backRect = (RectTransform)back.transform;
+            backRect.anchorMin = backRect.anchorMax = new Vector2(1f, 1f);
+            backRect.pivot = new Vector2(1f, 1f);
+            backRect.anchoredPosition = new Vector2(-28f, -28f);
+
+            RectTransform rows = LibraryUi.CreateRect("Rows", panel);
+            rows.anchorMin = Vector2.zero;
+            rows.anchorMax = Vector2.one;
+            rows.offsetMin = new Vector2(32f, 60f);
+            rows.offsetMax = new Vector2(-32f, -96f);
+            string[] labels = { "原始触摸（高频）", "按下事件", "常驻通道（高频）", "抬起事件", "判定结果", "长条持握", "长条尾键", "划动", "对象回收", "画面表现", "画面逐帧（高频）" };
+            int index = 0;
+            _performanceHudValue = AddToggleRow(rows, ref index, "性能 HUD",
+                () => PerformanceHud.Enabled, value => PerformanceHud.Enabled = value);
+            _highlightLastValue = AddToggleRow(rows, ref index, "Last 长条标红",
+                () => LiveTrace.HighlightLast, value => LiveTrace.HighlightLast = value);
+            for (int i = 0; i < TraceCategories.Length; i++)
+            {
+                LiveTraceCategory category = TraceCategories[i];
+                _traceCategoryValues[i] = AddToggleRow(rows, ref index, labels[i],
+                    () => (LiveTrace.Categories & category) != 0,
+                    enabled => LiveTrace.Categories = enabled
+                        ? LiveTrace.Categories | category : LiveTrace.Categories & ~category);
+            }
+            TextMeshProUGUI hint = LibraryUi.CreateText("Hint", panel,
+                "追踪需开启测试模式；高频记录可能影响性能。", 20f,
+                FontStyles.Normal, TextAlignmentOptions.Left);
+            hint.color = new Color32(150, 160, 174, 255);
+            hint.rectTransform.anchorMin = new Vector2(0f, 0f);
+            hint.rectTransform.anchorMax = new Vector2(1f, 0f);
+            hint.rectTransform.offsetMin = new Vector2(32f, 22f);
+            hint.rectTransform.offsetMax = new Vector2(-32f, 50f);
+            _tracePanel.SetActive(false);
         }
 
         private TextMeshProUGUI AddStepperRow(
@@ -222,6 +297,70 @@ namespace OpenSekai.App.UI
             // Values are filled by RefreshValues() on Show(); reading the model here would run
             // before Show() assigns it.
             return valueText;
+        }
+
+        /// <summary>A row with a whole-millisecond input field; the value is clamped and saved on end edit.</summary>
+        private TMP_InputField AddMillisecondsRow(Transform parent, ref int index, string label, Action<float> set)
+        {
+            RectTransform row = CreateRow(parent, index++);
+
+            TextMeshProUGUI labelText = LibraryUi.CreateText(
+                "Label", row, label, 26f, FontStyles.Normal, TextAlignmentOptions.Left);
+            labelText.rectTransform.anchorMin = new Vector2(0f, 0f);
+            labelText.rectTransform.anchorMax = new Vector2(0.6f, 1f);
+            labelText.rectTransform.offsetMin = new Vector2(20f, 0f);
+            labelText.rectTransform.offsetMax = Vector2.zero;
+
+            RectTransform field = LibraryUi.CreateRect("Input", row);
+            // Configured while inactive: TMP_InputField builds its caret on enable and needs the text
+            // component by then.
+            field.gameObject.SetActive(false);
+            field.anchorMin = new Vector2(1f, 0.5f);
+            field.anchorMax = new Vector2(1f, 0.5f);
+            field.pivot = new Vector2(1f, 0.5f);
+            field.sizeDelta = new Vector2(224f, 44f);
+            field.anchoredPosition = new Vector2(-24f, 0f);
+            Image background = field.gameObject.AddComponent<Image>();
+            background.color = new Color32(30, 36, 46, 255);
+
+            RectTransform area = LibraryUi.CreateRect("TextArea", field);
+            LibraryUi.Stretch(area);
+            area.offsetMin = new Vector2(12f, 4f);
+            area.offsetMax = new Vector2(-12f, -4f);
+            area.gameObject.AddComponent<RectMask2D>();
+
+            TextMeshProUGUI text = LibraryUi.CreateText(
+                "Text", area, string.Empty, 26f, FontStyles.Bold, TextAlignmentOptions.Right);
+            LibraryUi.Stretch(text.rectTransform);
+
+            TMP_InputField input = field.gameObject.AddComponent<TMP_InputField>();
+            input.textViewport = area;
+            input.textComponent = text;
+            input.targetGraphic = background;
+            input.contentType = TMP_InputField.ContentType.IntegerNumber;
+            input.characterLimit = 5;
+            input.caretColor = Color.white;
+            input.onEndEdit.AddListener(raw =>
+            {
+                if (int.TryParse(raw, out int ms))
+                {
+                    set(ms);
+                }
+
+                RefreshValues();
+            });
+            field.gameObject.SetActive(true);
+
+            // Filled by RefreshValues() on Show(); see AddStepperRow.
+            return input;
+        }
+
+        private static void SetMilliseconds(TMP_InputField input, float ms)
+        {
+            if (input != null && !input.isFocused)
+            {
+                input.SetTextWithoutNotify(Mathf.RoundToInt(ms).ToString());
+            }
         }
 
         private TextMeshProUGUI AddToggleRow(
@@ -325,7 +464,9 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            if (_timingValue != null) _timingValue.text = _settings.TimingAdjustData.ToString("0.0");
+            SetMilliseconds(_audioLatencyInput, _settings.AudioLatencyMs);
+            SetMilliseconds(_visualLatencyInput, _settings.VisualLatencyMs);
+            SetMilliseconds(_judgeOffsetInput, _settings.JudgeOffsetMs);
             if (_speedValue != null) _speedValue.text = _settings.NoteSpeed.ToString("0.0");
             if (_lineValue != null) _lineValue.text = _settings.UseSimultaneousPushingLine ? "开" : "关";
             if (_frameRateValue != null) _frameRateValue.text = FramerateUtility.GetLimitLabel(_settings.FrameRateLimit);
@@ -342,6 +483,13 @@ namespace OpenSekai.App.UI
             if (_noteSeValue != null) _noteSeValue.text = Describe(NoteSeLabels, _settings.NoteSeIndex);
             if (_noteEffectValue != null) _noteEffectValue.text = Describe(NoteEffectLabels, _settings.NoteEffect);
             if (_traceValue != null) _traceValue.text = LiveTrace.Enabled ? TraceOnLabel : TraceOffLabel;
+            if (_performanceHudValue != null) _performanceHudValue.text = PerformanceHud.Enabled ? "开" : "关";
+            if (_highlightLastValue != null) _highlightLastValue.text = LiveTrace.HighlightLast ? "开" : "关";
+            for (int i = 0; i < _traceCategoryValues.Length; i++)
+            {
+                if (_traceCategoryValues[i] != null)
+                    _traceCategoryValues[i].text = (LiveTrace.Categories & TraceCategories[i]) != 0 ? "开" : "关";
+            }
         }
 
         private static string Describe(string[] labels, int index)

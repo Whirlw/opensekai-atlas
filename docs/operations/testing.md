@@ -50,6 +50,8 @@ Unity 扫描将缺失脚本的资产路径、GUID、fileID 和数量写入 `Test
 
 EditMode：
 
+- `Core/TimingCompensationTests`：三个时机补偿各自移动哪条时钟（音频延迟两条一起、画面延迟只移画面、判定偏移只移判定）、组合后键与条身共用一条画面时钟、时钟不小于 0、取值钳制、旧帧数迁移的符号，以及 `ViewProgress` 的规则（在途键提前且不过线、在线/越线的键不动、负提前、无提前或无窗口不变）。`Live/ViewLeadTests` 在真实音符与 `LongNoteView` 上固定同一规则；`Settings/LiveSettingsStoreTests` 固定旧值迁移只发生一次、已有毫秒值优先、三个值往返保存。
+- `Core/AudioOutputPlanTests`：音频输出配置的选择。改到设备原生采样率；混音块对齐到硬件 burst 的整数倍、不低于 128 帧、且永不变大；设备给不出有效值时保持原配置。真机上的实际结果看 `[AudioOut]` 日志（`AudioOutputTuning`）。
 - `Charts/ChartDocumentTests`：深拷贝、`Migrate` 的版本与事件过滤、空值容忍、`HasPlayableNotes`。
 - `Charts/ChartJsonTests`：JSON 往返、旧类型名映射（`MusicScoreMakerData` → `ChartDocument`）、`MusicId` 覆盖。
 - `Charts/ChartTimelineTests`：tick ↔ 秒（120 BPM 4/4 基准）、往返一致性、`ConvertMusicScoreInfo` 排序。
@@ -67,6 +69,8 @@ EditMode：
 - `Live/DecorationTailFromChartTests`：**真实谱面驱动**——读 `Tools/fixtures/deco-tail-test10/score.json`（取自报告者 `Test10.zip`），`ChartJson.Read` → `RuntimeChartConverter.Convert` → 用真实 `OnUpdate`/`OnInput` 把手指依次送到每根 `GuideNote` 条的尾时间（flick / friction-flick 给划动采样，普通尾给按下），断言每种尾都判出结果。这是目前唯一能验证「尾进不进候选」的用例，**动到 `_judgmentNoteList` 注册时必须跑它**。
 - `Live/DecorationTailJudgmentTests`：装饰条的四种尾（普通尾按下、划键尾划动、摩擦尾触摸、摩擦划键尾划动）各一条，用手工音符经 `LiveHarness` 走真实 `OnUpdate` / `OnInput`，另有两条对照：不碰的尾不被判、划键尾只按不划不被判。旧版手工 `new` 后反射调内部阶段、进不了候选，曾被停放，现已改写恢复。谱面版本见 `DecorationTailFromChartTests`。
 - `Live/TailReleaseLaneTests`：真实谱面 + `LiveHarness` 逐帧驱动一根普通尾长条，验证**抬手归属**——另一根手指在别的轨道按下再抬起时尾不许被判定、条也不许结束；持握者自己在条内抬手时尾必须被判。拥挤的尾：范围内还有其他触摸时只认 Perfect 区间的抬手，单独抬手任何评级都判；范围外的触摸、同帧也抬起的触摸、同一触摸的多个样本都不算拥挤。**动到 `CoverHoldsWithAnyFinger` 的松手分支时必须跑它**。
+- `Live/LongHeadGradeTests`：真实循环里按不同偏移按下普通长条头，断言实际评级（`Long` 表，对称）：±4 ms 以内 JustPerfect，±30 ms Perfect，±60/±80 ms Great，±95 ms Good，±118 ms Bad；晚 150 ms 的按下不进候选、头记 Miss；早 150 ms 的按下不判头，头在窗口关闭后记 Miss。**动到头的窗口表、`PressCandidateWindow` 或 `LongNoteHead.TryJudge` 时必须跑它**。
+- `Live/PressCandidateRuleTests`：候选硬标准。按下只收单键、未推进的独立划键、长条普通头（条身、尾、内部点、摩擦键、挂在条上的划键都不收），判定过的键立刻离开；车道（头用条的扩展车道）；时间窗口边界（单键与头 ±125 ms，划键早 125 ms / 晚 141.7 ms）；抬起只收普通尾。真实循环里：一次按下推进划键并在它身上消费，紧随其后的单键不被这次按下判；推进后另一根手指在划键车道内的滑动也能完成它（即使推进它的手指排在本帧前面），车道外的滑动不行；晚 150 ms 的按下推进不了划键。**动到 `IsPressStep` / `AdmitsPress`、`FlickNote.IsJudgment`、`DriveIndependentNotes` 或 `IsReleaseKey` 时必须跑它**。
 - `Live/PressOwnershipTests`：按下归属。收集候选不写 `_judgedTouchTimes`、尚未命中的候选不挡后续候选；同帧双押各取更近的音符；去重三步（只剩一个键的手指优先并级联、两指两键按谱面顺序配对、配对的键从其他手指剔除，三指三键与两指三键不配对、其余按车道中心距离再按较小 `fingerId`）；单指按谱面时间、再按 `ChartOrder` 取最早的键，最早的只能拿 Good 及以下而后面的能拿 Great 及以上时让给后者；头按所属条的起点窗口评级；同一手指同帧多个 `Began` 样本共用一个按下额度；「两指争同一音符、其中一指还够得到更早一颗」时两颗都被判，与注册顺序无关。**动到 `LiveCandidatePipeline.Collect` / `SortPressCandidates` 或 `JudgmentScheduler.EvaluateJudgment` 的消费路径时必须跑它**。
 - `Live/FrictionHeadLifetimeTests`：摩擦头的键与独立 friction 音符同生命周期。手动搓到、自动播放、未碰到 Miss 三种情况下，头判定的那一帧 `HeadKeyLeftWithItsVerdict` 变真、条身仍在；搓到与自动时判定以 `FrictionLong` 身份在同一帧到达视图一次；普通头的键仍停在线上。视图一侧由 `LongNoteKeyLifetimeTests.ARubHeadsKeyIsTakenOffWithItsVerdict` 固定。
 - `Live/ResultPublicationTests`：结果发布。用记录回调的 `ScoreLogic` 走真实 `OnUpdate` / `OnInput`，固定普通键、超时键、头（按下与超时）、普通尾（准时与晚抬手）、内部 combo 点、条身结束补 `Perfect`、隐藏尾、早划三帧倒计时跨过条身终点各自的回调次数、顺序、基分序号、总分、连击与伤害；另有自动播放、重开、回调内重入结算，以及 `ResultPublication` 守卫按对象（不按 `Id`）、只被 `ResetNote` 清空的直接用例。**动到 `ResultPublication`、`PublishResult`、`LongNoteHead.Settle` 或 `ScoreLogic` 的基分推进时必须跑它**。
@@ -76,6 +80,7 @@ EditMode：
 - `Live/FlickEndBehaviourTests`：划键尾的窗口、延迟结算、方向与速度门槛。其中的独立尾（摩擦划）几条按 `tail-classes.md` §3 的 R1/R2/R3 改写：尾自己写 Miss（条只驱动与读取）、尾判定不结束条、条结束把没判的中间点判 Perfect。**动到 `DetachStandaloneTail`、`ForceTerminate` 对尾的判定、或 `SettleLeftoverAsPerfect` 时必须跑它**。
 - `App/PlayServiceDependencyTests`：开局路径依赖全部换成假端口，覆盖四种前置拒绝（曲库未就绪、加载界面未就绪、请求目标不是曲库、当前不在曲库场景）、推入加载界面失败后的回滚与锁释放、开局成功后的持锁与场景退场释放、以及连续两局；并断言发布的 `FreeLiveBootData.DeckData.UserInfo.DeckId` 取自端口而不是单例。**动开局流程或 `PlayService` 的前置判断时必须跑它**。
 - `LiveContextTests`：`LiveContext.FromRetainedBoot()` 把 `UserDataManager`、`EntryPoint.PlayMode`、`PlaySessionContext` 的五个事实逐项抄进上下文；缺 Boot 时其余字段仍完整，null 会话字段降级成空串，两次读取互不影响。用例在 `[SetUp]/[TearDown]` 里存旧值并写回，不会污染同一进程里的其它用例。
+- `Resources/GeneratedAssetSaveGuardTests`：`Tools/generated-assets.txt` 里的文件受保存拦截保护。四个字体资产都在清单里；保存请求会把它们剔除，`AllowSaves()` 范围内不剔除，范围结束后恢复；`Medium SDF_Dynamic` 关掉了 Clear Dynamic Data on Build；往真实资产里烘入新字符后 `SaveAssets`，文件哈希不变，`DiscardInMemoryChanges` 之后内存里的字符表回到提交时的状态，省略号还在。**动到 `GeneratedAssetSaveGuard`、字体资产或清单时必须跑它**。
 - `Resources/ResourceCatalogTests`：`ResourceCatalog` 里每条固定 `Resources` 路径都能加载、类型正确、回退只在主路径失败时生效；另含两条字体相关断言——`Fonts/SourceHanSansSC-Medium` 能被 TMP 建成字面、以及 `LibraryUi.EnsureRequiredGlyphs` 能对三条来源（bundled / OS / 项目资产）补上省略号字形。项目 SDF 资产在用例里是**克隆**后操作的，避免编辑器回写被跟踪的 `.asset`。
 
 PlayMode：

@@ -57,7 +57,7 @@ namespace Sekai
 				return 0f;
 			}
 
-			return LiveConfig.GetNoteViewProgress(note.Progress);
+			return LiveConfig.GetNoteViewProgress(LiveConfig.ViewProgressOf(note));
 		}
 
 		public FrictionNoteView()

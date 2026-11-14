@@ -62,6 +62,29 @@ namespace EditMode.Diagnostics
         }
 
         [Test]
+        public void EmptySelectionDoesNotEnableAllCategories()
+        {
+            LiveTrace.Categories = LiveTraceCategory.None;
+            LiveTrace.Enabled = true;
+            LiveTrace.Write(LiveTraceCategory.Judge, "not-here");
+            Assert.That(LiveTrace.IsOn(LiveTraceCategory.Judge), Is.False);
+            Assert.That(LiveTrace.IsOn(LiveTraceCategory.RawTouch), Is.False);
+            Assert.That(LiveTrace.Recent(10), Is.Empty);
+        }
+
+        [Test]
+        public void InputChannelsCanBeSelectedIndependently()
+        {
+            LiveTrace.Categories = LiveTraceCategory.Press | LiveTraceCategory.Release;
+            LiveTrace.Enabled = true;
+            Assert.That(LiveTrace.IsOn(LiveTraceCategory.Press), Is.True);
+            Assert.That(LiveTrace.IsOn(LiveTraceCategory.Release), Is.True);
+            Assert.That(LiveTrace.IsOn(LiveTraceCategory.RawTouch), Is.False);
+            Assert.That(LiveTrace.IsOn(LiveTraceCategory.Resident), Is.False);
+            Assert.That(LiveTrace.IsOn(LiveTraceCategory.Judge), Is.False);
+        }
+
+        [Test]
         public void RecentReturnsTheNewestLinesOldestFirst()
         {
             LiveTrace.Enabled = true;

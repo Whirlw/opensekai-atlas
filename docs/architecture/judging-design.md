@@ -13,8 +13,8 @@
 
 1. **每个可计分判定点只发布一次。** 长条的头、尾及内部 combo 点分别结算。条上的 `JudgeInfo` 会镜像头、尾的结果。
 2. **判定由三条通道分工完成。** 按下（press）、抬起（release）、常驻（resident）各自只回答一类问题，互不代劳：
-    - **按下通道**：这次按下判不判得了这个**瞬间键**（单键、普通长条的头）。一次按下最多结算一个音符；划键不在这里，它要跨帧读滑动，归常驻通道。
-    - **抬起通道**：结算普通尾（`ReleaseTail`）。一指一帧最多结算一条，按尾时间和车道距离选择。
+    - **按下通道**：这次按下判不判得了这个键。按下键只有单键、独立划键、普通长条的头三种，且要在这根手指的车道和时间窗口内（7.1）。一次按下最多判一个键；划键被判时只推进到接收滑动阶段，滑动由常驻通道评分。
+    - **抬起通道**：抬起键只有长条的普通尾（`ReleaseTail`）。一指一帧最多结算一条，按尾时间和车道距离选择。
     - **常驻通道**：处理条身覆盖、内部 combo 点、自判尾的输入、长条到期和划键手势。普通头的超时在按下阶段收尾，自判尾的时钟在更新阶段推进。
     同一触摸样本可以参与多个阶段，例如按下既可判头，也可建立条身覆盖。
 3. **判定的输入是「触摸样本」+「结果表」。** 位置决定这个音符**收不收得到**输入，时间决定**判成什么**，两者不互相替代。
@@ -59,6 +59,16 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 三个通道按顺序读取本帧样本。抬起阶段直接选择并结算普通尾。常驻阶段独立处理条身覆盖和划键尾手势。
 
 自动播放在 ① 扫描音符前先结算到时的非装饰音符，以免掉帧时先被超时逻辑判为 Miss。控制器随后调用 `OnAutoInput` 补跑自动判定，③ 处理尾键和退场动画。① 的扫描也会推进音符表现。
+
+**三个时机补偿与两条时钟**（`TimingCompensation`，设置里各一个毫秒输入框）
+
+| 设置 | 含义 | 移动什么 |
+| --- | --- | --- |
+| 音频延迟 L | 音乐晚多少毫秒到耳朵 | 判定和画面一起往后移 |
+| 画面延迟 V | 画面晚多少毫秒到眼睛 | 只移画面（提前 V 绘制） |
+| 判定偏移 J | 玩家习惯，正 = 打得晚 | 只移判定 |
+
+所有判定点（按下、抬起、超时 Miss、内部点）都在同一条逻辑时钟上，所以 J 通过移动逻辑时钟实现，再让画面多提前 J 抵消：`逻辑 = 音频 − (L + J)`，`画面 = 逻辑 + (V + J) = 音频 − L + V`。控制器把逻辑时钟交给 `LiveLogic.OnUpdate`，把画面时钟交给各视图；键的精灵由 `LiveConfig.ViewProgressOf` 在逻辑进度上加 `ViewLeadSeconds`，还没到线的键提前、最多到线为止，已在线上或越过线的键（被钉住、按住、越线）按逻辑位置画。条身直接用画面时钟。自动播放不应用 J。打击音不补偿：它只能在知道按下之后才开始。旧的 `TimingAdjustData`（整钟平移、单位 1/60 s）读取时一次性迁移为 `AudioLatencyMs = −帧数 × 16.67`。
 
 **三条通道与②内三步的对应关系**
 
@@ -105,7 +115,7 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 | 运行时类型 | `Category` 语义 | 有判定 | 由谁判 | 输入 |
 | --- | --- | --- | --- | --- |
 | `NormalNote` | 单键 | 是 | 按下通道 | 按下（`Began`） |
-| `FlickNote` | 划键 | 是 | 常驻通道 | 独立划键先用 `Began` 建立触摸关联，再读后续位移和方向 |
+| `FlickNote` | 划键 | 是 | 按下通道推进，常驻通道评分 | 独立划键被一次按下（`Began`）判中时立刻进入接收滑动阶段（`Input`），之后任何手指在它车道内、判定窗口内超过 5 cm/s 的滑动都能完成它 |
 | `FrictionNote` | 摩擦 | 是 | 常驻通道 | 按住并在轨道上蹭 |
 | `FrictionFlickNote` | 摩擦划键 | 是 | 常驻通道 | 按住 + 位移 + 方向 |
 | `LongNote`（普通条） | 长条 | 头/尾各一次 | 头：按下通道；尾：抬手或划键 | 见第六节 |
@@ -206,12 +216,21 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 
 ### 7.1 谁能进候选
 
-`LiveCandidatePipeline.IsPressStep` 是唯一入口，只有两类：
+候选是硬标准：`LiveCandidatePipeline.AdmitsPress` 同时检查种类、车道和时间，三项都满足才进入这根手指的列表（之后仍问一次音符自己的 `IsJudgment`，保证不会把按下交给会拒绝它的键）。
 
-1. `NormalNote` 且 `Category == Normal`（单键）；
-2. `LongNoteHeadNote` 且 `IsAnswerable`（可答且**未结算**的头）。
+**种类**（`IsPressStep`）只有三种，且键一经判定立刻离开：
 
-**划键不在其中。** 一次按下说不完一次划动：`FlickNote` 要跨帧累计位移与方向，所以它由常驻通道逐帧驱动（第八节），不占按下通道的单槽。这条曾经写成「`FlickNote` 且尚未完成首次动作」，但支撑它的 `NoteBase.FinishFirstAction` 恒为 true、没有任何 override，那个分支从未成立——按下通道从来没有收过划键。
+1. 单键：不挂在条上的 `NormalNote`，`Category == Normal`，未 `Done`；
+2. 划键：不挂在条上的 `FlickNote`，且仍在 `Scrolling`（尚未被按下推进）；
+3. 长条普通头：`LongNoteHeadNote` 且 `IsAnswerable`（普通头、可计分、**未结算**）。
+
+**车道**：触摸车道落在键的 `JudgeLaneStart..JudgeLaneEnd` 内；头用所属条的扩展车道。
+
+**时间**（`PressCandidateWindow`，偏移 = 触摸 − 音符，负为早）：单键与普通头 −125 ms 到 +125 ms；划键 −125 ms 到 +141.7 ms。
+
+**划键的按下**：划键被选中时，这次按下把它推进到接收滑动阶段（`Scrolling → Input`，记下这个触摸），并按消费处理——这根手指本帧的按下额度用在它身上。推进后它不再是按下候选。滑动阶段不限手指：常驻通道把本帧每根手指的样本都交给它，直到它完成（`DriveIndependentNotes`）。样本须在划键自己的车道内、在它的判定窗口内（`FlickNote.IsJudgment`），速度超过划键距离（5 cm/s，`FlickGesture`）。评分仍由滑动完成。挂在条上的划键是尾，不走这里。
+
+**条身、内部点、隐藏点、摩擦键、装饰键和所有尾键永远不进入按下候选。** 曾经的 `PickUp` / `TryAddConnectionCandidate` 两条路径会把整条 `LongNote` 塞进候选，已删除——它们会让一次按下被「一条已经判完的条」吃掉。
 
 **条身、内部点、隐藏点、装饰条永远不进入按下候选。** 曾经的 `PickUp` / `TryAddConnectionCandidate` 两条路径会把整条 `LongNote` 塞进候选，已删除——它们会让一次按下被「一条已经判完的条」吃掉。
 
@@ -220,8 +239,8 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 | 检查 | 规则 |
 | --- | --- |
 | 相位 | 必须是 `Began`（按住、滑动都不算「按下」） |
-| 车道 | 触摸车道落在该音符的 `JudgeLaneStart..JudgeLaneEnd` |
-| 时间 | `IsJudgmentTiming(type, note.time − touch.time)` |
+| 车道 | 触摸车道落在该音符的 `JudgeLaneStart..JudgeLaneEnd`（头用条的扩展车道） |
+| 时间 | `PressCandidateWindow`：单键与普通头 ±125 ms，划键早 125 ms / 晚 141.7 ms |
 | 单槽 | 一根手指一帧只有一个候选（见 7.3） |
 | 触摸记录 | 只读。`_judgedTouchTimes` 只记已被音符消费的触摸。已有记录、预测评级为 Great 或更差、且距消费不超过 1/6 s 时，跳过该候选 |
 
@@ -236,7 +255,7 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 3. **距离归属**（`ClaimsSharedNote`）：仍然共享的键给离音符车道中心更近的手指，距离相同取较小的 `fingerId`。同一手指的多个样本之间不互相争夺。
 4. **单指取键**（`PickForOneFinger`）：每根手指剩下的键按谱面时间排序，同时间按谱面顺序 `ChartOrder` 排序（`LiveNoteSession.Bind` 按谱面数组下标写入，头沿用所属条的值；排序稳定，与本帧注册顺序无关）。取最早的按下步骤；如果它按这次触摸的时间只能拿 Good 或更低，而后面某个键能拿 Great 及以上，就取其中最早的那个。头的评级用所属条的起点窗口（`LongNoteHeadNote.CalcNoteResult`）。
 
-执行前每个输入的候选列表已裁到最多一项。`JudgmentSchedule.Run` 把产生结果或进入 `Done` 记作消费。
+执行前每个输入的候选列表已裁到最多一项。`JudgmentSchedule.Run` 把产生结果、进入 `Done`、或把划键推进到接收滑动阶段记作消费。
 
 按下只在消费处记账（`JudgmentPass.Consumed`）：写入 `_judgedTouchTimes`，并把该手指记为本帧已用。一根手指一帧只有一个按下额度，同一手指同帧的多个 `Began` 样本共用它，第一个被消费后其余样本不再判定。
 
@@ -249,7 +268,8 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 它是 ② 里的**独立一趟**（`LiveHoldCoordinator.JudgeLifts`），跑在按下通道结算之后、常驻通道刷新之前：
 
 - 只处理 `Ended` / `Canceled` 的触摸，一指一帧只了结一条；
-- `PickLiftTarget` 先按尾键扩展判定车道和当前帧时间筛选。尾时间最早者优先，同时间取离尾键中心最近者。
+- 抬起候选只有一种：长条的普通尾（`LiveHoldCoordinator.IsReleaseKey`：末端是 `NormalNote`、非装饰、未结算、条的尾行为是 `ReleaseTail`）。划键尾、摩擦尾、隐藏载体永远不是抬起候选。
+- `PickLiftTarget` 再按尾键扩展判定车道和当前帧时间（`LongEndJudgement`，早 125 ms / 晚 141.7 ms）筛选。尾时间最早者优先，同时间取离尾键中心最近者。
 - **拥挤的尾**：抬手本身不说明是谁按着这条长条。尾键判定范围内还有其他仍在屏幕上的触摸时，这次抬手只有落在 Perfect 区间（早 58.3 ms / 晚 66.7 ms 以内，`LongEndJudgement.IsPerfect`）才能判这个尾；否则跳过这条，留给仍按着的手指。抬手的触摸是范围内唯一一个时，任何评级都能判。同帧也在抬起的触摸不算“其他触摸”，同一触摸的多个样本算一个。
 - `JudgeTailAsRelease` 用当前帧音乐时间走 `LongEndJudgement`。窗口外的抬手交给条身覆盖和丢手宽限处理。
 - 普通尾在该阶段直接结算。常驻阶段单独给划键尾分配手势，使用长条对象引用保存本阶段的目标。
@@ -358,7 +378,7 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 | 跨窗口掉帧 | `LiveLogicInputTests.BufferedPressUsesItsSampleTimeWhenTheFrameCrossesTheWindow`、`AutoplayFrameSkipTests` |
 | 同时按下两条条（含超短条） | `SimultaneousBarHeadsTests` |
 | 越界手指 | `OutOfLaneFingerTests` |
-| 按下通道只收按下步 | `LiveLogicInputTests`、`HiddenCarrierJudgingTests`、`NotePressDispositionTests` |
+| 按下通道只收按下步 | `PressCandidateRuleTests`、`LiveLogicInputTests`、`HiddenCarrierJudgingTests`、`NotePressDispositionTests` |
 | 自己判定的尾 | `TailBehaviourContractTests`、`FrictionFlickTailArmingTests`、`LongNoteViewLifetimeTests` |
 | 短条与头的窗口 | `ShortBarHeadWindowTests` |
 | 贴图生命周期 | `LongNoteKeyLifetimeTests`、`TailKeyRetirementTests`、`FrictionHeadLifetimeTests` |

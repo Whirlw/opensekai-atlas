@@ -129,7 +129,7 @@ namespace Sekai
 				INote note = _pairNotes[i];
 				if (note.State == NoteState.Scrolling && note.Progress > 0f)
 				{
-					float progress = LiveConfig.GetNoteViewProgress(note.Progress);
+					float progress = LiveConfig.GetNoteViewProgress(LiveConfig.ViewProgressOf(note));
 					if (musicTime >= note.MusicScoreInfo.time && note is LongNote)
 					{
 						progress = 1f;

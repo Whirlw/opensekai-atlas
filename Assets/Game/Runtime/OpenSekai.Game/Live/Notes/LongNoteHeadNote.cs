@@ -23,6 +23,9 @@ namespace Sekai.Live
 
 		internal LongNoteHead Head => _head;
 
+		/// <summary>The bar this head starts; its widened lanes are the head's press lanes.</summary>
+		internal LongNote Bar => _bar;
+
 		/// <summary>The head sits where its bar sits in the chart.</summary>
 		internal override int ChartOrder
 		{
