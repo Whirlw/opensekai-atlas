@@ -25,21 +25,22 @@
 
 ## 二、帧内时序
 
-一帧按固定顺序驱动，视图永远在最后：`LiveLogic.OnUpdate` 推进时钟并走音符（音符状态），`LiveLogic.OnInput` 收触摸并跑判定（输入），视图在这一帧的判定全部落定之后才前进一次。
-`OnUpdate` 自己不再刷新视图——曾经它刷新一次、输入趟再刷新一次，同一帧里视图被推进两遍，画出来的可能是两个状态拼在一起。
+一帧分三块，顺序固定：**更新状态 → 处理触摸 → 生成视图**。视图永远最后，它画的是这一帧判定全部落定之后的状态；同一帧里它只前进一次——曾经在状态块和触摸块各刷一次，画出来的可能是两个状态拼在一起。
 
 ```
-OnUpdate(scoreInfoTime, gameTime)
+① 更新状态
+LiveLogic.OnUpdate(scoreInfoTime, gameTime)
   clock.Sample ........................ 得到本帧 MusicScoreInfo
   NoteFrame.UpdateNotes()
       Notes.TickHeads(now) ............ 头的自有窗口：到期自己 Miss
       register 未结算的头候选 ......... 头的候选只要头还开着就一直注册（不看条是否已结束）
       Notes.TickTails(frame) .......... 自判定的尾：自己的时钟拍一次
-      WalkNotes(ScanNote) ............. 走音符：生成/推进/生成视图
+      WalkNotes(ScanNote) ............. 走音符：生成 / 推进 / 生成视图
       WalkHighSpeedNotes(...)
 
-OnInput()
-  Input.CollectTouches() .............. 原始触摸 → InputTmp（含车道解析）
+② 处理触摸
+LiveLogic.OnInput()
+  Input.CollectTouches() .............. 原始触摸 → InputTmp（含车道解析，y 只有这一道门）
   Scheduler.Run()
       1 按下通道 ....................... CollectCandidates → SortPressCandidates → EvaluateJudgment
                                          只收 Began；一根手指一帧只花一次按下
@@ -48,16 +49,20 @@ OnInput()
       3 常驻通道 ....................... JudgeDueComboPoints → DriveIndependentNotes → RefreshSustainedHolds
                                          条内点、条身、自判尾、按住刷新、超时
       4 EndFrame() ..................... 忘掉结束的触摸，清空本帧输入
-      5 TickViews() .................... 视图与尾 key 回收：本帧最后一步
+
+③ 生成视图
+NoteFrame.TickViews()
+  TickTailKeys(now) ................... 有结果的尾键、到尾时间的尾键退场
+  TickRetiring(frame) ................. 正在滑出的键继续往外走，到 1.35 回收
 ```
 
-三个通道各自从本帧的原始样本里取自己认得的相位（按下取 `Began`、抬起取 `Ended`/`Canceled`），先判完再交给下一个；常驻通道拿剩下的一切。抬起的候选在它自己的通道里选好（`_liftTargets` 带帧号），常驻通道只读这份结果，不会再把同一根手指的抬起判一次。
+三个通道是②里的三步，各自从本帧的原始样本里取自己认得的相位（按下取 `Began`、抬起取 `Ended`/`Canceled`），先判完再交给下一个；常驻通道拿剩下的一切。抬起的候选在它自己的通道里选好（`_liftTargets` 带帧号），常驻通道只读这份结果，不会再把同一根手指的抬起判一次。
 
-自动播放没有输入趟：`LiveLogic.OnAutoInput` 在自动判定之后调用同一个 `TickViews`，视图同样在最后。
+自动播放没有触摸块：`LiveLogic.OnAutoInput` 在自动判定之后自己调用同一个 `TickViews`，视图同样在最后。
 
-**三条通道与上面五步的对应关系**（一个音符只由其中一条回答）：
+**三条通道与②内三步的对应关系**（一个音符只由其中一条回答）：
 
-| 通道 | 落在哪一步 | 回答的问题 | 典型音符 |
+| 通道 | 落在②的第几步 | 回答的问题 | 典型音符 |
 | --- | --- | --- | --- |
 | 按下 press | 1 | 这次按下能不能判掉一个瞬间键 | 单键、普通长条的头 |
 | 抬起 release | 2 | 只判长条的**普通尾**（末端是普通音符） | `ReleaseTail` |
