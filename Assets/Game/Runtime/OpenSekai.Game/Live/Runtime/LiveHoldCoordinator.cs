@@ -25,6 +25,7 @@ namespace Sekai.Core.Live
 		private readonly LongNote[] _swipeTargets;
 		private readonly bool[] _swipeFromTailLane;
 		private readonly HashSet<int> _usedLiftFingers = new HashSet<int>();
+		private HashSet<int> _silencedTouches;
 
 		public LiveHoldCoordinator(int inputCapacity)
 		{
@@ -100,8 +101,10 @@ namespace Sekai.Core.Live
 		/// One frame of hold upkeep: cover every live bar with the fingers on it, then refresh each
 		/// bar from its owner. Neither step consumes a candidate slot or moves ownership.
 		/// </summary>
-		public void Refresh(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame, float deltaTime)
+		public void Refresh(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame, float deltaTime,
+			HashSet<int> silencedTouches = null)
 		{
+			_silencedTouches = silencedTouches;
 			// A bar is not owned by a finger: any touch on it keeps it alive, and a touch that leaves
 			// the screen inside it is the release the tail listens for. This runs before ownership so a
 			// second finger can neither steal the hold nor swallow the tail.
@@ -250,6 +253,20 @@ namespace Sekai.Core.Live
 				if (held.State != NoteState.Done && covered && headSettled)
 				{
 					held.KeepAlive(frame.time);
+				}
+
+				// A finger on a bar in play has pressed a long note: it may not light the empty lanes
+				// again until it leaves the screen.
+				if (_silencedTouches != null && held.State != NoteState.Done && covered && (headSettled || !held.HasJudgment))
+				{
+					for (int inputIndex = 0; inputIndex < count; inputIndex++)
+					{
+						LiveLogic.InputTmp input = inputs[inputIndex];
+						if (input != null && !IsEndedOrCanceled(input.Touch.phase) && TouchesBar(input.Lane, held))
+						{
+							_silencedTouches.Add(input.Touch.touchId);
+						}
+					}
 				}
 
 				bool swipeEnded = swipe != null && IsEndedOrCanceled(swipe.Touch.phase);
