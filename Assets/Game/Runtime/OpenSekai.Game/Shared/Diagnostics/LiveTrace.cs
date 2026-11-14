@@ -227,7 +227,10 @@ namespace OpenSekai.Shared.Diagnostics
                 string directory = Path.Combine(Application.persistentDataPath, "logs");
                 Directory.CreateDirectory(directory);
                 _logFilePath = Path.Combine(directory, "live-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".log");
-                _sink = new StreamWriter(_logFilePath, false) { AutoFlush = true };
+                // FileShare.Read so a running capture can be pulled and read while the game is still
+                // writing it; without it the sink locks its own file on this platform.
+                var stream = new FileStream(_logFilePath, FileMode.Create, FileAccess.Write, FileShare.Read);
+                _sink = new StreamWriter(stream, new UTF8Encoding(false)) { AutoFlush = true };
                 _sink.WriteLine("# Open Sekai Atlas live trace " + Application.version);
             }
             catch (Exception exception)
@@ -249,7 +252,18 @@ namespace OpenSekai.Shared.Diagnostics
             _sink = null;
         }
 
-        /// <summary>Flushes and closes the file sink. Called when the app pauses or quits.</summary>
+        /// <summary>
+        /// Pushes what the writer holds onto disk without closing it. A pause can end in the process
+        /// being killed, and the stream keeps a buffer of its own; the file has to be complete before
+        /// that, and reopening on resume would start a second file for the same run.
+        /// </summary>
+        public static void Flush()
+        {
+            EnsureLoaded();
+            _sink?.Flush();
+        }
+
+        /// <summary>Flushes and closes the file sink. Called when the app quits.</summary>
         public static void Shutdown()
         {
             CloseSink();

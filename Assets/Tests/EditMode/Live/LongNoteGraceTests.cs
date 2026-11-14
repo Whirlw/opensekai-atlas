@@ -48,7 +48,7 @@ namespace OpenSekai.Tests.EditMode.Live
 		{
 			var bar = new LongNote(Info(0f), finger, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
 			bar.SetStateUnnotice(NoteState.Scrolling);
-			bar.RecordHoldingInput(finger, 0f);
+			bar.RecordHoldingInput(0f);
 			return bar;
 		}
 
@@ -163,7 +163,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			// hold that has begun: the head was taken, or its own moment has arrived.
 			var bar = new LongNote(Info(1f), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
 			bar.SetStateUnnotice(NoteState.Scrolling);
-			bar.RecordHoldingInput(1, 0.75f);
+			bar.RecordHoldingInput(0.75f);
 
 			Assert.That(bar.HasFinger, Is.True, "the finger is on it");
 			Assert.That(Sekai.LiveUtility.IsBeingHeldForEffect(bar, 0.75f), Is.False,
@@ -191,7 +191,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			var bar = HeldBar(1);
 			foreach (int finger in new[] { 2, -1, 0 })
 			{
-				bar.RecordHoldingInput(finger, 0f);
+				bar.RecordHoldingInput(0f);
 				Assert.That(bar.HasFinger, Is.True);
 				Assert.That(bar.HasFinger, Is.True);
 			}

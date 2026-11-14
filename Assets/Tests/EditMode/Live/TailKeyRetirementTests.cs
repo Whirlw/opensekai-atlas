@@ -143,7 +143,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			tail.OnSpawn = note => LiveViewExt.SpawnNote(views, note);
 			tail.OnUnspawn = note => LiveViewExt.UnspawnNote(views, note);
 			bridge.Spawn(views, tail, bar.MusicScoreInfo.time);
-			bar.RecordHoldingInput(1, 0.5f);
+			bar.RecordHoldingInput(0.5f);
 
 			Assert.That(bar.ExpireTail(0.6f), Is.False, "the bar is still inside its own window");
 			Assert.That(_view.Unspawned, Is.Empty, "so the key stays");

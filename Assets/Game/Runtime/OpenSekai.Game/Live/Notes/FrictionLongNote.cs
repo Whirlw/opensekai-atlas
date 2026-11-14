@@ -1,4 +1,4 @@
-﻿namespace Sekai.Live
+namespace Sekai.Live
 {
 	public class FrictionLongNote : LongNote
 	{
@@ -69,7 +69,7 @@
 			}
 
 			isTouched = true;
-			RecordHoldingInput(touch.fingerId, touch.musicTime);
+			RecordHoldingInput(touch.musicTime);
 			OffsetJudgeTime = 0f;
 			ConnectionNoteJudgment(ref touch, lane);
 

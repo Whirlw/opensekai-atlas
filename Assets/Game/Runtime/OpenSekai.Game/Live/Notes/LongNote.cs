@@ -237,7 +237,7 @@ namespace Sekai.Live
 			// head is judged by a press, through the press channel), but it does keep the bar held and its
 			// points refreshing - returning early here left a held bar with no finger at all, which is how a
 			// hold could grey out or vanish from the resident pass.
-			RecordHoldingInput(touch.fingerId, MusicScore.CurrentFrameInfo.time);
+			RecordHoldingInput(MusicScore.CurrentFrameInfo.time);
 			RestoreHeldState();
 			MarkHeadTouched();
 			MarkPressedThisFrame();
@@ -431,7 +431,7 @@ namespace Sekai.Live
 		internal Action<NoteBase> HeadJudgment => onJudgment;
 		internal Action<NoteBase> HeadScore => onUpdateScore;
 
-		internal void RecordHoldingInput(int fingerId, float musicTime) => Body.RecordInput(musicTime);
+		internal void RecordHoldingInput(float musicTime) => Body.RecordInput(musicTime);
 		internal void ClearFinger() => _body?.ClearFinger();
 		internal void MarkPressedThisFrame() => Body.MarkPressed();
 		private LongNoteHead _head;
@@ -476,7 +476,7 @@ namespace Sekai.Live
 		/// </summary>
 		internal void RefreshHeldInput(ref LiveTouch touch, float lane)
 		{
-			RecordHoldingInput(touch.fingerId, touch.musicTime);
+			RecordHoldingInput(touch.musicTime);
 			RestoreHeldState();
 			ConnectionNoteJudgment(ref touch, lane);
 		}
