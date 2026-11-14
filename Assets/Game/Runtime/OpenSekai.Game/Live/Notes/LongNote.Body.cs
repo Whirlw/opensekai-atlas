@@ -145,11 +145,17 @@ namespace Sekai.Live
 			}
 
 			/// <summary>
-			/// Brings a bar back to its held picture when a finger lands on it again. A bar that has already
-			/// crossed its own line is left alone: Scrolling means "never taken yet", and sending a bar that
-			/// has moved on back there made the crossing branch fire again every frame (Scrolling to Last),
-			/// so the grace that leads to Release never finished and the tail was left unjudged until its
-			/// window shut. What a bar looks like after the line follows ShowsAsReleased, not this.
+			/// Brings a bar back to its held state when a finger lands on it again.
+			///
+			/// Inside the grace (Last) a finger recorded on the bar this frame takes it back: a hand-off
+			/// between two fingers that leaves one frame uncovered must not keep a held bar in Last for the
+			/// rest of its life (device trace 2026-11-14, bar 34.105: finger 1 lifted at 35.507, finger 0
+			/// took over at 35.519, and the bar stayed Last until its end). The finger has to be recorded,
+			/// not only kept alive: a restore without one is what made the crossing branch fire again every
+			/// frame (Scrolling to Last), so the grace never finished and the tail was left unjudged.
+			///
+			/// After the grace (Release) an ordinary bar only comes back inside its head's window; past that,
+			/// Release is final and what the bar looks like follows ShowsAsReleased.
 			/// </summary>
 			internal void RestoreHeldState()
 			{
@@ -164,7 +170,8 @@ namespace Sekai.Live
 					return;
 				}
 
-				if (MusicScore.CurrentFrameInfo.time - _bar.MusicScoreInfo.time <= LiveConfig.JudgeTime)
+				if ((_bar.State == NoteState.Last && _fingerOnIt)
+					|| MusicScore.CurrentFrameInfo.time - _bar.MusicScoreInfo.time <= LiveConfig.JudgeTime)
 				{
 					_bar.SetStateUnnotice(NoteState.Scrolling);
 				}
