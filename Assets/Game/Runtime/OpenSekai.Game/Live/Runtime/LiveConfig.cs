@@ -57,8 +57,6 @@ namespace Sekai.Live
 
 		public static readonly int Life;
 
-		public static readonly float JustPerfectJudgeTime;
-
 		public static readonly float JustPerfectJudgeTimeHalf;
 
 		public static readonly float JudgeTime;
@@ -377,16 +375,6 @@ namespace Sekai.Live
 			// The ladder lives in JudgeWindow so it can be tested without loading the live configuration.
 		}
 
-		public static (NoteResult, NoteResultDescription) GetPreviewJudgeResult(float viewTime)
-		{
-			return GetJudgeResultInternal(viewTime, JudgeFrameType.Normal, true);
-		}
-
-		private static NoteResultDescription GetNoteResultDescription(float judgeOffsetTime)
-		{
-			return OpenSekai.Shared.Scoring.JudgeWindow.DescriptionFor(judgeOffsetTime, JustPerfectJudgeTimeHalf);
-		}
-
 		static LiveConfig()
 		{
 			VariationValues = new[]
@@ -399,7 +387,6 @@ namespace Sekai.Live
 			ContinueNoDamageTime = 1f;
 			MaxSkillCount = 6;
 			Life = 1000;
-			JustPerfectJudgeTime = 1f / 60f;
 			JustPerfectJudgeTimeHalf = 1f / 120f;
 			JudgeTime = 0.125f;
 			LotteryPraiseCount = 5;

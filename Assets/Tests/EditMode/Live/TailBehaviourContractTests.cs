@@ -34,7 +34,7 @@ namespace OpenSekai.Tests.EditMode.Live
 				NoteType.Default, NoteDirection.Default, 0.0833f, 0f);
 			Bind(bar, tail);
 
-			bool settled = bar.TailBehaviour.TryFinish(bar, new TailFrame(2f, 1f / 60f, default, false, false, false));
+			bool settled = bar.TailBehaviour.TryFinish(bar, new TailFrame(2f, 1f / 60f, default, false, false));
 
 			Assert.That(settled, Is.True, "the bar leaves on its own time");
 			Assert.That(tail.Result, Is.EqualTo(NoteResult.None), "and it wrote no verdict onto the note");
@@ -49,7 +49,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			LongNote bar = Bar();
 			Bind(bar, new NormalNote(Info(1f), 95, 4, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f));
 
-			bool settled = bar.TailBehaviour.TryFinish(bar, new TailFrame(1f, 1f / 60f, default, false, true, true));
+			bool settled = bar.TailBehaviour.TryFinish(bar, new TailFrame(1f, 1f / 60f, default, false, true));
 
 			Assert.That(settled, Is.False);
 			Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done));
@@ -64,7 +64,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			Bind(bar, new FrictionFlickNote(Info(1f), 96, 4, 5, NoteCategory.FrictionFlick, 1f, NoteType.Default, NoteDirection.Default, 0.0833f, 0f));
 			((NoteBase)bar.ChildNote).FinishWith(NoteResult.JustPerfect);
 
-			bool settled = bar.TailBehaviour.TryFinish(bar, new TailFrame(2f, 1f / 60f, default, false, false, false));
+			bool settled = bar.TailBehaviour.TryFinish(bar, new TailFrame(2f, 1f / 60f, default, false, false));
 
 			Assert.That(settled, Is.True);
 			Assert.That(bar.State, Is.EqualTo(NoteState.Done));

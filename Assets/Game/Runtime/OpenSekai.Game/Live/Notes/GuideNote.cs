@@ -91,11 +91,6 @@ namespace Sekai.Live
 			return false;
 		}
 
-		public override bool IsJudgmentChild(ref LiveTouch touch, float lane)
-		{
-			return false;
-		}
-
 		public override bool Judgment(ref LiveTouch touch, float lane)
 		{
 			return false;

@@ -12,25 +12,11 @@ namespace Sekai
 
 		public const int LANE_COUNT = 11;
 
-		public const float ONE_FRAME_TIME = 1f / 60f;
-
-		public const float HALF_FRAME_TIME = 1f / 120f;
-
-		public const float JUDGMENT_LIFE_TIME = 0.3f;
-
-		public const float JUDGMENT_SCALE_COEFFICIENT = 20f;
-
 		public static readonly Vector2 Vector2Zero;
-
-		public static readonly Vector3 Vector3Zero;
 
 		public static readonly Vector3 Vector3One;
 
 		public static readonly Vector3 Vector3OneMinusX;
-
-		public static readonly Vector2 Vector2Left;
-
-		public static readonly Vector2 Vector2Right;
 
 		public static readonly Vector3 FlickLeftEulerAngles;
 
@@ -397,11 +383,8 @@ namespace Sekai
 		static LiveUtility()
 		{
 			Vector2Zero = Vector2.zero;
-			Vector3Zero = Vector3.zero;
 			Vector3One = Vector3.one;
 			Vector3OneMinusX = new Vector3(-1f, 1f, 1f);
-			Vector2Left = Vector2.left;
-			Vector2Right = Vector2.right;
 			FlickLeftEulerAngles = new Vector3(0f, 0f, 30f);
 			FlickRightEulerAngles = new Vector3(0f, 0f, -30f);
 			NoteViewProgressStartValue = 0.07265f;

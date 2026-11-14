@@ -24,10 +24,6 @@ namespace Sekai.Core.Live
 			_retiring.Clear();
 		}
 
-		public int TailKeyCount => _tailKeys.Count;
-
-		public int RetiringCount => _retiring.Count;
-
 		/// <summary>
 		/// Spawns the view for a note that just came due. A bar's ending key is additionally tracked
 		/// so it can be asked to leave once it is judged or has slid past the line.
@@ -142,7 +138,7 @@ namespace Sekai.Core.Live
 				}
 
 				TailKeyPhase phase = bar.GetTailKeyPhase(now);
-				if ((phase is TailKeyPhase.SlidingOut or TailKeyPhase.Retired) && !_retiring.Contains(tail))
+				if (phase == TailKeyPhase.Retired && !_retiring.Contains(tail))
 				{
 					_retiring.Add(tail);
 				}

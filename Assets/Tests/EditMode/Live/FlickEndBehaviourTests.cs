@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 using System.Collections.Generic;
 
@@ -974,8 +974,6 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
             Assert.That(tail.Result, Is.EqualTo(NoteResult.Miss));
-
-            Assert.That(tail.SuppressJudgmentEffect, Is.False, "the popup must not be suppressed");
 
             Assert.That(reported, Does.Contain(tail), "the Miss character has to be shown for the tail");
 

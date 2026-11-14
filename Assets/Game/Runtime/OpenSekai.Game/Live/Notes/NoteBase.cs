@@ -24,12 +24,6 @@ namespace Sekai.Live
 		protected Action<NoteBase> onUnspawn;
 		private bool viewReleased;
 
-		/// <summary>
-		/// Set when a bar settles this note because nobody played it: the result still counts, but the
-		/// note must not fire a tap effect or a hit sound of its own.
-		/// </summary>
-		internal bool SuppressJudgmentEffect { get; set; }
-
 		protected Func<(NoteResult result, NoteResultDescription description), (NoteResult result, NoteResultDescription description)> onUpdateResult;
 
 				private Func<NoteBase, float> _CalcTimeOffset;
@@ -342,15 +336,6 @@ namespace Sekai.Live
 		[JsonIgnore]
 		public virtual bool ShowsAsReleased => State == NoteState.Release;
 
-		[JsonIgnore]
-		public virtual bool IsFever
-		{
-			[CompilerGenerated]
-			get;
-			[CompilerGenerated]
-			set;
-		}
-
 		public virtual bool IsSkip
 		{
 			[CompilerGenerated]
@@ -539,11 +524,6 @@ namespace Sekai.Live
 			PairNote = note;
 		}
 
-		public virtual void SetFever(bool fever)
-		{
-			IsFever = fever;
-		}
-
 		public virtual void SetSkip(bool skip)
 		{
 			IsSkip = skip;
@@ -688,13 +668,6 @@ namespace Sekai.Live
 			return true;
 		}
 
-		public virtual bool IsJudgmentTimeAt(float currentTime)
-		{
-			float offset = JudgeOffsetAt(currentTime);
-			return offset >= -LiveConfig.noteTypeJudgeData.JudgeTimeBefore
-				&& offset <= LiveConfig.noteTypeJudgeData.JudgeTimeAfter;
-		}
-
 		public virtual bool AutoJudgment(MusicScoreInfo currentFrameInfo)
 		{
 			if (State == NoteState.Done || MusicScoreInfo.time > currentFrameInfo.time)
@@ -713,7 +686,6 @@ namespace Sekai.Live
 			OffsetJudgeTime = 0f;
 			Progress = 0f;
 			viewReleased = false;
-			SuppressJudgmentEffect = false;
 			JudgeInfo = (NoteResult.None, NoteResultDescription.None);
 			offsetTime = 0f;
 			IsHighSpeedNote = false;

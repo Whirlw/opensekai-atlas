@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using OpenSekai.Shared.Diagnostics;
 using OpenSekai.Shared.Live;
@@ -259,12 +259,10 @@ namespace Sekai.Core.Live
 					held.KeepAlive(frame.time);
 				}
 
-				bool isBeingHeld = held.IsHeld(frame.time);
-
 				if (LiveTrace.IsOn(LiveTraceCategory.Tail))
 				{
 					LiveTrace.Write(LiveTraceCategory.Tail,
-						$"tailFrame barT={held.MusicScoreInfo.time:F3} now={frame.time:F3} state={held.State} covered={covered} released={releasedInside} held={isBeingHeld} settled={headSettled} child={(held.ChildNote == null ? -1f : held.ChildNote.MusicScoreInfo.time):F3} childRes={(held.ChildNote == null ? NoteResult.None : held.ChildNote.Result)}");
+						$"tailFrame barT={held.MusicScoreInfo.time:F3} now={frame.time:F3} state={held.State} covered={covered} released={releasedInside} held={held.HasFinger} settled={headSettled} child={(held.ChildNote == null ? -1f : held.ChildNote.MusicScoreInfo.time):F3} childRes={(held.ChildNote == null ? NoteResult.None : held.ChildNote.Result)}");
 				}
 
 				// The bar asks its tail how it ends. There is no switch here any more, and no way for a
@@ -275,8 +273,7 @@ namespace Sekai.Core.Live
 					deltaTime,
 					new UnityEngine.Vector2(swipeDeltaX, swipeDeltaY),
 					releasedInside,
-					covered,
-					isBeingHeld));
+					covered));
 
 				// A bar ends when its tail window closes, whatever closed it. Only the flick path had a
 				// timeout before, so a bar ending with a friction or a hidden note could never end:
