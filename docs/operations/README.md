@@ -16,6 +16,7 @@
 | [Android 构建](android-build.md) | 工具链、Player Settings、出包步骤、三个必踩的坑、体积取舍 |
 | [发布（GitHub 分发）](release.md) | 版本号与 tag、公开 keystore、校验和、release notes 模板、覆盖安装注意事项 |
 | [真机性能](android-performance.md) | 165 Hz 配置、帧率采集、已知的系统级限制 |
+| [Android 日志采集](android-logs.md) | 复现录制、闪退快照、判定追踪和供 AI 读取的报告 |
 | [编辑器菜单](editor-menus.md) | 每个菜单做什么、什么时候用 |
 | [故障排查](troubleshooting.md) | Unity 卡死/资产库损坏/MCP 断线/adb 截图等 |
 | [测试](testing.md) | 两层测试、桥接菜单与 unity test、报告位置、待补清单 |
