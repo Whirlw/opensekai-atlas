@@ -57,6 +57,7 @@ docs/
 | 改判定、计分、时间轴 | [打歌运行时](architecture/live-runtime.md) + [ADR-0004](decisions/0004-cumulative-scoring.md) |
 | 改曲包格式、读谱面 | [曲包与谱面数据](architecture/chart-package.md) |
 | 打 AB 包、出 APK | [AssetBundle 与清单](architecture/asset-bundles.md) + [Android 构建](operations/android-build.md) |
+| 改了素材/界面，不上真机看效果 | [截图工具](operations/screenshot-tools.md) |
 | 查某个设置项 | [设置项](reference/live-settings.md) |
 | 写新代码 / 起名 / Code Review | [代码规范](coding-standards/README.md) |
 | 排查「为什么打不开/卡住」 | [故障排查](operations/troubleshooting.md) |

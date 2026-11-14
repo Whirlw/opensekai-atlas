@@ -3,7 +3,7 @@
 > 目的：收录「把工程变成可分发产物、并在真机/桌面上验证」相关的文档。
 > 适用读者：开发者、打包与测试人员。
 > 前置条件：读过 [环境与运行](../getting-started/build-and-run.md)。
-> 最后更新：2026-11-03
+> 最后更新：2026-11-14
 
 ## 概述
 
@@ -38,6 +38,7 @@
 - [文档总入口](../README.md)
 - [全量索引](../INDEX.md)
 - [AssetBundle 与清单](../architecture/asset-bundles.md)
+| [截图工具](screenshot-tools.md) | 不上真机把打歌画面、信息页、曲库、设置、结算渲染成 PNG：脚本参数、请求 JSON、可复现原理、已知限制 |
 | [音符皮肤制作](note-skin-authoring.md) | 自己画一套音符皮肤：`custom01`/`custom02` 目录结构、像素尺寸硬约束表、`-From` 导入校验与出包步骤 |
 
 > 接手/换人先看 [handoff-2026-11-11.md](handoff-2026-11-11.md)：现状、未做完的事、工具链、红线。

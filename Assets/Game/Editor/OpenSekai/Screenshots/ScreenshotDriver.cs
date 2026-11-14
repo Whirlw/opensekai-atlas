@@ -1,0 +1,693 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Threading;
+using Cysharp.Threading.Tasks;
+using Newtonsoft.Json;
+using OpenSekai.App.Playback;
+using OpenSekai.App.UI;
+using OpenSekai.Infrastructure.Packages;
+using OpenSekai.Shared.Playback;
+using Sekai;
+using Sekai.Core.Live;
+using Sekai.Live;
+using UnityEngine;
+
+namespace OpenSekai.EditorTools.Screenshots
+{
+    /// <summary>
+    /// Runs a <see cref="ShotRequest"/> inside Play Mode, from the Library scene. Lives on a hidden
+    /// DontDestroyOnLoad object so it survives the Library -> Core -> Library round trip of a live.
+    ///
+    /// Live frames are reproducible: the music is stopped as soon as it would start, so the live
+    /// clock runs on its own and moves by the frame time, and the frame time is fixed with
+    /// Time.captureDeltaTime. The live is fast-forwarded in 100 ms steps (the clock's own cap) up to
+    /// <c>lead</c> seconds before each time, played at <c>fps</c> from there, and the last step is
+    /// trimmed so the captured frame lands on the requested millisecond.
+    /// </summary>
+    internal sealed class ScreenshotDriver
+    {
+        private const BindingFlags Any = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        private const float FastForwardStep = 0.1f;
+        private const float RealTimeout = 120f;
+
+        private static readonly FieldInfo StateField = typeof(BaseLiveController).GetField("state", Any);
+        private static readonly FieldInfo TimeField = typeof(BaseLiveController).GetField("currentMusicTimeMs", Any);
+        private static readonly FieldInfo PhaseField = typeof(BaseLiveController).GetField("musicPhase", Any);
+        private static readonly MethodInfo RetireNow = typeof(SoloLiveController).GetMethod("OnRetireByMySelf", Any);
+        private static readonly MethodInfo SkipOutro = typeof(SoloLiveController).GetMethod("SkipOutro", Any);
+
+        private const int StatePlaying = 1;
+        private const int StateFinish = 6;
+        private const int PhaseNotStarted = 0;
+        private const int PhasePlaying = 2;
+        private const int PhaseEnded = 3;
+
+        private ShotRequest _request;
+        private readonly List<ShotReport> _reports = new List<ShotReport>();
+        private Action<RunReport> _onDone;
+        private GameObject _host;
+        private float _previousVolume;
+        private bool _settingsChanged;
+        private int? _previousFakePerfect;
+        private int? _previousResultAnimation;
+
+        internal static void Begin(ShotRequest request, Action<RunReport> onDone)
+        {
+            // Editor-assembly MonoBehaviours cannot be added at runtime, so the coroutine runs on an
+            // inert built-in component (no graphic, nothing raycasts into it).
+            var host = new GameObject("[OpenSekai Screenshots]") { hideFlags = HideFlags.HideAndDontSave };
+            UnityEngine.Object.DontDestroyOnLoad(host);
+            var runner = host.AddComponent<UnityEngine.EventSystems.EventTrigger>();
+            var driver = new ScreenshotDriver { _request = request, _onDone = onDone, _host = host };
+            runner.StartCoroutine(driver.Run());
+        }
+
+        private IEnumerator Run()
+        {
+            Directory.CreateDirectory(_request.outDir);
+            _previousVolume = AudioListener.volume;
+            AudioListener.volume = 0f;
+            Log("output " + _request.outDir + " at " + _request.width + "x" + _request.height);
+
+            yield return WaitForLibrary();
+            int index = 0;
+            foreach (Shot shot in _request.shots)
+            {
+                index++;
+                IEnumerator body;
+                switch ((shot.kind ?? string.Empty).ToLowerInvariant())
+                {
+                    case "live": body = LiveShot(shot, false); break;
+                    case "info": body = LiveShot(shot, true); break;
+                    case "finish": body = FinishShot(shot); break;
+                    case "library": body = LibraryShot(shot, null); break;
+                    case "settings": body = LibraryShot(shot, "settings"); break;
+                    case "settings-trace": body = LibraryShot(shot, "settings-trace"); break;
+                    case "result": body = LibraryShot(shot, "result"); break;
+                    default:
+                        Fail(shot, "unknown kind '" + shot.kind + "'");
+                        continue;
+                }
+                yield return Guard(body, shot);
+            }
+
+            Time.captureDeltaTime = 0f;
+            AudioListener.volume = _previousVolume;
+            var report = new RunReport
+            {
+                outDir = _request.outDir,
+                width = _request.width,
+                height = _request.height,
+                screenWidth = Screen.width,
+                screenHeight = Screen.height,
+                shots = _reports
+            };
+            File.WriteAllText(Path.Combine(_request.outDir, "report.json"), JsonConvert.SerializeObject(report, Formatting.Indented));
+            Log("done: " + _reports.Count(r => r.ok) + " ok, " + _reports.Count(r => !r.ok) + " failed");
+            _onDone?.Invoke(report);
+            UnityEngine.Object.Destroy(_host);
+        }
+
+        /// <summary>Runs one shot; an exception fails that shot and puts the game back on the library.</summary>
+        private IEnumerator Guard(IEnumerator body, Shot shot)
+        {
+            var stack = new Stack<IEnumerator>();
+            stack.Push(body);
+            while (stack.Count > 0)
+            {
+                IEnumerator top = stack.Peek();
+                bool moved;
+                try
+                {
+                    moved = top.MoveNext();
+                }
+                catch (Exception exception)
+                {
+                    Fail(shot, exception.Message);
+                    Debug.LogException(exception);
+                    break;
+                }
+                if (!moved)
+                {
+                    stack.Pop();
+                    continue;
+                }
+                if (top.Current is IEnumerator nested)
+                {
+                    stack.Push(nested);
+                }
+                else
+                {
+                    yield return top.Current;
+                }
+            }
+
+            Time.captureDeltaTime = 0f;
+            yield return LeaveLive();
+        }
+
+        // ---------------------------------------------------------------- library pages
+
+        private IEnumerator LibraryShot(Shot shot, string panel)
+        {
+            yield return WaitForLibrary();
+            LibraryScreen screen = UnityEngine.Object.FindFirstObjectByType<LibraryScreen>();
+            LibrarySettingsPanel settings = UnityEngine.Object.FindFirstObjectByType<LibrarySettingsPanel>(FindObjectsInactive.Include);
+            LibraryResultPanel resultPanel = UnityEngine.Object.FindFirstObjectByType<LibraryResultPanel>(FindObjectsInactive.Include);
+            settings?.Hide();
+            resultPanel?.Hide();
+
+            string detail = null;
+            if (panel == "settings" || panel == "settings-trace")
+            {
+                if (settings == null) throw new InvalidOperationException("LibrarySettingsPanel not found.");
+                settings.Show();
+                if (panel == "settings-trace")
+                {
+                    GameObject trace = settings.transform.GetComponentsInChildren<Transform>(true)
+                        .Select(t => t.gameObject).FirstOrDefault(g => g.name == "TracePanel");
+                    if (trace == null) throw new InvalidOperationException("TracePanel not found under the settings panel.");
+                    trace.SetActive(true);
+                    trace.transform.SetAsLastSibling();
+                }
+            }
+            else if (panel == "result")
+            {
+                ResultSample sample = shot.result ?? new ResultSample();
+                screen.ShowResult(ToResult(sample));
+                detail = sample.kind + " " + sample.score + " " + sample.rank;
+            }
+
+            // Two frames for layout and TextMeshPro to settle.
+            yield return null;
+            yield return null;
+            yield return Capture(shot, FileStem(shot, null), detail, null);
+
+            settings?.Hide();
+            resultPanel?.Hide();
+        }
+
+        private static PlayResult ToResult(ResultSample sample)
+        {
+            Enum.TryParse(sample.kind, true, out PlayResultKind kind);
+            if (kind == PlayResultKind.LoadError)
+            {
+                return PlayResult.FromLoadError(sample.title, sample.auto, string.Empty, sample.message);
+            }
+            Enum.TryParse(sample.rank, true, out ScoreRank rank);
+            var score = new LiveScore
+            {
+                totalScore = sample.score,
+                rank = rank,
+                maxCombo = sample.maxCombo,
+                totalComboCount = sample.totalCombo,
+                perfectCount = sample.perfect,
+                greatCount = sample.great,
+                goodCount = sample.good,
+                badCount = sample.bad,
+                missCount = sample.miss,
+                autoCount = sample.auto ? sample.totalCombo : 0,
+                life = sample.life
+            };
+            return new PlayResult(kind, sample.auto, string.Empty, sample.title, sample.playLevel, score);
+        }
+
+        // ---------------------------------------------------------------- live and info page
+
+        private IEnumerator LiveShot(Shot shot, bool infoPage)
+        {
+            List<float> times = (shot.times ?? new List<float>()).OrderBy(t => t).ToList();
+            if (times.Count == 0)
+            {
+                times.Add(infoPage ? 1.5f : 30f);
+            }
+            float frame = 1f / Mathf.Clamp(shot.fps <= 0 ? 60 : shot.fps, 10, 240);
+
+            yield return StartLive(shot, infoPage, null);
+            SoloLiveController controller = null;
+            yield return WaitUntil(() => (controller = UnityEngine.Object.FindFirstObjectByType<SoloLiveController>()) != null, "the live controller");
+
+            if (infoPage)
+            {
+                Time.captureDeltaTime = frame;
+                // The page starts in the same step that starts the live clock.
+                yield return WaitUntil(() => { KeepMusicOff(controller); PinTweensToFrameTime(); return Phase(controller) != PhaseNotStarted; }, "the info page");
+                yield return new WaitForEndOfFrame();
+                PinTweensToFrameTime();
+                int startFrame = Time.frameCount;
+                foreach (float offset in times)
+                {
+                    int target = startFrame + Mathf.RoundToInt(offset / frame);
+                    while (Time.frameCount < target)
+                    {
+                        yield return new WaitForEndOfFrame();
+                        KeepMusicOff(controller);
+                        PinTweensToFrameTime();
+                    }
+                    float actual = (Time.frameCount - startFrame) * frame;
+                    string note = State(controller) == StatePlaying
+                        ? "the live had already started (the editor ran below ~37 fps real time); the HUD may be fading in"
+                        : null;
+                    yield return Capture(shot, FileStem(shot, offset), "info +" + actual.ToString("0.000") + "s", note, actual);
+                }
+                yield break;
+            }
+
+            yield return WaitUntil(() => { KeepMusicOff(controller); return State(controller) == StatePlaying; }, "the live to start");
+            yield return new WaitForEndOfFrame();
+            TakeClock(controller);
+            PinTweensToFrameTime();
+            long startMs = Clock(controller);
+            double frameMs = 1000d * frame;
+            foreach (float seconds in times)
+            {
+                long targetMs = (long)Math.Round(seconds * 1000d);
+                long leadMs = (long)Math.Round(Mathf.Max(0f, shot.lead) * 1000d);
+                long playFromMs = Math.Max(targetMs - leadMs, Clock(controller));
+                string note = targetMs < startMs
+                    ? "the live starts at " + (startMs / 1000d).ToString("0.000") + " s (first note minus the lead-in); this is its first frame"
+                    : null;
+                int frameIndex = 0;
+                while (true)
+                {
+                    if (controller == null || State(controller) == StateFinish)
+                    {
+                        throw new InvalidOperationException("The chart was over before " + seconds + " s (every note was done at "
+                            + (Clock(controller) / 1000d).ToString("0.000") + " s). Use kind \"finish\" for the end of a live.");
+                    }
+                    long now = Clock(controller);
+                    if (now >= targetMs)
+                    {
+                        break;
+                    }
+                    // Fast-forward to exactly lead seconds before the target, then step at fps, so the
+                    // frames that matter are the same whatever the live's start point was.
+                    long next = now < playFromMs
+                        ? Math.Min(now + (long)(FastForwardStep * 1000f), playFromMs)
+                        : Math.Min(targetMs, Math.Max(now + 1, playFromMs + (long)Math.Round(++frameIndex * frameMs)));
+                    yield return Step(controller, next - now);
+                }
+                long captured = Clock(controller);
+                yield return Capture(shot, FileStem(shot, seconds), "music " + (captured / 1000d).ToString("0.000") + "s", note, captured / 1000f);
+            }
+        }
+
+        /// <summary>
+        /// Advances the live by one frame of <paramref name="stepMs"/>: the next frame's Update sees the
+        /// clock moved by that much and every scaled-time animation moved by the same amount.
+        /// </summary>
+        private static IEnumerator Step(SoloLiveController controller, long stepMs)
+        {
+            stepMs = Math.Max(1L, stepMs);
+            Time.captureDeltaTime = stepMs / 1000f;
+            TimeField.SetValue(controller, Clock(controller) + stepMs);
+            yield return new WaitForEndOfFrame();
+            TakeClock(controller);
+            PinTweensToFrameTime();
+        }
+
+        /// <summary>
+        /// Stops the music and parks the controller's clock: with the phase at NotStarted its
+        /// UpdateMusicTime leaves the time alone, so the time set by <see cref="Step"/> is the time the
+        /// frame is drawn and judged at.
+        /// </summary>
+        private static void TakeClock(SoloLiveController controller)
+        {
+            if (controller == null)
+            {
+                return;
+            }
+            KeepMusicOff(controller);
+            PhaseField.SetValue(controller, Enum.ToObject(PhaseField.FieldType, PhaseNotStarted));
+        }
+
+        private static readonly HashSet<ParticleSystem> SeededParticles = new HashSet<ParticleSystem>();
+
+        /// <summary>
+        /// Particle systems pick a new random seed every play, so the same tap effect looks different
+        /// in two runs. Give each one a seed made from its place in the hierarchy (pools are built in
+        /// the same order every time). A system that is already playing is restarted to take the seed.
+        /// </summary>
+        private static void SeedParticles()
+        {
+            foreach (ParticleSystem system in UnityEngine.Object.FindObjectsByType<ParticleSystem>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (system == null || !SeededParticles.Add(system) || !system.useAutoRandomSeed)
+                {
+                    continue;
+                }
+                bool playing = system.isPlaying;
+                if (playing)
+                {
+                    system.Stop(false, ParticleSystemStopBehavior.StopEmittingAndClear);
+                }
+                system.useAutoRandomSeed = false;
+                system.randomSeed = StableHash(system.transform);
+                if (playing)
+                {
+                    system.Play(false);
+                }
+            }
+        }
+
+        private static uint StableHash(Transform transform)
+        {
+            unchecked
+            {
+                uint hash = 2166136261;
+                for (Transform t = transform; t != null; t = t.parent)
+                {
+                    foreach (char c in t.name)
+                    {
+                        hash = (hash ^ c) * 16777619;
+                    }
+                    hash = (hash ^ (uint)t.GetSiblingIndex()) * 16777619;
+                }
+                return hash;
+            }
+        }
+
+        private static readonly FieldInfo IndependentField = typeof(DG.Tweening.Tween).GetField("isIndependentUpdate", Any);
+        private static readonly List<DG.Tweening.Tween> TweenBuffer = new List<DG.Tweening.Tween>();
+
+        /// <summary>
+        /// Tweens that ignore the time scale run on DOTween's real-time clock; move them to the scaled
+        /// clock, which follows Time.captureDeltaTime, so their progress depends on frames, not on how
+        /// fast the editor renders. New tweens are picked up at the end of the frame they appear in.
+        /// </summary>
+        private static void PinTweensToFrameTime()
+        {
+            SeedParticles();
+            TweenBuffer.Clear();
+            DG.Tweening.DOTween.PlayingTweens(TweenBuffer);
+            foreach (DG.Tweening.Tween tween in TweenBuffer)
+            {
+                if (tween != null && (bool)IndependentField.GetValue(tween))
+                {
+                    DG.Tweening.TweenSettingsExtensions.SetUpdate(tween, DG.Tweening.UpdateType.Normal, false);
+                }
+            }
+            TweenBuffer.Clear();
+        }
+
+        /// <summary>The end of a live: fast-forward until every note is done, then count frames from there.</summary>
+        private IEnumerator FinishShot(Shot shot)
+        {
+            List<float> times = (shot.times ?? new List<float>()).OrderBy(t => t).ToList();
+            if (times.Count == 0)
+            {
+                times.Add(2f);
+            }
+            float frame = 1f / Mathf.Clamp(shot.fps <= 0 ? 60 : shot.fps, 10, 240);
+
+            yield return StartLive(shot, false, string.IsNullOrWhiteSpace(shot.finishAnimation) ? "allperfect" : shot.finishAnimation);
+            SoloLiveController controller = null;
+            yield return WaitUntil(() => (controller = UnityEngine.Object.FindFirstObjectByType<SoloLiveController>()) != null, "the live controller");
+            yield return WaitUntil(() => { KeepMusicOff(controller); return State(controller) == StatePlaying; }, "the live to start");
+            yield return new WaitForEndOfFrame();
+            TakeClock(controller);
+            PinTweensToFrameTime();
+            float deadline = Time.realtimeSinceStartup + 600f;
+            while (State(controller) != StateFinish)
+            {
+                if (Time.realtimeSinceStartup > deadline) throw new TimeoutException("The live did not finish within 10 minutes.");
+                yield return Step(controller, (long)(FastForwardStep * 1000f));
+            }
+            // From here on only scaled time matters: the result coroutine waits with WaitForSeconds.
+            Time.captureDeltaTime = frame;
+            long endedAt = Clock(controller);
+            int startFrame = Time.frameCount;
+            foreach (float offset in times)
+            {
+                int target = startFrame + Mathf.RoundToInt(offset / frame);
+                while (Time.frameCount < target)
+                {
+                    yield return new WaitForEndOfFrame();
+                    PinTweensToFrameTime();
+                }
+                float actual = (Time.frameCount - startFrame) * frame;
+                yield return Capture(shot, FileStem(shot, offset), "finish +" + actual.ToString("0.000") + "s (last note done at "
+                    + (endedAt / 1000d).ToString("0.000") + " s; the result animation starts at +1 s)", null, actual);
+            }
+        }
+
+        private IEnumerator StartLive(Shot shot, bool infoPage, string finishAnimation)
+        {
+            yield return WaitForLibrary();
+            string directory = ResolvePackage(shot.package);
+            PlayStartResult result = null;
+            Exception error = null;
+            yield return PlayService.Instance
+                .StartAsync(new PlayRequest(directory, true, SceneManager.Scene.Library), CancellationToken.None)
+                .ToCoroutine(r => result = r, e => error = e);
+            if (error != null || result == null || !result.Started)
+            {
+                throw new InvalidOperationException("The live did not start: " + (error?.Message ?? result?.Message));
+            }
+
+            FreeLiveBootData boot = UserDataManager.Instance.FreeLiveBootData;
+            if (!string.IsNullOrWhiteSpace(shot.difficulty))
+            {
+                SetDifficulty(boot, shot.difficulty.Trim().ToLowerInvariant());
+            }
+            // The live shot has no use for the info page; the info shot needs it whatever the settings say.
+            boot.LiveSettingData.CustomMusicScoreMusicInfoDisplayMode = infoPage
+                ? LiveSettingData.MUSIC_INFO_DISPLAY_MODE_CUSTOM_SCORE
+                : LiveSettingData.MUSIC_INFO_DISPLAY_MODE_SKIP;
+            boot.MusicData.PlayStartEffectEnabled = infoPage;
+
+            // The views read these options from the shared settings, not from the boot's copy. Only the
+            // in-memory settings change; they are put back when the shot leaves the live.
+            int fakePerfect = shot.fakePerfect ? LiveSettingData.AUTO_FAKE_PERFECT_MODE_FAKE_PERFECT : LiveSettingData.AUTO_FAKE_PERFECT_MODE_AUTO;
+            LiveSettingData shared = OpenSekai.Shared.Settings.LiveSettingsStore.Shared.Load();
+            if (!_settingsChanged)
+            {
+                _previousFakePerfect = shared.CustomMusicScoreAutoFakePerfectMode;
+                _previousResultAnimation = shared.CustomMusicScoreAutoResultAnimation;
+                _settingsChanged = true;
+            }
+            shared.CustomMusicScoreAutoFakePerfectMode = fakePerfect;
+            boot.LiveSettingData.CustomMusicScoreAutoFakePerfectMode = fakePerfect;
+            if (finishAnimation != null)
+            {
+                int animation = ResultAnimation(finishAnimation);
+                shared.CustomMusicScoreAutoResultAnimation = animation;
+                boot.LiveSettingData.CustomMusicScoreAutoResultAnimation = animation;
+            }
+            Log((infoPage ? "info" : "live") + ": " + Path.GetFileName(directory) + " " + boot.MusicData.DifficultyString);
+        }
+
+        private static int ResultAnimation(string name)
+        {
+            switch (name.Trim().ToLowerInvariant())
+            {
+                case "none": return LiveSettingData.AUTO_RESULT_ANIMATION_NONE;
+                case "allperfect": case "ap": return LiveSettingData.AUTO_RESULT_ANIMATION_ALL_PERFECT;
+                case "fullcombo": case "fc": return LiveSettingData.AUTO_RESULT_ANIMATION_FULL_COMBO;
+                case "clear": return LiveSettingData.AUTO_RESULT_ANIMATION_CLEAR;
+                case "finish": case "lifezero": return LiveSettingData.AUTO_RESULT_ANIMATION_FINISH;
+                default: throw new InvalidOperationException("Unknown finishAnimation '" + name + "' (allperfect, fullcombo, clear, finish, none).");
+            }
+        }
+
+        private static void SetDifficulty(FreeLiveBootData boot, string difficulty)
+        {
+            if (!Enum.TryParse(difficulty, true, out MusicDifficulty value) || value == MusicDifficulty.none)
+            {
+                throw new InvalidOperationException("Unknown difficulty '" + difficulty + "' (easy, normal, hard, expert, master, append).");
+            }
+            LiveMusicData music = boot.MusicData;
+            typeof(LiveMusicData).GetProperty(nameof(LiveMusicData.DifficultyEnum)).SetValue(music, value);
+            typeof(LiveMusicData).GetProperty(nameof(LiveMusicData.DifficultyString)).SetValue(music, value.ToString());
+            if (music.Difficulty != null)
+            {
+                music.Difficulty.musicDifficulty = value.ToString();
+            }
+        }
+
+        /// <summary>Leaves the live, if one is up, and waits for the library page again.</summary>
+        private IEnumerator LeaveLive()
+        {
+            SoloLiveController controller = UnityEngine.Object.FindFirstObjectByType<SoloLiveController>();
+            if (controller != null)
+            {
+                Time.captureDeltaTime = FastForwardStep;
+                // A finished live waits for the rest of the music; skip it like the player can.
+                (State(controller) == StateFinish ? SkipOutro : RetireNow).Invoke(controller, null);
+                // The retire publishes a result for the library; the screenshot run is not a session.
+                PlayResultHandoff.Clear();
+            }
+            yield return WaitForLibrary();
+            Time.captureDeltaTime = 0f;
+            UnityEngine.Object.FindFirstObjectByType<LibraryResultPanel>(FindObjectsInactive.Include)?.Hide();
+            if (_settingsChanged)
+            {
+                LiveSettingData shared = OpenSekai.Shared.Settings.LiveSettingsStore.Shared.Load();
+                shared.CustomMusicScoreAutoFakePerfectMode = _previousFakePerfect;
+                shared.CustomMusicScoreAutoResultAnimation = _previousResultAnimation;
+                _settingsChanged = false;
+            }
+        }
+
+        /// <summary>The audio would move the clock in real time: stop it, the clock then runs on the frame time.</summary>
+        private static void KeepMusicOff(SoloLiveController controller)
+        {
+            if (controller != null && Phase(controller) == PhasePlaying)
+            {
+                SoundManager.Instance.StopIngame();
+                PhaseField.SetValue(controller, Enum.ToObject(PhaseField.FieldType, PhaseEnded));
+            }
+        }
+
+        private static int State(BaseLiveController c) => Convert.ToInt32(StateField.GetValue(c));
+        private static int Phase(BaseLiveController c) => Convert.ToInt32(PhaseField.GetValue(c));
+        private static long Clock(BaseLiveController c) => (long)TimeField.GetValue(c);
+
+        internal static string ResolvePackage(string query)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                throw new InvalidOperationException("A live/info shot needs a package.");
+            }
+            if (Directory.Exists(query))
+            {
+                return Path.GetFullPath(query);
+            }
+
+            var candidates = new List<(string dir, string id, string title)>();
+            foreach (SongPackageItem item in SongPackageManager.Shared.LoadItems())
+            {
+                if (item?.Entry?.RootDirectory != null)
+                {
+                    candidates.Add((item.Entry.RootDirectory, item.Entry.Manifest?.id, item.Entry.Manifest?.title));
+                }
+            }
+            string fixtures = Path.GetFullPath(Path.Combine(Application.dataPath, "../Tools/fixtures"));
+            if (Directory.Exists(fixtures))
+            {
+                foreach (string dir in Directory.GetDirectories(fixtures))
+                {
+                    if (File.Exists(Path.Combine(dir, "manifest.json")))
+                    {
+                        candidates.Add((dir, null, null));
+                    }
+                }
+            }
+
+            bool Is(string a) => string.Equals(a, query, StringComparison.OrdinalIgnoreCase);
+            bool Has(string a) => a != null && a.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;
+            var match = candidates.FirstOrDefault(c => Is(c.id) || Is(Path.GetFileName(c.dir)) || Is(c.title));
+            if (match.dir == null) match = candidates.FirstOrDefault(c => Has(Path.GetFileName(c.dir)) || Has(c.title));
+            if (match.dir == null)
+            {
+                throw new InvalidOperationException("No package matches '" + query + "'. Known: "
+                    + string.Join(", ", candidates.Select(c => Path.GetFileName(c.dir))));
+            }
+            return match.dir;
+        }
+
+        // ---------------------------------------------------------------- shared
+
+        private static IEnumerator WaitForLibrary()
+        {
+            return WaitUntil(() =>
+            {
+                LibraryScreen screen = UnityEngine.Object.FindFirstObjectByType<LibraryScreen>();
+                return screen != null && screen.IsReady && !PlayService.Instance.IsStarting
+                    && SceneManager.Instance.CurrentScene == SceneManager.Scene.Library
+                    && UnityEngine.Object.FindFirstObjectByType<SoloLiveController>() == null;
+            }, "the library page");
+        }
+
+        private static IEnumerator WaitUntil(Func<bool> condition, string what)
+        {
+            float deadline = Time.realtimeSinceStartup + RealTimeout;
+            while (!condition())
+            {
+                if (Time.realtimeSinceStartup > deadline)
+                {
+                    throw new TimeoutException("Timed out waiting for " + what + ".");
+                }
+                yield return null;
+            }
+        }
+
+        private IEnumerator Capture(Shot shot, string stem, string detail, string note, float? time = null)
+        {
+            yield return new WaitForEndOfFrame();
+            Texture2D texture = ScreenCapture.CaptureScreenshotAsTexture();
+            string path = Path.Combine(_request.outDir, stem + ".png");
+            File.WriteAllBytes(path, texture.EncodeToPNG());
+            var report = new ShotReport
+            {
+                ok = true,
+                kind = shot.kind,
+                file = Path.GetFileName(path),
+                width = texture.width,
+                height = texture.height,
+                time = time,
+                detail = detail,
+                note = note
+            };
+            if (texture.width != _request.width || texture.height != _request.height)
+            {
+                report.note = (note == null ? string.Empty : note + "; ") + "captured at " + texture.width + "x" + texture.height
+                    + " instead of " + _request.width + "x" + _request.height;
+            }
+            UnityEngine.Object.Destroy(texture);
+            _reports.Add(report);
+            Log("wrote " + report.file + " (" + report.width + "x" + report.height + ")" + (detail != null ? " " + detail : string.Empty)
+                + (report.note != null ? " NOTE " + report.note : string.Empty));
+        }
+
+        private void Fail(Shot shot, string message)
+        {
+            _reports.Add(new ShotReport { ok = false, kind = shot.kind, file = FileStem(shot, null), note = message });
+            Debug.LogError("[Screenshots] " + (shot.kind ?? "?") + " failed: " + message);
+        }
+
+        private static string FileStem(Shot shot, float? time)
+        {
+            string stem = string.IsNullOrWhiteSpace(shot.name) ? (shot.kind ?? "shot") : shot.name;
+            if (time.HasValue)
+            {
+                stem += "_" + time.Value.ToString("000.000", System.Globalization.CultureInfo.InvariantCulture) + "s";
+            }
+            foreach (char c in Path.GetInvalidFileNameChars())
+            {
+                stem = stem.Replace(c, '_');
+            }
+            return stem;
+        }
+
+        private static void Log(string message) => Debug.Log("[Screenshots] " + message);
+    }
+
+    [Serializable]
+    internal sealed class RunReport
+    {
+        public string outDir;
+        public int width;
+        public int height;
+        public int screenWidth;
+        public int screenHeight;
+        public List<ShotReport> shots;
+    }
+
+    [Serializable]
+    internal sealed class ShotReport
+    {
+        public bool ok;
+        public string kind;
+        public string file;
+        public int width;
+        public int height;
+        public float? time;
+        public string detail;
+        public string note;
+    }
+}

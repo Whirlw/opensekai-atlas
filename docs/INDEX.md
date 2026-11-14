@@ -3,7 +3,7 @@
 > 目的：全量登记 `docs/` 下的每一篇文档，给出标题、路径、摘要与最后更新，作为查找与维护的单一清单。
 > 适用读者：所有人，尤其是维护文档的人。
 > 前置条件：无。
-> 最后更新：2026-11-02
+> 最后更新：2026-11-14
 
 ## 概述
 
@@ -96,6 +96,7 @@
 | 判定通道与解耦收尾 | [operations/judgment-channel-brief.md](operations/judgment-channel-brief.md) | 任务 B 的执行计划：WP0–WP7 工作包、判定通道表、硬性约束与验收 |
 | 尾键生命周期 | [operations/tail-key-lifetime-brief.md](operations/tail-key-lifetime-brief.md) | 任务书：尾键显示/回收离开 `State`，收敛成纯函数 `TailKeyLifetime` |
 | 素材来源清单 | [operations/asset-provenance.md](operations/asset-provenance.md) | 各类素材的来源与许可、同 GUID 重画手法、覆盖核对命令 | 2026-11-09 | 现行 |
+| 截图工具 | [operations/screenshot-tools.md](operations/screenshot-tools.md) | 不上真机渲染打歌帧/信息页/曲库/设置/结算 PNG：`Tools/capture-screens.ps1` 全部参数、请求 JSON、可复现原理 | 2026-11-14 | 现行 |
 | 音符皮肤制作 | [operations/note-skin-authoring.md](operations/note-skin-authoring.md) | 自己画一套音符皮肤：目录结构、必须一致的像素尺寸表、应用与出包流程 | 2026-11-08 | 现行 |
 | 材质包导入 | [operations/material-pack-import.md](operations/material-pack-import.md) | 把画好的材质包贴回工程：两条路径、六条硬规则、九个已踩的坑、像素级校验、以及做一键导入功能的设计建议 | 2026-11-08 | 现行 |
 | 发布前素材总检 | [operations/pre-release-asset-audit.md](operations/pre-release-asset-audit.md) | 推 GitHub 前的素材来源检查：三条审计命令、图集覆盖率实测、复检清单 | 2026-11-09 | 现行 |
