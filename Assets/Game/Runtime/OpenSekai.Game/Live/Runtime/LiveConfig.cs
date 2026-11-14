@@ -362,18 +362,19 @@ namespace Sekai.Live
 
 		public static (NoteResult, NoteResultDescription) CalculateFrictionFlickNoteResult(INote note, float time, bool isDirection)
 		{
-			return GetJudgeResultInternal(note.MusicScoreInfo.time - time, note.Type == NoteType.Critical ? JudgeFrameType.Friction_Flick_Critical : JudgeFrameType.Friction_Flick, isDirection);
+			return GetJudgeResultInternal(note.MusicScoreInfo.time - time, LiveUtility.GetINoteToJudgeFrameType(note), isDirection);
 		}
 
-		private static (NoteResult, NoteResultDescription) GetJudgeResultInternal(float offset, JudgeFrameType judgeFrameType, bool isDirection)
-		{
-			var data = noteTypeJudgeData.JudgeTimes.TryGetValue(judgeFrameType, out var judgeTimeData)
+		internal static JudgeTimeData GetJudgeWindow(JudgeFrameType type) =>
+			noteTypeJudgeData.JudgeTimes.TryGetValue(type, out var judgeTimeData)
 				? judgeTimeData
 				: noteTypeJudgeData.JudgeTimes[JudgeFrameType.Normal];
 
-			return OpenSekai.Shared.Scoring.JudgeWindow.ResultFor(data, offset, isDirection, JustPerfectJudgeTimeHalf);
-			// The ladder lives in JudgeWindow so it can be tested without loading the live configuration.
-		}
+		internal static bool IsPastJudgeWindow(JudgeFrameType type, float noteMinusNow) =>
+			OpenSekai.Shared.Scoring.JudgeWindow.IsPast(GetJudgeWindow(type), noteMinusNow);
+
+		private static (NoteResult, NoteResultDescription) GetJudgeResultInternal(float offset, JudgeFrameType judgeFrameType, bool isDirection) =>
+			OpenSekai.Shared.Scoring.JudgeWindow.ResultFor(GetJudgeWindow(judgeFrameType), offset, isDirection, JustPerfectJudgeTimeHalf);
 
 		static LiveConfig()
 		{

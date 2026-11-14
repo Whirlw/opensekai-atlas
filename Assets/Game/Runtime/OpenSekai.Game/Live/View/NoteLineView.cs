@@ -248,13 +248,15 @@ namespace Sekai
 
 		private void NextExecute(INote baseNote, float time, ref int _meshCount)
 		{
-			List<INote> viewNotes = baseNote is LongNote bar ? bar.LineNoteList : baseNote?.ViewNoteList;
+			LongNote bar = baseNote as LongNote;
+			List<INote> viewNotes = bar != null ? bar.LineNoteList : baseNote?.ViewNoteList;
 			if (viewNotes == null || viewNotes.Count < 2)
 			{
 				return;
 			}
 
-			INote startNote = viewNotes[0];
+			INote startNote = bar != null ? bar : viewNotes[0];
+			INote tail = bar?.ChildNote;
 			for (int i = 1; i < viewNotes.Count; i++)
 			{
 				INote endNote = viewNotes[i];
@@ -263,15 +265,16 @@ namespace Sekai
 					continue;
 				}
 
-				if (endNote.IsSkip)
+				bool isTail = ReferenceEquals(endNote, tail);
+				if (!isTail && endNote.IsSkip)
 				{
 					continue;
 				}
 
-				int centerPosition = GetCenterPosition(time, startNote, endNote);
-				if (centerPosition < 2 && startNote is NoteBase startBase && startBase.State != NoteState.Done && LiveTrace.IsOn(LiveTraceCategory.View))
+				int centerPosition = GetCenterPosition(time, startNote, endNote, isTail);
+				if (centerPosition < 2 && LiveTrace.IsOn(LiveTraceCategory.View))
 				{
-					LiveTrace.Write(LiveTraceCategory.View, "mesh time=" + time.ToString("F3") + " barT=" + startBase.MusicScoreInfo.time.ToString("F3") + " startState=" + startBase.State + " startProg=" + startBase.Progress.ToString("F3") + " endT=" + endNote.MusicScoreInfo.time.ToString("F3") + " endState=" + endNote.State + " endSkip=" + endNote.IsSkip + " centerPos=" + centerPosition + " meshCount=" + _meshCount);
+					LiveTrace.Write(LiveTraceCategory.View, "mesh time=" + time.ToString("F3") + " startT=" + startNote.MusicScoreInfo.time.ToString("F3") + " endT=" + endNote.MusicScoreInfo.time.ToString("F3") + " centerPos=" + centerPosition + " meshCount=" + _meshCount);
 				}
 				int nextMeshCount = _meshCount + centerPosition;
 				if (POOL_COUNT < nextMeshCount)
@@ -286,6 +289,10 @@ namespace Sekai
 				}
 
 				startNote = endNote;
+				if (isTail)
+				{
+					break;
+				}
 			}
 		}
 
@@ -438,7 +445,7 @@ namespace Sekai
 			}
 		}
 
-		private int GetCenterPosition(float time, INote startNote, INote endNote)
+		private int GetCenterPosition(float time, INote startNote, INote endNote, bool isTail)
 		{
 			if (startNote is not NoteBase startNoteBase || endNote is not NoteBase endNoteBase)
 			{
@@ -446,16 +453,16 @@ namespace Sekai
 			}
 
 			float startOffset = startNoteBase.CalcTimeOffset(startNoteBase);
-			// A stored offset of zero is not a speed: it means this end has never been executed (a friction
-			// or hidden end goes straight to Input when the player presses it), and taking it would draw no
-			// body at all for as long as that lasts.
-			float endOffset = OpenSekai.Shared.Live.NoteLineProgress.SampleOffset(endNoteBase);
+			// The final segment follows the chart's scroll timing even after its key stops ticking.
+			float endOffset = isTail
+				? endNoteBase.CalcTimeOffset(endNoteBase)
+				: OpenSekai.Shared.Live.NoteLineProgress.SampleOffset(endNoteBase);
 			float duration = endNote.MusicScoreInfo.time - startNote.MusicScoreInfo.time;
 			if (Mathf.Approximately(startOffset, 0f) || Mathf.Approximately(endOffset, 0f) || Mathf.Approximately(duration, 0f))
 			{
 				if (LiveTrace.IsOn(LiveTraceCategory.View))
 				{
-					LiveTrace.Write(LiveTraceCategory.View, "noLine time=" + time.ToString("F3") + " startT=" + startNote.MusicScoreInfo.time.ToString("F3") + " endT=" + endNote.MusicScoreInfo.time.ToString("F3") + " startOffset=" + startOffset.ToString("F4") + " endOffset=" + endOffset.ToString("F4") + " duration=" + duration.ToString("F3") + " startState=" + startNote.State + " endState=" + endNote.State);
+					LiveTrace.Write(LiveTraceCategory.View, "noLine time=" + time.ToString("F3") + " startT=" + startNote.MusicScoreInfo.time.ToString("F3") + " endT=" + endNote.MusicScoreInfo.time.ToString("F3") + " startOffset=" + startOffset.ToString("F4") + " endOffset=" + endOffset.ToString("F4") + " duration=" + duration.ToString("F3"));
 				}
 
 				return 0;

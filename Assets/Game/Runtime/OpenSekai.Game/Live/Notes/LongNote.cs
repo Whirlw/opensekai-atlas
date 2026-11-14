@@ -53,7 +53,13 @@ namespace Sekai.Live
 			}
 		}
 
-		public override void Excute(MusicScoreInfo currentFrameInfo, float offsetTime)
+		public override void Excute(MusicScoreInfo currentFrameInfo, float offsetTime) =>
+			AdvanceBar(currentFrameInfo, offsetTime, deferPressExpiry: false);
+
+		internal void AdvanceBeforeInput(MusicScoreInfo frame, float offsetTime) =>
+			AdvanceBar(frame, offsetTime, deferPressExpiry: true);
+
+		private void AdvanceBar(MusicScoreInfo currentFrameInfo, float offsetTime, bool deferPressExpiry)
 		{
 			this.offsetTime = offsetTime;
 			Body.BeginFrame(currentFrameInfo.time);
@@ -92,12 +98,20 @@ namespace Sekai.Live
 					// A judged end note that judges itself has its own clock in the session (LiveNoteSession
 					// .TickTails): ticking it here as well would run it twice, and it must keep ticking
 					// after this bar has left. Only the bar's own children are ticked from here.
-					if (ReferenceEquals(note, TailNote) && TailBehaviour.JudgesItself && note.HasJudgment)
+					if (ReferenceEquals(note, TailNote) && HasIndependentTail)
 					{
 						continue;
 					}
 
-					note.Excute(currentFrameInfo, childOffsetTime);
+					if (ReferenceEquals(note, TailNote) && (TailBehaviour.AcceptsRelease || TailBehaviour.AcceptsSwipe))
+					{
+						// The tail's own pass decides its timeout using the same window as its hit path.
+						note.AdvanceNote(currentFrameInfo, childOffsetTime, settleTimeout: false);
+					}
+					else
+					{
+						note.Excute(currentFrameInfo, childOffsetTime);
+					}
 				}
 			}
 
@@ -106,7 +120,10 @@ namespace Sekai.Live
 			// The head has its own judgement: it is settled once, when its window closes, and whether
 			// the bar is lit or grey afterwards has nothing to do with it. A hidden head was never a
 			// note the player could answer, so it settles silently.
-			Head.SettleExpiredHead(currentFrameInfo.time);
+			if (!deferPressExpiry)
+			{
+				Head.SettleExpiredHead(currentFrameInfo.time);
+			}
 
 			Body.Update(currentFrameInfo.time);
 
@@ -254,7 +271,7 @@ namespace Sekai.Live
 			// The note that counts is the one the chart bound as this bar's end (TailNote), never the
 			// last child in the list: a hidden interior point may be appended after it.
 			NoteBase pressTail = TailNote;
-			if (!TailBehaviour.JudgesItself
+			if (!HasIndependentTail && !TailBehaviour.JudgesItself
 				&& pressTail != null
 				&& LiveConfig.IsLongEndJudgeTime(pressTail.JudgeOffsetAt(touch.musicTime))
 				&& pressTail.IsJudgment(ref touch, lane)
@@ -303,6 +320,19 @@ namespace Sekai.Live
 		/// latest by time" either - what matters is which note the bar was told is its end.
 		/// </summary>
 		internal NoteBase TailNote => Tail.EndNote ?? childNote;
+
+		internal static bool IsIndependentTail(NoteBase note) =>
+			note is FrictionFlickNote || note is FrictionNote and not FrictionHideNote;
+
+		internal bool HasIndependentTail => IsIndependentTail(TailNote);
+
+		internal bool HasManagedTail => TailNote is { HasJudgment: true, IsDecoration: false }
+			&& (TailBehaviour.AcceptsRelease || TailBehaviour.AcceptsSwipe)
+			&& IsTailCandidate(TailNote);
+
+		internal bool HasPendingManagedTail => HasManagedTail && TailNote.State != NoteState.Done;
+
+		internal bool CanReceiveTailSwipe => Tail.CanReceiveSwipe;
 
 		internal ITailBehaviour TailBehaviour => SkipsTailJudgement
 			? SilentTail.Instance
@@ -413,7 +443,9 @@ namespace Sekai.Live
 		internal void NotifyLaneRelease() => _tail?.NotifyLaneRelease();
 		internal bool TickSwipeTail(float currentTime) => Tail.TickSwipeTail(currentTime);
 		internal bool FailTail() => Tail.FailTail();
-		internal bool TrySwipeTail(Vector2 delta, float deltaTime, float currentTime) => Tail.TrySwipeTail(delta, deltaTime, currentTime);
+		internal int? DeferredSwipeTouchId => _tail?.DeferredSwipeTouchId;
+		internal bool TrySwipeTail(Vector2 delta, float deltaTime, float currentTime, int? touchId = null) =>
+			Tail.TrySwipeTail(delta, deltaTime, currentTime, touchId);
 
 		internal void SetTailResult(NoteResult result) => JudgeInfo = (result, NoteResultDescription.None);
 		internal void CompleteTail() => State = NoteState.Done;
@@ -496,7 +528,8 @@ namespace Sekai.Live
 			for (var i = 1; i < NoteList.Count - 1; i++)
 			{
 				var note = NoteList[i];
-				if (note != null && note.State != NoteState.Done)
+				if (note != null && note.State != NoteState.Done
+					&& !((HasIndependentTail || HasManagedTail) && ReferenceEquals(note, TailNote)))
 				{
 					note.Terminate();
 				}
@@ -615,7 +648,8 @@ namespace Sekai.Live
 			for (int i = 1; i < NoteList.Count - 1; i++)
 			{
 				NoteBase part = NoteList[i];
-				if (part == null || !IsJudgedInteriorPoint(part))
+				if (part == null || !IsJudgedInteriorPoint(part)
+					|| ((HasIndependentTail || HasManagedTail) && ReferenceEquals(part, TailNote)))
 				{
 					continue;
 				}

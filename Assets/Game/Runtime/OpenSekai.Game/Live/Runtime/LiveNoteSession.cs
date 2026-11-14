@@ -126,6 +126,7 @@ namespace Sekai.Core.Live
 		/// lets the bar leave whenever it likes without changing the note's verdict.
 		/// </summary>
 		private readonly List<NoteBase> _tails = new List<NoteBase>();
+		internal IReadOnlyList<NoteBase> PendingTails => _tails;
 
 		/// <summary>Tails still waiting for their own clock, for tests and invariants.</summary>
 		public int PendingTailCount => _tails.Count;
@@ -139,7 +140,7 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>Ticks every self-judging end note with its own display offset, and forgets the finished.</summary>
-		internal void TickTails(MusicScoreInfo frame)
+		internal void TickTails(System.Action<NoteBase> advance)
 		{
 			for (int i = _tails.Count - 1; i >= 0; i--)
 			{
@@ -150,8 +151,11 @@ namespace Sekai.Core.Live
 					continue;
 				}
 
-				float offset = tail.CalcTimeOffset != null ? tail.CalcTimeOffset(tail) : tail.offsetTime;
-				tail.Excute(frame, offset);
+				advance(tail);
+				if (tail.State == NoteState.Done)
+				{
+					_tails.RemoveAt(i);
+				}
 			}
 		}
 

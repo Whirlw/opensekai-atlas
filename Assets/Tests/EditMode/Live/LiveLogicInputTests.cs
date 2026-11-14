@@ -297,14 +297,36 @@ namespace OpenSekai.Tests.EditMode.Live
         public void TouchThreeTenthsLateFallsOutsideWindowAndMisses()
         {
             var note = Arrange(0.3f);
+            Assert.That(note.Result, Is.EqualTo(NoteResult.None), "Expiry waits for the input pass.");
             source.Add(Touch(1, Position()));
             logic.OnInput();
             Assert.That(note.CalcNoteResult(0.3f), Is.EqualTo(NoteResult.Miss));
-            Assert.That(note.Result, Is.EqualTo(NoteResult.None), "Out-of-window touch is not accepted.");
             Assert.That(note.JudgmentCalls, Is.Zero);
-            logic.OnUpdate(0.3f, InputTime);
             Assert.That(note.Result, Is.EqualTo(NoteResult.Miss));
             Assert.That(note.State, Is.EqualTo(NoteState.Done));
+        }
+
+        [TestCase(1f, 0.1f, 0.1f, NoteResult.JustPerfect)]
+        [TestCase(1f, 0.25f, 0.1f, NoteResult.JustPerfect)]
+        [TestCase(2f, 0.25f, 0.1f, NoteResult.JustPerfect)]
+        [TestCase(1f, 0.26f, 0.24f, NoteResult.Miss)]
+        public void BufferedPressUsesItsSampleTimeWhenTheFrameCrossesTheWindow(
+            float speed, float frameTime, float sampleTime, NoteResult expected)
+        {
+            using var harness = new LiveHarness();
+            var tap = new NormalNote(Info(0.1f), 1, 2, 2, NoteCategory.Normal, speed, NoteType.Default, 0f);
+            var bar = new LongNote(Info(0.1f), 2, 8, 8, NoteCategory.Long, NoteType.Default, speed, 0f);
+            bar.AddNoteListAndSetupChildNote(new FrictionHideNote(Info(0.102f), 3, 8, 8,
+                NoteCategory.Hidden, null, NoteType.Default, speed, 0f));
+            harness.Arrange(new MusicScore(new[] { Info(0f) }, Array.Empty<EventBase>(), new NoteBase[] { tap, bar }));
+            harness.Step(0f, InputTime);
+
+            harness.Step(frameTime, InputTime + frameTime,
+                LiveHarness.Touch(1, Position(2), InputTime + sampleTime),
+                LiveHarness.Touch(2, Position(8), InputTime + sampleTime));
+
+            Assert.That(tap.Result, Is.EqualTo(expected));
+            Assert.That(bar.Head.Result, Is.EqualTo(expected));
         }
 
         [Test]

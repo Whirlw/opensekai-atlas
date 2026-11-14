@@ -190,7 +190,9 @@ namespace Sekai.Live
 				{
 					foreach (NoteBase child in longNote.NoteList)
 					{
-						if (child != null && child != longNote && _spawnNoteDict != null && _spawnNoteDict.TryGetValue(child, out BaseNoteView childView))
+						if (child != null && child != longNote
+							&& !((longNote.HasIndependentTail || longNote.HasManagedTail) && ReferenceEquals(child, longNote.TailNote))
+							&& _spawnNoteDict != null && _spawnNoteDict.TryGetValue(child, out BaseNoteView childView))
 						{
 							childView?.Unspawn();
 							_spawnNoteDict.Remove(child);

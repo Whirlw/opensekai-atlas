@@ -73,7 +73,7 @@ namespace Sekai.Live
 			OffsetJudgeTime = 0f;
 			ConnectionNoteJudgment(ref touch, lane);
 
-			if (childNote != null
+			if (!HasIndependentTail && !TailBehaviour.JudgesItself && childNote != null
 				&& childNote.State != NoteState.Wait
 				&& LiveConfig.IsLongEndJudgeTime(childNote.JudgeOffsetAt(touch.musicTime))
 				&& childNote.IsJudgment(ref touch, lane)

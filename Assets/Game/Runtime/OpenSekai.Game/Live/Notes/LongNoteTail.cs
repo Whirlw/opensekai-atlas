@@ -33,14 +33,15 @@ namespace Sekai.Live
 			_swipeTailDeferred = false;
 			_swipeTailCapped = false;
 			_framesSinceRelease = -1;
+			_swipeTouchId = null;
+			_swipeAccum = Vector2.zero;
+			_swipeWindowStart = -1f;
 		}
 
 		internal void Reset()
 		{
 			ResetDecision();
 			_tailPressed = false;
-			_swipeAccum = Vector2.zero;
-			_swipeWindowStart = -1f;
 			_windowTraced = false;
 			_expireTraced = false;
 			_tailPublished = false;
@@ -88,7 +89,7 @@ namespace Sekai.Live
 			//
 			// The tail is the note with the latest time, not the last one in the list: hidden points and
 			// preset points are appended in chart order and can come after the end.
-			if (_bar.NoteList == null || _bar.NoteList.Count == 0 || Child == null)
+			if (!CanSettle() || _bar.NoteList == null || _bar.NoteList.Count == 0)
 			{
 				return false;
 			}
@@ -124,9 +125,7 @@ namespace Sekai.Live
 				return false;
 			}
 
-			// The window itself has nothing to do with how the bar ends: a swipe tail and a
-			// self-judged tail are scored inside the very same window, they just answer a
-			// different question about who writes the result.
+			// This is the bar's tail window. Self-judged notes use their own window to score.
 			if (!TryGetTail(out NoteBase tail) || !ReferenceEquals(Child, tail) || Child.IsDecoration)
 			{
 				return false;
@@ -135,15 +134,15 @@ namespace Sekai.Live
 			// The offset has to come from the clock, not from the note: a note only refreshes its
 			// OffsetJudgeTime when it is executed, and the tail is not executed while the bar is still
 			// mid-body - reading the stale value (0) graded every mid-body release as a perfect tail.
-			NoteResult grade = LongEndJudgement.Evaluate(currentTime - Child.MusicScoreInfo.time);
-			if (grade == NoteResult.None && currentTime > Child.MusicScoreInfo.time && !_windowTraced
+			bool open = LongEndJudgement.Accepts(currentTime - Child.MusicScoreInfo.time);
+			if (!open && currentTime > Child.MusicScoreInfo.time && !_windowTraced
 				&& LiveTrace.IsOn(LiveTraceCategory.Tail))
 			{
 				_windowTraced = true;
 				LiveTrace.Write(LiveTraceCategory.Tail, $"winClosed barT={_bar.MusicScoreInfo.time:F3} now={currentTime:F3} child={Child.GetType().Name}@{Child.MusicScoreInfo.time:F3} childState={Child.State} childRes={Child.Result} same={ReferenceEquals(Child, tail)} deco={Child.IsDecoration} tail={tail.GetType().Name}@{tail.MusicScoreInfo.time:F3}");
 			}
 
-			return grade != NoteResult.None;
+			return open;
 		}
 
 		/// <summary>
@@ -154,8 +153,8 @@ namespace Sekai.Live
 		internal bool IsPastTailWindow(float currentTime)
 		{
 			return Child != null
-				&& currentTime > Child.MusicScoreInfo.time
-				&& !IsTailWindowOpenAt(currentTime);
+				&& (LongEndJudgement.IsPast(currentTime - Child.MusicScoreInfo.time)
+					|| (currentTime > Child.MusicScoreInfo.time && !IsTailWindowOpenAt(currentTime)));
 		}
 
 		/// <summary>
@@ -170,7 +169,7 @@ namespace Sekai.Live
 				LiveTrace.Write(LiveTraceCategory.Tail, $"expireCheck barT={_bar.MusicScoreInfo.time:F3} now={currentTime:F3} state={_bar.State} res={_bar.Result} child={Child.GetType().Name}@{Child.MusicScoreInfo.time:F3} past={IsPastTailWindow(currentTime)}");
 			}
 
-			if (_bar.State == NoteState.Done)
+			if (_bar.State == NoteState.Done && !_bar.HasPendingManagedTail)
 			{
 				return false;
 			}
@@ -187,7 +186,7 @@ namespace Sekai.Live
 			// ~125 ms of window with it: a press that landed after that had nothing left to answer and the
 			// head missed. The head settles itself (LongNoteHead.SettleExpiredHead) at exactly that window.
 			if (_bar.PublishesHeadMiss && !_bar.Head.IsSettled
-				&& currentTime - _bar.MusicScoreInfo.time <= LiveConfig.JudgeTime)
+				&& !_bar.Head.IsPastWindow(currentTime))
 			{
 				return false;
 			}
@@ -214,7 +213,7 @@ namespace Sekai.Live
 		/// </summary>
 		internal bool JudgeTailAsRelease(float currentTime)
 		{
-			if (_bar.State == NoteState.Done || !IsTailJudgeableAt(currentTime))
+			if (!CanSettle() || !IsTailJudgeableAt(currentTime))
 			{
 				return false;
 			}
@@ -240,7 +239,7 @@ namespace Sekai.Live
 
 		private bool JudgeTailCore(float currentTime)
 		{
-			if (_bar.State == NoteState.Done || Child == null)
+			if (!CanSettle())
 			{
 				return false;
 			}
@@ -279,6 +278,18 @@ namespace Sekai.Live
 				return false;
 			}
 
+			if (_bar.HasIndependentTail)
+			{
+				if (currentTime < Child.MusicScoreInfo.time
+					|| (_bar.PublishesHeadMiss && !_bar.Head.IsSettled && !_bar.Head.IsPastWindow(currentTime)))
+				{
+					return false;
+				}
+
+				_bar.CompleteTail();
+				return true;
+			}
+
 			// The bar lives its own length: an end note that already judged itself does not shorten it.
 			// (tail-classes.md §3 类 1 - an independent tail does not touch the bar, in either direction.)
 			if (!IsPastTailWindow(currentTime))
@@ -300,13 +311,6 @@ namespace Sekai.Live
 				return false;
 			}
 
-			// The tail judges itself, so the bar must not grade it: it leaves the list instead. The parent
-			// link stays, because the tail still belongs to this bar - it just is not a part the bar can end.
-			if (_bar.NoteList != null)
-			{
-				_bar.NoteList.Remove(Child);
-			}
-
 			ResetDecision();
 			return true;
 		}
@@ -314,6 +318,7 @@ namespace Sekai.Live
 		private bool _swipeTailDeferred;
 		private bool _swipeTailCapped;
 		private Vector2 _swipeAccum;
+		private int? _swipeTouchId;
 		private float _swipeWindowStart = -1f;
 		private int _framesSinceRelease = -1;
 
@@ -326,7 +331,7 @@ namespace Sekai.Live
 		{
 			// The speed gate already ran in TrySwipeTail; a raw displacement threshold here would
 			// reject a 5 cm/s swipe at high frame rates, where one frame moves under a millimetre.
-			if (_bar.State == NoteState.Done || !_bar.TailBehaviour.AcceptsSwipe || magnitude <= 0f)
+			if (!CanSettle() || !_bar.TailBehaviour.AcceptsSwipe || magnitude <= 0f)
 			{
 				return false;
 			}
@@ -334,7 +339,7 @@ namespace Sekai.Live
 			// The end point only exists once the bar is being held. Without this a swipe made right
 			// after the bar appears would finish it while its head is still travelling towards the
 			// line, which is also how a short bar could be ended before it was ever started.
-			if (!_bar.HasFinger)
+			if (!CanReceiveSwipe)
 			{
 				return false;
 			}
@@ -351,19 +356,6 @@ namespace Sekai.Live
 
 			if (currentTime < Child.MusicScoreInfo.time)
 			{
-				// A swipe only counts while the tail is inside its early window (-125 ms). Anything
-				// earlier is a gesture aimed at the bar body, not at its end point; remembering it
-				// let a small wobble during the hold auto grade the tail when the bar arrived.
-				if (Child.MusicScoreInfo.time - currentTime > LongEndJudgement.EarlyGoodMs / 1000f)
-				{
-					if (LiveTrace.IsOn(LiveTraceCategory.Swipe))
-					{
-						LiveTrace.Write(LiveTraceCategory.Swipe, $"tailSwipeTooEarly barT={_bar.MusicScoreInfo.time:F3} now={currentTime:F3} tailT={Child.MusicScoreInfo.time:F3}");
-					}
-
-					return false;
-				}
-
 				// The rule defers an early swipe to the third frame after the release: the
 				// countdown starts when the finger leaves, not when the swipe happens.
 				_swipeTailDeferred = true;
@@ -376,6 +368,7 @@ namespace Sekai.Live
 
 		/// <summary>A swipe was seen and is waiting for the release that starts the countdown.</summary>
 		internal bool HasDeferredSwipe => _swipeTailDeferred;
+		internal int? DeferredSwipeTouchId => _swipeTailDeferred ? _swipeTouchId : null;
 
 		private bool _tailPressed;
 
@@ -401,7 +394,7 @@ namespace Sekai.Live
 		/// <summary>Advances the deferred swipe; it is graded on the third frame after the release.</summary>
 		internal bool TickSwipeTail(float currentTime)
 		{
-			if (_bar.State == NoteState.Done || !_bar.TailBehaviour.AcceptsSwipe)
+			if (!CanSettle() || !_bar.TailBehaviour.AcceptsSwipe)
 			{
 				return false;
 			}
@@ -422,7 +415,8 @@ namespace Sekai.Live
 				// left here is pool residue from the previous run.
 				// The countdown starts exactly when the bar stops being held, so Last and Release must
 				// keep counting: treating them as residue cleared every deferred swipe on its first frame.
-				if (!_bar.HasFinger && _bar.State != NoteState.Last && _bar.State != NoteState.Release)
+				if (!_bar.HasFinger && _bar.State != NoteState.Last && _bar.State != NoteState.Release
+					&& _bar.State != NoteState.Done)
 				{
 					ResetDecision();
 					return false;
@@ -445,7 +439,7 @@ namespace Sekai.Live
 			// No swipe is pending and the tail window has closed. A flick ended bar is not finished by
 			// lifting, so nothing else can end it: without this the tail note would sit on the judgement
 			// line for the rest of the chart and the bar would never be scored.
-			if (currentTime > Child.MusicScoreInfo.time && !IsTailWindowOpenAt(currentTime))
+			if (IsPastTailWindow(currentTime))
 			{
 				return FailTail();
 			}
@@ -461,7 +455,7 @@ namespace Sekai.Live
 		{
 			// Only a decisive end is the bar's to fail: a note that judges itself writes its own Miss,
 			// and the bar must not do it for them (tail-classes.md §3 R1/R2).
-			if (_bar.State == NoteState.Done || Child == null || _bar.TailBehaviour.JudgesItself)
+			if (!CanSettle() || _bar.TailBehaviour.JudgesItself)
 			{
 				return false;
 			}
@@ -481,6 +475,12 @@ namespace Sekai.Live
 
 			return PublishTail(NoteResult.Miss);
 		}
+
+		private bool CanSettle() => Child != null && Child.State != NoteState.Done
+			&& (_bar.State != NoteState.Done || _bar.HasPendingManagedTail);
+
+		internal bool CanReceiveSwipe => _bar.State == NoteState.Done
+			? _bar.WasHoldingWhenTerminated : _bar.HasFinger;
 
 		private bool _tailPublished;
 
@@ -510,10 +510,6 @@ namespace Sekai.Live
 			_bar.SetTailResult(result);
 			_bar.CompleteTail();
 
-			// The bar's ending key is not released here: it belongs to the note, and the note leaves when it
-			// has its own verdict or when its own time arrives (LivePresentationBridge.TickTailKeys). Releasing
-			// it with the bar dropped the key on the bar's schedule instead of the note's.
-
 			return true;
 		}
 
@@ -523,15 +519,15 @@ namespace Sekai.Live
 		/// a left flick is not finished by a swipe to the right, and a vertical drag inside a single
 		/// lane is only a flick when the tail accepts any direction.
 		/// </summary>
-		internal bool TrySwipeTail(Vector2 delta, float deltaTime, float currentTime)
+		internal bool TrySwipeTail(Vector2 delta, float deltaTime, float currentTime, int? touchId = null)
 		{
-			if (_bar.State == NoteState.Done || !_bar.TailBehaviour.AcceptsSwipe || Child == null)
+			if (!CanSettle() || !_bar.TailBehaviour.AcceptsSwipe)
 			{
 				return false;
 			}
 
 			// The end point only exists while the bar is being held and inside its tail window.
-			if (!_bar.HasFinger)
+			if (!CanReceiveSwipe)
 			{
 				return false;
 			}
@@ -549,6 +545,11 @@ namespace Sekai.Live
 				return false;
 			}
 
+			if (_swipeTailDeferred && _swipeTouchId != touchId)
+			{
+				return false;
+			}
+
 			// Only a flick's end is graded by a swipe (SwipeTail is chosen for a FlickNote tail and nothing
 			// else), so the distance comes from that note. The friction-flick arm that used to sit here was
 			// dead: a friction-flick end judges itself, and its behaviour refuses swipes before this point.
@@ -559,8 +560,9 @@ namespace Sekai.Live
 			// would pass a per-frame speed gate on every frame. Accumulating the *net* displacement
 			// over 16.7 ms keeps a real flick (one direction, large net travel) and drops jitter
 			// (oscillating, net travel near zero).
-			if (_swipeWindowStart < 0f)
+			if (_swipeWindowStart < 0f || _swipeTouchId != touchId)
 			{
+				_swipeTouchId = touchId;
 				_swipeWindowStart = currentTime - Mathf.Max(deltaTime, 0f);
 				_swipeAccum = Vector2.zero;
 			}
@@ -590,11 +592,6 @@ namespace Sekai.Live
 				return false;
 			}
 
-			// A swipe the wrong way is not ignored: it ends the bar like any other, it just can never
-			// be graded above Great. The cap is remembered here and applied wherever the swipe is
-			// settled, because an early swipe is only graded a few frames after it is seen.
-			_swipeTailCapped = !trueDirection;
-
 			// A flick is a speed, not a displacement: the note's own flick distance is what 5 cm/s
 			// looks like in one 60 fps frame, so requiring it in pixels per second is the same rule
 			// the plain flick uses, only frame rate independent. A displacement gate on top of that
@@ -610,6 +607,8 @@ namespace Sekai.Live
 				return false;
 			}
 
+			// The latest qualifying swipe supplies the direction cap for deferred grading.
+			_swipeTailCapped = !trueDirection;
 			return NotifyLaneSwipe(delta.magnitude, currentTime);
 		}
 	}

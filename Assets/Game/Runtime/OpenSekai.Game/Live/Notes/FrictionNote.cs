@@ -32,15 +32,6 @@ namespace Sekai.Live
 			isTouched = false;
 		}
 
-		public override void SetParentNote(LongNote note)
-		{
-			base.SetParentNote(note);
-			Type = (note != null && note.Type == NoteType.Critical) || Type == NoteType.Critical
-				? NoteType.Critical
-				: NoteType.Default;
-			Category = NoteCategory.FrictionLong;
-		}
-
 		public override void Excute(MusicScoreInfo currentFrameInfo, float offsetTime)
 		{
 			this.offsetTime = offsetTime;
@@ -80,7 +71,7 @@ namespace Sekai.Live
 				return;
 			}
 
-			if (OffsetJudgeTime > LiveConfig.noteTypeJudgeData.JudgeTimeAfter)
+			if (LiveConfig.IsPastJudgeWindow(LiveUtility.GetINoteToJudgeFrameType(this), -OffsetJudgeTime))
 			{
 				State = NoteState.Last;
 			}
@@ -91,7 +82,7 @@ namespace Sekai.Live
 			return State != NoteState.Done
 				&& JudgeLaneStart <= lane
 				&& JudgeLaneEnd >= lane
-				&& LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(this), OffsetJudgeTime);
+				&& LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(this), -OffsetJudgeTime);
 		}
 
 		public override bool Judgment(ref LiveTouch touch, float lane)

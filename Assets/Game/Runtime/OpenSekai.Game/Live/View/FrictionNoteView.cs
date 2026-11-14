@@ -57,8 +57,7 @@ namespace Sekai
 				return 0f;
 			}
 
-			float progress = note.ParentNote != null ? Mathf.Min(note.Progress, 1f) : note.Progress;
-			return LiveConfig.GetNoteViewProgress(progress);
+			return LiveConfig.GetNoteViewProgress(note.Progress);
 		}
 
 		public FrictionNoteView()

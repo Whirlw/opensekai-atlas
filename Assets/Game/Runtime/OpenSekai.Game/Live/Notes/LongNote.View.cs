@@ -92,7 +92,8 @@ namespace Sekai.Live
 				// arrive, nothing to grade and nothing to retire.
 				if (bar.childNote == null || !bar.childNote.HasJudgment) return TailKeyPhase.Hidden;
 				float visibleFrom = bar.childNote.MusicScoreInfo.time - (bar.CalcTimeOffset?.Invoke(bar.childNote) ?? bar.offsetTime);
-				return TailKeyLifetime.Of(bar.childNote.MusicScoreInfo.time, visibleFrom, currentTime, bar.childNote.Result, bar.State == NoteState.Done);
+				return TailKeyLifetime.Of(bar.childNote.MusicScoreInfo.time, visibleFrom, currentTime,
+					bar.childNote.Result, !bar.HasManagedTail && bar.State == NoteState.Done);
 			}
 
 			internal static void UpdateLane(LongNote bar, ref MusicScoreInfo currentFrameInfo)
@@ -104,6 +105,12 @@ namespace Sekai.Live
 					for (var i = 1; i < bar.ViewNoteList.Count - 1; i++)
 					{
 						var viewNote = bar.ViewNoteList[i];
+						// The tail is the final endpoint even if other markers follow it in the list.
+						if (ReferenceEquals(viewNote, bar.childNote))
+						{
+							break;
+						}
+
 						if (viewNote == null || viewNote.IsSkip)
 						{
 							continue;
@@ -112,12 +119,6 @@ namespace Sekai.Live
 						// 装饰note使用时间判断，普通note使用State判断
 						// 装饰ConnectionNote永远不会被标记为Done，所以需要特殊处理
 						bool isCompleted = viewNote.State == NoteState.Done;
-						// A flick tail waits for its swipe after reaching the line; it must stop being drawn
-						// on time all the same, or the key sits on the judgement line until the window closes.
-						if (bar.TailBehaviour.AcceptsSwipe && ReferenceEquals(viewNote, bar.childNote) && GetTailKeyPhase(bar, currentFrameInfo.time) is TailKeyPhase.SlidingOut or TailKeyPhase.Retired)
-						{
-							isCompleted = true;
-						}
 						if (viewNote is NoteBase noteBase && noteBase.IsDecoration)
 						{
 							// 装饰note：当时间已过判定时间时视为"已完成"

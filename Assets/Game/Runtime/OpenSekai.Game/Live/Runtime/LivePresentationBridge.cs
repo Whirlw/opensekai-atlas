@@ -35,7 +35,7 @@ namespace Sekai.Core.Live
 				return;
 			}
 
-			if (note.ParentRole == NoteParentRole.Tail)
+			if (note.ParentRole == NoteParentRole.Tail && !LongNote.IsIndependentTail(note))
 			{
 				LongNote bar = note.ParentNote as LongNote;
 				// Every key a bar ends with is tracked, whatever phase it was in when its view was built.
@@ -43,7 +43,7 @@ namespace Sekai.Core.Live
 				// owner: a settled note never removes its own view (a tail's Done skips RemoveView, because
 				// the bar used to own that key), so the sprite stayed on the judgement line for good - the
 				// "friction tail sticks to the line after it is caught" report.
-				if (bar != null && bar.ViewNoteList.Contains(note))
+				if (bar != null && !bar.HasManagedTail && bar.ViewNoteList.Contains(note))
 				{
 					_tailKeys.Add(note);
 				}

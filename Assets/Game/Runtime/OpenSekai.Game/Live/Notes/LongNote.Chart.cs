@@ -135,6 +135,8 @@ namespace Sekai.Live
 				return;
 			}
 
+			bool independentTail = IsIndependentTail(note);
+			// A per-hold scroll multiplier applies to the full chain, including its endpoint.
 			note.speedRatio = speedRatio;
 			// 装饰属性属于长条自己：尾部不继承。装饰长条自己滚过去、不接受输入，但它的结束音
 			// 仍然是一个真正的音符（划键、滑动、摩擦……），要按它本来的类型来玩。
@@ -153,7 +155,14 @@ namespace Sekai.Live
 			// The draw list holds every note the bar owns. Whether a note shows anything is the note's own
 			// business; settlement is decided separately, in SettleLeftoverAsPerfect, where only the points
 			// the bar itself ends are graded.
-			note.SetParentNote(this);
+			if (independentTail)
+			{
+				note.BindGeometryParent(this);
+			}
+			else
+			{
+				note.SetParentNote(this);
+			}
 			NoteList.Add(note);
 
 			if (!note.IsSkip && !ViewNoteList.Contains(note))

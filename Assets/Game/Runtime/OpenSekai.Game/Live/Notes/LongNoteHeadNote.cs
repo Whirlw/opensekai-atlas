@@ -56,8 +56,7 @@ namespace Sekai.Live
 			// Admission uses the same window as the press gate, with the same "note minus touch" offset that
 			// every other note uses. It used to pass "touch minus note", which inverted both sides of the
 			// window - the same inversion LongNoteHead.TryJudge had.
-			float offset = _bar.MusicScoreInfo.time - touch.musicTime;
-			return LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(_bar), offset);
+			return _head.AcceptsPressAt(touch.musicTime);
 		}
 
 		/// <summary>The candidate's verdict entry: this is the head answering, not the bar.</summary>

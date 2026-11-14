@@ -13,6 +13,13 @@ namespace OpenSekai.Shared.Scoring
     /// </summary>
     public static class JudgeWindow
     {
+        // Input admission uses open outer bounds. Grade bands include their endpoints.
+        public static bool Accepts(JudgeTimeData data, float noteMinusInput) =>
+            noteMinusInput < data.BadBeforeJudgeTime && noteMinusInput > -data.BadAfterJudgeTime;
+
+        public static bool IsPast(JudgeTimeData data, float noteMinusNow) =>
+            noteMinusNow < -data.BadAfterJudgeTime;
+
         public static (NoteResult, NoteResultDescription) ResultFor(
             JudgeTimeData data, float offset, bool isDirection, float justPerfectHalf)
         {

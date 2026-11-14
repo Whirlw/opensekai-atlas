@@ -65,6 +65,11 @@ namespace Sekai.Live
 				for (var i = 1; i < NoteList.Count; i++)
 				{
 					var note = NoteList[i];
+					if (HasIndependentTail && ReferenceEquals(note, TailNote))
+					{
+						continue;
+					}
+
 					var childOffsetTime = CalcTimeOffset?.Invoke(note) ?? offsetTime;
 					// Same boundary as LongNote.Excute: a note becomes live on the frame its lead time
 					// is consumed, not one frame later. The tail key is spawned from here, and a bar

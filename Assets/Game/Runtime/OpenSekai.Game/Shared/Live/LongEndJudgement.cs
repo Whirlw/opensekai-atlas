@@ -22,13 +22,21 @@ namespace OpenSekai.Shared.Live
         public const float LateGreatMs = 133.3f;
         public const float LateGoodMs = 141.7f;
 
+        public static bool Accepts(float offsetSeconds)
+        {
+            float ms = offsetSeconds * 1000f;
+            return ms >= -EarlyGoodMs && ms <= LateGoodMs;
+        }
+
+        public static bool IsPast(float offsetSeconds) => offsetSeconds * 1000f > LateGoodMs;
+
         /// <summary>
         /// Grades a release at <paramref name="offsetSeconds"/> (negative = early). Returns null-ish
         /// <see cref="NoteResult.None"/> when the release is outside both windows.
         /// </summary>
         public static NoteResult Evaluate(float offsetSeconds)
         {
-            if (float.IsNaN(offsetSeconds))
+            if (!Accepts(offsetSeconds))
             {
                 return NoteResult.None;
             }
@@ -41,14 +49,12 @@ namespace OpenSekai.Shared.Live
             {
                 if (magnitude <= EarlyPerfectMs) return NoteResult.JustPerfect;
                 if (magnitude <= EarlyGreatMs) return NoteResult.Great;
-                if (magnitude <= EarlyGoodMs) return NoteResult.Good;
-                return NoteResult.None;
+                return NoteResult.Good;
             }
 
             if (magnitude <= LatePerfectMs) return NoteResult.JustPerfect;
             if (magnitude <= LateGreatMs) return NoteResult.Great;
-            if (magnitude <= LateGoodMs) return NoteResult.Good;
-            return NoteResult.None;
+            return NoteResult.Good;
         }
     }
 }

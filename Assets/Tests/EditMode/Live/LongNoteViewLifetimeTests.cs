@@ -107,6 +107,108 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         [Test]
+        public void BarLaneStopsAtItsTailEvenWhenALaterMarkerExists()
+        {
+            var headTime = new MusicScoreInfo(0, 0f, 0f, 120, 4, 1, 1);
+            var tailTime = new MusicScoreInfo(0, 0.5f, 1f, 120, 4, 1, 1);
+            var markerTime = new MusicScoreInfo(0, 1f, 2f, 120, 4, 1, 1);
+            var bar = new LongNote(headTime, 1, 2, 3, NoteCategory.Long, NoteType.Default, 1f, 0f);
+            var tail = new FrictionNote(tailTime, 2, 4, 6, NoteCategory.Friction, null, NoteType.Default, 1f);
+            bar.AddNoteListAndSetupChildNote(tail);
+            bar.AddConnectionNote(new FrictionHideNote(markerTime, 3, 8, 9,
+                NoteCategory.Hidden, null, NoteType.Default, 1f, 0f));
+            var afterTail = new MusicScoreInfo(0, 0.55f, 1.1f, 120, 4, 1, 1);
+
+            bar.Excute(afterTail, 1f);
+            Assert.That(bar.LaneStartF, Is.EqualTo(4f));
+            Assert.That(bar.LaneEndF, Is.EqualTo(6f));
+
+            tail.SetStateUnnotice(NoteState.Done);
+            bar.Excute(afterTail, 1f);
+            Assert.That(bar.LaneStartF, Is.EqualTo(4f));
+            Assert.That(bar.LaneEndF, Is.EqualTo(6f));
+        }
+
+        [Test]
+        public void FirstSegmentUsesTheHeadsChartCurveAfterHeadJudgment()
+        {
+            var headTime = new MusicScoreInfo(0, 0f, 0f, 120, 4, 1, 1);
+            var tailTime = new MusicScoreInfo(0, 0.1f, 0.2f, 120, 4, 1, 1);
+            var halfway = new MusicScoreInfo(0, 0.05f, 0.1f, 120, 4, 1, 1);
+            var bar = new LongNote(headTime, 1, 2, 3, NoteCategory.Long, NoteType.Default, 1f, 0f,
+                NoteLineType.EaseIn);
+            bar.AddNoteListAndSetupChildNote(new NormalNote(tailTime, 2, 6, 7,
+                NoteCategory.Normal, 1f, NoteType.Default, 0f));
+
+            bar.Excute(halfway, 1f);
+            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.None));
+            Assert.That(bar.LaneStartF, Is.EqualTo(3f).Within(1e-5f));
+            Assert.That(bar.LaneEndF, Is.EqualTo(4f).Within(1e-5f));
+
+            bar.Head.Settle((NoteResult.JustPerfect, NoteResultDescription.None));
+            bar.Excute(halfway, 1f);
+            Assert.That(bar.LaneStartF, Is.EqualTo(3f).Within(1e-5f));
+            Assert.That(bar.LaneEndF, Is.EqualTo(4f).Within(1e-5f));
+        }
+
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void IndependentFrictionKeysAndTailsHaveTheSameWindowAndLifetime(bool flick, bool hit)
+        {
+            var info = new MusicScoreInfo(0, 0.5f, 1f, 120, 4, 1, 1);
+            var headTime = new MusicScoreInfo(0, 0f, 0f, 120, 4, 1, 1);
+            NoteBase NewKey(int id, int lane) => flick
+                ? new FrictionFlickNote(info, id, lane, lane, NoteCategory.FrictionFlick, 1f,
+                    NoteType.Default, NoteDirection.Default, 0f, 0f)
+                : new FrictionNote(info, id, lane, lane, NoteCategory.Friction, null, NoteType.Default, 1f);
+            var bar = new LongNote(headTime, 1, 8, 8, NoteCategory.Long, NoteType.Critical, 2f, 0f);
+            NoteBase tail = NewKey(2, 8);
+            NoteBase single = NewKey(3, 2);
+            single.speedRatio = 2f;
+            bar.AddNoteListAndSetupChildNote(tail);
+            Assert.That(tail.Category, Is.EqualTo(single.Category));
+            Assert.That(tail.Type, Is.EqualTo(single.Type));
+            Assert.That(tail.speedRatio, Is.EqualTo(bar.speedRatio));
+            Assert.That(LiveUtility.GetINoteToJudgeFrameType(tail), Is.EqualTo(LiveUtility.GetINoteToJudgeFrameType(single)));
+
+            _harness.Arrange(new MusicScore(new[] { headTime }, System.Array.Empty<EventBase>(), new[] { bar, single }));
+            _harness.BindViews(_view);
+            _harness.Step(0f, 10d);
+            _harness.Step(0.75f, 10.75d);
+            Assert.That(tail.Progress, Is.EqualTo(0.5f).Within(1e-5f));
+            Assert.That(tail.Progress, Is.EqualTo(single.Progress).Within(1e-5f));
+            Assert.That(_view.Spawns(tail), Is.GreaterThan(0));
+            Assert.That(_view.Spawns(tail), Is.EqualTo(_view.Spawns(single)));
+            _harness.Step(1.01f, 11.01d);
+            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+            Assert.That(_view.Spawns(tail), Is.EqualTo(_view.Spawns(single)));
+            Assert.That(_view.Removals(tail), Is.Zero);
+            Assert.That(_view.Removals(single), Is.Zero);
+            Assert.That(tail.Progress, Is.EqualTo(single.Progress).Within(1e-5f));
+
+            if (hit)
+            {
+                _harness.Step(1.10f, 11.10d,
+                    LiveHarness.Touch(1, LiveConfig.JudgmentPositions[8], 11.10d),
+                    LiveHarness.Touch(2, LiveConfig.JudgmentPositions[2], 11.10d));
+                _harness.Step(1.12f, 11.12d,
+                    new LiveTouchSample(1, new Vector2(800f, 700f), LiveConfig.JudgmentPositions[8], 11.12d, TouchPhase.Moved, Vector2.zero),
+                    new LiveTouchSample(2, new Vector2(800f, 700f), LiveConfig.JudgmentPositions[2], 11.12d, TouchPhase.Moved, Vector2.zero));
+            }
+            _harness.Step(1.16f, 11.16d);
+            _harness.Step(1.18f, 11.18d);
+            Assert.That(tail.Result, Is.EqualTo(single.Result));
+            if (hit)
+                Assert.That(tail.Result, Is.GreaterThan(NoteResult.Miss));
+            else
+                Assert.That(tail.Result, Is.EqualTo(NoteResult.Miss));
+            Assert.That(_view.Removals(tail), Is.EqualTo(1));
+            Assert.That(_view.Removals(single), Is.EqualTo(1));
+        }
+
+        [Test]
         public void TailIsHiddenBeforeVisibleFrom()
         {
             Arrange(displayLead: 0.25f);
@@ -136,39 +238,36 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         [Test]
-        public void AnUnjudgedTailIsTakenOffAtItsOwnTime()
+        public void AnUnjudgedTailIsTakenOffWhenItMisses()
         {
             Arrange();
             StartHolding();
             Step(TailTime, TouchPhase.Stationary);
-            // The bar ends at the tail's time and nobody graded the key. The key belongs to the note, and
-            // the rule is: it leaves when the note has a verdict OR when its own time arrives - whichever
-            // comes first. Sliding it out below the line was what kept it on screen after the note was over.
+            Assert.That(_bar.State, Is.EqualTo(NoteState.Done));
             Assert.That(Tail.Result, Is.EqualTo(NoteResult.None));
+            Assert.That(_view.Removals(Tail), Is.Zero);
             Step(TailTime + 0.2f);
-            Assert.That(_view.Removals(Tail), Is.EqualTo(1), "an unjudged key is taken off at its own time");
+            Assert.That(Tail.Result, Is.EqualTo(NoteResult.Miss));
+            Assert.That(_view.Removals(Tail), Is.EqualTo(1));
             Step(TailTime + 0.6f);
             Step(TailTime + 1f);
             Assert.That(_view.Removals(Tail), Is.EqualTo(1), "and it is recycled exactly once");
         }
 
         [Test]
-        public void TheViewWaitsForTheInputPass()
+        public void AReleaseTailStaysVisibleAndAcceptsALateLiftAfterTheBodyEnds()
         {
             Arrange();
             StartHolding();
             Step(TailTime - 0.01f);
             Assert.That(_view.Removals(Tail), Is.Zero, "the key is on screen just before its own time");
 
-            // A notes-only frame: the note state moves to the tail's time, but no view has been drawn.
-            _harness.OnUpdate(TailTime + 0.01f, _clock);
-            Assert.That(_view.Removals(Tail), Is.Zero, "the state block does not draw");
-
-            _harness.OnInput();
-            Assert.That(_view.Removals(Tail), Is.Zero, "the touch block does not draw either");
-
-            _harness.OnView();
-            Assert.That(_view.Removals(Tail), Is.EqualTo(1), "the view block is where the key goes, once");
+            Step(TailTime + 0.01f, TouchPhase.Stationary);
+            Assert.That(_bar.State, Is.EqualTo(NoteState.Done));
+            Assert.That(_view.Removals(Tail), Is.Zero);
+            Step(TailTime + 0.02f, TouchPhase.Ended);
+            Assert.That(Tail.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(_view.Removals(Tail), Is.EqualTo(1));
         }
 
         [Test]
@@ -178,6 +277,8 @@ namespace OpenSekai.Tests.EditMode.Live
             StartHolding();
             Step(TailTime, TouchPhase.Stationary);
             Assert.That(_bar.GetTailKeyPhase(TailTime), Is.EqualTo(TailKeyPhase.SlidingOut));
+            Assert.That(_bar.State, Is.EqualTo(NoteState.Done));
+            Assert.That(_view.Removals(Tail), Is.Zero);
             Assert.That(Tail.Result, Is.EqualTo(NoteResult.None), "view time is not the swipe window");
             Step(TailTime + 0.01f, TouchPhase.Stationary);
             Assert.That(Tail.Progress, Is.GreaterThan(1f), "the key must move off the judgment line while awaiting input");
@@ -186,6 +287,25 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(_bar.GetTailKeyPhase(TailTime + 0.02f), Is.EqualTo(TailKeyPhase.Retired));
             Step(TailTime + 0.4f);
             Step(TailTime + 0.5f);
+            Assert.That(_view.Removals(Tail), Is.EqualTo(1));
+        }
+
+        [Test]
+        public void AnEarlySwipeKeepsItsCountdownAfterTheBodyEnds()
+        {
+            Arrange("Swipe");
+            StartHolding();
+            Step(TailTime - 0.03f, TouchPhase.Stationary);
+            Step(TailTime - 0.02f, TouchPhase.Moved, new Vector2(0f, 200f));
+            Assert.That(_bar.HasDeferredSwipe, Is.True);
+            Step(TailTime, TouchPhase.Stationary, new Vector2(0f, 200f));
+            Assert.That(_bar.State, Is.EqualTo(NoteState.Done));
+            Step(TailTime + 0.01f);
+            Step(TailTime + 0.02f);
+            Assert.That(Tail.Result, Is.EqualTo(NoteResult.None));
+            Assert.That(_view.Removals(Tail), Is.Zero);
+            Step(TailTime + 0.03f);
+            Assert.That(Tail.Result, Is.EqualTo(NoteResult.JustPerfect));
             Assert.That(_view.Removals(Tail), Is.EqualTo(1));
         }
 
@@ -253,7 +373,7 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         [Test]
-        public void RecyclingAnUnjudgedViewDoesNotPublishANoneResult()
+        public void TheTailKeepsItsViewUntilTheMissIsPublished()
         {
             Arrange("Swipe", 0.1f);
             int judgments = 0;
@@ -262,7 +382,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Step(TailTime - 0.05f, TouchPhase.Stationary);
             Step(TailTime, TouchPhase.Stationary);
             Step(TailTime + 0.04f, TouchPhase.Stationary);
-            Assert.That(_view.Removals(Tail), Is.EqualTo(1));
+            Assert.That(_view.Removals(Tail), Is.Zero);
             Assert.That(Tail.Result, Is.EqualTo(NoteResult.None));
             Assert.That(judgments, Is.Zero);
             Step(TailTime + 0.25f);
