@@ -117,7 +117,21 @@ namespace Sekai.Core.Live
 
 		private new void OnApplicationPause(bool pauseStatus)
 		{
+			SoundManager.Instance.TraceIngameSync(pauseStatus ? "app-pause" : "app-resume");
 			if (pauseStatus)
+			{
+				OnPause();
+			}
+		}
+
+		protected override void OnApplicationFocus(bool hasFocus)
+		{
+			base.OnApplicationFocus(hasFocus);
+			SoundManager.Instance.TraceIngameSync(hasFocus ? "focus-gain" : "focus-lost");
+			// The notification shade, an incoming-call overlay and the like take focus on Android
+			// without pausing the app. The live has to stop for them too. Not in the Editor, where
+			// clicking another window would pause every test play.
+			if (!hasFocus && !Application.isEditor)
 			{
 				OnPause();
 			}
@@ -127,6 +141,13 @@ namespace Sekai.Core.Live
 		{
 			if ((state == LiveControllerState.Playing || state == LiveControllerState.ResumeCountDown) && result == 0)
 			{
+				// A pause during the resume countdown has to cancel it, or the countdown runs out
+				// behind the pause dialog and starts the music again.
+				if (_resumeCoroutine != null)
+				{
+					StopCoroutine(_resumeCoroutine);
+					_resumeCoroutine = null;
+				}
 				state = LiveControllerState.Pause;
 				SoundManager.Instance.Pause();
 				LiveViewExt.Pause(_liveViews);

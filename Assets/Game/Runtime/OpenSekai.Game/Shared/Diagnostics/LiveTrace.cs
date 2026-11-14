@@ -25,6 +25,7 @@ namespace OpenSekai.Shared.Diagnostics
         Press = 1 << 8,
         Resident = 1 << 9,
         Release = 1 << 10,
+        Audio = 1 << 11,
         All = ~0,
     }
 

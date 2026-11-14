@@ -5,6 +5,7 @@ using System.IO;
 using AcbDecoder;
 using UnityEngine;
 using UnityEngine.Networking;
+using OpenSekai.Shared.Diagnostics;
 using Sekai;
 
 namespace CriWare
@@ -676,7 +677,24 @@ namespace CriWare
 			    get => _Paused;
 			    set => _Paused = value;
 			}
+
+			// Drift guard: the last timeSamples seen on the primary source, and the clock-minus-audio
+			// offsets taken each time it moved. See ReconcileWithAudio.
+			public int LastObservedSamples = -1;
+
+			// Set while the app itself is paused (backgrounded, screen off). Independent of Paused,
+			// which is the game's own pause: the OS stops the audio whether or not the game asked.
+			public bool Suspended;
+			public float SuspendedTimeSeconds;
+			public readonly float[] DriftWindow = new float[DriftWindowSize];
+			public int DriftCount;
 		}
+
+		// How many audio position updates go into one drift estimate, and how far off the clock has to
+		// be (as their median) before it is moved. AudioSource.timeSamples advances in chunks on some
+		// Android devices, so a single reading can be a chunk off; the threshold sits well above that.
+		private const int DriftWindowSize = 9;
+		private const float DriftResyncThresholdSeconds = 0.15f;
 
 		private static readonly Dictionary<uint, PlaybackState> _playbacks = new Dictionary<uint, PlaybackState>();
 		// Playing a sound used to build a GameObject and an AudioSource per hit, which costs setup time
@@ -778,6 +796,8 @@ namespace CriWare
 			state.BaseTimeSeconds = primaryStartTimeSeconds;
 			state.PausedTimeSeconds = primaryStartTimeSeconds;
 			state.Paused = false;
+			state.Suspended = false;
+			ResetDriftWindow(state);
 			_playbacks[id] = state;
 
 			EnsureAudioListener();
@@ -946,6 +966,7 @@ namespace CriWare
 				return;
 			}
 
+			ReconcileWithAudio(state, id);
 			playbackTime = (long)(GetMonotonicPlaybackTimeSeconds(state) * 1000f);
 			timeScale = state.PrimarySource.pitch;
 			if (timeScale <= 0f)
@@ -984,6 +1005,7 @@ namespace CriWare
 				{
 					state.PausedTimeSeconds = GetMonotonicPlaybackTimeSeconds(state);
 					state.Paused = true;
+					TraceSync(state, id, "pause");
 				}
 				if (state.Sources != null)
 				{
@@ -1005,9 +1027,16 @@ namespace CriWare
 			{
 				if (state.Paused)
 				{
+					// The OS can tear down and rebuild the audio output while the app is in the
+					// background, and the sources may come back somewhere other than where they were
+					// paused. The clock is the reference here: put the audio back under it before it
+					// plays again, so a trip to the background cannot leave the two seconds apart.
+					TraceSync(state, id, "resume-before-seek");
+					SeekSources(state, state.PausedTimeSeconds);
 					state.BaseTimeSeconds = state.PausedTimeSeconds;
 					state.BaseStopwatchTicks = Stopwatch.GetTimestamp();
 					state.Paused = false;
+					ResetDriftWindow(state);
 				}
 				if (state.Sources != null)
 				{
@@ -1075,6 +1104,10 @@ namespace CriWare
 			{
 				return state.PausedTimeSeconds;
 			}
+			if (state.Suspended)
+			{
+				return state.SuspendedTimeSeconds;
+			}
 
 			float pitch = state.PrimarySource.pitch;
 			if (pitch <= 0f)
@@ -1091,6 +1124,187 @@ namespace CriWare
 			}
 
 			return Mathf.Max(0f, playbackTimeSeconds);
+		}
+
+		private static void SeekSources(PlaybackState state, float timeSeconds)
+		{
+			if (state.Sources == null)
+			{
+				return;
+			}
+
+			for (int i = 0; i < state.Sources.Length; i++)
+			{
+				AudioSource source = state.Sources[i];
+				AudioClip clip = source != null ? source.clip : null;
+				if (clip == null || clip.frequency <= 0 || clip.samples <= 0)
+				{
+					continue;
+				}
+
+				int samples = (int)Math.Round((double)timeSeconds * clip.frequency);
+				source.timeSamples = Mathf.Clamp(samples, 0, clip.samples - 1);
+			}
+		}
+
+		private static void ResetDriftWindow(PlaybackState state)
+		{
+			state.LastObservedSamples = -1;
+			state.DriftCount = 0;
+		}
+
+		// Closes the loop the monotonic clock leaves open. Each time the primary source reports a new
+		// position, the clock-minus-audio offset is recorded; once a window is full its median decides.
+		// A median past the threshold means the audio really is elsewhere (it was moved under us, not
+		// just reported late), and the clock is re-anchored onto it. Small offsets are left alone so the
+		// chunky position reports on some devices never make the notes jitter.
+		private static void ReconcileWithAudio(PlaybackState state, uint id)
+		{
+			AudioSource source = state.PrimarySource;
+			if (state.Paused || state.Suspended || state.Stopped || source == null || !source.isPlaying)
+			{
+				return;
+			}
+
+			AudioClip clip = source.clip;
+			if (clip == null || clip.frequency <= 0)
+			{
+				return;
+			}
+
+			int samples = source.timeSamples;
+			if (samples == state.LastObservedSamples)
+			{
+				return;
+			}
+
+			bool wentBack = state.LastObservedSamples >= 0 && samples < state.LastObservedSamples;
+			state.LastObservedSamples = samples;
+			if (wentBack)
+			{
+				// A loop or a seek: what came before says nothing about now.
+				state.DriftCount = 0;
+				return;
+			}
+
+			float audioSeconds = (float)samples / clip.frequency;
+			float clockSeconds = GetMonotonicPlaybackTimeSeconds(state);
+			if (clip.length > 0f && clockSeconds >= clip.length)
+			{
+				// The clock is clamped at the end of the clip, so the offset there is meaningless.
+				return;
+			}
+
+			state.DriftWindow[state.DriftCount++] = clockSeconds - audioSeconds;
+			if (state.DriftCount < DriftWindowSize)
+			{
+				return;
+			}
+
+			state.DriftCount = 0;
+			float median = Median(state.DriftWindow);
+			if (Math.Abs(median) < DriftResyncThresholdSeconds)
+			{
+				return;
+			}
+
+			float corrected = Mathf.Max(0f, clockSeconds - median);
+			if (LiveTrace.IsOn(LiveTraceCategory.Audio))
+			{
+				LiveTrace.Write(LiveTraceCategory.Audio, string.Concat("reanchor id=", id.ToString(),
+					" clock=", clockSeconds.ToString("F3"), " audio=", audioSeconds.ToString("F3"),
+					" median=", (median * 1000f).ToString("F0"), "ms -> ", corrected.ToString("F3")));
+			}
+			state.BaseTimeSeconds = corrected;
+			state.BaseStopwatchTicks = Stopwatch.GetTimestamp();
+		}
+
+		private static readonly float[] _medianScratch = new float[DriftWindowSize];
+
+		private static float Median(float[] values)
+		{
+			Array.Copy(values, _medianScratch, DriftWindowSize);
+			Array.Sort(_medianScratch);
+			return _medianScratch[DriftWindowSize / 2];
+		}
+
+		// The app going to the background stops the audio output, but the game only pauses itself once
+		// the rhythm game is under way: in the lead-in after the music starts, or with the game already
+		// over, nothing paused the clock and it ran on for as long as the app was away. Freeze every
+		// running playback here instead, whatever the game is doing, and on return put the audio back
+		// under the clock. A game pause taken meanwhile wins: it keeps the frozen time and its own
+		// Resume does the seek.
+		internal static void OnSystemSuspend(bool suspended)
+		{
+			foreach (KeyValuePair<uint, PlaybackState> entry in _playbacks)
+			{
+				PlaybackState state = entry.Value;
+				if (state == null || state.Stopped || state.PrimarySource == null)
+				{
+					continue;
+				}
+
+				if (suspended)
+				{
+					if (!state.Paused && !state.Suspended)
+					{
+						TraceSync(state, entry.Key, "suspend");
+						// Losing focus can stop the audio output a good while before the app pause
+						// arrives (0.9 s on a test device). Freezing at the clock would then skip that
+						// much music on return; freeze where the audio actually stopped instead.
+						float clock = GetMonotonicPlaybackTimeSeconds(state);
+						float audio = state.PrimarySource.time;
+						state.SuspendedTimeSeconds = clock - audio > DriftResyncThresholdSeconds && audio > 0f
+							? audio
+							: clock;
+						state.Suspended = true;
+					}
+					continue;
+				}
+
+				if (!state.Suspended)
+				{
+					continue;
+				}
+
+				// Traced while still suspended, so the clock it shows is the frozen one.
+				if (!state.Paused)
+				{
+					TraceSync(state, entry.Key, "unsuspend-before-seek");
+				}
+				state.Suspended = false;
+				if (!state.Paused)
+				{
+					SeekSources(state, state.SuspendedTimeSeconds);
+					state.BaseTimeSeconds = state.SuspendedTimeSeconds;
+					state.BaseStopwatchTicks = Stopwatch.GetTimestamp();
+					ResetDriftWindow(state);
+				}
+			}
+		}
+
+		internal static void TraceSync(uint id, string reason)
+		{
+			if (id != 0 && _playbacks.TryGetValue(id, out PlaybackState state))
+			{
+				TraceSync(state, id, reason);
+			}
+		}
+
+		private static void TraceSync(PlaybackState state, uint id, string reason)
+		{
+			if (!LiveTrace.IsOn(LiveTraceCategory.Audio) || state.PrimarySource == null)
+			{
+				return;
+			}
+
+			AudioSource source = state.PrimarySource;
+			float clock = GetMonotonicPlaybackTimeSeconds(state);
+			float audio = source.time;
+			LiveTrace.Write(LiveTraceCategory.Audio, string.Concat("sync ", reason, " id=", id.ToString(),
+				" clock=", clock.ToString("F3"), " audio=", audio.ToString("F3"),
+				" diff=", ((clock - audio) * 1000f).ToString("F0"), "ms paused=", state.Paused ? "1" : "0",
+				" playing=", source.isPlaying ? "1" : "0"));
 		}
 
 		private static uint AllocatePlaybackId()
@@ -1241,6 +1455,11 @@ namespace CriWare
 		private void LateUpdate()
 		{
 			CriAtomAudioRuntime.ReleaseFallbackAudioListenerIfExternalExists();
+		}
+
+		private void OnApplicationPause(bool pauseStatus)
+		{
+			CriAtomAudioRuntime.OnSystemSuspend(pauseStatus);
 		}
 	}
 }

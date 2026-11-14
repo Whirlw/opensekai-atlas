@@ -54,12 +54,13 @@ namespace OpenSekai.App.UI
         private GameObject _tracePanel;
         private TextMeshProUGUI _performanceHudValue;
         private TextMeshProUGUI _highlightLastValue;
-        private readonly TextMeshProUGUI[] _traceCategoryValues = new TextMeshProUGUI[11];
+        private readonly TextMeshProUGUI[] _traceCategoryValues = new TextMeshProUGUI[12];
         private static readonly LiveTraceCategory[] TraceCategories =
         {
             LiveTraceCategory.RawTouch, LiveTraceCategory.Press, LiveTraceCategory.Resident,
             LiveTraceCategory.Release, LiveTraceCategory.Judge, LiveTraceCategory.Hold, LiveTraceCategory.Tail,
-            LiveTraceCategory.Swipe, LiveTraceCategory.Pool, LiveTraceCategory.View, LiveTraceCategory.Frame
+            LiveTraceCategory.Swipe, LiveTraceCategory.Pool, LiveTraceCategory.View, LiveTraceCategory.Frame,
+            LiveTraceCategory.Audio
         };
         private TextMeshProUGUI _bgmValue;
         private TextMeshProUGUI _seValue;
@@ -233,7 +234,7 @@ namespace OpenSekai.App.UI
             rows.anchorMax = Vector2.one;
             rows.offsetMin = new Vector2(32f, 60f);
             rows.offsetMax = new Vector2(-32f, -96f);
-            string[] labels = { "原始触摸（高频）", "按下事件", "常驻通道（高频）", "抬起事件", "判定结果", "长条持握", "长条尾键", "划动", "对象回收", "画面表现", "画面逐帧（高频）" };
+            string[] labels = { "原始触摸（高频）", "按下事件", "常驻通道（高频）", "抬起事件", "判定结果", "长条持握", "长条尾键", "划动", "对象回收", "画面表现", "画面逐帧（高频）", "音频同步" };
             int index = 0;
             _performanceHudValue = AddToggleRow(rows, ref index, "性能 HUD",
                 () => PerformanceHud.Enabled, value => PerformanceHud.Enabled = value);

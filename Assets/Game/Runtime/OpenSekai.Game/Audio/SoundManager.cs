@@ -312,6 +312,12 @@ namespace Sekai
 			}
 		}
 
+		/// <summary>Writes the in-game BGM's clock and audio positions to the Audio trace.</summary>
+		public void TraceIngameSync(string reason)
+		{
+			CriAtomAudioRuntime.TraceSync(_currentIngamePlayback.id, reason);
+		}
+
 		public uint GetCurrentIngamePlaybackId()
 		{
 			return _currentIngamePlayback.id;
