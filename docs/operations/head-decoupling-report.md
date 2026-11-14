@@ -47,7 +47,7 @@
 
 ## 先红后绿与最终验证
 
-先仅增加测试、尚未改生产代码时运行了全量：[head-decoupling-red.xml](../../TestResults/head-decoupling-red.xml)，**522 total / 515 passed / 3 failed / 4 skipped**。
+先仅增加测试、尚未改生产代码时运行了全量：`TestResults/head-decoupling-red.xml`，**522 total / 515 passed / 3 failed / 4 skipped**。
 
 - `AHeldBarPublishesItsHeadOnce` 在发布顺序断言失败：旧实现先 judge。
 - `AJudgedHeadIsNotOverwrittenByTheGraceEnding` 在重放 Last → InputBegan 后失败：头判从 1 增为 2。
@@ -56,7 +56,7 @@
 
 解耦并补齐上述测试驱动后，全量最终结果：**522 total / 518 passed / 0 failed / 4 skipped**。四条新测试均 Passed，比基线 518 / 514 / 0 / 4 恰好多 4 条通过。
 
-最终 XML：[head-decoupling-green.xml](../../TestResults/head-decoupling-green.xml)，根节点 test-run 开始/结束时间：**2026-11-10 15:37:45Z / 15:37:48Z**。XML 为 TestResults 输出，不纳入源代码交付。
+最终 XML：`TestResults/head-decoupling-green.xml`，根节点 test-run 开始/结束时间：**2026-11-10 15:37:45Z / 15:37:48Z**。XML 为 TestResults 输出，不纳入源代码交付。
 
 工具链检查：
 
