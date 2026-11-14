@@ -25,6 +25,8 @@ namespace Sekai.Core.Live
 		private readonly int[] _holdInputNotes;
 		/// <summary>The bar each lifting finger finishes this frame, or -1.</summary>
 		private readonly int[] _liftTargets;
+		/// <summary>Music time of the frame the lift targets belong to, so a stale pick is ignored.</summary>
+		private float _liftFrame = float.NaN;
 
 		public LiveHoldCoordinator(int inputCapacity)
 		{
@@ -142,12 +144,17 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>
-		/// Feeds every live bar the fingers currently on it, and finishes the bar when a finger leaves
-		/// the screen inside it — the tail's normal judgement.
+		/// The release channel: a finger that leaves the screen finishes the one bar it is standing on.
+		///
+		/// It runs on the frame's ended samples, before the resident upkeep, and it only settles the
+		/// tail a release can settle (<see cref="Tails.ReleaseTail"/>). A flick end is finished by the
+		/// swipe the resident pass hands it, and a rub, a rub flick or a hidden carrier grades itself,
+		/// so none of those is touched here.
 		/// </summary>
-		private void CoverHoldsWithAnyFinger(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame, float deltaTime)
+		public void JudgeLifts(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame)
 		{
 			int count = inputs.Count;
+			_liftFrame = frame.time;
 
 			// A lift is a judgement, so it gets the same treatment as a press: one finger may finish
 			// one bar per frame, the nearest one. Lifting a finger that sits over two overlapping
@@ -180,7 +187,32 @@ namespace Sekai.Core.Live
 					LiveTrace.Write(LiveTraceCategory.Tail,
 						$"liftPick finger={input.Touch.fingerId} lane={input.Lane:F2} phase={input.Touch.phase} barT={barTime:F3}");
 				}
+
+				if (best < 0)
+				{
+					continue;
+				}
+
+				LongNote bar = (LongNote)judgmentNotes[best];
+				if (bar.TailBehaviour.AcceptsRelease)
+				{
+					bar.JudgeTailAsRelease(frame.time);
+				}
 			}
+		}
+
+		/// <summary>
+		/// Feeds every live bar the fingers currently on it, and hands each bar the frame's cover and
+		/// swipe facts. The lift that ends a bar is the release channel's business, already done.
+		/// </summary>
+		private void CoverHoldsWithAnyFinger(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame, float deltaTime)
+		{
+			int count = inputs.Count;
+
+			// The lifts were picked by the release pass, before this one ran. A target that is missing
+			// or from another frame is not a lift of this frame, so a stale pick can never make a bar
+			// look released inside it.
+			bool liftsKnown = _liftFrame == frame.time;
 
 			for (int noteIndex = 0; noteIndex < judgmentNotes.Count; noteIndex++)
 			{
@@ -218,7 +250,7 @@ namespace Sekai.Core.Live
 						}
 
 						// The nearest bar to this lifting finger is the one it finishes.
-						if (_liftTargets[inputIndex] == noteIndex)
+						if (liftsKnown && _liftTargets[inputIndex] == noteIndex)
 						{
 							releasedInside = true;
 						}

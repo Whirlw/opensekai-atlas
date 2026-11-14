@@ -29,16 +29,72 @@ namespace Sekai.Core.Live
 
 		internal void Run()
 		{
-			JudgeDueComboPoints();
-			_input.CollectCandidates();
-			DriveIndependentNotes();
-			_input.SortPressCandidates();
-			RefreshSustainedHolds();
-			EvaluateJudgment();
+			// The three channels answer in a fixed order, and each one is decided on the raw samples of
+			// this frame before the next one looks at them: a press is a Began, a release is an Ended,
+			// and whatever is left over is the resident upkeep.
+			JudgePressChannel();
+			JudgeReleaseChannel();
+			JudgeResidentChannel();
+
+			// Returns the frame's inputs and forgets the touches that ended. It runs after every channel
+			// has read them, including the release that a lift feeds.
+			EndFrame();
 
 			// The view is the last step of the whole frame: every note state above already belongs to
 			// this frame, so what gets drawn cannot be a mixture of the old and the new one.
 			_noteFrame.TickViews();
+		}
+
+		/// <summary>
+		/// The press channel, decided on the frame's raw samples: only a Began can be a press, and one
+		/// finger spends one press per frame. The candidates are collected from the touch list, not
+		/// from the notes, so a press that no note can answer leaves the finger free.
+		/// </summary>
+		private void JudgePressChannel()
+		{
+			_input.CollectCandidates();
+			_input.SortPressCandidates();
+			EvaluateJudgment();
+		}
+
+		/// <summary>
+		/// The release channel: the ended samples finish the one bar each finger is standing on. It
+		/// runs after the press channel so a press that ended in the same sample cannot be swallowed
+		/// by the lift, and before the resident pass so the bar it finishes is already done when that
+		/// pass looks at the holds.
+		/// </summary>
+		private void JudgeReleaseChannel()
+		{
+			_input.Holds.JudgeLifts(_input.JudgmentNotes, _input.ActiveInputs, Frame);
+		}
+
+		/// <summary>
+		/// The resident channel: the state that has no event of its own - combo points, bar bodies,
+		/// self-judged tails, hold upkeep and the timeouts.
+		/// </summary>
+		private void JudgeResidentChannel()
+		{
+			JudgeDueComboPoints();
+			DriveIndependentNotes();
+			RefreshSustainedHolds();
+		}
+
+		/// <summary>
+		/// Hands the frame's inputs back: an ended touch is forgotten, and the list is emptied so the
+		/// next frame starts from its own samples only.
+		/// </summary>
+		private void EndFrame()
+		{
+			for (int inputIndex = 0; inputIndex < _input.ActiveInputs.Count; inputIndex++)
+			{
+				InputTmp input = _input.ActiveInputs[inputIndex];
+				if (input != null && LiveInputRouter.IsEndedOrCanceled(input.Touch.phase))
+				{
+					_input.ForgetJudgedTouch(input.Touch.touchId);
+				}
+			}
+
+			_input.ActiveInputs.Clear();
 		}
 
 		// An interior point is not a press-slot note: it belongs to no finger. Every frame it is due,
@@ -165,14 +221,7 @@ namespace Sekai.Core.Live
 				{
 					_presentation.Unpicked(_session.Views, Mathf.RoundToInt(input.Lane), ref input.Touch);
 				}
-
-				if (LiveInputRouter.IsEndedOrCanceled(input.Touch.phase))
-				{
-					_input.ForgetJudgedTouch(input.Touch.touchId);
-				}
 			}
-
-			_input.ActiveInputs.Clear();
 		}
 
 		/// <summary>
