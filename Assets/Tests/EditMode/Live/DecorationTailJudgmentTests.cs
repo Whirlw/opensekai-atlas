@@ -218,6 +218,44 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(recorder.Judged, Has.No.Member(bar), "the head of a decorative bar plays nothing");
         }
 
+        // The end of a decorative bar is a fallback key: the bar before it was never judged, so the end is
+        // graded like a standalone note. Every other bar keeps the bar-end tables. A press 60 ms late
+        // tells the two apart: Great on the standalone table, Perfect on the bar-end one (late edge 66.7 ms).
+
+        private static NoteBase EndOf(string bar, NoteBase end)
+        {
+            LongNote owner = bar switch
+            {
+                "guide" => new GuideNote(Info(0f), 30, 4, 5, NoteCategory.Guide, NoteType.Default, null, 1f),
+                "decoration" => (LongNote)Decorated(new LongNote(Info(0f), 30, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f)),
+                _ => new LongNote(Info(0f), 30, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f),
+            };
+            owner.AddNoteListAndSetupChildNote(end);
+            return end;
+        }
+
+        [TestCase("guide", NoteResult.Great)]
+        [TestCase("decoration", NoteResult.Great)]
+        [TestCase("ordinary", NoteResult.Perfect)]
+        public void ATapEndIsGradedByItsBarsKind(string bar, NoteResult expected)
+        {
+            NoteBase end = EndOf(bar, new NormalNote(Info(1f), 31, 4, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f));
+            Assert.That(end.CalcNoteResult(1.06f), Is.EqualTo(expected));
+            Assert.That(LiveUtility.GetINoteToJudgeFrameType(end),
+                Is.EqualTo(bar == "ordinary" ? JudgeFrameType.Long_End : JudgeFrameType.Normal));
+        }
+
+        [TestCase("guide", NoteResult.Great)]
+        [TestCase("decoration", NoteResult.Great)]
+        [TestCase("ordinary", NoteResult.Perfect)]
+        public void AFlickEndIsGradedByItsBarsKind(string bar, NoteResult expected)
+        {
+            NoteBase end = EndOf(bar, new FlickNote(Info(1f), 32, 4, 5, NoteCategory.Flick, 1f, NoteType.Default, NoteDirection.Left, 0f, 0f));
+            Assert.That(end.CalcNoteResult(1.06f), Is.EqualTo(expected));
+            Assert.That(LiveUtility.GetINoteToJudgeFrameType(end),
+                Is.EqualTo(bar == "ordinary" ? JudgeFrameType.Long_End_Flick : JudgeFrameType.Flick));
+        }
+
         private sealed class RecordingView : LiveViewBase
         {
             internal readonly System.Collections.Generic.List<NoteBase> Judged = new();

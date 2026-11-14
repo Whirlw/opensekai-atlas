@@ -480,6 +480,13 @@ namespace Sekai.Live
 
 		internal void BindGeometryParent(LongNote note) => parentNote = note;
 
+		/// <summary>
+		/// True when this note is graded as part of a judged bar, with the bar-end tables. A note under a
+		/// decorative bar (a guide bar or one the chart flags as decoration) is graded like a standalone
+		/// note: the bar before it was never judged, so its end is a fallback key, not a hold's end.
+		/// </summary>
+		internal bool GradesAsBarPart => parentNote != null && !parentNote.IsDecorativeBar;
+
 		public virtual void SetParentNote(LongNote note)
 		{
 			parentNote = note;

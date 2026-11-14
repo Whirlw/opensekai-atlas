@@ -361,6 +361,9 @@ namespace Sekai.Live
 		/// </summary>
 		internal bool HeadIsANote => IsOrdinaryHead && HasJudgment && !IsSkip;
 
+		/// <summary>A bar that only moves a lane: a guide bar, or any bar the chart flags as decoration.</summary>
+		internal bool IsDecorativeBar => this is GuideNote || IsDecoration;
+
 		internal void SetHeadJudgeInfo((NoteResult result, NoteResultDescription description) value) => JudgeInfo = value;
 
 		internal Func<(NoteResult result, NoteResultDescription description), (NoteResult result, NoteResultDescription description)> HeadResultUpdater => onUpdateResult;
