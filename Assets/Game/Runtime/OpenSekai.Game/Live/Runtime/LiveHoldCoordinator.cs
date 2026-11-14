@@ -161,7 +161,7 @@ namespace Sekai.Core.Live
 					continue;
 				}
 
-				LongNote target = PickLiftTarget(judgmentNotes, input.Lane, frame.time);
+				LongNote target = PickLiftTarget(judgmentNotes, inputs, input, frame.time);
 
 				if (LiveTrace.IsOn(LiveTraceCategory.Tail))
 				{
@@ -363,12 +363,19 @@ namespace Sekai.Core.Live
 		/// The bars a lifting finger may finish: its lane must hold the finger and its tail must be
 		/// judgeable right now. Of those, the earliest tail wins - a lift finishes one bar, the one
 		/// that is already due.
+		///
+		/// A lift does not say which finger held the bar, so a crowded tail is guarded: while another
+		/// touch is still on screen inside the tail's judge range, only a lift inside the Perfect band
+		/// may settle it. A finger that tapped a nearby key and comes up a little off the beat leaves
+		/// the tail to the finger still on it. The lifting touch alone in the range may settle any grade.
 		/// </summary>
-		private static LongNote PickLiftTarget(List<NoteBase> judgmentNotes, float lane, float time)
+		private static LongNote PickLiftTarget(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs,
+			LiveLogic.InputTmp lift, float time)
 		{
 			LongNote best = null;
 			float bestTime = float.MaxValue;
 			float bestDistance = float.MaxValue;
+			float lane = lift.Lane;
 			if (lane < 0f)
 			{
 				return null;
@@ -386,7 +393,7 @@ namespace Sekai.Core.Live
 				// on another lane than the body it hangs from, and the body's range is the widened
 				// judge range anyway, which reaches into the neighbours.
 				NoteBase tail = candidate.ChildNote as NoteBase;
-				if (tail == null || lane < tail.JudgeLaneStart || lane > tail.JudgeLaneEnd)
+				if (tail == null || !InTailRange(lane, tail))
 				{
 					continue;
 				}
@@ -397,6 +404,17 @@ namespace Sekai.Core.Live
 				}
 
 				float tailTime = tail.MusicScoreInfo.time;
+				if (!LongEndJudgement.IsPerfect(time - tailTime)
+					&& AnotherTouchInTailRange(inputs, lift.Touch.touchId, tail))
+				{
+					if (LiveTrace.IsOn(LiveTraceCategory.Tail))
+					{
+						LiveTrace.Write(LiveTraceCategory.Tail,
+							$"liftCrowded touch={lift.Touch.touchId} tailT={tailTime:F3} now={time:F3}");
+					}
+					continue;
+				}
+
 				float distance = Math.Abs(lane - (tail.JudgeLaneStart + tail.JudgeLaneEnd) * 0.5f);
 				if (best == null || tailTime < bestTime || (tailTime == bestTime && distance < bestDistance))
 				{
@@ -407,6 +425,46 @@ namespace Sekai.Core.Live
 			}
 
 			return best;
+		}
+
+		private static bool InTailRange(float lane, NoteBase tail) =>
+			lane >= tail.JudgeLaneStart && lane <= tail.JudgeLaneEnd;
+
+		/// <summary>
+		/// Whether a touch other than the lifting one is still on screen inside the tail's judge range.
+		/// A touch that also ends this frame has left and does not count; several samples of one touch
+		/// count as that one touch.
+		/// </summary>
+		private static bool AnotherTouchInTailRange(List<LiveLogic.InputTmp> inputs, int liftTouchId, NoteBase tail)
+		{
+			for (int i = 0; i < inputs.Count; i++)
+			{
+				LiveLogic.InputTmp other = inputs[i];
+				if (other == null || other.Touch.touchId == liftTouchId
+					|| IsEndedOrCanceled(other.Touch.phase) || other.Lane < 0f || !InTailRange(other.Lane, tail)
+					|| EndsThisFrame(inputs, other.Touch.touchId))
+				{
+					continue;
+				}
+
+				return true;
+			}
+
+			return false;
+		}
+
+		private static bool EndsThisFrame(List<LiveLogic.InputTmp> inputs, int touchId)
+		{
+			for (int i = 0; i < inputs.Count; i++)
+			{
+				LiveLogic.InputTmp input = inputs[i];
+				if (input != null && input.Touch.touchId == touchId && IsEndedOrCanceled(input.Touch.phase))
+				{
+					return true;
+				}
+			}
+
+			return false;
 		}
 
 		private static bool IsEndedOrCanceled(UnityEngine.InputSystem.TouchPhase phase)

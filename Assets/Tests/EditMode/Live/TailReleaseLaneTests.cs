@@ -186,6 +186,105 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(((NoteBase)right.ChildNote).Result, Is.EqualTo(NoteResult.None));
 		}
 
+		// A crowded tail: a touch other than the lifting one still inside the tail's judge range means
+		// the lift may only settle the tail inside the Perfect band. Alone, any grade settles it.
+
+		private LongNote ArrangeHeldNormalBar(int lane, float until, params int[] extraTouches)
+		{
+			LongNote bar = NormalBar(201, lane);
+			var score = new MusicScore(new[] { bar.MusicScoreInfo },
+				System.Array.Empty<EventBase>(), new NoteBase[] { bar });
+			_harness.Arrange(score);
+			Vector3 position = LanePosition(lane);
+			StepTo(0f, Sample(1, position, 0f, TouchPhase.Began));
+			const float frame = 1f / 60f;
+			for (float now = frame; now < until - frame * 0.5f; now += frame)
+			{
+				StepTo(now, Sample(1, position, now, TouchPhase.Stationary));
+			}
+
+			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.None));
+			return bar;
+		}
+
+		[Test]
+		public void ACrowdedTailIgnoresAnOffBeatLiftAndWaitsForTheFingerStillOnIt()
+		{
+			LongNote bar = ArrangeHeldNormalBar(4, 0.9f);
+			Vector3 position = LanePosition(4);
+			StepTo(0.9f, Sample(1, position, 0.9f, TouchPhase.Stationary), Sample(2, position, 0.9f, TouchPhase.Began));
+
+			// The tapping finger comes up 100 ms late: Great on the table, but the holder is still there.
+			StepTo(1.1f, Sample(1, position, 1.1f, TouchPhase.Stationary), Sample(2, position, 1.1f, TouchPhase.Ended));
+			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.None),
+				"an off-beat lift beside another touch is not taken as the release");
+
+			// Now the holder is alone in the range, and its own lift settles any grade.
+			StepTo(1.12f, Sample(1, position, 1.12f, TouchPhase.Ended));
+			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.Great));
+		}
+
+		[Test]
+		public void ACrowdedTailTakesAPerfectLift()
+		{
+			LongNote bar = ArrangeHeldNormalBar(4, 0.9f);
+			Vector3 position = LanePosition(4);
+			StepTo(0.9f, Sample(1, position, 0.9f, TouchPhase.Stationary), Sample(2, position, 0.9f, TouchPhase.Began));
+
+			StepTo(1.03f, Sample(1, position, 1.03f, TouchPhase.Stationary), Sample(2, position, 1.03f, TouchPhase.Ended));
+			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.JustPerfect));
+		}
+
+		[Test]
+		public void ALoneLiftSettlesAnyGrade()
+		{
+			LongNote bar = ArrangeHeldNormalBar(4, 1.1f);
+			StepTo(1.1f, Sample(1, LanePosition(4), 1.1f, TouchPhase.Ended));
+			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.Great));
+		}
+
+		[Test]
+		public void ATouchOutsideTheTailRangeDoesNotCrowdIt()
+		{
+			LongNote bar = ArrangeHeldNormalBar(2, 0.9f);
+			Vector3 position = LanePosition(2);
+			Vector3 far = LanePosition(10);
+			StepTo(0.9f, Sample(1, position, 0.9f, TouchPhase.Stationary), Sample(2, far, 0.9f, TouchPhase.Began));
+
+			StepTo(1.1f, Sample(1, position, 1.1f, TouchPhase.Ended), Sample(2, far, 1.1f, TouchPhase.Stationary));
+			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.Great));
+		}
+
+		[Test]
+		public void ATouchEndingOnTheSameFrameDoesNotCrowdIt()
+		{
+			LongNote bar = ArrangeHeldNormalBar(4, 0.9f);
+			Vector3 position = LanePosition(4);
+			StepTo(0.9f, Sample(1, position, 0.9f, TouchPhase.Stationary), Sample(2, position, 0.9f, TouchPhase.Began));
+
+			StepTo(1.1f, Sample(1, position, 1.1f, TouchPhase.Ended), Sample(2, position, 1.1f, TouchPhase.Ended));
+			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.Great));
+		}
+
+		[Test]
+		public void SeveralSamplesOfTheLiftingTouchAreNotAnotherTouch()
+		{
+			LongNote bar = ArrangeHeldNormalBar(4, 1.1f);
+			Vector3 position = LanePosition(4);
+			StepTo(1.1f, Sample(1, position, 1.09f, TouchPhase.Moved), Sample(1, position, 1.1f, TouchPhase.Ended));
+			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.Great));
+		}
+
+		private static LongNote NormalBar(int id, int lane)
+		{
+			var head = new MusicScoreInfo(0, 0f, 0f, 120, 4, 1, 1);
+			var end = new MusicScoreInfo(0, 0.5f, 1f, 120, 4, 1, 1);
+			var bar = new LongNote(head, id, lane, lane, NoteCategory.Long, NoteType.Default, 1f, 0f);
+			bar.AddNoteListAndSetupChildNote(new NormalNote(end, id + 1, lane, lane,
+				NoteCategory.Normal, 1f, NoteType.Default, 0f));
+			return bar;
+		}
+
 		private static LongNote FlickBar(int id, int lane, float laneOffset = 0f)
 		{
 			var head = new MusicScoreInfo(0, 0f, 0f, 120, 4, 1, 1);
