@@ -216,7 +216,7 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 | 末端音符 | 行为 | 判定方式 | 条要不要等它 |
 | --- | --- | --- | --- |
 | `NormalNote`（普通尾） | `ReleaseTail` | 窗口内抬手按 `LongEndJudgement` 评分，允许条身结束后在晚窗内抬手 | 条身在尾键结算或抵达几何终点时结束 |
-| `FlickNote`（划键尾） | `SwipeTail` | 每段位移归给一个可接收的条，按触摸 ID 累计净位移。早划在该触摸离轨、结束或到尾时间后第 3 个游戏帧评分，倒计时可跨越条身终点。尾时间及之后的有效划动可立即评分。方向错误最高 Great | 条身在尾键结算或抵达几何终点时结束 |
+| `FlickNote`（划键尾） | `SwipeTail` | 每段位移归给一个可接收的条，按触摸 ID 累计净位移。早划在该触摸离轨、结束或到尾时间后第 3 个游戏帧评分，倒计时可跨越条身终点。尾时间及之后的有效划动可立即评分。尾时间前，不在条上但在尾键车道内的划动若此刻评分为 Perfect（方向正确）则立即评分，否则忽略。方向错误最高 Great | 条身在尾键结算或抵达几何终点时结束 |
 | `FrictionNote` / `FrictionFlickNote` | `SelfJudgedTail` | 复用独立音符的类型、判定窗口和视图生命周期。显示使用长条的谱面流速倍率 | 条身按几何终点结束，尾键继续到自身结算 |
 | `HiddenConnectionNote` / `FrictionHideNote` | `SelfJudgedTail` | 推进隐藏端点的内部状态 | 条按自己的生命周期退出 |
 | 跳过条内尾判的条 | `SilentTail` | 条身退出，绑定的可判末端走自身的判定路径 | 条按自己的生命周期退出 |
@@ -324,6 +324,8 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 | 划键尾 | `LiveHoldCoordinator` 分配位移，`SwipeTail` 推进手势 |
 
 条身覆盖和刷新检查当前样本车道。划键尾按位移起点车道选择最近的可接收长条，同一段位移只送给该条，累计窗口按触摸 ID 隔离。早划进入等待后，释放时机跟随触发划动的手指，即使另一根手指仍按着条身。
+
+尾时间前，位移起点不在任何可接收长条上时，它还可以交给尾键车道（`tail.JudgeLaneStart..JudgeLaneEnd`）包含起点的划键尾。条件：此刻按 `LongEndJudgement` 评分为 Perfect（早 58.3 ms 以内）、方向正确、该条没有等待中的早划。这类划动不延迟，当场评分，也不要求条正被按住；不满足条件就忽略。几个尾都满足时取尾时间最早的。在条上的划动优先于这条通路（`LongNote.AcceptsSwipeFromTailLane`、`TailFrame.SwipeFromTailLane`）。
 
 延迟结算使用同一触摸最近一次通过划动门槛的方向判断。默认速度门槛为 5 cm/s，低于门槛的后续位移保留上一次的方向判断。
 

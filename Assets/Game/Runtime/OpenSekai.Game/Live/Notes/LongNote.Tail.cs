@@ -87,8 +87,11 @@ namespace Sekai.Live
 		internal bool TickSwipeTail(float currentTime) => Tail.TickSwipeTail(currentTime);
 		internal bool FailTail() => Tail.FailTail();
 		internal int? DeferredSwipeTouchId => _tail?.DeferredSwipeTouchId;
-		internal bool TrySwipeTail(Vector2 delta, float deltaTime, float currentTime, int? touchId = null) =>
-			Tail.TrySwipeTail(delta, deltaTime, currentTime, touchId);
+		internal bool TrySwipeTail(Vector2 delta, float deltaTime, float currentTime, int? touchId = null,
+			bool fromTailLane = false) =>
+			Tail.TrySwipeTail(delta, deltaTime, currentTime, touchId, fromTailLane);
+		internal bool AcceptsSwipeFromTailLane(float lane, float currentTime) =>
+			Tail.AcceptsSwipeFromTailLane(lane, currentTime);
 
 		internal void SetTailResult(NoteResult result) => JudgeInfo = (result, NoteResultDescription.None);
 		internal void CompleteTail() => State = NoteState.Done;
