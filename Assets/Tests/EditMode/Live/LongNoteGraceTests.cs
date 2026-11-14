@@ -199,5 +199,46 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(bar.HasFinger, Is.False);
 			Assert.That(bar.HasFinger, Is.False);
 		}
+
+		[Test]
+		public void AHeldRubCarrierStaysHeldThroughTheUpdatePassAndStillLetsGoWhenLifted()
+		{
+			// Device trace 2026-11-14: a held FrictionHideLongNote went Input -> Last on every update pass and
+			// back to Input on the next input pass (292 of 319 recorded state changes). The rub path recorded
+			// the finger but never marked the frame, so the body's freshness check read it as a lift.
+			const float frame = 1f / 60f;
+			const double inputBase = 10d;
+			using var harness = new LiveHarness();
+			var carrier = new FrictionHideLongNote(Info(0.5f), 1, 4, 5, NoteCategory.FrictionHideLong, NoteType.Default, null, 1f);
+			carrier.AddNoteListAndSetupChildNote(new FrictionHideNote(Info(1.5f), 2, 4, 5, NoteCategory.Hidden, null, NoteType.Default, 1f, 0));
+			harness.Arrange(new MusicScore(new[] { Info(0f) }, System.Array.Empty<EventBase>(), new NoteBase[] { carrier }));
+			Vector3 onTheBar = LiveConfig.JudgmentPositions[4];
+
+			int f = 0;
+			for (; f * frame < 0.48f; f++) harness.Step(f * frame, inputBase + f * frame);
+
+			TouchPhase phase = TouchPhase.Began;
+			for (; f * frame < 1.0f; f++)
+			{
+				harness.OnUpdate(f * frame, inputBase + f * frame);
+				if (f * frame > 0.6f)
+				{
+					Assert.That(carrier.State, Is.Not.EqualTo(NoteState.Last).And.Not.EqualTo(NoteState.Release),
+						$"held carrier after the update pass at t={f * frame:F3}");
+				}
+
+				harness.AddTouch(1, onTheBar, inputBase + f * frame, phase);
+				harness.OnInput();
+				harness.OnView();
+				phase = TouchPhase.Moved;
+			}
+
+			harness.Step(f * frame, inputBase + f * frame,
+				LiveHarness.Touch(1, onTheBar, inputBase + f * frame, TouchPhase.Ended));
+			float lifted = f * frame;
+			for (f++; f * frame < lifted + 0.2f; f++) harness.Step(f * frame, inputBase + f * frame);
+
+			Assert.That(carrier.State, Is.EqualTo(NoteState.Release), "a lifted carrier still runs out its grace");
+		}
 	}
 }

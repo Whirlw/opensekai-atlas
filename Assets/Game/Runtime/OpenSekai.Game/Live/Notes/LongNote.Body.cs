@@ -58,6 +58,16 @@ namespace Sekai.Live
 						}
 					}
 				}
+				else if ((_bar.State == NoteState.Input || _bar.State == NoteState.InputBegan)
+					&& !covered && _everTouched && !_bar.IsDecoration)
+				{
+					// A rub bar is held in Input, not Scrolling, so the crossing branch above never sees it
+					// lose its finger. Its lift used to be caught only because the rub path never marked its
+					// frames and the freshness check below greyed it on every update; with the frames marked,
+					// this is the branch that starts its grace.
+					_bar.State = NoteState.Last;
+					_graceStartedAt = currentTime;
+				}
 				else if (_bar.State == NoteState.Last)
 				{
 					if (covered)
