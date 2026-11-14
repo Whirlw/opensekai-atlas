@@ -62,7 +62,7 @@ namespace Sekai.Core.Live
 					continue;
 				}
 
-				float middle = (held.JudgeLaneStart + held.JudgeLaneEnd) * 0.5f;
+				float middle = (held.BodyLaneStart + held.BodyLaneEnd) * 0.5f;
 				int best = -1;
 				float bestDistance = float.MaxValue;
 				for (int i = 0; i < count; i++)
@@ -273,8 +273,10 @@ namespace Sekai.Core.Live
 			Array.Clear(_swipeTargets, 0, count);
 		}
 
+		// Where the bar is now: a bending body leaves its head's lanes, and the finger that follows it
+		// must keep covering it.
 		private static bool TouchesBar(float lane, LongNote bar) =>
-			lane >= 0f && HoldSweep.TouchesLane(lane, bar.JudgeLaneStart, bar.JudgeLaneEnd);
+			lane >= 0f && HoldSweep.TouchesLane(lane, bar.BodyLaneStart, bar.BodyLaneEnd);
 
 		private static bool IsTouchStillOnBar(List<LiveLogic.InputTmp> inputs, int touchId, LongNote bar)
 		{
@@ -327,7 +329,7 @@ namespace Sekai.Core.Live
 					continue;
 				}
 
-				float distance = Math.Abs(lane - (bar.JudgeLaneStart + bar.JudgeLaneEnd) * 0.5f);
+				float distance = Math.Abs(lane - (bar.BodyLaneStart + bar.BodyLaneEnd) * 0.5f);
 				if (distance < bestDistance)
 				{
 					best = bar;
