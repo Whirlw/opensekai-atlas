@@ -272,7 +272,7 @@ namespace OpenSekai.Shared.Diagnostics
                 // writing it; without it the sink locks its own file on this platform.
                 var stream = new FileStream(_logFilePath, FileMode.Create, FileAccess.Write, FileShare.Read);
                 _sink = new StreamWriter(stream, new UTF8Encoding(false)) { AutoFlush = true };
-                _sink.WriteLine("# Open Sekai Atlas live trace " + Application.version);
+                _sink.WriteLine("# Open Sekai Atlas live trace " + Application.version + " " + BuildStamp);
             }
             catch (Exception exception)
             {
@@ -280,6 +280,26 @@ namespace OpenSekai.Shared.Diagnostics
                 Debug.LogWarning("LiveTrace could not open its log file: " + exception.Message);
             }
         }
+
+        /// <summary>
+        /// Which code this player was built from, as BuildStampBuildStep wrote it; "editor" when no
+        /// stamp was baked in. A device log is only comparable with the repository when this matches.
+        /// </summary>
+        public static string BuildStamp
+        {
+            get
+            {
+                if (_buildStamp == null)
+                {
+                    TextAsset stamp = Resources.Load<TextAsset>("BuildStamp");
+                    _buildStamp = stamp != null ? stamp.text.Trim() : "editor";
+                }
+
+                return _buildStamp;
+            }
+        }
+
+        private static string _buildStamp;
 
         private static void CloseSink()
         {

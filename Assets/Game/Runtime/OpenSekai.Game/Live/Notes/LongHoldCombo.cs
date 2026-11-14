@@ -40,6 +40,7 @@
 			{
 				if (!isDecorationCombo)
 				{
+					Trace("pointMiss", currentFrameInfo.time);
 					JudgeInfo = (NoteResult.Miss, NoteResultDescription.None);
 					State = NoteState.Done;
 				}
@@ -67,6 +68,7 @@
 				&& (tailNote.Result > NoteResult.Pass || tailNote.State == NoteState.Input);
 			if (barAlreadySettled)
 			{
+				Trace("pointInherit", currentFrameInfo.time);
 				JudgeInfo = (NoteResult.JustPerfect, NoteResultDescription.None);
 				State = NoteState.Done;
 				return;
@@ -75,8 +77,48 @@
 			// Decoration long hold combo should not be marked as Last
 			if (!isDecorationCombo)
 			{
+				_dueAt = currentFrameInfo.time;
 				State = NoteState.Last;
+				Trace("pointDue", currentFrameInfo.time, withCaller: true);
 			}
+		}
+
+		// The frame this point became due (Last): it has exactly one input pass before the next update
+		// turns it into a Miss, so the trace carries this to show how long it really waited.
+		private float _dueAt = -1f;
+
+		public override void ResetNote()
+		{
+			base.ResetNote();
+			_dueAt = -1f;
+		}
+
+		/// <summary>
+		/// One line per change of this point, with the owning bar's state at that instant. A point is
+		/// judged in the single input pass after it becomes due, so a Miss is only explained by what the
+		/// bar and its finger were doing on that frame. withCaller names who advanced the point (a stack
+		/// walk, so only on the due line, and only with tracing on).
+		/// </summary>
+		private void Trace(string what, float now, bool withCaller = false)
+		{
+			if (!OpenSekai.Shared.Diagnostics.LiveTrace.IsOn(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Judge))
+			{
+				return;
+			}
+
+			var bar = parentNote as LongNote;
+			string caller = withCaller ? " by=" + CallerOf(3) : string.Empty;
+			OpenSekai.Shared.Diagnostics.LiveTrace.Write(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Judge,
+				$"{what} id={Id} t={MusicScoreInfo.time:F3} now={now:F3} frame={MusicScore.CurrentFrameInfo.time:F3} dueAt={_dueAt:F3}"
+				+ $" bar={(bar == null ? -1 : bar.Id)}@{(bar == null ? -1f : bar.MusicScoreInfo.time):F3} barState={bar?.State} barFinger={bar?.HasFinger}"
+				+ $" barLanes={(bar == null ? 0f : bar.BodyLaneStart):F2}..{(bar == null ? 0f : bar.BodyLaneEnd):F2} inPlay={_barWasInPlay}{caller}");
+		}
+
+		private static string CallerOf(int depth)
+		{
+			System.Diagnostics.StackFrame frame = new System.Diagnostics.StackTrace().GetFrame(depth);
+			System.Reflection.MethodBase method = frame?.GetMethod();
+			return method == null ? "?" : method.DeclaringType?.Name + "." + method.Name;
 		}
 
 		/// <summary>Records that the owning bar was held (or in its release grace) while this point was live.</summary>
@@ -102,6 +144,7 @@
 		{
 			if (State == NoteState.Last)
 			{
+				Trace("pointHit", MusicScore.CurrentFrameInfo.time);
 				JudgeInfo = (NoteResult.JustPerfect, NoteResultDescription.None);
 				State = NoteState.Done;
 			}
@@ -122,6 +165,7 @@
 					|| (childNote != null && (childNote.Result > NoteResult.Pass || childNote.State == NoteState.Input)))
 						? (NoteResult.JustPerfect, NoteResultDescription.None)
 						: (NoteResult.Miss, NoteResultDescription.None);
+			Trace(JudgeInfo.result == NoteResult.Miss ? "pointTerminateMiss" : "pointTerminateHit", MusicScore.CurrentFrameInfo.time);
 			State = NoteState.Done;
 		}
 
