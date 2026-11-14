@@ -74,7 +74,9 @@ namespace Sekai
 				throw new ArgumentNullException(nameof(note));
 			}
 
-			var hasParent = note.ParentNote != null;
+			// The end of a decorative bar is graded like a standalone note; every other bar part uses the
+			// bar-end tables.
+			var hasParent = note is NoteBase graded ? graded.GradesAsBarPart : note.ParentNote != null;
 			var isCritical = note.Type == NoteType.Critical;
 
 			switch (note.Category)
@@ -90,6 +92,13 @@ namespace Sekai
 					if (hasParent)
 					{
 						return isCritical ? JudgeFrameType.Long_End_Critical : JudgeFrameType.Long_End;
+					}
+
+					// A tap bound as a bar's end carries the Long category; under a decorative bar it is
+					// graded as the tap it is, not as a bar's head.
+					if (note is NormalNote)
+					{
+						return isCritical ? JudgeFrameType.Normal_Critical : JudgeFrameType.Normal;
 					}
 
 					return isCritical ? JudgeFrameType.Long_Critical : JudgeFrameType.Long;

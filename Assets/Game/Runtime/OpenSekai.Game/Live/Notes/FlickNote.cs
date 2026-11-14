@@ -116,8 +116,8 @@ namespace Sekai.Live
 				return false;
 			}
 
-			bool singleFlick = parentNote == null || parentNote.IsDecoration;
-			// A flick ending a decorative bar is a plain single flick, not part of a hold.
+			// A flick ending a decorative bar (guide or decoration) is a plain single flick, not a hold's end.
+			bool singleFlick = !GradesAsBarPart;
 			var judgeInfo = singleFlick
 			  ? LiveConfig.CalculateFlickNoteResult(this, musicTime, isDirection)
 			  : LiveConfig.CalculateLongEndFlickNoteResult(this, musicTime, isDirection);
@@ -278,7 +278,7 @@ namespace Sekai.Live
 
 		public override NoteResult CalcNoteResult(float musicTime)
 		{
-			return ((parentNote == null || parentNote.IsDecoration)
+			return (!GradesAsBarPart
 			  ? LiveConfig.CalculateFlickNoteResult(this, musicTime, true)
 			  : LiveConfig.CalculateLongEndFlickNoteResult(this, musicTime, true)).Item1;
 		}

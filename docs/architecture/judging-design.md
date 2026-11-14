@@ -149,7 +149,7 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 - 「画不画」只看 `IsVisible`：不可见的末端没有尾键阶段（`TailKeyPhase.Hidden`），也没有视图可回收。
 - 装饰标志会传给条的连接点和 combo 点，但不传给末端：装饰条末端的真实音符照常按自己的类型判定。
 - `FrictionHideLongNote` 不判定，但仍接受持续接触（候选管线对它单独放行），因为手指要能按住它。
-- 已知差异：独立划键在父条是装饰条时用单键划键窗口，父条是 `GuideNote` 时用长条尾划键窗口（`FlickNote.CalcNoteResult`）。这两种条的划键末端目前评级口径不同。
+- 装饰条（`GuideNote` 或谱面标了装饰的条，`LongNote.IsDecorativeBar`）的末端是兜底键，一般不应放可判定的键。若放了，它按**独立单键**判定：准入、评级和超时都用 `Normal` / `Flick` 等单键表，而不是 `Long_End` / `Long_End_Flick`。判据是 `NoteBase.GradesAsBarPart`，`LiveUtility.GetINoteToJudgeFrameType`、`NormalNote` 和 `FlickNote` 共用它。其他长条（普通条、摩擦条、隐藏摩擦载体）的末端仍用长条尾表。
 
 ---
 

@@ -77,7 +77,7 @@ namespace Sekai.Live
 				return false;
 			}
 
-			var judgeInfo = parentNote != null
+			var judgeInfo = GradesAsBarPart
 				? LiveConfig.CalculateLongEndNoteResult(this, touch.musicTime)
 				: LiveConfig.CalculateDefaultNoteResult(this, touch.musicTime);
 
@@ -88,7 +88,7 @@ namespace Sekai.Live
 
 		public override NoteResult CalcNoteResult(float musicTime)
 		{
-			return (parentNote != null
+			return (GradesAsBarPart
 				? LiveConfig.CalculateLongEndNoteResult(this, musicTime)
 				: LiveConfig.CalculateDefaultNoteResult(this, musicTime)).Item1;
 		}
