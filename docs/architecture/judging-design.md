@@ -25,7 +25,8 @@
 
 ## 二、帧内时序
 
-一帧分两次驱动：`LiveLogic.OnUpdate`（推进时钟、走音符、刷新视图）与 `LiveLogic.OnInput`（收触摸、跑判定）。
+一帧按固定顺序驱动，视图永远在最后：`LiveLogic.OnUpdate` 推进时钟并走音符（音符状态），`LiveLogic.OnInput` 收触摸并跑判定（输入），视图在这一帧的判定全部落定之后才前进一次。
+`OnUpdate` 自己不再刷新视图——曾经它刷新一次、输入趟再刷新一次，同一帧里视图被推进两遍，画出来的可能是两个状态拼在一起。
 
 ```
 OnUpdate(scoreInfoTime, gameTime)
@@ -36,7 +37,6 @@ OnUpdate(scoreInfoTime, gameTime)
       Notes.TickTails(frame) .......... 自判定的尾：自己的时钟拍一次
       WalkNotes(ScanNote) ............. 走音符：生成/推进/生成视图
       WalkHighSpeedNotes(...)
-  NoteFrame.TickViews() ............... 视图与尾 key 回收
 
 OnInput()
   Input.CollectTouches() .............. 原始触摸 → InputTmp（含车道解析）
@@ -47,8 +47,10 @@ OnInput()
       4 SortPressCandidates() ......... 单槽与归属：一根手指一帧一次按下
       5 RefreshSustainedHolds() ....... 常驻③ + 抬起通道（lift）
       6 EvaluateJudgment() ............ 按下通道：真正结算
-      7 TickViews()
+      7 TickViews() ................... 视图与尾 key 回收：本帧最后一步
 ```
+
+自动播放没有输入趟：`LiveLogic.OnAutoInput` 在自动判定之后调用同一个 `TickViews`，视图同样在最后。
 
 **三条通道与上面七步的对应关系**（一个音符只由其中一条回答）：
 

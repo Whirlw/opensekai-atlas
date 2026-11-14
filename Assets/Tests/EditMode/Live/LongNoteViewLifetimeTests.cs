@@ -153,6 +153,23 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         [Test]
+        public void TheViewWaitsForTheInputPass()
+        {
+            Arrange();
+            StartHolding();
+            Step(TailTime - 0.01f);
+            Assert.That(_view.Removals(Tail), Is.Zero, "the key is on screen just before its own time");
+
+            // A notes-only frame: the note state moves to the tail's time, but the frame has not ended,
+            // so nothing may have been drawn yet.
+            _harness.OnUpdate(TailTime + 0.01f, _clock);
+            Assert.That(_view.Removals(Tail), Is.Zero, "the view is the last step, after the input pass");
+
+            _harness.OnInput();
+            Assert.That(_view.Removals(Tail), Is.EqualTo(1), "and then the key goes, once");
+        }
+
+        [Test]
         public void SwipeTailLeavesTheLineOnTimeButStillAcceptsASwipe()
         {
             Arrange("Swipe");

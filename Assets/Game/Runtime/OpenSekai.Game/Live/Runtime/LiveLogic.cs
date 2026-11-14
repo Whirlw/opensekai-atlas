@@ -167,6 +167,8 @@ namespace Sekai.Core.Live
 			currentFrameInfo = _clock.Sample(Session.MusicScore, scoreInfoTime, currentGameTime, isActive);
 			if (!isActive)
 			{
+				// Nothing is judged and no input arrives any more, so the view is the only thing left
+				// in the frame; there is no later step for it to wait for.
 				NoteFrame.TickViews();
 				return;
 			}
@@ -186,8 +188,12 @@ namespace Sekai.Core.Live
 			}
 
 			NoteFrame.UpdateNotes();
-			NoteFrame.TickViews();
 
+			// The view is the last step of the frame, not a part of this one: the input pass ticks it
+			// once the judgment for this frame is in (Scheduler.Run), and autoplay ticks it in
+			// OnAutoInput. Ticking it here as well meant a frame advanced the view twice - once
+			// before anyone could press and once after - so what was drawn was a mixture of two
+			// states of the note.
 			if (scoreLogic != null && scoreLogic.Score.life <= 0)
 			{
 				Result = 2;
@@ -222,7 +228,13 @@ namespace Sekai.Core.Live
 			}
 		}
 
-		public void OnAutoInput() => Session.AdvanceAutoJudgment(_clock.Frame);
+		public void OnAutoInput()
+		{
+			Session.AdvanceAutoJudgment(_clock.Frame);
+
+			// Autoplay has no press pass, so the frame ends here: the view still comes last.
+			NoteFrame.TickViews();
+		}
 
 		public void OnInput()
 		{

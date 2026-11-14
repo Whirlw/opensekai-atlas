@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using OpenSekai.Shared.Diagnostics;
 using OpenSekai.Shared.Live;
 using Sekai.Live;
@@ -35,6 +35,9 @@ namespace Sekai.Core.Live
 			_input.SortPressCandidates();
 			RefreshSustainedHolds();
 			EvaluateJudgment();
+
+			// The view is the last step of the whole frame: every note state above already belongs to
+			// this frame, so what gets drawn cannot be a mixture of the old and the new one.
 			_noteFrame.TickViews();
 		}
 
