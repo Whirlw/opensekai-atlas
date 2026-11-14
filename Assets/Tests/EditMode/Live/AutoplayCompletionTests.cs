@@ -164,6 +164,43 @@ namespace OpenSekai.Tests.EditMode.Live
 		}
 
 		[Test]
+		public void AnAutoPlayedRubHeadStopsOnTheLineLikeARubbedOne()
+		{
+			// A rubbed friction-headed bar stops at the line while the finger works it. Autoplay rubs
+			// it without a finger, and its key used to slide on below the line even though the verdicts
+			// were right.
+			var bar = new FrictionLongNote(Info(0f), 1, 4, 5, NoteCategory.FrictionLong, NoteType.Default, null, 1f);
+			bar.AddNoteListAndSetupChildNote(new FrictionNote(Info(2f), 2, 4, 5, NoteCategory.Friction, null, NoteType.Default, 1f));
+			var score = new MusicScore(new[] { bar.MusicScoreInfo }, System.Array.Empty<EventBase>(), new NoteBase[] { bar });
+
+			using var harness = new LiveHarness();
+			harness.Arrange(score, auto: true);
+			const float frame = 1f / 60f;
+			float worst = 0f;
+			for (float now = -0.5f; now < 1.8f; now += frame)
+			{
+				harness.OnUpdate(now, 10d + now);
+				harness.Logic.OnAutoInput();
+				if (now > 0.05f)
+				{
+					worst = Mathf.Max(worst, bar.Progress);
+				}
+			}
+
+			Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done), "the body is still running");
+			Assert.That(bar.IsAutoPlaying, Is.True);
+			Assert.That(worst, Is.LessThanOrEqualTo(1f), "the auto-played rub head stays on the line");
+
+			bar.ResetNote();
+			var touched = typeof(FrictionLongNote).GetField("isTouched",
+				System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+			touched.SetValue(bar, true);
+			bar.ResetNote();
+			Assert.That(touched.GetValue(bar), Is.False, "a pooled rub bar does not come back already rubbed");
+			Assert.That(bar.IsAutoPlaying, Is.False);
+		}
+
+		[Test]
 		public void ARubEndedBarIsFinishedByAutoplay()		{
 			// The narrow version of the same question: a bar whose end note judges itself has to be
 			// finished by autoplay like any other, without waiting for a verdict nobody will give.
