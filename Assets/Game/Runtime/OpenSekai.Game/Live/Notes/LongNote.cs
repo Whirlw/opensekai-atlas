@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using UnityEngine;
@@ -188,16 +188,6 @@ namespace Sekai.Live
 		/// truth; the InputBegan/Input states are its second spelling and are on their way out.
 		/// </summary>
 		public bool HasFinger => _body?.HasFinger ?? false;
-		/// <summary>
-		/// True while a finger is on this bar and its hold has not gone stale. This is the fact the
-		/// bar acts on: it says nothing about which input phase a finger is in, and it stops being
-		/// true as soon as the last refresh is older than the hold tolerance — earlier than the
-		/// state machine greys the bar out.
-		/// </summary>
-		public bool IsHeld(float currentTime)
-		{
-			return HasFinger;
-		}
 
 		/// <summary>
 		/// True once a finger has ever taken this bar. The hold itself goes stale and the bar greys
@@ -332,19 +322,6 @@ namespace Sekai.Live
 		/// </summary>
 		internal bool KeepsHeadOnTheLine => IsOrdinaryHead;
 
-		/// <summary>
-		/// The note that really ends this bar: the latest one that is neither skipped nor decorative.
-		/// Picking the latest by time alone picked up a hidden or skipped point, so the real tail was
-		/// never "the tail" and its window could never open - every ordinary bar missed its end.
-		/// </summary>
-		internal bool IsChildTheTail
-		{
-			get
-			{
-				return TryGetTail(out NoteBase tail) && ReferenceEquals(childNote, tail);
-			}
-		}
-
 		/// <summary>Whether the final chart point ends the bar without its own judgement.</summary>
 		internal bool EndsWithoutJudgement => SkipsTailJudgement || (_lastBoundNote != null && !IsTailCandidate(_lastBoundNote));
 
@@ -439,12 +416,6 @@ namespace Sekai.Live
 
 		internal void SetTailResult(NoteResult result) => JudgeInfo = (result, NoteResultDescription.None);
 		internal void CompleteTail() => State = NoteState.Done;
-
-		/// <summary>Kept for callers that still describe a swipe by its magnitude.</summary>
-		internal const float TailSwipeThreshold = 5f;
-
-		// Body transitions remain visual/lifecycle operations. Only Head settles head results.
-		internal NoteBase HeadChildNote => childNote;
 
 		internal void SetHeadJudgeInfo((NoteResult result, NoteResultDescription description) value) => JudgeInfo = value;
 
@@ -561,11 +532,6 @@ namespace Sekai.Live
 			var left = JudgeInfo.result == NoteResult.None ? JudgeLaneStart : JudgedLaneStart;
 			var right = JudgeInfo.result == NoteResult.None ? JudgeLaneEnd : JudgedLaneEnd;
 			return left <= lane && right >= lane;
-		}
-
-		public virtual bool IsJudgmentChild(ref LiveTouch touch, float lane)
-		{
-			return State != NoteState.Done && JudgedLaneStart <= lane && JudgedLaneEnd >= lane;
 		}
 
 		public override bool AutoJudgment(MusicScoreInfo currentFrameInfo)

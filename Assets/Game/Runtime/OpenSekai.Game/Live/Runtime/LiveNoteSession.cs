@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Sekai.Live;
 
@@ -37,8 +37,6 @@ namespace Sekai.Core.Live
 			get { return _highSpeedIndex; }
 			set { _highSpeedIndex = value; }
 		}
-
-		public bool IsFinished => NoteIndex >= Notes.Length && HighSpeedIndex >= HighSpeedNotes.Length;
 
 		/// <summary>
 		/// Takes the chart's note list and files the high speed notes out of it. Replaces whatever was
@@ -83,9 +81,6 @@ namespace Sekai.Core.Live
 		/// and would never give that head its last frame. This is the head's own tick list, not the bar's.
 		/// </summary>
 		private readonly List<LongNoteHead> _heads = new List<LongNoteHead>();
-
-		/// <summary>Heads still waiting for their window to close, for tests and invariants.</summary>
-		public int PendingHeadCount => _heads.Count;
 
 		/// <summary>
 		/// Every head still waiting for its verdict, whatever its bar is doing. The frame asks this list to

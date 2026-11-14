@@ -181,16 +181,6 @@ namespace Sekai.Core.Live
 		}
 #endif
 
-		/// <summary>Seeds the seen-samples table from the fingers already down when the take starts.</summary>
-		public void Seed(ILiveTouchSource source)
-		{
-			for (int i = 0; i < source.Count; i++)
-			{
-				LiveTouchSample touch = source[i];
-				_deduplication.Commit(touch.touchId, touch.time, touch.phase);
-			}
-		}
-
 		public bool ShouldProcess(in LiveTouchSample touch)
 		{
 			return _deduplication.ShouldProcess(in touch);

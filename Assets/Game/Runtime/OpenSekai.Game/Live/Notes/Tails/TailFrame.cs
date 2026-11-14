@@ -9,14 +9,13 @@ namespace Sekai.Live.Tails
 	/// </summary>
 	public readonly struct TailFrame
 	{
-		public TailFrame(float now, float deltaTime, Vector2 swipeDelta, bool releasedInside, bool covered, bool isBeingHeld)
+		public TailFrame(float now, float deltaTime, Vector2 swipeDelta, bool releasedInside, bool covered)
 		{
 			Now = now;
 			DeltaTime = deltaTime;
 			SwipeDelta = swipeDelta;
 			ReleasedInside = releasedInside;
 			Covered = covered;
-			IsBeingHeld = isBeingHeld;
 		}
 
 		/// <summary>Music time of this frame.</summary>
@@ -33,8 +32,5 @@ namespace Sekai.Live.Tails
 
 		/// <summary>At least one finger is on the bar this frame.</summary>
 		public bool Covered { get; }
-
-		/// <summary>The bar is in its held state right now.</summary>
-		public bool IsBeingHeld { get; }
 	}
 }

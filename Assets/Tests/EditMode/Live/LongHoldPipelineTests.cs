@@ -84,16 +84,16 @@ namespace OpenSekai.Tests.EditMode.Live
         {
             var bar = new HeldNote(3);
 
-            Assert.That(bar.IsHeld(0f), Is.True, "a finger is down and was refreshed this frame");
+            Assert.That(bar.HasFinger, Is.True, "a finger is down and was refreshed this frame");
             LongNoteGraceTests.AssertHeldBody(bar);
 
             bar.SetLastTime(-10f);
 
-            Assert.That(bar.IsHeld(0f), Is.True, "the finger is still down, so the bar is still held");
+            Assert.That(bar.HasFinger, Is.True, "the finger is still down, so the bar is still held");
             LongNoteGraceTests.AssertHeldBody(bar,
                 "the state lags one refresh behind, which is why heldness is asked separately");
 
-            Assert.That(new HeldNote(4).IsHeld(0f), Is.True);
+            Assert.That(new HeldNote(4).HasFinger, Is.True);
         }
 
 

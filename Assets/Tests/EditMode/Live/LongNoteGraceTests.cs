@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using OpenSekai.Charts.Serialization;
@@ -149,12 +149,10 @@ namespace OpenSekai.Tests.EditMode.Live
 			var bar = HeldBar(1);
 
 			Assert.That(bar.HasFinger, Is.True, "a held bar has a finger by definition");
-			Assert.That(bar.IsHeld(0f), Is.True, "and IsHeld is just HasFinger now");
 
 			bar.ClearFinger();
 
 			Assert.That(bar.HasFinger, Is.False, "no touch id means no finger, whatever the state says");
-			Assert.That(bar.IsHeld(0f), Is.False, "the time argument no longer decides anything");
 		}
 
 		[Test]

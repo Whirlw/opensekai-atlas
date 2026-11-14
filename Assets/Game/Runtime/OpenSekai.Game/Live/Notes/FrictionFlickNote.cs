@@ -9,16 +9,12 @@ namespace Sekai.Live
 {
 	public class FrictionFlickNote : NoteBase
 	{
-		private float _lastInputTime;
-
 		private readonly (int id, bool distance, bool trueDirection)[] inputResults;
 
 		private readonly float _flickDistance;
 
 		/// <summary>The swipe length this note asks for, in the same units as a touch delta.</summary>
 		internal float FlickDistance => _flickDistance;
-
-		private bool _isTrueDirection;
 
 		public override NoteState State
 		{
@@ -175,8 +171,6 @@ namespace Sekai.Live
 				AddInputResult(ref touch, ref isUpdatedDelta, ref trueDirection);
 			}
 
-			_lastInputTime = touch.musicTime;
-
 			if (trueDirection && isUpdatedDelta && MusicScoreInfo.time - touch.musicTime <= -LiveConfig.JustPerfectJudgeTimeHalf)
 			{
 				bool done = JudgmentFlick(touch.musicTime);
@@ -215,10 +209,6 @@ namespace Sekai.Live
 
 			isUpdatedDelta = true;
 			_isTrueDirection = trueDirection;
-			if (trueDirection)
-			{
-				this._isTrueDirection = true;
-			}
 		}
 
 		public override NoteResult CalcNoteResult(float musicTime)
@@ -230,8 +220,6 @@ namespace Sekai.Live
 		{
 			base.ResetNote();
 			Array.Clear(inputResults, 0, inputResults.Length);
-			_lastInputTime = 0f;
-			_isTrueDirection = false;
 		}
 	}
 }
