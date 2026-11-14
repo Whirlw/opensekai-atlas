@@ -256,21 +256,5 @@ namespace Sekai.Core.Live
 
 		internal void SetTouchSource(ILiveTouchSource source) => Input.SetTouchSource(source);
 
-		internal static int CandidateRank(NoteBase note) => LiveCandidatePipeline.CandidateRank(note);
-
-		internal static NoteBase GetFirstNote(NoteBase note)
-		{
-			return note?.NoteList != null && note.NoteList.Count > 0 ? note.NoteList[0] : note;
-		}
-
-		internal static NoteBase GetLastNote(NoteBase note)
-		{
-			return note?.NoteList != null && note.NoteList.Count > 0 ? note.NoteList[note.NoteList.Count - 1] : note;
-		}
-
-		internal static bool IsSameJudgmentTime(NoteBase a, NoteBase b)
-		{
-			return a != null && b != null && a.MusicScoreInfo.time.Equals(b.MusicScoreInfo.time);
-		}
 	}
 }
