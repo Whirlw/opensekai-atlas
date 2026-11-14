@@ -109,6 +109,9 @@ namespace Sekai.Core.Live
 			{
 				_liveLogic?.OnInput();
 			}
+
+			// The view block, last: it draws what the two blocks above decided.
+			_liveLogic?.OnView();
 			LiveViewExt.OnUpdate(_liveViews, currentAudioLatencyMusicTimeMs);
 		}
 

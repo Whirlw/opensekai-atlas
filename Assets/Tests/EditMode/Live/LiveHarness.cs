@@ -70,6 +70,7 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         internal void OnInput() => Logic.OnInput();
+        internal void OnView() => Logic.OnView();
 
         /// <summary>按游戏顺序推进一帧，支持同帧多指与同指多个样本。</summary>
         internal void Step(float now, double inputTime, params LiveTouchSample[] touches)
@@ -77,6 +78,7 @@ namespace OpenSekai.Tests.EditMode.Live
             OnUpdate(now, inputTime);
             foreach (LiveTouchSample touch in touches) Source.Add(touch);
             OnInput();
+            OnView();
         }
 
         internal static LiveTouchSample Touch(int id, Vector3 position, double inputTime,

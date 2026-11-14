@@ -160,13 +160,15 @@ namespace OpenSekai.Tests.EditMode.Live
             Step(TailTime - 0.01f);
             Assert.That(_view.Removals(Tail), Is.Zero, "the key is on screen just before its own time");
 
-            // A notes-only frame: the note state moves to the tail's time, but the frame has not ended,
-            // so nothing may have been drawn yet.
+            // A notes-only frame: the note state moves to the tail's time, but no view has been drawn.
             _harness.OnUpdate(TailTime + 0.01f, _clock);
-            Assert.That(_view.Removals(Tail), Is.Zero, "the view is the last step, after the input pass");
+            Assert.That(_view.Removals(Tail), Is.Zero, "the state block does not draw");
 
             _harness.OnInput();
-            Assert.That(_view.Removals(Tail), Is.EqualTo(1), "and then the key goes, once");
+            Assert.That(_view.Removals(Tail), Is.Zero, "the touch block does not draw either");
+
+            _harness.OnView();
+            Assert.That(_view.Removals(Tail), Is.EqualTo(1), "the view block is where the key goes, once");
         }
 
         [Test]
