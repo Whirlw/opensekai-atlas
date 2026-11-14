@@ -1,6 +1,6 @@
 # Builds a contact sheet: paint-kit file | atlas crop (what the build ships), per HUD sprite.
 param(
-    [string]$KitRoot = 'E:\DeepseekHarness\OpenSekai\LocalPacks\paint-kit',
+    [string]$KitRoot = (Join-Path (Split-Path $PSScriptRoot -Parent) 'ArtSource/paint-kit'),
     [string]$Out = 'Temp\hud-verify.png'
 )
 $ErrorActionPreference = 'Stop'

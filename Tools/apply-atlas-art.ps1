@@ -2,7 +2,7 @@
 # PaintKit's own apply reported success but left the regions untouched, so this does the paste itself and
 # reports any sprite that has no matching kit file.
 param(
-    [string]$KitRoot = 'E:\DeepseekHarness\OpenSekai\LocalPacks\paint-kit',
+    [string]$KitRoot = (Join-Path (Split-Path $PSScriptRoot -Parent) 'ArtSource/paint-kit'),
     [string]$SpriteFolder = 'Assets\Graphics\Sprites',
     [switch]$Apply
 )
@@ -97,7 +97,8 @@ foreach ($spritePath in $kitForSprite.Keys) {
     # A sprite whose rect is inset into its own texture (judgeLine trims ~13x15 px of padding) is drawn
     # from a slice, but the painted file is the whole texture. Pasting it into the rect squeezes it and
     # the line lands a few pixels off. When the painted file matches the texture, replace the texture.
-    if ($kb.Width -eq $atlasW -and $kb.Height -eq $atlasH -and ($w -lt $atlasW -or $h -lt $atlasH)) {
+    if ($kb.Width -eq $atlasW -and $kb.Height -eq $atlasH -and
+        (($w -lt $atlasW -or $h -lt $atlasH) -or ($x -eq 0 -and $y -eq 0 -and $w -eq $atlasW -and $h -eq $atlasH))) {
         $whole += $name
         if ($Apply) { Copy-Item $kitPath $atlasPath -Force; $wholeCopied++ }
         $kb.Dispose()
@@ -134,6 +135,6 @@ if ($Apply) {
 }
 "painted=$painted wholeTexture=$wholeCopied noSprite=$($noSprite.Count) sizeDiff=$($sizeDiff.Count) atlases=$($dirty.Count)"
 if ($sizeDiff.Count) { '--- size difference (scaled to rect) ---'; $sizeDiff | Select-Object -First 10 }
-if ($whole.Count) { '--- whole texture (rect is inset, file replaced) ---'; $whole | Select-Object -First 10 }
+if ($whole.Count) { '--- whole textures ---'; $whole | Select-Object -First 10 }
 if ($shadowed.Count) { '--- two kit files target the same sprite (one was dropped) ---'; $shadowed | Select-Object -First 10 }
 if ($noSprite.Count) { '--- cleared sprites without kit file (leave as is) --- ' + $noSprite.Count }

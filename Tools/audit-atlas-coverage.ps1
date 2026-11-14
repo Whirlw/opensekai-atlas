@@ -1,7 +1,7 @@
 # Reports, per atlas, how many sprites the paint kit covers and how many are not covered yet.
 # A sprite counts as covered when a file of the same name exists in the kit and has the right size.
 param(
-    [string]$KitRoot = 'LocalPacks\paint-kit',
+    [string]$KitRoot = (Join-Path (Split-Path $PSScriptRoot -Parent) 'ArtSource/paint-kit'),
     [string]$SpriteFolder = 'Assets\Graphics\Sprites',
     [string]$Root = 'Assets'
 )

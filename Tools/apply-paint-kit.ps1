@@ -1,8 +1,8 @@
-﻿# Copies the painted textures from the paint kit back into the project.
+# Copies the painted textures from the paint kit back into the project.
 # Atlas sprites are handled by Tools/apply-atlas-art.ps1; this script only moves whole textures
 # (effects, note skins, 2D backgrounds) and matches them by file name inside an explicit root.
 param(
-    [string]$KitRoot = 'E:\Projects\NewSkin\paint-kit',
+    [string]$KitRoot = (Join-Path (Split-Path $PSScriptRoot -Parent) 'ArtSource/paint-kit'),
     [switch]$Apply
 )
 
@@ -39,6 +39,12 @@ foreach ($group in $groups) {
         Get-ChildItem $root -Recurse -File -Filter '*.png' | ForEach-Object {
             if (-not $targets.ContainsKey($_.Name)) { $targets[$_.Name] = @() }
             $targets[$_.Name] += $_.FullName
+        }
+    }
+    if ($group.Source -eq 'new_backgrounds') {
+        $rankPlate = 'Assets\Graphics\Textures\ui_scorerank_plate.png'
+        if (Test-Path -LiteralPath $rankPlate) {
+            $targets['ui_scorerank_plate.png'] = @((Get-Item -LiteralPath $rankPlate).FullName)
         }
     }
 
