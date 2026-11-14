@@ -25,10 +25,11 @@ namespace Sekai.Live
 				return;
 			}
 
-			if (isTouched && Progress > 1f)
+			if ((isTouched || IsAutoPlaying) && Progress > 1f)
 			{
 				// A rubbed bar is being held, so it stops at the judgement line instead of
-				// sliding past it while the finger keeps working the lane.
+				// sliding past it while the finger keeps working the lane. Autoplay rubs it without a
+				// finger, so it never sets isTouched; it has to stop the bar the same way.
 				Progress = 1f;
 			}
 
@@ -42,6 +43,13 @@ namespace Sekai.Live
 				Head.Settle((CompletedTouchResult, NoteResultDescription.None));
 				State = NoteState.InputBegan;
 			}
+		}
+
+		public override void ResetNote()
+		{
+			base.ResetNote();
+			// A pooled bar must not come back already rubbed: it would park on the line untouched.
+			isTouched = false;
 		}
 
 		public override bool IsJudgment(ref LiveTouch touch, float lane)
