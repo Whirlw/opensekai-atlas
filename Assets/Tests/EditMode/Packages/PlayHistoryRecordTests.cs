@@ -1,6 +1,6 @@
 using NUnit.Framework;
 using Newtonsoft.Json;
-using Sekai.MusicScoreMaker.Common;
+using OpenSekai.App.Library;
 
 namespace OpenSekai.Tests.EditMode.Packages
 {

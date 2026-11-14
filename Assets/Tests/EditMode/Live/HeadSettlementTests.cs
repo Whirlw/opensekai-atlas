@@ -1,5 +1,5 @@
-﻿using System.Reflection;
-using System.Text;
+using System.IO;
+using System.Linq;
 using NUnit.Framework;
 using OpenSekai.Charts.Serialization;
 using OpenSekai.Live.Conversion;
@@ -9,123 +9,65 @@ using TouchPhase = UnityEngine.InputSystem.TouchPhase;
 
 namespace OpenSekai.Tests.EditMode.Live
 {
-        /// <summary>The two opening heads of the Test16 chart: both are graded, and a bar that is never pressed still misses.</summary>
     public sealed class HeadSettlementTests
     {
-        private static Vector3 LanePosition(float lane)
+        private static (NoteResult left, NoteResult right) Run(bool pressLeft, bool pressRight, float rightSpeedRatio = 1f)
         {
-            int index = Mathf.Clamp(Mathf.RoundToInt(lane), 0, LiveConfig.JudgmentPositions.Length - 1);
-            return LiveConfig.JudgmentPositions[index];
-        }
-
-        private static bool TryRun(bool pressRight, out string trace, out NoteResult leftResult, out NoteResult rightResult)
-        {
-            string json = System.IO.File.ReadAllText("Temp/test16-score.json");
-            var doc = ChartJson.Read(json);
+            string fixture = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Tools", "fixtures",
+                "head-settlement", "score.json"));
+            var document = ChartJson.Read(File.ReadAllText(fixture));
             var bundle = Resources.Load<LiveBundleBuildData>("live/config/LiveBundleBuildData");
-            var score = RuntimeChartConverter.Convert(doc, bundle);
-
-            using (var harness = new LiveHarness())
+            Assert.That(bundle, Is.Not.Null);
+            var score = RuntimeChartConverter.Convert(document, bundle);
+            var bars = score.NoteArray.OfType<LongNote>().OrderBy(note => note.LaneStart).ToArray();
+            Assert.That(bars, Has.Length.EqualTo(2));
+            Assert.That(bars.All(bar => bar.IsOrdinaryHead && bar.ChildNote != null), Is.True);
+            Assert.That(bars[0].MusicScoreInfo.time, Is.EqualTo(bars[1].MusicScoreInfo.time));
+            using var harness = new LiveHarness();
+            harness.Arrange(score);
+            bars[1].speedRatio = rightSpeedRatio;
+            float hitTime = bars[0].MusicScoreInfo.time;
+            for (int frame = -36; frame <= 40; frame++)
             {
-                harness.Arrange(score);
-
-                LongNote left = null;
-                LongNote right = null;
-                foreach (var n in score.NoteArray)
+                float now = hitTime + frame / 60f;
+                double inputTime = 10d + now;
+                harness.OnUpdate(now, inputTime);
+                if (frame >= 0)
                 {
-                    var bar = n as LongNote;
-                    if (bar == null) { continue; }
-                    if (bar.IsOrdinaryHead && bar.LaneStart <= 3) { left = bar; }
-                    else if (bar.IsOrdinaryHead && bar.LaneStart >= 8) { right = bar; }
+                    var phase = frame == 0 ? TouchPhase.Began : TouchPhase.Stationary;
+                    if (pressLeft)
+                        harness.AddTouch(1, LiveConfig.JudgmentPositions[2], inputTime, phase);
+                    if (pressRight)
+                        harness.AddTouch(2, LiveConfig.JudgmentPositions[10], inputTime, phase);
                 }
-
-                Assert.That(left, Is.Not.Null, "left bar");
-                Assert.That(right, Is.Not.Null, "right bar");
-
-                Vector3 leftFinger = LanePosition(2.3f);
-                Vector3 rightFinger = LanePosition(10f);
-                var sb = new StringBuilder();
-
-                for (int frame = -36; frame <= 40; frame++)
-                {
-                    float now = frame / 60f;
-                    if (frame <= -35) { harness.OnUpdate(now, now); continue; }
-
-                    TouchPhase phase = frame <= -34 ? TouchPhase.Began : TouchPhase.Stationary;
-                    var samples = pressRight
-                        ? new[] { LiveHarness.Touch(1, leftFinger, now, phase), LiveHarness.Touch(2, rightFinger, now, phase) }
-                        : new[] { LiveHarness.Touch(1, leftFinger, now, phase) };
-                    harness.Step(now, now, samples);
-
-                    if (frame % 4 == 0)
-                    {
-                        sb.Append("now=").Append(now.ToString("F2"))
-                          .Append(" left=").Append(left.State).Append('/').Append(left.Result)
-                          .Append(" right=").Append(right.State).Append('/').Append(right.Result)
-                          .AppendLine();
-                    }
-                }
-
-                trace = sb.ToString();
-                leftResult = left.Result;
-                rightResult = right.Result;
-                return true;
+                harness.OnInput();
             }
+
+            return (bars[0].Head.Result, bars[1].Head.Result);
         }
 
         [Test]
         public void PressingBothOpeningNotesGradesBothHeads()
         {
-            TryRun(true, out string trace, out NoteResult left, out NoteResult right);
-            Debug.Log("[PROBE both] " + trace);
-            Assert.That(left, Is.Not.EqualTo(NoteResult.None), "left head");
-            Assert.That(right, Is.Not.EqualTo(NoteResult.None), "right head");
+            var results = Run(pressLeft: true, pressRight: true);
+            Assert.That(results.left, Is.Not.EqualTo(NoteResult.None).And.Not.EqualTo(NoteResult.Miss));
+            Assert.That(results.right, Is.Not.EqualTo(NoteResult.None).And.Not.EqualTo(NoteResult.Miss));
         }
 
         [Test]
         public void PressingOnlyTheLeftStillGradesTheRightHeadAsAMiss()
         {
-            TryRun(false, out string trace, out NoteResult left, out NoteResult right);
-            Debug.Log("[PROBE left-only] " + trace);
-            Assert.That(right, Is.Not.EqualTo(NoteResult.None), "right head must not vanish");
+            var results = Run(pressLeft: true, pressRight: false);
+            Assert.That(results.left, Is.Not.EqualTo(NoteResult.None).And.Not.EqualTo(NoteResult.Miss));
+            Assert.That(results.right, Is.EqualTo(NoteResult.Miss));
         }
-    
 
         [Test]
-        public void ADirtySpeedRatioMakesTheHeadDisappear()
+        public void ADirtySpeedRatioDoesNotMakeTheHeadDisappear()
         {
-            string json = System.IO.File.ReadAllText("Temp/test16-score.json");
-            var doc = ChartJson.Read(json);
-            var bundle = Resources.Load<LiveBundleBuildData>("live/config/LiveBundleBuildData");
-            var score = RuntimeChartConverter.Convert(doc, bundle);
-
-            using (var harness = new LiveHarness())
-            {
-                harness.Arrange(score);
-
-                LongNote right = null;
-                foreach (var n in score.NoteArray)
-                {
-                    var bar = n as LongNote;
-                    if (bar != null && bar.IsOrdinaryHead && bar.LaneStart >= 8) { right = bar; }
-                }
-
-                Assert.That(right, Is.Not.Null);
-                right.speedRatio = 2f;   // what a recycled note looks like when the pool forgot to reset it
-
-                Vector3 finger = LanePosition(10f);
-                for (int frame = -36; frame <= 40; frame++)
-                {
-                    float now = frame / 60f;
-                    if (frame <= -35) { harness.OnUpdate(now, now); continue; }
-                    TouchPhase phase = frame <= -34 ? TouchPhase.Began : TouchPhase.Stationary;
-                    harness.Step(now, now, LiveHarness.Touch(2, finger, now, phase));
-                }
-
-                Debug.Log("[PROBE dirty] right=" + right.State + "/" + right.Result);
-                Assert.That(right.Result, Is.Not.EqualTo(NoteResult.None),
-                    "a bar whose speedRatio was not 1 must still be judged");
-            }
+            // Simulate a recycled note whose speedRatio was not reset by the pool.
+            var results = Run(pressLeft: false, pressRight: true, rightSpeedRatio: 2f);
+            Assert.That(results.right, Is.Not.EqualTo(NoteResult.None).And.Not.EqualTo(NoteResult.Miss));
         }
     }
 }

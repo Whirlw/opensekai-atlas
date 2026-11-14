@@ -1,0 +1,225 @@
+using System;
+using UnityEngine;
+using UnityEngine.InputSystem;
+using Sekai;
+
+using OpenSekai.Shared.Live;
+
+namespace Sekai.Live
+{
+	public class FrictionFlickNote : NoteBase
+	{
+		private readonly (int id, bool distance, bool trueDirection)[] inputResults;
+
+		private readonly float _flickDistance;
+
+		/// <summary>The swipe length this note asks for, in the same units as a touch delta.</summary>
+		internal float FlickDistance => _flickDistance;
+
+		public override NoteState State
+		{
+			get => state;
+			protected set
+			{
+				if (value == NoteState.Done && state != NoteState.Done)
+				{
+					state = NoteState.Done;
+					// Publish first, then tell the bar: the same order as every other end note
+					// (tail-classes.md §3 R2).
+					OnUnSpawnNote();
+					NotifyParentFinished();
+					return;
+				}
+				base.State = value;
+			}
+		}
+		public FrictionFlickNote()
+		{
+			inputResults = new (int id, bool distance, bool trueDirection)[8];
+			Category = NoteCategory.FrictionFlick;
+		}
+
+		public FrictionFlickNote(MusicScoreInfo info, int id, int laneStart, int laneEnd, NoteCategory category, float speedRatio, NoteType type, NoteDirection direction, float screenDpiToInch, float laneOffset)
+			: base(info, id, laneStart, laneEnd, category, speedRatio, laneOffset, type)
+		{
+			inputResults = new (int id, bool distance, bool trueDirection)[8];
+			_flickDistance = screenDpiToInch;
+			Direction = direction;
+		}
+
+		public override void Excute(MusicScoreInfo currentFrameInfo, float offsetTime)
+		{
+			// A caught note settles the moment it reaches the line, and that has to be decided BEFORE the base
+			// class can close the window. Waiting one more frame after the last input (the old shape of this
+			// check) dropped the note on the very frame its window closed: device log
+			// live-20261113-152906.log shows the single combo break of that run as childState=Input at
+			// now=19.824, Last at 19.830 and res=Miss at 19.836 for t=19.688 - a caught note with a recorded
+			// flick, one frame of grace short.
+			if (State == NoteState.Input && CalcProgress(currentFrameInfo, offsetTime) >= 1f)
+			{
+				JudgmentFlick(currentFrameInfo.time);
+			}
+
+			base.Excute(currentFrameInfo, offsetTime);
+		}
+
+		private bool JudgmentFlick(float musicTime)
+		{
+			if (inputResults == null || inputResults.Length == 0)
+			{
+				return false;
+			}
+
+			bool hasInput = false;
+			bool direction = false;
+			foreach (var result in inputResults)
+			{
+				if (result.id != 0 && result.distance && result.trueDirection)
+				{
+					hasInput = true;
+					direction = true;
+					break;
+				}
+			}
+
+			if (!hasInput)
+			{
+				foreach (var result in inputResults)
+				{
+					if (result.id != 0 && result.distance)
+					{
+						hasInput = true;
+						direction = result.trueDirection;
+						break;
+					}
+				}
+			}
+
+
+			if (!hasInput)
+			{
+				return false;
+			}
+
+			var judgeInfo = LiveConfig.CalculateFrictionFlickNoteResult(this, musicTime, direction);
+			JudgeInfo = onUpdateResult != null ? onUpdateResult(judgeInfo) : judgeInfo;
+			State = NoteState.Done;
+			return true;
+		}
+
+		public override bool IsJudgment(ref LiveTouch touch, float lane)
+		{
+			if (State == NoteState.Done)
+			{
+				return false;
+			}
+
+			if (!IsLaneCheck(touch))
+			{
+				return true;
+			}
+
+			if (JudgeLaneStart > lane || JudgeLaneEnd < lane)
+			{
+				return false;
+			}
+
+			var offset = MusicScoreInfo.time - touch.musicTime;
+			return LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(this), offset);
+		}
+
+		private bool IsLaneCheck(LiveTouch touch)
+		{
+			if (State != NoteState.Input)
+			{
+				return true;
+			}
+
+			foreach (var result in inputResults)
+			{
+				if (result.id != 0 && result.id == touch.touchId)
+				{
+					return false;
+				}
+			}
+
+			return true;
+		}
+
+		public override bool Judgment(ref LiveTouch touch, float lane)
+		{
+			if (State == NoteState.Done)
+			{
+				return false;
+			}
+
+			if (State == NoteState.Scrolling)
+			{
+				State = NoteState.Input;
+			}
+
+			if (State != NoteState.Input)
+			{
+				return false;
+			}
+
+			var isUpdatedDelta = false;
+			var trueDirection = false;
+			UpdateDelta(touch.delta, ref isUpdatedDelta, ref trueDirection);
+			if (isUpdatedDelta)
+			{
+				AddInputResult(ref touch, ref isUpdatedDelta, ref trueDirection);
+			}
+
+			if (trueDirection && isUpdatedDelta && MusicScoreInfo.time - touch.musicTime <= -LiveConfig.JustPerfectJudgeTimeHalf)
+			{
+				bool done = JudgmentFlick(touch.musicTime);
+				return done;
+			}
+
+			return false;
+		}
+
+		private void AddInputResult(ref LiveTouch touch, ref bool isUpdatedDelta, ref bool _isTrueDirection)
+		{
+			for (var i = 0; i < inputResults.Length; i++)
+			{
+				if (inputResults[i].id == 0 || inputResults[i].id == touch.touchId)
+				{
+					inputResults[i] = (touch.touchId, isUpdatedDelta, _isTrueDirection);
+					return;
+				}
+			}
+		}
+
+		private void UpdateDelta(Vector2 touchDelta, ref bool isUpdatedDelta, ref bool _isTrueDirection)
+		{
+			if (touchDelta == LiveUtility.Vector2Zero)
+			{
+				return;
+			}
+
+			if (!OpenSekai.Shared.Live.FlickGesture.TryUpdate(
+				touchDelta, Time.deltaTime, Direction, _flickDistance, out bool trueDirection))
+			{
+				isUpdatedDelta = false;
+				_isTrueDirection = false;
+				return;
+			}
+
+			isUpdatedDelta = true;
+			_isTrueDirection = trueDirection;
+		}
+
+		public override NoteResult CalcNoteResult(float musicTime)
+		{
+			return LiveConfig.CalculateFrictionFlickNoteResult(this, musicTime, true).Item1;
+		}
+
+		public override void ResetNote()
+		{
+			base.ResetNote();
+			Array.Clear(inputResults, 0, inputResults.Length);
+		}
+	}
+}

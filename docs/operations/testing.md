@@ -5,7 +5,7 @@
 | 层 | 位置 | 运行环境 | 用途 |
 | --- | --- | --- | --- |
 | EditMode | `Assets/Tests/EditMode` | 编辑器、不进包 | 纯逻辑、文件 IO、数据契约 |
-| PlayMode | `Assets/Tests/PlayMode` | 播放模式 | 场景装配冒烟（曲库、整首结算） |
+| PlayMode | `Assets/Tests/PlayMode` | 播放模式 | 曲库场景装配冒烟 |
 
 两个测试程序集都是 `autoReferenced: false`、`defineConstraints: ["UNITY_INCLUDE_TESTS"]`，EditMode 还额外限制为 `Editor` 平台，因此**不会进入 Android 包**。
 
@@ -34,10 +34,24 @@ unity test . --mode PlayMode --filter "OpenSekai.Tests.PlayMode" --retries 1
 
 报告是 NUnit 3 XML，可以直接被 CI 的测试面板读取。
 
+### 结构与缺失脚本基线
+
+```powershell
+pwsh -NoProfile -File Tools/verify-structure.ps1
+pwsh -NoProfile -File Tools/verify-structure.ps1 -CheckProjects
+unity run . --non-interactive -- -executeMethod OpenSekai.EditorTools.MissingScriptAudit.Run
+```
+
+结构检查覆盖文档链接、标题锚点和空运行时目录。`-CheckProjects` 在 Unity 重新生成 IDE 项目后检查 `.csproj` 中的源码引用。
+Unity 扫描将缺失脚本的资产路径、GUID、fileID 和数量写入 `TestResults/missing-scripts.tsv`。
+打开编辑器时也可运行 `OpenSekai/Dev/Audit Missing Scripts`。清理前保存一份扫描结果，清理后再运行并比较。
+
 ## 覆盖范围
 
 EditMode：
 
+- `Core/TimingCompensationTests`：三个时机补偿各自移动哪条时钟（音频延迟两条一起、画面延迟只移画面、判定偏移只移判定）、组合后键与条身共用一条画面时钟、时钟不小于 0、取值钳制、旧帧数迁移的符号，以及 `ViewProgress` 的规则（在途键提前且不过线、在线/越线的键不动、负提前、无提前或无窗口不变）。`Live/ViewLeadTests` 在真实音符与 `LongNoteView` 上固定同一规则；`Settings/LiveSettingsStoreTests` 固定旧值迁移只发生一次、已有毫秒值优先、三个值往返保存。
+- `Core/AudioOutputPlanTests`：音频输出配置的选择。改到设备原生采样率；混音块对齐到硬件 burst 的整数倍、不低于 128 帧、且永不变大；设备给不出有效值时保持原配置。真机上的实际结果看 `[AudioOut]` 日志（`AudioOutputTuning`）。
 - `Charts/ChartDocumentTests`：深拷贝、`Migrate` 的版本与事件过滤、空值容忍、`HasPlayableNotes`。
 - `Charts/ChartJsonTests`：JSON 往返、旧类型名映射（`MusicScoreMakerData` → `ChartDocument`）、`MusicId` 覆盖。
 - `Charts/ChartTimelineTests`：tick ↔ 秒（120 BPM 4/4 基准）、往返一致性、`ConvertMusicScoreInfo` 排序。
@@ -53,13 +67,64 @@ EditMode：
 - `Packages/SongPackageManagerTests`：新建/列出/删除/复制、导出 `.oskp` 后导入回读、导出归档里含 `manifest.json` 与 `score.json`、导入的副本沿用 manifest id 但拿到新目录、坏包与缺失文件的处理。
 - `Settings/LiveSettingsStoreTests`：缺文件默认值、保存读回、自动建目录、旧的 `Use120FPS` 升级成 `FrameRateLimit`、坏 JSON 回落、`null` 路径拒绝。
 - `Live/DecorationTailFromChartTests`：**真实谱面驱动**——读 `Tools/fixtures/deco-tail-test10/score.json`（取自报告者 `Test10.zip`），`ChartJson.Read` → `RuntimeChartConverter.Convert` → 用真实 `OnUpdate`/`OnInput` 把手指依次送到每根 `GuideNote` 条的尾时间（flick / friction-flick 给划动采样，普通尾给按下），断言每种尾都判出结果。这是目前唯一能验证「尾进不进候选」的用例，**动到 `_judgmentNoteList` 注册时必须跑它**。
-- `Live/DecorationTailJudgmentTests`：**已停放**（`[Ignore]`）。它手工 `new` 条与尾再反射调内部阶段，结果连普通尾都进不了候选——说明缺了 `OnUpdate` 的整条扫描，子音符的进度与候选根本没推进。不要再拿它下结论；需要新用例请照 `DecorationTailFromChartTests` 的写法。
-- `Live/TailReleaseLaneTests`：真实谱面 + `LiveHarness` 逐帧驱动一根普通尾长条，验证**抬手归属**——另一根手指在别的轨道按下再抬起时尾不许被判定、条也不许结束；持握者自己在条内抬手时尾必须被判。**动到 `CoverHoldsWithAnyFinger` 的松手分支时必须跑它**。
+- `Live/DecorationTailJudgmentTests`：装饰条的四种尾（普通尾按下、划键尾划动、摩擦尾触摸、摩擦划键尾划动）各一条，用手工音符经 `LiveHarness` 走真实 `OnUpdate` / `OnInput`，另有两条对照：不碰的尾不被判、划键尾只按不划不被判。旧版手工 `new` 后反射调内部阶段、进不了候选，曾被停放，现已改写恢复。谱面版本见 `DecorationTailFromChartTests`。
+- `Live/TailReleaseLaneTests`：真实谱面 + `LiveHarness` 逐帧驱动一根普通尾长条，验证**抬手归属**——另一根手指在别的轨道按下再抬起时尾不许被判定、条也不许结束；持握者自己在条内抬手时尾必须被判。拥挤的尾：范围内还有其他触摸时只认 Perfect 区间的抬手，单独抬手任何评级都判；范围外的触摸、同帧也抬起的触摸、同一触摸的多个样本都不算拥挤。**动到 `CoverHoldsWithAnyFinger` 的松手分支时必须跑它**。
+- `Live/LongHeadGradeTests`：真实循环里按不同偏移按下普通长条头，断言实际评级（`Long` 表，对称）：±4 ms 以内 JustPerfect，±30 ms Perfect，±60/±80 ms Great，±95 ms Good，±118 ms Bad；晚 150 ms 的按下不进候选、头记 Miss；早 150 ms 的按下不判头，头在窗口关闭后记 Miss。**动到头的窗口表、`PressCandidateWindow` 或 `LongNoteHead.TryJudge` 时必须跑它**。
+- `Live/PressCandidateRuleTests`：候选硬标准。按下只收单键、未推进的独立划键、长条普通头（条身、尾、内部点、摩擦键、挂在条上的划键都不收），判定过的键立刻离开；车道（头用条的扩展车道）；时间窗口边界（单键与头 ±125 ms，划键早 125 ms / 晚 141.7 ms）；抬起只收普通尾。真实循环里：一次按下推进划键并在它身上消费，紧随其后的单键不被这次按下判；推进后另一根手指在划键车道内的滑动也能完成它（即使推进它的手指排在本帧前面），车道外的滑动不行；晚 150 ms 的按下推进不了划键。**动到 `IsPressStep` / `AdmitsPress`、`FlickNote.IsJudgment`、`DriveIndependentNotes` 或 `IsReleaseKey` 时必须跑它**。
+- `Live/PressOwnershipTests`：按下归属。收集候选不写 `_judgedTouchTimes`、尚未命中的候选不挡后续候选；同帧双押各取更近的音符；去重三步（只剩一个键的手指优先并级联、两指两键按谱面顺序配对、配对的键从其他手指剔除，三指三键与两指三键不配对、其余按车道中心距离再按较小 `fingerId`）；单指按谱面时间、再按 `ChartOrder` 取最早的键，最早的只能拿 Good 及以下而后面的能拿 Great 及以上时让给后者；头按所属条的起点窗口评级；同一手指同帧多个 `Began` 样本共用一个按下额度；「两指争同一音符、其中一指还够得到更早一颗」时两颗都被判，与注册顺序无关。**动到 `LiveCandidatePipeline.Collect` / `SortPressCandidates` 或 `JudgmentScheduler.EvaluateJudgment` 的消费路径时必须跑它**。
+- `Live/FrictionHeadLifetimeTests`：摩擦头的键与独立 friction 音符同生命周期。手动搓到、自动播放、未碰到 Miss 三种情况下，头判定的那一帧 `HeadKeyLeftWithItsVerdict` 变真、条身仍在；搓到与自动时判定以 `FrictionLong` 身份在同一帧到达视图一次；普通头的键仍停在线上。视图一侧由 `LongNoteKeyLifetimeTests.ARubHeadsKeyIsTakenOffWithItsVerdict` 固定。
+- `Live/ResultPublicationTests`：结果发布。用记录回调的 `ScoreLogic` 走真实 `OnUpdate` / `OnInput`，固定普通键、超时键、头（按下与超时）、普通尾（准时与晚抬手）、内部 combo 点、条身结束补 `Perfect`、隐藏尾、早划三帧倒计时跨过条身终点各自的回调次数、顺序、基分序号、总分、连击与伤害；另有自动播放、重开、回调内重入结算，以及 `ResultPublication` 守卫按对象（不按 `Id`）、只被 `ResetNote` 清空的直接用例。**动到 `ResultPublication`、`PublishResult`、`LongNoteHead.Settle` 或 `ScoreLogic` 的基分推进时必须跑它**。
+- `Live/DecouplingAcceptanceTests`：判定解耦的六条验收用例（[交接](handoff-2026-11-11.md) §10 第 1 条）。两条头（过线未按仍然发布 Miss、被尾结束时头的结果不被覆盖）、两条抬手归属（尾键横移到另一条车道后要在尾的位置抬手；抬手落在相邻装饰条车道、但仍在条身放宽范围内时不判目标条）、两条 flick 尾（标准时间之前的样本既不判也不记；判定之后继续驱动 30 帧，尾只发布一次、连击只 +1）。前四条走真实 `OnUpdate`/`OnInput` 并断言手指确实被候选路径接住，后两条只驱动尾的决策入口。**动到 `PickLiftTarget`、`Head.Settle`、`LongNoteTail` 的窗口或发布路径时必须跑它**。六条在写入时全部通过：它们固定的是现有行为，不是待修的缺口。
+- `Live/HeadDecouplingTests`：头的离场出口。除原有的「按住头只发布一次」「判过的头不被宽限结束覆盖」外，新增三条盯 `LongNote.LeavePlayState()`：条在头结算前被 `ForceTerminate(tail)` 结束仍要补发 Miss（**这条是先红后绿的**）、重复调用只发布一次、已结束的条再按不改变任何结果。**动到 `ForceTerminate` / `FinishSilently` / `SettleExpiredHead` 或 `LongNoteHead.TryJudge` 时必须跑它**。
+- `Live/TailBehaviourContractTests`：尾的策略契约（`ITailBehaviour.TryFinish` 一处决定，bar 上不许再出现三个布尔开关）。另有两项盯「**同一根尾只发布一次**」：把已判过的条硬塞回 `Scrolling` 后，窗口过期 / 抬手 / 自判解绑三条路径都必须被拒且不改写任何结果（**先红后绿**）；以及池复用后能重新发布一次。**动到 `LongNoteTail` 的 `PublishTail` / `FailTail` / `DetachStandaloneTail` 或 `Reset` 时必须跑它**。
+- `Live/FlickEndBehaviourTests`：划键尾的窗口、延迟结算、方向与速度门槛。其中的独立尾（摩擦划）几条按 `tail-classes.md` §3 的 R1/R2/R3 改写：尾自己写 Miss（条只驱动与读取）、尾判定不结束条、条结束把没判的中间点判 Perfect。**动到 `DetachStandaloneTail`、`ForceTerminate` 对尾的判定、或 `SettleLeftoverAsPerfect` 时必须跑它**。
+- `App/PlayServiceDependencyTests`：开局路径依赖全部换成假端口，覆盖四种前置拒绝（曲库未就绪、加载界面未就绪、请求目标不是曲库、当前不在曲库场景）、推入加载界面失败后的回滚与锁释放、开局成功后的持锁与场景退场释放、以及连续两局；并断言发布的 `FreeLiveBootData.DeckData.UserInfo.DeckId` 取自端口而不是单例。**动开局流程或 `PlayService` 的前置判断时必须跑它**。
+- `LiveContextTests`：`LiveContext.FromRetainedBoot()` 把 `UserDataManager`、`EntryPoint.PlayMode`、`PlaySessionContext` 的五个事实逐项抄进上下文；缺 Boot 时其余字段仍完整，null 会话字段降级成空串，两次读取互不影响。用例在 `[SetUp]/[TearDown]` 里存旧值并写回，不会污染同一进程里的其它用例。
+- `Resources/GeneratedAssetSaveGuardTests`：`Tools/generated-assets.txt` 里的文件受保存拦截保护。四个字体资产都在清单里；保存请求会把它们剔除，`AllowSaves()` 范围内不剔除，范围结束后恢复；`Medium SDF_Dynamic` 关掉了 Clear Dynamic Data on Build；往真实资产里烘入新字符后 `SaveAssets`，文件哈希不变，`DiscardInMemoryChanges` 之后内存里的字符表回到提交时的状态，省略号还在。**动到 `GeneratedAssetSaveGuard`、字体资产或清单时必须跑它**。
+- `Resources/ResourceCatalogTests`：`ResourceCatalog` 里每条固定 `Resources` 路径都能加载、类型正确、回退只在主路径失败时生效；另含两条字体相关断言——`Fonts/SourceHanSansSC-Medium` 能被 TMP 建成字面、以及 `LibraryUi.EnsureRequiredGlyphs` 能对三条来源（bundled / OS / 项目资产）补上省略号字形。项目 SDF 资产在用例里是**克隆**后操作的，避免编辑器回写被跟踪的 `.asset`。
 
 PlayMode：
 
-- `LibrarySmokeTests`：载入 `Assets/Game/Scenes/Library.unity`，等 `LibraryScreen` 起来并断言 `ScreenManager.ExistsInstance`。
-- **限制**：从编辑器桥接跑 PlayMode 时，进播放模式会触发域重载，桥接注册的回调随之销毁，`playmode.xml` 不会生成，编辑器会停在播放模式；跑完必须先 `editor.playmode.stop` 才能再跑 EditMode。要看报告请用 Test Runner 窗口，或关掉编辑器后跑 `unity test --mode PlayMode`。
+- `LibrarySmokeTests.LibrarySceneBootsAndShowsThePage`：载入 `Assets/Game/Scenes/Library.unity`，等 `LibraryScreen` 起来并断言 `IsReady` 与 `ScreenManager.ExistsInstance`。单独跑 0.43 s，不依赖同一轮里前面的用例留下的场景。
+- `LibrarySmokeTests.BaselineTapAutoplaysAndReturnsToTheLibrary`：**整首打歌**。从曲库结算面板的「再玩一次」触发 `PlayService` 自动开局，等 Core 场景建出 `SoloLiveController`，再等返回 Library 并检查结算 `Completed / IsAuto / Score=1,000,000 / Rank S`；谱面用仓库里的 `Tools/fixtures/baseline_tap`。约 47.5 s。
+- `LibrarySmokeTests.ShippedWavePackRegistersEveryManifestCue`：按 `StreamingAssets/sound/manifest.csv` 核对 42 个内置 WAV 全部注册、长度非零、结算音能起播，以及缺失 cue 只警告一次并返回 0。
+
+跑 PlayMode **必须走异步**：进播放模式会触发域重载，同步请求会被丢掉（CLI 会直接拒绝并提示改用 `--async_tests`）。
+
+```powershell
+unity command test run --mode playmode --async_tests true --timeout 420
+unity command test status --format json
+```
+
+2026-11-12 实测：3 项全部通过，总 48.08 s（整首 47.47 s、装配 0.03 s、音频 0.54 s）。不要再走「桥接注册回调 + `playmode.xml`」那条路：域重载会把回调一起销毁，报告不会生成，编辑器还会停在播放模式。
+
+## 两次运行一致性（P4-2）
+
+`TestRunnerBridge`（菜单 `OpenSekai/Dev/Run EditMode Tests`，或在 `unity_eval` 里调 `TestRunnerBridge.RunEditMode()`）把报告写到 `TestResults/editmode.xml`；两次运行各存一份后比对：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File Tools\compare-test-runs.ps1 `
+  -First TestResults/p4-2-editmode-run1.xml -Second TestResults/p4-2-editmode-run2.xml
+```
+
+脚本按「测试全名 + 结果」逐项比较，出现缺项、多项或结果变化就以非零退出，因此也可以直接进 CI。
+
+2026-11-12 的结果：两次都是 **569 项 / 565 通过 / 0 失败 / 4 跳过**，逐项完全相同，耗时 8.11 s 与 8.11 s。4 个跳过全部来自已停放的 `Live/DecorationTailJudgmentTests`（原因见上文「覆盖范围」，替代用例是 `DecorationTailFromChartTests`）。
+
+> 此后基线继续增长：2026-11-12 判定解耦这一轮收尾时为 **598 项 / 594 通过 / 0 失败 / 4 跳过**（`Live/DecouplingAcceptanceTests` 六条 + `Live/HeadDecouplingTests` 的出口三条 + `Live/TailBehaviourContractTests` 的发布与「Done 不再判」三条 + `Live/FlickEndBehaviourTests` 类 1 的改写三条与新增五条）。上面的 569 是那次一致性实验的记录，不是当前基线。
+
+结构门禁（P4-4 起，`Tools/verify-structure.ps1` 默认执行，无需额外开关）：
+
+- **门面规模**：`ScreenManager.cs` ≤ 600、`LibraryScreen.cs` ≤ 100、`LongNote.cs` ≤ 500 个非空行。超过就报错并提示「拆开而不是把门面养大」；要放宽得和用到它的代码同批提交，改动可见。
+- **直接 `Resources.Load*` 白名单**：只有 12 个文件可以直连（目录与加载器 4 个 + P3-2 记录在案的动态取址 8 个，每个都在脚本里带一句理由）。新文件要直连就得往白名单里加，否则失败——正常路径是 `ResourceCatalog`（固定资产）或 `ResourceLoader`（动态键）。
+- **缺失脚本为 0**：`MissingScriptAuditTests` 在 EditMode 里跑一遍扫描，断言 `TestResults/missing-scripts.tsv` 只有表头。P4-4 之前这张表有 3 行，来自两个真缺失的脚本；修完为 0，之后由这条测试盯住。
+
+隔离审计（同轮核对）：
+
+- 测试输入全部来自仓库内的 `Tools/fixtures/`，没有本机绝对路径。这些路径按**项目根**解析，所以跑测试的进程工作目录必须是项目根——编辑器内与 `-executeMethod` 都满足，用 `unity test` 从别的目录起会读不到文件。
+- 需要落盘的 5 个 fixture 都用 `Path.GetTempPath() + Guid` 建独占目录，并在 `[TearDown]` 删除：`ChartFileReaderTests`、`SongPackageManagerTests`、`PlaySessionTests`、`LiveSettingsStoreTests`、`LibraryPresenterTests`。
+- 没有测试写仓库目录，也没有写 `persistentDataPath`。唯一的共享状态读是开局路径：`FreeLiveBootData` 构造时读 `LiveSettingsStore.Shared`，而 `Load()` 只读缓存、只有 `Save()` 会写盘，已核对无副作用。
+- 静态状态在用例内配对恢复：`LiveContextTests` 在 `[SetUp]` 存 `UserDataManager.FreeLiveBootData` 与 `EntryPoint.PlayMode` 的旧值，在 `[TearDown]` 写回并 `PlaySessionContext.Clear()`。
 
 ## 写测试的约定
 
@@ -94,14 +159,13 @@ $rsp    = (Get-ChildItem 'Library\Bee\artifacts' -Recurse -Filter 'OpenSekai.Gam
 - 一条命令就能拿到全部错误（含 `CS0051` 这类可访问性不一致），比在编辑器里翻 Console 快得多。
 - 这条路径**只验证语法与类型**：它不重新生成 `Library/ScriptAssemblies`。要通过还要回到 Unity 确认 `OpenSekai.Game.dll` 的时间戳变新，再跑测试。
 
-## 为什么没有「整首打歌」的自动化测试
+## 「整首打歌」的自动化
 
-试过，做不了，原因是结构性的而不是偷懒：
+`LibrarySmokeTests.BaselineTapAutoplaysAndReturnsToTheLibrary` 是完整的整首往返：仓库里的 `Tools/fixtures/baseline_tap` → 曲库结算面板的「再玩一次」→ `PlayService` 自动开局 → Core 场景的 `SoloLiveController` → 返回 Library → 断言结算 `1,000,000 / S`。**P4-3 起不再标 `[Explicit]`**，默认参与 PlayMode 运行，单次约 47.5 s。
 
-- PlayMode 测试跑在 Test Runner 自己的场景里，而整首流程必须 `LoadScene` 切到 `Library`、再由 `PlayService` 经 `Sekai.SceneManager` 切到 `Core`。单场景加载会连 Test Runner 的场景一起销毁（实测 `MissingReferenceException: The object of type 'Sekai.Core.EntryPoint' has been destroyed`，`EntryPoint.cs:35`），改成 additive 也在切 `Core` 时同样炸。
-- 进播放模式又会触发域重载，把 `TestRunnerApi` 的回调连同报告一起带走（见上）。
+它历史上抓到过一次真实回归：完整场景往返后计分缺口（`466,063 / C`，自动判定 103/221），修正自动判定游标后回到 `1,000,000 / S`。**改判定游标、开局边界或结算回传时必须跑它**。
 
-所以「转换 → 打歌 → 计分 → 结算」这条链的端到端验证仍然靠真机门禁：装机、点「自动」、看结算是不是 `1,000,000`（见 [Android 构建与门禁](../operations/android-build.md)）。分工是：EditMode 管逻辑，真机门禁管装配。
+跨域重载和场景切换靠 Unity Pipeline 的异步测试支持：`test run --async_tests` 立即返回、结果用 `test status` 轮询。此前文档里那句「从桥接跑 PlayMode 会丢回调」只适用于自建回调 + `playmode.xml` 的写法，不适用于这条异步路径。
 
 ## 待补
 
@@ -111,7 +175,8 @@ $rsp    = (Get-ChildItem 'Library\Bee\artifacts' -Recurse -Filter 'OpenSekai.Gam
 ## CI
 
 - 本地/流水线通用入口：`powershell -NoProfile -ExecutionPolicy Bypass -File Tools/run-editmode-tests.ps1`（先关掉编辑器，CLI 才肯起实例）。脚本把 nunit 报告写到 `TestResults/editmode-ci.xml`、打印 `total/passed/failed`，并以 Unity 的退出码收尾，失败即非零。
-- GitHub Actions：`.github/workflows/editmode-tests.yml` 用 `game-ci/unity-test-runner@v4`、`unityVersion: auto`（读 `ProjectSettings/ProjectVersion.txt`）、`testMode: EditMode`，上传 `TestResults` 产物。
+- GitHub Actions：`.github/workflows/structure.yml` 不需要 Unity 许可，跑 `verify-structure.ps1`（含上面三项结构门禁）；`.github/workflows/editmode-tests.yml` 用 `game-ci/unity-test-runner@v4`、`unityVersion: auto`、`testMode: EditMode`，上传 `TestResults` 产物。缺失脚本扫描是 EditMode 里的一条测试（`MissingScriptAuditTests`），所以**现有 EditMode 作业已经覆盖它**，不需要额外的 YAML。
+- **PlayMode 没有进 CI**：整首用例需要音频设备与 ~48 s 的连续运行，headless 跑既慢又容易假红。它由本地/发布前跑：`unity command test run --mode playmode --async_tests true` + `test status`。这条是明确的覆盖边界，不是遗漏。
 
 ### 为什么不开 license 时是「绿色跳过」而不是「失败」
 

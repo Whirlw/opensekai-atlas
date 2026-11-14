@@ -1,0 +1,505 @@
+using Sekai.Live;
+using UnityEngine;
+
+namespace Sekai.Core.Live
+{
+	internal sealed class LiveNoteFrame
+	{
+		private readonly LiveLogic _logic;
+		private readonly LiveSessionState _session;
+		private readonly LiveInputRouter _input;
+		private readonly LivePresentationBridge _presentation;
+
+		internal LiveNoteFrame(LiveLogic logic, LiveSessionState session, LiveInputRouter input, LivePresentationBridge presentation)
+		{
+			_logic = logic;
+			_session = session;
+			_input = input;
+			_presentation = presentation;
+		}
+
+		private MusicScoreInfo Frame => _logic.currentFrameInfo;
+
+		internal void TickViews()
+		{
+			_presentation.TickTailKeys(Frame.time);
+			_presentation.TickRetiring(Frame);
+		}
+
+		/// <summary>
+		/// The state block of the frame: sample the clock, advance the timeline and the skill, let
+		/// autoplay answer what is already due, then walk the notes. It does not touch the view - that is
+		/// the third block, and it runs after the touch block has settled this frame of judgement.
+		/// </summary>
+		internal void UpdateState(float scoreInfoTime, double currentGameTime)
+		{
+			bool isActive = _logic.result <= 2;
+			_logic.currentFrameInfo = _logic.Clock.Sample(_session.MusicScore, scoreInfoTime, currentGameTime, isActive);
+			if (!isActive)
+			{
+				// Nothing is judged and no input arrives any more, so the view is the only thing left
+				// in the frame; there is no later step for it to wait for.
+				TickViews();
+				return;
+			}
+
+			_input.BeginFrame();
+			_session.UpdateEvents(_logic.Clock.Frame);
+			_session.SkillLogic?.Update(_logic.currentGameTime);
+
+			// Autoplay answers every note at its own time, and that answer has to exist before the walk:
+			// the walk turns anything already past its window into a Miss, so a frame that skipped time
+			// (a hitch, the first frame after the chart loaded) missed notes autoplay never got to see.
+			// Judging here is the same pass AutoUpdate runs; a note already settled is skipped, so the
+			// controller's call after this frame is a no-op.
+			if (_session.IsAuto)
+			{
+				_session.AdvanceAutoJudgment(_logic.currentFrameInfo, skipDecoration: true);
+			}
+
+			UpdateNotes();
+			if (_session.IsAuto)
+			{
+				_logic.ApplyFrameOutcome();
+			}
+		}
+
+		/// <summary>Autoplay has no touch block: the automatic answer stands in for it.</summary>
+		internal void AutoUpdate()
+		{
+			_session.AdvanceAutoJudgment(_logic.Clock.Frame);
+			_session.Notes.TickHeads(Frame.time);
+			_logic.ApplyFrameOutcome();
+		}
+
+		internal void UpdateNotes()
+		{
+			// A head is a press candidate for as long as the head is open, not for as long as its bar is on
+			// screen. The walk below only visits bars that are still playing, and a short bar is done a few
+			// milliseconds after its head - which took the rest of the head's 125 ms window with it, so a
+			// press that landed after that had nothing to answer. Registering from the head list keeps the
+			// promise the head makes: it answers inside its own window, whatever the body is doing.
+			System.Collections.Generic.List<LongNoteHead> openHeads = _session.Notes.PendingHeads;
+			for (int i = 0; i < openHeads.Count; i++)
+			{
+				LongNoteHead head = openHeads[i];
+				if (head != null && head.Candidate.IsAnswerable)
+				{
+					_input.Register(head.Candidate);
+				}
+			}
+
+			// Register open ends during the walk, then keep advancing them after their bodies finish.
+			_session.Notes.WalkNotes(ScanNote);
+			_session.Notes.WalkHighSpeedNotes(ScanHighSpeedNote);
+			_session.Notes.TickTails(AdvancePendingTail);
+			if (!_session.IsAuto)
+			{
+				foreach (NoteBase tail in _session.Notes.PendingTails)
+				{
+					if (tail.ParentNote is LongNote bar && bar.HasManagedTail)
+					{
+						if (!_input.JudgmentNotes.Contains(bar))
+						{
+							_input.Register(bar);
+						}
+					}
+					else if (!_input.JudgmentNotes.Contains(tail))
+					{
+						_input.Register(tail);
+					}
+				}
+			}
+		}
+
+		internal void SettleExpiredPresses()
+		{
+			for (int i = 0; i < _input.JudgmentNotes.Count; i++)
+			{
+				NoteBase note = _input.JudgmentNotes[i];
+				if (note is NormalNote normal && LiveCandidatePipeline.IsPressStep(normal))
+				{
+					normal.SettleExpiredPress(Frame.time);
+				}
+			}
+
+			_session.Notes.TickHeads(Frame.time);
+		}
+
+		private void AdvanceNote(NoteBase note, float offsetTime)
+		{
+			if (!_session.IsAuto && note is LongNote bar && bar.PublishesHeadMiss)
+			{
+				bar.AdvanceBeforeInput(Frame, offsetTime);
+			}
+			else if (!_session.IsAuto && note is NormalNote && LiveCandidatePipeline.IsPressStep(note))
+			{
+				note.AdvanceNote(Frame, offsetTime, settleTimeout: false);
+			}
+			else
+			{
+				note.Excute(Frame, offsetTime);
+			}
+		}
+
+		/// <summary>
+		/// One normal note on its display frame. Returns <see cref="LiveNoteSession.Scan.Stop"/> once the
+		/// array has reached notes that are still too far ahead, which ends the walk for this frame.
+		/// </summary>
+		private LiveNoteSession.Scan ScanNote(NoteBase note)
+		{
+			if (note.IsHighSpeedNote)
+			{
+				return LiveNoteSession.Scan.Skip;
+			}
+
+			float offsetTime = DisplayOffsetForFrame(note, highSpeed: false);
+			if (IsTooFarAheadForDisplayHighSpeed(offsetTime, note))
+			{
+				return LiveNoteSession.Scan.Stop;
+			}
+			PreloadView(note, offsetTime);
+			AdvanceNote(note, offsetTime);
+			RegisterOpenHead(note);
+
+			// Decoration notes need to be processed after Excute to check OffsetJudgeTime
+			if (note.IsDecoration && note.State != NoteState.Done && ShouldTriggerDecorationJudgment(note))
+			{
+				DecorationJudgment(note);
+			}
+
+			if (note.State != NoteState.Done && (!note.IsDecoration || PlayableTailOf(note)))
+			{
+				_input.Register(note);
+			}
+
+			return LiveNoteSession.Scan.Handle;
+		}
+
+		/// <summary>
+		/// Hands the bar's head to the head sweep. The head has its own window and may outlive the bar's
+		/// being walked (a tail can end the bar before the head window closes), so it cannot rely on
+		/// this scan to reach it every frame.
+		/// </summary>
+		private void RegisterOpenHead(NoteBase note)
+		{
+			if (note is LongNote bar && bar.PublishesHeadMiss)
+			{
+				_session.Notes.RegisterHead(bar.Head);
+				// The head is a candidate of its own: the press loop asks this object, so the verdict
+				// never travels through the bar's Judgement. The bar stays in the list for the hold
+				// coordinator, which finds bars by type. Only a head that is still a key is registered -
+				// a settled head is not a note the player can answer any more.
+				if (bar.Head.Candidate.IsAnswerable)
+				{
+					_input.Register(bar.Head.Candidate);
+				}
+			}
+
+			// A judged end note that judges itself is ticked by the session, not by the bar's note loop, for
+			// the same reason: the bar ends on its own time and the note's clock has to outlive that.
+			if (note is LongNote judgedBar && (judgedBar.HasIndependentTail || judgedBar.HasManagedTail))
+			{
+				_session.Notes.RegisterTail(judgedBar.TailNote);
+				// Guide and decorative bodies may never reach the hold pass.
+				if (!_session.IsAuto && judgedBar.HasIndependentTail && (judgedBar is GuideNote || judgedBar.IsDecoration))
+				{
+					judgedBar.DetachStandaloneTail(Frame.time);
+				}
+			}
+		}
+
+		private void AdvancePendingTail(NoteBase tail)
+		{
+			if (tail.ParentNote is LongNote bar && bar.HasManagedTail)
+			{
+				// A live bar already advances the key. Once the body has ended, keep the key moving
+				// while its release or swipe rule owns the remaining judgement window.
+				if (bar.State == NoteState.Done)
+				{
+					float lead = DisplayOffsetForFrame(tail, !Mathf.Approximately(tail.speedRatio, 1f));
+					tail.AdvanceNote(Frame, lead, settleTimeout: false);
+				}
+				return;
+			}
+
+			bool highSpeed = !Mathf.Approximately(tail.speedRatio, 1f);
+			float offset = DisplayOffsetForFrame(tail, highSpeed);
+			bool tooFarAhead = highSpeed
+				? IsTooFarAheadForDisplay(offset, tail)
+				: IsTooFarAheadForDisplayHighSpeed(offset, tail);
+			if (!tooFarAhead)
+			{
+				PreloadView(tail, offset);
+				tail.Excute(Frame, offset);
+			}
+		}
+
+		private float DisplayOffsetForFrame(NoteBase note, bool highSpeed)
+		{
+			bool due = Frame.time >= note.MusicScoreInfo.time;
+			if (highSpeed && due)
+			{
+				return _session.NoteDisplayTimeOffset;
+			}
+
+			float offset = CalcTimeOffset(note);
+			return due ? Mathf.Abs(offset) : offset;
+		}
+
+		/// <summary>
+		/// How much earlier than its own display window a note's view is built, so that building it can never
+		/// decide where the note first appears.
+		/// </summary>
+		internal const float PreloadMarginSeconds = 0.1f;
+
+		/// <summary>
+		/// Builds the note's view a little before it can be seen. Creating a view is what used to happen at
+		/// whatever progress the frame loop reached it at; doing it a fixed 100 ms early means the note is
+		/// already there when its window opens, and the drawn position is what decides where it appears.
+		/// </summary>
+		private void PreloadView(NoteBase note, float offsetTime)
+		{
+			if (note.State == NoteState.Done || offsetTime <= 0f)
+			{
+				return;
+			}
+
+			float timeLeft = note.MusicScoreInfo.time - Frame.time;
+			if (timeLeft > offsetTime + PreloadMarginSeconds)
+			{
+				return;
+			}
+
+			// Idempotent on the view side (the note pool keys off the note), so it can simply be asked every
+			// frame of the margin instead of remembering that it was asked.
+			_presentation.Spawn(_session.Views, note, Frame.time);
+		}
+
+		/// <summary>One high speed note: same shape, its own display lead.</summary>
+		private LiveNoteSession.Scan ScanHighSpeedNote(NoteBase note)
+		{
+			float offsetTime = DisplayOffsetForFrame(note, highSpeed: true);
+			if (IsTooFarAheadForDisplay(offsetTime, note))
+			{
+				return LiveNoteSession.Scan.Stop;
+			}
+
+			PreloadView(note, offsetTime);
+			AdvanceNote(note, offsetTime);
+			RegisterOpenHead(note);
+
+			if (note.IsDecoration && note.State != NoteState.Done && ShouldTriggerDecorationJudgment(note))
+			{
+				DecorationJudgment(note);
+			}
+
+			if (note.State != NoteState.Done && (!note.IsDecoration || PlayableTailOf(note)))
+			{
+				_input.Register(note);
+			}
+
+			return LiveNoteSession.Scan.Handle;
+		}
+
+		private bool ShouldTriggerDecorationJudgment(NoteBase note)
+		{
+			if (note == null)
+			{
+				return false;
+			}
+
+			// For long notes, trigger at both start and end times
+			if (note is LongNote longNote)
+			{
+				// Trigger at start time (head)
+				if (Frame.time >= longNote.MusicScoreInfo.time && longNote.State == NoteState.Scrolling)
+				{
+					return true;
+				}
+
+				// Trigger at end time (tail)
+				if (longNote.NoteList != null && longNote.NoteList.Count > 0)
+				{
+					NoteBase lastChild = longNote.NoteList[longNote.NoteList.Count - 1];
+					if (lastChild != null && Frame.time >= lastChild.MusicScoreInfo.time)
+					{
+						return true;
+					}
+				}
+
+				return false;
+			}
+
+			// For normal notes, trigger at the judgment time
+			return Frame.time >= note.MusicScoreInfo.time;
+		}
+
+		private void DecorationJudgment(NoteBase note)
+		{
+			if (note == null || note.State == NoteState.Done)
+			{
+				return;
+			}
+
+			// Decoration notes are auto-judged when reaching judgment time
+			// Play tap effect and SE, but do not trigger score/combo callbacks or judgment text
+
+			// For long notes, handle specially: play head effect at start, keep body showing, play end effect at end
+			if (note is LongNote longNote)
+			{
+				DecorationLongNoteJudgment(longNote);
+				return;
+			}
+
+			// Set JudgeInfo to Perfect for effect playback (TapEffectView checks Result)
+			note.SetJudgeInfoForDecoration(NoteResult.JustPerfect);
+			// For normal notes: play effect and remove
+			_presentation.Judged(_session.Views, note);
+			note.SetStateUnnotice(NoteState.Done);
+			_presentation.Unspawn(_session.Views, note);
+		}
+
+		private void DecorationLongNoteJudgment(LongNote longNote)
+		{
+			if (longNote == null)
+			{
+				return;
+			}
+
+			// Check if we are at the start or end of the long note
+			NoteBase lastChild = longNote.NoteList != null && longNote.NoteList.Count > 0
+				? longNote.NoteList[longNote.NoteList.Count - 1]
+				: null;
+
+			bool isAtEnd = lastChild != null && Frame.time >= lastChild.MusicScoreInfo.time;
+			bool isAtStart = Frame.time >= longNote.MusicScoreInfo.time && longNote.State == NoteState.Scrolling;
+
+			// At start: play head effect, but keep the long note showing (don't mark as Done)
+			if (isAtStart && !isAtEnd && longNote.Result == NoteResult.None)
+			{
+				// Set JudgeInfo to Perfect for effect playback (TapEffectView checks Result)
+				longNote.SetJudgeInfoForDecoration(NoteResult.JustPerfect);
+				// Play head judgment effect (tap effect and SE)
+				_presentation.Judged(_session.Views, longNote);
+			}
+
+			// 头部触发之后，处理中间的LongHoldCombo自动判定
+			if (longNote.NoteList != null && longNote.Result != NoteResult.None)
+			{
+				foreach (NoteBase childNote in longNote.NoteList)
+				{
+					// 跳过LongNote自身和尾部，已经处理过
+					if (childNote == longNote || childNote == lastChild)
+					{
+						continue;
+					}
+
+					// 只处理LongHoldCombo
+					if (childNote is LongHoldCombo holdCombo && childNote.State != NoteState.Done)
+					{
+						// 检查该combo点是否到达判定时间
+						if (childNote.MusicScoreInfo.time <= Frame.time)
+						{
+							// 自动判定该combo点；它只是隐形刻度，不发声也不出特效
+							holdCombo.SetJudgeInfoForDecoration(NoteResult.JustPerfect);
+							holdCombo.SetStateUnnotice(NoteState.Done);
+						}
+					}
+				}
+			}
+
+			// At end: play end effect using the last child note's type and remove the long note
+			// The end note is a real note now and judges itself; settling it here would take the
+			// hit away from the player and end the bar before it could be made.
+			if (isAtEnd && lastChild != null && lastChild.IsDecoration)
+			{
+				// The bar ends here; the key at its end is only a decoration and nobody played it, so
+				// no tap effect and no hit sound: the bar must never speak for the player.
+				longNote.SetStateUnnotice(NoteState.Done);
+				_presentation.Unspawn(_session.Views, longNote);
+			}
+		}
+
+		private bool IsTooFarAheadForDisplayHighSpeed(float timeOffset, NoteBase note)
+		{
+			return note != null && note.State != NoteState.Scrolling && IsTooFarAheadForDisplay(timeOffset, note);
+		}
+
+		/// <summary>
+		/// True while the scan may stop here: everything from this note on is still outside the display
+		/// window this frame.
+		/// </summary>
+		/// <remarks>
+		/// The gate uses the DISPLAY lead, which shrinks as the scroll speed rises, but a lead can shrink
+		/// far below anything a frame can draw: the notes at bar 80.5078 of the shipped chart get a lead of
+		/// 0.0007 s because the span behind them holds a 9 ms 799 event. The scan walks notes in chart
+		/// order and stops at the first note still outside its lead, so such a note parked the cursor and
+		/// the whole stretch behind it was first looked at once the playhead got past - a dozen notes
+		/// created in one frame, each at whatever progress it happened to have (p 0.62, 0.04, 0.037 ...).
+		/// That is the "notes are generated in the middle of the screen, at a position that keeps moving"
+		/// report. The lead is therefore floored at one whole display window: no note can be drawn before
+		/// the frame loop has looked at it at least that far ahead.
+		///
+		/// Nothing about how a note's lead is computed changes here; this only decides how far the walk
+		/// goes. Registration into the judgement list is a different question with a fixed lead; see
+		/// <see cref="OpenSekai.Shared.Live.JudgeListLead"/> in LiveInputRouter.Register. This gate must
+		/// never be reused for registration: doing that is what put a note behind a flick into the list
+		/// already past its bad window.
+		/// </remarks>
+		internal bool IsTooFarAheadForDisplay(float timeOffset, NoteBase note)
+		{
+			if (note == null || Mathf.Approximately(timeOffset, 0f))
+			{
+				return false;
+			}
+
+			float lead = Mathf.Max(timeOffset, _session.NoteDisplayTimeOffset);
+			return Frame.time + lead + LiveClock.ReferenceFrameSeconds <= note.MusicScoreInfo.time;
+		}
+
+		/// <summary>
+		/// A decorative bar takes no input itself, but the note at its end is a real note of its
+		/// own kind (flick, slide, rub) and has to stay playable. Such a bar therefore keeps being
+		/// fed to the judgement list even though it is decoration.
+		/// </summary>
+		private static bool PlayableTailOf(NoteBase note)
+		{
+			return note is LongNote bar && bar.TailNote is NoteBase tail && tail.HasJudgment;
+		}
+
+		internal void Spawn(NoteBase note)
+		{
+			_presentation.Spawn(_session.Views, note, Frame.time);
+		}
+
+		internal void Unspawn(NoteBase note)
+		{
+			_presentation.Unspawn(_session.Views, note);
+		}
+
+		internal float CalcTimeOffset(NoteBase note)
+		{
+			if (note == null)
+			{
+				return 0f;
+			}
+
+			float currentProgress = Frame.bar + Frame.barProgress;
+			float noteProgress = note.MusicScoreInfo.bar + note.MusicScoreInfo.barProgress;
+			float speedRatio = CalcNoteSpeedRatio(currentProgress, noteProgress);
+
+			bool isNegativeSpeed = note.IsNegativeSpeed;
+			float timeOffset = OpenSekai.Shared.Live.NoteDisplayOffset.Resolve(
+				_session.NoteDisplayTimeOffset, speedRatio, note.speedRatio, ref isNegativeSpeed);
+			note.IsNegativeSpeed = isNegativeSpeed;
+			return timeOffset;
+		}
+
+		private float CalcNoteSpeedRatio(float currentProgress, float noteProgress)
+		{
+			return OpenSekai.Shared.Live.NoteSpeedRatio.Resolve(
+				_session.MusicScore?.musicScoreInfoArray, currentProgress, noteProgress, Frame.speedRatio);
+		}
+	}
+}

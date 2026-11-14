@@ -1,0 +1,46 @@
+﻿# Files that Unity / TextMeshPro rewrite while the game runs.
+#
+# These are tracked because prefabs and materials reference them by GUID, but their content has to
+# stay in the cold state a clean clone has: a 1x1 placeholder atlas and empty font feature tables.
+# TextMeshPro bakes kerning, ligatures and glyphs on demand and writes the cache back into the asset
+# while the editor or a play session runs. Measured on 2026-11-12:
+#
+#   SourceHanSansSC-Medium SDF_Dynamic.asset   6,516 B -> ~967,000 B
+#     (2,316 kerning pairs / 113 ligature substitutions of YAML, no glyphs, no pixels)
+#   SourceHanSansSC-Medium SDF_Base.asset      lost one ligature substitution record
+#
+# ONE DELIBERATE EXCEPTION (2026-11-12): Medium SDF_Dynamic now ships the U+2026 glyph baked in and is
+# therefore ~8.4 MB instead of 6.5 KB. Seeding that glyph at runtime did not survive on device — the
+# character row landed but its glyph did not, and TMP truncated every ellipsised label. The library
+# prefers this asset, so the shipped glyph is what makes the ellipsis work; see LibraryUi.ResolveCjkFont
+# and ResourceCatalogTests.TheShippedProjectFontCarriesTheEllipsisGlyph. Re-baking it is a normal
+# intentional re-bake (below); do not "restore" it to the cold state without also reverting the fix.
+#
+# Medium SDF_Dynamic has "Clear Dynamic Data on Build" switched OFF: TMP's pre-build step clears every
+# dynamic asset that has it on, which wiped the baked ellipsis before every player build.
+#
+# Since 2026-11-14 Assets/Game/Editor/GeneratedAssetSaveGuard.cs keeps these files out of every Editor save
+# and reloads them from disk after Play mode and before a build, so running the game no longer dirties
+# them. A deliberate re-bake runs inside GeneratedAssetSaveGuard.AllowSaves(). The restore script below is
+# the fallback for a change made outside the Editor.
+#
+# Committing that cache bloats the repository and the build, cannot be diffed or merged, and differs
+# per machine. So this list is the single source of truth for "generated": verify-structure.ps1
+# fails when one of these files drifts, and restore-generated-assets.ps1 puts them back.
+#
+#   accidental drift   (you just ran the game)
+#     powershell -NoProfile -ExecutionPolicy Bypass -File Tools/restore-generated-assets.ps1
+#
+#   intentional re-bake (after OpenSekai/Dev/Fonts/Build Source Han Sans Assets)
+#     powershell -NoProfile -ExecutionPolicy Bypass -File Tools/verify-structure.ps1 -UpdateGeneratedAssets
+#     then commit this file together with the assets, so the re-bake is a reviewable change.
+#
+# To cover another generated asset, add its path as the third field; the hash and size are rewritten
+# by -UpdateGeneratedAssets.
+#
+# format: <sha256>  <size in bytes>  <path relative to the repository root>
+
+2abf72dee9ccae320e83c09605c29b43f832d2b33b074a679c0927e10bfa47db  6570  Assets/Graphics/Resources/font/SourceHanSansSC-Bold SDF_Base.asset
+c796de83ed6c1fa7ca457084983f60a74ef059f45b6c4a8bcacdf56abdb281f8  6491  Assets/Graphics/Resources/font/SourceHanSansSC-Bold SDF_Dynamic.asset
+6ec9983d3d0363b51322e4fa6acd728a51fce0ee69bbe729ecbb0ddfafb6a87b  6651  Assets/Graphics/Resources/font/SourceHanSansSC-Medium SDF_Base.asset
+b30dc00da54df2267d62bf496c75728cea977ae03c3190c487d23b67926e9be3  8395651  Assets/Graphics/Resources/font/SourceHanSansSC-Medium SDF_Dynamic.asset

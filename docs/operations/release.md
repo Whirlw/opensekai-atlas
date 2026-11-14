@@ -73,7 +73,7 @@ Get-FileHash Builds/Release-2026-11-03/OpenSekaiAtlas-release.apk -Algorithm SHA
 2. 真机门禁：见 [Android 构建](android-build.md) 的「真机门禁」小节（`Test` 谱 221 音符，`Unity:E` 除 AssetPackManager 外无日志）。
 3. `apksigner verify` 的证书 SHA-256 与上表一致。
 4. `aapt2 dump badging` 里 `sdkVersion:'26'`、`targetSdkVersion:'36'`、`native-code:'arm64-v8a'`、权限只有 `INTERNET`。
-5. 包体没有异常膨胀（Unity 6 + Low 剥离 + 仅 ARM64 约 113–119 MB）。
+5. 用同构建配置的 APK 比较字节数。0.3.0 发布包为 83,514,543 字节（79.65 MiB），见 [Android 构建](android-build.md#030-发布包体积)。
 
 ### release notes 模板
 

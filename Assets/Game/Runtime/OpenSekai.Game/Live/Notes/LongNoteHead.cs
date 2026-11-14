@@ -1,0 +1,185 @@
+using OpenSekai.Shared.Diagnostics;
+
+namespace Sekai.Live
+{
+	/// <summary>Owns the once-only head result and publication, independently of the body's lifecycle.</summary>
+	internal sealed class LongNoteHead
+	{
+		private readonly LongNote _bar;
+		private (NoteResult result, NoteResultDescription description) _result;
+
+		internal bool IsSettled => _result.result != NoteResult.None;
+		internal NoteResult Result => _result.result;
+		internal bool IsPastWindow(float now) =>
+			LiveConfig.IsPastJudgeWindow(LiveUtility.GetINoteToJudgeFrameType(_bar), _bar.MusicScoreInfo.time - now);
+
+		internal bool AcceptsPressAt(float sampleTime) =>
+			LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(_bar), _bar.MusicScoreInfo.time - sampleTime);
+
+		private LongNoteHeadNote _candidate;
+
+		/// <summary>
+		/// The head as the judgement list sees it: its own candidate object, so a press reaches the
+		/// head's entry and not the bar's. The visual side keeps using the bar.
+		/// </summary>
+		internal LongNoteHeadNote Candidate => _candidate ??= new LongNoteHeadNote(_bar, this);
+
+		/// <summary>
+		/// The note the head's verdict is scored as. The bar carries the same number for the picture -
+		/// the judgement effect is played on the bar, and the views read the bar - but the head's own
+		/// result lives here, on an object of its own, so score, combo and damage stop being answers
+		/// about the bar's Result. One object per bar, rearmed by <see cref="Reset"/>.
+		/// </summary>
+		private NoteBase _identity;
+
+		internal NoteBase Identity => _identity ??= new NoteBase(
+			_bar.MusicScoreInfo, _bar.Id, _bar.LaneStart, _bar.LaneEnd, _bar.Category, _bar.speedRatio, _bar.LaneOffset, _bar.Type);
+
+		internal LongNoteHead(LongNote bar)
+		{
+			_bar = bar;
+		}
+
+		internal void Reset()
+		{
+			_result = (NoteResult.None, NoteResultDescription.None);
+			if (_identity != null)
+			{
+				_identity.ResetNote();
+				_identity.SetDecoration(_bar.IsDecoration);
+			}
+		}
+
+		internal void Settle((NoteResult result, NoteResultDescription description) result, bool updateScore = true)
+		{
+			if (IsSettled || Identity.HasPublishedResult || result.result == NoteResult.None)
+			{
+				if (LiveTrace.IsOn(LiveTraceCategory.Judge))
+				{
+					LiveTrace.Write(LiveTraceCategory.Judge, string.Concat(
+						"headSkip id=", _bar.Id, " settled=", IsSettled, " published=", Identity.HasPublishedResult,
+						" want=", result.result, " t=", _bar.MusicScoreInfo.time.ToString("F3")));
+				}
+
+				return;
+			}
+			_result = result;
+			// The bar keeps the same number for the picture; the verdict itself is the head's.
+			_bar.SetHeadJudgeInfo(result);
+			// NoteBase's JudgeInfo setter is protected, so this uses its one public write. It is the same
+			// assignment: the head's own object carries the head's own verdict.
+			Identity.SetJudgeInfoForDecoration(result.result);
+			// A carrier's head has nothing to say, but it is closed all the same.
+			if (!_bar.HasJudgment)
+			{
+				Identity.ClaimPublication();
+				return;
+			}
+
+			// The head is counted as its own identity. Only an ordinary head borrows the bar as the object
+			// its judgement effect is shown on, because that is the object the view layer knows; every
+			// other head shows itself. A timeout Miss omits the score callback; a press keeps it even when
+			// it is a Miss.
+			ResultPublication.Publish(Identity, _bar.Callbacks, _bar.IsOrdinaryHead ? (NoteBase)_bar : Identity,
+				updateScore ? PublishShape.Head : PublishShape.ExpiredHead);
+		}
+
+		internal void SettleExpiredHead(float currentTime)
+		{
+			// A carrier has no judgement at all: its head is not a note the player answers, so it has
+			// no window to time out either. Settling it here gave the bar a result (and a Miss) that
+			// the bar's own contract says it does not have.
+			if (!_bar.HasJudgment)
+			{
+				return;
+			}
+
+			// The head answers to its own window and to nothing else. The bar leaving the play state -
+			// a release, a tail that ends it early, the bar being recycled - is not a verdict on the
+			// head: one door out of the play state used to settle this head, which let the bar's
+			// lifecycle decide a result the head owns.
+			//
+			if (!IsSettled && IsPastWindow(currentTime))
+			{
+				Settle((NoteResult.Miss, NoteResultDescription.None), updateScore: false);
+			}
+		}
+
+		/// <summary>
+		/// The head's own judgement entry: one touch, one lane, this frame. It is the door the candidate
+		/// list will call once the head is its own candidate; today the bar's <c>Judgment</c> only
+		/// forwards here, so the head is already the place the press is answered.
+		/// </summary>
+		/// <summary>
+		/// The head takes a press only when it is a note the player answers. A hidden head (a skip point,
+		/// a carrier) has nothing to answer, so a press that lands on its lane - the ordinary note that sits
+		/// on the same lane and time, say - must not reach it: driving the bar's frame from that press lit
+		/// the bar up and greyed it again, one frame later.
+		/// </summary>
+		internal bool Judgment(ref LiveTouch touch, float lane) => _bar.HeadIsANote && _bar.DriveJudgmentFrame(ref touch, lane);
+
+		internal bool TryJudge(ref LiveTouch touch, float lane)
+		{
+			// The head answers to its own state and its own window. Nothing about the bar - playing, held,
+			// released, greyed, finished - is consulted: the bar pinning the head on the line is only a
+			// picture, and the judgement has to be independent of it. A head that has its verdict is settled
+			// and never judged twice, which is the only lock this needs.
+			if (IsSettled)
+			{
+				return false;
+			}
+
+			// The head settles itself, so it checks its own lane - the bar's, widened by the long-note
+			// tolerance, which is kept as it is. This entry is reached from the head's candidate and from the
+			// hold pass, neither of which goes through LongNote.IsJudgment's lane gate on every path.
+			if (lane < _bar.JudgeLaneStart || lane > _bar.JudgeLaneEnd)
+			{
+				return false;
+			}
+
+			// The head is judged exactly like an ordinary note: a press inside the head's window, graded by
+			// that window's table. The offset is "note minus touch" - the convention NormalNote uses, and the
+			// one IsJudgmentTiming expects. Passing "touch minus note" inverted both sides of the window: an
+			// early press was read as a late one and a late press fell outside on the wrong end.
+			if (touch.phase != UnityEngine.InputSystem.TouchPhase.Began)
+			{
+				return false;
+			}
+
+			if (!AcceptsPressAt(touch.musicTime))
+			{
+				return false;
+			}
+
+			var judgeInfo = LiveConfig.CalculateLongStartNoteResult(_bar, touch.musicTime);
+			Settle(_bar.HeadResultUpdater != null ? _bar.HeadResultUpdater(judgeInfo) : judgeInfo);
+			return true;
+		}
+
+		internal void ConnectionNoteJudgment(ref LiveTouch touch, float lane)
+		{
+			if (!_bar.HasFinger && _bar.State != NoteState.Last && _bar.State != NoteState.Release)
+			{
+				return;
+			}
+
+			if (_bar.NoteList == null)
+			{
+				return;
+			}
+
+			// MusicScoreInfo is a value type: an uninitialized frame safely defaults to time zero.
+			// A held touch can retain its original press stamp; only the frame clock gates points.
+			float now = MusicScore.CurrentFrameInfo.time;
+			foreach (NoteBase note in _bar.JudgedPoints)
+			{
+				if (note != null
+					&& now - note.MusicScoreInfo.time >= -OpenSekai.Shared.Live.LongEndJudgement.EarlyGoodMs / 1000f
+					&& now - note.MusicScoreInfo.time <= OpenSekai.Shared.Live.LongEndJudgement.LateGoodMs / 1000f)
+				{
+					note.Judgment(ref touch, lane);
+				}
+			}
+		}
+	}
+}

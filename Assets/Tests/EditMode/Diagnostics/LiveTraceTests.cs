@@ -62,6 +62,29 @@ namespace EditMode.Diagnostics
         }
 
         [Test]
+        public void EmptySelectionDoesNotEnableAllCategories()
+        {
+            LiveTrace.Categories = LiveTraceCategory.None;
+            LiveTrace.Enabled = true;
+            LiveTrace.Write(LiveTraceCategory.Judge, "not-here");
+            Assert.That(LiveTrace.IsOn(LiveTraceCategory.Judge), Is.False);
+            Assert.That(LiveTrace.IsOn(LiveTraceCategory.RawTouch), Is.False);
+            Assert.That(LiveTrace.Recent(10), Is.Empty);
+        }
+
+        [Test]
+        public void InputChannelsCanBeSelectedIndependently()
+        {
+            LiveTrace.Categories = LiveTraceCategory.Press | LiveTraceCategory.Release;
+            LiveTrace.Enabled = true;
+            Assert.That(LiveTrace.IsOn(LiveTraceCategory.Press), Is.True);
+            Assert.That(LiveTrace.IsOn(LiveTraceCategory.Release), Is.True);
+            Assert.That(LiveTrace.IsOn(LiveTraceCategory.RawTouch), Is.False);
+            Assert.That(LiveTrace.IsOn(LiveTraceCategory.Resident), Is.False);
+            Assert.That(LiveTrace.IsOn(LiveTraceCategory.Judge), Is.False);
+        }
+
+        [Test]
         public void RecentReturnsTheNewestLinesOldestFirst()
         {
             LiveTrace.Enabled = true;
@@ -87,6 +110,61 @@ namespace EditMode.Diagnostics
 
             StringAssert.Contains("INVARIANT", LiveTrace.Recent(10));
             StringAssert.Contains("time went backwards", LiveTrace.Recent(10));
+        }
+
+        [Test]
+        public void FlushingPutsTheLineOnDiskBeforeTheProcessCanDie()
+        {
+            LiveTrace.Enabled = true;
+            LiveTrace.Categories = LiveTraceCategory.Hold;
+
+            LiveTrace.Write(LiveTraceCategory.Hold, "flush-marker");
+            LiveTrace.Flush();
+
+            Assert.That(LiveTrace.LogFilePath, Is.Not.Null.And.Not.Empty);
+
+            // The writer still holds the file, so the reader has to permit it: FileShare.ReadWrite.
+            using (var stream = new System.IO.FileStream(LiveTrace.LogFilePath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite))
+            using (var reader = new System.IO.StreamReader(stream))
+            {
+                StringAssert.Contains("flush-marker", reader.ReadToEnd());
+            }
+        }
+
+        [Test]
+        public void FlushAndShutdownAreFreeWhileTracingIsOff()
+        {
+            Assert.DoesNotThrow(LiveTrace.Flush);
+
+            LiveTrace.Shutdown();
+
+            Assert.DoesNotThrow(LiveTrace.Shutdown);
+            Assert.DoesNotThrow(LiveTrace.Flush);
+        }
+
+        [Test]
+        public void ALineAfterAShutdownStartsANewFileInsteadOfTruncatingTheOldOne()
+        {
+            LiveTrace.Enabled = true;
+            LiveTrace.Write(LiveTraceCategory.Hold, "before-quit");
+            string first = LiveTrace.LogFilePath;
+
+            LiveTrace.Shutdown();
+            LiveTrace.Write(LiveTraceCategory.Hold, "after-quit");
+
+            Assert.That(LiveTrace.LogFilePath, Is.Not.EqualTo(first), "a resumed run gets its own file");
+            Assert.That(System.IO.File.Exists(first), Is.True, "and the finished run is still on disk");
+            StringAssert.Contains("before-quit", ReadAll(first));
+        }
+
+        private static string ReadAll(string path)
+        {
+            // The current sink still holds its own file, so the reader has to permit it.
+            using (var stream = new System.IO.FileStream(path, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite))
+            using (var reader = new System.IO.StreamReader(stream))
+            {
+                return reader.ReadToEnd();
+            }
         }
 
         [Test]

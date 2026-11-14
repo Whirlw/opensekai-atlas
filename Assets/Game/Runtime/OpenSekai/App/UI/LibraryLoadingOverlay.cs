@@ -26,8 +26,8 @@ namespace OpenSekai.App.UI
 
         public static LibraryLoadingOverlay Create(Transform parent, Action onCancel)
         {
-            RectTransform root = LibraryScreen.CreateRect("LoadingOverlay", parent);
-            LibraryScreen.Stretch(root);
+            RectTransform root = LibraryUi.CreateRect("LoadingOverlay", parent);
+            LibraryUi.Stretch(root);
 
             LibraryLoadingOverlay overlay = root.gameObject.AddComponent<LibraryLoadingOverlay>();
             overlay.Build(root, onCancel);
@@ -39,10 +39,10 @@ namespace OpenSekai.App.UI
         {
             _cancelRequested = onCancel;
 
-            Image scrim = LibraryScreen.CreateImage("Scrim", root, ScrimColor);
-            LibraryScreen.Stretch(scrim.rectTransform);
+            Image scrim = LibraryUi.CreateImage("Scrim", root, ScrimColor);
+            LibraryUi.Stretch(scrim.rectTransform);
 
-            RectTransform card = LibraryScreen.CreateRect("Card", root);
+            RectTransform card = LibraryUi.CreateRect("Card", root);
             card.anchorMin = new Vector2(0.5f, 0.5f);
             card.anchorMax = new Vector2(0.5f, 0.5f);
             card.pivot = new Vector2(0.5f, 0.5f);
@@ -50,7 +50,7 @@ namespace OpenSekai.App.UI
             Image cardBackground = card.gameObject.AddComponent<Image>();
             cardBackground.color = CardColor;
 
-            _titleText = LibraryScreen.CreateText(
+            _titleText = LibraryUi.CreateText(
                 "Title", card, string.Empty, 34f, FontStyles.Bold, TextAlignmentOptions.Center);
             _titleText.rectTransform.anchorMin = new Vector2(0f, 1f);
             _titleText.rectTransform.anchorMax = new Vector2(1f, 1f);
@@ -60,7 +60,7 @@ namespace OpenSekai.App.UI
             _titleText.textWrappingMode = TextWrappingModes.NoWrap;
             _titleText.overflowMode = TextOverflowModes.Ellipsis;
 
-            _messageText = LibraryScreen.CreateText(
+            _messageText = LibraryUi.CreateText(
                 "Message", card, string.Empty, 24f, FontStyles.Normal, TextAlignmentOptions.Center);
             _messageText.rectTransform.anchorMin = new Vector2(0f, 1f);
             _messageText.rectTransform.anchorMax = new Vector2(1f, 1f);
@@ -69,7 +69,7 @@ namespace OpenSekai.App.UI
             _messageText.rectTransform.offsetMax = new Vector2(-32f, -92f);
             _messageText.color = new Color32(186, 198, 212, 255);
 
-            RectTransform track = LibraryScreen.CreateRect("Track", card);
+            RectTransform track = LibraryUi.CreateRect("Track", card);
             track.anchorMin = new Vector2(0f, 0f);
             track.anchorMax = new Vector2(1f, 0f);
             track.pivot = new Vector2(0.5f, 0f);
@@ -78,7 +78,7 @@ namespace OpenSekai.App.UI
             Image trackImage = track.gameObject.AddComponent<Image>();
             trackImage.color = BarTrackColor;
 
-            RectTransform fill = LibraryScreen.CreateRect("Fill", track);
+            RectTransform fill = LibraryUi.CreateRect("Fill", track);
             fill.anchorMin = new Vector2(0f, 0f);
             fill.anchorMax = new Vector2(0.2f, 1f);
             fill.offsetMin = Vector2.zero;
@@ -87,7 +87,7 @@ namespace OpenSekai.App.UI
             fillImage.color = AccentColor;
             _barFill = fill;
 
-            Button cancel = LibraryScreen.CreateButton("Cancel", card, "取消", OnCancelClicked, 200f, 56f);
+            Button cancel = LibraryUi.CreateButton("Cancel", card, "取消", OnCancelClicked, 200f, 56f);
             RectTransform cancelRect = (RectTransform)cancel.transform;
             cancelRect.anchorMin = new Vector2(0.5f, 0f);
             cancelRect.anchorMax = new Vector2(0.5f, 0f);

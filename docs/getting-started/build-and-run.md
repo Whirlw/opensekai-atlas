@@ -3,7 +3,7 @@
 > 目的：给出把工程跑起来、并在编辑器里验证一次完整打歌流程的最小步骤。
 > 适用读者：开发者、新成员。
 > 前置条件：已克隆仓库，机器上装有 Unity Hub。
-> 最后更新：2026-11-02
+> 最后更新：2026-11-11
 
 ## 概述
 
@@ -14,21 +14,21 @@
 
 | 项目 | 值 | 出处 |
 | --- | --- | --- |
-| Unity 版本 | `2022.3.62f3` | `ProjectSettings/ProjectVersion.txt` |
-| 渲染管线 | URP 14.0.12 | `Packages/manifest.json` |
+| Unity 版本 | `6000.6.7f1` | `ProjectSettings/ProjectVersion.txt` |
+| 渲染管线 | URP 17.6.0 | `Packages/manifest.json` |
 | 脚本后端 | 编辑器用 Mono；Android 用 IL2CPP | `ProjectSettings/ProjectSettings.asset` |
-| 版本号 | `2.0.0`（versionCode 81） | 同上 |
-| Android minSdk | 25，targetSdk 跟随最高（当前 36） | 同上 |
-| 构建场景（按序） | `Assets/OpenSekai/App/Scenes/Library.unity` → `Assets/Sekai/Scenes/TransitionBlank.unity` → `Assets/Sekai/Scenes/Core.unity` | `ProjectSettings/EditorBuildSettings.asset` |
-| 首场景入口组件 | `Assets/OpenSekai/App/Bootstrap/LibraryEntryPoint.cs` | 场景内挂载 |
+| 版本号 | `0.3.0`（versionCode 84） | 同上 |
+| Android SDK | minSdk 26，targetSdk 随构建环境选择（0.3.0 发布包为 36） | 同上 |
+| 构建场景（按序） | `Assets/Game/Scenes/Library.unity` → `Assets/Game/Scenes/TransitionBlank.unity` → `Assets/Game/Scenes/Core.unity` | `ProjectSettings/EditorBuildSettings.asset` |
+| 首场景入口组件 | `Assets/Game/Runtime/OpenSekai/App/Bootstrap/LibraryEntryPoint.cs` | 场景内挂载 |
 
 ## 详细说明
 
 ### 首次打开
 
-1. Unity Hub 添加本目录，选择 **2022.3.62f3** 打开。版本不一致时 Unity 会提示升级/降级，**不要确认升级**。
+1. Unity Hub 添加本目录，选择 **6000.6.7f1** 打开。
 2. 等待包解析与脚本编译。控制台最后一条编译时间之后不应再出现 `error CS`。
-3. 打开 `Assets/OpenSekai/App/Scenes/Library.unity`，按 Play。
+3. 打开 `Assets/Game/Scenes/Library.unity`，按 Play。
 
 ### 验证「跑通了」的三条判据
 
@@ -55,9 +55,9 @@
 完整跑一遍自动打歌（不需要外部曲包，用仓库内合成样本）：
 
 ```text
-1. 先在编辑器外准备曲包：菜单 OpenSekai/Dev/Install Test Chart，把 Tools/fixtures/baseline_tap 装进玩家目录
+1. 进入 Play 前，可用菜单 OpenSekai/Dev/Install Test Chart 把 Tools/fixtures/baseline_tap 装进玩家目录
 2. Play
-3. 菜单 OpenSekai/Library/Play Local Baseline Automatically（按 manifest.id 找到已安装的测试包）
+3. 菜单 OpenSekai/Library/Play Local Baseline Automatically（优先使用已安装的同 ID 曲包，随后查找仓库样本）
 4. 等待约 60 秒（221 音符 / 120 BPM / 9 秒前奏）
 5. 结果面板显示 1,000,000 / S / 总音符 221 · 自动判定 221 / 完成
 ```

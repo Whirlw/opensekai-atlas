@@ -29,7 +29,7 @@
 最小验证路径（编辑器内，不需要任何外部曲包）：
 
 ```text
-1. Unity 打开 Assets/OpenSekai/App/Scenes/Library.unity
+1. Unity 打开 Assets/Game/Scenes/Library.unity
 2. 按 Play
 3. 菜单 OpenSekai/Library/Play Local Baseline Automatically
 4. 等自动打歌跑完，应看到结果面板 1,000,000 / S / 完成

@@ -55,7 +55,7 @@ Select-String -Path "$env:LOCALAPPDATA\Unity\Editor\Editor.log" -Pattern 'Compil
 
 **原因**：曲库页是 `ScreenSpaceCamera` 画布，需要 `LibraryScreenCamera` 渲染；用别的相机或空场景会白屏。
 
-**处理**：确认打开的是 `Assets/OpenSekai/App/Scenes/Library.unity`；截图工具指定 `LibraryScreenCamera`。
+**处理**：确认打开的是 `Assets/Game/Scenes/Library.unity`；截图工具指定 `LibraryScreenCamera`。
 
 ### MCP 断线（`Unity session not ready`）
 

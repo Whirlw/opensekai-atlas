@@ -7,23 +7,48 @@ using Sekai;
 using Sekai.Live;
 using OpenSekai.Infrastructure.Charts;
 using UnityEngine;
-using OpenSekai.Shared.Audio;
 using OpenSekai.Shared.Packages;
-using OpenSekai.Shared.Playback;
 using OpenSekai.Shared.Settings;
 using OpenSekai.Live.Conversion;
 using Sekai.Core;
+using Sekai.Core.Live;
 
 namespace OpenSekai.App.Playback
 {
     /// <summary>Shared main-thread entry for manual and automatic package playback.</summary>
     public sealed class PlayService
     {
-        public static PlayService Instance { get; } = new PlayService();
-        public bool IsStarting { get; private set; }
-        private SceneManager _transitionOwner;
+        private readonly IPlayBootPublisher _boot;
+        private readonly IPlaySurface _surface;
+        private readonly IPackageAudioRegistrar _audio;
+        private readonly ILiveDeckSelection _deckSelection;
+        private readonly IPlayHistoryRecorder _playHistory;
+        private bool _releaseOnSceneExit;
 
-        private PlayService() { }
+        /// <summary>The process-wide service, wired to the retained singletons.</summary>
+        public static PlayService Instance { get; } = new PlayService(
+            new LegacyPlayBootPublisher(),
+            new LegacyPlaySurface(),
+            new LegacyPackageAudioRegistrar(),
+            new LegacyLiveDeckSelection(),
+            new Library.CustomScorePlayHistoryRecorder());
+
+        public bool IsStarting { get; private set; }
+
+        /// <summary>Used by tests and by the composition root to supply substitutes.</summary>
+        internal PlayService(
+            IPlayBootPublisher boot,
+            IPlaySurface surface,
+            IPackageAudioRegistrar audio,
+            ILiveDeckSelection deckSelection,
+            IPlayHistoryRecorder playHistory)
+        {
+            _boot = boot ?? throw new ArgumentNullException(nameof(boot));
+            _surface = surface ?? throw new ArgumentNullException(nameof(surface));
+            _audio = audio ?? throw new ArgumentNullException(nameof(audio));
+            _deckSelection = deckSelection ?? throw new ArgumentNullException(nameof(deckSelection));
+            _playHistory = playHistory ?? throw new ArgumentNullException(nameof(playHistory));
+        }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetForNewRun()
@@ -42,8 +67,7 @@ namespace OpenSekai.App.Playback
             IsStarting = true;
             bool transitionAccepted = false;
             bool bootPublished = false;
-            FreeLiveBootData previousBoot = null;
-            Sekai.Core.PlayMode previousMode = default;
+            LiveBootState previousBoot = default;
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -55,14 +79,15 @@ namespace OpenSekai.App.Playback
                 {
                     return Result(PlayStartStatus.Failed, "无法从当前场景开始游玩。");
                 }
-                if (!ScreenManager.ExistsInstance || SceneManager.Instance.CurrentScene != request.ReturnScene)
+                if (!_surface.Exists || _surface.CurrentScene != request.ReturnScene)
                 {
                     return Result(PlayStartStatus.Failed, "曲库界面尚未就绪。");
                 }
-                ScreenManager screens = ScreenManager.Instance;
-                if (!IsLibraryAlive(screens)
-                    || !screens.TryGetScreenLayerData(MenuScreenType.LiveLoading, out ScreenLayerData loading)
-                    || loading.LoadScreenLayerPrefab() == null)
+                if (!_surface.IsLibraryReady)
+                {
+                    return Result(PlayStartStatus.Failed, "曲库界面尚未就绪。");
+                }
+                if (!_surface.IsLiveLoadingReady)
                 {
                     return Result(PlayStartStatus.Failed, "打歌加载界面尚未就绪。");
                 }
@@ -86,38 +111,39 @@ namespace OpenSekai.App.Playback
                 {
                     return Result(PlayStartStatus.Failed, "没有可游玩的音符。");
                 }
-                PlaySessionContext.Begin(ComputeFileHash(entry.ScorePath));
+                _surface.BeginSession(ComputeFileHash(entry.ScorePath));
                 cancellationToken.ThrowIfCancellationRequested();
                 progress?.Invoke("正在加载音频...");
-                if (!await new PackageAudio(entry).RegisterAudioAsync(cancellationToken))
+                if (!await _audio.RegisterAsync(entry, cancellationToken))
                 {
                     return Result(PlayStartStatus.Failed, "无法加载音频文件。");
                 }
                 cancellationToken.ThrowIfCancellationRequested();
                 PlaybackSettingsSnapshot settings = LiveSettingsStore.Shared.CaptureSnapshot();
-                LiveBundleBuildData config = Resources.Load<LiveBundleBuildData>(LiveConfig.ConfigBundleNamePath);
+                LiveBundleBuildData config = ResourceCatalog.LiveBundleConfig.Load();
                 if(config == null) throw new InvalidOperationException("Live bundle configuration is missing.");
                 PlaySession session = PlaySession.Create(request, entry, chart, config, settings);
-                FreeLiveBootData boot = LegacyLiveBootAdapter.Create(session);
+                FreeLiveBootData boot = LegacyLiveBootAdapter.Create(session, _deckSelection.SelectedDeckId);
                 cancellationToken.ThrowIfCancellationRequested();
                 string message = request.IsAuto ? "正在开始自动游玩..." : "正在开始游玩...";
                 progress?.Invoke(message);
                 cancellationToken.ThrowIfCancellationRequested();
-                if (screens == null || SceneManager.Instance.CurrentScene != request.ReturnScene
-                    || !IsLibraryAlive(screens))
+                if (!_surface.Exists || _surface.CurrentScene != request.ReturnScene || !_surface.IsLibraryReady)
                 {
                     return Result(PlayStartStatus.Failed, "曲库状态已变化，请重新开始游玩。");
                 }
 
-                _transitionOwner = SceneManager.Instance;
-                _transitionOwner.OnExitScene += ReleaseStartLock;
-                previousBoot = UserDataManager.Instance.FreeLiveBootData;
-                previousMode = Sekai.Core.EntryPoint.PlayMode;
-                UserDataManager.Instance.FreeLiveBootData = boot;
-                Sekai.Core.EntryPoint.PlayMode = Sekai.Core.PlayMode.SoloLive;
+                _surface.SubscribeSceneExit(ReleaseStartLock);
+                _releaseOnSceneExit = true;
+                previousBoot = _boot.Capture();
+                // The same boundary that hands the boot over hands the recorder over: the live scene
+                // builds its own context, so the App-side implementation travels through the Game's
+                // registration slot, never through a Game -> App reference.
+                PlayHistoryRecorder.Current = _playHistory;
+                _boot.Publish(boot);
                 bootPublished = true;
-                LiveTransitioner.SafeForceFinish(null);
-                screens.PushUIScreen(MenuScreenType.LiveLoading, false);
+                _surface.ForceFinishTransition();
+                _surface.PushLiveLoading();
                 transitionAccepted = true;
                 return Result(PlayStartStatus.Started, message);
             }
@@ -148,37 +174,27 @@ namespace OpenSekai.App.Playback
                 // Keep the lock until the scene transition actually starts.
                 if (!transitionAccepted)
                 {
-                    if (bootPublished && SceneManager.Instance.CurrentScene == request.ReturnScene)
+                    if (bootPublished && _surface.CurrentScene == request.ReturnScene)
                     {
-                        UserDataManager.Instance.FreeLiveBootData = previousBoot;
-                        Sekai.Core.EntryPoint.PlayMode = previousMode;
+                        _boot.Restore(previousBoot);
                     }
                     ReleaseStartLock();
                 }
             }
         }
 
-        /// <summary>
-        /// True when the page that owns the start button is still alive. The lightweight
-        /// library screen registers itself; the legacy editor home page keeps the old check.
-        /// </summary>
-        private static bool IsLibraryAlive(ScreenManager screens)
-        {
-            ILibraryPage page = LibraryPageRegistry.Current;
-            if (page != null)
-            {
-                return page.IsReady;
-            }
-            return screens != null && screens.IsActiveScreen(MenuScreenType.MusicScoreMakerTop);
-        }
-
         private void ReleaseStartLock()
         {
-            if (_transitionOwner != null)
+            // Only touch the surface when this service actually subscribed. ResetForNewRun runs at
+            // subsystem registration, before any scene exists, and asking the surface for the scene
+            // manager there makes SceneManager's lazy Instance create one: that phantom survives as
+            // the DontDestroyOnLoad singleton with the wrong CurrentScene, and every later start is
+            // refused as "library not ready".
+            if (_releaseOnSceneExit)
             {
-                _transitionOwner.OnExitScene -= ReleaseStartLock;
+                _surface.UnsubscribeSceneExit(ReleaseStartLock);
+                _releaseOnSceneExit = false;
             }
-            _transitionOwner = null;
             IsStarting = false;
         }
 

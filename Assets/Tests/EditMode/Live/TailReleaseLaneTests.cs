@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using OpenSekai.Charts.Serialization;
@@ -79,7 +79,25 @@ namespace OpenSekai.Tests.EditMode.Live
 			StepTo(TailTime, LiveHarness.Touch(2, LanePosition(far), 10d + TailTime, TouchPhase.Ended));
 
 			Assert.That(Tail.Result, Is.EqualTo(NoteResult.None), "a lift outside the bar is not its release");
-			Assert.That(_bar.State, Is.Not.EqualTo(NoteState.Done), "and it does not finish the bar either");
+			Assert.That(_bar.State, Is.EqualTo(NoteState.Done), "the body has reached its endpoint");
+		}
+
+		[Test]
+		public void AReleaseAfterTheWindowKeepsTheExpiredTailAtMiss()
+		{
+			HoldUntilTailTime();
+			var position = LanePosition(_bar.JudgeLaneStart);
+			StepTo(TailTime, LiveHarness.Touch(1, position, 10d + TailTime, TouchPhase.Stationary));
+			Assert.That(Tail.Result, Is.EqualTo(NoteResult.None));
+
+			float expired = TailTime + 0.25f;
+			StepTo(expired, LiveHarness.Touch(1, position, 10d + expired, TouchPhase.Stationary));
+			Assert.That(Tail.Result, Is.EqualTo(NoteResult.Miss));
+			Assert.That(_bar.State, Is.EqualTo(NoteState.Done));
+
+			float lift = expired + 1f / 60f;
+			StepTo(lift, LiveHarness.Touch(1, position, 10d + lift, TouchPhase.Ended));
+			Assert.That(Tail.Result, Is.EqualTo(NoteResult.Miss));
 		}
 
 		[Test]
@@ -95,5 +113,190 @@ namespace OpenSekai.Tests.EditMode.Live
 				+ $" judgeable={_bar.IsTailJudgeableAt(TailTime)} tail={TailTime:F3} bar={_bar.MusicScoreInfo.time:F3})");
 			Assert.That(_bar.State, Is.EqualTo(NoteState.Done));
 		}
+
+		[TestCase(false)]
+		[TestCase(true)]
+		public void AFinalSwipeOnlyReachesTheBarItStartedOn(bool endOutside)
+		{
+			LongNote left = FlickBar(101, 2);
+			LongNote right = FlickBar(103, 8);
+			var score = new MusicScore(new[] { left.MusicScoreInfo },
+				System.Array.Empty<EventBase>(), new NoteBase[] { left, right });
+			_harness.Arrange(score);
+			Vector3 leftPosition = LanePosition(2);
+			Vector3 rightPosition = LanePosition(8);
+			StepTo(0f, Sample(1, leftPosition, 0f, TouchPhase.Began),
+				Sample(2, rightPosition, 0f, TouchPhase.Began));
+			StepTo(0.98f, Sample(1, leftPosition, 0.98f, TouchPhase.Stationary),
+				Sample(2, rightPosition, 0.98f, TouchPhase.Stationary));
+			Assert.That(left.HasFinger && right.HasFinger, Is.True);
+
+			Vector3 endPosition = endOutside ? leftPosition + Vector3.left * 100f : rightPosition;
+			StepTo(1f, Sample(1, endPosition, 1f, TouchPhase.Ended, 700f),
+				Sample(2, rightPosition, 1f, TouchPhase.Stationary));
+
+			Assert.That(((NoteBase)left.ChildNote).Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(((NoteBase)right.ChildNote).Result, Is.EqualTo(NoteResult.None));
+		}
+
+		[Test]
+		public void ADeferredSwipeFollowsItsFingerWhenAnotherFingerKeepsHolding()
+		{
+			LongNote bar = FlickBar(101, 4);
+			var score = new MusicScore(new[] { bar.MusicScoreInfo },
+				System.Array.Empty<EventBase>(), new NoteBase[] { bar });
+			_harness.Arrange(score);
+			Vector3 position = LanePosition(4);
+			StepTo(0f, Sample(1, position, 0f, TouchPhase.Began));
+			StepTo(0.88f, Sample(1, position, 0.88f, TouchPhase.Stationary),
+				Sample(2, position, 0.88f, TouchPhase.Began));
+			StepTo(0.90f, Sample(1, position, 0.90f, TouchPhase.Moved, 700f),
+				Sample(2, position, 0.90f, TouchPhase.Stationary));
+			Assert.That(bar.HasDeferredSwipe, Is.True);
+
+			StepTo(0.92f, Sample(1, position, 0.92f, TouchPhase.Ended, 700f),
+				Sample(2, position, 0.92f, TouchPhase.Stationary));
+			StepTo(0.94f, Sample(2, position, 0.94f, TouchPhase.Stationary));
+			StepTo(0.96f, Sample(2, position, 0.96f, TouchPhase.Stationary));
+			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.None));
+			StepTo(0.98f, Sample(2, position, 0.98f, TouchPhase.Stationary));
+			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.JustPerfect));
+		}
+
+		[Test]
+		public void AFinalSwipeInsideTwoJudgeRangesGoesToTheCloserBar()
+		{
+			LongNote left = FlickBar(101, 4, 1.5f);
+			LongNote right = FlickBar(103, 5, 1.5f);
+			var score = new MusicScore(new[] { left.MusicScoreInfo },
+				System.Array.Empty<EventBase>(), new NoteBase[] { left, right });
+			_harness.Arrange(score);
+			Vector3 leftPosition = LanePosition(4);
+			Vector3 rightPosition = LanePosition(5);
+			StepTo(0f, Sample(1, leftPosition, 0f, TouchPhase.Began),
+				Sample(2, rightPosition, 0f, TouchPhase.Began));
+			StepTo(0.98f, Sample(1, leftPosition, 0.98f, TouchPhase.Stationary),
+				Sample(2, rightPosition, 0.98f, TouchPhase.Stationary));
+			Assert.That(left.HasFinger && right.HasFinger, Is.True);
+
+			StepTo(1f, Sample(1, leftPosition, 1f, TouchPhase.Ended, 700f),
+				Sample(2, rightPosition, 1f, TouchPhase.Stationary));
+
+			Assert.That(((NoteBase)left.ChildNote).Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(((NoteBase)right.ChildNote).Result, Is.EqualTo(NoteResult.None));
+		}
+
+		// A crowded tail: a touch other than the lifting one still inside the tail's judge range means
+		// the lift may only settle the tail inside the Perfect band. Alone, any grade settles it.
+
+		private LongNote ArrangeHeldNormalBar(int lane, float until, params int[] extraTouches)
+		{
+			LongNote bar = NormalBar(201, lane);
+			var score = new MusicScore(new[] { bar.MusicScoreInfo },
+				System.Array.Empty<EventBase>(), new NoteBase[] { bar });
+			_harness.Arrange(score);
+			Vector3 position = LanePosition(lane);
+			StepTo(0f, Sample(1, position, 0f, TouchPhase.Began));
+			const float frame = 1f / 60f;
+			for (float now = frame; now < until - frame * 0.5f; now += frame)
+			{
+				StepTo(now, Sample(1, position, now, TouchPhase.Stationary));
+			}
+
+			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.None));
+			return bar;
+		}
+
+		[Test]
+		public void ACrowdedTailIgnoresAnOffBeatLiftAndWaitsForTheFingerStillOnIt()
+		{
+			LongNote bar = ArrangeHeldNormalBar(4, 0.9f);
+			Vector3 position = LanePosition(4);
+			StepTo(0.9f, Sample(1, position, 0.9f, TouchPhase.Stationary), Sample(2, position, 0.9f, TouchPhase.Began));
+
+			// The tapping finger comes up 100 ms late: Great on the table, but the holder is still there.
+			StepTo(1.1f, Sample(1, position, 1.1f, TouchPhase.Stationary), Sample(2, position, 1.1f, TouchPhase.Ended));
+			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.None),
+				"an off-beat lift beside another touch is not taken as the release");
+
+			// Now the holder is alone in the range, and its own lift settles any grade.
+			StepTo(1.12f, Sample(1, position, 1.12f, TouchPhase.Ended));
+			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.Great));
+		}
+
+		[Test]
+		public void ACrowdedTailTakesAPerfectLift()
+		{
+			LongNote bar = ArrangeHeldNormalBar(4, 0.9f);
+			Vector3 position = LanePosition(4);
+			StepTo(0.9f, Sample(1, position, 0.9f, TouchPhase.Stationary), Sample(2, position, 0.9f, TouchPhase.Began));
+
+			StepTo(1.03f, Sample(1, position, 1.03f, TouchPhase.Stationary), Sample(2, position, 1.03f, TouchPhase.Ended));
+			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.JustPerfect));
+		}
+
+		[Test]
+		public void ALoneLiftSettlesAnyGrade()
+		{
+			LongNote bar = ArrangeHeldNormalBar(4, 1.1f);
+			StepTo(1.1f, Sample(1, LanePosition(4), 1.1f, TouchPhase.Ended));
+			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.Great));
+		}
+
+		[Test]
+		public void ATouchOutsideTheTailRangeDoesNotCrowdIt()
+		{
+			LongNote bar = ArrangeHeldNormalBar(2, 0.9f);
+			Vector3 position = LanePosition(2);
+			Vector3 far = LanePosition(10);
+			StepTo(0.9f, Sample(1, position, 0.9f, TouchPhase.Stationary), Sample(2, far, 0.9f, TouchPhase.Began));
+
+			StepTo(1.1f, Sample(1, position, 1.1f, TouchPhase.Ended), Sample(2, far, 1.1f, TouchPhase.Stationary));
+			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.Great));
+		}
+
+		[Test]
+		public void ATouchEndingOnTheSameFrameDoesNotCrowdIt()
+		{
+			LongNote bar = ArrangeHeldNormalBar(4, 0.9f);
+			Vector3 position = LanePosition(4);
+			StepTo(0.9f, Sample(1, position, 0.9f, TouchPhase.Stationary), Sample(2, position, 0.9f, TouchPhase.Began));
+
+			StepTo(1.1f, Sample(1, position, 1.1f, TouchPhase.Ended), Sample(2, position, 1.1f, TouchPhase.Ended));
+			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.Great));
+		}
+
+		[Test]
+		public void SeveralSamplesOfTheLiftingTouchAreNotAnotherTouch()
+		{
+			LongNote bar = ArrangeHeldNormalBar(4, 1.1f);
+			Vector3 position = LanePosition(4);
+			StepTo(1.1f, Sample(1, position, 1.09f, TouchPhase.Moved), Sample(1, position, 1.1f, TouchPhase.Ended));
+			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.Great));
+		}
+
+		private static LongNote NormalBar(int id, int lane)
+		{
+			var head = new MusicScoreInfo(0, 0f, 0f, 120, 4, 1, 1);
+			var end = new MusicScoreInfo(0, 0.5f, 1f, 120, 4, 1, 1);
+			var bar = new LongNote(head, id, lane, lane, NoteCategory.Long, NoteType.Default, 1f, 0f);
+			bar.AddNoteListAndSetupChildNote(new NormalNote(end, id + 1, lane, lane,
+				NoteCategory.Normal, 1f, NoteType.Default, 0f));
+			return bar;
+		}
+
+		private static LongNote FlickBar(int id, int lane, float laneOffset = 0f)
+		{
+			var head = new MusicScoreInfo(0, 0f, 0f, 120, 4, 1, 1);
+			var end = new MusicScoreInfo(0, 0.5f, 1f, 120, 4, 1, 1);
+			var bar = new LongNote(head, id, lane, lane, NoteCategory.Long, NoteType.Default, 1f, laneOffset);
+			bar.AddNoteListAndSetupChildNote(new FlickNote(end, id + 1, lane, lane,
+				NoteCategory.Flick, 1f, NoteType.Default, NoteDirection.Default, 1f, 0f));
+			return bar;
+		}
+
+		private static LiveTouchSample Sample(int id, Vector3 position, float time, TouchPhase phase,
+			float screenX = 800f) =>
+			new LiveTouchSample(id, new Vector2(screenX, 600f), position, 10d + time, phase, Vector2.zero);
 	}
 }

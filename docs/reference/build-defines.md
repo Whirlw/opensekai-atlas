@@ -15,7 +15,7 @@
 | 宏 | 作用 | 默认 | 打开后多出的内容 |
 | --- | --- | --- | --- |
 | `DOTWEEN` | 补间库 | **开** | 引擎层大量 UI/动画代码依赖它，关掉会编译失败 |
-| `OPENSEKAI_PERF_HUD` | 真机帧率 HUD | 关 | `Assets/OpenSekai/App/Diagnostics/PerformanceHud.cs` 整体编入；右上角 IMGUI + `[PerfHud]` 日志 |
+| `OPENSEKAI_PERF_HUD` | 已不需要 | — | 性能 HUD 改由设置中的「追踪选项 → 性能 HUD」开关控制 |
 | `OPENSEKAI_VIDEO_EXPORT` | 已删除 | 关 | 无：视频导出模块已删除（备份目录也已清理），该宏不再有任何作用 |
 
 历史上还有过 `UNITY_EDITOR` 之类的内置宏与 CRIWARE 的宏，那些由 Unity/插件自动注入，不需要手配。
@@ -34,25 +34,23 @@
 
 ### 与构建规则的关系
 
-- 权限剥离（`Assets/OpenSekai/Editor/RecordingBuildRules.cs`）现在**始终生效**，不再包在
+- 权限剥离（`Assets/Game/Editor/OpenSekai/RecordingBuildRules.cs`）现在**始终生效**，不再包在
   `#if !OPENSEKAI_VIDEO_EXPORT` 里。
 - Android 的 `IPostGenerateGradleAndroidProject` 只在构建时执行，不影响编辑器编译。
 
 ## 示例
 
-临时打一个带性能 HUD 的包：
+开启性能 HUD：
 
 ```text
-Player Settings → Scripting Define Symbols:
-  DOTWEEN;OPENSEKAI_PERF_HUD
-→ 出包 → 装到真机 → adb logcat -s Unity | Select-String \[PerfHud\]
-→ 采完记得改回 DOTWEEN
+设置 → 追踪选项 → 性能 HUD → 开
+→ adb logcat -s Unity | Select-String \[PerfHud\]
 ```
 
 ## 常见问题与故障排查
 
 - **宏写错导致满屏 `error CS`**：例如把 `DOTWEEN` 删掉，`Assets/Scripts` 里大量 `using DG.Tweening` 失败。
-- **加了宏但 HUD 不出现**：宏是按平台的，确认改的是目标平台那一份，并且重新出过包。
+- **HUD 不出现**：在设置 → 追踪选项中检查「性能 HUD」是否开启。
 - **`OPENSEKAI_VIDEO_EXPORT` 定义了也没用**：模块已删除，属预期。
 
 ## 相关文档

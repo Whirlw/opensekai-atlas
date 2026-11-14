@@ -2,10 +2,13 @@
     "name": "OpenSekai.Tests.EditMode",
     "rootNamespace": "OpenSekai.Tests.EditMode",
     "references": [
+        "OpenSekai.Core",
         "OpenSekai.Game",
         "OpenSekai.App",
         "OpenSekai.Editor",
-        "Unity.InputSystem"
+        "Unity.InputSystem",
+        "Unity.TextMeshPro",
+        "UniTask"
     ],
     "includePlatforms": [
         "Editor"

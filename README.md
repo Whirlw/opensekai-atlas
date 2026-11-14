@@ -12,7 +12,7 @@
 - 渲染管线: URP **17.6.0**
 - 输入: **仅新版 Input System**（`activeInputHandler = 1`）
 - 目标平台: Android（IL2CPP，仅 ARM64，minSdk 26 / targetSdk 36）
-- 当前包体: **79.65 MB**（0.3.0）
+- 0.3.0 发布包：**83,514,543 字节（79.65 MiB）**，见 [Android 构建](docs/operations/android-build.md)。
 
 ## 快速开始
 
@@ -56,7 +56,6 @@
 - 高帧率支持（跟随屏幕 / 120 / 144 / 165 / 185 / 240），见 [真机性能](docs/operations/android-performance.md)
 - 轻量化重构：只保留曲库与打歌链路，删除谱面编辑器与抽卡、收窄页面注册表、AB 白名单、摘除依赖
 - 音视频与美术全部为自制/CC0；音频改为散装 wav + 运行时注册，不依赖 CRI ACB
-- 包体 117.05 MB → **79.65 MB**
 
 ## 资源说明
 

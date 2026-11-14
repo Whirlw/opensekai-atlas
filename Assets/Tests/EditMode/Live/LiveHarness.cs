@@ -1,8 +1,7 @@
-﻿// 禁止用「new LongNote(...) 后反射调内部阶段」编写判定用例。
+// 禁止用「new LongNote(...) 后反射调内部阶段」编写判定用例。
 // 子音符的进度、视图、候选只在 OnUpdate 的整条扫描里推进，缺了它 IsJudgment 恒为假。
 // 需要真实音符图时，请先 ChartJson.Read → RuntimeChartConverter.Convert，再交给本脚手架逐帧驱动。
 using System;
-using System.Reflection;
 using NUnit.Framework;
 using Sekai.Core.Live;
 using Sekai.Live;
@@ -40,21 +39,21 @@ namespace OpenSekai.Tests.EditMode.Live
             Logic.SetTouchSource(Source);
         }
 
-        internal void Arrange(MusicScore score, NoteBase[] notes = null, float displayTimeOffset = 1f)
+        internal void Arrange(MusicScore score, NoteBase[] notes = null, float displayTimeOffset = 1f, bool auto = false)
         {
-            SetField("_musicScore", score);
+            Logic.Session.MusicScore = score;
             Logic.Notes.Bind(notes ?? score.NoteArray);
-            SetField("_noteDisplayTimeOffset", displayTimeOffset);
-            SetField("_liveViews", Array.Empty<LiveViewBase>());
+            Logic.Session.NoteDisplayTimeOffset = displayTimeOffset;
+            Logic.Session.IsAuto = auto;
+            Logic.Session.Views = Array.Empty<LiveViewBase>();
         }
 
         /// <summary>Bind the real live callbacks to an observing view; note scanning stays unchanged.</summary>
         internal void BindViews(params LiveViewBase[] views)
         {
-            SetField("_liveViews", views);
+            Logic.Session.Views = views;
             var notes = Logic.Notes.Notes;
-            typeof(LiveLogic).GetMethod("BindNoteCallbacks", BindingFlags.Instance | BindingFlags.NonPublic,
-                null, new[] { typeof(NoteBase[]) }, null).Invoke(Logic, new object[] { notes });
+            Logic.Scheduler.BindNoteCallbacks(notes);
         }
 
         /// <summary>开始一帧并清空上一帧样本；随后可 AddTouch 多次，再 OnInput。</summary>
@@ -71,6 +70,7 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         internal void OnInput() => Logic.OnInput();
+        internal void OnView() => Logic.OnView();
 
         /// <summary>按游戏顺序推进一帧，支持同帧多指与同指多个样本。</summary>
         internal void Step(float now, double inputTime, params LiveTouchSample[] touches)
@@ -78,14 +78,13 @@ namespace OpenSekai.Tests.EditMode.Live
             OnUpdate(now, inputTime);
             foreach (LiveTouchSample touch in touches) Source.Add(touch);
             OnInput();
+            OnView();
         }
 
         internal static LiveTouchSample Touch(int id, Vector3 position, double inputTime,
             InputTouchPhase phase = InputTouchPhase.Began, Vector2 delta = default) =>
             new LiveTouchSample(id, new Vector2(800f, 600f), position, inputTime, phase, delta);
 
-        private void SetField(string name, object value) =>
-            typeof(LiveLogic).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).SetValue(Logic, value);
 
         public void Dispose()
         {

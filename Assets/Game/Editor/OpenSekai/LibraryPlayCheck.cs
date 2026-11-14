@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using Cysharp.Threading.Tasks;
 using Sekai;
-using Sekai.MusicScoreMaker.Common;
+using OpenSekai.App.Library;
 using UnityEditor;
 using UnityEngine;
 using CriWare;

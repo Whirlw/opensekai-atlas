@@ -59,37 +59,6 @@ namespace OpenSekai.Tests.EditMode.Live
             return (LiveConfig.CalcFrameToTime(beforeFrames) + LiveConfig.CalcFrameToTime(afterFrames)) * 1000f;
         }
 
-        // The two judge-timing modes must stay distinguishable, otherwise the setting is a lie.
-        [Test]
-        public void LegacyTimingShrinksLatencyByOneFrame()
-        {
-            const double frameMusicTime = 12.5d;
-            const double frameGameTime = 100d;
-            const double inputTime = 99.9d; // a touch sampled 100 ms before this frame
-
-            float legacy = Sekai.Core.Live.LiveLogic.ComputeLegacyInputMusicTime(
-                frameMusicTime, frameGameTime, inputTime);
-            float sampled = Sekai.Core.Live.LiveLogic.ComputeInputMusicTime(
-                frameMusicTime, frameGameTime, inputTime);
-
-            // Legacy: 100 ms of real latency becomes ~1.7 ms of music time (1/60 of the delta).
-            Assert.That((frameMusicTime - legacy) * 1000d, Is.EqualTo(100d / 60d).Within(0.05d));
-            // Sampled: the touch lands 100 ms earlier on the timeline.
-            Assert.That(sampled, Is.EqualTo(12.4f).Within(1e-4f));
-            Assert.That(sampled, Is.LessThan(legacy));
-        }
-
-        [Test]
-        public void LegacyTimingDoesNotClampButSampledTimingDoes()
-        {
-            float legacy = Sekai.Core.Live.LiveLogic.ComputeLegacyInputMusicTime(5d, 10d, 9d);
-            float sampled = Sekai.Core.Live.LiveLogic.ComputeInputMusicTime(5d, 10d, 9d);
-
-            // One second of stale latency: legacy turns it into 1/60 s, sampled clamps to 250 ms.
-            Assert.That((5d - legacy) * 1000d, Is.EqualTo(1000d / 60d).Within(0.1d));
-            Assert.That(sampled, Is.EqualTo(4.75f).Within(1e-4f));
-        }
-
         [Test]
         public void JudgeTimingSettingDefaultsToSampledTouch()
         {

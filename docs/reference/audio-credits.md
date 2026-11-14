@@ -58,3 +58,4 @@
 | live/sound/live_se/common | se_live_clear | 自制 | OpenSekai procedural audio pack | CC0-1.0 | — | 2026-11-09 | Original D-major arpeggio and stereo reverb with quiet mid-high detail; no melodic quotation |
 | live/sound/live_se/common | se_live_full_combo | 自制 | OpenSekai procedural audio pack | CC0-1.0 | — | 2026-11-09 | Original D-major arpeggio and stereo reverb with quiet mid-high detail; no melodic quotation |
 | live/sound/live_se/common | se_live_all_perfect | 自制 | OpenSekai procedural audio pack | CC0-1.0 | — | 2026-11-09 | Original D-major arpeggio and stereo reverb with quiet mid-high detail; no melodic quotation |
+| live/sound/live_se/common | SE_AREA_TRANSITION_SEKAI | 自制 | OpenSekai procedural audio pack | CC0-1.0 | — | 2026-11-12 | Swept noise whoosh into two D6 bell partials; 0.75 s, 44.1 kHz stereo, no quotation |

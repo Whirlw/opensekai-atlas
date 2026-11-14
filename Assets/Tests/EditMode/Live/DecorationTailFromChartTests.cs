@@ -1,7 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 
 using NUnit.Framework;
 
@@ -64,8 +63,6 @@ namespace OpenSekai.Tests.EditMode.Live
             public FakeTouchSource Source;
         }
 
-        private static void SetField(object target, string name, object value) =>
-            typeof(LiveLogic).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic).SetValue(target, value);
 
         private static MusicScore LoadScore()
         {
@@ -79,10 +76,10 @@ namespace OpenSekai.Tests.EditMode.Live
             var logic = new LiveLogic(null);
             var source = new FakeTouchSource();
             logic.SetTouchSource(source);
-            SetField(logic, "_musicScore", score);
+            logic.Session.MusicScore = score;
             logic.Notes.Bind(notes);
-            SetField(logic, "_noteDisplayTimeOffset", 1f);
-            SetField(logic, "_liveViews", Array.Empty<LiveViewBase>());
+            logic.Session.NoteDisplayTimeOffset = 1f;
+            logic.Session.Views = Array.Empty<LiveViewBase>();
             return new Harness { Logic = logic, Source = source };
         }
 

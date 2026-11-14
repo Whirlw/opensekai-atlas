@@ -1,0 +1,10 @@
+﻿sprite,atlas,note
+badge_attention_rd,sactx-1-2048x2048-ASTC 4x4-CommonAtlas-ac1217fb,红点徽标白色底片
+bg_base_circle_h48_wh,sactx-1-2048x2048-ASTC 4x4-CommonAtlas-ac1217fb,圆形底片
+bg_base_r10_wh,sactx-1-2048x2048-ASTC 4x4-CommonAtlas-ac1217fb,圆角底片 r10
+bg_base_r16_wh,sactx-1-2048x2048-ASTC 4x4-CommonAtlas-ac1217fb,圆角底片 r16
+bg_base_r8_wh,sactx-1-2048x2048-ASTC 4x4-CommonAtlas-ac1217fb,圆角底片 r8
+btn_circle_h56_wh,sactx-1-2048x2048-ASTC 4x4-CommonAtlas-ac1217fb,圆形按钮 56
+btn_circle_h80_wh,sactx-1-2048x2048-ASTC 4x4-CommonAtlas-ac1217fb,圆形按钮 80
+icon_menu_wh,sactx-1-2048x2048-ASTC 4x4-CommonAtlas-ac1217fb,菜单图标底片
+icon_triangle_wh,sactx-1-2048x2048-ASTC 4x4-CommonAtlas-ac1217fb,三角图标底片
