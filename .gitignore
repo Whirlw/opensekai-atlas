@@ -170,3 +170,7 @@ Assets/_Recovery.meta
 /.nle-semantic/
 *.req.json
 *.res.json
+
+# Written by BuildStampBuildStep before every player build.
+/Assets/Game/Resources/BuildStamp.txt
+/Assets/Game/Resources/BuildStamp.txt.meta
