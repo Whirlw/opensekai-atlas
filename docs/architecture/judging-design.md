@@ -73,10 +73,13 @@ OnInput()
 | --- | --- | --- |
 | 归一化 | `TouchDeduplication` | 同一 `touchId` 的时间戳重复只处理一次；时间倒退丢弃；`Ended` 之后同 id 不再处理 |
 | 坐标系 | `InputSystemTouchSource` | `Camera.ScreenToWorldPoint` 得到世界坐标 |
-| 车道解析 | `TouchLane.Resolve` | 返回**小数**车道（2.5 = 2、3 之间）；超出外侧容差，或高出判定线超过 `_judgmentOffsetY`，返回 `-1`（Outside，整帧丢弃） |
+| 车道解析 | `TouchLane.Resolve` | 返回**小数**车道（2.5 = 2、3 之间）；超出外侧容差返回 `-1`（Outside）。只看 x，不看 y |
+| y 轴门（唯一一道） | `TouchLane.IsAboveTheLine` | 只在触摸**出生**（`Began` 样本）时问一次：高出判定线超过 `_judgmentOffsetY` 的触摸被记进 `_touchesAboveTheLine`，此后它所有样本都算 Outside。落在线上的手指后来划到线以上，仍然是有效输入 |
 | 判定时机 | `LiveLogic.ResolveInputMusicTime` | 默认「触摸时刻」模式：`touch.time` 转音乐时间，晚到量限制在 `[-250 ms, 0]`；旧式模式为逐帧近似 |
 
 `-1` 车道的触摸不会进入任何候选：这是唯一一种「按了但什么都没发生、日志里也没有 grab」的路径，诊断见 `rawTouch` trace。
+
+**y 轴只在输入口存在一次。** 原始样本进来时算好车道，此后所有通道（按下 / 抬起 / 常驻）都读同一个 `InputTmp.Lane`，`ConvertLaneBy` 只是把这条车道交出去，不再为某个音符重算——曾经的第二个 y 门只给「向左的划键」开，导致左划能在判定线以上继续读位移、右划不行，左右不对称。
 
 ### 3.2 轨道容差
 

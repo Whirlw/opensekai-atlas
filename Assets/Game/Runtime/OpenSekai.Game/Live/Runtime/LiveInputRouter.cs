@@ -25,6 +25,12 @@ namespace Sekai.Core.Live
 
 		private readonly Dictionary<int, double> _judgedTouchTimes = new Dictionary<int, double>(FingerCapacity);
 
+		/// <summary>
+		/// Touches that landed above the judgement line. The vertical gate is asked once, when a touch is
+		/// born; a touch that failed it is not an input for the rest of its life, so nothing downstream
+		/// has to ask about the y axis again.
+		/// </summary>
+		private readonly HashSet<int> _touchesAboveTheLine = new HashSet<int>();
 		internal LiveInputRouter(LiveLogic logic, LiveBundleBuildData bundle)
 		{
 			_logic = logic;
@@ -57,6 +63,7 @@ namespace Sekai.Core.Live
 			_collector.Reset();
 			ActiveInputs.Clear();
 			_judgedTouchTimes.Clear();
+			_touchesAboveTheLine.Clear();
 		}
 
 		internal void CollectTouches()
@@ -93,7 +100,7 @@ namespace Sekai.Core.Live
 
 		private void OnProcessTouch(in OpenSekai.Shared.Live.Simulation.SimTouch simTouch, ref int activeInputCount)
 		{
-			float judgmentLane = GetJudgmentLane(simTouch.WorldPosition, true);
+			float judgmentLane = ResolveJudgmentLane(in simTouch);
 			if (activeInputCount <= _inputBuffer.Length - 1)
 			{
 				LiveTouch processTouch = new LiveTouch(simTouch.FingerId, simTouch.TouchId, simTouch.Delta, simTouch.WorldPosition, simTouch.Phase, simTouch.MusicTime);
@@ -108,35 +115,46 @@ namespace Sekai.Core.Live
 			}
 		}
 
+		/// <summary>
+		/// The lane a note is judged against. There is exactly one: the lane the raw sample was resolved
+		/// to when it arrived. Nothing here looks at the touch again - in particular nothing re-decides the
+		/// vertical question, which was answered once when the touch was born - so a note can no longer
+		/// get a different lane than the one the frame was built on.
+		/// </summary>
 		internal float ConvertLaneBy(ref NoteBase note, ref LiveLogic.InputTmp input)
 		{
-			if (note == null || input == null)
-			{
-				return input?.Lane ?? -1f;
-			}
-
-			if ((note.Category == NoteCategory.Flick || note.Category == NoteCategory.FrictionFlick)
-				&& note.Direction == NoteDirection.Left)
-			{
-				return GetJudgmentLane(input.Touch.worldPosition, false);
-			}
-
-			return input.Lane;
+			return input?.Lane ?? OpenSekai.Shared.Live.TouchLane.Outside;
 		}
 
-		private float GetJudgmentLane(Vector3 touchPosition, bool checkJudgmentY)
+		/// <summary>
+		/// Resolves one raw sample to a lane. This is the only place the vertical gate is consulted: the
+		/// first sample of a touch decides whether the touch is an input at all, and the answer is kept in
+		/// <see cref="_touchesAboveTheLine"/> for every sample that follows.
+		/// </summary>
+		private float ResolveJudgmentLane(in OpenSekai.Shared.Live.Simulation.SimTouch simTouch)
 		{
 			Vector2[] positions = LiveConfig.JudgmentPositions;
-			if (positions == null || positions.Length == 0)
+			float judgmentOffsetY = _bundle?.JudgmentOffsetY ?? 0f;
+
+			if (simTouch.Phase == InputTouchPhase.Began
+				&& OpenSekai.Shared.Live.TouchLane.IsAboveTheLine(positions, simTouch.WorldPosition, judgmentOffsetY))
+			{
+				_touchesAboveTheLine.Add(simTouch.TouchId);
+			}
+
+			bool isAnInput = !_touchesAboveTheLine.Contains(simTouch.TouchId);
+			if (IsEndedOrCanceled(simTouch.Phase))
+			{
+				_touchesAboveTheLine.Remove(simTouch.TouchId);
+			}
+
+			if (!isAnInput)
 			{
 				return OpenSekai.Shared.Live.TouchLane.Outside;
 			}
 
-			float judgmentOffsetX = _bundle?.JudgmentOffsetX ?? 0f;
-			float judgmentOffsetY = _bundle?.JudgmentOffsetY ?? 0f;
-
 			return OpenSekai.Shared.Live.TouchLane.Resolve(
-				positions, touchPosition, checkJudgmentY, judgmentOffsetX, judgmentOffsetY);
+				positions, simTouch.WorldPosition, _bundle?.JudgmentOffsetX ?? 0f);
 		}
 	}
 }
