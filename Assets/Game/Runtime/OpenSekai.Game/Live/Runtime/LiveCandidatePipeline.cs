@@ -7,10 +7,12 @@ namespace Sekai.Core.Live
 	/// Orders and prunes the candidates each finger carries into judging.
 	///
 	/// A finger may touch several notes at once — overlapping lanes, a bar with a contact note laid
-	/// over it — but a press only judges one candidate per frame. Who wins is decided here: rank by
-	/// what the frame can still settle (a flick or a rub needs this frame, a held bar is kept alive by
-	/// the refresh pass), then by score time, then by lane distance; and a note two fingers both
-	/// claim goes to the one closer to it, except that the finger holding a bar keeps it.
+	/// over it — but a press only judges one candidate per frame. Who wins is decided here, by two
+	/// orders written out as functions: a note two fingers both reach goes to the finger nearer its
+	/// lane centre, then the smaller finger id (<see cref="ClaimsSharedNote"/>); what one finger has
+	/// left is ranked by chart time, then chart order (<see cref="PrecedesForOneFinger"/>).
+	///
+	/// Nothing here spends a press. The scheduler records a press when a note consumes it.
 	/// </summary>
 	internal sealed class LiveCandidatePipeline
 	{
@@ -26,6 +28,14 @@ namespace Sekai.Core.Live
 				: note.ParentRole == OpenSekai.Shared.Live.NoteParentRole.None &&
 				  note is NormalNote && note.Category == NoteCategory.Normal);
 
+		/// <summary>
+		/// Leaves every finger at most one press candidate, by two explicit orders.
+		///
+		/// A note two fingers both reach goes to one of them first: <see cref="ClaimsSharedNote"/> says
+		/// which. What each finger has left is then ranked by <see cref="PrecedesForOneFinger"/>, and the
+		/// first press step is the one it keeps. A finger that lost a shared note is not offered another
+		/// one in its place: that is the single-slot policy, and re-pairing it is a separate decision.
+		/// </summary>
 		internal void SortPressCandidates(List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame)
 		{
 			// Resolve every shared note before reducing any finger's list to its earliest note.
@@ -34,13 +44,11 @@ namespace Sekai.Core.Live
 				for (int i = input.CandidateNotes.Count - 1; i >= 0; i--)
 				{
 					NoteBase note = input.CandidateNotes[i];
-					float distance = note.LaneDistance(ref frame, input.Lane);
 					bool loses = false;
 					foreach (var other in inputs)
 					{
 						if (ReferenceEquals(input, other) || !other.CandidateNotes.Contains(note)) continue;
-						float otherDistance = note.LaneDistance(ref frame, other.Lane);
-						if (otherDistance < distance || (otherDistance == distance && other.Touch.fingerId < input.Touch.fingerId))
+						if (ClaimsSharedNote(note, other, input, ref frame))
 						{
 							loses = true;
 							break;
@@ -51,7 +59,7 @@ namespace Sekai.Core.Live
 			}
 			foreach (var input in inputs)
 			{
-				input.CandidateNotes.Sort((a, b) => a.MusicScoreInfo.time.CompareTo(b.MusicScoreInfo.time));
+				SortForOneFinger(input.CandidateNotes);
 
 				// The finger's single press slot goes to the earliest note the press channel can actually
 				// answer. A bar's body is always earlier than the notes it overlaps and the press loop skips
@@ -80,6 +88,61 @@ namespace Sekai.Core.Live
 				{
 					input.CandidateNotes.RemoveRange(1, input.CandidateNotes.Count - 1);
 				}
+			}
+		}
+
+		/// <summary>
+		/// Whether <paramref name="claimant"/> takes a note it shares with <paramref name="other"/>: the
+		/// finger nearer the note's lane centre wins, and at the same distance the smaller finger id.
+		/// Two samples of one finger never take a note from each other; they share one press credit,
+		/// which the scheduler spends.
+		/// </summary>
+		internal static bool ClaimsSharedNote(NoteBase note, LiveLogic.InputTmp claimant, LiveLogic.InputTmp other,
+			ref MusicScoreInfo frame)
+		{
+			float claimantDistance = note.LaneDistance(ref frame, claimant.Lane);
+			float otherDistance = note.LaneDistance(ref frame, other.Lane);
+			if (claimantDistance != otherDistance)
+			{
+				return claimantDistance < otherDistance;
+			}
+
+			return claimant.Touch.fingerId < other.Touch.fingerId;
+		}
+
+		/// <summary>
+		/// The order of one finger's own candidates: the earlier chart time first, and at the same time
+		/// the note that comes first in the chart.
+		/// </summary>
+		internal static bool PrecedesForOneFinger(NoteBase a, NoteBase b)
+		{
+			float aTime = a.MusicScoreInfo.time;
+			float bTime = b.MusicScoreInfo.time;
+			if (aTime != bTime)
+			{
+				return aTime < bTime;
+			}
+
+			return a.ChartOrder < b.ChartOrder;
+		}
+
+		/// <summary>
+		/// A stable insertion sort by <see cref="PrecedesForOneFinger"/>. The lists hold a handful of notes,
+		/// and stability keeps two notes the order cannot tell apart in the order they were collected.
+		/// </summary>
+		private static void SortForOneFinger(List<NoteBase> notes)
+		{
+			for (int i = 1; i < notes.Count; i++)
+			{
+				NoteBase current = notes[i];
+				int j = i - 1;
+				while (j >= 0 && PrecedesForOneFinger(current, notes[j]))
+				{
+					notes[j + 1] = notes[j];
+					j--;
+				}
+
+				notes[j + 1] = current;
 			}
 		}
 
@@ -154,9 +217,13 @@ namespace Sekai.Core.Live
 		/// head. A bar's body, a hidden point or an interior combo point is never a press candidate - they are
 		/// driven by their own per-frame passes - so nothing here can spend a finger's press on something the
 		/// press cannot answer.
+		///
+		/// Collecting spends nothing. <paramref name="pressed"/> holds only the touches whose press a note
+		/// already consumed, and the scheduler writes it at that point; a candidate that has not been hit
+		/// cannot keep a later candidate out.
 		/// </summary>
 		public void Collect(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs,
-			LiveHoldCoordinator holds, Dictionary<int, double> pressed)
+			LiveHoldCoordinator holds, IReadOnlyDictionary<int, double> pressed)
 		{
 			if (judgmentNotes == null || inputs == null)
 			{
@@ -193,24 +260,23 @@ namespace Sekai.Core.Live
 						continue;
 					}
 
-					// One touch judges one note. Another note may claim the same touch only when its grade
-					// would be worse than Great or a sixth of a second has passed, which is what lets a fast
-					// run of notes still be played with one finger.
+					// One touch judges one note. A touch whose press a note already consumed may be offered
+					// another note only when that note would grade better than Great, or a sixth of a second
+					// has passed, which is what lets a fast run of notes still be played with one finger.
 					int touchId = activeInput.Touch.touchId;
-					bool spent = pressed != null && pressed.ContainsKey(touchId);
-					if (spent
+					if (pressed != null && pressed.TryGetValue(touchId, out double consumedAt)
 						&& judgmentNote.CalcNoteResult(activeInput.Touch.musicTime) <= NoteResult.Great
-						&& activeInput.Touch.musicTime - pressed[touchId] <= 1f / 6f)
+						&& activeInput.Touch.musicTime - consumedAt <= 1f / 6f)
 					{
 						continue;
 					}
 
-					activeInput.CandidateNotes.Add(judgmentNote);
-					if (pressed != null)
+					// A head can be registered twice in one frame (from the open-head list and from the
+					// walk); it is still one candidate.
+					if (!activeInput.CandidateNotes.Contains(judgmentNote))
 					{
-						pressed[touchId] = activeInput.Touch.musicTime;
-					}
-				}
+						activeInput.CandidateNotes.Add(judgmentNote);
+					}				}
 			}
 		}
 

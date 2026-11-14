@@ -30,7 +30,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			"LaneStart", "LaneEnd", "LaneStartF", "LaneEndF",
 			"JudgeLaneStart", "JudgeLaneEnd",
 			"Category", "Type", "Direction", "LineType",
-			"IsSkip", "IsDecoration", "Id",
+			"IsSkip", "IsDecoration", "Id", "ChartOrder",
 			"speedRatio", "IsNegativeSpeed",
 			"LaneOffset", "_flickDistance",
 		};

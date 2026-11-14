@@ -199,6 +199,16 @@ namespace Sekai.Core.Live
 			for (int inputIndex = 0; inputIndex < _input.ActiveInputs.Count; inputIndex++)
 			{
 				InputTmp input = _input.ActiveInputs[inputIndex];
+
+				// One finger has one press credit per frame. A platform that delivers several Began samples
+				// for the same finger in one frame (a tap, a lift and a tap again inside the frame) has them
+				// share it: once one of them was consumed, the others are not pressed.
+				if (input.CandidateNotes.Count > 0 && _usedFingerList.Contains(input.Touch.fingerId))
+				{
+					input.CandidateNotes.Clear();
+					continue;
+				}
+
 				JudgmentPass pass = new JudgmentPass();
 				pass.Scheduler = this;
 				pass.Input = input;
@@ -255,11 +265,6 @@ namespace Sekai.Core.Live
 					note.Judgment(ref Input.Touch, lane);
 				}
 
-				if (note.Result == NoteResult.None || note.Result == NoteResult.Bad)
-				{
-					Scheduler._input.RecordJudgedTouch(Input.Touch);
-				}
-
 				// Notes that are still in flight have to keep receiving frames. Dropping a long note
 				// stops LongNote.Judgment and its hold releases; dropping a rub note whose first
 				// touch only set isTouched means it can never reach the line, so it fails silently.
@@ -278,9 +283,14 @@ namespace Sekai.Core.Live
 				return new JudgmentSchedule.Outcome(noteFinished);
 			}
 
+			/// <summary>
+			/// The press went into a note: this is the one place a press is spent. The touch is recorded
+			/// for the collection of later frames, and the finger's credit for this frame is gone.
+			/// </summary>
 			public void Consumed(int candidateIndex)
 			{
 				Input.CandidateNotes.Clear();
+				Scheduler._input.RecordJudgedTouch(Input.Touch);
 				Scheduler._usedFingerList.Add(Input.Touch.fingerId);
 			}
 		}

@@ -23,6 +23,13 @@ namespace Sekai.Live
 
 		internal LongNoteHead Head => _head;
 
+		/// <summary>The head sits where its bar sits in the chart.</summary>
+		internal override int ChartOrder
+		{
+			get => _bar.ChartOrder;
+			set { }
+		}
+
 		/// <summary>
 		/// True when the head is a note the player answers - an ordinary head, drawn, judged, and still
 		/// unsettled. The body is never a press candidate any more; the head is the only part of a bar that

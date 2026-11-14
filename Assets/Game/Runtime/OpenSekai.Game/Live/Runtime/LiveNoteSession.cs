@@ -50,6 +50,11 @@ namespace Sekai.Core.Live
 			for (int i = 0; i < Notes.Length; i++)
 			{
 				NoteBase note = Notes[i];
+				if (note != null)
+				{
+					note.ChartOrder = i;
+				}
+
 				if (note != null && !UnityEngine.Mathf.Approximately(note.speedRatio, 1f))
 				{
 					note.IsHighSpeedNote = true;

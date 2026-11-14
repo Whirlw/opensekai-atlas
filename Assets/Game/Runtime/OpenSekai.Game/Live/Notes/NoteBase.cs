@@ -364,6 +364,13 @@ namespace Sekai.Live
 		internal bool IsHighSpeedNote { get; set; }
 
 		/// <summary>
+		/// The note's place in the bound chart, set by <see cref="Sekai.Core.Live.LiveNoteSession.Bind"/>.
+		/// It breaks ties between press candidates at the same time, so the winner does not depend on
+		/// the order the frame happened to register them in.
+		/// </summary>
+		internal virtual int ChartOrder { get; set; }
+
+		/// <summary>
 		/// 标记音符是否使用负流速渲染（从屏幕下方飞入）
 		/// </summary>
 		[JsonIgnore]
