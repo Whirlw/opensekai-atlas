@@ -140,10 +140,7 @@
 				return;
 			}
 
-			onUpdateScore?.Invoke(this);
-			onUpdateCombo?.Invoke(this);
-			onDamage?.Invoke(this);
-			onJudgment?.Invoke(this);
+			ResultPublication.Publish(this, Callbacks, this, PublishShape.InteriorPoint);
 		}
 
 		public override bool AutoJudgment(MusicScoreInfo currentFrameInfo)

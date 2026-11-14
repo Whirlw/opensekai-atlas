@@ -273,18 +273,34 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 
 ## 九、结果发布与计分
 
-结果槽写入后，`NoteBase.PublishResult()` 依次触发：
+所有判定点都从 `ResultPublication.Publish(point, callbacks, visual, shape)` 发布结果。
 
-```
-onJudgment → onUpdateCombo → onUpdateScore → onDamage
-```
+| 参数 | 含义 |
+| --- | --- |
+| `point` | 判定点身份，连击、分数、伤害都记在它上面。普通键、尾和内部 combo 点用各自的音符实例，头用 `LongNoteHead.Identity` |
+| `callbacks` | 判定点所属音符的四个回调。头使用所属条的回调 |
+| `visual` | 判定效果的表现对象。普通头借用条，其余判定点用自身 |
+| `shape` | 回调集合与顺序，见下表 |
+
+| `shape` | 适用 | 回调顺序 |
+| --- | --- | --- |
+| `Key` | 单键、划键、摩擦键、尾 | 判定 → 连击 → 分数 → 伤害 |
+| `InteriorPoint` | 内部 combo 点（结果非 `None`） | 分数 → 连击 → 伤害 → 判定 |
+| `Head` | 被按下的头 | 伤害 → 连击 → 判定 → 分数 |
+| `ExpiredHead` | 超时 Miss 的头 | 伤害 → 连击 → 判定，不调用分数 |
 
 | 约定 | 说明 |
 | --- | --- |
-| 只发布一次 | 普通音符由 `Done` 转换保护，长条头和由条结算的尾还有各自的发布守卫 |
-| 头用 identity 计分 | 普通头的表现回调借用条对象。头部回调顺序为伤害、连击、判定、分数。超时头部 Miss 跳过分数回调 |
-| 内部 combo 点 | 有结果时依次发布分数、连击、伤害、判定。`IsSkip` 影响表现，计分层过滤的是 `IsDecoration` |
+| 只发布一次 | 守卫在判定点对象上（`NoteBase.HasPublishedResult`），在任何回调之前置位。回调里再次结算同一判定点不会再发布。`ResetNote` 清空守卫，重开和对象池复用都经过它 |
+| 去重不用 `Id` | 生成的内部点共用同一个 `Id`，所以守卫按对象，不按谱面 ID |
+| 头 | `LongNoteHead.Settle` 发布，`IsSettled` 与 `Identity` 的守卫共同保证一次。无判定权的载体头只置守卫、不发布 |
+| 尾 | 尾音符自己的 `Done` 转换走 `Key` 发布。条侧的 `LongNoteTail.PublishTail` 只写条的镜像结果并结束条，不触发回调，它有自己的 `_tailPublished` 守卫 |
+| 不发布 | `FrictionHideNote`、`HiddenConnectionNote` 与 `IsSkip` 的 `ConnectionNote` 不发布。结果为 `None` 的内部点不发布 |
+| 基分 | 累计计分每次分数回调推进一个基分序号（`ScoreLogic.TakeNextNoteBaseScore`）。超时头不调用分数回调，因此不消耗基分 |
+| 条身结束 | 条进入 `Done` 时给未结算的内部点补 `Perfect`，它们在结束条的那次尾发布之后发布 |
 | Miss 也发 combo | 断连击来自「结果发布」，不是来自视觉效果；谁发布结果谁断连击 |
+
+回调次数、顺序、基分序号、总分、连击和伤害由 `ResultPublicationTests` 固定，手动和自动播放各有用例。
 
 ---
 

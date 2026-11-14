@@ -640,12 +640,31 @@ namespace Sekai.Live
 			if (ParentRole != NoteParentRole.Tail || HasJudgment) RemoveView();
 		}
 
-		protected virtual void PublishResult()
+		/// <summary>Publishes this note's verdict as a key: judgement, combo, score, damage.</summary>
+		protected virtual void PublishResult() =>
+			ResultPublication.Publish(this, Callbacks, this, PublishShape.Key);
+
+		/// <summary>This note's four result callbacks, for <see cref="ResultPublication"/>.</summary>
+		internal ResultCallbacks Callbacks => new ResultCallbacks(onJudgment, onUpdateCombo, onUpdateScore, onDamage);
+
+		private bool resultPublished;
+
+		/// <summary>Whether this judge point already published its verdict in this take.</summary>
+		internal bool HasPublishedResult => resultPublished;
+
+		/// <summary>
+		/// Marks this point published. Only <see cref="ResultPublication"/> and a point that has nothing to
+		/// say (a carrier's head) call it; <see cref="ResetNote"/> clears it.
+		/// </summary>
+		internal bool ClaimPublication()
 		{
-			onJudgment?.Invoke(this);
-			onUpdateCombo?.Invoke(this);
-			onUpdateScore?.Invoke(this);
-			onDamage?.Invoke(this);
+			if (resultPublished)
+			{
+				return false;
+			}
+
+			resultPublished = true;
+			return true;
 		}
 
 		public virtual float LaneDistance(ref MusicScoreInfo currentFrameInfo, float inputLane)
@@ -683,6 +702,7 @@ namespace Sekai.Live
 			OffsetJudgeTime = 0f;
 			Progress = 0f;
 			viewReleased = false;
+			resultPublished = false;
 			JudgeInfo = (NoteResult.None, NoteResultDescription.None);
 			offsetTime = 0f;
 			IsHighSpeedNote = false;
