@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Sekai.Live;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -118,7 +118,7 @@ namespace Sekai.Core.Live
 			if ((note.Category == NoteCategory.Flick || note.Category == NoteCategory.FrictionFlick)
 				&& note.Direction == NoteDirection.Left)
 			{
-				return GetJudgmentLane(input.Touch.worldPosition, !note.FinishFirstAction);
+				return GetJudgmentLane(input.Touch.worldPosition, false);
 			}
 
 			return input.Lane;

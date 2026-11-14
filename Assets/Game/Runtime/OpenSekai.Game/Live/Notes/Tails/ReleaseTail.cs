@@ -1,8 +1,11 @@
 namespace Sekai.Live.Tails
 {
 	/// <summary>
-	/// The ordinary end: keep holding, then lift inside the window. Covers a plain end note as well as
-	/// the friction and hidden ones, which all end exactly the same way.
+	/// The ordinary end: keep holding, then lift inside the window.
+	///
+	/// This is the only behaviour a release finishes. A flick end waits for a swipe (SwipeTail) and a
+	/// rub, a rub flick or a hidden carrier grades itself (SelfJudgedTail), so neither is ever handed to
+	/// this class by TailBehaviours.For.
 	/// </summary>
 	public sealed class ReleaseTail : ITailBehaviour
 	{

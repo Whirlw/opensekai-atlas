@@ -251,7 +251,8 @@ namespace Sekai.Live
 
 			// A tail that judges itself takes its own turn in the candidate list, so pressing near its
 			// time must not judge it through the bar as well: that would be two judges for one note.
-			// The note that counts is the real tail - the latest child, not the last one bound.
+			// The note that counts is the one the chart bound as this bar's end (TailNote), never the
+			// last child in the list: a hidden interior point may be appended after it.
 			NoteBase pressTail = TailNote;
 			if (!TailBehaviour.JudgesItself
 				&& pressTail != null
