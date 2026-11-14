@@ -151,5 +151,41 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(near.Head.Result, Is.EqualTo(NoteResult.None), "the finger's one press is already spent");
 			Assert.That(far.Head.Result, Is.EqualTo(NoteResult.None), "the finger's one press is already spent");
 		}
+
+		[Test]
+		public void AFingerFollowingABendingBarKeepsItHeldOutsideItsHeadsLanes()
+		{
+			// Device trace 2026-11-14, bar 8.842: the bar bends from lanes 0..3 to the right, the finger follows
+			// it, and from lane 4.54 on every grab was refused against the head's range -1.50..4.50. The bar
+			// fell to Last and stayed there although the finger never left it.
+			using var harness = new LiveHarness();
+			var bar = new LongNote(Info(0.5f), 1, 0, 3, NoteCategory.Long, NoteType.Default, 1f, 0f);
+			bar.AddNoteListAndSetupChildNote(new NormalNote(Info(1.5f), 2, 8, 11, NoteCategory.Normal, 1f, NoteType.Default, 0f));
+			harness.Arrange(ScoreOf(bar));
+
+			int frame = 0;
+			for (; frame * Frame < 0.5f; frame++)
+			{
+				harness.Step(frame * Frame, InputBase + frame * Frame);
+			}
+
+			harness.Step(frame * Frame, InputBase + frame * Frame,
+				LiveHarness.Touch(1, LanePosition(1.5f), InputBase + frame * Frame, InputTouchPhase.Began));
+			Assert.That(bar.Head.Result, Is.Not.EqualTo(NoteResult.None).And.Not.EqualTo(NoteResult.Miss));
+
+			float furthest = 0f;
+			for (frame++; frame * Frame < 1.3f; frame++)
+			{
+				float centre = (bar.LaneStartF + bar.LaneEndF) * 0.5f;
+				furthest = Mathf.Max(furthest, centre);
+				harness.Step(frame * Frame, InputBase + frame * Frame,
+					LiveHarness.Touch(1, LanePosition(centre), InputBase + frame * Frame, InputTouchPhase.Moved));
+			}
+
+			Assert.That(furthest, Is.GreaterThan(bar.JudgeLaneEnd), "the finger has left the head's lanes");
+			Assert.That(bar.State, Is.Not.EqualTo(NoteState.Last).And.Not.EqualTo(NoteState.Release),
+				"the finger is still on the bar, so the bar is held");
+			Assert.That(bar.HasFinger, Is.True);
+		}
 	}
 }

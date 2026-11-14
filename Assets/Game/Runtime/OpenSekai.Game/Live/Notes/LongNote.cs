@@ -238,11 +238,16 @@ namespace Sekai.Live
 			// pass, and the device traces show a finger at lane 8.85 driving a bar whose range is -1.50..4.50
 			// (146 of 170 grabs in one run). That is how a bar nobody is touching gets a finger, keeps
 			// refreshing, and has its end graded by the release of a finger in another lane.
-			if (lane < JudgeLaneStart || lane > JudgeLaneEnd)
+			//
+			// The range is where the bar is now, not where its head was: once the head is judged the body
+			// moves with the chart (JudgedLane*). Gating on the head's lanes refused the finger that followed a
+			// bending bar the moment it left the head's span, and the bar dropped to Last for the rest of its
+			// life (device trace 2026-11-14: bar 8.842, range -1.50..4.50, finger rejected from lane 4.54).
+			if (!ContainsLane(lane))
 			{
 				if (LiveTrace.IsOn(LiveTraceCategory.Hold))
 				{
-					LiveTrace.Write(LiveTraceCategory.Hold, $"grabRejected barT={MusicScoreInfo.time:F3} lane={lane:F2} range={JudgeLaneStart:F2}..{JudgeLaneEnd:F2} finger={touch.fingerId} phase={touch.phase}");
+					LiveTrace.Write(LiveTraceCategory.Hold, $"grabRejected barT={MusicScoreInfo.time:F3} lane={lane:F2} range={BodyLaneStart:F2}..{BodyLaneEnd:F2} finger={touch.fingerId} phase={touch.phase}");
 				}
 
 				return false;
@@ -270,7 +275,7 @@ namespace Sekai.Live
 			MarkPressedThisFrame();
 			if (LiveTrace.IsOn(LiveTraceCategory.Hold))
 			{
-				LiveTrace.Write(LiveTraceCategory.Hold, $"grab barT={MusicScoreInfo.time:F3} lane={lane:F2} range={JudgeLaneStart:F2}..{JudgeLaneEnd:F2} finger={touch.fingerId} phase={touch.phase} head={headTaken}");
+				LiveTrace.Write(LiveTraceCategory.Hold, $"grab barT={MusicScoreInfo.time:F3} lane={lane:F2} range={BodyLaneStart:F2}..{BodyLaneEnd:F2} finger={touch.fingerId} phase={touch.phase} head={headTaken}");
 			}
 
 			ClearHeadJudgeOffset();
@@ -426,12 +431,12 @@ namespace Sekai.Live
 		/// keep refreshing its input frame while its finger stays inside the lane, including the frames
 		/// between two sixteenth-note combo checks, where <see cref="IsJudgment"/> is closed.
 		/// </summary>
-		internal bool ContainsLane(float lane)
-		{
-			var left = JudgeInfo.result == NoteResult.None ? JudgeLaneStart : JudgedLaneStart;
-			var right = JudgeInfo.result == NoteResult.None ? JudgeLaneEnd : JudgedLaneEnd;
-			return left <= lane && right >= lane;
-		}
+		internal bool ContainsLane(float lane) => BodyLaneStart <= lane && BodyLaneEnd >= lane;
+
+		/// <summary>The bar's judge span now: the head's lanes until it is judged, then the moving body's.</summary>
+		internal float BodyLaneStart => JudgeInfo.result == NoteResult.None ? JudgeLaneStart : JudgedLaneStart;
+
+		internal float BodyLaneEnd => JudgeInfo.result == NoteResult.None ? JudgeLaneEnd : JudgedLaneEnd;
 
 		public override bool AutoJudgment(MusicScoreInfo currentFrameInfo)
 		{
