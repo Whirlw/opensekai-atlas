@@ -144,5 +144,94 @@ namespace OpenSekai.Tests.EditMode.Live
             Idle(1.1f + Frame, 1.5f);
             Assert.That(tail.Result, Is.EqualTo(NoteResult.None).Or.EqualTo(NoteResult.Miss));
         }
+
+        // A decorative note is not judged, exactly like a guide bar: no effect, no sound, no text, no score.
+
+        private static NoteBase Decorated(NoteBase note)
+        {
+            note.SetDecoration(true);
+            return note;
+        }
+
+        private static System.Collections.Generic.IEnumerable<TestCaseData> Flags()
+        {
+            yield return new TestCaseData(new NormalNote(Info(1f), 1, 4, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f), true, true).SetName("Flags_Normal");
+            yield return new TestCaseData(new LongNote(Info(1f), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f), true, true).SetName("Flags_Long");
+            yield return new TestCaseData(Decorated(new NormalNote(Info(1f), 1, 4, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f)), false, true).SetName("Flags_DecorativeNormal");
+            yield return new TestCaseData(Decorated(new FlickNote(Info(1f), 1, 4, 5, NoteCategory.Flick, 1f, NoteType.Default, NoteDirection.Left, 0f, 0f)), false, true).SetName("Flags_DecorativeFlick");
+            yield return new TestCaseData(Decorated(new LongNote(Info(1f), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f)), false, true).SetName("Flags_DecorativeLong");
+            yield return new TestCaseData(new GuideNote(Info(1f), 1, 4, 5, NoteCategory.Guide, NoteType.Default, null, 1f), false, true).SetName("Flags_Guide");
+            yield return new TestCaseData(new FrictionHideLongNote(Info(1f), 1, 4, 5, NoteCategory.FrictionHideLong, NoteType.Default, null, 1f), false, true).SetName("Flags_RubCarrier");
+            yield return new TestCaseData(new HiddenConnectionNote(Info(1f), 1, 4, 5, NoteCategory.Hidden, NoteType.Default, 1f, 0f), false, false).SetName("Flags_HiddenConnection");
+            yield return new TestCaseData(new GuideHiddenConnectionNote(Info(1f), 1, 4, 5, NoteCategory.GuideHidden, null, NoteType.Default, 1f), false, false).SetName("Flags_GuideHiddenConnection");
+            yield return new TestCaseData(new FrictionHideNote(Info(1f), 1, 4, 5, NoteCategory.Hidden, null, NoteType.Default, 1f, 0), false, false).SetName("Flags_FrictionHide");
+            yield return new TestCaseData(new GuideEndNote(Info(1f), 1, 4, 5, NoteCategory.GuideEnd, null, NoteType.Default, 1f), false, false).SetName("Flags_GuideEnd");
+        }
+
+        [TestCaseSource(nameof(Flags))]
+        public void EveryNoteAnswersTheTwoFlags(NoteBase note, bool judged, bool visible)
+        {
+            Assert.That(note.HasJudgment, Is.EqualTo(judged), "judged");
+            Assert.That(note.IsVisible, Is.EqualTo(visible), "visible");
+        }
+
+        [Test]
+        public void ADecorativeTapRetiresWithoutEffectSoundOrText()
+        {
+            var tap = Decorated(new NormalNote(Info(0.5f), 20, 4, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f));
+            _harness.Arrange(new MusicScore(new[] { Info(0f) }, System.Array.Empty<EventBase>(), new NoteBase[] { tap }));
+            var recorder = new GameObject("decoration-recorder").AddComponent<RecordingView>();
+            try
+            {
+                _harness.BindViews(recorder);
+                Idle(0f, 1f);
+            }
+            finally
+            {
+                Object.DestroyImmediate(recorder.gameObject);
+            }
+
+            Assert.That(tap.State, Is.EqualTo(NoteState.Done), "it still leaves when its time has come");
+            Assert.That(tap.Result, Is.EqualTo(NoteResult.Pass), "it is passed, not graded");
+            Assert.That(recorder.Judged, Is.Empty, "no effect and no sound for a note nobody played");
+            Assert.That(recorder.Texts, Is.Empty, "no judgement text");
+        }
+
+        [Test]
+        public void ADecorativeBarPlaysNoHeadEffect()
+        {
+            var bar = Decorated(new LongNote(Info(0.5f), 21, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f));
+            ((LongNote)bar).AddNoteListAndSetupChildNote(new NormalNote(Info(1.5f), 22, 4, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f));
+            _harness.Arrange(new MusicScore(new[] { Info(0f) }, System.Array.Empty<EventBase>(), new NoteBase[] { bar }));
+            var recorder = new GameObject("decoration-recorder").AddComponent<RecordingView>();
+            try
+            {
+                _harness.BindViews(recorder);
+                Idle(0f, 1f);
+            }
+            finally
+            {
+                Object.DestroyImmediate(recorder.gameObject);
+            }
+
+            Assert.That(bar.Result, Is.EqualTo(NoteResult.Pass), "the head is passed silently");
+            Assert.That(recorder.Judged, Has.No.Member(bar), "the head of a decorative bar plays nothing");
+        }
+
+        private sealed class RecordingView : LiveViewBase
+        {
+            internal readonly System.Collections.Generic.List<NoteBase> Judged = new();
+            internal readonly System.Collections.Generic.List<NoteBase> Texts = new();
+
+            public override void JudgmentNote(NoteBase note)
+            {
+                if (note != null) Judged.Add(note);
+            }
+
+            public override void JudgmentText(NoteBase note)
+            {
+                if (note != null) Texts.Add(note);
+            }
+        }
     }
 }

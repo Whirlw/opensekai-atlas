@@ -134,6 +134,23 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 - 装饰条本体不计分。末端如果绑定了可判音符，会按末端自己的类型参与判定。
 - 隐藏点提供几何与计时锚点，也可以用内部 `Pass` 推进状态。
 
+### 4.1 判定与可见是两个独立标志
+
+每个音符只回答两个问题：`NoteBase.HasJudgment`（判不判定）和 `NoteBase.IsVisible`（画不画）。
+
+| 组合 | 音符 |
+| --- | --- |
+| 判定、可见 | 普通单键、划键、摩擦键、普通长条及其可判末端 |
+| 不判定、可见 | `GuideNote`、`FrictionHideLongNote`（载体条身可见），以及谱面标了 `isDecoration` 的任何音符 |
+| 不判定、不可见 | `HiddenConnectionNote`、`GuideHiddenConnectionNote`、`FrictionHideNote`、`GuideEndNote` |
+
+- 类型可以关掉判定；谱面的装饰标志也会关掉判定（`HasJudgment` 的基类实现为 `!IsDecoration`）。装饰音符与 `GuideNote` 完全一样：不进按下候选、不 Miss、不发布结果，没有特效、打击音、判定文字、分数和连击。到点时只写内部 `Pass` 并退场。
+- 「不发布」只有一道门：`ResultPublication.Publish` 遇到 `!HasJudgment` 时占住发布槽并直接返回，任何回调都不执行。
+- 「画不画」只看 `IsVisible`：不可见的末端没有尾键阶段（`TailKeyPhase.Hidden`），也没有视图可回收。
+- 装饰标志会传给条的连接点和 combo 点，但不传给末端：装饰条末端的真实音符照常按自己的类型判定。
+- `FrictionHideLongNote` 不判定，但仍接受持续接触（候选管线对它单独放行），因为手指要能按住它。
+- 已知差异：独立划键在父条是装饰条时用单键划键窗口，父条是 `GuideNote` 时用长条尾划键窗口（`FlickNote.CalcNoteResult`）。这两种条的划键末端目前评级口径不同。
+
 ---
 
 ## 五、判定窗口
@@ -349,14 +366,14 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 | 去重不用 `Id` | 生成的内部点共用同一个 `Id`，所以守卫按对象，不按谱面 ID |
 | 头 | `LongNoteHead.Settle` 发布，`IsSettled` 与 `Identity` 的守卫共同保证一次。无判定权的载体头只置守卫、不发布 |
 | 尾 | 尾音符自己的 `Done` 转换走 `Key` 发布。条侧的 `LongNoteTail.PublishTail` 只写条的镜像结果并结束条，不触发回调，它有自己的 `_tailPublished` 守卫 |
-| 不发布 | `FrictionHideNote`、`HiddenConnectionNote` 与 `IsSkip` 的 `ConnectionNote` 不发布。结果为 `None` 的内部点不发布 |
+| 不发布 | `HasJudgment` 为假的判定点（隐藏点、`GuideNote`、载体、装饰音符）在 `Publish` 入口被拦下，不执行任何回调。`IsSkip` 的 `ConnectionNote` 不发布。结果为 `None` 的内部点不发布 |
 | 基分 | 累计计分每次分数回调推进一个基分序号（`ScoreLogic.TakeNextNoteBaseScore`）。超时头不调用分数回调，因此不消耗基分 |
 | 条身结束 | 普通 `LongNote` 进入 `Done` 时给其结果仍为 `None` 的 `LongHoldCombo` 补 `Perfect`；在由尾结果触发结束的路径上，尾先发布，然后补内部点。特殊载体重写了状态处理，不能一概套用 |
 | Miss 也发 combo | 断连击来自「结果发布」，不是来自视觉效果；谁发布结果谁断连击 |
 
 回调次数、顺序、基分序号、总分、连击和伤害由 `ResultPublicationTests` 固定，手动和自动播放各有用例。
 
-`ScoreLogic` 将 `JustPerfect`、`Perfect`、`Auto` 按基分的 100% 计分，Great 为 70%、Good 为 50%，Bad / Miss 等为 0；之后再应用技能倍率。基分通过累计差分把 1,000,000 分摊到谱面总连击点数，避免每点固定取整造成的尾差。Great 及以上维持连击，Good、Bad、Miss 重置连击；装饰和 `None` 不参与普通连击统计。这里的分摊依赖实际分数回调次数，不能把“满分 1,000,000”推广成所有带技能、漏判、特殊回调或异常谱面都必然得到同一个结果。更完整的计分口径见 [累计计分决策](../decisions/0004-cumulative-scoring.md)。
+`ScoreLogic` 将 `JustPerfect`、`Perfect`、`Auto` 按基分的 100% 计分，Great 为 70%、Good 为 50%，Bad / Miss 等为 0；之后再应用技能倍率。基分通过累计差分把 1,000,000 分摊到谱面总连击点数，避免每点固定取整造成的尾差。Great 及以上维持连击，Good、Bad、Miss 重置连击；不判定的音符（含装饰）和 `None` 不参与普通连击统计。这里的分摊依赖实际分数回调次数，不能把“满分 1,000,000”推广成所有带技能、漏判、特殊回调或异常谱面都必然得到同一个结果。更完整的计分口径见 [累计计分决策](../decisions/0004-cumulative-scoring.md)。
 
 ---
 

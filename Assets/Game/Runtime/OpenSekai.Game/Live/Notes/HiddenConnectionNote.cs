@@ -2,13 +2,10 @@
 {
 	public class HiddenConnectionNote : NoteBase
 	{
-		public override bool HasJudgment
-		{
-			get
-			{
-				return false;
-			}
-		}
+		public override bool HasJudgment => false;
+
+		/// <summary>A hidden point only shapes and times its bar; nothing of it is drawn.</summary>
+		public override bool IsVisible => false;
 
 		public HiddenConnectionNote()
 		{
@@ -105,10 +102,6 @@
 		}
 
 		protected override void OnSpawnNote()
-		{
-		}
-
-		protected override void PublishResult()
 		{
 		}
 	}
