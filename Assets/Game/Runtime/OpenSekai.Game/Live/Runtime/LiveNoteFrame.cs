@@ -1,4 +1,4 @@
-﻿using Sekai.Live;
+using Sekai.Live;
 using UnityEngine;
 
 namespace Sekai.Core.Live
@@ -24,6 +24,47 @@ namespace Sekai.Core.Live
 		{
 			_presentation.TickTailKeys(Frame.time);
 			_presentation.TickRetiring(Frame);
+		}
+
+		/// <summary>
+		/// The state block of the frame: sample the clock, advance the timeline and the skill, let
+		/// autoplay answer what is already due, then walk the notes. It does not touch the view - that is
+		/// the third block, and it runs after the touch block has settled this frame of judgement.
+		/// </summary>
+		internal void UpdateState(float scoreInfoTime, double currentGameTime)
+		{
+			bool isActive = _logic.result <= 2;
+			_logic.currentFrameInfo = _logic.Clock.Sample(_session.MusicScore, scoreInfoTime, currentGameTime, isActive);
+			if (!isActive)
+			{
+				// Nothing is judged and no input arrives any more, so the view is the only thing left
+				// in the frame; there is no later step for it to wait for.
+				TickViews();
+				return;
+			}
+
+			_input.BeginFrame();
+			_session.UpdateEvents(_logic.Clock.Frame);
+			_session.SkillLogic?.Update(_logic.currentGameTime);
+
+			// Autoplay answers every note at its own time, and that answer has to exist before the walk:
+			// the walk turns anything already past its window into a Miss, so a frame that skipped time
+			// (a hitch, the first frame after the chart loaded) missed notes autoplay never got to see.
+			// Judging here is the same pass AutoUpdate runs; a note already settled is skipped, so the
+			// controller's call after this frame is a no-op.
+			if (_session.IsAuto)
+			{
+				_session.AdvanceAutoJudgment(_logic.currentFrameInfo, skipDecoration: true);
+			}
+
+			UpdateNotes();
+			_logic.ApplyFrameOutcome();
+		}
+
+		/// <summary>Autoplay has no touch block: the automatic answer stands in for it.</summary>
+		internal void AutoUpdate()
+		{
+			_session.AdvanceAutoJudgment(_logic.Clock.Frame);
 		}
 
 		internal void UpdateNotes()

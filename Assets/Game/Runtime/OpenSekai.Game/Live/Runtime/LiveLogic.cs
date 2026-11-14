@@ -161,50 +161,12 @@ namespace Sekai.Core.Live
 
 		public void RefreshInput() => Input.Reset();
 
-		public void OnUpdate(float scoreInfoTime, double currentGameTime)
-		{
-			bool isActive = result <= 2;
-			currentFrameInfo = _clock.Sample(Session.MusicScore, scoreInfoTime, currentGameTime, isActive);
-			if (!isActive)
-			{
-				// Nothing is judged and no input arrives any more, so the view is the only thing left
-				// in the frame; there is no later step for it to wait for.
-				NoteFrame.TickViews();
-				return;
-			}
-
-			Input.BeginFrame();
-			Session.UpdateEvents(_clock.Frame);
-			skillLogic?.Update(this.currentGameTime);
-
-			// Autoplay answers every note at its own time, and that answer has to exist before the walk:
-			// the walk turns anything already past its window into a Miss, so a frame that skipped time
-			// (a hitch, the first frame after the chart loaded) missed notes autoplay never got to see.
-			// Judging here is the same pass OnAutoInput runs; a note already settled is skipped, so the
-			// controller's call after this frame is a no-op.
-			if (Session.IsAuto)
-			{
-				Session.AdvanceAutoJudgment(currentFrameInfo, skipDecoration: true);
-			}
-
-			NoteFrame.UpdateNotes();
-
-			// The view is the last step of the frame, not a part of this one: the input pass ticks it
-			// once the judgment for this frame is in (Scheduler.Run), and autoplay ticks it in
-			// OnAutoInput. Ticking it here as well meant a frame advanced the view twice - once
-			// before anyone could press and once after - so what was drawn was a mixture of two
-			// states of the note.
-			if (scoreLogic != null && scoreLogic.Score.life <= 0)
-			{
-				Result = 2;
-			}
-
-			if (IsNotesAllFinished && result == 0)
-			{
-				result = 3;
-				OnFinished?.Invoke();
-			}
-		}
+		/// <summary>
+		/// The state block of the frame. It lives in <see cref="LiveNoteFrame"/> because that is what
+		/// owns the note walk; this only connects the call.
+		/// </summary>
+		public void OnUpdate(float scoreInfoTime, double currentGameTime) =>
+			NoteFrame.UpdateState(scoreInfoTime, currentGameTime);
 
 		public int Result
 		{
@@ -228,19 +190,43 @@ namespace Sekai.Core.Live
 			}
 		}
 
-		public void OnAutoInput()
-		{
-			Session.AdvanceAutoJudgment(_clock.Frame);
+		/// <summary>Autoplay has no touch block: the automatic answer stands in for it.</summary>
+		public void OnAutoInput() => NoteFrame.AutoUpdate();
 
-			// Autoplay has no press pass, so the frame ends here: the view still comes last.
-			NoteFrame.TickViews();
-		}
+		/// <summary>
+		/// The view block, the last one of the frame: what the two blocks above decided is drawn now,
+		/// once.
+		/// </summary>
+		public void OnView() => NoteFrame.TickViews();
 
+		/// <summary>
+		/// The touch block: collect this frame's raw samples, then let the judge answer them. Both steps
+		/// belong to the block; this only connects them, and keeps them separate so a caller can drive
+		/// the judge with inputs it built itself.
+		/// </summary>
 		public void OnInput()
 		{
 			Input.CollectTouches();
 			Scheduler.Run();
 		}
+
+		/// <summary>Reads the frame that just ran and moves the session out of play when it has to.</summary>
+		internal void ApplyFrameOutcome()
+		{
+			if (scoreLogic != null && scoreLogic.Score.life <= 0)
+			{
+				Result = 2;
+			}
+
+			if (IsNotesAllFinished && result == 0)
+			{
+				result = 3;
+				OnFinished?.Invoke();
+			}
+		}
+
+		/// <summary>The music clock, for the blocks that sample it.</summary>
+		internal LiveClock Clock => _clock;
 
 		public float ResolveInputMusicTime(double inputTime) => _clock.ResolveInputMusicTime(currentFrameInfo, inputTime);
 

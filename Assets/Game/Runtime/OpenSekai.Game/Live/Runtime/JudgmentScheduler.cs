@@ -29,6 +29,7 @@ namespace Sekai.Core.Live
 
 		internal void Run()
 		{
+
 			// The three channels answer in a fixed order, and each one is decided on the raw samples of
 			// this frame before the next one looks at them: a press is a Began, a release is an Ended,
 			// and whatever is left over is the resident upkeep.
@@ -39,10 +40,6 @@ namespace Sekai.Core.Live
 			// Returns the frame's inputs and forgets the touches that ended. It runs after every channel
 			// has read them, including the release that a lift feeds.
 			EndFrame();
-
-			// The view is the last step of the whole frame: every note state above already belongs to
-			// this frame, so what gets drawn cannot be a mixture of the old and the new one.
-			_noteFrame.TickViews();
 		}
 
 		/// <summary>
