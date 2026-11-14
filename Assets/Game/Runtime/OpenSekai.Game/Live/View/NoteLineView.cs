@@ -321,6 +321,11 @@ namespace Sekai
 		/// </summary>
 		private Color GetNoteColor(INote baseNote)
 		{
+			if (baseNote is LongNote && baseNote.State == NoteState.Last && LiveTrace.HighlightLast)
+			{
+				return Color.red;
+			}
+
 			// 默认颜色基于状态
 			Color defaultColor = baseNote != null && baseNote.ShowsAsReleased ? ReleaseColor : PressColor;
 

@@ -28,6 +28,16 @@ namespace OpenSekai.Shared.Settings
             }
             _cached = _cached ?? new LiveSettingData();
             if (_cached.FrameRateLimit <= 0 && _cached.Use120FPS) _cached.FrameRateLimit = 120;
+            // The old frame-based clock shift becomes an audio latency in ms, once.
+            if (_cached.TimingAdjustData != 0f)
+            {
+                if (_cached.AudioLatencyMs == 0f)
+                {
+                    _cached.AudioLatencyMs = OpenSekai.Shared.Live.Simulation.TimingCompensation
+                        .AudioLatencyFromLegacyFrames(_cached.TimingAdjustData);
+                }
+                _cached.TimingAdjustData = 0f;
+            }
             return _cached;
         }
 

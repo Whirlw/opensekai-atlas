@@ -28,7 +28,7 @@ namespace Sekai.Core.Live
 		protected long musicLength = 120000L;
 		protected uint cueId;
 		protected double currentGameTime;
-		protected float timingAdjust;
+		protected OpenSekai.Shared.Live.Simulation.TimingCompensation timingCompensation;
 		protected float accumulateTimeApartFromPause;
 		protected LiveBundleBuildData liveBundleBuildData;
 
@@ -46,7 +46,13 @@ namespace Sekai.Core.Live
 
 		public bool IsPlayableState => state == LiveControllerState.Playing || state == LiveControllerState.ResumeCountDown;
 
-		protected float currentAudioLatencyMusicTimeMs => Mathf.Max(timingAdjust + currentMusicTimeMs / 1000f, 0f);
+		public bool HasActiveTimeline => IsPlayableState || state == LiveControllerState.Pause;
+
+		/// <summary>The clock the views draw with, in seconds: the audio clock moved by the audio and visual latency.</summary>
+		protected float currentAudioLatencyMusicTimeMs => timingCompensation.ViewTime(currentMusicTimeMs / 1000f);
+
+		/// <summary>The clock notes are executed and judged on, in seconds.</summary>
+		protected float currentLogicMusicTime => timingCompensation.LogicTime(currentMusicTimeMs / 1000f);
 
 		protected override void OnAwake()
 		{
@@ -75,7 +81,13 @@ namespace Sekai.Core.Live
 			ApplicationLocalSettings.VolumeSettings liveVolume = localSettings.LiveVolume ?? localSettings.SetupLiveVolume();
 			SoundManager.Instance.SetupVolume(1f, liveVolume.Bgm, liveVolume.Se, liveVolume.Voice);
 
-			timingAdjust = (Settings?.TimingAdjustData ?? 0f) * 0.016667f;
+			// Autoplay has no habit to correct, so the judge offset is a player's setting only.
+			bool auto = BootData?.IsAuto == true;
+			timingCompensation = new OpenSekai.Shared.Live.Simulation.TimingCompensation(
+				Settings?.AudioLatencyMs ?? 0f,
+				Settings?.VisualLatencyMs ?? 0f,
+				auto ? 0f : Settings?.JudgeOffsetMs ?? 0f);
+			LiveConfig.ViewLeadSeconds = timingCompensation.ViewLeadSeconds;
 		}
 
 		public bool EnsureBackgroundTextureSizeForCurrentScreen()
@@ -327,6 +339,7 @@ namespace Sekai.Core.Live
 
 		protected override void OnExit()
 		{
+			LiveConfig.ViewLeadSeconds = 0f;
 			SoundManager.Instance.StopAll();
 			GarbageCollector.GCMode = GarbageCollector.Mode.Enabled;
 			Screen.sleepTimeout = SleepTimeout.SystemSetting;

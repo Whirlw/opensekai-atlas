@@ -21,16 +21,67 @@ namespace Sekai.Core.Live
 		private readonly List<bool> _assigned = new List<bool>(10);
 
 		/// <summary>
-		/// Whether a note spends a finger's single press slot. Only notes a press answers on one frame are
-		/// here: an ordinary note and a long note's HEAD as its own candidate. A flick is not one of them -
-		/// it reads a swipe over several frames, so the resident pass drives it instead. A bar's body is
-		/// never a press step either, which is what keeps a press on an ordinary note that overlaps a
-		/// hidden head from touching the bar.
+		/// Whether a note takes presses at all. There are exactly three kinds, and a key that has been
+		/// judged leaves at once:
+		/// <list type="bullet">
+		/// <item>an ordinary tap note on no bar, until it is done;</item>
+		/// <item>a flick on no bar, until a press arms it - from then on it only reads that finger's swipe,
+		/// in the resident pass;</item>
+		/// <item>a long note's ordinary head as its own candidate, until it is settled.</item>
+		/// </list>
+		/// A bar's body, a rub, a hidden point, an interior point and every tail are never press keys, which
+		/// is what keeps a press on an ordinary note that overlaps a hidden head from touching the bar.
 		/// </summary>
-		internal static bool IsPressStep(NoteBase note) => note != null && !note.IsDecoration
-			&& (note is LongNoteHeadNote head ? head.IsAnswerable
-				: note.ParentRole == OpenSekai.Shared.Live.NoteParentRole.None &&
-				  note is NormalNote && note.Category == NoteCategory.Normal);
+		internal static bool IsPressStep(NoteBase note)
+		{
+			if (note == null || note.IsDecoration || note.State == NoteState.Done)
+			{
+				return false;
+			}
+
+			if (note is LongNoteHeadNote head)
+			{
+				return head.IsAnswerable;
+			}
+
+			if (note.ParentRole != OpenSekai.Shared.Live.NoteParentRole.None || note.ParentNote != null)
+			{
+				return false;
+			}
+
+			if (note is FlickNote)
+			{
+				return note.State == NoteState.Scrolling;
+			}
+
+			return note is NormalNote && note.Category == NoteCategory.Normal;
+		}
+
+		/// <summary>
+		/// The hard rule for offering a press to a key: it is one of the three press kinds
+		/// (<see cref="IsPressStep"/>), the finger is inside the key's judge lanes - a head uses its bar's
+		/// widened lanes - and the press is inside <see cref="OpenSekai.Shared.Live.PressCandidateWindow"/>:
+		/// 125 ms either side for a tap or a head, 125 ms early to 141.7 ms late for a flick.
+		/// </summary>
+		internal static bool AdmitsPress(NoteBase note, float touchTime, float lane)
+		{
+			if (!IsPressStep(note) || lane < 0f)
+			{
+				return false;
+			}
+
+			float laneStart = note is LongNoteHeadNote head ? head.Bar.JudgeLaneStart : note.JudgeLaneStart;
+			float laneEnd = note is LongNoteHeadNote headEnd ? headEnd.Bar.JudgeLaneEnd : note.JudgeLaneEnd;
+			if (lane < laneStart || lane > laneEnd)
+			{
+				return false;
+			}
+
+			float offset = touchTime - note.MusicScoreInfo.time;
+			return note is FlickNote
+				? OpenSekai.Shared.Live.PressCandidateWindow.AcceptsFlick(offset)
+				: OpenSekai.Shared.Live.PressCandidateWindow.AcceptsTap(offset);
+		}
 
 		/// <summary>
 		/// Leaves every finger at most one press candidate.
@@ -320,7 +371,8 @@ namespace Sekai.Core.Live
 			// ~130 ms before its time, already past the edge of the bad window.
 			if (OpenSekai.Shared.Live.JudgeListLead.IsStillTooFarAhead(frameTime, note.MusicScoreInfo.time))
 			{
-				OpenSekai.Shared.Diagnostics.LiveTrace.Write(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Judge, $"regSkip id={note.Id} t={note.MusicScoreInfo.time:F3} now={frameTime:F3}");
+				if (OpenSekai.Shared.Diagnostics.LiveTrace.IsOn(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Resident))
+					OpenSekai.Shared.Diagnostics.LiveTrace.Write(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Resident, $"regSkip id={note.Id} t={note.MusicScoreInfo.time:F3} now={frameTime:F3}");
 				return;
 			}
 
@@ -367,10 +419,10 @@ namespace Sekai.Core.Live
 		/// <summary>
 		/// Fills each finger's press candidates from the judgement list for this frame.
 		///
-		/// Only a press step is ever nominated: an ordinary note, a flick's press part, or an ordinary bar
-		/// head. A bar's body, a hidden point or an interior combo point is never a press candidate - they are
-		/// driven by their own per-frame passes - so nothing here can spend a finger's press on something the
-		/// press cannot answer.
+		/// A key is nominated only under the hard rule of <see cref="AdmitsPress"/>: a tap, an unarmed flick
+		/// or an ordinary bar head, in the finger's lane, inside the press window. A bar's body, a hidden
+		/// point or an interior combo point is never a press candidate - they are driven by their own
+		/// per-frame passes - so nothing here can spend a finger's press on something the press cannot answer.
 		///
 		/// Collecting spends nothing. <paramref name="pressed"/> holds only the touches whose press a note
 		/// already consumed, and the scheduler writes it at that point; a candidate that has not been hit
@@ -408,8 +460,11 @@ namespace Sekai.Core.Live
 						continue;
 					}
 
+					// The hard rule: kind, lane and window. The note's own gate is asked as well, so a key
+					// is never offered a press it would refuse.
 					float lane = activeInput.Lane;
-					if (lane < 0f || !judgmentNote.IsJudgment(ref activeInput.Touch, lane))
+					if (!AdmitsPress(judgmentNote, activeInput.Touch.musicTime, lane)
+						|| !judgmentNote.IsJudgment(ref activeInput.Touch, lane))
 					{
 						continue;
 					}

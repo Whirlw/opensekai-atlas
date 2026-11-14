@@ -57,9 +57,9 @@ namespace Sekai.Core.Live
 				LiveTouchSample touch = source[i];
 				// Raw sample trace: the one place that proves whether a press reached the process at all. A press
 				// that never appears here was dropped by the platform, not by the judge.
-				if (OpenSekai.Shared.Diagnostics.LiveTrace.IsOn(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Judge))
+				if (OpenSekai.Shared.Diagnostics.LiveTrace.IsOn(OpenSekai.Shared.Diagnostics.LiveTraceCategory.RawTouch))
 				{
-					OpenSekai.Shared.Diagnostics.LiveTrace.Write(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Judge,
+					OpenSekai.Shared.Diagnostics.LiveTrace.Write(OpenSekai.Shared.Diagnostics.LiveTraceCategory.RawTouch,
 						string.Concat("rawTouch finger=", touch.fingerId, " touch=", touch.touchId,
 							" phase=", touch.phase, " x=", touch.worldPosition.x.ToString("F1"),
 							" y=", touch.worldPosition.y.ToString("F1"),

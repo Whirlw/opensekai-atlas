@@ -96,7 +96,8 @@ namespace Sekai.Live
 			{
 				// A bar that is still alive must never be refreshed with a time from the past: that is how
 				// a recycled note looked held long after the run that held it.
-				LiveTrace.Invariant(musicTime + 0.001f >= _bar.lastInputTime, $"keepAlive went backwards barT={_bar.MusicScoreInfo.time:F3} last={_bar.lastInputTime:F3} now={musicTime:F3}");
+				if (musicTime + 0.001f < _bar.lastInputTime && LiveTrace.Enabled)
+					LiveTrace.Invariant(false, $"keepAlive went backwards barT={_bar.MusicScoreInfo.time:F3} last={_bar.lastInputTime:F3} now={musicTime:F3}");
 				_bar.lastInputTime = Mathf.Max(_bar.lastInputTime, musicTime);
 
 				// A finger on the bar means it is held, even when the head was missed: the chart lets a

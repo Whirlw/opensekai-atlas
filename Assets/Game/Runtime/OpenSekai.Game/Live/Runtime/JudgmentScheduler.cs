@@ -51,8 +51,31 @@ namespace Sekai.Core.Live
 		private void JudgePressChannel()
 		{
 			_input.CollectCandidates();
+			TracePressCandidates("pressCandidates");
 			_input.SortPressCandidates();
+			TracePressCandidates("pressSelected");
 			EvaluateJudgment();
+		}
+
+		private void TracePressCandidates(string stage)
+		{
+			if (LiveTrace.IsOn(LiveTraceCategory.Press))
+			{
+				foreach (InputTmp input in _input.ActiveInputs)
+				{
+					if (input != null && input.Touch.phase == UnityEngine.InputSystem.TouchPhase.Began)
+					{
+						var candidates = new System.Text.StringBuilder();
+						foreach (NoteBase note in input.CandidateNotes)
+						{
+							if (candidates.Length > 0) candidates.Append(';');
+							if (note == null) { candidates.Append("null"); continue; }
+							candidates.Append($"id={note.Id},type={note.GetType().Name},t={note.MusicScoreInfo.time:F3},lane={note.LaneStartF:F2}..{note.LaneEndF:F2},grade={note.CalcNoteResult(input.Touch.musicTime)}");
+						}
+						LiveTrace.Write(LiveTraceCategory.Press, $"{stage} finger={input.Touch.fingerId} touch={input.Touch.touchId} lane={input.Lane:F2} time={input.Touch.musicTime:F3} candidates=[{candidates}]");
+					}
+				}
+			}
 		}
 
 		/// <summary>
@@ -72,6 +95,8 @@ namespace Sekai.Core.Live
 		/// </summary>
 		private void JudgeResidentChannel()
 		{
+			if (LiveTrace.IsOn(LiveTraceCategory.Resident) && _input.ActiveInputs.Count > 0)
+				LiveTrace.Write(LiveTraceCategory.Resident, $"resident now={Frame.time:F3} inputs={_input.ActiveInputs.Count} notes={_input.JudgmentNotes.Count}");
 			JudgeDueComboPoints();
 			DriveIndependentNotes();
 			RefreshSustainedHolds();
@@ -159,9 +184,14 @@ namespace Sekai.Core.Live
 						if (!note.IsJudgment(ref input.Touch, lane)) continue;
 						note.Judgment(ref input.Touch, lane);
 					}
+					// An armed flick takes a swipe from any finger, so every finger of the frame is offered
+					// to it until one completes it; a resting finger listed first must not shut out the one
+					// that swipes.
+					if (note is FlickNote && note.ParentNote == null && note.State != NoteState.Done) continue;
 					break;
 				}
-					OpenSekai.Shared.Diagnostics.LiveTrace.Write(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Judge, $"unregDone id={note.Id} n={n}");
+				if (LiveTrace.IsOn(LiveTraceCategory.Resident))
+					LiveTrace.Write(LiveTraceCategory.Resident, $"unregDone id={note.Id} n={n}");
 				if (note.State == NoteState.Done) _input.JudgmentNotes.RemoveAt(n);
 			}
 		}
@@ -253,12 +283,12 @@ namespace Sekai.Core.Live
 				// One line per press delivery, so "a press happened but the note it should answer missed" can
 				// be answered from the log instead of guessed: it says which note the press was handed to, the
 				// lane it was converted to, and what the note became.
-				if (LiveTrace.IsOn(LiveTraceCategory.Judge))
+				if (LiveTrace.IsOn(LiveTraceCategory.Press))
 				{
 					int idBefore = note.Id;
 					string typeBefore = note.GetType().Name;
 					note.Judgment(ref Input.Touch, lane);
-					LiveTrace.Write(LiveTraceCategory.Judge, $"pressPick finger={Input.Touch.fingerId} touch={Input.Touch.touchId} id={idBefore} type={typeBefore} lane={lane:F2} touchT={Input.Touch.musicTime:F3} res={note.Result} now={MusicScore.CurrentFrameInfo.time:F3}");
+					LiveTrace.Write(LiveTraceCategory.Press, $"pressPick finger={Input.Touch.fingerId} touch={Input.Touch.touchId} id={idBefore} type={typeBefore} lane={lane:F2} touchT={Input.Touch.musicTime:F3} res={note.Result} now={MusicScore.CurrentFrameInfo.time:F3}");
 				}
 				else
 				{
@@ -274,12 +304,16 @@ namespace Sekai.Core.Live
 				bool keepsReceivingFrames = note is LongNote && note.State != NoteState.Done;
 				if (!keepsReceivingFrames && (note.State == NoteState.Done || note.Result != NoteResult.None))
 				{
-				OpenSekai.Shared.Diagnostics.LiveTrace.Write(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Judge, $"unregPick id={note.Id} state={note.State} res={note.Result}");
+					if (LiveTrace.IsOn(LiveTraceCategory.Press))
+						LiveTrace.Write(LiveTraceCategory.Press, $"unregPick id={note.Id} state={note.State} res={note.Result}");
 					Scheduler._input.JudgmentNotes.Remove(note);
 				}
 
-				// The note knows whether the press went into it; the schedule only needs the answer.
-				bool noteFinished = note.State == NoteState.Done || note.Result != NoteResult.None;
+				// The note knows whether the press went into it; the schedule only needs the answer. A flick
+				// is judged by the press when the press arms it: it moves straight to reading this finger's
+				// swipe, and the press is spent on it like on any other key.
+				bool noteFinished = note.State == NoteState.Done || note.Result != NoteResult.None
+					|| (note is FlickNote flick && flick.IsArmedBy(Input.Touch.touchId));
 				return new JudgmentSchedule.Outcome(noteFinished);
 			}
 

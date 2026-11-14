@@ -51,7 +51,7 @@ namespace Sekai
 				return;
 			}
 
-			float progress = LiveConfig.GetNoteViewProgress(note.Progress);
+			float progress = LiveConfig.GetNoteViewProgress(LiveConfig.ViewProgressOf(note));
 			transform.localPosition = CalcNotePosition(ref progress);
 			transform.localScale = Vector3.one * progress;
 			UpdateSpritePayload(progress);

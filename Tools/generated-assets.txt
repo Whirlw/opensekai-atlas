@@ -1,4 +1,4 @@
-# Files that Unity / TextMeshPro rewrite while the game runs.
+﻿# Files that Unity / TextMeshPro rewrite while the game runs.
 #
 # These are tracked because prefabs and materials reference them by GUID, but their content has to
 # stay in the cold state a clean clone has: a 1x1 placeholder atlas and empty font feature tables.
@@ -15,6 +15,14 @@
 # prefers this asset, so the shipped glyph is what makes the ellipsis work; see LibraryUi.ResolveCjkFont
 # and ResourceCatalogTests.TheShippedProjectFontCarriesTheEllipsisGlyph. Re-baking it is a normal
 # intentional re-bake (below); do not "restore" it to the cold state without also reverting the fix.
+#
+# Medium SDF_Dynamic has "Clear Dynamic Data on Build" switched OFF: TMP's pre-build step clears every
+# dynamic asset that has it on, which wiped the baked ellipsis before every player build.
+#
+# Since 2026-11-14 Assets/Game/Editor/GeneratedAssetSaveGuard.cs keeps these files out of every Editor save
+# and reloads them from disk after Play mode and before a build, so running the game no longer dirties
+# them. A deliberate re-bake runs inside GeneratedAssetSaveGuard.AllowSaves(). The restore script below is
+# the fallback for a change made outside the Editor.
 #
 # Committing that cache bloats the repository and the build, cannot be diffed or merged, and differs
 # per machine. So this list is the single source of truth for "generated": verify-structure.ps1
@@ -35,4 +43,4 @@
 2abf72dee9ccae320e83c09605c29b43f832d2b33b074a679c0927e10bfa47db  6570  Assets/Graphics/Resources/font/SourceHanSansSC-Bold SDF_Base.asset
 c796de83ed6c1fa7ca457084983f60a74ef059f45b6c4a8bcacdf56abdb281f8  6491  Assets/Graphics/Resources/font/SourceHanSansSC-Bold SDF_Dynamic.asset
 6ec9983d3d0363b51322e4fa6acd728a51fce0ee69bbe729ecbb0ddfafb6a87b  6651  Assets/Graphics/Resources/font/SourceHanSansSC-Medium SDF_Base.asset
-7107d6d21773c2784aa3c9ab8cea51b91412095b5534757853c408cec38871e4  8395651  Assets/Graphics/Resources/font/SourceHanSansSC-Medium SDF_Dynamic.asset
+b30dc00da54df2267d62bf496c75728cea977ae03c3190c487d23b67926e9be3  8395651  Assets/Graphics/Resources/font/SourceHanSansSC-Medium SDF_Dynamic.asset

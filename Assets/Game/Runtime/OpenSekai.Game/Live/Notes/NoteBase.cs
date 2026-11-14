@@ -597,11 +597,12 @@ namespace Sekai.Live
 			// A note handed out by the pool must be clean. The bug this catches is expensive to find
 			// otherwise: a deferred swipe left on a bar from the previous run finished the first bar
 			// of the next run a quarter of a second before its own time.
-			LiveTrace.Write(LiveTraceCategory.Judge, string.Concat("spawn id=", Id, " type=", GetType().Name, " t=", MusicScoreInfo.time.ToString("F3"), " state=", State, " deco=", IsDecoration));
+			if (LiveTrace.IsOn(LiveTraceCategory.Judge))
+				LiveTrace.Write(LiveTraceCategory.Judge, string.Concat("spawn id=", Id, " type=", GetType().Name, " t=", MusicScoreInfo.time.ToString("F3"), " state=", State, " deco=", IsDecoration));
 
-			LiveTrace.Invariant(
-				State == NoteState.Wait && Result == NoteResult.None,
-				$"pool handed out a dirty note type={GetType().Name} state={State} result={Result} offset={OffsetJudgeTime:F3}");
+			if ((State != NoteState.Wait || Result != NoteResult.None) && LiveTrace.Enabled)
+				LiveTrace.Invariant(false,
+					$"pool handed out a dirty note type={GetType().Name} state={State} result={Result} offset={OffsetJudgeTime:F3}");
 
 			onSpawn?.Invoke(this);
 		}

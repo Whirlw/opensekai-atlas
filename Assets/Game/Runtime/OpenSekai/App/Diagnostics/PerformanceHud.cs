@@ -1,13 +1,15 @@
-#if OPENSEKAI_PERF_HUD
 using System;
 using System.Text;
+using System.Collections.Generic;
+using OpenSekai.Charts;
+using Sekai.Core.Live;
+using Sekai.Live;
 using UnityEngine;
 
 namespace OpenSekai.Diagnostics
 {
     /// <summary>
-    /// Development-only frame pacing HUD. Enabled by the OPENSEKAI_PERF_HUD scripting define so that
-    /// nothing is compiled into normal players. Draws a small IMGUI overlay and logs one line every
+    /// Optional frame pacing HUD, controlled from settings. Draws an IMGUI overlay and logs one line every
     /// two seconds (readable through `adb logcat -s Unity`), which is how on-device numbers get
     /// collected while the developer plays a chart.
     ///
@@ -19,8 +21,21 @@ namespace OpenSekai.Diagnostics
     {
         private const float SAMPLE_WINDOW_SECONDS = 1f;
         private const float LOG_INTERVAL_SECONDS = 2f;
+        private const string ENABLED_PREF_KEY = "diagnostics.performance_hud.enabled";
 
         private static PerformanceHud _instance;
+
+        public static bool Enabled
+        {
+            get => PlayerPrefs.GetInt(ENABLED_PREF_KEY, 0) != 0;
+            set
+            {
+                PlayerPrefs.SetInt(ENABLED_PREF_KEY, value ? 1 : 0);
+                PlayerPrefs.Save();
+                if (_instance == null) Bootstrap();
+                else _instance.gameObject.SetActive(value);
+            }
+        }
 
         private float[] _samples = new float[512];
         private int _sampleCount;
@@ -36,6 +51,10 @@ namespace OpenSekai.Diagnostics
         private float _lastWorstMs;
         private int _lastFrames;
         private float _liveWorstMs;
+        private BaseLiveController _liveController;
+        private MusicScore _tickScore;
+        private List<MusicScoreInfo> _tickTimeline;
+        private float _nextControllerSearch;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -47,11 +66,19 @@ namespace OpenSekai.Diagnostics
 
             var host = new GameObject("OpenSekai.PerformanceHud");
             DontDestroyOnLoad(host);
+            host.SetActive(false);
             _instance = host.AddComponent<PerformanceHud>();
+            host.SetActive(Enabled);
         }
 
-        private void Awake()
+        private void OnEnable()
         {
+            _sampleCount = 0;
+            _lastFrames = 0;
+            _lastFps = 0f;
+            _lastWorstMs = 0f;
+            _liveWorstMs = 0f;
+            _warmedUp = false;
             _windowStartTime = Time.unscaledTime;
             _logStartTime = Time.unscaledTime;
             LogDeviceInfo();
@@ -72,10 +99,18 @@ namespace OpenSekai.Diagnostics
                 .Append(" targetFrameRate=").Append(Application.targetFrameRate)
                 .Append(" vsyncCount=").Append(QualitySettings.vSyncCount);
             Debug.Log(builder.ToString());
+            // The output latency the device adds is part of the same picture as the frame pacing.
+            Debug.Log("[PerfHud] " + Sekai.AudioOutputTuning.Report);
         }
 
         private void Update()
         {
+            if (_liveController == null && Time.unscaledTime >= _nextControllerSearch)
+            {
+                _liveController = UnityEngine.Object.FindFirstObjectByType<BaseLiveController>();
+                _nextControllerSearch = Time.unscaledTime + 0.5f;
+            }
+
             float delta = Time.unscaledDeltaTime;
             if (delta <= 0f)
             {
@@ -167,17 +202,36 @@ namespace OpenSekai.Diagnostics
         {
             var style = new GUIStyle(GUI.skin.label)
             {
-                fontSize = Mathf.Max(14, Screen.height / 60),
+                fontSize = Mathf.Max(24, Screen.height / 32),
                 alignment = TextAnchor.UpperLeft
             };
             style.normal.textColor = Color.white;
 
             string text = "FPS " + _lastFps.ToString("F0")
                 + "  worst " + _lastWorstMs.ToString("F1") + "ms"
-                + "\n" + Screen.width + "x" + Screen.height;
+                + "\n" + Screen.width + "x" + Screen.height
+                + "\nTick " + CurrentTick();
 
-            GUI.Label(new Rect(24f, 24f, Screen.width * 0.6f, Screen.height * 0.1f), text, style);
+            GUI.Label(new Rect(24f, 24f, Screen.width - 48f, Screen.height * 0.25f), text, style);
+        }
+
+        private string CurrentTick()
+        {
+            if (_liveController == null || !_liveController.HasActiveTimeline)
+                return "--";
+
+            MusicScore score = _liveController.BootData?.MusicData?.MusicScore;
+            if (score == null || score.musicScoreInfoArray == null || score.musicScoreInfoArray.Length == 0)
+                return "--";
+
+            if (!ReferenceEquals(score, _tickScore))
+            {
+                _tickScore = score;
+                _tickTimeline = ChartTimeline.CreateSortedMusicScoreInfoList(score.musicScoreInfoArray);
+            }
+
+            MusicScoreInfo frame = MusicScore.CurrentFrameInfo;
+            return ChartTimeline.CalculateTicksFromBarAndProgressSorted(frame.bar, frame.barProgress, _tickTimeline).ToString();
         }
     }
 }
-#endif

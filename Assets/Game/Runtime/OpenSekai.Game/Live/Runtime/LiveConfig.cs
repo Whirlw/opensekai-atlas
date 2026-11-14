@@ -128,6 +128,24 @@ namespace Sekai.Live
 
 		public static float CacheSpeedTime { get; set; }
 
+		/// <summary>
+		/// Seconds the picture is drawn ahead of the logic clock (visual latency plus judge offset, see
+		/// <see cref="OpenSekai.Shared.Live.Simulation.TimingCompensation"/>). Set by the live controller.
+		/// </summary>
+		public static float ViewLeadSeconds { get; set; }
+
+		/// <summary>The progress a key is drawn at: its logic progress moved by <see cref="ViewLeadSeconds"/>.</summary>
+		public static float ViewProgressOf(INote note)
+		{
+			if (note == null)
+			{
+				return 0f;
+			}
+
+			float offsetTime = note is NoteBase noteBase ? noteBase.offsetTime : 0f;
+			return OpenSekai.Shared.Live.Simulation.TimingCompensation.ViewProgress(note.Progress, offsetTime, ViewLeadSeconds);
+		}
+
 		public static float CacheTimingTime { get; set; }
 
 		public static float NoteSpeedOffset { get; set; }

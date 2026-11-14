@@ -81,11 +81,22 @@ TMP 的 `TextOverflowModes.Ellipsis` 只做 `HasCharacter('…')`，不会自己
 - `SourceHanSansSC-Medium SDF_Dynamic` 在编辑期烘入 U+2026，`LibraryUi.ResolveCjkFont()` 优先用它，不再依赖运行时光栅化。
 - 这条预烘是**有意为之**，因此 `Tools/generated-assets.txt` 里它的期望大小是 8,395,651 字节而不是 6,516。改动它只需重烘（`-UpdateGeneratedAssets`），不要"还原"回冷状态——还原会让省略号缺陷复现。
 - `ResourceCatalogTests.TheShippedProjectFontCarriesTheEllipsisGlyph` 守住这一点：读资产、断言 `HasCharacter('…')` 且 `glyphTable` 非空（只读，不改资产）。
+- 这份资产的 **Clear Dynamic Data on Build 是关的**（`m_ClearDynamicDataOnBuild: 0`）。TMP 自带的 `TMP_PreBuildProcessor` 每次出包前都会清空勾了这一项的动态字体资产的字符表和字形表——以前每次装机都把预烘的省略号清掉、写回磁盘，打出来的包里也就没有它。其余三份是冷状态，保持勾选。
+
+### 不再需要手动还原（2026-11-14 起）
+
+`Assets/Game/Editor/GeneratedAssetSaveGuard.cs` 让清单里的文件在编辑器里保持提交时的样子：
+
+- **不写盘**：`OnWillSaveAssets` 把这些路径从每次保存里拿掉。Play 模式里 TMP 烘的字形、`FontAssetManager` 启动时的清空与重建，都只发生在内存里。
+- **丢弃内存改动**：回到编辑模式时、以及每次出包前（顺序 −100，早于 TMP 的预构建步骤），把这些资产从内存卸载、下次访问时从文件重新读，所以包里装的是提交的版本，而不是这台机器刚烘的缓存。
+- **有意重烘**：在 `GeneratedAssetSaveGuard.AllowSaves()` 范围内保存不受限。`FontAssetRebuilder.BuildAssets` 已经包在里面；别的重烘脚本也要这样包。
+
+`GeneratedAssetSaveGuardTests` 守住这三点。下面的还原脚本和检查闸门照旧保留，作为最后一道防线（例如在编辑器外改了文件）。
 
 受管清单只有一处：[`Tools/generated-assets.txt`](../../Tools/generated-assets.txt)（sha256 + 字节数 + 路径）。两道闸门：
 
 ```powershell
-# 刚跑过游戏、资产变脏：还原（只会动真正脏了的条目）
+# 资产在磁盘上变脏（有了保存拦截后一般不会发生）：还原（只会动真正脏了的条目）
 powershell -NoProfile -ExecutionPolicy Bypass -File Tools/restore-generated-assets.ps1
 
 # 确实要重新烘（菜单 OpenSekai/Dev/Fonts/Build Source Han Sans Assets 之后）

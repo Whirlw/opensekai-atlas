@@ -163,14 +163,18 @@ namespace Sekai.Core.Live
 
 				LongNote target = PickLiftTarget(judgmentNotes, inputs, input, frame.time);
 
-				if (LiveTrace.IsOn(LiveTraceCategory.Tail))
+				if (LiveTrace.IsOn(LiveTraceCategory.Release))
 				{
 					float barTime = target == null ? -1f : target.MusicScoreInfo.time;
-					LiveTrace.Write(LiveTraceCategory.Tail,
-						$"liftPick finger={input.Touch.fingerId} lane={input.Lane:F2} phase={input.Touch.phase} barT={barTime:F3}");
+					NoteBase tail = target?.ChildNote as NoteBase;
+					LiveTrace.Write(LiveTraceCategory.Release,
+						$"liftSelected finger={input.Touch.fingerId} touch={input.Touch.touchId} lane={input.Lane:F2} phase={input.Touch.phase} barT={barTime:F3} tailId={(tail == null ? -1 : tail.Id)} tailT={(tail == null ? -1f : tail.MusicScoreInfo.time):F3}");
 				}
 
-				if (target != null && target.JudgeTailAsRelease(frame.time))
+				bool settled = target != null && target.JudgeTailAsRelease(frame.time);
+				if (LiveTrace.IsOn(LiveTraceCategory.Release))
+					LiveTrace.Write(LiveTraceCategory.Release, $"liftResult finger={input.Touch.fingerId} touch={input.Touch.touchId} settled={settled} result={(target?.ChildNote as NoteBase)?.Result}");
+				if (settled)
 				{
 					_usedLiftFingers.Add(input.Touch.fingerId);
 				}
@@ -240,9 +244,9 @@ namespace Sekai.Core.Live
 				}
 
 				bool swipeEnded = swipe != null && IsEndedOrCanceled(swipe.Touch.phase);
-				if (LiveTrace.IsOn(LiveTraceCategory.Tail))
+				if (LiveTrace.IsOn(LiveTraceCategory.Resident))
 				{
-					LiveTrace.Write(LiveTraceCategory.Tail,
+					LiveTrace.Write(LiveTraceCategory.Resident,
 						$"tailFrame barT={held.MusicScoreInfo.time:F3} now={frame.time:F3} state={held.State} covered={covered} swipeEnded={swipeEnded} swipeTouch={swipe?.Touch.touchId} held={held.HasFinger} settled={headSettled} child={(held.ChildNote == null ? -1f : held.ChildNote.MusicScoreInfo.time):F3} childRes={(held.ChildNote == null ? NoteResult.None : held.ChildNote.Result)}");
 				}
 
@@ -376,8 +380,11 @@ namespace Sekai.Core.Live
 			float bestTime = float.MaxValue;
 			float bestDistance = float.MaxValue;
 			float lane = lift.Lane;
+			bool tracing = LiveTrace.IsOn(LiveTraceCategory.Release);
+			System.Text.StringBuilder candidates = tracing ? new System.Text.StringBuilder() : null;
 			if (lane < 0f)
 			{
+				if (tracing) LiveTrace.Write(LiveTraceCategory.Release, $"liftCandidates finger={lift.Touch.fingerId} touch={lift.Touch.touchId} lane={lane:F2} candidates=[]");
 				return null;
 			}
 
@@ -393,7 +400,7 @@ namespace Sekai.Core.Live
 				// on another lane than the body it hangs from, and the body's range is the widened
 				// judge range anyway, which reaches into the neighbours.
 				NoteBase tail = candidate.ChildNote as NoteBase;
-				if (tail == null || !InTailRange(lane, tail))
+				if (!IsReleaseKey(candidate, tail) || !InTailRange(lane, tail))
 				{
 					continue;
 				}
@@ -404,12 +411,18 @@ namespace Sekai.Core.Live
 				}
 
 				float tailTime = tail.MusicScoreInfo.time;
-				if (!LongEndJudgement.IsPerfect(time - tailTime)
-					&& AnotherTouchInTailRange(inputs, lift.Touch.touchId, tail))
+				bool crowded = !LongEndJudgement.IsPerfect(time - tailTime)
+					&& AnotherTouchInTailRange(inputs, lift.Touch.touchId, tail);
+				if (tracing)
 				{
-					if (LiveTrace.IsOn(LiveTraceCategory.Tail))
+					if (candidates.Length > 0) candidates.Append(';');
+					candidates.Append($"id={tail.Id},type={tail.GetType().Name},t={tailTime:F3},lane={tail.JudgeLaneStart:F2}..{tail.JudgeLaneEnd:F2},crowded={crowded}");
+				}
+				if (crowded)
+				{
+					if (LiveTrace.IsOn(LiveTraceCategory.Release))
 					{
-						LiveTrace.Write(LiveTraceCategory.Tail,
+						LiveTrace.Write(LiveTraceCategory.Release,
 							$"liftCrowded touch={lift.Touch.touchId} tailT={tailTime:F3} now={time:F3}");
 					}
 					continue;
@@ -424,8 +437,20 @@ namespace Sekai.Core.Live
 				}
 			}
 
+			if (tracing)
+				LiveTrace.Write(LiveTraceCategory.Release, $"liftCandidates finger={lift.Touch.fingerId} touch={lift.Touch.touchId} lane={lane:F2} now={time:F3} candidates=[{candidates}]");
 			return best;
 		}
+
+		/// <summary>
+		/// The one kind of key a lift is offered: a bar's ordinary end note - a plain note, not a flick, a
+		/// rub or a hidden carrier, and not a decoration - that the bar finishes on release. The lane
+		/// (<see cref="InTailRange"/>) and the window (<see cref="LongNote.IsTailJudgeableAt"/>, 125 ms early
+		/// to 141.7 ms late) are checked next to it.
+		/// </summary>
+		internal static bool IsReleaseKey(LongNote bar, NoteBase tail) =>
+			tail is NormalNote && !tail.IsDecoration && tail.State != NoteState.Done
+			&& bar.TailBehaviour.AcceptsRelease;
 
 		private static bool InTailRange(float lane, NoteBase tail) =>
 			lane >= tail.JudgeLaneStart && lane <= tail.JudgeLaneEnd;

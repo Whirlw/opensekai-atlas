@@ -82,6 +82,48 @@ namespace OpenSekai.Tests.EditMode.Settings
         }
 
         [Test]
+        public void TheOldFrameShiftMigratesToAnAudioLatencyOnce()
+        {
+            // The old "判定延迟" of -1.5 frames moved the clock back 25 ms: an audio latency of 25 ms.
+            File.WriteAllText(_path, "{ \"TimingAdjustData\": -1.5 }");
+
+            var store = new LiveSettingsStore(_path);
+            LiveSettingData loaded = store.Load();
+            Assert.That(loaded.AudioLatencyMs, Is.EqualTo(25f).Within(1e-3f));
+            Assert.That(loaded.TimingAdjustData, Is.Zero, "the old value is consumed, not applied twice");
+
+            store.Save(loaded);
+            LiveSettingData reloaded = new LiveSettingsStore(_path).Load();
+            Assert.That(reloaded.AudioLatencyMs, Is.EqualTo(25f).Within(1e-3f));
+        }
+
+        [Test]
+        public void AnAudioLatencyAlreadySetWinsOverTheOldFrameShift()
+        {
+            File.WriteAllText(_path, "{ \"TimingAdjustData\": 2, \"AudioLatencyMs\": 40 }");
+
+            LiveSettingData loaded = new LiveSettingsStore(_path).Load();
+            Assert.That(loaded.AudioLatencyMs, Is.EqualTo(40f));
+            Assert.That(loaded.TimingAdjustData, Is.Zero);
+        }
+
+        [Test]
+        public void TheThreeCompensationsComeBack()
+        {
+            var store = new LiveSettingsStore(_path);
+            LiveSettingData data = store.Load();
+            data.AudioLatencyMs = 30f;
+            data.VisualLatencyMs = 20f;
+            data.JudgeOffsetMs = -10f;
+            store.Save(data);
+
+            LiveSettingData reloaded = new LiveSettingsStore(_path).Load();
+            Assert.That(reloaded.AudioLatencyMs, Is.EqualTo(30f));
+            Assert.That(reloaded.VisualLatencyMs, Is.EqualTo(20f));
+            Assert.That(reloaded.JudgeOffsetMs, Is.EqualTo(-10f));
+        }
+
+        [Test]
         public void CorruptFileFallsBackToDefaults()
         {
             File.WriteAllText(_path, "{ this is not json");

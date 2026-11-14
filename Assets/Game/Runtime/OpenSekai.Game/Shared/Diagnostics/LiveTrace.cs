@@ -20,6 +20,11 @@ namespace OpenSekai.Shared.Diagnostics
         Judge = 1 << 3,
         Pool = 1 << 4,
         View = 1 << 5,
+        Frame = 1 << 6,
+        RawTouch = 1 << 7,
+        Press = 1 << 8,
+        Resident = 1 << 9,
+        Release = 1 << 10,
         All = ~0,
     }
 
@@ -36,6 +41,7 @@ namespace OpenSekai.Shared.Diagnostics
     {
         public const string EnabledPrefKey = "diagnostics.trace.enabled";
         public const string CategoryPrefKey = "diagnostics.trace.categories";
+        public const string HighlightLastPrefKey = "diagnostics.highlight_last";
 
         private const int BufferSize = 4096;
         private static readonly string[] _buffer = new string[BufferSize];
@@ -44,9 +50,22 @@ namespace OpenSekai.Shared.Diagnostics
 
         private static bool _enabled;
         private static bool _loaded;
-        private static LiveTraceCategory _categories = LiveTraceCategory.All;
+        private static bool _highlightLast;
+        private static LiveTraceCategory _categories = LiveTraceCategory.Judge;
         private static StreamWriter _sink;
         private static string _logFilePath;
+
+        public static bool HighlightLast
+        {
+            get { EnsureLoaded(); return _highlightLast; }
+            set
+            {
+                EnsureLoaded();
+                _highlightLast = value;
+                PlayerPrefs.SetInt(HighlightLastPrefKey, value ? 1 : 0);
+                PlayerPrefs.Save();
+            }
+        }
 
         public static bool Enabled
         {
@@ -125,9 +144,7 @@ namespace OpenSekai.Shared.Diagnostics
                 return false;
             }
 
-            // An empty mask cannot mean "keep nothing": someone switched tracing on and expects to
-            // see the pipeline. Treating it as "nothing" made the switch look dead.
-            return _categories == LiveTraceCategory.None || (category & _categories) != 0;
+            return (category & _categories) != 0;
         }
 
         public static void Write(LiveTraceCategory category, string message)
@@ -203,6 +220,7 @@ namespace OpenSekai.Shared.Diagnostics
 
             _loaded = true;
             _enabled = PlayerPrefs.GetInt(EnabledPrefKey, 0) != 0;
+            _highlightLast = PlayerPrefs.GetInt(HighlightLastPrefKey, 0) != 0;
             _categories = (LiveTraceCategory)PlayerPrefs.GetInt(CategoryPrefKey, (int)_categories);
             if (_enabled)
             {

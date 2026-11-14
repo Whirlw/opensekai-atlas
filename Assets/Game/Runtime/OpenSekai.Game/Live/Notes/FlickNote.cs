@@ -133,6 +133,16 @@ namespace Sekai.Live
 				return false;
 			}
 
+			// A press arms a flick on no bar; from then on a swipe from any finger completes it - not only
+			// the one that armed it - as long as the sample is in the flick's own lanes and inside its judge
+			// window. The speed (5 cm/s, the note's flick distance per reference frame) is checked when the
+			// sample is read (FlickGesture).
+			if (parentNote == null && State == NoteState.Input)
+			{
+				return JudgeLaneStart <= lane && lane <= JudgeLaneEnd
+					&& LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(this), MusicScoreInfo.time - touch.musicTime);
+			}
+
 			if (IsLaneCheck(touch))
 			{
 				if (JudgeLaneStart > lane || JudgeLaneEnd < lane)
@@ -195,11 +205,7 @@ namespace Sekai.Live
 					return false;
 				}
 
-				if (!HasInputResult(touch.touchId))
-				{
-					return false;
-				}
-
+				// Any finger's movement completes an armed flick, not only the one that armed it.
 				UpdateDelta(touch.delta, ref isUpdatedDelta, ref isTrueDirection);
 				if (!isUpdatedDelta)
 				{
@@ -283,6 +289,9 @@ namespace Sekai.Live
 			Array.Clear(inputResults, 0, inputResults.Length);
 			_lastInputTime = 0f;
 		}
+
+		/// <summary>Whether a press of <paramref name="touchId"/> armed this flick, which now waits for a swipe.</summary>
+		internal bool IsArmedBy(int touchId) => State == NoteState.Input && HasInputResult(touchId);
 
 		private bool HasInputResult(int touchId)
 		{

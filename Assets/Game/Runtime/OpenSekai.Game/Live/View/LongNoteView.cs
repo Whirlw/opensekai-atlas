@@ -15,9 +15,9 @@ namespace Sekai
 
 			if (note.Progress <= 0f)
 			{
-				if (LiveTrace.IsOn(LiveTraceCategory.View))
+				if (LiveTrace.IsOn(LiveTraceCategory.Frame))
 				{
-					LiveTrace.Write(LiveTraceCategory.View, "viewHide barT=" + note.MusicScoreInfo.time.ToString("F3") + " state=" + note.State + " raw=" + note.Progress.ToString("F3"));
+					LiveTrace.Write(LiveTraceCategory.Frame, "viewHide barT=" + note.MusicScoreInfo.time.ToString("F3") + " state=" + note.State + " raw=" + note.Progress.ToString("F3"));
 				}
 
 				transform.localScale = Vector3.zero;
@@ -33,9 +33,9 @@ namespace Sekai
 				|| (note is LongNote endedBar && (endedBar.HeadKeyLeftWithItsVerdict
 					|| (endedBar.ChildNote != null && musicTime >= endedBar.ChildNote.MusicScoreInfo.time))))
 			{
-				if (LiveTrace.IsOn(LiveTraceCategory.View))
+				if (LiveTrace.IsOn(LiveTraceCategory.Frame))
 				{
-					LiveTrace.Write(LiveTraceCategory.View, "viewHide barT=" + note.MusicScoreInfo.time.ToString("F3") + " state=" + note.State + " now=" + musicTime.ToString("F3") + " end");
+					LiveTrace.Write(LiveTraceCategory.Frame, "viewHide barT=" + note.MusicScoreInfo.time.ToString("F3") + " state=" + note.State + " now=" + musicTime.ToString("F3") + " end");
 				}
 
 				transform.localScale = Vector3.zero;
@@ -43,9 +43,9 @@ namespace Sekai
 			}
 
 			float progress = CalcProgress();
-			if (LiveTrace.IsOn(LiveTraceCategory.View))
+			if (LiveTrace.IsOn(LiveTraceCategory.Frame))
 			{
-				LiveTrace.Write(LiveTraceCategory.View, "view barT=" + note.MusicScoreInfo.time.ToString("F3") + " state=" + note.State + " raw=" + note.Progress.ToString("F3") + " view=" + progress.ToString("F3"));
+				LiveTrace.Write(LiveTraceCategory.Frame, "view barT=" + note.MusicScoreInfo.time.ToString("F3") + " state=" + note.State + " raw=" + note.Progress.ToString("F3") + " view=" + progress.ToString("F3"));
 			}
 
 			transform.localScale = Vector3.one * progress;
@@ -65,7 +65,7 @@ namespace Sekai
 				return 0f;
 			}
 
-			float progress = note.Progress;
+			float progress = LiveConfig.ViewProgressOf(note);
 			if (note.State == NoteState.Done)
 			{
 				return LiveConfig.GetNoteViewProgress(progress);

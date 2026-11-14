@@ -41,7 +41,20 @@ namespace Sekai
 
 		public float NoteSpeed { get; set; }
 
+		/// <summary>
+		/// The old whole-clock shift in 1/60 s frames. Read once and migrated into
+		/// <see cref="AudioLatencyMs"/>; kept so old files and play history still parse.
+		/// </summary>
 		public float TimingAdjustData { get; set; }
+
+		/// <summary>How late the music reaches the ear, in ms. Moves notes and judgement together.</summary>
+		public float AudioLatencyMs { get; set; }
+
+		/// <summary>How late a drawn frame reaches the eye, in ms. Moves only the picture.</summary>
+		public float VisualLatencyMs { get; set; }
+
+		/// <summary>The player's own timing habit, in ms; positive means "I hit late". Moves only judgement.</summary>
+		public float JudgeOffsetMs { get; set; }
 
 		public float Brightness { get; set; }
 
@@ -213,6 +226,9 @@ namespace Sekai
 			UseVibration = true;
 			NoteSpeed = 6f;
 			TimingAdjustData = 0f;
+			AudioLatencyMs = 0f;
+			VisualLatencyMs = 0f;
+			JudgeOffsetMs = 0f;
 			Brightness = 1f;
 			LaneTransparent = 1f;
 			CustomMusicScoreMusicInfoDisplayMode = MUSIC_INFO_DISPLAY_MODE_CUSTOM_SCORE;
