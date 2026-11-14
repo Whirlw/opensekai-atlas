@@ -52,6 +52,7 @@ namespace Sekai.Live
 		private Material _movieMaterial;
 		private bool _movieModeActive;
 		private bool _pendingMoviePlay;
+		private bool _movieStarted;
 		private float _pendingMovieStartTime;
 		private string _moviePlaybackPath;
 
@@ -156,12 +157,44 @@ namespace Sekai.Live
 
 		public override void MusicStart(float musicTime)
 		{
+			// The info page is up now, but the music does not start until it is gone: only get the
+			// movie ready here, and start it with the audio.
+			if (!_movieModeActive || _videoPlayer == null || _videoPlayer.isPrepared)
+			{
+				return;
+			}
+
+			_videoPlayer.Prepare();
+		}
+
+		public override void MusicPlaybackStart(float musicTime)
+		{
 			if (!_movieModeActive)
 			{
 				return;
 			}
 
-			PlayMovieAt(GetInitialMovieStartTime());
+			_movieStarted = true;
+			PlayMovieAt(Mathf.Max(GetInitialMovieStartTime(), musicTime));
+		}
+
+		public override void MusicSeek(float musicTime)
+		{
+			if (!_movieModeActive || !_movieStarted || _videoPlayer == null)
+			{
+				return;
+			}
+
+			if (!_videoPlayer.isPrepared)
+			{
+				_pendingMovieStartTime = Mathf.Max(0f, musicTime);
+				return;
+			}
+
+			if (_videoPlayer.canSetTime)
+			{
+				_videoPlayer.time = Mathf.Max(0f, musicTime);
+			}
 		}
 
 		public override void Pause()
@@ -174,14 +207,15 @@ namespace Sekai.Live
 
 		public override void Resume(float musicTime)
 		{
-			if (!_movieModeActive)
+			// A pause before the music started (the run-in) must not start the movie early.
+			if (!_movieModeActive || !_movieStarted)
 			{
 				return;
 			}
 
 			if (_videoPlayer == null || !_videoPlayer.isPrepared)
 			{
-				PlayMovieAt(GetInitialMovieStartTime());
+				PlayMovieAt(Mathf.Max(GetInitialMovieStartTime(), musicTime));
 				return;
 			}
 
@@ -196,6 +230,7 @@ namespace Sekai.Live
 			}
 
 			_pendingMoviePlay = false;
+			_movieStarted = false;
 			_pendingMovieStartTime = 0f;
 			if (_videoPlayer != null)
 			{
@@ -669,6 +704,7 @@ namespace Sekai.Live
 		private void StopMovie()
 		{
 			_pendingMoviePlay = false;
+			_movieStarted = false;
 			_pendingMovieStartTime = 0f;
 			if (_videoPlayer != null)
 			{

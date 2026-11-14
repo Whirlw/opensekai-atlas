@@ -1283,6 +1283,24 @@ namespace CriWare
 			}
 		}
 
+		/// <summary>Moves a playback, its sources and its clock together, paused or not.</summary>
+		internal static void Seek(uint id, float timeSeconds)
+		{
+			if (id == 0 || !_playbacks.TryGetValue(id, out PlaybackState state) || state.PrimarySource == null)
+			{
+				return;
+			}
+
+			timeSeconds = Mathf.Max(0f, timeSeconds);
+			SeekSources(state, timeSeconds);
+			state.PausedTimeSeconds = timeSeconds;
+			state.SuspendedTimeSeconds = timeSeconds;
+			state.BaseTimeSeconds = timeSeconds;
+			state.BaseStopwatchTicks = Stopwatch.GetTimestamp();
+			ResetDriftWindow(state);
+			TraceSync(state, id, "seek");
+		}
+
 		internal static void TraceSync(uint id, string reason)
 		{
 			if (id != 0 && _playbacks.TryGetValue(id, out PlaybackState state))

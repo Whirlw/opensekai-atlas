@@ -67,6 +67,7 @@ namespace Sekai.Core.Live
 			_liveViews = LiveViewFactory.Create(BootData, transform);
 			LiveViewExt.Setup(_liveViews, this);
 			RetryProcess();
+			BuildTimelineSpan(BootData.MusicData?.MusicScore);
 			liveOutUIController?.Initialize(BootData.LivePlayMode, BaseCamera);
 			LiveViewExt.OnLoad(_liveViews);
 			StartCoroutine(LiveStart(6f));
@@ -79,22 +80,112 @@ namespace Sekai.Core.Live
 			LiveViewExt.MusicStart(_liveViews, currentAudioLatencyMusicTimeMs);
 		}
 
+		protected override bool IsIntroFinished() => LiveViewExt.IsIntroFinished(_liveViews);
+
+		protected override float IntroDurationSeconds() => LiveViewExt.IntroDurationSeconds(_liveViews);
+
+		protected override void OnMusicPlaybackStarted(float musicTime)
+		{
+			LiveViewExt.MusicPlaybackStart(_liveViews, musicTime);
+		}
+
 		protected override void OnRhythmGameStart()
 		{
 			LiveViewExt.RhythmGameStart(_liveViews);
 			base.OnRhythmGameStart();
 			_liveLogic?.RefreshInput();
+			_forcedFinish = false;
+			if (timelineSpan.HasIntroSkip)
+			{
+				ShowSkip("跳过前奏", SkipIntro);
+			}
+		}
+
+		/// <summary>How long past the end of the timeline a live may stay open before it is ended by force.</summary>
+		private const long StalledFinishGraceMs = 3000L;
+
+		private const float LiveTimelineSpanMargin = OpenSekai.Shared.Live.Simulation.LiveTimelineSpan.SkipMarginSeconds;
+
+		private LiveSkipButton _skipButton;
+		private bool _forcedFinish;
+		private long _outroSkipAtMs = -1L;
+
+		private void ShowSkip(string label, System.Action onPress)
+		{
+			if (_skipButton == null)
+			{
+				_skipButton = LiveSkipButton.Create(transform);
+			}
+
+			_skipButton.Show(label, onPress);
+		}
+
+		private void HideSkip()
+		{
+			_skipButton?.Hide();
+		}
+
+		/// <summary>Jumps the music and the clock to the margin before the first note.</summary>
+		private void SkipIntro()
+		{
+			long targetMs = (long)(timelineSpan.IntroSkipTargetSeconds * 1000f);
+			if (state != LiveControllerState.Playing || musicPhase != MusicPhase.Playing || currentMusicTimeMs >= targetMs)
+			{
+				return;
+			}
+
+			TraceTimeline("intro skip from=" + currentMusicTimeMs + " to=" + targetMs);
+			SoundManager.Instance.SeekIngame(targetMs);
+			currentMusicTimeMs = targetMs;
+			LiveViewExt.MusicSeek(_liveViews, targetMs / 1000f);
+		}
+
+		/// <summary>Cuts the wait for the rest of the music and goes to the result now.</summary>
+		private void SkipOutro()
+		{
+			if (state != LiveControllerState.Finish)
+			{
+				return;
+			}
+
+			TraceTimeline("outro skip at=" + currentMusicTimeMs);
+			if (_finishCoroutine != null)
+			{
+				StopCoroutine(_finishCoroutine);
+				_finishCoroutine = null;
+			}
+			Exit();
 		}
 
 		protected override void OnUpdate()
 		{
 			base.OnUpdate();
+			if (state == LiveControllerState.Finish && _outroSkipAtMs >= 0L)
+			{
+				// Nothing else reads the clock once the live is finished; it is kept moving only to
+				// know when the outro skip is due.
+				UpdateMusicTime();
+				if (currentMusicTimeMs >= _outroSkipAtMs)
+				{
+					_outroSkipAtMs = -1L;
+					if (currentMusicTimeMs < MusicEndMs)
+					{
+						ShowSkip("跳过，立即结算", SkipOutro);
+					}
+				}
+			}
+
 			if (state != LiveControllerState.Playing)
 			{
 				return;
 			}
 
 			UpdateMusicTime();
+			if (_skipButton != null && _skipButton.IsVisible
+				&& currentMusicTimeMs >= (long)(timelineSpan.IntroSkipTargetSeconds * 1000f))
+			{
+				HideSkip();
+			}
 			float fillerSec = BootData?.MusicData?.Music?.fillerSec ?? 0f;
 			_liveLogic?.OnUpdate(currentLogicMusicTime - fillerSec, currentGameTime);
 			if (BootData?.IsAuto == true)
@@ -107,6 +198,18 @@ namespace Sekai.Core.Live
 			}
 			if (_liveLogic?.result == 2 && _liveLogic.IsNotesAllFinished)
 			{
+				OnFinished();
+			}
+			else if (!_forcedFinish && state == LiveControllerState.Playing && _liveLogic != null
+				&& !_liveLogic.IsNotesAllFinished && currentMusicTimeMs > TimelineEndMs + StalledFinishGraceMs)
+			{
+				// The clock is well past the last note and the music, and something is still open: a
+				// note whose state never reached Done. End the live rather than leave it hanging, and
+				// say what was left so the note can be fixed.
+				_forcedFinish = true;
+				string pending = _liveLogic.DescribeUnfinishedNotes();
+				Debug.LogWarning("[Live] forced finish: notes still open past the end. " + pending);
+				TraceTimeline("forced finish at=" + currentMusicTimeMs + " " + pending);
 				OnFinished();
 			}
 
@@ -221,7 +324,7 @@ namespace Sekai.Core.Live
 
 			state = LiveControllerState.ResumeCountDown;
 			liveOutUIController?.Destroy();
-			SoundManager.Instance.ResumeIngame(currentMusicTimeMs);
+			ResumeMusicPlayback();
 			state = LiveControllerState.Playing;
 			LiveViewExt.Resume(_liveViews, currentAudioLatencyMusicTimeMs);
 			_liveLogic?.RefreshInput();
@@ -235,6 +338,8 @@ namespace Sekai.Core.Live
 		protected override void OnRetry()
 		{
 			_pauseOverlay?.Hide();
+			HideSkip();
+			_outroSkipAtMs = -1L;
 			liveOutUIController?.Destroy();
 			SoundManager.Instance.StopIngame();
 			_playHistoryRecorded = false;
@@ -297,7 +402,7 @@ namespace Sekai.Core.Live
 		{
 			_liveLogic?.RefreshInput();
 			yield return new WaitForSeconds(3f);
-			SoundManager.Instance.ResumeIngame(currentMusicTimeMs);
+			ResumeMusicPlayback();
 			state = LiveControllerState.Playing;
 			LiveViewExt.Resume(_liveViews, currentAudioLatencyMusicTimeMs);
 			SoundManager.Instance.SetAudioSyncedUnityTimer(cueId);
@@ -306,7 +411,13 @@ namespace Sekai.Core.Live
 
 		private void OnFailure()
 		{
-			currentMusicTimeMs = SoundManager.Instance.GetAudioSyncedUnityTimer();
+			// Only while the audio drives the clock: before and after it the timer reads 0, which used
+			// to throw the clock back to the start of the song.
+			long audioTime = musicPhase == MusicPhase.Playing ? SoundManager.Instance.GetAudioSyncedUnityTimer() : -1L;
+			if (audioTime > 0L)
+			{
+				currentMusicTimeMs = audioTime;
+			}
 		}
 
 		protected override void OnFinished()
@@ -330,6 +441,13 @@ namespace Sekai.Core.Live
 			PublishPlayResultForLibrary();
 			state = LiveControllerState.Finish;
 			SetFinish(delay, waitTime, 2f);
+
+			// The chart is done but the music runs on: the result waits for it unless the player skips.
+			// The button only comes up the margin after the last note, so the end of the chart is seen.
+			HideSkip();
+			_outroSkipAtMs = result == 3 && timelineSpan.HasOutroSkip && musicPhase == MusicPhase.Playing
+				? (long)System.Math.Ceiling((timelineSpan.LastNoteSeconds + LiveTimelineSpanMargin) * 1000d)
+				: -1L;
 		}
 
 		private void TryAppendPlayHistory()

@@ -91,6 +91,12 @@ namespace Sekai.Live
 			}
 		}
 
+		/// <summary>
+		/// How long <see cref="Play"/> at its default scale keeps the page up: the 0.01 s start, the
+		/// jacket's hold, then the 0.5 s fade-out.
+		/// </summary>
+		public float PlayDurationSeconds => 0.01f + Mathf.Max(0f, JacketFadeOutDelaySec) + 0.5f;
+
 		public void Setup(LiveBootDataBase bootData)
 		{
 			LiveMusicData musicData = bootData?.MusicData;
