@@ -223,16 +223,22 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 | 车道 | 触摸车道落在该音符的 `JudgeLaneStart..JudgeLaneEnd` |
 | 时间 | `IsJudgmentTiming(type, note.time − touch.time)` |
 | 单槽 | 一根手指一帧只有一个候选（见 7.3） |
-| 触摸记录 | 收集候选时即写入 `_judgedTouchTimes`。已有记录、预测评级至少为 Great 且时间差不超过 1/6 s 时，跳过该候选 |
+| 触摸记录 | 只读。`_judgedTouchTimes` 只记已被音符消费的触摸。已有记录、预测评级为 Great 或更差、且距消费不超过 1/6 s 时，跳过该候选 |
+
+收集候选不消耗按下。尚未命中的候选不会挡住同一触摸的后续候选。
 
 ### 7.3 单槽与归属
 
-`SortPressCandidates` 做两件事：
+`SortPressCandidates` 按两个显式排序裁剪候选：
 
-1. **共享归属**：同一音符被两根手指同时够到时，给更近的那根。距离相同取较小的 `fingerId`。
-2. **单槽**：每根手指只保留一个候选，按「时间最早」排序后取第一个。
+1. **共享归属**（`ClaimsSharedNote`）：同一音符被两根手指同时够到时，给离音符车道中心更近的那根。距离相同取较小的 `fingerId`。同一手指的多个样本之间不互相争夺。
+2. **单槽**（`PrecedesForOneFinger`）：每根手指剩下的候选按谱面时间排序，同时间按谱面顺序 `ChartOrder` 排序。`ChartOrder` 由 `LiveNoteSession.Bind` 按谱面数组下标写入，头沿用所属条的值。排序是稳定的，结果与本帧注册顺序无关。随后取第一个按下步骤。
 
 执行前每个输入的候选列表已裁到最多一项。`JudgmentSchedule.Run` 把产生结果或进入 `Done` 记作消费。
+
+按下只在消费处记账（`JudgmentPass.Consumed`）：写入 `_judgedTouchTimes`，并把该手指记为本帧已用。一根手指一帧只有一个按下额度，同一手指同帧的多个 `Began` 样本共用它，第一个被消费后其余样本不再判定。
+
+落选的手指不重配。手指 A 同时够到较早的音符 X 和共享音符 Y、手指 B 只够到 Y 且离 Y 更远时，Y 归 A，A 的单槽取 X，B 本帧不判定，Y 留待后续帧。是否让 B 接手 Y 是单独的手感决策，当前行为由 `PressOwnershipTests.TheFingerThatWinsASharedNoteSpendsItsPressOnItsEarlierNote` 固定。
 
 ### 7.4 抬起的归属
 
