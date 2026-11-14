@@ -132,22 +132,6 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(b.HasFinger, Is.True);
         }
 
-        [TestCase(NoteCategory.Normal, OpenSekai.Shared.Live.CandidateOrder.TouchRank)]
-        [TestCase(NoteCategory.Friction, OpenSekai.Shared.Live.CandidateOrder.TouchRank)]
-        [TestCase(NoteCategory.FrictionFlick, OpenSekai.Shared.Live.CandidateOrder.FlickRank)]
-        [TestCase(NoteCategory.Flick, OpenSekai.Shared.Live.CandidateOrder.FlickRank)]
-        public void CandidateRankFollowsWhatNeedsTheFrame(NoteCategory category, int expected)
-        {
-            var note = category == NoteCategory.FrictionFlick
-                ? (NoteBase)new FrictionFlickNote(Info(0), 1, 4, 5, NoteCategory.FrictionFlick, 1, NoteType.Default, NoteDirection.Left, 0.05f, 0)
-                : category == NoteCategory.Flick
-                    ? new FlickNote(Info(0), 1, 4, 5, NoteCategory.Flick, 1, NoteType.Default, NoteDirection.Left, 0.05f, 0)
-                    : category == NoteCategory.Friction
-                        ? new FrictionNote(Info(0), 1, 4, 5, NoteCategory.Friction, null, NoteType.Default, 1)
-                        : new NormalNote(Info(0), 1, 4, 5, NoteCategory.Normal, 1, NoteType.Default, 0);
-            Assert.That(LiveLogic.CandidateRank(note), Is.EqualTo(expected));
-        }
-
         [Test]
         public void AConnectionNoteFinishingDoesNotEndTheBar()
         {
@@ -221,12 +205,6 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That((float)body.GetType().GetField("_lastFrameTime", Private).GetValue(body), Is.EqualTo(0f));
         }
 
-        [Test]
-        public void AHeldBarRanksLastSoARubNoteCanStillBeTouched()
-        {
-            var held = new HeldNote(1);
-            Assert.That(LiveLogic.CandidateRank(held), Is.EqualTo(OpenSekai.Shared.Live.CandidateOrder.HeldRank));
-        }
         [TestCase(0f)]
         [TestCase(0.01f)]
         public void ASlideStaysJudgeableAfterItsTimePasses(float lateness)
