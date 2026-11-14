@@ -41,24 +41,27 @@ OnUpdate(scoreInfoTime, gameTime)
 OnInput()
   Input.CollectTouches() .............. 原始触摸 → InputTmp（含车道解析）
   Scheduler.Run()
-      1 JudgeDueComboPoints() ......... 常驻①：条内 combo 点
-      2 CollectCandidates() ........... 为每指挑出「这次按下能判什么」
-      3 DriveIndependentNotes() ....... 常驻②：条身 / 自己判定的尾
-      4 SortPressCandidates() ......... 单槽与归属：一根手指一帧一次按下
-      5 RefreshSustainedHolds() ....... 常驻③ + 抬起通道（lift）
-      6 EvaluateJudgment() ............ 按下通道：真正结算
-      7 TickViews() ................... 视图与尾 key 回收：本帧最后一步
+      1 按下通道 ....................... CollectCandidates → SortPressCandidates → EvaluateJudgment
+                                         只收 Began；一根手指一帧只花一次按下
+      2 抬起通道 ....................... JudgeLifts：只收 Ended / Canceled
+                                         只判 ReleaseTail，一帧一指只了结一条
+      3 常驻通道 ....................... JudgeDueComboPoints → DriveIndependentNotes → RefreshSustainedHolds
+                                         条内点、条身、自判尾、按住刷新、超时
+      4 EndFrame() ..................... 忘掉结束的触摸，清空本帧输入
+      5 TickViews() .................... 视图与尾 key 回收：本帧最后一步
 ```
+
+三个通道各自从本帧的原始样本里取自己认得的相位（按下取 `Began`、抬起取 `Ended`/`Canceled`），先判完再交给下一个；常驻通道拿剩下的一切。抬起的候选在它自己的通道里选好（`_liftTargets` 带帧号），常驻通道只读这份结果，不会再把同一根手指的抬起判一次。
 
 自动播放没有输入趟：`LiveLogic.OnAutoInput` 在自动判定之后调用同一个 `TickViews`，视图同样在最后。
 
-**三条通道与上面七步的对应关系**（一个音符只由其中一条回答）：
+**三条通道与上面五步的对应关系**（一个音符只由其中一条回答）：
 
-| 通道 | 落在哪几步 | 回答的问题 | 典型音符 |
+| 通道 | 落在哪一步 | 回答的问题 | 典型音符 |
 | --- | --- | --- | --- |
-| 按下 press | 2 候选 → 4 单槽 → 6 结算 | 这次按下能不能判掉一个瞬间键 | 单键、划键按下、普通长条的头 |
-| 抬起 release | 5 中的 lift | 只判长条的**普通尾**（末端是普通音符） | `ReleaseTail` |
-| 常驻 resident | 1 combo 点、3 条身与自判尾、5 的按住刷新 | 每帧持续的状态与到期 | 条身、内部点、摩擦/隐藏尾、头尾的自有窗口 |
+| 按下 press | 1 | 这次按下能不能判掉一个瞬间键 | 单键、普通长条的头 |
+| 抬起 release | 2 | 只判长条的**普通尾**（末端是普通音符） | `ReleaseTail` |
+| 常驻 resident | 3 | 每帧持续的状态与到期 | 条身、内部点、摩擦/隐藏尾、头尾的自有窗口 |
 
 ---
 
