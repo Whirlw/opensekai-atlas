@@ -140,19 +140,25 @@ public static class AstralHud {
         }
         for(int i=0;i<points.Count;i++){int best=-1;float dmin=r.Width*r.Width*.1f;for(int j=0;j<i;j++){float dx=points[j].X-points[i].X,dy=points[j].Y-points[i].Y,d=dx*dx+dy*dy;if(d<dmin){dmin=d;best=j;}}if(best>=0&&i%5!=0)Line(g,A(65,color),.7f,points[i],points[best]);}
     }
-    static GraphicsPath RR(float x,float y,float w,float h,float r){
-        r=Math.Min(r,Math.Min(w,h)/2);float d=r*2;var p=new GraphicsPath();
-        p.AddArc(x,y,d,d,180,90);p.AddArc(x+w-d,y,d,d,270,90);p.AddArc(x+w-d,y+h-d,d,d,0,90);p.AddArc(x,y+h-d,d,d,90,90);p.CloseFigure();return p;
-    }
-    // A capsule with rounded ends; with flatLeft >= 0 its left end is instead cut square at x = flatLeft. An open
+    // The HUD has no rounded corners: every "rounded" box is the chamfered octagon the jacket windows, timing
+    // labels and card frames use. `r` is the corner size the shape used to have; the cut is that, held to at most
+    // 30% of the short side so bars and capsules keep flat ends instead of turning into hexagons.
+    static float Cut(float w,float h,float r){return Math.Max(0,Math.Min(r,Math.Min(w,h)*.3f));}
+    static GraphicsPath RR(float x,float y,float w,float h,float r){return Bevel(x,y,w,h,Cut(w,h,r));}
+    // A chamfer-ended capsule; with flatLeft >= 0 its left end is instead cut square at x = flatLeft. An open
     // (closed=false) flat capsule leaves that square end out, for rims that run on under something else.
-    static GraphicsPath Capsule(float x,float y,float w,float h,float r,float flatLeft,bool closed){
-        if(flatLeft<0&&closed)return RR(x,y,w,h,r);
-        var p=new GraphicsPath();float right=x+w,d=r*2;
-        if(flatLeft<0){p.AddArc(x,y,d,d,180,90);p.AddArc(right-d,y,d,d,270,180);p.AddArc(x,y+h-d,d,d,90,90);p.CloseFigure();return p;}
-        p.AddLine(flatLeft,y,right-r,y);p.AddArc(right-d,y,d,d,270,180);p.AddLine(right-r,y+h,flatLeft,y+h);
+    static GraphicsPath Capsule(float x,float y,float w,float h,float cut,float flatLeft,bool closed){
+        if(flatLeft<0)return Bevel(x,y,w,h,cut);
+        float right=x+w;var p=new GraphicsPath();
+        p.AddLines(new[]{P(flatLeft,y),P(right-cut,y),P(right,y+cut),P(right,y+h-cut),P(right-cut,y+h),P(flatLeft,y+h)});
         if(closed)p.CloseFigure();return p;
     }
+    // Moving a 45-degree chamfer `inset` inwards shortens its legs by inset*(sqrt2-1), which keeps nested rims parallel.
+    static float InsetCut(float cut,float inset){return Math.Max(0,cut-inset*.41421f);}
+    // Score and life bars (24 px textures): the colour bars are inset BarInset px with a BarCut chamfer, and the
+    // trough under them follows the same outline 0.5 px from the texture edge (6.6 px chamfer at 1 px).
+    const float BarInset=2;
+    static readonly float BarCut=InsetCut(6.6f,BarInset-1),TroughCut=InsetCut(6.6f,-.5f);
     static void Diamond(Graphics g,float x,float y,float hw,float hh,Color fill,Color edge){
         using(var p=Polygon(P(x,y-hh),P(x+hw,y),P(x,y+hh),P(x-hw,y))){if(edge.A>0)Stroke(g,p,edge,2);Fill(g,p,fill);}
     }
@@ -300,7 +306,12 @@ public static class AstralHud {
                 AstralType(g,text,new RectangleF(5,0,w-10,baseline),c,false,false,false,false,0,.6f*ppu);
                 Line(g,A(180,c),1,P(w*.2f,rule),P(w*.8f,rule));Star(g,w*.5f,rule,2.6f,c);
             }
-            else{using(var p=RR(1.5f,1.5f,w-3,h-3,8)){Gradient(g,p,A(240,C("#22355a")),A(240,C("#0b1328")));Rim(g,p,1.5f,240,60,Mix(c,Color.White,.62f),Lt(c),Mix(c,Purple,.4f));}Plain(g,text,new RectangleF(8,7,w-16,h-14),Mix(c,Color.White,.3f),false);}return true;
+            else{
+                // The score bar's threshold tiles, shown at scale 0.989 from 1 px under the screen edge down to the capsule's
+                // rim: the frame fills the texture and the letter keeps its on-screen size (14.76 x 18.04 px at 108 px per unit, centred).
+                using(var p=RR(1,1,w-2,h-2,8)){Gradient(g,p,A(240,C("#22355a")),A(240,C("#0b1328")));Rim(g,p,1.25f,240,60,Mix(c,Color.White,.62f),Lt(c),Mix(c,Purple,.4f));}
+                const float lw=14.76f/.989f,lh=18.04f/.989f;Plain(g,text,new RectangleF((w-lw)/2,(h-lh)/2,lw,lh),Mix(c,Color.White,.3f),false);
+            }return true;
         }
         if(n.StartsWith("tex_live_countdown")){
             string digit=Regex.Match(n,@"_(\d)\.png$").Groups[1].Value;
@@ -316,10 +327,10 @@ public static class AstralHud {
     static bool HudAsset(Graphics g,string n,int w,int h){
         if(n.StartsWith("btn_")){
             bool disabled=n.Contains("disable");Color c=n.StartsWith("btn_stop")?Gold:disabled?C("#8b93a7"):Mint;
-            // "Prism" HUD: a dark glass disc with a gradient rim, a thin accent ring and two gems.
-            float cx=w/2f,cy=h/2f,r=40;
-            using(var disc=new GraphicsPath()){
-                disc.AddEllipse(cx-r,cy-r,r*2,r*2);
+            // "Prism" HUD: a dark glass octagon (the HUD's chamfer at its regular-octagon size) with a gradient rim,
+            // a thin accent ring and two gems on its flat sides.
+            float cx=w/2f,cy=h/2f,r=40;const float octagon=.29289f;
+            using(var disc=Bevel(cx-r,cy-r,r*2,r*2,r*2*octagon)){
                 if(!disabled)Bloom(g,disc,c,5,5);
                 Gradient(g,disc,A(disabled?130:238,C("#22355a")),A(disabled?130:238,C("#0b1328")));
                 var clip=g.Save();g.SetClip(disc);
@@ -328,7 +339,7 @@ public static class AstralHud {
                 Rim(g,disc,3,disabled?110:245,45,RimButton);
             }
             // The inner ring repeats the rim's gradient.
-            using(var ring=new GraphicsPath()){ring.AddEllipse(cx-33.5f,cy-33.5f,67,67);Rim(g,ring,1.4f,disabled?70:220,45,RimButton);}
+            using(var ring=Bevel(cx-33.5f,cy-33.5f,67,67,67*octagon)){Rim(g,ring,1.4f,disabled?70:220,45,RimButton);}
             foreach(float gx in new[]{cx-r,cx+r})Diamond(g,gx,cy,4,7,A(disabled?130:255,Color.White),A(disabled?60:170,Navy));
             Color ink=A(disabled?100:255,Color.White);
             if(n.Contains("skip")){
@@ -344,15 +355,15 @@ public static class AstralHud {
             // Tag and capsule ends stay inside the manifest's fixed left/right borders. The score capsule's left
             // end is cut flat at the texture edge, where the rank plate's edge meets it (the way the life capsule
             // runs under the pause disc), so its rim is drawn open on that side.
-            float flat=life?-1:0;
-            using(var p=Capsule(2,28,w-4,46,23,flat,true)){
+            float flat=life?-1:0;const float cut=14;
+            using(var p=Capsule(2,28,w-4,46,cut,flat,true)){
                 Gradient(g,p,A(232,C("#1d2d4d")),A(238,C("#0a1226")));
                 var clip=g.Save();g.SetClip(p);
                 using(var b=new SolidBrush(A(20,Color.White)))g.FillRectangle(b,0,28,w,17);
                 g.Restore(clip);
             }
-            using(var p=Capsule(2,28,w-4,46,23,flat,false))Rim(g,p,1.6f,240,0,life?RimLife:RimScore);
-            using(var p=Capsule(4.8f,30.8f,w-9.6f,40.4f,20.2f,flat,false))Stroke(g,p,A(95,life?Mint:Purple),1);
+            using(var p=Capsule(2,28,w-4,46,cut,flat,false))Rim(g,p,1.6f,240,0,life?RimLife:RimScore);
+            using(var p=Capsule(4.8f,30.8f,w-9.6f,40.4f,InsetCut(cut,2.8f),flat,false))Stroke(g,p,A(95,life?Mint:Purple),1);
             Color top=life?Mix(Mint,Color.White,.35f):Mix(Purple,Color.White,.15f),mid=life?Mint:Mix(Purple,Blue,.5f),bot=life?Mix(Mint,C("#3a2f6b"),.14f):Blue;
             // The score tag starts 18 px in, clear of the rank plate's edge.
             float tag=life?8:18;
@@ -363,20 +374,21 @@ public static class AstralHud {
             return true;
         }
         if(n.StartsWith("bar_lifeGauge")||n.StartsWith("gauge_base")){
-            if(n.StartsWith("gauge_base")){
-                using(var p=RR(.5f,.5f,w-1,h-1,7.5f)){Gradient(g,p,A(245,C("#070c1c")),A(245,C("#16223d")));Stroke(g,p,A(70,Color.White),.8f);}
-                return true;
-            }
-            Color c=n.Contains("rd")?Pink:Mint;
-            PrismGlass(g,.5f,.5f,w-1,h-1,7.5f,Mix(c,Color.White,.45f),c,Mix(c,C("#3a2f6b"),.16f),1.2f);return true;
+            // Both bars share the score colour bar's resolution (gauge_bar_ingame_freeLive_s, 24 px tall): troughs and life
+            // fills are 24 px textures that FrontUIView draws about 1:1 (0.2234 / 0.22 units at 108 px per unit).
+            // The trough's outline is 0.5 px in from the texture edge; the colour bars sit BarInset px in, so a dark
+            // gap of about a pixel separates them instead of the two antialiased edges running together.
+            if(n.StartsWith("gauge_base"))using(var p=Bevel(.5f,.5f,w-1,h-1,TroughCut)){Gradient(g,p,A(245,C("#070c1c")),A(245,C("#16223d")));Stroke(g,p,A(70,Color.White),.8f);}
+            else{Color c=n.Contains("rd")?Pink:Mint;PrismGlass(g,BarInset,BarInset,w-BarInset*2,h-BarInset*2,BarCut,Mix(c,Color.White,.45f),c,Mix(c,C("#3a2f6b"),.16f),1.4f);}
+            return true;
         }
         if(n=="gauge_bar_ingame_freeLive_s.png"){
-            using(var p=RR(1,1,w-2,h-2,11)){
+            using(var p=Bevel(BarInset,BarInset,w-BarInset*2,h-BarInset*2,BarCut)){
                 using(var b=new LinearGradientBrush(P(0,0),P(w,0),Mint,Pink)){
                     var blend=new ColorBlend();blend.Positions=new[]{0f,.32f,.66f,1f};blend.Colors=new[]{Mint,Blue,Purple,Pink};b.InterpolationColors=blend;g.FillPath(b,p);
                 }
                 var clip=g.Save();g.SetClip(p);
-                using(var b=new LinearGradientBrush(P(0,2),P(0,12.5f),A(150,Color.White),A(28,Color.White)))g.FillRectangle(b,0,3.2f,w,8.6f);
+                using(var b=new LinearGradientBrush(P(0,3),P(0,12.5f),A(150,Color.White),A(28,Color.White)))g.FillRectangle(b,0,4.2f,w,7.6f);
                 using(var b=new SolidBrush(A(48,C("#1b2247"))))g.FillRectangle(b,0,h*.66f,w,h);
                 g.Restore(clip);Rim(g,p,1.4f,240,0,Mix(Mint,Color.White,.62f),Mix(Blue,Color.White,.62f),Mix(Purple,Color.White,.62f),Mix(Pink,Color.White,.62f));
             }return true;

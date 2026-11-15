@@ -9,10 +9,10 @@ Sprite:
   m_Name: gauge_base_h16_dbl
   m_Rect:
     serializedVersion: 2
-    x: 1363
-    y: 828
+    x: 604
+    y: 2016
     width: 24
-    height: 16
+    height: 24
   m_Offset: {x: 0, y: 0}
   m_Border: {x: 11, y: 0, z: 11, w: 0}
   m_PixelsToUnits: 108
@@ -103,18 +103,18 @@ Sprite:
         format: 0
         dimension: 0
       m_DataSize: 80
-      _typelessdata: 398ee3bd26b4973d00000000398ee33d26b4973d00000000398ee3bd26b497bd00000000398ee33d26b497bd000000000000000000000000000000000000000000000000000000000000000000000000
+      _typelessdata: 398ee3bd398ee33d00000000398ee33d398ee33d00000000398ee3bd398ee3bd00000000398ee33d398ee3bd000000000000000000000000000000000000000000000000000000000000000000000000
     m_Bindpose: []
     textureRect:
       serializedVersion: 2
-      x: 1363
-      y: 828
+      x: 604
+      y: 2016
       width: 24
-      height: 16
+      height: 24
     textureRectOffset: {x: 0, y: 0}
-    atlasRectOffset: {x: 1363, y: 828}
+    atlasRectOffset: {x: 604, y: 2016}
     settingsRaw: 67
-    uvTransform: {x: 108, y: 1375, z: 108, w: 836}
+    uvTransform: {x: 108, y: 616, z: 108, w: 2028}
     downscaleMultiplier: 1
   m_AtlasRD:
     serializedVersion: 3
@@ -142,9 +142,9 @@ Sprite:
     uvTransform: {x: 0, y: 0, z: 0, w: 0}
     downscaleMultiplier: 0
   m_PhysicsShape:
-  - - {x: -0.11111111, y: 0.074074075}
-    - {x: -0.11111111, y: -0.074074075}
-    - {x: 0.11111111, y: -0.074074075}
-    - {x: 0.11111111, y: 0.074074075}
+  - - {x: -0.11111111, y: 0.1111111119389534}
+    - {x: -0.11111111, y: -0.1111111119389534}
+    - {x: 0.11111111, y: -0.1111111119389534}
+    - {x: 0.11111111, y: 0.1111111119389534}
   m_Bones: []
   m_SpriteID:

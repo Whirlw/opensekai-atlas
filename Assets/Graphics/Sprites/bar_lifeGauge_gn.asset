@@ -9,10 +9,10 @@ Sprite:
   m_Name: bar_lifeGauge_gn
   m_Rect:
     serializedVersion: 2
-    x: 292
-    y: 1598
+    x: 4
+    y: 2016
     width: 264
-    height: 16
+    height: 24
   m_Offset: {x: -132, y: 0}
   m_Border: {x: 11, y: 0, z: 11, w: 0}
   m_PixelsToUnits: 108
@@ -103,18 +103,18 @@ Sprite:
         format: 0
         dimension: 0
       m_DataSize: 80
-      _typelessdata: 0000000026b4973d00000000c7711c4026b4973d000000000000000026b497bd00000000c7711c4026b497bd000000000000000000000000000000000000000000000000000000000000000000000000
+      _typelessdata: 00000000398ee33d00000000c7711c40398ee33d0000000000000000398ee3bd00000000c7711c40398ee3bd000000000000000000000000000000000000000000000000000000000000000000000000
     m_Bindpose: []
     textureRect:
       serializedVersion: 2
-      x: 292
-      y: 1598
+      x: 4
+      y: 2016
       width: 264
-      height: 16
+      height: 24
     textureRectOffset: {x: 0, y: 0}
-    atlasRectOffset: {x: 160, y: 1598}
+    atlasRectOffset: {x: -128, y: 2016}
     settingsRaw: 3
-    uvTransform: {x: 108, y: 292, z: 108, w: 1606}
+    uvTransform: {x: 108, y: 4, z: 108, w: 2028}
     downscaleMultiplier: 1
   m_AtlasRD:
     serializedVersion: 3
@@ -142,13 +142,13 @@ Sprite:
     uvTransform: {x: 0, y: 0, z: 0, w: 0}
     downscaleMultiplier: 0
   m_PhysicsShape:
-  - - {x: 0.027777778, y: 0.074074075}
-    - {x: 0, y: 0.0462963}
-    - {x: 0, y: -0.0462963}
-    - {x: 0.027777778, y: -0.074074075}
-    - {x: 2.4166667, y: -0.074074075}
-    - {x: 2.4444444, y: -0.0462963}
-    - {x: 2.4444444, y: 0.0462963}
-    - {x: 2.4166667, y: 0.074074075}
+  - - {x: 0.027777778, y: 0.1111111119389534}
+    - {x: 0, y: 0.0694444477558136}
+    - {x: 0, y: -0.0694444477558136}
+    - {x: 0.027777778, y: -0.1111111119389534}
+    - {x: 2.4166667, y: -0.1111111119389534}
+    - {x: 2.4444444, y: -0.0694444477558136}
+    - {x: 2.4444444, y: 0.0694444477558136}
+    - {x: 2.4166667, y: 0.1111111119389534}
   m_Bones: []
   m_SpriteID:

@@ -22,10 +22,8 @@ public static class AstralBackgrounds {
     static int Clamp(double value){return Math.Max(0,Math.Min(255,(int)Math.Round(value)));}
     static GraphicsPath Poly(params PointF[] p){var path=new GraphicsPath();path.AddPolygon(p);return path;}
     static GraphicsPath Bevel(float x,float y,float w,float h,float cut){return Poly(P(x+cut,y),P(x+w-cut,y),P(x+w,y+cut),P(x+w,y+h-cut),P(x+w-cut,y+h),P(x+cut,y+h),P(x,y+h-cut),P(x,y+cut));}
-    static GraphicsPath Rounded(float x,float y,float w,float h,float r){
-        var path=new GraphicsPath();path.AddArc(x,y,r*2,r*2,180,90);path.AddArc(x+w-r*2,y,r*2,r*2,270,90);
-        path.AddArc(x+w-r*2,y+h-r*2,r*2,r*2,0,90);path.AddArc(x,y+h-r*2,r*2,r*2,90,90);path.CloseFigure();return path;
-    }
+    // The plate's chamfer, the octagon cut the HUD uses everywhere (AstralHud.Bevel), sized to its 0.22 on-screen scale.
+    const float PlateCut=44;
     static void Line(Graphics g,Color c,float width,params PointF[] p){using(var pen=new Pen(c,width)){pen.LineJoin=LineJoin.Bevel;g.DrawLines(pen,p);}}
     static void Star(Graphics g,float x,float y,float r,Color c){using(var p=Poly(P(x,y-r),P(x+r*.19f,y-r*.19f),P(x+r*.7f,y),P(x+r*.19f,y+r*.19f),P(x,y+r),P(x-r*.19f,y+r*.19f),P(x-r*.7f,y),P(x-r*.19f,y-r*.19f)))using(var b=new SolidBrush(c))g.FillPath(b,p);}
     static double Hash(int x,int y){unchecked{uint n=(uint)(x*374761393+y*668265263);n=(n^(n>>13))*1274126177;return (n^(n>>16))/(double)uint.MaxValue;}}
@@ -151,7 +149,7 @@ public static class AstralBackgrounds {
         var image=new Bitmap(w,h,PixelFormat.Format32bppArgb);
         using(var g=Graphics.FromImage(image)){
             g.SmoothingMode=SmoothingMode.AntiAlias;
-            using(var silhouette=Rounded(1,1,w-2,h-2,53))g.SetClip(silhouette);
+            using(var silhouette=Bevel(1,1,w-2,h-2,PlateCut))g.SetClip(silhouette);
             // Compact in-game rank tile in the HUD's dark glass (AstralHud gauge capsules): the large dynamic
             // letter and the RANK word own the centre.
             using(var b=new LinearGradientBrush(P(0,0),P(0,h),C("#1d2d4d"),C("#0a1226")))g.FillRectangle(b,0,0,w,h);
@@ -162,8 +160,8 @@ public static class AstralBackgrounds {
             // capsule runs under the pause disc. The rim is a horizontal gradient that ends in the capsule rim's
             // first colour (rose) where the two meet, and the inner ring repeats it, as on the HUD buttons.
             Color[] rim={Soft(Mix(Blue,Color.White,.3f)),Soft(Mix(Purple,Color.White,.3f)),Soft(Mix(Pink,Color.White,.3f))};
-            using(var p=Rounded(5,5,w-10,h-10,49))RimPen(g,p,8f,240,rim,w,h);
-            using(var p=Rounded(17,17,w-34,h-34,38))RimPen(g,p,3.5f,150,rim,w,h);
+            using(var p=Bevel(5,5,w-10,h-10,PlateCut-4*.41421f))RimPen(g,p,8f,240,rim,w,h);
+            using(var p=Bevel(17,17,w-34,h-34,PlateCut-16*.41421f))RimPen(g,p,3.5f,150,rim,w,h);
             // Gems on both sides at the capsule's centre line (plate row 323 = world y -0.523), as on the pause disc.
             // They are the pause disc's gem size on screen, centred on the inner ring so they stay inside the texture.
             foreach(float x in new[]{17f,w-17f})using(var p=Poly(P(x,323-32),P(x+15,323),P(x,323+32),P(x-15,323))){

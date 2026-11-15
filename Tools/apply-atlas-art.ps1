@@ -55,6 +55,14 @@ Get-ChildItem $SpriteFolder -Filter '*.asset' | ForEach-Object {
     }
         if (-not $spriteByName.ContainsKey($_.BaseName)) { $spriteByName[$_.BaseName] = $_.FullName }
 }
+# Two sprite assets are both named gauge_base_h16_dbl, so the name alone picks whichever is listed last and the
+# other trough never got painted. Pin each kit file to its asset, matching the rects in ArtSource/Tools/manifest.csv:
+# gauge_base_h16_dbl.png is the score trough (1363,828), gauge_base_h16_dbl_2.png the life trough (204,1800).
+$pinnedSprites = @{ 'gauge_base_h16_dbl' = 'gauge_base_h16_dbl_0.asset'; 'gauge_base_h16_dbl_2' = 'gauge_base_h16_dbl.asset' }
+foreach ($kitName in $pinnedSprites.Keys) {
+    $path = Join-Path $SpriteFolder $pinnedSprites[$kitName]
+    if (Test-Path $path) { $spriteByName[$kitName] = (Get-Item $path).FullName }
+}
 
 # One sprite can be reached by more than one kit file. A stand-in drawn as `label_autolive_0.png` sorted
 # after the real `label_autolive.png` and won, so the build shipped a plain plate instead of the art.
