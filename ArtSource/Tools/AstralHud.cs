@@ -11,6 +11,10 @@ using System.Runtime.InteropServices;
 public static class AstralHud {
     static string Target;
     static Dictionary<string, Size> Sizes;
+    static Dictionary<string, float> Ppu;
+    static Color RankColor(string rank){return rank=="S"?Gold:rank=="A"?Purple:rank=="B"?Blue:Mint;}
+    // Standalone textures outside the LiveAtlas (not in manifest.csv): 256x64 at 400 px per unit.
+    static readonly string[] RankWords={"ui_rank_word_S.png","ui_rank_word_A.png","ui_rank_word_B.png","ui_rank_word_C.png","ui_rank_word_D.png"};
     static System.Windows.Media.GlyphTypeface Bold,Medium;
     static float DigitTop,DigitBottom;
     static Dictionary<string,float> DigitScales=new Dictionary<string,float>();
@@ -109,8 +113,15 @@ public static class AstralHud {
             Fill(g,path,color);
         }
     }
-    static void AstralType(Graphics g,string text,RectangleF box,Color accent,bool rainbow,bool monochrome,bool elaborate,bool vivid=false,float naturalScale=0){
-        using(var p=naturalScale>0?NaturalDigitPath(text,box,naturalScale):FitLetters(text,box,false,true,text.Length>1?4:0)){
+    // Upright letters at the font's own proportions, `capHeight` tall, centred across the box and standing on its bottom.
+    static GraphicsPath UprightLetters(string text,RectangleF box,float capHeight,float tracking){
+        var path=Letters(text,false,false,tracking);RectangleF r=path.GetBounds();
+        float scale=Math.Min(capHeight/r.Height,box.Width/r.Width);
+        using(var m=new Matrix(scale,0,0,scale,box.X+(box.Width-r.Width*scale)*.5f-r.X*scale,box.Bottom-r.Bottom*scale))path.Transform(m);
+        return path;
+    }
+    static void AstralType(Graphics g,string text,RectangleF box,Color accent,bool rainbow,bool monochrome,bool elaborate,bool vivid=false,float naturalScale=0,float uprightCap=0){
+        using(var p=naturalScale>0?NaturalDigitPath(text,box,naturalScale):uprightCap>0?UprightLetters(text,box,uprightCap,0):FitLetters(text,box,false,true,text.Length>1?4:0)){
             float rim=Math.Max(.7f,Math.Min(2.2f,box.Height*.022f));
             var st=g.Save();g.TranslateTransform(0,Math.Max(1,box.Height*.028f));Stroke(g,p,monochrome?A(150,Color.White):Mix(accent,Navy,.55f),rim*2);g.Restore(st);
             if(elaborate)Bloom(g,p,monochrome?Color.White:accent,4,Math.Min(9,box.Height*.07f));
@@ -132,6 +143,15 @@ public static class AstralHud {
     static GraphicsPath RR(float x,float y,float w,float h,float r){
         r=Math.Min(r,Math.Min(w,h)/2);float d=r*2;var p=new GraphicsPath();
         p.AddArc(x,y,d,d,180,90);p.AddArc(x+w-d,y,d,d,270,90);p.AddArc(x+w-d,y+h-d,d,d,0,90);p.AddArc(x,y+h-d,d,d,90,90);p.CloseFigure();return p;
+    }
+    // A capsule with rounded ends; with flatLeft >= 0 its left end is instead cut square at x = flatLeft. An open
+    // (closed=false) flat capsule leaves that square end out, for rims that run on under something else.
+    static GraphicsPath Capsule(float x,float y,float w,float h,float r,float flatLeft,bool closed){
+        if(flatLeft<0&&closed)return RR(x,y,w,h,r);
+        var p=new GraphicsPath();float right=x+w,d=r*2;
+        if(flatLeft<0){p.AddArc(x,y,d,d,180,90);p.AddArc(right-d,y,d,d,270,180);p.AddArc(x,y+h-d,d,d,90,90);p.CloseFigure();return p;}
+        p.AddLine(flatLeft,y,right-r,y);p.AddArc(right-d,y,d,d,270,180);p.AddLine(right-r,y+h,flatLeft,y+h);
+        if(closed)p.CloseFigure();return p;
     }
     static void Diamond(Graphics g,float x,float y,float hw,float hh,Color fill,Color edge){
         using(var p=Polygon(P(x,y-hh),P(x+hw,y),P(x,y+hh),P(x-hw,y))){if(edge.A>0)Stroke(g,p,edge,2);Fill(g,p,fill);}
@@ -257,13 +277,29 @@ public static class AstralHud {
             string text=n.Contains("judge")?"判定強化":n.Contains("life")?"ライフ回復":"スコアUP";Color c=n.Contains("judge")?Purple:n.Contains("life")?Mint:Blue;
             AstralType(g,text,new RectangleF(2,4,w-4,h-10),c,false,false,false);return true;
         }
+        if(n.StartsWith("ui_rank_word_")){
+            // "RANK" under the rank letter, one sprite per rank in that letter's colours; upright and drawn at
+            // about 3x its display size so it stays crisp.
+            string rank=n.Substring(13,1);Color c=RankColor(rank);
+            using(var p=UprightLetters("RANK",new RectangleF(6,0,w-12,h-6),h*.8f,14)){
+                Stroke(g,p,A(235,Mix(c,Navy,.62f)),5);
+                using(var b=new LinearGradientBrush(P(0,h*.12f),P(0,h-6),Mix(c,Color.White,.62f),Mix(c,Color.White,.08f)))g.FillPath(b,p);
+                Stroke(g,p,A(140,Color.White),.8f);
+            }return true;
+        }
         if(n=="txt_cutin_skill_wh.png"||n=="txt_scoreRank_ingame_wh.png"){
             Plain(g,n.Contains("scoreRank")?"SCORERANK":"SKILL",new RectangleF(1,1,w-2,h-2),Color.White,true);return true;
         }
         if(Regex.IsMatch(n,@"^[ABCS]\.png$")||n.StartsWith("score_")){
             string text=n.StartsWith("score_")?n.Substring(6,1):n.Substring(0,1);bool large=n.StartsWith("score_");
-            Color c=text=="S"?Gold:text=="A"?Purple:text=="B"?Blue:Mint;
-            if(large){AstralType(g,text,new RectangleF(6,6,w-12,h-20),c,false,false,false);Line(g,A(180,c),1,P(w*.2f,h-6),P(w*.8f,h-6));Star(g,w*.5f,h-6,2.6f,c);}
+            Color c=RankColor(text);
+            if(large){
+                // Upright letters with one cap height and baseline in world units for every rank (score_D has its
+                // own pixels-per-unit), so swapping ranks never makes the letter jump or change size.
+                float ppu=Ppu[n],baseline=h*.5f+.27f*ppu,rule=h*.5f+.36f*ppu;
+                AstralType(g,text,new RectangleF(5,0,w-10,baseline),c,false,false,false,false,0,.6f*ppu);
+                Line(g,A(180,c),1,P(w*.2f,rule),P(w*.8f,rule));Star(g,w*.5f,rule,2.6f,c);
+            }
             else{using(var p=RR(1.5f,1.5f,w-3,h-3,8)){Gradient(g,p,A(240,C("#22355a")),A(240,C("#0b1328")));Rim(g,p,1.5f,240,60,Mix(c,Color.White,.62f),Lt(c),Mix(c,Purple,.4f));}Plain(g,text,new RectangleF(8,7,w-16,h-14),Mix(c,Color.White,.3f),false);}return true;
         }
         if(n.StartsWith("tex_live_countdown")){
@@ -305,20 +341,25 @@ public static class AstralHud {
         if(n=="bg_lifeGauge.png"||n=="bg_scoreGauge.png"){
             bool life=n.Contains("life");
             // A dark glass capsule holds the bar; a saturated glass tag (the note skin's material) names it.
-            // Tag and capsule ends stay inside the manifest's fixed left/right borders.
-            using(var p=RR(2,28,w-4,46,23)){
+            // Tag and capsule ends stay inside the manifest's fixed left/right borders. The score capsule's left
+            // end is cut flat at the texture edge, where the rank plate's edge meets it (the way the life capsule
+            // runs under the pause disc), so its rim is drawn open on that side.
+            float flat=life?-1:0;
+            using(var p=Capsule(2,28,w-4,46,23,flat,true)){
                 Gradient(g,p,A(232,C("#1d2d4d")),A(238,C("#0a1226")));
                 var clip=g.Save();g.SetClip(p);
                 using(var b=new SolidBrush(A(20,Color.White)))g.FillRectangle(b,0,28,w,17);
                 g.Restore(clip);
-                Rim(g,p,1.6f,240,0,life?RimLife:RimScore);
             }
-            using(var p=RR(4.8f,30.8f,w-9.6f,40.4f,20.2f))Stroke(g,p,A(95,life?Mint:Purple),1);
+            using(var p=Capsule(2,28,w-4,46,23,flat,false))Rim(g,p,1.6f,240,0,life?RimLife:RimScore);
+            using(var p=Capsule(4.8f,30.8f,w-9.6f,40.4f,20.2f,flat,false))Stroke(g,p,A(95,life?Mint:Purple),1);
             Color top=life?Mix(Mint,Color.White,.35f):Mix(Purple,Color.White,.15f),mid=life?Mint:Mix(Purple,Blue,.5f),bot=life?Mix(Mint,C("#3a2f6b"),.14f):Blue;
-            PrismGlass(g,8,2,126,31,9,top,mid,bot,1.8f);
-            Diamond(g,23,17.5f,5,9,Color.White,A(150,Mix(bot,C("#1b2247"),.55f)));
+            // The score tag starts 18 px in, clear of the rank plate's edge.
+            float tag=life?8:18;
+            PrismGlass(g,tag,2,134-tag,31,9,top,mid,bot,1.8f);
+            Diamond(g,tag+15,17.5f,5,9,Color.White,A(150,Mix(bot,C("#1b2247"),.55f)));
             if(life)NaturalPlain(g,"LIFE",new RectangleF(38,10,83,16),Navy);
-            else Plain(g,"SCORE",new RectangleF(38,10,83,16),Navy,false);
+            else NaturalPlain(g,"SCORE",new RectangleF(tag+30,10,128-tag-30,16),Navy);
             return true;
         }
         if(n.StartsWith("bar_lifeGauge")||n.StartsWith("gauge_base")){
@@ -759,6 +800,8 @@ public static class AstralHud {
         int count=0,preserved=0;var records=new List<string>{"file\twidth\theight\tstatus"};
         var rows=File.ReadAllLines(Path.Combine(root,"Tools","manifest.csv")).Skip(1).Where(line=>!String.IsNullOrWhiteSpace(line)).Select(line=>line.Split('\t')).ToArray();
         Sizes=rows.ToDictionary(fields=>Path.GetFileName(fields[0]),fields=>new Size(int.Parse(fields[4]),int.Parse(fields[5])),StringComparer.OrdinalIgnoreCase);
+        Ppu=rows.ToDictionary(fields=>Path.GetFileName(fields[0]),fields=>float.Parse(fields[10],System.Globalization.CultureInfo.InvariantCulture),StringComparer.OrdinalIgnoreCase);
+        foreach(string word in RankWords){Sizes[word]=new Size(256,64);rows=rows.Concat(new[]{new[]{word}}).ToArray();}
         foreach(var fields in rows){
             string n=Path.GetFileName(fields[0]);int w=Sizes[n].Width,h=Sizes[n].Height;
             if(only!=null&&only.Length>0&&Array.IndexOf(only,n)<0)continue;

@@ -19,6 +19,10 @@ namespace Sekai
 		[SerializeField]
 		private SpriteRenderer _rankTextSpriteRenderer;
 
+		// "RANK" drawn in each rank's colours, indexed like _rankSprites. When set it replaces tinting the label.
+		[SerializeField]
+		private Sprite[] _rankTextSprites;
+
 		[SerializeField]
 		private Transform _gaugeRankS;
 
@@ -153,7 +157,15 @@ namespace Sekai
 				_rankSpriteRenderer.sprite = _rankSprites != null && rankIndex >= 0 && rankIndex < _rankSprites.Length ? _rankSprites[rankIndex] : null;
 				if (_rankTextSpriteRenderer != null)
 				{
-					_rankTextSpriteRenderer.color = ColorUtility.GetScoreRankColor(score.rank);
+					if (_rankTextSprites != null && rankIndex >= 0 && rankIndex < _rankTextSprites.Length && _rankTextSprites[rankIndex] != null)
+					{
+						_rankTextSpriteRenderer.sprite = _rankTextSprites[rankIndex];
+						_rankTextSpriteRenderer.color = Color.white;
+					}
+					else
+					{
+						_rankTextSpriteRenderer.color = ColorUtility.GetScoreRankColor(score.rank);
+					}
 				}
 				_lastScoreRank = rankIndex;
 			}

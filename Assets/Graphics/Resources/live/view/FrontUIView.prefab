@@ -4613,8 +4613,8 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: -80
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 21300000, guid: 21b18c697d82edd4b95c576851008e93, type: 2}
-  m_Color: {r: 1, g: 0.5568628, b: 0.7764706, a: 1}
+  m_Sprite: {fileID: 21300000, guid: 249643d11254485ca4866efb984f478f, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -20878,6 +20878,12 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 345de73772057f44db2ee50520a8630c, type: 2}
   - {fileID: 21300000, guid: b152b6a77d8946c4fa4e4c5bf31db0f4, type: 2}
   _rankTextSpriteRenderer: {fileID: 212161079637499176}
+  _rankTextSprites:
+  - {fileID: 21300000, guid: 249643d11254485ca4866efb984f478f, type: 3}
+  - {fileID: 21300000, guid: d2063bf7f1e94add97e08d580cdb420b, type: 3}
+  - {fileID: 21300000, guid: 92ccb767d719423d96d6dc367f46a7f2, type: 3}
+  - {fileID: 21300000, guid: 79508bfba5f144bfb506445129e29a32, type: 3}
+  - {fileID: 21300000, guid: 5c7e99aaeb004002a2cfe889f603753a, type: 3}
   _gaugeRankS: {fileID: 4432271528610696}
   _gaugeRankA: {fileID: 4299931057912216}
   _gaugeRankB: {fileID: 4869070488215218}

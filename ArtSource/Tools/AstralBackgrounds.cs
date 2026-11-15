@@ -141,23 +141,35 @@ public static class AstralBackgrounds {
     }
     // Half saturation (HSV) at the same brightness, as AstralHud.Soft does for every HUD rim.
     static Color Soft(Color c){int m=Math.Max(c.R,Math.Max(c.G,c.B));return Color.FromArgb((c.R+m)/2,(c.G+m)/2,(c.B+m)/2);}
+    static void RimPen(Graphics g,GraphicsPath p,float width,int alpha,Color[] colors,int w,int h){
+        using(var b=new LinearGradientBrush(new RectangleF(-4,-4,w+8,h+8),Color.Black,Color.Black,0f)){
+            b.InterpolationColors=new ColorBlend{Positions=new[]{0f,.5f,1f},Colors=new[]{A(alpha,colors[0]),A(alpha,colors[1]),A(alpha,colors[2])}};
+            using(var pen=new Pen(b,width))g.DrawPath(pen,p);
+        }
+    }
     static Bitmap Plate(int w,int h){
         var image=new Bitmap(w,h,PixelFormat.Format32bppArgb);
         using(var g=Graphics.FromImage(image)){
             g.SmoothingMode=SmoothingMode.AntiAlias;
             using(var silhouette=Rounded(1,1,w-2,h-2,53))g.SetClip(silhouette);
             // Compact in-game rank tile in the HUD's dark glass (AstralHud gauge capsules): the large dynamic
-            // letter and SCORERANK label own the centre.
+            // letter and the RANK word own the centre.
             using(var b=new LinearGradientBrush(P(0,0),P(0,h),C("#1d2d4d"),C("#0a1226")))g.FillRectangle(b,0,0,w,h);
             using(var b=new SolidBrush(A(20,Color.White)))g.FillRectangle(b,0,0,w,h*.37f);
             using(var b=new LinearGradientBrush(P(0,h*.78f),P(0,h),A(0,C("#071622")),A(80,C("#071622"))))g.FillRectangle(b,0,h*.78f,w,h*.22f);
-            // Gradient rim (the HUD's rose-violet-blue, AstralHud.RimScore) and a violet hairline, sized to read
-            // at roughly 110 x 150 display pixels.
-            using(var p=Rounded(5,5,w-10,h-10,49))using(var rim=new LinearGradientBrush(new RectangleF(-4,-4,w+8,h+8),Color.Black,Color.Black,55f)){
-                rim.InterpolationColors=new ColorBlend{Positions=new[]{0f,.5f,1f},Colors=new[]{A(240,Soft(Mix(Pink,Color.White,.3f))),A(240,Soft(Mix(Purple,Color.White,.3f))),A(240,Soft(Mix(Blue,Color.White,.3f)))}};
-                using(var pen=new Pen(rim,8f))g.DrawPath(pen,p);
+            g.ResetClip();
+            // The score capsule (AstralHud bg_scoreGauge) runs under the plate's right edge, the way the life
+            // capsule runs under the pause disc. The rim is a horizontal gradient that ends in the capsule rim's
+            // first colour (rose) where the two meet, and the inner ring repeats it, as on the HUD buttons.
+            Color[] rim={Soft(Mix(Blue,Color.White,.3f)),Soft(Mix(Purple,Color.White,.3f)),Soft(Mix(Pink,Color.White,.3f))};
+            using(var p=Rounded(5,5,w-10,h-10,49))RimPen(g,p,8f,240,rim,w,h);
+            using(var p=Rounded(17,17,w-34,h-34,38))RimPen(g,p,3.5f,150,rim,w,h);
+            // Gems on both sides at the capsule's centre line (plate row 323 = world y -0.523), as on the pause disc.
+            // They are the pause disc's gem size on screen, centred on the inner ring so they stay inside the texture.
+            foreach(float x in new[]{17f,w-17f})using(var p=Poly(P(x,323-32),P(x+15,323),P(x,323+32),P(x-15,323))){
+                using(var pen=new Pen(A(170,C("#101a32")),6f)){pen.LineJoin=LineJoin.Miter;g.DrawPath(pen,p);}
+                using(var br=new SolidBrush(Color.White))g.FillPath(br,p);
             }
-            using(var p=Rounded(15,15,w-30,h-30,40))using(var pen=new Pen(A(95,Purple),4f))g.DrawPath(pen,p);
         }return image;
     }
     static Bitmap ParticleAtlas(){
