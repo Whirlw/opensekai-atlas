@@ -189,7 +189,6 @@ namespace OpenSekai.Tests.EditMode.Live
             var press = Input(1, 4.5f);
             press.Touch.phase = TouchPhase.Began;
             bar.Judgment(ref press.Touch, 4.5f);
-            bar.TrySwipeTail(new UnityEngine.Vector2(0f, 60f), 1f / 60f, 0.9f);
 
             bar.ResetNote();
 
@@ -198,9 +197,6 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(bar.Result, Is.EqualTo(NoteResult.None));
             Assert.That((float)typeof(LongNote).GetField("lastInputTime", Private).GetValue(bar), Is.EqualTo(0f));
             Assert.That(bar.HasFinger, Is.False);
-            Assert.That(bar.HasDeferredSwipe, Is.False);
-            var tail = (LongNoteTail)typeof(LongNote).GetField("_tail", Private).GetValue(bar);
-            Assert.That((int)typeof(LongNoteTail).GetField("_framesSinceRelease", Private).GetValue(tail), Is.EqualTo(-1));
             var body = typeof(LongNote).GetField("_body", Private).GetValue(bar);
             Assert.That((bool)body.GetType().GetField("_pressedThisFrame", Private).GetValue(body), Is.False);
             Assert.That((float)body.GetType().GetField("_lastFrameTime", Private).GetValue(body), Is.EqualTo(0f));
@@ -718,8 +714,9 @@ namespace OpenSekai.Tests.EditMode.Live
             logic.currentFrameInfo = Info(1.2f);
 
             var bar = new LongNote(Info(0f), 81, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
-            bar.AddNoteListAndSetupChildNote(new FlickNote(Info(1f), 82, 4, 5, NoteCategory.Flick, 1,
-                NoteType.Default, NoteDirection.Left, 0, 0f));
+            var tail = new FlickNote(Info(1f), 82, 4, 5, NoteCategory.Flick, 1,
+                NoteType.Default, NoteDirection.Left, 0, 0f);
+            bar.AddNoteListAndSetupChildNote(tail);
 
             var head = new LiveTouch { fingerId = 1, touchId = 1, musicTime = 0f, phase = TouchPhase.Began };
             bar.Judgment(ref head, 4.5f);
@@ -745,7 +742,10 @@ namespace OpenSekai.Tests.EditMode.Live
 
             Assert.That(bar.State, Is.EqualTo(NoteState.Done),
                 "a wrong way swipe must leave the bar endable: the window has already closed here");
-            Assert.That(bar.Result, Is.EqualTo(NoteResult.Miss), "and it is a miss");
+
+            // The flick end grades itself, on its own clock: past its window it is a miss.
+            tail.Excute(Info(1.2f), 0.5f);
+            Assert.That(tail.Result, Is.EqualTo(NoteResult.Miss), "and it is a miss");
 
             logic.Input.JudgmentNotes.Remove(bar);
         }
@@ -758,7 +758,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			var inputs = logic.Input.ActiveInputs;
 			holds.GetType()
 				.GetMethod("CoverHoldsWithAnyFinger", BindingFlags.Instance | BindingFlags.NonPublic)
-				.Invoke(holds, new object[] { notes, inputs, logic.currentFrameInfo, UnityEngine.Time.deltaTime });
+				.Invoke(holds, new object[] { notes, inputs, logic.currentFrameInfo });
 		}
     }
 }

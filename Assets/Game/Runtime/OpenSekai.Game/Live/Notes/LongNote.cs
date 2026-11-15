@@ -103,7 +103,7 @@ namespace Sekai.Live
 						continue;
 					}
 
-					if (ReferenceEquals(note, TailNote) && (TailBehaviour.AcceptsRelease || TailBehaviour.AcceptsSwipe))
+					if (ReferenceEquals(note, TailNote) && TailBehaviour.AcceptsRelease)
 					{
 						// The tail's own pass decides its timeout using the same window as its hit path.
 						note.AdvanceNote(currentFrameInfo, childOffsetTime, settleTimeout: false);

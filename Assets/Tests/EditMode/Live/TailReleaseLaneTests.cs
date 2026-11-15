@@ -140,7 +140,7 @@ namespace OpenSekai.Tests.EditMode.Live
 		}
 
 		[Test]
-		public void ADeferredSwipeFollowsItsFingerWhenAnotherFingerKeepsHolding()
+		public void AnEarlySwipeFollowsItsFingerWhenAnotherFingerKeepsHolding()
 		{
 			LongNote bar = FlickBar(101, 4);
 			var score = new MusicScore(new[] { bar.MusicScoreInfo },
@@ -152,7 +152,7 @@ namespace OpenSekai.Tests.EditMode.Live
 				Sample(2, position, 0.88f, TouchPhase.Began));
 			StepTo(0.90f, Sample(1, position, 0.90f, TouchPhase.Moved, 700f),
 				Sample(2, position, 0.90f, TouchPhase.Stationary));
-			Assert.That(bar.HasDeferredSwipe, Is.True);
+			Assert.That(((FlickNote)bar.ChildNote).TailJudge.HasArmedFinger, Is.True);
 
 			StepTo(0.92f, Sample(1, position, 0.92f, TouchPhase.Ended, 700f),
 				Sample(2, position, 0.92f, TouchPhase.Stationary));
@@ -163,28 +163,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.JustPerfect));
 		}
 
-		[Test]
-		public void AFinalSwipeInsideTwoJudgeRangesGoesToTheCloserBar()
-		{
-			LongNote left = FlickBar(101, 4, 1.5f);
-			LongNote right = FlickBar(103, 5, 1.5f);
-			var score = new MusicScore(new[] { left.MusicScoreInfo },
-				System.Array.Empty<EventBase>(), new NoteBase[] { left, right });
-			_harness.Arrange(score);
-			Vector3 leftPosition = LanePosition(4);
-			Vector3 rightPosition = LanePosition(5);
-			StepTo(0f, Sample(1, leftPosition, 0f, TouchPhase.Began),
-				Sample(2, rightPosition, 0f, TouchPhase.Began));
-			StepTo(0.98f, Sample(1, leftPosition, 0.98f, TouchPhase.Stationary),
-				Sample(2, rightPosition, 0.98f, TouchPhase.Stationary));
-			Assert.That(left.HasFinger && right.HasFinger, Is.True);
 
-			StepTo(1f, Sample(1, leftPosition, 1f, TouchPhase.Ended, 700f),
-				Sample(2, rightPosition, 1f, TouchPhase.Stationary));
-
-			Assert.That(((NoteBase)left.ChildNote).Result, Is.EqualTo(NoteResult.JustPerfect));
-			Assert.That(((NoteBase)right.ChildNote).Result, Is.EqualTo(NoteResult.None));
-		}
 
 		// A crowded tail: a touch other than the lifting one still inside the tail's judge range means
 		// the lift may only settle the tail inside the Perfect band. Alone, any grade settles it.

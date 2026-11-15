@@ -93,7 +93,7 @@ namespace Sekai.Live
 				if (bar.childNote == null || !bar.childNote.IsVisible) return TailKeyPhase.Hidden;
 				float visibleFrom = bar.childNote.MusicScoreInfo.time - (bar.CalcTimeOffset?.Invoke(bar.childNote) ?? bar.offsetTime);
 				return TailKeyLifetime.Of(bar.childNote.MusicScoreInfo.time, visibleFrom, currentTime,
-					bar.childNote.Result, !bar.HasManagedTail && bar.State == NoteState.Done);
+					bar.childNote.Result, !bar.HasManagedTail && !bar.HasIndependentTail && bar.State == NoteState.Done);
 			}
 
 			internal static void UpdateLane(LongNote bar, ref MusicScoreInfo currentFrameInfo)

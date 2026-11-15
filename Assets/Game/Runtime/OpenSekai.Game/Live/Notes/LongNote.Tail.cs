@@ -17,18 +17,22 @@ namespace Sekai.Live
 		/// </summary>
 		internal NoteBase TailNote => Tail.EndNote ?? childNote;
 
+		/// <summary>
+		/// An end note that grades itself and does not end its bar: a rub, a rub flick, and the flick that
+		/// ends a bar the player holds (FlickTailJudge). A flick ending a decorative bar is not one of them -
+		/// it is played as a plain single flick.
+		/// </summary>
 		internal static bool IsIndependentTail(NoteBase note) =>
-			note is FrictionFlickNote || note is FrictionNote and not FrictionHideNote;
+			note is FrictionFlickNote || note is FrictionNote and not FrictionHideNote
+			|| note is FlickNote { GradesAsBarPart: true };
 
 		internal bool HasIndependentTail => IsIndependentTail(TailNote);
 
 		internal bool HasManagedTail => TailNote is { HasJudgment: true, IsDecoration: false }
-			&& (TailBehaviour.AcceptsRelease || TailBehaviour.AcceptsSwipe)
+			&& TailBehaviour.AcceptsRelease
 			&& IsTailCandidate(TailNote);
 
 		internal bool HasPendingManagedTail => HasManagedTail && TailNote.State != NoteState.Done;
-
-		internal bool CanReceiveTailSwipe => Tail.CanReceiveSwipe;
 
 		/// <summary>
 		/// How this bar is meant to end, derived from the note that ends it. Deliberately not cached:
@@ -63,7 +67,6 @@ namespace Sekai.Live
 
 			// CanFinishSilently already waits for a visible head, but that wait is about the head's own
 			// window: the head settles itself and is not touched here.
-			_tail?.ResetDecision();
 			// The leftover interior points are settled by the Done transition itself (see State), so this
 			// path and every other ending agree without each one remembering to do it.
 			State = NoteState.Done;
@@ -80,18 +83,7 @@ namespace Sekai.Live
 		internal bool ExpireTail(float currentTime) => Tail.ExpireTail(currentTime);
 		internal bool JudgeTailAsRelease(float currentTime) => Tail.JudgeTailAsRelease(currentTime);
 		internal bool DetachStandaloneTail(float currentTime) => Tail.DetachStandaloneTail(currentTime);
-		internal bool NotifyLaneSwipe(float magnitude, float currentTime) => Tail.NotifyLaneSwipe(magnitude, currentTime);
-		internal bool HasDeferredSwipe => _tail?.HasDeferredSwipe ?? false;
-		internal void MarkTailPressed() => Tail.MarkTailPressed();
-		internal void NotifyLaneRelease() => _tail?.NotifyLaneRelease();
-		internal bool TickSwipeTail(float currentTime) => Tail.TickSwipeTail(currentTime);
 		internal bool FailTail() => Tail.FailTail();
-		internal int? DeferredSwipeTouchId => _tail?.DeferredSwipeTouchId;
-		internal bool TrySwipeTail(Vector2 delta, float deltaTime, float currentTime, int? touchId = null,
-			bool fromTailLane = false) =>
-			Tail.TrySwipeTail(delta, deltaTime, currentTime, touchId, fromTailLane);
-		internal bool AcceptsSwipeFromTailLane(float lane, float currentTime) =>
-			Tail.AcceptsSwipeFromTailLane(lane, currentTime);
 
 		internal void SetTailResult(NoteResult result) => JudgeInfo = (result, NoteResultDescription.None);
 		internal void CompleteTail() => State = NoteState.Done;

@@ -121,7 +121,7 @@ namespace OpenSekai.Tests.EditMode.Live
             using var harness = new LiveHarness();
             var document = OpenSekai.Charts.Serialization.ChartJson.Read(System.IO.File.ReadAllText("Tools/fixtures/deco-tail-test10/score.json"));
             var score = OpenSekai.Live.Conversion.RuntimeChartConverter.Convert(document, UnityEngine.Resources.Load<LiveBundleBuildData>("live/config/LiveBundleBuildData"));
-            var bar = System.Linq.Enumerable.First(System.Linq.Enumerable.OfType<LongNote>(score.NoteArray), n => n.TailBehaviour.AcceptsSwipe && n.ChildNote is NoteBase { HasJudgment: true });
+            var bar = System.Linq.Enumerable.First(System.Linq.Enumerable.OfType<LongNote>(score.NoteArray), n => n.ChildNote is FlickNote && n.ChildNote is NoteBase { HasJudgment: true });
             harness.Arrange(score, new NoteBase[] { bar });
             harness.Step(bar.MusicScoreInfo.time, 10d);
             float tailTime = bar.ChildNote.MusicScoreInfo.time;
@@ -171,9 +171,9 @@ namespace OpenSekai.Tests.EditMode.Live
 
         {
 
-            // The report: press and hold still, and the tail flick grades itself perfect. The tail
+            // The report: press and hold still, and the tail flick grades itself perfect. A resting
 
-            // belongs to the bar, so its own Excute must never settle it.
+            // finger is no swipe, so the tail\'s own clock can only ever miss it.
 
             var bar = new LongNote(Info(0f), 95, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
 
@@ -193,9 +193,9 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-            Assert.That(tail.Result, Is.EqualTo(NoteResult.None),
+            Assert.That(tail.Result, Is.EqualTo(NoteResult.Miss),
 
-                "an unswiped tail must stay unjudged; the bar decides it");
+                "an unswiped tail is never graded as a hit: past its window it misses");
 
         }
 
@@ -384,83 +384,15 @@ namespace OpenSekai.Tests.EditMode.Live
 
         }
 
-        [Test]
-
-        public void AWrongDirectionSwipeStillEndsTheBarButCapsAtGreat()
-
-        {
-
-            // A deliberate swipe the other way is not ignored: it ends the bar like any other and
-
-            // keeps its timing grade - except that it can never be Perfect.
-
-            var bar = FlickEndedBar(NoteDirection.Left);
-
-            var swipe = new UnityEngine.Vector2(80f, 0f); // right: against a left flick
 
 
 
-            Assert.That(bar.TrySwipeTail(swipe, 0.02f, 1.0f), Is.True, "the wrong way still ends the bar");
-
-            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
-
-            Assert.That(bar.Result, Is.EqualTo(NoteResult.Great), "a wrong swipe can never be perfect");
-
-            Assert.That(bar.ChildNote.Result, Is.EqualTo(NoteResult.Great));
-
-        }
 
 
 
-        [Test]
-
-        public void ABarWithNoSwipeAtAllStillEnds()
-
-        {
-
-            var bar = FlickEndedBar();
 
 
 
-            Assert.That(bar.TickSwipeTail(1.05f), Is.False, "still inside the tail window");
-
-            Assert.That(bar.TickSwipeTail(1.3f), Is.True, "the window closed without a swipe");
-
-            Assert.That(bar.Result, Is.EqualTo(NoteResult.Miss));
-
-        }
-
-
-
-        [Test]
-
-        public void ADefiniteSwipeFromThePreviousRunDoesNotFinishAReusedBar()
-
-        {
-
-            // A bar comes back from the pool with the deferred swipe of the previous run still set.
-
-            var bar = FlickEndedBar();
-
-            Assert.That(bar.NotifyLaneSwipe(50f, 0.02f), Is.False, "a swipe before the tail time is only recorded");
-
-            Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done), "nothing is judged yet");
-
-
-
-            // The chart restarts and the same note object is handed out again.
-
-            bar.ResetNote();
-
-
-
-            Assert.That(bar.TickSwipeTail(0.5f), Is.False, "the reset clears the deferred swipe");
-
-            Assert.That(bar.State, Is.EqualTo(NoteState.Wait), "the reused bar stays unstarted");
-
-            Assert.That(bar.Result, Is.EqualTo(NoteResult.None), "and keeps no result");
-
-        }
 
 
 
@@ -482,177 +414,27 @@ namespace OpenSekai.Tests.EditMode.Live
 
         }
 
-        [Test]
 
-        public void ASwipeAgainstTheTailDirectionIsGradedAsAWrongGesture()
 
-        {
 
-            // The tail asks for a left flick, so a swipe to the right is the wrong gesture: it still
 
-            // ends the bar, capped at Great instead of being thrown away.
 
-            var bar = FlickEndedBar(NoteDirection.Left);
 
 
 
-            bool judged = bar.TrySwipeTail(new UnityEngine.Vector2(80f, 0f), 1f / 60f, 1f);
 
 
 
-            Assert.That(judged, Is.True, "the wrong gesture still settles the tail");
 
-            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
 
-            Assert.That(bar.Result, Is.EqualTo(NoteResult.Great));
 
-        }
 
 
 
-        [Test]
 
-        public void ASwipeAlongTheTailDirectionFinishesTheBar()
 
-        {
 
-            var bar = FlickEndedBar(NoteDirection.Left);
 
-
-
-            bool judged = bar.TrySwipeTail(new UnityEngine.Vector2(-10f, 10f), 1f / 60f, 1f);
-
-
-
-            Assert.That(judged, Is.True, "a left up swipe is what this tail asks for");
-
-            Assert.That(bar.State, Is.EqualTo(NoteState.Done), "the bar is finished");
-
-        }
-
-
-
-        [Test]
-
-        public void ASwipeBeforeTheBarIsHeldDoesNotFinishIt()
-
-        {
-
-            // A bar that has only just appeared is not being held yet. Swiping then must do nothing,
-
-            // otherwise a short bar can be finished while its head is still travelling to the line.
-
-            var bar = new LongNote(Info(0f), 47, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
-
-            bar.AddNoteListAndSetupChildNote(new FlickNote(Info(0.1f), 48, 4, 5, NoteCategory.Flick, 1, NoteType.Default, NoteDirection.Default, 0, 0f));
-
-
-
-            Assert.That(bar.State, Is.Not.EqualTo(NoteState.Input), "a fresh bar is not held yet");
-
-            Assert.That(bar.IsTailWindowOpenAt(0.05f), Is.True, "the tail window is open this early, so only the state gate can stop it");
-
-            Assert.That(bar.NotifyLaneSwipe(10f, 0.05f), Is.False, "an unheld bar cannot be finished by a swipe");
-
-            Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done), "the bar keeps running");
-
-        }
-
-
-
-        [Test]
-
-        public void AFlickEndedTailIgnoresAPlainLift()
-
-        {
-
-            // A lift finishes an ordinary bar; on a flick ended bar it must do nothing, otherwise
-
-            // releasing anywhere inside the bar would end it.
-
-            var bar = FlickEndedBar();
-
-
-
-            Assert.That(bar.TailBehaviour.AcceptsSwipe, Is.True, "a bar whose tail is a flick is finished by a swipe");
-
-            Assert.That(bar.JudgeTailAsRelease(1f), Is.False, "lifting is not a swipe, so it cannot finish this bar");
-
-            Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done), "the bar must still be running after the lift");
-
-        }
-
-
-
-        [Test]
-
-        public void ASwipeAfterTheTailStandardTimeJudgesImmediately()
-
-        {
-
-            var bar = FlickEndedBar();
-
-
-
-            bool judged = bar.NotifyLaneSwipe(10f, 1.02f);
-
-
-
-            Assert.That(judged, Is.True, "a swipe at the tail time settles the bar on the spot");
-
-            Assert.That(bar.State, Is.EqualTo(NoteState.Done), "the bar is finished");
-
-            Assert.That(bar.JudgeInfo.result, Is.EqualTo(NoteResult.JustPerfect), "20 ms late is still perfect");
-
-        }
-
-
-
-        [Test]
-
-        public void ASwipeBeforeTheTailStandardTimeJudgesOnTheThirdFrameAfterRelease()
-
-        {
-
-            var bar = FlickEndedBar();
-
-
-
-            // 100 ms early is inside the tail window but before the tail time, so it is only recorded.
-
-            // Grading it on the spot would give a Great; deferring to the release is what makes it a
-
-            // Perfect, which is the whole point of the rule.
-
-            Assert.That(bar.NotifyLaneSwipe(10f, 0.9f), Is.False, "an early swipe is only remembered");
-
-            Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done), "the bar keeps running");
-
-            Assert.That(LongEndJudgement.Evaluate(0.9f - 1f), Is.EqualTo(NoteResult.Great),
-
-                "on the spot, 100 ms early is only Great");
-
-
-
-            bar.NotifyLaneRelease();
-
-
-
-            Assert.That(bar.TickSwipeTail(0.95f), Is.False, "first frame after the release");
-
-            Assert.That(bar.TickSwipeTail(1.00f), Is.False, "second frame after the release");
-
-            Assert.That(bar.TickSwipeTail(1.02f), Is.True, "third frame after the release settles the deferred swipe");
-
-
-
-            Assert.That(bar.State, Is.EqualTo(NoteState.Done), "the bar is finished");
-
-            Assert.That(bar.JudgeInfo.result, Is.EqualTo(NoteResult.JustPerfect),
-
-                "deferring to the release is what turns an early swipe into a good grade");
-
-        }
 
         [Test]
 
@@ -704,94 +486,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-        [Test]
 
-        public void ARealSwipeOnADecorativeBarTailIsJudged()
-
-        {
-
-            // Drives the same path the game does: the bar sits in the judgement list, a finger drags
-
-            // across it in the direction the tail flick asks for, and the cover pass runs.
-
-            var bar = new LongNote(Info(0f), 73, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
-
-            bar.SetDecoration(true);
-
-            var tail = new FlickNote(Info(1f), 74, 4, 5, NoteCategory.Flick, 1, NoteType.Default, NoteDirection.Left, 0, 0f);
-
-            bar.AddNoteListAndSetupChildNote(tail);
-
-
-
-            var logic = new Sekai.Core.Live.LiveLogic(null);
-
-            logic.currentFrameInfo = Info(1.0f);
-
-            var list = logic.Input.JudgmentNotes;
-
-            list.Add(bar);
-
-
-
-            // Put the bar into the held state the way the decoration pass does.
-
-            bar.SetStateUnnotice(NoteState.Scrolling);
-            bar.RecordHoldingInput(1f);
-
-
-
-            var input = new Sekai.Core.Live.LiveLogic.InputTmp
-
-            {
-
-                Lane = 4.5f,
-
-                Touch = new LiveTouch
-
-                {
-
-                    fingerId = 1,
-
-                    touchId = 1,
-
-                    musicTime = 1.0f,
-
-                    phase = TouchPhase.Moved,
-
-                    delta = new UnityEngine.Vector2(-60f, 0f)
-
-                }
-
-            };
-
-            logic.Input.ActiveInputs.Add(input);
-
-
-
-            // A decorative bar is not played, only its tail is, so the player has to click it first.
-
-            input.Touch.phase = TouchPhase.Began;
-
-            input.Touch.delta = UnityEngine.Vector2.zero;
-
-            CoverHolds(logic);
-
-
-
-            input.Touch.phase = TouchPhase.Moved;
-
-            input.Touch.delta = new UnityEngine.Vector2(-60f, 0f);
-
-            CoverHolds(logic);
-
-
-
-            Assert.That(bar.State, Is.EqualTo(NoteState.Done), "the swipe has to settle the decorative bar's tail");
-
-            Assert.That(bar.Result, Is.EqualTo(NoteResult.JustPerfect));
-
-        }
 
 
 
@@ -926,7 +621,8 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-            bar.FailTail();
+            // The flick end grades itself: its window closing is the Miss.
+            tail.Excute(Info(1.2f), 0.5f);
 
 
 
@@ -1110,70 +806,11 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-        [Test]
-
-        public void AWrongWaySwipeSeenEarlyIsStillCappedAtGreat()
-
-        {
-
-            // Same drive as the on-time case, but the swipe goes against the tail direction. The cap
-
-            // has to survive the release delay: clearing it there let a wrong way swipe be Perfect.
-
-            // A left tail, swiped to the right: the gesture is real but goes the wrong way.
-
-            var bar = FlickEndedBar(NoteDirection.Left);
 
 
 
-            Assert.That(bar.TrySwipeTail(new Vector2(60f, 0f), 1f / 60f, 0.9f), Is.False,
-
-                "a wrong way swipe early is only remembered");
-
-            bar.NotifyLaneRelease();
 
 
-
-            Assert.That(bar.TickSwipeTail(0.95f), Is.False, "first frame after the release");
-
-            Assert.That(bar.TickSwipeTail(1.00f), Is.False, "second frame after the release");
-
-            Assert.That(bar.TickSwipeTail(1.02f), Is.True, "third frame settles it");
-
-
-
-            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
-
-            Assert.That(bar.JudgeInfo.result, Is.EqualTo(NoteResult.Great),
-
-                "swiping the wrong way may never be graded above Great");
-
-        }
-
-
-
-        [TestCase(60f, NoteResult.JustPerfect)]
-        [TestCase(12f, NoteResult.Great)]
-        public void AFollowUpSwipeUpdatesDirectionOnlyIfItMeetsTheSpeedThreshold(float distance, NoteResult expected)
-        {
-            const int touchId = 1;
-            const float frame = 1f / 60f;
-            var bar = FlickEndedBar(NoteDirection.Left, flickDistance: 10f);
-            var tail = (NoteBase)bar.ChildNote;
-
-            // First arm a wrong-way swipe. The next sample moves in the correct direction
-            // and exceeds the reference distance, but only the 60 px sample is fast enough.
-            bar.TrySwipeTail(new Vector2(60f, 0f), frame, 0.89f, touchId);
-            Assert.That(bar.HasDeferredSwipe, Is.True);
-            bar.TrySwipeTail(new Vector2(-distance, 0f), frame, 0.94f, touchId);
-            Assert.That(tail.Result, Is.EqualTo(NoteResult.None));
-
-            bar.NotifyLaneRelease();
-            Assert.That(bar.TickSwipeTail(0.96f), Is.False);
-            Assert.That(bar.TickSwipeTail(0.98f), Is.False);
-            Assert.That(bar.TickSwipeTail(1f), Is.True);
-            Assert.That(tail.Result, Is.EqualTo(expected));
-        }
 
         [Test]
         public void OnlyTheTailRidesAlongWithTheBar()
@@ -1205,115 +842,13 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-        [Test]
-
-        public void ASwipeInTheMiddleOfTheBarIsNotRememberedForItsTail()
-
-        {
-
-            var bar = new LongNote(Info(0f), 221, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
-
-            bar.AddNoteListAndSetupChildNote(new FlickNote(Info(2f), 222, 4, 5, NoteCategory.Flick, 1, NoteType.Default, NoteDirection.Left, 0, 0f));
-
-            bar.RecordHoldingInput(0.9f);
-
-            bar.SetStateUnnotice(NoteState.Scrolling);
-
-            var logic = NewLogic(bar);
 
 
 
-            logic.currentFrameInfo = Info(1.0f);
-
-            Cover(logic, Finger(1.0f, TouchPhase.Moved, 4.5f, new Vector2(-60f, 0f)));
 
 
 
-            Assert.That(bar.HasDeferredSwipe, Is.False, "a swipe one second before the tail is not an end point gesture");
 
-        }
-
-
-
-        [Test]
-
-        public void ASwipeInsideTheEarlyWindowIsStillRemembered()
-
-        {
-
-            var bar = new LongNote(Info(0f), 231, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
-
-            bar.AddNoteListAndSetupChildNote(new FlickNote(Info(2f), 232, 4, 5, NoteCategory.Flick, 1, NoteType.Default, NoteDirection.Left, 0, 0f));
-
-            bar.RecordHoldingInput(1.9f);
-
-            bar.SetStateUnnotice(NoteState.Scrolling);
-
-            var logic = NewLogic(bar);
-
-
-
-            logic.currentFrameInfo = Info(1.95f);
-
-            Cover(logic, Finger(1.95f, TouchPhase.Moved, 4.5f, new Vector2(-60f, 0f)));
-
-
-
-            Assert.That(bar.HasDeferredSwipe, Is.True, "a swipe 50 ms before the tail is inside the window");
-
-        }
-
-        [Test]
-
-        public void AnEarlySwipeWaitsForTheReleaseAndThenThreeFrames()
-
-        {
-
-            // An early swipe is only remembered; the countdown starts when the
-
-            // finger leaves, and the deferred swipe is graded on the third frame after that.
-
-            var bar = new LongNote(Info(0f), 90, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
-
-            var tail = new FlickNote(Info(1f), 91, 4, 5, NoteCategory.Flick, 1, NoteType.Default, NoteDirection.Left, 0, 0f);
-
-            bar.AddNoteListAndSetupChildNote(tail);
-
-            bar.RecordHoldingInput(0.9f);
-
-            bar.SetStateUnnotice(NoteState.Scrolling);
-
-
-
-            Assert.That(bar.NotifyLaneSwipe(60f, 0.90f), Is.False, "an early swipe must not settle on the spot");
-
-            Assert.That(bar.HasDeferredSwipe, Is.True);
-
-
-
-            // No release yet: the bar has to stay alive even though frames pass.
-
-            Assert.That(bar.TickSwipeTail(0.92f), Is.False);
-
-            Assert.That(bar.TickSwipeTail(0.94f), Is.False);
-
-            Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done));
-
-
-
-            bar.NotifyLaneRelease();
-
-            Assert.That(bar.TickSwipeTail(0.96f), Is.False);
-
-            Assert.That(bar.TickSwipeTail(0.98f), Is.False);
-
-            Assert.That(bar.TickSwipeTail(1.00f), Is.True, "graded on the third frame after the release");
-
-            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
-
-            Assert.That(bar.Result, Is.Not.EqualTo(NoteResult.None));
-
-        }
 
 
 
@@ -1343,11 +878,10 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-            Assert.That(bar.TailBehaviour.AcceptsSwipe, Is.False, "a friction flick tail is not settled by the bar's swipe rule");
+            Assert.That(bar.TailBehaviour.JudgesItself, Is.True, "a friction flick tail is not settled by the bar");
 
             Assert.That(bar.TailBehaviour.JudgesItself, Is.True);
 
-            Assert.That(bar.TrySwipeTail(new UnityEngine.Vector2(-60f, 0f), 0.016f, 1.0f), Is.False);
 
             Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done));
 
@@ -1412,49 +946,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-        [Test]
 
-        public void AVerdictIsPublishedBeforeItsBarIsAllowedToLeave()
-
-        {
-
-            // The ordering R2 depends on: the bar hands the frame to its tail, the tail writes and
-
-            // publishes its own verdict, and only then does that verdict end the bar. A bar that left
-
-            // first would recycle its views before the tail could show the judgement.
-
-            var bar = new LongNote(Info(0f), 411, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
-
-            var tail = new FlickNote(Info(1f), 412, 4, 5, NoteCategory.Flick, 1, NoteType.Default, NoteDirection.Left, 0, 0f);
-
-            bar.AddNoteListAndSetupChildNote(tail);
-
-            bar.RecordHoldingInput(1f);
-
-            bar.SetStateUnnotice(NoteState.Scrolling);
-
-
-
-            int published = 0;
-
-            bool aliveWhenPublished = false;
-
-            tail.OnJudgment = _ => { published++; aliveWhenPublished = bar.State != NoteState.Done; };
-
-
-
-            Assert.That(bar.NotifyLaneSwipe(10f, 1.02f), Is.True, "the swipe settles the tail");
-
-
-
-            Assert.That(published, Is.EqualTo(1), "the tail publishes its verdict");
-
-            Assert.That(aliveWhenPublished, Is.True, "and the bar is still in play at that moment");
-
-            Assert.That(bar.State, Is.EqualTo(NoteState.Done), "the verdict is what ends the bar");
-
-        }
 
 
 
@@ -1494,31 +986,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-        [Test]
 
-        public void ADeferredSwipeKeepsTheBarAliveOnTheTailTimeFrame()
-
-        {
-
-            // A flick tail graded by a deferred swipe is not due on its own time frame: that frame only
-
-            // starts the countdown, so the bar must not take it as its own ending.
-
-            var bar = FlickEndedBar(NoteDirection.Left);
-
-            Assert.That(bar.TrySwipeTail(new UnityEngine.Vector2(-60f, 0f), 1f / 60f, 0.9f), Is.False);
-
-            Assert.That(bar.HasDeferredSwipe, Is.True, "the early swipe is remembered");
-
-
-
-            Assert.That(bar.TickSwipeTail(1.0f), Is.False, "the tail-time frame starts the countdown");
-
-            Assert.That(bar.ExpireTail(1.0f), Is.False, "and the bar must not end on it");
-
-            Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done));
-
-        }
 
 
 
@@ -1568,170 +1036,15 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-        [Test]
 
-        public void AQuickFlickReportedOnlyAsAnEndedSampleStillFinishesTheBar()
 
-        {
 
-            // The real pipeline: a fast flick can arrive as a single Ended sample that carries the
 
-            // whole movement, and that sample is usually registered above the judgement line, so it
 
-            // must not be filtered out by the lane test before its delta is read.
 
-            var bar = new LongNote(Info(0f), 101, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
 
-            var tail = new FlickNote(Info(1f), 102, 4, 5, NoteCategory.Flick, 1, NoteType.Default, NoteDirection.Left, 0, 0f);
 
-            bar.AddNoteListAndSetupChildNote(tail);
 
-            bar.RecordHoldingInput(0.9f);
-
-            bar.SetStateUnnotice(NoteState.Scrolling);
-
-
-
-            var logic = new Sekai.Core.Live.LiveLogic(null);
-
-            var list = logic.Input.JudgmentNotes;
-
-            list.Add(bar);
-
-            var inputs = logic.Input.ActiveInputs;
-
-            
-
-
-
-            logic.currentFrameInfo = Info(0.90f);
-
-            inputs.Add(new Sekai.Core.Live.LiveLogic.InputTmp
-
-            {
-
-                Lane = -1f, // the swipe finished outside the playfield
-                PreviousLane = 4.5f,
-
-                Touch = new LiveTouch
-
-                {
-
-                    fingerId = 1,
-
-                    touchId = 1,
-
-                    musicTime = 0.90f,
-
-                    phase = TouchPhase.Ended,
-
-                    delta = new UnityEngine.Vector2(-60f, 0f)
-
-                }
-
-            });
-
-            CoverHolds(logic);
-
-            inputs.Clear();
-
-
-
-            Assert.That(bar.HasDeferredSwipe, Is.True, "the ended sample has to be remembered as the swipe");
-
-
-
-            logic.currentFrameInfo = Info(0.92f);
-
-            CoverHolds(logic);
-
-            logic.currentFrameInfo = Info(0.94f);
-
-            CoverHolds(logic);
-
-            Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done));
-
-            logic.currentFrameInfo = Info(0.96f);
-
-            CoverHolds(logic);
-
-
-
-            Assert.That(bar.State, Is.EqualTo(NoteState.Done), "graded on the third frame after the release");
-
-        }
-
-
-
-        [Test]
-
-        public void SlidingOutOfTheLaneCountsAsTheReleaseToo()
-
-        {
-
-            LongNote bar = FlickEndedBar(NoteDirection.Left);
-
-            bar.TrySwipeTail(new UnityEngine.Vector2(-60f, 0f), 1f / 60f, 0.90f);
-
-            Assert.That(bar.HasDeferredSwipe, Is.True, "the early swipe is remembered, no countdown yet");
-
-
-
-            // No finger is inside the bar any more: that is a release, exactly like lifting.
-
-            for (int frame = 0; frame < 3; frame++)
-
-            {
-
-                bar.TickSwipeTail(0.92f + frame * 0.02f);
-
-                Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done), "third frame after the release grades it");
-
-                bar.NotifyLaneRelease();
-
-            }
-
-
-
-            bar.TickSwipeTail(1.00f);
-
-            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
-
-        }
-
-
-
-        [Test]
-
-        public void ReachingTheTailTimeCountsAsTheRelease()
-
-        {
-
-            LongNote bar = FlickEndedBar(NoteDirection.Left);
-
-            bool deferred = bar.TrySwipeTail(new UnityEngine.Vector2(-60f, 0f), 1f / 60f, 0.90f);
-
-            Assert.That(bar.HasDeferredSwipe, Is.True, "swiped early, nothing graded yet");
-
-            Assert.That(deferred, Is.False);
-
-
-
-            // Still holding at the tail time: that alone must start the countdown.
-
-            Assert.That(bar.TickSwipeTail(1.00f), Is.False, "frame zero of the release");
-
-            Assert.That(bar.TickSwipeTail(1.02f), Is.False, "frame one");
-
-            Assert.That(bar.TickSwipeTail(1.04f), Is.False, "frame two");
-
-
-
-            Assert.That(bar.TickSwipeTail(1.06f), Is.True, "frame three grades it");
-
-            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
-
-        }
 
 
 
@@ -1777,84 +1090,6 @@ namespace OpenSekai.Tests.EditMode.Live
 
 		// Before the tail time a swipe on the bar waits for the release; a swipe off the bar used to be
 		// dropped. The opening: off the bar, inside the tail note's lane, and inside the Perfect band.
-		private static (LongNote bar, FlickNote tail) BarEndingInAnotherLane(NoteDirection direction = NoteDirection.Default)
-		{
-			var bar = new LongNote(Info(0f), 201, 2, 3, NoteCategory.Long, NoteType.Default, 1, 0);
-			var tail = new FlickNote(Info(1f), 202, 8, 9, NoteCategory.Flick, 1, NoteType.Default, direction, 0, 0f);
-			bar.AddNoteListAndSetupChildNote(tail);
-			var head = Touch(0f, TouchPhase.Began);
-			bar.Judgment(ref head, 2.5f);
-			bar.RecordHoldingInput(0f);
-			return (bar, tail);
-		}
-
-		private static Sekai.Core.Live.LiveLogic.InputTmp SwipeAtLane(float time, float lane, Vector2 delta, int fingerId)
-		{
-			var input = Finger(time, TouchPhase.Moved, lane, delta, fingerId);
-			input.PreviousLane = lane;
-			return input;
-		}
-
-		private static void SwipeOffTheBar(LongNote bar, FlickNote tail, float time, Vector2 delta)
-		{
-			const float tailLane = 8.5f;
-			Assume.That(tailLane, Is.InRange(tail.JudgeLaneStart, tail.JudgeLaneEnd), "the swipe is in the tail's lane");
-			Assume.That(tailLane < bar.BodyLaneStart || tailLane > bar.BodyLaneEnd, Is.True, "and off the bar");
-
-			var logic = NewLogic(bar);
-			logic.currentFrameInfo = Info(time);
-			Cover(logic, Finger(time, TouchPhase.Stationary, 2.5f, Vector2.zero, 1),
-				SwipeAtLane(time, tailLane, delta, 2));
-		}
-
-		[Test]
-		public void AnEarlySwipeOffTheBarInTheTailsLaneIsTakenWhenItIsPerfect()
-		{
-			var (bar, tail) = BarEndingInAnotherLane();
-
-			SwipeOffTheBar(bar, tail, 0.96f, new Vector2(60f, 0f));
-
-			Assert.That(bar.HasDeferredSwipe, Is.False, "it is not deferred like a swipe on the bar");
-			Assert.That(tail.Result, Is.EqualTo(NoteResult.JustPerfect), "40 ms early is inside the Perfect band");
-			Assert.That(bar.State, Is.EqualTo(NoteState.Done));
-		}
-
-		[Test]
-		public void AnEarlySwipeOffTheBarThatWouldOnlyBeGreatIsStillIgnored()
-		{
-			var (bar, tail) = BarEndingInAnotherLane();
-
-			SwipeOffTheBar(bar, tail, 0.92f, new Vector2(60f, 0f));
-
-			Assert.That(bar.HasDeferredSwipe, Is.False);
-			Assert.That(tail.Result, Is.EqualTo(NoteResult.None), "80 ms early is Great, not Perfect");
-			Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done));
-		}
-
-		[Test]
-		public void AWrongWaySwipeOffTheBarIsIgnoredBecauseItCannotBePerfect()
-		{
-			var (bar, tail) = BarEndingInAnotherLane(NoteDirection.Left);
-
-			SwipeOffTheBar(bar, tail, 0.96f, new Vector2(60f, 0f));
-
-			Assert.That(tail.Result, Is.EqualTo(NoteResult.None), "a wrong-way swipe is capped at Great");
-			Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done));
-		}
-
-		[Test]
-		public void AnEarlySwipeOffTheBarOutsideTheTailsLaneIsStillIgnored()
-		{
-			var (bar, tail) = BarEndingInAnotherLane();
-			var logic = NewLogic(bar);
-			logic.currentFrameInfo = Info(0.96f);
-			Cover(logic, Finger(0.96f, TouchPhase.Stationary, 2.5f, Vector2.zero, 1),
-				SwipeAtLane(0.96f, 5.5f, new Vector2(60f, 0f), 2));
-
-			Assert.That(tail.Result, Is.EqualTo(NoteResult.None));
-			Assert.That(bar.HasDeferredSwipe, Is.False);
-		}
-
 		/// <summary>One frame of hold coverage, driven through the coordinator the live loop uses.</summary>
 		private static void CoverHolds(Sekai.Core.Live.LiveLogic logic)
 		{
@@ -1863,7 +1098,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			var inputs = logic.Input.ActiveInputs;
 			holds.GetType()
 				.GetMethod("CoverHoldsWithAnyFinger", BindingFlags.Instance | BindingFlags.NonPublic)
-				.Invoke(holds, new object[] { notes, inputs, logic.currentFrameInfo, UnityEngine.Time.deltaTime });
+				.Invoke(holds, new object[] { notes, inputs, logic.currentFrameInfo });
 		}
     }
 

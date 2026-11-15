@@ -168,6 +168,12 @@ namespace Sekai.Core.Live
 				NoteBase note = _input.JudgmentNotes[n];
 				if (note == null || note.State == NoteState.Done || note is LongHoldCombo
 					|| LiveCandidatePipeline.IsPressStep(note)) continue;
+				if (note is FlickNote flickTail && flickTail.JudgesAsBarTail)
+				{
+					DriveFlickTail(flickTail);
+					if (flickTail.State == NoteState.Done) _input.JudgmentNotes.RemoveAt(n);
+					continue;
+				}
 				int barInput = note is LongNote longNote ? PickBarInput(longNote) : -1;
 				for (int i = 0; i < _input.ActiveInputs.Count; i++)
 				{
@@ -196,6 +202,25 @@ namespace Sekai.Core.Live
 					LiveTrace.Write(LiveTraceCategory.Resident, $"unregDone id={note.Id} n={n}");
 				if (note.State == NoteState.Done) _input.JudgmentNotes.RemoveAt(n);
 			}
+		}
+
+		/// <summary>
+		/// A bar's end flick reads every finger of the frame - a lift and a slide out of its lanes matter as
+		/// much as a swipe, and the final sample of a lift may be off the playfield - and then closes the
+		/// frame so a finger that sent nothing counts as gone (<see cref="FlickTailJudge"/>).
+		/// </summary>
+		private void DriveFlickTail(FlickNote tail)
+		{
+			FlickTailJudge judge = tail.TailJudge;
+			float deltaTime = judge.FrameDeltaTime(Frame.time);
+			for (int i = 0; i < _input.ActiveInputs.Count && tail.State != NoteState.Done; i++)
+			{
+				InputTmp input = _input.ActiveInputs[i];
+				if (input == null) continue;
+				judge.Offer(ref input.Touch, input.Lane, input.PreviousLane, deltaTime);
+			}
+
+			judge.EndInputFrame(Frame.time);
 		}
 
 		private int PickBarInput(LongNote bar)

@@ -22,16 +22,12 @@ namespace Sekai.Core.Live
 	{
 
 		private readonly int[] _holdInputNotes;
-		private readonly LongNote[] _swipeTargets;
-		private readonly bool[] _swipeFromTailLane;
 		private readonly HashSet<int> _usedLiftFingers = new HashSet<int>();
 		private HashSet<int> _silencedTouches;
 
 		public LiveHoldCoordinator(int inputCapacity)
 		{
 			_holdInputNotes = new int[inputCapacity];
-			_swipeTargets = new LongNote[inputCapacity];
-			_swipeFromTailLane = new bool[inputCapacity];
 		}
 
 		/// <summary>
@@ -108,7 +104,7 @@ namespace Sekai.Core.Live
 			// A bar is not owned by a finger: any touch on it keeps it alive, and a touch that leaves
 			// the screen inside it is the release the tail listens for. This runs before ownership so a
 			// second finger can neither steal the hold nor swallow the tail.
-			CoverHoldsWithAnyFinger(judgmentNotes, inputs, frame, deltaTime);
+			CoverHoldsWithAnyFinger(judgmentNotes, inputs, frame);
 
 			int count = inputs.Count;
 			for (int noteIndex = 0; noteIndex < judgmentNotes.Count; noteIndex++)
@@ -148,9 +144,8 @@ namespace Sekai.Core.Live
 		/// The release channel: a finger that leaves the screen finishes the one bar it is standing on.
 		///
 		/// It runs on the frame's ended samples, before the resident upkeep, and it only settles the
-		/// tail a release can settle (<see cref="Tails.ReleaseTail"/>). A flick end is finished by the
-		/// swipe the resident pass hands it, and a rub, a rub flick or a hidden carrier grades itself,
-		/// so none of those is touched here.
+		/// tail a release can settle (<see cref="Tails.ReleaseTail"/>). A flick, a rub, a rub flick or a
+		/// hidden carrier grades itself, so none of those is touched here.
 		/// </summary>
 		public void JudgeLifts(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame)
 		{
@@ -187,17 +182,12 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>
-		/// Feeds every live bar the fingers currently on it, and hands each bar the frame's cover and
-		/// swipe facts. The lift that ends a bar is the release channel's business, already done.
+		/// Feeds every live bar the fingers currently on it, and hands each bar the frame's cover. The lift
+		/// that ends a bar is the release channel's business, already done.
 		/// </summary>
-		private void CoverHoldsWithAnyFinger(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame, float deltaTime)
+		private void CoverHoldsWithAnyFinger(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame)
 		{
 			int count = inputs.Count;
-			for (int i = 0; i < count; i++)
-			{
-				_swipeTargets[i] = PickSwipeTarget(judgmentNotes, inputs[i], frame.time, out _swipeFromTailLane[i]);
-			}
-
 			for (int noteIndex = 0; noteIndex < judgmentNotes.Count; noteIndex++)
 			{
 				if (judgmentNotes[noteIndex] is not LongNote held
@@ -207,43 +197,16 @@ namespace Sekai.Core.Live
 				}
 
 				bool covered = false;
-				int? deferredTouch = held.DeferredSwipeTouchId;
-				LiveLogic.InputTmp swipe = null;
-				bool swipeFromTailLane = false;
 				for (int inputIndex = 0; inputIndex < count; inputIndex++)
 				{
 					LiveLogic.InputTmp input = inputs[inputIndex];
-					if (input == null)
-					{
-						continue;
-					}
-
-					// A swipe on the bar is preferred over one through the tail-lane opening; between two of
-					// the same kind the larger movement wins.
-					bool fromTailLane = _swipeFromTailLane[inputIndex];
-					if (ReferenceEquals(_swipeTargets[inputIndex], held)
-						&& (swipe == null || (swipeFromTailLane && !fromTailLane)
-							|| (swipeFromTailLane == fromTailLane
-								&& input.Touch.delta.sqrMagnitude > swipe.Touch.delta.sqrMagnitude)))
-					{
-						swipe = input;
-						swipeFromTailLane = fromTailLane;
-					}
-
-					if (IsEndedOrCanceled(input.Touch.phase) || !TouchesBar(input.Lane, held))
+					if (input == null || IsEndedOrCanceled(input.Touch.phase) || !TouchesBar(input.Lane, held))
 					{
 						continue;
 					}
 
 					covered = true;
-
-					// A decorative bar is not played, only its tail is: a click is what turns the drag
-					// into a flick on it, matching the plain flick note it ends with.
-					if (held.State != NoteState.Done && !held.HasJudgment
-						&& input.Touch.phase == UnityEngine.InputSystem.TouchPhase.Began)
-					{
-						held.MarkTailPressed();
-					}
+					break;
 				}
 
 				// A finger resting over a bar whose head has not been judged yet must not adopt it:
@@ -269,23 +232,17 @@ namespace Sekai.Core.Live
 					}
 				}
 
-				bool swipeEnded = swipe != null && IsEndedOrCanceled(swipe.Touch.phase);
 				if (LiveTrace.IsOn(LiveTraceCategory.Resident))
 				{
 					LiveTrace.Write(LiveTraceCategory.Resident,
-						$"tailFrame barT={held.MusicScoreInfo.time:F3} now={frame.time:F3} state={held.State} covered={covered} swipeEnded={swipeEnded} swipeTouch={swipe?.Touch.touchId} held={held.HasFinger} settled={headSettled} child={(held.ChildNote == null ? -1f : held.ChildNote.MusicScoreInfo.time):F3} childRes={(held.ChildNote == null ? NoteResult.None : held.ChildNote.Result)}");
+						$"tailFrame barT={held.MusicScoreInfo.time:F3} now={frame.time:F3} state={held.State} covered={covered} held={held.HasFinger} settled={headSettled} child={(held.ChildNote == null ? -1f : held.ChildNote.MusicScoreInfo.time):F3} childRes={(held.ChildNote == null ? NoteResult.None : held.ChildNote.Result)}");
 				}
 
-				// Ordinary lifts already settled in JudgeLifts. Swipe release follows the finger that
-				// made the gesture, even when a second finger is still covering the bar.
+				// Ordinary lifts already settled in JudgeLifts. Every other end grades itself (or is not
+				// graded at all), and the bar only learns whether it may leave.
 				if (!held.TailBehaviour.AcceptsRelease)
 				{
-					int? gestureTouch = deferredTouch ?? swipe?.Touch.touchId;
-					bool gestureCovered = gestureTouch.HasValue
-						? IsTouchStillOnBar(inputs, gestureTouch.Value, held) : covered;
-					held.TailBehaviour.TryFinish(held, new TailFrame(frame.time, deltaTime,
-						swipe?.Touch.delta ?? Vector2.zero, swipeEnded, gestureCovered, swipe?.Touch.touchId,
-						swipeFromTailLane));
+					held.TailBehaviour.TryFinish(held, new TailFrame(frame.time, false));
 				}
 
 				// The tail can keep judging after the body reaches its endpoint.
@@ -296,109 +253,12 @@ namespace Sekai.Core.Live
 					held.CompleteTail();
 				}
 			}
-
-			Array.Clear(_swipeTargets, 0, count);
-			Array.Clear(_swipeFromTailLane, 0, count);
 		}
 
 		// Where the bar is now: a bending body leaves its head's lanes, and the finger that follows it
 		// must keep covering it.
 		private static bool TouchesBar(float lane, LongNote bar) =>
 			lane >= 0f && HoldSweep.TouchesLane(lane, bar.BodyLaneStart, bar.BodyLaneEnd);
-
-		private static bool IsTouchStillOnBar(List<LiveLogic.InputTmp> inputs, int touchId, LongNote bar)
-		{
-			for (int i = inputs.Count - 1; i >= 0; i--)
-			{
-				LiveLogic.InputTmp input = inputs[i];
-				if (input != null && input.Touch.touchId == touchId)
-				{
-					return !IsEndedOrCanceled(input.Touch.phase) && TouchesBar(input.Lane, bar);
-				}
-			}
-
-			return false;
-		}
-
-		/// <summary>
-		/// The one bar a finger's movement this frame is offered to. A bar the finger is on wins, nearest
-		/// first. Only when the finger is on no bar may it go to a flick tail it is not on, through the
-		/// tail-lane opening (<see cref="LongNote.AcceptsSwipeFromTailLane"/>); <paramref name="fromTailLane"/>
-		/// says the target came that way.
-		/// </summary>
-		private static LongNote PickSwipeTarget(List<NoteBase> judgmentNotes, LiveLogic.InputTmp input, float time,
-			out bool fromTailLane)
-		{
-			fromTailLane = false;
-			if (input == null || input.Touch.delta.sqrMagnitude == 0f)
-			{
-				return null;
-			}
-
-			// The final sample can contain the whole flick and land outside the playfield.
-			// Its preceding lane identifies where that movement started.
-			float lane = input.PreviousLane >= 0f || IsEndedOrCanceled(input.Touch.phase)
-				? input.PreviousLane : input.Lane;
-			if (lane < 0f)
-			{
-				return null;
-			}
-
-			LongNote best = null;
-			float bestDistance = float.MaxValue;
-			LongNote outside = null;
-			float outsideTime = float.MaxValue;
-			foreach (NoteBase note in judgmentNotes)
-			{
-				if (note is not LongNote bar || !bar.TailBehaviour.AcceptsSwipe)
-				{
-					continue;
-				}
-
-				if (!TouchesBar(lane, bar))
-				{
-					// Before the tail time a swipe outside the bar used to be dropped. Inside the tail's
-					// lane and inside its Perfect band it finishes the tail; the earliest such tail wins.
-					if (bar.AcceptsSwipeFromTailLane(lane, time)
-						&& bar.TailNote.MusicScoreInfo.time < outsideTime)
-					{
-						outside = bar;
-						outsideTime = bar.TailNote.MusicScoreInfo.time;
-					}
-					continue;
-				}
-
-				if (!bar.CanReceiveTailSwipe || !bar.IsTailWindowOpenAt(time))
-				{
-					continue;
-				}
-
-				int? deferredTouch = bar.DeferredSwipeTouchId;
-				if (deferredTouch.HasValue)
-				{
-					if (deferredTouch == input.Touch.touchId)
-					{
-						return bar;
-					}
-					continue;
-				}
-
-				float distance = Math.Abs(lane - (bar.BodyLaneStart + bar.BodyLaneEnd) * 0.5f);
-				if (distance < bestDistance)
-				{
-					best = bar;
-					bestDistance = distance;
-				}
-			}
-
-			if (best == null && outside != null)
-			{
-				fromTailLane = true;
-				return outside;
-			}
-
-			return best;
-		}
 
 		private static bool RefreshFromAnyFinger(LongNote held, int count, List<LiveLogic.InputTmp> inputs)
 		{

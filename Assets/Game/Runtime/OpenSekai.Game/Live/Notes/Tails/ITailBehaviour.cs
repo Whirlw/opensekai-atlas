@@ -17,9 +17,6 @@ namespace Sekai.Live.Tails
 		/// <summary>A finger leaving the screen inside the tail window scores this end.</summary>
 		bool AcceptsRelease { get; }
 
-		/// <summary>A swipe inside the bar scores this end (a flick at the tail).</summary>
-		bool AcceptsSwipe { get; }
-
 		/// <summary>The end note scores itself; the bar only detaches from it.</summary>
 		bool JudgesItself { get; }
 	}

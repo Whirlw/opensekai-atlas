@@ -19,6 +19,16 @@ namespace Sekai.Live
 		/// <summary>The swipe length this note asks for, in the same units as a touch delta.</summary>
 		internal float FlickDistance => _flickDistance;
 
+		private FlickTailJudge _tailJudge;
+
+		/// <summary>
+		/// The flick ends a bar the player holds: it grades itself by <see cref="FlickTailJudge"/>, and the
+		/// bar does not judge it. A flick at the end of a decorative bar is still a plain single flick.
+		/// </summary>
+		internal bool JudgesAsBarTail => ParentRole == NoteParentRole.Tail && GradesAsBarPart;
+
+		internal FlickTailJudge TailJudge => _tailJudge ??= new FlickTailJudge(this);
+
 		public override NoteState State
 		{
 			get => state;
@@ -65,13 +75,27 @@ namespace Sekai.Live
 
 		public override void Excute(MusicScoreInfo currentFrameInfo, float offsetTime)
 		{
+			// A bar's end flick settles its recorded swipes before the window can close on it: the
+			// finger still in the lanes at the tail time is graded right then.
+			if (JudgesAsBarTail && State != NoteState.Done)
+			{
+				TailJudge.Settle(currentFrameInfo.time);
+
+				// Past the end table's late edge nothing can grade it any more: a Miss, on this frame.
+				if (State != NoteState.Done && LongEndJudgement.IsPast(currentFrameInfo.time - MusicScoreInfo.time))
+				{
+					FinishAsTail((NoteResult.Miss, NoteResultDescription.None));
+					return;
+				}
+			}
+
 			base.Excute(currentFrameInfo, offsetTime);
 			if (State == NoteState.Input
 				&& _lastInputTime + ReferenceFrame.Seconds < currentFrameInfo.time
 				&& CalcProgress(currentFrameInfo, offsetTime) >= 1f)
 			{
-				// A tail belongs to its bar: the bar decides the swipe, so the note must not
-				// complete itself here. Doing so graded a stationary finger as JustPerfect.
+				// A tail is graded by its own swipe rule (FlickTailJudge), never by this settle: doing
+				// so graded a stationary finger as JustPerfect.
 				if (ParentRole != NoteParentRole.Tail)
 				{
 					JudgmentFlick(currentFrameInfo.time);
@@ -128,7 +152,8 @@ namespace Sekai.Live
 
 		public override bool IsJudgment(ref LiveTouch touch, float lane)
 		{
-			if (State == NoteState.Done)
+			// A bar's end flick takes its samples through FlickTailJudge.Offer only.
+			if (State == NoteState.Done || JudgesAsBarTail)
 			{
 				return false;
 			}
@@ -180,7 +205,7 @@ namespace Sekai.Live
 
 		public override bool Judgment(ref LiveTouch touch, float lane)
 		{
-			if (State == NoteState.Done)
+			if (State == NoteState.Done || JudgesAsBarTail)
 			{
 				return false;
 			}
@@ -276,6 +301,38 @@ namespace Sekai.Live
 			isTrueDirection = trueDirection;
 		}
 
+		/// <summary>
+		/// The grade of a bar's end flick swiped at <paramref name="musicTime"/>: the end table the bar
+		/// used to grade it with, and a swipe the wrong way never reaches Perfect.
+		/// </summary>
+		internal (NoteResult, NoteResultDescription) GradeAsTail(float musicTime, bool trueDirection)
+		{
+			NoteResult result = LongEndJudgement.Evaluate(musicTime - MusicScoreInfo.time);
+			if (!trueDirection && (result == NoteResult.Perfect || result == NoteResult.JustPerfect))
+			{
+				return (NoteResult.Great, NoteResultDescription.FlickMiss);
+			}
+
+			return (result, NoteResultDescription.None);
+		}
+
+		/// <summary>Writes the tail judge's verdict and finishes the note.</summary>
+		internal void FinishAsTail((NoteResult, NoteResultDescription) judgeInfo)
+		{
+			if (State == NoteState.Done)
+			{
+				return;
+			}
+
+			if (LiveTrace.IsOn(LiveTraceCategory.Tail))
+			{
+				LiveTrace.Write(LiveTraceCategory.Tail, $"flickTailJudged t={MusicScoreInfo.time:F3} res={judgeInfo.Item1}");
+			}
+
+			JudgeInfo = onUpdateResult != null ? onUpdateResult(judgeInfo) : judgeInfo;
+			State = NoteState.Done;
+		}
+
 		public override NoteResult CalcNoteResult(float musicTime)
 		{
 			return (!GradesAsBarPart
@@ -288,6 +345,7 @@ namespace Sekai.Live
 			base.ResetNote();
 			Array.Clear(inputResults, 0, inputResults.Length);
 			_lastInputTime = 0f;
+			_tailJudge?.Reset();
 		}
 
 		/// <summary>Whether a press of <paramref name="touchId"/> armed this flick, which now waits for a swipe.</summary>
