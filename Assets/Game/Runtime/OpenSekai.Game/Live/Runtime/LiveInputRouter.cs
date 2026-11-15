@@ -72,6 +72,7 @@ namespace Sekai.Core.Live
 			_collector.Reset();
 			ActiveInputs.Clear();
 			_judgedTouchTimes.Clear();
+			Holds.ClearKeyPresses();
 			_previousTouchLanes.Clear();
 			_touchesAboveTheLine.Clear();
 			SilencedTouches.Clear();
@@ -108,11 +109,14 @@ namespace Sekai.Core.Live
 
 		internal void SortPressCandidates() => _candidates.SortPressCandidates(ActiveInputs, _logic.currentFrameInfo);
 
+		internal void JudgeLifts() => Holds.JudgeLifts(JudgmentNotes, ActiveInputs, _logic.currentFrameInfo, _candidates);
+
 		internal void RecordJudgedTouch(LiveTouch touch) => _judgedTouchTimes[touch.touchId] = touch.musicTime;
 
 		internal void ForgetJudgedTouch(int touchId)
 		{
 			_judgedTouchTimes.Remove(touchId);
+			Holds.ForgetKeyPress(touchId);
 			SilencedTouches.Remove(touchId);
 		}
 

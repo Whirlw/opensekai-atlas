@@ -86,7 +86,7 @@ namespace Sekai.Core.Live
 		/// </summary>
 		private void JudgeReleaseChannel()
 		{
-			_input.Holds.JudgeLifts(_input.JudgmentNotes, _input.ActiveInputs, Frame);
+			_input.JudgeLifts();
 		}
 
 		/// <summary>
@@ -362,6 +362,11 @@ namespace Sekai.Core.Live
 			/// </summary>
 			public void Consumed(int candidateIndex)
 			{
+				if (Input.CandidateNotes[candidateIndex] is NormalNote or FlickNote)
+				{
+					Scheduler._input.Holds.RecordKeyPress(Input.Touch);
+				}
+
 				Input.CandidateNotes.Clear();
 				Scheduler._input.RecordJudgedTouch(Input.Touch);
 				Scheduler._usedFingerList.Add(Input.Touch.fingerId);

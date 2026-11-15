@@ -3,7 +3,7 @@
 > 目的：把「一个音符凭什么被判定、由谁判、什么时候判、判错会怎样」写成一份可以对照代码验收的完整规则。
 > 适用读者：改判定、改音符视觉、排查「明明按了却没判」的人。
 > 前置条件：读过[打歌运行时](live-runtime.md)、[判定窗口](../reference/judging.md)。
-> 最后更新：2026-11-14
+> 最后更新：2026-11-15
 
 本文以当前工作区代码为准，描述手动判定、自动播放及排查入口；它不是上游版本的规则说明。判定窗口由 `LiveConfig` 和长条尾实际使用的 `LongEndJudgement` 定义，轨道容差与划键距离来自 `LiveBundleBuildData.asset`。文中的时间单位为毫秒时，数值是便于阅读的近似值；边界是否包含以对应代码为准。`Last` 是状态名，在长条、内部点和普通音符上有不同含义，不能一概解释为已经 Miss。
 
@@ -14,7 +14,7 @@
 1. **每个可计分判定点只发布一次。** 长条的头、尾及内部 combo 点分别结算。条上的 `JudgeInfo` 会镜像头、尾的结果。
 2. **判定由三条通道分工完成。** 按下（press）、抬起（release）、常驻（resident）各自只回答一类问题，互不代劳：
     - **按下通道**：这次按下判不判得了这个键。按下键只有单键、独立划键、普通长条的头三种，且要在这根手指的车道和时间窗口内（7.1）。一次按下最多判一个键；划键被判时只推进到接收滑动阶段，滑动由常驻通道评分。
-    - **抬起通道**：抬起键只有长条的普通尾（`ReleaseTail`）。一指一帧最多结算一条，按尾时间和车道距离选择。
+    - **抬起通道**：抬起键只有长条的普通尾（`ReleaseTail`）。一指一帧最多结算一条，候选按按下通道相同的三步规则去重，再按尾时间和车道距离选择。该触摸的按下若判定了普通键或独立划键的按下步骤，且抬起距该按下不超过 100 ms，这次抬起对任何长条尾都只能在其 Perfect 区间内结算。
     - **常驻通道**：处理条身覆盖、内部 combo 点、自判尾的输入、长条到期和划键手势。普通头的超时在按下阶段收尾，自判尾的时钟在更新阶段推进。
     同一触摸样本可以参与多个阶段，例如按下既可判头，也可建立条身覆盖。
 3. **判定的输入是「触摸样本」+「结果表」。** 位置决定这个音符**收不收得到**输入，时间决定**判成什么**，两者不互相替代。
@@ -297,6 +297,8 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 
 按下只在消费处记账（`JudgmentPass.Consumed`）：写入 `_judgedTouchTimes`，并把该手指记为本帧已用。一根手指一帧只有一个按下额度，同一手指同帧的多个 `Began` 样本共用它，第一个被消费后其余样本不再判定。
 
+普通键被判定或独立划键被按下触发时，还会把该次按下音乐时间记录到触摸上，之后用于判断同一触摸的抬起是不是这次点按的收尾（见 7.4）；未消费的按下不会创建这项记录。
+
 例：手指 A 同时够到较早的 X 和共享的 Y，手指 B 只够到 Y 且离 Y 更远。第 1 步把 Y 从 A 的列表删掉，A 打 X，B 打 Y，与注册顺序无关。各步骤由 `PressOwnershipTests` 固定。
 
 ### 7.4 抬起的归属
@@ -307,8 +309,9 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 
 - 只处理 `Ended` / `Canceled` 的触摸，一指一帧只了结一条；
 - 抬起候选只有一种：长条的普通尾（`LiveHoldCoordinator.IsReleaseKey`：末端是 `NormalNote`、非装饰、未结算、条的尾行为是 `ReleaseTail`）。划键尾、摩擦尾、隐藏载体永远不是抬起候选。
-- `PickLiftTarget` 再按尾键扩展判定车道和当前帧时间（`LongEndJudgement`，早 125 ms / 晚 141.7 ms）筛选。尾时间最早者优先，同时间取离尾键中心最近者。
-- **拥挤的尾**：抬手本身不说明是谁按着这条长条。尾键判定范围内还有其他仍在屏幕上的触摸时，这次抬手只有落在 Perfect 区间（早 58.3 ms / 晚 66.7 ms 以内，`LongEndJudgement.IsPerfect`）才能判这个尾；否则跳过这条，留给仍按着的手指。抬手的触摸是范围内唯一一个时，任何评级都能判。同帧也在抬起的触摸不算“其他触摸”，同一触摸的多个样本算一个。
+- 抬起车道必须落在尾键扩展判定范围内，抬起时刻也必须处于普通尾判定窗内（`LongEndJudgement.Accepts`，早 125 ms / 晚 141.7 ms），才收集为候选。
+- 消费普通键或独立划键按下步骤的触摸会保存这次按下的音乐时间。抬起时刻（当前帧音乐时间）距该按下不超过 100 ms（`LiveHoldCoordinator.QuickTapSeconds`）时，这次抬起视为点按的收尾：每条普通尾只有在抬起时刻处于其 Perfect 区间内（早 58.3 ms / 晚 66.7 ms）才加入候选，否则跳过。限制对所有普通尾一视同仁，不看按下时各尾的判定窗是否已开：按下早于尾窗、抬起落进尾窗的快速点按同样受限。间隔超过 100 ms 的抬起是普通松手，不受限制。按下和抬起不检查车道是否相同。约束按触摸 ID 保存和清除，因此其他手指不受影响；抬起后重新按下的触摸也不会继承已结束触摸的记录。未消费为普通键或独立划键按下步骤的触摸不产生限制。
+- 先为每个抬起样本收集候选，再使用按下通道相同的三步去重（`KeepSoleOptions`、`AssignMatchedPairs`、`ResolveByDistance`），然后每个抬手从剩下的候选里优先取时间最早的尾，同时间取车道中心最近者，距离也相同则按谱面顺序。同一手指同帧有多个抬起样本时共用一个结算额度。
 - `JudgeTailAsRelease` 用当前帧音乐时间走 `LongEndJudgement`。窗口外的抬手交给条身覆盖和丢手宽限处理。
 - 普通尾在该阶段直接结算。常驻阶段单独给划键尾分配手势，使用长条对象引用保存本阶段的目标。
 
@@ -412,7 +415,7 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 | 原始触摸 `RawTouch` | `rawTouch`：手指 ID、触摸 ID、相位、世界坐标、事件时间、是否通过初步处理 | 在按下候选和车道判定之前；这是高频日志。没有该行只能说明这次采集未记录到该样本，不能单独证明平台哪里丢了输入。 |
 | 按下事件 `Press` | `pressCandidates` 为收集后的原始候选，`pressSelected` 为排序分配后的候选，`pressPick` 为实际交给音符后的结果 | 候选列表已经过种类、车道、时间及音符自身条件过滤，不是谱面中所有邻近音符；`pressSelected` 仍可能因同手指本帧额度已消费而未实际执行。列表中的 `grade` 是按样本时间预测值。 |
 | 常驻通道 `Resident` | 活动输入与候选数量、条身覆盖、划尾接触等逐帧情况 | 逐帧输出可能很密集；列表中的某个音符出现在日志里不等于它发布了判定。 |
-| 抬起事件 `Release` | `liftCandidates`、`liftCrowded`、`liftSelected`、`liftResult` | 初始候选指已通过普通尾类型、车道和时间门的条；`crowded=true` 表示因其他触摸而跳过。选择不保证结算成功，以 `liftResult.settled` 为准。 |
+| 抬起事件 `Release` | `liftCandidates`、`liftOutsidePerfect`、`liftSelected`、`liftResult` | `liftCandidates` 记录去重前的候选，`liftOutsidePerfect` 记录因本次触摸的按下记录而被过滤的尾。以 `liftResult.settled` 确认结算。 |
 | 判定结果 `Judge` | `judge`、`combo`、重复发布拒绝等 | 判定点 ID 不总是唯一，生成的内部点可能共享 ID；结合类型、谱面时间与日志顺序看。 |
 | 长条持握 `Hold`、长条尾键 `Tail`、划动 `Swipe` | 条身状态变化、尾窗／尾结算、划动方向与速度等专项信息 | 必要时组合开启；不自动包含按下或抬起候选。 |
 | 对象回收 `Pool`、画面表现 `View`、画面逐帧 `Frame` | 回收、几何／显示以及逐帧视图状态 | 画面状态不是判定结果；`Frame` 是高频项。 |
@@ -456,6 +459,7 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 | 短条与头的窗口 | `ShortBarHeadWindowTests` |
 | 贴图生命周期 | `LongNoteKeyLifetimeTests`、`TailKeyRetirementTests`、`FrictionHeadLifetimeTests` |
 | 车道、抬起与划键尾归属 | `TouchLaneTests`、`TailReleaseLaneTests`、`HoldQuotaTests` |
+| 快速点按（普通键／划键按下后 100 ms 内抬起）对普通尾的 Perfect 限制、抬起候选去重 | `TailReleaseLaneTests` |
 | 内部点的时间和结算 | `InteriorPointWindowTests`、`InteriorPointJudgingTests`、`LongHoldPipelineTests` |
 | 按下归属与长条宽限 | `PressOwnershipTests`、`LongNoteGraceTests`、`LongHeadGradeTests` |
 | 划动门槛与划尾 | `FlickGestureTests`、`FlickTailJudgeTests`、`FlickEndBehaviourTests` |

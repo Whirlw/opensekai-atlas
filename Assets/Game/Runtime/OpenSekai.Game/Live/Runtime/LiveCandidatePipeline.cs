@@ -101,9 +101,7 @@ namespace Sekai.Core.Live
 		/// </summary>
 		internal void SortPressCandidates(List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame)
 		{
-			KeepSoleOptions(inputs);
-			AssignMatchedPairs(inputs, ref frame);
-			ResolveByDistance(inputs, ref frame);
+			DeduplicateCandidates(inputs, ref frame);
 
 			foreach (var input in inputs)
 			{
@@ -119,6 +117,13 @@ namespace Sekai.Core.Live
 				input.CandidateNotes.Clear();
 				input.CandidateNotes.Add(chosen);
 			}
+		}
+
+		internal void DeduplicateCandidates(List<LiveLogic.InputTmp> inputs, ref MusicScoreInfo frame)
+		{
+			KeepSoleOptions(inputs);
+			AssignMatchedPairs(inputs, ref frame);
+			ResolveByDistance(inputs, ref frame);
 		}
 
 		/// <summary>
@@ -328,7 +333,10 @@ namespace Sekai.Core.Live
 				return aTime < bTime;
 			}
 
-			return a.ChartOrder < b.ChartOrder;
+			// A release key is a child note, so its place in the chart comes from its bar.
+			int aOrder = a.ParentNote is LongNote aBar ? aBar.ChartOrder : a.ChartOrder;
+			int bOrder = b.ParentNote is LongNote bBar ? bBar.ChartOrder : b.ChartOrder;
+			return aOrder < bOrder;
 		}
 
 		/// <summary>
