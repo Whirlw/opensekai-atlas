@@ -27,13 +27,15 @@ public static class AstralHud {
     // HUD rims: a pastel gradient in the backdrop's hues (rose and violet on the left of the screen, blue and
     // mint on the right) instead of a flat white line. `angle` is the gradient direction in degrees.
     static Color Lt(Color c){return Mix(c,Color.White,.3f);}
+    // Every rim colour is drawn at half its saturation (HSV), keeping its brightness.
+    static Color Soft(Color c){int m=Math.Max(c.R,Math.Max(c.G,c.B));return Color.FromArgb((c.R+m)/2,(c.G+m)/2,(c.B+m)/2);}
     static Color[] RimScore{get{return new[]{Lt(Pink),Lt(Purple),Lt(Blue)};}}
     static Color[] RimLife{get{return new[]{Lt(Purple),Lt(Blue),Lt(Mint)};}}
     static Color[] RimButton{get{return new[]{Lt(Mint),Lt(Blue),Lt(Purple)};}}
     static void Rim(Graphics g,GraphicsPath path,float width,int alpha,float angle,params Color[] colors){
         RectangleF r=path.GetBounds();r.Inflate(width+1,width+1);
         var positions=new float[colors.Length];var stops=new Color[colors.Length];
-        for(int i=0;i<colors.Length;i++){positions[i]=i/(float)(colors.Length-1);stops[i]=A(alpha,colors[i]);}
+        for(int i=0;i<colors.Length;i++){positions[i]=i/(float)(colors.Length-1);stops[i]=A(alpha,Soft(colors[i]));}
         using(var b=new LinearGradientBrush(r,Color.Black,Color.Black,angle)){
             b.InterpolationColors=new ColorBlend{Positions=positions,Colors=stops};
             using(var pen=new Pen(b,width)){pen.LineJoin=LineJoin.Bevel;g.DrawPath(pen,path);}
