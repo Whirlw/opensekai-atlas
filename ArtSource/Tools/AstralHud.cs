@@ -125,7 +125,7 @@ public static class AstralHud {
         Line(g,A(170,Color.White),.8f,P(r.X+r.Width*.25f,r.Y+r.Height*.36f),P(r.X+r.Width*.5f,r.Y+r.Height*.7f),P(r.X+r.Width*.8f,r.Y+r.Height*.38f));
     }}
 
-    static readonly HashSet<string> Keep=new HashSet<string>{"16_9_white.png","bg_base_wh.png","bg_base_ingame_wh.png","bg_base_ingame_wh_2.png","white6x6.png","bg_hiLight_mask.png","mask_line.png","lane_mask.png"};
+    static readonly HashSet<string> Keep=new HashSet<string>{"16_9_white.png","bg_base_wh.png","bg_base_ingame_wh.png","bg_base_ingame_wh_2.png","white6x6.png","bg_hiLight_mask.png","mask_line.png"};
     static readonly Rectangle[] SkillAtlasSlots = {
         new Rectangle(9, 8, 17, 32),
         new Rectangle(40, 7, 24, 35),
@@ -447,10 +447,30 @@ public static class AstralHud {
         Star(g,cx,cy,2.8f,A(190,rim));
     }
     static GraphicsPath LaneOutline(){
-        // Bevel the horizon corners and extend both side edges to the bottom.
-        return Polygon(
-            P(25, 1150), P(956, 33), P(985, 8),
-            P(1063, 8), P(1092, 33), P(2023, 1150));
+        // The 12-lane floor from the horizon (row 8) to the bottom of the sprite rect (row 1171).
+        const float top=8,bottom=1171;
+        float topHalf=LaneTextureHalf(top),bottomHalf=LaneTextureHalf(bottom);
+        return Polygon(P(LaneCx-bottomHalf,bottom),P(LaneCx-topHalf,top),P(LaneCx+topHalf,top),P(LaneCx+bottomHalf,bottom));
+    }
+    // lane_mask hides notes outside the floor. Its top and bottom fades decide where notes appear, so they
+    // are read back from the centre column of the existing mask and kept; only the side edges are redrawn
+    // on the lane boundaries.
+    static void RenderLaneMask(int w,int h){
+        string file=Path.Combine(Target,"lane_mask.png");
+        var profile=new Color[h];
+        using(var source=new Bitmap(file))for(int y=0;y<h;y++)profile[y]=source.GetPixel(source.Width/2,y);
+        using(var image=new Bitmap(w,h,PixelFormat.Format32bppArgb)){
+            for(int y=0;y<h;y++){
+                if(profile[y].A==0)continue;
+                float half=LaneTextureHalf(y+.5f);
+                for(int x=0;x<w;x++){
+                    float coverage=Unit(half+.5f-Math.Abs(x+.5f-LaneCx));
+                    int alpha=(int)Math.Round(profile[y].A*coverage);
+                    if(alpha>0)image.SetPixel(x,y,Color.FromArgb(alpha,profile[y].R,profile[y].G,profile[y].B));
+                }
+            }
+            image.Save(file,ImageFormat.Png);
+        }
     }
     static bool Environment(Graphics g,string n,int w,int h){
         if(n.StartsWith("bg_2dmode")){
@@ -508,17 +528,17 @@ public static class AstralHud {
         return t*t*(3-2*t);
     }
     static void RenderLaneLines(int w,int h){
+        // Every second lane boundary (7 lines for 12 lanes), on the code's perspective lines.
         const int count=7;
-        float middle=w*.5f;
         using(var image=new Bitmap(w,h,PixelFormat.Format32bppArgb)){
             for(int y=0;y<h;y++){
                 float depth=(y+.5f)/h;
                 float fade=Smooth(depth/.06f)*Smooth((1-depth)/.10f);
-                float halfSpan=middle*Unit(depth*.958f+.042f);
+                float halfSpan=LaneTextureHalf(y+.5f);
                 for(int i=0;i<count;i++){
                     bool outer=i==0||i==count-1;
                     float u=i/(float)(count-1);
-                    float cx=middle+(2*u-1)*halfSpan;
+                    float cx=LaneCx+(2*u-1)*halfSpan;
                     float width=outer?3.5f:1.9f;
                     Color tint=Mix(Color.FromArgb(182,182,182),Mix(Blue,Pink,u),.7f);
                     int left=Math.Max(0,(int)Math.Floor(cx-width));
@@ -548,7 +568,70 @@ public static class AstralHud {
             image.Save(Path.Combine(Target,"mask_2dmode_floor_grd.png"),ImageFormat.Png);
         }
     }
+    // ---- Lane family geometry -------------------------------------------------------------------------
+    // Notes are placed by code (LiveConfig): 12 lanes of 1.19 world units judged at y -2.96, each note
+    // travelling from SpawnPosition (0, 5.46) and scaling with its progress, so every lane boundary is a
+    // straight line from that vanishing point. lane_base, lane_line, lane_mask and judgeLine all derive
+    // their edges from it instead of carrying hand-measured numbers.
+    const float LaneVanishY=5.46f,LaneJudgeY=-2.96f,LaneHalfAtJudge=6*1.19f;
+    static float LaneHalfWidth(float worldY){return LaneHalfAtJudge*(LaneVanishY-worldY)/(LaneVanishY-LaneJudgeY);}
+    // lane_base / lane_line / lane_mask: 2048x1176, 101.27473 px per unit, pivot at pixel (1024, 588),
+    // placed at world y -0.8 (FrontUIView.prefab LaneRoot / HideArea).
+    const float LanePpu=101.27473f,LaneCx=1024,LanePivotRow=588,LaneOriginY=-.8f;
+    static float LaneTextureHalf(float row){return LaneHalfWidth(LaneOriginY+(LanePivotRow-row)/LanePpu)*LanePpu;}
+    // judgeLine: 108 px per unit, pivot at pixel (804.0, 57) (judgeLine.asset), placed at world y -2.92
+    // (LaneRoot -0.8 + JudgeLane -2.12).
+    const float JudgePpu=108,JudgeCx=804f,JudgePivotRow=57,JudgeOriginY=-2.92f;
+    static float JudgeTextureHalf(float row){return LaneHalfWidth(JudgeOriginY+(JudgePivotRow-row)/JudgePpu)*JudgePpu;}
+    // Judge line: the 12-lane slab the notes are judged on. Its edges are the lane boundaries; it is
+    // 83 px (0.77 units) tall so tap notes and the taller critical/hold-end notes both sit on it - the
+    // sprite rect (rows 15.08..98.92) leaves no room for more. A 4 px rim, 11 dividers at k/12.
+    static void RenderJudgeLine(int w,int h){
+        const float cx=JudgeCx,top=JudgePivotRow-41.5f,bottom=JudgePivotRow+41.5f,rim=4,divider=2f;
+        float topHalf=JudgeTextureHalf(top),bottomHalf=JudgeTextureHalf(bottom);
+        float slope=(bottomHalf-topHalf)/(bottom-top),sideRim=rim*(float)Math.Sqrt(1+slope*slope);
+        Color rimCentre=Color.FromArgb(176,130,253),rimEnd=Color.FromArgb(208,160,182),fill=Color.FromArgb(45,45,45);
+        const int fillAlpha=102,ss=4;
+        using(var b=new Bitmap(w,h,PixelFormat.Format32bppArgb)){
+            for(int y=0;y<h;y++)for(int x=0;x<w;x++){
+                int rimHits=0,fillHits=0;
+                for(int sy=0;sy<ss;sy++)for(int sx=0;sx<ss;sx++){
+                    float px=x+(sx+.5f)/ss,py=y+(sy+.5f)/ss;if(py<top||py>=bottom)continue;
+                    float dx=Math.Abs(px-cx),half=topHalf+slope*(py-top);if(dx>half)continue;
+                    if(py>=top+rim&&py<bottom-rim&&dx<=half-sideRim)fillHits++;else rimHits++;
+                }
+                if(rimHits+fillHits==0)continue;
+                // The rim fades from violet at the centre to a warm rose at both ends.
+                float t=Math.Abs(x+.5f-cx)/topHalf,k=Math.Min(1.3f,t*t);
+                float rr=rimCentre.R+(rimEnd.R-rimCentre.R)*k,rg=rimCentre.G+(rimEnd.G-rimCentre.G)*k,rb=rimCentre.B+(rimEnd.B-rimCentre.B)*k;
+                float wr=rimHits*255f,wf=fillHits*(float)fillAlpha,total=wr+wf;
+                int alpha=(int)Math.Round(total/(ss*ss));
+                Func<float,float,int> ch=(r,f)=>Math.Max(0,Math.Min(255,(int)Math.Round((r*wr+f*wf)/total)));
+                b.SetPixel(x,y,Color.FromArgb(alpha,ch(rr,fill.R),ch(rg,fill.G),ch(rb,fill.B)));
+            }
+            using(var g=Graphics.FromImage(b)){
+                g.SmoothingMode=SmoothingMode.AntiAlias;g.PixelOffsetMode=PixelOffsetMode.HighQuality;g.CompositingMode=CompositingMode.SourceOver;
+                using(var pen=new Pen(Color.FromArgb(255,246,249,253),divider)){
+                    for(int i=1;i<12;i++){
+                        float y0=top+rim,y1=bottom-rim;
+                        float x0=cx-(topHalf+slope*(y0-top))*(1-i/6f),x1=cx-(topHalf+slope*(y1-top))*(1-i/6f);
+                        g.DrawLine(pen,x0,y0,x1,y1);
+                    }
+                }
+                // Four-point sparkles inside both ends of the slab, 19 px in from the outer edge.
+                float sparkleInset=JudgeTextureHalf(JudgePivotRow)-19;
+                foreach(float sx in new[]{cx-sparkleInset,cx+sparkleInset}){
+                    const float sy=JudgePivotRow,rv=9,rh=6f,waist=1.9f;
+                    using(var p=Polygon(P(sx,sy-rv),P(sx+waist,sy-waist),P(sx+rh,sy),P(sx+waist,sy+waist),P(sx,sy+rv),P(sx-waist,sy+waist),P(sx-rh,sy),P(sx-waist,sy-waist)))
+                        Fill(g,p,Color.FromArgb(250,250,250,255));
+                }
+            }
+            b.Save(Path.Combine(Target,"judgeLine.png"),ImageFormat.Png);
+        }
+    }
     static bool Direct(string n,int w,int h){
+        if(n=="judgeLine.png"){RenderJudgeLine(w,h);return true;}
+        if(n=="lane_mask.png"){RenderLaneMask(w,h);return true;}
         if(n=="lane_line.png"||n=="mask_2dmode_floor_grd.png"){
             if(n=="lane_line.png")RenderLaneLines(w,h);
             else RenderFloorFade(w,h);
@@ -580,18 +663,16 @@ public static class AstralHud {
     }
     public static void Run(string root){Run(root,null);}
     public static void Run(string root,string[] only){
-        Target=Path.Combine(root,"new_hud");Directory.CreateDirectory(Target);
-        Bold=new System.Windows.Media.GlyphTypeface(new Uri(Path.GetFullPath(Path.Combine(root,"..","..","Assets","Game","Resources","Fonts","SourceHanSansSC-Bold.otf"))));
-        Medium=new System.Windows.Media.GlyphTypeface(new Uri(Path.GetFullPath(Path.Combine(root,"..","..","Assets","Game","Resources","Fonts","SourceHanSansSC-Medium.otf"))));
+        Target=Path.Combine(root,"HUD");Directory.CreateDirectory(Target);
+        Bold=new System.Windows.Media.GlyphTypeface(new Uri(Path.GetFullPath(Path.Combine(root,"..","Assets","Game","Resources","Fonts","SourceHanSansSC-Bold.otf"))));
+        Medium=new System.Windows.Media.GlyphTypeface(new Uri(Path.GetFullPath(Path.Combine(root,"..","Assets","Game","Resources","Fonts","SourceHanSansSC-Medium.otf"))));
         InitDigitMetrics();
         int count=0,preserved=0;var records=new List<string>{"file\twidth\theight\tstatus"};
-        var rows=File.ReadAllLines(Path.Combine(root,"manifest.csv")).Skip(1).Where(line=>!String.IsNullOrWhiteSpace(line)).Select(line=>line.Split('\t')).ToArray();
+        var rows=File.ReadAllLines(Path.Combine(root,"Tools","manifest.csv")).Skip(1).Where(line=>!String.IsNullOrWhiteSpace(line)).Select(line=>line.Split('\t')).ToArray();
         Sizes=rows.ToDictionary(fields=>Path.GetFileName(fields[0]),fields=>new Size(int.Parse(fields[4]),int.Parse(fields[5])),StringComparer.OrdinalIgnoreCase);
         foreach(var fields in rows){
             string n=Path.GetFileName(fields[0]);int w=Sizes[n].Width,h=Sizes[n].Height;
             if(only!=null&&only.Length>0&&Array.IndexOf(only,n)<0)continue;
-            // Hand-painted in After Effects; never overwrite with procedural output.
-            if(String.Equals(n,"judgeLine.png",StringComparison.OrdinalIgnoreCase)){Console.WriteLine("Preserved hand-painted "+n);continue;}
             {
                 if(Keep.Contains(n)){
                     if(!File.Exists(Path.Combine(Target,n)))throw new FileNotFoundException("Missing maintained HUD mask",Path.Combine(Target,n));

@@ -1,5 +1,3 @@
-> **2026-11-14 更新：** 现行画包位于项目内 `ArtSource/paint-kit`，导入和校验脚本默认读取该目录。下文镜像到 `LocalPacks` 的步骤和旧路径为历史记录，不再是日常流程。手绘判定线及其 AEP 源文件见画包 README。
-
 # 材质包导入：流程、教训与后续功能设计建议
 
 > 目的：把「把画好的材质包整体贴回工程并验证」这件事沉淀成可复用流程，并把 2026-11-08 一天内踩到的坑逐条固定下来，作为将来做**一键材质包导入功能**的设计依据。
@@ -18,39 +16,13 @@
 
 同一次「全量导入」必须同时走两条路径，缺一条就会有一半素材停留在旧版。
 
-## 结论速览（每次导入照做）
+## 当前导入流程
 
-```powershell
-# 0) 画包目录（作者产出）镜像进工程（工具读的是工程内镜像）
-$src='E:\Projects\NewSkin\paint-kit'; $dst='E:\DeepseekHarness\OpenSekai\LocalPacks\paint-kit'
-foreach ($d in @('new_hud','new_effects','new_notes','new_backgrounds')) {
-  robocopy (Join-Path $src $d) (Join-Path $dst $d) /MIR /NJH /NJS /NDL /NC /NS /NP | Out-Null
-}
-Copy-Item "$src\manifest_new_hud.csv" "$dst\manifest_new_hud.csv" -Force
+双击 `ArtSource/Import-All.bat`，脚本会从固定的 `ArtSource` 分类目录依次导入散图和图集。也可在项目根目录运行 `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/import-all-art.ps1`。导入后在 Unity 刷新资源，并按需重建 AssetBundle。查看输出中未匹配和尺寸不符的项目。
 
-# 1) 散图（递归！）
-powershell -File Tools\apply-paint-kit.ps1 -KitRoot "$dst" -Apply
+`Notes`、`NotesV2`、`Effects`、`Backgrounds` 和 `HUD` 均为平铺目录；生成器和清单位于 `ArtSource/Tools`。单独检查可运行 `Tools/apply-paint-kit.ps1` 和 `Tools/apply-atlas-art.ps1`（不加 `-Apply`）。
 
-# 2) 图集切片
-powershell -File Tools\apply-atlas-art.ps1 -Apply
-powershell -File Tools\compare-atlas-art.ps1     # differ 里应只剩整纹理/内边距那几张
-
-# 3) 让 Unity 落盘 → 重打 bundle → 出包
-#    unity_eval: AssetDatabase.Refresh(ForceSynchronousImport)
-#    unity_eval: ExecuteMenuItem("OpenSekai/AssetBundles/Build Asset Bundles And Info")
-#    unity command build run --target Android --outputPath Builds/<name>/OpenSekaiAtlas.apk --confirm
-#    adb install -r … ; adb shell monkey -p io.github.opensekai -c android.intent.category.LAUNCHER 1
-```
-
-三条必须看的输出行：
-
-| 工具 | 期望输出 | 含义 |
-| --- | --- | --- |
-| `apply-paint-kit.ps1` | `copied=N same=M missed=K mismatch=2` | `missed` 里应只剩预览图/对比图 |
-| `apply-atlas-art.ps1` | `painted=N wholeTexture=M noSprite=K sizeDiff=0 shadowed=S atlases=T` | `noSprite` 是「整图」类，正常；`shadowed` 是同一精灵的多个画包文件，正常应只剩替身 |
-| `verify-hud-art.ps1` | 生成对比图，左画包 / 右图集 | 逐张必须一致 |
-
-最近一次全量导入（2026-11-12，`0d153e68`+`a564828b` 之后）的实测输出，可作参照：`apply-paint-kit.ps1` 为 `copied=17 same=112 missed=200 mismatch=0`（`missed` 是画包里还没进工程的新素材与预览图），`apply-atlas-art.ps1` 为 `painted=168 wholeTexture=6 noSprite=44 sizeDiff=0 shadowed=0 atlases=21`——`shadowed` 归零是因为镜像里 15 个程序生成的 `*_0.png` 替身已删除（`number_48px_shadow_0`、`skillEffect_text_0` 是作者自己的文件名，保留），随后又按精灵名为 9 个未覆盖的白色底片重新生成了替身。
+以下为历史记录，其中旧路径、递归与镜像操作已被上述流程取代。
 
 ## 七条硬规则
 

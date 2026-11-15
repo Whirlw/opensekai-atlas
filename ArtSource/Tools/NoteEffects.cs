@@ -81,15 +81,28 @@ public static class NoteEffects {
     static RectangleF SourceFrameBounds(){
         return FrameBounds[SourceAtlasName+"/"+SourceCellX+","+SourceCellY];
     }
+    // Measured in game (DEINOS PHAINEIN, 2800x1272): for the 82-texel frame cells, one lane cell under the
+    // old judge line spanned texels x 20.5..107.5 and y 24.2..103.8 around the particle centre (64,64).
+    // The judge line now follows the code's lane geometry (AstralHud LaneHalfWidth): 1.45% wider and
+    // 3.75% taller, so the cell is x 19.9..108.1, y 22.7..105.3. The frame path sits half a stroke inside
+    // that, so its bright line lands on the lane dividers and the judge-line edges. Cells drawn smaller in
+    // the original atlas keep their relative size.
+    const float FrameStroke=2.3f,CellWidth=87f*1.0145f,CellHeight=79.6f*1.0375f;
+    const float LaneCellScaleX=(CellWidth-FrameStroke)/82f,LaneCellScaleY=(CellHeight-FrameStroke)/81.39129f;
+    static RectangleF AlignedFrameBox(){
+        RectangleF source=SourceFrameBounds();float w=source.Width*LaneCellScaleX,h=source.Height*LaneCellScaleY;
+        return new RectangleF(64-w*.5f,64-h*.5f,w,h);
+    }
     static void Frame(Graphics g,int w,int h,Color c,bool intense){
-        RectangleF box=SourceFrameBounds();float size=Math.Min(box.Width,box.Height);
+        RectangleF box=AlignedFrameBox();float size=Math.Min(box.Width,box.Height);
         using(var p=Bevel(box.X,box.Y,box.Width,box.Height,12*size/84)){
-            Glow(g,p,c,intense?10:6,12);Fill(g,p,A(12,c));Stroke(g,p,A(235,c),2.3f);Stroke(g,p,A(220,Color.White),.85f);
+            Glow(g,p,c,intense?10:6,12);Fill(g,p,A(12,c));Stroke(g,p,A(235,c),FrameStroke);Stroke(g,p,A(220,Color.White),.85f);
         }
+        // Accents stay inside the lane cell so neighbouring lanes' frames do not overlap.
         for(int i=0;i<4;i++){
             var st=g.Save();g.TranslateTransform(box.X+box.Width*.5f,box.Y+box.Height*.5f);g.RotateTransform(i*90);
             float half=(i%2==0?box.Height:box.Width)*.5f;
-            Line(g,A(165,c),.75f,P(-size*.262f,-half-2.8f),P(size*.1905f,-half-2.8f));Star(g,0,-half-1.52f,3.3f,A(200,Color.White),4);g.Restore(st);
+            Line(g,A(165,c),.75f,P(-size*.262f,-half+3.2f),P(size*.1905f,-half+3.2f));Star(g,0,-half+3.2f,3.3f,A(200,Color.White),4);g.Restore(st);
         }
     }
     static Bitmap TintedCrystal(Color c){
@@ -324,7 +337,7 @@ public static class NoteEffects {
         Color[] colors={Color.White,Mint,Gold,Pink,Gold,Purple,Gold};int changed=0;
         foreach(string stem in names){
             bool lane=stem.Contains("lane");AtlasMode=lane?0:stem.Contains("_v2")?-1:1;
-            string file=Path.Combine(root,"new_effects","live_tap_effect_0_"+stem);int width,height;int[] pixels;
+            string file=Path.Combine(root,"Effects","live_tap_effect_0_"+stem);int width,height;int[] pixels;
             using(var original=new Bitmap(file)){width=original.Width;height=original.Height;pixels=ReadPixels(original);}
             for(int i=0;i<(lane?1:locations.GetLength(0));i++){
                 int left=lane?320:locations[i,0],top=lane?0:locations[i,1];
@@ -355,7 +368,7 @@ public static class NoteEffects {
         Console.WriteLine("Patched "+changed+" beam rectangles in three atlases.");
     }
     public static void UpdateFrames(string root){
-        Target=Path.Combine(root,"new_effects");int count=0;
+        Target=Path.Combine(root,"Effects");int count=0;
         int[,] main={{128,256},{384,256},{128,384},{384,384},{256,640},{128,896},{256,896}},lane={{0,0},{128,0},{0,128},{128,128}};
         foreach(string stem in new[]{"all","all_v2","lane"}){
             bool isLane=stem=="lane",v2=stem=="all_v2";AtlasMode=isLane?0:v2?-1:1;
@@ -388,13 +401,13 @@ public static class NoteEffects {
                 var data=output.LockBits(new Rectangle(0,0,width,height),ImageLockMode.WriteOnly,PixelFormat.Format32bppArgb);
                 System.Runtime.InteropServices.Marshal.Copy(pixels,0,data.Scan0,pixels.Length);output.UnlockBits(data);output.Save(file,ImageFormat.Png);
             }
-            Console.WriteLine("Aligned frame cells to original border positions: "+SourceAtlasName);
+            Console.WriteLine("Aligned frame cells to the lane cell under the judge line: "+SourceAtlasName);
         }
         Console.WriteLine("Updated "+count+" frame cells in three atlases; other cells preserved byte for byte.");
     }
     public static void Run(string root){
-        Target=Path.Combine(root,"new_effects");Directory.CreateDirectory(Target);
-        CrystalSource=new Bitmap(Path.Combine(root,"new_notes","textures","noteskin","notes_long_among_crtcl.png"));
+        Target=Path.Combine(root,"Effects");Directory.CreateDirectory(Target);
+        CrystalSource=new Bitmap(Path.Combine(root,"Notes","notes_long_among_crtcl.png"));
         string[] names={"tex_note_common_all.png","tex_note_common_all_v2.png","tex_note_common_lane.png","tex_note_tail_01_v2.png","tex_ove_damage_01.png"};
         foreach(string stem in names){
             AtlasMode=stem=="tex_note_common_all.png"?1:stem=="tex_note_common_all_v2.png"?-1:0;

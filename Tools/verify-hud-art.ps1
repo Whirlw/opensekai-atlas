@@ -1,6 +1,6 @@
 # Builds a contact sheet: paint-kit file | atlas crop (what the build ships), per HUD sprite.
 param(
-    [string]$KitRoot = (Join-Path (Split-Path $PSScriptRoot -Parent) 'ArtSource/paint-kit'),
+    [string]$KitRoot = (Join-Path (Split-Path $PSScriptRoot -Parent) 'ArtSource'),
     [string]$Out = 'Temp\hud-verify.png'
 )
 $ErrorActionPreference = 'Stop'
@@ -16,7 +16,7 @@ foreach ($n in $names) {
     $x = [int][math]::Round([double]$rx[1].Value); $y = [int][math]::Round([double]$rx[2].Value)
     $w = [int][math]::Round([double]$rx[3].Value); $h = [int][math]::Round([double]$rx[4].Value)
     $tex = [regex]::Match($yaml, "texture: \{fileID: 2800000, guid: ([0-9a-f]{32})").Groups[1].Value
-    $kit = Join-Path $KitRoot "new_hud\$n.png"
+    $kit = Join-Path $KitRoot "HUD\$n.png"
     $rows += [pscustomobject]@{ Name = $n; X = $x; Y = $y; W = $w; H = $h; Guid = $tex; Kit = $kit }
 }
 

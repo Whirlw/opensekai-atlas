@@ -2,11 +2,14 @@
 # PaintKit's own apply reported success but left the regions untouched, so this does the paste itself and
 # reports any sprite that has no matching kit file.
 param(
-    [string]$KitRoot = (Join-Path (Split-Path $PSScriptRoot -Parent) 'ArtSource/paint-kit'),
+    [string]$KitRoot = (Join-Path (Split-Path $PSScriptRoot -Parent) 'ArtSource'),
     [string]$SpriteFolder = 'Assets\Graphics\Sprites',
     [switch]$Apply
 )
 $ErrorActionPreference = 'Stop'
+$ProjectRoot = Split-Path $PSScriptRoot -Parent
+$KitRoot = Join-Path $ProjectRoot 'ArtSource'
+Set-Location $ProjectRoot
 Add-Type -AssemblyName System.Drawing
 
 function Get-Size([string]$path) {
@@ -31,7 +34,7 @@ function Get-Atlas([string]$path) {
     return $atlases[$path]
 }
 
-$kitDirs = @(Join-Path $KitRoot 'new_hud')
+$kitDirs = @(Join-Path $KitRoot 'HUD')
 $kitFiles = @{}
 foreach ($d in $kitDirs) {
     if (-not (Test-Path $d)) { continue }

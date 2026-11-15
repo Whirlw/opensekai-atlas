@@ -3,7 +3,7 @@
 # keeps its old art and still looks "applied". This walks the kit, reads the rect and texture GUID out
 # of each sprite asset, and measures the difference, so a stale cell shows up as a number.
 param(
-    [string]$KitRoot = (Join-Path (Split-Path $PSScriptRoot -Parent) 'ArtSource/paint-kit'),
+    [string]$KitRoot = (Join-Path (Split-Path $PSScriptRoot -Parent) 'ArtSource'),
     [string]$SpriteFolder = 'Assets\Graphics\Sprites',
     [string]$Filter,
     [double]$Threshold = 8,
@@ -40,7 +40,7 @@ function Get-Atlas([string]$path) {
     return $atlases[$path]
 }
 
-$kit = Get-ChildItem (Join-Path $KitRoot 'new_hud') -Filter '*.png'
+$kit = Get-ChildItem (Join-Path $KitRoot 'HUD') -Filter '*.png'
 if ($Filter) { $kit = $kit | Where-Object { $_.BaseName -like $Filter } }
 
 # Resolve like the apply script does: two kit files can reach one sprite (a stand-in drawn as

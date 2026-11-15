@@ -37,7 +37,7 @@ public static class ResultEffects {
     static Dictionary<string,List<LetterSlice>> LetterSlices=new Dictionary<string,List<LetterSlice>>();
     static void LoadSlices(string root){
         LetterSlices.Clear();
-        string table=Path.Combine(root,"tools","data","result-letter-slices.csv");
+        string table=Path.Combine(root,"Tools","data","result-letter-slices.csv");
         foreach(string line in File.ReadAllLines(table)){
             string[] cells=line.Split(',');if(cells.Length<10||cells[0]=="sprite")continue;
             string texture=Path.GetFileNameWithoutExtension(cells[2]);
@@ -289,8 +289,8 @@ public static class ResultEffects {
     }}
     public static void Run(string root){Run(root,null,false);}
     public static void Run(string root,string target,bool mainOnly){
-        Target=String.IsNullOrEmpty(target)?Path.Combine(root,"new_effects"):target;Directory.CreateDirectory(Target);
-        Font=new System.Windows.Media.GlyphTypeface(new Uri(Path.GetFullPath(Path.Combine(root,"..","..","Assets","Game","Resources","Fonts","SourceHanSansSC-Bold.otf"))));
+        Target=String.IsNullOrEmpty(target)?Path.Combine(root,"Effects"):target;Directory.CreateDirectory(Target);
+        Font=new System.Windows.Media.GlyphTypeface(new Uri(Path.GetFullPath(Path.Combine(root,"..","Assets","Game","Resources","Fonts","SourceHanSansSC-Bold.otf"))));
         LoadSlices(root);
         int count=0;
         foreach(string name in Sizes.Keys){

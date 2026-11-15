@@ -167,7 +167,7 @@ public static class AstralBackgrounds {
                 for(int i=0;i<12;i++){double a=i*Math.PI/6;Line(g,A(190,color),.8f,P(56+(float)Math.Cos(a)*48,56+(float)Math.Sin(a)*48),P(56+(float)Math.Cos(a)*52,56+(float)Math.Sin(a)*52));}
                 g.Restore(st);
             }
-            string skin=Path.Combine(Root,"new_notes","textures","noteskin");
+            string skin=Path.Combine(Root,"Notes");
             string[] names={"notes_friction_among_flick.png","notes_friction_among_long.png"};
             for(int cell=0;cell<2;cell++)using(var crystal=new Bitmap(Path.Combine(skin,names[cell]))){
                 var st=g.Save();g.SetClip(new RectangleF(cell*112,112,112,112),CombineMode.Intersect);
@@ -196,7 +196,7 @@ public static class AstralBackgrounds {
     }
     public static void Run(string root){Run(root,null);}
     public static void Run(string root,string[] only){
-        Root=root;Target=Path.Combine(root,"new_backgrounds");Directory.CreateDirectory(Target);
+        Root=root;Target=Path.Combine(root,"Backgrounds");Directory.CreateDirectory(Target);
         foreach(string name in Sizes.Keys){
             if(only!=null&&only.Length>0&&Array.IndexOf(only,name)<0)continue;
             int w=Sizes[name].Width,h=Sizes[name].Height;
