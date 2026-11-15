@@ -144,17 +144,18 @@ public static class AstralBackgrounds {
         using(var g=Graphics.FromImage(image)){
             g.SmoothingMode=SmoothingMode.AntiAlias;
             using(var silhouette=Rounded(1,1,w-2,h-2,53))g.SetClip(silhouette);
-            // Compact in-game rank tile: the large dynamic letter and SCORERANK label own the centre.
-            using(var b=new LinearGradientBrush(P(0,0),P(0,h),C("#1c2d47"),C("#0c1b2a")))g.FillRectangle(b,0,0,w,h);
-            Color warm=C("#ffc56c"),warmShadow=C("#dba16b");
-            using(var b=new LinearGradientBrush(P(0,0),P(w*.17f,0),A(12,warm),A(0,warm)))g.FillRectangle(b,0,0,w*.17f,h);
-            using(var b=new LinearGradientBrush(P(w*.83f,0),P(w,0),A(0,warmShadow),A(10,warmShadow)))g.FillRectangle(b,w*.83f,0,w*.17f,h);
+            // Compact in-game rank tile in the HUD's dark glass (AstralHud gauge capsules): the large dynamic
+            // letter and SCORERANK label own the centre.
+            using(var b=new LinearGradientBrush(P(0,0),P(0,h),C("#1d2d4d"),C("#0a1226")))g.FillRectangle(b,0,0,w,h);
+            using(var b=new SolidBrush(A(20,Color.White)))g.FillRectangle(b,0,0,w,h*.37f);
             using(var b=new LinearGradientBrush(P(0,h*.78f),P(0,h),A(0,C("#071622")),A(80,C("#071622"))))g.FillRectangle(b,0,h*.78f,w,h*.22f);
-            // Rounded rim that stays readable at roughly 54 x 74 display pixels.
-            using(var p=Rounded(3,3,w-6,h-6,51))
-            using(var brush=new LinearGradientBrush(P(0,0),P(w,h),A(210,warm),A(185,warmShadow)))
-            using(var pen=new Pen(brush,5.4f))g.DrawPath(pen,p);
-            using(var p=Rounded(13,13,w-26,h-26,42))using(var pen=new Pen(A(32,Color.White),1.4f))g.DrawPath(pen,p);
+            // Gradient rim (the HUD's rose-violet-blue, AstralHud.RimScore) and a violet hairline, sized to read
+            // at roughly 110 x 150 display pixels.
+            using(var p=Rounded(5,5,w-10,h-10,49))using(var rim=new LinearGradientBrush(new RectangleF(-4,-4,w+8,h+8),Color.Black,Color.Black,55f)){
+                rim.InterpolationColors=new ColorBlend{Positions=new[]{0f,.5f,1f},Colors=new[]{A(240,Mix(Pink,Color.White,.3f)),A(240,Mix(Purple,Color.White,.3f)),A(240,Mix(Blue,Color.White,.3f))}};
+                using(var pen=new Pen(rim,8f))g.DrawPath(pen,p);
+            }
+            using(var p=Rounded(15,15,w-30,h-30,40))using(var pen=new Pen(A(95,Purple),4f))g.DrawPath(pen,p);
         }return image;
     }
     static Bitmap ParticleAtlas(){

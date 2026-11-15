@@ -24,6 +24,21 @@ public static class AstralHud {
     static void Line(Graphics g,Color c,float width,params PointF[] points){using(var pen=new Pen(c,width)){pen.LineJoin=LineJoin.Bevel;g.DrawLines(pen,points);}}
     static void Fill(Graphics g,GraphicsPath path,Color c){using(var b=new SolidBrush(c))g.FillPath(b,path);}
     static void Stroke(Graphics g,GraphicsPath path,Color c,float width){using(var p=new Pen(c,width)){p.LineJoin=LineJoin.Bevel;g.DrawPath(p,path);}}
+    // HUD rims: a pastel gradient in the backdrop's hues (rose and violet on the left of the screen, blue and
+    // mint on the right) instead of a flat white line. `angle` is the gradient direction in degrees.
+    static Color Lt(Color c){return Mix(c,Color.White,.3f);}
+    static Color[] RimScore{get{return new[]{Lt(Pink),Lt(Purple),Lt(Blue)};}}
+    static Color[] RimLife{get{return new[]{Lt(Purple),Lt(Blue),Lt(Mint)};}}
+    static Color[] RimButton{get{return new[]{Lt(Mint),Lt(Blue),Lt(Purple)};}}
+    static void Rim(Graphics g,GraphicsPath path,float width,int alpha,float angle,params Color[] colors){
+        RectangleF r=path.GetBounds();r.Inflate(width+1,width+1);
+        var positions=new float[colors.Length];var stops=new Color[colors.Length];
+        for(int i=0;i<colors.Length;i++){positions[i]=i/(float)(colors.Length-1);stops[i]=A(alpha,colors[i]);}
+        using(var b=new LinearGradientBrush(r,Color.Black,Color.Black,angle)){
+            b.InterpolationColors=new ColorBlend{Positions=positions,Colors=stops};
+            using(var pen=new Pen(b,width)){pen.LineJoin=LineJoin.Bevel;g.DrawPath(pen,path);}
+        }
+    }
     static void Gradient(Graphics g,GraphicsPath path,Color top,Color bottom){RectangleF r=path.GetBounds();using(var b=new LinearGradientBrush(P(0,r.Top),P(0,r.Bottom+.01f),top,bottom))g.FillPath(b,path);}
     static void Bloom(Graphics g,GraphicsPath path,Color c,float strength,float radius){for(int i=(int)(radius*2);i>=2;i-=2){int alpha=(int)(strength*Math.Exp(-i*i/(2*radius*radius)));if(alpha>0)Stroke(g,path,A(alpha,c),i);}}
     static GraphicsPath StarPath(float x,float y,float r){return Polygon(P(x,y-r),P(x+r*.22f,y-r*.22f),P(x+r*.72f,y),P(x+r*.22f,y+r*.22f),P(x,y+r),P(x-r*.22f,y+r*.22f),P(x-r*.72f,y),P(x-r*.22f,y-r*.22f));}
@@ -112,17 +127,45 @@ public static class AstralHud {
         }
         for(int i=0;i<points.Count;i++){int best=-1;float dmin=r.Width*r.Width*.1f;for(int j=0;j<i;j++){float dx=points[j].X-points[i].X,dy=points[j].Y-points[i].Y,d=dx*dx+dy*dy;if(d<dmin){dmin=d;best=j;}}if(best>=0&&i%5!=0)Line(g,A(65,color),.7f,points[i],points[best]);}
     }
+    static GraphicsPath RR(float x,float y,float w,float h,float r){
+        r=Math.Min(r,Math.Min(w,h)/2);float d=r*2;var p=new GraphicsPath();
+        p.AddArc(x,y,d,d,180,90);p.AddArc(x+w-d,y,d,d,270,90);p.AddArc(x+w-d,y+h-d,d,d,0,90);p.AddArc(x,y+h-d,d,d,90,90);p.CloseFigure();return p;
+    }
+    static void Diamond(Graphics g,float x,float y,float hw,float hh,Color fill,Color edge){
+        using(var p=Polygon(P(x,y-hh),P(x+hw,y),P(x,y+hh),P(x-hw,y))){if(edge.A>0)Stroke(g,p,edge,2);Fill(g,p,fill);}
+    }
+    // The note skin's material (Tools/Notes/draw_skin.ps1): a saturated vertical gradient, a darker lower
+    // third, a gloss band on the upper half and a frame that runs from white into a pale tint of the glass.
+    static void PrismGlass(Graphics g,float x,float y,float w,float h,float r,Color top,Color mid,Color bot,float frame){
+        Color deep=Mix(bot,C("#1b2247"),.55f);
+        using(var face=RR(x,y,w,h,r)){
+            using(var b=new LinearGradientBrush(P(0,y-1),P(0,y+h+1),top,bot)){b.InterpolationColors=new ColorBlend{Positions=new[]{0f,.5f,1f},Colors=new[]{top,mid,bot}};g.FillPath(b,face);}
+            var clip=g.Save();g.SetClip(face);
+            using(var b=new SolidBrush(A(54,deep)))g.FillRectangle(b,x,y+h*.64f,w,h*.36f);
+            g.Restore(clip);
+        }
+        float inset=Math.Max(1.5f,h*.11f)+frame*.5f;
+        using(var gloss=RR(x+inset,y+inset,w-inset*2,h*.38f,Math.Max(1,r-inset)))
+        using(var b=new LinearGradientBrush(P(0,y+inset-1),P(0,y+inset+h*.38f+1),A(150,Color.White),A(30,Color.White)))g.FillPath(b,gloss);
+        if(frame>0)using(var p=RR(x+frame/2,y+frame/2,w-frame,h-frame,r-frame/2))Rim(g,p,frame,245,90,Color.White,Mix(top,Color.White,.6f),Mix(bot,Color.White,.38f));
+    }
     static void Compass(Graphics g,float x,float y,float radius,Color c,bool fill){
         var points=new PointF[12];for(int i=0;i<12;i++){double a=-Math.PI/2+i*Math.PI/6;float r=i%2==0?radius:radius*.63f;points[i]=P(x+(float)Math.Cos(a)*r,y+(float)Math.Sin(a)*r);}
         using(var p=Polygon(points)){if(fill)Gradient(g,p,Mix(c,Color.White,.2f),c);Stroke(g,p,Mix(c,Color.White,.8f),1.2f);}
         Star(g,x,y,radius*.35f,Color.White);
     }
     static void Heart(Graphics g,RectangleF r,Color c){using(var p=new GraphicsPath()){
-        p.AddBezier(r.X+r.Width*.5f,r.Y+r.Height*.22f,r.X+r.Width*.15f,r.Y-r.Height*.18f,r.X-r.Width*.18f,r.Y+r.Height*.28f,r.X+r.Width*.13f,r.Y+r.Height*.55f);
-        p.AddLine(r.X+r.Width*.13f,r.Y+r.Height*.55f,r.X+r.Width*.5f,r.Bottom);
-        p.AddBezier(r.X+r.Width*.5f,r.Bottom,r.X+r.Width*1.2f,r.Y+r.Height*.43f,r.X+r.Width*.95f,r.Y-r.Height*.17f,r.X+r.Width*.5f,r.Y+r.Height*.22f);p.CloseFigure();
-        Gradient(g,p,Mix(c,Color.White,.65f),c);Stroke(g,p,Mix(c,Color.White,.8f),1);
-        Line(g,A(170,Color.White),.8f,P(r.X+r.Width*.25f,r.Y+r.Height*.36f),P(r.X+r.Width*.5f,r.Y+r.Height*.7f),P(r.X+r.Width*.8f,r.Y+r.Height*.38f));
+        // A symmetric glass heart: saturated gradient, a gloss spot on the left lobe and a white-to-tint frame.
+        float cx=r.X+r.Width*.5f,w=r.Width,h=r.Height;
+        p.AddBezier(cx,r.Y+h*.26f,cx-w*.14f,r.Y-h*.06f,r.X-w*.04f,r.Y+h*.02f,r.X+w*.03f,r.Y+h*.36f);
+        p.AddBezier(r.X+w*.03f,r.Y+h*.36f,r.X+w*.08f,r.Y+h*.62f,cx-w*.2f,r.Y+h*.8f,cx,r.Bottom);
+        p.AddBezier(cx,r.Bottom,cx+w*.2f,r.Y+h*.8f,r.Right-w*.08f,r.Y+h*.62f,r.Right-w*.03f,r.Y+h*.36f);
+        p.AddBezier(r.Right-w*.03f,r.Y+h*.36f,r.Right+w*.04f,r.Y+h*.02f,cx+w*.14f,r.Y-h*.06f,cx,r.Y+h*.26f);p.CloseFigure();
+        Gradient(g,p,Mix(c,Color.White,.4f),Mix(c,C("#3a2f6b"),.18f));
+        var clip=g.Save();g.SetClip(p);
+        using(var b=new SolidBrush(A(120,Color.White)))g.FillEllipse(b,r.X+w*.14f,r.Y+h*.14f,w*.27f,h*.2f);
+        g.Restore(clip);
+        Rim(g,p,1.6f,245,90,Color.White,Mix(c,Color.White,.45f));
     }}
 
     static readonly HashSet<string> Keep=new HashSet<string>{"16_9_white.png","bg_base_wh.png","bg_base_ingame_wh.png","bg_base_ingame_wh_2.png","white6x6.png","bg_hiLight_mask.png","mask_line.png"};
@@ -219,7 +262,7 @@ public static class AstralHud {
             string text=n.StartsWith("score_")?n.Substring(6,1):n.Substring(0,1);bool large=n.StartsWith("score_");
             Color c=text=="S"?Gold:text=="A"?Purple:text=="B"?Blue:Mint;
             if(large){AstralType(g,text,new RectangleF(6,6,w-12,h-20),c,false,false,false);Line(g,A(180,c),1,P(w*.2f,h-6),P(w*.8f,h-6));Star(g,w*.5f,h-6,2.6f,c);}
-            else{using(var p=Bevel(1,1,w-2,h-2,7)){Fill(g,p,A(200,Navy));Stroke(g,p,A(150,c),.7f);}Plain(g,text,new RectangleF(7,5,w-14,h-11),Color.White,false);}return true;
+            else{using(var p=RR(1.5f,1.5f,w-3,h-3,8)){Gradient(g,p,A(240,C("#22355a")),A(240,C("#0b1328")));Rim(g,p,1.5f,240,60,Mix(c,Color.White,.62f),Lt(c),Mix(c,Purple,.4f));}Plain(g,text,new RectangleF(8,7,w-16,h-14),Mix(c,Color.White,.3f),false);}return true;
         }
         if(n.StartsWith("tex_live_countdown")){
             string digit=Regex.Match(n,@"_(\d)\.png$").Groups[1].Value;
@@ -235,49 +278,79 @@ public static class AstralHud {
     static bool HudAsset(Graphics g,string n,int w,int h){
         if(n.StartsWith("btn_")){
             bool disabled=n.Contains("disable");Color c=n.StartsWith("btn_stop")?Gold:disabled?C("#8b93a7"):Mint;
-            using(var p=new GraphicsPath()){p.AddEllipse(6,6,w-12,h-12);Fill(g,p,A(disabled?120:225,Navy));}
-            using(var pen=new Pen(A(disabled?110:230,c),2.3f))g.DrawArc(pen,5,5,w-10,h-10,-78,336);
-            using(var pen=new Pen(A(disabled?70:120,Color.White),.7f))g.DrawArc(pen,10,10,w-20,h-20,-70,320);
-            for(int i=1;i<12;i++){double a=-Math.PI/2+i*Math.PI/6;Line(g,A(disabled?70:170,c),1,P(w/2f+(float)Math.Cos(a)*36,h/2f+(float)Math.Sin(a)*36),P(w/2f+(float)Math.Cos(a)*39,h/2f+(float)Math.Sin(a)*39));}
+            // "Prism" HUD: a dark glass disc with a gradient rim, a thin accent ring and two gems.
+            float cx=w/2f,cy=h/2f,r=40;
+            using(var disc=new GraphicsPath()){
+                disc.AddEllipse(cx-r,cy-r,r*2,r*2);
+                if(!disabled)Bloom(g,disc,c,5,5);
+                Gradient(g,disc,A(disabled?130:238,C("#22355a")),A(disabled?130:238,C("#0b1328")));
+                var clip=g.Save();g.SetClip(disc);
+                using(var b=new SolidBrush(A(disabled?12:30,Color.White)))g.FillEllipse(b,cx-r*1.3f,cy-r*2.05f,r*2.6f,r*2.2f);
+                g.Restore(clip);
+                Rim(g,disc,3,disabled?110:245,45,RimButton);
+            }
+            // The inner ring repeats the rim's gradient.
+            using(var ring=new GraphicsPath()){ring.AddEllipse(cx-33.5f,cy-33.5f,67,67);Rim(g,ring,1.4f,disabled?70:220,45,RimButton);}
+            foreach(float gx in new[]{cx-r,cx+r})Diamond(g,gx,cy,4,7,A(disabled?130:255,Color.White),A(disabled?60:170,Navy));
             Color ink=A(disabled?100:255,Color.White);
             if(n.Contains("skip")){
                 using(var p=Polygon(P(29,30),P(48,48),P(29,66)))Fill(g,p,ink);
                 using(var p=Polygon(P(48,30),P(67,48),P(48,66)))Fill(g,p,ink);
                 Line(g,ink,3,P(70,31),P(70,65));
-            }else foreach(int x in new[]{33,54})using(var p=Bevel(x,30,10,36,2))Fill(g,p,ink);
+            }else foreach(int x in new[]{33,53})using(var p=RR(x,30,10,36,3))Fill(g,p,ink);
             return true;
         }
         if(n=="bg_lifeGauge.png"||n=="bg_scoreGauge.png"){
-            Color c=Gold;
-            // Label and corners remain inside the manifest's fixed left/right borders.
-            using(var p=Bevel(1,30,w-2,48,12)){Gradient(g,p,A(235,C("#15263f")),A(235,C("#0b142a")));Stroke(g,p,A(175,c),1);}
-            using(var p=Bevel(24,3,110,32,6)){Gradient(g,p,A(245,C("#223653")),A(245,Navy));Stroke(g,p,A(170,c),.8f);}
-            Star(g,17,18,6,c);
-            if(n.Contains("life"))NaturalPlain(g,"LIFE",new RectangleF(38,10,83,17),Color.White);
-            else Plain(g,"SCORE",new RectangleF(38,10,83,17),Color.White,false);
-            Line(g,A(95,Color.White),.8f,P(14,73),P(w-14,73));return true;
+            bool life=n.Contains("life");
+            // A dark glass capsule holds the bar; a saturated glass tag (the note skin's material) names it.
+            // Tag and capsule ends stay inside the manifest's fixed left/right borders.
+            using(var p=RR(2,28,w-4,46,23)){
+                Gradient(g,p,A(232,C("#1d2d4d")),A(238,C("#0a1226")));
+                var clip=g.Save();g.SetClip(p);
+                using(var b=new SolidBrush(A(20,Color.White)))g.FillRectangle(b,0,28,w,17);
+                g.Restore(clip);
+                Rim(g,p,1.6f,240,0,life?RimLife:RimScore);
+            }
+            using(var p=RR(4.8f,30.8f,w-9.6f,40.4f,20.2f))Stroke(g,p,A(95,life?Mint:Purple),1);
+            Color top=life?Mix(Mint,Color.White,.35f):Mix(Purple,Color.White,.15f),mid=life?Mint:Mix(Purple,Blue,.5f),bot=life?Mix(Mint,C("#3a2f6b"),.14f):Blue;
+            PrismGlass(g,8,2,126,31,9,top,mid,bot,1.8f);
+            Diamond(g,23,17.5f,5,9,Color.White,A(150,Mix(bot,C("#1b2247"),.55f)));
+            if(life)NaturalPlain(g,"LIFE",new RectangleF(38,10,83,16),Navy);
+            else Plain(g,"SCORE",new RectangleF(38,10,83,16),Navy,false);
+            return true;
         }
         if(n.StartsWith("bar_lifeGauge")||n.StartsWith("gauge_base")){
-            bool isBase=n.StartsWith("gauge_base");Color c=isBase?C("#27364f"):n.Contains("rd")?Pink:Mint;
-            using(var p=Bevel(0,.5f,w,h-1,5)){
-                Gradient(g,p,isBase?C("#17233c"):Mix(c,Color.White,.5f),c);
-                Stroke(g,p,isBase?A(120,Blue):A(210,Color.White),.6f);
+            if(n.StartsWith("gauge_base")){
+                using(var p=RR(.5f,.5f,w-1,h-1,7.5f)){Gradient(g,p,A(245,C("#070c1c")),A(245,C("#16223d")));Stroke(g,p,A(70,Color.White),.8f);}
+                return true;
             }
-            Line(g,A(isBase?50:145,Color.White),.7f,P(8,3),P(w-8,3));
-            Line(g,A(100,isBase?Color.Black:Navy),1,P(7,h-2),P(w-7,h-2));return true;
+            Color c=n.Contains("rd")?Pink:Mint;
+            PrismGlass(g,.5f,.5f,w-1,h-1,7.5f,Mix(c,Color.White,.45f),c,Mix(c,C("#3a2f6b"),.16f),1.2f);return true;
         }
         if(n=="gauge_bar_ingame_freeLive_s.png"){
-            using(var p=Bevel(1,1,w-2,h-2,6)){
+            using(var p=RR(1,1,w-2,h-2,11)){
                 using(var b=new LinearGradientBrush(P(0,0),P(w,0),Mint,Pink)){
                     var blend=new ColorBlend();blend.Positions=new[]{0f,.32f,.66f,1f};blend.Colors=new[]{Mint,Blue,Purple,Pink};b.InterpolationColors=blend;g.FillPath(b,p);
-                }Stroke(g,p,A(200,Color.White),.8f);
-            }Line(g,A(150,Color.White),1,P(8,4),P(w-8,4));return true;
+                }
+                var clip=g.Save();g.SetClip(p);
+                using(var b=new LinearGradientBrush(P(0,2),P(0,12.5f),A(150,Color.White),A(28,Color.White)))g.FillRectangle(b,0,3.2f,w,8.6f);
+                using(var b=new SolidBrush(A(48,C("#1b2247"))))g.FillRectangle(b,0,h*.66f,w,h);
+                g.Restore(clip);Rim(g,p,1.4f,240,0,Mix(Mint,Color.White,.62f),Mix(Blue,Color.White,.62f),Mix(Purple,Color.White,.62f),Mix(Pink,Color.White,.62f));
+            }return true;
         }
         if(n=="icon_heart_gn.png"){Heart(g,new RectangleF(2,3,w-4,h-6),Mint);return true;}
         if(n=="meter_mark.png"){
-            using(var p=Polygon(P(2,3),P(w-2,3),P(w*.5f,h-3)))Gradient(g,p,Color.White,Mix(Blue,Color.White,.4f));Star(g,w*.5f,7,2.5f,Navy);return true;
+            // A kite-shaped gem pointing down at its threshold.
+            using(var p=Polygon(P(w*.5f,2),P(w-4,9),P(w*.5f,h-2),P(4,9))){Stroke(g,p,A(170,Navy),2);Gradient(g,p,Color.White,Mix(Blue,Color.White,.55f));}
+            return true;
         }
-        if(n.StartsWith("effect_")||n=="bg_cutin_skill_judge.png"){
+        if(n.StartsWith("effect_")){
+            // Glow that hugs the gauge capsule.
+            Color c=n.Contains("score")?Gold:Mint;float top=h*.28f,bottom=h*.78f;
+            using(var p=RR(15,top,w-23,bottom-top,(bottom-top)/2)){Bloom(g,p,c,6,Math.Min(17,h*.11f));Stroke(g,p,A(235,c),1.7f);Stroke(g,p,A(150,Color.White),.7f);}
+            return true;
+        }
+        if(n=="bg_cutin_skill_judge.png"){
             bool score=n.Contains("score"),panel=n.StartsWith("bg_");Color c=score?Gold:panel?Purple:Mint;
             float left=score?76:36,top=h*.28f,bottom=h*.78f;
             using(var p=Polygon(P(15,h*.5f),P(left,top),P(w-22,top),P(w-8,h*.5f),P(w-34,bottom),P(left,bottom))){
