@@ -40,7 +40,13 @@ function Get-Atlas([string]$path) {
     return $atlases[$path]
 }
 
-$kit = Get-ChildItem (Join-Path $KitRoot 'HUD') -Filter '*.png'
+# Sprites moved to Assets/Graphics/AtlasSprites are copied whole by apply-paint-kit.ps1, which already
+# compares them by hash; they have no rect here.
+$migrated = @{}
+if (Test-Path 'Assets\Graphics\AtlasSprites') {
+    Get-ChildItem 'Assets\Graphics\AtlasSprites' -Recurse -File -Filter '*.png' | ForEach-Object { $migrated[$_.BaseName] = $true }
+}
+$kit = Get-ChildItem (Join-Path $KitRoot 'HUD') -Filter '*.png' | Where-Object { -not $migrated.ContainsKey($_.BaseName) }
 if ($Filter) { $kit = $kit | Where-Object { $_.BaseName -like $Filter } }
 
 # Resolve like the apply script does: two kit files can reach one sprite (a stand-in drawn as

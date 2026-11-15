@@ -26,7 +26,7 @@ $groups = @(
     @{ Source = 'Notes';       Roots = @("$noteRoot\custom01") },
     @{ Source = 'NotesV2';    Roots = @("$noteRoot\custom02") },
     @{ Source = 'Backgrounds'; Roots = @('Assets\Game\AssetBundles\resources\startapp', 'Assets\Graphics\Resources') },
-    @{ Source = 'HUD';         Roots = @('Assets\Graphics\Textures', 'Assets\Graphics\Resources\effects\transition\texture') }
+    @{ Source = 'HUD';         Roots = @('Assets\Graphics\Textures', 'Assets\Graphics\Resources\effects\transition\texture', 'Assets\Graphics\AtlasSprites') }
 )
 
 $copied = 0; $same = 0; $missing = @(); $mismatch = @(); $absentGroups = @()
@@ -62,7 +62,10 @@ foreach ($group in $groups) {
         $srcSize = Get-Size $file.FullName
         foreach ($target in $targets[$leaf]) {
             $dstSize = Get-Size $target
-            if ($dstSize -ne $srcSize) { $mismatch += "$($file.Name) $srcSize -> $dstSize ($target)"; continue }
+            # A sprite under Assets/Graphics/AtlasSprites is packed by a Sprite Atlas, so new art may
+            # change its size or shape; everywhere else a size change still means the wrong file.
+            $packed = $target -like '*\Graphics\AtlasSprites\*'
+            if ($dstSize -ne $srcSize -and -not $packed) { $mismatch += "$($file.Name) $srcSize -> $dstSize ($target)"; continue }
             if ((Get-FileHash $file.FullName).Hash -eq (Get-FileHash $target).Hash) { $same++; continue }
             if ($Apply) { Copy-Item $file.FullName $target -Force }
             $copied++

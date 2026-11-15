@@ -580,13 +580,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 01ebc47cf1a5a05e1544fd588db5fb07, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _miss: {fileID: 21300000, guid: 87f6195180b46c444a91fdf294d2b67a, type: 2}
-  _bad: {fileID: 21300000, guid: a487d7bca4f92c74fa890d9065a430ea, type: 2}
-  _good: {fileID: 21300000, guid: bc640e477016e224ca81cca4c2fa96a7, type: 2}
-  _great: {fileID: 21300000, guid: 0a65c55ad98abd84f9757dea7f2de125, type: 2}
-  _perfect: {fileID: 21300000, guid: 2bbceade72bbf3d4cbf4ad2470a7081d, type: 2}
-  _justPerfect: {fileID: 21300000, guid: 2bbceade72bbf3d4cbf4ad2470a7081d, type: 2}
-  _auto: {fileID: 21300000, guid: e9b6b9544cb8e264e806548917007fa3, type: 2}
+  _miss: {fileID: 21300000, guid: 87f6195180b46c444a91fdf294d2b67a, type: 3}
+  _bad: {fileID: 21300000, guid: a487d7bca4f92c74fa890d9065a430ea, type: 3}
+  _good: {fileID: 21300000, guid: bc640e477016e224ca81cca4c2fa96a7, type: 3}
+  _great: {fileID: 21300000, guid: 0a65c55ad98abd84f9757dea7f2de125, type: 3}
+  _perfect: {fileID: 21300000, guid: 2bbceade72bbf3d4cbf4ad2470a7081d, type: 3}
+  _justPerfect: {fileID: 21300000, guid: 2bbceade72bbf3d4cbf4ad2470a7081d, type: 3}
+  _auto: {fileID: 21300000, guid: e9b6b9544cb8e264e806548917007fa3, type: 3}
   _spriteRenderer: {fileID: 212838352681112328}
 --- !u!1 &1025901758691103
 GameObject:
@@ -1312,9 +1312,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 96b74c2d36c9a25d403a41f76469f092, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _fast: {fileID: 21300000, guid: 226e70202ab12bc4d98499f5139b076b, type: 2}
-  _late: {fileID: 21300000, guid: 122b54f3652ce8945a4be3349c0e54fc, type: 2}
-  _flickMiss: {fileID: 21300000, guid: 260763faf5a1ffa4ebe4b917ee353a4a, type: 2}
+  _fast: {fileID: 21300000, guid: 226e70202ab12bc4d98499f5139b076b, type: 3}
+  _late: {fileID: 21300000, guid: 122b54f3652ce8945a4be3349c0e54fc, type: 3}
+  _flickMiss: {fileID: 21300000, guid: 260763faf5a1ffa4ebe4b917ee353a4a, type: 3}
   _spriteRenderer: {fileID: 212952854571839949}
 --- !u!1 &1091882994760266
 GameObject:
@@ -4991,7 +4991,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 100
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 21300000, guid: 2bbceade72bbf3d4cbf4ad2470a7081d, type: 2}
+  m_Sprite: {fileID: 21300000, guid: 2bbceade72bbf3d4cbf4ad2470a7081d, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0

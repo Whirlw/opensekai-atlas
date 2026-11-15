@@ -34,11 +34,18 @@ function Get-Atlas([string]$path) {
     return $atlases[$path]
 }
 
+# Sprites moved to Assets/Graphics/AtlasSprites are whole files that apply-paint-kit.ps1 copies; they
+# have no rect in a baked atlas any more.
+$migrated = @{}
+if (Test-Path 'Assets\Graphics\AtlasSprites') {
+    Get-ChildItem 'Assets\Graphics\AtlasSprites' -Recurse -File -Filter '*.png' | ForEach-Object { $migrated[$_.BaseName] = $true }
+}
+
 $kitDirs = @(Join-Path $KitRoot 'HUD')
 $kitFiles = @{}
 foreach ($d in $kitDirs) {
     if (-not (Test-Path $d)) { continue }
-    Get-ChildItem $d -File -Filter '*.png' | ForEach-Object { $kitFiles[$_.BaseName] = $_.FullName }
+    Get-ChildItem $d -File -Filter '*.png' | Where-Object { -not $migrated.ContainsKey($_.BaseName) } | ForEach-Object { $kitFiles[$_.BaseName] = $_.FullName }
 }
 
 $painted = 0; $wholeCopied = 0; $whole = @(); $noSprite = @(); $sizeDiff = @(); $dirty = @{}
@@ -144,7 +151,7 @@ if ($Apply) {
         $atlases.Remove($path)
     }
 }
-"painted=$painted wholeTexture=$wholeCopied noSprite=$($noSprite.Count) sizeDiff=$($sizeDiff.Count) atlases=$($dirty.Count)"
+"painted=$painted wholeTexture=$wholeCopied packedByAtlas=$($migrated.Count) noSprite=$($noSprite.Count) sizeDiff=$($sizeDiff.Count) atlases=$($dirty.Count)"
 if ($sizeDiff.Count) { '--- size difference (scaled to rect) ---'; $sizeDiff | Select-Object -First 10 }
 if ($whole.Count) { '--- whole textures ---'; $whole | Select-Object -First 10 }
 if ($shadowed.Count) { '--- two kit files target the same sprite (one was dropped) ---'; $shadowed | Select-Object -First 10 }

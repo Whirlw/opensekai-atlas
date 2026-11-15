@@ -3,7 +3,7 @@
 > 目的：把「把画好的材质包整体贴回工程并验证」这件事沉淀成可复用流程，并把 2026-11-08 一天内踩到的坑逐条固定下来，作为将来做**一键材质包导入功能**的设计依据。
 > 适用读者：要改美术素材的人、要写导入工具的人、要在真机上验收素材的人。
 > 前置条件：读过 [编辑器菜单](editor-menus.md)、[Android 构建](android-build.md)；本机 Unity 6000.6.7f1 与 adb 可用。
-> 最后更新：2026-11-12
+> 最后更新：2026-11-15
 
 ## 概述
 
@@ -12,9 +12,26 @@
 | 类别 | 存放 | 运行时来源 | 导入方式 |
 | --- | --- | --- | --- |
 | **图集切片** | 打包图集 `Assets/Graphics/Textures/sactx-*.png` | 图集纹理（打包进 Player 或 bundle） | 按精灵矩形**贴像素** |
+| **图集散图**（迁移后） | `Assets/Graphics/AtlasSprites/<图集>/<名字>.png` | Unity Sprite Atlas `Assets/Graphics/SpriteAtlases/<图集>.spriteatlasv2` 打包 | **整文件覆盖**，尺寸和形状可以变 |
 | **散图** | 各种 `.png`（转场、音符皮肤、特效、背景…） | 文件本体 | **整文件覆盖** |
 
-同一次「全量导入」必须同时走两条路径，缺一条就会有一半素材停留在旧版。
+同一次「全量导入」必须同时走这几条路径，缺一条就会有一部分素材停留在旧版。
+
+## 图集精灵迁移到 Sprite Atlas
+
+烘焙图集里的精灵是原生 `Sprite` 资产，矩形写死在 `sactx-*` 里：新图形状不同会被缩放进旧框，新增精灵要手工在图集里找空位。迁移后每个精灵是一张独立 PNG，由同名 Sprite Atlas 打包，新图任意尺寸直接放进去即可。
+
+进度：**JudgeAtlas 已迁移**（9 个判定文字），LiveAtlas、CommonAtlas 仍是烘焙图集。
+
+- 迁移工具：`OpenSekai/Atlas Sprites/Migrate JudgeAtlas`，或 `AtlasSpriteMigration.Migrate("<图集名>")`（`Assets/Game/Editor/AtlasSpriteMigration.cs`）。报告写到 `TestResults/atlas-migration-<图集>.txt`。
+- PNG 沿用被替换资产的 **GUID**，PPU、轴心（归一化）、九宫格边界照搬，网格一律 Full Rect。
+- **引用必须从 `type: 2` 改成 `type: 3`**：GUID 和 fileID（21300000）都不变，但 `type: 2`（原生资产）的引用指向导入的纹理时是 null。工具会在所有引用该 GUID 的文本资产里改这一个字段，再读回引用与迁移前逐条比对。
+- 像素来源：`ArtSource/HUD` 里有同尺寸的图就直接用，否则从 sactx 按矩形切。
+- 尺寸变化：世界尺寸 = 像素 / PPU。走 `SpriteQuad`（Sliced）或 Simple 模式的渲染器自动跟着变；uGUI `Image` 固定了 RectTransform 的会被拉伸，换图后要看一眼。新图往一侧扩大时要改轴心（在 Unity 里改 PNG 的导入设置）。
+- 导入：`apply-paint-kit.ps1` 把 `ArtSource/HUD/<名字>.png` 整文件复制到 `AtlasSprites`，这里不做尺寸校验；`apply-atlas-art.ps1` 和 `compare-atlas-art.ps1` 跳过已迁移的名字（输出里的 `packedByAtlas`）。
+- **新增精灵**：PNG 放进 `ArtSource/HUD`，同时在 `AtlasSprites/<图集>/` 放一份同名文件（第一次需要在 Unity 里设 PPU 和轴心），之后由导入脚本同步。
+- 守护测试：`Assets/Tests/EditMode/Graphics/AtlasSpritesFolderTests.cs`（单图 Sprite、Full Rect、被同名图集打包且包含在构建中）。
+- 迁移完的旧 sactx 页先保留，真机确认后再删。
 
 ## 当前导入流程
 
@@ -196,6 +213,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File Tools/compare-atlas-art.ps1
 | `Tools/verify-hud-art.ps1` | 画包 vs 图集逐张对比图 | 导入后必跑 |
 | `Tools/replace-note-skins.ps1` | 早期音符皮肤替换（`-Set` / `-Restore`） | 已被上面两个脚本覆盖 |
 | `OpenSekai/Paint Kit/1,3,4` | 导出画包 | 只用于导出 |
+| `OpenSekai/Atlas Sprites/Migrate …`（`AtlasSpriteMigration.cs`） | 把一个烘焙图集的精灵迁成独立 PNG + Sprite Atlas（沿用 GUID，引用改 `type: 3`，读回比对） | 见「图集精灵迁移到 Sprite Atlas」 |
 
 ## 常见问题排查（现象 → 先查什么）
 
