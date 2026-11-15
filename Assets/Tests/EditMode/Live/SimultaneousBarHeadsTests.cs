@@ -123,5 +123,69 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(longBar.Head.Result, Is.Not.EqualTo(NoteResult.None).And.Not.EqualTo(NoteResult.Miss),
 				"the long bar's head is pressed on the same frame and must be judged too");
 		}
+
+		[Test]
+		public void APressSpentOnATapDoesNotAlsoJudgeTheHeadsUnderTheSameFinger()
+		{
+			// Device trace 2026-11-14, touch 1781: one press at 11.270 picked the tap at 11.211 (Great), and
+			// the resident pass then handed the same Began sample to the two bars under the finger, whose
+			// heads at 11.289 and 11.368 came out Perfect and Good. Same layout, shifted to start at 0.5.
+			using var harness = new LiveHarness();
+			var tap = new NormalNote(Info(0.5f), 1, 3, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f);
+			var near = new LongNote(Info(0.578f), 2, 0, 3, NoteCategory.Long, NoteType.Default, 1f, 0f);
+			near.AddNoteListAndSetupChildNote(new NormalNote(Info(1.5f), 3, 0, 3, NoteCategory.Normal, 1f, NoteType.Default, 0f));
+			var far = new LongNote(Info(0.657f), 4, 0, 3, NoteCategory.Long, NoteType.Default, 1f, 0f);
+			far.AddNoteListAndSetupChildNote(new NormalNote(Info(1.6f), 5, 0, 3, NoteCategory.Normal, 1f, NoteType.Default, 0f));
+			harness.Arrange(ScoreOf(tap, near, far));
+
+			const float press = 0.559f;
+			for (int frame = 0; frame * Frame < press; frame++)
+			{
+				harness.Step(frame * Frame, InputBase + frame * Frame);
+			}
+
+			harness.Step(press, InputBase + press,
+				LiveHarness.Touch(1, LanePosition(3f), InputBase + press, InputTouchPhase.Began));
+
+			Assert.That(tap.Result, Is.Not.EqualTo(NoteResult.None), "the press channel spends the press on the tap");
+			Assert.That(near.Head.Result, Is.EqualTo(NoteResult.None), "the finger's one press is already spent");
+			Assert.That(far.Head.Result, Is.EqualTo(NoteResult.None), "the finger's one press is already spent");
+		}
+
+		[Test]
+		public void AFingerFollowingABendingBarKeepsItHeldOutsideItsHeadsLanes()
+		{
+			// Device trace 2026-11-14, bar 8.842: the bar bends from lanes 0..3 to the right, the finger follows
+			// it, and from lane 4.54 on every grab was refused against the head's range -1.50..4.50. The bar
+			// fell to Last and stayed there although the finger never left it.
+			using var harness = new LiveHarness();
+			var bar = new LongNote(Info(0.5f), 1, 0, 3, NoteCategory.Long, NoteType.Default, 1f, 0f);
+			bar.AddNoteListAndSetupChildNote(new NormalNote(Info(1.5f), 2, 8, 11, NoteCategory.Normal, 1f, NoteType.Default, 0f));
+			harness.Arrange(ScoreOf(bar));
+
+			int frame = 0;
+			for (; frame * Frame < 0.5f; frame++)
+			{
+				harness.Step(frame * Frame, InputBase + frame * Frame);
+			}
+
+			harness.Step(frame * Frame, InputBase + frame * Frame,
+				LiveHarness.Touch(1, LanePosition(1.5f), InputBase + frame * Frame, InputTouchPhase.Began));
+			Assert.That(bar.Head.Result, Is.Not.EqualTo(NoteResult.None).And.Not.EqualTo(NoteResult.Miss));
+
+			float furthest = 0f;
+			for (frame++; frame * Frame < 1.3f; frame++)
+			{
+				float centre = (bar.LaneStartF + bar.LaneEndF) * 0.5f;
+				furthest = Mathf.Max(furthest, centre);
+				harness.Step(frame * Frame, InputBase + frame * Frame,
+					LiveHarness.Touch(1, LanePosition(centre), InputBase + frame * Frame, InputTouchPhase.Moved));
+			}
+
+			Assert.That(furthest, Is.GreaterThan(bar.JudgeLaneEnd), "the finger has left the head's lanes");
+			Assert.That(bar.State, Is.Not.EqualTo(NoteState.Last).And.Not.EqualTo(NoteState.Release),
+				"the finger is still on the bar, so the bar is held");
+			Assert.That(bar.HasFinger, Is.True);
+		}
 	}
 }

@@ -3,7 +3,7 @@
 > 目的：把工程里可用的编辑器菜单列全，说明每个菜单做什么、什么时候该用。
 > 适用读者：开发者、测试人员。
 > 前置条件：工程能在编辑器里正常编译（见 [环境与运行](../getting-started/build-and-run.md)）。
-> 最后更新：2026-11-02
+> 最后更新：2026-11-14
 
 ## 概述
 
@@ -36,11 +36,27 @@
 | `eventSystems` | `1` |
 | `isStartingPlayback` | `false` |
 
+### `OpenSekai/Art/*`
+
+| 菜单 | 什么情况下用 | 输出 |
+| --- | --- | --- |
+| `Rebuild Music Info Page` | 改了曲目信息页的素材（`ArtSource/Tools/render_musicinfo.ps1` 重画后）或布局（`MusicInfoPageBuilder.cs`） | 设置 `Assets/Graphics/Textures/MusicInfo/*.png` 的导入参数（不压缩），重建 `FrontUIView.prefab` 里 `MusicInfo` 画布的全部子节点并重新连好 `MusicInfoView` 的字段；命令行用 `-batchmode -executeMethod OpenSekai.EditorTools.MusicInfoPageBuilder.RebuildFromCommandLine` |
+
 ### `OpenSekai/Dev/*`
 
 | 菜单 | 用途 |
 | --- | --- |
 | `Verify Recording Permission Rule` | 断言权限剥离规则不删 `tools:node="remove"` 标记；期望 `plainDeclarations=0 removeMarkers=2` |
+
+### `OpenSekai/Screenshots/*`
+
+| 菜单 | 用途 |
+| --- | --- |
+| `Capture Sample Set (2800x1272)` | 用第一首已安装曲包拍一套样张（曲库、设置、结算、信息页、打歌），输出到 `TestResults/screenshots/<时间>/` |
+| `Capture Sample Set (1750x795)` | 同上，1750x795 |
+| `Open Last Output` | 打开最近一次截图输出目录 |
+
+完整用法见 [截图工具](screenshot-tools.md)。
 
 ### `OpenSekai/AssetBundles/*`
 

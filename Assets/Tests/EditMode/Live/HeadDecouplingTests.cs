@@ -122,22 +122,27 @@ namespace OpenSekai.Tests.EditMode.Live
             var bar = new Bar(true);
             var headResults = new List<NoteResult>();
             var tailResults = new List<NoteResult>();
-            bar.OnJudgment = n => { if (ReferenceEquals(n, bar)) headResults.Add(n.Result); else if (ReferenceEquals(n, bar.ChildNote)) tailResults.Add(n.Result); };
+            var tail = (FlickNote)bar.ChildNote;
+            bar.OnJudgment = n => { if (ReferenceEquals(n, bar)) headResults.Add(n.Result); };
+            tail.OnJudgment = n => tailResults.Add(n.Result);
             var touch = Touch(0);
             bar.Judgment(ref touch, 4.5f);
             bar.Excute(Info(0.9f), 0);
-            Assert.That(bar.TrySwipeTail(new Vector2(-60, 0), 1f / 60f, 0.9f), Is.False);
-            Assert.That(bar.HasDeferredSwipe, Is.True);
-            bar.Excute(Info(0.92f), 0);
-            Assert.That(bar.State, Is.EqualTo(NoteState.Last));
-            bar.NotifyLaneRelease(); // The input coordinator signals the lift separately from Excute.
-            bar.TickSwipeTail(0.92f);
-            bar.Excute(Info(0.94f), 0);
-            bar.TickSwipeTail(0.94f);
-            bar.TickSwipeTail(0.96f);
-            bar.TickSwipeTail(0.98f);
-            bar.TickSwipeTail(1f);
-            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+
+            // The flick end judges itself: an early swipe is recorded, and graded 50 ms after the lift.
+            var swipe = new LiveTouch(1, 1, new Vector2(-60, 0), Vector3.zero, TouchPhase.Moved, 0.9f);
+            tail.TailJudge.Offer(ref swipe, 4.5f, 4.5f, 1f / 60f);
+            tail.TailJudge.EndInputFrame(0.9f);
+            Assert.That(tail.TailJudge.HasArmedFinger, Is.True);
+            var lift = new LiveTouch(1, 1, Vector2.zero, Vector3.zero, TouchPhase.Ended, 0.92f);
+            tail.TailJudge.Offer(ref lift, 4.5f, 4.5f, 1f / 60f);
+            for (float now = 0.92f; now <= 1.001f; now += 0.02f)
+            {
+                tail.TailJudge.EndInputFrame(now);
+                bar.Excute(Info(now), 0);
+            }
+
+            Assert.That(tail.State, Is.EqualTo(NoteState.Done));
             Assert.That(headResults, Is.EqualTo(new[] { NoteResult.JustPerfect }));
             Assert.That(tailResults.Count, Is.EqualTo(1));
             Assert.That(tailResults[0], Is.EqualTo(bar.ChildNote.Result));

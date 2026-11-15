@@ -1,0 +1,111 @@
+using System;
+
+namespace OpenSekai.Shared.Live.Simulation
+{
+	/// <summary>
+	/// Where a live starts and ends on the audio clock, and where its skip buttons send it.
+	///
+	/// Four times are read when the chart loads, all in audio seconds: when the music starts and ends,
+	/// and when the first and last note fall. The live runs over the union of the two spans: it starts at
+	/// whichever comes first and ends at whichever comes last, so a chart that runs past the end of its
+	/// audio keeps its clock going until the last note, and a chart that starts before its audio gets a
+	/// silent run-in instead of notes that appear already on the line.
+	///
+	/// The first note has to be on screen before it falls, so the chart side of the start is the first
+	/// note minus <see cref="LeadInSeconds"/>, the time a note takes to scroll down.
+	///
+	/// When the music starts <see cref="SkipMarginSeconds"/> or more before the chart, the intro can be
+	/// skipped to that margin before the first note (or the lead-in, if that is longer). When it ends that
+	/// much after the chart, the outro can be skipped straight to the result.
+	/// </summary>
+	public readonly struct LiveTimelineSpan
+	{
+		/// <summary>How much of a gap gets a skip button, and how far before the first note a skip lands.</summary>
+		public const float SkipMarginSeconds = 3f;
+
+		/// <summary>A skip that would move the clock less than this is not worth a button.</summary>
+		public const float MinimumSkipSeconds = 0.25f;
+
+		/// <summary>A span whose audio plays exactly over its audible part (no silence at either end).</summary>
+		public LiveTimelineSpan(float musicStartSeconds, float musicEndSeconds, float firstNoteSeconds, float lastNoteSeconds, float leadInSeconds)
+			: this(musicStartSeconds, musicEndSeconds, firstNoteSeconds, lastNoteSeconds, leadInSeconds, musicStartSeconds, musicEndSeconds)
+		{
+		}
+
+		/// <param name="musicStartSeconds">Where the music becomes audible. Decides the skips only.</param>
+		/// <param name="musicEndSeconds">Where the music stops being audible. Decides the skips only.</param>
+		/// <param name="playbackStartSeconds">Where the audio file starts playing; its silence is played too.</param>
+		/// <param name="playbackEndSeconds">Where the audio file ends.</param>
+		public LiveTimelineSpan(float musicStartSeconds, float musicEndSeconds, float firstNoteSeconds, float lastNoteSeconds, float leadInSeconds,
+			float playbackStartSeconds, float playbackEndSeconds)
+		{
+			MusicStartSeconds = musicStartSeconds;
+			MusicEndSeconds = Math.Max(musicStartSeconds, musicEndSeconds);
+			PlaybackStartSeconds = Math.Min(playbackStartSeconds, MusicStartSeconds);
+			PlaybackEndSeconds = Math.Max(playbackEndSeconds, MusicEndSeconds);
+			HasNotes = !float.IsNaN(firstNoteSeconds) && !float.IsNaN(lastNoteSeconds);
+			FirstNoteSeconds = HasNotes ? Math.Min(firstNoteSeconds, lastNoteSeconds) : float.NaN;
+			LastNoteSeconds = HasNotes ? Math.Max(firstNoteSeconds, lastNoteSeconds) : float.NaN;
+			LeadInSeconds = Math.Max(0f, leadInSeconds);
+		}
+
+		/// <summary>The audible start of the music: what the skips are measured from.</summary>
+		public float MusicStartSeconds { get; }
+
+		/// <summary>The audible end of the music: what the skips are measured to.</summary>
+		public float MusicEndSeconds { get; }
+
+		/// <summary>Where the audio file starts playing, silence included.</summary>
+		public float PlaybackStartSeconds { get; }
+
+		/// <summary>Where the audio file stops, silence included.</summary>
+		public float PlaybackEndSeconds { get; }
+		public float FirstNoteSeconds { get; }
+		public float LastNoteSeconds { get; }
+		public float LeadInSeconds { get; }
+		public bool HasNotes { get; }
+
+		/// <summary>When the first note has to start scrolling in.</summary>
+		public float ChartStartSeconds => HasNotes ? FirstNoteSeconds - LeadInSeconds : MusicStartSeconds;
+
+		/// <summary>
+		/// The start point: the audible music or the chart, whichever is first. Every live reaches it
+		/// the moment its info page is gone. The silence before it is not cut: the file is played from
+		/// earlier on, so that this point lands where it should (see <see cref="ClockAtIntroStart"/>).
+		/// </summary>
+		public float StartSeconds => Math.Min(MusicStartSeconds, ChartStartSeconds);
+
+		/// <summary>The end point: the audible music or the chart, whichever is last.</summary>
+		public float EndSeconds => HasNotes ? Math.Max(MusicEndSeconds, LastNoteSeconds) : MusicEndSeconds;
+
+		/// <summary>
+		/// The clock when the info page goes up, given how long the page stays: the start point minus
+		/// that time. Below <see cref="PlaybackStartSeconds"/> the file is still to come and the clock
+		/// runs in on its own; above it the file has to begin part-way in, and only that part, which
+		/// would have played before the audio was even loaded, is cut.
+		/// </summary>
+		public float ClockAtIntroStart(float introSeconds) => StartSeconds - Math.Max(0f, introSeconds);
+
+		/// <summary>Where the intro skip lands: the margin before the first note, or its lead-in if longer.</summary>
+		public float IntroSkipTargetSeconds =>
+			HasNotes ? FirstNoteSeconds - Math.Max(SkipMarginSeconds, LeadInSeconds) : MusicStartSeconds;
+
+		/// <summary>True when the music starts at least the margin before the chart and skipping saves time.</summary>
+		public bool HasIntroSkip =>
+			HasNotes
+			&& FirstNoteSeconds - MusicStartSeconds >= SkipMarginSeconds
+			&& IntroSkipTargetSeconds - MusicStartSeconds >= MinimumSkipSeconds;
+
+		/// <summary>True when the music ends at least the margin after the last note.</summary>
+		public bool HasOutroSkip => HasNotes && MusicEndSeconds - LastNoteSeconds >= SkipMarginSeconds;
+
+		public override string ToString() => string.Concat(
+			"music=", MusicStartSeconds.ToString("F3"), "..", MusicEndSeconds.ToString("F3"),
+			" file=", PlaybackStartSeconds.ToString("F3"), "..", PlaybackEndSeconds.ToString("F3"),
+			" notes=", HasNotes ? FirstNoteSeconds.ToString("F3") + ".." + LastNoteSeconds.ToString("F3") : "none",
+			" leadIn=", LeadInSeconds.ToString("F3"),
+			" span=", StartSeconds.ToString("F3"), "..", EndSeconds.ToString("F3"),
+			" introSkip=", HasIntroSkip ? IntroSkipTargetSeconds.ToString("F3") : "no",
+			" outroSkip=", HasOutroSkip ? "yes" : "no");
+	}
+}

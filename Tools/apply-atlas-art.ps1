@@ -2,11 +2,14 @@
 # PaintKit's own apply reported success but left the regions untouched, so this does the paste itself and
 # reports any sprite that has no matching kit file.
 param(
-    [string]$KitRoot = 'E:\DeepseekHarness\OpenSekai\LocalPacks\paint-kit',
+    [string]$KitRoot = (Join-Path (Split-Path $PSScriptRoot -Parent) 'ArtSource'),
     [string]$SpriteFolder = 'Assets\Graphics\Sprites',
     [switch]$Apply
 )
 $ErrorActionPreference = 'Stop'
+$ProjectRoot = Split-Path $PSScriptRoot -Parent
+$KitRoot = Join-Path $ProjectRoot 'ArtSource'
+Set-Location $ProjectRoot
 Add-Type -AssemblyName System.Drawing
 
 function Get-Size([string]$path) {
@@ -31,11 +34,18 @@ function Get-Atlas([string]$path) {
     return $atlases[$path]
 }
 
-$kitDirs = @(Join-Path $KitRoot 'new_hud')
+# Sprites moved to Assets/Graphics/AtlasSprites are whole files that apply-paint-kit.ps1 copies; they
+# have no rect in a baked atlas any more.
+$migrated = @{}
+if (Test-Path 'Assets\Graphics\AtlasSprites') {
+    Get-ChildItem 'Assets\Graphics\AtlasSprites' -Recurse -File -Filter '*.png' | ForEach-Object { $migrated[$_.BaseName] = $true }
+}
+
+$kitDirs = @(Join-Path $KitRoot 'HUD')
 $kitFiles = @{}
 foreach ($d in $kitDirs) {
     if (-not (Test-Path $d)) { continue }
-    Get-ChildItem $d -File -Filter '*.png' | ForEach-Object { $kitFiles[$_.BaseName] = $_.FullName }
+    Get-ChildItem $d -File -Filter '*.png' | Where-Object { -not $migrated.ContainsKey($_.BaseName) } | ForEach-Object { $kitFiles[$_.BaseName] = $_.FullName }
 }
 
 $painted = 0; $wholeCopied = 0; $whole = @(); $noSprite = @(); $sizeDiff = @(); $dirty = @{}
@@ -51,6 +61,14 @@ Get-ChildItem $SpriteFolder -Filter '*.asset' | ForEach-Object {
         $spriteNameByFile[$_.FullName] = $m.Groups[1].Value.Trim()
     }
         if (-not $spriteByName.ContainsKey($_.BaseName)) { $spriteByName[$_.BaseName] = $_.FullName }
+}
+# Two sprite assets are both named gauge_base_h16_dbl, so the name alone picks whichever is listed last and the
+# other trough never got painted. Pin each kit file to its asset, matching the rects in ArtSource/Tools/manifest.csv:
+# gauge_base_h16_dbl.png is the score trough (1363,828), gauge_base_h16_dbl_2.png the life trough (204,1800).
+$pinnedSprites = @{ 'gauge_base_h16_dbl' = 'gauge_base_h16_dbl_0.asset'; 'gauge_base_h16_dbl_2' = 'gauge_base_h16_dbl.asset' }
+foreach ($kitName in $pinnedSprites.Keys) {
+    $path = Join-Path $SpriteFolder $pinnedSprites[$kitName]
+    if (Test-Path $path) { $spriteByName[$kitName] = (Get-Item $path).FullName }
 }
 
 # One sprite can be reached by more than one kit file. A stand-in drawn as `label_autolive_0.png` sorted
@@ -97,7 +115,8 @@ foreach ($spritePath in $kitForSprite.Keys) {
     # A sprite whose rect is inset into its own texture (judgeLine trims ~13x15 px of padding) is drawn
     # from a slice, but the painted file is the whole texture. Pasting it into the rect squeezes it and
     # the line lands a few pixels off. When the painted file matches the texture, replace the texture.
-    if ($kb.Width -eq $atlasW -and $kb.Height -eq $atlasH -and ($w -lt $atlasW -or $h -lt $atlasH)) {
+    if ($kb.Width -eq $atlasW -and $kb.Height -eq $atlasH -and
+        (($w -lt $atlasW -or $h -lt $atlasH) -or ($x -eq 0 -and $y -eq 0 -and $w -eq $atlasW -and $h -eq $atlasH))) {
         $whole += $name
         if ($Apply) { Copy-Item $kitPath $atlasPath -Force; $wholeCopied++ }
         $kb.Dispose()
@@ -132,8 +151,8 @@ if ($Apply) {
         $atlases.Remove($path)
     }
 }
-"painted=$painted wholeTexture=$wholeCopied noSprite=$($noSprite.Count) sizeDiff=$($sizeDiff.Count) atlases=$($dirty.Count)"
+"painted=$painted wholeTexture=$wholeCopied packedByAtlas=$($migrated.Count) noSprite=$($noSprite.Count) sizeDiff=$($sizeDiff.Count) atlases=$($dirty.Count)"
 if ($sizeDiff.Count) { '--- size difference (scaled to rect) ---'; $sizeDiff | Select-Object -First 10 }
-if ($whole.Count) { '--- whole texture (rect is inset, file replaced) ---'; $whole | Select-Object -First 10 }
+if ($whole.Count) { '--- whole textures ---'; $whole | Select-Object -First 10 }
 if ($shadowed.Count) { '--- two kit files target the same sprite (one was dropped) ---'; $shadowed | Select-Object -First 10 }
 if ($noSprite.Count) { '--- cleared sprites without kit file (leave as is) --- ' + $noSprite.Count }

@@ -31,6 +31,51 @@ namespace Sekai.Core.Live
 			ForEach(views, view => view.RhythmGameStart());
 		}
 
+		public static bool IsIntroFinished(LiveViewBase[] views)
+		{
+			if (views == null)
+			{
+				return true;
+			}
+
+			foreach (LiveViewBase view in views)
+			{
+				if (view != null && !view.IsIntroFinished)
+				{
+					return false;
+				}
+			}
+
+			return true;
+		}
+
+		public static float IntroDurationSeconds(LiveViewBase[] views)
+		{
+			float longest = 0f;
+			if (views != null)
+			{
+				foreach (LiveViewBase view in views)
+				{
+					if (view != null && view.IntroDurationSeconds > longest)
+					{
+						longest = view.IntroDurationSeconds;
+					}
+				}
+			}
+
+			return longest;
+		}
+
+		public static void MusicPlaybackStart(LiveViewBase[] views, float musicTime)
+		{
+			ForEach(views, view => view.MusicPlaybackStart(musicTime));
+		}
+
+		public static void MusicSeek(LiveViewBase[] views, float musicTime)
+		{
+			ForEach(views, view => view.MusicSeek(musicTime));
+		}
+
 		public static void OnUpdate(LiveViewBase[] views, float musicTime)
 		{
 			ForEach(views, view => view.OnUpdate(musicTime));

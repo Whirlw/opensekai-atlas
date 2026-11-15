@@ -1,17 +1,17 @@
 # Reports, per atlas, how many sprites the paint kit covers and how many are not covered yet.
 # A sprite counts as covered when a file of the same name exists in the kit and has the right size.
 param(
-    [string]$KitRoot = 'LocalPacks\paint-kit',
+    [string]$KitRoot = (Join-Path (Split-Path $PSScriptRoot -Parent) 'ArtSource'),
     [string]$SpriteFolder = 'Assets\Graphics\Sprites',
     [string]$Root = 'Assets'
 )
 $ErrorActionPreference = 'Stop'
 
 $kitNames = @{}
-foreach ($dir in @('new_hud', 'new_effects', 'new_notes', 'new_notes_v2', 'new_backgrounds')) {
+foreach ($dir in @('HUD', 'Effects', 'Notes', 'NotesV2', 'Backgrounds')) {
     $path = Join-Path $KitRoot $dir
     if (-not (Test-Path $path)) { continue }
-    Get-ChildItem $path -Recurse -File -Filter '*.png' | ForEach-Object { $kitNames[$_.BaseName] = $true }
+    Get-ChildItem $path -File -Filter '*.png' | ForEach-Object { $kitNames[$_.BaseName] = $true }
 }
 
 $spritesByAtlas = @{}

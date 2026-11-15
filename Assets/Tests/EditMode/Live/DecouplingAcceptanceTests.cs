@@ -210,60 +210,40 @@ namespace OpenSekai.Tests.EditMode.Live
 		// The flick tail: its own time window, and one publication only.
 		// ------------------------------------------------------------------------------------------
 
-		[Test]
-		public void AFlickTailIgnoresSamplesFromBeforeItsOwnTime()
-		{
-			LongNote bar = FlickBar(out NoteBase tail);
 
-			// 400 ms early: far outside the -125 ms band the tail's early window allows, so it is not
-			// even worth remembering - remembering it is what used to grade a wobble during the hold.
-			Assert.That(bar.NotifyLaneSwipe(60f, 0.6f), Is.False, "a swipe before the tail's own time is not judged yet");
-			Assert.That(bar.HasDeferredSwipe, Is.False, "and it is not remembered either");
-
-			// Lifting and letting the deferred-swipe countdown run out must not turn it into a grade.
-			bar.NotifyLaneRelease();
-			for (int frame = 0; frame < 5; frame++)
-			{
-				float now = 0.62f + frame * Frame;
-				Assert.That(bar.TickSwipeTail(now), Is.False, $"frame {frame} after the release");
-			}
-
-			Assert.That(tail.Result, Is.EqualTo(NoteResult.None), "the early sample must not grade the tail");
-			Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done), "and it must not finish the bar");
-
-			Assert.That(bar.NotifyLaneSwipe(60f, 1f), Is.True, "a swipe at the tail's own time still settles it");
-			Assert.That(bar.State, Is.EqualTo(NoteState.Done));
-			Assert.That(tail.Result, Is.Not.EqualTo(NoteResult.Miss), "and it is a swipe, not a miss");
-		}
 
 		[Test]
 		public void AFlickTailPublishesOnceEvenIfTheBarKeepsTicking()
 		{
 			int headPublished = 0;
 			LongNote bar = FlickBar(out NoteBase tail, onHeadJudged: _ => headPublished++);
+			var flick = (FlickNote)tail;
 			int tailPublished = 0;
 			int tailCombos = 0;
 			tail.OnJudgment = _ => tailPublished++;
 			tail.OnUpdateCombo = _ => tailCombos++;
 
-			Assert.That(bar.NotifyLaneSwipe(60f, 1.02f), Is.True, "a swipe 20 ms after the tail time settles it");
-			Assert.That(bar.State, Is.EqualTo(NoteState.Done));
-			NoteResult settled = bar.Result;
+			// The flick end judges itself: a swipe 20 ms after the tail time settles it at once.
+			LiveTouch swipe = new LiveTouch(7, 7, new Vector2(-60f, 60f), Vector3.zero, TouchPhase.Moved, 1.02f);
+			flick.TailJudge.Offer(ref swipe, 4.5f, 4.5f, Frame);
+			Assert.That(tail.State, Is.EqualTo(NoteState.Done));
+			NoteResult settled = tail.Result;
 			Assert.That(settled, Is.Not.EqualTo(NoteResult.None));
 
-			// The bar keeps being driven while the rest of the chart plays out.
+			// The bar and the note keep being driven while the rest of the chart plays out.
 			for (int frame = 1; frame <= 30; frame++)
 			{
 				float now = 1.02f + frame * Frame;
-				Assert.That(bar.TickSwipeTail(now), Is.False, $"frame {frame}: a finished tail cannot be graded again");
+				swipe = new LiveTouch(7, 7, new Vector2(-60f, 60f), Vector3.zero, TouchPhase.Moved, now);
+				flick.TailJudge.Offer(ref swipe, 4.5f, 4.5f, Frame);
+				flick.TailJudge.EndInputFrame(now);
 				bar.Excute(Info(now), 0f);
-				Assert.That(bar.NotifyLaneSwipe(60f, now), Is.False, $"frame {frame}: a second swipe is not a second judgement");
+				tail.Excute(Info(now), 0f);
 			}
 
 			Assert.That(tailPublished, Is.EqualTo(1), "the tail publishes one result, however many frames follow");
 			Assert.That(tailCombos, Is.EqualTo(1), "and the combo counts it once");
 			Assert.That(headPublished, Is.EqualTo(1), "and the head keeps its own single publication");
-			Assert.That(bar.Result, Is.EqualTo(settled), "the settled result is not rewritten by later ticks");
 			Assert.That(tail.Result, Is.EqualTo(settled), "and the tail keeps the same result");
 		}
 

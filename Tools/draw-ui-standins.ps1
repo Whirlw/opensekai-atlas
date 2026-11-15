@@ -3,7 +3,7 @@
 # and gauge bases keep the tint they had: a translucent mask stays translucent, a coloured base keeps its
 # hue instead of turning white.
 param(
-    [string]$Kit = 'LocalPacks\paint-kit\new_hud',
+    [string]$Kit = (Join-Path (Split-Path $PSScriptRoot -Parent) 'ArtSource\HUD'),
     [string]$Sprites = 'Assets\Graphics\Sprites',
     [string]$Table = 'docs\reference\remaining-uncovered-sprites.csv',
     [string]$OldAtlas = 'Temp\liveatlas-old.png',

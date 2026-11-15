@@ -1,7 +1,7 @@
 namespace Sekai.Live.Tails
 {
 	/// <summary>
-	/// A friction flick end keeps its own judgement. The bar must never write a result onto it: the bar
+	/// A flick, rub or rub flick end keeps its own judgement. The bar must never write a result onto it: the bar
 	/// ends silently where that note sits, and the note scores itself like any standalone flick.
 	/// </summary>
 	public sealed class SelfJudgedTail : ITailBehaviour
@@ -24,8 +24,6 @@ namespace Sekai.Live.Tails
 		}
 
 		public bool AcceptsRelease => false;
-
-		public bool AcceptsSwipe => false;
 
 		public bool JudgesItself => true;
 	}

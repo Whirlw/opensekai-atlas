@@ -51,7 +51,7 @@ namespace OpenSekai.Tests.EditMode.Live
                 // which is the case the bug report describes.
                 "Friction" => n is FrictionHideLongNote && IsJudged(n),
                 "Hidden" => n is FrictionHideLongNote,
-                "Swipe" => n.TailBehaviour.AcceptsSwipe && IsJudged(n),
+                "Swipe" => n.ChildNote is FlickNote && IsJudged(n),
                 _ => n.ChildNote is NormalNote
             });
             if (kind == "Hidden") _bar = score.NoteArray.OfType<FrictionHideLongNote>().Last();
@@ -291,21 +291,17 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         [Test]
-        public void AnEarlySwipeKeepsItsCountdownAfterTheBodyEnds()
+        public void AnEarlySwipeStillOnTheLaneIsGradedAtTheTailTime()
         {
             Arrange("Swipe");
             StartHolding();
             Step(TailTime - 0.03f, TouchPhase.Stationary);
             Step(TailTime - 0.02f, TouchPhase.Moved, new Vector2(0f, 200f));
-            Assert.That(_bar.HasDeferredSwipe, Is.True);
-            Step(TailTime, TouchPhase.Stationary, new Vector2(0f, 200f));
-            Assert.That(_bar.State, Is.EqualTo(NoteState.Done));
-            Step(TailTime + 0.01f);
-            Step(TailTime + 0.02f);
-            Assert.That(Tail.Result, Is.EqualTo(NoteResult.None));
-            Assert.That(_view.Removals(Tail), Is.Zero);
-            Step(TailTime + 0.03f);
-            Assert.That(Tail.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(Tail.Result, Is.EqualTo(NoteResult.None), "an early swipe is only recorded");
+            Step(TailTime, TouchPhase.Stationary);
+            Assert.That(Tail.Result, Is.EqualTo(NoteResult.JustPerfect), "the finger is still on the lane at the tail time");
+            Step(TailTime + 0.4f);
+            Step(TailTime + 0.5f);
             Assert.That(_view.Removals(Tail), Is.EqualTo(1));
         }
 
@@ -351,7 +347,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Tail.OnDamage = _ => counts[3]++;
             StartHolding();
             if (hit)
-                Step(TailTime, _bar.TailBehaviour.AcceptsSwipe ? TouchPhase.Moved : TouchPhase.Ended, new Vector2(0f, 200f));
+                Step(TailTime, _bar.ChildNote is FlickNote ? TouchPhase.Moved : TouchPhase.Ended, new Vector2(0f, 200f));
             else Step(TailTime + 0.25f);
             Assert.That(Tail.Result, Is.Not.EqualTo(NoteResult.None));
             Assert.That(counts, Is.EqualTo(new[] { 1, 1, 1, 1 }));
@@ -397,7 +393,18 @@ namespace OpenSekai.Tests.EditMode.Live
         private readonly Dictionary<NoteBase, int> _removals = new Dictionary<NoteBase, int>();
         public int Spawns(NoteBase note) => _spawns.TryGetValue(note, out int count) ? count : 0;
         public int Removals(NoteBase note) => _removals.TryGetValue(note, out int count) ? count : 0;
-        public override void SpawnNote(NoteBase note) => _spawns[note] = Spawns(note) + 1;
-        public override void UnspawnNote(NoteBase note) => _removals[note] = Removals(note) + 1;
+        // Like NotesViewManager: asking to spawn a note that is already on screen changes nothing (the
+        // session preloads a self-judged end key every frame of its margin and relies on that).
+        private readonly HashSet<NoteBase> _onScreen = new HashSet<NoteBase>();
+        public override void SpawnNote(NoteBase note)
+        {
+            if (_onScreen.Add(note)) _spawns[note] = Spawns(note) + 1;
+        }
+
+        public override void UnspawnNote(NoteBase note)
+        {
+            _onScreen.Remove(note);
+            _removals[note] = Removals(note) + 1;
+        }
     }
 }

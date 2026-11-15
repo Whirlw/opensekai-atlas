@@ -75,7 +75,7 @@
 
 | 文件 | 目标 | 说明 |
 | --- | --- | --- |
-| `Live/View/MusicInfoView.cs` | `_viewGroup`、`_infoGroup[]`、`_mask`、`_difficultyJacket` | 另有 `_activeTweens` 列表把每次创建的 tween 收进去，`KillTweens()` 先逐个 `Kill()` 再按目标 `DOKill()`；在 `Setup`、展示流程、`OnDisable`、`OnDestroy` 四处调用 |
+| `Live/View/MusicInfoView.cs` | 整页一条 `Sequence`（`_sequence`） | 开场、停留、淡出都插在同一条时间轴上；`KillSequence()` 在 `Setup`、`Play`、`OnDisable`、`OnDestroy` 四处调用，不再按目标 `DOKill()` |
 | `Screens/SubWindowFadeAnimation.cs` | `_canvasGroup` | 每次开合前先 `DOKill()` 再 `DOFade` |
 | `Live/View/LiveResultView.cs` | `_background` | `DOKill()` 后 `DOColor` 压暗 |
 

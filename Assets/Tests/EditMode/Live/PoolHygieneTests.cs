@@ -31,6 +31,10 @@ namespace OpenSekai.Tests.EditMode.Live
 			"JudgeLaneStart", "JudgeLaneEnd",
 			"Category", "Type", "Direction", "LineType",
 			"IsSkip", "IsDecoration", "Id", "ChartOrder",
+			// Written next to ChartOrder by LiveNoteSession.Bind, for every note it binds, from the note's
+			// own speedRatio: which walk the chart filed it in. Clearing it on reset made a high speed note
+			// advance twice a frame (HighSpeedResetTests).
+			"IsHighSpeedNote",
 			"speedRatio", "IsNegativeSpeed",
 			"LaneOffset", "_flickDistance",
 		};

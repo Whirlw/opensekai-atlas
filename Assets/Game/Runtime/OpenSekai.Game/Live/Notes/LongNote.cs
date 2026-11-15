@@ -103,7 +103,7 @@ namespace Sekai.Live
 						continue;
 					}
 
-					if (ReferenceEquals(note, TailNote) && (TailBehaviour.AcceptsRelease || TailBehaviour.AcceptsSwipe))
+					if (ReferenceEquals(note, TailNote) && TailBehaviour.AcceptsRelease)
 					{
 						// The tail's own pass decides its timeout using the same window as its hit path.
 						note.AdvanceNote(currentFrameInfo, childOffsetTime, settleTimeout: false);
@@ -220,19 +220,34 @@ namespace Sekai.Live
 			return Head.Judgment(ref touch, lane);
 		}
 
+		/// <summary>
+		/// The resident pass's entry: the body, points and tail, never the head. A head is an instant key
+		/// the press channel answers with the finger's single press credit. Reaching it from here handed the
+		/// same Began sample to every bar under the finger after the press channel had already spent it on
+		/// another note - one tap judged a tap note and two heads in the same frame (device trace: touch
+		/// 1781 at 11.270 graded tap 13981 Great, then heads 13984 Good and 13982 Perfect).
+		/// </summary>
+		internal virtual bool DriveResidentFrame(ref LiveTouch touch, float lane) =>
+			DriveJudgmentFrame(ref touch, lane, judgeHead: false);
+
 		/// <summary>Feeds this bar one input frame: head, hold facts, frame stamp, points and tail.</summary>
-		internal bool DriveJudgmentFrame(ref LiveTouch touch, float lane)
+		internal bool DriveJudgmentFrame(ref LiveTouch touch, float lane, bool judgeHead = true)
 		{
 			// A bar is driven only by a finger inside its own judge range. The candidate pipe gates on
 			// LongNote.IsJudgment, but this entry is also reached from the head's candidate and from the hold
 			// pass, and the device traces show a finger at lane 8.85 driving a bar whose range is -1.50..4.50
 			// (146 of 170 grabs in one run). That is how a bar nobody is touching gets a finger, keeps
 			// refreshing, and has its end graded by the release of a finger in another lane.
-			if (lane < JudgeLaneStart || lane > JudgeLaneEnd)
+			//
+			// The range is where the bar is now, not where its head was: once the head is judged the body
+			// moves with the chart (JudgedLane*). Gating on the head's lanes refused the finger that followed a
+			// bending bar the moment it left the head's span, and the bar dropped to Last for the rest of its
+			// life (device trace 2026-11-14: bar 8.842, range -1.50..4.50, finger rejected from lane 4.54).
+			if (!ContainsLane(lane))
 			{
 				if (LiveTrace.IsOn(LiveTraceCategory.Hold))
 				{
-					LiveTrace.Write(LiveTraceCategory.Hold, $"grabRejected barT={MusicScoreInfo.time:F3} lane={lane:F2} range={JudgeLaneStart:F2}..{JudgeLaneEnd:F2} finger={touch.fingerId} phase={touch.phase}");
+					LiveTrace.Write(LiveTraceCategory.Hold, $"grabRejected barT={MusicScoreInfo.time:F3} lane={lane:F2} range={BodyLaneStart:F2}..{BodyLaneEnd:F2} finger={touch.fingerId} phase={touch.phase}");
 				}
 
 				return false;
@@ -242,7 +257,7 @@ namespace Sekai.Live
 			// instant key with its own window, and the bar sticking it to the body is only a picture: whether
 			// the bar is still playing, released, greyed or already finished says nothing about the head.
 			// The head's own guard is IsSettled, so a settled head is never judged twice.
-			bool headTaken = Head.TryJudge(ref touch, lane);
+			bool headTaken = judgeHead && Head.TryJudge(ref touch, lane);
 
 			// Everything below is the body's business, and a finished bar has none: no hold, no points.
 			if (State == NoteState.Done)
@@ -260,7 +275,7 @@ namespace Sekai.Live
 			MarkPressedThisFrame();
 			if (LiveTrace.IsOn(LiveTraceCategory.Hold))
 			{
-				LiveTrace.Write(LiveTraceCategory.Hold, $"grab barT={MusicScoreInfo.time:F3} lane={lane:F2} range={JudgeLaneStart:F2}..{JudgeLaneEnd:F2} finger={touch.fingerId} phase={touch.phase} head={headTaken}");
+				LiveTrace.Write(LiveTraceCategory.Hold, $"grab barT={MusicScoreInfo.time:F3} lane={lane:F2} range={BodyLaneStart:F2}..{BodyLaneEnd:F2} finger={touch.fingerId} phase={touch.phase} head={headTaken}");
 			}
 
 			ClearHeadJudgeOffset();
@@ -346,6 +361,9 @@ namespace Sekai.Live
 		/// </summary>
 		internal bool HeadIsANote => IsOrdinaryHead && HasJudgment && !IsSkip;
 
+		/// <summary>A bar that only moves a lane: a guide bar, or any bar the chart flags as decoration.</summary>
+		internal bool IsDecorativeBar => this is GuideNote || IsDecoration;
+
 		internal void SetHeadJudgeInfo((NoteResult result, NoteResultDescription description) value) => JudgeInfo = value;
 
 		internal Func<(NoteResult result, NoteResultDescription description), (NoteResult result, NoteResultDescription description)> HeadResultUpdater => onUpdateResult;
@@ -416,12 +434,12 @@ namespace Sekai.Live
 		/// keep refreshing its input frame while its finger stays inside the lane, including the frames
 		/// between two sixteenth-note combo checks, where <see cref="IsJudgment"/> is closed.
 		/// </summary>
-		internal bool ContainsLane(float lane)
-		{
-			var left = JudgeInfo.result == NoteResult.None ? JudgeLaneStart : JudgedLaneStart;
-			var right = JudgeInfo.result == NoteResult.None ? JudgeLaneEnd : JudgedLaneEnd;
-			return left <= lane && right >= lane;
-		}
+		internal bool ContainsLane(float lane) => BodyLaneStart <= lane && BodyLaneEnd >= lane;
+
+		/// <summary>The bar's judge span now: the head's lanes until it is judged, then the moving body's.</summary>
+		internal float BodyLaneStart => JudgeInfo.result == NoteResult.None ? JudgeLaneStart : JudgedLaneStart;
+
+		internal float BodyLaneEnd => JudgeInfo.result == NoteResult.None ? JudgeLaneEnd : JudgedLaneEnd;
 
 		public override bool AutoJudgment(MusicScoreInfo currentFrameInfo)
 		{

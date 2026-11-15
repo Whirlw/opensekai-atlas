@@ -310,14 +310,21 @@ namespace Sekai.Live
 			private set;
 		}
 
+		/// <summary>
+		/// Whether the player is judged on this note. A note without judgement takes no press, never
+		/// misses and publishes nothing: no effect, no sound, no text, no score, no combo. A type can turn
+		/// it off (hidden points, guide bars, the rub carrier), and so can the chart's decoration flag:
+		/// a decorative note is exactly as silent as a guide bar.
+		/// </summary>
 		[JsonIgnore]
-		public virtual bool HasJudgment
-		{
-			get
-			{
-				return true;
-			}
-		}
+		public virtual bool HasJudgment => !IsDecoration;
+
+		/// <summary>
+		/// Whether the note is drawn. Independent of <see cref="HasJudgment"/>: a guide bar and a
+		/// decorative note are drawn and not judged; the hidden points are neither.
+		/// </summary>
+		[JsonIgnore]
+		public virtual bool IsVisible => true;
 
 		/// <summary>
 		/// True when the note is drawn as let go. Only the appearance depends on this: a bar whose
@@ -360,7 +367,10 @@ namespace Sekai.Live
 			set;
 		}
 
-		/// <summary>Whether this note is walked by the high speed pass, decided when the chart was bound.</summary>
+		/// <summary>
+		/// Whether this note is walked by the high speed pass, decided when the chart was bound. Only
+		/// <see cref="Sekai.Core.Live.LiveNoteSession.Bind"/> sets it; a reset keeps it.
+		/// </summary>
 		internal bool IsHighSpeedNote { get; set; }
 
 		/// <summary>
@@ -473,6 +483,13 @@ namespace Sekai.Live
 
 		internal void BindGeometryParent(LongNote note) => parentNote = note;
 
+		/// <summary>
+		/// True when this note is graded as part of a judged bar, with the bar-end tables. A note under a
+		/// decorative bar (a guide bar or one the chart flags as decoration) is graded like a standalone
+		/// note: the bar before it was never judged, so its end is a fallback key, not a hold's end.
+		/// </summary>
+		internal bool GradesAsBarPart => parentNote != null && !parentNote.IsDecorativeBar;
+
 		public virtual void SetParentNote(LongNote note)
 		{
 			parentNote = note;
@@ -562,8 +579,8 @@ namespace Sekai.Live
 			}
 
 			Progress = progress;
-			// Decoration notes should not be marked as Last/Miss, they are auto-judged in LiveLogic
-			if (settleTimeout && !IsDecoration
+			// A note without judgement never misses: it is retired silently when its time comes.
+			if (settleTimeout && HasJudgment
 				&& LiveConfig.IsPastJudgeWindow(LiveUtility.GetINoteToJudgeFrameType(this), -judgeOffset))
 			{
 				State = NoteState.Last;
@@ -637,8 +654,8 @@ namespace Sekai.Live
 			// is the presentation pass). Tail keys used to be excluded here because the bar owned that
 			// key; keeping the exclusion left every drawn end key with no owner once its bar was gone,
 			// which is why only a hidden end (no key at all) seemed to disappear promptly.
-			// A note with no judgement is not drawn, so asking it to release nothing is skipped.
-			if (ParentRole != NoteParentRole.Tail || HasJudgment) RemoveView();
+			// An end that is not drawn has no key to release.
+			if (ParentRole != NoteParentRole.Tail || IsVisible) RemoveView();
 		}
 
 		/// <summary>Publishes this note's verdict as a key: judgement, combo, score, damage.</summary>
@@ -706,7 +723,11 @@ namespace Sekai.Live
 			resultPublished = false;
 			JudgeInfo = (NoteResult.None, NoteResultDescription.None);
 			offsetTime = 0f;
-			IsHighSpeedNote = false;
+			// IsHighSpeedNote is not play state: it says which walk the bound chart filed this note in, and
+			// only LiveNoteSession.Bind decides it. Clearing it here - every live start resets the notes
+			// right after binding them - left each high speed note in the high speed list while the normal
+			// walk stopped skipping it, so it was advanced twice a frame: an interior point went due and
+			// Miss in one update, before input could judge it (DEINOS PHAINEIN's rub chain, 2026-11-14).
 		}
 	}
 }

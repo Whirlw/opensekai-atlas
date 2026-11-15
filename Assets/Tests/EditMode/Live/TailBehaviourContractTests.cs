@@ -34,7 +34,7 @@ namespace OpenSekai.Tests.EditMode.Live
 				NoteType.Default, NoteDirection.Default, 0.0833f, 0f);
 			Bind(bar, tail);
 
-			bool settled = bar.TailBehaviour.TryFinish(bar, new TailFrame(2f, 1f / 60f, default, false, false));
+			bool settled = bar.TailBehaviour.TryFinish(bar, new TailFrame(2f, false));
 
 			Assert.That(settled, Is.True, "the bar leaves on its own time");
 			Assert.That(tail.Result, Is.EqualTo(NoteResult.None), "and it wrote no verdict onto the note");
@@ -49,7 +49,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			LongNote bar = Bar();
 			Bind(bar, new NormalNote(Info(1f), 95, 4, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f));
 
-			bool settled = bar.TailBehaviour.TryFinish(bar, new TailFrame(1f, 1f / 60f, default, false, true));
+			bool settled = bar.TailBehaviour.TryFinish(bar, new TailFrame(1f, false));
 
 			Assert.That(settled, Is.False);
 			Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done));
@@ -64,7 +64,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			Bind(bar, new FrictionFlickNote(Info(1f), 96, 4, 5, NoteCategory.FrictionFlick, 1f, NoteType.Default, NoteDirection.Default, 0.0833f, 0f));
 			((NoteBase)bar.ChildNote).FinishWith(NoteResult.JustPerfect);
 
-			bool settled = bar.TailBehaviour.TryFinish(bar, new TailFrame(2f, 1f / 60f, default, false, false));
+			bool settled = bar.TailBehaviour.TryFinish(bar, new TailFrame(2f, false));
 
 			Assert.That(settled, Is.True);
 			Assert.That(bar.State, Is.EqualTo(NoteState.Done));
@@ -109,7 +109,6 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(bar.JudgeTailAsRelease(1f), Is.False, "nor may the same lift be graded twice");
 			Assert.That(bar.ExpireTail(2f), Is.False, "nor may the timeout");
 			Assert.That(bar.DetachStandaloneTail(2f), Is.False, "nor may the standalone detach");
-			Assert.That(bar.TickSwipeTail(2f), Is.False, "and a release tail is never graded by the swipe path");
 
 			Assert.That(published, Is.EqualTo(1), "the tail is published exactly once");
 			Assert.That(tail.Result, Is.EqualTo(NoteResult.JustPerfect), "and keeps its verdict");
@@ -156,18 +155,16 @@ namespace OpenSekai.Tests.EditMode.Live
 		}
 
 		[Test]
-		public void OnlyAFlickOrAnOrdinaryEndNoteIsGradedByItsBar()
+		public void OnlyAnOrdinaryEndNoteIsGradedByItsBar()
 		{
-			// R2 is a mapping, not a switch in the caller: a flick is finished by a swipe, an ordinary
-			// end note by a lift, and everything else judges itself - including the hidden carriers,
-			// which carry no judgement at all.
+			// R2 is a mapping, not a switch in the caller: an ordinary end note is finished by a lift, and
+			// everything else judges itself - a flick (FlickTailJudge) and the hidden carriers, which carry
+			// no judgement at all, included.
 			Assert.That(TailBehaviours.For(new NormalNote(Info(1f), 1, 4, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f)).AcceptsRelease,
 				Is.True, "an ordinary end note is finished by the bar on a lift");
-			Assert.That(TailBehaviours.For(new FlickNote(Info(1f), 2, 4, 5, NoteCategory.Flick, 1f, NoteType.Default, NoteDirection.Default, 0, 0f)).AcceptsSwipe,
-				Is.True, "a flick end note is finished by the bar on a swipe");
-
 			NoteBase[] others =
 			{
+				new FlickNote(Info(1f), 2, 4, 5, NoteCategory.Flick, 1f, NoteType.Default, NoteDirection.Default, 0, 0f),
 				new FrictionNote(Info(1f), 3, 4, 5, NoteCategory.Friction, null, NoteType.Default, 1f),
 				new FrictionFlickNote(Info(1f), 4, 4, 5, NoteCategory.FrictionFlick, 1f, NoteType.Default, NoteDirection.Default, 0.0833f, 0f),
 				new HiddenConnectionNote(Info(1f), 5, 4, 5, NoteCategory.Hidden, NoteType.Default, 1f, 0f),
@@ -177,7 +174,6 @@ namespace OpenSekai.Tests.EditMode.Live
 				ITailBehaviour behaviour = TailBehaviours.For(other);
 				Assert.That(behaviour.JudgesItself, Is.True, other.GetType().Name + " judges itself");
 				Assert.That(behaviour.AcceptsRelease, Is.False, other.GetType().Name + " is not finished by a lift");
-				Assert.That(behaviour.AcceptsSwipe, Is.False, other.GetType().Name + " is not finished by the bar's swipe");
 			}
 		}
 

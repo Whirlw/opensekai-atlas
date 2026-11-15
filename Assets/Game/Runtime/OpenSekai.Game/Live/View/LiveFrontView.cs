@@ -160,8 +160,10 @@ namespace Sekai.Live
 			bool skipMusicInfo = _baseController?.BootData?.IsCustomMusicScore == true &&
 				_baseController?.BootData?.LiveSettingData?.SkipsCustomMusicScoreMusicInfo == true;
 
+			_introFinished = false;
 			if (skipMusicInfo)
 			{
+				_introFinished = true;
 				// Skip mode: immediately disable MusicInfoView and set brightness
 				MusicInfoView musicInfoView = ResolveMusicInfo();
 				if (musicInfoView != null)
@@ -178,14 +180,48 @@ namespace Sekai.Live
 				_musicStartTween?.Kill();
 				_musicStartTween = DOVirtual.DelayedCall(0.1f, () =>
 				{
-					ResolveMusicInfo()?.Play(1f, false, 0f, null, null);
+					MusicInfoView info = ResolveMusicInfo();
+					if (info == null)
+					{
+						_introFinished = true;
+					}
+					else
+					{
+						// The callback fires once the page has faded out completely.
+						info.Play(1f, false, 0f, () => _introFinished = true, null);
+					}
 					FadeInBackground(() => PlayStartVoice(1f));
 				}, true);
 				return;
 			}
 
+			// Without the start effect the page is switched off straight away and never calls back.
 			ResolveMusicInfo()?.Play(1f, false, 0f, null, null);
+			_introFinished = true;
 			SetBackgroundBrightness(GetTargetBackgroundBrightness());
+		}
+
+		private bool _introFinished = true;
+
+		public override bool IsIntroFinished => _introFinished;
+
+		/// <summary>The 0.1 s before the page is asked to play, then the page itself.</summary>
+		private const float MusicInfoStartDelaySeconds = 0.1f;
+
+		public override float IntroDurationSeconds
+		{
+			get
+			{
+				bool skipMusicInfo = _baseController?.BootData?.IsCustomMusicScore == true &&
+					_baseController?.BootData?.LiveSettingData?.SkipsCustomMusicScoreMusicInfo == true;
+				if (skipMusicInfo || _baseController?.BootData?.MusicData?.PlayStartEffectEnabled != true)
+				{
+					return 0f;
+				}
+
+				MusicInfoView info = ResolveMusicInfo();
+				return info != null ? MusicInfoStartDelaySeconds + info.PlayDurationSeconds : 0f;
+			}
 		}
 
 		public override void RhythmGameStart()
@@ -249,10 +285,10 @@ namespace Sekai.Live
 				return;
 			}
 
-			// Decoration notes: play tap effect and SE, but do not show judgment text
-			if (note.IsDecoration)
+			// A note without judgement shows nothing at all. Publication already stops it; this guards
+			// direct callers.
+			if (!note.HasJudgment)
 			{
-				Effect(note);
 				return;
 			}
 
@@ -269,7 +305,7 @@ namespace Sekai.Live
 		/// </summary>
 		public override void JudgmentText(NoteBase note)
 		{
-			if (note == null || note.IsDecoration)
+			if (note == null || !note.HasJudgment)
 			{
 				return;
 			}

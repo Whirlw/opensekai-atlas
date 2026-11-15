@@ -62,6 +62,9 @@ namespace Sekai.Live
 				&& LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(this), OffsetJudgeTime);
 		}
 
+		// A rubbed bar's head is decided by contact, not by a press, so the resident pass drives it whole.
+		internal override bool DriveResidentFrame(ref LiveTouch touch, float lane) => Judgment(ref touch, lane);
+
 		public override bool Judgment(ref LiveTouch touch, float lane)
 		{
 			// A rubbed bar takes any finger: the whole body is worked by whichever hand is over it,
@@ -78,6 +81,11 @@ namespace Sekai.Live
 
 			isTouched = true;
 			RecordHoldingInput(touch.musicTime);
+			// The body's freshness check reads "a finger was recorded but this frame was not marked" as the
+			// finger leaving. An ordinary bar marks it in DriveJudgmentFrame; without the mark here every
+			// held rub bar dropped to Last on each update and was put back to Input by the next input pass
+			// (292 of 319 state changes in the 2026-11-14 trace).
+			MarkPressedThisFrame();
 			OffsetJudgeTime = 0f;
 			ConnectionNoteJudgment(ref touch, lane);
 

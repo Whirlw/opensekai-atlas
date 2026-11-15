@@ -65,6 +65,14 @@ namespace Sekai.Live
 				return false;
 			}
 
+			// The one gate for "this note is not judged": hidden points, guide bars, carriers and
+			// decorative notes all close their slot here and reach no callback.
+			if (!point.HasJudgment)
+			{
+				point.ClaimPublication();
+				return false;
+			}
+
 			if (!point.ClaimPublication())
 			{
 				if (LiveTrace.IsOn(LiveTraceCategory.Judge))

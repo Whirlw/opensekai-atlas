@@ -27,6 +27,28 @@ namespace Sekai.Core.Live
 		{
 		}
 
+		/// <summary>
+		/// False while this view still shows the song's info page. The live clock does not start until
+		/// every view is done with it.
+		/// </summary>
+		public virtual bool IsIntroFinished => true;
+
+		/// <summary>
+		/// How long the info page this view puts up stays, from <see cref="MusicStart"/> until it is
+		/// completely gone. The live starts its clock that far ahead of the start point.
+		/// </summary>
+		public virtual float IntroDurationSeconds => 0f;
+
+		/// <summary>The audio itself starts, at this music time. It can come after the clock started.</summary>
+		public virtual void MusicPlaybackStart(float musicTime)
+		{
+		}
+
+		/// <summary>The clock and the audio jumped to this music time (the intro skip).</summary>
+		public virtual void MusicSeek(float musicTime)
+		{
+		}
+
 		public virtual void OnUpdate(float musicTime)
 		{
 		}

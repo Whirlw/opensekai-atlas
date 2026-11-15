@@ -22,8 +22,6 @@ namespace Sekai.Live.Tails
 
 		public bool AcceptsRelease => false;
 
-		public bool AcceptsSwipe => false;
-
 		public bool JudgesItself => false;
 	}
 }

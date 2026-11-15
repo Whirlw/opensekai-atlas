@@ -1,79 +1,74 @@
-# Imports the delivered audio pack into StreamingAssets and writes the manifest the game reads.
-# Layout produced:
-#   StreamingAssets/sound/<bundle>/<cue>.wav
-#   StreamingAssets/sound/manifest.csv        (bundle,cue)
-# Bundle names match the ones SoundManager asks for, so the file name is the interface.
+﻿# Import project audio sources into StreamingAssets. Validate the whole pack before writing.
 param(
-    [string]$Pack = 'E:\Projects\NewSkin\audio-pack',
-    [string]$Target = 'Assets\StreamingAssets\sound',
-    [switch]$Apply
+    [string]$Pack = (Join-Path $PSScriptRoot '..\AudioSource'),
+    [string]$Target = (Join-Path $PSScriptRoot '..\Assets\StreamingAssets\sound'),
+    [switch]$Apply,
+    [switch]$AllowRemove
 )
 $ErrorActionPreference = 'Stop'
-
-# folder in the pack -> bundle name the game loads
 $bundles = [ordered]@{
-    'custom01'        = 'live/tap_se/custom01'
-    'custom02'        = 'live/tap_se/custom02'
-    'default'         = 'live/sound/live_se/default'
-    'live_se_common'  = 'live/sound/live_se/common'
+    'custom01' = 'live/tap_se/custom01'
+    'custom02' = 'live/tap_se/custom02'
+    'default' = 'live/sound/live_se/default'
+    'live_se_common' = 'live/sound/live_se/common'
 }
 
 function Read-WavHeader([string]$path) {
     $bytes = [System.IO.File]::ReadAllBytes($path)
-    if ($bytes.Length -lt 44) { return $null }
-    $riff = [System.Text.Encoding]::ASCII.GetString($bytes, 0, 4)
-    $wave = [System.Text.Encoding]::ASCII.GetString($bytes, 8, 4)
-    if ($riff -ne 'RIFF' -or $wave -ne 'WAVE') { return $null }
-
-    $channels = 0; $rate = 0; $bits = 0; $format = 0
+    if ($bytes.Length -lt 12 -or [Text.Encoding]::ASCII.GetString($bytes, 0, 4) -ne 'RIFF' -or [Text.Encoding]::ASCII.GetString($bytes, 8, 4) -ne 'WAVE') { return $null }
     $offset = 12
     while ($offset + 8 -le $bytes.Length) {
-        $id = [System.Text.Encoding]::ASCII.GetString($bytes, $offset, 4)
-        $size = [System.BitConverter]::ToInt32($bytes, $offset + 4)
+        $id = [Text.Encoding]::ASCII.GetString($bytes, $offset, 4)
+        $size = [BitConverter]::ToUInt32($bytes, $offset + 4)
+        if (($offset + 8 + [long]$size) -gt $bytes.Length) { return $null }
         if ($id -eq 'fmt ') {
-            $format = [System.BitConverter]::ToInt16($bytes, $offset + 8)
-            $channels = [System.BitConverter]::ToInt16($bytes, $offset + 10)
-            $rate = [System.BitConverter]::ToInt32($bytes, $offset + 12)
-            $bits = [System.BitConverter]::ToInt16($bytes, $offset + 22)
-            break
+            if ($size -lt 16) { return $null }
+            return [pscustomobject]@{ Format = [BitConverter]::ToUInt16($bytes, $offset + 8); Channels = [BitConverter]::ToUInt16($bytes, $offset + 10); Rate = [BitConverter]::ToUInt32($bytes, $offset + 12); Bits = [BitConverter]::ToUInt16($bytes, $offset + 22) }
         }
-        $offset += 8 + $size + ($size % 2)
+        $offset += 8 + [long]$size + ($size % 2)
     }
-
-    [pscustomobject]@{ Channels = $channels; Rate = $rate; Bits = $bits; Format = $format }
+    return $null
 }
 
 $rows = @()
 $problems = @()
-$copied = 0
 foreach ($folder in $bundles.Keys) {
     $sourceDir = Join-Path $Pack $folder
-    if (-not (Test-Path $sourceDir)) { $problems += "missing folder: $folder"; continue }
-    $bundle = $bundles[$folder]
-    $targetDir = Join-Path $Target $bundle
-    if ($Apply) { New-Item -ItemType Directory -Force -Path $targetDir | Out-Null }
-
-    foreach ($file in Get-ChildItem $sourceDir -File -Filter '*.wav') {
+    if (-not (Test-Path -LiteralPath $sourceDir -PathType Container)) { $problems += "missing folder: $sourceDir"; continue }
+    $files = @(Get-ChildItem -LiteralPath $sourceDir -File -Filter '*.wav' | Sort-Object Name)
+    if ($files.Count -eq 0) { $problems += "no WAV files: $sourceDir"; continue }
+    foreach ($file in $files) {
         $header = Read-WavHeader $file.FullName
-        if ($null -eq $header) { $problems += "$folder/$($file.Name): not a RIFF WAVE"; continue }
-        if ($header.Rate -ne 44100) { $problems += "$folder/$($file.Name): $($header.Rate) Hz"; continue }
-        if ($header.Bits -ne 16 -or $header.Format -ne 1) { $problems += "$folder/$($file.Name): not pcm_s16le"; continue }
-
-        $rows += [pscustomobject]@{ Bundle = $bundle; Cue = $file.BaseName; Channels = $header.Channels; File = "$folder/$($file.Name)" }
-        if ($Apply) {
-            Copy-Item $file.FullName (Join-Path $targetDir $file.Name) -Force
-            $copied++
+        if ($null -eq $header -or $header.Format -ne 1 -or $header.Rate -notin @(44100, 48000) -or $header.Bits -ne 16 -or $header.Channels -notin @(1, 2)) {
+            $problems += "$($file.FullName): expected 44100 or 48000 Hz, 16-bit PCM mono or stereo WAV"
+            continue
         }
+        if ($file.BaseName -match '[,\r\n]') { $problems += "invalid cue name: $($file.Name)"; continue }
+        $rows += [pscustomobject]@{ Bundle = $bundles[$folder]; Cue = $file.BaseName; Source = $file.FullName; Name = $file.Name }
     }
 }
-
-if ($Apply) {
-    $manifest = Join-Path $Target 'manifest.csv'
-    New-Item -ItemType Directory -Force -Path $Target | Out-Null
-    $lines = @('bundle,cue') + ($rows | ForEach-Object { "$($_.Bundle),$($_.Cue)" })
-    Set-Content $manifest ($lines -join "`n") -Encoding UTF8 -NoNewline
+$manifest = Join-Path $Target 'manifest.csv'
+if ((Test-Path -LiteralPath $manifest) -and -not $AllowRemove) {
+    $keys = @{}
+    foreach ($row in $rows) { $keys[($row.Bundle + '|' + $row.Cue)] = $true }
+    foreach ($old in @(Import-Csv -LiteralPath $manifest)) {
+        if (-not $keys.ContainsKey($old.bundle + '|' + $old.cue)) { $problems += "existing cue missing from pack: $($old.bundle)/$($old.cue) (use -AllowRemove to remove intentionally)" }
+    }
 }
-
-"wavs=$($rows.Count) copied=$copied problems=$($problems.Count) bundles=$($bundles.Count)"
-if ($problems.Count) { '--- problems ---'; $problems | Select-Object -First 10 }
-$rows | Group-Object Bundle | ForEach-Object { "  {0,-32} {1}" -f $_.Name, $_.Count }
+if ($problems.Count) {
+    $problems | ForEach-Object { Write-Host "ERROR: $_" }
+    Write-Host 'Validation failed; no files were changed.'
+    exit 1
+}
+if ($Apply) {
+    foreach ($row in $rows) {
+        $targetDir = Join-Path $Target $row.Bundle
+        New-Item -ItemType Directory -Force -Path $targetDir | Out-Null
+        Copy-Item -LiteralPath $row.Source -Destination (Join-Path $targetDir $row.Name) -Force
+    }
+    New-Item -ItemType Directory -Force -Path $Target | Out-Null
+    $lines = @('bundle,cue') + @($rows | ForEach-Object { "$($_.Bundle),$($_.Cue)" })
+    [IO.File]::WriteAllText([IO.Path]::GetFullPath($manifest), (($lines -join "`n") + "`n"), (New-Object Text.UTF8Encoding $false))
+}
+Write-Host "Validated $($rows.Count) WAV files in $($bundles.Count) groups. Applied: $([bool]$Apply)"
+$rows | Group-Object Bundle | ForEach-Object { Write-Host "  $($_.Name): $($_.Count)" }

@@ -87,6 +87,10 @@ namespace Sekai
 		public static readonly ResourceEntry<LiveBundleBuildData> LiveBundleConfig =
 			new ResourceEntry<LiveBundleBuildData>(LiveConfig.ConfigBundleNamePath);
 
+		/// <summary>Which code a player build came from, written by BuildStampBuildStep; absent in the editor.</summary>
+		public static readonly ResourceEntry<TextAsset> BuildStamp =
+			new ResourceEntry<TextAsset>("BuildStamp");
+
 		// ---- fixed prefabs -----------------------------------------------------------------------
 
 		public static readonly ResourceEntry<GameObject> LiveTransitioner =

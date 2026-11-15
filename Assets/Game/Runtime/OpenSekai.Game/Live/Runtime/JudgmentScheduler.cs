@@ -86,7 +86,7 @@ namespace Sekai.Core.Live
 		/// </summary>
 		private void JudgeReleaseChannel()
 		{
-			_input.Holds.JudgeLifts(_input.JudgmentNotes, _input.ActiveInputs, Frame);
+			_input.JudgeLifts();
 		}
 
 		/// <summary>
@@ -168,21 +168,29 @@ namespace Sekai.Core.Live
 				NoteBase note = _input.JudgmentNotes[n];
 				if (note == null || note.State == NoteState.Done || note is LongHoldCombo
 					|| LiveCandidatePipeline.IsPressStep(note)) continue;
+				if (note is FlickNote flickTail && flickTail.JudgesAsBarTail)
+				{
+					DriveFlickTail(flickTail);
+					if (flickTail.State == NoteState.Done) _input.JudgmentNotes.RemoveAt(n);
+					continue;
+				}
 				int barInput = note is LongNote longNote ? PickBarInput(longNote) : -1;
 				for (int i = 0; i < _input.ActiveInputs.Count; i++)
 				{
 					InputTmp input = _input.ActiveInputs[i];
 					float lane = input.Lane;
 					if (lane < 0f) continue;
-					if (note is LongNote)
+					if (note is LongNote bar)
 					{
 						if (i != barInput) continue;
-						note.Judgment(ref input.Touch, lane);
+						// The body's frame only: the head was the press channel's to answer.
+						bar.DriveResidentFrame(ref input.Touch, lane);
 					}
 					else
 					{
 						if (!note.IsJudgment(ref input.Touch, lane)) continue;
 						note.Judgment(ref input.Touch, lane);
+						SilenceIfFriction(note, input);
 					}
 					// An armed flick takes a swipe from any finger, so every finger of the frame is offered
 					// to it until one completes it; a resting finger listed first must not shut out the one
@@ -194,6 +202,25 @@ namespace Sekai.Core.Live
 					LiveTrace.Write(LiveTraceCategory.Resident, $"unregDone id={note.Id} n={n}");
 				if (note.State == NoteState.Done) _input.JudgmentNotes.RemoveAt(n);
 			}
+		}
+
+		/// <summary>
+		/// A bar's end flick reads every finger of the frame - a lift and a slide out of its lanes matter as
+		/// much as a swipe, and the final sample of a lift may be off the playfield - and then closes the
+		/// frame so a finger that sent nothing counts as gone (<see cref="FlickTailJudge"/>).
+		/// </summary>
+		private void DriveFlickTail(FlickNote tail)
+		{
+			FlickTailJudge judge = tail.TailJudge;
+			float deltaTime = judge.FrameDeltaTime(Frame.time);
+			for (int i = 0; i < _input.ActiveInputs.Count && tail.State != NoteState.Done; i++)
+			{
+				InputTmp input = _input.ActiveInputs[i];
+				if (input == null) continue;
+				judge.Offer(ref input.Touch, input.Lane, input.PreviousLane, deltaTime);
+			}
+
+			judge.EndInputFrame(Frame.time);
 		}
 
 		private int PickBarInput(LongNote bar)
@@ -218,9 +245,21 @@ namespace Sekai.Core.Live
 			return selected;
 		}
 
+		/// <summary>
+		/// A finger that a friction or friction-flick key judged may not light the empty lanes again
+		/// until it leaves the screen.
+		/// </summary>
+		private void SilenceIfFriction(NoteBase note, InputTmp input)
+		{
+			if (note is FrictionNote || note is FrictionFlickNote)
+			{
+				_input.SilencedTouches.Add(input.Touch.touchId);
+			}
+		}
+
 		internal void RefreshSustainedHolds()
 		{
-			_input.Holds.Refresh(_input.JudgmentNotes, _input.ActiveInputs, Frame, UnityEngine.Time.deltaTime);
+			_input.Holds.Refresh(_input.JudgmentNotes, _input.ActiveInputs, Frame, UnityEngine.Time.deltaTime, _input.SilencedTouches);
 		}
 
 		internal void EvaluateJudgment()
@@ -254,7 +293,7 @@ namespace Sekai.Core.Live
 					used |= _usedFingerList[i] == input.Touch.fingerId;
 				}
 
-				if (!used && input.Lane >= 0f)
+				if (!used && input.Lane >= 0f && !_input.SilencedTouches.Contains(input.Touch.touchId))
 				{
 					_presentation.Unpicked(_session.Views, Mathf.RoundToInt(input.Lane), ref input.Touch);
 				}
@@ -323,9 +362,16 @@ namespace Sekai.Core.Live
 			/// </summary>
 			public void Consumed(int candidateIndex)
 			{
+				if (Input.CandidateNotes[candidateIndex] is NormalNote or FlickNote)
+				{
+					Scheduler._input.Holds.RecordKeyPress(Input.Touch);
+				}
+
 				Input.CandidateNotes.Clear();
 				Scheduler._input.RecordJudgedTouch(Input.Touch);
 				Scheduler._usedFingerList.Add(Input.Touch.fingerId);
+				// A finger whose press went into a key may not light the empty lanes again until it lifts.
+				Scheduler._input.SilencedTouches.Add(Input.Touch.touchId);
 			}
 		}
 

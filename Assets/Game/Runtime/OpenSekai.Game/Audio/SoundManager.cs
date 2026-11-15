@@ -312,6 +312,47 @@ namespace Sekai
 			}
 		}
 
+		/// <summary>
+		/// Where the sound of an in-game BGM cue starts and stops, in seconds, leaving out the silence at
+		/// either end. False when the cue has no clip or its samples cannot be read.
+		/// </summary>
+		public bool TryGetIngameAudibleRange(string cueName, out float startSeconds, out float endSeconds)
+		{
+			startSeconds = 0f;
+			endSeconds = 0f;
+			if (!_catalog.TryResolveIngameCue(cueName, out CriAtomExAcb acb, out string resolvedCueName) || acb == null)
+			{
+				return false;
+			}
+
+			CriAtomExAcb.CueAudioClip[] clips = acb.GetOrCreateAudioClips(resolvedCueName);
+			return clips.Length > 0 && AudibleRange.TryFind(clips[0].Clip, out startSeconds, out endSeconds);
+		}
+
+		/// <summary>The in-game BGM's status; Stop when there is none.</summary>
+		public CriAtomExPlayback.Status GetIngameStatus()
+		{
+			return _currentIngamePlayback.id != 0 ? _currentIngamePlayback.GetStatus() : CriAtomExPlayback.Status.Stop;
+		}
+
+		/// <summary>Moves the in-game BGM and its synced clock to a music time, paused or playing.</summary>
+		public void SeekIngame(long musicTimeMs)
+		{
+			if (_currentIngamePlayback.id == 0)
+			{
+				return;
+			}
+
+			CriAtomAudioRuntime.Seek(_currentIngamePlayback.id, musicTimeMs / 1000f);
+			ResetAudioSyncedUnityTimer();
+		}
+
+		/// <summary>Writes the in-game BGM's clock and audio positions to the Audio trace.</summary>
+		public void TraceIngameSync(string reason)
+		{
+			CriAtomAudioRuntime.TraceSync(_currentIngamePlayback.id, reason);
+		}
+
 		public uint GetCurrentIngamePlaybackId()
 		{
 			return _currentIngamePlayback.id;

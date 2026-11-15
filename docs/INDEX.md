@@ -1,9 +1,9 @@
-﻿# 文档索引
+# 文档索引
 
 > 目的：全量登记 `docs/` 下的每一篇文档，给出标题、路径、摘要与最后更新，作为查找与维护的单一清单。
 > 适用读者：所有人，尤其是维护文档的人。
 > 前置条件：无。
-> 最后更新：2026-11-02
+> 最后更新：2026-11-14
 
 ## 概述
 
@@ -96,12 +96,14 @@
 | 判定通道与解耦收尾 | [operations/judgment-channel-brief.md](operations/judgment-channel-brief.md) | 任务 B 的执行计划：WP0–WP7 工作包、判定通道表、硬性约束与验收 |
 | 尾键生命周期 | [operations/tail-key-lifetime-brief.md](operations/tail-key-lifetime-brief.md) | 任务书：尾键显示/回收离开 `State`，收敛成纯函数 `TailKeyLifetime` |
 | 素材来源清单 | [operations/asset-provenance.md](operations/asset-provenance.md) | 各类素材的来源与许可、同 GUID 重画手法、覆盖核对命令 | 2026-11-09 | 现行 |
-| 音符皮肤制作 | [operations/note-skin-authoring.md](operations/note-skin-authoring.md) | 自己画一套音符皮肤：目录结构、必须一致的像素尺寸表、应用与出包流程 | 2026-11-08 | 现行 |
+| 截图工具 | [operations/screenshot-tools.md](operations/screenshot-tools.md) | 不上真机渲染打歌帧/信息页/曲库/设置/结算 PNG：`Tools/capture-screens.ps1` 全部参数、请求 JSON、可复现原理 | 2026-11-14 | 现行 |
+| 音符皮肤制作 | [operations/note-skin-authoring.md](operations/note-skin-authoring.md) | 自己画一套音符皮肤：目录结构、必须一致的像素尺寸表、应用与出包流程 | 2026-11-15 | 现行 |
+| notes.png 约束 | [operations/notes-atlas-spec.md](operations/notes-atlas-spec.md) | 音符本体图集的硬约束：7 格切片布局、九宫格与本体内缩 55 px、贴合判定线的纵向位置、透视交给着色器、联动修改表、截图核对方法 | 2026-11-15 | 现行 |
 | 材质包导入 | [operations/material-pack-import.md](operations/material-pack-import.md) | 把画好的材质包贴回工程：两条路径、六条硬规则、九个已踩的坑、像素级校验、以及做一键导入功能的设计建议 | 2026-11-08 | 现行 |
 | 发布前素材总检 | [operations/pre-release-asset-audit.md](operations/pre-release-asset-audit.md) | 推 GitHub 前的素材来源检查：三条审计命令、图集覆盖率实测、复检清单 | 2026-11-09 | 现行 |
-| 音频外部音源包 | [operations/audio-replacement.md](operations/audio-replacement.md) | 42 个 wav 的目录与加载链、cue 清单、音频规格、导入与验收 | 2026-11-09 | 现行 |
+| 音频外部音源包 | [operations/audio-replacement.md](operations/audio-replacement.md) | 43 个 wav 的目录与加载链、cue 清单、音频规格、导入与验收 | 2026-11-09 | 现行 |
 | 音频来源建议 | [operations/audio-sourcing.md](operations/audio-sourcing.md) | 判定音与演出音的选源建议：自制合成优先、CC0 来源清单、CC BY 的署名义务、cue→取材映射 | 2026-11-09 | 现行 |
-| 音频需求表 | [operations/audio-spec.md](operations/audio-spec.md) | 对外交付的自包含需求书：42 个 wav 的逐条规格、两套皮肤差异规则、自检命令、交付结构与验收清单 | 2026-11-09 | 现行 |
+| 音频需求表 | [operations/audio-spec.md](operations/audio-spec.md) | 对外交付的自包含需求书：音效用途、播放行为和创作交付说明 | 2026-11-09 | 现行 |
 | Unity 6 升级清单 | [operations/unity6-upgrade.md](operations/unity6-upgrade.md) | 2022.3.62f3 → 6000.6.7f1：现状对照、准备项、API 迁移点、执行顺序、验收与回滚 | 2026-11-02 | 现行 |
 
 ## 决策记录 `decisions/`

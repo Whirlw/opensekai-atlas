@@ -3,7 +3,7 @@
 # keeps its old art and still looks "applied". This walks the kit, reads the rect and texture GUID out
 # of each sprite asset, and measures the difference, so a stale cell shows up as a number.
 param(
-    [string]$KitRoot = 'E:\DeepseekHarness\OpenSekai\LocalPacks\paint-kit',
+    [string]$KitRoot = (Join-Path (Split-Path $PSScriptRoot -Parent) 'ArtSource'),
     [string]$SpriteFolder = 'Assets\Graphics\Sprites',
     [string]$Filter,
     [double]$Threshold = 8,
@@ -40,7 +40,13 @@ function Get-Atlas([string]$path) {
     return $atlases[$path]
 }
 
-$kit = Get-ChildItem (Join-Path $KitRoot 'new_hud') -Filter '*.png'
+# Sprites moved to Assets/Graphics/AtlasSprites are copied whole by apply-paint-kit.ps1, which already
+# compares them by hash; they have no rect here.
+$migrated = @{}
+if (Test-Path 'Assets\Graphics\AtlasSprites') {
+    Get-ChildItem 'Assets\Graphics\AtlasSprites' -Recurse -File -Filter '*.png' | ForEach-Object { $migrated[$_.BaseName] = $true }
+}
+$kit = Get-ChildItem (Join-Path $KitRoot 'HUD') -Filter '*.png' | Where-Object { -not $migrated.ContainsKey($_.BaseName) }
 if ($Filter) { $kit = $kit | Where-Object { $_.BaseName -like $Filter } }
 
 # Resolve like the apply script does: two kit files can reach one sprite (a stand-in drawn as
@@ -88,7 +94,17 @@ foreach ($spritePath in $kitForSprite.Keys) {
     if (-not $atlasPath -or -not (Test-Path $atlasPath)) { $noRect.Add("$name (no atlas)") | Out-Null; continue }
 
     $atlas = Get-Atlas $atlasPath
+    # When the kit supplies a complete texture, verify the imported file before
+    # comparing a sprite crop (which can omit the texture padding).
+    $painted = New-Object System.Drawing.Bitmap($kitPath)
+    if ($painted.Width -eq $atlas.Width -and $painted.Height -eq $atlas.Height -and
+        (Get-FileHash -LiteralPath $kitPath).Hash -eq (Get-FileHash -LiteralPath $atlasPath).Hash) {
+        $painted.Dispose()
+        $match++
+        continue
+    }
     if ($w -le 0 -or $h -le 0 -or ($x + $w) -gt $atlas.Width -or ($y + $h) -gt $atlas.Height) {
+        $painted.Dispose()
         $noRect.Add("$name (rect outside atlas)") | Out-Null
         continue
     }
@@ -96,7 +112,6 @@ foreach ($spritePath in $kitForSprite.Keys) {
     # Unity rects are bottom-left based; System.Drawing rows start at the top.
     $top = $atlas.Height - ($y + $h)
     $crop = $atlas.Clone((New-Object System.Drawing.Rectangle($x, $top, $w, $h)), [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
-    $painted = New-Object System.Drawing.Bitmap($kitPath)
 
     # A sparse grid is enough to tell "same art" from "different art" and keeps 220+ sprites quick.
     $stepX = [math]::Max(1, [int]($w / 40))

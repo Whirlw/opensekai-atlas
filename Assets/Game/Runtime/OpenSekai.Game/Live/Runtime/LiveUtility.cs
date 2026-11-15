@@ -74,7 +74,9 @@ namespace Sekai
 				throw new ArgumentNullException(nameof(note));
 			}
 
-			var hasParent = note.ParentNote != null;
+			// The end of a decorative bar is graded like a standalone note; every other bar part uses the
+			// bar-end tables.
+			var hasParent = note is NoteBase graded ? graded.GradesAsBarPart : note.ParentNote != null;
 			var isCritical = note.Type == NoteType.Critical;
 
 			switch (note.Category)
@@ -90,6 +92,13 @@ namespace Sekai
 					if (hasParent)
 					{
 						return isCritical ? JudgeFrameType.Long_End_Critical : JudgeFrameType.Long_End;
+					}
+
+					// A tap bound as a bar's end carries the Long category; under a decorative bar it is
+					// graded as the tap it is, not as a bar's head.
+					if (note is NormalNote)
+					{
+						return isCritical ? JudgeFrameType.Normal_Critical : JudgeFrameType.Normal;
 					}
 
 					return isCritical ? JudgeFrameType.Long_Critical : JudgeFrameType.Long;
@@ -145,7 +154,7 @@ namespace Sekai
 				foreach (NoteBase note in rootNote.NoteList)
 				{
 					// Decoration notes do not count toward combo.
-					if (note == null || note.IsDecoration || !note.HasJudgment)
+					if (note == null || !note.HasJudgment)
 					{
 						continue;
 					}
@@ -364,9 +373,17 @@ namespace Sekai
 			noteBase.OffsetJudgeTime = Mathf.Min(elapsedAfterEnd, elapsedFromStart);
 		}
 
+		// The note body in the notes atlas (notes_0..6, 108 px per unit) ends 55 px in from both sprite edges
+		// (ArtSource/Tools/Notes/draw_notes.ps1), so a note spanning lanes start..end draws its body exactly
+		// over (end - start + 1) lanes of LiveConfig.widthX. The old 1.2178 * span + 2.06 drew 1-6 lane notes
+		// up to 9 px narrower than their lanes and full-width notes wider.
+		private const float NoteBodyInsetUnits = 55f / 108f;
+
+		private const float NoteSpriteHeight = 186f / 108f;
+
 		public static Vector2 CalcSpriteRendererSize(float size)
 		{
-			return new Vector2(size * 1.2178f + 2.06f, 1.7222f);
+			return new Vector2((size + 1f) * LiveConfig.widthX + 2f * NoteBodyInsetUnits, NoteSpriteHeight);
 		}
 
 		static LiveUtility()

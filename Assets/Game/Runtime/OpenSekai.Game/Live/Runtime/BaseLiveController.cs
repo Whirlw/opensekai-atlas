@@ -49,10 +49,53 @@ namespace Sekai.Core.Live
 		public bool HasActiveTimeline => IsPlayableState || state == LiveControllerState.Pause;
 
 		/// <summary>The clock the views draw with, in seconds: the audio clock moved by the audio and visual latency.</summary>
-		protected float currentAudioLatencyMusicTimeMs => timingCompensation.ViewTime(currentMusicTimeMs / 1000f);
+		/// Not clamped at zero: a chart that starts before its music runs the clock from below zero.
+		protected float currentAudioLatencyMusicTimeMs =>
+			currentMusicTimeMs / 1000f - (timingCompensation.AudioLatencyMs - timingCompensation.VisualLatencyMs) / 1000f;
 
-		/// <summary>The clock notes are executed and judged on, in seconds.</summary>
-		protected float currentLogicMusicTime => timingCompensation.LogicTime(currentMusicTimeMs / 1000f);
+		/// <summary>The clock notes are executed and judged on, in seconds. Not clamped either.</summary>
+		protected float currentLogicMusicTime => currentMusicTimeMs / 1000f - timingCompensation.LogicDelaySeconds;
+
+		/// <summary>Where the audio is in its life, as the live clock sees it.</summary>
+		protected enum MusicPhase
+		{
+			/// <summary>The clock has not started (loading, the info page).</summary>
+			NotStarted = 0,
+			/// <summary>The clock runs on its own: the chart starts before the music.</summary>
+			RunIn = 1,
+			/// <summary>The audio plays and the clock follows it.</summary>
+			Playing = 2,
+			/// <summary>The audio is over and the clock runs on its own until the chart is done.</summary>
+			Ended = 3
+		}
+
+		/// <summary>A clock step longer than this (a hitch) is cut short while the clock runs on its own.</summary>
+		private const float MaxFreeClockStepSeconds = 0.1f;
+
+		/// <summary>How much longer than the start wait the info page may take before the live goes on without it.</summary>
+		private const float IntroWaitSlackSeconds = 4f;
+
+		protected MusicPhase musicPhase;
+
+		/// <summary>The music and chart spans read when the chart loaded. See <see cref="BuildTimelineSpan"/>.</summary>
+		protected OpenSekai.Shared.Live.Simulation.LiveTimelineSpan timelineSpan;
+
+		protected long TimelineStartMs => (long)Math.Floor(timelineSpan.StartSeconds * 1000d);
+
+		protected long TimelineEndMs => (long)Math.Ceiling(timelineSpan.EndSeconds * 1000d);
+
+		/// <summary>Where the audio file starts playing (its leading silence included).</summary>
+		protected long MusicStartMs => (long)Math.Round(timelineSpan.PlaybackStartSeconds * 1000d);
+
+		/// <summary>
+		/// Where the music's sound ends: the result waits for it, not for the silence after it. The
+		/// clip length when no span was read.
+		/// </summary>
+		protected long MusicEndMs => timelineSpan.MusicEndSeconds > 0f
+			? (long)Math.Round(timelineSpan.MusicEndSeconds * 1000d)
+			: musicLength;
+
+		private long _preparedMusicStartMs;
 
 		protected override void OnAwake()
 		{
@@ -175,10 +218,35 @@ namespace Sekai.Core.Live
 			yield return StartCoroutine(MusicReady());
 
 			OnMusicStart();
-			float rhythmGameStartWait = ShouldWaitBeforeRhythmGameStart() ? waitTime : 0.05f;
-			if (rhythmGameStartWait > 0f)
+
+			// The start point (the audible music or the chart, whichever is first) is reached the
+			// moment the info page is gone. So the clock starts now, the page's length ahead of it,
+			// and the file plays from wherever that puts it: from its top during the page when its
+			// silence is short, part-way in when the silence is longer than everything since the
+			// audio was loaded.
+			bool waitForIntro = ShouldWaitBeforeRhythmGameStart();
+			float introSeconds = waitForIntro ? IntroDurationSeconds() : 0f;
+			StartTimelineClock(timelineSpan.ClockAtIntroStart(introSeconds));
+
+			if (waitForIntro)
 			{
-				yield return new WaitForSeconds(rhythmGameStartWait);
+				// The page reports when it is gone; the deadline only keeps a page that never calls
+				// back (its tweens were killed) from holding the live forever.
+				float deadline = Time.realtimeSinceStartup + Mathf.Max(waitTime, introSeconds) + IntroWaitSlackSeconds;
+				while (!IsIntroFinished() && Time.realtimeSinceStartup < deadline)
+				{
+					yield return null;
+					UpdateMusicTime();
+				}
+			}
+			else
+			{
+				float until = Time.realtimeSinceStartup + 0.05f;
+				while (Time.realtimeSinceStartup < until)
+				{
+					yield return null;
+					UpdateMusicTime();
+				}
 			}
 
 			OnRhythmGameStart();
@@ -202,19 +270,141 @@ namespace Sekai.Core.Live
 				cueId = SoundManager.Instance.PrepareIngameBGM(cueName, currentMusicTimeMs / 1000f);
 			}
 
+			musicPhase = MusicPhase.NotStarted;
+			_preparedMusicStartMs = currentMusicTimeMs;
 			yield return null;
 		}
 
+		/// <summary>True once every view is done with the info page.</summary>
+		protected virtual bool IsIntroFinished() => true;
+
+		/// <summary>The info page goes up. The music stays prepared and paused until the clock reaches it.</summary>
 		protected virtual void OnMusicStart()
 		{
-			SoundManager.Instance.ResumePreparedPlaybackIngame();
 			accumulateTimeApartFromPause = 0f;
 		}
 
+		/// <summary>How long the views' info page stays up.</summary>
+		protected virtual float IntroDurationSeconds() => 0f;
+
+		/// <summary>Starts the clock at a music time; the audio follows when the clock reaches the file.</summary>
+		private void StartTimelineClock(float clockSeconds)
+		{
+			currentMusicTimeMs = (long)Math.Floor(clockSeconds * 1000d);
+			musicPhase = MusicPhase.RunIn;
+			TraceTimeline("clock start at=" + currentMusicTimeMs + " point=" + TimelineStartMs);
+			if (currentMusicTimeMs >= MusicStartMs)
+			{
+				StartMusicPlayback();
+			}
+		}
+
+		/// <summary>The info page is gone: the clock is at the start point and the game takes input.</summary>
 		protected virtual void OnRhythmGameStart()
 		{
 			result = 0;
+			TraceTimeline("game start at=" + currentMusicTimeMs + " point=" + TimelineStartMs);
 			state = LiveControllerState.Playing;
+		}
+
+		/// <summary>The clock reached the music: start the audio there.</summary>
+		private void StartMusicPlayback()
+		{
+			musicPhase = MusicPhase.Playing;
+			if (currentMusicTimeMs != _preparedMusicStartMs)
+			{
+				// The run-in overshot the start of the file by part of a frame; begin the audio where the
+				// clock is.
+				SoundManager.Instance.SeekIngame(Math.Max(0L, currentMusicTimeMs));
+			}
+			SoundManager.Instance.ResumePreparedPlaybackIngame();
+			TraceTimeline("music start at=" + currentMusicTimeMs);
+			OnMusicPlaybackStarted(currentMusicTimeMs / 1000f);
+		}
+
+		protected virtual void OnMusicPlaybackStarted(float musicTime)
+		{
+		}
+
+		/// <summary>Resumes the audio after a pause, unless the clock has not reached it yet or it is over.</summary>
+		protected void ResumeMusicPlayback()
+		{
+			if (musicPhase == MusicPhase.Playing)
+			{
+				SoundManager.Instance.ResumeIngame(currentMusicTimeMs);
+			}
+		}
+
+		/// <summary>
+		/// Reads the four times the live runs over: the music's start and end, and the first and last
+		/// note, all on the audio clock. A note's chart time sits behind the audio by the filler and the
+		/// logic delay, so both are added back.
+		/// </summary>
+		protected void BuildTimelineSpan(MusicScore musicScore)
+		{
+			float filler = BootData?.MusicData?.Music?.fillerSec ?? 0f;
+			float shift = filler + timingCompensation.LogicDelaySeconds;
+			float first = float.NaN;
+			float last = float.NaN;
+			NoteBase[] roots = musicScore?.NoteArray;
+			if (roots != null)
+			{
+				foreach (NoteBase root in roots)
+				{
+					if (root?.NoteList == null)
+					{
+						continue;
+					}
+
+					foreach (NoteBase note in root.NoteList)
+					{
+						if (note == null)
+						{
+							continue;
+						}
+
+						float time = note.MusicScoreInfo.time + shift;
+						if (float.IsNaN(first) || time < first)
+						{
+							first = time;
+						}
+						if (float.IsNaN(last) || time > last)
+						{
+							last = time;
+						}
+					}
+				}
+			}
+
+			// The music counts from its first audible sample to its last: that decides the start and end
+			// points and the skips, so silence at either end of a file changes nothing. The silence is
+			// not cut, though: the file is played from its top, early enough for the start point to land
+			// where it should (see LiveStart).
+			float playbackStart = Math.Max(0L, BootData?.MusicData?.StartMusicTimeMs ?? 0L) / 1000f;
+			float playbackEnd = musicLength / 1000f;
+			float musicStart = playbackStart;
+			float musicEnd = playbackEnd;
+			string cueName = ResolveMusicCueName();
+			if (!string.IsNullOrEmpty(cueName)
+				&& SoundManager.Instance.TryGetIngameAudibleRange(cueName, out float audibleStart, out float audibleEnd))
+			{
+				TraceTimeline("audible " + audibleStart.ToString("F3") + ".." + audibleEnd.ToString("F3") + " clip=" + musicEnd.ToString("F3"));
+				musicStart = Math.Max(musicStart, audibleStart);
+				musicEnd = audibleEnd;
+			}
+
+			float leadIn = LiveConfig.GetNoteDisplayOffsetTime(BootData?.LiveSettingData?.NoteSpeed ?? 6f);
+			timelineSpan = new OpenSekai.Shared.Live.Simulation.LiveTimelineSpan(
+				musicStart, musicEnd, first, last, leadIn, playbackStart, playbackEnd);
+			TraceTimeline("span " + timelineSpan);
+		}
+
+		protected static void TraceTimeline(string message)
+		{
+			if (OpenSekai.Shared.Diagnostics.LiveTrace.IsOn(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Audio))
+			{
+				OpenSekai.Shared.Diagnostics.LiveTrace.Write(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Audio, "timeline " + message);
+			}
 		}
 
 		protected override void OnUpdate()
@@ -233,22 +423,45 @@ namespace Sekai.Core.Live
 			}
 		}
 
+		/// <summary>
+		/// Moves the live clock. While the audio plays the clock is the audio's; before it starts (a
+		/// chart that starts first) and after it ends (a chart that runs past it) the clock runs on its
+		/// own, so the notes at either end still get their time instead of a clock pinned to the song's
+		/// edge, which left the last notes waiting for a moment that never came.
+		/// </summary>
 		protected virtual void UpdateMusicTime()
 		{
-			long audioTime = SoundManager.Instance.GetAudioSyncedUnityTimer();
-			if (audioTime <= 0L)
+			long stepMs = (long)(Mathf.Min(Time.unscaledDeltaTime, MaxFreeClockStepSeconds) * 1000f);
+			switch (musicPhase)
 			{
-				if (currentMusicTimeMs >= 1L)
-				{
-					audioTime = musicLength;
-				}
-				else
-				{
+				case MusicPhase.RunIn:
+					currentMusicTimeMs += stepMs;
+					if (currentMusicTimeMs >= MusicStartMs)
+					{
+						StartMusicPlayback();
+					}
 					return;
-				}
-			}
 
-			currentMusicTimeMs = audioTime;
+				case MusicPhase.Playing:
+					if (SoundManager.Instance.GetIngameStatus() == CriAtomExPlayback.Status.Playing)
+					{
+						long audioTime = SoundManager.Instance.GetAudioSyncedUnityTimer();
+						if (audioTime >= 0L)
+						{
+							currentMusicTimeMs = audioTime;
+						}
+						return;
+					}
+
+					musicPhase = MusicPhase.Ended;
+					TraceTimeline("music end at=" + currentMusicTimeMs);
+					currentMusicTimeMs += stepMs;
+					return;
+
+				case MusicPhase.Ended:
+					currentMusicTimeMs += stepMs;
+					return;
+			}
 		}
 
 		public void Retry()
@@ -285,7 +498,8 @@ namespace Sekai.Core.Live
 				return;
 			}
 
-			long restMs = Math.Max(0L, musicLength - currentMusicTimeMs);
+			// Wait for the rest of the music's sound; the silence after it is not waited for.
+			long restMs = Math.Max(0L, MusicEndMs - currentMusicTimeMs);
 			PreExit(1f, Mathf.Max(restMs / 1000f - 1f, 4f));
 		}
 

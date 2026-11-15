@@ -170,3 +170,18 @@ Assets/_Recovery.meta
 /.nle-semantic/
 *.req.json
 *.res.json
+
+# Written by BuildStampBuildStep before every player build.
+/Assets/Game/Resources/BuildStamp.txt
+/Assets/Game/Resources/BuildStamp.txt.meta
+
+# Old skin reference inputs and local paint-kit output.
+/ArtSource/paint-kit/hud/
+/ArtSource/paint-kit/effects/
+/ArtSource/paint-kit/backgrounds/
+/ArtSource/paint-kit/render-report.tsv
+/ArtSource/paint-kit/**/Adobe After Effects Auto-Save/
+/ArtSource/paint-kit/**/Adobe After Effects 自动保存/
+/ArtSource/paint-kit/new_notes*/*-preview.png
+/ArtSource/paint-kit/new_notes*/*-comparison.png
+/ArtSource/paint-kit/new_notes*/palette-overview.png

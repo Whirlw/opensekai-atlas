@@ -3,9 +3,8 @@ namespace Sekai.Live.Tails
 	/// <summary>
 	/// The ordinary end: keep holding, then lift inside the window.
 	///
-	/// This is the only behaviour a release finishes. A flick end waits for a swipe (SwipeTail) and a
-	/// rub, a rub flick or a hidden carrier grades itself (SelfJudgedTail), so neither is ever handed to
-	/// this class by TailBehaviours.For.
+	/// This is the only behaviour a release finishes. A flick, a rub, a rub flick or a hidden carrier
+	/// grades itself (SelfJudgedTail), so none of them is ever handed to this class by TailBehaviours.For.
 	/// </summary>
 	public sealed class ReleaseTail : ITailBehaviour
 	{
@@ -30,8 +29,6 @@ namespace Sekai.Live.Tails
 		}
 
 		public bool AcceptsRelease => true;
-
-		public bool AcceptsSwipe => false;
 
 		public bool JudgesItself => false;
 	}

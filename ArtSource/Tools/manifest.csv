@@ -1,0 +1,118 @@
+file	texture	rectX	rectY	width	height	borderX	borderY	borderZ	borderW	ppu	mode
+LocalPacks/paint-kit/hud/tex_2dmode_jacket_nml_l.png	Assets/Graphics/Textures/tex_2dmode_jacket_nml_l.png	0	0	322	212	0	0	0	0	1	whole
+LocalPacks/paint-kit/hud/bg_2dmode_window_mirror.png	Assets/Graphics/Textures/bg_2dmode_window_mirror.png	0	0	800	800	0	0	0	0	1	whole
+LocalPacks/paint-kit/hud/mask_2dmode_jacket_nml_r.png	Assets/Graphics/Textures/mask_2dmode_jacket_nml_r.png	0	0	240	136	0	0	0	0	1	whole
+LocalPacks/paint-kit/hud/mask_2dmode_jacket_nml_main.png	Assets/Graphics/Textures/mask_2dmode_jacket_nml_main.png	0	0	496	472	0	0	0	0	1	whole
+LocalPacks/paint-kit/hud/mask_2dmode_jacket_mirror_main.png	Assets/Graphics/Textures/mask_2dmode_jacket_mirror_main.png	0	0	474	428	0	0	0	0	1	whole
+LocalPacks/paint-kit/hud/mask_2dmode_jacket_mirror_r.png	Assets/Graphics/Textures/mask_2dmode_jacket_mirror_r.png	0	0	244	130	0	0	0	0	1	whole
+LocalPacks/paint-kit/hud/tex_2dmode_jacket_nml_r.png	Assets/Graphics/Textures/tex_2dmode_jacket_nml_r.png	0	0	240	136	0	0	0	0	1	whole
+LocalPacks/paint-kit/hud/mask_2dmode_floor_grd.png	Assets/Graphics/Textures/mask_2dmode_floor_grd.png	0	0	2048	390	0	0	0	0	1	whole
+LocalPacks/paint-kit/hud/tex_2dmode_jacket_nml_main.png	Assets/Graphics/Textures/tex_2dmode_jacket_nml_main.png	0	0	498	474	0	0	0	0	1	whole
+LocalPacks/paint-kit/hud/16_9_white.png	Assets/Graphics/Textures/16_9_white.png	0	0	16	9	0	0	0	0	1	whole
+LocalPacks/paint-kit/hud/bg_2dmode_window_nml.png	Assets/Graphics/Textures/bg_2dmode_window_nml.png	0	0	840	840	0	0	0	0	1	whole
+LocalPacks/paint-kit/hud/tex_2dmode_jacket_mirror_r.png	Assets/Graphics/Textures/tex_2dmode_jacket_mirror_r.png	0	0	244	130	0	0	0	0	1	whole
+LocalPacks/paint-kit/hud/tex_2dmode_jacket_mirror_l.png	Assets/Graphics/Textures/tex_2dmode_jacket_mirror_l.png	0	0	310	196	0	0	0	0	1	whole
+LocalPacks/paint-kit/hud/tex_2dmode_jacket_mirror_main.png	Assets/Graphics/Textures/tex_2dmode_jacket_mirror_main.png	0	0	474	428	0	0	0	0	1	whole
+LocalPacks/paint-kit/hud/mask_line.png	Assets/Graphics/Textures/mask_line.png	0	0	18	6	0	0	0	0	1	whole
+LocalPacks/paint-kit/hud/lane_mask.png	Assets/Graphics/Textures/lane_mask.png	0	0	2048	1176	0	0	0	0	1	whole
+LocalPacks/paint-kit/hud/judgeLine.png	Assets/Graphics/Textures/judgeLine.png	0	0	1608	114	0	0	0	0	1	whole
+LocalPacks/paint-kit/hud/grd_append.png	Assets/Graphics/Textures/grd_append.png	0	0	512	2	0	0	0	0	1	whole
+LocalPacks/paint-kit/hud/tex_lifeZero.png	Assets/Graphics/Textures/tex_lifeZero.png	0	0	480	480	0	0	0	0	1	whole
+LocalPacks/paint-kit/hud/lane_base.png	Assets/Graphics/Textures/lane_base.png	0	0	2048	1176	0	0	0	0	1	whole
+LocalPacks/paint-kit/hud/lane_line.png	Assets/Graphics/Textures/lane_line.png	0	0	2048	1176	0	0	0	0	1	whole
+LocalPacks/paint-kit/hud/bg_base_wh.png	Assets/Graphics/Textures/bg_base_wh.png	0	0	4	4	0	0	0	0	1	whole
+LocalPacks/paint-kit/hud/bg_base_ingame_wh.png	Assets/Graphics/Textures/bg_base_ingame_wh.png	0	0	4	4	0	0	0	0	1	whole
+LocalPacks/paint-kit/hud/number_48px_4_wh.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1442	1197	35	42	0.0	0.0	0.0	0.0	100.00	rect
+LocalPacks/paint-kit/hud/number_48px_8_wh.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	611	1637	33	44	0.0	0.0	0.0	0.0	100.00	rect
+LocalPacks/paint-kit/hud/eff_0_150.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1702	0	180	211	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/judge_perfect.png	Assets/Graphics/Textures/sactx-0-512x512-ASTC 6x6-JudgeAtlas-7d24d8f5.png	0	0	310	81	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_combo_154px_9_pr.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	493	908	116	150	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_48px_shadow_3.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	0	1122	46	56	0.0	0.0	0.0	0.0	100.00	rect
+LocalPacks/paint-kit/hud/B.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1275	1245	32	34	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_combo_154px_6_pr.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	613	908	116	150	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_combo_ap_154px_1_rbw.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1280	1097	78	144	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/effect_lifeGauge.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1290	140	406	136	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_48px_1_wh.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1923	0	22	42	0.0	0.0	0.0	0.0	100.00	rect
+LocalPacks/paint-kit/hud/number_48px_shadow_1.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	324	1734	36	56	0.0	0.0	0.0	0.0	100.00	rect
+LocalPacks/paint-kit/hud/eff_7_150.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	174	908	171	207	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_combo_154px_0_pr.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	0	1473	116	150	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_combo_154px_1_pr.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1198	1097	78	144	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_combo_154px_7_pr.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	965	1136	108	144	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/gauge_base_h16_dbl.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	604	2016	24	24	11.0	0.0	11.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/bar_lifeGauge_rd.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	284	2016	264	24	11.0	0.0	11.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_48px_shadow_9.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	560	1589	47	56	0.0	0.0	0.0	0.0	100.00	rect
+LocalPacks/paint-kit/hud/gauge_base_h16_dbl_2.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	564	2016	24	24	11.0	0.0	11.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_48px_shadow_6.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	603	1529	47	56	0.0	0.0	0.0	0.0	100.00	rect
+LocalPacks/paint-kit/hud/number_48px_9_wh.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	951	1344	34	44	0.0	0.0	0.0	0.0	100.00	rect
+LocalPacks/paint-kit/hud/eff_1_150.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	349	908	140	205	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/eff_combo.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	740	1143	197	79	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_combo_ap_154px_6_rbw.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	315	1197	116	150	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/judge_great.png	Assets/Graphics/Textures/sactx-0-512x512-ASTC 6x6-JudgeAtlas-7d24d8f5.png	0	85	238	81	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/bar_lifeGauge_gn.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	4	2016	264	24	11.0	0.0	11.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_combo_154px_5_pr.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1655	918	113	147	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/eff_8_150.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1472	707	179	211	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/judge_bad.png	Assets/Graphics/Textures/sactx-0-512x512-ASTC 6x6-JudgeAtlas-7d24d8f5.png	0	256	161	81	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/eff_6_150.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1180	708	179	211	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/effect_scoreGauge.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	0	490	828	198	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/btn_stop_disable.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1077	1136	96	96	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/judge_miss.png	Assets/Graphics/Textures/sactx-0-512x512-ASTC 6x6-JudgeAtlas-7d24d8f5.png	205	171	183	82	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/judge_timing_late.png	Assets/Graphics/Textures/sactx-0-512x512-ASTC 6x6-JudgeAtlas-7d24d8f5.png	208	311	164	50	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_combo_154px_8_pr.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1700	215	117	151	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/txt_combo_ap_rbw.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1363	922	148	49	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/meter_mark.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	556	1216	22	22	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_48px_0_wh.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1772	1013	33	44	0.0	0.0	0.0	0.0	100.00	rect
+LocalPacks/paint-kit/hud/number_combo_ap_154px_8_rbw.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	194	1197	117	151	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_48px_6_wh.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	611	1589	34	44	0.0	0.0	0.0	0.0	100.00	rect
+LocalPacks/paint-kit/hud/number_combo_154px_4_pr.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	435	1216	117	144	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/btn_stop.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	452	1435	96	96	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/eff_4_150.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1655	492	181	206	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_48px_shadow_8.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	552	1529	47	56	0.0	0.0	0.0	0.0	100.00	rect
+LocalPacks/paint-kit/hud/judge_timing_flick.png	Assets/Graphics/Textures/sactx-0-512x512-ASTC 6x6-JudgeAtlas-7d24d8f5.png	0	341	204	50	0.0	0.0	0.0	0.0	100.00	rect
+LocalPacks/paint-kit/hud/number_combo_ap_154px_4_rbw.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	965	988	117	144	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_48px_5_wh.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	50	1779	33	43	0.0	0.0	0.0	0.0	100.00	rect
+LocalPacks/paint-kit/hud/btn_skip.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	120	1551	96	96	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_combo_ap_154px_7_rbw.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1086	988	108	144	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_48px_shadow_7.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	0	1779	46	56	0.0	0.0	0.0	0.0	100.00	rect
+LocalPacks/paint-kit/hud/eff_3_150.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1655	702	174	212	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_combo_154px_2_pr.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	628	1143	108	148	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/score_S.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	204	1651	66	92	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/bg_scoreGauge.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	556	1295	170	80	137.9	0.0	31.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/text_outline_plus_36wh.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	830	1278	32	35	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/bg_lifeGauge.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	237	1352	174	80	139.0	0.0	27.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/icon_heart_gn.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	50	1826	34	32	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/judge_good.png	Assets/Graphics/Textures/sactx-0-512x512-ASTC 6x6-JudgeAtlas-7d24d8f5.png	242	85	217	82	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/C.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	951	1392	32	34	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_48px_shadow_0.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1163	1297	47	56	0.0	0.0	0.0	0.0	100.00	rect
+LocalPacks/paint-kit/hud/number_48px_shadow_5.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	274	1702	46	56	0.0	0.0	0.0	0.0	100.00	rect
+LocalPacks/paint-kit/hud/number_combo_154px_3_pr.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	733	988	112	151	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_48px_2_wh.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	649	1611	32	43	0.0	0.0	0.0	0.0	100.00	rect
+LocalPacks/paint-kit/hud/number_48px_7_wh.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1886	52	32	42	0.0	0.0	0.0	0.0	100.00	rect
+LocalPacks/paint-kit/hud/number_combo_ap_154px_5_rbw.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	120	1352	113	147	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/white6x6.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1232	440	6	6	2.0	2.0	2.0	2.0	108.00	rect
+LocalPacks/paint-kit/hud/txt_combo_pr.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	552	1435	145	45	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/eff_2_150.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	0	908	170	210	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_48px_3_wh.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1481	1196	33	43	0.0	0.0	0.0	0.0	100.00	rect
+LocalPacks/paint-kit/hud/judge_timing_fast.png	Assets/Graphics/Textures/sactx-0-512x512-ASTC 6x6-JudgeAtlas-7d24d8f5.png	165	257	164	50	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_48px_shadow_4.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	906	1226	48	56	0.0	0.0	0.0	0.0	100.00	rect
+LocalPacks/paint-kit/hud/judge_auto.png	Assets/Graphics/Textures/sactx-0-512x512-ASTC 6x6-JudgeAtlas-7d24d8f5.png	0	170	201	82	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_combo_ap_154px_2_rbw.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	0	1627	108	148	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_48px_shadow_2.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	958	1284	46	56	0.0	0.0	0.0	0.0	100.00	rect
+LocalPacks/paint-kit/hud/number_combo_ap_154px_0_rbw.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	508	1062	116	150	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/text_plus_36wh.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	628	1062	31	36	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_combo_ap_154px_9_rbw.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	0	1319	116	150	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/number_combo_ap_154px_3_rbw.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	849	988	112	151	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/eff_5_150.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1833	702	175	209	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/S.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	866	1278	32	34	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/eff_9_150.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1472	492	179	211	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/A.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1610	1097	32	34	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/score_A.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1772	918	76	91	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/label_autolive.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	174	1119	330	74	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/tex_live_countdown_1.png	Assets/Graphics/Resources/effects/live_countdown/texture/tex_live_countdown.png	53	275	112	218	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/score_D.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1362	1197	76	87	0.0	0.0	0.0	0.0	100.00	rect
+LocalPacks/paint-kit/hud/score_C.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	112	1736	68	92	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/gauge_bar_ingame_freeLive_s.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	415	1379	532	24	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/score_B.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	220	1551	68	87	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/tex_live_countdown_3.png	Assets/Graphics/Resources/effects/live_countdown/texture/tex_live_countdown.png	44	14	170	228	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/tex_live_countdown_2.png	Assets/Graphics/Resources/effects/live_countdown/texture/tex_live_countdown.png	303	272	162	223	0.0	0.0	0.0	0.0	108.00	rect
+LocalPacks/paint-kit/hud/tex_transition_03.png	Assets/Graphics/Resources/effects/transition/texture/tex_transition_03.png	0	0	512	512	0.0	0.0	0.0	0.0	100.00	whole
+LocalPacks/paint-kit/hud/tex_transition_01.png	Assets/Graphics/Resources/effects/transition/texture/tex_transition_01.png	0	0	1024	1024	0.0	0.0	0.0	0.0	100.00	whole

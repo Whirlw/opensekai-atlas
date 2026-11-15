@@ -1,12 +1,14 @@
-﻿# Copies the painted textures from the paint kit back into the project.
+# Copies the painted textures from the paint kit back into the project.
 # Atlas sprites are handled by Tools/apply-atlas-art.ps1; this script only moves whole textures
 # (effects, note skins, 2D backgrounds) and matches them by file name inside an explicit root.
 param(
-    [string]$KitRoot = 'E:\Projects\NewSkin\paint-kit',
     [switch]$Apply
 )
 
 $ErrorActionPreference = 'Stop'
+$ProjectRoot = Split-Path $PSScriptRoot -Parent
+$KitRoot = Join-Path $ProjectRoot 'ArtSource'
+Set-Location $ProjectRoot
 Add-Type -AssemblyName System.Drawing
 
 function Get-Size([string]$path) {
@@ -20,11 +22,11 @@ function Get-Size([string]$path) {
 # (which a single global index does) silently overwrites one style with the other.
 $noteRoot = 'Assets\Game\Resources\live\note'
 $groups = @(
-    @{ Source = 'new_effects';     Roots = @('Assets\Game\AssetBundles\resources\tutorial\effect_asset\live') },
-    @{ Source = 'new_notes';       Roots = @("$noteRoot\custom01") },
-    @{ Source = 'new_notes_v2';    Roots = @("$noteRoot\custom02") },
-    @{ Source = 'new_backgrounds'; Roots = @('Assets\Game\AssetBundles\resources\startapp', 'Assets\Graphics\Resources') },
-    @{ Source = 'new_hud';         Roots = @('Assets\Graphics\Textures', 'Assets\Graphics\Resources\effects\transition\texture') }
+    @{ Source = 'Effects';     Roots = @('Assets\Game\AssetBundles\resources\tutorial\effect_asset\live') },
+    @{ Source = 'Notes';       Roots = @("$noteRoot\custom01") },
+    @{ Source = 'NotesV2';    Roots = @("$noteRoot\custom02") },
+    @{ Source = 'Backgrounds'; Roots = @('Assets\Game\AssetBundles\resources\startapp', 'Assets\Graphics\Resources') },
+    @{ Source = 'HUD';         Roots = @('Assets\Graphics\Textures', 'Assets\Graphics\Resources\effects\transition\texture', 'Assets\Graphics\AtlasSprites') }
 )
 
 $copied = 0; $same = 0; $missing = @(); $mismatch = @(); $absentGroups = @()
@@ -41,8 +43,14 @@ foreach ($group in $groups) {
             $targets[$_.Name] += $_.FullName
         }
     }
+    if ($group.Source -eq 'Backgrounds') {
+        $rankPlate = 'Assets\Graphics\Textures\ui_scorerank_plate.png'
+        if (Test-Path -LiteralPath $rankPlate) {
+            $targets['ui_scorerank_plate.png'] = @((Get-Item -LiteralPath $rankPlate).FullName)
+        }
+    }
 
-    foreach ($file in Get-ChildItem $srcDir -Recurse -File -Filter '*.png') {
+    foreach ($file in Get-ChildItem $srcDir -File -Filter '*.png') {
         # judgement-effect and result files carry a folder prefix: live_tap_effect_0_tex_note_common_all.png
         $leaf = $file.Name
         if ($leaf -match '^live_(tap_effect|result)_[a-z0-9_]*?_(?<rest>(tex|txt|bg|mask|ALL|FULL|LIVE).*)$') {
@@ -54,7 +62,10 @@ foreach ($group in $groups) {
         $srcSize = Get-Size $file.FullName
         foreach ($target in $targets[$leaf]) {
             $dstSize = Get-Size $target
-            if ($dstSize -ne $srcSize) { $mismatch += "$($file.Name) $srcSize -> $dstSize ($target)"; continue }
+            # A sprite under Assets/Graphics/AtlasSprites is packed by a Sprite Atlas, so new art may
+            # change its size or shape; everywhere else a size change still means the wrong file.
+            $packed = $target -like '*\Graphics\AtlasSprites\*'
+            if ($dstSize -ne $srcSize -and -not $packed) { $mismatch += "$($file.Name) $srcSize -> $dstSize ($target)"; continue }
             if ((Get-FileHash $file.FullName).Hash -eq (Get-FileHash $target).Hash) { $same++; continue }
             if ($Apply) { Copy-Item $file.FullName $target -Force }
             $copied++

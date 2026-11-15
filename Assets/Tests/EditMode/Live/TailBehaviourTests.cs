@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 
 using Sekai.Live;
 
@@ -54,8 +54,6 @@ namespace OpenSekai.Tests.EditMode.Live
 
 			Assert.That(bar.TailBehaviour.AcceptsRelease, Is.True);
 
-			Assert.That(bar.TailBehaviour.AcceptsSwipe, Is.False);
-
 			Assert.That(bar.TailBehaviour.JudgesItself, Is.False);
 
 		}
@@ -64,7 +62,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
 		[Test]
 
-		public void AFlickTailIsFinishedByASwipeNotARelease()
+		public void AFlickTailJudgesItselfAndTheBarOnlyDetaches()
 
 		{
 
@@ -74,13 +72,11 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-			Assert.That(bar.TailBehaviour, Is.SameAs(SwipeTail.Instance));
+			Assert.That(bar.TailBehaviour, Is.SameAs(SelfJudgedTail.Instance));
 
 			Assert.That(bar.TailBehaviour.AcceptsRelease, Is.False);
 
-			Assert.That(bar.TailBehaviour.AcceptsSwipe, Is.True);
-
-			Assert.That(bar.TailBehaviour.JudgesItself, Is.False);
+			Assert.That(bar.TailBehaviour.JudgesItself, Is.True);
 
 		}
 
@@ -101,8 +97,6 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(bar.TailBehaviour, Is.SameAs(SelfJudgedTail.Instance));
 
 			Assert.That(bar.TailBehaviour.AcceptsRelease, Is.False);
-
-			Assert.That(bar.TailBehaviour.AcceptsSwipe, Is.False);
 
 			Assert.That(bar.TailBehaviour.JudgesItself, Is.True);
 
@@ -130,9 +124,9 @@ namespace OpenSekai.Tests.EditMode.Live
 
 
 
-			Assert.That(bar.TailBehaviour, Is.SameAs(SwipeTail.Instance));
+			Assert.That(bar.TailBehaviour, Is.SameAs(SelfJudgedTail.Instance));
 
-			Assert.That(bar.TailBehaviour.AcceptsSwipe, Is.True);
+			Assert.That(bar.TailBehaviour.JudgesItself, Is.True);
 
 		}
 
@@ -207,8 +201,6 @@ namespace OpenSekai.Tests.EditMode.Live
 
 	    Assert.That(bar.TailBehaviour.AcceptsRelease, Is.False);
 
-	    Assert.That(bar.TailBehaviour.AcceptsSwipe, Is.False);
-
 	    Assert.That(bar.TailBehaviour.JudgesItself, Is.False);
 
 	    Assert.That(bar.EndsWithoutJudgement, Is.True);
@@ -247,7 +239,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
 		Assert.That(bar.ChildNote, Is.TypeOf<FlickNote>());
 
-		Assert.That(bar.TailBehaviour.AcceptsSwipe, Is.True);
+		Assert.That(bar.TailBehaviour.JudgesItself, Is.True);
 
 		Assert.That(bar.TryGetTail(out NoteBase tail), Is.True);
 

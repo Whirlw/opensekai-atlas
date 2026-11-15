@@ -32,6 +32,14 @@ namespace Sekai.Core.Live
 		/// has to ask about the y axis again.
 		/// </summary>
 		private readonly HashSet<int> _touchesAboveTheLine = new HashSet<int>();
+
+		/// <summary>
+		/// Touches that may no longer light an empty lane: the touch held a bar, rubbed a friction key,
+		/// or spent its press on a key. The mark lasts until the finger leaves the screen, so a finger
+		/// that slides off a bar stays quiet over the empty lanes it crosses.
+		/// </summary>
+		internal HashSet<int> SilencedTouches { get; } = new HashSet<int>();
+
 		internal LiveInputRouter(LiveLogic logic, LiveBundleBuildData bundle)
 		{
 			_logic = logic;
@@ -64,8 +72,10 @@ namespace Sekai.Core.Live
 			_collector.Reset();
 			ActiveInputs.Clear();
 			_judgedTouchTimes.Clear();
+			Holds.ClearKeyPresses();
 			_previousTouchLanes.Clear();
 			_touchesAboveTheLine.Clear();
+			SilencedTouches.Clear();
 		}
 
 		internal void CollectTouches()
@@ -99,9 +109,16 @@ namespace Sekai.Core.Live
 
 		internal void SortPressCandidates() => _candidates.SortPressCandidates(ActiveInputs, _logic.currentFrameInfo);
 
+		internal void JudgeLifts() => Holds.JudgeLifts(JudgmentNotes, ActiveInputs, _logic.currentFrameInfo, _candidates);
+
 		internal void RecordJudgedTouch(LiveTouch touch) => _judgedTouchTimes[touch.touchId] = touch.musicTime;
 
-		internal void ForgetJudgedTouch(int touchId) => _judgedTouchTimes.Remove(touchId);
+		internal void ForgetJudgedTouch(int touchId)
+		{
+			_judgedTouchTimes.Remove(touchId);
+			Holds.ForgetKeyPress(touchId);
+			SilencedTouches.Remove(touchId);
+		}
 
 		internal static bool IsEndedOrCanceled(InputTouchPhase phase)
 		{

@@ -22,14 +22,20 @@ namespace Sekai.Core.Live
 	{
 
 		private readonly int[] _holdInputNotes;
-		private readonly LongNote[] _swipeTargets;
 		private readonly HashSet<int> _usedLiftFingers = new HashSet<int>();
+		private readonly Dictionary<int, float> _keyPressTimes = new Dictionary<int, float>();
+		private HashSet<int> _silencedTouches;
 
 		public LiveHoldCoordinator(int inputCapacity)
 		{
 			_holdInputNotes = new int[inputCapacity];
-			_swipeTargets = new LongNote[inputCapacity];
 		}
+
+		internal void RecordKeyPress(LiveTouch touch) => _keyPressTimes[touch.touchId] = touch.musicTime;
+
+		internal void ForgetKeyPress(int touchId) => _keyPressTimes.Remove(touchId);
+
+		internal void ClearKeyPresses() => _keyPressTimes.Clear();
 
 		/// <summary>
 		/// The bar this finger is holding right now, or -1. Used to keep hold-versus-hold contention
@@ -62,7 +68,7 @@ namespace Sekai.Core.Live
 					continue;
 				}
 
-				float middle = (held.JudgeLaneStart + held.JudgeLaneEnd) * 0.5f;
+				float middle = (held.BodyLaneStart + held.BodyLaneEnd) * 0.5f;
 				int best = -1;
 				float bestDistance = float.MaxValue;
 				for (int i = 0; i < count; i++)
@@ -98,12 +104,14 @@ namespace Sekai.Core.Live
 		/// One frame of hold upkeep: cover every live bar with the fingers on it, then refresh each
 		/// bar from its owner. Neither step consumes a candidate slot or moves ownership.
 		/// </summary>
-		public void Refresh(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame, float deltaTime)
+		public void Refresh(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame, float deltaTime,
+			HashSet<int> silencedTouches = null)
 		{
+			_silencedTouches = silencedTouches;
 			// A bar is not owned by a finger: any touch on it keeps it alive, and a touch that leaves
 			// the screen inside it is the release the tail listens for. This runs before ownership so a
 			// second finger can neither steal the hold nor swallow the tail.
-			CoverHoldsWithAnyFinger(judgmentNotes, inputs, frame, deltaTime);
+			CoverHoldsWithAnyFinger(judgmentNotes, inputs, frame);
 
 			int count = inputs.Count;
 			for (int noteIndex = 0; noteIndex < judgmentNotes.Count; noteIndex++)
@@ -143,12 +151,23 @@ namespace Sekai.Core.Live
 		/// The release channel: a finger that leaves the screen finishes the one bar it is standing on.
 		///
 		/// It runs on the frame's ended samples, before the resident upkeep, and it only settles the
-		/// tail a release can settle (<see cref="Tails.ReleaseTail"/>). A flick end is finished by the
-		/// swipe the resident pass hands it, and a rub, a rub flick or a hidden carrier grades itself,
-		/// so none of those is touched here.
+		/// tail a release can settle (<see cref="Tails.ReleaseTail"/>). A flick, a rub, a rub flick or a
+		/// hidden carrier grades itself, so none of those is touched here.
 		/// </summary>
-		public void JudgeLifts(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame)
+		public void JudgeLifts(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame,
+			LiveCandidatePipeline candidates)
 		{
+			foreach (LiveLogic.InputTmp input in inputs)
+			{
+				input.CandidateNotes.Clear();
+				if (IsEndedOrCanceled(input.Touch.phase) && input.Lane >= 0f)
+				{
+					CollectLiftCandidates(judgmentNotes, input, frame.time);
+				}
+			}
+
+			candidates.DeduplicateCandidates(inputs, ref frame);
+
 			// A lift is a judgement, so it gets the same treatment as a press: one finger may finish
 			// one ordinary tail per frame.
 			_usedLiftFingers.Clear();
@@ -161,12 +180,12 @@ namespace Sekai.Core.Live
 					continue;
 				}
 
-				LongNote target = PickLiftTarget(judgmentNotes, inputs, input, frame.time);
+				NoteBase tail = PickLiftTarget(input, ref frame);
+				LongNote target = tail?.ParentNote as LongNote;
 
 				if (LiveTrace.IsOn(LiveTraceCategory.Release))
 				{
 					float barTime = target == null ? -1f : target.MusicScoreInfo.time;
-					NoteBase tail = target?.ChildNote as NoteBase;
 					LiveTrace.Write(LiveTraceCategory.Release,
 						$"liftSelected finger={input.Touch.fingerId} touch={input.Touch.touchId} lane={input.Lane:F2} phase={input.Touch.phase} barT={barTime:F3} tailId={(tail == null ? -1 : tail.Id)} tailT={(tail == null ? -1f : tail.MusicScoreInfo.time):F3}");
 				}
@@ -182,17 +201,12 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>
-		/// Feeds every live bar the fingers currently on it, and hands each bar the frame's cover and
-		/// swipe facts. The lift that ends a bar is the release channel's business, already done.
+		/// Feeds every live bar the fingers currently on it, and hands each bar the frame's cover. The lift
+		/// that ends a bar is the release channel's business, already done.
 		/// </summary>
-		private void CoverHoldsWithAnyFinger(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame, float deltaTime)
+		private void CoverHoldsWithAnyFinger(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame)
 		{
 			int count = inputs.Count;
-			for (int i = 0; i < count; i++)
-			{
-				_swipeTargets[i] = PickSwipeTarget(judgmentNotes, inputs[i], frame.time);
-			}
-
 			for (int noteIndex = 0; noteIndex < judgmentNotes.Count; noteIndex++)
 			{
 				if (judgmentNotes[noteIndex] is not LongNote held
@@ -202,36 +216,16 @@ namespace Sekai.Core.Live
 				}
 
 				bool covered = false;
-				int? deferredTouch = held.DeferredSwipeTouchId;
-				LiveLogic.InputTmp swipe = null;
 				for (int inputIndex = 0; inputIndex < count; inputIndex++)
 				{
 					LiveLogic.InputTmp input = inputs[inputIndex];
-					if (input == null)
-					{
-						continue;
-					}
-
-					if (ReferenceEquals(_swipeTargets[inputIndex], held)
-						&& (swipe == null || input.Touch.delta.sqrMagnitude > swipe.Touch.delta.sqrMagnitude))
-					{
-						swipe = input;
-					}
-
-					if (IsEndedOrCanceled(input.Touch.phase) || !TouchesBar(input.Lane, held))
+					if (input == null || IsEndedOrCanceled(input.Touch.phase) || !TouchesBar(input.Lane, held))
 					{
 						continue;
 					}
 
 					covered = true;
-
-					// A decorative bar is not played, only its tail is: a click is what turns the drag
-					// into a flick on it, matching the plain flick note it ends with.
-					if (held.State != NoteState.Done && !held.HasJudgment
-						&& input.Touch.phase == UnityEngine.InputSystem.TouchPhase.Began)
-					{
-						held.MarkTailPressed();
-					}
+					break;
 				}
 
 				// A finger resting over a bar whose head has not been judged yet must not adopt it:
@@ -243,22 +237,31 @@ namespace Sekai.Core.Live
 					held.KeepAlive(frame.time);
 				}
 
-				bool swipeEnded = swipe != null && IsEndedOrCanceled(swipe.Touch.phase);
+				// A finger on a bar in play has pressed a long note: it may not light the empty lanes
+				// again until it leaves the screen.
+				if (_silencedTouches != null && held.State != NoteState.Done && covered && (headSettled || !held.HasJudgment))
+				{
+					for (int inputIndex = 0; inputIndex < count; inputIndex++)
+					{
+						LiveLogic.InputTmp input = inputs[inputIndex];
+						if (input != null && !IsEndedOrCanceled(input.Touch.phase) && TouchesBar(input.Lane, held))
+						{
+							_silencedTouches.Add(input.Touch.touchId);
+						}
+					}
+				}
+
 				if (LiveTrace.IsOn(LiveTraceCategory.Resident))
 				{
 					LiveTrace.Write(LiveTraceCategory.Resident,
-						$"tailFrame barT={held.MusicScoreInfo.time:F3} now={frame.time:F3} state={held.State} covered={covered} swipeEnded={swipeEnded} swipeTouch={swipe?.Touch.touchId} held={held.HasFinger} settled={headSettled} child={(held.ChildNote == null ? -1f : held.ChildNote.MusicScoreInfo.time):F3} childRes={(held.ChildNote == null ? NoteResult.None : held.ChildNote.Result)}");
+						$"tailFrame barT={held.MusicScoreInfo.time:F3} now={frame.time:F3} state={held.State} covered={covered} held={held.HasFinger} settled={headSettled} child={(held.ChildNote == null ? -1f : held.ChildNote.MusicScoreInfo.time):F3} childRes={(held.ChildNote == null ? NoteResult.None : held.ChildNote.Result)}");
 				}
 
-				// Ordinary lifts already settled in JudgeLifts. Swipe release follows the finger that
-				// made the gesture, even when a second finger is still covering the bar.
+				// Ordinary lifts already settled in JudgeLifts. Every other end grades itself (or is not
+				// graded at all), and the bar only learns whether it may leave.
 				if (!held.TailBehaviour.AcceptsRelease)
 				{
-					int? gestureTouch = deferredTouch ?? swipe?.Touch.touchId;
-					bool gestureCovered = gestureTouch.HasValue
-						? IsTouchStillOnBar(inputs, gestureTouch.Value, held) : covered;
-					held.TailBehaviour.TryFinish(held, new TailFrame(frame.time, deltaTime,
-						swipe?.Touch.delta ?? Vector2.zero, swipeEnded, gestureCovered, swipe?.Touch.touchId));
+					held.TailBehaviour.TryFinish(held, new TailFrame(frame.time, false));
 				}
 
 				// The tail can keep judging after the body reaches its endpoint.
@@ -269,74 +272,12 @@ namespace Sekai.Core.Live
 					held.CompleteTail();
 				}
 			}
-
-			Array.Clear(_swipeTargets, 0, count);
 		}
 
+		// Where the bar is now: a bending body leaves its head's lanes, and the finger that follows it
+		// must keep covering it.
 		private static bool TouchesBar(float lane, LongNote bar) =>
-			lane >= 0f && HoldSweep.TouchesLane(lane, bar.JudgeLaneStart, bar.JudgeLaneEnd);
-
-		private static bool IsTouchStillOnBar(List<LiveLogic.InputTmp> inputs, int touchId, LongNote bar)
-		{
-			for (int i = inputs.Count - 1; i >= 0; i--)
-			{
-				LiveLogic.InputTmp input = inputs[i];
-				if (input != null && input.Touch.touchId == touchId)
-				{
-					return !IsEndedOrCanceled(input.Touch.phase) && TouchesBar(input.Lane, bar);
-				}
-			}
-
-			return false;
-		}
-
-		private static LongNote PickSwipeTarget(List<NoteBase> judgmentNotes, LiveLogic.InputTmp input, float time)
-		{
-			if (input == null || input.Touch.delta.sqrMagnitude == 0f)
-			{
-				return null;
-			}
-
-			// The final sample can contain the whole flick and land outside the playfield.
-			// Its preceding lane identifies where that movement started.
-			float lane = input.PreviousLane >= 0f || IsEndedOrCanceled(input.Touch.phase)
-				? input.PreviousLane : input.Lane;
-			if (lane < 0f)
-			{
-				return null;
-			}
-
-			LongNote best = null;
-			float bestDistance = float.MaxValue;
-			foreach (NoteBase note in judgmentNotes)
-			{
-				if (note is not LongNote bar || !bar.CanReceiveTailSwipe
-					|| !bar.TailBehaviour.AcceptsSwipe || !TouchesBar(lane, bar)
-					|| !bar.IsTailWindowOpenAt(time))
-				{
-					continue;
-				}
-
-				int? deferredTouch = bar.DeferredSwipeTouchId;
-				if (deferredTouch.HasValue)
-				{
-					if (deferredTouch == input.Touch.touchId)
-					{
-						return bar;
-					}
-					continue;
-				}
-
-				float distance = Math.Abs(lane - (bar.JudgeLaneStart + bar.JudgeLaneEnd) * 0.5f);
-				if (distance < bestDistance)
-				{
-					best = bar;
-					bestDistance = distance;
-				}
-			}
-
-			return best;
-		}
+			lane >= 0f && HoldSweep.TouchesLane(lane, bar.BodyLaneStart, bar.BodyLaneEnd);
 
 		private static bool RefreshFromAnyFinger(LongNote held, int count, List<LiveLogic.InputTmp> inputs)
 		{
@@ -364,34 +305,28 @@ namespace Sekai.Core.Live
 
 
 		/// <summary>
-		/// The bars a lifting finger may finish: its lane must hold the finger and its tail must be
-		/// judgeable right now. Of those, the earliest tail wins - a lift finishes one bar, the one
-		/// that is already due.
-		///
-		/// A lift does not say which finger held the bar, so a crowded tail is guarded: while another
-		/// touch is still on screen inside the tail's judge range, only a lift inside the Perfect band
-		/// may settle it. A finger that tapped a nearby key and comes up a little off the beat leaves
-		/// the tail to the finger still on it. The lifting touch alone in the range may settle any grade.
+		/// How soon after a consumed tap or flick press a lift of the same contact counts as the end of
+		/// that tap rather than a deliberate release: 100 ms.
 		/// </summary>
-		private static LongNote PickLiftTarget(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs,
-			LiveLogic.InputTmp lift, float time)
+		internal const float QuickTapSeconds = 0.1f;
+
+		/// <summary>
+		/// Collects ordinary tails in reach. A contact whose press was consumed by a tap or by a flick's
+		/// press step, and that lifts within <see cref="QuickTapSeconds"/> of it, is finishing that tap: it
+		/// may only release a tail inside that tail's Perfect band, whichever tail it is. Whether a tail's
+		/// window was open at the press does not matter.
+		/// </summary>
+		private void CollectLiftCandidates(List<NoteBase> judgmentNotes, LiveLogic.InputTmp lift, float time)
 		{
-			LongNote best = null;
-			float bestTime = float.MaxValue;
-			float bestDistance = float.MaxValue;
 			float lane = lift.Lane;
+			bool quickTap = _keyPressTimes.TryGetValue(lift.Touch.touchId, out float pressTime)
+				&& time - pressTime <= QuickTapSeconds;
 			bool tracing = LiveTrace.IsOn(LiveTraceCategory.Release);
 			System.Text.StringBuilder candidates = tracing ? new System.Text.StringBuilder() : null;
-			if (lane < 0f)
-			{
-				if (tracing) LiveTrace.Write(LiveTraceCategory.Release, $"liftCandidates finger={lift.Touch.fingerId} touch={lift.Touch.touchId} lane={lane:F2} candidates=[]");
-				return null;
-			}
 
 			foreach (NoteBase note in judgmentNotes)
 			{
-				if (note is not LongNote candidate
-					|| (candidate.State == NoteState.Done && !candidate.HasPendingManagedTail))
+				if (note is not LongNote candidate)
 				{
 					continue;
 				}
@@ -399,46 +334,55 @@ namespace Sekai.Core.Live
 				// The lift finishes a tail, so it is the tail's own lane that decides - a tail may sit
 				// on another lane than the body it hangs from, and the body's range is the widened
 				// judge range anyway, which reaches into the neighbours.
-				NoteBase tail = candidate.ChildNote as NoteBase;
-				if (!IsReleaseKey(candidate, tail) || !InTailRange(lane, tail))
-				{
-					continue;
-				}
-
-				if (!candidate.IsTailJudgeableAt(time))
+				NoteBase tail = candidate.TailNote;
+				if (!IsReleaseKey(candidate, tail) || !InTailRange(lane, tail)
+					|| !candidate.IsTailJudgeableAt(time) || lift.CandidateNotes.Contains(tail))
 				{
 					continue;
 				}
 
 				float tailTime = tail.MusicScoreInfo.time;
-				bool crowded = !LongEndJudgement.IsPerfect(time - tailTime)
-					&& AnotherTouchInTailRange(inputs, lift.Touch.touchId, tail);
-				if (tracing)
+				if (quickTap && !LongEndJudgement.IsPerfect(time - tailTime))
 				{
-					if (candidates.Length > 0) candidates.Append(';');
-					candidates.Append($"id={tail.Id},type={tail.GetType().Name},t={tailTime:F3},lane={tail.JudgeLaneStart:F2}..{tail.JudgeLaneEnd:F2},crowded={crowded}");
-				}
-				if (crowded)
-				{
-					if (LiveTrace.IsOn(LiveTraceCategory.Release))
-					{
+					if (tracing)
 						LiveTrace.Write(LiveTraceCategory.Release,
-							$"liftCrowded touch={lift.Touch.touchId} tailT={tailTime:F3} now={time:F3}");
-					}
+							$"liftOutsidePerfect touch={lift.Touch.touchId} tailId={tail.Id} pressT={pressTime:F3} tailT={tailTime:F3} now={time:F3}");
 					continue;
 				}
 
-				float distance = Math.Abs(lane - (tail.JudgeLaneStart + tail.JudgeLaneEnd) * 0.5f);
-				if (best == null || tailTime < bestTime || (tailTime == bestTime && distance < bestDistance))
+				lift.CandidateNotes.Add(tail);
+				if (tracing)
 				{
-					best = candidate;
-					bestTime = tailTime;
-					bestDistance = distance;
+					if (candidates.Length > 0) candidates.Append(';');
+					candidates.Append($"id={tail.Id},type={tail.GetType().Name},t={tailTime:F3},lane={tail.JudgeLaneStart:F2}..{tail.JudgeLaneEnd:F2},perfectOnly={quickTap}");
 				}
 			}
 
 			if (tracing)
 				LiveTrace.Write(LiveTraceCategory.Release, $"liftCandidates finger={lift.Touch.fingerId} touch={lift.Touch.touchId} lane={lane:F2} now={time:F3} candidates=[{candidates}]");
+		}
+
+		private static NoteBase PickLiftTarget(LiveLogic.InputTmp lift, ref MusicScoreInfo frame)
+		{
+			NoteBase best = null;
+			float bestTime = float.MaxValue;
+			float bestDistance = float.MaxValue;
+			foreach (NoteBase tail in lift.CandidateNotes)
+			{
+				// Samples for one finger share the lift credit. A previous sample may have already settled this tail.
+				if (tail.State == NoteState.Done) continue;
+
+				float time = tail.MusicScoreInfo.time;
+				float distance = tail.LaneDistance(ref frame, lift.Lane);
+				if (best == null || time < bestTime || (time == bestTime
+					&& (distance < bestDistance || (distance == bestDistance && LiveCandidatePipeline.PrecedesForOneFinger(tail, best)))))
+				{
+					best = tail;
+					bestTime = time;
+					bestDistance = distance;
+				}
+			}
+
 			return best;
 		}
 
@@ -454,43 +398,6 @@ namespace Sekai.Core.Live
 
 		private static bool InTailRange(float lane, NoteBase tail) =>
 			lane >= tail.JudgeLaneStart && lane <= tail.JudgeLaneEnd;
-
-		/// <summary>
-		/// Whether a touch other than the lifting one is still on screen inside the tail's judge range.
-		/// A touch that also ends this frame has left and does not count; several samples of one touch
-		/// count as that one touch.
-		/// </summary>
-		private static bool AnotherTouchInTailRange(List<LiveLogic.InputTmp> inputs, int liftTouchId, NoteBase tail)
-		{
-			for (int i = 0; i < inputs.Count; i++)
-			{
-				LiveLogic.InputTmp other = inputs[i];
-				if (other == null || other.Touch.touchId == liftTouchId
-					|| IsEndedOrCanceled(other.Touch.phase) || other.Lane < 0f || !InTailRange(other.Lane, tail)
-					|| EndsThisFrame(inputs, other.Touch.touchId))
-				{
-					continue;
-				}
-
-				return true;
-			}
-
-			return false;
-		}
-
-		private static bool EndsThisFrame(List<LiveLogic.InputTmp> inputs, int touchId)
-		{
-			for (int i = 0; i < inputs.Count; i++)
-			{
-				LiveLogic.InputTmp input = inputs[i];
-				if (input != null && input.Touch.touchId == touchId && IsEndedOrCanceled(input.Touch.phase))
-				{
-					return true;
-				}
-			}
-
-			return false;
-		}
 
 		private static bool IsEndedOrCanceled(UnityEngine.InputSystem.TouchPhase phase)
 		{

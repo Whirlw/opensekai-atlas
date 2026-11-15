@@ -130,6 +130,34 @@ namespace Sekai.Core.Live
 
 		public LiveScore Score => Session.Score;
 		public bool IsNotesAllFinished => Session.AreNotesFinished;
+
+		/// <summary>What is still holding the live open, for the trace of a live that had to be ended by force.</summary>
+		internal string DescribeUnfinishedNotes()
+		{
+			LiveNoteSession notes = Session.Notes;
+			string tail = "none";
+			foreach (NoteBase pending in notes.PendingTails)
+			{
+				tail = Describe(pending);
+				break;
+			}
+
+			return string.Concat(
+				"cursor=", notes.NoteIndex.ToString(), "/", notes.Notes.Length.ToString(), " ", DescribeAt(notes.Notes, notes.NoteIndex),
+				" hs=", notes.HighSpeedIndex.ToString(), "/", notes.HighSpeedNotes.Length.ToString(), " ", DescribeAt(notes.HighSpeedNotes, notes.HighSpeedIndex),
+				" heads=", notes.PendingHeads.Count.ToString(),
+				" tails=", notes.PendingTailCount.ToString(), " firstTail=", tail,
+				" now=", currentFrameInfo.time.ToString("F3"));
+		}
+
+		private static string DescribeAt(NoteBase[] array, int index) =>
+			index < array.Length ? Describe(array[index]) : "end";
+
+		private static string Describe(NoteBase note) =>
+			note == null
+				? "null"
+				: string.Concat(note.GetType().Name, "@", note.MusicScoreInfo.time.ToString("F3"),
+					" state=", note.State.ToString(), " res=", note.Result.ToString());
 		public bool IsPerfectCombo => scoreLogic?.IsPerfectCombo ?? false;
 		public bool IsAllPerfectCombo => scoreLogic?.IsAllPerfectCombo ?? false;
 
