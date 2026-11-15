@@ -12,7 +12,7 @@
 - 渲染管线: URP **17.6.0**
 - 输入: **仅新版 Input System**（`activeInputHandler = 1`）
 - 目标平台: Android（IL2CPP，仅 ARM64，minSdk 26 / targetSdk 36）
-- 0.3.0 发布包：**83,514,543 字节（79.65 MiB）**，见 [Android 构建](docs/operations/android-build.md)。
+- 0.4.0 发布包：**93,663,219 字节（89.32 MiB）**，见 [Android 构建](docs/operations/android-build.md)。
 
 ## 快速开始
 

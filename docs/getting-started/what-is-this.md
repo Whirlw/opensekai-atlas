@@ -47,7 +47,7 @@
 
 ### 发行包
 
-0.3.0 Android 发布包为 **83,514,543 字节（79.65 MiB）**。测量文件、构建配置和历史数据见 [Android 构建](../operations/android-build.md)。
+0.4.0 Android 发布包为 **93,663,219 字节（89.32 MiB）**。测量文件、构建配置和历史数据见 [Android 构建](../operations/android-build.md)。
 
 ## 示例
 

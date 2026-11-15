@@ -3,12 +3,12 @@
 > 目的：从「工具链装没装全」到「APK 体积是多少、权限对不对」，给出可复现的出包流程。
 > 适用读者：打包与测试人员、开发者。
 > 前置条件：读过 [环境与运行](../getting-started/build-and-run.md) 与 [AssetBundle 与清单](../architecture/asset-bundles.md)。
-> 最后更新：2026-11-11
+> 最后更新：2026-11-15
 
 ## 概述
 
 出 Android 包只需要三件事：装全 Android Build Support（含 NDK）、跑一次 AssetBundle 打包、执行构建。
-产物在 `Builds/<目录>/`。当前发布样本见 [0.3.0 发布包体积](#030-发布包体积)，升级过程见 [Unity 6 升级执行记录](../changelog/2026-11-unity6-upgrade.md)。
+产物在 `Builds/<目录>/`。当前发布样本见 [0.4.0 发布包体积](#040-发布包体积)，升级过程见 [Unity 6 升级执行记录](../changelog/2026-11-unity6-upgrade.md)。
 
 ## 核心内容
 
@@ -46,7 +46,7 @@
 ```text
 1. 菜单 OpenSekai/AssetBundles/Build AssetBundles And Info
    核对 Assets/StreamingAssets/data/AssetBundleInfo.bytes 及其列出的 bundle 文件
-   0.3.0 样本含 10 个 bundle 和 1 份清单，assets/sound/ 含 42 个 WAV
+   0.4.0 样本含 10 个 bundle 和 1 份清单，assets/sound/ 含 43 个 WAV
 2. （改过清单或权限时）删除 Library/Bee/Android/Prj/IL2CPP/Gradle
 3. Build Settings → Android → Build（或菜单/CI 调 BuildPipeline）
 4. 核对产物：aapt2 dump permissions / badging
@@ -108,6 +108,16 @@ adb pull /sdcard/gate.png gate.png
    自检菜单 `OpenSekai/Dev/Verify Recording Permission Rule` 期望输出 `plainDeclarations=0 removeMarkers=2`。
 3. **Unity 复用旧 APK**：只改清单不触发重建，13–35 秒「构建成功」但 APK 的 mtime 与大小都不变。
    必须删 `Library/Bee/Android/Prj/IL2CPP/Gradle`。
+
+### 0.4.0 发布包体积
+
+`Builds/release-0.4.0-2026-11-15/OpenSekaiAtlas.apk` 的文件长度为 **93,663,219 字节（89.32 MiB）**，
+SHA-256 `a35336ba9238122bbf49a0444c9d9cc521e0e149b6c05d08c27460867bc3efc7`。构建配置与 0.3.0 相同（Unity 6000.6.7f1、
+Android IL2CPP、Low 托管剥离、ARM64）。用 `aapt2` 核对的 APK 元数据为 `0.4.0`（versionCode 85）、`arm64-v8a`、
+minSdk 26 / targetSdk 36，仅声明 `INTERNET` 权限。
+
+构成（压缩后）：`assets/bin` 48.7 MB、`lib/arm64-v8a` 27.7 MB、`assets/sound` 11.0 MB（43 个 WAV）、`assets/data` 6.0 MB。
+比 0.3.0 多约 10.1 MB，其中约 7.9 MB 来自新的 48 kHz 音效包（0.3.0 的 `assets/sound` 为 3.1 MB），其余来自新的美术资源。
 
 ### 0.3.0 发布包体积
 
