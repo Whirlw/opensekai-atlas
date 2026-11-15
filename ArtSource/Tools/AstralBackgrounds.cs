@@ -35,7 +35,9 @@ public static class AstralBackgrounds {
     static Bitmap Field(int w,int h,int mode){
         var bmp=new Bitmap(w,h,PixelFormat.Format32bppArgb);var pixels=new int[w*h];
         for(int y=0;y<h;y++)for(int x=0;x<w;x++){
-            double u=x/(double)(w-1),v=y/(double)(h-1),n=Cloud(u*4.4,v*4.1),dither=(Hash(x,y)-.5)*.8;
+            double u=x/(double)(w-1),v=y/(double)(h-1),n=Cloud(u*4.4,v*4.1),// Triangular dither spanning +-1 code value: the dark field only has a few dozen 8-bit levels per
+            // channel, and the old +-0.4 noise rounded away, leaving flat bands up to ~80 px wide.
+            dither=Hash(x,y)+Hash(x+4099,y+7919)-1;
             double r,g,b;
             if(mode==0){
                 double left=Blob(u,v,.12,.22,.32,.28),right=Blob(u,v,.9,.2,.26,.32),below=Blob(u,v,.53,.84,.7,.20),mist=Math.Pow(n,2.2);

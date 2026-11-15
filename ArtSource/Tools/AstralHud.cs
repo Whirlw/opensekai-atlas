@@ -485,7 +485,13 @@ public static class AstralHud {
         }
         if(n=="lane_base.png"){
             using(var p=LaneOutline()){
-                Gradient(g,p,A(5,Navy),A(190,C("#101729")));
+                // Opacity rises quickly from the horizon so the floor reads where notes travel: about 60% at
+                // mid-screen and 85% at the judge line (row ~807, 69% down), instead of a thin linear ramp.
+                RectangleF r=p.GetBounds();Color floor=C("#101729");
+                using(var b=new LinearGradientBrush(P(0,r.Top),P(0,r.Bottom+.01f),Color.Black,Color.Black)){
+                    b.InterpolationColors=new ColorBlend{Colors=new[]{A(30,Navy),A(150,Mix(Navy,floor,.4f)),A(215,floor),A(230,floor)},Positions=new[]{0f,.38f,.69f,1f}};
+                    g.FillPath(b,p);
+                }
                 var st=g.Save();g.SetClip(p);
                 Constellation(g,new RectangleF(w*.18f,h*.48f,w*.64f,h*.5f),A(125,Blue),93,35);
                 using(var pen=new Pen(A(25,Blue),1.2f))g.DrawEllipse(pen,w*.12f,h*.5f,w*.76f,h*.46f);
@@ -540,7 +546,8 @@ public static class AstralHud {
                     float u=i/(float)(count-1);
                     float cx=LaneCx+(2*u-1)*halfSpan;
                     float width=outer?3.5f:1.9f;
-                    Color tint=Mix(Color.FromArgb(182,182,182),Mix(Blue,Pink,u),.7f);
+                    // Half the earlier .7 colour mix, so the lines carry about half the saturation.
+                    Color tint=Mix(Color.FromArgb(182,182,182),Mix(Blue,Pink,u),.35f);
                     int left=Math.Max(0,(int)Math.Floor(cx-width));
                     int right=Math.Min(w-1,(int)Math.Ceiling(cx+width));
                     for(int x=left;x<=right;x++){
