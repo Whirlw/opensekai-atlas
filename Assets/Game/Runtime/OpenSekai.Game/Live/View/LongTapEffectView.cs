@@ -169,14 +169,20 @@ namespace Sekai
 						pair.Gen.Play();
 						pair.Aura.Play();
 						string cue = HoldCueName(note);
+						// The particles stop on every grey frame, but the loop only stops at Release, so a
+						// finger coming back inside the grace keeps the loop already playing. Starting another
+						// here stacked a new se_live_long on every return and lost the old one's handle, so it
+						// could never be stopped (device trace 2026-11-15, bar 65.407: 16 starts in 2.6 s).
+						bool startsSound = !string.IsNullOrEmpty(cue) && pair.PlaybackId == 0;
 						if (OpenSekai.Shared.Diagnostics.LiveTrace.IsOn(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Hold))
 						{
 							OpenSekai.Shared.Diagnostics.LiveTrace.Write(
 								OpenSekai.Shared.Diagnostics.LiveTraceCategory.Hold,
-								"holdLoop cat=" + note.Category + " type=" + note.Type + " cue=" + (cue ?? "-") + " id=" + note.Id);
+								"holdLoop cat=" + note.Category + " type=" + note.Type + " cue=" + (cue ?? "-") + " id=" + note.Id
+								+ " sound=" + (startsSound ? "start" : string.IsNullOrEmpty(cue) ? "none" : "keep"));
 						}
 						// A hidden carrier is silent by design: the effect still plays, the sound does not.
-						if (!string.IsNullOrEmpty(cue))
+						if (startsSound)
 						{
 							pair.PlaybackId = SoundManager.Instance.PlayIngameSE(cue);
 						}

@@ -57,14 +57,18 @@ namespace Sekai.Live
 							_bar.State = NoteState.Release;
 						}
 					}
+					else if (HoldHasBegun(currentTime))
+					{
+						// A finger already on the lane as the bar crosses: the bar is held from here on.
+						_bar.SetStateUnnotice(NoteState.Input);
+					}
 				}
 				else if ((_bar.State == NoteState.Input || _bar.State == NoteState.InputBegan)
 					&& !covered && _everTouched && !_bar.IsDecoration)
 				{
-					// A rub bar is held in Input, not Scrolling, so the crossing branch above never sees it
-					// lose its finger. Its lift used to be caught only because the rub path never marked its
-					// frames and the freshness check below greyed it on every update; with the frames marked,
-					// this is the branch that starts its grace.
+					// A held bar (ordinary or rub) is Input, so the crossing branch above, which only decides a
+					// bar's first picture, never sees it lose its finger. This is the branch that starts its
+					// grace.
 					_bar.State = NoteState.Last;
 					_graceStartedAt = currentTime;
 				}
@@ -159,6 +163,23 @@ namespace Sekai.Live
 			/// </summary>
 			internal void RestoreHeldState()
 			{
+				float now = MusicScore.CurrentFrameInfo.time;
+
+				// Scrolling means the bar has not reached the line. A held bar is Input, as a rub bar always
+				// was: keeping an ordinary held bar in Scrolling sent every uncovered frame of a zigzag bar
+				// through the first-crossing branch of Update (Scrolling to Last), and each round trip
+				// restarted the hold loop SE on top of the last one (device trace 2026-11-15, bar 65.407:
+				// 18 trips to Last, 16 se_live_long starts in 2.6 s).
+				if (_bar.State == NoteState.Scrolling)
+				{
+					if (_fingerOnIt && HoldHasBegun(now))
+					{
+						_bar.SetStateUnnotice(NoteState.Input);
+					}
+
+					return;
+				}
+
 				if (_bar.State != NoteState.Release && _bar.State != NoteState.Last)
 				{
 					return;
@@ -171,11 +192,17 @@ namespace Sekai.Live
 				}
 
 				if ((_bar.State == NoteState.Last && _fingerOnIt)
-					|| MusicScore.CurrentFrameInfo.time - _bar.MusicScoreInfo.time <= LiveConfig.JudgeTime)
+					|| now - _bar.MusicScoreInfo.time <= LiveConfig.JudgeTime)
 				{
-					_bar.SetStateUnnotice(NoteState.Scrolling);
+					_bar.SetStateUnnotice(_fingerOnIt && HoldHasBegun(now) ? NoteState.Input : NoteState.Scrolling);
 				}
 			}
+
+			/// <summary>
+			/// The hold has begun once the head is answered or has reached the line. A finger resting in the
+			/// lane before an unanswered head arrives is not holding anything yet, so the bar stays Scrolling.
+			/// </summary>
+			private bool HoldHasBegun(float now) => _bar.Head.IsSettled || now >= _bar.MusicScoreInfo.time;
 		}
 	}
 }
