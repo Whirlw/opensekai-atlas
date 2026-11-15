@@ -63,8 +63,11 @@ AudioSource/
   custom02/          音符音效 2
   default/           判定音兜底
   live_se_common/    演出与结算
+  Tools/             生成脚本 make_se_pack.py、dsp.py 与 CC0 素材 samples/
   Import-All.bat
 ```
+
+当前内置音效由 `AudioSource/Tools/make_se_pack.py` 生成：运行 `AudioSource/Tools/render_se_pack.ps1` 会覆盖四个分组里的成品，然后照常导入。素材来源和处理方式见 `AudioSource/Tools/README.md`。
 
 ## 验收
 
