@@ -21,10 +21,21 @@
 
 烘焙图集里的精灵是原生 `Sprite` 资产，矩形写死在 `sactx-*` 里：新图形状不同会被缩放进旧框，新增精灵要手工在图集里找空位。迁移后每个精灵是一张独立 PNG，由同名 Sprite Atlas 打包，新图任意尺寸直接放进去即可。
 
-进度：**JudgeAtlas 已迁移**（9 个判定文字），LiveAtlas、CommonAtlas 仍是烘焙图集。
+进度：**三个烘焙图集都已迁移**。
 
-- 迁移工具：`OpenSekai/Atlas Sprites/Migrate JudgeAtlas`，或 `AtlasSpriteMigration.Migrate("<图集名>")`（`Assets/Game/Editor/AtlasSpriteMigration.cs`）。报告写到 `TestResults/atlas-migration-<图集>.txt`。
+| 图集 | 精灵 | 打包它的 Sprite Atlas | 旧 sactx 页 |
+| --- | --- | --- | --- |
+| JudgeAtlas | 9 | `SpriteAtlases/JudgeAtlas.spriteatlasv2` | 已删除（真机确认后） |
+| LiveAtlas | 84 | `SpriteAtlases/LiveAtlas.spriteatlasv2` | 保留，待真机确认 |
+| CommonAtlas | 60 | `SpriteAtlases/Rebuilt/CommonAtlas.spriteatlas`（沿用原有 V1 图集，打包整个文件夹） | 保留，待真机确认 |
+
+- 迁移工具：`OpenSekai/Atlas Sprites/Migrate <图集>`，或 `AtlasSpriteMigration.Migrate("<图集名>")`（`Assets/Game/Editor/AtlasSpriteMigration.cs`）。报告写到 `TestResults/atlas-migration-<图集>.txt`。
+- 图集文件由 `AtlasSpriteMigration.AtlasPathFor` 决定：存在 `SpriteAtlases/Rebuilt/<图集>.spriteatlas` 就沿用它（UI 的 `AtlasImage` 引用它的 GUID，按名字取精灵），否则用 `SpriteAtlases/<图集>.spriteatlasv2`。其他逐个列出了这些精灵的图集会被移除对应条目，空了且无人引用就删除（`Rebuilt/LiveFrontUIAtlas` 即如此），避免同一精灵被两个图集打包。
+- 精灵信息从资产 YAML 读（`m_RD.texture`、`m_Rect`、`m_Pivot`、`m_Border`、`m_PixelsToUnits`）：已被旧图集打包的精灵，`sprite.texture` 返回的是打包后的纹理，不是 sactx 页。
+- 文件名等于 `m_Name`（`AtlasImage` 按名字取）。例外：两个 `gauge_base_h16_dbl` 按画包命名，比分槽为 `gauge_base_h16_dbl.png`，生命槽为 `gauge_base_h16_dbl_2.png`。
 - PNG 沿用被替换资产的 **GUID**，PPU、轴心（归一化）、九宫格边界照搬，网格一律 Full Rect。
+- 迁移前后会逐条比对：精灵引用按 GUID 比对，`AtlasImage` 一类的「图集 + 名字」按能否取到精灵比对。
+- 已知遗留问题（迁移前就存在）：`UIPartsCommonButton`、`UIPartsDialogTab` 里 6 个 `AtlasImage.atlas` 写的是 `fileID: 687078895, type: 3`，而 CommonAtlas 对象的实际 ID 是 `4343727234628468602`（原生资产，`type: 2`），所以这些引用一直是 null。
 - **引用必须从 `type: 2` 改成 `type: 3`**：GUID 和 fileID（21300000）都不变，但 `type: 2`（原生资产）的引用指向导入的纹理时是 null。工具会在所有引用该 GUID 的文本资产里改这一个字段，再读回引用与迁移前逐条比对。
 - 像素来源：`ArtSource/HUD` 里有同尺寸的图就直接用，否则从 sactx 按矩形切。
 - 尺寸变化：世界尺寸 = 像素 / PPU。走 `SpriteQuad`（Sliced）或 Simple 模式的渲染器自动跟着变；uGUI `Image` 固定了 RectTransform 的会被拉伸，换图后要看一眼。新图往一侧扩大时要改轴心（在 Unity 里改 PNG 的导入设置）。

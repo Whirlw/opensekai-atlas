@@ -16,7 +16,6 @@ namespace OpenSekai.Tests.EditMode.Graphics
     public class AtlasSpritesFolderTests
     {
         private const string Root = "Assets/Graphics/AtlasSprites";
-        private const string AtlasFolder = "Assets/Graphics/SpriteAtlases";
 
         private static IEnumerable<string> AtlasFolders()
         {
@@ -60,7 +59,7 @@ namespace OpenSekai.Tests.EditMode.Graphics
             foreach (var folder in AtlasFolders())
             {
                 var name = Path.GetFileName(folder);
-                var atlasPath = AtlasFolder + "/" + name + ".spriteatlasv2";
+                var atlasPath = OpenSekai.EditorTools.AtlasSpriteMigration.AtlasPathFor(name);
                 var atlas = AssetDatabase.LoadAssetAtPath<SpriteAtlas>(atlasPath);
                 if (atlas == null)
                 {
@@ -68,7 +67,8 @@ namespace OpenSekai.Tests.EditMode.Graphics
                     continue;
                 }
                 var importer = AssetImporter.GetAtPath(atlasPath) as SpriteAtlasImporter;
-                if (importer != null && !importer.includeInBuild)
+                var included = importer != null ? importer.includeInBuild : atlas.IsIncludeInBuild();
+                if (!included)
                 {
                     problems.Add(name + ": atlas is not included in the build");
                 }
