@@ -11,7 +11,7 @@
 
 | 类别 | 存放 | 运行时来源 | 导入方式 |
 | --- | --- | --- | --- |
-| **图集切片** | 打包图集 `Assets/Graphics/Textures/sactx-*.png` | 图集纹理（打包进 Player 或 bundle） | 按精灵矩形**贴像素** |
+| ~~**图集切片**~~（已全部迁移，sactx 页已删除） | 原为打包图集 `Assets/Graphics/Textures/sactx-*.png` | 图集纹理 | 原为按精灵矩形**贴像素** |
 | **图集散图**（迁移后） | `Assets/Graphics/AtlasSprites/<图集>/<名字>.png` | Unity Sprite Atlas `Assets/Graphics/SpriteAtlases/<图集>.spriteatlasv2` 打包 | **整文件覆盖**，尺寸和形状可以变 |
 | **散图** | 各种 `.png`（转场、音符皮肤、特效、背景…） | 文件本体 | **整文件覆盖** |
 
@@ -26,8 +26,8 @@
 | 图集 | 精灵 | 打包它的 Sprite Atlas | 旧 sactx 页 |
 | --- | --- | --- | --- |
 | JudgeAtlas | 9 | `SpriteAtlases/JudgeAtlas.spriteatlasv2` | 已删除（真机确认后） |
-| LiveAtlas | 84 | `SpriteAtlases/LiveAtlas.spriteatlasv2` | 保留，待真机确认 |
-| CommonAtlas | 60 | `SpriteAtlases/Rebuilt/CommonAtlas.spriteatlas`（沿用原有 V1 图集，打包整个文件夹） | 保留，待真机确认 |
+| LiveAtlas | 84 | `SpriteAtlases/LiveAtlas.spriteatlasv2` | 已删除（真机确认后） |
+| CommonAtlas | 60 | `SpriteAtlases/Rebuilt/CommonAtlas.spriteatlas`（沿用原有 V1 图集，打包整个文件夹） | 两页均已删除（真机确认后） |
 
 - 迁移工具：`OpenSekai/Atlas Sprites/Migrate <图集>`，或 `AtlasSpriteMigration.Migrate("<图集名>")`（`Assets/Game/Editor/AtlasSpriteMigration.cs`）。报告写到 `TestResults/atlas-migration-<图集>.txt`。
 - 图集文件由 `AtlasSpriteMigration.AtlasPathFor` 决定：存在 `SpriteAtlases/Rebuilt/<图集>.spriteatlas` 就沿用它（UI 的 `AtlasImage` 引用它的 GUID，按名字取精灵），否则用 `SpriteAtlases/<图集>.spriteatlasv2`。其他逐个列出了这些精灵的图集会被移除对应条目，空了且无人引用就删除（`Rebuilt/LiveFrontUIAtlas` 即如此），避免同一精灵被两个图集打包。
@@ -42,7 +42,8 @@
 - 导入：`apply-paint-kit.ps1` 把 `ArtSource/HUD/<名字>.png` 整文件复制到 `AtlasSprites`，这里不做尺寸校验；`apply-atlas-art.ps1` 和 `compare-atlas-art.ps1` 跳过已迁移的名字（输出里的 `packedByAtlas`）。
 - **新增精灵**：PNG 放进 `ArtSource/HUD`，同时在 `AtlasSprites/<图集>/` 放一份同名文件（第一次需要在 Unity 里设 PPU 和轴心），之后由导入脚本同步。
 - 守护测试：`Assets/Tests/EditMode/Graphics/AtlasSpritesFolderTests.cs`（单图 Sprite、Full Rect、被同名图集打包且包含在构建中）。
-- 迁移完的旧 sactx 页先保留，真机确认后再删。
+- sactx 页已全部删除，迁移工具无法再次运行（它从这些页读源像素）；保留它是为了记录做法。`audit-atlas-coverage.ps1`、`audit-unused-atlas-sprites.ps1`、`draw-ui-standins.ps1` 扫描的也是 sactx 页，现在找不到任何内容。
+- 原来的 `LiveAtlasSpriteSettingsTests` 检查 LiveAtlas 页的 Full Rect 设置和烘焙精灵的矩形，随 sactx 页一起删除；Full Rect 规则现在由 `AtlasSpritesFolderTests` 守护。
 
 ## 当前导入流程
 
@@ -211,7 +212,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File Tools/compare-atlas-art.ps1
 - 递归：素材放在两层子目录里，断言被处理。
 - 矩形越界：rect 超出纹理必须失败而不是裁掉。
 - 尺寸阈值：1px 差通过、10px 差进报告。
-- 图集 import 设置：`spriteMeshType` 允许值断言（`Assets/Tests/EditMode/Graphics/LiveAtlasSpriteSettingsTests.cs` 已有先例）。
+- 图集 import 设置：`spriteMeshType` 允许值断言（现由 `Assets/Tests/EditMode/Graphics/AtlasSpritesFolderTests.cs` 覆盖）。
 - 绘制尺寸：给定 sprite，断言 `Sliced` 下的世界尺寸等于 `rect.size / ppu`。
 
 ## 工具清单
