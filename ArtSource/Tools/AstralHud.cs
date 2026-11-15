@@ -485,11 +485,18 @@ public static class AstralHud {
         }
         if(n=="lane_base.png"){
             using(var p=LaneOutline()){
-                // Opacity rises quickly from the horizon so the floor reads where notes travel: about 60% at
-                // mid-screen and 85% at the judge line (row ~807, 69% down), instead of a thin linear ramp.
+                // Opacity eases out of the horizon (cubic, zero slope where it lands) and levels off at about
+                // 67% by 55% of the way down, so the lower half - judge line included - stays nearly flat,
+                // drifting only to about 70% at the bottom.
                 RectangleF r=p.GetBounds();Color floor=C("#101729");
+                const int stops=33;var colors=new Color[stops];var positions=new float[stops];
+                for(int i=0;i<stops;i++){
+                    float t=i/(float)(stops-1),s=Unit(t/.55f),rise=1-(1-s)*(1-s)*(1-s);
+                    float alpha=30+140*rise+8*Smooth((t-.55f)/.45f);
+                    colors[i]=A((int)Math.Round(alpha),Mix(Navy,floor,s));positions[i]=t;
+                }
                 using(var b=new LinearGradientBrush(P(0,r.Top),P(0,r.Bottom+.01f),Color.Black,Color.Black)){
-                    b.InterpolationColors=new ColorBlend{Colors=new[]{A(30,Navy),A(150,Mix(Navy,floor,.4f)),A(215,floor),A(230,floor)},Positions=new[]{0f,.38f,.69f,1f}};
+                    b.InterpolationColors=new ColorBlend{Colors=colors,Positions=positions};
                     g.FillPath(b,p);
                 }
                 var st=g.Save();g.SetClip(p);
