@@ -50,7 +50,7 @@
 | `-Settings` | 拍设置页 | 关 |
 | `-SettingsTrace` | 拍设置页里的「追踪选项」子页 | 关 |
 | `-Result` | 拍结算面板，取样例：`default` / `fc` / `ap` / `auto` / `failed` / `retired` / `loaderror` | — |
-| `-All` | 一次拍全：曲库、设置、结算（`default`）、信息页 `0.6,1.5,3,5.9`、打歌 `30,60`（需 `-Package`；已给的时间不会被覆盖） | 关 |
+| `-All` | 一次拍全：曲库、设置、结算（`default`）、信息页 `0.3,0.8,1.5,2.7`、打歌 `30,60`（需 `-Package`；已给的时间不会被覆盖） | 关 |
 | `-Width` / `-Height` | 分辨率。真机是 `2800x1272`，另一常用尺寸 `1750x795` | `2800` / `1272` |
 | `-OutDir` | 输出目录（相对工程或绝对路径） | `TestResults/screenshots/<yyyyMMdd-HHmmss>` |
 | `-Request` | 直接使用自己写的请求 JSON（忽略上面所有拍摄参数） | — |
@@ -64,7 +64,7 @@
 | 类型 | 时间的含义 | 注意 |
 | --- | --- | --- |
 | 打歌 `live` | 音乐时钟，即音频文件自身的时间（含 `fillerSec`） | 早于开局点（第一个音符减提前量）的时间，拍到的是开局第一帧，`report.json` 会注明；晚于全部音符判完的时间会失败，改用 `finish` |
-| 信息页 `info` | 信息页被要求开始播放的那一刻起 | 页面约 6.1 s 后淡出完毕：0.1 + 0.01 + `JacketFadeOutDelaySec`（`FrontUIView.prefab` 里为 5.5）+ 0.5 |
+| 信息页 `info` | 信息页被要求开始播放的那一刻起 | 页面约 2.9 s 后淡出完毕：0.1 + 0.01 + `JacketFadeOutDelaySec`（`FrontUIView.prefab` 里为 2.35）+ 0.45 |
 | 收尾 `finish` | 最后一个音符判完起 | 收尾演出（ALL PERFECT 等）在 +1 s 开始，`+1.6`～`+3` 比较好看 |
 | 曲库 / 设置 / 结算 | 无时间 | 面板打开后等两帧排版再拍 |
 
@@ -103,7 +103,7 @@
     { "kind": "result", "name": "result-fc",
       "result": { "kind": "Completed", "score": 1112806, "rank": "S", "maxCombo": 1250,
                   "totalCombo": 1250, "perfect": 1206, "great": 44, "good": 0, "bad": 0, "miss": 0 } },
-    { "kind": "info", "package": "DEINOS", "difficulty": "expert", "times": [0.6, 1.5, 3.0, 5.9] },
+    { "kind": "info", "package": "DEINOS", "difficulty": "expert", "times": [0.3, 0.8, 1.5, 2.7] },
     { "kind": "live", "package": "DEINOS", "times": [45.0, 92.5], "lead": 1.5, "fps": 60, "fakePerfect": true },
     { "kind": "finish", "package": "Test3", "times": [1.6, 3.0], "finishAnimation": "fullcombo" }
   ]
@@ -183,7 +183,7 @@ Library/OpenSekaiShots/   （不放 Temp/：Unity 启动时会清空 Temp/）
 
 | 菜单 | 用途 |
 | --- | --- |
-| `OpenSekai/Screenshots/Capture Sample Set (2800x1272)` | 用第一首已安装曲包拍一套：曲库、设置、结算（fc）、信息页 0.6/1.5/3/5.9 s、打歌 20/30 s |
+| `OpenSekai/Screenshots/Capture Sample Set (2800x1272)` | 用第一首已安装曲包拍一套：曲库、设置、结算（fc）、信息页 0.3/0.8/1.5/2.7 s、打歌 20/30 s |
 | `OpenSekai/Screenshots/Capture Sample Set (1750x795)` | 同上，1750x795 |
 | `OpenSekai/Screenshots/Open Last Output` | 在资源管理器里打开最近一次的输出目录 |
 
@@ -215,10 +215,10 @@ unity command script eval_file --project-path . --result-only -- --file Temp/Ope
 powershell -File Tools/capture-screens.ps1 -Live 45,92.5 -Package DEINOS
 ```
 
-改了信息页（`MusicInfoView` / `FrontUIView.prefab`），看整段动画：
+改了信息页（`MusicInfoView` / `FrontUIView.prefab`，布局由菜单 `OpenSekai/Art/Rebuild Music Info Page` 生成），看整段动画：
 
 ```powershell
-powershell -File Tools/capture-screens.ps1 -Info 0.3,0.6,1,1.5,2.5,4,5.6,5.9,6.1 -Package DEINOS -Difficulty append
+powershell -File Tools/capture-screens.ps1 -Info 0.15,0.3,0.5,0.8,1.5,2.5,2.7,2.9 -Package DEINOS -Difficulty append
 ```
 
 改了 HUD 或判定字，同时看两种分辨率：
@@ -254,7 +254,7 @@ powershell -File Tools/capture-screens.ps1 -All -Package DEINOS -Difficulty expe
 ## 已知限制
 
 - **极少量闪烁像素不可复现**：少数着色器按游戏的绝对时间（`_Time`）闪烁，这个时间包含加载阶段的真实时长，两次运行之间会有几十～几百像素的差异（实测一处 28x9 像素的小星光）。比较截图时设个小阈值即可。
-- **信息页要求编辑器至少约 37 fps 真实帧率**：打歌控制器给信息页留的最长真实等待是 10 s，信息页按帧推进要 6.1 s × 60 帧；编辑器太慢时打歌会提前开始，`report.json` 的 `note` 会提示「HUD 可能正在淡入」。
+- **信息页要求编辑器至少约 18 fps 真实帧率**：打歌控制器给信息页留的最长真实等待是 10 s，信息页按帧推进要约 2.9 s × 60 帧；编辑器太慢时打歌会提前开始，`report.json` 的 `note` 会提示「HUD 可能正在淡入」。
 - **短谱**：时间超过最后一个音符就拍不到打歌画面（例如 Test3 约 22 s 就判完了），报错会写出判完的时刻，改用 `finish`。
 - **运行中重新编译会中断**：脚本重编译会让 Unity 退出 Play 模式，本次运行记为失败（`status.json` 里写明），不会一直占着。
 - **难度只改显示**：每个曲包只有一张谱，`difficulty` 只改难度标签和配色，不换谱面。

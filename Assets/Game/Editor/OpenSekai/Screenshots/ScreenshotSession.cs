@@ -180,7 +180,7 @@ namespace OpenSekai.EditorTools.Screenshots
                     new Shot { kind = "library" },
                     new Shot { kind = "settings" },
                     new Shot { kind = "result", result = ResultSample.Preset("fc") },
-                    new Shot { kind = "info", package = package, times = { 0.6f, 1.5f, 3f, 5.9f } },
+                    new Shot { kind = "info", package = package, times = { 0.3f, 0.8f, 1.5f, 2.7f } },
                     new Shot { kind = "live", package = package, times = { 20f, 30f } }
                 }
             };

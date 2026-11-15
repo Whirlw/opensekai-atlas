@@ -23,8 +23,8 @@
 #   # Chart frames at music time 45 s and 92.5 s, expert, 1750x795
 #   powershell -File Tools/capture-screens.ps1 -Live 45,92.5 -Package DEINOS -Difficulty expert -Width 1750 -Height 795
 #
-#   # Info page at 0.6 s, 1.5 s, 3 s and 5.9 s into its animation
-#   powershell -File Tools/capture-screens.ps1 -Info 0.6,1.5,3,5.9 -Package Test3
+#   # Info page at 0.3 s, 0.8 s, 1.5 s and 2.7 s into its animation
+#   powershell -File Tools/capture-screens.ps1 -Info 0.3,0.8,1.5,2.7 -Package Test3
 #
 #   # End of the live: 1.6 s and 3 s after the last note (the FULL COMBO / ALL PERFECT animation starts at +1 s)
 #   powershell -File Tools/capture-screens.ps1 -Finish 1.6,3 -FinishAnimation fullcombo -Package Test3
@@ -40,8 +40,8 @@
 #                 Installed packages are searched first, then Tools/fixtures.
 #   -Difficulty   easy|normal|hard|expert|master|append; overrides the package's own (badge colours etc.).
 #   -Live         Music times in seconds (the audio file's clock, filler included).
-#   -Info         Seconds since the info page starts; it fades out at about 6.1 s
-#                 (0.1 + 0.01 + JacketFadeOutDelaySec 5.5 + 0.5).
+#   -Info         Seconds since the info page starts; it fades out at about 2.9 s
+#                 (0.1 + 0.01 + JacketFadeOutDelaySec 2.35 + 0.45).
 #   -Finish       Seconds after the last note is done; the end-of-live animation starts at +1 s.
 #   -FinishAnimation  allperfect (default) | fullcombo | clear | finish | none.
 #   -Result       Result sample preset: default | fc | ap | auto | failed | retired | loaderror.
@@ -110,7 +110,7 @@ if ($Request) {
     if ($All) {
         $Library = $true; $Settings = $true
         if (-not $Result) { $Result = 'default' }
-        if (-not $infoTimes) { $infoTimes = @(0.6, 1.5, 3.0, 5.9) }
+        if (-not $infoTimes) { $infoTimes = @(0.3, 0.8, 1.5, 2.7) }
         if (-not $liveTimes) { $liveTimes = @(30.0, 60.0) }
     }
     $shots = New-Object System.Collections.ArrayList

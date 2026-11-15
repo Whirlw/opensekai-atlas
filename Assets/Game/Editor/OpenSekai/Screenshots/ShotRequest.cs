@@ -72,7 +72,7 @@ namespace OpenSekai.EditorTools.Screenshots
 
         /// <summary>
         /// live: seconds on the music clock (the audio file's own time, filler included).
-        /// info: seconds since the info page was asked to start (it fades out at about 6.1 s).
+        /// info: seconds since the info page was asked to start (it fades out at about 2.9 s).
         /// finish: seconds since the last note was done (the result animation starts 1 s later).
         /// </summary>
         public List<float> times = new List<float>();

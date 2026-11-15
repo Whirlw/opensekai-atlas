@@ -36,6 +36,12 @@
 | `eventSystems` | `1` |
 | `isStartingPlayback` | `false` |
 
+### `OpenSekai/Art/*`
+
+| 菜单 | 什么情况下用 | 输出 |
+| --- | --- | --- |
+| `Rebuild Music Info Page` | 改了曲目信息页的素材（`ArtSource/Tools/render_musicinfo.ps1` 重画后）或布局（`MusicInfoPageBuilder.cs`） | 设置 `Assets/Graphics/Textures/MusicInfo/*.png` 的导入参数（不压缩），重建 `FrontUIView.prefab` 里 `MusicInfo` 画布的全部子节点并重新连好 `MusicInfoView` 的字段；命令行用 `-batchmode -executeMethod OpenSekai.EditorTools.MusicInfoPageBuilder.RebuildFromCommandLine` |
+
 ### `OpenSekai/Dev/*`
 
 | 菜单 | 用途 |
