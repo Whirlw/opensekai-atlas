@@ -99,7 +99,8 @@ $ProjectPath = (Resolve-Path $ProjectPath).Path
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 if (-not $OutDir) { $OutDir = "TestResults/screenshots/$stamp" }
 
-$requestDir = Join-Path $ProjectPath 'Temp/OpenSekaiShots'
+# Not Temp/: a Unity launched on the project wipes Temp/ at startup, before -executeMethod reads the request.
+$requestDir = Join-Path $ProjectPath 'Library/OpenSekaiShots'
 New-Item -ItemType Directory -Force -Path $requestDir | Out-Null
 
 if ($Request) {

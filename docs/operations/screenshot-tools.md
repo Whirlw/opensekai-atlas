@@ -32,7 +32,7 @@
 
 - **驱动已打开的编辑器时不要操作它**：运行期间它会切换 Game 视图分辨率、进出 Play 模式，结束后会恢复。
 - 编辑器不能停在 Library 以外的场景里 Play；有未保存的场景改动时，工具会拒绝切场景。
-- 「自己启动 Unity」模式不是 `-batchmode/-nographics`：需要显卡和桌面会话，Game 视图要真的渲染。**这条路径尚未实测**（开发期间编辑器一直开着），首次使用请留意 `Logs/capture-screens-<时间>.log`。
+- 「自己启动 Unity」模式不是 `-batchmode/-nographics`：需要显卡和桌面会话，Game 视图要真的渲染。日志在 `Logs/capture-screens-<时间>.log`。
 - 运行期间所有声音静音（`AudioListener.volume = 0`），音乐被停掉。
 
 ### 脚本参数（`Tools/capture-screens.ps1`）
@@ -88,7 +88,7 @@
 
 ### 请求 JSON 完整格式
 
-`-Request` 用的文件，也是脚本内部生成的文件（`Temp/OpenSekaiShots/request-<时间>.json`）：
+`-Request` 用的文件，也是脚本内部生成的文件（`Library/OpenSekaiShots/request-<时间>.json`）：
 
 ```json
 {
@@ -172,7 +172,7 @@ TestResults/screenshots/<时间>/
   live_045.000s.png
   finish_002.500s.png
   report.json              每张图：ok、file、width、height、time（实际时间）、detail、note（提示/失败原因）
-Temp/OpenSekaiShots/
+Library/OpenSekaiShots/   （不放 Temp/：Unity 启动时会清空 Temp/）
   request-<时间>.json         本次请求
   request-<时间>.status.json  running / done / failed，脚本靠它判断结束
 ```
