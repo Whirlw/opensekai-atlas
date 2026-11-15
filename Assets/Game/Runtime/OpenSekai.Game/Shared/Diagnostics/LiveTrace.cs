@@ -292,7 +292,7 @@ namespace OpenSekai.Shared.Diagnostics
             {
                 if (_buildStamp == null)
                 {
-                    TextAsset stamp = Resources.Load<TextAsset>("BuildStamp");
+                    TextAsset stamp = Sekai.ResourceCatalog.BuildStamp.Load();
                     _buildStamp = stamp != null ? stamp.text.Trim() : "editor";
                 }
 
