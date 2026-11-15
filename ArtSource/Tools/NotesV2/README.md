@@ -1,6 +1,6 @@
-# new_notes_v2
+# NotesV2
 
-基于当前 `new_notes` 的完整 33 张贴图制作，仅用代码重新配色，原版 `new_notes` 保留不变。
+基于当前 `Notes` 的完整 33 张贴图制作，仅用代码重新配色，原版 `Notes` 保留不变。
 
 | 原颜色归属 | 新配色 | 适用资源 |
 | --- | --- | --- |
@@ -15,4 +15,4 @@
 
 2026-11-09：两套 `traceLine_eff.png` 均去掉镂空纹理，恢复平滑的四段透明度渐变，配色保留。
 
-`textures` 内只有游戏贴图，预览位于本目录。使用 Windows PowerShell 执行 `tools/build_palette.ps1` 可从当前 `new_notes` 重建此配色。
+成品位于 `ArtSource/NotesV2`，预览位于本目录。使用 Windows PowerShell 执行 `build_palette.ps1` 可从当前 `Notes` 重建此配色。

@@ -1,7 +1,7 @@
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Drawing
-$root=Split-Path $PSScriptRoot -Parent
-$im=[System.Drawing.Bitmap]::FromFile((Join-Path $root 'textures\notes.png'))
+$root=Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'NotesV2'
+$im=[System.Drawing.Bitmap]::FromFile((Join-Path $root 'notes.png'))
 $card=New-Object System.Drawing.Bitmap(1160,1250)
 $g=[System.Drawing.Graphics]::FromImage($card)
 $g.Clear([System.Drawing.ColorTranslator]::FromHtml('#10192c'))
@@ -23,5 +23,5 @@ foreach($row in @(2,4)){
   $index++
  }
 }
-$card.Save((Join-Path $root 'notes-stretch-preview.png'),[System.Drawing.Imaging.ImageFormat]::Png)
+$card.Save((Join-Path $PSScriptRoot 'notes-stretch-preview.png'),[System.Drawing.Imaging.ImageFormat]::Png)
 $g.Dispose();$card.Dispose();$im.Dispose();$title.Dispose();$font.Dispose();$brush.Dispose()

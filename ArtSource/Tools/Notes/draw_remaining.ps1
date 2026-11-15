@@ -471,12 +471,12 @@ public static class AstralRemaining {
         }
     }
     public static void Run(string reference,string target,bool nodesOnly) {
-        Directory.CreateDirectory(Path.Combine(target,"noteskin"));int count=0;
+        Directory.CreateDirectory(target);int count=0;
         foreach(string path in Directory.GetFiles(reference,"*.png",SearchOption.AllDirectories)) {
             string name=Path.GetFileName(path);if(name=="notes.png")continue;
             if(nodesOnly&&!(name.StartsWith("notes_friction")||name.StartsWith("notes_long")))continue;
             string rel=path.Substring(reference.Length).TrimStart(Path.DirectorySeparatorChar);
-            string output=Path.Combine(target,rel);int w,h;
+            string output=Path.Combine(target,Path.GetFileName(path));int w,h;
             using(var im=new Bitmap(path)){w=im.Width;h=im.Height;}
             if(name.StartsWith("notes_flick_arrow")) {
                 string geometry=Path.Combine(Path.GetDirectoryName(path),name.Replace("_crtcl",""));
@@ -493,7 +493,7 @@ public static class AstralRemaining {
 }
 '@
 Add-Type -TypeDefinition $code -ReferencedAssemblies System.Drawing
-$root=Split-Path $PSScriptRoot -Parent
-$reference=Join-Path (Split-Path $root -Parent) 'custom01\textures'
+$root=Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'Notes'
+$reference=Join-Path (Split-Path $root -Parent) '..\Assets\Game\Resources\live\note\custom01\textures'
 if(-not(Test-Path -LiteralPath $reference)){$reference=Join-Path (Split-Path (Split-Path $root -Parent) -Parent) 'custom01\textures'}
-[AstralRemaining]::Run($reference,(Join-Path $root 'textures'),$NodesOnly.IsPresent)
+[AstralRemaining]::Run($reference,(Join-Path $root '.'),$NodesOnly.IsPresent)

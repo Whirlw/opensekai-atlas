@@ -373,9 +373,17 @@ namespace Sekai
 			noteBase.OffsetJudgeTime = Mathf.Min(elapsedAfterEnd, elapsedFromStart);
 		}
 
+		// The note body in the notes atlas (notes_0..6, 108 px per unit) ends 55 px in from both sprite edges
+		// (ArtSource/Tools/Notes/draw_notes.ps1), so a note spanning lanes start..end draws its body exactly
+		// over (end - start + 1) lanes of LiveConfig.widthX. The old 1.2178 * span + 2.06 drew 1-6 lane notes
+		// up to 9 px narrower than their lanes and full-width notes wider.
+		private const float NoteBodyInsetUnits = 55f / 108f;
+
+		private const float NoteSpriteHeight = 186f / 108f;
+
 		public static Vector2 CalcSpriteRendererSize(float size)
 		{
-			return new Vector2(size * 1.2178f + 2.06f, 1.7222f);
+			return new Vector2((size + 1f) * LiveConfig.widthX + 2f * NoteBodyInsetUnits, NoteSpriteHeight);
 		}
 
 		static LiveUtility()

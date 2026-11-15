@@ -40,5 +40,6 @@
 - [AssetBundle 与清单](../architecture/asset-bundles.md)
 | [截图工具](screenshot-tools.md) | 不上真机把打歌画面、信息页、曲库、设置、结算渲染成 PNG：脚本参数、请求 JSON、可复现原理、已知限制 |
 | [音符皮肤制作](note-skin-authoring.md) | 自己画一套音符皮肤：`custom01`/`custom02` 目录结构、像素尺寸硬约束表、`-From` 导入校验与出包步骤 |
+| [notes.png 约束](notes-atlas-spec.md) | 音符本体图集：切片布局、九宫格与本体内缩、贴合判定线、透视交给着色器、改数时的联动修改表、截图核对 |
 
 > 接手/换人先看 [handoff-2026-11-11.md](handoff-2026-11-11.md)：现状、未做完的事、工具链、红线。

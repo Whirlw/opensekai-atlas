@@ -29,13 +29,14 @@ public static class NoteBrightness {
  }
 }
 '@
-$root=Split-Path $PSScriptRoot -Parent
+$root=Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'Notes'
 $sourceRoot=(Resolve-Path -LiteralPath $SourceDirectory).Path.TrimEnd('\')
-$targetRoot=Join-Path $root 'textures'
+$targetRoot=(Resolve-Path -LiteralPath $root).Path.TrimEnd('\')
 if($sourceRoot -eq $targetRoot){throw 'Use a separate source copy to avoid accumulating adjustments'}
 $files=@(Get-ChildItem -LiteralPath $sourceRoot -Recurse -File -Filter *.png)
+if (($files | Group-Object Name | Where-Object Count -gt 1).Count) { throw 'Duplicate source filenames' }
 foreach($file in $files){
- $relative=$file.FullName.Substring($sourceRoot.Length+1)
+ $relative=$file.Name
  $target=Join-Path $targetRoot $relative
  [NoteBrightness]::Apply($file.FullName,$target,$Brightness)
 }

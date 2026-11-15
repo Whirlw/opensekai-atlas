@@ -30,7 +30,7 @@
 
 | 文件 | 尺寸 |
 |---|---|
-| `textures\notes.png` | 354 × 1316（7 个切片，每片 354 × 186，自下而上） |
+| `textures\notes.png` | 354 × 1316（7 个切片，每片 354 × 186，自上而下；几何约束见 [notes.png 约束](notes-atlas-spec.md)） |
 | `textures\longNoteLine.png` | 306 × 16 |
 | `textures\simultaneousLine.png` | 10 × 40 |
 | `textures\traceLine_eff.png` | 306 × 224（材质贴图，无切片） |
@@ -43,18 +43,18 @@
 | `noteskin\notes_long_among.png` | 158 × 160 |
 | `noteskin\notes_long_among_crtcl.png` | 158 × 160 |
 
-`notes.png` 的七个切片自下而上是：
+`notes.png` 的七个切片**自上而下**是（`notes_0` 在图片最顶端）：
 
-0. 长条头（带端帽）
-1. 长条身
-2. 长条尾
-3. 普通键
-4. 摩擦键（细）
-5. 滑动键
-6. 装饰/引导键
+0. 关键音符（普通、长条、滑键的关键版），宽板
+1. 长条，宽板
+2. 普通键，宽板
+3. 滑键，宽板
+4. 摩擦键与摩擦长条，细板
+5. 关键摩擦键（含摩擦长条、摩擦滑键的关键版），细板
+6. 摩擦滑键，细板
 
-切片矩形与九宫格边界固定在 `textures\*.asset` 里（例如 `notes_0.asset` 的 `m_Rect` /
-`m_Border`），画的时候按「这一片大致占满自己的 354 × 186」来构图就不会错位。
+`notes.png` 不能只「大致占满」切片：本体两端的位置、板面的上下沿、九宫格的拉伸区都被代码和着色器依赖，
+画错了音符会和车道、判定线错位。动笔前先读 [notes.png 约束](notes-atlas-spec.md)。
 
 ## 3. 图片要求
 

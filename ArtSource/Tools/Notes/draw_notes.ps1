@@ -46,15 +46,20 @@ public static class AstralNotes {
     }
     static void DrawRow(int row,Color accent,bool slim) {
         var state=g.Save(); g.TranslateTransform(0,row*188);
-        // Seven fixed 188px atlas cells; the playable bodies retain their original bounds.
-        float y=slim?74:54, h=slim?40:80;
+        // Seven fixed 188px atlas cells. The silhouette is fitted to the judge line as measured in game
+        // (DEINOS PHAINEIN, 2800x1272, notes at their hit time): the judge slab covers cell rows 50.2..133.0,
+        // so the face starts at row 50 and its 5px extrusion ends at row 133. The body ends sit 55px in
+        // from both cell edges (inside the 100px 9-slice borders), 2px wider than before, which matches the
+        // lane width on average; slim bodies keep their height and share the judge line centre.
+        float y=slim?72:50, h=slim?40:78;
+        const float L=55, R=354-L;
         Color ink=Mix(accent,C("#704875"),.48f);
         Color light=Mix(accent,Color.White,.83f);
         bool blueNote=row==2;
         Color blueTop=C("#ae81ff"), blueBottom=C("#65caff");
         // Gold keeps its approved halo; the other five notes receive a softer color-matched halo.
         if(row==0 || row==5) {
-            using(var halo=Bevel(57,y,240,h,11)) {
+            using(var halo=Bevel(L,y,R-L,h,11)) {
                 for(int width=48;width>=2;width-=2) {
                     float distance=width/2f;
                     int alpha=(int)((slim?18:24)*Math.Exp(-distance*distance/(2*10f*10f)));
@@ -64,7 +69,7 @@ public static class AstralNotes {
                 }
             }
         } else {
-            using(var halo=Bevel(57,y,240,h,11)) {
+            using(var halo=Bevel(L,y,R-L,h,11)) {
                 for(int width=44;width>=2;width-=2) {
                     float distance=width/2f;
                     int alpha=(int)((slim?8:11)*Math.Exp(-distance*distance/(2*9f*9f)));
@@ -85,15 +90,15 @@ public static class AstralNotes {
             sideBottom=Mix(blueBottom,C("#30405f"),.46f);
         }
         using(var b=new LinearGradientBrush(P(0,y+h-11),P(0,y+h+depth),sideTop,sideBottom)) {
-            g.FillPolygon(b,new[]{P(57,y+h-11),P(68,y+h),P(286,y+h),P(297,y+h-11),P(297,y+h-11+depth),P(286,y+h+depth),P(68,y+h+depth),P(57,y+h-11+depth)});
+            g.FillPolygon(b,new[]{P(L,y+h-11),P(L+11,y+h),P(R-11,y+h),P(R,y+h-11),P(R,y+h-11+depth),P(R-11,y+h+depth),P(L+11,y+h+depth),P(L,y+h-11+depth)});
         }
-        Line(A(200,sideBottom),.8f,P(68,y+h+depth),P(286,y+h+depth));
+        Line(A(200,sideBottom),.8f,P(L+11,y+h+depth),P(R-11,y+h+depth));
         // Bloom is drawn explicitly, without image generation or external assets.
-        using(var body=Bevel(57,y,240,h,11)) {
+        using(var body=Bevel(L,y,R-L,h,11)) {
             for(int i=8;i>=2;i-=2) using(var p=new Pen(A(slim?4:6,accent),i*2)) g.DrawPath(p,body);
             using(var b=new LinearGradientBrush(P(0,y),P(0,y+h),slim?Mix(accent,Color.White,.92f):blueNote?blueTop:Mix(accent,Color.White,.62f),slim?Mix(accent,Color.White,.70f):blueNote?blueBottom:accent)) g.FillPath(b,body);
         }
-        using(var inset=Bevel(64,y+5,226,h-11,8)) {
+        using(var inset=Bevel(L+7,y+5,R-L-14,h-11,8)) {
             Color top=slim?Mix(accent,Color.White,.20f):blueNote?C("#ebdcff"):Mix(accent,Color.White,.94f);
             Color bottom=slim?Mix(accent,Color.White,.12f):blueNote?C("#d2f0ff"):Mix(accent,Color.White,.90f);
             Color middle=slim?Mix(accent,C("#30405f"),.055f):Mix(Mix(top,bottom,.5f),accent,.10f);
@@ -107,13 +112,13 @@ public static class AstralNotes {
             g.Restore(clip);
         }
         // Strong top and bottom rails preserve the wide, easily judged note silhouette.
-        Line(A(240,Color.White),1.2f,P(70,y+1.6f),P(284,y+1.6f));
-        Line(Mix(blueNote?blueBottom:accent,Color.White,.5f),slim?2:3,P(70,y+h-4),P(284,y+h-4));
-        // Faceted side caps remain within the original 240px body width.
+        Line(A(240,Color.White),1.2f,P(L+13,y+1.6f),P(R-13,y+1.6f));
+        Line(Mix(blueNote?blueBottom:accent,Color.White,.5f),slim?2:3,P(L+13,y+h-4),P(R-13,y+h-4));
+        // Faceted side caps sit at the body ends.
         foreach(int side in new[]{0,1}) {
             var st=g.Save(); if(side==1) {g.TranslateTransform(354,0);g.ScaleTransform(-1,1);}
-            using(var b=new LinearGradientBrush(P(0,y),P(0,y+h),slim?Mix(accent,Color.White,.86f):blueNote?blueTop:accent,slim?Mix(accent,Color.White,.68f):blueNote?blueBottom:accent)) g.FillPolygon(b,new[]{P(58,y+12),P(65,y+5),P(74,y+5),P(74,y+h-6),P(65,y+h-6),P(58,y+h-13)});
-            Line(A(210,Color.White),1,P(61,y+15),P(61,y+h-15));
+            using(var b=new LinearGradientBrush(P(0,y),P(0,y+h),slim?Mix(accent,Color.White,.86f):blueNote?blueTop:accent,slim?Mix(accent,Color.White,.68f):blueNote?blueBottom:accent)) g.FillPolygon(b,new[]{P(L+1,y+12),P(L+8,y+5),P(L+17,y+5),P(L+17,y+h-6),P(L+8,y+h-6),P(L+1,y+h-13)});
+            Line(A(210,Color.White),1,P(L+4,y+15),P(L+4,y+h-15));
             g.Restore(st);
         }
         g.Restore(state);
@@ -153,6 +158,6 @@ public static class AstralNotes {
 }
 '@
 Add-Type -TypeDefinition $source -ReferencedAssemblies System.Drawing
-$root = Split-Path $PSScriptRoot -Parent
-[AstralNotes]::Render((Join-Path $root 'textures\notes.png'), (Join-Path $root 'notes-preview.png'))
-Write-Output 'Created textures\notes.png (354 x 1316, RGBA PNG) and notes-preview.png'
+$root = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'Notes'
+[AstralNotes]::Render((Join-Path $root 'notes.png'), (Join-Path $PSScriptRoot 'notes-preview.png'))
+Write-Output 'Created notes.png (354 x 1316, RGBA PNG) and notes-preview.png'

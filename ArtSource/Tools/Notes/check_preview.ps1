@@ -5,10 +5,10 @@ param(
 )
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Drawing
-$root=Split-Path $PSScriptRoot -Parent
+$root=Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'Notes'
 if($SkinRoot){$root=(Resolve-Path -LiteralPath $SkinRoot).Path}
-$target=Join-Path $root 'textures'
-$reference=Join-Path (Split-Path $root -Parent) 'custom01\textures'
+$target=Join-Path $root '.'
+$reference=Join-Path (Split-Path $root -Parent) '..\Assets\Game\Resources\live\note\custom01\textures'
 if(-not(Test-Path -LiteralPath $reference)){$reference=Join-Path (Split-Path (Split-Path $root -Parent) -Parent) 'custom01\textures'}
 $files=@(Get-ChildItem $reference -Recurse -File -Filter *.png)
 $checked=0
@@ -54,6 +54,6 @@ for($i=0;$i -lt $tiles.Count;$i++) {
     $g.DrawString("$($im.Width) x $($im.Height)",$label,$muted,[single]($x+18),[single]($y+185))
     $im.Dispose()
 }
-$card.Save((Join-Path $root 'textures-preview.png'),[System.Drawing.Imaging.ImageFormat]::Png)
+$card.Save((Join-Path $PSScriptRoot 'textures-preview.png'),[System.Drawing.Imaging.ImageFormat]::Png)
 $g.Dispose();$card.Dispose();$heading.Dispose();$label.Dispose();$sub.Dispose();$bright.Dispose();$muted.Dispose();$panel.Dispose()
 Write-Output 'Created textures-preview.png'

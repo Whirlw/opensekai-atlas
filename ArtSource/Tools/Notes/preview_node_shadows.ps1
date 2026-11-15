@@ -1,7 +1,7 @@
 param([string]$BackupName='before_node_tinted_shadows_20261108')
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Drawing
-$root=Split-Path $PSScriptRoot -Parent
+$root=Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'Notes'
 $backup=Join-Path (Split-Path $root -Parent) ('revision_backups\'+$BackupName)
 $names=@('notes_long_among.png','notes_long_among_crtcl.png','notes_friction_among_long.png','notes_friction_among_flick.png','notes_friction_among_crtcl.png')
 $labels=@('LONG / MINT','LONG / GOLD','TRACE / MINT','TRACE / PINK','TRACE / GOLD')
@@ -17,7 +17,7 @@ for($row=0;$row -lt 4;$row++){
  $b=New-Object System.Drawing.SolidBrush($background);$g.FillRectangle($b,0,$y,1100,220);$b.Dispose()
  $text=New-Object System.Drawing.SolidBrush($ink);$g.DrawString($headings[$row],$font,$text,18,[single]($y+10))
  for($i=0;$i -lt 5;$i++){
-  $path=if($row%2 -eq 0){Join-Path $backup ('noteskin\'+$names[$i])}else{Join-Path $root ('textures\noteskin\'+$names[$i])}
+  $path=if($row%2 -eq 0){Join-Path $backup ('noteskin\'+$names[$i])}else{Join-Path $root (''+$names[$i])}
   $image=[System.Drawing.Bitmap]::FromFile($path)
   $w=[int]($image.Width*1.1);$h=[int]($image.Height*1.1);$cx=110+$i*220
   $g.DrawImage($image,[int]($cx-$w/2),[int]($y+123-$h/2),$w,$h)
@@ -25,5 +25,5 @@ for($row=0;$row -lt 4;$row++){
  }
  $text.Dispose()
 }
-$card.Save((Join-Path $root 'nodes-shadow-comparison.png'),[System.Drawing.Imaging.ImageFormat]::Png)
+$card.Save((Join-Path $PSScriptRoot 'nodes-shadow-comparison.png'),[System.Drawing.Imaging.ImageFormat]::Png)
 $g.Dispose();$card.Dispose();$font.Dispose();$small.Dispose()

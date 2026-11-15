@@ -45,7 +45,8 @@ Shader "Sekai/Live/Note/Slide"
             {
                 float4 vertex : SV_POSITION;
                 fixed4 color : COLOR;
-                float2 uv : TEXCOORD0;
+                // x: u * q, y: v, z: q (see vert). Dividing x by z per fragment keeps the texture straight.
+                float3 uvq : TEXCOORD0;
                 float4 screenPosition : TEXCOORD1;
             };
 
@@ -54,20 +55,34 @@ Shader "Sekai/Live/Note/Slide"
             fixed4 _Color;
             float _NoteShowRate;
 
+            // Lane geometry (LiveConfig): notes travel from SpawnPosition (0, 5.46) to the judge line at
+            // y -2.96 and are scaled by their progress, so every lane edge is a ray from (0, 5.46). A note
+            // centred at depth d = progress * 8.42 below that point should have each of its points on the
+            // ray through it: x' = x * (5.46 - y) / d. With y = centre + progress * ly (ly in the sprite's own
+            // units) the progress cancels: x' = x * (1 - ly / 8.42).
+            static const float LaneDepth = 8.42;
+            // Note sprites (notes_0..6) are 186 px tall, centred in seven 188 px cells of the atlas at
+            // 108 px per unit; the vertical uv therefore gives the vertex's height above the note centre.
+            static const float AtlasCells = 7.0;
+            static const float CellPixels = 188.0;
+            static const float PixelsPerUnit = 108.0;
+
             v2f vert(appdata v)
             {
-                float side = frac(v.uv.y * 7.0) * 2.0 - 1.0;
-                float direction = -sign(side);
-                float normalizedX = v.uv.x * 2.0 - 1.0;
-                float center = v.color.r * 2.0 - 1.0;
-                float offset = (v.color.g * normalizedX + center) * v.color.b * 0.600000024 * direction;
-
-                v.vertex.x += offset;
+                // Sprites may be batched into world space; work in world space either way.
+                float4 world = mul(unity_ObjectToWorld, v.vertex);
+                float ly = (frac(v.uv.y * AtlasCells) - 0.5) * CellPixels / PixelsPerUnit;
+                float q = max(1.0 - ly / LaneDepth, 1e-4);
+                world.x *= q;
 
                 v2f o;
-                o.vertex = UnityObjectToClipPos(v.vertex);
+                o.vertex = mul(UNITY_MATRIX_VP, float4(world.xyz, 1.0));
                 o.color = fixed4(_Color.rgb, v.color.a * _Color.a);
-                o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+                // The squeeze is bilinear (it grows with both x and height), which two affine triangles per
+                // quad cannot map: the texture bent along each quad's diagonal and the note's middle drifted
+                // sideways. u * q and q are both linear on screen, so interpolating them and dividing is exact.
+                float2 uv = TRANSFORM_TEX(v.uv, _MainTex);
+                o.uvq = float3(uv.x * q, uv.y, q);
                 o.screenPosition = ComputeScreenPos(o.vertex);
                 return o;
             }
@@ -77,7 +92,7 @@ Shader "Sekai/Live/Note/Slide"
                 float2 screenUv = i.screenPosition.xy / i.screenPosition.w;
                 clip(_NoteShowRate - screenUv.y);
 
-                fixed4 tex = tex2D(_MainTex, i.uv);
+                fixed4 tex = tex2D(_MainTex, float2(i.uvq.x / i.uvq.z, i.uvq.y));
                 fixed alpha = tex.a * i.color.a;
                 return fixed4(tex.rgb * alpha, tex.a);
             }

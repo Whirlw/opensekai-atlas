@@ -1,9 +1,9 @@
 $ErrorActionPreference='Stop'
 Add-Type -AssemblyName System.Drawing
-$root=Split-Path $PSScriptRoot -Parent
+$root=Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'NotesV2'
 $kit=Split-Path $root -Parent
-$oldRoot=Join-Path $kit 'new_notes\textures'
-$newRoot=Join-Path $root 'textures'
+$oldRoot=Join-Path $kit 'Notes'
+$newRoot=Join-Path $root '.'
 $font=New-Object System.Drawing.Font('Segoe UI',19,[System.Drawing.FontStyle]::Bold)
 $small=New-Object System.Drawing.Font('Segoe UI',10)
 $ink=New-Object System.Drawing.SolidBrush([System.Drawing.ColorTranslator]::FromHtml('#e7eeff'))
@@ -26,20 +26,20 @@ function Write-PaletteComparison([string[]]$files,[string]$title,[string]$output
    $g.DrawString($(if($version -eq 0){'CURRENT'}else{'V2'}),$small,$ink,[single]($left+7),[single]($y+$height-24))
   }
  }
- $card.Save((Join-Path $root $output),[System.Drawing.Imaging.ImageFormat]::Png);$g.Dispose();$card.Dispose()
+ $card.Save((Join-Path $PSScriptRoot $output),[System.Drawing.Imaging.ImageFormat]::Png);$g.Dispose();$card.Dispose()
 }
-$arrows=@(Get-ChildItem -LiteralPath (Join-Path $oldRoot 'noteskin') -File -Filter 'notes_flick_arrow_*.png' | Sort-Object Name | ForEach-Object {'noteskin\'+$_.Name})
+$arrows=@(Get-ChildItem -LiteralPath $oldRoot -File -Filter 'notes_flick_arrow_*.png' | Sort-Object Name | ForEach-Object {$_.Name})
 Write-PaletteComparison $arrows 'ARROWS / CURRENT AND V2' 'arrows-palette-comparison.png' 225
-$nodes=@('notes_long_among.png','notes_long_among_crtcl.png','notes_friction_among_long.png','notes_friction_among_flick.png','notes_friction_among_crtcl.png') | ForEach-Object {'noteskin\'+$_}
+$nodes=@('notes_long_among.png','notes_long_among_crtcl.png','notes_friction_among_long.png','notes_friction_among_flick.png','notes_friction_among_crtcl.png')
 Write-PaletteComparison $nodes 'CONNECTION NODES / CURRENT AND V2' 'nodes-palette-comparison.png' 240
 Write-PaletteComparison @('longNoteLine.png','traceLine_eff.png','simultaneousLine.png') 'CONNECTION STRIPS / CURRENT AND V2' 'lines-palette-comparison.png' 300
 
 $card=New-Object System.Drawing.Bitmap(1480,1120);$g=[System.Drawing.Graphics]::FromImage($card)
 $g.InterpolationMode=[System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-$bg=[System.Drawing.Bitmap]::FromFile((Join-Path $kit 'new_backgrounds\default.png'))
+$bg=[System.Drawing.Bitmap]::FromFile((Join-Path $kit 'Backgrounds\default.png'))
 $g.DrawImage($bg,(New-Object System.Drawing.Rectangle(0,0,1480,1120)),(New-Object System.Drawing.Rectangle(0,230,2048,1550)),[System.Drawing.GraphicsUnit]::Pixel);$bg.Dispose()
 foreach($item in @(@('bg_scoreGauge.png',20,22,280),@('bg_lifeGauge.png',1050,22,280),@('btn_stop.png',1366,17,85))){
- $im=[System.Drawing.Bitmap]::FromFile((Join-Path $kit ('new_hud\'+$item[0])));$w=[int]$item[3];$h=[int]($im.Height*$w/$im.Width)
+ $im=[System.Drawing.Bitmap]::FromFile((Join-Path $kit ('HUD\'+$item[0])));$w=[int]$item[3];$h=[int]($im.Height*$w/$im.Width)
  $g.DrawImage($im,[int]$item[1],[int]$item[2],$w,$h);$im.Dispose()
 }
 $g.DrawString('ASTRAL V2 / NEW NOTE PALETTE',$font,$ink,350,50)
@@ -63,9 +63,9 @@ for($i=0;$i -lt $nodes.Count;$i++){
 $g.DrawString('ARROWS / WHITE CONSTELLATION TRAILS',$small,$ink,36,858)
 $examples=@('notes_flick_arrow_crtcl_03.png','notes_flick_arrow_crtcl_03_diagonal.png','notes_flick_arrow_03.png','notes_flick_arrow_03_diagonal.png')
 for($i=0;$i -lt $examples.Count;$i++){
- $im=[System.Drawing.Bitmap]::FromFile((Join-Path $newRoot ('noteskin\'+$examples[$i])));$scale=[Math]::Min(320.0/$im.Width,200.0/$im.Height);$w=[int]($im.Width*$scale);$h=[int]($im.Height*$scale)
+ $im=[System.Drawing.Bitmap]::FromFile((Join-Path $newRoot $examples[$i]));$scale=[Math]::Min(320.0/$im.Width,200.0/$im.Height);$w=[int]($im.Width*$scale);$h=[int]($im.Height*$scale)
  $g.DrawImage($im,[int](185+$i*370-$w/2),[int](990-$h/2),$w,$h);$im.Dispose()
 }
-$card.Save((Join-Path $root 'palette-overview.png'),[System.Drawing.Imaging.ImageFormat]::Png)
+$card.Save((Join-Path $PSScriptRoot 'palette-overview.png'),[System.Drawing.Imaging.ImageFormat]::Png)
 $g.Dispose();$card.Dispose();$font.Dispose();$small.Dispose();$ink.Dispose();$panel.Dispose()
 Write-Output 'Created three category comparison sheets and palette-overview.png with the current UI.'
