@@ -16,14 +16,11 @@ LocalPacks/paint-kit/hud/tex_2dmode_jacket_mirror_main.png	Assets/Graphics/Textu
 LocalPacks/paint-kit/hud/mask_line.png	Assets/Graphics/Textures/mask_line.png	0	0	18	6	0	0	0	0	1	whole
 LocalPacks/paint-kit/hud/lane_mask.png	Assets/Graphics/Textures/lane_mask.png	0	0	2048	1176	0	0	0	0	1	whole
 LocalPacks/paint-kit/hud/judgeLine.png	Assets/Graphics/Textures/judgeLine.png	0	0	1608	114	0	0	0	0	1	whole
-LocalPacks/paint-kit/hud/label_grd_h40_dbl.png	Assets/Graphics/Textures/label_grd_h40_dbl.png	0	0	250	40	0	0	0	0	1	whole
 LocalPacks/paint-kit/hud/grd_append.png	Assets/Graphics/Textures/grd_append.png	0	0	512	2	0	0	0	0	1	whole
 LocalPacks/paint-kit/hud/tex_lifeZero.png	Assets/Graphics/Textures/tex_lifeZero.png	0	0	480	480	0	0	0	0	1	whole
-LocalPacks/paint-kit/hud/bg_hiLight_mask.png	Assets/Graphics/Textures/bg_hiLight_mask.png	0	0	8	560	0	0	0	0	1	whole
 LocalPacks/paint-kit/hud/lane_base.png	Assets/Graphics/Textures/lane_base.png	0	0	2048	1176	0	0	0	0	1	whole
 LocalPacks/paint-kit/hud/lane_line.png	Assets/Graphics/Textures/lane_line.png	0	0	2048	1176	0	0	0	0	1	whole
 LocalPacks/paint-kit/hud/bg_base_wh.png	Assets/Graphics/Textures/bg_base_wh.png	0	0	4	4	0	0	0	0	1	whole
-LocalPacks/paint-kit/hud/skillEffect_text.png	Assets/Graphics/Textures/skillEffect_text.png	0	0	512	48	0	0	0	0	1	whole
 LocalPacks/paint-kit/hud/bg_base_ingame_wh.png	Assets/Graphics/Textures/bg_base_ingame_wh.png	0	0	4	4	0	0	0	0	1	whole
 LocalPacks/paint-kit/hud/number_48px_4_wh.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1442	1197	35	42	0.0	0.0	0.0	0.0	100.00	rect
 LocalPacks/paint-kit/hud/number_48px_8_wh.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	611	1637	33	44	0.0	0.0	0.0	0.0	100.00	rect
@@ -64,7 +61,6 @@ LocalPacks/paint-kit/hud/number_combo_154px_8_pr.png	Assets/Graphics/Textures/sa
 LocalPacks/paint-kit/hud/txt_combo_ap_rbw.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1363	922	148	49	0.0	0.0	0.0	0.0	108.00	rect
 LocalPacks/paint-kit/hud/meter_mark.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	556	1216	22	22	0.0	0.0	0.0	0.0	108.00	rect
 LocalPacks/paint-kit/hud/number_48px_0_wh.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1772	1013	33	44	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/bg_base_ingame_wh_2.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	232	1807	4	4	0.0	0.0	0.0	0.0	108.00	rect
 LocalPacks/paint-kit/hud/number_combo_ap_154px_8_rbw.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	194	1197	117	151	0.0	0.0	0.0	0.0	108.00	rect
 LocalPacks/paint-kit/hud/number_48px_6_wh.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	611	1589	34	44	0.0	0.0	0.0	0.0	100.00	rect
 LocalPacks/paint-kit/hud/number_combo_154px_4_pr.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	435	1216	117	144	0.0	0.0	0.0	0.0	108.00	rect
@@ -89,7 +85,6 @@ LocalPacks/paint-kit/hud/C.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6
 LocalPacks/paint-kit/hud/number_48px_shadow_0.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1163	1297	47	56	0.0	0.0	0.0	0.0	100.00	rect
 LocalPacks/paint-kit/hud/number_48px_shadow_5.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	274	1702	46	56	0.0	0.0	0.0	0.0	100.00	rect
 LocalPacks/paint-kit/hud/number_combo_154px_3_pr.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	733	988	112	151	0.0	0.0	0.0	0.0	108.00	rect
-LocalPacks/paint-kit/hud/txt_scoreRank_ingame_wh.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	730	1313	86	14	0.0	0.0	0.0	0.0	108.00	rect
 LocalPacks/paint-kit/hud/number_48px_2_wh.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	649	1611	32	43	0.0	0.0	0.0	0.0	100.00	rect
 LocalPacks/paint-kit/hud/number_48px_7_wh.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1886	52	32	42	0.0	0.0	0.0	0.0	100.00	rect
 LocalPacks/paint-kit/hud/number_combo_ap_154px_5_rbw.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	120	1352	113	147	0.0	0.0	0.0	0.0	108.00	rect
@@ -110,48 +105,14 @@ LocalPacks/paint-kit/hud/eff_5_150.png	Assets/Graphics/Textures/sactx-0-2048x204
 LocalPacks/paint-kit/hud/S.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	866	1278	32	34	0.0	0.0	0.0	0.0	108.00	rect
 LocalPacks/paint-kit/hud/eff_9_150.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1472	492	179	211	0.0	0.0	0.0	0.0	108.00	rect
 LocalPacks/paint-kit/hud/A.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1610	1097	32	34	0.0	0.0	0.0	0.0	108.00	rect
-LocalPacks/paint-kit/hud/skillEffect_text_1.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1515	922	29	48	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/cardFrame_S_2.png	Assets/Graphics/Textures/sactx-2-1024x1024-ASTC 4x4-FrameAtlas-ceade363.png	540	684	152	152	0.0	0.0	0.0	0.0	1.00	rect
-LocalPacks/paint-kit/hud/skillLv_40px_1_wh.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1214	1297	20	36	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/txt_skill_judge.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	292	1551	127	43	0.0	0.0	0.0	0.0	100.00	rect
 LocalPacks/paint-kit/hud/score_A.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1772	918	76	91	0.0	0.0	0.0	0.0	108.00	rect
-LocalPacks/paint-kit/hud/skillEffect_text_12.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	416	1702	37	42	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/skillEffect_text_6.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	654	1559	32	48	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/cardFrame_S_1.png	Assets/Graphics/Textures/sactx-2-1024x1024-ASTC 4x4-FrameAtlas-ceade363.png	816	0	152	152	0.0	0.0	0.0	0.0	1.00	rect
-LocalPacks/paint-kit/hud/txt_skill_life.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1462	1097	144	43	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/skillLv_40px_shadow_3.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	750	1487	41	48	0.0	0.0	0.0	0.0	100.00	rect
 LocalPacks/paint-kit/hud/label_autolive.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	174	1119	330	74	0.0	0.0	0.0	0.0	108.00	rect
-LocalPacks/paint-kit/hud/skillLv_40px_shadow_1.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	237	1436	33	48	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/icon_skill_scoreUp.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	112	1651	88	81	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/skillLv_40px_shadow_2.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1232	388	40	48	0.0	0.0	0.0	0.0	100.00	rect
 LocalPacks/paint-kit/hud/tex_live_countdown_1.png	Assets/Graphics/Resources/effects/live_countdown/texture/tex_live_countdown.png	53	275	112	218	0.0	0.0	0.0	0.0	108.00	rect
-LocalPacks/paint-kit/hud/skillEffect_text_0.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1234	995	30	48	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/skillEffect_text_9.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1239	1245	32	48	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/txt_skill_scoreUp.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	552	1484	134	41	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/skillEffect_text_5.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1821	215	32	48	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/icon_skill_scoreSupport.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1400	800	24	32	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/skillEffect_text_7.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1462	1144	32	48	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/skillEffect_text_8.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1886	0	33	48	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/skillLv_40px_Lv_wh.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	50	1122	60	36	0.0	0.0	0.0	0.0	100.00	rect
 LocalPacks/paint-kit/hud/score_D.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1362	1197	76	87	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/skillLv_40px_shadow_Lv.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	830	1226	72	48	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/skillEffect_text_10.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1344	388	14	48	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/icon_skill_life.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	740	1226	86	83	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/icon_skill_judge.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1363	708	88	88	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/bg_cutin_skill_judge.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1290	0	408	136	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/skillEffect_text_2.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1198	995	32	48	0.0	0.0	0.0	0.0	100.00	rect
 LocalPacks/paint-kit/hud/score_C.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	112	1736	68	92	0.0	0.0	0.0	0.0	108.00	rect
-LocalPacks/paint-kit/hud/skillEffect_text_11.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1008	1284	37	45	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/skillEffect_text_4.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	114	1122	31	48	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/cardFrame_S_3.png	Assets/Graphics/Textures/sactx-2-1024x1024-ASTC 4x4-FrameAtlas-ceade363.png	752	600	152	152	0.0	0.0	0.0	0.0	1.00	rect
 LocalPacks/paint-kit/hud/gauge_bar_ingame_freeLive_s.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	415	1379	532	24	0.0	0.0	0.0	0.0	108.00	rect
-LocalPacks/paint-kit/hud/cardFrame_S_4.png	Assets/Graphics/Textures/sactx-2-1024x1024-ASTC 4x4-FrameAtlas-ceade363.png	384	840	152	152	0.0	0.0	0.0	0.0	1.00	rect
-LocalPacks/paint-kit/hud/cardFrame_S_bd.png	Assets/Graphics/Textures/sactx-2-1024x1024-ASTC 4x4-FrameAtlas-ceade363.png	384	684	152	152	0.0	0.0	0.0	0.0	1.00	rect
-LocalPacks/paint-kit/hud/skillEffect_text_3.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	1276	388	32	48	0.0	0.0	0.0	0.0	100.00	rect
-LocalPacks/paint-kit/hud/skillLv_40px_shadow_4.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	751	1435	42	48	0.0	0.0	0.0	0.0	100.00	rect
 LocalPacks/paint-kit/hud/score_B.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	220	1551	68	87	0.0	0.0	0.0	0.0	108.00	rect
 LocalPacks/paint-kit/hud/tex_live_countdown_3.png	Assets/Graphics/Resources/effects/live_countdown/texture/tex_live_countdown.png	44	14	170	228	0.0	0.0	0.0	0.0	108.00	rect
 LocalPacks/paint-kit/hud/tex_live_countdown_2.png	Assets/Graphics/Resources/effects/live_countdown/texture/tex_live_countdown.png	303	272	162	223	0.0	0.0	0.0	0.0	108.00	rect
-LocalPacks/paint-kit/hud/txt_cutin_skill_wh.png	Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png	324	1702	88	28	0.0	0.0	0.0	0.0	108.00	rect
 LocalPacks/paint-kit/hud/tex_transition_03.png	Assets/Graphics/Resources/effects/transition/texture/tex_transition_03.png	0	0	512	512	0.0	0.0	0.0	0.0	100.00	whole
 LocalPacks/paint-kit/hud/tex_transition_01.png	Assets/Graphics/Resources/effects/transition/texture/tex_transition_01.png	0	0	1024	1024	0.0	0.0	0.0	0.0	100.00	whole
