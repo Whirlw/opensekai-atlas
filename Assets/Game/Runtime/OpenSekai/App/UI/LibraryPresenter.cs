@@ -30,8 +30,6 @@ namespace OpenSekai.App.UI
         private LibraryListing _listing;
         private SongPackageItem _selected;
         private LibraryViewMode _viewMode = LibraryViewMode.List;
-        private readonly Func<float> _clock;
-        private float _lastSelectTime = float.NegativeInfinity;
         private CancellationTokenSource _playbackCts;
         private bool _isStartingPlayback;
 
@@ -40,16 +38,13 @@ namespace OpenSekai.App.UI
         /// <param name="startPlay">Starts a live session for a package.</param>
         /// <param name="loadHistory">Play history per score key, as cached; defaults to the history store.</param>
         /// <param name="reloadHistory">Rebuilds the cached history from the history file; defaults to the history store.</param>
-        /// <param name="clock">Seconds for the selection cooldown; defaults to unscaled time.</param>
         internal LibraryPresenter(
             ILibraryView view,
             SongPackageManager packages,
             Func<PlayRequest, CancellationToken, Action<string>, UniTask<PlayStartResult>> startPlay,
             Func<IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary>> loadHistory = null,
-            Action reloadHistory = null,
-            Func<float> clock = null)
+            Action reloadHistory = null)
         {
-            _clock = clock ?? (() => Time.unscaledTime);
             _view = view;
             _packages = packages;
             _startPlay = startPlay;
@@ -112,8 +107,8 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>
-        /// Selects a package from a click. A click within <see cref="LibraryTheme.Motion.SELECT_COOLDOWN"/>
-        /// of the last switch is ignored, so the preview crossfade finishes before the next one.
+        /// Selects a package from a click. Every click switches at once; a preview still fading
+        /// keeps fading out under the new one.
         /// </summary>
         internal void Select(SongPackageItem item)
         {
@@ -122,13 +117,6 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            float now = _clock();
-            if (now - _lastSelectTime < LibraryTheme.Motion.SELECT_COOLDOWN)
-            {
-                return;
-            }
-
-            _lastSelectTime = now;
             _selected = item;
             _view.SetSelection(item);
             UiSound.Play(UiCue.Select);

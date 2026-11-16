@@ -72,28 +72,20 @@ namespace OpenSekai.Tests.EditMode
         }
 
         [Test]
-        public void SelectIgnoresAClickWithinTheCooldownOfTheLastSwitch()
+        public void SelectSwitchesOnEveryClickWithoutACooldown()
         {
             AddPackage("alpha", "Alpha", 1);
             AddPackage("beta", "Beta", 2);
             AddPackage("gamma", "Gamma", 3);
-            float now = 10f;
-            var presenter = new LibraryPresenter(_view, _packages, StartPlayback, clock: () => now);
+            var presenter = new LibraryPresenter(_view, _packages, StartPlayback);
             try
             {
                 presenter.Refresh();
                 SongPackageItem[] items = _view.Items.ToArray();
 
                 presenter.Select(items[1]);
-                Assert.That(_view.Selected, Is.SameAs(items[1]));
-
-                now += 0.3f;
                 presenter.Select(items[2]);
-                Assert.That(_view.Selected, Is.SameAs(items[1]), "a click 0.3 s after a switch is ignored");
-
-                now += 0.3f;
-                presenter.Select(items[2]);
-                Assert.That(_view.Selected, Is.SameAs(items[2]), "the cooldown runs from the last accepted switch");
+                Assert.That(_view.Selected, Is.SameAs(items[2]), "a quick second click still switches");
             }
             finally
             {

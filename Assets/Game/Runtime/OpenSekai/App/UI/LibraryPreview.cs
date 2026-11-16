@@ -12,11 +12,16 @@ namespace OpenSekai.App.UI
 {
     /// <summary>
     /// Plays a short preview of the selected package. A new selection fades the old preview out
-    /// while the new one loads and fades in, so two voices can briefly overlap.
+    /// while the new one loads and fades in. Quick switches leave several old previews fading at
+    /// once, each from wherever its own fade had reached; past <see cref="MaxFading"/> the quietest
+    /// is dropped. Volume follows the 音乐音量 setting.
     /// </summary>
     internal sealed class LibraryPreview : MonoBehaviour
     {
         private const float PreviewLength = 15f;
+
+        /// <summary>Old previews allowed to fade at once; with the current one that is four layers.</summary>
+        private const int MaxFading = 3;
 
         private readonly List<Voice> _fading = new List<Voice>();
         private readonly Stack<AudioSource> _freeSources = new Stack<AudioSource>();
@@ -78,6 +83,21 @@ namespace OpenSekai.App.UI
                 _current.Target = 0f;
                 _fading.Add(_current);
                 _current = null;
+            }
+
+            while (_fading.Count > MaxFading)
+            {
+                int quietest = 0;
+                for (int i = 1; i < _fading.Count; i++)
+                {
+                    if (_fading[i].Gain < _fading[quietest].Gain)
+                    {
+                        quietest = i;
+                    }
+                }
+
+                ReleaseVoice(_fading[quietest]);
+                _fading.RemoveAt(quietest);
             }
         }
 
@@ -146,7 +166,7 @@ namespace OpenSekai.App.UI
         private void Update()
         {
             float step = Time.unscaledDeltaTime / LibraryTheme.Motion.PREVIEW_FADE;
-            float volume = Mathf.Clamp01(ApplicationLocalSettings.LoadFromStorage().SystemVolume?.Bgm ?? 1f);
+            float volume = MusicVolume();
 
             for (int i = _fading.Count - 1; i >= 0; i--)
             {
@@ -182,6 +202,17 @@ namespace OpenSekai.App.UI
         }
 
         private void OnDisable() => StopPreview();
+
+        /// <summary>
+        /// The 音乐音量 row in settings writes the live volume, so the preview reads the same value;
+        /// it is read every frame and a change is heard at once.
+        /// </summary>
+        private static float MusicVolume()
+        {
+            ApplicationLocalSettings settings = ApplicationLocalSettings.LoadFromStorage();
+            ApplicationLocalSettings.VolumeSettings music = settings.LiveVolume ?? settings.SystemVolume;
+            return Mathf.Clamp01(music?.Bgm ?? 1f);
+        }
 
         private AudioSource TakeSource()
         {
@@ -221,6 +252,8 @@ namespace OpenSekai.App.UI
             internal readonly float End;
             internal float Target = 1f;
             private float _gain;
+
+            internal float Gain => _gain;
 
             internal Voice(AudioSource source, AudioClip clip, float start, float end)
             {
