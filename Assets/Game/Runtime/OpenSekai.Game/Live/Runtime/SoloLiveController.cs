@@ -15,7 +15,8 @@ namespace Sekai.Core.Live
 		private Coroutine _resumeCoroutine;
 		private bool _playHistoryRecorded;
 		private bool _retiredByPlayer;
-		private LivePauseOverlay _pauseOverlay;
+		private ILivePauseMenu _pauseOverlay;
+		private MusicInfoView _musicInfoView;
 		private LiveViewBase[] _liveViews;
 		private LiveLogic _liveLogic;
 
@@ -292,11 +293,43 @@ namespace Sekai.Core.Live
 		{
 			if (_pauseOverlay == null)
 			{
-				_pauseOverlay = LivePauseOverlay.Create(transform);
+				_pauseOverlay = LivePauseMenus.Create(transform);
 			}
 
-			string title = (BootData as FreeLiveBootData)?.CustomMusicScoreTitle;
-			_pauseOverlay.Show(title, OnResume, Retry, OnRetireByMySelf);
+			_pauseOverlay.Show(BuildPauseInfo(), OnResume, Retry, OnRetireByMySelf);
+		}
+
+		/// <summary>The song the pause card names, with the jacket and accent the song info page already resolved.</summary>
+		private LivePauseInfo BuildPauseInfo()
+		{
+			FreeLiveBootData free = BootData as FreeLiveBootData;
+			LiveMusicData music = BootData?.MusicData;
+			if (_musicInfoView == null)
+			{
+				_musicInfoView = FindAnyObjectByType<MusicInfoView>(FindObjectsInactive.Include);
+			}
+
+			string title = music?.Music?.title;
+			if (string.IsNullOrWhiteSpace(title))
+			{
+				title = free?.CustomMusicScoreTitle;
+			}
+
+			var info = new LivePauseInfo
+			{
+				Title = title ?? string.Empty,
+				Charter = free?.CustomMusicScoreAuthorName ?? string.Empty,
+				Difficulty = music?.DifficultyString ?? string.Empty,
+				Level = music?.PlayLevel ?? 0,
+				IsAuto = BootData?.IsAuto ?? false,
+			};
+			if (_musicInfoView != null)
+			{
+				info.Jacket = _musicInfoView.JacketTexture;
+				info.Accent = _musicInfoView.Accent;
+			}
+
+			return info;
 		}
 
 		public void PauseLive()

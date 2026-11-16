@@ -155,6 +155,12 @@ namespace Sekai.Live
 		/// </summary>
 		public float PlayDurationSeconds => START_DELAY + Mathf.Max(0f, JacketFadeOutDelaySec) + FADE_OUT_DURATION;
 
+		/// <summary>The jacket the page shows; null when the song has none. Reused by the pause card.</summary>
+		public Texture2D JacketTexture { get; private set; }
+
+		/// <summary>The accent taken from the jacket, the way the library's JacketPalette does.</summary>
+		public Color Accent { get; private set; } = DefaultAccent;
+
 		public void Setup(LiveBootDataBase bootData)
 		{
 			LiveMusicData musicData = bootData?.MusicData;
@@ -216,6 +222,8 @@ namespace Sekai.Live
 			}
 
 			PaletteOf(texture, out Color accent, out Color glow);
+			JacketTexture = texture;
+			Accent = accent;
 			Tint(_accentGraphics, accent);
 			Tint(_glowGraphics, glow);
 		}
