@@ -302,7 +302,7 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 
 **P3-4 动画入口统一**
 
-- `TweenBase` 已使用 DOTween。由 Inspector 配置和驱动的动画继续使用现有 `Tween*` 组件，代码管理生命周期的动画沿用 DOTween。
+- 由 Inspector 驱动的动画继续使用现有 `Tween*` 组件。2026-11-16 起，`TweenBase` 和由代码驱动的动画均使用 LitMotion。
 - 在 `docs/coding-standards` 记录这两个入口的适用场景、现有调用以及动画随组件禁用、销毁或场景切换时的清理责任。（已落到 `11-animation.md`，见执行记录。）
 
 验收：新增或迁移的动画有明确的入口和生命周期归属，既有 Inspector 引用和动画行为保持一致。

@@ -15,7 +15,7 @@
 | 文档 | 内容 |
 | --- | --- |
 | [设置项](live-settings.md) | `LiveSettingData` 字段、曲库设置面板 9 项、存储位置 |
-| [构建宏](build-defines.md) | `DOTWEEN`、`OPENSEKAI_PERF_HUD` 等编译宏的作用与开关方式 |
+| [构建宏](build-defines.md) | 编译宏的配置方式与已停用的宏 |
 | [术语表](glossary.md) | 曲包、谱面、AB、判定、规则版本等名词 |
 | [字体](fonts.md) | 两套字体的许可与角色、TMP 资产、图集与重新生成 |
 | [内置符号字符](builtin-symbols.md) | 文案里 ★♪※ 等符号的统计与字体覆盖 |

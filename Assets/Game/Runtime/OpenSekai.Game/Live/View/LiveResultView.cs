@@ -1,5 +1,5 @@
 using Sekai.Core.Live;
-using DG.Tweening;
+using LitMotion;
 using UnityEngine;
 using Sekai;
 
@@ -11,6 +11,8 @@ namespace Sekai.Live
 		private SpriteRenderer _background;
 
 		private bool _shouldPlayVoiceSE;
+		private MotionHandle _backgroundMotion;
+		private MotionHandle _resultDelay;
 
 		public void Setup(bool shouldPlayVoiceSE)
 		{
@@ -54,6 +56,7 @@ namespace Sekai.Live
 
 		public void Unload()
 		{
+			CancelMotions();
 			AssetBundleUtility.UnloadAssetBundle(LiveConfig.ResultBundleName);
 		}
 
@@ -62,11 +65,17 @@ namespace Sekai.Live
 			if (_background != null)
 			{
 				_background.gameObject.SetActive(true);
-				_background.DOKill();
-				_background.DOColor(new Color(0f, 0f, 0f, 0.5f), 0.2f).SetEase(Ease.OutCirc);
+				_backgroundMotion.TryCancel();
+				Color from = _background.color;
+				Color to = new Color(0f, 0f, 0f, 0.5f);
+				_backgroundMotion = LMotion.Create(0f, 1f, 0.2f)
+					.WithEase(Ease.OutCirc)
+					.WithScheduler(LiveMotion.Scheduler())
+					.Bind(progress => _background.color = Color.LerpUnclamped(from, to, progress));
 			}
 
-			DOVirtual.DelayedCall(0.2f, () =>
+			_resultDelay.TryCancel();
+			_resultDelay = LiveMotion.Delay(0.2f, () =>
 			{
 				GameObject prefab = AssetBundleUtility.LoadAsset<GameObject>(LiveConfig.ResultBundleName, prefabName, false);
 				if (prefab == null)
@@ -85,8 +94,12 @@ namespace Sekai.Live
 			});
 		}
 
-		public LiveResultView()
+		private void OnDisable() => CancelMotions();
+
+		private void CancelMotions()
 		{
+			_backgroundMotion.TryCancel();
+			_resultDelay.TryCancel();
 		}
 
 		private void PlayEndVoice(string cueName)

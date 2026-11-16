@@ -36,7 +36,7 @@
 | Scripting Backend | IL2CPP | `scriptingBackend.Android: 1` |
 | Target Architectures | **仅 ARM64** | `AndroidTargetArchitectures: 2` |
 | Managed Stripping | **Low** | `managedStrippingLevel.Android: 1` |
-| 宏 | `DOTWEEN` | `scriptingDefineSymbols` |
+| 自定义编译宏 | 无 | `scriptingDefineSymbols` |
 | Active Input Handling | Input System Package (New) | `activeInputHandler: 1`；Android 不支持 Both。UI 使用 `InputSystemUIInputModule`，残留旧输入消费者通过 `NativeInput` 读取新系统 |
 
 `ManagedStrippingLevel` 的枚举值是反直觉的：**Disabled=0、Low=1、Minimal=4**，改 YAML 时别写错。

@@ -12,7 +12,6 @@
                        "NativeFilePicker.Runtime",
                        "ZString",
                        "UniSafeAreaAdjuster",
-                       "DOTween.Modules",
                        "LitMotion",
                        "LitMotion.Extensions"
                    ],

@@ -127,7 +127,7 @@
 | 音频素材署名 | [reference/audio-credits.md](reference/audio-credits.md) | 随包音频的来源与授权 | — | 现行 |
 | 判定窗口 | [reference/judging.md](reference/judging.md) | 判定帧数表、判定时机、已知差异 | 2026-11-03 | 现行 |
 | 设置项 | [reference/live-settings.md](reference/live-settings.md) | 面板 9 项与 `LiveSettingData` 字段、存储与生效时机 | 2026-11-02 | 现行 |
-| 构建宏 | [reference/build-defines.md](reference/build-defines.md) | `DOTWEEN`、`OPENSEKAI_PERF_HUD` 等宏的作用与开关 | 2026-11-02 | 现行 |
+| 构建宏 | [reference/build-defines.md](reference/build-defines.md) | 编译宏的配置方式与已停用的宏 | 2026-11-16 | 现行 |
 | 术语表 | [reference/glossary.md](reference/glossary.md) | 曲包/谱面/AB/判定/规则版本等名词 | 2026-11-02 | 现行 |
 | 字体 | [reference/fonts.md](reference/fonts.md) | 两套字体的角色与许可、TMP 资产与图集、重新生成步骤 | 2026-11-02 | 现行 |
 | 内置符号字符 | [reference/builtin-symbols.md](reference/builtin-symbols.md) | 文案里的 ★♪※ 等符号统计与思源黑体覆盖情况 | 2026-11-02 | 现行 |
@@ -148,7 +148,7 @@
 | 代码陷阱 | [coding-standards/08-code-smells.md](coding-standards/08-code-smells.md) | 五条 Code Smell 的症状/原因/改法 + Review 清单 | 2026-11-02 | 现行 |
 | 工具与扩展资源 | [coding-standards/09-tooling-and-resources.md](coding-standards/09-tooling-and-resources.md) | 脚本模板命名、单元测试、权威参考、架构文章 | 2026-11-02 | 现行 |
 | Data 与 Model | [coding-standards/10-odin-toolkits.md](coding-standards/10-odin-toolkits.md) | 静态数据 vs 运行时状态、变更通知、判断流程 | 2026-11-02 | 现行 |
-| 动画入口 | [coding-standards/11-animation.md](coding-standards/11-animation.md) | `Tween*` 与 DOTween 的适用场景、现有挂载点与调用清单、禁用/销毁时的清理责任 | 2026-11-12 | 现行 |
+| 动画入口 | [coding-standards/11-animation.md](coding-standards/11-animation.md) | `Tween*` 与 LitMotion 的适用场景、挂载点及清理责任 | 2026-11-16 | 现行 |
 | 外部资料整理 | [coding-standards/references/README.md](coding-standards/references/README.md) | 9 份外链的可得性说明与摘录索引 | 2026-11-02 | 现行 |
 | 电子书整理 | [coding-standards/references/unity-csharp-style-guide-ebook.md](coding-standards/references/unity-csharp-style-guide-ebook.md) | Unity 6 版 C# 风格指南电子书的章节骨架与可核实要点 | 2026-11-02 | 现行 |
 | 风格指南仓库 | [coding-standards/references/unity-code-style-guide-repo.md](coding-standards/references/unity-code-style-guide-repo.md) | Unity-Code-Style-Guide 仓库的规则条款摘录 | 2026-11-02 | 现行 |

@@ -11,7 +11,7 @@
                        "Unity.RenderPipelines.Universal.Runtime",
                        "Unity.RenderPipelines.Universal.Editor",
                        "UnityEditor.UI",
-                       "DOTween.Modules",
+                       "LitMotion",
                        "UniTask",
                        "Unity.InputSystem",
                        "Unity.RenderPipelines.Core.Runtime"

@@ -5,7 +5,7 @@ using Sekai.Core;
 using Sekai.Core.Live;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
-using DG.Tweening;
+using LitMotion;
 using CriWare;
 using Sekai;
 
@@ -86,11 +86,11 @@ namespace Sekai.Live
 		private TapEffectView _tapEffect;
 		private LongTapEffectView _longTapEffectView;
 		private MusicInfoView _resolvedMusicInfo;
-		private Tween _musicStartTween;
-		private Tween _backgroundTween;
-		private Tween _startVoiceTween;
-		private Tween _spriteAlphaTween;
-		private Tween _fadeTween;
+		private MotionHandle _musicStartMotion;
+		private MotionHandle _backgroundMotion;
+		private MotionHandle _startVoiceMotion;
+		private MotionHandle _spriteAlphaMotion;
+		private MotionHandle _fadeMotion;
 		private readonly Dictionary<SpriteRenderer, float> _spriteRendererAlphaDict = new Dictionary<SpriteRenderer, float>();
 		private LiveMusicData.CollaborationModeState _collaborationModeState;
 		private bool _isAuto;
@@ -150,6 +150,7 @@ namespace Sekai.Live
 
 		public override void OnUnload()
 		{
+			CancelMotions();
 			_liveResultView?.Unload();
 			_cutinManager?.Dispose();
 			_tapEffect?.Dispose();
@@ -160,6 +161,7 @@ namespace Sekai.Live
 			bool skipMusicInfo = _baseController?.BootData?.IsCustomMusicScore == true &&
 				_baseController?.BootData?.LiveSettingData?.SkipsCustomMusicScoreMusicInfo == true;
 
+			_musicStartMotion.TryCancel();
 			_introFinished = false;
 			if (skipMusicInfo)
 			{
@@ -177,8 +179,7 @@ namespace Sekai.Live
 			if (_baseController?.BootData?.MusicData?.PlayStartEffectEnabled == true)
 			{
 				UpdateSpriteAlpha(0f);
-				_musicStartTween?.Kill();
-				_musicStartTween = DOVirtual.DelayedCall(0.1f, () =>
+				_musicStartMotion = LiveMotion.Delay(MusicInfoStartDelaySeconds, () =>
 				{
 					MusicInfoView info = ResolveMusicInfo();
 					if (info == null)
@@ -191,7 +192,7 @@ namespace Sekai.Live
 						info.Play(1f, false, 0f, () => _introFinished = true, null);
 					}
 					FadeInBackground(() => PlayStartVoice(1f));
-				}, true);
+				});
 				return;
 			}
 
@@ -381,11 +382,7 @@ namespace Sekai.Live
 
 		public override void Retry()
 		{
-			_musicStartTween?.Kill();
-			_backgroundTween?.Kill();
-			_startVoiceTween?.Kill();
-			_spriteAlphaTween?.Kill();
-			_fadeTween?.Kill();
+			CancelMotions();
 			_comboView?.Clear();
 			_scoreView?.Clear();
 			_lifeView?.Clear();
@@ -423,6 +420,7 @@ namespace Sekai.Live
 
 		private void SetupBackgroundMaterial(BaseLiveController controller)
 		{
+			_backgroundMotion.TryCancel();
 			ResolveBackgroundRenderer();
 			if (_backgroundRenderer == null)
 			{
@@ -433,7 +431,6 @@ namespace Sekai.Live
 
 			if (_backgroundMaterial != null)
 			{
-				_backgroundMaterial.DOKill();
 				Destroy(_backgroundMaterial);
 			}
 
@@ -524,7 +521,7 @@ namespace Sekai.Live
 			_backgroundRenderer = backgroundTransform != null ? backgroundTransform.GetComponent<Renderer>() : null;
 		}
 
-		private void FadeInBackground(TweenCallback onComplete = null)
+		private void FadeInBackground(Action onComplete)
 		{
 			float brightness = GetTargetBackgroundBrightness();
 			if (_backgroundMaterial == null)
@@ -533,8 +530,14 @@ namespace Sekai.Live
 				return;
 			}
 
-			_backgroundTween?.Kill();
-			_backgroundTween = _backgroundMaterial.DOColor(new Color(brightness, brightness, brightness, 1f), 2f).OnComplete(onComplete);
+			_backgroundMotion.TryCancel();
+			Color from = _backgroundMaterial.color;
+			Color to = new Color(brightness, brightness, brightness, 1f);
+			_backgroundMotion = LMotion.Create(0f, 1f, 2f)
+				.WithEase(Ease.OutQuad)
+				.WithScheduler(LiveMotion.Scheduler())
+				.WithOnComplete(onComplete)
+				.Bind(progress => _backgroundMaterial.color = Color.LerpUnclamped(from, to, progress));
 		}
 
 		private float GetTargetBackgroundBrightness()
@@ -571,7 +574,7 @@ namespace Sekai.Live
 
 		private void FadeIn()
 		{
-			_fadeTween?.Kill();
+			_fadeMotion.TryCancel();
 			if (_fade != null)
 			{
 				_fade.enabled = false;
@@ -580,9 +583,12 @@ namespace Sekai.Live
 
 			if (_baseController?.BootData?.MusicData?.PlayStartEffectEnabled == true)
 			{
-				_spriteAlphaTween?.Kill();
-				_spriteAlphaTween = DOVirtual.Float(0f, 1f, 2f, UpdateSpriteAlpha)
-					.OnComplete(UpdateAutoLabel);
+				_spriteAlphaMotion.TryCancel();
+				_spriteAlphaMotion = LMotion.Create(0f, 1f, 2f)
+					.WithEase(Ease.OutQuad)
+					.WithScheduler(LiveMotion.Scheduler())
+					.WithOnComplete(UpdateAutoLabel)
+					.Bind(UpdateSpriteAlpha);
 				return;
 			}
 
@@ -602,8 +608,11 @@ namespace Sekai.Live
 			}
 
 			_fade.enabled = true;
-			_fadeTween?.Kill();
-			_fadeTween = DOVirtual.Float(0f, 1f, Mathf.Max(0f, duration), SetFadeAlpha);
+			_fadeMotion.TryCancel();
+			_fadeMotion = LMotion.Create(0f, 1f, Mathf.Max(0f, duration))
+				.WithEase(Ease.OutQuad)
+				.WithScheduler(LiveMotion.Scheduler())
+				.Bind(SetFadeAlpha);
 		}
 
 		private void UpdateSpriteAlpha(float alpha)
@@ -767,11 +776,11 @@ namespace Sekai.Live
 				return;
 			}
 
-			_startVoiceTween?.Kill();
-			_startVoiceTween = DOVirtual.DelayedCall(Mathf.Max(0f, durationScale) * 0.1f, () =>
+			_startVoiceMotion.TryCancel();
+			_startVoiceMotion = LiveMotion.Delay(Mathf.Max(0f, durationScale) * 0.1f, () =>
 			{
 				SoundManager.Instance.PlayIngameVoiceOneShot(LiveSoundDefine.SE_LIVE_START);
-			}, true);
+			});
 		}
 
 		private void ResolveCameraReferences()
@@ -903,16 +912,22 @@ namespace Sekai.Live
 			return _collaborationModeState == LiveMusicData.CollaborationModeState.On && _baseController?.BootData?.IsAuto != true;
 		}
 
+		private void CancelMotions()
+		{
+			_musicStartMotion.TryCancel();
+			_backgroundMotion.TryCancel();
+			_startVoiceMotion.TryCancel();
+			_spriteAlphaMotion.TryCancel();
+			_fadeMotion.TryCancel();
+			_resolvedMusicInfo?.CancelAnimation();
+		}
+
+		private void OnDisable() => CancelMotions();
+
 		private void OnDestroy()
 		{
-			_musicStartTween?.Kill();
-			_backgroundTween?.Kill();
-			_startVoiceTween?.Kill();
-			_spriteAlphaTween?.Kill();
-			_fadeTween?.Kill();
 			if (_backgroundMaterial != null)
 			{
-				_backgroundMaterial.DOKill();
 				Destroy(_backgroundMaterial);
 				_backgroundMaterial = null;
 			}
