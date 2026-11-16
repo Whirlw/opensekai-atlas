@@ -74,6 +74,17 @@ namespace OpenSekai.Infrastructure.Packages
 			return _cache.Items();
 		}
 
+		/// <summary>Cached packages whose audio still needs its loudness measured, newest first.</summary>
+		public IReadOnlyList<SongPackageItem> ItemsWithoutLoudness() => _cache.Unmeasured();
+
+		/// <summary>
+		/// Records a package's measured loudness (null: silent or unreadable, so not measured again).
+		/// Held in memory until <see cref="SaveLoudness"/>; false when the package changed meanwhile.
+		/// </summary>
+		public bool SetLoudness(SongPackageItem item, float? lufs) => _cache.SetLoudness(item, lufs);
+
+		public void SaveLoudness() => _cache.Flush();
+
 		/// <summary>The cached package in this folder, or null. Never loads, scans or writes.</summary>
 		public SongPackageItem FindCachedItem(string directory) => _cache.Find(directory);
 
@@ -267,12 +278,19 @@ namespace OpenSekai.Infrastructure.Packages
 			manifest.importedAtUtc = entry.Manifest.importedAtUtc ?? manifest.importedAtUtc ?? DateTimeOffset.UtcNow;
 			string directory = ResolveManifestSaveDirectory(entry, manifest);
 			WriteManifest(directory, manifest);
+			SongPackage saved = SongPackageStorage.LoadEntry(directory);
 			if (!PathsEqual(Path.GetFullPath(entry.RootDirectory), Path.GetFullPath(directory)))
 			{
-				// The title changed the folder name: the old folder is gone.
+				// The title changed the folder name: the old folder is gone. The move keeps every file's
+				// stamp, so the new folder reuses the old one's score key and loudness.
+				if (saved != null)
+				{
+					_cache.Track(saved.RootDirectory, movedFrom: entry.RootDirectory);
+				}
 				_cache.Untrack(entry.RootDirectory);
+				return saved;
 			}
-			return Track(SongPackageStorage.LoadEntry(directory));
+			return Track(saved);
 		}
 
 		public SongPackage ReplaceAudioFile(SongPackage entry, string sourcePath)

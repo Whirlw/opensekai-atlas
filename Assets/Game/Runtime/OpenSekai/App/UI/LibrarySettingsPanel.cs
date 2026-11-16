@@ -154,7 +154,7 @@ namespace OpenSekai.App.UI
 
             // Right column: sound, appearance, developer.
             top = 0f;
-            LibrarySettingRows.Section sound = _rows.AddSection(content, "声音", 3, rightStart, 0f, top);
+            LibrarySettingRows.Section sound = _rows.AddSection(content, "声音", 4, rightStart, 0f, top);
             _rows.AddStepper(sound, "音乐音量",
                 () => _localSettings.LiveVolume.Bgm,
                 value => { _localSettings.LiveVolume.Bgm = value; SaveLocal(); },
@@ -168,7 +168,11 @@ namespace OpenSekai.App.UI
                 () => _localSettings.UiVolume,
                 value => { _localSettings.UiVolume = value; UiSound.Volume = value; SaveLocal(); },
                 0f, 1f, 0.1f, "0.0", Percent);
-            top += LibrarySettingRows.SectionHeight(3) + gap;
+            // Preview and live music alike; a playing preview follows the switch at once.
+            _rows.AddSwitch(sound, "响度平均",
+                () => _localSettings.LoudnessNormalization,
+                value => { _localSettings.LoudnessNormalization = value; SaveLocal(); });
+            top += LibrarySettingRows.SectionHeight(4) + gap;
 
             LibrarySettingRows.Section look = _rows.AddSection(content, "外观（下一次开局生效）", 3, rightStart, 0f, top);
             _rows.AddSegmented(look, "音符皮肤", SkinLabels,

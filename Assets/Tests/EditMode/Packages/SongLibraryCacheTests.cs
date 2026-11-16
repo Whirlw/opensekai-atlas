@@ -179,5 +179,94 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(summaries["a"].PlayCount, Is.EqualTo(2));
             Assert.That(summaries["b"].Best.totalScore, Is.EqualTo(200));
         }
+
+        private SongPackage EntryWithAudio(string bytes = "audio")
+        {
+            SongPackage entry = _manager.CreateNewEntry();
+            File.WriteAllText(entry.AudioPath, bytes);
+            _manager.RescanItems();
+            return entry;
+        }
+
+        [Test]
+        public void MeasuredLoudnessIsSavedAndReadBackOnTheNextLaunch()
+        {
+            EntryWithAudio();
+            SongPackageItem item = _manager.ItemsWithoutLoudness().Single();
+
+            Assert.That(_manager.SetLoudness(item, -9.5f), Is.True);
+            _manager.SaveLoudness();
+
+            Assert.That(_manager.ItemsWithoutLoudness(), Is.Empty);
+            SongPackageItem relaunched = new SongPackageManager(_library).LoadItems().Single();
+            Assert.That(relaunched.LoudnessMeasured, Is.True);
+            Assert.That(relaunched.LoudnessLufs, Is.EqualTo(-9.5f));
+        }
+
+        [Test]
+        public void ASilentSongCountsAsMeasured()
+        {
+            EntryWithAudio();
+            _manager.SetLoudness(_manager.ItemsWithoutLoudness().Single(), null);
+            _manager.SaveLoudness();
+
+            Assert.That(new SongPackageManager(_library).ItemsWithoutLoudness(), Is.Empty);
+        }
+
+        [Test]
+        public void AChangeThroughTheManagerKeepsLoudnessButARescanMeasuresEverySongAgain()
+        {
+            SongPackage entry = EntryWithAudio();
+            _manager.SetLoudness(_manager.ItemsWithoutLoudness().Single(), -8f);
+            SongPackageManifest manifest = JsonConvert.DeserializeObject<SongPackageManifest>(
+                JsonConvert.SerializeObject(entry.Manifest));
+            manifest.title = "Renamed";
+
+            _manager.SaveManifest(entry, manifest);
+
+            Assert.That(_manager.LoadItems().Single().LoudnessLufs, Is.EqualTo(-8f), "incremental: the audio is unchanged");
+
+            _manager.RescanItems();
+
+            Assert.That(_manager.ItemsWithoutLoudness().Count, Is.EqualTo(1), "a refresh measures everything again");
+        }
+
+        [Test]
+        public void ReplacingTheAudioMeasuresItAgain()
+        {
+            SongPackage entry = EntryWithAudio();
+            _manager.SetLoudness(_manager.ItemsWithoutLoudness().Single(), -8f);
+            string replacement = Path.Combine(_root, "other.ogg");
+            File.WriteAllText(replacement, "different audio");
+
+            _manager.ReplaceAudioFile(entry, replacement);
+
+            Assert.That(_manager.ItemsWithoutLoudness().Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void AnImportLeavesOnlyTheNewSongUnmeasured()
+        {
+            SongPackage entry = EntryWithAudio();
+            _manager.SetLoudness(_manager.ItemsWithoutLoudness().Single(), -8f);
+            string archive = Path.Combine(_root, "package.oskp");
+            _manager.ExportZip(entry, archive);
+
+            SongPackage imported = _manager.ImportZip(archive);
+
+            SongPackageItem pending = _manager.ItemsWithoutLoudness().Single();
+            Assert.That(pending.Entry.RootDirectory, Is.EqualTo(imported.RootDirectory));
+        }
+
+        [Test]
+        public void AMeasurementForAPackageRescannedMeanwhileIsDropped()
+        {
+            EntryWithAudio();
+            SongPackageItem stale = _manager.ItemsWithoutLoudness().Single();
+            _manager.RescanItems();
+
+            Assert.That(_manager.SetLoudness(stale, -8f), Is.False);
+            Assert.That(_manager.ItemsWithoutLoudness().Count, Is.EqualTo(1));
+        }
     }
 }

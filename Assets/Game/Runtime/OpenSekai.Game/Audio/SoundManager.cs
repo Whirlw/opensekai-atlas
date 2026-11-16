@@ -35,11 +35,17 @@ namespace Sekai
 
 		public static SoundManager Instance => _instance;
 
+		/// <summary>
+		/// Extra factor on the in-game music, set per song before the live starts: the 响度平均 gain,
+		/// 1 when that setting is off.
+		/// </summary>
+		public float IngameBgmGain { get; set; } = 1f;
+
 		public void SetupVolume(float master, float bgm, float se, float voice)
 		{
 			_volume.Set(master, bgm, se);
 			_soundEffectPlayer?.SetVolume(_volume.SoundEffect);
-			_ingameBgmPlayer?.SetVolume(_volume.Bgm);
+			_ingameBgmPlayer?.SetVolume(_volume.Bgm * IngameBgmGain);
 		}
 
 		public bool IsLoadedSoundBundle(string bundleName) => _catalog.IsLoadedSoundBundle(bundleName);
@@ -74,7 +80,7 @@ namespace Sekai
 				{
 					_ingameBgmPlayer = new CriAtomExPlayer();
 					_ingameBgmPlayer.SetCue(acb, resolvedCueName);
-					_ingameBgmPlayer.SetVolume(_volume.Bgm);
+					_ingameBgmPlayer.SetVolume(_volume.Bgm * IngameBgmGain);
 					_ingameBgmPlayer.SetStartTime(startTimeMs);
 					_currentIngamePlayback = _ingameBgmPlayer.Start();
 					// OpenSekai: CRI PrepareCore waits in prepared playback until OnMusicStart resumes it.

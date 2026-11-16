@@ -14,7 +14,7 @@ namespace OpenSekai.App.UI
     /// Plays a short preview of the selected package. A new selection fades the old preview out
     /// while the new one loads and fades in. Quick switches leave several old previews fading at
     /// once, each from wherever its own fade had reached; past <see cref="MaxFading"/> the quietest
-    /// is dropped. Volume follows the 音乐音量 setting.
+    /// is dropped. Volume follows the 音乐音量 setting and, with 响度平均 on, the song's loudness.
     /// </summary>
     internal sealed class LibraryPreview : MonoBehaviour
     {
@@ -55,7 +55,7 @@ namespace OpenSekai.App.UI
 
             _selection = selection;
             _load = new CancellationTokenSource();
-            PlayAsync(item.Entry, _load.Token).Forget();
+            PlayAsync(item.Entry, item.LoudnessLufs, _load.Token).Forget();
         }
 
         /// <summary>Silences every voice at once; used when the page leaves the library.</summary>
@@ -110,7 +110,7 @@ namespace OpenSekai.App.UI
             _load = null;
         }
 
-        private async UniTaskVoid PlayAsync(SongPackage package, CancellationToken token)
+        private async UniTaskVoid PlayAsync(SongPackage package, float? lufs, CancellationToken token)
         {
             AudioClip clip = null;
             try
@@ -131,7 +131,7 @@ namespace OpenSekai.App.UI
                 source.volume = 0f;
                 source.timeSamples = Mathf.Min(clip.samples - 1, Mathf.FloorToInt(start * clip.frequency));
                 source.Play();
-                _current = new Voice(source, clip, start, Mathf.Min(start + PreviewLength, clip.length));
+                _current = new Voice(source, clip, start, Mathf.Min(start + PreviewLength, clip.length), lufs);
                 clip = null;
                 _detail.SetPreviewProgress(0f);
             }
@@ -250,13 +250,15 @@ namespace OpenSekai.App.UI
             internal readonly AudioClip Clip;
             internal readonly float Start;
             internal readonly float End;
+            private readonly float? _lufs;
             internal float Target = 1f;
             private float _gain;
 
             internal float Gain => _gain;
 
-            internal Voice(AudioSource source, AudioClip clip, float start, float end)
+            internal Voice(AudioSource source, AudioClip clip, float start, float end, float? lufs)
             {
+                _lufs = lufs;
                 Source = source;
                 Clip = clip;
                 Start = start;
@@ -270,7 +272,8 @@ namespace OpenSekai.App.UI
             {
                 _gain = Mathf.MoveTowards(_gain, Target, step);
                 // Squared gain sounds closer to an even fade than a linear ramp of the amplitude.
-                Source.volume = volume * _gain * _gain;
+                // The setting is read each frame, so turning 响度平均 on or off is heard at once.
+                Source.volume = volume * LoudnessNormalization.GainFor(_lufs) * _gain * _gain;
                 return Source.isPlaying && !(Target <= 0f && _gain <= 0f);
             }
         }

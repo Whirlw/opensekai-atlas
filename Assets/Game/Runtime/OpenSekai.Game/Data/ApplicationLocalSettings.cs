@@ -52,6 +52,13 @@ namespace Sekai
 		    get => _UiVolume;
 		    set => _UiVolume = value;
 		}
+		/// <summary>响度平均: scale every song's music, preview and live, by its measured loudness.</summary>
+		private bool _LoudnessNormalization;
+		public bool LoudnessNormalization
+		{
+		    get => _LoudnessNormalization;
+		    set => _LoudnessNormalization = value;
+		}
 				private bool? _FullscreenEnabled;
 		public bool? FullscreenEnabled
 		{

@@ -22,6 +22,12 @@ namespace OpenSekai.Infrastructure.Packages
 		/// <summary>Content hash of the score file; the key the play history is stored under, shared by packages with the same chart.</summary>
 		public string ScoreKey { get; }
 
+		/// <summary>True once the audio has been measured, even when it came out silent or unreadable.</summary>
+		public bool LoudnessMeasured { get; internal set; }
+
+		/// <summary>Integrated loudness of the audio in LUFS; null while unmeasured or when it has none.</summary>
+		public float? LoudnessLufs { get; internal set; }
+
 		public string StatusText
 		{
 			get

@@ -22,6 +22,7 @@ namespace OpenSekai.App.UI
         private readonly Func<PlayRequest, CancellationToken, Action<string>, UniTask<PlayStartResult>> _startPlay;
         private readonly Func<IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary>> _loadHistory;
         private readonly Action _reloadHistory;
+        private readonly LibraryLoudnessScanner _loudness;
         private readonly LibraryModel _model = new LibraryModel();
         private IReadOnlyList<SongPackageItem> _items = Array.Empty<SongPackageItem>();
         // The page's own copy, so a recorded run can update one package without touching the loader's.
@@ -38,18 +39,21 @@ namespace OpenSekai.App.UI
         /// <param name="startPlay">Starts a live session for a package.</param>
         /// <param name="loadHistory">Play history per score key, as cached; defaults to the history store.</param>
         /// <param name="reloadHistory">Rebuilds the cached history from the history file; defaults to the history store.</param>
+        /// <param name="loudness">Measures songs left without a loudness after each reload; none when null.</param>
         internal LibraryPresenter(
             ILibraryView view,
             SongPackageManager packages,
             Func<PlayRequest, CancellationToken, Action<string>, UniTask<PlayStartResult>> startPlay,
             Func<IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary>> loadHistory = null,
-            Action reloadHistory = null)
+            Action reloadHistory = null,
+            LibraryLoudnessScanner loudness = null)
         {
             _view = view;
             _packages = packages;
             _startPlay = startPlay;
             _loadHistory = loadHistory ?? CustomMusicScorePlayHistoryStorage.LoadSummaries;
             _reloadHistory = reloadHistory ?? (() => CustomMusicScorePlayHistoryStorage.ReloadSummaries());
+            _loudness = loudness;
             CustomMusicScorePlayHistoryStorage.Recorded += OnScoreRecorded;
         }
 
@@ -130,6 +134,7 @@ namespace OpenSekai.App.UI
         public void Dispose()
         {
             CustomMusicScorePlayHistoryStorage.Recorded -= OnScoreRecorded;
+            _loudness?.Dispose();
             _playbackCts?.Cancel();
             _playbackCts?.Dispose();
             _playbackCts = null;
@@ -221,6 +226,10 @@ namespace OpenSekai.App.UI
             _view.SetStatus(_items.Count == 0
                 ? "还没有曲包。点“导入”添加，或把曲包文件夹放到 CustomMusicScores 目录后点“刷新”。"
                 : string.Empty);
+            if (!_isStartingPlayback)
+            {
+                _loudness?.Start();
+            }
         }
 
         private void Render()
@@ -432,6 +441,9 @@ namespace OpenSekai.App.UI
             string packageDirectory, string title, bool isAuto, CancellationToken cancellationToken)
         {
             _isStartingPlayback = true;
+            // Decoding a song to measure it would compete with the live's own loading.
+            _loudness?.Stop();
+            bool started = false;
             try
             {
                 _view.SetStatus((isAuto ? "自动" : "手动") + "：" + title + " — 准备中…");
@@ -458,6 +470,7 @@ namespace OpenSekai.App.UI
                 {
                     // The live scene unloads this page; keep the overlay until then so the
                     // transition does not flash an empty library behind the loading screen.
+                    started = true;
                     _view.SetLoadingMessage("正在进入…");
                 }
             }
@@ -476,6 +489,10 @@ namespace OpenSekai.App.UI
             finally
             {
                 _isStartingPlayback = false;
+                if (!started)
+                {
+                    _loudness?.Start();
+                }
             }
         }
     }

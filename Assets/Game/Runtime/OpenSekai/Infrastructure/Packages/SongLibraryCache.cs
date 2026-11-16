@@ -20,11 +20,13 @@ namespace OpenSekai.Infrastructure.Packages
 	{
 		internal const string FILE_NAME = "library_cache.json";
 		private const string LEGACY_HASH_FILE_NAME = "package_hashes.json";
-		private const int SNAPSHOT_VERSION = 2; // 2: the score key hashes the score file alone
+		// 2: the score key hashes the score file alone. 3: each package carries its audio's loudness.
+		private const int SNAPSHOT_VERSION = 3;
 
 		private readonly string _root;
 		private Dictionary<string, Cached> _packages;
 		private SongPackageItem[] _sorted;
+		private bool _dirty;
 
 		internal SongLibraryCache(string rootDirectory)
 		{
@@ -53,7 +55,7 @@ namespace OpenSekai.Infrastructure.Packages
 		/// <summary>
 		/// Walks every package folder again and saves the result: the one way back in sync with
 		/// files changed outside the app. Hashes are reused for packages whose files kept their size
-		/// and write time.
+		/// and write time; loudness is not, so every song is measured again.
 		/// </summary>
 		internal void Rescan()
 		{
@@ -65,7 +67,7 @@ namespace OpenSekai.Infrastructure.Packages
 				{
 					string key = KeyOf(directory);
 					previous.TryGetValue(key, out Cached old);
-					Cached cached = Scan(directory, old);
+					Cached cached = Scan(directory, old, keepLoudness: false);
 					if (cached != null)
 					{
 						scanned[key] = cached;
@@ -78,8 +80,12 @@ namespace OpenSekai.Infrastructure.Packages
 			Save();
 		}
 
-		/// <summary>Reads one package folder again and puts it in the cache (or drops it when it is no longer a package).</summary>
-		internal SongPackageItem Track(string directory)
+		/// <summary>
+		/// Reads one package folder again and puts it in the cache (or drops it when it is no longer a
+		/// package). Its loudness carries over while the audio file is unchanged.
+		/// </summary>
+		/// <param name="movedFrom">The folder it was moved from, whose cached values it may reuse.</param>
+		internal SongPackageItem Track(string directory, string movedFrom = null)
 		{
 			if (string.IsNullOrEmpty(directory) || !IsInsideRoot(directory))
 			{
@@ -88,8 +94,11 @@ namespace OpenSekai.Infrastructure.Packages
 
 			EnsureLoaded();
 			string key = KeyOf(directory);
-			_packages.TryGetValue(key, out Cached old);
-			Cached cached = Scan(directory, old);
+			if (!_packages.TryGetValue(key, out Cached old) && movedFrom != null && IsInsideRoot(movedFrom))
+			{
+				_packages.TryGetValue(KeyOf(movedFrom), out old);
+			}
+			Cached cached = Scan(directory, old, keepLoudness: true);
 			if (cached != null)
 			{
 				_packages[key] = cached;
@@ -129,6 +138,40 @@ namespace OpenSekai.Infrastructure.Packages
 			return _packages.TryGetValue(KeyOf(directory), out Cached cached) ? cached.Item : null;
 		}
 
+		/// <summary>Cached packages with audio that has not been measured yet, newest first.</summary>
+		internal IReadOnlyList<SongPackageItem> Unmeasured()
+		{
+			return Items().Where(item => item.HasAudio && !item.LoudnessMeasured).ToArray();
+		}
+
+		/// <summary>
+		/// Records a measurement for a package still cached as <paramref name="item"/>; a package
+		/// rescanned or removed meanwhile is left alone. Kept in memory until <see cref="Flush"/>.
+		/// </summary>
+		internal bool SetLoudness(SongPackageItem item, float? lufs)
+		{
+			if (item?.Entry == null || !IsLoaded
+				|| !_packages.TryGetValue(KeyOf(item.Entry.RootDirectory), out Cached cached)
+				|| !ReferenceEquals(cached.Item, item))
+			{
+				return false;
+			}
+
+			item.LoudnessMeasured = true;
+			item.LoudnessLufs = lufs;
+			_dirty = true;
+			return true;
+		}
+
+		/// <summary>Saves measurements recorded since the last save.</summary>
+		internal void Flush()
+		{
+			if (_dirty && IsLoaded)
+			{
+				Save();
+			}
+		}
+
 		private void EnsureLoaded()
 		{
 			if (_packages != null)
@@ -147,7 +190,7 @@ namespace OpenSekai.Infrastructure.Packages
 			Rescan();
 		}
 
-		private Cached Scan(string directory, Cached previous)
+		private Cached Scan(string directory, Cached previous, bool keepLoudness)
 		{
 			SongPackage entry = SongPackageStorage.LoadEntry(directory);
 			if (entry == null)
@@ -180,7 +223,17 @@ namespace OpenSekai.Infrastructure.Packages
 				File.Exists(entry.JacketPath),
 				importedAt,
 				scoreKey);
-			return new Cached(item, scoreStamp, scoreFileName);
+			FileStamp audioStamp = FileStamp.Of(entry.AudioPath);
+			string audioFileName = entry.Manifest.audioFileName ?? string.Empty;
+			if (keepLoudness && previous != null && previous.Item.LoudnessMeasured
+				&& string.Equals(previous.AudioFileName, audioFileName, StringComparison.Ordinal)
+				&& previous.AudioStamp.Equals(audioStamp))
+			{
+				item.LoudnessMeasured = true;
+				item.LoudnessLufs = previous.Item.LoudnessLufs;
+			}
+
+			return new Cached(item, scoreStamp, scoreFileName, audioStamp, audioFileName);
 		}
 
 		private static DateTime Later(DateTime current, string path)
@@ -252,8 +305,14 @@ namespace OpenSekai.Infrastructure.Packages
 						record.hasAudio,
 						record.hasJacket,
 						record.manifest.importedAtUtc ?? DateTimeOffset.MinValue,
-						record.scoreKey);
-					map[record.folder] = new Cached(item, record.scoreStamp, record.scoreFileName ?? string.Empty);
+						record.scoreKey)
+					{
+						LoudnessMeasured = record.loudnessMeasured,
+						LoudnessLufs = record.loudnessLufs
+					};
+					map[record.folder] = new Cached(
+						item, record.scoreStamp, record.scoreFileName ?? string.Empty,
+						record.audioStamp, record.audioFileName ?? string.Empty);
 				}
 				return map;
 			}
@@ -288,10 +347,15 @@ namespace OpenSekai.Infrastructure.Packages
 					lastWriteTicks = item.LastWriteTime.Ticks,
 					scoreKey = item.ScoreKey,
 					scoreFileName = pair.Value.ScoreFileName,
-					scoreStamp = pair.Value.ScoreStamp
+					scoreStamp = pair.Value.ScoreStamp,
+					audioFileName = pair.Value.AudioFileName,
+					audioStamp = pair.Value.AudioStamp,
+					loudnessMeasured = item.LoudnessMeasured,
+					loudnessLufs = item.LoudnessLufs
 				});
 			}
 
+			_dirty = false;
 			try
 			{
 				AtomicFile.WriteAllText(SnapshotPath, JsonConvert.SerializeObject(snapshot, Formatting.Indented));
@@ -330,16 +394,22 @@ namespace OpenSekai.Infrastructure.Packages
 
 		private sealed class Cached
 		{
-			internal Cached(SongPackageItem item, FileStamp scoreStamp, string scoreFileName)
+			internal Cached(
+				SongPackageItem item, FileStamp scoreStamp, string scoreFileName,
+				FileStamp audioStamp, string audioFileName)
 			{
 				Item = item;
 				ScoreStamp = scoreStamp;
 				ScoreFileName = scoreFileName;
+				AudioStamp = audioStamp;
+				AudioFileName = audioFileName;
 			}
 
 			internal SongPackageItem Item { get; }
 			internal FileStamp ScoreStamp { get; }
 			internal string ScoreFileName { get; }
+			internal FileStamp AudioStamp { get; }
+			internal string AudioFileName { get; }
 			internal string ScoreKey => Item.ScoreKey;
 		}
 
@@ -361,6 +431,10 @@ namespace OpenSekai.Infrastructure.Packages
 			public string scoreKey;
 			public string scoreFileName;
 			public FileStamp scoreStamp;
+			public string audioFileName;
+			public FileStamp audioStamp;
+			public bool loudnessMeasured;
+			public float? loudnessLufs;
 		}
 	}
 }

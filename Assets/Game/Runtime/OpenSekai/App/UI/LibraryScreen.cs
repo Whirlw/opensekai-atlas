@@ -39,7 +39,8 @@ namespace OpenSekai.App.UI
         {
             _context = context;
             _view = new LibraryView(gameObject);
-            _presenter = new LibraryPresenter(_view, context.Packages, context.Playback.StartAsync);
+            var loudness = new LibraryLoudnessScanner(context.Packages, status => _view?.SetStatus(status));
+            _presenter = new LibraryPresenter(_view, context.Packages, context.Playback.StartAsync, loudness: loudness);
             _view.BuildLayout(_presenter);
             _presenter.Refresh();
             _view.BuildPanels(_presenter);
