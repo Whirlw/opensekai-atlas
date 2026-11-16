@@ -224,6 +224,17 @@ namespace Sekai.Live
 			}
 		}
 
+		/// <summary>The skip button takes the pause button's place until it is pressed or hidden.</summary>
+		public override void ShowSkip(Action onSkip)
+		{
+			_lifeView?.ShowSkip(onSkip);
+		}
+
+		public override void HideSkip()
+		{
+			_lifeView?.HideSkip();
+		}
+
 		public override void RhythmGameStart()
 		{
 			_lifeView?.CalculateButtonBounds(_frontViewCamera);

@@ -49,6 +49,16 @@ namespace Sekai.Core.Live
 		{
 		}
 
+		/// <summary>A skip is available: show its button, and call <paramref name="onSkip"/> on a press.</summary>
+		public virtual void ShowSkip(System.Action onSkip)
+		{
+		}
+
+		/// <summary>The skip is no longer available.</summary>
+		public virtual void HideSkip()
+		{
+		}
+
 		public virtual void OnUpdate(float musicTime)
 		{
 		}
