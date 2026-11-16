@@ -5,7 +5,8 @@ namespace OpenSekai.App.UI
 {
     internal enum LibraryIcon
     {
-        Back, Search, Add, Refresh, Settings, List, Grid, Check, Wave, Play, More
+        Back, Search, Add, Refresh, Settings, List, Grid, Check, Wave, Play, More,
+        Close, Minus, ChevronRight, Export, Trash
     }
 
     /// <summary>
@@ -177,6 +178,21 @@ namespace OpenSekai.App.UI
                         Mathf.Min(Line(14, 8, 14, 16), Line(19, 3, 19, 21)));
                 case LibraryIcon.Play:
                     return Mathf.Max(6f - point.x, (Mathf.Abs(point.y - 12f) - (20.5f - point.x) * 0.55f) * 0.88f);
+                case LibraryIcon.Close:
+                    return Mathf.Min(Line(6.5f, 6.5f, 17.5f, 17.5f), Line(17.5f, 6.5f, 6.5f, 17.5f));
+                case LibraryIcon.Minus:
+                    return Line(5, 12, 19, 12);
+                case LibraryIcon.ChevronRight:
+                    return Mathf.Min(Line(9, 5.5f, 15.5f, 12), Line(15.5f, 12, 9, 18.5f));
+                case LibraryIcon.Export:
+                    return Mathf.Min(
+                        Mathf.Min(Line(12, 3.5f, 12, 14.5f), Mathf.Min(Line(12, 3.5f, 7.5f, 8), Line(12, 3.5f, 16.5f, 8))),
+                        Mathf.Min(Line(5, 13, 5, 20), Mathf.Min(Line(5, 20, 19, 20), Line(19, 20, 19, 13))));
+                case LibraryIcon.Trash:
+                    return Mathf.Min(
+                        Mathf.Min(Line(4, 6.5f, 20, 6.5f), Line(9.5f, 3.5f, 14.5f, 3.5f)),
+                        Mathf.Min(Mathf.Min(Line(6.5f, 6.5f, 7.5f, 20), Line(17.5f, 6.5f, 16.5f, 20)),
+                            Mathf.Min(Line(7.5f, 20, 16.5f, 20), Mathf.Min(Line(10.5f, 10.5f, 10.5f, 16), Line(13.5f, 10.5f, 13.5f, 16)))));
                 default:
                     return Mathf.Min(Circle(5, 12, 1.9f), Mathf.Min(Circle(12, 12, 1.9f), Circle(19, 12, 1.9f)));
             }

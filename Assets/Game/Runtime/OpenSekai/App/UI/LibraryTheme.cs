@@ -27,6 +27,11 @@ namespace OpenSekai.App.UI
             internal static readonly Color32 TextMuted = new Color32(154, 166, 181, 255);
             internal static readonly Color32 TextOnAccent = new Color32(12, 15, 20, 255);
             internal static readonly Color32 Warning = new Color32(245, 196, 81, 255);
+            internal static readonly Color32 Danger = new Color32(245, 128, 128, 255);
+            internal static readonly Color32 DangerSurface = new Color32(245, 128, 128, 36);
+
+            /// <summary>Dims the page under a modal card.</summary>
+            internal static readonly Color32 Scrim = new Color32(6, 8, 12, 196);
 
             /// <summary>Accent used until a jacket supplies its own.</summary>
             internal static readonly Color32 DefaultAccent = new Color32(157, 184, 255, 255);
@@ -96,6 +101,16 @@ namespace OpenSekai.App.UI
 
             internal const float DETAIL_COVER_SIZE = 380f;
             internal const float PRIMARY_BUTTON_HEIGHT = 88f;
+
+            /// <summary>Height of a modal card's title area.</summary>
+            internal const float MODAL_HEADER_HEIGHT = 112f;
+            internal const float MODAL_PADDING = 40f;
+            internal const float MODAL_BUTTON_HEIGHT = 76f;
+
+            /// <summary>One line of a grouped settings section.</summary>
+            internal const float SETTING_ROW_HEIGHT = 72f;
+            internal const float SECTION_CAPTION_HEIGHT = 40f;
+            internal const float SECTION_GAP = 24f;
         }
 
         /// <summary>

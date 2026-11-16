@@ -50,6 +50,7 @@ namespace OpenSekai.App.UI
         private JacketThumbnails _thumbnails;
         private JacketThumbnails _detailThumbnails;
         private CancellationTokenSource _detailLoad;
+        private CancellationTokenSource _panelArtworkLoad;
 
         private Image _glowMain;
         private Image _glowSecondary;
@@ -275,18 +276,151 @@ namespace OpenSekai.App.UI
             ShowDetail();
         }
 
-        public void ShowSettings() => _settingsPanel?.Show();
+        public void ShowSettings()
+        {
+            if (_settingsPanel == null)
+            {
+                return;
+            }
+
+            _settingsPanel.SetAccent(Accent);
+            _settingsPanel.Show();
+        }
+
         public void ShowResult(PlayResult result)
         {
             _preview?.StopPreview();
-            _resultPanel?.Show(result);
+            if (_resultPanel == null || result == null)
+            {
+                return;
+            }
+
+            _resultPanel.Show(result, null, Accent);
+            LoadPanelArtwork(result.PackageDirectory, _resultPanel.SetArtwork);
         }
 
-        public void ShowLoading(string title)
+        public void ShowLoading(string title, string packageDirectory)
         {
             _startingPlayback = true;
             _preview?.StopPreview();
-            _loadingOverlay?.Show(title, "正在准备…");
+            if (_loadingOverlay == null)
+            {
+                return;
+            }
+
+            _loadingOverlay.Show(title, "正在准备…", null, Accent);
+            LoadPanelArtwork(packageDirectory, _loadingOverlay.SetArtwork);
+        }
+
+        /// <summary>The page's accent, which follows the selected jacket.</summary>
+        private Color32 Accent => (Color32)_accentColor;
+
+        /// <summary>
+        /// Gives a modal panel the jacket of the package it reports on, and the accent taken from
+        /// it. The package is looked up by folder, not taken from the selection: the result card
+        /// opens as the page is rebuilt on the way back from a live, when the selection may not be
+        /// restored yet and the detail side's jacket has not been decoded. A jacket already in a
+        /// cache arrives at once; otherwise the list's small one stands in until the sharp one loads.
+        /// </summary>
+        private void LoadPanelArtwork(string packageDirectory, Action<Sprite, Color32> apply)
+        {
+            CancelPanelArtworkLoad();
+            SongPackageItem item = FindItem(packageDirectory);
+            if (item?.Entry == null || !item.HasJacket || _detailThumbnails == null)
+            {
+                return;
+            }
+
+            string jacketPath = item.Entry.JacketPath;
+            long version = item.LastWriteTime.Ticks;
+            if (_detailThumbnails.TryGetLoaded(jacketPath, version, out JacketThumbnail sharp))
+            {
+                apply(sharp.Sprite, sharp.Palette.Accent);
+                return;
+            }
+
+            if (_thumbnails.TryGetLoaded(jacketPath, version, out JacketThumbnail small))
+            {
+                apply(small.Sprite, small.Palette.Accent);
+            }
+
+            _panelArtworkLoad = new CancellationTokenSource();
+            LoadPanelArtworkAsync(jacketPath, version, apply, _panelArtworkLoad.Token).Forget();
+        }
+
+        private async UniTaskVoid LoadPanelArtworkAsync(
+            string jacketPath, long version, Action<Sprite, Color32> apply, CancellationToken cancellationToken)
+        {
+            try
+            {
+                JacketThumbnail thumbnail = await _detailThumbnails.LoadAsync(jacketPath, version, cancellationToken);
+                if (!cancellationToken.IsCancellationRequested && thumbnail.Sprite != null)
+                {
+                    apply(thumbnail.Sprite, thumbnail.Palette.Accent);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // The panel closed, or another one opened, before the jacket arrived.
+            }
+        }
+
+        private void CancelPanelArtworkLoad()
+        {
+            if (_panelArtworkLoad == null)
+            {
+                return;
+            }
+
+            _panelArtworkLoad.Cancel();
+            _panelArtworkLoad.Dispose();
+            _panelArtworkLoad = null;
+        }
+
+        /// <summary>The package in this folder: from the list on screen, else from the whole library.</summary>
+        private SongPackageItem FindItem(string packageDirectory)
+        {
+            if (string.IsNullOrEmpty(packageDirectory))
+            {
+                return null;
+            }
+
+            string wanted = NormalizeDirectory(packageDirectory);
+            if (_selected?.Entry != null && NormalizeDirectory(_selected.Entry.RootDirectory) == wanted)
+            {
+                return _selected;
+            }
+
+            for (int i = 0; i < _items.Count; i++)
+            {
+                SongPackageItem item = _items[i];
+                if (item?.Entry != null && NormalizeDirectory(item.Entry.RootDirectory) == wanted)
+                {
+                    return item;
+                }
+            }
+
+            return SongPackageManager.Shared.FindCachedItem(packageDirectory);
+        }
+
+        private static string NormalizeDirectory(string directory)
+        {
+            try
+            {
+                directory = Path.GetFullPath(directory);
+            }
+            catch (Exception)
+            {
+                // Not a usable path; compare it as written.
+            }
+
+            return directory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).ToLowerInvariant();
+        }
+
+        private void ApplyDetailThumbnail(JacketThumbnail thumbnail)
+        {
+            _detail.SetThumbnail(thumbnail);
+            SetPalette(thumbnail.Palette);
         }
 
         public void HideLoading()
@@ -335,9 +469,33 @@ namespace OpenSekai.App.UI
         }
         public void SetLoadingMessage(string message) => _loadingOverlay?.SetMessage(message);
 
-        public void ShowActions(string title, Action export, Action delete)
+        public void ShowActions(SongPackageItem item, Action export, Action delete)
         {
-            _actionsPanel?.Show(title, "导出为 .oskp 文件，或把曲包从曲库删除。", export, delete);
+            if (_actionsPanel == null || item == null)
+            {
+                return;
+            }
+
+            Sprite cover = item == _selected ? _detail?.Cover : null;
+            _actionsPanel.Show(LibraryModel.BuildTitle(item), DescribePackage(item), cover, Accent, export, delete);
+        }
+
+        /// <summary>Difficulty, level and charter, the line under a package's title in its action card.</summary>
+        private static string DescribePackage(SongPackageItem item)
+        {
+            string text = LibraryModel.DifficultyLabel(item);
+            int level = LibraryModel.PlayLevelOf(item);
+            if (level > 0)
+            {
+                text += "  ·  LV " + level;
+            }
+
+            string charter = item.Entry?.Manifest?.userName;
+            if (!string.IsNullOrWhiteSpace(charter))
+            {
+                text += "  ·  谱面 " + charter.Trim();
+            }
+            return text;
         }
 
         public void SetStatus(string message)
@@ -352,6 +510,7 @@ namespace OpenSekai.App.UI
         {
             _preview?.StopPreview();
             CancelDetailLoad();
+            CancelPanelArtworkLoad();
             _glowMotion.TryCancel();
             _glowMotion = default;
             foreach (LibraryCell cell in _cells.Values)
@@ -754,8 +913,7 @@ namespace OpenSekai.App.UI
             ResumePreview();
             if (item == null || !item.HasJacket || item.Entry == null)
             {
-                _detail.SetThumbnail(JacketThumbnail.None);
-                SetPalette(JacketPalette.Default);
+                ApplyDetailThumbnail(JacketThumbnail.None);
                 return;
             }
 
@@ -763,16 +921,14 @@ namespace OpenSekai.App.UI
             long version = item.LastWriteTime.Ticks;
             if (_detailThumbnails.TryGetLoaded(jacketPath, version, out JacketThumbnail sharp))
             {
-                _detail.SetThumbnail(sharp);
-                SetPalette(sharp.Palette);
+                ApplyDetailThumbnail(sharp);
                 return;
             }
 
             // The list's small thumbnail fills in at once; the sharper one replaces it when ready.
             if (_thumbnails.TryGetLoaded(jacketPath, version, out JacketThumbnail small))
             {
-                _detail.SetThumbnail(small);
-                SetPalette(small.Palette);
+                ApplyDetailThumbnail(small);
             }
 
             _detailLoad = new CancellationTokenSource();
@@ -786,8 +942,7 @@ namespace OpenSekai.App.UI
                 JacketThumbnail thumbnail = await _detailThumbnails.LoadAsync(jacketPath, version, cancellationToken);
                 if (!cancellationToken.IsCancellationRequested)
                 {
-                    _detail.SetThumbnail(thumbnail);
-                    SetPalette(thumbnail.Palette);
+                    ApplyDetailThumbnail(thumbnail);
                 }
             }
             catch (OperationCanceledException)

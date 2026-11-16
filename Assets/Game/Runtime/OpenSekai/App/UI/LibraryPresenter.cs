@@ -163,7 +163,7 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            _view.ShowActions(LibraryModel.BuildTitle(item), () => ExportPackage(item), () => DeletePackage(item));
+            _view.ShowActions(item, () => ExportPackage(item), () => DeletePackage(item));
         }
 
         /// <summary>
@@ -439,7 +439,7 @@ namespace OpenSekai.App.UI
             try
             {
                 _view.SetStatus((isAuto ? "自动" : "手动") + "：" + title + " — 准备中…");
-                _view.ShowLoading(title);
+                _view.ShowLoading(title, packageDirectory);
                 PlayStartResult result = await _startPlay(
                     new PlayRequest(packageDirectory, isAuto, SceneManager.Scene.Library),
                     cancellationToken,

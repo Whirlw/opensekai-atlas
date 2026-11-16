@@ -172,7 +172,22 @@ namespace OpenSekai.App.UI
             var buttonRect = (RectTransform)transform;
             Vector3 corner = buttonRect.TransformPoint(new Vector3(buttonRect.rect.xMin, buttonRect.rect.yMin, 0f));
             Vector2 local = _overlay.InverseTransformPoint(corner);
-            _panel.anchoredPosition = new Vector2(local.x, local.y - POPUP_GAP);
+            // Hangs upward from the top corner instead when the list would run off the bottom.
+            Rect bounds = _overlay.rect;
+            float listBottom = local.y - POPUP_GAP - _panel.sizeDelta.y;
+            float below = bounds.center.y - bounds.height * 0.5f + POPUP_GAP;
+            if (listBottom < below)
+            {
+                Vector3 top = buttonRect.TransformPoint(new Vector3(buttonRect.rect.xMin, buttonRect.rect.yMax, 0f));
+                Vector2 localTop = _overlay.InverseTransformPoint(top);
+                _panel.pivot = new Vector2(0f, 0f);
+                _panel.anchoredPosition = new Vector2(localTop.x, localTop.y + POPUP_GAP);
+            }
+            else
+            {
+                _panel.pivot = new Vector2(0f, 1f);
+                _panel.anchoredPosition = new Vector2(local.x, local.y - POPUP_GAP);
+            }
 
             _popup.transform.SetAsLastSibling();
             _popup.SetActive(true);

@@ -93,6 +93,10 @@ namespace OpenSekai.EditorTools.Screenshots
                     case "settings": body = LibraryShot(shot, "settings"); break;
                     case "settings-trace": body = LibraryShot(shot, "settings-trace"); break;
                     case "result": body = LibraryShot(shot, "result"); break;
+                    case "actions": body = LibraryShot(shot, "actions"); break;
+                    case "actions-armed": body = LibraryShot(shot, "actions-armed"); break;
+                    case "loading": body = LibraryShot(shot, "loading"); break;
+                    case "return": body = ReturnShot(shot); break;
                     default:
                         Fail(shot, "unknown kind '" + shot.kind + "'");
                         continue;
@@ -163,8 +167,15 @@ namespace OpenSekai.EditorTools.Screenshots
             LibraryScreen screen = UnityEngine.Object.FindFirstObjectByType<LibraryScreen>();
             LibrarySettingsPanel settings = UnityEngine.Object.FindFirstObjectByType<LibrarySettingsPanel>(FindObjectsInactive.Include);
             LibraryResultPanel resultPanel = UnityEngine.Object.FindFirstObjectByType<LibraryResultPanel>(FindObjectsInactive.Include);
+            LibraryActionsPanel actionsPanel = UnityEngine.Object.FindFirstObjectByType<LibraryActionsPanel>(FindObjectsInactive.Include);
+            LibraryLoadingOverlay loading = UnityEngine.Object.FindFirstObjectByType<LibraryLoadingOverlay>(FindObjectsInactive.Include);
             settings?.Hide();
             resultPanel?.Hide();
+            actionsPanel?.Hide();
+            loading?.Hide();
+            object view = screen.GetType().GetField("_view", Any)?.GetValue(screen);
+            object presenter = screen.GetType().GetField("_presenter", Any)?.GetValue(screen);
+            SongPackageItem selected = view?.GetType().GetField("_selected", Any)?.GetValue(view) as SongPackageItem;
 
             string detail = null;
             if (panel == "settings" || panel == "settings-trace")
@@ -183,25 +194,54 @@ namespace OpenSekai.EditorTools.Screenshots
             else if (panel == "result")
             {
                 ResultSample sample = shot.result ?? new ResultSample();
-                screen.ShowResult(ToResult(sample));
+                // Played from the selected package, so the card shows its jacket like a real run.
+                screen.ShowResult(ToResult(sample, selected?.Entry?.RootDirectory));
                 detail = sample.kind + " " + sample.score + " " + sample.rank;
             }
 
-            // Two frames for layout and TextMeshPro to settle.
+            else if (panel == "actions" || panel == "actions-armed")
+            {
+                if (presenter == null || selected == null) throw new InvalidOperationException("No package is selected.");
+                presenter.GetType().GetMethod("OpenActionsForSelected", Any).Invoke(presenter, null);
+                if (panel == "actions-armed")
+                {
+                    // The first tap on 删除曲包 only arms it.
+                    actionsPanel.GetType().GetMethod("OnDeleteClicked", Any).Invoke(actionsPanel, null);
+                }
+                detail = selected.Entry?.RootDirectory;
+            }
+            else if (panel == "loading")
+            {
+                if (view == null || selected == null) throw new InvalidOperationException("No package is selected.");
+                view.GetType().GetMethod("ShowLoading", Any)
+                    .Invoke(view, new object[] { selected.Entry.Manifest?.title ?? "Loading", selected.Entry.RootDirectory });
+                view.GetType().GetMethod("SetLoadingMessage", Any).Invoke(view, new object[] { "正在读取谱面…" });
+                detail = selected.Entry?.RootDirectory;
+            }
+
+            // Two frames for layout and TextMeshPro to settle, then long enough for the panel's
+            // opening motion (and the result's score count) to finish.
             yield return null;
             yield return null;
+            yield return new WaitForSecondsRealtime(1.1f);
             yield return Capture(shot, FileStem(shot, null), detail, null);
 
             settings?.Hide();
             resultPanel?.Hide();
+            actionsPanel?.Hide();
+            if (panel == "loading")
+            {
+                view?.GetType().GetMethod("HideLoading", Any)?.Invoke(view, null);
+            }
         }
 
-        private static PlayResult ToResult(ResultSample sample)
+        private static PlayResult ToResult(ResultSample sample, string packageDirectory = null)
         {
+            packageDirectory = packageDirectory ?? string.Empty;
             Enum.TryParse(sample.kind, true, out PlayResultKind kind);
             if (kind == PlayResultKind.LoadError)
             {
-                return PlayResult.FromLoadError(sample.title, sample.auto, string.Empty, sample.message);
+                return PlayResult.FromLoadError(sample.title, sample.auto, packageDirectory, sample.message);
             }
             Enum.TryParse(sample.rank, true, out ScoreRank rank);
             var score = new LiveScore
@@ -218,7 +258,24 @@ namespace OpenSekai.EditorTools.Screenshots
                 autoCount = sample.auto ? sample.totalCombo : 0,
                 life = sample.life
             };
-            return new PlayResult(kind, sample.auto, string.Empty, sample.title, sample.playLevel, score);
+            return new PlayResult(kind, sample.auto, packageDirectory, sample.title, sample.playLevel, score);
+        }
+
+        /// <summary>
+        /// The real way back from a run: start a live, retire from it once it plays, and capture
+        /// the library as it comes back with the result card up. Unlike the "result" shot the page
+        /// is rebuilt from scratch here, so the card opens before the jacket has been decoded.
+        /// </summary>
+        private IEnumerator ReturnShot(Shot shot)
+        {
+            yield return StartLive(shot, false, null);
+            SoloLiveController controller = null;
+            yield return WaitUntil(() => (controller = UnityEngine.Object.FindFirstObjectByType<SoloLiveController>()) != null
+                && State(controller) == StatePlaying, "the live to start");
+            RetireNow.Invoke(controller, null);
+            yield return WaitForLibrary();
+            yield return new WaitForSecondsRealtime(1.5f);
+            yield return Capture(shot, FileStem(shot, null), "returned from a retired live", null);
         }
 
         // ---------------------------------------------------------------- live and info page

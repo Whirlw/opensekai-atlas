@@ -245,10 +245,10 @@ namespace OpenSekai.Tests.EditMode
             public void SetStatus(string message) => Status = message;
             public void ShowSettings() { }
             public void ShowResult(PlayResult result) => Result = result;
-            public void ShowLoading(string title) => Loading = true;
+            public void ShowLoading(string title, string packageDirectory) => Loading = true;
             public void HideLoading() => Loading = false;
             public void SetLoadingMessage(string message) => LoadingMessage = message;
-            public void ShowActions(string title, Action export, Action delete) { }
+            public void ShowActions(SongPackageItem item, Action export, Action delete) { }
             internal List<string> RefreshedScores { get; } = new List<string>();
             public void RefreshScore(string scoreKey) => RefreshedScores.Add(scoreKey);
 

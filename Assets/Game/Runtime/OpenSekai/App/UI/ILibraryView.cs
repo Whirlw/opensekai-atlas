@@ -52,9 +52,9 @@ namespace OpenSekai.App.UI
         void SetStatus(string message);
         void ShowSettings();
         void ShowResult(PlayResult result);
-        void ShowLoading(string title);
+        void ShowLoading(string title, string packageDirectory);
         void HideLoading();
         void SetLoadingMessage(string message);
-        void ShowActions(string title, Action export, Action delete);
+        void ShowActions(SongPackageItem item, Action export, Action delete);
     }
 }

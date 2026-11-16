@@ -1,4 +1,6 @@
 using System;
+using System.Globalization;
+using LitMotion;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -7,41 +9,71 @@ using OpenSekai.Shared.Playback;
 namespace OpenSekai.App.UI
 {
     /// <summary>
-    /// Lightweight end-of-session panel: one snapshot, two actions. It deliberately replaces the
-    /// old result演出-only flow and never talks to the chart editor.
+    /// End-of-session card in the library's look: the jacket beside the outcome (status chips,
+    /// title, rank, score and clear state), the judgement strip underneath, and 返回曲库 /
+    /// 再玩一次. A load error keeps the same card and shows the reason in place of the score.
     /// </summary>
     public sealed class LibraryResultPanel : MonoBehaviour
     {
-        private const float PANEL_WIDTH = 920f;
-        private const float PANEL_HEIGHT = 600f;
+        private const float CARD_WIDTH = 1240f;
+        private const float CARD_HEIGHT = 640f;
+        private const float PADDING = LibraryTheme.Layout.MODAL_PADDING;
+        private const float COVER_SIZE = 300f;
+        private const float INFO_LEFT = PADDING + COVER_SIZE + 40f;
+        private const float CHIP_HEIGHT = 36f;
+        private const float STRIP_HEIGHT = 124f;
+        private const float BUTTON_HEIGHT = LibraryTheme.Layout.MODAL_BUTTON_HEIGHT;
+        private const float SCORE_COUNT_SECONDS = 0.7f;
 
-        private static readonly Color32 OverlayColor = new Color32(0, 0, 0, 175);
-        private static readonly Color32 PanelColor = new Color32(26, 32, 40, 255);
-        private static readonly Color32 AccentColor = new Color32(120, 200, 255, 255);
+        private static readonly string[] JudgeNames = { "PERFECT", "GREAT", "GOOD", "BAD", "MISS" };
 
         private Action<PlayResult> _onRetry;
         internal Action OnClose { private get; set; }
         private PlayResult _current;
+        private Color32 _accent = LibraryTheme.Colors.DefaultAccent;
 
+        private LibraryModal _modal;
+        private Image _cover;
+        private GameObject _coverPlaceholder;
+        private Chip _kindChip;
+        private Chip _modeChip;
+        private TextMeshProUGUI _level;
         private TextMeshProUGUI _titleText;
-        private TextMeshProUGUI _subtitleText;
-        private TextMeshProUGUI _scoreText;
+        private GameObject _scoreBlock;
         private TextMeshProUGUI _rankText;
-        private TextMeshProUGUI _statsText;
-        private TextMeshProUGUI _judgementText;
+        private TextMeshProUGUI _scoreCaption;
+        private TextMeshProUGUI _scoreText;
+        private Image _clearRing;
+        private TextMeshProUGUI _clearText;
+        private GameObject _errorBlock;
+        private TextMeshProUGUI _errorBody;
+        private GameObject _strip;
+        private GameObject _judgeGroup;
+        private readonly TextMeshProUGUI[] _judges = new TextMeshProUGUI[JudgeNames.Length];
+        private TextMeshProUGUI _comboCaption;
+        private TextMeshProUGUI _combo;
+        private TextMeshProUGUI _autoNote;
+        private Image _retryBackground;
+        private TextMeshProUGUI _retryLabel;
+        private Image _retryIcon;
+        private MotionHandle _scoreMotion;
 
-        public static LibraryResultPanel Create(Transform parent, Action<PlayResult> _onRetry)
+        public static LibraryResultPanel Create(Transform parent, Action<PlayResult> onRetry)
         {
             RectTransform root = LibraryUi.CreateRect("ResultPanel", parent);
             LibraryUi.Stretch(root);
             LibraryResultPanel panel = root.gameObject.AddComponent<LibraryResultPanel>();
-            panel._onRetry = _onRetry;
+            panel._onRetry = onRetry;
             panel.Build();
             panel.Hide();
             return panel;
         }
 
-        public void Show(PlayResult result)
+        public void Show(PlayResult result) => Show(result, null, _accent);
+
+        /// <param name="cover">The package's jacket, when one is already decoded.</param>
+        /// <param name="accent">Rank and 再玩一次 color; follows the jacket.</param>
+        internal void Show(PlayResult result, Sprite cover, Color32 accent)
         {
             if (result == null)
             {
@@ -50,89 +82,199 @@ namespace OpenSekai.App.UI
             }
 
             _current = result;
+            _accent = accent;
+            _cover.sprite = cover;
+            _cover.enabled = cover != null;
+            _coverPlaceholder.SetActive(cover == null);
             Refresh(result);
-            gameObject.SetActive(true);
-            transform.SetAsLastSibling();
+            _modal.Open();
+            PlayScore(result);
+        }
+
+        /// <summary>
+        /// Fills in the jacket and its accent once they are decoded. The card usually opens right as
+        /// the page comes back from a live, before the selected package's jacket has loaded.
+        /// </summary>
+        internal void SetArtwork(Sprite cover, Color32 accent)
+        {
+            if (!_modal.IsOpen || _current == null)
+            {
+                return;
+            }
+
+            _cover.sprite = cover;
+            _cover.enabled = cover != null;
+            _coverPlaceholder.SetActive(cover == null);
+            _accent = accent;
+            ApplyKindChip(_current);
+            ApplyAccent(_current);
+        }
+
+        private void ApplyKindChip(PlayResult result)
+        {
+            _kindChip.Set(result.KindText, KindColor(result));
+        }
+
+        /// <summary>Everything drawn in the jacket's accent: rank, 再玩一次 and a finished run's clear badge.</summary>
+        private void ApplyAccent(PlayResult result)
+        {
+            _retryBackground.color = _accent;
+            _rankText.color = _accent;
+            Color32 clearColor = result.Kind == PlayResultKind.Completed ? _accent : LibraryTheme.Colors.TextSecondary;
+            _clearText.color = clearColor;
+            _clearRing.color = new Color32(clearColor.r, clearColor.g, clearColor.b, 110);
         }
 
         public void Hide()
         {
-            gameObject.SetActive(false);
+            _scoreMotion.TryCancel();
+            _scoreMotion = default;
+            _modal.Close();
+        }
+
+        private void OnDestroy()
+        {
+            _scoreMotion.TryCancel();
+            _modal?.Dispose();
         }
 
         private void Build()
         {
-            Image overlay = LibraryUi.CreateImage("Overlay", transform, OverlayColor);
-            LibraryUi.Stretch(overlay.rectTransform);
+            var root = (RectTransform)transform;
+            // No close button and an inert scrim: the session ends on one of the two actions.
+            _modal = new LibraryModal(root, new Vector2(CARD_WIDTH, CARD_HEIGHT), string.Empty, null);
+            _modal.Title.gameObject.SetActive(false);
+            RectTransform card = _modal.Card;
+            Vector2 topLeft = new Vector2(0f, 1f);
 
-            RectTransform panel = LibraryUi.CreateRect("Panel", transform);
-            panel.anchorMin = new Vector2(0.5f, 0.5f);
-            panel.anchorMax = new Vector2(0.5f, 0.5f);
-            panel.pivot = new Vector2(0.5f, 0.5f);
-            panel.sizeDelta = new Vector2(PANEL_WIDTH, PANEL_HEIGHT);
-            Image panelImage = panel.gameObject.AddComponent<Image>();
-            panelImage.color = PanelColor;
+            // Jacket.
+            RectTransform coverFrame = LibraryUi.CreateRect("Cover", card);
+            LibraryWidgets.Place(coverFrame, topLeft, topLeft, new Vector2(PADDING, -PADDING), new Vector2(COVER_SIZE, COVER_SIZE));
+            LibraryWidgets.Shadow(coverFrame, LibraryTheme.Radius.PANEL, 28f, 6f, 90);
+            Image frame = LibraryWidgets.Panel("Frame", coverFrame, LibraryTheme.Radius.PANEL, LibraryTheme.Colors.CoverPlaceholder);
+            LibraryUi.Stretch(frame.rectTransform);
+            frame.gameObject.AddComponent<Mask>().showMaskGraphic = true;
+            _coverPlaceholder = LibraryWidgets.Icon(frame.transform, LibraryIcon.Wave, LibraryTheme.Colors.TextMuted, 72f).gameObject;
+            _cover = LibraryUi.CreateImage("Jacket", frame.transform, Color.white);
+            _cover.raycastTarget = false;
+            LibraryUi.Stretch(_cover.rectTransform);
 
-            _titleText = LibraryUi.CreateText("Song", panel, string.Empty, 34f, FontStyles.Bold, TextAlignmentOptions.Center);
-            _titleText.rectTransform.anchorMin = new Vector2(0f, 1f);
-            _titleText.rectTransform.anchorMax = new Vector2(1f, 1f);
-            _titleText.rectTransform.pivot = new Vector2(0.5f, 1f);
-            _titleText.rectTransform.offsetMin = new Vector2(40f, -96f);
-            _titleText.rectTransform.offsetMax = new Vector2(-40f, -36f);
-            _titleText.textWrappingMode = TextWrappingModes.NoWrap;
-            _titleText.overflowMode = TextOverflowModes.Ellipsis;
+            // Info column: chips, title, then the score or the load error.
+            RectTransform info = LibraryUi.CreateRect("Info", card);
+            LibraryWidgets.TopStrip(info, INFO_LEFT, PADDING, PADDING, COVER_SIZE);
 
-            _subtitleText = LibraryUi.CreateText("Subtitle", panel, string.Empty, 22f, FontStyles.Normal, TextAlignmentOptions.Center);
-            _subtitleText.rectTransform.anchorMin = new Vector2(0f, 1f);
-            _subtitleText.rectTransform.anchorMax = new Vector2(1f, 1f);
-            _subtitleText.rectTransform.pivot = new Vector2(0.5f, 1f);
-            _subtitleText.rectTransform.offsetMin = new Vector2(40f, -132f);
-            _subtitleText.rectTransform.offsetMax = new Vector2(-40f, -96f);
-            _subtitleText.color = new Color32(168, 182, 198, 255);
+            _kindChip = new Chip(info, "Kind");
+            _modeChip = new Chip(info, "Mode");
+            _level = LibraryWidgets.Label("Level", info, string.Empty, 22f, LibraryTheme.Colors.TextSecondary, FontStyles.Bold);
+            LibraryUi.UseCondensedFont(_level);
 
-            _scoreText = LibraryUi.CreateText("Score", panel, "0", 92f, FontStyles.Bold, TextAlignmentOptions.Center);
-            _scoreText.rectTransform.anchorMin = new Vector2(0f, 1f);
-            _scoreText.rectTransform.anchorMax = new Vector2(1f, 1f);
-            _scoreText.rectTransform.pivot = new Vector2(0.5f, 1f);
-            _scoreText.rectTransform.offsetMin = new Vector2(40f, -260f);
-            _scoreText.rectTransform.offsetMax = new Vector2(-40f, -140f);
+            _titleText = LibraryWidgets.Label(
+                "Title", info, string.Empty, LibraryTheme.FontSize.DETAIL_TITLE, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
+            LibraryWidgets.TopStrip(_titleText.rectTransform, 0f, 0f, CHIP_HEIGHT + 16f, 60f);
 
-            _rankText = LibraryUi.CreateText("Rank", panel, string.Empty, 44f, FontStyles.Bold, TextAlignmentOptions.Center);
-            _rankText.rectTransform.anchorMin = new Vector2(0f, 1f);
-            _rankText.rectTransform.anchorMax = new Vector2(1f, 1f);
-            _rankText.rectTransform.pivot = new Vector2(0.5f, 1f);
-            _rankText.rectTransform.offsetMin = new Vector2(40f, -324f);
-            _rankText.rectTransform.offsetMax = new Vector2(-40f, -268f);
-            _rankText.color = AccentColor;
+            RectTransform scoreBlock = LibraryUi.CreateRect("Score", info);
+            LibraryWidgets.BottomStrip(scoreBlock, 0f, 0f, 0f, 150f);
+            _scoreBlock = scoreBlock.gameObject;
+            _rankText = LibraryWidgets.Label(
+                "Rank", scoreBlock, string.Empty, 150f, LibraryTheme.Colors.DefaultAccent, FontStyles.Bold, TextAlignmentOptions.BottomLeft);
+            LibraryUi.UseCondensedFont(_rankText);
+            _rankText.overflowMode = TextOverflowModes.Overflow;
+            LibraryWidgets.Place(_rankText.rectTransform, Vector2.zero, Vector2.zero, new Vector2(-4f, -14f), new Vector2(150f, 160f));
+            _scoreCaption = LibraryWidgets.Label(
+                "ScoreCaption", scoreBlock, "分数", LibraryTheme.FontSize.CAPTION, LibraryTheme.Colors.TextMuted);
+            LibraryWidgets.Place(_scoreCaption.rectTransform, Vector2.zero, Vector2.zero, new Vector2(164f, 96f), new Vector2(300f, 28f));
+            _scoreText = LibraryWidgets.Label(
+                "Score", scoreBlock, string.Empty, 92f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold, TextAlignmentOptions.BottomLeft);
+            LibraryUi.UseCondensedFont(_scoreText);
+            _scoreText.overflowMode = TextOverflowModes.Overflow;
+            LibraryWidgets.Place(_scoreText.rectTransform, Vector2.zero, Vector2.zero, new Vector2(160f, -6f), new Vector2(420f, 104f));
 
-            _statsText = LibraryUi.CreateText("Stats", panel, string.Empty, 26f, FontStyles.Normal, TextAlignmentOptions.Center);
-            _statsText.rectTransform.anchorMin = new Vector2(0f, 1f);
-            _statsText.rectTransform.anchorMax = new Vector2(1f, 1f);
-            _statsText.rectTransform.pivot = new Vector2(0.5f, 1f);
-            _statsText.rectTransform.offsetMin = new Vector2(40f, -372f);
-            _statsText.rectTransform.offsetMax = new Vector2(-40f, -328f);
+            _clearRing = LibraryWidgets.Shape("Clear", scoreBlock, LibraryShapes.Ring(20f, 2f), new Color32(255, 255, 255, 72));
+            LibraryWidgets.Place(_clearRing.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(0f, 14f), new Vector2(200f, 44f));
+            _clearText = LibraryWidgets.Label(
+                "Label", _clearRing.transform, string.Empty, 22f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold, TextAlignmentOptions.Center);
+            LibraryUi.UseCondensedFont(_clearText);
+            _clearText.characterSpacing = 4f;
+            LibraryUi.Stretch(_clearText.rectTransform);
 
-            _judgementText = LibraryUi.CreateText("Judgements", panel, string.Empty, 22f, FontStyles.Normal, TextAlignmentOptions.Center);
-            _judgementText.rectTransform.anchorMin = new Vector2(0f, 1f);
-            _judgementText.rectTransform.anchorMax = new Vector2(1f, 1f);
-            _judgementText.rectTransform.pivot = new Vector2(0.5f, 1f);
-            _judgementText.rectTransform.offsetMin = new Vector2(40f, -416f);
-            _judgementText.rectTransform.offsetMax = new Vector2(-40f, -376f);
-            _judgementText.color = new Color32(168, 182, 198, 255);
+            // A load error: a plain sentence under the title, and the reason where the judgements go.
+            RectTransform errorBlock = LibraryUi.CreateRect("Error", card);
+            LibraryUi.Stretch(errorBlock);
+            _errorBlock = errorBlock.gameObject;
+            TextMeshProUGUI errorLead = LibraryWidgets.Label(
+                "Lead", errorBlock, "曲包没能载入，这一局没有开始。", 24f, LibraryTheme.Colors.TextSecondary);
+            LibraryWidgets.TopStrip(errorLead.rectTransform, INFO_LEFT, PADDING, PADDING + CHIP_HEIGHT + 96f, 36f);
+            Image reason = LibraryWidgets.Panel("Reason", errorBlock, LibraryTheme.Radius.ROW, LibraryTheme.Colors.DangerSurface);
+            LibraryWidgets.TopStrip(reason.rectTransform, PADDING, PADDING, PADDING + COVER_SIZE + 28f, STRIP_HEIGHT);
+            TextMeshProUGUI reasonCaption = LibraryWidgets.Label(
+                "Caption", reason.transform, "原因", LibraryTheme.FontSize.CAPTION, LibraryTheme.Colors.Danger, FontStyles.Bold);
+            LibraryWidgets.TopStrip(reasonCaption.rectTransform, 36f, 36f, 22f, 26f);
+            _errorBody = LibraryUi.CreateText(
+                "Body", reason.transform, string.Empty, 24f, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+            _errorBody.color = LibraryTheme.Colors.TextPrimary;
+            _errorBody.textWrappingMode = TextWrappingModes.Normal;
+            _errorBody.overflowMode = TextOverflowModes.Ellipsis;
+            LibraryWidgets.Inset(_errorBody.rectTransform, 36f, 16f, 36f, 56f);
 
-            Button retry = LibraryUi.CreateButton("Retry", panel, "再玩一次", Retry, 240f, 64f);
-            RectTransform retryRect = (RectTransform)retry.transform;
-            retryRect.anchorMin = new Vector2(0.5f, 0f);
-            retryRect.anchorMax = new Vector2(0.5f, 0f);
-            retryRect.pivot = new Vector2(1f, 0f);
-            retryRect.anchoredPosition = new Vector2(-16f, 40f);
+            // Judgement strip, the full width under the jacket.
+            Image strip = LibraryWidgets.Panel("Judgements", card, LibraryTheme.Radius.ROW, LibraryTheme.Colors.Control);
+            LibraryWidgets.TopStrip(strip.rectTransform, PADDING, PADDING, PADDING + COVER_SIZE + 28f, STRIP_HEIGHT);
+            LibraryWidgets.Outline(strip, LibraryTheme.Radius.ROW);
+            _strip = strip.gameObject;
 
-            Button close = LibraryUi.CreateButton("Back", panel, "返回曲库", Close, 240f, 64f);
-            RectTransform closeRect = (RectTransform)close.transform;
-            closeRect.anchorMin = new Vector2(0.5f, 0f);
-            closeRect.anchorMax = new Vector2(0.5f, 0f);
-            closeRect.pivot = new Vector2(0f, 0f);
-            closeRect.anchoredPosition = new Vector2(16f, 40f);
+            RectTransform judges = LibraryUi.CreateRect("Grades", strip.transform);
+            LibraryWidgets.Inset(judges, 36f, 24f, 36f, 24f);
+            _judgeGroup = judges.gameObject;
+            const float judgeWidth = 150f;
+            for (int i = 0; i < JudgeNames.Length; i++)
+            {
+                TextMeshProUGUI caption = LibraryWidgets.Label(
+                    "JudgeName" + i, judges, JudgeNames[i], 17f, LibraryTheme.Colors.TextMuted, FontStyles.Bold);
+                LibraryUi.UseCondensedFont(caption);
+                caption.characterSpacing = 3f;
+                LibraryWidgets.Place(caption.rectTransform, topLeft, topLeft, new Vector2(i * judgeWidth, 0f), new Vector2(judgeWidth, 24f));
+                _judges[i] = LibraryWidgets.Label("Judge" + i, judges, string.Empty, 40f, LibraryTheme.Colors.TextPrimary);
+                LibraryUi.UseCondensedFont(_judges[i]);
+                LibraryWidgets.Place(_judges[i].rectTransform, Vector2.zero, Vector2.zero, new Vector2(i * judgeWidth, -4f), new Vector2(judgeWidth, 52f));
+            }
+
+            _comboCaption = LibraryWidgets.Label(
+                "ComboCaption", strip.transform, "最大连击", LibraryTheme.FontSize.CAPTION, LibraryTheme.Colors.TextMuted,
+                FontStyles.Normal, TextAlignmentOptions.Right);
+            LibraryWidgets.Place(_comboCaption.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-36f, -22f), new Vector2(260f, 26f));
+            _combo = LibraryWidgets.Label(
+                "Combo", strip.transform, string.Empty, 40f, LibraryTheme.Colors.TextPrimary, FontStyles.Normal, TextAlignmentOptions.Right);
+            _combo.richText = true;
+            LibraryUi.UseCondensedFont(_combo);
+            LibraryWidgets.Place(_combo.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-36f, 20f), new Vector2(300f, 52f));
+
+            _autoNote = LibraryWidgets.Label(
+                "AutoNote", strip.transform, string.Empty, 22f, LibraryTheme.Colors.TextSecondary);
+            _autoNote.richText = true;
+            LibraryWidgets.Inset(_autoNote.rectTransform, 36f, 0f, 360f, 0f);
+
+            // Actions.
+            RectTransform actions = LibraryUi.CreateRect("Actions", card);
+            LibraryWidgets.BottomStrip(actions, PADDING, PADDING, PADDING, BUTTON_HEIGHT);
+            const float backWidth = 220f;
+            const float retryWidth = 280f;
+            Button back = LibraryWidgets.PillButton(
+                "Back", actions, "返回曲库", Close, backWidth, BUTTON_HEIGHT,
+                LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, 24f);
+            LibraryWidgets.Outline((Image)back.targetGraphic, BUTTON_HEIGHT * 0.5f);
+            LibraryWidgets.Place((RectTransform)back.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
+                new Vector2(-(retryWidth + 16f), 0f), new Vector2(backWidth, BUTTON_HEIGHT));
+
+            Button retry = LibraryWidgets.PillButton(
+                "Retry", actions, "再玩一次", Retry, retryWidth, BUTTON_HEIGHT,
+                LibraryTheme.Colors.DefaultAccent, LibraryTheme.Colors.TextOnAccent, 26f, FontStyles.Bold);
+            LibraryWidgets.Place((RectTransform)retry.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
+                Vector2.zero, new Vector2(retryWidth, BUTTON_HEIGHT));
+            _retryBackground = (Image)retry.targetGraphic;
+            _retryLabel = retry.GetComponentInChildren<TextMeshProUGUI>();
+            LibraryWidgets.Inset(_retryLabel.rectTransform, 36f, 0f, 0f, 0f);
+            _retryIcon = LibraryWidgets.Icon(retry.transform, LibraryIcon.Refresh, LibraryTheme.Colors.TextOnAccent, 26f);
+            _retryIcon.rectTransform.anchoredPosition = new Vector2(-58f, 0f);
         }
 
         private void Retry()
@@ -151,39 +293,148 @@ namespace OpenSekai.App.UI
         private void Refresh(PlayResult result)
         {
             _titleText.text = result.Title;
-            _subtitleText.text = (result.IsAuto ? "自动" : "手动")
-                + (result.PlayLevel > 0 ? "  ·  Lv." + result.PlayLevel : string.Empty)
-                + "  ·  " + result.KindText;
+            ApplyKindChip(result);
+            _modeChip.Set(result.IsAuto ? "自动演奏" : "手动演奏", LibraryTheme.Colors.TextSecondary);
+            _level.text = result.PlayLevel > 0 ? "LV " + result.PlayLevel : string.Empty;
+            LayoutChips();
+
+            ApplyAccent(result);
 
             bool hasScore = result.HasScore;
-            _scoreText.gameObject.SetActive(hasScore);
-            _rankText.gameObject.SetActive(hasScore);
-            _judgementText.gameObject.SetActive(hasScore);
-
+            _scoreBlock.SetActive(hasScore);
+            _strip.SetActive(hasScore);
+            _errorBlock.SetActive(!hasScore);
+            _retryLabel.text = hasScore ? "再玩一次" : "重试";
+            // Icon and label sit together as one centered group, whatever the label's length.
+            const float iconGap = 10f;
+            float labelWidth = Mathf.Ceil(_retryLabel.GetPreferredValues(_retryLabel.text).x);
+            float group = 26f + iconGap + labelWidth;
+            _retryIcon.rectTransform.anchoredPosition = new Vector2(-group * 0.5f + 13f, 0f);
+            LibraryWidgets.Inset(_retryLabel.rectTransform, 26f + iconGap, 0f, 0f, 0f);
             if (!hasScore)
             {
-                _statsText.text = result.Message;
+                _errorBody.text = string.IsNullOrWhiteSpace(result.Message) ? "曲包无法载入。" : result.Message;
                 return;
             }
 
-            _scoreText.text = result.Score.ToString("N0");
             _rankText.text = result.IsAllPerfectClear ? "AP" : result.Rank.ToString();
+            _scoreText.text = Format(result.Score);
+            string clear = ClearLabel(result);
+            _clearRing.gameObject.SetActive(clear.Length > 0);
+            _clearText.text = clear;
 
+            _judgeGroup.SetActive(!result.IsAuto);
+            _comboCaption.text = result.IsAuto ? "总音符" : "最大连击";
             if (result.IsAuto)
             {
-                _statsText.text = "总音符  " + result.TotalCombo + "  ·  自动判定  " + result.AutoCount;
-                _judgementText.text = "自动模式不计判定等级";
+                _combo.text = Format(result.TotalCombo);
+                _autoNote.gameObject.SetActive(true);
+                _autoNote.text = "自动判定  <color=#F2F4F7>" + Format(result.AutoCount)
+                    + "</color>\n<size=80%><color=#9AA6B5>自动模式不计判定等级，也不计入最佳成绩</color></size>";
             }
             else
             {
                 // The game only knows five judgement grades on screen: a just-perfect hit is still a
                 // PERFECT. Showing a separate "JP" column would invent a grade the HUD never had.
-                _statsText.text = "最大连击  " + result.MaxCombo + " / " + result.TotalCombo;
-                _judgementText.text = "PERFECT " + result.Perfect
-                    + "    GREAT " + result.Great
-                    + "    GOOD " + result.Good
-                    + "    BAD " + result.Bad
-                    + "    MISS " + result.Miss;
+                _autoNote.gameObject.SetActive(false);
+                _judges[0].text = Format(result.Perfect);
+                _judges[1].text = Format(result.Great);
+                _judges[2].text = Format(result.Good);
+                _judges[3].text = Format(result.Bad);
+                _judges[4].text = Format(result.Miss);
+                _combo.text = Format(result.MaxCombo)
+                    + "<size=70%><color=#9AA6B5> / " + Format(result.TotalCombo) + "</color></size>";
+            }
+        }
+
+        private void LayoutChips()
+        {
+            float cursor = _kindChip.Layout(0f);
+            cursor = _modeChip.Layout(cursor + 10f);
+            Vector2 topLeft = new Vector2(0f, 1f);
+            LibraryWidgets.Place(_level.rectTransform, topLeft, topLeft, new Vector2(cursor + 14f, 0f), new Vector2(120f, CHIP_HEIGHT));
+        }
+
+        /// <summary>Counts the score up as the card opens.</summary>
+        private void PlayScore(PlayResult result)
+        {
+            _scoreMotion.TryCancel();
+            _scoreMotion = default;
+            if (!result.HasScore || result.Score <= 0)
+            {
+                return;
+            }
+
+            _scoreMotion = LMotion.Create(0f, result.Score, SCORE_COUNT_SECONDS)
+                .WithEase(Ease.OutCubic)
+                .WithDelay(LibraryTheme.Motion.FAST)
+                .Bind(_scoreText, static (value, text) =>
+                    text.text = Mathf.RoundToInt(value).ToString("N0", CultureInfo.InvariantCulture));
+        }
+
+        private Color32 KindColor(PlayResult result)
+        {
+            switch (result.Kind)
+            {
+                case PlayResultKind.Completed: return _accent;
+                case PlayResultKind.Retired: return LibraryTheme.Colors.Warning;
+                default: return LibraryTheme.Colors.Danger;
+            }
+        }
+
+        private static string ClearLabel(PlayResult result)
+        {
+            if (result.IsAuto)
+            {
+                return "AUTO";
+            }
+
+            switch (result.Kind)
+            {
+                case PlayResultKind.Completed:
+                    if (result.IsAllPerfectClear) return "ALL PERFECT";
+                    return result.TotalCombo > 0 && result.MaxCombo >= result.TotalCombo ? "FULL COMBO" : "CLEAR";
+                case PlayResultKind.Failed: return "FAILED";
+                case PlayResultKind.Retired: return "RETIRED";
+                default: return string.Empty;
+            }
+        }
+
+        private static string Format(int value)
+        {
+            return value.ToString("N0", CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>Small rounded status label whose width follows its text.</summary>
+        private sealed class Chip
+        {
+            private const float PADDING_X = 14f;
+            private readonly Image _background;
+            private readonly TextMeshProUGUI _label;
+
+            internal Chip(RectTransform parent, string name)
+            {
+                _background = LibraryWidgets.Panel(name, parent, LibraryTheme.Radius.CHIP, LibraryTheme.Colors.Hairline);
+                _label = LibraryWidgets.Label(
+                    "Label", _background.transform, string.Empty, LibraryTheme.FontSize.CAPTION, LibraryTheme.Colors.TextSecondary,
+                    FontStyles.Bold, TextAlignmentOptions.Center);
+                LibraryWidgets.Inset(_label.rectTransform, PADDING_X, 0f, PADDING_X, 0f);
+            }
+
+            internal void Set(string text, Color32 color)
+            {
+                _label.text = text;
+                _label.color = color;
+                _background.color = new Color32(color.r, color.g, color.b, 30);
+            }
+
+            /// <returns>The x where the chip ends.</returns>
+            internal float Layout(float x)
+            {
+                float width = Mathf.Ceil(_label.GetPreferredValues(_label.text).x) + PADDING_X * 2f;
+                Vector2 topLeft = new Vector2(0f, 1f);
+                LibraryWidgets.Place(_background.rectTransform, topLeft, topLeft, new Vector2(x, 0f), new Vector2(width, CHIP_HEIGHT));
+                return x + width;
             }
         }
     }

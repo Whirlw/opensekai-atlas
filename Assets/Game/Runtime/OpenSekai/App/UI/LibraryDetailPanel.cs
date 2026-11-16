@@ -436,6 +436,9 @@ namespace OpenSekai.App.UI
             }
         }
 
+        /// <summary>The jacket on screen, or null while it is still the placeholder.</summary>
+        internal Sprite Cover => _cover.enabled ? _cover.sprite : null;
+
         internal void SetAudioLength(long milliseconds)
         {
             if (milliseconds > 0 && _length != null)
