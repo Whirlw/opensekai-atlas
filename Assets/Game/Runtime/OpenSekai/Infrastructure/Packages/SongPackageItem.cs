@@ -19,6 +19,9 @@ namespace OpenSekai.Infrastructure.Packages
 
 		public bool HasJacket { get; }
 
+		/// <summary>Content hash of manifest.json + the score file; the key the play history is stored under.</summary>
+		public string ScoreKey { get; }
+
 		public string StatusText
 		{
 			get
@@ -52,8 +55,10 @@ namespace OpenSekai.Infrastructure.Packages
 			bool hasScore,
 			bool hasAudio,
 			bool hasJacket,
-			DateTimeOffset importedAt)
+			DateTimeOffset importedAt,
+			string scoreKey = null)
 		{
+			ScoreKey = scoreKey ?? string.Empty;
 			Entry = entry;
 			LastWriteTime = lastWriteTime;
 			ImportedAt = importedAt;

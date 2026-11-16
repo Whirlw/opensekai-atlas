@@ -58,6 +58,9 @@ namespace OpenSekai.Infrastructure.Packages
 		{
 			Directory.CreateDirectory(RootDirectory);
 			List<SongPackageItem> items = new List<SongPackageItem>();
+			// One read and at most one write of the hash list per load; only packages that are new or
+			// whose files changed since the last load get hashed.
+			SongPackageHashIndex hashes = SongPackageHashIndex.Open(RootDirectory);
 			foreach (string directory in Directory.GetDirectories(RootDirectory))
 			{
 				SongPackage entry = SongPackageStorage.LoadEntry(directory);
@@ -66,8 +69,11 @@ namespace OpenSekai.Infrastructure.Packages
 					continue;
 				}
 
-				items.Add(CreateItem(entry));
+				items.Add(CreateItem(entry, hashes));
 			}
+
+			hashes.Prune(items.Select(item => item.Entry.RootDirectory));
+			hashes.Save();
 
 			return items
 				.OrderByDescending(x => x.LastWriteTime)
@@ -164,7 +170,16 @@ namespace OpenSekai.Infrastructure.Packages
 			string destination = GetUniqueDirectory(Path.Combine(RootDirectory, SongPackageStorage.CreateFolderName(manifest)));
 			CopyDirectory(source.RootDirectory, destination);
 			WriteManifest(destination, manifest);
-			return SongPackageStorage.LoadEntry(destination);
+			SongPackage imported = SongPackageStorage.LoadEntry(destination);
+			if (imported != null)
+			{
+				// Hash the files as written here (with this import's time), so the new package gets
+				// its own score key even when the same archive was imported before.
+				SongPackageHashIndex hashes = SongPackageHashIndex.Open(RootDirectory);
+				hashes.GetOrCompute(imported);
+				hashes.Save();
+			}
+			return imported;
 		}
 
 		public SongPackage ImportZip(string zipPath)
@@ -327,7 +342,7 @@ namespace OpenSekai.Infrastructure.Packages
 				(manifest, fileName) => manifest.videoFileName = fileName);
 		}
 
-		private SongPackageItem CreateItem(SongPackage entry)
+		private SongPackageItem CreateItem(SongPackage entry, SongPackageHashIndex hashes)
 		{
 			string manifestPath = entry.ManifestPath;
 			string scorePath = entry.ScorePath;
@@ -355,7 +370,9 @@ namespace OpenSekai.Infrastructure.Packages
 				File.Exists(scorePath),
 				File.Exists(audioPath),
 				File.Exists(jacketPath),
-				importedAt);
+				importedAt,
+				// After EnsureImportedAt: it may rewrite the manifest, and the hash must match the file on disk.
+				hashes.GetOrCompute(entry));
 		}
 
 		private static DateTimeOffset EnsureImportedAt(SongPackage entry)

@@ -277,12 +277,12 @@ namespace OpenSekai.App.UI
         internal static CustomMusicScorePlayHistorySummary SummaryOf(
             SongPackageItem item, IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary> history)
         {
-            string id = item?.Entry?.Manifest?.id;
-            if (history == null || string.IsNullOrEmpty(id))
+            string key = item?.ScoreKey;
+            if (history == null || string.IsNullOrEmpty(key))
             {
                 return null;
             }
-            return history.TryGetValue(id, out CustomMusicScorePlayHistorySummary summary) ? summary : null;
+            return history.TryGetValue(key, out CustomMusicScorePlayHistorySummary summary) ? summary : null;
         }
 
         private bool MatchesSearch(SongPackageItem item)

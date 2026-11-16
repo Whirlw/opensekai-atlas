@@ -6,6 +6,7 @@ using Newtonsoft.Json;
 using Sekai;
 using Sekai.Live;
 using OpenSekai.Infrastructure.Charts;
+using OpenSekai.Infrastructure.Packages;
 using UnityEngine;
 using OpenSekai.Shared.Packages;
 using OpenSekai.Shared.Settings;
@@ -124,6 +125,7 @@ namespace OpenSekai.App.Playback
                 if(config == null) throw new InvalidOperationException("Live bundle configuration is missing.");
                 PlaySession session = PlaySession.Create(request, entry, chart, config, settings);
                 FreeLiveBootData boot = LegacyLiveBootAdapter.Create(session, _deckSelection.SelectedDeckId);
+                boot.CustomMusicScoreKey = SongPackageHashIndex.HashOf(entry);
                 cancellationToken.ThrowIfCancellationRequested();
                 string message = request.IsAuto ? "正在开始自动游玩..." : "正在开始游玩...";
                 progress?.Invoke(message);

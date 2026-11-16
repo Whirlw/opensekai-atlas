@@ -31,8 +31,9 @@ namespace OpenSekai.App.Library
 				return;
 			}
 
-			if (string.IsNullOrEmpty(bootData.CustomMusicScoreId))
+			if (string.IsNullOrEmpty(bootData.CustomMusicScoreKey))
 			{
+				// Without the content hash the run could not be shown for any package.
 				return;
 			}
 
@@ -53,10 +54,10 @@ namespace OpenSekai.App.Library
 			}
 		}
 
-		public static bool TryLoadBestResult(string customMusicScoreId, out CustomMusicScorePlayHistoryRecord bestRecord)
+		public static bool TryLoadBestResult(string scoreKey, out CustomMusicScorePlayHistoryRecord bestRecord)
 		{
 			bestRecord = null;
-			if (string.IsNullOrEmpty(customMusicScoreId) || !File.Exists(CustomMusicScoreStorage.PlayHistoryPath))
+			if (string.IsNullOrEmpty(scoreKey) || !File.Exists(CustomMusicScoreStorage.PlayHistoryPath))
 			{
 				return false;
 			}
@@ -71,7 +72,7 @@ namespace OpenSekai.App.Library
 					}
 
 					CustomMusicScorePlayHistoryRecord record = JsonConvert.DeserializeObject<CustomMusicScorePlayHistoryRecord>(line);
-					if (record == null || !string.Equals(record.customMusicScoreId, customMusicScoreId, StringComparison.Ordinal))
+					if (record == null || !string.Equals(record.scoreKey, scoreKey, StringComparison.Ordinal))
 					{
 						continue;
 					}
@@ -92,7 +93,8 @@ namespace OpenSekai.App.Library
 		}
 
 		/// <summary>
-		/// Reads the whole history once and folds it into one summary per package id: the best run,
+		/// Reads the whole history once and folds it into one summary per score key (the package's
+		/// manifest.json + score content hash; records without one are ignored): the best run,
 		/// the latest play time and the play count. The library page uses it to sort, group and badge
 		/// every package without re-reading the file per row.
 		/// </summary>
@@ -135,15 +137,15 @@ namespace OpenSekai.App.Library
 					continue;
 				}
 
-				if (record == null || string.IsNullOrEmpty(record.customMusicScoreId))
+				if (record == null || string.IsNullOrEmpty(record.scoreKey))
 				{
 					continue;
 				}
 
-				if (!summaries.TryGetValue(record.customMusicScoreId, out CustomMusicScorePlayHistorySummary summary))
+				if (!summaries.TryGetValue(record.scoreKey, out CustomMusicScorePlayHistorySummary summary))
 				{
 					summary = new CustomMusicScorePlayHistorySummary();
-					summaries[record.customMusicScoreId] = summary;
+					summaries[record.scoreKey] = summary;
 				}
 
 				summary.PlayCount++;
@@ -215,11 +217,12 @@ namespace OpenSekai.App.Library
 
 			return new CustomMusicScorePlayHistoryRecord
 			{
-				schemaVersion = 1,
+				schemaVersion = 2,
 				recordId = Guid.NewGuid().ToString("N"),
 				playedAtUtc = DateTime.UtcNow.ToString("O"),
 				appVersion = Application.version,
 				livePlayMode = bootData.LivePlayMode.ToString(),
+				scoreKey = bootData.CustomMusicScoreKey,
 				customMusicScoreId = bootData.CustomMusicScoreId,
 				customMusicScorePath = bootData.CustomMusicScorePath ?? string.Empty,
 				title = bootData.MusicData?.Music?.title ?? manifest?.title ?? string.Empty,
@@ -303,6 +306,16 @@ namespace OpenSekai.App.Library
 		{
 		    get => _sessionId;
 		    set => _sessionId = value;
+		}
+		/// <summary>
+		/// Content hash of the package's manifest.json + score file when the run was played; the key
+		/// the library groups runs under. Empty for records written before it existed (not shown).
+		/// </summary>
+				private string _scoreKey;
+		public string scoreKey
+		{
+		    get => _scoreKey;
+		    set => _scoreKey = value;
 		}
 				private string _playedAtUtc;
 		public string playedAtUtc
