@@ -21,7 +21,7 @@ namespace OpenSekai.Shared.Audio
 			token.ThrowIfCancellationRequested();
 			if (_audioClip == null)
 			{
-				_audioClip = await LoadAudioClipAsync(token);
+				_audioClip = await LoadClipAsync(Package, token);
 			}
 
 			if (_audioClip == null)
@@ -78,22 +78,25 @@ namespace OpenSekai.Shared.Audio
 			return _audioClip;
 		}
 
-		private async UniTask<AudioClip> LoadAudioClipAsync(CancellationToken token)
+		/// <summary>Loads an independently owned clip without registering it for gameplay.</summary>
+		public static async UniTask<AudioClip> LoadClipAsync(SongPackage package, CancellationToken token)
 		{
-			if (!File.Exists(Package.AudioPath))
+			token.ThrowIfCancellationRequested();
+			string path = package.AudioPath;
+			if (!File.Exists(path))
 			{
-				LogUtility.LogWarning("Custom music audio not found. path:{0}", Package.AudioPath);
+				LogUtility.LogWarning("Custom music audio not found. path:{0}", path);
 				return null;
 			}
 
-			AudioType audioType = ResolveAudioType(Package.AudioPath);
+			AudioType audioType = ResolveAudioType(path);
 			if (audioType == AudioType.UNKNOWN)
 			{
-				LogUtility.LogWarning("Unsupported custom music audio format. path:{0}", Package.AudioPath);
+				LogUtility.LogWarning("Unsupported custom music audio format. path:{0}", path);
 				return null;
 			}
 
-			using (UnityWebRequest request = UnityWebRequestMultimedia.GetAudioClip(ToFileUri(Package.AudioPath), audioType))
+			using (UnityWebRequest request = UnityWebRequestMultimedia.GetAudioClip(ToFileUri(path), audioType))
 			{
 				UnityWebRequestAsyncOperation operation = request.SendWebRequest();
 				await UniTask.WaitUntil(() => operation.isDone, cancellationToken: token);
@@ -101,14 +104,14 @@ namespace OpenSekai.Shared.Audio
 
 				if (request.result != UnityWebRequest.Result.Success)
 				{
-					LogUtility.LogWarning("Failed to load custom music audio. path:{0} error:{1}", Package.AudioPath, request.error);
+					LogUtility.LogWarning("Failed to load custom music audio. path:{0} error:{1}", path, request.error);
 					return null;
 				}
 
 				AudioClip clip = DownloadHandlerAudioClip.GetContent(request);
 				if (clip != null)
 				{
-					clip.name = Package.AudioCueName;
+					clip.name = package.AudioCueName;
 				}
 				return clip;
 			}

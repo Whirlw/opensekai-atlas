@@ -9,6 +9,8 @@ namespace OpenSekai.Infrastructure.Packages
 
 		public DateTime LastWriteTime { get; }
 
+		public DateTimeOffset ImportedAt { get; }
+
 		public bool HasManifest { get; }
 
 		public bool HasScore { get; }
@@ -49,10 +51,12 @@ namespace OpenSekai.Infrastructure.Packages
 			bool hasManifest,
 			bool hasScore,
 			bool hasAudio,
-			bool hasJacket)
+			bool hasJacket,
+			DateTimeOffset importedAt)
 		{
 			Entry = entry;
 			LastWriteTime = lastWriteTime;
+			ImportedAt = importedAt;
 			HasManifest = hasManifest;
 			HasScore = hasScore;
 			HasAudio = hasAudio;

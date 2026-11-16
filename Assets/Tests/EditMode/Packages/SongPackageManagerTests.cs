@@ -73,6 +73,23 @@ namespace OpenSekai.Tests.EditMode.Packages
         }
 
         [Test]
+        public void LoadItemsRecordsTheCurrentTimeOnceWhenTheManifestHasNoImportTime()
+        {
+            string directory = Path.Combine(_root, "unstamped");
+            Directory.CreateDirectory(directory);
+            string manifest = Path.Combine(directory, SongPackageStorage.MANIFEST_FILE_NAME);
+            File.WriteAllText(manifest, "{\"id\":\"unstamped\",\"extra\":true}");
+            DateTimeOffset beforeLoad = DateTimeOffset.UtcNow;
+
+            DateTimeOffset importedAt = _manager.LoadItems().Single().ImportedAt;
+
+            Assert.That(importedAt, Is.GreaterThanOrEqualTo(beforeLoad));
+            Assert.That(importedAt, Is.LessThanOrEqualTo(DateTimeOffset.UtcNow));
+            Assert.That(_manager.LoadItems().Single().ImportedAt, Is.EqualTo(importedAt));
+            Assert.That(File.ReadAllText(manifest), Does.Contain("\"extra\": true"));
+        }
+
+        [Test]
         public void DeleteEntryRemovesTheFolder()
         {
             SongPackage entry = _manager.CreateNewEntry();

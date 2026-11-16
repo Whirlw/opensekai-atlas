@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
 using Sekai.Core.Live;
@@ -88,6 +89,76 @@ namespace OpenSekai.App.Library
 			}
 
 			return bestRecord != null;
+		}
+
+		/// <summary>
+		/// Reads the whole history once and folds it into one summary per package id: the best run,
+		/// the latest play time and the play count. The library page uses it to sort, group and badge
+		/// every package without re-reading the file per row.
+		/// </summary>
+		public static Dictionary<string, CustomMusicScorePlayHistorySummary> LoadSummaries()
+		{
+			if (!File.Exists(CustomMusicScoreStorage.PlayHistoryPath))
+			{
+				return new Dictionary<string, CustomMusicScorePlayHistorySummary>(StringComparer.Ordinal);
+			}
+
+			try
+			{
+				return Summarize(File.ReadLines(CustomMusicScoreStorage.PlayHistoryPath));
+			}
+			catch (Exception exception)
+			{
+				Debug.LogWarningFormat("Failed to summarize custom music score play history. path:{0} error:{1}", CustomMusicScoreStorage.PlayHistoryPath, exception.Message);
+				return new Dictionary<string, CustomMusicScorePlayHistorySummary>(StringComparer.Ordinal);
+			}
+		}
+
+		internal static Dictionary<string, CustomMusicScorePlayHistorySummary> Summarize(IEnumerable<string> lines)
+		{
+			var summaries = new Dictionary<string, CustomMusicScorePlayHistorySummary>(StringComparer.Ordinal);
+			foreach (string line in lines)
+			{
+				if (string.IsNullOrWhiteSpace(line))
+				{
+					continue;
+				}
+
+				CustomMusicScorePlayHistoryRecord record;
+				try
+				{
+					record = JsonConvert.DeserializeObject<CustomMusicScorePlayHistoryRecord>(line);
+				}
+				catch (JsonException)
+				{
+					// One damaged line (a write cut short) must not hide every other record.
+					continue;
+				}
+
+				if (record == null || string.IsNullOrEmpty(record.customMusicScoreId))
+				{
+					continue;
+				}
+
+				if (!summaries.TryGetValue(record.customMusicScoreId, out CustomMusicScorePlayHistorySummary summary))
+				{
+					summary = new CustomMusicScorePlayHistorySummary();
+					summaries[record.customMusicScoreId] = summary;
+				}
+
+				summary.PlayCount++;
+				if (summary.Best == null || IsBetterResult(record, summary.Best))
+				{
+					summary.Best = record;
+				}
+
+				if (string.CompareOrdinal(record.playedAtUtc, summary.LastPlayedAtUtc) > 0)
+				{
+					summary.LastPlayedAtUtc = record.playedAtUtc;
+				}
+			}
+
+			return summaries;
 		}
 
 		private static bool IsBetterResult(CustomMusicScorePlayHistoryRecord current, CustomMusicScorePlayHistoryRecord best)
@@ -185,6 +256,17 @@ namespace OpenSekai.App.Library
 				noteSkinIndex = bootData.LiveSettingData?.NoteSkinIndex ?? 0
 			};
 		}
+	}
+
+	/// <summary>What the play history says about one package: its best run and how recently it was played.</summary>
+	public sealed class CustomMusicScorePlayHistorySummary
+	{
+		public CustomMusicScorePlayHistoryRecord Best { get; internal set; }
+
+		/// <summary>ISO 8601 UTC time of the latest run; empty when no record carries a time.</summary>
+		public string LastPlayedAtUtc { get; internal set; } = string.Empty;
+
+		public int PlayCount { get; internal set; }
 	}
 
 	public sealed class CustomMusicScorePlayHistoryRecord

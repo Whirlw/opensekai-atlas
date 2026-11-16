@@ -20,6 +20,7 @@ namespace OpenSekai.App.UI
         private static readonly Color32 AccentColor = new Color32(120, 200, 255, 255);
 
         private Action<PlayResult> _onRetry;
+        internal Action OnClose { private get; set; }
         private PlayResult _current;
 
         private TextMeshProUGUI _titleText;
@@ -144,6 +145,7 @@ namespace OpenSekai.App.UI
         private void Close()
         {
             Hide();
+            OnClose?.Invoke();
         }
 
         private void Refresh(PlayResult result)

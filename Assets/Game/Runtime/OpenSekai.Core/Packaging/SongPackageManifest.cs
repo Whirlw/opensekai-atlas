@@ -1,3 +1,4 @@
+using System;
 using System.Security.Cryptography;
 using Newtonsoft.Json;
 
@@ -5,6 +6,9 @@ namespace OpenSekai.Shared.Packages
 {
 	public class SongPackageManifest
 	{
+		[JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+		public DateTimeOffset? importedAtUtc { get; set; }
+
 				private int _formatVersion = 1;
 		public int formatVersion
 		{

@@ -3,7 +3,10 @@ using System.Linq;
 using System.Reflection;
 using System.Collections;
 using NUnit.Framework;
+using OpenSekai.App;
+using OpenSekai.App.Playback;
 using OpenSekai.App.UI;
+using OpenSekai.Infrastructure.Packages;
 using OpenSekai.Shared.Playback;
 using Sekai;
 using Sekai.Core.Live;
@@ -12,6 +15,7 @@ using SceneLoader = UnityEngine.SceneManagement.SceneManager;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using UnityEngine.UI;
+using TMPro;
 
 namespace OpenSekai.Tests.PlayMode
 {
@@ -43,11 +47,60 @@ namespace OpenSekai.Tests.PlayMode
 
             Assert.That(screen, Is.Not.Null, "LibraryScreen was not created within " + BootTimeoutSeconds + " s");
             Assert.That(screen.IsReady, Is.True, "the library view should be assembled");
+            var back = screen.transform.Find("TopBar/Back")?.GetComponent<Button>();
+            Assert.That(back, Is.Not.Null, "the library should reserve a back button in its top bar");
+            Assert.That(back.interactable, Is.False, "the back button stays disabled until the main menu exists");
             Assert.That(ScreenManager.ExistsInstance, Is.True, "ScreenManager should be alive after boot");
             // Without an EventSystem the page renders but nothing is clickable: uGUI pointer events
             // never fire. The only EventSystem in the project is the one this boot path instantiates.
             Assert.That(UnityEngine.EventSystems.EventSystem.current, Is.Not.Null,
                 "the library boot must register an EventSystem for pointer input");
+        }
+
+        [UnityTest]
+        public IEnumerator PlayingPreviewSurvivesViewSwitchAndStopsWhenTheSelectionBecomesUnplayable()
+        {
+            string root = Path.Combine(Path.GetTempPath(), "OpenSekai-LibraryPreview-" + System.Guid.NewGuid().ToString("N"));
+            LibraryScreen screen = null;
+            try
+            {
+                var packages = new SongPackageManager(root);
+                string fixture = Path.GetFullPath(Path.Combine(Application.dataPath, "../Tools/fixtures/baseline_tap"));
+                packages.ImportFolder(fixture);
+                var missing = packages.CreateNewEntry();
+                missing.Manifest.title = "ZZZ 缺少音频";
+                packages.SaveManifest(missing, missing.Manifest);
+
+                screen = LibraryScreen.Create(new AppContext(packages, PlayService.Instance));
+                var audio = screen.GetComponent<AudioSource>();
+                var preview = screen.transform.Find("Main/DetailColumn/Detail/Info/Preview");
+                yield return WaitFor(() => audio.isPlaying && preview.gameObject.activeInHierarchy,
+                    BootTimeoutSeconds, "playing the selected song preview");
+                AudioClip initialClip = audio.clip;
+                var length = screen.transform.Find("Main/DetailColumn/Detail/Info/Length").GetComponent<TMP_Text>();
+                Assert.That(length.text, Is.Not.Empty);
+
+                var gridButton = screen.transform.Find("TopBar/Controls/ViewMode/Grid").GetComponent<Button>();
+                gridButton.onClick.Invoke();
+                Assert.That(screen.transform.Find("Main/ListColumn/ListArea/Tiles").gameObject.activeInHierarchy, Is.True);
+                Assert.That(audio.clip, Is.SameAs(initialClip), "changing the view keeps the selected preview");
+
+                screen.transform.Find("TopBar/Search").GetComponent<TMP_InputField>().text = "ZZZ";
+                Assert.That(audio.clip, Is.Null);
+                Assert.That(preview.gameObject.activeInHierarchy, Is.False);
+                Assert.That(screen.transform.Find("Main/DetailColumn/Detail/Actions/Start").GetComponent<Button>().interactable, Is.False);
+            }
+            finally
+            {
+                if (screen != null)
+                {
+                    Object.DestroyImmediate(screen.gameObject);
+                }
+                if (Directory.Exists(root))
+                {
+                    Directory.Delete(root, recursive: true);
+                }
+            }
         }
 
         [UnityTest]

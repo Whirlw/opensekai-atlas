@@ -47,10 +47,17 @@ namespace OpenSekai.App.UI
 
         private void Start() => ShowResult(PlayResultHandoff.Take());
 
+        private void OnEnable() => _view?.SetVisible(true);
+
+        private void OnDisable() => _view?.SetVisible(false);
+
+        private void OnApplicationPause(bool paused) => _view?.SetApplicationPaused(paused);
+
         private void OnDestroy()
         {
             LibraryPageRegistry.Unregister(this);
             _presenter?.Dispose();
+            _view?.Dispose();
             _context = null;
         }
     }

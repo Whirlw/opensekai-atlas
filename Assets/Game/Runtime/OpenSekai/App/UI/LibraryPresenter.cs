@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using OpenSekai.App.Library;
 using OpenSekai.App.Playback;
 using OpenSekai.Infrastructure.Packages;
 using OpenSekai.Shared.Packages;
@@ -19,27 +20,83 @@ namespace OpenSekai.App.UI
         private readonly ILibraryView _view;
         private readonly SongPackageManager _packages;
         private readonly Func<PlayRequest, CancellationToken, Action<string>, UniTask<PlayStartResult>> _startPlay;
+        private readonly Func<IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary>> _loadHistory;
         private readonly LibraryModel _model = new LibraryModel();
+        private IReadOnlyList<SongPackageItem> _items = Array.Empty<SongPackageItem>();
+        private IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary> _history =
+            new Dictionary<string, CustomMusicScorePlayHistorySummary>();
+        private LibraryListing _listing;
+        private SongPackageItem _selected;
+        private LibraryViewMode _viewMode = LibraryViewMode.List;
         private CancellationTokenSource _playbackCts;
         private bool _isStartingPlayback;
 
+        /// <param name="view">The page to draw on.</param>
+        /// <param name="packages">The package store the library lists.</param>
+        /// <param name="startPlay">Starts a live session for a package.</param>
+        /// <param name="loadHistory">Play history per package id; defaults to the history file.</param>
         internal LibraryPresenter(
             ILibraryView view,
             SongPackageManager packages,
-            Func<PlayRequest, CancellationToken, Action<string>, UniTask<PlayStartResult>> startPlay)
+            Func<PlayRequest, CancellationToken, Action<string>, UniTask<PlayStartResult>> startPlay,
+            Func<IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary>> loadHistory = null)
         {
             _view = view;
             _packages = packages;
             _startPlay = startPlay;
+            _loadHistory = loadHistory ?? CustomMusicScorePlayHistoryStorage.LoadSummaries;
         }
 
-        internal string SortLabel => _model.SortLabel;
-
-        internal void CycleSort()
+        internal void SetSort(LibrarySortKey key)
         {
-            _model.CycleSort();
-            _view.SetSortLabel(SortLabel);
-            Refresh();
+            _model.SortKey = key;
+            Render();
+        }
+
+        internal void SetGroupMode(LibraryGroupKey key)
+        {
+            _model.SetGroupKey(key);
+            Render();
+        }
+
+        /// <summary>Narrows the list to one group; null shows every group again.</summary>
+        internal void SelectGroup(string group)
+        {
+            _model.SelectedGroup = group;
+            Render();
+        }
+
+        internal void SetSearch(string text)
+        {
+            _model.SearchText = text ?? string.Empty;
+            Render();
+        }
+
+        internal void SetViewMode(LibraryViewMode mode)
+        {
+            if (_viewMode == mode)
+            {
+                return;
+            }
+
+            _viewMode = mode;
+            Render();
+        }
+
+        internal void Select(SongPackageItem item)
+        {
+            if (item == null || ReferenceEquals(item, _selected))
+            {
+                return;
+            }
+
+            _selected = item;
+            _view.SetSelection(item);
+        }
+
+        internal void OpenActionsForSelected()
+        {
+            OpenActions(_selected);
         }
 
         public void Dispose()
@@ -77,28 +134,52 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            _view.ClearRows();
-            IReadOnlyList<SongPackageItem> items;
             try
             {
-                items = _packages.LoadItems();
+                _items = _packages.LoadItems();
             }
             catch (Exception exception)
             {
                 Debug.LogException(exception);
+                _items = Array.Empty<SongPackageItem>();
+                Render();
                 _view.SetStatus("读取曲库失败：" + exception.Message);
                 return;
             }
 
-            _view.SetCount(items.Count);
-            if (items.Count == 0)
+            _history = _loadHistory() ?? _history;
+            Render();
+            _view.SetStatus(_items.Count == 0
+                ? "还没有曲包。点“导入”添加，或把曲包文件夹放到 CustomMusicScores 目录后点“刷新”。"
+                : string.Empty);
+        }
+
+        private void Render()
+        {
+            _listing = _model.Build(_items, _history);
+            _selected = KeepSelection(_listing.Items, _selected);
+            _view.Render(new LibraryViewState(_listing, _model.GroupKey, _model.SortKey, _viewMode, _selected, _history));
+        }
+
+        /// <summary>
+        /// Keeps the selected package across a reload (items are new objects each time, so it is
+        /// matched by folder) and falls back to the first row when it left the list.
+        /// </summary>
+        private static SongPackageItem KeepSelection(IReadOnlyList<SongPackageItem> items, SongPackageItem selected)
+        {
+            string directory = selected?.Entry?.RootDirectory;
+            if (directory != null)
             {
-                _view.SetStatus("还没有曲包。把曲包文件夹放到 CustomMusicScores 目录后点“刷新”。");
-                return;
+                for (int i = 0; i < items.Count; i++)
+                {
+                    if (string.Equals(items[i].Entry?.RootDirectory, directory, StringComparison.Ordinal))
+                    {
+                        return items[i];
+                    }
+                }
             }
 
-            _view.RenderRows(_model.Order(items), StartPlayback, OpenActions);
-            _view.SetStatus("就绪。");
+            return items.Count > 0 ? items[0] : null;
         }
 
         internal void OnResultRetry(PlayResult result)

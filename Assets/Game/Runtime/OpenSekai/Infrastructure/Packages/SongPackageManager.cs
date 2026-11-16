@@ -4,6 +4,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using OpenSekai.Charts;
 using OpenSekai.Charts.Serialization;
 using OpenSekai.Infrastructure.Charts;
@@ -80,6 +81,7 @@ namespace OpenSekai.Infrastructure.Packages
 			SongPackageManifest manifest = new SongPackageManifest
 			{
 				id = SongPackageStorage.GenerateShortId(),
+				importedAtUtc = DateTimeOffset.UtcNow,
 				title = "未命名",
 				scoreTitle = "未命名谱面",
 				userName = Environment.UserName,
@@ -116,6 +118,7 @@ namespace OpenSekai.Infrastructure.Packages
 
 			SongPackageManifest manifest = CloneManifest(source.Manifest);
 			manifest.id = SongPackageStorage.GenerateShortId();
+			manifest.importedAtUtc = DateTimeOffset.UtcNow;
 			manifest.scoreTitle = string.IsNullOrWhiteSpace(manifest.scoreTitle) ? "副本" : manifest.scoreTitle + " 副本";
 			manifest.Normalize();
 
@@ -156,6 +159,7 @@ namespace OpenSekai.Infrastructure.Packages
 			}
 
 			SongPackageManifest manifest = CloneManifest(source.Manifest);
+			manifest.importedAtUtc = DateTimeOffset.UtcNow;
 			manifest.Normalize();
 			string destination = GetUniqueDirectory(Path.Combine(RootDirectory, SongPackageStorage.CreateFolderName(manifest)));
 			CopyDirectory(source.RootDirectory, destination);
@@ -228,6 +232,7 @@ namespace OpenSekai.Infrastructure.Packages
 			}
 
 			manifest.Normalize();
+			manifest.importedAtUtc = entry.Manifest.importedAtUtc ?? manifest.importedAtUtc ?? DateTimeOffset.UtcNow;
 			string directory = ResolveManifestSaveDirectory(entry, manifest);
 			WriteManifest(directory, manifest);
 			return SongPackageStorage.LoadEntry(directory);
@@ -328,6 +333,7 @@ namespace OpenSekai.Infrastructure.Packages
 			string scorePath = entry.ScorePath;
 			string audioPath = entry.AudioPath;
 			string jacketPath = entry.JacketPath;
+			DateTimeOffset importedAt = EnsureImportedAt(entry);
 			DateTime lastWriteTime = Directory.GetLastWriteTime(entry.RootDirectory);
 			if (File.Exists(manifestPath))
 			{
@@ -348,7 +354,41 @@ namespace OpenSekai.Infrastructure.Packages
 				File.Exists(manifestPath),
 				File.Exists(scorePath),
 				File.Exists(audioPath),
-				File.Exists(jacketPath));
+				File.Exists(jacketPath),
+				importedAt);
+		}
+
+		private static DateTimeOffset EnsureImportedAt(SongPackage entry)
+		{
+			if (entry.Manifest.importedAtUtc is DateTimeOffset importedAt)
+			{
+				return importedAt;
+			}
+
+			importedAt = DateTimeOffset.UtcNow;
+			string tempPath = entry.ManifestPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+			try
+			{
+				JObject manifest = JObject.Parse(File.ReadAllText(entry.ManifestPath));
+				manifest[nameof(SongPackageManifest.importedAtUtc)] = new JValue(importedAt);
+				File.WriteAllText(tempPath, manifest.ToString(Formatting.Indented));
+				File.Replace(tempPath, entry.ManifestPath, null);
+			}
+			catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException
+				|| exception is JsonException)
+			{
+				Debug.LogWarning("[Library] Could not save import time: " + exception.Message);
+			}
+			finally
+			{
+				if (File.Exists(tempPath))
+				{
+					File.Delete(tempPath);
+				}
+			}
+
+			entry.Manifest.importedAtUtc = importedAt;
+			return importedAt;
 		}
 
 		private void WriteDefaultScore(string directory, SongPackageManifest manifest)
@@ -364,6 +404,7 @@ namespace OpenSekai.Infrastructure.Packages
 
 		private void WriteManifest(string directory, SongPackageManifest manifest)
 		{
+			manifest.importedAtUtc ??= DateTimeOffset.UtcNow;
 			Directory.CreateDirectory(directory);
 			string json = JsonConvert.SerializeObject(manifest, Formatting.Indented);
 			File.WriteAllText(Path.Combine(directory, SongPackageStorage.MANIFEST_FILE_NAME), json);
