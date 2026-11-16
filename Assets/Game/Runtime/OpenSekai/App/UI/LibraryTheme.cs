@@ -115,8 +115,11 @@ namespace OpenSekai.App.UI
             internal const float SELECTED_TILE_SCALE = 1.02f;
             internal const float SELECTED_ROW_SHIFT = 14f;
 
-            /// <summary>Seconds a song stays selected before its preview starts.</summary>
-            internal const float PREVIEW_DELAY = 0.5f;
+            /// <summary>Seconds the old preview takes to fade out and the new one to fade in.</summary>
+            internal const float PREVIEW_FADE = 0.5f;
+
+            /// <summary>Seconds after a song is selected before another selection is accepted.</summary>
+            internal const float SELECT_COOLDOWN = 0.5f;
 
             internal const Ease ENTER_EASE = Ease.OutCubic;
             internal const Ease EXIT_EASE = Ease.InCubic;

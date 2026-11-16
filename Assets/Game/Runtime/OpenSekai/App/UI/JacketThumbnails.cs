@@ -330,8 +330,11 @@ namespace OpenSekai.App.UI
 
         private static Sprite CreateSprite(Texture2D texture, string jacketPath)
         {
+            // FullRect: the default Tight mesh traces the image outline on the main thread
+            // (SpriteMeshGenerator.TraceShape), which a rectangular UI image never uses.
             Sprite sprite = Sprite.Create(
-                texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100f);
+                texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100f,
+                0, SpriteMeshType.FullRect);
             sprite.name = Path.GetFileNameWithoutExtension(jacketPath);
             return sprite;
         }

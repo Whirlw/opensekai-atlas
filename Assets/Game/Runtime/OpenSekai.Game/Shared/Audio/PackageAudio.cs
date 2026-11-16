@@ -79,7 +79,14 @@ namespace OpenSekai.Shared.Audio
 		}
 
 		/// <summary>Loads an independently owned clip without registering it for gameplay.</summary>
-		public static async UniTask<AudioClip> LoadClipAsync(SongPackage package, CancellationToken token)
+		/// <param name="stream">
+		/// Open the clip as a stream that is decoded while it plays. Without it, <c>GetContent</c>
+		/// builds the whole FMOD sound on the main thread (SoundManager.LoadFMODSound, ~265 ms for a
+		/// 3 MB ogg, and keeping it compressed does not avoid that). Gameplay needs the full PCM for
+		/// <see cref="GetAudioSamples"/>; a preview does not.
+		/// </param>
+		public static async UniTask<AudioClip> LoadClipAsync(
+			SongPackage package, CancellationToken token, bool stream = false)
 		{
 			token.ThrowIfCancellationRequested();
 			string path = package.AudioPath;
@@ -98,6 +105,11 @@ namespace OpenSekai.Shared.Audio
 
 			using (UnityWebRequest request = UnityWebRequestMultimedia.GetAudioClip(ToFileUri(path), audioType))
 			{
+				if (stream)
+				{
+					((DownloadHandlerAudioClip)request.downloadHandler).streamAudio = true;
+				}
+
 				UnityWebRequestAsyncOperation operation = request.SendWebRequest();
 				await UniTask.WaitUntil(() => operation.isDone, cancellationToken: token);
 				token.ThrowIfCancellationRequested();

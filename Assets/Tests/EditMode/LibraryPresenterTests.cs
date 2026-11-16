@@ -71,6 +71,46 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(_view.Items.Select(item => item.Entry.Manifest.id), Is.EqualTo(new[] { "zeta", "alpha" }));
         }
 
+        [Test]
+        public void SelectIgnoresAClickWithinTheCooldownOfTheLastSwitch()
+        {
+            AddPackage("alpha", "Alpha", 1);
+            AddPackage("beta", "Beta", 2);
+            AddPackage("gamma", "Gamma", 3);
+            float now = 10f;
+            var presenter = new LibraryPresenter(_view, _packages, StartPlayback, clock: () => now);
+            try
+            {
+                presenter.Refresh();
+                SongPackageItem[] items = _view.Items.ToArray();
+
+                presenter.Select(items[1]);
+                Assert.That(_view.Selected, Is.SameAs(items[1]));
+
+                now += 0.3f;
+                presenter.Select(items[2]);
+                Assert.That(_view.Selected, Is.SameAs(items[1]), "a click 0.3 s after a switch is ignored");
+
+                now += 0.3f;
+                presenter.Select(items[2]);
+                Assert.That(_view.Selected, Is.SameAs(items[2]), "the cooldown runs from the last accepted switch");
+            }
+            finally
+            {
+                presenter.Dispose();
+            }
+        }
+
+        [TestCase(0f, 120f, 52.5f)]
+        [TestCase(0f, 15f, 0f)]
+        [TestCase(0f, 8f, 0f)]
+        [TestCase(30f, 120f, 30f)]
+        [TestCase(200f, 120f, 52.5f)]
+        public void PreviewStartsAtTheManifestPointOrTheMiddleFifteenSeconds(float manifestStart, float length, float expected)
+        {
+            Assert.That(LibraryPreview.PreviewStart(manifestStart, length), Is.EqualTo(expected).Within(1e-4f));
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public void RowPlaybackUsesThePackageAndRequestedMode(bool isAuto)
