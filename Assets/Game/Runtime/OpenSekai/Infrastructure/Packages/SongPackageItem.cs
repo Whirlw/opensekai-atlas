@@ -19,7 +19,7 @@ namespace OpenSekai.Infrastructure.Packages
 
 		public bool HasJacket { get; }
 
-		/// <summary>Content hash of manifest.json + the score file; the key the play history is stored under.</summary>
+		/// <summary>Content hash of the score file; the key the play history is stored under, shared by packages with the same chart.</summary>
 		public string ScoreKey { get; }
 
 		public string StatusText

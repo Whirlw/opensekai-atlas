@@ -19,10 +19,12 @@ namespace OpenSekai.Infrastructure.Packages
         public static SongPackageManager Shared => _shared ?? (_shared = new SongPackageManager(SongPackageStorage.RootDirectory));
         public string RootDirectory { get; }
         private readonly string _temporaryDirectory;
+        private readonly SongLibraryCache _cache;
         public SongPackageManager(string rootDirectory, string _temporaryDirectory = null)
         {
             RootDirectory = Path.GetFullPath(rootDirectory);
             this._temporaryDirectory = _temporaryDirectory ?? Path.Combine(Application.temporaryCachePath, "CustomMusicScoreManager");
+            _cache = new SongLibraryCache(RootDirectory);
         }
 		private const string EXPORT_DIRECTORY_NAME = "Exports";
 
@@ -54,31 +56,52 @@ namespace OpenSekai.Infrastructure.Packages
 			".mp4"
 		};
 
+		/// <summary>
+		/// The library as cached, newest first. The first call of a launch reads the saved snapshot
+		/// (or scans the folders once when there is none); after that it never touches the disk.
+		/// </summary>
 		public IReadOnlyList<SongPackageItem> LoadItems()
 		{
 			Directory.CreateDirectory(RootDirectory);
-			List<SongPackageItem> items = new List<SongPackageItem>();
-			// One read and at most one write of the hash list per load; only packages that are new or
-			// whose files changed since the last load get hashed.
-			SongPackageHashIndex hashes = SongPackageHashIndex.Open(RootDirectory);
-			foreach (string directory in Directory.GetDirectories(RootDirectory))
-			{
-				SongPackage entry = SongPackageStorage.LoadEntry(directory);
-				if (entry == null)
-				{
-					continue;
-				}
+			return _cache.Items();
+		}
 
-				items.Add(CreateItem(entry, hashes));
+		/// <summary>Walks every package folder again and replaces the cache: the refresh button's resync.</summary>
+		public IReadOnlyList<SongPackageItem> RescanItems()
+		{
+			Directory.CreateDirectory(RootDirectory);
+			_cache.Rescan();
+			return _cache.Items();
+		}
+
+		/// <summary>The cached package in this folder, or null. Never loads, scans or writes.</summary>
+		public SongPackageItem FindCachedItem(string directory) => _cache.Find(directory);
+
+		/// <summary>
+		/// The package's score key: the cached one when this library holds it, otherwise computed
+		/// from its files without storing anything (a package played from outside the library).
+		/// </summary>
+		public string ScoreKeyOf(SongPackage entry)
+		{
+			if (entry == null)
+			{
+				return string.Empty;
 			}
 
-			hashes.Prune(items.Select(item => item.Entry.RootDirectory));
-			hashes.Save();
+			SongPackageItem cached = _cache.Find(entry.RootDirectory);
+			return !string.IsNullOrEmpty(cached?.ScoreKey)
+				? cached.ScoreKey
+				: SongPackageHash.Compute(entry.ScorePath);
+		}
 
-			return items
-				.OrderByDescending(x => x.LastWriteTime)
-				.ThenBy(x => x.Entry.Manifest.scoreTitle, StringComparer.OrdinalIgnoreCase)
-				.ToArray();
+		/// <summary>Puts the package as now written on disk into the cache and returns it.</summary>
+		private SongPackage Track(SongPackage entry)
+		{
+			if (entry != null)
+			{
+				_cache.Track(entry.RootDirectory);
+			}
+			return entry;
 		}
 
 		public SongPackage CreateNewEntry()
@@ -112,7 +135,7 @@ namespace OpenSekai.Infrastructure.Packages
 			Directory.CreateDirectory(directory);
 			WriteManifest(directory, manifest);
 			WriteDefaultScore(directory, manifest);
-			return SongPackageStorage.LoadEntry(directory);
+			return Track(SongPackageStorage.LoadEntry(directory));
 		}
 
 		public SongPackage DuplicateEntry(SongPackage source)
@@ -131,7 +154,7 @@ namespace OpenSekai.Infrastructure.Packages
 			string destination = GetUniqueDirectory(Path.Combine(RootDirectory, SongPackageStorage.CreateFolderName(manifest)));
 			CopyDirectory(source.RootDirectory, destination);
 			WriteManifest(destination, manifest);
-			return SongPackageStorage.LoadEntry(destination);
+			return Track(SongPackageStorage.LoadEntry(destination));
 		}
 
 		public void DeleteEntry(SongPackage entry)
@@ -149,6 +172,7 @@ namespace OpenSekai.Infrastructure.Packages
 			}
 
 			Directory.Delete(target, true);
+			_cache.Untrack(target);
 		}
 
 		public SongPackage ImportFolder(string sourceDirectory)
@@ -170,16 +194,9 @@ namespace OpenSekai.Infrastructure.Packages
 			string destination = GetUniqueDirectory(Path.Combine(RootDirectory, SongPackageStorage.CreateFolderName(manifest)));
 			CopyDirectory(source.RootDirectory, destination);
 			WriteManifest(destination, manifest);
-			SongPackage imported = SongPackageStorage.LoadEntry(destination);
-			if (imported != null)
-			{
-				// Hash the files as written here (with this import's time), so the new package gets
-				// its own score key even when the same archive was imported before.
-				SongPackageHashIndex hashes = SongPackageHashIndex.Open(RootDirectory);
-				hashes.GetOrCompute(imported);
-				hashes.Save();
-			}
-			return imported;
+			// Hashed as written here (with this import's time), so the new package gets its own
+			// score key even when the same archive was imported before.
+			return Track(SongPackageStorage.LoadEntry(destination));
 		}
 
 		public SongPackage ImportZip(string zipPath)
@@ -250,7 +267,12 @@ namespace OpenSekai.Infrastructure.Packages
 			manifest.importedAtUtc = entry.Manifest.importedAtUtc ?? manifest.importedAtUtc ?? DateTimeOffset.UtcNow;
 			string directory = ResolveManifestSaveDirectory(entry, manifest);
 			WriteManifest(directory, manifest);
-			return SongPackageStorage.LoadEntry(directory);
+			if (!PathsEqual(Path.GetFullPath(entry.RootDirectory), Path.GetFullPath(directory)))
+			{
+				// The title changed the folder name: the old folder is gone.
+				_cache.Untrack(entry.RootDirectory);
+			}
+			return Track(SongPackageStorage.LoadEntry(directory));
 		}
 
 		public SongPackage ReplaceAudioFile(SongPackage entry, string sourcePath)
@@ -320,7 +342,7 @@ namespace OpenSekai.Infrastructure.Packages
 				manifest.scoreFileName = "score.json";
 				manifest.Normalize();
 				WriteManifest(entry.RootDirectory, manifest);
-				return SongPackageStorage.LoadEntry(entry.RootDirectory);
+				return Track(SongPackageStorage.LoadEntry(entry.RootDirectory));
 			}
 			finally
 			{
@@ -340,72 +362,6 @@ namespace OpenSekai.Infrastructure.Packages
 				VideoExtensions,
 				manifest => manifest.videoFileName,
 				(manifest, fileName) => manifest.videoFileName = fileName);
-		}
-
-		private SongPackageItem CreateItem(SongPackage entry, SongPackageHashIndex hashes)
-		{
-			string manifestPath = entry.ManifestPath;
-			string scorePath = entry.ScorePath;
-			string audioPath = entry.AudioPath;
-			string jacketPath = entry.JacketPath;
-			DateTimeOffset importedAt = EnsureImportedAt(entry);
-			DateTime lastWriteTime = Directory.GetLastWriteTime(entry.RootDirectory);
-			if (File.Exists(manifestPath))
-			{
-				lastWriteTime = Max(lastWriteTime, File.GetLastWriteTime(manifestPath));
-			}
-			if (File.Exists(scorePath))
-			{
-				lastWriteTime = Max(lastWriteTime, File.GetLastWriteTime(scorePath));
-			}
-			if (File.Exists(entry.VideoPath))
-			{
-				lastWriteTime = Max(lastWriteTime, File.GetLastWriteTime(entry.VideoPath));
-			}
-
-			return new SongPackageItem(
-				entry,
-				lastWriteTime,
-				File.Exists(manifestPath),
-				File.Exists(scorePath),
-				File.Exists(audioPath),
-				File.Exists(jacketPath),
-				importedAt,
-				// After EnsureImportedAt: it may rewrite the manifest, and the hash must match the file on disk.
-				hashes.GetOrCompute(entry));
-		}
-
-		private static DateTimeOffset EnsureImportedAt(SongPackage entry)
-		{
-			if (entry.Manifest.importedAtUtc is DateTimeOffset importedAt)
-			{
-				return importedAt;
-			}
-
-			importedAt = DateTimeOffset.UtcNow;
-			string tempPath = entry.ManifestPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
-			try
-			{
-				JObject manifest = JObject.Parse(File.ReadAllText(entry.ManifestPath));
-				manifest[nameof(SongPackageManifest.importedAtUtc)] = new JValue(importedAt);
-				File.WriteAllText(tempPath, manifest.ToString(Formatting.Indented));
-				File.Replace(tempPath, entry.ManifestPath, null);
-			}
-			catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException
-				|| exception is JsonException)
-			{
-				Debug.LogWarning("[Library] Could not save import time: " + exception.Message);
-			}
-			finally
-			{
-				if (File.Exists(tempPath))
-				{
-					File.Delete(tempPath);
-				}
-			}
-
-			entry.Manifest.importedAtUtc = importedAt;
-			return importedAt;
 		}
 
 		private void WriteDefaultScore(string directory, SongPackageManifest manifest)
@@ -500,7 +456,7 @@ namespace OpenSekai.Infrastructure.Packages
 				setFileName(manifest, Path.GetFileName(destinationPath));
 				manifest.Normalize();
 				WriteManifest(entry.RootDirectory, manifest);
-				return SongPackageStorage.LoadEntry(entry.RootDirectory);
+				return Track(SongPackageStorage.LoadEntry(entry.RootDirectory));
 			}
 			finally
 			{
@@ -805,11 +761,6 @@ namespace OpenSekai.Infrastructure.Packages
 			HashSet<char> invalidChars = new HashSet<char>(Path.GetInvalidFileNameChars());
 			char[] chars = value.Trim().Select(c => invalidChars.Contains(c) || char.IsWhiteSpace(c) ? '_' : c).ToArray();
 			return new string(chars).Trim('_');
-		}
-
-		private DateTime Max(DateTime left, DateTime right)
-		{
-			return left >= right ? left : right;
 		}
 	}
 }

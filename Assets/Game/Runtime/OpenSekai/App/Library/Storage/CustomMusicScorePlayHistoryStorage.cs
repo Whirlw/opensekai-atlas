@@ -4,6 +4,7 @@ using System.IO;
 using Newtonsoft.Json;
 using Sekai.Core.Live;
 using UnityEngine;
+using OpenSekai.Infrastructure.Packages;
 using OpenSekai.Shared.Packages;
 using CriWare;
 using Sekai;
@@ -50,8 +51,10 @@ namespace OpenSekai.App.Library
 			try
 			{
 				Directory.CreateDirectory(CustomMusicScoreStorage.RootDirectory);
-				CustomMusicScoreEntry entry = CustomMusicScoreStorage.LoadEntry(bootData.CustomMusicScorePath);
-				CustomMusicScoreManifest manifest = entry?.Manifest;
+				// The manifest as the library caches it; only a package outside the library is read from disk.
+				SongPackage package = SongPackageManager.Shared.FindCachedItem(bootData.CustomMusicScorePath)?.Entry
+					?? SongPackageStorage.LoadEntry(bootData.CustomMusicScorePath);
+				CustomMusicScoreManifest manifest = CustomMusicScoreEntry.FromPackage(package)?.Manifest;
 				CustomMusicScorePlayHistoryRecord record = CreateRecord(bootData, manifest, score, musicTimeMs, musicLengthMs);
 				record.sessionId = sessionId ?? string.Empty;
 				record.chartHash = chartHash ?? string.Empty;
@@ -72,10 +75,10 @@ namespace OpenSekai.App.Library
 		}
 
 		/// <summary>
-		/// One summary per score key (the package's manifest.json + score content hash; records
-		/// without one are ignored): the best run, the latest play time and the play count. The file
-		/// is read in full only the first time and when it changed outside this process; new runs are
-		/// folded in as they are appended. The returned dictionary is the live cache: do not modify it.
+		/// One summary per score key (the content hash of the package's score file; records
+		/// without one are ignored): the best run, the latest play time and the play count. Served
+		/// from the cache, which a launch fills from the saved summary snapshot; new runs are folded in
+		/// as they are appended. The returned dictionary is the live cache: do not modify it.
 		/// </summary>
 		public static Dictionary<string, CustomMusicScorePlayHistorySummary> LoadSummaries()
 		{
@@ -87,6 +90,20 @@ namespace OpenSekai.App.Library
 			{
 				Debug.LogWarningFormat("Failed to summarize custom music score play history. path:{0} error:{1}", CustomMusicScoreStorage.PlayHistoryPath, exception.Message);
 				return new Dictionary<string, CustomMusicScorePlayHistorySummary>(StringComparer.Ordinal);
+			}
+		}
+
+		/// <summary>Folds the whole history file again and saves a fresh snapshot: the refresh button's resync.</summary>
+		public static Dictionary<string, CustomMusicScorePlayHistorySummary> ReloadSummaries()
+		{
+			try
+			{
+				return Cache.Reload(CustomMusicScoreStorage.PlayHistoryPath);
+			}
+			catch (Exception exception)
+			{
+				Debug.LogWarningFormat("Failed to reload custom music score play history. path:{0} error:{1}", CustomMusicScoreStorage.PlayHistoryPath, exception.Message);
+				return LoadSummaries();
 			}
 		}
 
@@ -295,7 +312,7 @@ namespace OpenSekai.App.Library
 		    set => _sessionId = value;
 		}
 		/// <summary>
-		/// Content hash of the package's manifest.json + score file when the run was played; the key
+		/// Content hash of the package's score file when the run was played; the key
 		/// the library groups runs under. Empty for records written before it existed (not shown).
 		/// </summary>
 				private string _scoreKey;

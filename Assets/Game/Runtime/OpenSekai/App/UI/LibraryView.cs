@@ -419,7 +419,7 @@ namespace OpenSekai.App.UI
             // Right-aligned actions, laid out from the edge inward.
             float right = 0f;
             right = AddBarButton(bar, "Settings", LibraryIcon.Settings, _presenter.OpenSettings, right);
-            right = AddBarButton(bar, "Refresh", LibraryIcon.Refresh, _presenter.Refresh, right);
+            right = AddBarButton(bar, "Refresh", LibraryIcon.Refresh, _presenter.Resync, right);
 
             const float importWidth = 140f;
             bool canPickFolder = LibraryImport.SupportsFolderPick;

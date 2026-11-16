@@ -117,8 +117,9 @@ namespace OpenSekai.Tests.EditMode
         [Test]
         public void ARecordedRunUpdatesOnlyThatPackageWithoutReloadingHistory()
         {
-            AddPackage("alpha", "Alpha", 1);
-            AddPackage("zeta", "Zeta", 9);
+            // Different charts, so the two packages get different score keys.
+            File.WriteAllText(Path.Combine(AddPackage("alpha", "Alpha", 1), "score.json"), "{\"chart\":\"alpha\"}");
+            File.WriteAllText(Path.Combine(AddPackage("zeta", "Zeta", 9), "score.json"), "{\"chart\":\"zeta\"}");
             int loads = 0;
             var presenter = new LibraryPresenter(_view, _packages, StartPlayback, () =>
             {
@@ -140,6 +141,32 @@ namespace OpenSekai.Tests.EditMode
                 Assert.That(_view.RefreshedScores, Is.EqualTo(new[] { zeta.ScoreKey }));
                 Assert.That(LibraryModel.SummaryOf(zeta, _view.State.History).Best.totalScore, Is.EqualTo(500));
                 Assert.That(LibraryModel.SummaryOf(alpha, _view.State.History), Is.Null);
+            }
+            finally
+            {
+                presenter.Dispose();
+            }
+        }
+
+        [Test]
+        public void TheRefreshButtonRescansFoldersAndReloadsHistoryWhileOpeningReadsTheCache()
+        {
+            AddPackage("alpha", "Alpha", 1);
+            int reloads = 0;
+            var presenter = new LibraryPresenter(_view, _packages, StartPlayback,
+                () => new Dictionary<string, CustomMusicScorePlayHistorySummary>(), () => reloads++);
+            try
+            {
+                presenter.Refresh();
+                AddPackage("zeta", "Zeta", 9);
+
+                presenter.Refresh();
+                Assert.That(_view.Items, Has.Count.EqualTo(1), "a plain refresh reads the cache");
+                Assert.That(reloads, Is.Zero);
+
+                presenter.Resync();
+                Assert.That(_view.Items, Has.Count.EqualTo(2));
+                Assert.That(reloads, Is.EqualTo(1));
             }
             finally
             {

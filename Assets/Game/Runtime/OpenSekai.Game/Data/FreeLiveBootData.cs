@@ -8,7 +8,7 @@ namespace Sekai
 
 		public string CustomMusicScorePath { get; set; }
 
-		/// <summary>Content hash of the package's manifest.json + score file; the play history key.</summary>
+		/// <summary>Content hash of the package's score file; the play history key.</summary>
 		public string CustomMusicScoreKey { get; set; }
 
 		public bool IsOfficialMusicScore { get; set; }

@@ -21,6 +21,7 @@ namespace OpenSekai.App.UI
         private readonly SongPackageManager _packages;
         private readonly Func<PlayRequest, CancellationToken, Action<string>, UniTask<PlayStartResult>> _startPlay;
         private readonly Func<IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary>> _loadHistory;
+        private readonly Action _reloadHistory;
         private readonly LibraryModel _model = new LibraryModel();
         private IReadOnlyList<SongPackageItem> _items = Array.Empty<SongPackageItem>();
         // The page's own copy, so a recorded run can update one package without touching the loader's.
@@ -35,17 +36,20 @@ namespace OpenSekai.App.UI
         /// <param name="view">The page to draw on.</param>
         /// <param name="packages">The package store the library lists.</param>
         /// <param name="startPlay">Starts a live session for a package.</param>
-        /// <param name="loadHistory">Play history per package id; defaults to the history file.</param>
+        /// <param name="loadHistory">Play history per score key, as cached; defaults to the history store.</param>
+        /// <param name="reloadHistory">Rebuilds the cached history from the history file; defaults to the history store.</param>
         internal LibraryPresenter(
             ILibraryView view,
             SongPackageManager packages,
             Func<PlayRequest, CancellationToken, Action<string>, UniTask<PlayStartResult>> startPlay,
-            Func<IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary>> loadHistory = null)
+            Func<IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary>> loadHistory = null,
+            Action reloadHistory = null)
         {
             _view = view;
             _packages = packages;
             _startPlay = startPlay;
             _loadHistory = loadHistory ?? CustomMusicScorePlayHistoryStorage.LoadSummaries;
+            _reloadHistory = reloadHistory ?? (() => CustomMusicScorePlayHistoryStorage.ReloadSummaries());
             CustomMusicScorePlayHistoryStorage.Recorded += OnScoreRecorded;
         }
 
@@ -146,6 +150,37 @@ namespace OpenSekai.App.UI
             _view.ShowActions(LibraryModel.BuildTitle(item), () => ExportPackage(item), () => DeletePackage(item));
         }
 
+        /// <summary>
+        /// The refresh button: walks every package folder and rebuilds the score summaries from the
+        /// history file, the one way back in sync with files changed outside the app.
+        /// </summary>
+        internal void Resync()
+        {
+            if (!_view.HasList)
+            {
+                return;
+            }
+
+            try
+            {
+                _packages.RescanItems();
+                _reloadHistory();
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception);
+                _view.SetStatus("刷新失败：" + exception.Message);
+                return;
+            }
+
+            Refresh();
+            if (_items.Count > 0)
+            {
+                _view.SetStatus("已重新读取曲库：" + _items.Count + " 首");
+            }
+        }
+
+        /// <summary>Redraws the page from the caches; nothing is read from disk once they are loaded.</summary>
         internal void Refresh()
         {
             if (!_view.HasList)

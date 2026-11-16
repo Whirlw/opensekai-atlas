@@ -94,7 +94,9 @@ namespace OpenSekai.App.Playback
                 }
 
                 progress?.Invoke("正在读取谱面...");
-                SongPackage entry = SongPackageStorage.LoadEntry(request.PackageDirectory);
+                // The cached package when the library holds it; a folder outside the library is read directly.
+                SongPackage entry = SongPackageManager.Shared.FindCachedItem(request.PackageDirectory)?.Entry
+                    ?? SongPackageStorage.LoadEntry(request.PackageDirectory);
                 if (entry == null)
                 {
                     return Result(PlayStartStatus.Failed, "无法加载曲包信息。");
@@ -112,7 +114,7 @@ namespace OpenSekai.App.Playback
                 {
                     return Result(PlayStartStatus.Failed, "没有可游玩的音符。");
                 }
-                _surface.BeginSession(ComputeFileHash(entry.ScorePath));
+                _surface.BeginSession(SongPackageHash.Compute(entry.ScorePath));
                 cancellationToken.ThrowIfCancellationRequested();
                 progress?.Invoke("正在加载音频...");
                 if (!await _audio.RegisterAsync(entry, cancellationToken))
@@ -125,7 +127,7 @@ namespace OpenSekai.App.Playback
                 if(config == null) throw new InvalidOperationException("Live bundle configuration is missing.");
                 PlaySession session = PlaySession.Create(request, entry, chart, config, settings);
                 FreeLiveBootData boot = LegacyLiveBootAdapter.Create(session, _deckSelection.SelectedDeckId);
-                boot.CustomMusicScoreKey = SongPackageHashIndex.HashOf(entry);
+                boot.CustomMusicScoreKey = SongPackageManager.Shared.ScoreKeyOf(entry);
                 cancellationToken.ThrowIfCancellationRequested();
                 string message = request.IsAuto ? "正在开始自动游玩..." : "正在开始游玩...";
                 progress?.Invoke(message);
@@ -203,30 +205,6 @@ namespace OpenSekai.App.Playback
         private static PlayStartResult Result(PlayStartStatus status, string message)
         {
             return new PlayStartResult(status, message);
-        }
-
-        /// <summary>SHA-256 of the chart file; empty when the file cannot be read (history still writes).</summary>
-        private static string ComputeFileHash(string path)
-        {
-            try
-            {
-                using (var sha = System.Security.Cryptography.SHA256.Create())
-                using (var stream = File.OpenRead(path))
-                {
-                    byte[] hash = sha.ComputeHash(stream);
-                    var builder = new System.Text.StringBuilder(hash.Length * 2);
-                    for (int i = 0; i < hash.Length; i++)
-                    {
-                        builder.Append(hash[i].ToString("x2"));
-                    }
-                    return builder.ToString();
-                }
-            }
-            catch (Exception exception)
-            {
-                Debug.LogWarning("[PlayService] Could not hash chart file: " + exception.Message);
-                return string.Empty;
-            }
         }
     }
 }

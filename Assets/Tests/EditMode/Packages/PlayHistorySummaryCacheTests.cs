@@ -7,8 +7,8 @@ using OpenSekai.App.Library;
 namespace OpenSekai.Tests.EditMode.Packages
 {
     /// <summary>
-    /// A new run is folded into its package's summary in memory: the history file is read in full
-    /// only once, and again only when something else changed it.
+    /// A new run is folded into its package's summary in memory and saved as a snapshot: the history
+    /// file is only folded in full when there is no snapshot, or on a reload (the refresh button).
     /// </summary>
     public class PlayHistorySummaryCacheTests
     {
@@ -87,7 +87,7 @@ namespace OpenSekai.Tests.EditMode.Packages
         }
 
         [Test]
-        public void AFileChangedElsewhereIsReadAgain()
+        public void AFileChangedElsewhereOnlyShowsAfterAReload()
         {
             WriteExisting(Run("a", 100, "2026-11-01T00:00:00Z"));
             var cache = new PlayHistorySummaryCache();
@@ -95,7 +95,25 @@ namespace OpenSekai.Tests.EditMode.Packages
 
             WriteExisting(Run("c", 900, "2026-11-02T00:00:00Z"));
 
-            Assert.That(cache.Load(_path).ContainsKey("c"), Is.True);
+            Assert.That(cache.Load(_path).ContainsKey("c"), Is.False);
+            Assert.That(cache.Reload(_path).ContainsKey("c"), Is.True);
+            Assert.That(new PlayHistorySummaryCache().Load(_path).ContainsKey("c"), Is.True, "the reload saved the snapshot");
+        }
+
+        [Test]
+        public void ANewLaunchReadsTheSnapshotInsteadOfTheHistory()
+        {
+            var cache = new PlayHistorySummaryCache();
+            cache.Append(_path, Run("a", 100, "2026-11-01T00:00:00Z"));
+            cache.Append(_path, Run("a", 250, "2026-11-02T00:00:00Z"));
+            File.Delete(_path);
+
+            var relaunched = new PlayHistorySummaryCache().Load(_path);
+
+            Assert.That(File.Exists(PlayHistorySummaryCache.SnapshotPathOf(_path)), Is.True);
+            Assert.That(relaunched["a"].Best.totalScore, Is.EqualTo(250));
+            Assert.That(relaunched["a"].PlayCount, Is.EqualTo(2));
+            Assert.That(relaunched["a"].LastPlayedAtUtc, Is.EqualTo("2026-11-02T00:00:00Z"));
         }
     }
 }
