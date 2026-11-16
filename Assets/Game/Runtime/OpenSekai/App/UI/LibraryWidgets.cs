@@ -1,4 +1,5 @@
-using DG.Tweening;
+using LitMotion;
+using LitMotion.Extensions;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
@@ -127,14 +128,13 @@ namespace OpenSekai.App.UI
     }
 
     /// <summary>
-    /// Shrinks a control slightly while it is pressed and springs it back on release. The tween is
-    /// created per press, which is fine at tap frequency, and killed when the control is disabled.
+    /// Shrinks a control slightly while it is pressed and springs it back on release.
     /// </summary>
     internal sealed class LibraryPressFeedback : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
     {
         private Transform _target;
         private Selectable _selectable;
-        private Tween _tween;
+        private MotionHandle _pressMotion;
 
         /// <param name="host">Object that receives the pointer events.</param>
         /// <param name="target">Transform to scale; defaults to the host itself.</param>
@@ -163,8 +163,8 @@ namespace OpenSekai.App.UI
 
         private void OnDisable()
         {
-            _tween?.Kill();
-            _tween = null;
+            _pressMotion.TryCancel();
+            _pressMotion = default;
             if (_target != null)
             {
                 _target.localScale = Vector3.one;
@@ -173,8 +173,10 @@ namespace OpenSekai.App.UI
 
         private void Play(float scale, float duration, Ease ease)
         {
-            _tween?.Kill();
-            _tween = _target.DOScale(scale, duration).SetEase(ease);
+            _pressMotion.TryCancel();
+            _pressMotion = LMotion.Create(_target.localScale, Vector3.one * scale, duration)
+                .WithEase(ease)
+                .BindToLocalScale(_target);
         }
     }
 }

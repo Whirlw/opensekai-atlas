@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
-using DG.Tweening;
+using LitMotion;
+using LitMotion.Extensions;
 using OpenSekai.App.Library;
 using OpenSekai.Infrastructure.Packages;
 using OpenSekai.Shared.Packages;
@@ -69,9 +70,9 @@ namespace OpenSekai.App.UI
         private readonly TextMeshProUGUI _startLabel;
         private readonly Image _startIcon;
 
-        private Tween _showTween;
-        private Tween _accentTween;
-        private Tween _autoTween;
+        private MotionHandle _showMotion;
+        private MotionHandle _accentMotion;
+        private MotionHandle _autoMotion;
         private Color _accent = LibraryTheme.Colors.DefaultAccent;
         private bool _isAuto;
         private bool _playable;
@@ -365,17 +366,22 @@ namespace OpenSekai.App.UI
             _startIcon.enabled = _playable;
             ApplyAccent();
 
-            _showTween?.Kill();
-            _showTween = null;
+            _showMotion.TryCancel();
+            _showMotion = default;
             _contentGroup.alpha = 1f;
             _coverFrame.localScale = Vector3.one;
             if (animate)
             {
                 _contentGroup.alpha = 0.3f;
                 _coverFrame.localScale = new Vector3(0.96f, 0.96f, 1f);
-                _showTween = DOTween.Sequence()
-                    .Join(_contentGroup.DOFade(1f, LibraryTheme.Motion.STANDARD))
-                    .Join(_coverFrame.DOScale(1f, LibraryTheme.Motion.STANDARD).SetEase(LibraryTheme.Motion.SELECT_EASE));
+                _showMotion = LSequence.Create()
+                    .Append(LMotion.Create(_contentGroup.alpha, 1f, LibraryTheme.Motion.STANDARD)
+                        .WithEase(LibraryTheme.Motion.FADE_EASE)
+                        .BindToAlpha(_contentGroup))
+                    .Join(LMotion.Create(_coverFrame.localScale, Vector3.one, LibraryTheme.Motion.STANDARD)
+                        .WithEase(LibraryTheme.Motion.SELECT_EASE)
+                        .BindToLocalScale(_coverFrame))
+                    .Run();
             }
         }
 
@@ -444,8 +450,8 @@ namespace OpenSekai.App.UI
 
         internal void SetAccent(Color32 accent, bool animate)
         {
-            _accentTween?.Kill();
-            _accentTween = null;
+            _accentMotion.TryCancel();
+            _accentMotion = default;
             if (!animate)
             {
                 _accent = accent;
@@ -453,21 +459,21 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            _accentTween = DOTween.To(
-                () => _accent,
-                value =>
+            _accentMotion = LMotion.Create(_accent, (Color)accent, LibraryTheme.Motion.SLOW)
+                .WithEase(LibraryTheme.Motion.FADE_EASE)
+                .WithImmediateBind(false)
+                .Bind(this, static (value, panel) =>
                 {
-                    _accent = value;
-                    ApplyAccent();
-                },
-                (Color)accent, LibraryTheme.Motion.SLOW);
+                    panel._accent = value;
+                    panel.ApplyAccent();
+                });
         }
 
         public void Dispose()
         {
-            _showTween?.Kill();
-            _accentTween?.Kill();
-            _autoTween?.Kill();
+            _showMotion.TryCancel();
+            _accentMotion.TryCancel();
+            _autoMotion.TryCancel();
         }
 
         private void ApplyAccent()
@@ -484,10 +490,10 @@ namespace OpenSekai.App.UI
         {
             _isAuto = !_isAuto;
             ApplyAccent();
-            _autoTween?.Kill();
-            _autoTween = _autoKnob
-                .DOAnchorPosX(_isAuto ? 28f : 4f, LibraryTheme.Motion.STANDARD)
-                .SetEase(LibraryTheme.Motion.SELECT_EASE);
+            _autoMotion.TryCancel();
+            _autoMotion = LMotion.Create(_autoKnob.anchoredPosition.x, _isAuto ? 28f : 4f, LibraryTheme.Motion.STANDARD)
+                .WithEase(LibraryTheme.Motion.SELECT_EASE)
+                .BindToAnchoredPositionX(_autoKnob);
         }
 
         private void Start()

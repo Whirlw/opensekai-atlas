@@ -1,3 +1,4 @@
+using LitMotion;
 using UnityEngine;
 
 namespace Sekai
@@ -11,8 +12,6 @@ namespace Sekai
 		[Range(0f, 1f)]
 		[SerializeField]
 		private float _to;
-
-		private float _current;
 
 		public float From
 		{
@@ -68,14 +67,9 @@ namespace Sekai
 			}
 			float start = playDirection == PlayDirection.Forward ? _from : _to;
 			float end = playDirection == PlayDirection.Forward ? _to : _from;
-			_current = start;
 			tweenTarget.Alpha = start;
-			tweener = DG.Tweening.DOTween.To(() => _current, value =>
-			{
-				_current = value;
-				tweenTarget.Alpha = value;
-			}, end, duration);
-			SetTweenOptionCommon();
+			PlayMotion(LMotion.Create(start, end, Mathf.Max(0f, duration)),
+				static (value, owner) => owner.TweenTarget.Alpha = value);
 		}
 
 		protected override void ToTween(float normalizeTime)
@@ -90,16 +84,14 @@ namespace Sekai
 			{
 				t = curve.Evaluate(t);
 			}
-			_current = Mathf.LerpUnclamped(_from, _to, Mathf.Clamp01(t));
-			tweenTarget.Alpha = _current;
+			tweenTarget.Alpha = Mathf.LerpUnclamped(_from, _to, Mathf.Clamp01(t));
 		}
 
 		protected override void OnReference()
 		{
 			if (reference?.TweenTarget != null && tweenTarget != null)
 			{
-				_current = reference.TweenTarget.Alpha;
-				tweenTarget.Alpha = _current;
+				tweenTarget.Alpha = reference.TweenTarget.Alpha;
 			}
 		}
 

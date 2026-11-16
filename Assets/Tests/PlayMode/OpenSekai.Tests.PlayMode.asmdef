@@ -5,6 +5,7 @@
         "OpenSekai.Core",
         "OpenSekai.Game",
         "OpenSekai.App",
+        "LitMotion",
         "UniTask",
         "UnityEngine.UI",
         "Unity.TextMeshPro",

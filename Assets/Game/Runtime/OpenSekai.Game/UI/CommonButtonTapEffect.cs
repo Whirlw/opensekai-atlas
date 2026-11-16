@@ -1,6 +1,5 @@
-using System;
 using System.Collections.Generic;
-using DG.Tweening;
+using LitMotion;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -33,13 +32,13 @@ namespace Sekai.UI
 
 		private Color _effectTextColor;
 
-		private Tweener _buttonImageTweener;
+		private MotionHandle _buttonImageMotion;
 
-		private Tweener _glowButtonImageTweener;
+		private MotionHandle _glowButtonImageMotion;
 
-		private Tweener _textTweener;
+		private MotionHandle _textMotion;
 
-		private List<Tweener> _additionalTextTweener;
+		private List<MotionHandle> _additionalTextMotions;
 
 		public void Setup(string buttonTypeName, Color effectButtonColor, Color effectTextColor)
 		{
@@ -63,89 +62,56 @@ namespace Sekai.UI
 
 		public override void OnPressed()
 		{
-			FadeIn(FadeInTime);
+			Fade(_effectButtonColor, _effectTextColor, FadeInTime);
 		}
 
 		public override void OnReleased()
 		{
-			FadeOut(FadeOutTime);
+			Fade(_defaultButtonColor, _defaultTextColor, FadeOutTime);
 		}
 
 		public override void KillFadeTween()
 		{
-			_buttonImageTweener?.Kill(false);
-			_glowButtonImageTweener?.Kill(false);
-			_textTweener?.Kill(false);
-			_buttonImageTweener = null;
-			_glowButtonImageTweener = null;
-			_textTweener = null;
-			if (_additionalTextTweener == null)
+			_buttonImageMotion.TryCancel();
+			_glowButtonImageMotion.TryCancel();
+			_textMotion.TryCancel();
+			_buttonImageMotion = default;
+			_glowButtonImageMotion = default;
+			_textMotion = default;
+			if (_additionalTextMotions == null)
 			{
 				return;
 			}
-			foreach (var tweener in _additionalTextTweener)
+			foreach (MotionHandle motion in _additionalTextMotions)
 			{
-				tweener?.Kill(false);
+				motion.TryCancel();
 			}
-			_additionalTextTweener.Clear();
+			_additionalTextMotions.Clear();
 		}
 
-		private void FadeIn(float duration)
+		private void Fade(Color buttonColor, Color textColor, float duration)
 		{
 			KillFadeTween();
 			if (_buttonImage != null)
 			{
-				_buttonImageTweener = _buttonImage.DOColor(_effectButtonColor, duration);
+				_buttonImageMotion = PlayColor(_buttonImage, buttonColor, duration);
 			}
 			if (_glowButtonImage != null)
 			{
-				_glowButtonImageTweener = _glowButtonImage.DOColor(_effectButtonColor, duration);
+				_glowButtonImageMotion = PlayColor(_glowButtonImage, buttonColor, duration);
 			}
 			if (_buttonTextMesh != null)
 			{
-				_textTweener = _buttonTextMesh.DOColor(_effectTextColor, duration);
+				_textMotion = PlayColor(_buttonTextMesh, textColor, duration);
 			}
 			if (_additionalTextList != null)
 			{
-				_additionalTextTweener ??= new List<Tweener>();
-				_additionalTextTweener.Clear();
+				_additionalTextMotions ??= new List<MotionHandle>();
 				foreach (CustomTextMesh text in _additionalTextList)
 				{
 					if (text != null)
 					{
-						_additionalTextTweener.Add(text.DOColor(_effectTextColor, duration));
-					}
-				}
-			}
-		}
-
-		private void FadeOut(float duration, Action onComplete = null)
-		{
-			KillFadeTween();
-			if (_buttonImage != null)
-			{
-				_buttonImageTweener = _buttonImage.DOColor(_defaultButtonColor, duration).OnComplete(() => onComplete?.Invoke());
-			}
-			else
-			{
-				onComplete?.Invoke();
-			}
-			if (_glowButtonImage != null)
-			{
-				_glowButtonImageTweener = _glowButtonImage.DOColor(_defaultButtonColor, duration);
-			}
-			if (_buttonTextMesh != null)
-			{
-				_textTweener = _buttonTextMesh.DOColor(_defaultTextColor, duration);
-			}
-			if (_additionalTextList != null)
-			{
-				_additionalTextTweener ??= new List<Tweener>();
-				foreach (CustomTextMesh text in _additionalTextList)
-				{
-					if (text != null)
-					{
-						_additionalTextTweener.Add(text.DOColor(_defaultTextColor, duration));
+						_additionalTextMotions.Add(PlayColor(text, textColor, duration));
 					}
 				}
 			}

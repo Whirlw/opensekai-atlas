@@ -1,6 +1,8 @@
+using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using DG.Tweening;
+using LitMotion;
+using LitMotion.Extensions;
 using UnityEngine;
 
 namespace Sekai
@@ -13,29 +15,29 @@ namespace Sekai
 		[SerializeField]
 		private CanvasGroup _canvasGroup;
 
-		public override async UniTask OpenAnimation(CancellationToken ct = default)
+		private MotionHandle _motion;
+
+		public override UniTask OpenAnimation(CancellationToken ct = default)
 		{
 			if (_canvasGroup == null)
 			{
 				OpenImmediately();
-				return;
+				return UniTask.CompletedTask;
 			}
 
-			_canvasGroup.DOKill();
 			_canvasGroup.blocksRaycasts = true;
-			_canvasGroup.DOFade(1f, OPEN_ANIMATION_DURATION);
-			await UniTask.Delay((int)(OPEN_ANIMATION_DURATION * 1000f), cancellationToken: ct);
+			return FadeTo(1f, OPEN_ANIMATION_DURATION, ct);
 		}
 
 		public override void InitializeAnimation()
 		{
+			CancelFade();
 			_canvasGroup = _canvasGroup != null ? _canvasGroup : GetComponent<CanvasGroup>();
 			if (_canvasGroup == null)
 			{
 				return;
 			}
 
-			_canvasGroup.DOKill();
 			_canvasGroup.alpha = 0f;
 			_canvasGroup.blocksRaycasts = false;
 		}
@@ -45,22 +47,21 @@ namespace Sekai
 			return CloseAnimation(CLOSE_ANIMATION_DURATION, ct);
 		}
 
-		public override async UniTask CloseAnimation(float duration, CancellationToken ct = default)
+		public override UniTask CloseAnimation(float duration, CancellationToken ct = default)
 		{
 			if (_canvasGroup == null)
 			{
 				CloseImmediately();
-				return;
+				return UniTask.CompletedTask;
 			}
 
-			_canvasGroup.DOKill();
 			_canvasGroup.blocksRaycasts = false;
-			_canvasGroup.DOFade(0f, duration);
-			await UniTask.Delay((int)(duration * 1000f), cancellationToken: ct);
+			return FadeTo(0f, duration, ct);
 		}
 
 		public override void OpenImmediately()
 		{
+			CancelFade();
 			if (_canvasGroup == null)
 			{
 				_canvasGroup = GetComponent<CanvasGroup>();
@@ -70,13 +71,13 @@ namespace Sekai
 				return;
 			}
 
-			_canvasGroup.DOKill();
 			_canvasGroup.alpha = 1f;
 			_canvasGroup.blocksRaycasts = true;
 		}
 
 		public override void CloseImmediately()
 		{
+			CancelFade();
 			if (_canvasGroup == null)
 			{
 				_canvasGroup = GetComponent<CanvasGroup>();
@@ -86,9 +87,38 @@ namespace Sekai
 				return;
 			}
 
-			_canvasGroup.DOKill();
 			_canvasGroup.alpha = 0f;
 			_canvasGroup.blocksRaycasts = false;
+		}
+
+		private async UniTask FadeTo(float alpha, float duration, CancellationToken ct)
+		{
+			CancelFade();
+			ct.ThrowIfCancellationRequested();
+			MotionHandle motion = LMotion.Create(_canvasGroup.alpha, alpha, Mathf.Max(0f, duration))
+				.WithEase(Ease.OutQuad)
+				.BindToAlpha(_canvasGroup);
+			_motion = motion;
+			try
+			{
+				await UniTask.WaitUntil(motion, static handle => !handle.IsActive(), cancellationToken: ct);
+			}
+			catch (OperationCanceledException)
+			{
+				motion.TryCancel();
+				throw;
+			}
+		}
+
+		private void CancelFade()
+		{
+			_motion.TryCancel();
+			_motion = default;
+		}
+
+		private void OnDisable()
+		{
+			CancelFade();
 		}
 
 		public SubWindowFadeAnimation()

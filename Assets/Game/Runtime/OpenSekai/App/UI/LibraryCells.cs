@@ -1,7 +1,8 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using DG.Tweening;
+using LitMotion;
+using LitMotion.Extensions;
 using OpenSekai.App.Library;
 using OpenSekai.Infrastructure.Packages;
 using TMPro;
@@ -21,7 +22,7 @@ namespace OpenSekai.App.UI
         private const float UNPLAYABLE_ALPHA = 0.6f;
 
         private CancellationTokenSource _coverLoad;
-        private Tween _enterTween;
+        private MotionHandle _enterMotion;
         private bool _playable;
 
         protected LibraryCell(RectTransform parent, string name, Action<LibraryCell> onClick)
@@ -100,10 +101,15 @@ namespace OpenSekai.App.UI
             KillEnter();
             Group.alpha = 0f;
             Body.anchoredPosition = new Vector2(Body.anchoredPosition.x, -ENTER_OFFSET);
-            _enterTween = DOTween.Sequence()
+            _enterMotion = LSequence.Create()
                 .AppendInterval(delay)
-                .Append(Group.DOFade(RestAlpha, LibraryTheme.Motion.STANDARD))
-                .Join(Body.DOAnchorPosY(0f, LibraryTheme.Motion.STANDARD).SetEase(LibraryTheme.Motion.ENTER_EASE));
+                .Append(LMotion.Create(Group.alpha, RestAlpha, LibraryTheme.Motion.STANDARD)
+                    .WithEase(LibraryTheme.Motion.FADE_EASE)
+                    .BindToAlpha(Group))
+                .Join(LMotion.Create(Body.anchoredPosition.y, 0f, LibraryTheme.Motion.STANDARD)
+                    .WithEase(LibraryTheme.Motion.ENTER_EASE)
+                    .BindToAnchoredPositionY(Body))
+                .Run();
         }
 
         /// <summary>Stops everything in flight before the cell is pooled or destroyed.</summary>
@@ -165,8 +171,8 @@ namespace OpenSekai.App.UI
 
         private void KillEnter()
         {
-            _enterTween?.Kill();
-            _enterTween = null;
+            _enterMotion.TryCancel();
+            _enterMotion = default;
             Body.anchoredPosition = new Vector2(Body.anchoredPosition.x, 0f);
         }
 
@@ -204,7 +210,7 @@ namespace OpenSekai.App.UI
         private readonly TextMeshProUGUI _difficulty;
         private readonly RectTransform _difficultyChip;
         private readonly TextMeshProUGUI _level;
-        private Tween _shiftTween;
+        private MotionHandle _shiftMotion;
 
         internal LibraryRowCell(RectTransform parent, Action<LibraryCell> onClick) : base(parent, "Row", onClick)
         {
@@ -303,7 +309,9 @@ namespace OpenSekai.App.UI
             float shift = Selected ? LibraryTheme.Motion.SELECTED_ROW_SHIFT : 0f;
             if (animate)
             {
-                _shiftTween = Body.DOAnchorPosX(shift, LibraryTheme.Motion.STANDARD).SetEase(LibraryTheme.Motion.SELECT_EASE);
+                _shiftMotion = LMotion.Create(Body.anchoredPosition.x, shift, LibraryTheme.Motion.STANDARD)
+                    .WithEase(LibraryTheme.Motion.SELECT_EASE)
+                    .BindToAnchoredPositionX(Body);
             }
             else
             {
@@ -313,8 +321,8 @@ namespace OpenSekai.App.UI
 
         protected override void KillSelection()
         {
-            _shiftTween?.Kill();
-            _shiftTween = null;
+            _shiftMotion.TryCancel();
+            _shiftMotion = default;
         }
     }
 
@@ -338,7 +346,7 @@ namespace OpenSekai.App.UI
         private readonly GameObject _missing;
         private readonly TextMeshProUGUI _missingLabel;
         private readonly TextMeshProUGUI _title;
-        private Tween _scaleTween;
+        private MotionHandle _scaleMotion;
 
         internal LibraryTileCell(RectTransform parent, Action<LibraryCell> onClick) : base(parent, "Tile", onClick)
         {
@@ -425,7 +433,9 @@ namespace OpenSekai.App.UI
             float scale = Selected ? LibraryTheme.Motion.SELECTED_TILE_SCALE : 1f;
             if (animate)
             {
-                _scaleTween = _holder.DOScale(scale, LibraryTheme.Motion.STANDARD).SetEase(LibraryTheme.Motion.SELECT_EASE);
+                _scaleMotion = LMotion.Create(_holder.localScale, Vector3.one * scale, LibraryTheme.Motion.STANDARD)
+                    .WithEase(LibraryTheme.Motion.SELECT_EASE)
+                    .BindToLocalScale(_holder);
             }
             else
             {
@@ -435,8 +445,8 @@ namespace OpenSekai.App.UI
 
         protected override void KillSelection()
         {
-            _scaleTween?.Kill();
-            _scaleTween = null;
+            _scaleMotion.TryCancel();
+            _scaleMotion = default;
         }
     }
 }

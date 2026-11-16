@@ -1,5 +1,5 @@
 using System;
-using DG.Tweening;
+using LitMotion;
 using UnityEngine;
 
 namespace OpenSekai.App.UI
@@ -99,9 +99,8 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>
-        /// Timings and easings for DOTween calls; see docs/coding-standards/11-animation.md.
-        /// Tweens are created on taps and selection changes only, never while binding a cell that
-        /// scrolls in: the project runs DOTween without recycling, so every tween is garbage.
+        /// Timings and easings for library animations. Cell binding during scroll applies its
+        /// visual state directly; entrance animations are reserved for a new list.
         /// </summary>
         internal static class Motion
         {
@@ -122,6 +121,7 @@ namespace OpenSekai.App.UI
             internal const Ease ENTER_EASE = Ease.OutCubic;
             internal const Ease EXIT_EASE = Ease.InCubic;
             internal const Ease SELECT_EASE = Ease.OutBack;
+            internal const Ease FADE_EASE = Ease.OutQuad;
         }
     }
 }

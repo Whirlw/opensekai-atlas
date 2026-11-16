@@ -1,5 +1,4 @@
-using System;
-using DG.Tweening;
+using LitMotion;
 using UnityEngine;
 using UnityEngine.UI;
 using Sekai;
@@ -41,9 +40,9 @@ namespace Sekai.UI
 
 		protected Color _effectColor;
 
-		private Tweener _effectTweener;
+		private MotionHandle _effectMotion;
 
-		private Tweener _effectIconTweener;
+		private MotionHandle _effectIconMotion;
 
 		protected virtual void Awake()
 		{
@@ -74,10 +73,10 @@ namespace Sekai.UI
 
 		public override void KillFadeTween()
 		{
-			_effectTweener?.Kill(false);
-			_effectIconTweener?.Kill(false);
-			_effectTweener = null;
-			_effectIconTweener = null;
+			_effectMotion.TryCancel();
+			_effectIconMotion.TryCancel();
+			_effectMotion = default;
+			_effectIconMotion = default;
 		}
 
 		public override void ResetInteraction()
@@ -113,41 +112,24 @@ namespace Sekai.UI
 
 		public override void OnPressed()
 		{
-			FadeIn(FadeInTime);
+			Fade(_effectColor, FadeInTime);
 		}
 
 		public override void OnReleased()
 		{
-			FadeOut(FadeOutTime);
+			Fade(_defaultColor, FadeOutTime);
 		}
 
-		private void FadeIn(float duration)
+		private void Fade(Color color, float duration)
 		{
 			KillFadeTween();
 			if (_effectGraphic != null)
 			{
-				_effectTweener = _effectGraphic.DOColor(_effectColor, duration);
+				_effectMotion = PlayColor(_effectGraphic, color, duration);
 			}
 			if (_effectGraphicIcon != null)
 			{
-				_effectIconTweener = _effectGraphicIcon.DOColor(_effectColor, duration);
-			}
-		}
-
-		private void FadeOut(float duration, Action onComplete = null)
-		{
-			KillFadeTween();
-			if (_effectGraphic != null)
-			{
-				_effectTweener = _effectGraphic.DOColor(_defaultColor, duration).OnComplete(() => onComplete?.Invoke());
-			}
-			else
-			{
-				onComplete?.Invoke();
-			}
-			if (_effectGraphicIcon != null)
-			{
-				_effectIconTweener = _effectGraphicIcon.DOColor(_defaultColor, duration);
+				_effectIconMotion = PlayColor(_effectGraphicIcon, color, duration);
 			}
 		}
 

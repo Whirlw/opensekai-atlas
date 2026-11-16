@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
-using DG.Tweening;
+using LitMotion;
+using LitMotion.Extensions;
 using Sekai.UI;
 using UnityEngine;
 
@@ -28,6 +29,7 @@ namespace Sekai
 
 		private bool _transitionStarted;
 		private LiveTransitioner _transitioner;
+		private MotionHandle _frontFade;
 
 		// The library has already read the chart and registered audio before this screen is pushed,
 		// so the animation only covers the scene swap. Keep that cover short.
@@ -41,8 +43,12 @@ namespace Sekai
 
 			if (_frontGroup != null)
 			{
+				_frontFade.TryCancel();
 				_frontGroup.alpha = 0f;
-				DOTween.To(() => _frontGroup.alpha, value => _frontGroup.alpha = value, 1f, 0.2f).SetDelay(0.1f);
+				_frontFade = LMotion.Create(0f, 1f, 0.2f)
+					.WithEase(Ease.OutQuad)
+					.WithDelay(0.1f)
+					.BindToAlpha(_frontGroup);
 			}
 			if (_whiteOutImage != null)
 			{
@@ -69,6 +75,11 @@ namespace Sekai
 
 			StartCoroutine(PlayStartWhiteOut());
 			StartTransition(OnFinishTransitionFadeOut);
+		}
+
+		private void OnDestroy()
+		{
+			_frontFade.TryCancel();
 		}
 
 		private IEnumerator PlayStartWhiteOut()

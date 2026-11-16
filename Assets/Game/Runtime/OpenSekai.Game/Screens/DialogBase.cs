@@ -1,6 +1,7 @@
 using System;
 using CP;
-using DG.Tweening;
+using LitMotion;
+using LitMotion.Extensions;
 using Sekai.UI;
 using UnityEngine;
 using UnityEngine.UI;
@@ -56,7 +57,7 @@ namespace Sekai
 
 		private bool _allowCloseExternal = true;
 		private bool _externalCloseAttached;
-		private Tween _animationTween;
+		private MotionHandle _animationMotion;
 
 		public virtual bool EnableBlur => true;
 		public DialogHeader Header => header;
@@ -171,10 +172,7 @@ namespace Sekai
 			}
 			else
 			{
-				_animationTween = windowObject.transform
-					.DOScale(1f, DIALOG_OPEN_DURATION)
-					.SetEase(Ease.Linear)
-					.OnComplete(OnFinishOpenAnimation);
+				PlayWindowScale(Vector3.one, OnFinishOpenAnimation);
 			}
 
 			if (fillCover != null && fillCover.Fader != null)
@@ -192,10 +190,7 @@ namespace Sekai
 			}
 			else
 			{
-				_animationTween = windowObject.transform
-					.DOScale(0f, DIALOG_OPEN_DURATION)
-					.SetEase(Ease.Linear)
-					.OnComplete(Destroy);
+				PlayWindowScale(Vector3.zero, Destroy);
 			}
 
 			if (fillCover != null && fillCover.Fader != null)
@@ -213,10 +208,7 @@ namespace Sekai
 			}
 			else
 			{
-				_animationTween = windowObject.transform
-					.DOScale(0f, DIALOG_OPEN_DURATION)
-					.SetEase(Ease.Linear)
-					.OnComplete(FinishCloseWithoutDestroy);
+				PlayWindowScale(Vector3.zero, FinishCloseWithoutDestroy);
 			}
 
 			if (fillCover != null && fillCover.Fader != null)
@@ -528,15 +520,19 @@ namespace Sekai
 			SoundManager.Instance.PlaySEOneShot(seArray[index], 0);
 		}
 
+		private void PlayWindowScale(Vector3 scale, Action onComplete)
+		{
+			Transform window = windowObject.transform;
+			_animationMotion = LMotion.Create(window.localScale, scale, DIALOG_OPEN_DURATION)
+				.WithEase(Ease.Linear)
+				.WithOnComplete(onComplete)
+				.BindToLocalScale(window);
+		}
+
 		private void KillAnimationTween()
 		{
-			if (_animationTween == null)
-			{
-				return;
-			}
-
-			_animationTween.Kill(false);
-			_animationTween = null;
+			_animationMotion.TryCancel();
+			_animationMotion = default;
 		}
 
 		private static void SetLayerRecursive(Transform target, int layer)

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using DG.Tweening;
+using LitMotion;
 using OpenSekai.Infrastructure.Packages;
 using OpenSekai.Shared.Playback;
 using TMPro;
@@ -53,7 +53,7 @@ namespace OpenSekai.App.UI
 
         private Image _glowMain;
         private Image _glowSecondary;
-        private Tween _glowTween;
+        private MotionHandle _glowMotion;
         private Color _glowColor;
         private Color _accentColor;
 
@@ -323,8 +323,8 @@ namespace OpenSekai.App.UI
         {
             _preview?.StopPreview();
             CancelDetailLoad();
-            _glowTween?.Kill();
-            _glowTween = null;
+            _glowMotion.TryCancel();
+            _glowMotion = default;
             foreach (LibraryCell cell in _cells.Values)
             {
                 cell.Release();
@@ -787,20 +787,16 @@ namespace OpenSekai.App.UI
 
             Color fromGlow = _glowColor;
             Color fromAccent = _accentColor;
-            Color toGlow = palette.Glow;
-            Color toAccent = palette.Accent;
-            float progress = 0f;
-            _glowTween?.Kill();
-            _glowTween = DOTween.To(
-                () => progress,
-                value =>
+            _glowMotion.TryCancel();
+            _glowMotion = LMotion.Create(0f, 1f, LibraryTheme.Motion.SLOW)
+                .WithEase(LibraryTheme.Motion.FADE_EASE)
+                .WithImmediateBind(false)
+                .Bind(value =>
                 {
-                    progress = value;
-                    _glowColor = Color.Lerp(fromGlow, toGlow, value);
-                    _accentColor = Color.Lerp(fromAccent, toAccent, value);
+                    _glowColor = Color.Lerp(fromGlow, palette.Glow, value);
+                    _accentColor = Color.Lerp(fromAccent, palette.Accent, value);
                     ApplyGlow();
-                },
-                1f, LibraryTheme.Motion.SLOW);
+                });
         }
 
         private void ApplyGlow()

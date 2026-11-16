@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
-using DG.Tweening;
+using LitMotion;
+using LitMotion.Extensions;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -29,7 +30,7 @@ namespace OpenSekai.App.UI
         private GameObject _popup;
         private RectTransform _panel;
         private CanvasGroup _panelGroup;
-        private Tween _tween;
+        private MotionHandle _openMotion;
         private IReadOnlyList<string> _labels = Array.Empty<string>();
         private int _selected;
         private Action<int> _onPick;
@@ -184,9 +185,14 @@ namespace OpenSekai.App.UI
             KillTween();
             _panelGroup.alpha = 0f;
             _panel.localScale = new Vector3(1f, 0.92f, 1f);
-            _tween = DOTween.Sequence()
-                .Join(_panelGroup.DOFade(1f, LibraryTheme.Motion.FAST))
-                .Join(_panel.DOScaleY(1f, LibraryTheme.Motion.FAST).SetEase(LibraryTheme.Motion.ENTER_EASE));
+            _openMotion = LSequence.Create()
+                .Append(LMotion.Create(_panelGroup.alpha, 1f, LibraryTheme.Motion.FAST)
+                    .WithEase(LibraryTheme.Motion.FADE_EASE)
+                    .BindToAlpha(_panelGroup))
+                .Join(LMotion.Create(_panel.localScale.y, 1f, LibraryTheme.Motion.FAST)
+                    .WithEase(LibraryTheme.Motion.ENTER_EASE)
+                    .BindToLocalScaleY(_panel))
+                .Run();
         }
 
         private void BuildPopup()
@@ -279,8 +285,8 @@ namespace OpenSekai.App.UI
 
         private void KillTween()
         {
-            _tween?.Kill();
-            _tween = null;
+            _openMotion.TryCancel();
+            _openMotion = default;
         }
 
         private sealed class Option
