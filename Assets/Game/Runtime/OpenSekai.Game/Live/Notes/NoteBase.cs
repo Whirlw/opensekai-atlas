@@ -617,12 +617,21 @@ namespace Sekai.Live
 			if (LiveTrace.IsOn(LiveTraceCategory.Judge))
 				LiveTrace.Write(LiveTraceCategory.Judge, string.Concat("spawn id=", Id, " type=", GetType().Name, " t=", MusicScoreInfo.time.ToString("F3"), " state=", State, " deco=", IsDecoration));
 
-			if ((State != NoteState.Wait || Result != NoteResult.None) && LiveTrace.Enabled)
+			if (IsDirtyOnSpawn(State, Result) && LiveTrace.Enabled)
 				LiveTrace.Invariant(false,
 					$"pool handed out a dirty note type={GetType().Name} state={State} result={Result} offset={OffsetJudgeTime:F3}");
 
 			onSpawn?.Invoke(this);
 		}
+
+		/// <summary>
+		/// True when a note being spawned carries state from an earlier run. Every State setter assigns
+		/// the new state before it calls <see cref="OnSpawnNote"/>, and every caller enters Scrolling
+		/// only from Wait, so a clean note is seen here as Scrolling with no result. (The check used
+		/// to demand Wait, which can never hold here, so it fired on every spawn.)
+		/// </summary>
+		internal static bool IsDirtyOnSpawn(NoteState state, NoteResult result) =>
+			state != NoteState.Scrolling || result != NoteResult.None;
 
 		/// <summary>Removes only the view. Result publication belongs to the Done transition.</summary>
 		internal void RemoveView()

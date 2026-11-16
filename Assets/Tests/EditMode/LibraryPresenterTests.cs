@@ -6,6 +6,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Newtonsoft.Json;
 using NUnit.Framework;
+using OpenSekai.App.Library;
 using OpenSekai.App.Playback;
 using OpenSekai.App.UI;
 using OpenSekai.Infrastructure.Packages;
@@ -44,16 +45,62 @@ namespace OpenSekai.Tests.EditMode
         }
 
         [Test]
-        public void RefreshSortsByTitleThenCyclesToLevel()
+        public void RefreshSortsByTitleAndCanSortByLevel()
         {
             AddPackage("alpha", "Alpha", 1);
             AddPackage("zeta", "Zeta", 9);
             _presenter.Refresh();
             Assert.That(_view.Items.Select(item => item.Entry.Manifest.id), Is.EqualTo(new[] { "alpha", "zeta" }));
 
-            _presenter.CycleSort();
-            Assert.That(_view.SortLabel, Is.EqualTo("排序：等级"));
+            _presenter.SetSort(LibrarySortKey.Level);
+            Assert.That(_view.State.SortKey, Is.EqualTo(LibrarySortKey.Level));
             Assert.That(_view.Items.Select(item => item.Entry.Manifest.id), Is.EqualTo(new[] { "zeta", "alpha" }));
+        }
+
+        [Test]
+        public void ImportedSortUsesTheRecordedTimeEvenAfterAnEarlierPackageIsEdited()
+        {
+            AddPackage("alpha", "Alpha", 1, DateTimeOffset.UnixEpoch.AddDays(1));
+            string newer = AddPackage("zeta", "Zeta", 9, DateTimeOffset.UnixEpoch.AddDays(2));
+            File.SetLastWriteTimeUtc(Path.Combine(newer, "manifest.json"), DateTime.UnixEpoch);
+            Directory.SetLastWriteTimeUtc(newer, DateTime.UnixEpoch);
+
+            _presenter.Refresh();
+            _presenter.SetSort(LibrarySortKey.Imported);
+
+            Assert.That(_view.Items.Select(item => item.Entry.Manifest.id), Is.EqualTo(new[] { "zeta", "alpha" }));
+        }
+
+        [Test]
+        public void SelectSwitchesOnEveryClickWithoutACooldown()
+        {
+            AddPackage("alpha", "Alpha", 1);
+            AddPackage("beta", "Beta", 2);
+            AddPackage("gamma", "Gamma", 3);
+            var presenter = new LibraryPresenter(_view, _packages, StartPlayback);
+            try
+            {
+                presenter.Refresh();
+                SongPackageItem[] items = _view.Items.ToArray();
+
+                presenter.Select(items[1]);
+                presenter.Select(items[2]);
+                Assert.That(_view.Selected, Is.SameAs(items[2]), "a quick second click still switches");
+            }
+            finally
+            {
+                presenter.Dispose();
+            }
+        }
+
+        [TestCase(0f, 120f, 52.5f)]
+        [TestCase(0f, 15f, 0f)]
+        [TestCase(0f, 8f, 0f)]
+        [TestCase(30f, 120f, 30f)]
+        [TestCase(200f, 120f, 52.5f)]
+        public void PreviewStartsAtTheManifestPointOrTheMiddleFifteenSeconds(float manifestStart, float length, float expected)
+        {
+            Assert.That(LibraryPreview.PreviewStart(manifestStart, length), Is.EqualTo(expected).Within(1e-4f));
         }
 
         [TestCase(false)]
@@ -62,7 +109,7 @@ namespace OpenSekai.Tests.EditMode
         {
             string folder = AddPackage("track", "Track", 1);
             _presenter.Refresh();
-            _view.Play(_view.Items.Single(), isAuto);
+            _presenter.StartPlayback(_view.Selected, isAuto);
 
             Assert.That(_request.PackageDirectory, Is.EqualTo(folder));
             Assert.That(_request.IsAuto, Is.EqualTo(isAuto));
@@ -76,7 +123,7 @@ namespace OpenSekai.Tests.EditMode
             string folder = AddPackage("track", "Track", 1);
             _presenter.Refresh();
             _status = PlayStartStatus.Failed;
-            _view.Play(_view.Items.Single(), true);
+            _presenter.StartPlayback(_view.Selected, true);
 
             Assert.That(_view.Result.Kind, Is.EqualTo(PlayResultKind.LoadError));
             Assert.That(_view.Loading, Is.False);
@@ -99,11 +146,71 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(_view.Items.Single().HasAudio, Is.True);
         }
 
-        private string AddPackage(string id, string title, int level)
+        [Test]
+        public void ARecordedRunUpdatesOnlyThatPackageWithoutReloadingHistory()
+        {
+            // Different charts, so the two packages get different score keys.
+            File.WriteAllText(Path.Combine(AddPackage("alpha", "Alpha", 1), "score.json"), "{\"chart\":\"alpha\"}");
+            File.WriteAllText(Path.Combine(AddPackage("zeta", "Zeta", 9), "score.json"), "{\"chart\":\"zeta\"}");
+            int loads = 0;
+            var presenter = new LibraryPresenter(_view, _packages, StartPlayback, () =>
+            {
+                loads++;
+                return new Dictionary<string, CustomMusicScorePlayHistorySummary>();
+            });
+            try
+            {
+                presenter.Refresh();
+                SongPackageItem alpha = _view.Items.Single(item => item.Entry.Manifest.id == "alpha");
+                SongPackageItem zeta = _view.Items.Single(item => item.Entry.Manifest.id == "zeta");
+                var summaries = new Dictionary<string, CustomMusicScorePlayHistorySummary>(StringComparer.Ordinal);
+                CustomMusicScorePlayHistorySummary summary = CustomMusicScorePlayHistoryStorage.Fold(summaries,
+                    new CustomMusicScorePlayHistoryRecord { scoreKey = zeta.ScoreKey, totalScore = 500, playedAtUtc = "2026-11-16T00:00:00Z" });
+
+                presenter.OnScoreRecorded(zeta.ScoreKey, summary);
+
+                Assert.That(loads, Is.EqualTo(1), "the history is not loaded again");
+                Assert.That(_view.RefreshedScores, Is.EqualTo(new[] { zeta.ScoreKey }));
+                Assert.That(LibraryModel.SummaryOf(zeta, _view.State.History).Best.totalScore, Is.EqualTo(500));
+                Assert.That(LibraryModel.SummaryOf(alpha, _view.State.History), Is.Null);
+            }
+            finally
+            {
+                presenter.Dispose();
+            }
+        }
+
+        [Test]
+        public void TheRefreshButtonRescansFoldersAndReloadsHistoryWhileOpeningReadsTheCache()
+        {
+            AddPackage("alpha", "Alpha", 1);
+            int reloads = 0;
+            var presenter = new LibraryPresenter(_view, _packages, StartPlayback,
+                () => new Dictionary<string, CustomMusicScorePlayHistorySummary>(), () => reloads++);
+            try
+            {
+                presenter.Refresh();
+                AddPackage("zeta", "Zeta", 9);
+
+                presenter.Refresh();
+                Assert.That(_view.Items, Has.Count.EqualTo(1), "a plain refresh reads the cache");
+                Assert.That(reloads, Is.Zero);
+
+                presenter.Resync();
+                Assert.That(_view.Items, Has.Count.EqualTo(2));
+                Assert.That(reloads, Is.EqualTo(1));
+            }
+            finally
+            {
+                presenter.Dispose();
+            }
+        }
+
+        private string AddPackage(string id, string title, int level, DateTimeOffset? importedAt = null)
         {
             string folder = Path.Combine(_packages.RootDirectory, id);
             Directory.CreateDirectory(folder);
-            var manifest = new SongPackageManifest { id = id, title = title, playLevel = level };
+            var manifest = new SongPackageManifest { id = id, title = title, playLevel = level, importedAtUtc = importedAt };
             File.WriteAllText(Path.Combine(folder, "manifest.json"), JsonConvert.SerializeObject(manifest));
             return folder;
         }
@@ -118,29 +225,29 @@ namespace OpenSekai.Tests.EditMode
         private sealed class View : ILibraryView
         {
             public bool HasList => true;
-            internal IReadOnlyList<SongPackageItem> Items { get; private set; } = Array.Empty<SongPackageItem>();
-            internal Action<SongPackageItem, bool> Play { get; private set; }
-            internal string SortLabel { get; private set; }
+            internal LibraryViewState State { get; private set; }
+            internal IReadOnlyList<SongPackageItem> Items => State.Listing.Items;
+            internal SongPackageItem Selected { get; private set; }
             internal string Status { get; private set; }
             internal PlayResult Result { get; private set; }
             internal string LoadingMessage { get; private set; }
             internal bool Loading { get; private set; }
 
-            public void ClearRows() => Items = Array.Empty<SongPackageItem>();
-            public void SetCount(int count) { }
-            public void SetSortLabel(string label) => SortLabel = label;
+            public void SetSelection(SongPackageItem selected) => Selected = selected;
             public void SetStatus(string message) => Status = message;
             public void ShowSettings() { }
             public void ShowResult(PlayResult result) => Result = result;
-            public void ShowLoading(string title) => Loading = true;
+            public void ShowLoading(string title, string packageDirectory) => Loading = true;
             public void HideLoading() => Loading = false;
             public void SetLoadingMessage(string message) => LoadingMessage = message;
-            public void ShowActions(string title, Action export, Action delete) { }
+            public void ShowActions(SongPackageItem item, Action export, Action delete) { }
+            internal List<string> RefreshedScores { get; } = new List<string>();
+            public void RefreshScore(string scoreKey) => RefreshedScores.Add(scoreKey);
 
-            public void RenderRows(IReadOnlyList<SongPackageItem> items, Action<SongPackageItem, bool> play, Action<SongPackageItem> openActions)
+            public void Render(LibraryViewState state)
             {
-                Items = items;
-                Play = play;
+                State = state;
+                Selected = state.Selected;
             }
         }
     }

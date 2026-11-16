@@ -75,30 +75,79 @@ namespace Sekai
 
 		private void SetupButton(Action callback = null)
 		{
-			bool enabled = callback != null;
-			SetActive(_pauseButton, enabled);
-			SetActive(_pauseButtonDisable, !enabled);
-			SetActive(_skipButton, false);
-			if (enabled && _pauseButtonController != null)
+			_pauseEnabled = callback != null;
+			_onSkip = null;
+			ShowPauseButton();
+			if (_pauseEnabled && _pauseButtonController != null)
 			{
 				_pauseButtonController.Setup(callback);
 			}
-			if (enabled && _skipButtonController != null)
+			if (_skipButtonController != null)
 			{
-				_skipButtonController.Setup(callback);
+				_skipButtonController.Setup(PressSkip);
 			}
 		}
 
 		public void CalculateButtonBounds(Camera camera)
 		{
+			_buttonCamera = camera;
 			if (_pauseButtonController != null)
 			{
 				_pauseButtonController.CalculateBounds(camera);
 			}
-			if (_skipButtonController != null)
+			if (_skipButtonController != null && _skipButton != null && _skipButton.gameObject.activeInHierarchy)
 			{
 				_skipButtonController.CalculateBounds(camera);
 			}
+		}
+
+		private bool _pauseEnabled;
+		private Action _onSkip;
+		private Camera _buttonCamera;
+
+		public bool IsSkipShown => _onSkip != null;
+
+		/// <summary>
+		/// Puts the skip button where the pause button is, until it is pressed or <see cref="HideSkip"/>.
+		/// The two share a spot and an outline, so only one is ever on screen.
+		/// </summary>
+		public void ShowSkip(Action onSkip)
+		{
+			if (onSkip == null || _skipButton == null)
+			{
+				return;
+			}
+
+			_onSkip = onSkip;
+			SetActive(_pauseButton, false);
+			SetActive(_pauseButtonDisable, false);
+			SetActive(_skipButton, true);
+			// The bounds of a renderer that was switched off are empty, so they are taken now.
+			if (_skipButtonController != null && _buttonCamera != null)
+			{
+				_skipButtonController.CalculateBounds(_buttonCamera);
+			}
+		}
+
+		/// <summary>Puts the pause button back.</summary>
+		public void HideSkip()
+		{
+			_onSkip = null;
+			ShowPauseButton();
+		}
+
+		private void ShowPauseButton()
+		{
+			SetActive(_skipButton, false);
+			SetActive(_pauseButton, _pauseEnabled);
+			SetActive(_pauseButtonDisable, !_pauseEnabled);
+		}
+
+		private void PressSkip()
+		{
+			Action callback = _onSkip;
+			HideSkip();
+			callback?.Invoke();
 		}
 
 		public void Clear()

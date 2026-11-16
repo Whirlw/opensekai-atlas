@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
 using Sekai.Core.Live;
 using UnityEngine;
+using OpenSekai.Infrastructure.Packages;
 using OpenSekai.Shared.Packages;
 using CriWare;
 using Sekai;
@@ -11,6 +13,14 @@ namespace OpenSekai.App.Library
 {
 	public static class CustomMusicScorePlayHistoryStorage
 	{
+		private static readonly PlayHistorySummaryCache Cache = new PlayHistorySummaryCache();
+
+		/// <summary>
+		/// Raised after a run was appended, with its score key and that package's updated summary, so
+		/// an open library page can redraw just that package instead of reloading the history.
+		/// </summary>
+		public static event Action<string, CustomMusicScorePlayHistorySummary> Recorded;
+
 		public static void AppendLiveResult(FreeLiveBootData bootData, LiveScore score, long musicTimeMs, long musicLengthMs)
 		{
 			AppendLiveResult(bootData, score, musicTimeMs, musicLengthMs, null, null, 0);
@@ -30,64 +40,131 @@ namespace OpenSekai.App.Library
 				return;
 			}
 
-			if (string.IsNullOrEmpty(bootData.CustomMusicScoreId))
+			if (string.IsNullOrEmpty(bootData.CustomMusicScoreKey))
 			{
+				// Without the content hash the run could not be shown for any package.
 				return;
 			}
 
+			CustomMusicScorePlayHistorySummary summary;
+			string scoreKey;
 			try
 			{
 				Directory.CreateDirectory(CustomMusicScoreStorage.RootDirectory);
-				CustomMusicScoreEntry entry = CustomMusicScoreStorage.LoadEntry(bootData.CustomMusicScorePath);
-				CustomMusicScoreManifest manifest = entry?.Manifest;
+				// The manifest as the library caches it; only a package outside the library is read from disk.
+				SongPackage package = SongPackageManager.Shared.FindCachedItem(bootData.CustomMusicScorePath)?.Entry
+					?? SongPackageStorage.LoadEntry(bootData.CustomMusicScorePath);
+				CustomMusicScoreManifest manifest = CustomMusicScoreEntry.FromPackage(package)?.Manifest;
 				CustomMusicScorePlayHistoryRecord record = CreateRecord(bootData, manifest, score, musicTimeMs, musicLengthMs);
 				record.sessionId = sessionId ?? string.Empty;
 				record.chartHash = chartHash ?? string.Empty;
 				record.rulesVersion = rulesVersion;
-				File.AppendAllText(CustomMusicScoreStorage.PlayHistoryPath, JsonConvert.SerializeObject(record) + Environment.NewLine);
+				scoreKey = record.scoreKey;
+				summary = Cache.Append(CustomMusicScoreStorage.PlayHistoryPath, record);
 			}
 			catch (Exception exception)
 			{
 				Debug.LogWarningFormat("Failed to append custom music score play history. path:{0} error:{1}", CustomMusicScoreStorage.PlayHistoryPath, exception.Message);
+				return;
+			}
+
+			if (summary != null)
+			{
+				Recorded?.Invoke(scoreKey, summary);
 			}
 		}
 
-		public static bool TryLoadBestResult(string customMusicScoreId, out CustomMusicScorePlayHistoryRecord bestRecord)
+		/// <summary>
+		/// One summary per score key (the content hash of the package's score file; records
+		/// without one are ignored): the best run, the latest play time and the play count. Served
+		/// from the cache, which a launch fills from the saved summary snapshot; new runs are folded in
+		/// as they are appended. The returned dictionary is the live cache: do not modify it.
+		/// </summary>
+		public static Dictionary<string, CustomMusicScorePlayHistorySummary> LoadSummaries()
 		{
-			bestRecord = null;
-			if (string.IsNullOrEmpty(customMusicScoreId) || !File.Exists(CustomMusicScoreStorage.PlayHistoryPath))
-			{
-				return false;
-			}
-
 			try
 			{
-				foreach (string line in File.ReadLines(CustomMusicScoreStorage.PlayHistoryPath))
-				{
-					if (string.IsNullOrWhiteSpace(line))
-					{
-						continue;
-					}
-
-					CustomMusicScorePlayHistoryRecord record = JsonConvert.DeserializeObject<CustomMusicScorePlayHistoryRecord>(line);
-					if (record == null || !string.Equals(record.customMusicScoreId, customMusicScoreId, StringComparison.Ordinal))
-					{
-						continue;
-					}
-
-					if (bestRecord == null || IsBetterResult(record, bestRecord))
-					{
-						bestRecord = record;
-					}
-				}
+				return Cache.Load(CustomMusicScoreStorage.PlayHistoryPath);
 			}
 			catch (Exception exception)
 			{
-				Debug.LogWarningFormat("Failed to load custom music score play history. path:{0} error:{1}", CustomMusicScoreStorage.PlayHistoryPath, exception.Message);
-				bestRecord = null;
+				Debug.LogWarningFormat("Failed to summarize custom music score play history. path:{0} error:{1}", CustomMusicScoreStorage.PlayHistoryPath, exception.Message);
+				return new Dictionary<string, CustomMusicScorePlayHistorySummary>(StringComparer.Ordinal);
+			}
+		}
+
+		/// <summary>Folds the whole history file again and saves a fresh snapshot: the refresh button's resync.</summary>
+		public static Dictionary<string, CustomMusicScorePlayHistorySummary> ReloadSummaries()
+		{
+			try
+			{
+				return Cache.Reload(CustomMusicScoreStorage.PlayHistoryPath);
+			}
+			catch (Exception exception)
+			{
+				Debug.LogWarningFormat("Failed to reload custom music score play history. path:{0} error:{1}", CustomMusicScoreStorage.PlayHistoryPath, exception.Message);
+				return LoadSummaries();
+			}
+		}
+
+		internal static Dictionary<string, CustomMusicScorePlayHistorySummary> Summarize(IEnumerable<string> lines)
+		{
+			var summaries = new Dictionary<string, CustomMusicScorePlayHistorySummary>(StringComparer.Ordinal);
+			foreach (string line in lines)
+			{
+				if (string.IsNullOrWhiteSpace(line))
+				{
+					continue;
+				}
+
+				CustomMusicScorePlayHistoryRecord record;
+				try
+				{
+					record = JsonConvert.DeserializeObject<CustomMusicScorePlayHistoryRecord>(line);
+				}
+				catch (JsonException)
+				{
+					// One damaged line (a write cut short) must not hide every other record.
+					continue;
+				}
+
+				Fold(summaries, record);
 			}
 
-			return bestRecord != null;
+			return summaries;
+		}
+
+		/// <summary>
+		/// Adds one run to its package's summary: it becomes the best only when it beats the current
+		/// best, the last-played time moves forward and the play count goes up. Null when the record
+		/// has no score key.
+		/// </summary>
+		internal static CustomMusicScorePlayHistorySummary Fold(
+			Dictionary<string, CustomMusicScorePlayHistorySummary> summaries, CustomMusicScorePlayHistoryRecord record)
+		{
+			if (record == null || string.IsNullOrEmpty(record.scoreKey))
+			{
+				return null;
+			}
+
+			if (!summaries.TryGetValue(record.scoreKey, out CustomMusicScorePlayHistorySummary summary))
+			{
+				summary = new CustomMusicScorePlayHistorySummary();
+				summaries[record.scoreKey] = summary;
+			}
+
+			summary.PlayCount++;
+			if (summary.Best == null || IsBetterResult(record, summary.Best))
+			{
+				summary.Best = record;
+			}
+
+			if (string.CompareOrdinal(record.playedAtUtc, summary.LastPlayedAtUtc) > 0)
+			{
+				summary.LastPlayedAtUtc = record.playedAtUtc;
+			}
+
+			return summary;
 		}
 
 		private static bool IsBetterResult(CustomMusicScorePlayHistoryRecord current, CustomMusicScorePlayHistoryRecord best)
@@ -144,11 +221,12 @@ namespace OpenSekai.App.Library
 
 			return new CustomMusicScorePlayHistoryRecord
 			{
-				schemaVersion = 1,
+				schemaVersion = 2,
 				recordId = Guid.NewGuid().ToString("N"),
 				playedAtUtc = DateTime.UtcNow.ToString("O"),
 				appVersion = Application.version,
 				livePlayMode = bootData.LivePlayMode.ToString(),
+				scoreKey = bootData.CustomMusicScoreKey,
 				customMusicScoreId = bootData.CustomMusicScoreId,
 				customMusicScorePath = bootData.CustomMusicScorePath ?? string.Empty,
 				title = bootData.MusicData?.Music?.title ?? manifest?.title ?? string.Empty,
@@ -187,6 +265,17 @@ namespace OpenSekai.App.Library
 		}
 	}
 
+	/// <summary>What the play history says about one package: its best run and how recently it was played.</summary>
+	public sealed class CustomMusicScorePlayHistorySummary
+	{
+		public CustomMusicScorePlayHistoryRecord Best { get; internal set; }
+
+		/// <summary>ISO 8601 UTC time of the latest run; empty when no record carries a time.</summary>
+		public string LastPlayedAtUtc { get; internal set; } = string.Empty;
+
+		public int PlayCount { get; internal set; }
+	}
+
 	public sealed class CustomMusicScorePlayHistoryRecord
 	{
 				private int _schemaVersion;
@@ -221,6 +310,16 @@ namespace OpenSekai.App.Library
 		{
 		    get => _sessionId;
 		    set => _sessionId = value;
+		}
+		/// <summary>
+		/// Content hash of the package's score file when the run was played; the key
+		/// the library groups runs under. Empty for records written before it existed (not shown).
+		/// </summary>
+				private string _scoreKey;
+		public string scoreKey
+		{
+		    get => _scoreKey;
+		    set => _scoreKey = value;
 		}
 				private string _playedAtUtc;
 		public string playedAtUtc

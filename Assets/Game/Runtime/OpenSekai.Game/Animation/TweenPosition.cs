@@ -1,3 +1,4 @@
+using LitMotion;
 using UnityEngine;
 
 namespace Sekai
@@ -48,8 +49,8 @@ namespace Sekai
 			Vector3 start = playDirection == PlayDirection.Forward ? _from : _to;
 			Vector3 end = playDirection == PlayDirection.Forward ? _to : _from;
 			tweenTarget.LocalPosition = start;
-			tweener = DG.Tweening.DOTween.To(() => tweenTarget.LocalPosition, value => tweenTarget.LocalPosition = value, end, duration);
-			SetTweenOptionCommon();
+			PlayMotion(LMotion.Create(start, end, Mathf.Max(0f, duration)),
+				static (value, owner) => owner.TweenTarget.LocalPosition = value);
 		}
 
 		protected override void ToTween(float normalizeTime)

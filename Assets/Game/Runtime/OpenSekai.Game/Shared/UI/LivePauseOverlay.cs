@@ -8,11 +8,11 @@ using UnityEngine.UI;
 namespace OpenSekai.Shared.UI
 {
     /// <summary>
-    /// Lightweight pause layer for the player-library flow: resume, retry, quit back to the library.
+    /// Fallback pause layer for the player-library flow: resume, retry, quit back to the library.
     /// Built in code so it carries no editor dialogs and no LiveOutUI prefab dependency.
     /// The live scene owns the lifetime; the overlay only reports the chosen action.
     /// </summary>
-    public sealed class LivePauseOverlay : MonoBehaviour
+    public sealed class LivePauseOverlay : MonoBehaviour, ILivePauseMenu
     {
         private const float PANEL_WIDTH = 720f;
         private const float PANEL_HEIGHT = 460f;
@@ -43,8 +43,9 @@ namespace OpenSekai.Shared.UI
             return overlay;
         }
 
-        public void Show(string songTitle, Action resume, Action retry, Action quit)
+        public void Show(LivePauseInfo info, Action resume, Action retry, Action quit)
         {
+            string songTitle = info?.Title;
             _onResume = resume;
             _onRetry = retry;
             _onQuit = quit;

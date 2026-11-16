@@ -1,7 +1,8 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using DG.Tweening;
+using LitMotion;
+using LitMotion.Extensions;
 using UnityEngine;
 
 namespace Sekai
@@ -10,7 +11,7 @@ namespace Sekai
 	{
 		private const float Duration = 0.2f;
 
-		private Tweener _tweener;
+		private MotionHandle _motion;
 
 		private Vector3 _from;
 
@@ -20,6 +21,7 @@ namespace Sekai
 
 		public override void Setup(GameObject obj)
 		{
+			Destory();
 			base.Setup(obj);
 			if (attachObject == null)
 			{
@@ -34,7 +36,6 @@ namespace Sekai
 			}
 
 			_rt = attachObject.GetComponent<RectTransform>();
-			Destory();
 		}
 
 		public override void SetVector(Vector3 start, Vector3 target)
@@ -54,51 +55,54 @@ namespace Sekai
 				return;
 			}
 
-			Destory();
-			_rt.anchoredPosition = new Vector2(_from.x, _from.y);
-			bool finished = false;
-			_tweener = _rt.DOAnchorPos(new Vector2(_to.x, _to.y), Duration).SetEase(Ease.OutQuart);
-			_tweener.OnComplete(() => finished = true);
-			_tweener.OnKill(() => finished = true);
-
+			MotionHandle motion = StartSlide();
 			try
 			{
-				await UniTask.WaitUntil(() => finished, cancellationToken: ct);
+				await UniTask.WaitUntil(motion, static handle => !handle.IsActive(), cancellationToken: ct);
 			}
 			catch (OperationCanceledException)
 			{
-				Destory();
+				motion.TryCancel();
 			}
 		}
 
 		public override void Play(Action callback)
 		{
-			this.callback = callback;
 			if (_rt == null)
 			{
-				OnFinished();
+				callback?.Invoke();
 				return;
 			}
 
+			StartSlide(callback);
+		}
+
+		private MotionHandle StartSlide(Action onComplete = null)
+		{
 			Destory();
-			_rt.anchoredPosition = new Vector2(_from.x, _from.y);
-			_tweener = _rt.DOAnchorPos(new Vector2(_to.x, _to.y), Duration)
-				.SetEase(Ease.OutQuart)
-				.OnComplete(OnFinished);
+			Vector2 start = _from;
+			_rt.anchoredPosition = start;
+			_motion = LMotion.Create(start, (Vector2)_to, Duration)
+				.WithEase(Ease.OutQuart)
+				.WithOnComplete(onComplete)
+				.BindToAnchoredPosition(_rt);
+			return _motion;
 		}
 
 		public void Complete()
 		{
-			_tweener?.Complete();
+			_motion.TryComplete();
 		}
 
 		public override void Destory()
 		{
-			if (_tweener != null && _tweener.IsActive())
-			{
-				_tweener.Kill(false);
-			}
-			_tweener = null;
+			_motion.TryCancel();
+			_motion = default;
+		}
+
+		private void OnDisable()
+		{
+			Destory();
 		}
 	}
 }

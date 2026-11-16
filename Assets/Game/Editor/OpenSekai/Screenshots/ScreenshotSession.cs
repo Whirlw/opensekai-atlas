@@ -202,6 +202,10 @@ namespace OpenSekai.EditorTools.Screenshots
             {
                 BeginDriver();
             }
+            else if (change == PlayModeStateChange.ExitingPlayMode)
+            {
+                ScreenshotDriver.StopMotionClock();
+            }
             else if (change == PlayModeStateChange.EnteredEditMode)
             {
                 if (SessionState.GetBool(KeyRunning, false))

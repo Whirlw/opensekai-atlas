@@ -79,6 +79,7 @@ namespace Sekai
 
 		public override void CloseImmediately()
 		{
+			_slideInOut?.Destory();
 			RectTransform rectTransform = _subWindowComponent != null ? _subWindowComponent.transform as RectTransform : null;
 			if (rectTransform != null)
 			{
@@ -88,6 +89,7 @@ namespace Sekai
 
 		public override void OpenImmediately()
 		{
+			_slideInOut?.Destory();
 			RectTransform rectTransform = _subWindowComponent != null ? _subWindowComponent.transform as RectTransform : null;
 			if (rectTransform != null)
 			{

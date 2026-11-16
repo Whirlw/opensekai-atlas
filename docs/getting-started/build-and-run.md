@@ -17,7 +17,7 @@
 | Unity 版本 | `6000.6.7f1` | `ProjectSettings/ProjectVersion.txt` |
 | 渲染管线 | URP 17.6.0 | `Packages/manifest.json` |
 | 脚本后端 | 编辑器用 Mono；Android 用 IL2CPP | `ProjectSettings/ProjectSettings.asset` |
-| 版本号 | `0.4.0`（versionCode 85） | 同上 |
+| 版本号 | `0.5.0`（versionCode 86） | 同上 |
 | Android SDK | minSdk 26，targetSdk 随构建环境选择（0.4.0 发布包为 36） | 同上 |
 | 构建场景（按序） | `Assets/Game/Scenes/Library.unity` → `Assets/Game/Scenes/TransitionBlank.unity` → `Assets/Game/Scenes/Core.unity` | `ProjectSettings/EditorBuildSettings.asset` |
 | 首场景入口组件 | `Assets/Game/Runtime/OpenSekai/App/Bootstrap/LibraryEntryPoint.cs` | 场景内挂载 |

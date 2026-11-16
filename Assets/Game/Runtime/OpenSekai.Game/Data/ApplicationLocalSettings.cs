@@ -45,6 +45,20 @@ namespace Sekai
 		    get => _LiveVolume;
 		    set => _LiveVolume = value;
 		}
+		/// <summary>Volume of the menu pages' interface sounds, apart from music and hit sounds.</summary>
+		private float _UiVolume = 0.6f;
+		public float UiVolume
+		{
+		    get => _UiVolume;
+		    set => _UiVolume = value;
+		}
+		/// <summary>响度平均: scale every song's music, preview and live, by its measured loudness.</summary>
+		private bool _LoudnessNormalization;
+		public bool LoudnessNormalization
+		{
+		    get => _LoudnessNormalization;
+		    set => _LoudnessNormalization = value;
+		}
 				private bool? _FullscreenEnabled;
 		public bool? FullscreenEnabled
 		{

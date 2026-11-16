@@ -1,4 +1,7 @@
+using LitMotion;
+using LitMotion.Extensions;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Sekai.UI
 {
@@ -47,6 +50,13 @@ namespace Sekai.UI
 
 		public virtual void ResetInteraction()
 		{
+		}
+
+		protected static MotionHandle PlayColor(Graphic graphic, Color color, float duration)
+		{
+			return LMotion.Create(graphic.color, color, duration)
+				.WithEase(Ease.OutQuad)
+				.BindToColor(graphic);
 		}
 
 		protected virtual void OnDisable()

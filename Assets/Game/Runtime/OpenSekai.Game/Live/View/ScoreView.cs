@@ -1,6 +1,7 @@
 using OpenSekai.Shared.Scoring;
 using Sekai.Core.Live;
-using DG.Tweening;
+using LitMotion;
+using Sekai.Live;
 using UnityEngine;
 
 namespace Sekai
@@ -52,7 +53,7 @@ namespace Sekai
 
 		private int _lastScoreRank;
 
-		private Sequence _addScoreSequence;
+		private MotionHandle _addScoreMotion;
 
 		private ScoreGauge _scoreGaugeCalculator;
 
@@ -72,7 +73,6 @@ namespace Sekai
 			SetupGaugeRankPosition(_gaugeRankC, ScoreGauge.RANK_RATE_C);
 			_scoreGaugeCalculator = ScoreGauge.Create(musicData?.Score);
 			_inverseScale = _addScoreRoot != null && _addScoreRoot.localScale.y < 0f;
-			CreateAddScoreAnimation();
 			Clear();
 		}
 
@@ -88,6 +88,7 @@ namespace Sekai
 
 		public void Clear()
 		{
+			_addScoreMotion.TryCancel();
 			_lastScoreRank = -1;
 			if (_scoreGauge != null)
 			{
@@ -172,12 +173,7 @@ namespace Sekai
 
 			if (addScore > 0 && _addScoreRoot != null)
 			{
-				_addScoreRoot.localScale = _inverseScale ? new Vector3(1f, -1f, 1f) : Vector3.one;
-				if (_addScoreSequence == null)
-				{
-					CreateAddScoreAnimation();
-				}
-				_addScoreSequence?.Restart();
+				PlayAddScoreAnimation();
 				if (_addScoreNumber != null)
 				{
 					_addScoreNumber.UpdateNumber(addScore);
@@ -201,28 +197,33 @@ namespace Sekai
 			t.localPosition = position;
 		}
 
-		private void CreateAddScoreAnimation()
+		private void PlayAddScoreAnimation()
 		{
-			if (_addScoreRoot == null)
+			const float slideDuration = 0.2f;
+			const float holdDuration = 0.5f;
+			const float duration = slideDuration + holdDuration;
+
+			_addScoreMotion.TryCancel();
+			Vector3 position = _addScoreRoot.localPosition;
+			_addScoreRoot.localScale = _inverseScale ? new Vector3(1f, -1f, 1f) : Vector3.one;
+			_addScoreMotion = LMotion.Create(0f, duration, duration)
+				.WithScheduler(LiveMotion.Scheduler())
+				.WithOnComplete(() => _addScoreRoot.localScale = Vector3.zero)
+				.Bind(elapsed =>
+				{
+					float progress = EaseUtility.Evaluate(Mathf.Clamp01(elapsed / slideDuration), Ease.OutQuad);
+					position.x = Mathf.LerpUnclamped(-0.5f, 0f, progress);
+					_addScoreRoot.localPosition = position;
+					UpdateAddNumberAlpha(progress);
+				});
+		}
+
+		private void OnDisable()
+		{
+			if (_addScoreMotion.TryCancel() && _addScoreRoot != null)
 			{
-				return;
+				_addScoreRoot.localScale = Vector3.zero;
 			}
-			_addScoreSequence?.Kill();
-			Vector3 start = _addScoreRoot.localPosition;
-			Vector3 from = new Vector3(-0.5f, start.y, start.z);
-			Vector3 to = new Vector3(0f, start.y, start.z);
-			_addScoreSequence = DOTween.Sequence();
-			_addScoreSequence.Pause();
-			_addScoreSequence.AppendCallback(() =>
-			{
-				_addScoreRoot.localPosition = from;
-				UpdateAddNumberAlpha(0f);
-			});
-			_addScoreSequence.Append(_addScoreRoot.DOLocalMove(to, 0.2f).SetEase(Ease.OutQuad));
-			_addScoreSequence.Join(DOTween.To(() => 0f, UpdateAddNumberAlpha, 1f, 0.2f).SetEase(Ease.OutQuad));
-			_addScoreSequence.AppendInterval(0.5f);
-			_addScoreSequence.AppendCallback(() => _addScoreRoot.localScale = Vector3.zero);
-			_addScoreSequence.SetAutoKill(false);
 		}
 
 		private void UpdateAddNumberAlpha(float alpha)

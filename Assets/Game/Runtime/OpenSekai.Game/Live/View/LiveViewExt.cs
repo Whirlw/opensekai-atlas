@@ -76,6 +76,16 @@ namespace Sekai.Core.Live
 			ForEach(views, view => view.MusicSeek(musicTime));
 		}
 
+		public static void ShowSkip(LiveViewBase[] views, System.Action onSkip)
+		{
+			ForEach(views, view => view.ShowSkip(onSkip));
+		}
+
+		public static void HideSkip(LiveViewBase[] views)
+		{
+			ForEach(views, view => view.HideSkip());
+		}
+
 		public static void OnUpdate(LiveViewBase[] views, float musicTime)
 		{
 			ForEach(views, view => view.OnUpdate(musicTime));

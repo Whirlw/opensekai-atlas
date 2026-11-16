@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using OpenSekai.Infrastructure.Packages;
 using OpenSekai.Shared.Audio;
 using OpenSekai.Shared.Packages;
 using OpenSekai.Shared.Playback;
@@ -123,12 +124,36 @@ namespace OpenSekai.App.Playback
         }
     }
 
-    /// <summary>Registers package audio through the retained external-audio path.</summary>
+    /// <summary>
+    /// Registers package audio through the retained external-audio path, and sets the live's music
+    /// gain from the song's loudness. A song the library has not measured yet is measured here from
+    /// the clip already decoded for the live, and the result goes into the library cache.
+    /// </summary>
     internal sealed class LegacyPackageAudioRegistrar : IPackageAudioRegistrar
     {
-        public UniTask<bool> RegisterAsync(SongPackage package, CancellationToken cancellationToken)
+        public async UniTask<bool> RegisterAsync(SongPackage package, CancellationToken cancellationToken)
         {
-            return new PackageAudio(package).RegisterAudioAsync(cancellationToken);
+            SoundManager.Instance.IngameBgmGain = 1f;
+            var audio = new PackageAudio(package);
+            if (!await audio.RegisterAudioAsync(cancellationToken))
+            {
+                return false;
+            }
+
+            SongPackageManager packages = SongPackageManager.Shared;
+            SongPackageItem item = packages.FindCachedItem(package.RootDirectory);
+            float? lufs = item?.LoudnessLufs;
+            if (item == null || !item.LoudnessMeasured)
+            {
+                lufs = await LoudnessMeter.MeasureAsync(audio.GetAudioClip(), cancellationToken);
+                if (item != null && packages.SetLoudness(item, lufs))
+                {
+                    packages.SaveLoudness();
+                }
+            }
+
+            SoundManager.Instance.IngameBgmGain = LoudnessNormalization.GainFor(lufs);
+            return true;
         }
     }
 

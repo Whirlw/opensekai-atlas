@@ -46,7 +46,7 @@
 | `_removed/` | 重构期间的备份目录（已删除，2026-11-03）；需要旧源码时从重构前的 git 提交取回 |
 | 页面（ScreenLayer） | `ScreenManager` 管理的 UI 页面单元 |
 | `[LibraryCheck]` | `OpenSekai/Library/Verify Running Scene` 打出的自检日志 |
-| 轻量构型 | 只有 `DOTWEEN` 宏的默认构建（无 HUD、无视频导出） |
+| 轻量构型 | 默认构建，性能 HUD 由设置控制，视频导出模块已移除 |
 
 ## 常见问题与故障排查
 

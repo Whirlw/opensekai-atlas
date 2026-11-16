@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.Threading;
 using Beebyte.Obfuscator;
 using Cysharp.Threading.Tasks;
-using DG.Tweening;
+using LitMotion;
+using LitMotion.Extensions;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -79,7 +80,7 @@ namespace Sekai.UI
 		[SerializeField]
 		protected float pressScale = PRESS_SCALE_RATIO;
 
-		protected Tweener pressTween;
+		private MotionHandle _pressMotion;
 
 				[SerializeField] private Action _OnLongPressEvent;
 		public Action OnLongPressEvent
@@ -455,14 +456,18 @@ namespace Sekai.UI
 		{
 			KillPressTween();
 			Vector3 targetScale = BaseScale == Vector3.zero ? Vector3.one : BaseScale;
-			pressTween = transform.DOScale(targetScale, RELEASE_SCALE_DURATION).SetEase(Ease.OutQuart);
+			_pressMotion = LMotion.Create(transform.localScale, targetScale, RELEASE_SCALE_DURATION)
+				.WithEase(Ease.OutQuart)
+				.BindToLocalScale(transform);
 		}
 
 		public void ScalePointerDown()
 		{
 			KillPressTween();
 			Vector3 baseScale = BaseScale == Vector3.zero ? Vector3.one : BaseScale;
-			pressTween = transform.DOScale(baseScale * pressScale, PRESS_SCALE_DURATION).SetEase(Ease.OutQuart);
+			_pressMotion = LMotion.Create(transform.localScale, baseScale * pressScale, PRESS_SCALE_DURATION)
+				.WithEase(Ease.OutQuart)
+				.BindToLocalScale(transform);
 		}
 
 		public void SetPressScaleRatio(float ratio)
@@ -480,11 +485,8 @@ namespace Sekai.UI
 
 		protected virtual void KillPressTween()
 		{
-			if (pressTween != null && pressTween.IsActive())
-			{
-				pressTween.Kill(false);
-			}
-			pressTween = null;
+			_pressMotion.TryCancel();
+			_pressMotion = default;
 			_buttonViewInteraction?.KillFadeTween();
 		}
 

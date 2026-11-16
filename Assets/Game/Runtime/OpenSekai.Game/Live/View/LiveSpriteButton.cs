@@ -1,5 +1,6 @@
 using System;
-using DG.Tweening;
+using LitMotion;
+using LitMotion.Extensions;
 using UnityEngine;
 
 namespace Sekai
@@ -40,7 +41,7 @@ namespace Sekai
 
 		private Vector3 _baseScale;
 
-		private Tweener _pressTween;
+		private MotionHandle _pressMotion;
 
 		public void Setup(Action _onClick)
 		{
@@ -134,22 +135,34 @@ namespace Sekai
 
 		private void ScaleDown()
 		{
-			KillPressTween();
-			_pressTween = transform.DOScale(_baseScale * pressScale, _scaleTime);
+			PlayScale(_baseScale * pressScale);
 		}
 
 		private void ScaleUp()
 		{
-			KillPressTween();
-			_pressTween = transform.DOScale(_baseScale, _scaleTime);
+			PlayScale(_baseScale);
 		}
 
-		private void KillPressTween()
+		private void PlayScale(Vector3 scale)
 		{
-			if (_pressTween != null && _pressTween.IsActive())
+			if (!isActiveAndEnabled)
 			{
-				_pressTween.Kill();
+				return;
 			}
+			_pressMotion.TryCancel();
+			_pressMotion = LMotion.Create(transform.localScale, scale, _scaleTime)
+				.WithEase(Ease.OutQuad)
+				.BindToLocalScale(transform);
+		}
+
+		private void OnDisable()
+		{
+			if (_pressMotion.TryCancel() || _touchId != DisableId)
+			{
+				transform.localScale = _baseScale;
+			}
+			_pressMotion = default;
+			_touchId = DisableId;
 		}
 
 		private void LateUpdate()

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using LitMotion;
 using Newtonsoft.Json;
 using OpenSekai.App.Playback;
 using OpenSekai.App.UI;
@@ -28,13 +29,14 @@ namespace OpenSekai.EditorTools.Screenshots
     /// <c>lead</c> seconds before each time, played at <c>fps</c> from there, and the last step is
     /// trimmed so the captured frame lands on the requested millisecond.
     /// </summary>
-    internal sealed class ScreenshotDriver
+    internal sealed class ScreenshotDriver : IPlayerLoopItem
     {
         private const BindingFlags Any = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
         private const float FastForwardStep = 0.1f;
         private const float RealTimeout = 120f;
 
         private static readonly FieldInfo StateField = typeof(BaseLiveController).GetField("state", Any);
+        private static readonly PropertyInfo TimelineStart = typeof(BaseLiveController).GetProperty("TimelineStartMs", Any);
         private static readonly FieldInfo TimeField = typeof(BaseLiveController).GetField("currentMusicTimeMs", Any);
         private static readonly FieldInfo PhaseField = typeof(BaseLiveController).GetField("musicPhase", Any);
         private static readonly MethodInfo RetireNow = typeof(SoloLiveController).GetMethod("OnRetireByMySelf", Any);
@@ -45,6 +47,8 @@ namespace OpenSekai.EditorTools.Screenshots
         private const int PhaseNotStarted = 0;
         private const int PhasePlaying = 2;
         private const int PhaseEnded = 3;
+
+        private static readonly ManualMotionDispatcher MotionClock = new ManualMotionDispatcher();
 
         private ShotRequest _request;
         private readonly List<ShotReport> _reports = new List<ShotReport>();
@@ -63,6 +67,7 @@ namespace OpenSekai.EditorTools.Screenshots
             UnityEngine.Object.DontDestroyOnLoad(host);
             var runner = host.AddComponent<UnityEngine.EventSystems.EventTrigger>();
             var driver = new ScreenshotDriver { _request = request, _onDone = onDone, _host = host };
+            PlayerLoopHelper.AddAction(PlayerLoopTiming.LastPreLateUpdate, driver);
             runner.StartCoroutine(driver.Run());
         }
 
@@ -88,6 +93,10 @@ namespace OpenSekai.EditorTools.Screenshots
                     case "settings": body = LibraryShot(shot, "settings"); break;
                     case "settings-trace": body = LibraryShot(shot, "settings-trace"); break;
                     case "result": body = LibraryShot(shot, "result"); break;
+                    case "actions": body = LibraryShot(shot, "actions"); break;
+                    case "actions-armed": body = LibraryShot(shot, "actions-armed"); break;
+                    case "loading": body = LibraryShot(shot, "loading"); break;
+                    case "return": body = ReturnShot(shot); break;
                     default:
                         Fail(shot, "unknown kind '" + shot.kind + "'");
                         continue;
@@ -146,8 +155,8 @@ namespace OpenSekai.EditorTools.Screenshots
                 }
             }
 
-            Time.captureDeltaTime = 0f;
             yield return LeaveLive();
+            StopMotionClock();
         }
 
         // ---------------------------------------------------------------- library pages
@@ -158,8 +167,15 @@ namespace OpenSekai.EditorTools.Screenshots
             LibraryScreen screen = UnityEngine.Object.FindFirstObjectByType<LibraryScreen>();
             LibrarySettingsPanel settings = UnityEngine.Object.FindFirstObjectByType<LibrarySettingsPanel>(FindObjectsInactive.Include);
             LibraryResultPanel resultPanel = UnityEngine.Object.FindFirstObjectByType<LibraryResultPanel>(FindObjectsInactive.Include);
+            LibraryActionsPanel actionsPanel = UnityEngine.Object.FindFirstObjectByType<LibraryActionsPanel>(FindObjectsInactive.Include);
+            LibraryLoadingOverlay loading = UnityEngine.Object.FindFirstObjectByType<LibraryLoadingOverlay>(FindObjectsInactive.Include);
             settings?.Hide();
             resultPanel?.Hide();
+            actionsPanel?.Hide();
+            loading?.Hide();
+            object view = screen.GetType().GetField("_view", Any)?.GetValue(screen);
+            object presenter = screen.GetType().GetField("_presenter", Any)?.GetValue(screen);
+            SongPackageItem selected = view?.GetType().GetField("_selected", Any)?.GetValue(view) as SongPackageItem;
 
             string detail = null;
             if (panel == "settings" || panel == "settings-trace")
@@ -178,25 +194,54 @@ namespace OpenSekai.EditorTools.Screenshots
             else if (panel == "result")
             {
                 ResultSample sample = shot.result ?? new ResultSample();
-                screen.ShowResult(ToResult(sample));
+                // Played from the selected package, so the card shows its jacket like a real run.
+                screen.ShowResult(ToResult(sample, selected?.Entry?.RootDirectory));
                 detail = sample.kind + " " + sample.score + " " + sample.rank;
             }
 
-            // Two frames for layout and TextMeshPro to settle.
+            else if (panel == "actions" || panel == "actions-armed")
+            {
+                if (presenter == null || selected == null) throw new InvalidOperationException("No package is selected.");
+                presenter.GetType().GetMethod("OpenActionsForSelected", Any).Invoke(presenter, null);
+                if (panel == "actions-armed")
+                {
+                    // The first tap on 删除曲包 only arms it.
+                    actionsPanel.GetType().GetMethod("OnDeleteClicked", Any).Invoke(actionsPanel, null);
+                }
+                detail = selected.Entry?.RootDirectory;
+            }
+            else if (panel == "loading")
+            {
+                if (view == null || selected == null) throw new InvalidOperationException("No package is selected.");
+                view.GetType().GetMethod("ShowLoading", Any)
+                    .Invoke(view, new object[] { selected.Entry.Manifest?.title ?? "Loading", selected.Entry.RootDirectory });
+                view.GetType().GetMethod("SetLoadingMessage", Any).Invoke(view, new object[] { "正在读取谱面…" });
+                detail = selected.Entry?.RootDirectory;
+            }
+
+            // Two frames for layout and TextMeshPro to settle, then long enough for the panel's
+            // opening motion (and the result's score count) to finish.
             yield return null;
             yield return null;
+            yield return new WaitForSecondsRealtime(1.1f);
             yield return Capture(shot, FileStem(shot, null), detail, null);
 
             settings?.Hide();
             resultPanel?.Hide();
+            actionsPanel?.Hide();
+            if (panel == "loading")
+            {
+                view?.GetType().GetMethod("HideLoading", Any)?.Invoke(view, null);
+            }
         }
 
-        private static PlayResult ToResult(ResultSample sample)
+        private static PlayResult ToResult(ResultSample sample, string packageDirectory = null)
         {
+            packageDirectory = packageDirectory ?? string.Empty;
             Enum.TryParse(sample.kind, true, out PlayResultKind kind);
             if (kind == PlayResultKind.LoadError)
             {
-                return PlayResult.FromLoadError(sample.title, sample.auto, string.Empty, sample.message);
+                return PlayResult.FromLoadError(sample.title, sample.auto, packageDirectory, sample.message);
             }
             Enum.TryParse(sample.rank, true, out ScoreRank rank);
             var score = new LiveScore
@@ -213,7 +258,24 @@ namespace OpenSekai.EditorTools.Screenshots
                 autoCount = sample.auto ? sample.totalCombo : 0,
                 life = sample.life
             };
-            return new PlayResult(kind, sample.auto, string.Empty, sample.title, sample.playLevel, score);
+            return new PlayResult(kind, sample.auto, packageDirectory, sample.title, sample.playLevel, score);
+        }
+
+        /// <summary>
+        /// The real way back from a run: start a live, retire from it once it plays, and capture
+        /// the library as it comes back with the result card up. Unlike the "result" shot the page
+        /// is rebuilt from scratch here, so the card opens before the jacket has been decoded.
+        /// </summary>
+        private IEnumerator ReturnShot(Shot shot)
+        {
+            yield return StartLive(shot, false, null);
+            SoloLiveController controller = null;
+            yield return WaitUntil(() => (controller = UnityEngine.Object.FindFirstObjectByType<SoloLiveController>()) != null
+                && State(controller) == StatePlaying, "the live to start");
+            RetireNow.Invoke(controller, null);
+            yield return WaitForLibrary();
+            yield return new WaitForSecondsRealtime(1.5f);
+            yield return Capture(shot, FileStem(shot, null), "returned from a retired live", null);
         }
 
         // ---------------------------------------------------------------- live and info page
@@ -227,17 +289,16 @@ namespace OpenSekai.EditorTools.Screenshots
             }
             float frame = 1f / Mathf.Clamp(shot.fps <= 0 ? 60 : shot.fps, 10, 240);
 
+            StartMotionClock(frame);
             yield return StartLive(shot, infoPage, null);
             SoloLiveController controller = null;
             yield return WaitUntil(() => (controller = UnityEngine.Object.FindFirstObjectByType<SoloLiveController>()) != null, "the live controller");
 
             if (infoPage)
             {
-                Time.captureDeltaTime = frame;
                 // The page starts in the same step that starts the live clock.
-                yield return WaitUntil(() => { KeepMusicOff(controller); PinTweensToFrameTime(); return Phase(controller) != PhaseNotStarted; }, "the info page");
+                yield return WaitUntil(() => { KeepMusicOff(controller); return Phase(controller) != PhaseNotStarted; }, "the info page");
                 yield return new WaitForEndOfFrame();
-                PinTweensToFrameTime();
                 int startFrame = Time.frameCount;
                 foreach (float offset in times)
                 {
@@ -246,21 +307,17 @@ namespace OpenSekai.EditorTools.Screenshots
                     {
                         yield return new WaitForEndOfFrame();
                         KeepMusicOff(controller);
-                        PinTweensToFrameTime();
                     }
                     float actual = (Time.frameCount - startFrame) * frame;
                     string note = State(controller) == StatePlaying
                         ? "the live had already started (the editor ran below ~37 fps real time); the HUD may be fading in"
                         : null;
-                    yield return Capture(shot, FileStem(shot, offset), "info +" + actual.ToString("0.000") + "s", note, actual);
+                    CaptureFrame(shot, FileStem(shot, offset), "info +" + actual.ToString("0.000") + "s", note, actual);
                 }
                 yield break;
             }
 
-            yield return WaitUntil(() => { KeepMusicOff(controller); return State(controller) == StatePlaying; }, "the live to start");
-            yield return new WaitForEndOfFrame();
-            TakeClock(controller);
-            PinTweensToFrameTime();
+            yield return StartLiveClock(controller);
             long startMs = Clock(controller);
             double frameMs = 1000d * frame;
             foreach (float seconds in times)
@@ -292,8 +349,19 @@ namespace OpenSekai.EditorTools.Screenshots
                     yield return Step(controller, next - now);
                 }
                 long captured = Clock(controller);
-                yield return Capture(shot, FileStem(shot, seconds), "music " + (captured / 1000d).ToString("0.000") + "s", note, captured / 1000f);
+                CaptureFrame(shot, FileStem(shot, seconds), "music " + (captured / 1000d).ToString("0.000") + "s", note, captured / 1000f);
             }
+        }
+
+        private static IEnumerator StartLiveClock(SoloLiveController controller)
+        {
+            yield return WaitUntil(() => Phase(controller) != PhaseNotStarted, "the live clock to start");
+            // The controller waits a short, real-time interval before enabling gameplay. Park its
+            // clock before that interval can move the first simulation frame by a variable amount.
+            TakeClock(controller);
+            TimeField.SetValue(controller, TimelineStart.GetValue(controller));
+            yield return WaitUntil(() => State(controller) == StatePlaying, "the live to start");
+            yield return new WaitForEndOfFrame();
         }
 
         /// <summary>
@@ -307,7 +375,6 @@ namespace OpenSekai.EditorTools.Screenshots
             TimeField.SetValue(controller, Clock(controller) + stepMs);
             yield return new WaitForEndOfFrame();
             TakeClock(controller);
-            PinTweensToFrameTime();
         }
 
         /// <summary>
@@ -371,27 +438,36 @@ namespace OpenSekai.EditorTools.Screenshots
             }
         }
 
-        private static readonly FieldInfo IndependentField = typeof(DG.Tweening.Tween).GetField("isIndependentUpdate", Any);
-        private static readonly List<DG.Tweening.Tween> TweenBuffer = new List<DG.Tweening.Tween>();
-
-        /// <summary>
-        /// Tweens that ignore the time scale run on DOTween's real-time clock; move them to the scaled
-        /// clock, which follows Time.captureDeltaTime, so their progress depends on frames, not on how
-        /// fast the editor renders. New tweens are picked up at the end of the frame they appear in.
-        /// </summary>
-        private static void PinTweensToFrameTime()
+        private static void StartMotionClock(float step)
         {
-            SeedParticles();
-            TweenBuffer.Clear();
-            DG.Tweening.DOTween.PlayingTweens(TweenBuffer);
-            foreach (DG.Tweening.Tween tween in TweenBuffer)
+            Time.captureDeltaTime = step;
+            LiveMotion.CaptureScheduler = MotionClock.Scheduler;
+        }
+
+        internal static void StopMotionClock()
+        {
+            if (LiveMotion.CaptureScheduler == MotionClock.Scheduler)
             {
-                if (tween != null && (bool)IndependentField.GetValue(tween))
-                {
-                    DG.Tweening.TweenSettingsExtensions.SetUpdate(tween, DG.Tweening.UpdateType.Normal, false);
-                }
+                LiveMotion.CaptureScheduler = null;
+                MotionClock.Reset();
+                SeededParticles.Clear();
+                Time.captureDeltaTime = 0f;
             }
-            TweenBuffer.Clear();
+        }
+
+        bool IPlayerLoopItem.MoveNext()
+        {
+            if (_host == null)
+            {
+                return false;
+            }
+            if (LiveMotion.CaptureScheduler == MotionClock.Scheduler)
+            {
+                // Tick once after gameplay updates and before rendering the current frame.
+                MotionClock.Update(Time.captureDeltaTime);
+                SeedParticles();
+            }
+            return true;
         }
 
         /// <summary>The end of a live: fast-forward until every note is done, then count frames from there.</summary>
@@ -404,13 +480,11 @@ namespace OpenSekai.EditorTools.Screenshots
             }
             float frame = 1f / Mathf.Clamp(shot.fps <= 0 ? 60 : shot.fps, 10, 240);
 
+            StartMotionClock(FastForwardStep);
             yield return StartLive(shot, false, string.IsNullOrWhiteSpace(shot.finishAnimation) ? "allperfect" : shot.finishAnimation);
             SoloLiveController controller = null;
             yield return WaitUntil(() => (controller = UnityEngine.Object.FindFirstObjectByType<SoloLiveController>()) != null, "the live controller");
-            yield return WaitUntil(() => { KeepMusicOff(controller); return State(controller) == StatePlaying; }, "the live to start");
-            yield return new WaitForEndOfFrame();
-            TakeClock(controller);
-            PinTweensToFrameTime();
+            yield return StartLiveClock(controller);
             float deadline = Time.realtimeSinceStartup + 600f;
             while (State(controller) != StateFinish)
             {
@@ -427,10 +501,9 @@ namespace OpenSekai.EditorTools.Screenshots
                 while (Time.frameCount < target)
                 {
                     yield return new WaitForEndOfFrame();
-                    PinTweensToFrameTime();
                 }
                 float actual = (Time.frameCount - startFrame) * frame;
-                yield return Capture(shot, FileStem(shot, offset), "finish +" + actual.ToString("0.000") + "s (last note done at "
+                CaptureFrame(shot, FileStem(shot, offset), "finish +" + actual.ToString("0.000") + "s (last note done at "
                     + (endedAt / 1000d).ToString("0.000") + " s; the result animation starts at +1 s)", null, actual);
             }
         }
@@ -619,6 +692,11 @@ namespace OpenSekai.EditorTools.Screenshots
         private IEnumerator Capture(Shot shot, string stem, string detail, string note, float? time = null)
         {
             yield return new WaitForEndOfFrame();
+            CaptureFrame(shot, stem, detail, note, time);
+        }
+
+        private void CaptureFrame(Shot shot, string stem, string detail, string note, float? time = null)
+        {
             Texture2D texture = ScreenCapture.CaptureScreenshotAsTexture();
             string path = Path.Combine(_request.outDir, stem + ".png");
             File.WriteAllBytes(path, texture.EncodeToPNG());

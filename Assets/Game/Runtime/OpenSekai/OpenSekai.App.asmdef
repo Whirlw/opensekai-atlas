@@ -10,7 +10,8 @@
                        "UniTask",
                        "Unity.RenderPipelines.Universal.Runtime",
                        "NativeFilePicker.Runtime",
-                       "DOTween.Modules"
+                       "LitMotion",
+                       "LitMotion.Extensions"
                    ],
     "includePlatforms":  [
 

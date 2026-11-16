@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using OpenSekai.Shared.Packages;
 using Sekai;
 using TMPro;
 using UnityEngine;
@@ -20,9 +18,32 @@ namespace OpenSekai.App.UI
         };
 
         private static TMP_FontAsset _cjkFontAsset;
+        private static TMP_FontAsset _boldCjkFontAsset;
+        private static TMP_FontAsset _condensedFontAsset;
         private static bool _cjkFontResolved;
 
-        private static readonly Dictionary<string, Sprite> CoverCache = new Dictionary<string, Sprite>();
+        internal static void UseCondensedFont(TextMeshProUGUI label)
+        {
+            if (_condensedFontAsset == null)
+            {
+                Font font = ResourceCatalog.CondensedTtfFont.Load();
+                if (font != null)
+                {
+                    _condensedFontAsset = TMP_FontAsset.CreateFontAsset(font);
+                    TMP_FontAsset fallback = ResolveCjkFont();
+                    if (fallback != null)
+                    {
+                        _condensedFontAsset.fallbackFontAssetTable = new List<TMP_FontAsset> { fallback };
+                    }
+                }
+            }
+
+            if (_condensedFontAsset != null)
+            {
+                label.font = _condensedFontAsset;
+                label.fontStyle &= ~FontStyles.Bold;
+            }
+        }
 
         internal static RectTransform CreateRect(string name, Transform parent)
         {
@@ -223,18 +244,34 @@ namespace OpenSekai.App.UI
             TextMeshProUGUI text = go.GetComponent<TextMeshProUGUI>();
             text.text = value ?? string.Empty;
             text.fontSize = fontSize;
-            text.fontStyle = style;
             text.alignment = alignment;
             text.color = Color.white;
             text.raycastTarget = false;
+            ApplyCjkTextStyle(text, style);
+            return text;
+        }
 
+        internal static void ApplyCjkTextStyle(TextMeshProUGUI text, FontStyles style)
+        {
             TMP_FontAsset font = ResolveCjkFont();
+            if ((style & FontStyles.Bold) != 0)
+            {
+                if (_boldCjkFontAsset == null)
+                {
+                    _boldCjkFontAsset = EnsureRequiredGlyphs(ResourceCatalog.BoldDynamicFont.Load());
+                }
+                if (_boldCjkFontAsset != null)
+                {
+                    font = _boldCjkFontAsset;
+                    style &= ~FontStyles.Bold;
+                }
+            }
+
             if (font != null)
             {
                 text.font = font;
             }
-
-            return text;
+            text.fontStyle = style;
         }
 
         internal static Button CreateButton(
@@ -271,57 +308,6 @@ namespace OpenSekai.App.UI
             rect.anchorMax = Vector2.one;
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
-        }
-
-        /// <summary>Loads (and caches) a package jacket as a sprite; null when the package has none.</summary>
-        internal static Sprite LoadCover(SongPackage package)
-        {
-            if (package == null)
-            {
-                return null;
-            }
-
-            string path = package.JacketPath;
-            if (string.IsNullOrEmpty(path))
-            {
-                return null;
-            }
-
-            if (CoverCache.TryGetValue(path, out Sprite cached))
-            {
-                return cached;
-            }
-
-            Sprite sprite = null;
-            try
-            {
-                if (File.Exists(path))
-                {
-                    byte[] bytes = File.ReadAllBytes(path);
-                    Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-                    if (texture.LoadImage(bytes))
-                    {
-                        texture.wrapMode = TextureWrapMode.Clamp;
-                        sprite = Sprite.Create(
-                            texture,
-                            new Rect(0f, 0f, texture.width, texture.height),
-                            new Vector2(0.5f, 0.5f),
-                            100f);
-                        sprite.name = Path.GetFileNameWithoutExtension(path);
-                    }
-                    else
-                    {
-                        UnityEngine.Object.Destroy(texture);
-                    }
-                }
-            }
-            catch (Exception exception)
-            {
-                Debug.LogWarning("[LibraryScreen] Could not load jacket " + path + ": " + exception.Message);
-            }
-
-            CoverCache[path] = sprite;
-            return sprite;
         }
     }
 }

@@ -15,7 +15,8 @@ namespace Sekai.Core.Live
 		private Coroutine _resumeCoroutine;
 		private bool _playHistoryRecorded;
 		private bool _retiredByPlayer;
-		private LivePauseOverlay _pauseOverlay;
+		private ILivePauseMenu _pauseOverlay;
+		private MusicInfoView _musicInfoView;
 		private LiveViewBase[] _liveViews;
 		private LiveLogic _liveLogic;
 
@@ -97,7 +98,7 @@ namespace Sekai.Core.Live
 			_forcedFinish = false;
 			if (timelineSpan.HasIntroSkip)
 			{
-				ShowSkip("跳过前奏", SkipIntro);
+				ShowSkip(SkipIntro);
 			}
 		}
 
@@ -106,55 +107,70 @@ namespace Sekai.Core.Live
 
 		private const float LiveTimelineSpanMargin = OpenSekai.Shared.Live.Simulation.LiveTimelineSpan.SkipMarginSeconds;
 
-		private LiveSkipButton _skipButton;
+		/// <summary>An outro skip that would bring the result effect forward by less than this is not offered.</summary>
+		private const long MinimumOutroSkipMs = (long)(OpenSekai.Shared.Live.Simulation.LiveTimelineSpan.MinimumSkipSeconds * 1000f);
+
+		private bool _skipShown;
 		private bool _forcedFinish;
 		private long _outroSkipAtMs = -1L;
 
-		private void ShowSkip(string label, System.Action onPress)
-		{
-			if (_skipButton == null)
-			{
-				_skipButton = LiveSkipButton.Create(transform);
-			}
+		// The finish sequence waiting to run, kept so the outro skip can start it early.
+		private bool _resultEffectPending;
+		private float _pendingResultWait;
+		private float _pendingFinishWait;
 
-			_skipButton.Show(label, onPress);
+		/// <summary>The skip button takes the pause button's place until it is pressed or hidden.</summary>
+		private void ShowSkip(System.Action onPress)
+		{
+			_skipShown = true;
+			LiveViewExt.ShowSkip(_liveViews, onPress);
 		}
 
 		private void HideSkip()
 		{
-			_skipButton?.Hide();
+			if (!_skipShown)
+			{
+				return;
+			}
+
+			_skipShown = false;
+			LiveViewExt.HideSkip(_liveViews);
 		}
 
 		/// <summary>Jumps the music and the clock to the margin before the first note.</summary>
 		private void SkipIntro()
 		{
+			HideSkip();
 			long targetMs = (long)(timelineSpan.IntroSkipTargetSeconds * 1000f);
-			if (state != LiveControllerState.Playing || musicPhase != MusicPhase.Playing || currentMusicTimeMs >= targetMs)
+			// The run-in counts too: the clock now starts a few seconds before the music.
+			bool clockRunning = musicPhase == MusicPhase.Playing || musicPhase == MusicPhase.RunIn;
+			if (state != LiveControllerState.Playing || !clockRunning || currentMusicTimeMs >= targetMs)
 			{
 				return;
 			}
 
 			TraceTimeline("intro skip from=" + currentMusicTimeMs + " to=" + targetMs);
-			SoundManager.Instance.SeekIngame(targetMs);
-			currentMusicTimeMs = targetMs;
+			SeekTimeline(targetMs);
 			LiveViewExt.MusicSeek(_liveViews, targetMs / 1000f);
 		}
 
-		/// <summary>Cuts the wait for the rest of the music and goes to the result now.</summary>
+		/// <summary>Cuts the rest of the music and plays the result effect now, then the usual fade to the result.</summary>
 		private void SkipOutro()
 		{
-			if (state != LiveControllerState.Finish)
+			HideSkip();
+			if (state != LiveControllerState.Finish || !_resultEffectPending)
 			{
 				return;
 			}
 
 			TraceTimeline("outro skip at=" + currentMusicTimeMs);
+			// The music stops here; nothing after this point plays it again.
+			SoundManager.Instance.StopIngame();
 			if (_finishCoroutine != null)
 			{
 				StopCoroutine(_finishCoroutine);
-				_finishCoroutine = null;
 			}
-			Exit();
+			_finishCoroutine = StartCoroutine(SetFinishCoroutine(0f, _pendingResultWait, _pendingFinishWait));
 		}
 
 		protected override void OnUpdate()
@@ -168,9 +184,9 @@ namespace Sekai.Core.Live
 				if (currentMusicTimeMs >= _outroSkipAtMs)
 				{
 					_outroSkipAtMs = -1L;
-					if (currentMusicTimeMs < MusicEndMs)
+					if (_resultEffectPending && currentMusicTimeMs + MinimumOutroSkipMs < ResultEffectMs)
 					{
-						ShowSkip("跳过，立即结算", SkipOutro);
+						ShowSkip(SkipOutro);
 					}
 				}
 			}
@@ -181,8 +197,7 @@ namespace Sekai.Core.Live
 			}
 
 			UpdateMusicTime();
-			if (_skipButton != null && _skipButton.IsVisible
-				&& currentMusicTimeMs >= (long)(timelineSpan.IntroSkipTargetSeconds * 1000f))
+			if (_skipShown && currentMusicTimeMs >= (long)(timelineSpan.IntroSkipTargetSeconds * 1000f))
 			{
 				HideSkip();
 			}
@@ -278,11 +293,43 @@ namespace Sekai.Core.Live
 		{
 			if (_pauseOverlay == null)
 			{
-				_pauseOverlay = LivePauseOverlay.Create(transform);
+				_pauseOverlay = LivePauseMenus.Create(transform);
 			}
 
-			string title = (BootData as FreeLiveBootData)?.CustomMusicScoreTitle;
-			_pauseOverlay.Show(title, OnResume, Retry, OnRetireByMySelf);
+			_pauseOverlay.Show(BuildPauseInfo(), OnResume, Retry, OnRetireByMySelf);
+		}
+
+		/// <summary>The song the pause card names, with the jacket and accent the song info page already resolved.</summary>
+		private LivePauseInfo BuildPauseInfo()
+		{
+			FreeLiveBootData free = BootData as FreeLiveBootData;
+			LiveMusicData music = BootData?.MusicData;
+			if (_musicInfoView == null)
+			{
+				_musicInfoView = FindAnyObjectByType<MusicInfoView>(FindObjectsInactive.Include);
+			}
+
+			string title = music?.Music?.title;
+			if (string.IsNullOrWhiteSpace(title))
+			{
+				title = free?.CustomMusicScoreTitle;
+			}
+
+			var info = new LivePauseInfo
+			{
+				Title = title ?? string.Empty,
+				Charter = free?.CustomMusicScoreAuthorName ?? string.Empty,
+				Difficulty = music?.DifficultyString ?? string.Empty,
+				Level = music?.PlayLevel ?? 0,
+				IsAuto = BootData?.IsAuto ?? false,
+			};
+			if (_musicInfoView != null)
+			{
+				info.Jacket = _musicInfoView.JacketTexture;
+				info.Accent = _musicInfoView.Accent;
+			}
+
+			return info;
 		}
 
 		public void PauseLive()
@@ -340,6 +387,7 @@ namespace Sekai.Core.Live
 			_pauseOverlay?.Hide();
 			HideSkip();
 			_outroSkipAtMs = -1L;
+			_resultEffectPending = false;
 			liveOutUIController?.Destroy();
 			SoundManager.Instance.StopIngame();
 			_playHistoryRecorded = false;
@@ -442,8 +490,9 @@ namespace Sekai.Core.Live
 			state = LiveControllerState.Finish;
 			SetFinish(delay, waitTime, 2f);
 
-			// The chart is done but the music runs on: the result waits for it unless the player skips.
-			// The button only comes up the margin after the last note, so the end of the chart is seen.
+			// The chart is done but the music runs on: the result effect waits for it unless the player
+			// skips. The button only comes up the margin after the last note, so the end of the chart is
+			// seen, and not at all when the effect is due within that margin.
 			HideSkip();
 			_outroSkipAtMs = result == 3 && timelineSpan.HasOutroSkip && musicPhase == MusicPhase.Playing
 				? (long)System.Math.Ceiling((timelineSpan.LastNoteSeconds + LiveTimelineSpanMargin) * 1000d)
@@ -513,6 +562,9 @@ namespace Sekai.Core.Live
 				_liveLogic.OnFinished -= OnFinished;
 				_liveLogic.OnFailure -= OnFailure;
 			}
+			_resultEffectPending = true;
+			_pendingResultWait = waitTime;
+			_pendingFinishWait = finishWaitSeconds;
 			_finishCoroutine = StartCoroutine(SetFinishCoroutine(delay, waitTime, finishWaitSeconds));
 		}
 
@@ -527,6 +579,10 @@ namespace Sekai.Core.Live
 
 		private System.Collections.IEnumerator ResultAnim(float waitTime, float finishWaitSeconds)
 		{
+			// The effect is starting, so there is nothing left to skip to.
+			_resultEffectPending = false;
+			_outroSkipAtMs = -1L;
+			HideSkip();
 			LiveViewExt.Result(_liveViews, (int)GetLiveResultAnimationType());
 			if (waitTime > 0f)
 			{

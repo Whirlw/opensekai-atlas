@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using OpenSekai.App.Library;
 using OpenSekai.App.Playback;
 using OpenSekai.Infrastructure.Packages;
 using OpenSekai.Shared.Packages;
@@ -19,31 +20,121 @@ namespace OpenSekai.App.UI
         private readonly ILibraryView _view;
         private readonly SongPackageManager _packages;
         private readonly Func<PlayRequest, CancellationToken, Action<string>, UniTask<PlayStartResult>> _startPlay;
+        private readonly Func<IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary>> _loadHistory;
+        private readonly Action _reloadHistory;
+        private readonly LibraryLoudnessScanner _loudness;
         private readonly LibraryModel _model = new LibraryModel();
+        private IReadOnlyList<SongPackageItem> _items = Array.Empty<SongPackageItem>();
+        // The page's own copy, so a recorded run can update one package without touching the loader's.
+        private Dictionary<string, CustomMusicScorePlayHistorySummary> _history =
+            new Dictionary<string, CustomMusicScorePlayHistorySummary>(StringComparer.Ordinal);
+        private LibraryListing _listing;
+        private SongPackageItem _selected;
+        private LibraryViewMode _viewMode = LibraryViewMode.List;
         private CancellationTokenSource _playbackCts;
         private bool _isStartingPlayback;
 
+        /// <param name="view">The page to draw on.</param>
+        /// <param name="packages">The package store the library lists.</param>
+        /// <param name="startPlay">Starts a live session for a package.</param>
+        /// <param name="loadHistory">Play history per score key, as cached; defaults to the history store.</param>
+        /// <param name="reloadHistory">Rebuilds the cached history from the history file; defaults to the history store.</param>
+        /// <param name="loudness">Measures songs left without a loudness after each reload; none when null.</param>
         internal LibraryPresenter(
             ILibraryView view,
             SongPackageManager packages,
-            Func<PlayRequest, CancellationToken, Action<string>, UniTask<PlayStartResult>> startPlay)
+            Func<PlayRequest, CancellationToken, Action<string>, UniTask<PlayStartResult>> startPlay,
+            Func<IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary>> loadHistory = null,
+            Action reloadHistory = null,
+            LibraryLoudnessScanner loudness = null)
         {
             _view = view;
             _packages = packages;
             _startPlay = startPlay;
+            _loadHistory = loadHistory ?? CustomMusicScorePlayHistoryStorage.LoadSummaries;
+            _reloadHistory = reloadHistory ?? (() => CustomMusicScorePlayHistoryStorage.ReloadSummaries());
+            _loudness = loudness;
+            CustomMusicScorePlayHistoryStorage.Recorded += OnScoreRecorded;
         }
 
-        internal string SortLabel => _model.SortLabel;
-
-        internal void CycleSort()
+        /// <summary>
+        /// A run was just written: take that package's updated summary (best only replaced when the
+        /// run beat it, last-played and play count moved on) and redraw only where it shows. The
+        /// list is not reloaded or re-sorted; the next refresh puts it in order.
+        /// </summary>
+        internal void OnScoreRecorded(string scoreKey, CustomMusicScorePlayHistorySummary summary)
         {
-            _model.CycleSort();
-            _view.SetSortLabel(SortLabel);
-            Refresh();
+            if (string.IsNullOrEmpty(scoreKey) || summary == null)
+            {
+                return;
+            }
+
+            _history[scoreKey] = summary;
+            _view.RefreshScore(scoreKey);
+        }
+
+        internal void SetSort(LibrarySortKey key)
+        {
+            _model.SortKey = key;
+            Render();
+        }
+
+        internal void SetGroupMode(LibraryGroupKey key)
+        {
+            _model.SetGroupKey(key);
+            Render();
+        }
+
+        /// <summary>Narrows the list to one group; null shows every group again.</summary>
+        internal void SelectGroup(string group)
+        {
+            _model.SelectedGroup = group;
+            Render();
+        }
+
+        internal void SetSearch(string text)
+        {
+            _model.SearchText = text ?? string.Empty;
+            Render();
+        }
+
+        internal void SetViewMode(LibraryViewMode mode)
+        {
+            if (_viewMode == mode)
+            {
+                return;
+            }
+
+            _viewMode = mode;
+            Render();
+            UiSound.Play(UiCue.Select);
+        }
+
+        /// <summary>
+        /// Selects a package from a click. Every click switches at once; a preview still fading
+        /// keeps fading out under the new one.
+        /// </summary>
+        internal void Select(SongPackageItem item)
+        {
+            if (item == null || ReferenceEquals(item, _selected))
+            {
+                return;
+            }
+
+            _selected = item;
+            _view.SetSelection(item);
+            UiSound.Play(UiCue.Select);
+        }
+
+        internal void OpenActionsForSelected()
+        {
+            OpenActions(_selected);
         }
 
         public void Dispose()
         {
+            CustomMusicScorePlayHistoryStorage.Recorded -= OnScoreRecorded;
+            _loudness?.Dispose();
             _playbackCts?.Cancel();
             _playbackCts?.Dispose();
             _playbackCts = null;
@@ -67,9 +158,41 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            _view.ShowActions(LibraryModel.BuildTitle(item), () => ExportPackage(item), () => DeletePackage(item));
+            _view.ShowActions(item, () => ExportPackage(item), () => DeletePackage(item));
         }
 
+        /// <summary>
+        /// The refresh button: walks every package folder and rebuilds the score summaries from the
+        /// history file, the one way back in sync with files changed outside the app.
+        /// </summary>
+        internal void Resync()
+        {
+            if (!_view.HasList)
+            {
+                return;
+            }
+
+            try
+            {
+                _packages.RescanItems();
+                _reloadHistory();
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception);
+                _view.SetStatus("刷新失败：" + exception.Message);
+                UiSound.Play(UiCue.Error);
+                return;
+            }
+
+            Refresh();
+            if (_items.Count > 0)
+            {
+                _view.SetStatus("已重新读取曲库：" + _items.Count + " 首");
+            }
+        }
+
+        /// <summary>Redraws the page from the caches; nothing is read from disk once they are loaded.</summary>
         internal void Refresh()
         {
             if (!_view.HasList)
@@ -77,28 +200,64 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            _view.ClearRows();
-            IReadOnlyList<SongPackageItem> items;
             try
             {
-                items = _packages.LoadItems();
+                _items = _packages.LoadItems();
             }
             catch (Exception exception)
             {
                 Debug.LogException(exception);
+                _items = Array.Empty<SongPackageItem>();
+                Render();
                 _view.SetStatus("读取曲库失败：" + exception.Message);
                 return;
             }
 
-            _view.SetCount(items.Count);
-            if (items.Count == 0)
+            IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary> loaded = _loadHistory();
+            if (loaded != null)
             {
-                _view.SetStatus("还没有曲包。把曲包文件夹放到 CustomMusicScores 目录后点“刷新”。");
-                return;
+                _history = new Dictionary<string, CustomMusicScorePlayHistorySummary>(StringComparer.Ordinal);
+                foreach (KeyValuePair<string, CustomMusicScorePlayHistorySummary> pair in loaded)
+                {
+                    _history[pair.Key] = pair.Value;
+                }
+            }
+            Render();
+            _view.SetStatus(_items.Count == 0
+                ? "还没有曲包。点“导入”添加，或把曲包文件夹放到 CustomMusicScores 目录后点“刷新”。"
+                : string.Empty);
+            if (!_isStartingPlayback)
+            {
+                _loudness?.Start();
+            }
+        }
+
+        private void Render()
+        {
+            _listing = _model.Build(_items, _history);
+            _selected = KeepSelection(_listing.Items, _selected);
+            _view.Render(new LibraryViewState(_listing, _model.GroupKey, _model.SortKey, _viewMode, _selected, _history));
+        }
+
+        /// <summary>
+        /// Keeps the selected package across a reload (items are new objects each time, so it is
+        /// matched by folder) and falls back to the first row when it left the list.
+        /// </summary>
+        private static SongPackageItem KeepSelection(IReadOnlyList<SongPackageItem> items, SongPackageItem selected)
+        {
+            string directory = selected?.Entry?.RootDirectory;
+            if (directory != null)
+            {
+                for (int i = 0; i < items.Count; i++)
+                {
+                    if (string.Equals(items[i].Entry?.RootDirectory, directory, StringComparison.Ordinal))
+                    {
+                        return items[i];
+                    }
+                }
             }
 
-            _view.RenderRows(_model.Order(items), StartPlayback, OpenActions);
-            _view.SetStatus("就绪。");
+            return items.Count > 0 ? items[0] : null;
         }
 
         internal void OnResultRetry(PlayResult result)
@@ -140,11 +299,13 @@ namespace OpenSekai.App.UI
             {
                 string written = _packages.ExportZip(item.Entry, destination);
                 _view.SetStatus("已导出：" + written);
+                UiSound.Play(UiCue.Success);
             }
             catch (Exception exception)
             {
                 Debug.LogException(exception);
                 _view.SetStatus("导出失败：" + exception.Message);
+                UiSound.Play(UiCue.Error);
             }
         }
 
@@ -166,6 +327,7 @@ namespace OpenSekai.App.UI
             {
                 Debug.LogException(exception);
                 _view.SetStatus("删除失败：" + exception.Message);
+                UiSound.Play(UiCue.Error);
             }
         }
 
@@ -242,10 +404,12 @@ namespace OpenSekai.App.UI
                     : "曲包";
                 _view.SetStatus("导入成功：" + name);
                 Refresh();
+                UiSound.Play(UiCue.Success);
             }
             catch (Exception exception)
             {
                 _view.SetStatus(LibraryImport.DescribeFailure(exception));
+                UiSound.Play(UiCue.Error);
             }
         }
 
@@ -277,10 +441,13 @@ namespace OpenSekai.App.UI
             string packageDirectory, string title, bool isAuto, CancellationToken cancellationToken)
         {
             _isStartingPlayback = true;
+            // Decoding a song to measure it would compete with the live's own loading.
+            _loudness?.Stop();
+            bool started = false;
             try
             {
                 _view.SetStatus((isAuto ? "自动" : "手动") + "：" + title + " — 准备中…");
-                _view.ShowLoading(title);
+                _view.ShowLoading(title, packageDirectory);
                 PlayStartResult result = await _startPlay(
                     new PlayRequest(packageDirectory, isAuto, SceneManager.Scene.Library),
                     cancellationToken,
@@ -303,6 +470,7 @@ namespace OpenSekai.App.UI
                 {
                     // The live scene unloads this page; keep the overlay until then so the
                     // transition does not flash an empty library behind the loading screen.
+                    started = true;
                     _view.SetLoadingMessage("正在进入…");
                 }
             }
@@ -316,10 +484,15 @@ namespace OpenSekai.App.UI
                 _view.HideLoading();
                 Debug.LogException(exception);
                 _view.SetStatus("开局失败，请检查运行日志。");
+                UiSound.Play(UiCue.Error);
             }
             finally
             {
                 _isStartingPlayback = false;
+                if (!started)
+                {
+                    _loudness?.Start();
+                }
             }
         }
     }

@@ -72,6 +72,9 @@ namespace Sekai.Core.Live
 		/// <summary>A clock step longer than this (a hitch) is cut short while the clock runs on its own.</summary>
 		private const float MaxFreeClockStepSeconds = 0.1f;
 
+		/// <summary>How long the result effect stays up before the fade to the result.</summary>
+		private const float ResultEffectHoldSeconds = 4f;
+
 		/// <summary>How much longer than the start wait the info page may take before the live goes on without it.</summary>
 		private const float IntroWaitSlackSeconds = 4f;
 
@@ -83,6 +86,9 @@ namespace Sekai.Core.Live
 		protected long TimelineStartMs => (long)Math.Floor(timelineSpan.StartSeconds * 1000d);
 
 		protected long TimelineEndMs => (long)Math.Ceiling(timelineSpan.EndSeconds * 1000d);
+
+		/// <summary>When the result effect is due on the clock. See <see cref="OpenSekai.Shared.Live.Simulation.LiveTimelineSpan.ResultEffectSeconds"/>.</summary>
+		protected long ResultEffectMs => (long)Math.Ceiling(timelineSpan.ResultEffectSeconds * 1000d);
 
 		/// <summary>Where the audio file starts playing (its leading silence included).</summary>
 		protected long MusicStartMs => (long)Math.Round(timelineSpan.PlaybackStartSeconds * 1000d);
@@ -326,6 +332,26 @@ namespace Sekai.Core.Live
 		{
 		}
 
+		/// <summary>
+		/// Moves the clock forward to a music time, and the audio with it. Before the audio has started
+		/// (the run-in), the clock moves alone and the audio starts there if the clock has reached it.
+		/// </summary>
+		protected void SeekTimeline(long targetMs)
+		{
+			if (musicPhase == MusicPhase.RunIn)
+			{
+				currentMusicTimeMs = targetMs;
+				if (currentMusicTimeMs >= MusicStartMs)
+				{
+					StartMusicPlayback();
+				}
+				return;
+			}
+
+			SoundManager.Instance.SeekIngame(targetMs);
+			currentMusicTimeMs = targetMs;
+		}
+
 		/// <summary>Resumes the audio after a pause, unless the clock has not reached it yet or it is over.</summary>
 		protected void ResumeMusicPlayback()
 		{
@@ -498,9 +524,10 @@ namespace Sekai.Core.Live
 				return;
 			}
 
-			// Wait for the rest of the music's sound; the silence after it is not waited for.
-			long restMs = Math.Max(0L, MusicEndMs - currentMusicTimeMs);
-			PreExit(1f, Mathf.Max(restMs / 1000f - 1f, 4f));
+			// The result effect comes a breath after the music's sound (not the silence after it) or the
+			// last note, whichever ends last. The outro skip brings it forward.
+			long restMs = Math.Max(0L, ResultEffectMs - currentMusicTimeMs);
+			PreExit(restMs / 1000f, ResultEffectHoldSeconds);
 		}
 
 		private bool ShouldReturnCustomMusicScoreManagerAfterResult()
@@ -510,8 +537,11 @@ namespace Sekai.Core.Live
 				return false;
 			}
 
+			// The library builds every play this way too, but it returns to its own scene and wants the
+			// full ending: the result effect at the end of the music, and the outro skip.
 			return BootData is FreeLiveBootData freeLiveBootData
-				&& freeLiveBootData.ReturnScreenType == MenuScreenType.MusicScoreMakerTop;
+				&& freeLiveBootData.ReturnScreenType == MenuScreenType.MusicScoreMakerTop
+				&& freeLiveBootData.ReturnScene != SceneManager.Scene.Library;
 		}
 
 		protected virtual void OnBackKey()

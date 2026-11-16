@@ -14,6 +14,10 @@ namespace OpenSekai.Shared.Live.Simulation
 	/// The first note has to be on screen before it falls, so the chart side of the start is the first
 	/// note minus <see cref="LeadInSeconds"/>, the time a note takes to scroll down.
 	///
+	/// Both ends get a breath: whichever of the music and the first note comes first lands
+	/// <see cref="RunInSeconds"/> after the info page is gone, and the result effect comes
+	/// <see cref="RunOutSeconds"/> after whichever of the music and the last note ends last.
+	///
 	/// When the music starts <see cref="SkipMarginSeconds"/> or more before the chart, the intro can be
 	/// skipped to that margin before the first note (or the lead-in, if that is longer). When it ends that
 	/// much after the chart, the outro can be skipped straight to the result.
@@ -25,6 +29,12 @@ namespace OpenSekai.Shared.Live.Simulation
 
 		/// <summary>A skip that would move the clock less than this is not worth a button.</summary>
 		public const float MinimumSkipSeconds = 0.25f;
+
+		/// <summary>From the info page going away to the first of the music and the first note.</summary>
+		public const float RunInSeconds = 3f;
+
+		/// <summary>From the last of the music and the last note to the result effect.</summary>
+		public const float RunOutSeconds = 3f;
 
 		/// <summary>A span whose audio plays exactly over its audible part (no silence at either end).</summary>
 		public LiveTimelineSpan(float musicStartSeconds, float musicEndSeconds, float firstNoteSeconds, float lastNoteSeconds, float leadInSeconds)
@@ -69,14 +79,21 @@ namespace OpenSekai.Shared.Live.Simulation
 		public float ChartStartSeconds => HasNotes ? FirstNoteSeconds - LeadInSeconds : MusicStartSeconds;
 
 		/// <summary>
-		/// The start point: the audible music or the chart, whichever is first. Every live reaches it
-		/// the moment its info page is gone. The silence before it is not cut: the file is played from
-		/// earlier on, so that this point lands where it should (see <see cref="ClockAtIntroStart"/>).
+		/// The start point, which every live reaches the moment its info page is gone:
+		/// <see cref="RunInSeconds"/> before the audible music or the first note, whichever is first.
+		/// A lead-in longer than that moves it earlier still, so the first note always scrolls in whole.
+		/// The silence before it is not cut: the file is played from earlier on, so that this point
+		/// lands where it should (see <see cref="ClockAtIntroStart"/>).
 		/// </summary>
-		public float StartSeconds => Math.Min(MusicStartSeconds, ChartStartSeconds);
+		public float StartSeconds => HasNotes
+			? Math.Min(Math.Min(MusicStartSeconds, FirstNoteSeconds) - RunInSeconds, ChartStartSeconds)
+			: MusicStartSeconds - RunInSeconds;
 
 		/// <summary>The end point: the audible music or the chart, whichever is last.</summary>
 		public float EndSeconds => HasNotes ? Math.Max(MusicEndSeconds, LastNoteSeconds) : MusicEndSeconds;
+
+		/// <summary>When the result effect plays, unless the outro skip brings it forward.</summary>
+		public float ResultEffectSeconds => EndSeconds + RunOutSeconds;
 
 		/// <summary>
 		/// The clock when the info page goes up, given how long the page stays: the start point minus
@@ -105,6 +122,7 @@ namespace OpenSekai.Shared.Live.Simulation
 			" notes=", HasNotes ? FirstNoteSeconds.ToString("F3") + ".." + LastNoteSeconds.ToString("F3") : "none",
 			" leadIn=", LeadInSeconds.ToString("F3"),
 			" span=", StartSeconds.ToString("F3"), "..", EndSeconds.ToString("F3"),
+			" result=", ResultEffectSeconds.ToString("F3"),
 			" introSkip=", HasIntroSkip ? IntroSkipTargetSeconds.ToString("F3") : "no",
 			" outroSkip=", HasOutroSkip ? "yes" : "no");
 	}

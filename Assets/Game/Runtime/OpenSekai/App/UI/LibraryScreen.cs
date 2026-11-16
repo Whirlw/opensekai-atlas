@@ -39,7 +39,8 @@ namespace OpenSekai.App.UI
         {
             _context = context;
             _view = new LibraryView(gameObject);
-            _presenter = new LibraryPresenter(_view, context.Packages, context.Playback.StartAsync);
+            var loudness = new LibraryLoudnessScanner(context.Packages, status => _view?.SetStatus(status));
+            _presenter = new LibraryPresenter(_view, context.Packages, context.Playback.StartAsync, loudness: loudness);
             _view.BuildLayout(_presenter);
             _presenter.Refresh();
             _view.BuildPanels(_presenter);
@@ -47,10 +48,17 @@ namespace OpenSekai.App.UI
 
         private void Start() => ShowResult(PlayResultHandoff.Take());
 
+        private void OnEnable() => _view?.SetVisible(true);
+
+        private void OnDisable() => _view?.SetVisible(false);
+
+        private void OnApplicationPause(bool paused) => _view?.SetApplicationPaused(paused);
+
         private void OnDestroy()
         {
             LibraryPageRegistry.Unregister(this);
             _presenter?.Dispose();
+            _view?.Dispose();
             _context = null;
         }
     }

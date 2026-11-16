@@ -14,7 +14,7 @@
 | OpenSekai.Core | `Assets/Game/Runtime/OpenSekai.Core/` | 输入时钟、判定、计分、设置数据、谱面 JSON 与曲包清单、SUS 解析与时间轴（纯阶段） |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/` | 组合根 `AppContext`：装配曲库页需要的 `SongPackageManager` 与 `PlayService`，由 `LibraryEntryPoint` 创建并交给 `LibraryScreen` |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/Bootstrap/` | `LibraryEntryPoint` 装配曲库入口 |
-| OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/UI/` | `LibraryScreen` 和导入、设置、结算面板 |
+| OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/UI/` | `LibraryScreen` 和导入、设置、结算面板；曲库页的基础件：`LibraryTheme`（颜色、尺寸、动画时长的设计 token）、`VirtualListView`/`VirtualListLayout`（只实例化可见单元的回收列表，支持单列与多列）、`JacketThumbnails`（封面缩略图：256px 落盘缓存、后台线程读盘与缩放、`LruCache` 限制内存） |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/Playback/` | `PlayService` 和 `LegacyLiveBootAdapter` 装配开局数据；`IPlayBootPublisher`/`IPlaySurface`/`IPackageAudioRegistrar`/`ILiveDeckSelection` 四个端口及其 `LegacyPlayPorts` 兼容实现（App 里唯一读 `UserDataManager` 的地方） |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/Library/` | 玩家曲库的存储与端口实现：`CustomMusicScoreEntry`/`CustomMusicScoreStorage`（`SongPackageStorage` 之上的入口包装）、`CustomMusicScorePlayHistoryStorage`（播放历史 JSONL 的读写与记录模型）、`CustomScorePlayHistoryRecorder`（实现 Game 的 `IPlayHistoryRecorder`） |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/Charts/` | `ChartTimeline` 和 `RuntimeChartDefinition` |

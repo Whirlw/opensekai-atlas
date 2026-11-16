@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Beebyte.Obfuscator;
-using DG.Tweening;
+using LitMotion;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -151,7 +151,7 @@ namespace Sekai
 		[SerializeField]
 		protected bool syncGameTime;
 
-		protected Tweener tweener;
+		private MotionHandle _motion;
 
 		protected ITweenTargetComponent tweenTarget;
 
@@ -301,13 +301,12 @@ namespace Sekai
 		{
 			get
 			{
-				return tweener != null && tweener.IsActive();
+				return _motion.IsActive();
 			}
 		}
 
 		protected virtual void Awake()
 		{
-			tweener = null;
 			if (onFinished == null)
 			{
 				onFinished = new TweenEvent();
@@ -418,25 +417,31 @@ namespace Sekai
 
 		public virtual void Pause()
 		{
-			if (tweener != null && tweener.IsActive())
+			if (_motion.IsActive())
 			{
-				tweener.Pause();
+				_motion.PlaybackSpeed = 0f;
 			}
 		}
 
 		public virtual void Resume()
 		{
-			if (tweener != null)
+			if (_motion.IsActive())
 			{
-				tweener.Play();
+				_motion.PlaybackSpeed = 1f;
 			}
 		}
 
 		public virtual void Restart()
 		{
-			if (tweener != null)
+			if (_motion.IsActive())
 			{
-				tweener.Restart(true);
+				_motion.PlaybackSpeed = 1f;
+				if (_motion.Delay > 0f && _motion.Duration > 0f)
+				{
+					// Apply the first frame before rewinding to the start of the delay.
+					_motion.Time = _motion.Delay;
+				}
+				_motion.Time = 0d;
 			}
 		}
 
@@ -446,35 +451,28 @@ namespace Sekai
 			onFinished?.Invoke(this);
 		}
 
-		protected void SetTweenOptionCommon()
+		protected void PlayMotion<TValue, TOptions, TAdapter>(MotionBuilder<TValue, TOptions, TAdapter> builder,
+			Action<TValue, TweenBase> update)
+			where TValue : unmanaged
+			where TOptions : unmanaged, IMotionOptions
+			where TAdapter : unmanaged, IMotionAdapter<TValue, TOptions>
 		{
-			if (tweener == null)
-			{
-				return;
-			}
-			int loops = loopCount <= 0 ? -1 : loopCount;
-			LoopType dotweenLoopType = LoopType.Restart;
-			if (loopType == PlayLoopType.Once)
-			{
-				loops = 1;
-			}
-			else if (loopType == PlayLoopType.PingPong)
-			{
-				dotweenLoopType = LoopType.Yoyo;
-			}
-			if (curve != null)
-			{
-				tweener.SetEase(curve);
-			}
-			tweener.SetDelay(delay);
-			tweener.SetLoops(loops, dotweenLoopType);
-			tweener.OnComplete(OnTweenComplete);
+			_motion.TryCancel();
+			int loops = loopType == PlayLoopType.Once ? 1 : loopCount <= 0 ? -1 : loopCount;
+			LoopType mode = loopType == PlayLoopType.PingPong ? LoopType.Yoyo : LoopType.Restart;
+			builder = curve != null ? builder.WithEase(curve) : builder.WithEase(Ease.OutQuad);
+			_motion = builder
+				.WithDelay(Mathf.Max(0f, delay))
+				.WithLoops(loops, mode)
+				.WithOnComplete(OnTweenComplete)
+				.WithImmediateBind(false)
+				.Bind(this, update);
 			SyncGameTime();
 		}
 
 		protected void SyncGameTime()
 		{
-			if (!syncGameTime || tweener == null || duration <= 0f)
+			if (!syncGameTime || !_motion.IsActive() || duration <= 0f)
 			{
 				return;
 			}
@@ -484,16 +482,13 @@ namespace Sekai
 			{
 				elapsed = Mathf.Repeat(Time.realtimeSinceStartup, duration);
 			}
-			tweener.Goto(elapsed, true);
+			_motion.Time = _motion.Delay + elapsed;
 		}
 
 		protected virtual void KillTween()
 		{
-			if (tweener != null)
-			{
-				tweener.Kill(false);
-				tweener = null;
-			}
+			_motion.TryCancel();
+			_motion = default;
 			if (referenceCoroutine != null)
 			{
 				StopCoroutine(referenceCoroutine);
@@ -542,7 +537,7 @@ namespace Sekai
 
 		private void OnTweenComplete()
 		{
-			tweener = null;
+			_motion = default;
 			onFinished?.Invoke(this);
 		}
 	}
