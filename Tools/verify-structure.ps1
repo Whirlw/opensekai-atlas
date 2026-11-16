@@ -282,6 +282,7 @@ $resourcesAllowlist = @{
     'Assets/Game/Runtime/OpenSekai.Game/Data/WordingManager.cs' = 'wording table path'
     'Assets/Game/Runtime/OpenSekai.Game/UI/UIAtlasImageLoader.cs' = 'atlas and sprite names'
     'Assets/Game/Runtime/OpenSekai.Game/Rendering/CameraUtility.cs' = 'camera prefab by path'
+    'Assets/Game/Runtime/OpenSekai/App/UI/UiSound.cs' = 'interface sound clip named by its cue'
 }
 $resourcesOffenders = [System.Collections.Generic.List[string]]::new()
 $runtimeRoot = Join-Path $root 'Assets/Game'

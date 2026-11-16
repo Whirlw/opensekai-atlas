@@ -81,6 +81,10 @@ namespace Sekai
 		public static readonly ResourceEntry<Font> BoldTtfFont =
 			new ResourceEntry<Font>("Fonts/SourceHanSansSC-Bold");
 
+		/// <summary>Barlow Condensed for the library's numbers and chips.</summary>
+		public static readonly ResourceEntry<Font> CondensedTtfFont =
+			new ResourceEntry<Font>("Fonts/BarlowCondensed-SemiBold");
+
 		// ---- fixed configuration -----------------------------------------------------------------
 
 		/// <summary>The live bundle config that lane offsets, note speeds and SE volume read from.</summary>

@@ -26,7 +26,7 @@ namespace OpenSekai.App.UI
         {
             if (_condensedFontAsset == null)
             {
-                Font font = Resources.Load<Font>("Fonts/BarlowCondensed-SemiBold");
+                Font font = ResourceCatalog.CondensedTtfFont.Load();
                 if (font != null)
                 {
                     _condensedFontAsset = TMP_FontAsset.CreateFontAsset(font);
