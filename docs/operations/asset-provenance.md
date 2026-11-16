@@ -4,7 +4,7 @@
 
 > 目的：登记仓库里每一类素材的来源与许可，发布任何二进制之前用它确认仓库不含无授权素材。代码是 MIT，字体是 OFL，其余贴图与音效必须是自制、CC0 或买断授权。每次增删素材都更新这里，数字用文末命令重新生成，不要凭记忆写。
 >
-> **现状（2026-11-15，0.4.0）**：代码 MIT、字体 OFL，音频 / 音符皮肤 / HUD / 判定特效 / 背景均为自制或 CC0。`Tools/audit-audio-provenance.ps1` 输出 `AUDIT OK`。
+> **现状（2026-11-16，0.5.0）**：代码 MIT、字体 OFL，音频 / 界面音效 / 音符皮肤 / HUD / 判定特效 / 背景均为自制或 CC0。`Tools/audit-audio-provenance.ps1` 输出 `AUDIT OK`。
 
 ## 判定口径
 
@@ -23,6 +23,7 @@
 | 音符皮肤 custom02 | `Assets/Game/Resources/live/note/custom02` | 89 | 1.36 MB | 自制（画包 `new_notes_v2`） | 现行 |
 | 判定 / 演出音 | `Assets/StreamingAssets/sound` | 42 | 2.99 MB | 自制 CC0-1.0 wav | 现行 |
 | CRI 音频负载 | 全仓 | 0 | 0 | 已删除 | 已删 |
+| 界面音效 zen | `Assets/Game/Resources/UiSound/Zen` | 19 | 0.07 MB | CC0-1.0，uisfx「zen」包（github.com/romainsimon/uisfx），许可见同目录 `LICENSE-AUDIO.txt` | 现行 |
 | live 背景 2dmode | `Assets/Game/AssetBundles/resources/startapp/live/2dmode` | 2 | 2.72 MB | 自制（画包 `new_backgrounds`） | 现行 |
 | 加载背景 longLoading | `Assets/Graphics/Resources/loading` | 0 | 0 | 已删除（页面不存在） | 已删 |
 | HUD / UI 大图 | `Assets/Graphics/Resources/screen` | 8 | 6.01 MB | 自制 | 现行 |
@@ -30,7 +31,7 @@
 | live UI 预制 | `Assets/Graphics/Resources/live` | 10 | 3.82 MB | 自制（画包 `new_effects`） | 现行 |
 | HUD sprite | `Assets/Graphics/Sprites` | 176 | 1.04 MB | 自制（画包 `new_hud` + 程序化替身） | 现行 |
 | 图集精灵 | `Assets/Graphics/Textures/sactx-*.png` | 153 | 5.2 MB | 自制 / CC0 | 现行 |
-| 字体 | `Assets/Game/Resources/Fonts` | 4 | 33.32 MB | OFL | 保留 |
+| 字体 | `Assets/Game/Resources/Fonts` | 5 | 32.07 MB | OFL（思源黑体 SC；Barlow Condensed SemiBold，许可见 `BarlowCondensed-OFL.txt`） | 保留 |
 | 代码 | `Assets/Game/Runtime` | 796 | 2.12 MB | MIT | 保留 |
 
 字体 33 MB 与代码 2 MB 按许可保留；其余素材均为自制或 CC0。
