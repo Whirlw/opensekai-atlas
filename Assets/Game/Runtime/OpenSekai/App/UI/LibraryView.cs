@@ -237,6 +237,35 @@ namespace OpenSekai.App.UI
             ShowDetail();
         }
 
+        public void RefreshScore(string scoreKey)
+        {
+            if (_state == null || string.IsNullOrEmpty(scoreKey))
+            {
+                return;
+            }
+
+            VirtualListView list = ActiveList;
+            for (int i = 0; i < _items.Count; i++)
+            {
+                SongPackageItem item = _items[i];
+                if (!string.Equals(item.ScoreKey, scoreKey, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                RectTransform root = list.CellAt(i);
+                if (root != null && _cells.TryGetValue(root, out LibraryCell cell))
+                {
+                    cell.UpdateScore(LibraryModel.SummaryOf(item, _state.History));
+                }
+            }
+
+            if (_selected != null && string.Equals(_selected.ScoreKey, scoreKey, StringComparison.Ordinal))
+            {
+                _detail.ShowScore(_selected, LibraryModel.SummaryOf(_selected, _state.History));
+            }
+        }
+
         public void SetSelection(SongPackageItem selected)
         {
             SongPackageItem previous = _selected;

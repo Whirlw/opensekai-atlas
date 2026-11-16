@@ -6,6 +6,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Newtonsoft.Json;
 using NUnit.Framework;
+using OpenSekai.App.Library;
 using OpenSekai.App.Playback;
 using OpenSekai.App.UI;
 using OpenSekai.Infrastructure.Packages;
@@ -113,6 +114,39 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(_view.Items.Single().HasAudio, Is.True);
         }
 
+        [Test]
+        public void ARecordedRunUpdatesOnlyThatPackageWithoutReloadingHistory()
+        {
+            AddPackage("alpha", "Alpha", 1);
+            AddPackage("zeta", "Zeta", 9);
+            int loads = 0;
+            var presenter = new LibraryPresenter(_view, _packages, StartPlayback, () =>
+            {
+                loads++;
+                return new Dictionary<string, CustomMusicScorePlayHistorySummary>();
+            });
+            try
+            {
+                presenter.Refresh();
+                SongPackageItem alpha = _view.Items.Single(item => item.Entry.Manifest.id == "alpha");
+                SongPackageItem zeta = _view.Items.Single(item => item.Entry.Manifest.id == "zeta");
+                var summaries = new Dictionary<string, CustomMusicScorePlayHistorySummary>(StringComparer.Ordinal);
+                CustomMusicScorePlayHistorySummary summary = CustomMusicScorePlayHistoryStorage.Fold(summaries,
+                    new CustomMusicScorePlayHistoryRecord { scoreKey = zeta.ScoreKey, totalScore = 500, playedAtUtc = "2026-11-16T00:00:00Z" });
+
+                presenter.OnScoreRecorded(zeta.ScoreKey, summary);
+
+                Assert.That(loads, Is.EqualTo(1), "the history is not loaded again");
+                Assert.That(_view.RefreshedScores, Is.EqualTo(new[] { zeta.ScoreKey }));
+                Assert.That(LibraryModel.SummaryOf(zeta, _view.State.History).Best.totalScore, Is.EqualTo(500));
+                Assert.That(LibraryModel.SummaryOf(alpha, _view.State.History), Is.Null);
+            }
+            finally
+            {
+                presenter.Dispose();
+            }
+        }
+
         private string AddPackage(string id, string title, int level, DateTimeOffset? importedAt = null)
         {
             string folder = Path.Combine(_packages.RootDirectory, id);
@@ -148,6 +182,8 @@ namespace OpenSekai.Tests.EditMode
             public void HideLoading() => Loading = false;
             public void SetLoadingMessage(string message) => LoadingMessage = message;
             public void ShowActions(string title, Action export, Action delete) { }
+            internal List<string> RefreshedScores { get; } = new List<string>();
+            public void RefreshScore(string scoreKey) => RefreshedScores.Add(scoreKey);
 
             public void Render(LibraryViewState state)
             {

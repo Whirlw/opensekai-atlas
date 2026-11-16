@@ -46,6 +46,9 @@ namespace OpenSekai.App.UI
         /// <summary>Moves the selection inside the list that is already on screen.</summary>
         void SetSelection(SongPackageItem selected);
 
+        /// <summary>Redraws the visible cells and the detail side of the package with this score key.</summary>
+        void RefreshScore(string scoreKey);
+
         void SetStatus(string message);
         void ShowSettings();
         void ShowResult(PlayResult result);

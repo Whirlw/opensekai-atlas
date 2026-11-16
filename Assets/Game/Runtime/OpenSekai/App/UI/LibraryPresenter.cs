@@ -23,8 +23,9 @@ namespace OpenSekai.App.UI
         private readonly Func<IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary>> _loadHistory;
         private readonly LibraryModel _model = new LibraryModel();
         private IReadOnlyList<SongPackageItem> _items = Array.Empty<SongPackageItem>();
-        private IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary> _history =
-            new Dictionary<string, CustomMusicScorePlayHistorySummary>();
+        // The page's own copy, so a recorded run can update one package without touching the loader's.
+        private Dictionary<string, CustomMusicScorePlayHistorySummary> _history =
+            new Dictionary<string, CustomMusicScorePlayHistorySummary>(StringComparer.Ordinal);
         private LibraryListing _listing;
         private SongPackageItem _selected;
         private LibraryViewMode _viewMode = LibraryViewMode.List;
@@ -45,6 +46,23 @@ namespace OpenSekai.App.UI
             _packages = packages;
             _startPlay = startPlay;
             _loadHistory = loadHistory ?? CustomMusicScorePlayHistoryStorage.LoadSummaries;
+            CustomMusicScorePlayHistoryStorage.Recorded += OnScoreRecorded;
+        }
+
+        /// <summary>
+        /// A run was just written: take that package's updated summary (best only replaced when the
+        /// run beat it, last-played and play count moved on) and redraw only where it shows. The
+        /// list is not reloaded or re-sorted; the next refresh puts it in order.
+        /// </summary>
+        internal void OnScoreRecorded(string scoreKey, CustomMusicScorePlayHistorySummary summary)
+        {
+            if (string.IsNullOrEmpty(scoreKey) || summary == null)
+            {
+                return;
+            }
+
+            _history[scoreKey] = summary;
+            _view.RefreshScore(scoreKey);
         }
 
         internal void SetSort(LibrarySortKey key)
@@ -101,6 +119,7 @@ namespace OpenSekai.App.UI
 
         public void Dispose()
         {
+            CustomMusicScorePlayHistoryStorage.Recorded -= OnScoreRecorded;
             _playbackCts?.Cancel();
             _playbackCts?.Dispose();
             _playbackCts = null;
@@ -147,7 +166,15 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            _history = _loadHistory() ?? _history;
+            IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary> loaded = _loadHistory();
+            if (loaded != null)
+            {
+                _history = new Dictionary<string, CustomMusicScorePlayHistorySummary>(StringComparer.Ordinal);
+                foreach (KeyValuePair<string, CustomMusicScorePlayHistorySummary> pair in loaded)
+                {
+                    _history[pair.Key] = pair.Value;
+                }
+            }
             Render();
             _view.SetStatus(_items.Count == 0
                 ? "还没有曲包。点“导入”添加，或把曲包文件夹放到 CustomMusicScores 目录后点“刷新”。"

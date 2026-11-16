@@ -83,6 +83,15 @@ namespace OpenSekai.App.UI
             LoadCoverAsync(thumbnails, jacketPath, version, _coverLoad.Token).Forget();
         }
 
+        /// <summary>Redraws the labels for a new play-history summary; the cover and motion are left alone.</summary>
+        internal void UpdateScore(CustomMusicScorePlayHistorySummary summary)
+        {
+            if (Item != null)
+            {
+                OnBind(Item, summary);
+            }
+        }
+
         internal void SetSelected(bool selected, bool animate)
         {
             if (Selected == selected)

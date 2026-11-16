@@ -326,6 +326,47 @@ namespace OpenSekai.App.UI
             _credits[1].text = OrDash(manifest?.composer);
             _credits[2].text = OrDash(manifest?.userName);
 
+            ShowScore(item, summary);
+
+            _startButton.interactable = _playable;
+            string unavailableReason = item.StatusText == "缺少音频" ? "缺少音频文件" : item.StatusText;
+            _startLabel.text = _playable ? "开始演奏" : "无法演奏 · " + unavailableReason;
+            _startLabel.fontSize = _playable ? 28f : 24f;
+            LibraryWidgets.Inset(_startLabel.rectTransform, _playable ? 40f : 0f, 0f, 0f, 0f);
+            _startIcon.enabled = _playable;
+            ApplyAccent();
+
+            _showMotion.TryCancel();
+            _showMotion = default;
+            _contentGroup.alpha = 1f;
+            _coverFrame.localScale = Vector3.one;
+            if (animate)
+            {
+                _contentGroup.alpha = 0.3f;
+                _coverFrame.localScale = new Vector3(0.96f, 0.96f, 1f);
+                _showMotion = LSequence.Create()
+                    .Append(LMotion.Create(_contentGroup.alpha, 1f, LibraryTheme.Motion.STANDARD)
+                        .WithEase(LibraryTheme.Motion.FADE_EASE)
+                        .BindToAlpha(_contentGroup))
+                    .Join(LMotion.Create(_coverFrame.localScale, Vector3.one, LibraryTheme.Motion.STANDARD)
+                        .WithEase(LibraryTheme.Motion.SELECT_EASE)
+                        .BindToLocalScale(_coverFrame))
+                    .Run();
+            }
+        }
+
+        /// <summary>
+        /// Redraws only the play-history part (length, best run, clear state, last played) of the
+        /// package already shown: the cover, labels and motion stay as they are.
+        /// </summary>
+        internal void ShowScore(SongPackageItem item, CustomMusicScorePlayHistorySummary summary)
+        {
+            if (item == null)
+            {
+                return;
+            }
+
+            SongPackageManifest manifest = item.Entry?.Manifest;
             CustomMusicScorePlayHistoryRecord best = summary?.Best;
             long knownLength = best?.musicLengthMs ?? 0L;
             if (knownLength <= 0 && item.HasAudio && manifest != null)
@@ -352,36 +393,11 @@ namespace OpenSekai.App.UI
             }
             else
             {
-                _noRecordTitle.text = _playable ? "还没有游玩记录" : "曲包不完整";
-                _noRecordBody.text = _playable
+                bool playable = LibraryModel.IsPlayable(item);
+                _noRecordTitle.text = playable ? "还没有游玩记录" : "曲包不完整";
+                _noRecordBody.text = playable
                     ? "完成一次演奏后，这里会显示最佳成绩、判定分布和最大连击。"
                     : item.StatusText + "。重新导入完整的曲包后即可演奏。";
-            }
-
-            _startButton.interactable = _playable;
-            string unavailableReason = item.StatusText == "缺少音频" ? "缺少音频文件" : item.StatusText;
-            _startLabel.text = _playable ? "开始演奏" : "无法演奏 · " + unavailableReason;
-            _startLabel.fontSize = _playable ? 28f : 24f;
-            LibraryWidgets.Inset(_startLabel.rectTransform, _playable ? 40f : 0f, 0f, 0f, 0f);
-            _startIcon.enabled = _playable;
-            ApplyAccent();
-
-            _showMotion.TryCancel();
-            _showMotion = default;
-            _contentGroup.alpha = 1f;
-            _coverFrame.localScale = Vector3.one;
-            if (animate)
-            {
-                _contentGroup.alpha = 0.3f;
-                _coverFrame.localScale = new Vector3(0.96f, 0.96f, 1f);
-                _showMotion = LSequence.Create()
-                    .Append(LMotion.Create(_contentGroup.alpha, 1f, LibraryTheme.Motion.STANDARD)
-                        .WithEase(LibraryTheme.Motion.FADE_EASE)
-                        .BindToAlpha(_contentGroup))
-                    .Join(LMotion.Create(_coverFrame.localScale, Vector3.one, LibraryTheme.Motion.STANDARD)
-                        .WithEase(LibraryTheme.Motion.SELECT_EASE)
-                        .BindToLocalScale(_coverFrame))
-                    .Run();
             }
         }
 
