@@ -155,6 +155,9 @@ namespace Sekai.Live
 		/// </summary>
 		public float PlayDurationSeconds => START_DELAY + Mathf.Max(0f, JacketFadeOutDelaySec) + FADE_OUT_DURATION;
 
+		/// <summary>Set after the first Play; a retry on the same view opens the page again with its fade-in.</summary>
+		private bool _hasPlayed;
+
 		/// <summary>The jacket the page shows; null when the song has none. Reused by the pause card.</summary>
 		public Texture2D JacketTexture { get; private set; }
 
@@ -369,6 +372,11 @@ namespace Sekai.Live
 		/// <param name="onFinishViewGroupFade">Called once the band has faded in.</param>
 		public void Play(float durationScale = 1f, bool disableOnlyJacketOnFinish = false, float bgFadeoutDuration = 0f, Action onFinish = null, Action onFinishViewGroupFade = null)
 		{
+			// The first time the page comes up it is already there under the library's loading
+			// screen, which fades out over it; a page fading in at the same moment flashes the live
+			// through both. Only a retry, which has nothing covering it, opens the page.
+			bool opensPage = _hasPlayed;
+			_hasPlayed = true;
 			CancelAnimation();
 			if (!_playStartEffectEnabled)
 			{
@@ -431,13 +439,27 @@ namespace Sekai.Live
 
 			float pageExit = disableOnlyJacketOnFinish ? float.PositiveInfinity : exitAt;
 			float contentExit = disableOnlyJacketOnFinish ? exitAt : float.PositiveInfinity;
-			if (_viewGroup != null)
+			if (!opensPage)
 			{
-				Track(t0, VIEW_FADE_IN_DURATION * s, Ease.OutQuad, p => _viewGroup.alpha = p, pageExit);
+				if (_viewGroup != null)
+				{
+					_viewGroup.alpha = 1f;
+				}
+				if (_band != null)
+				{
+					SetScaleY(_band, 1f);
+				}
 			}
-			if (_band != null)
+			else
 			{
-				Track(t0, 0.38f * s, Ease.OutCubic, p => SetScaleY(_band, p), pageExit);
+				if (_viewGroup != null)
+				{
+					Track(t0, VIEW_FADE_IN_DURATION * s, Ease.OutQuad, p => _viewGroup.alpha = p, pageExit);
+				}
+				if (_band != null)
+				{
+					Track(t0, 0.38f * s, Ease.OutCubic, p => SetScaleY(_band, p), pageExit);
+				}
 			}
 			if (_bandEdges != null)
 			{

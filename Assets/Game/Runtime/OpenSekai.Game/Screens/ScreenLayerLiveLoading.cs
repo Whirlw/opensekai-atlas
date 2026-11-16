@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using LitMotion;
 using LitMotion.Extensions;
+using OpenSekai.Shared.UI;
 using Sekai.UI;
 using UnityEngine;
 
@@ -40,6 +41,27 @@ namespace Sekai
 		protected override void OnInitComponent()
 		{
 			base.OnInitComponent();
+
+			// From the library, its loading screen already covers the page and stays up into the
+			// live scene: the white-out and the transitioner would only add a blank flash and time.
+			if (LiveEntryCurtain.IsHeld)
+			{
+				_transitionStarted = true;
+				if (_frontGroup != null)
+				{
+					_frontGroup.alpha = 0f;
+				}
+				if (_whiteOutImage != null)
+				{
+					_whiteOutImage.gameObject.SetActive(false);
+				}
+				if (_gaugeAnimation != null)
+				{
+					_gaugeAnimation.gameObject.SetActive(false);
+				}
+				LiveEntryCurtain.WhenCovered(OnFinishTransitionFadeOut);
+				return;
+			}
 
 			if (_frontGroup != null)
 			{

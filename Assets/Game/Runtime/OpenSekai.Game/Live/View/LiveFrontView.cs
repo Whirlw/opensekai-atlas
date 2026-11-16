@@ -1,3 +1,4 @@
+using OpenSekai.Shared.UI;
 using OpenSekai.Shared.Settings;
 using System;
 using System.Collections.Generic;
@@ -167,6 +168,7 @@ namespace Sekai.Live
 			{
 				_introFinished = true;
 				// Skip mode: immediately disable MusicInfoView and set brightness
+				LiveEntryCurtain.Release();
 				MusicInfoView musicInfoView = ResolveMusicInfo();
 				if (musicInfoView != null)
 				{
@@ -182,6 +184,8 @@ namespace Sekai.Live
 				_musicStartMotion = LiveMotion.Delay(MusicInfoStartDelaySeconds, () =>
 				{
 					MusicInfoView info = ResolveMusicInfo();
+					// The library's loading screen fades out as the page fades in over it.
+					LiveEntryCurtain.Release();
 					if (info == null)
 					{
 						_introFinished = true;
@@ -197,6 +201,7 @@ namespace Sekai.Live
 			}
 
 			// Without the start effect the page is switched off straight away and never calls back.
+			LiveEntryCurtain.Release();
 			ResolveMusicInfo()?.Play(1f, false, 0f, null, null);
 			_introFinished = true;
 			SetBackgroundBrightness(GetTargetBackgroundBrightness());
