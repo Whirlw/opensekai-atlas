@@ -64,10 +64,11 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>Pill-shaped button with a centered label and press feedback.</summary>
+        /// <param name="sound">Played on click after <paramref name="onClick"/>; None when the handler picks its own.</param>
         internal static Button PillButton(
             string name, Transform parent, string label, UnityAction onClick, float width, float height,
             Color32 background, Color32 foreground, float fontSize = LibraryTheme.FontSize.BODY,
-            FontStyles style = FontStyles.Normal)
+            FontStyles style = FontStyles.Normal, UiCue sound = UiCue.Press)
         {
             Image image = Panel(name, parent, height * 0.5f, background);
             image.raycastTarget = true;
@@ -80,6 +81,7 @@ namespace OpenSekai.App.UI
             {
                 button.onClick.AddListener(onClick);
             }
+            UiSound.Bind(button, sound);
 
             TextMeshProUGUI text = Label("Label", image.transform, label, fontSize, foreground, style, TextAlignmentOptions.Center);
             LibraryUi.Stretch(text.rectTransform);

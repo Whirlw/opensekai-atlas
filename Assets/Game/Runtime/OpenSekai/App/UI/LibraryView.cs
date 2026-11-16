@@ -577,14 +577,16 @@ namespace OpenSekai.App.UI
 
             // Right-aligned actions, laid out from the edge inward.
             float right = 0f;
-            right = AddBarButton(bar, "Settings", LibraryIcon.Settings, _presenter.OpenSettings, right);
+            // Settings opens a modal, which plays its own open sound.
+            right = AddBarButton(bar, "Settings", LibraryIcon.Settings, _presenter.OpenSettings, right, UiCue.None);
             right = AddBarButton(bar, "Refresh", LibraryIcon.Refresh, _presenter.Resync, right);
 
             const float importWidth = 140f;
             bool canPickFolder = LibraryImport.SupportsFolderPick;
             Button import = LibraryWidgets.PillButton("Import", bar, "导入",
                 canPickFolder ? null : _presenter.ImportZip, importWidth, height,
-                new Color32(255, 255, 255, 26), LibraryTheme.Colors.TextPrimary);
+                new Color32(255, 255, 255, 26), LibraryTheme.Colors.TextPrimary,
+                sound: canPickFolder ? UiCue.None : UiCue.Press);
             LibraryWidgets.Place((RectTransform)import.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
                 new Vector2(-right, 0f), new Vector2(importWidth, height));
             LibraryWidgets.Inset(import.GetComponentInChildren<TextMeshProUGUI>().rectTransform, 32f, 0f, 0f, 0f);
@@ -616,10 +618,11 @@ namespace OpenSekai.App.UI
         }
 
         private static float AddBarButton(
-            RectTransform bar, string name, LibraryIcon icon, UnityEngine.Events.UnityAction onClick, float right)
+            RectTransform bar, string name, LibraryIcon icon, UnityEngine.Events.UnityAction onClick, float right,
+            UiCue sound = UiCue.Press)
         {
             float height = LibraryTheme.Layout.CONTROL_HEIGHT;
-            Button button = CreateBarIconButton(bar, name, icon, onClick, LibraryTheme.Colors.TextSecondary);
+            Button button = CreateBarIconButton(bar, name, icon, onClick, LibraryTheme.Colors.TextSecondary, sound);
             LibraryWidgets.Place(
                 (RectTransform)button.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
                 new Vector2(-right, 0f), new Vector2(height, height));
@@ -627,11 +630,12 @@ namespace OpenSekai.App.UI
         }
 
         private static Button CreateBarIconButton(
-            Transform parent, string name, LibraryIcon icon, UnityEngine.Events.UnityAction onClick, Color32 color)
+            Transform parent, string name, LibraryIcon icon, UnityEngine.Events.UnityAction onClick, Color32 color,
+            UiCue sound = UiCue.Press)
         {
             float size = LibraryTheme.Layout.CONTROL_HEIGHT;
             Button button = LibraryWidgets.PillButton(
-                name, parent, string.Empty, onClick, size, size, LibraryTheme.Colors.Control, color);
+                name, parent, string.Empty, onClick, size, size, LibraryTheme.Colors.Control, color, sound: sound);
             LibraryWidgets.Icon(button.transform, icon, color, 28f);
             return button;
         }
@@ -704,14 +708,16 @@ namespace OpenSekai.App.UI
             LibraryWidgets.Outline(toggle, height * 0.5f);
             _listModeButton = LibraryWidgets.PillButton(
                 "List", toggle.transform, string.Empty, () => _presenter.SetViewMode(LibraryViewMode.List), modeWidth, height - 8f,
-                LibraryTheme.Colors.TextPrimary, LibraryTheme.Colors.TextOnAccent, LibraryTheme.FontSize.CAPTION, FontStyles.Bold);
+                LibraryTheme.Colors.TextPrimary, LibraryTheme.Colors.TextOnAccent, LibraryTheme.FontSize.CAPTION, FontStyles.Bold,
+                UiCue.None);
             _listModeIcon = LibraryWidgets.Icon(_listModeButton.transform, LibraryIcon.List, LibraryTheme.Colors.TextOnAccent, 28f);
             LibraryWidgets.Place(
                 (RectTransform)_listModeButton.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
                 new Vector2(4f, 0f), new Vector2(modeWidth, height - 8f));
             _gridModeButton = LibraryWidgets.PillButton(
                 "Grid", toggle.transform, string.Empty, () => _presenter.SetViewMode(LibraryViewMode.Grid), modeWidth, height - 8f,
-                LibraryTheme.Colors.TextPrimary, LibraryTheme.Colors.TextOnAccent, LibraryTheme.FontSize.CAPTION, FontStyles.Bold);
+                LibraryTheme.Colors.TextPrimary, LibraryTheme.Colors.TextOnAccent, LibraryTheme.FontSize.CAPTION, FontStyles.Bold,
+                UiCue.None);
             _gridModeIcon = LibraryWidgets.Icon(_gridModeButton.transform, LibraryIcon.Grid, LibraryTheme.Colors.TextSecondary, 28f);
             LibraryWidgets.Place(
                 (RectTransform)_gridModeButton.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),

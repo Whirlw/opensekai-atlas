@@ -46,6 +46,7 @@ namespace OpenSekai.App.UI
                 scrimButton.transition = Selectable.Transition.None;
                 scrimButton.targetGraphic = scrim;
                 scrimButton.onClick.AddListener(() => onClose());
+                UiSound.Bind(scrimButton, UiCue.Close);
             }
 
             // The card is a fixed size but never taller than the screen minus a margin.
@@ -86,7 +87,7 @@ namespace OpenSekai.App.UI
                 const float closeSize = 64f;
                 CloseButton = LibraryWidgets.PillButton(
                     "Close", _card, string.Empty, () => onClose(), closeSize, closeSize,
-                    LibraryTheme.Colors.Control, LibraryTheme.Colors.TextSecondary);
+                    LibraryTheme.Colors.Control, LibraryTheme.Colors.TextSecondary, sound: UiCue.Close);
                 LibraryWidgets.Icon(CloseButton.transform, LibraryIcon.Close, LibraryTheme.Colors.TextSecondary, 26f);
                 LibraryWidgets.Place(
                     (RectTransform)CloseButton.transform, new Vector2(1f, 1f), new Vector2(1f, 0.5f),
@@ -99,8 +100,10 @@ namespace OpenSekai.App.UI
 
         internal bool IsOpen => Root.gameObject.activeSelf;
 
-        internal void Open()
+        /// <param name="sound">Played as the card springs in.</param>
+        internal void Open(UiCue sound = UiCue.Open)
         {
+            UiSound.Play(sound);
             Root.gameObject.SetActive(true);
             Root.SetAsLastSibling();
 

@@ -154,7 +154,7 @@ namespace OpenSekai.App.UI
 
             // Right column: sound, appearance, developer.
             top = 0f;
-            LibrarySettingRows.Section sound = _rows.AddSection(content, "声音", 2, rightStart, 0f, top);
+            LibrarySettingRows.Section sound = _rows.AddSection(content, "声音", 3, rightStart, 0f, top);
             _rows.AddStepper(sound, "音乐音量",
                 () => _localSettings.LiveVolume.Bgm,
                 value => { _localSettings.LiveVolume.Bgm = value; SaveLocal(); },
@@ -163,7 +163,12 @@ namespace OpenSekai.App.UI
                 () => _localSettings.LiveVolume.Se,
                 value => { _localSettings.LiveVolume.Se = value; SaveLocal(); },
                 0f, 1f, 0.1f, "0.0", Percent);
-            top += LibrarySettingRows.SectionHeight(2) + gap;
+            // Menu pages only; each step plays at the new level, so the row is its own preview.
+            _rows.AddStepper(sound, "界面音量",
+                () => _localSettings.UiVolume,
+                value => { _localSettings.UiVolume = value; UiSound.Volume = value; SaveLocal(); },
+                0f, 1f, 0.1f, "0.0", Percent);
+            top += LibrarySettingRows.SectionHeight(3) + gap;
 
             LibrarySettingRows.Section look = _rows.AddSection(content, "外观（下一次开局生效）", 3, rightStart, 0f, top);
             _rows.AddSegmented(look, "音符皮肤", SkinLabels,
@@ -202,7 +207,7 @@ namespace OpenSekai.App.UI
             const float backSize = 64f;
             Button back = LibraryWidgets.PillButton(
                 "Back", pageRect, string.Empty, CloseTrace, backSize, backSize,
-                LibraryTheme.Colors.Control, LibraryTheme.Colors.TextSecondary);
+                LibraryTheme.Colors.Control, LibraryTheme.Colors.TextSecondary, sound: UiCue.Back);
             LibraryWidgets.Icon(back.transform, LibraryIcon.Back, LibraryTheme.Colors.TextSecondary, 26f);
             LibraryWidgets.Place((RectTransform)back.transform, new Vector2(0f, 1f), new Vector2(0f, 0.5f),
                 new Vector2(28f, -header * 0.5f), new Vector2(backSize, backSize));

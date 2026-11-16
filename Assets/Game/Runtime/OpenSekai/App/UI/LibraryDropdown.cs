@@ -152,10 +152,12 @@ namespace OpenSekai.App.UI
             if (IsOpen)
             {
                 Close();
+                UiSound.Play(UiCue.Collapse);
             }
             else
             {
                 Open();
+                UiSound.Play(UiCue.Expand);
             }
         }
 
@@ -222,6 +224,7 @@ namespace OpenSekai.App.UI
             backdropButton.targetGraphic = backdrop;
             backdropButton.transition = Selectable.Transition.None;
             backdropButton.onClick.AddListener(Close);
+            UiSound.Bind(backdropButton, UiCue.Collapse);
 
             Image panel = LibraryWidgets.Panel("Panel", root, 20f, LibraryTheme.Colors.SurfaceRaised);
             panel.raycastTarget = true;
@@ -295,6 +298,7 @@ namespace OpenSekai.App.UI
         {
             Action<int> onPick = _onPick;
             Close();
+            UiSound.Play(UiCue.Select);
             onPick?.Invoke(index);
         }
 

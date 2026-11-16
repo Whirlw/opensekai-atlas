@@ -108,7 +108,7 @@ namespace OpenSekai.App.UI
             const float cancelHeight = 68f;
             _cancelButton = LibraryWidgets.PillButton(
                 "Cancel", _content, "取消", OnCancelClicked, cancelWidth, cancelHeight,
-                LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary);
+                LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, sound: UiCue.Cancel);
             LibraryWidgets.Place((RectTransform)_cancelButton.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
                 new Vector2(0f, -(top + 170f)), new Vector2(cancelWidth, cancelHeight));
             LibraryWidgets.Outline((Image)_cancelButton.targetGraphic, cancelHeight * 0.5f);

@@ -45,6 +45,13 @@ namespace Sekai
 		    get => _LiveVolume;
 		    set => _LiveVolume = value;
 		}
+		/// <summary>Volume of the menu pages' interface sounds, apart from music and hit sounds.</summary>
+		private float _UiVolume = 0.6f;
+		public float UiVolume
+		{
+		    get => _UiVolume;
+		    set => _UiVolume = value;
+		}
 				private bool? _FullscreenEnabled;
 		public bool? FullscreenEnabled
 		{

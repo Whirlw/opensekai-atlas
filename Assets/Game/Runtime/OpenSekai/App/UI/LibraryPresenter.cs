@@ -108,6 +108,7 @@ namespace OpenSekai.App.UI
 
             _viewMode = mode;
             Render();
+            UiSound.Play(UiCue.Select);
         }
 
         /// <summary>
@@ -130,6 +131,7 @@ namespace OpenSekai.App.UI
             _lastSelectTime = now;
             _selected = item;
             _view.SetSelection(item);
+            UiSound.Play(UiCue.Select);
         }
 
         internal void OpenActionsForSelected()
@@ -186,6 +188,7 @@ namespace OpenSekai.App.UI
             {
                 Debug.LogException(exception);
                 _view.SetStatus("刷新失败：" + exception.Message);
+                UiSound.Play(UiCue.Error);
                 return;
             }
 
@@ -299,11 +302,13 @@ namespace OpenSekai.App.UI
             {
                 string written = _packages.ExportZip(item.Entry, destination);
                 _view.SetStatus("已导出：" + written);
+                UiSound.Play(UiCue.Success);
             }
             catch (Exception exception)
             {
                 Debug.LogException(exception);
                 _view.SetStatus("导出失败：" + exception.Message);
+                UiSound.Play(UiCue.Error);
             }
         }
 
@@ -325,6 +330,7 @@ namespace OpenSekai.App.UI
             {
                 Debug.LogException(exception);
                 _view.SetStatus("删除失败：" + exception.Message);
+                UiSound.Play(UiCue.Error);
             }
         }
 
@@ -401,10 +407,12 @@ namespace OpenSekai.App.UI
                     : "曲包";
                 _view.SetStatus("导入成功：" + name);
                 Refresh();
+                UiSound.Play(UiCue.Success);
             }
             catch (Exception exception)
             {
                 _view.SetStatus(LibraryImport.DescribeFailure(exception));
+                UiSound.Play(UiCue.Error);
             }
         }
 
@@ -475,6 +483,7 @@ namespace OpenSekai.App.UI
                 _view.HideLoading();
                 Debug.LogException(exception);
                 _view.SetStatus("开局失败，请检查运行日志。");
+                UiSound.Play(UiCue.Error);
             }
             finally
             {

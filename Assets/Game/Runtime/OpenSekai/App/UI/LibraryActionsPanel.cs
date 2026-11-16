@@ -106,7 +106,8 @@ namespace OpenSekai.App.UI
             out Image iconBackground, out Image iconImage, out TextMeshProUGUI titleText, out TextMeshProUGUI bodyText)
         {
             Button button = LibraryWidgets.PillButton(
-                name, body, string.Empty, onClick, 0f, ACTION_HEIGHT, LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary);
+                name, body, string.Empty, onClick, 0f, ACTION_HEIGHT, LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary,
+                sound: UiCue.None); // export and delete each say how it went
             Image background = (Image)button.targetGraphic;
             background.sprite = LibraryShapes.RoundedRect(LibraryTheme.Radius.ROW);
             LibraryWidgets.TopStrip(background.rectTransform, 0f, 0f, index * (ACTION_HEIGHT + ACTION_GAP), ACTION_HEIGHT);
@@ -174,9 +175,12 @@ namespace OpenSekai.App.UI
         {
             if (!_deleteArmed)
             {
+                UiSound.Play(UiCue.Warning);
                 SetArmed(true, true);
                 return;
             }
+
+            UiSound.Play(UiCue.Delete);
 
             Action action = _onDelete;
             Hide();

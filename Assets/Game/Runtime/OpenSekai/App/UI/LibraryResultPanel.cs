@@ -87,7 +87,7 @@ namespace OpenSekai.App.UI
             _cover.enabled = cover != null;
             _coverPlaceholder.SetActive(cover == null);
             Refresh(result);
-            _modal.Open();
+            _modal.Open(OpenSound(result));
             PlayScore(result);
         }
 
@@ -260,14 +260,14 @@ namespace OpenSekai.App.UI
             const float retryWidth = 280f;
             Button back = LibraryWidgets.PillButton(
                 "Back", actions, "返回曲库", Close, backWidth, BUTTON_HEIGHT,
-                LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, 24f);
+                LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, 24f, sound: UiCue.Back);
             LibraryWidgets.Outline((Image)back.targetGraphic, BUTTON_HEIGHT * 0.5f);
             LibraryWidgets.Place((RectTransform)back.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
                 new Vector2(-(retryWidth + 16f), 0f), new Vector2(backWidth, BUTTON_HEIGHT));
 
             Button retry = LibraryWidgets.PillButton(
                 "Retry", actions, "再玩一次", Retry, retryWidth, BUTTON_HEIGHT,
-                LibraryTheme.Colors.DefaultAccent, LibraryTheme.Colors.TextOnAccent, 26f, FontStyles.Bold);
+                LibraryTheme.Colors.DefaultAccent, LibraryTheme.Colors.TextOnAccent, 26f, FontStyles.Bold, UiCue.Retry);
             LibraryWidgets.Place((RectTransform)retry.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
                 Vector2.zero, new Vector2(retryWidth, BUTTON_HEIGHT));
             _retryBackground = (Image)retry.targetGraphic;
@@ -288,6 +288,22 @@ namespace OpenSekai.App.UI
         {
             Hide();
             OnClose?.Invoke();
+        }
+
+        /// <summary>A full combo or all perfect gets the achievement chime, a clear the success one.</summary>
+        private static UiCue OpenSound(PlayResult result)
+        {
+            switch (result.Kind)
+            {
+                case PlayResultKind.Completed:
+                    bool fullCombo = !result.IsAuto && result.TotalCombo > 0
+                        && result.Miss == 0 && result.Bad == 0 && result.Good == 0;
+                    return fullCombo ? UiCue.Achievement : UiCue.Success;
+                case PlayResultKind.LoadError:
+                    return UiCue.Error;
+                default:
+                    return UiCue.Open;
+            }
         }
 
         private void Refresh(PlayResult result)

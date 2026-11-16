@@ -157,6 +157,7 @@ namespace OpenSekai.App.UI
             {
                 set(!get());
                 Refresh(true);
+                UiSound.Play(get() ? UiCue.ToggleOn : UiCue.ToggleOff);
             });
             _refreshers.Add(() => Apply(get(), _animate && on != get()));
             _accentListeners.Add(_ => Apply(on, false));
@@ -173,8 +174,8 @@ namespace OpenSekai.App.UI
             labelText.rectTransform.offsetMax = new Vector2(-(width + CONTROL_INSET * 2f), 0f);
 
             RectTransform group = ControlGroup(row, width);
-            StepButton(group, LibraryIcon.Minus, new Vector2(0f, 0.5f), () => Step(-step));
-            StepButton(group, LibraryIcon.Add, new Vector2(1f, 0.5f), () => Step(step));
+            StepButton(group, LibraryIcon.Minus, new Vector2(0f, 0.5f), () => Step(-step), UiCue.None);
+            StepButton(group, LibraryIcon.Add, new Vector2(1f, 0.5f), () => Step(step), UiCue.None);
             TextMeshProUGUI value = LibraryWidgets.Label(
                 "Value", group, string.Empty, 30f, LibraryTheme.Colors.TextPrimary, FontStyles.Normal, TextAlignmentOptions.Center);
             LibraryUi.UseCondensedFont(value);
@@ -184,8 +185,11 @@ namespace OpenSekai.App.UI
             {
                 // Round to the step so repeated float additions never drift off the grid.
                 float next = Mathf.Round((get() + delta) / step) * step;
+                float before = get();
                 set(Mathf.Clamp(next, min, max));
                 Refresh(true);
+                // After set, so a volume row is heard at its new level; at either end it says so.
+                UiSound.Play(Mathf.Approximately(before, get()) ? UiCue.Blocked : UiCue.Press);
             }
 
             _refreshers.Add(() => value.text = display != null
@@ -301,6 +305,7 @@ namespace OpenSekai.App.UI
                     {
                         set(index);
                         Refresh(true);
+                        UiSound.Play(UiCue.Select);
                     }
                 });
                 labels[i] = LibraryWidgets.Label(
@@ -367,6 +372,7 @@ namespace OpenSekai.App.UI
             labelText.rectTransform.offsetMax = new Vector2(-260f, 0f);
             Button button = MakeRowButton(row);
             button.onClick.AddListener(() => open());
+            UiSound.Bind(button, UiCue.Forward);
 
             Image chevron = LibraryWidgets.Icon(row, LibraryIcon.ChevronRight, LibraryTheme.Colors.TextMuted, 26f);
             LibraryWidgets.Place(chevron.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
@@ -392,11 +398,12 @@ namespace OpenSekai.App.UI
             return group;
         }
 
-        private static void StepButton(RectTransform group, LibraryIcon icon, Vector2 anchor, Action onClick)
+        private static void StepButton(
+            RectTransform group, LibraryIcon icon, Vector2 anchor, Action onClick, UiCue sound = UiCue.Press)
         {
             Button button = LibraryWidgets.PillButton(
                 icon.ToString(), group, string.Empty, () => onClick(), STEP_BUTTON, STEP_BUTTON,
-                LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary);
+                LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, sound: sound);
             LibraryWidgets.Icon(button.transform, icon, LibraryTheme.Colors.TextPrimary, 24f);
             LibraryWidgets.Place((RectTransform)button.transform, anchor, anchor, Vector2.zero,
                 new Vector2(STEP_BUTTON, STEP_BUTTON));

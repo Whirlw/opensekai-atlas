@@ -116,6 +116,7 @@ namespace OpenSekai.App.UI
             button.targetGraphic = background;
             button.transition = Selectable.Transition.None;
             button.onClick.AddListener(() => _onPick?.Invoke(chip.Group));
+            UiSound.Bind(button, UiCue.Select);
             LibraryPressFeedback.Attach(background.gameObject);
             return chip;
         }

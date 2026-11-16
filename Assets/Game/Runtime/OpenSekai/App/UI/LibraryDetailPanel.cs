@@ -267,7 +267,7 @@ namespace OpenSekai.App.UI
 
             Button auto = LibraryWidgets.PillButton(
                 "Auto", actions, string.Empty, ToggleAuto, AUTO_WIDTH, ACTION_HEIGHT,
-                LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary);
+                LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, sound: UiCue.None);
             LibraryWidgets.Place(
                 (RectTransform)auto.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero,
                 new Vector2(AUTO_WIDTH, ACTION_HEIGHT));
@@ -283,7 +283,7 @@ namespace OpenSekai.App.UI
 
             Button moreButton = LibraryWidgets.PillButton(
                 "More", actions, string.Empty, () => more?.Invoke(), ACTION_HEIGHT, ACTION_HEIGHT,
-                LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary);
+                LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, sound: UiCue.None);
             LibraryWidgets.Icon(moreButton.transform, LibraryIcon.More, LibraryTheme.Colors.TextPrimary, 28f);
             LibraryWidgets.Place(
                 (RectTransform)moreButton.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero,
@@ -291,7 +291,7 @@ namespace OpenSekai.App.UI
 
             _startButton = LibraryWidgets.PillButton(
                 "Start", actions, "开始演奏", Start, 0f, ACTION_HEIGHT,
-                LibraryTheme.Colors.DefaultAccent, LibraryTheme.Colors.TextOnAccent, 28f, FontStyles.Bold);
+                LibraryTheme.Colors.DefaultAccent, LibraryTheme.Colors.TextOnAccent, 28f, FontStyles.Bold, UiCue.None);
             LibraryWidgets.Inset((RectTransform)_startButton.transform, AUTO_WIDTH + 20f, 0f, ACTION_HEIGHT + 20f, 0f);
             _startBackground = (Image)_startButton.targetGraphic;
             _startLabel = _startButton.GetComponentInChildren<TextMeshProUGUI>();
@@ -508,6 +508,7 @@ namespace OpenSekai.App.UI
         private void ToggleAuto()
         {
             _isAuto = !_isAuto;
+            UiSound.Play(_isAuto ? UiCue.ToggleOn : UiCue.ToggleOff);
             ApplyAccent();
             _autoMotion.TryCancel();
             _autoMotion = LMotion.Create(_autoKnob.anchoredPosition.x, _isAuto ? 28f : 4f, LibraryTheme.Motion.STANDARD)
@@ -519,7 +520,12 @@ namespace OpenSekai.App.UI
         {
             if (_playable)
             {
+                UiSound.Play(UiCue.Start);
                 _play?.Invoke(_isAuto);
+            }
+            else
+            {
+                UiSound.Play(UiCue.Blocked);
             }
         }
 
