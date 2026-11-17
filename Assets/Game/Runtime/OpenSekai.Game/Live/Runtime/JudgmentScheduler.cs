@@ -14,6 +14,17 @@ namespace Sekai.Core.Live
 		private readonly LiveNoteFrame _noteFrame;
 		private readonly LivePresentationBridge _presentation;
 		private readonly List<int> _usedFingerList = new List<int>(10);
+		private readonly List<int> _frameUsedFingers = new List<int>(10);
+
+		/// <summary>
+		/// One 60 fps frame. Under frame matching (<see cref="LiveConfig.UseFramePressMatching"/>, or legacy
+		/// judge timing) presses closer than this are one moment and compete for their notes as a chord;
+		/// presses further apart, which only a late frame carries together, are judged in time order.
+		/// In either mode two Began samples of one finger closer than this are one contact reported twice
+		/// and share one press credit: no finger lifts and presses again inside a 60 fps frame.
+		/// </summary>
+		internal const float PressPassSeconds = 1f / 60f;
+		private readonly HashSet<int> _canceledTouches = new HashSet<int>(10);
 
 		internal JudgmentScheduler(LiveLogic logic, LiveSessionState session, LiveInputRouter input,
 			LiveNoteFrame noteFrame, LivePresentationBridge presentation)
@@ -50,11 +61,95 @@ namespace Sekai.Core.Live
 		/// </summary>
 		private void JudgePressChannel()
 		{
-			_input.CollectCandidates();
-			TracePressCandidates("pressCandidates");
-			_input.SortPressCandidates();
-			TracePressCandidates("pressSelected");
-			EvaluateJudgment();
+			// The frame's presses are judged in passes, in time order. By default every press is its own
+			// pass - a tie goes in input order - so who gets a note never depends on how presses fell into
+			// frames, and no chord matching runs: a later press collects again after the earlier one took
+			// its note. Frame matching groups presses closer than a 60 fps frame into one pass, where they
+			// compete as a chord; a late frame's presses further apart are still judged in order.
+			bool frameMatching = LiveConfig.UseFramePressMatching || LiveConfig.UseLegacyJudgeTiming;
+			int waves = AssignPressWaves(_input.ActiveInputs, frameMatching ? PressPassSeconds : 0f);
+			_frameUsedFingers.Clear();
+			for (int wave = 0; wave < waves; wave++)
+			{
+				if (wave > 0)
+				{
+					foreach (InputTmp input in _input.ActiveInputs)
+						input.CandidateNotes.Clear();
+				}
+
+				_input.CollectCandidates(wave);
+				TracePressCandidates("pressCandidates");
+				_input.SortPressCandidates(deduplicate: frameMatching);
+				TracePressCandidates("pressSelected");
+				EvaluateJudgment();
+			}
+
+			ReportUnpickedLanes();
+		}
+
+		/// <summary>
+		/// Numbers each Began by pass, walking the frame's presses in time order. A press starts the next
+		/// pass when it is later than the previous press by at least <paramref name="passSeconds"/>; when
+		/// that is zero every press starts one, ties included. A sample of a finger that pressed less than
+		/// <see cref="PressPassSeconds"/> before joins that press's pass and shares its credit. Returns the
+		/// number of passes, at least one. Allocation free; a frame has a handful of Began.
+		/// </summary>
+		internal static int AssignPressWaves(List<InputTmp> inputs, float passSeconds)
+		{
+			for (int i = 0; i < inputs.Count; i++)
+				inputs[i].PressWave = inputs[i].Touch.phase == UnityEngine.InputSystem.TouchPhase.Began ? -1 : 0;
+
+			int wave = 0;
+			int previous = -1;
+			while (true)
+			{
+				int next = -1;
+				for (int j = 0; j < inputs.Count; j++)
+				{
+					if (inputs[j].PressWave != -1 || (next >= 0 && !PressPrecedes(inputs, j, next)))
+						continue;
+					next = j;
+				}
+
+				if (next < 0) break;
+				float time = inputs[next].Touch.musicTime;
+				int joined = -1;
+				for (int j = 0; j < inputs.Count; j++)
+				{
+					InputTmp earlier = inputs[j];
+					if (j == next || earlier.PressWave < 0 || earlier.Touch.phase != UnityEngine.InputSystem.TouchPhase.Began
+						|| earlier.Touch.fingerId != inputs[next].Touch.fingerId
+						|| time - earlier.Touch.musicTime >= PressPassSeconds)
+					{
+						continue;
+					}
+
+					joined = j;
+				}
+
+				if (joined >= 0)
+				{
+					inputs[next].PressWave = inputs[joined].PressWave;
+				}
+				else
+				{
+					float gap = previous >= 0 ? time - inputs[previous].Touch.musicTime : 0f;
+					if (previous >= 0 && (passSeconds <= 0f || gap >= passSeconds))
+						wave++;
+					inputs[next].PressWave = wave;
+				}
+
+				previous = next;
+			}
+
+			return wave + 1;
+		}
+
+		private static bool PressPrecedes(List<InputTmp> inputs, int a, int b)
+		{
+			float ta = inputs[a].Touch.musicTime;
+			float tb = inputs[b].Touch.musicTime;
+			return ta < tb || (ta == tb && a < b);
 		}
 
 		private void TracePressCandidates(string stage)
@@ -95,6 +190,13 @@ namespace Sekai.Core.Live
 		/// </summary>
 		private void JudgeResidentChannel()
 		{
+			_canceledTouches.Clear();
+			foreach (InputTmp input in _input.ActiveInputs)
+			{
+				if (input.Touch.phase == UnityEngine.InputSystem.TouchPhase.Canceled)
+					_canceledTouches.Add(input.Touch.touchId);
+			}
+
 			if (LiveTrace.IsOn(LiveTraceCategory.Resident) && _input.ActiveInputs.Count > 0)
 				LiveTrace.Write(LiveTraceCategory.Resident, $"resident now={Frame.time:F3} inputs={_input.ActiveInputs.Count} notes={_input.JudgmentNotes.Count}");
 			JudgeDueComboPoints();
@@ -212,11 +314,15 @@ namespace Sekai.Core.Live
 		private void DriveFlickTail(FlickNote tail)
 		{
 			FlickTailJudge judge = tail.TailJudge;
+			// Remove canceled contacts before any other swipe can settle the armed candidates.
+			foreach (int touchId in _canceledTouches)
+				judge.Cancel(touchId);
+
 			float deltaTime = judge.FrameDeltaTime(Frame.time);
 			for (int i = 0; i < _input.ActiveInputs.Count && tail.State != NoteState.Done; i++)
 			{
 				InputTmp input = _input.ActiveInputs[i];
-				if (input == null) continue;
+				if (input == null || _canceledTouches.Contains(input.Touch.touchId)) continue;
 				judge.Offer(ref input.Touch, input.Lane, input.PreviousLane, deltaTime);
 			}
 
@@ -264,6 +370,7 @@ namespace Sekai.Core.Live
 
 		internal void EvaluateJudgment()
 		{
+			// The credit belongs to one press pass; the lanes are lit once for the whole frame.
 			_usedFingerList.Clear();
 			for (int inputIndex = 0; inputIndex < _input.ActiveInputs.Count; inputIndex++)
 			{
@@ -283,14 +390,17 @@ namespace Sekai.Core.Live
 				pass.Input = input;
 				JudgmentSchedule.Run(input.CandidateNotes.Count, ref pass);
 			}
+		}
 
+		private void ReportUnpickedLanes()
+		{
 			for (int inputIndex = 0; inputIndex < _input.ActiveInputs.Count; inputIndex++)
 			{
 				InputTmp input = _input.ActiveInputs[inputIndex];
 				bool used = false;
-				for (int i = _usedFingerList.Count - 1; i >= 0; i--)
+				for (int i = _frameUsedFingers.Count - 1; i >= 0; i--)
 				{
-					used |= _usedFingerList[i] == input.Touch.fingerId;
+					used |= _frameUsedFingers[i] == input.Touch.fingerId;
 				}
 
 				if (!used && input.Lane >= 0f && !_input.SilencedTouches.Contains(input.Touch.touchId))
@@ -353,6 +463,12 @@ namespace Sekai.Core.Live
 				// swipe, and the press is spent on it like on any other key.
 				bool noteFinished = note.State == NoteState.Done || note.Result != NoteResult.None
 					|| (note is FlickNote flick && flick.IsArmedBy(Input.Touch.touchId));
+				if (noteFinished && LatencyCapture.Active)
+				{
+					LatencyCapture.Record("press_spent", Input.Touch.touchId, Input.Touch.fingerId, Input.Touch.phase,
+						note.Id, song: Input.Touch.musicTime, note: note.MusicScoreInfo.time,
+						value: (Input.Touch.musicTime - note.MusicScoreInfo.time) * 1000d, result: note.Result);
+				}
 				return new JudgmentSchedule.Outcome(noteFinished);
 			}
 
@@ -370,6 +486,7 @@ namespace Sekai.Core.Live
 				Input.CandidateNotes.Clear();
 				Scheduler._input.RecordJudgedTouch(Input.Touch);
 				Scheduler._usedFingerList.Add(Input.Touch.fingerId);
+				Scheduler._frameUsedFingers.Add(Input.Touch.fingerId);
 				// A finger whose press went into a key may not light the empty lanes again until it lifts.
 				Scheduler._input.SilencedTouches.Add(Input.Touch.touchId);
 			}
@@ -377,6 +494,8 @@ namespace Sekai.Core.Live
 
 		private void OnJudgmentNote(NoteBase note)
 		{
+			LatencyCapture.Record("judged", noteId: note.Id, song: Frame.time,
+				note: note.MusicScoreInfo.time, detail: note.IsSkip ? "skip" : null, result: note.Result);
 			if (OpenSekai.Shared.Diagnostics.LiveTrace.IsOn(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Judge))
 			{
 				OpenSekai.Shared.Diagnostics.LiveTrace.Write(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Judge, string.Concat(

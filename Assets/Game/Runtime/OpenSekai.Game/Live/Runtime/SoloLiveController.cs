@@ -6,6 +6,7 @@ using OpenSekai.Shared.Playback;
 using OpenSekai.Shared.UI;
 using CriWare;
 using Sekai;
+using OpenSekai.Shared.Diagnostics;
 
 namespace Sekai.Core.Live
 {
@@ -87,6 +88,8 @@ namespace Sekai.Core.Live
 
 		protected override void OnMusicPlaybackStarted(float musicTime)
 		{
+			if (LatencyCapture.Active)
+				LatencyCapture.Record("bgm_start", song: musicTime, value: SoundManager.Instance.GetCurrentIngamePlaybackId());
 			LiveViewExt.MusicPlaybackStart(_liveViews, musicTime);
 		}
 
@@ -95,6 +98,7 @@ namespace Sekai.Core.Live
 			LiveViewExt.RhythmGameStart(_liveViews);
 			base.OnRhythmGameStart();
 			_liveLogic?.RefreshInput();
+			BeginLatencyCapture();
 			_forcedFinish = false;
 			if (timelineSpan.HasIntroSkip)
 			{
@@ -151,6 +155,7 @@ namespace Sekai.Core.Live
 
 			TraceTimeline("intro skip from=" + currentMusicTimeMs + " to=" + targetMs);
 			SeekTimeline(targetMs);
+			LatencyCapture.Record("seek", song: targetMs / 1000d);
 			LiveViewExt.MusicSeek(_liveViews, targetMs / 1000f);
 		}
 
@@ -193,6 +198,9 @@ namespace Sekai.Core.Live
 
 			if (state != LiveControllerState.Playing)
 			{
+				if (LatencyCapture.Active)
+					LatencyCapture.Record("play_stopped_frame", value: Time.unscaledDeltaTime * 1000d, detail: state.ToString());
+				LatencyCapture.End("play_stopped");
 				return;
 			}
 
@@ -202,6 +210,7 @@ namespace Sekai.Core.Live
 				HideSkip();
 			}
 			float fillerSec = BootData?.MusicData?.Music?.fillerSec ?? 0f;
+			LatencyCapture.RecordFrame(currentGameTime, currentMusicTimeMs / 1000d, musicPhase == MusicPhase.Playing);
 			_liveLogic?.OnUpdate(currentLogicMusicTime - fillerSec, currentGameTime);
 			if (BootData?.IsAuto == true)
 			{
@@ -239,6 +248,7 @@ namespace Sekai.Core.Live
 			if (pauseStatus)
 			{
 				OnPause();
+				LatencyCapture.End("background");
 			}
 		}
 
@@ -375,6 +385,7 @@ namespace Sekai.Core.Live
 			state = LiveControllerState.Playing;
 			LiveViewExt.Resume(_liveViews, currentAudioLatencyMusicTimeMs);
 			_liveLogic?.RefreshInput();
+			BeginLatencyCapture();
 		}
 
 		public void ShowConsecutiveAutoLiveRetireDialog()
@@ -384,6 +395,7 @@ namespace Sekai.Core.Live
 
 		protected override void OnRetry()
 		{
+			LatencyCapture.End("retry");
 			_pauseOverlay?.Hide();
 			HideSkip();
 			_outroSkipAtMs = -1L;
@@ -454,7 +466,24 @@ namespace Sekai.Core.Live
 			state = LiveControllerState.Playing;
 			LiveViewExt.Resume(_liveViews, currentAudioLatencyMusicTimeMs);
 			SoundManager.Instance.SetAudioSyncedUnityTimer(cueId);
+			BeginLatencyCapture();
 			_resumeCoroutine = null;
+		}
+
+		private void BeginLatencyCapture()
+		{
+			LatencyCapture.Begin(_context?.ChartHash, BootData?.MusicData?.DifficultyString,
+				BootData?.IsAuto == true, timingCompensation.AudioLatencyMs,
+				timingCompensation.VisualLatencyMs, timingCompensation.JudgeOffsetMs, LiveConfig.UseLegacyJudgeTiming);
+			if (LatencyCapture.Active)
+				LatencyCapture.Record("segment_start", song: currentMusicTimeMs / 1000d,
+					value: SoundManager.Instance.GetCurrentIngamePlaybackId());
+		}
+
+		protected override void OnDestroy()
+		{
+			LatencyCapture.End("destroy");
+			base.OnDestroy();
 		}
 
 		private void OnFailure()
@@ -485,7 +514,10 @@ namespace Sekai.Core.Live
 				result = 3;
 			}
 
+			double historyStart = LatencyCapture.Active ? Time.realtimeSinceStartupAsDouble : 0d;
 			TryAppendPlayHistory();
+			if (LatencyCapture.Active)
+				LatencyCapture.Record("finish_history", value: (Time.realtimeSinceStartupAsDouble - historyStart) * 1000d);
 			PublishPlayResultForLibrary();
 			state = LiveControllerState.Finish;
 			SetFinish(delay, waitTime, 2f);

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Sekai.Live;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using OpenSekai.Shared.Diagnostics;
 using InputTouchPhase = UnityEngine.InputSystem.TouchPhase;
 
 namespace Sekai.Core.Live
@@ -100,14 +101,15 @@ namespace Sekai.Core.Live
 			_candidates.Register(note, JudgmentNotes, _logic.currentFrameInfo.time + LiveClock.ReferenceFrameSeconds);
 		}
 
-		internal void CollectCandidates()
+		internal void CollectCandidates(int pressWave = 0)
 		{
-			_candidates.Collect(JudgmentNotes, ActiveInputs, Holds, _judgedTouchTimes);
+			_candidates.Collect(JudgmentNotes, ActiveInputs, Holds, _judgedTouchTimes, pressWave);
 		}
 
 		internal void AssignContinuingHolds() => Holds.AssignContinuingHolds(JudgmentNotes, ActiveInputs);
 
-		internal void SortPressCandidates() => _candidates.SortPressCandidates(ActiveInputs, _logic.currentFrameInfo);
+		internal void SortPressCandidates(bool deduplicate = true) =>
+			_candidates.SortPressCandidates(ActiveInputs, _logic.currentFrameInfo, deduplicate);
 
 		internal void JudgeLifts() => Holds.JudgeLifts(JudgmentNotes, ActiveInputs, _logic.currentFrameInfo, _candidates);
 
@@ -143,6 +145,11 @@ namespace Sekai.Core.Live
 					input.PreviousLane = previousLane;
 				ActiveInputs.Add(input);
 			}
+			else
+			{
+				LatencyCapture.Record("router_overflow", touchId, simTouch.FingerId, simTouch.Phase,
+					song: simTouch.MusicTime);
+			}
 
 			if (simTouch.Phase == InputTouchPhase.Began)
 			{
@@ -173,7 +180,7 @@ namespace Sekai.Core.Live
 				_touchesAboveTheLine.Remove(simTouch.TouchId);
 			}
 
-			if (!isAnInput)
+			if (!isAnInput || simTouch.Phase == InputTouchPhase.Canceled)
 			{
 				return OpenSekai.Shared.Live.TouchLane.Outside;
 			}

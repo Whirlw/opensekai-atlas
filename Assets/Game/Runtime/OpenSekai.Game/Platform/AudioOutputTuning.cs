@@ -28,8 +28,20 @@ namespace Sekai
 		private const int TypeBleHeadset = 26;
 		private const int TypeBleSpeaker = 27;
 		private const int GetDevicesOutputs = 2;
+		private const string BufferComparisonKey = "diagnostics.audio_buffer_comparison";
+
+		public static bool BufferComparisonEnabled
+		{
+			get => PlayerPrefs.GetInt(BufferComparisonKey, 0) != 0;
+			set
+			{
+				PlayerPrefs.SetInt(BufferComparisonKey, value ? 1 : 0);
+				PlayerPrefs.Save();
+			}
+		}
 
 		public static string Report { get; private set; } = "audio output not tuned";
+		internal static volatile string LatestRouteReport;
 
 		/// <summary>True when an output that adds its own large latency (Bluetooth) is connected.</summary>
 		public static bool HasBluetoothOutput { get; private set; }
@@ -52,11 +64,21 @@ namespace Sekai
 			}
 
 			AudioOutputDecision decision = AudioOutputPlan.Choose(config.sampleRate, config.dspBufferSize, nativeRate, nativeBurst);
+			int requestedBufferSize = decision.DspBufferSize;
+			bool comparison = BufferComparisonEnabled;
+			// Compare with a larger native-aligned block when the baseline is already at one burst.
+			if (comparison && nativeBurst > 0 && nativeBurst <= AudioOutputPlan.MaxBurstFrames / 2 &&
+				requestedBufferSize == nativeBurst)
+			{
+				requestedBufferSize = nativeBurst * 2;
+			}
+
+			bool resetRequested = decision.SampleRate != config.sampleRate || requestedBufferSize != config.dspBufferSize;
 			bool applied = false;
-			if (decision.Changed)
+			if (resetRequested)
 			{
 				config.sampleRate = decision.SampleRate;
-				config.dspBufferSize = decision.DspBufferSize;
+				config.dspBufferSize = requestedBufferSize;
 				applied = AudioSettings.Reset(config);
 			}
 
@@ -67,9 +89,13 @@ namespace Sekai
 				.Append(" native=").Append(nativeRate).Append('/').Append(nativeBurst)
 				.Append(" lowLatencyFeature=").Append(lowLatencyFeature)
 				.Append(" outputs=").Append(outputs)
+				.Append(" experiment=").Append(comparison ? "B" : "A")
+				.Append(" requested=").Append(decision.SampleRate).Append('/').Append(requestedBufferSize)
+				.Append(" reset=").Append(!resetRequested ? "not_needed" : applied ? "accepted" : "refused")
 				.Append(" plan=").Append(decision.Reason)
-				.Append(decision.Changed ? (applied ? " (applied)" : " (reset refused)") : "");
+				.Append(comparison && requestedBufferSize == decision.DspBufferSize ? " (no comparison candidate)" : "");
 			Report = builder.ToString();
+			LatestRouteReport = Report;
 			Debug.Log(Report);
 
 			AudioSettings.OnAudioConfigurationChanged -= OnConfigurationChanged;
@@ -93,7 +119,10 @@ namespace Sekai
 				Debug.LogWarning("[AudioOut] device query failed: " + exception.Message);
 			}
 
-			Debug.Log("[AudioOut] route changed: rate=" + AudioSettings.outputSampleRate + " outputs=" + outputs);
+			AudioSettings.GetDSPBufferSize(out int bufferLength, out int bufferCount);
+			string report = $"[AudioOut] route changed: rate={AudioSettings.outputSampleRate} dsp={bufferLength}x{bufferCount} outputs={outputs}";
+			LatestRouteReport = report;
+			Debug.Log(report);
 		}
 
 		private static void QueryDevice(out int nativeRate, out int nativeBurst, out bool lowLatencyFeature, out string outputs)

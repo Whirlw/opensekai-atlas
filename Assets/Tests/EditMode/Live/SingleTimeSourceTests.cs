@@ -29,6 +29,8 @@ namespace OpenSekai.Tests.EditMode.Live
 			"ReferenceFrame.cs",
 			"JudgmentView.cs",
 			"TapEffectView.cs",
+			// The capture exports the frame as a correlation key. Durations use realtime seconds.
+			"LatencyCapture.cs",
 		};
 
 		private static IEnumerable<FileInfo> RuntimeSources()

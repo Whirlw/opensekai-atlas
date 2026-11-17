@@ -272,13 +272,16 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>A pill of equal segments, one per choice; the chosen one is filled.</summary>
-        internal void AddSegmented(Section section, string label, string[] options, Func<int> get, Action<int> set, float segmentWidth = 132f)
+        /// <param name="locked">When it answers true the control shows <paramref name="get"/> dimmed and ignores taps.</param>
+        internal void AddSegmented(Section section, string label, string[] options, Func<int> get, Action<int> set,
+            float segmentWidth = 132f, Func<bool> locked = null)
         {
             RectTransform row = section.AddRow(label, out TextMeshProUGUI labelText);
             float width = segmentWidth * options.Length + 8f;
             labelText.rectTransform.offsetMax = new Vector2(-(width + CONTROL_INSET * 2f), 0f);
 
             RectTransform group = ControlGroup(row, width);
+            CanvasGroup lockFade = locked != null ? group.gameObject.AddComponent<CanvasGroup>() : null;
             Image track = LibraryWidgets.Panel("Track", group, CONTROL_HEIGHT * 0.5f, LibraryTheme.Colors.Control);
             LibraryUi.Stretch(track.rectTransform);
             LibraryWidgets.Outline(track, CONTROL_HEIGHT * 0.5f);
@@ -301,6 +304,11 @@ namespace OpenSekai.App.UI
                 button.targetGraphic = hit;
                 button.onClick.AddListener(() =>
                 {
+                    if (locked?.Invoke() == true)
+                    {
+                        return;
+                    }
+
                     if (get() != index)
                     {
                         set(index);
@@ -318,6 +326,11 @@ namespace OpenSekai.App.UI
             _motions.Add(motion);
             _refreshers.Add(() =>
             {
+                if (lockFade != null)
+                {
+                    lockFade.alpha = locked() ? 0.45f : 1f;
+                }
+
                 int selected = Mathf.Clamp(get(), 0, options.Length - 1);
                 for (int i = 0; i < labels.Length; i++)
                 {

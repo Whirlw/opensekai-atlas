@@ -67,6 +67,12 @@ namespace Sekai.Live
 		/// </summary>
 		public static bool UseLegacyJudgeTiming;
 
+		/// <summary>
+		/// When true, presses closer than one 60 fps frame compete for their notes as a chord; otherwise each
+		/// press is judged alone in timestamp order. Loaded from <see cref="LiveSettingData.UseFramePressMatching"/>.
+		/// </summary>
+		public static bool UseFramePressMatching;
+
 		public static readonly int LotteryPraiseCount;
 
 		public static readonly float PraiseComboRate;
@@ -283,6 +289,7 @@ namespace Sekai.Live
 			SetFeverEffectName(liveSettingData.FeverEffectTypeIndex);
 			ScoreMakerPreviewModeIndex = liveSettingData.ScoreMakerPreviewModeIndex;
 			UseLegacyJudgeTiming = liveSettingData.UseLegacyJudgeTiming;
+			UseFramePressMatching = liveSettingData.UseFramePressMatching;
 			CacheSpeedTime = 0f;
 			CacheTimingTime = 0f;
 			NoteSpeedOffset = 0.04f;

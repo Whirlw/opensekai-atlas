@@ -32,6 +32,7 @@ namespace OpenSekai.App.UI
         private static readonly string[] NoteSeLabels = { "音效 1", "音效 2" };
         private static readonly string[] NoteEffectLabels = { "特效 1", "特效 2" };
         private static readonly string[] JudgeTimingLabels = { "触摸时刻", "下一帧(旧式)" };
+        private static readonly string[] PressMatchingLabels = { "按时间顺序", "同帧候选(旧式)" };
 
         private static readonly LiveTraceCategory[] InputCategories =
         {
@@ -112,7 +113,7 @@ namespace OpenSekai.App.UI
 
             // Left column: timing, then display.
             float top = 0f;
-            LibrarySettingRows.Section timing = _rows.AddSection(content, "判定与延迟", 4, 0f, rightStart, top);
+            LibrarySettingRows.Section timing = _rows.AddSection(content, "判定与延迟", 5, 0f, rightStart, top);
             // See TimingCompensation for what each one moves.
             _rows.AddMilliseconds(timing, "音频延迟",
                 () => _settings.AudioLatencyMs,
@@ -126,7 +127,13 @@ namespace OpenSekai.App.UI
             _rows.AddSegmented(timing, "判定时机", JudgeTimingLabels,
                 () => _settings.UseLegacyJudgeTiming ? 1 : 0,
                 index => { _settings.UseLegacyJudgeTiming = index == 1; SaveSettings(); }, 150f);
-            top += LibrarySettingRows.SectionHeight(4) + gap;
+            // Legacy judge timing flattens timestamps, so it locks the old per-frame matching; the player's own
+            // choice is kept and comes back when legacy timing is turned off.
+            _rows.AddSegmented(timing, "多押分配", PressMatchingLabels,
+                () => _settings.UseLegacyJudgeTiming || _settings.UseFramePressMatching ? 1 : 0,
+                index => { _settings.UseFramePressMatching = index == 1; SaveSettings(); }, 150f,
+                locked: () => _settings.UseLegacyJudgeTiming);
+            top += LibrarySettingRows.SectionHeight(5) + gap;
 
             LibrarySettingRows.Section display = _rows.AddSection(content, "画面", 3, 0f, rightStart, top);
             _rows.AddStepper(display, "音符流速",
@@ -220,7 +227,7 @@ namespace OpenSekai.App.UI
                 "Title", pageRect, "追踪选项", 34f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
             LibraryWidgets.TopStrip(title.rectTransform, 28f + backSize + 20f, padding, 26f, 46f);
             TextMeshProUGUI hint = LibraryWidgets.Label(
-                "Hint", pageRect, "追踪需开启测试模式；高频记录可能影响性能。",
+                "Hint", pageRect, "分类追踪需开启测试模式。延迟采样在退出打歌时保存。",
                 LibraryTheme.FontSize.BODY, LibraryTheme.Colors.TextMuted);
             LibraryWidgets.TopStrip(hint.rectTransform, 28f + backSize + 20f, padding, 72f, 28f);
 
@@ -231,11 +238,16 @@ namespace OpenSekai.App.UI
             float rightStart = columnWidth + COLUMN_GAP;
             float gap = LibraryTheme.Layout.SECTION_GAP;
 
-            LibrarySettingRows.Section shown = _rows.AddSection(content, "调试显示", 2, 0f, rightStart, 0f);
+            LibrarySettingRows.Section shown = _rows.AddSection(content, "诊断工具", 5, 0f, rightStart, 0f);
             _rows.AddSwitch(shown, "性能 HUD", () => PerformanceHud.Enabled, value => PerformanceHud.Enabled = value);
             _rows.AddSwitch(shown, "Last 长条标红", () => LiveTrace.HighlightLast, value => LiveTrace.HighlightLast = value);
+            _rows.AddSwitch(shown, "延迟采样", () => LatencyCapture.Enabled, value => LatencyCapture.Enabled = value);
+            _rows.AddSwitch(shown, "音频缓冲对照 B（重启生效）", () => AudioOutputTuning.BufferComparisonEnabled,
+                value => AudioOutputTuning.BufferComparisonEnabled = value);
+            _rows.AddSwitch(shown, "打击音混音采样", () => LatencyCapture.MixProbeEnabled,
+                value => LatencyCapture.MixProbeEnabled = value);
 
-            float top = LibrarySettingRows.SectionHeight(2) + gap;
+            float top = LibrarySettingRows.SectionHeight(5) + gap;
             LibrarySettingRows.Section input = _rows.AddSection(content, "输入与判定", InputCategories.Length, 0f, rightStart, top);
             AddCategories(input, InputCategories, InputCategoryLabels);
             float leftHeight = top + LibrarySettingRows.SectionHeight(InputCategories.Length);

@@ -4,6 +4,7 @@ using Sekai.Core.Live;
 using Sekai.Live;
 using UnityEngine;
 using Sekai.SUS;
+using OpenSekai.Shared.Diagnostics;
 
 namespace Sekai
 {
@@ -237,7 +238,7 @@ namespace Sekai
 			controller.Play();
 		}
 
-		private void PlayUnpickedEffect(int lane)
+		private void PlayUnpickedEffect(int lane, ref LiveTouch touch)
 		{
 			if (_tapLaneEffectList != null && lane >= 0 && lane < _tapLaneEffectList.Length)
 			{
@@ -249,6 +250,8 @@ namespace Sekai
 				}
 			}
 
+			LatencyCapture.Record("empty_tap_feedback", touch.touchId, touch.fingerId, touch.phase,
+				song: touch.musicTime);
 			SoundManager.Instance.PlayIngameSEOneShot(LiveSoundDefine.SE_LIVE_TAP);
 		}
 
@@ -274,7 +277,7 @@ namespace Sekai
 				}
 			}
 
-			PlayUnpickedEffect(lane);
+			PlayUnpickedEffect(lane, ref touch);
 			_lastFrame = Time.frameCount;
 			if (_lastTapLanes != null && touch.fingerId >= 0 && touch.fingerId < _lastTapLanes.Length)
 			{
@@ -349,6 +352,7 @@ namespace Sekai
 					break;
 			}
 
+			LatencyCapture.Record("note_effect", noteId: note.Id, result: result);
 			_playSeAction?.Invoke();
 			if (checkPlayedHaptic == null || !checkPlayedHaptic())
 			{
@@ -482,7 +486,7 @@ namespace Sekai
 			category ??= seName;
 			if (pairNote == null || _pairNoteSeMap == null)
 			{
-				SoundManager.Instance.PlayIngameSEOneShot(seName);
+				SubmitSe(seName, myNoteId);
 				return;
 			}
 
@@ -491,7 +495,7 @@ namespace Sekai
 			{
 				if (_pairNoteSeMap[pairNoteId] != category)
 				{
-					SoundManager.Instance.PlayIngameSEOneShot(seName);
+					SubmitSe(seName, myNoteId);
 				}
 				_pairNoteSeMap.Remove(pairNoteId);
 				return;
@@ -500,15 +504,21 @@ namespace Sekai
 			if (!_pairNoteSeMap.ContainsKey(myNoteId))
 			{
 				_pairNoteSeMap.Add(myNoteId, category);
-				SoundManager.Instance.PlayIngameSEOneShot(seName);
+				SubmitSe(seName, myNoteId);
 				return;
 			}
 
 			if (_pairNoteSeMap[myNoteId] != category)
 			{
-				SoundManager.Instance.PlayIngameSEOneShot(seName);
+				SubmitSe(seName, myNoteId);
 			}
 			_pairNoteSeMap.Remove(myNoteId);
+		}
+
+		private static void SubmitSe(string cue, int noteId)
+		{
+			int requestSequence = LatencyCapture.RecordNoteSe(noteId, cue);
+			SoundManager.Instance.PlayIngameSEOneShot(cue, requestSequence);
 		}
 
 		private ParticleSystemController LoadTapEffect(string name)

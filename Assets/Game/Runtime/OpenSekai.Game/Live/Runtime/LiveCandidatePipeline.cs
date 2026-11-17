@@ -99,9 +99,16 @@ namespace Sekai.Core.Live
 		/// worse and a later one would grade Great or better (<see cref="PickForOneFinger"/>).</item>
 		/// </list>
 		/// </summary>
-		internal void SortPressCandidates(List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame)
+		/// <param name="deduplicate">
+		/// False when every press is judged in a pass of its own: there is no other finger to share a note
+		/// with, so the chord steps (<see cref="DeduplicateCandidates"/>) are skipped.
+		/// </param>
+		internal void SortPressCandidates(List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame, bool deduplicate = true)
 		{
-			DeduplicateCandidates(inputs, ref frame);
+			if (deduplicate)
+			{
+				DeduplicateCandidates(inputs, ref frame);
+			}
 
 			foreach (var input in inputs)
 			{
@@ -437,7 +444,7 @@ namespace Sekai.Core.Live
 		/// cannot keep a later candidate out.
 		/// </summary>
 		public void Collect(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs,
-			LiveHoldCoordinator holds, IReadOnlyDictionary<int, double> pressed)
+			LiveHoldCoordinator holds, IReadOnlyDictionary<int, double> pressed, int pressWave = 0)
 		{
 			if (judgmentNotes == null || inputs == null)
 			{
@@ -458,6 +465,7 @@ namespace Sekai.Core.Live
 				{
 					LiveLogic.InputTmp activeInput = inputs[inputIndex];
 					if (activeInput.Touch.phase != UnityEngine.InputSystem.TouchPhase.Began) continue;
+					if (activeInput.PressWave != pressWave) continue;
 
 					// A finger that owns a hold is still free to judge other notes in its lane: charts
 					// overlay a separate contact-only note on top of a bar. Only hold-vs-hold contention

@@ -75,18 +75,9 @@ namespace Sekai.Live
 
 		public override void Excute(MusicScoreInfo currentFrameInfo, float offsetTime)
 		{
-			// A bar's end flick settles its recorded swipes before the window can close on it: the
-			// finger still in the lanes at the tail time is graded right then.
-			if (JudgesAsBarTail && State != NoteState.Done)
+			if (JudgesAsBarTail)
 			{
-				TailJudge.Settle(currentFrameInfo.time);
-
-				// Past the end table's late edge nothing can grade it any more: a Miss, on this frame.
-				if (State != NoteState.Done && LongEndJudgement.IsPast(currentFrameInfo.time - MusicScoreInfo.time))
-				{
-					FinishAsTail((NoteResult.Miss, NoteResultDescription.None));
-					return;
-				}
+				TailJudge.SettleFrame(currentFrameInfo.time);
 			}
 
 			base.Excute(currentFrameInfo, offsetTime);
@@ -290,7 +281,7 @@ namespace Sekai.Live
 		private void UpdateDelta(Vector2 touchDelta, ref bool isUpdatedDelta, ref bool isTrueDirection)
 		{
 			if (!OpenSekai.Shared.Live.FlickGesture.TryUpdate(
-				touchDelta, Time.deltaTime, Direction, _flickDistance, out bool trueDirection))
+				touchDelta, LiveUtility.FrameDeltaTime, Direction, _flickDistance, out bool trueDirection))
 			{
 				isUpdatedDelta = false;
 				isTrueDirection = false;

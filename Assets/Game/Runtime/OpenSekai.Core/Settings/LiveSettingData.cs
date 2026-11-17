@@ -107,6 +107,13 @@ namespace Sekai
 		/// </summary>
 		public bool UseLegacyJudgeTiming { get; set; }
 
+		/// <summary>
+		/// Hand out a frame's presses the old way: presses read in one frame (closer than 1/60 s) compete for
+		/// their notes as one chord. Off, every press is judged on its own in timestamp order, which does not
+		/// depend on the frame rate. Legacy judge timing always uses the old way, since it flattens timestamps.
+		/// </summary>
+		public bool UseFramePressMatching { get; set; }
+
 		public bool? UseVSync { get; set; }
 
 		public int NoteEffect { get; set; }
@@ -219,6 +226,7 @@ namespace Sekai
 			Use120FPS = false;
 			FrameRateLimit = 0;
 			UseLegacyJudgeTiming = false;
+			UseFramePressMatching = false;
 			NoteEffect = 0;
 			_noteShowRate = 0f;
 			FeverEffectTypeIndex = 0;

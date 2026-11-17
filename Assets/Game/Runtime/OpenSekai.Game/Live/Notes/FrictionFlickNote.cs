@@ -200,7 +200,7 @@ namespace Sekai.Live
 			}
 
 			if (!OpenSekai.Shared.Live.FlickGesture.TryUpdate(
-				touchDelta, Time.deltaTime, Direction, _flickDistance, out bool trueDirection))
+				touchDelta, LiveUtility.FrameDeltaTime, Direction, _flickDistance, out bool trueDirection))
 			{
 				isUpdatedDelta = false;
 				_isTrueDirection = false;

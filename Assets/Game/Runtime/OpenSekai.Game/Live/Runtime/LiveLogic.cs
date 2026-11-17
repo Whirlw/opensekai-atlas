@@ -12,6 +12,8 @@ namespace Sekai.Core.Live
 		{
 			public LiveTouch Touch;
 			internal float PreviousLane { get; set; } = -1f;
+			/// <summary>Which press pass of the frame may judge this Began; see <see cref="JudgmentScheduler"/>.</summary>
+			internal int PressWave { get; set; }
 			private float _Lane;
 			public float Lane
 			{
@@ -41,6 +43,7 @@ namespace Sekai.Core.Live
 				Touch = source.Touch;
 				Lane = source.Lane;
 				PreviousLane = source.PreviousLane;
+				PressWave = source.PressWave;
 				CandidateNotes.AddRange(source.CandidateNotes);
 			}
 
@@ -49,6 +52,7 @@ namespace Sekai.Core.Live
 				Touch = touch;
 				Lane = lane;
 				PreviousLane = -1f;
+				PressWave = 0;
 				CandidateNotes.Clear();
 			}
 		}

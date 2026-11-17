@@ -97,6 +97,11 @@ namespace Sekai.Live
 				return;
 			}
 
+			if (touch.phase == InputTouchPhase.Canceled)
+			{
+				return;
+			}
+
 			float now = touch.musicTime;
 			float offset = now - _note.MusicScoreInfo.time;
 			int slot = Find(touch.touchId);
@@ -111,7 +116,7 @@ namespace Sekai.Live
 				return;
 			}
 
-			bool ended = touch.phase == InputTouchPhase.Ended || touch.phase == InputTouchPhase.Canceled;
+			bool ended = touch.phase == InputTouchPhase.Ended;
 			float moveLane = previousLane >= 0f || ended ? previousLane : lane;
 			if (touch.delta.sqrMagnitude > 0f && InLanes(moveLane))
 			{
@@ -188,11 +193,23 @@ namespace Sekai.Live
 				finger.Seen = false;
 			}
 
-			Settle(now);
+			SettleFrame(now);
 		}
 
-		/// <summary>Grades every armed finger whose moment has come; the best grade wins.</summary>
-		internal bool Settle(float now) => Settle(now, -1f, false);
+		internal void Cancel(int touchId)
+		{
+			int slot = Find(touchId);
+			if (slot >= 0)
+				Free(slot);
+		}
+
+		/// <summary>Grades any due swipe before closing the tail window.</summary>
+		internal void SettleFrame(float now)
+		{
+			Settle(now, -1f, false);
+			if (_note.State != NoteState.Done && LongEndJudgement.IsPast(now - _note.MusicScoreInfo.time))
+				_note.FinishAsTail((NoteResult.Miss, NoteResultDescription.None));
+		}
 
 		private bool Settle(float now, float swipeTime, bool swipeTrueDirection)
 		{

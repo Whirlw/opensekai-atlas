@@ -160,9 +160,9 @@ namespace Sekai.Core.Live
 			foreach (LiveLogic.InputTmp input in inputs)
 			{
 				input.CandidateNotes.Clear();
-				if (IsEndedOrCanceled(input.Touch.phase) && input.Lane >= 0f)
+				if (input.Touch.phase == UnityEngine.InputSystem.TouchPhase.Ended && input.Lane >= 0f)
 				{
-					CollectLiftCandidates(judgmentNotes, input, frame.time);
+					CollectLiftCandidates(judgmentNotes, input);
 				}
 			}
 
@@ -174,7 +174,7 @@ namespace Sekai.Core.Live
 			for (int i = 0; i < inputs.Count; i++)
 			{
 				LiveLogic.InputTmp input = inputs[i];
-				if (input == null || !IsEndedOrCanceled(input.Touch.phase)
+				if (input == null || input.Touch.phase != UnityEngine.InputSystem.TouchPhase.Ended
 					|| _usedLiftFingers.Contains(input.Touch.fingerId))
 				{
 					continue;
@@ -190,11 +190,14 @@ namespace Sekai.Core.Live
 						$"liftSelected finger={input.Touch.fingerId} touch={input.Touch.touchId} lane={input.Lane:F2} phase={input.Touch.phase} barT={barTime:F3} tailId={(tail == null ? -1 : tail.Id)} tailT={(tail == null ? -1f : tail.MusicScoreInfo.time):F3}");
 				}
 
-				bool settled = target != null && target.JudgeTailAsRelease(frame.time);
+				bool settled = target != null && target.JudgeTailAsRelease(input.Touch.musicTime);
 				if (LiveTrace.IsOn(LiveTraceCategory.Release))
 					LiveTrace.Write(LiveTraceCategory.Release, $"liftResult finger={input.Touch.fingerId} touch={input.Touch.touchId} settled={settled} result={(target?.ChildNote as NoteBase)?.Result}");
 				if (settled)
 				{
+					if (LatencyCapture.Active)
+						LatencyCapture.Record("release_settled", input.Touch.touchId, input.Touch.fingerId, input.Touch.phase,
+							tail.Id, song: input.Touch.musicTime, note: tail.MusicScoreInfo.time, result: tail.Result);
 					_usedLiftFingers.Add(input.Touch.fingerId);
 				}
 			}
@@ -316,9 +319,10 @@ namespace Sekai.Core.Live
 		/// may only release a tail inside that tail's Perfect band, whichever tail it is. Whether a tail's
 		/// window was open at the press does not matter.
 		/// </summary>
-		private void CollectLiftCandidates(List<NoteBase> judgmentNotes, LiveLogic.InputTmp lift, float time)
+		private void CollectLiftCandidates(List<NoteBase> judgmentNotes, LiveLogic.InputTmp lift)
 		{
 			float lane = lift.Lane;
+			float time = lift.Touch.musicTime;
 			bool quickTap = _keyPressTimes.TryGetValue(lift.Touch.touchId, out float pressTime)
 				&& time - pressTime <= QuickTapSeconds;
 			bool tracing = LiveTrace.IsOn(LiveTraceCategory.Release);

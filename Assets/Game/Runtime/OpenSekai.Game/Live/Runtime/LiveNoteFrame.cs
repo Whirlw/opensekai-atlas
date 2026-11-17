@@ -231,7 +231,15 @@ namespace Sekai.Core.Live
 			if (!tooFarAhead)
 			{
 				PreloadView(tail, offset);
-				tail.Excute(Frame, offset);
+				if (!_session.IsAuto && tail is FlickNote flick && flick.JudgesAsBarTail)
+				{
+					// The input pass sees terminal edges before settling swipes or expiring the tail.
+					flick.AdvanceNote(Frame, offset, settleTimeout: false);
+				}
+				else
+				{
+					tail.Excute(Frame, offset);
+				}
 			}
 		}
 

@@ -112,6 +112,20 @@ namespace OpenSekai.Tests.EditMode.Live
 		}
 
 		[Test]
+		public void CancelDiscardsAnArmedSwipeAndItsFinalDisplacement()
+		{
+			Arrange();
+			HoldUntil(0.93f);
+			StepTo(0.93f, At(1, 0.93f, TouchPhase.Moved, moveX: -100f));
+			Assert.That(Tail.Result, Is.EqualTo(NoteResult.None));
+
+			StepTo(1f, At(1, 1f, TouchPhase.Canceled, moveX: -100f));
+			StepTo(1.06f);
+
+			Assert.That(Tail.Result, Is.EqualTo(NoteResult.None));
+		}
+
+		[Test]
 		public void SlidingOutOfTheFlickLanesCountsAsTheLift()
 		{
 			Arrange();

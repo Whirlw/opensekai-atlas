@@ -83,6 +83,44 @@ namespace OpenSekai.Tests.EditMode.Live
 		}
 
 		[Test]
+		public void ABufferedReleaseIsGradedAtItsTouchTime()
+		{
+			HoldUntilTailTime();
+			var position = LanePosition(_bar.JudgeLaneStart);
+
+			StepTo(TailTime + 0.06f, LiveHarness.Touch(1, position, 10d + TailTime, TouchPhase.Ended));
+
+			Assert.That(Tail.Result, Is.EqualTo(NoteResult.JustPerfect));
+		}
+
+		[TestCase(TouchPhase.Ended, NoteResult.JustPerfect)]
+		[TestCase(TouchPhase.Canceled, NoteResult.None)]
+		public void AContactCanEndAtTheSameTimestampAsItsLastSample(TouchPhase phase, NoteResult expected)
+		{
+			HoldUntilTailTime();
+			var position = LanePosition(_bar.JudgeLaneStart);
+			double timestamp = 10d + TailTime;
+
+			StepTo(TailTime, LiveHarness.Touch(1, position, timestamp, TouchPhase.Stationary),
+				LiveHarness.Touch(1, position, timestamp, phase));
+
+			Assert.That(Tail.Result, Is.EqualTo(expected));
+		}
+
+		[Test]
+		public void ASystemCancelLeavesAnOrdinaryTailToExpire()
+		{
+			HoldUntilTailTime();
+			var position = LanePosition(_bar.JudgeLaneStart);
+
+			StepTo(TailTime, LiveHarness.Touch(1, position, 10d + TailTime, TouchPhase.Canceled));
+			Assert.That(Tail.Result, Is.EqualTo(NoteResult.None));
+
+			StepTo(TailTime + 0.25f);
+			Assert.That(Tail.Result, Is.EqualTo(NoteResult.Miss));
+		}
+
+		[Test]
 		public void AReleaseAfterTheWindowKeepsTheExpiredTailAtMiss()
 		{
 			HoldUntilTailTime();

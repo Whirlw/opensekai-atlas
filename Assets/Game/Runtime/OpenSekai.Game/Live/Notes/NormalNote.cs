@@ -53,7 +53,7 @@ namespace Sekai.Live
 			}
 
 			return (Category == NoteCategory.Normal && touch.phase == UnityEngine.InputSystem.TouchPhase.Began)
-				|| (Category == NoteCategory.Long && UnityEngine.InputSystem.InputExtensions.IsEndedOrCanceled(touch.phase));
+				|| (Category == NoteCategory.Long && touch.phase == UnityEngine.InputSystem.TouchPhase.Ended);
 		}
 
 		internal void SettleExpiredPress(float now)
@@ -72,7 +72,7 @@ namespace Sekai.Live
 			}
 
 			if ((Category == NoteCategory.Normal && touch.phase != UnityEngine.InputSystem.TouchPhase.Began)
-				|| (Category == NoteCategory.Long && !UnityEngine.InputSystem.InputExtensions.IsEndedOrCanceled(touch.phase)))
+				|| (Category == NoteCategory.Long && touch.phase != UnityEngine.InputSystem.TouchPhase.Ended))
 			{
 				return false;
 			}

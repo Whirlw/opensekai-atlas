@@ -533,7 +533,9 @@ namespace CriWare
 			}
 		}
 
-		public CriAtomExPlayback Start()
+		public CriAtomExPlayback Start() => Start(0);
+
+		internal CriAtomExPlayback Start(int requestSequence)
 		{
 			if (_acb == null || string.IsNullOrEmpty(_cueName))
 			{
@@ -542,7 +544,7 @@ namespace CriWare
 			}
 
 			CriAtomExAcb.CueAudioClip[] clips = _acb.GetOrCreateAudioClips(_cueName);
-			_currentPlayback = CriAtomAudioRuntime.Play(clips, _volume, _startTimeMs / 1000f);
+			_currentPlayback = CriAtomAudioRuntime.Play(clips, _volume, _startTimeMs / 1000f, requestSequence);
 			_startTimeMs = 0L;
 			return _currentPlayback;
 		}
@@ -690,6 +692,7 @@ namespace CriWare
 			// which is the game's own pause: the OS stops the audio whether or not the game asked.
 			public bool Suspended;
 			public float SuspendedTimeSeconds;
+			public AudioMixProbe MixProbe;
 		}
 
 		// On suspend, how far the clock has to be past the audio before the audio's own position is
@@ -701,6 +704,7 @@ namespace CriWare
 		// Playing a sound used to build a GameObject and an AudioSource per hit, which costs setup time
 		// on the audio thread and a garbage spike every note. Finished playbacks are parked here instead.
 		private static readonly List<PlaybackState> _freeStates = new List<PlaybackState>();
+		private static readonly List<PlaybackState> _freeProbeStates = new List<PlaybackState>();
 		private static readonly double StopwatchSecondsPerTick = 1d / Stopwatch.Frequency;
 		private static GameObject _root;
 		private static AudioListener _fallbackAudioListener;
@@ -740,7 +744,8 @@ namespace CriWare
 			return Play(new[] { new CriAtomExAcb.CueAudioClip(clip, 1f) }, _volume, startTimeSeconds);
 		}
 
-		public static CriAtomExPlayback Play(CriAtomExAcb.CueAudioClip[] clips, float _volume, float startTimeSeconds)
+		public static CriAtomExPlayback Play(CriAtomExAcb.CueAudioClip[] clips, float _volume, float startTimeSeconds,
+			int requestSequence = 0)
 		{
 			if (clips == null || clips.Length == 0)
 			{
@@ -763,7 +768,9 @@ namespace CriWare
 				return CriAtomExPlayback.Invalid;
 			}
 
-			PlaybackState state = RentPlaybackState(clipCount, id);
+			AudioMixProbe.Ticket mixTicket = requestSequence != 0 && clipCount == 1
+				? LatencyCapture.ReserveMixProbe(requestSequence) : null;
+			PlaybackState state = RentPlaybackState(clipCount, id, mixTicket != null);
 			AudioSource[] sources = state.Sources;
 			float primaryStartTimeSeconds = 0f;
 			int sourceIndex = 0;
@@ -803,6 +810,10 @@ namespace CriWare
 
 			EnsureAudioListener();
 			state.BaseStopwatchTicks = Stopwatch.GetTimestamp();
+			if (requestSequence != 0)
+				LatencyCapture.Record("note_se_play", value: id, requestSequence: requestSequence);
+			if (mixTicket != null)
+				state.MixProbe.Arm(mixTicket);
 			for (int i = 0; i < sourceIndex; i++)
 			{
 				sources[i].Play();
@@ -811,15 +822,16 @@ namespace CriWare
 			return new CriAtomExPlayback(id);
 		}
 
-		private static PlaybackState RentPlaybackState(int clipCount, uint id)
+		private static PlaybackState RentPlaybackState(int clipCount, uint id, bool probeMix = false)
 		{
+			List<PlaybackState> pool = probeMix ? _freeProbeStates : _freeStates;
 			PlaybackState state = null;
-			for (int i = _freeStates.Count - 1; i >= 0; i--)
+			for (int i = pool.Count - 1; i >= 0; i--)
 			{
-				PlaybackState candidate = _freeStates[i];
+				PlaybackState candidate = pool[i];
 				if (candidate.GameObject == null || candidate.InUse)
 				{
-					_freeStates.RemoveAt(i);
+					pool.RemoveAt(i);
 					continue;
 				}
 
@@ -829,7 +841,7 @@ namespace CriWare
 				}
 
 				state = candidate;
-				_freeStates.RemoveAt(i);
+				pool.RemoveAt(i);
 				break;
 			}
 
@@ -860,6 +872,8 @@ namespace CriWare
 
 				state.Sources = grown;
 			}
+			if (probeMix && state.MixProbe == null)
+				state.MixProbe = state.GameObject.AddComponent<AudioMixProbe>();
 
 			CriAtomPlaybackCleaner cleaner = state.GameObject.GetComponent<CriAtomPlaybackCleaner>();
 			if (cleaner != null)
@@ -884,6 +898,8 @@ namespace CriWare
 
 			state.InUse = false;
 			state.Stopped = true;
+			if (state.MixProbe != null)
+				state.MixProbe.Disarm();
 			if (state.Sources != null)
 			{
 				for (int i = 0; i < state.Sources.Length; i++)
@@ -902,9 +918,10 @@ namespace CriWare
 			if (state.GameObject != null)
 			{
 				state.GameObject.SetActive(false);
-				if (!_freeStates.Contains(state))
+				List<PlaybackState> pool = state.MixProbe != null ? _freeProbeStates : _freeStates;
+				if (!pool.Contains(state))
 				{
-					_freeStates.Add(state);
+					pool.Add(state);
 				}
 			}
 		}
@@ -1201,6 +1218,9 @@ namespace CriWare
 
 			float audioSeconds = (float)samples / clip.frequency;
 			float clockSeconds = GetMonotonicPlaybackTimeSeconds(state);
+			if (LatencyCapture.Active)
+				LatencyCapture.Record("audio_sample", noteId: (int)id, song: clockSeconds, note: audioSeconds,
+					value: (clockSeconds - audioSeconds) * 1000d);
 			if (clip.length > 0f && clockSeconds >= clip.length)
 			{
 				// The clock is clamped at the end of the clip, so the offset there is meaningless.
@@ -1251,6 +1271,9 @@ namespace CriWare
 					break;
 			}
 
+			if (LatencyCapture.Active)
+				LatencyCapture.Record("audio_correction", noteId: (int)id, song: clockSeconds, note: audioSeconds,
+					value: correction.ErrorSeconds * 1000d, detail: correction.Kind.ToString());
 			if (LiveTrace.IsOn(LiveTraceCategory.Audio))
 			{
 				LiveTrace.Write(LiveTraceCategory.Audio, string.Concat("drift ", correction.Kind.ToString(),

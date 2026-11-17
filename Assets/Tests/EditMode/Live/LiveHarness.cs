@@ -15,6 +15,7 @@ namespace OpenSekai.Tests.EditMode.Live
     internal sealed class LiveHarness : IDisposable
     {
         private readonly bool _previousLegacyTiming;
+        private readonly bool _previousFramePressMatching;
         private readonly LiveConfig.NoteTypeJudgeData _previousJudgeData;
         private readonly MusicScoreInfo _previousFrame;
         private readonly Mouse _previousMouse;
@@ -24,18 +25,20 @@ namespace OpenSekai.Tests.EditMode.Live
         internal LiveLogic Logic { get; }
         internal FakeTouchSource Source { get; }
 
-        internal LiveHarness()
+        internal LiveHarness(LiveBundleBuildData bundle = null)
         {
             _previousLegacyTiming = LiveConfig.UseLegacyJudgeTiming;
+            _previousFramePressMatching = LiveConfig.UseFramePressMatching;
             _previousJudgeData = LiveConfig.noteTypeJudgeData;
             _previousFrame = MusicScore.CurrentFrameInfo;
             LiveConfig.LoadMasterConfig();
             LiveConfig.UseLegacyJudgeTiming = false;
+            LiveConfig.UseFramePressMatching = false;
             // 隔离编辑器的真实鼠标，避免无触摸帧走物理输入兜底。
             _previousMouse = Mouse.current;
             _isolatedMouse = InputSystem.AddDevice<Mouse>();
             Source = new FakeTouchSource();
-            Logic = new LiveLogic(null);
+            Logic = new LiveLogic(bundle);
             Logic.SetTouchSource(Source);
         }
 
@@ -93,6 +96,7 @@ namespace OpenSekai.Tests.EditMode.Live
             InputSystem.RemoveDevice(_isolatedMouse);
             if (_previousMouse != null && _previousMouse.added) _previousMouse.MakeCurrent();
             LiveConfig.UseLegacyJudgeTiming = _previousLegacyTiming;
+            LiveConfig.UseFramePressMatching = _previousFramePressMatching;
             LiveConfig.noteTypeJudgeData = _previousJudgeData;
             MusicScore.CurrentFrameInfo = _previousFrame;
         }

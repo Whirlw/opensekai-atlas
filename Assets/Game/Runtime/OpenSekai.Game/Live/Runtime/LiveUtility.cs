@@ -10,6 +10,14 @@ namespace Sekai
 	{
 		public const float NOTE_END_IGNORE_FRAME_TIME = 1f / 6f;
 
+		/// <summary>
+		/// Engine frame time for the swipe tests, which measure a touch delta per frame. An EditMode replay
+		/// sets it to the frame interval it is replaying; the game leaves it unset and reads the engine.
+		/// </summary>
+		internal static float FrameDeltaTimeOverride = float.NaN;
+
+		internal static float FrameDeltaTime => float.IsNaN(FrameDeltaTimeOverride) ? Time.deltaTime : FrameDeltaTimeOverride;
+
 		public const int LANE_COUNT = 11;
 
 		public static readonly Vector2 Vector2Zero;

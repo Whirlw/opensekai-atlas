@@ -39,7 +39,7 @@ namespace Sekai.Core.Live
 				return false;
 			}
 
-			return lastTouch.phase != InputTouchPhase.Ended;
+			return lastTouch.phase != InputTouchPhase.Ended && lastTouch.phase != InputTouchPhase.Canceled;
 		}
 
 		public void Commit(in LiveTouchSample touch)
@@ -58,8 +58,7 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>
-		/// A repeat of a timestamp cannot be a second press, so a still finger is promoted to Moved
-		/// and an end is dropped by the caller.
+		/// A repeated timestamp can describe a still finger or the terminal edge of that contact.
 		/// </summary>
 		public bool IsRepeat(int touchId, double time)
 		{
