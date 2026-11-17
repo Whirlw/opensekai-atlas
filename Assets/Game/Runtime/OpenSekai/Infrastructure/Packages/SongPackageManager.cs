@@ -48,7 +48,8 @@ namespace OpenSekai.Infrastructure.Packages
 		{
 			".json",
 			".txt",
-			".sus"
+			".sus",
+			".gz"
 		};
 
 		private readonly HashSet<string> VideoExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -323,6 +324,9 @@ namespace OpenSekai.Infrastructure.Packages
 				return entry;
 			}
 
+            if (NextRushChartLoader.IsNativeFileName(sourcePath))
+                return ReplaceNativeScoreFile(entry, sourcePath);
+
 			string extension = Path.GetExtension(sourcePath);
 			if (string.IsNullOrEmpty(extension) || !ScoreExtensions.Contains(extension))
 			{
@@ -358,6 +362,7 @@ namespace OpenSekai.Infrastructure.Packages
 				}
 
 				manifest.scoreFileName = "score.json";
+                manifest.chartFormat = null;
 				manifest.Normalize();
 				WriteManifest(entry.RootDirectory, manifest);
 				return Track(SongPackageStorage.LoadEntry(entry.RootDirectory));
@@ -370,6 +375,28 @@ namespace OpenSekai.Infrastructure.Packages
 				}
 			}
 		}
+
+        private SongPackage ReplaceNativeScoreFile(SongPackage entry, string sourcePath)
+        {
+            // Validate before touching the installed chart, then preserve the original bytes.
+            NextRushChartLoader.ReadFile(sourcePath);
+            string name = sourcePath.EndsWith(".gz", StringComparison.OrdinalIgnoreCase)
+                ? "score.next-rush.json.gz" : "score.next-rush.json";
+            string temporary = CreateTemporaryPath("OpenSekaiNextRush_", ".tmp");
+            try
+            {
+                File.Copy(sourcePath, temporary);
+                Directory.CreateDirectory(entry.RootDirectory);
+                var manifest = CloneManifest(entry.Manifest);
+                DeleteExistingScoreFiles(entry.RootDirectory, manifest.scoreFileName);
+                File.Copy(temporary, Path.Combine(entry.RootDirectory, name), true);
+                manifest.scoreFileName = name;
+                manifest.chartFormat = NextRushChartLoader.Format;
+                WriteManifest(entry.RootDirectory, manifest);
+                return Track(SongPackageStorage.LoadEntry(entry.RootDirectory));
+            }
+            finally { if (File.Exists(temporary)) File.Delete(temporary); }
+        }
 
 		public SongPackage ReplaceVideoFile(SongPackage entry, string sourcePath)
 		{

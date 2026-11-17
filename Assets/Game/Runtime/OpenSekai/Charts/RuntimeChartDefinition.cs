@@ -5,17 +5,19 @@ namespace OpenSekai.Charts
 {
     /// <summary>
     /// A chart after it has been converted into the note and event arrays the live scene consumes,
-    /// together with the totals the library and the result panel need before that scene loads.
-    /// Creating one is the only place that turns <see cref="ChartDocument"/> into <see cref="MusicScore"/>.
+    /// together with source metadata and totals the library and result panel need before loading.
+    /// Source formats have separate loaders; live playback consumes the same MusicScore boundary.
     /// </summary>
     public sealed class RuntimeChartDefinition
     {
-        private RuntimeChartDefinition(ChartDocument document, MusicScore score, int totalNoteCount, bool hasPlayableNotes)
+        private RuntimeChartDefinition(ChartDocument document, MusicScore score, int totalNoteCount, bool hasPlayableNotes, long ticksMax, NextRushChart nextRush = null)
         {
             Document = document;
             Score = score;
             TotalNoteCount = totalNoteCount;
             HasPlayableNotes = hasPlayableNotes;
+            TicksMax = ticksMax;
+            NextRush = nextRush;
         }
 
         /// <summary>The authored chart, still in ticks; kept for hashes and future re-conversion.</summary>
@@ -29,13 +31,23 @@ namespace OpenSekai.Charts
 
         public bool HasPlayableNotes { get; }
 
-        public long TicksMax => Document?.MusicScoreTicksMax ?? 0L;
+        public long TicksMax { get; }
+
+        /// <summary>Native source for NextRUSH charts. Document is null for this format.</summary>
+        public NextRushChart NextRush { get; }
 
         public static RuntimeChartDefinition Create(ChartDocument document, MusicScore score)
         {
             int totalNoteCount = score != null ? LiveUtility.CalculateTotalComboCount(score) : 0;
             bool hasPlayableNotes = document != null && document.HasPlayableNotes && totalNoteCount > 0;
-            return new RuntimeChartDefinition(document, score, totalNoteCount, hasPlayableNotes);
+            return new RuntimeChartDefinition(document, score, totalNoteCount, hasPlayableNotes, document?.MusicScoreTicksMax ?? 0);
+        }
+
+        public static RuntimeChartDefinition CreateNative(NextRushChart source, MusicScore score, long ticksMax)
+        {
+            if (source == null) throw new System.ArgumentNullException(nameof(source));
+            int count = score != null ? LiveUtility.CalculateTotalComboCount(score) : 0;
+            return new RuntimeChartDefinition(null, score, count, count > 0, ticksMax, source);
         }
     }
 }

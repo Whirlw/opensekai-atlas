@@ -109,7 +109,10 @@ namespace OpenSekai.App.Playback
                 {
                     return Result(PlayStartStatus.Failed, "找不到音频文件。");
                 }
-                var chart = ChartFileReader.Read(entry);
+                PlaybackSettingsSnapshot settings = LiveSettingsStore.Shared.CaptureSnapshot();
+                LiveBundleBuildData config = ResourceCatalog.LiveBundleConfig.Load();
+                if(config == null) throw new InvalidOperationException("Live bundle configuration is missing.");
+                var chart = RuntimeChartLoader.Load(entry, config, settings.ShowSimultaneousLine);
                 if (chart == null || !chart.HasPlayableNotes)
                 {
                     return Result(PlayStartStatus.Failed, "没有可游玩的音符。");
@@ -122,10 +125,7 @@ namespace OpenSekai.App.Playback
                     return Result(PlayStartStatus.Failed, "无法加载音频文件。");
                 }
                 cancellationToken.ThrowIfCancellationRequested();
-                PlaybackSettingsSnapshot settings = LiveSettingsStore.Shared.CaptureSnapshot();
-                LiveBundleBuildData config = ResourceCatalog.LiveBundleConfig.Load();
-                if(config == null) throw new InvalidOperationException("Live bundle configuration is missing.");
-                PlaySession session = PlaySession.Create(request, entry, chart, config, settings);
+                PlaySession session = PlaySession.FromChart(request, entry, chart, config, settings);
                 FreeLiveBootData boot = LegacyLiveBootAdapter.Create(session, _deckSelection.SelectedDeckId);
                 boot.CustomMusicScoreKey = SongPackageManager.Shared.ScoreKeyOf(entry);
                 cancellationToken.ThrowIfCancellationRequested();
