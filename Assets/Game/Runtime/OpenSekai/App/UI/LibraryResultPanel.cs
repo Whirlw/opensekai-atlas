@@ -125,6 +125,15 @@ namespace OpenSekai.App.UI
             _clearRing.color = new Color32(clearColor.r, clearColor.g, clearColor.b, 110);
         }
 
+        internal bool IsOpen => _modal != null && _modal.IsOpen;
+
+        /// <summary>The Android back key: closes the card the way 返回曲库 does.</summary>
+        internal void Dismiss()
+        {
+            UiSound.Play(UiCue.Back);
+            Close();
+        }
+
         public void Hide()
         {
             _scoreMotion.TryCancel();

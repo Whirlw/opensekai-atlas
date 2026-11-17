@@ -64,13 +64,18 @@ namespace OpenSekai.App.Bootstrap
             // The composition root for this scene: everything the page needs is assembled here and
             // handed over, so no App-layer type has to reach for a singleton.
             AppContext context = AppContext.CreateDefault();
-            LibraryScreen library = LibraryScreen.Create(context);
+            // A cold start opens on the splash and the home page; back from a live, the library
+            // comes straight up with its result. The library is built either way (off screen under
+            // the home page), so anything waiting for the library page still finds it ready.
+            bool coldStart = !returningFromTransition;
+            LibraryScreen library = LibraryScreen.Create(context, presented: !coldStart);
             if (library == null)
             {
                 Debug.LogError("[Library] Could not create the lightweight library screen.");
             }
 
-            Debug.Log("[Library] Player library started (lightweight screen).");
+            HomeScreen.Create(context, library, playIntro: coldStart);
+            Debug.Log("[Library] Player library started (" + (coldStart ? "home page with splash" : "library after a live") + ").");
         }
 
         private static void EnsureEventSystem()

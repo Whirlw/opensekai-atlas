@@ -97,6 +97,10 @@ namespace OpenSekai.EditorTools.Screenshots
                     case "actions-armed": body = LibraryShot(shot, "actions-armed"); break;
                     case "loading": body = LibraryShot(shot, "loading"); break;
                     case "return": body = ReturnShot(shot); break;
+                    case "home": body = HomeShot(shot, false); break;
+                    case "intro": body = HomeShot(shot, true); break;
+                    case "handoff": body = HandoffShot(shot); break;
+                    case "about": body = AboutShot(shot); break;
                     default:
                         Fail(shot, "unknown kind '" + shot.kind + "'");
                         continue;
@@ -276,6 +280,109 @@ namespace OpenSekai.EditorTools.Screenshots
             yield return WaitForLibrary();
             yield return new WaitForSecondsRealtime(1.5f);
             yield return Capture(shot, FileStem(shot, null), "returned from a retired live", null);
+        }
+
+        // ---------------------------------------------------------------- home page and splash
+
+        /// <summary>Intro times taken when a request names none: lanes, fall, hit, morph, orbit, wordmark, flight, home.</summary>
+        private static readonly float[] DefaultIntroTimes = { 0.45f, 0.95f, 1.12f, 1.45f, 1.9f, 2.6f, 3.5f, 4.4f };
+
+        /// <summary>
+        /// The splash and the home page are one seekable timeline with the backdrop's drift frozen
+        /// at the same time, so these frames are reproducible like live frames. The home page is
+        /// that timeline's last frame.
+        /// </summary>
+        private IEnumerator HomeShot(Shot shot, bool intro)
+        {
+            yield return WaitForLibrary();
+            HomeScreen home = HomeScreen.Current;
+            if (home == null)
+            {
+                throw new InvalidOperationException("The Library scene has no home page.");
+            }
+
+            float[] times = intro
+                ? (shot.times != null && shot.times.Count > 0 ? shot.times.ToArray() : DefaultIntroTimes)
+                : new[] { HomeScreen.IntroLength };
+            home.SeekIntro(times[0]);
+            // The emblem is drawn on worker threads and the jackets load from disk; let both land.
+            yield return WaitUntil(() => home.IsBrandReady, "the brand emblem");
+            yield return new WaitForSecondsRealtime(1.2f);
+
+            foreach (float time in times)
+            {
+                home.SeekIntro(time);
+                yield return null;
+                yield return null;
+                string stem = intro ? FileStem(shot, time) : FileStem(shot, null);
+                yield return Capture(shot, stem, intro ? "intro +" + time.ToString("0.000") + "s" : "home page", null, intro ? time : (float?)null);
+            }
+
+            home.ShowLibraryImmediately();
+        }
+
+        /// <summary>
+        /// The library card growing over the page (two held frames), then the real round trip
+        /// through the calls a tap and the back button make: the library once it is up, and the
+        /// home page once it has taken back over.
+        /// </summary>
+        private IEnumerator HandoffShot(Shot shot)
+        {
+            yield return WaitForLibrary();
+            HomeScreen home = HomeScreen.Current;
+            LibraryScreen library = UnityEngine.Object.FindFirstObjectByType<LibraryScreen>();
+            if (home == null || library == null)
+            {
+                throw new InvalidOperationException("The Library scene has no home page.");
+            }
+
+            home.SeekIntro(HomeScreen.IntroLength);
+            yield return WaitUntil(() => home.IsBrandReady, "the brand emblem");
+            yield return new WaitForSecondsRealtime(1.2f);
+            foreach (float amount in new[] { 0.35f, 0.7f })
+            {
+                home.SeekHandoff(amount);
+                yield return null;
+                yield return null;
+                yield return Capture(shot, FileStem(shot, amount), "library card grown " + amount.ToString("0.00"), null, amount);
+            }
+
+            home.ShowHomeImmediately();
+            yield return null;
+            home.EnterLibrary();
+            yield return WaitUntil(() => library.IsPresented && !home.IsHomeShown, "the library after the hand-over");
+            yield return new WaitForSecondsRealtime(0.8f);
+            yield return Capture(shot, FileStem(shot, null) + "-library", "after tapping the library card", null);
+
+            home.ReturnHome();
+            yield return WaitUntil(() => home.IsHomeShown && !library.IsPresented, "the home page after back");
+            yield return new WaitForSecondsRealtime(1f);
+            yield return Capture(shot, FileStem(shot, null) + "-home", "after the library's back button", null);
+            home.ShowLibraryImmediately();
+        }
+
+        /// <summary>The home page's 关于 card, then the hint a tap on an unbuilt part (服务器) shows.</summary>
+        private IEnumerator AboutShot(Shot shot)
+        {
+            yield return WaitForLibrary();
+            HomeScreen home = HomeScreen.Current;
+            if (home == null)
+            {
+                throw new InvalidOperationException("The Library scene has no home page.");
+            }
+
+            home.SeekIntro(HomeScreen.IntroLength);
+            yield return WaitUntil(() => home.IsBrandReady, "the brand emblem");
+            yield return new WaitForSecondsRealtime(1.2f);
+            typeof(HomeScreen).GetMethod("OpenAbout", Any).Invoke(home, null);
+            yield return new WaitForSecondsRealtime(0.6f);
+            yield return Capture(shot, FileStem(shot, null), "about card", null);
+
+            home.ShowHomeImmediately();
+            typeof(HomeScreen).GetMethod("ShowComingSoon", Any).Invoke(home, new object[] { "服务器" });
+            yield return new WaitForSecondsRealtime(0.5f);
+            yield return Capture(shot, FileStem(shot, null) + "-soon", "coming-soon hint", null);
+            home.ShowLibraryImmediately();
         }
 
         // ---------------------------------------------------------------- live and info page
@@ -670,7 +777,14 @@ namespace OpenSekai.EditorTools.Screenshots
             return WaitUntil(() =>
             {
                 LibraryScreen screen = UnityEngine.Object.FindFirstObjectByType<LibraryScreen>();
-                return screen != null && screen.IsReady && !PlayService.Instance.IsStarting
+                // A cold start opens on the splash and the home page, with the library built
+                // under them; library shots want the library itself on screen.
+                if (screen != null && !screen.IsPresented && HomeScreen.Current != null && !PlayService.Instance.IsStarting)
+                {
+                    HomeScreen.Current.ShowLibraryImmediately();
+                }
+
+                return screen != null && screen.IsReady && screen.IsPresented && !PlayService.Instance.IsStarting
                     && SceneManager.Instance.CurrentScene == SceneManager.Scene.Library
                     && UnityEngine.Object.FindFirstObjectByType<SoloLiveController>() == null;
             }, "the library page");

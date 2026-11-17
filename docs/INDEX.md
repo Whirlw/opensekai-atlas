@@ -3,7 +3,7 @@
 > 目的：全量登记 `docs/` 下的每一篇文档，给出标题、路径、摘要与最后更新，作为查找与维护的单一清单。
 > 适用读者：所有人，尤其是维护文档的人。
 > 前置条件：无。
-> 最后更新：2026-11-14
+> 最后更新：2026-11-17
 
 ## 概述
 
@@ -43,7 +43,8 @@
 | 打歌运行时 | [architecture/live-runtime.md](architecture/live-runtime.md) | 开局六步、时钟、输入回填、计分、结算与暂停 | 2026-11-02 | 现行 |
 | 判定规则设计 | [architecture/judging-design.md](architecture/judging-design.md) | 判定权归属、三条通道、时间/轨道规则、长条四段结构、不变量清单 | 2026-11-13 | 现行 |
 | 开局数据契约 | [architecture/play-session.md](architecture/play-session.md) | PlaySession / RuntimeChartDefinition 的字段、构造与和 FreeLiveBootData 的关系 | 2026-11-03 | 现行 |
-| 页面系统 | [architecture/screen-system.md](architecture/screen-system.md) | ScreenManager 注册表、三个注册页面与曲库页、曲库页为何独立 | 2026-11-02 | 现行 |
+| 页面系统 | [architecture/screen-system.md](architecture/screen-system.md) | ScreenManager 注册表、三个注册页面与曲库页、曲库页与首页为何独立 | 2026-11-17 | 现行 |
+| 首页、开屏与品牌标 | [architecture/home-and-brand.md](architecture/home-and-brand.md) | 开屏时间线、首页三张入口卡、首页与曲库的交接、品牌标与应用图标的生成 | 2026-11-17 | 现行 |
 | AssetBundle 与清单 | [architecture/asset-bundles.md](architecture/asset-bundles.md) | 11 个白名单条目、10 个发布 bundle、JSON 清单 | 2026-11-02 | 现行 |
 | 音频 | [architecture/audio.md](architecture/audio.md) | 曲包音频、CriAtomShim、为何不用 dspTime | 2026-11-02 | 现行 |
 | 结构重整计划（2026-11） | [architecture/restructure-plan-2026-11.md](architecture/restructure-plan-2026-11.md) | 分阶段：文档/空目录、Core 程序集、拆 ScreenManager/LibraryScreen/LongNote、ResourceCatalog、测试门禁 | 2026-11-11 | 执行中 |

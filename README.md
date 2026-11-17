@@ -1,6 +1,9 @@
+<img src="docs/images/app-icon.png" width="96" alt="Open Sekai Atlas 图标" />
+
 # Open Sekai Atlas
 
-开源的下落式音游播放器：曲库 → 加载 → 打歌 → 结算 → 回曲库，一条链路跑完。
+开源的下落式音游播放器：开屏 → 首页 → 曲库 → 加载 → 打歌 → 结算 → 回曲库，一条链路跑完。
+首页有曲库、服务器、资源包三个入口，目前只有曲库可用。
 谱面编辑器、抽卡、旧页面体系都已整块移除。
 
 **仓库里的素材全部可分发**：代码为 MIT，字体为 OFL（思源黑体），音频、音符皮肤、HUD、判定特效、加载背景全部为自制或 CC0 资源。
@@ -26,7 +29,7 @@
 ## 目录说明
 
 - `Assets/Game/Runtime/`：游戏代码，按 `Sekai`（引擎层）/ `OpenSekai`（本仓库页面）/ `Platform` / `Shared` / `CustomMusicScoreManager` 组织，两个 asmdef 单向依赖。
-- `Assets/Game/Scenes/`：`Library.unity`（曲库）、`Core.unity`（打歌）、`TransitionBlank.unity`。
+- `Assets/Game/Scenes/`：`Library.unity`（开屏、首页与曲库）、`Core.unity`（打歌）、`TransitionBlank.unity`。
 - `Assets/Game/Resources/`：运行时 `Resources` 加载的字体、音符皮肤、界面数据。
 - `Assets/Game/AssetBundles/resources/`：AssetBundle 源资源。
 - `Assets/StreamingAssets/data/`：打包后的 AssetBundle 与 `AssetBundleInfo.bytes`（构建产物）。
@@ -44,6 +47,7 @@
 | 把工程跑起来 | [环境与运行](docs/getting-started/build-and-run.md) |
 | 导入曲包打一首 | [打一首歌](docs/guides/play-a-chart.md) |
 | 改代码前了解结构 | [架构总览](docs/architecture/README.md) |
+| 改首页、开屏或应用图标 | [首页、开屏与品牌标](docs/architecture/home-and-brand.md) |
 | 出 Android 包 | [Android 构建](docs/operations/android-build.md) |
 | 换素材（皮肤/HUD/音频） | [素材包导入](docs/operations/material-pack-import.md) |
 | 查某个设置项 | [设置项](docs/reference/live-settings.md) |

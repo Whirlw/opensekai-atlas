@@ -118,6 +118,7 @@ namespace OpenSekai.EditorTools
             int legacyEntries = UnityEngine.Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None)
                 .Count(component => component != null && component.GetType().Name == "MusicScoreMakerEntryPoint");
             var libraryScreens = UnityEngine.Object.FindObjectsByType<LibraryScreen>(FindObjectsSortMode.None);
+            var homeScreens = UnityEngine.Object.FindObjectsByType<HomeScreen>(FindObjectsSortMode.None);
             var eventSystems = UnityEngine.Object.FindObjectsByType<EventSystem>(FindObjectsSortMode.None);
             var canvases = UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None);
             bool valid = entries.Length == 1 && legacyEntries == 0
@@ -133,6 +134,8 @@ namespace OpenSekai.EditorTools
                 libraryEntries = entries.Length,
                 editorEntries = legacyEntries,
                 lightweightLibraryScreens = libraryScreens.Length,
+                homeScreens = homeScreens.Length,
+                page = homeScreens.Length > 0 && homeScreens[0].IsHomeShown ? "home" : "library",
                 eventSystems = eventSystems.Length,
                 isStartingPlayback = PlayService.Instance.IsStarting
             });

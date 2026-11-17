@@ -150,6 +150,8 @@ namespace OpenSekai.App.UI
             _modal.Open();
         }
 
+        internal bool IsOpen => _modal != null && _modal.IsOpen;
+
         public void Hide()
         {
             _onExport = null;

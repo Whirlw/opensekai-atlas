@@ -32,6 +32,9 @@
 #   # Library, settings (and its trace sub-page) and the result page with a full-combo sample
 #   powershell -File Tools/capture-screens.ps1 -Library -Settings -SettingsTrace -Result fc
 #
+#   # The home page, and the splash at 0.95 s (note falling), 1.12 s (the hit) and 2.6 s (wordmark)
+#   powershell -File Tools/capture-screens.ps1 -HomePage -Intro 0.95,1.12,2.6
+#
 #   # Anything else: write a request JSON yourself (format: Assets/Game/Editor/OpenSekai/Screenshots/ShotRequest.cs)
 #   powershell -File Tools/capture-screens.ps1 -Request my-shots.json
 #
@@ -45,6 +48,9 @@
 #   -Finish       Seconds after the last note is done; the end-of-live animation starts at +1 s.
 #   -FinishAnimation  allperfect (default) | fullcombo | clear | finish | none.
 #   -Result       Result sample preset: default | fc | ap | auto | failed | retired | loaderror.
+#   -HomePage     The home page at rest (the splash's last frame).
+#   -Intro        Seconds into the splash; it hands over to the home page at about 4.4 s. Pass
+#                 -Intro default for a set of eight frames across the whole sequence.
 #   -PlainAuto    Live frames show plain autoplay (AUTO, no combo) instead of PERFECT + combo.
 #   -Width/-Height  Default 2800x1272 (the phone). 1750x795 is the other common size.
 #   -OutDir       Default TestResults/screenshots/<yyyyMMdd-HHmmss>.
@@ -63,6 +69,8 @@ param(
     [switch]$Settings,
     [switch]$SettingsTrace,
     [string]$Result,
+    [switch]$HomePage,
+    [string[]]$Intro,
     [switch]$All,
     [switch]$PlainAuto,
     [int]$Width = 2800,
@@ -95,6 +103,8 @@ $env:UNITY_NO_AGENT_HINTS = '1'
 $liveTimes = ConvertTo-Seconds $Live
 $infoTimes = ConvertTo-Seconds $Info
 $finishTimes = ConvertTo-Seconds $Finish
+$introDefault = $Intro -and (($Intro -join ',') -eq 'default')
+$introTimes = if ($introDefault) { $null } else { ConvertTo-Seconds $Intro }
 $ProjectPath = (Resolve-Path $ProjectPath).Path
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 if (-not $OutDir) { $OutDir = "TestResults/screenshots/$stamp" }
@@ -114,6 +124,9 @@ if ($Request) {
         if (-not $liveTimes) { $liveTimes = @(30.0, 60.0) }
     }
     $shots = New-Object System.Collections.ArrayList
+    if ($HomePage) { [void]$shots.Add(@{ kind = 'home' }) }
+    if ($introDefault) { [void]$shots.Add(@{ kind = 'intro' }) }
+    elseif ($introTimes) { [void]$shots.Add(@{ kind = 'intro'; times = @($introTimes) }) }
     if ($Library) { [void]$shots.Add(@{ kind = 'library' }) }
     if ($Settings) { [void]$shots.Add(@{ kind = 'settings' }) }
     if ($SettingsTrace) { [void]$shots.Add(@{ kind = 'settings-trace' }) }
@@ -151,7 +164,7 @@ if ($Request) {
         if ($Difficulty) { $shot.difficulty = $Difficulty }
         [void]$shots.Add($shot)
     }
-    if ($shots.Count -eq 0) { throw 'Nothing to capture: pass -All, -Live, -Info, -Finish, -Library, -Settings, -SettingsTrace, -Result or -Request.' }
+    if ($shots.Count -eq 0) { throw 'Nothing to capture: pass -All, -HomePage, -Intro, -Live, -Info, -Finish, -Library, -Settings, -SettingsTrace, -Result or -Request.' }
 
     $requestPath = Join-Path $requestDir "request-$stamp.json"
     $body = @{ outDir = $OutDir; width = $Width; height = $Height; shots = @($shots) }

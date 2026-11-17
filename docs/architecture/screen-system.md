@@ -3,7 +3,7 @@
 > 目的：说明引擎自带的 `ScreenManager` 页面栈怎么工作、现在还剩哪些页面、曲库页为什么不在这个系统里。
 > 适用读者：开发者（加页面、改页面栈行为、排查「界面没出来」）。
 > 前置条件：读过 [模块划分](modules.md)。
-> 最后更新：2026-11-12
+> 最后更新：2026-11-17
 
 ## 概述
 
@@ -47,6 +47,12 @@ PushUIScreen(type)  →  screenMap 查不到 → LogError("Not Found ScreenLayer
 
 `PlayService.IsLibraryAlive()` 的判定顺序因此是：先看 `LibraryPageRegistry.Current`，为空才回退到旧的
 `IsActiveScreen(MenuScreenType.MusicScoreMakerTop)`（该页面已删除，回退分支实际不会命中）。
+
+### 首页与开屏也不在页面系统里
+
+冷启动时 `LibraryEntryPoint` 同时建出 `LibraryScreen`（先不上屏）和 `HomeScreen`（开屏 + 首页），两者都是代码构建、各带一台相机，
+同一时刻只开一台。曲库「不上屏」只关相机、`GraphicRaycaster` 和试听，`IsReady` 不变，所以等曲库的工具照常工作。
+从打歌回来时曲库直接上屏，首页在后台待命，曲库左上角的返回键回到首页。细节见 [首页、开屏与品牌标](home-and-brand.md)。
 
 ### 场景枚举
 

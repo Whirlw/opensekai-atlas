@@ -6,7 +6,7 @@ namespace OpenSekai.App.UI
     internal enum LibraryIcon
     {
         Back, Search, Add, Refresh, Settings, List, Grid, Check, Wave, Play, More,
-        Close, Minus, ChevronRight, Export, Trash
+        Close, Minus, ChevronRight, Export, Trash, Info, Forward
     }
 
     /// <summary>
@@ -188,6 +188,11 @@ namespace OpenSekai.App.UI
                     return Mathf.Min(
                         Mathf.Min(Line(12, 3.5f, 12, 14.5f), Mathf.Min(Line(12, 3.5f, 7.5f, 8), Line(12, 3.5f, 16.5f, 8))),
                         Mathf.Min(Line(5, 13, 5, 20), Mathf.Min(Line(5, 20, 19, 20), Line(19, 20, 19, 13))));
+                case LibraryIcon.Info:
+                    return Mathf.Min(Ring(12, 12, 9f), Mathf.Min(Line(12, 11, 12, 16.5f), Circle(12, 7.4f, 1.35f)));
+                case LibraryIcon.Forward:
+                    return Mathf.Min(Line(5, 12, 19, 12),
+                        Mathf.Min(Line(19, 12, 13, 6), Line(19, 12, 13, 18)));
                 case LibraryIcon.Trash:
                     return Mathf.Min(
                         Mathf.Min(Line(4, 6.5f, 20, 6.5f), Line(9.5f, 3.5f, 14.5f, 3.5f)),

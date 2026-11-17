@@ -137,14 +137,17 @@ namespace OpenSekai.App.UI
         private Transform _target;
         private Selectable _selectable;
         private MotionHandle _pressMotion;
+        private float _pressScale = LibraryTheme.Motion.PRESS_SCALE;
 
         /// <param name="host">Object that receives the pointer events.</param>
         /// <param name="target">Transform to scale; defaults to the host itself.</param>
-        internal static LibraryPressFeedback Attach(GameObject host, Transform target = null)
+        /// <param name="pressScale">Scale while pressed; large cards want a smaller dip than buttons.</param>
+        internal static LibraryPressFeedback Attach(GameObject host, Transform target = null, float pressScale = LibraryTheme.Motion.PRESS_SCALE)
         {
             LibraryPressFeedback feedback = host.AddComponent<LibraryPressFeedback>();
             feedback._target = target != null ? target : host.transform;
             feedback._selectable = host.GetComponent<Selectable>();
+            feedback._pressScale = pressScale;
             return feedback;
         }
 
@@ -155,7 +158,7 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            Play(LibraryTheme.Motion.PRESS_SCALE, LibraryTheme.Motion.FAST, LibraryTheme.Motion.ENTER_EASE);
+            Play(_pressScale, LibraryTheme.Motion.FAST, LibraryTheme.Motion.ENTER_EASE);
         }
 
         public void OnPointerUp(PointerEventData eventData)

@@ -88,6 +88,22 @@ namespace OpenSekai.App.UI
             _modal.Close();
         }
 
+        internal bool IsOpen => _modal != null && _modal.IsOpen;
+
+        /// <summary>The Android back key: leaves the trace page first, then closes the panel.</summary>
+        internal void Back()
+        {
+            if (_tracePanel != null && _tracePanel.activeSelf)
+            {
+                CloseTrace();
+                UiSound.Play(UiCue.Back);
+                return;
+            }
+
+            Hide();
+            UiSound.Play(UiCue.Close);
+        }
+
         /// <summary>Color of switches and the current choice; follows the selected jacket.</summary>
         internal void SetAccent(Color32 accent) => _rows.SetAccent(accent);
 

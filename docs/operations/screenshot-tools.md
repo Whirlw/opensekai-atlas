@@ -3,14 +3,14 @@
 > 目的：不上真机，直接把打歌画面、曲目信息页、曲库、设置页、结算页渲染成 PNG，用来快速检查素材改动（音符皮肤、HUD、判定特效、界面）。
 > 适用读者：美术、改界面/素材的开发者、写回归的测试者。
 > 前置条件：工程能在 Unity 6000.6.7f1 里打开且无编译错误；用户数据目录里至少装有一首曲包（或用 `Tools/fixtures/` 里的样例）。
-> 最后更新：2026-11-14
+> 最后更新：2026-11-17
 
 ## 概述
 
 一次「截图运行」= 一个请求（JSON）：输出目录、分辨率、按顺序要拍的若干张。工具会：
 
 1. 把 Game 视图切到请求的固定分辨率；
-2. 在 `Library.unity` 上进入 Play 模式；
+2. 在 `Library.unity` 上进入 Play 模式（冷启动先是开屏和首页；曲库类截图会先把曲库换上屏）；
 3. 逐张拍摄（打歌类会自动开一局自动游玩，拍完退出回曲库）；
 4. 写出 PNG 和 `report.json`，退出 Play 模式，把分辨率、`runInBackground` 等恢复原样。
 
@@ -50,6 +50,8 @@
 | `-Settings` | 拍设置页 | 关 |
 | `-SettingsTrace` | 拍设置页里的「追踪选项」子页 | 关 |
 | `-Result` | 拍结算面板，取样例：`default` / `fc` / `ap` / `auto` / `failed` / `retired` / `loaderror` | — |
+| `-HomePage` | 拍首页（开屏时间线的最后一帧） | 关 |
+| `-Intro` | 开屏动画开始后的秒数，可多个；`-Intro default` 拍覆盖整段开屏的 8 帧（约 4.4 s 交接到首页） | — |
 | `-All` | 一次拍全：曲库、设置、结算（`default`）、信息页 `0.3,0.8,1.5,2.7`、打歌 `30,60`（需 `-Package`；已给的时间不会被覆盖） | 关 |
 | `-Width` / `-Height` | 分辨率。真机是 `2800x1272`，另一常用尺寸 `1750x795` | `2800` / `1272` |
 | `-OutDir` | 输出目录（相对工程或绝对路径） | `TestResults/screenshots/<yyyyMMdd-HHmmss>` |
@@ -67,6 +69,9 @@
 | 信息页 `info` | 信息页被要求开始播放的那一刻起 | 页面约 2.9 s 后淡出完毕：0.1 + 0.01 + `JacketFadeOutDelaySec`（`FrontUIView.prefab` 里为 2.35）+ 0.45 |
 | 收尾 `finish` | 最后一个音符判完起 | 收尾演出（ALL PERFECT 等）在 +1 s 开始，`+1.6`～`+3` 比较好看 |
 | 曲库 / 设置 / 结算 | 无时间 | 面板打开后等两帧排版再拍 |
+| 开屏 `intro` | 开屏时间线的秒数 | 时间线与背景漂移同时定格，同一时间点画面相同；`home` 即最后一帧 |
+| 交接 `handoff` | 无时间 | 曲库卡放大到 0.35 与 0.70 各一帧，然后走真实的「点曲库卡 → 曲库」「返回 → 首页」各拍一张 |
+| 关于 `about` | 无时间 | 首页的「关于」卡，以及点「服务器」后弹出的提示条（`-soon`） |
 
 ### 打歌画面是怎么「像真打一样」的
 
@@ -123,7 +128,7 @@
 
 | 字段 | 适用 | 含义 | 默认 |
 | --- | --- | --- | --- |
-| `kind` | 全部 | `live` / `info` / `finish` / `library` / `settings` / `settings-trace` / `result` | — |
+| `kind` | 全部 | `live` / `info` / `finish` / `library` / `settings` / `settings-trace` / `result` / `actions` / `loading` / `return` / `home` / `intro` / `handoff` / `about` | — |
 | `name` | 全部 | 文件名前缀 | 等于 `kind` |
 | `package` | live / info / finish | 曲包（匹配规则同 `-Package`） | — |
 | `difficulty` | live / info / finish | 难度覆盖 | 曲包自带 |

@@ -16,7 +16,7 @@ PlayerSettings:
   productName: Open Sekai Atlas
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
-  m_SplashScreenBackgroundColor: {r: 0.13725491, g: 0.12156863, b: 0.1254902, a: 1}
+  m_SplashScreenBackgroundColor: {r: 0.047058824, g: 0.05882353, b: 0.078431375, a: 1}
   m_ShowUnitySplashScreen: 0
   m_ShowUnitySplashLogo: 0
   m_SplashScreenOverlayOpacity: 1
@@ -303,7 +303,7 @@ PlayerSettings:
   - m_BuildTarget: Standalone
     m_Icons:
     - serializedVersion: 2
-      m_Icon: {fileID: 2800000, guid: 0cddd2441b3b5244cb43cd966c34af1e, type: 3}
+      m_Icon: {fileID: 2800000, guid: 54393a99b81f1c544a5170655bc3eade, type: 3}
       m_Width: 1024
       m_Height: 1024
       m_Kind: 0
@@ -342,37 +342,54 @@ PlayerSettings:
       m_Width: 16
       m_Height: 16
       m_Kind: 0
+  - m_BuildTarget: 
+    m_Icons:
+    - serializedVersion: 2
+      m_Icon: {fileID: 2800000, guid: 54393a99b81f1c544a5170655bc3eade, type: 3}
+      m_Width: 128
+      m_Height: 128
+      m_Kind: 0
   m_BuildTargetPlatformIcons:
   - m_BuildTarget: Android
     m_Icons:
     - m_Textures:
-      - {fileID: 2800000, guid: f027140a7a13cd44b99636c9f67542c0, type: 3}
-      - {fileID: 2800000, guid: 0cddd2441b3b5244cb43cd966c34af1e, type: 3}
+      - {fileID: 2800000, guid: b8b8d745dff368f47ace780b3f54556e, type: 3}
+      - {fileID: 2800000, guid: f255dde6e279f844c80bc7636b3d068e, type: 3}
       m_Width: 432
       m_Height: 432
       m_Kind: 2
       m_SubKind: 
-    - m_Textures: []
+    - m_Textures:
+      - {fileID: 2800000, guid: b8b8d745dff368f47ace780b3f54556e, type: 3}
+      - {fileID: 2800000, guid: f255dde6e279f844c80bc7636b3d068e, type: 3}
       m_Width: 324
       m_Height: 324
       m_Kind: 2
       m_SubKind: 
-    - m_Textures: []
+    - m_Textures:
+      - {fileID: 2800000, guid: b8b8d745dff368f47ace780b3f54556e, type: 3}
+      - {fileID: 2800000, guid: f255dde6e279f844c80bc7636b3d068e, type: 3}
       m_Width: 216
       m_Height: 216
       m_Kind: 2
       m_SubKind: 
-    - m_Textures: []
+    - m_Textures:
+      - {fileID: 2800000, guid: b8b8d745dff368f47ace780b3f54556e, type: 3}
+      - {fileID: 2800000, guid: f255dde6e279f844c80bc7636b3d068e, type: 3}
       m_Width: 162
       m_Height: 162
       m_Kind: 2
       m_SubKind: 
-    - m_Textures: []
+    - m_Textures:
+      - {fileID: 2800000, guid: b8b8d745dff368f47ace780b3f54556e, type: 3}
+      - {fileID: 2800000, guid: f255dde6e279f844c80bc7636b3d068e, type: 3}
       m_Width: 108
       m_Height: 108
       m_Kind: 2
       m_SubKind: 
-    - m_Textures: []
+    - m_Textures:
+      - {fileID: 2800000, guid: b8b8d745dff368f47ace780b3f54556e, type: 3}
+      - {fileID: 2800000, guid: f255dde6e279f844c80bc7636b3d068e, type: 3}
       m_Width: 81
       m_Height: 81
       m_Kind: 2
