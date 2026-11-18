@@ -79,8 +79,7 @@ namespace OpenSekai.Charts
             if (fake) return NextRushEntityStatus.Unsupported;
             switch (kind)
             {
-                case "ReleaseNote": case "HeadFlickNote": case "HeadTraceFlickNote":
-                case "HeadReleaseNote": case "TailTapNote":
+                case "HeadFlickNote": case "HeadTraceFlickNote":
                     return NextRushEntityStatus.Unsupported;
                 default:
                     return NextRushEntityStatus.CompilerCandidate;

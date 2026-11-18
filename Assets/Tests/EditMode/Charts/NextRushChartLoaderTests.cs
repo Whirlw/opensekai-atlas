@@ -226,7 +226,7 @@ namespace OpenSekai.Tests.EditMode.Charts
         }
 
         [TestCase("NormalHeadFlickNote")]
-        [TestCase("NormalTailTapNote")]
+        [TestCase("NormalHeadTraceFlickNote")]
         [TestCase("DamageNote")]
         public void UnsupportedArchetypesAreRefused(string archetype)
         {
@@ -667,6 +667,92 @@ namespace OpenSekai.Tests.EditMode.Charts
             harness.Step(liftTime, 10d + liftTime, LiveHarness.Touch(1, lane, 10d + liftTime, InputTouchPhase.Ended));
             harness.Step(2.16f, 12.16);
             Assert.That(release.Result, Is.EqualTo(expected));
+        }
+
+        [TestCase("NormalReleaseNote", 1.94f, NoteResult.Great)]
+        [TestCase("CriticalReleaseNote", 2.06f, NoteResult.JustPerfect)]
+        [TestCase("CriticalReleaseNote", 2.15f, NoteResult.Miss)]
+        public void StandaloneReleaseUsesTheLiftTimestampAndAsymmetricWindow(string archetype, float liftTime, NoteResult expected)
+        {
+            var json = Chart(N(archetype, "release", 4, 3));
+            var chart = Load(json);
+            var release = (NormalNote)chart.Score.NoteArray.Single();
+            Assert.That(release.IsIndependentRelease, Is.True);
+            Assert.That(release.Type, Is.EqualTo(archetype.StartsWith("Critical", StringComparison.Ordinal)
+                ? NoteType.Critical : NoteType.Default));
+            Assert.That(chart.TotalNoteCount, Is.EqualTo(1));
+            using (var harness = new LiveHarness())
+            {
+                harness.Arrange(chart.Score);
+                var lane = LiveConfig.JudgmentPositions[8];
+                harness.Step(1.85f, 11.85, LiveHarness.Touch(1, lane, 11.85));
+                harness.Step(1.9f, 11.9, LiveHarness.Touch(1, lane, 11.85, InputTouchPhase.Stationary));
+                Assert.That(release.Result, Is.EqualTo(NoteResult.None));
+                harness.Step(2.17f, 12.17, LiveHarness.Touch(1, lane, 10d + liftTime, InputTouchPhase.Ended));
+                Assert.That(release.Result, Is.EqualTo(expected));
+            }
+            AssertCompletesAutoplay(Load(json));
+        }
+
+        [TestCase("NormalHeadReleaseNote", false)]
+        [TestCase("CriticalHeadReleaseNote", true)]
+        public void ReleaseHeadAndTapTailUseTheirOwnInputAcrossAMovingHold(string archetype, bool hitHead)
+        {
+            var head = N(archetype, "head", 2, -3);
+            var tail = N("CriticalTailTapNote", "tail", 4, 3);
+            Add(head, R("next", "tail"));
+            Add(tail, R("prev", "head"), R("activeHead", "head"));
+            var tick = E("TransientHiddenTickNote", null, V("#BEAT", 3), V("isAttached", 1),
+                R("attachHead", "head"), R("attachTail", "tail"), R("activeHead", "head"));
+            var json = Chart(tail, tick, head, Segment("head", "tail", "head", "tail", "head", "tail"));
+            var chart = Load(json);
+            var bar = chart.Score.NoteArray.OfType<FrictionHideLongNote>().Single();
+            var release = chart.Score.NoteArray.OfType<NormalNote>().Single(note => note.IsIndependentRelease);
+            var tap = chart.Score.NoteArray.OfType<NormalNote>().Single(note => !note.IsIndependentRelease);
+            Assert.That(chart.TotalNoteCount, Is.EqualTo(3));
+            Assert.That(bar.EndsWithoutJudgement, Is.True);
+            Assert.That(tap.ParentNote, Is.Null);
+            Assert.That(tap.Type, Is.EqualTo(NoteType.Critical));
+
+            using (var harness = new LiveHarness())
+            {
+                harness.Arrange(chart.Score);
+                var startLane = LiveConfig.JudgmentPositions[2];
+                var middleLane = LiveConfig.JudgmentPositions[5];
+                var endLane = LiveConfig.JudgmentPositions[8];
+                harness.Step(0.95f, 10.95, LiveHarness.Touch(1, startLane, 10.95));
+                Assert.That(release.Result, Is.EqualTo(NoteResult.None));
+                harness.Step(1f, 11, LiveHarness.Touch(1, startLane, 11,
+                    hitHead ? InputTouchPhase.Ended : InputTouchPhase.Canceled));
+                harness.Step(1.4f, 11.4, LiveHarness.Touch(2, middleLane, 11.4));
+                Assert.That(release.Result, Is.EqualTo(hitHead ? NoteResult.JustPerfect : NoteResult.Miss));
+                harness.Step(1.5f, 11.5, LiveHarness.Touch(2, middleLane, 11.4, InputTouchPhase.Stationary));
+                Assert.That(bar.JudgedPoints.Single().Result, Is.EqualTo(NoteResult.JustPerfect));
+                harness.Step(2f, 12, LiveHarness.Touch(2, endLane, 12, InputTouchPhase.Ended));
+                Assert.That(tap.Result, Is.EqualTo(NoteResult.None));
+                harness.Step(2.01f, 12.01, LiveHarness.Touch(3, endLane, 12.01));
+                Assert.That(tap.Result, Is.EqualTo(NoteResult.Perfect));
+                Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+            }
+            AssertCompletesAutoplay(Load(json));
+        }
+
+        [Test]
+        public void TapTailOnCrossChainGuideIsOneIndependentPressKey()
+        {
+            var head = N("AnchorNote", "head", 2, -3);
+            var tail = N("NormalTailTapNote", "tail", 4, 3);
+            var chart = Load(Chart(head, tail, Segment("head", "tail", "head", "tail")));
+            var bar = chart.Score.NoteArray.OfType<GuideNote>().Single();
+            var key = chart.Score.NoteArray.OfType<NormalNote>().Single();
+            Assert.That(chart.TotalNoteCount, Is.EqualTo(1));
+            Assert.That(bar.TailNote.HasJudgment, Is.False);
+            Assert.That(key.ParentNote, Is.Null);
+            using var harness = new LiveHarness();
+            harness.Arrange(chart.Score);
+            var lane = LiveConfig.JudgmentPositions[8];
+            harness.Step(2f, 12, LiveHarness.Touch(1, lane, 12));
+            Assert.That(key.Result, Is.EqualTo(NoteResult.JustPerfect));
         }
 
         [Test]

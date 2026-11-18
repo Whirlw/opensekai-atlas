@@ -157,7 +157,7 @@ namespace OpenSekai.Infrastructure.Charts
                     string kind = Kind(entity);
                     if (_edges.ContainsKey(entity) && !incoming.Contains(entity))
                         BindChain(entity, roots);
-                    if (!IsChainNode(kind) || kind == "HeadTraceNote")
+                    if (!IsChainNode(kind) || kind is "HeadTraceNote" or "HeadReleaseNote" or "TailTapNote")
                         roots.Add(entry.Value);
                 }
                 if (_outgoingBars.Count != _edges.Count) throw Invalid("长条连接存在循环");
@@ -176,7 +176,7 @@ namespace OpenSekai.Infrastructure.Charts
                     }
                     string kind = Kind(entry.Key);
                     bool anchor = kind == "AnchorNote";
-                    bool tail = kind.StartsWith("Tail", StringComparison.Ordinal);
+                    bool tail = IsBoundTailKind(kind);
                     bool member = IsHoldHead(kind) || tail || kind == "TickNote"
                         || anchor && (entry.Key.Has("next") || entry.Key.Has("prev") || entry.Key.Has("activeHead"));
                     bool endpointTick = _endpointTicks.Contains(entry.Key);
@@ -327,8 +327,13 @@ namespace OpenSekai.Infrastructure.Charts
                 float flick = LiveUtility.ScreenDpiToInch(_config.FlickDistance);
                 switch (kind)
                 {
-                    case "TapNote": case "TailReleaseNote":
+                    case "TapNote": case "TailTapNote": case "TailReleaseNote":
                         note = new NormalNote(info, id, a, b, NoteCategory.Normal, 1, type, Offset(NoteCategory.Normal)); break;
+                    case "ReleaseNote": case "HeadReleaseNote":
+                        var release = new NormalNote(info, id, a, b, NoteCategory.Long, 1, type, Offset(NoteCategory.Long));
+                        release.SetNextRushIndependentRelease();
+                        note = release;
+                        break;
                     case "FlickNote": case "TailFlickNote":
                         note = new FlickNote(info, id, a, b, NoteCategory.Flick, 1, type, direction, Offset(NoteCategory.Flick), flick); break;
                     case "TraceNote": case "TailTraceNote": case "HeadTraceNote":
@@ -441,7 +446,7 @@ namespace OpenSekai.Infrastructure.Charts
                 {
                     if (activeHead != start) throw Unsupported("Connector 的判定区间须与连续几何片段对齐");
                     if (source is LongNote scoredHead) return scoredHead;
-                    if (kind != "AnchorNote" && kind != "TickNote" && kind != "HeadTraceNote")
+                    if (kind is not ("AnchorNote" or "TickNote" or "HeadTraceNote" or "HeadReleaseNote"))
                         throw Unsupported("长条判定起点 " + start.Archetype);
                     var carrier = new FrictionHideLongNote(source.MusicScoreInfo, ++_nextId,
                         source.LaneStart, source.LaneEnd, NoteCategory.FrictionHideLong, source.Type, _config, 1);
@@ -516,7 +521,7 @@ namespace OpenSekai.Infrastructure.Charts
                 var note = _notes[end];
                 string kind = Kind(end);
                 if (kind == "TickNote") _endpointTicks.Add(end);
-                bool realTail = kind.StartsWith("Tail", StringComparison.Ordinal);
+                bool realTail = IsBoundTailKind(kind);
                 if (realTail && bar is not GuideNote)
                 {
                     bar.AddNoteListAndSetupChildNote(note);
@@ -584,7 +589,7 @@ namespace OpenSekai.Infrastructure.Charts
             private void BindIndependentAttachment(NextRushEntity entity, NoteBase note, Attachment attachment)
             {
                 string kind = Kind(entity);
-                if (IsHoldHead(kind) || kind.StartsWith("Tail", StringComparison.Ordinal))
+                if (IsHoldHead(kind) || IsBoundTailKind(kind))
                     throw Invalid("孤立的附着长条节点");
                 if (kind == "TickNote")
                 {
@@ -779,6 +784,10 @@ namespace OpenSekai.Infrastructure.Charts
             private static string Kind(NextRushEntity entity) => entity.Archetype == "AnchorNote" ? "AnchorNote"
                 : NextRushCompatibility.GetNoteKind(entity.Archetype);
             private static bool IsHoldHead(string kind) => kind.StartsWith("Head", StringComparison.Ordinal);
+
+            // A Tap tail shares the endpoint's geometry but keeps its own press and timeout.
+            private static bool IsBoundTailKind(string kind) => kind != "TailTapNote"
+                && kind.StartsWith("Tail", StringComparison.Ordinal);
 
             private static bool IsChainNode(string kind) => kind == "TickNote" || kind == "AnchorNote"
                 || IsHoldHead(kind) || kind.StartsWith("Tail", StringComparison.Ordinal);

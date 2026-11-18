@@ -21,9 +21,9 @@
 
 | Normal/Critical 后缀 | 已接入基础运行时 | 待 P4 |
 | --- | --- | --- |
-| 独立 | Tap、Flick、Trace、TraceFlick | Release |
-| Head | Tap、Trace | Flick、TraceFlick、Release |
-| Tail | Flick、Trace、TraceFlick、Release | Tap |
+| 独立 | Tap、Flick、Trace、TraceFlick、Release | |
+| Head | Tap、Trace、Release | Flick、TraceFlick |
+| Tail | Tap、Flick、Trace、TraceFlick、Release | |
 | 中间或独立接触键 | Tick | |
 
 候选实体仍需通过字段、值域与引用图检查。预检报告 `NextRushCompatibility.Analyze` 可直接用于不可播放的谱面，提供 revision、每个实体类型的数量、分类及预检阻塞原因。成功编译后的 `RuntimeChartDefinition.NextRushCompatibility` 保留该报告。
