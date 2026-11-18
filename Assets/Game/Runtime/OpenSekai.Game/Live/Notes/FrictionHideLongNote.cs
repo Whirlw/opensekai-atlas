@@ -76,6 +76,13 @@
 			return base.Judgment(ref touch, lane);
 		}
 
+		public override bool IsJudgment(ref LiveTouch touch, float lane)
+		{
+			if (NativeConnector == null) return base.IsJudgment(ref touch, lane);
+			return State != NoteState.Done && ContainsLane(lane)
+				&& LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(this), OffsetJudgeTime);
+		}
+
 	protected override void OnSpawnNote()
 	{
 		onSpawn?.Invoke(this);

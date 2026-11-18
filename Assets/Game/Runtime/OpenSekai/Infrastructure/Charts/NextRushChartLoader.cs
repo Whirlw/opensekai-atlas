@@ -64,14 +64,32 @@ namespace OpenSekai.Infrastructure.Charts
             private readonly LiveBundleBuildData _config;
             private readonly bool _showPair;
             private readonly Dictionary<NextRushEntity, NoteBase> _notes = new Dictionary<NextRushEntity, NoteBase>();
-            private readonly Dictionary<NextRushEntity, NextRushEntity> _owners = new Dictionary<NextRushEntity, NextRushEntity>();
-            private readonly Dictionary<NextRushEntity, NextRushEntity> _chainEnds = new Dictionary<NextRushEntity, NextRushEntity>();
+            private readonly HashSet<NextRushEntity> _geometryNodes = new HashSet<NextRushEntity>();
+            private readonly Dictionary<NextRushEntity, ConnectorEdge> _edges = new Dictionary<NextRushEntity, ConnectorEdge>();
+            private readonly Dictionary<NextRushEntity, LongNote> _activeSections = new Dictionary<NextRushEntity, LongNote>();
+            private readonly Dictionary<NextRushEntity, LongNote> _outgoingBars = new Dictionary<NextRushEntity, LongNote>();
+            private readonly Dictionary<NextRushEntity, LongNote> _incomingBars = new Dictionary<NextRushEntity, LongNote>();
             private readonly List<NextRushEntity> _hidden = new List<NextRushEntity>();
             private readonly List<(double beat, double time, double bpm)> _bpm = new List<(double, double, double)>();
             private Dictionary<NextRushEntity, NextRushScrollTimeline> _groups;
             private NextRushScrollTimeline _defaultScroll;
             private MusicScoreInfo[] _timing;
             private int _nextId;
+
+            private readonly struct ConnectorEdge
+            {
+                internal readonly NextRushEntity tail, activeHead, activeTail;
+                internal readonly NextRushConnectorSegment segment;
+
+                internal ConnectorEdge(NextRushEntity tail, NextRushEntity activeHead, NextRushEntity activeTail,
+                    NextRushConnectorSegment segment)
+                {
+                    this.tail = tail;
+                    this.activeHead = activeHead;
+                    this.activeTail = activeTail;
+                    this.segment = segment;
+                }
+            }
 
             public Builder(NextRushChart source, LiveBundleBuildData config, bool showPair)
             { _source = source; _config = config; _showPair = showPair; }
@@ -94,22 +112,16 @@ namespace OpenSekai.Infrastructure.Charts
                         case "#BPM_CHANGE": case "Initialization": case "#TIMESCALE_GROUP": case "#TIMESCALE_CHANGE": break;
                         case "Connector": case "SimLine": break;
                         case "TransientHiddenTickNote": _hidden.Add(entity); break;
-                        default:
-                            bool guide = Kind(entity) == "AnchorNote" && entity.Has("next") && !incoming.Contains(entity);
-                            _notes.Add(entity, CreateNote(entity, guide));
-                            break;
+                        default: _notes.Add(entity, CreateNote(entity)); break;
                     }
                 }
+                ReadConnectors();
                 var roots = new List<NoteBase>();
                 foreach (var entry in _notes)
                 {
                     var entity = entry.Key;
-                    if (entry.Value is LongNote bar)
-                    {
-                        if (entity.Has("prev") || entity.Has("activeHead")) throw Unsupported("嵌套的长条起点");
-                        BindChain(entity, bar, roots);
-                        roots.Add(entry.Value);
-                    }
+                    if (IsChainNode(Kind(entity)) && entity.Has("next") && !incoming.Contains(entity))
+                        BindChain(entity, roots);
                     else if (!IsChainNode(Kind(entity)))
                         roots.Add(entry.Value);
                 }
@@ -121,14 +133,24 @@ namespace OpenSekai.Infrastructure.Charts
                         continue;
                     }
                     bool anchor = Kind(entry.Key) == "AnchorNote";
-                    bool member = Kind(entry.Key).StartsWith("Tail", StringComparison.Ordinal) || Kind(entry.Key) == "TickNote"
+                    bool member = entry.Value is LongNote || Kind(entry.Key).StartsWith("Tail", StringComparison.Ordinal) || Kind(entry.Key) == "TickNote"
                         || anchor && (entry.Key.Has("next") || entry.Key.Has("prev") || entry.Key.Has("activeHead"));
-                    if (member && !_owners.ContainsKey(entry.Key)) throw Invalid("孤立的长条节点 " + entry.Key.Name);
-                    if (!member && !IsChainNode(Kind(entry.Key)) && !_owners.ContainsKey(entry.Key)
+                    bool onPath = _geometryNodes.Contains(entry.Key);
+                    if (member && !onPath) throw Invalid("孤立的长条节点 " + entry.Key.Name);
+                    if (onPath && entry.Key.Has("activeHead"))
+                    {
+                        var active = Resolve(entry.Key, "activeHead", true);
+                        if (!_activeSections.TryGetValue(active, out var section)
+                            || (!_incomingBars.TryGetValue(entry.Key, out var before) || before != section)
+                                && (!_outgoingBars.TryGetValue(entry.Key, out var after) || after != section))
+                            throw Invalid("长条 activeHead 与相邻判定区间不一致");
+                    }
+                    if (!member && !IsChainNode(Kind(entry.Key)) && !onPath
                         && (entry.Key.Has("next") || entry.Key.Has("prev") || entry.Key.Has("activeHead")))
                         throw Unsupported("独立音符的长条连接");
                 }
-                ValidateVisualReferences();
+                if (_outgoingBars.Count != _edges.Count) throw Invalid("Connector 不在有效的 next 链中");
+                ValidateSimLines();
                 foreach (var tick in _hidden) BindHiddenTick(tick);
                 foreach (var root in roots.OfType<LongNote>()) root.SortNoteList();
                 if (_showPair) SetPairs(roots);
@@ -187,7 +209,7 @@ namespace OpenSekai.Infrastructure.Charts
                 return new MusicScoreInfo(bar, (float)(beat / 4 - bar), (float)time, (float)bpm, 4f, 1f, 1f);
             }
 
-            private NoteBase CreateNote(NextRushEntity entity, bool guide)
+            private NoteBase CreateNote(NextRushEntity entity)
             {
                 Fields(entity, NoteFields.ToArray());
                 string kind = Kind(entity);
@@ -246,9 +268,7 @@ namespace OpenSekai.Infrastructure.Charts
                     case "TickNote":
                         note = new ConnectionNote(info, id, a, b, NoteCategory.Connection, type, 1, Offset(NoteCategory.Connection)); break;
                     case "AnchorNote":
-                        note = guide
-                            ? (NoteBase)new GuideNote(info, id, a, b, NoteCategory.Guide, type, _config, 1)
-                            : new HiddenConnectionNote(info, id, a, b, NoteCategory.Hidden, type, 1, Offset(NoteCategory.Hidden));
+                        note = new HiddenConnectionNote(info, id, a, b, NoteCategory.Hidden, type, 1, Offset(NoteCategory.Hidden));
                         break;
                     default: throw Unsupported(entity.Archetype);
                 }
@@ -266,56 +286,116 @@ namespace OpenSekai.Infrastructure.Charts
                 }
             }
 
-            private void BindChain(NextRushEntity head, LongNote root, List<NoteBase> roots)
+            private void BindChain(NextRushEntity head, List<NoteBase> roots)
             {
-                if (head.Name == null) throw Invalid("长条起点缺少 name");
+                if (head.Name == null || head.Has("prev")) throw Invalid("长条起点缺少 name 或包含 prev");
+                _geometryNodes.Add(head);
                 var current = head;
-                _owners.Add(head, head);
-                while (true)
+                while (current.Has("next"))
                 {
-                    var next = Resolve(current, "next", current == head || Kind(current) != "AnchorNote");
-                    if (next == null) break;
-                    if (!_notes.TryGetValue(next, out var note)) throw Invalid("长条 next 未指向音符");
-                    if (next.Number("isAttached") == 1) throw Unsupported("附着的连接端点");
-                    if (_owners.ContainsKey(next)) throw Invalid("长条连接存在循环或共享节点");
-                    if (Beat(next) < Beat(current)) throw Invalid("长条节点时间必须递增");
-                    if (next.Has("prev") && Resolve(next, "prev", true) != current) throw Invalid("长条 prev 与 next 不一致");
-                    if (next.Has("activeHead") && Resolve(next, "activeHead", true) != head) throw Invalid("长条 activeHead 不一致");
-                    _owners.Add(next, head);
-                    string kind = Kind(next);
-                    bool realTail = kind.StartsWith("Tail", StringComparison.Ordinal);
-                    bool independentGuideTail = root is GuideNote
-                        && (kind == "TapNote" || kind == "FlickNote" || kind == "TraceNote" || kind == "TraceFlickNote"
-                            || realTail);
-                    bool isTail = independentGuideTail || realTail || kind == "AnchorNote" && !next.Has("next");
-                    if (kind == "TickNote" || kind == "AnchorNote" && !isTail) root.AddConnectionNote(note);
-                    else if (isTail)
+                    if (!_edges.TryGetValue(current, out var first)) throw Unsupported("缺少 Connector 的长条片段");
+                    var start = current;
+                    var bar = CreateSection(start, first.activeHead);
+                    if (first.activeHead != null) _activeSections.Add(start, bar);
+                    roots.Add(bar);
+
+                    var point = (NoteBase)bar;
+                    var edge = first;
+                    while (true)
                     {
-                        if (next.Has("next")) throw Invalid("长条尾部仍有 next");
-                        if (independentGuideTail)
+                        var next = edge.tail;
+                        if (!_geometryNodes.Add(next)) throw Invalid("长条连接存在循环或共享节点");
+                        if (next.Has("prev") && Resolve(next, "prev", true) != current) throw Invalid("长条 prev 与 next 不一致");
+                        if (current.Number("isAttached") == 1 || next.Number("isAttached") == 1)
+                            throw Unsupported("附着的连接端点");
+                        _outgoingBars.Add(current, bar);
+                        _incomingBars.Add(next, bar);
+                        point.NativeConnector = edge.segment;
+
+                        bool continues = _edges.TryGetValue(next, out var following);
+                        bool sameSection = continues && edge.activeHead == following.activeHead && edge.activeTail == following.activeTail;
+                        if (!sameSection)
                         {
-                            if (next.Has("activeHead")) throw Unsupported("装饰条尾键的独立判定区间");
-                            if (kind == "TailReleaseNote") ((NormalNote)note).SetNextRushIndependentRelease();
-                            if (realTail) roots.Add(note);
-                            // The endpoint's key has its own input lifecycle. The guide only borrows its geometry.
-                            var endpoint = new HiddenConnectionNote(note.MusicScoreInfo, ++_nextId, note.LaneStart,
-                                note.LaneEnd, NoteCategory.Hidden, note.Type, 1, Offset(NoteCategory.Hidden));
-                            SetGeometry(endpoint, note.LaneStartF, note.LaneEndF);
-                            SetNativeScroll(next, endpoint, Resolve(next, "#TIMESCALE_GROUP", false));
-                            root.AddNoteListAndSetupChildNote(endpoint);
+                            if (first.activeTail != null && first.activeTail != next)
+                                throw Unsupported("Connector 的判定区间须与连续几何片段对齐");
+                            BindSectionTail(bar, next, continues ? following.activeHead : null, roots);
+                            current = next;
+                            break;
                         }
-                        else
-                            root.AddNoteListAndSetupChildNote(note);
+
+                        string kind = Kind(next);
+                        if (kind != "TickNote" && kind != "AnchorNote") throw Unsupported("长条中间节点 " + next.Archetype);
+                        point = _notes[next];
+                        bar.AddConnectionNote(point);
+                        RestoreNode(next, point);
+                        current = next;
+                        edge = following;
                     }
-                    else throw Unsupported("长条中间节点 " + next.Archetype);
-                    // Legacy parenting promotes a tail to its head's critical type. Native entities
-                    // specify their own type and geometry; restore those after binding the graph.
-                    note.Type = TypeOf(next);
-                    SetGeometry(note, note.LaneStartF, note.LaneEndF);
-                    current = next;
-                    if (isTail) break;
                 }
-                _chainEnds.Add(head, current);
+            }
+
+            private LongNote CreateSection(NextRushEntity start, NextRushEntity activeHead)
+            {
+                var source = _notes[start];
+                if (activeHead != null)
+                {
+                    if (activeHead != start) throw Unsupported("Connector 的判定区间须与连续几何片段对齐");
+                    if (source is LongNote scoredHead) return scoredHead;
+                    if (Kind(start) != "AnchorNote") throw Unsupported("长条判定起点 " + start.Archetype);
+                    return CopyGeometry(start, new FrictionHideLongNote(source.MusicScoreInfo, ++_nextId,
+                        source.LaneStart, source.LaneEnd, NoteCategory.FrictionHideLong, source.Type, _config, 1));
+                }
+                if (source is LongNote) throw Unsupported("长条头缺少从该节点开始的判定区间");
+                return CopyGeometry(start, new GuideNote(source.MusicScoreInfo, ++_nextId,
+                    source.LaneStart, source.LaneEnd, NoteCategory.Guide, source.Type, _config, 1));
+            }
+
+            private void BindSectionTail(LongNote bar, NextRushEntity end, NextRushEntity nextActiveHead, List<NoteBase> roots)
+            {
+                var note = _notes[end];
+                string kind = Kind(end);
+                if (kind == "TickNote") throw Unsupported("以 Tick 作为判定段或 Guide 的端点");
+                bool realTail = kind.StartsWith("Tail", StringComparison.Ordinal);
+                if (realTail && bar is not GuideNote)
+                {
+                    bar.AddNoteListAndSetupChildNote(note);
+                    RestoreNode(end, note);
+                    return;
+                }
+                if (note is LongNote && nextActiveHead != end)
+                    throw Unsupported("长条头缺少从该节点开始的判定区间");
+                if (realTail)
+                {
+                    if (kind == "TailReleaseNote") ((NormalNote)note).SetNextRushIndependentRelease();
+                    RestoreNode(end, note);
+                    roots.Add(note);
+                }
+                if (kind == "AnchorNote" && !end.Has("next"))
+                {
+                    bar.AddNoteListAndSetupChildNote(note);
+                    RestoreNode(end, note);
+                    return;
+                }
+
+                // Adjacent sections share geometry but never share keys or their runtime state.
+                var endpoint = CopyGeometry(end, new HiddenConnectionNote(note.MusicScoreInfo, ++_nextId,
+                    note.LaneStart, note.LaneEnd, NoteCategory.Hidden, note.Type, 1, Offset(NoteCategory.Hidden)));
+                bar.AddNoteListAndSetupChildNote(endpoint);
+            }
+
+            private T CopyGeometry<T>(NextRushEntity entity, T copy) where T : NoteBase
+            {
+                var note = _notes[entity];
+                SetGeometry(copy, note.LaneStartF, note.LaneEndF);
+                SetNativeScroll(entity, copy, Resolve(entity, "#TIMESCALE_GROUP", false));
+                return copy;
+            }
+
+            private void RestoreNode(NextRushEntity entity, NoteBase note)
+            {
+                // Legacy binding may promote a tail to Critical. Native entities declare their own type.
+                note.Type = TypeOf(entity);
+                SetGeometry(note, note.LaneStartF, note.LaneEndF);
             }
 
             private void BindHiddenTick(NextRushEntity entity)
@@ -323,7 +403,7 @@ namespace OpenSekai.Infrastructure.Charts
                 Fields(entity, "#BEAT", "isAttached", "attachHead", "attachTail", "activeHead");
                 if (entity.Number("isAttached") != 1) throw Unsupported("未附着的隐藏判定点");
                 var attachment = ResolveAttachment(entity);
-                var root = AttachmentHold(entity, attachment.owner);
+                var root = AttachmentHold(entity, attachment.head, attachment.tail);
                 var tick = new LongHoldCombo(At(Beat(entity)), root.Type, ++_nextId, 1, Offset(NoteCategory.Combo));
                 root.AddHoldCombo(tick);
                 SetAttachmentGeometry(entity, tick, attachment.head, attachment.tail);
@@ -338,7 +418,7 @@ namespace OpenSekai.Infrastructure.Charts
                 var attachment = ResolveAttachment(entity);
                 if (kind == "TickNote")
                 {
-                    AttachmentHold(entity, attachment.owner).AddConnectionNote(note, shapesLine: false);
+                    AttachmentHold(entity, attachment.head, attachment.tail).AddConnectionNote(note, shapesLine: false);
                     note.Type = TypeOf(entity);
                 }
                 else if (entity.Has("activeHead"))
@@ -348,24 +428,29 @@ namespace OpenSekai.Infrastructure.Charts
                 note.SetNextRushAttachment(_notes[attachment.head], _notes[attachment.tail]);
             }
 
-            private (NextRushEntity head, NextRushEntity tail, NextRushEntity owner) ResolveAttachment(NextRushEntity entity)
+            private (NextRushEntity head, NextRushEntity tail) ResolveAttachment(NextRushEntity entity)
             {
                 var head = Resolve(entity, "attachHead", true);
                 var tail = Resolve(entity, "attachTail", true);
-                if (!_owners.TryGetValue(head, out var owner) || !_owners.TryGetValue(tail, out var tailOwner)
-                    || owner != tailOwner || head.Number("isAttached") != 0 || tail.Number("isAttached") != 0
+                if (!_geometryNodes.Contains(head) || !_geometryNodes.Contains(tail)
+                    || head.Number("isAttached") != 0 || tail.Number("isAttached") != 0
                     || (head != tail && Resolve(head, "next", false) != tail)
                     || Beat(entity) < Beat(head) || Beat(entity) > Beat(tail))
                     throw Invalid("音符的附着连接无效");
-                return (head, tail, owner);
+                return (head, tail);
             }
 
-            private LongNote AttachmentHold(NextRushEntity entity, NextRushEntity owner)
+            private LongNote AttachmentHold(NextRushEntity entity, NextRushEntity head, NextRushEntity tail)
             {
-                var root = (LongNote)_notes[owner];
                 var active = Resolve(entity, "activeHead", false);
-                if (root is GuideNote || (active != null && active != owner))
+                _outgoingBars.TryGetValue(head, out var outgoing);
+                LongNote incoming = null;
+                if (head == tail) _incomingBars.TryGetValue(head, out incoming);
+                var root = outgoing ?? incoming;
+                if (active != null && (!_activeSections.TryGetValue(active, out root)
+                    || root != outgoing && root != incoming))
                     throw Unsupported("附着判定点的独立判定区间");
+                if (root == null || root is GuideNote) throw Unsupported("装饰段上的附着判定点");
                 return root;
             }
 
@@ -381,54 +466,55 @@ namespace OpenSekai.Infrastructure.Charts
                     a.LaneEndF + (b.LaneEndF - a.LaneEndF) * progress);
             }
 
-            private void ValidateVisualReferences()
+            private void ReadConnectors()
             {
-                var segments = new HashSet<NextRushEntity>();
                 foreach (var entity in _source.Entities)
                 {
-                    if (entity.Archetype == "Connector")
+                    if (entity.Archetype != "Connector") continue;
+                    Fields(entity, "head", "tail", "segmentHead", "segmentTail", "activeHead", "activeTail");
+                    var head = Resolve(entity, "head", true); var tail = Resolve(entity, "tail", true);
+                    var a = Resolve(entity, "segmentHead", true); var b = Resolve(entity, "segmentTail", true);
+                    var activeHead = Resolve(entity, "activeHead", false);
+                    var activeTail = Resolve(entity, "activeTail", false);
+                    // Preserve the initial native loader's accepted layout, where the active span
+                    // was repeated in head/tail and segmentHead/segmentTail described the edge.
+                    if (head == activeHead && tail == activeTail && Resolve(head, "next", false) != tail
+                        && Resolve(a, "next", false) == b)
                     {
-                        Fields(entity, "head", "tail", "segmentHead", "segmentTail", "activeHead", "activeTail");
-                        var head = Resolve(entity, "head", true); var tail = Resolve(entity, "tail", true);
-                        var a = Resolve(entity, "segmentHead", true); var b = Resolve(entity, "segmentTail", true);
-                        var activeHead = Resolve(entity, "activeHead", false);
-                        var activeTail = Resolve(entity, "activeTail", false);
-                        // Preserve the initial native loader's accepted layout, where the active span
-                        // was repeated in head/tail and segmentHead/segmentTail described the edge.
-                        if (head == activeHead && tail == activeTail && Resolve(head, "next", false) != tail
-                            && Resolve(a, "next", false) == b)
-                        {
-                            head = a;
-                            tail = b;
-                        }
-                        if (!_owners.TryGetValue(head, out var owner) || !_owners.TryGetValue(tail, out var tailOwner)
-                            || owner != tailOwner || Resolve(head, "next", true) != tail)
-                            throw Invalid("Connector 的几何端点与 next 不一致");
-                        if (!_notes.TryGetValue(a, out var styleHead) || !_notes.ContainsKey(b)
-                            || Beat(a) > Beat(head) || Beat(b) < Beat(tail))
-                            throw Invalid("Connector 的样式区间没有覆盖连接");
-                        bool guide = _notes[owner] is GuideNote;
-                        if (guide ? activeHead != null || activeTail != null
-                            : activeHead != owner || activeTail != _chainEnds[owner])
-                            throw Unsupported("Connector 的独立判定区间");
-                        if (!segments.Add(head)) throw Invalid("重复的长条连接片段");
-                        double defaultKind = guide ? 101 : TypeOf(a) == NoteType.Critical ? 2 : 1;
-                        _notes[head].NativeConnector = new NextRushConnectorSegment(
-                            (int)a.Number("segmentKind", defaultKind), (int)head.Number("connectorEase", 1),
-                            AlphaAt(head, a, b), AlphaAt(tail, a, b), styleHead, a.Number("segmentThroughJudgeLine") == 1,
-                            (NextRushConnectorLayer)(int)a.Number("segmentLayer"), a.Number("segmentPresentation") == 1);
+                        head = a;
+                        tail = b;
                     }
-                    else if (entity.Archetype == "SimLine")
-                    {
-                        Fields(entity, "left", "right");
-                        var a = Resolve(entity, "left", true); var b = Resolve(entity, "right", true);
-                        if (!_notes.TryGetValue(a, out var left) || !left.HasJudgment
-                            || !_notes.TryGetValue(b, out var right) || !right.HasJudgment
-                            || Beat(a) != Beat(b)) throw Invalid("SimLine 引用无效");
-                    }
+                    if (!_notes.ContainsKey(head) || !_notes.ContainsKey(tail) || Resolve(head, "next", false) != tail
+                        || Beat(tail) < Beat(head))
+                        throw Invalid("Connector 的几何端点与 next 不一致");
+                    if (!_notes.TryGetValue(a, out var styleHead) || !_notes.ContainsKey(b)
+                        || Beat(a) > Beat(head) || Beat(b) < Beat(tail))
+                        throw Invalid("Connector 的样式区间没有覆盖连接");
+                    if ((activeHead == null) != (activeTail == null)
+                        || activeHead != null && (!_notes.ContainsKey(activeHead) || !_notes.ContainsKey(activeTail)
+                            || Beat(activeHead) > Beat(head) || Beat(activeTail) < Beat(tail)))
+                        throw Invalid("Connector 的判定区间没有覆盖连接");
+                    double defaultKind = activeHead == null ? 101 : TypeOf(a) == NoteType.Critical ? 2 : 1;
+                    var segment = new NextRushConnectorSegment(
+                        (int)a.Number("segmentKind", defaultKind), (int)head.Number("connectorEase", 1),
+                        AlphaAt(head, a, b), AlphaAt(tail, a, b), styleHead, a.Number("segmentThroughJudgeLine") == 1,
+                        (NextRushConnectorLayer)(int)a.Number("segmentLayer"), a.Number("segmentPresentation") == 1);
+                    if (!_edges.TryAdd(head, new ConnectorEdge(tail, activeHead, activeTail, segment)))
+                        throw Invalid("重复的长条连接片段");
                 }
-                foreach (var entity in _owners.Keys)
-                    if (entity.Has("next") && !segments.Contains(entity)) throw Unsupported("缺少 Connector 的长条片段");
+            }
+
+            private void ValidateSimLines()
+            {
+                foreach (var entity in _source.Entities)
+                {
+                    if (entity.Archetype != "SimLine") continue;
+                    Fields(entity, "left", "right");
+                    var a = Resolve(entity, "left", true); var b = Resolve(entity, "right", true);
+                    if (!_notes.TryGetValue(a, out var left) || !left.HasJudgment
+                        || !_notes.TryGetValue(b, out var right) || !right.HasJudgment
+                        || Beat(a) != Beat(b)) throw Invalid("SimLine 引用无效");
+                }
             }
 
             private float AlphaAt(NextRushEntity point, NextRushEntity start, NextRushEntity end)

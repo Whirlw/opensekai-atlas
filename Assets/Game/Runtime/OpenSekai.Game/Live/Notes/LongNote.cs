@@ -437,9 +437,12 @@ namespace Sekai.Live
 		internal bool ContainsLane(float lane) => BodyLaneStart <= lane && BodyLaneEnd >= lane;
 
 		/// <summary>The bar's judge span now: the head's lanes until it is judged, then the moving body's.</summary>
-		internal float BodyLaneStart => JudgeInfo.result == NoteResult.None ? JudgeLaneStart : JudgedLaneStart;
+		private bool UsesHeadJudgeLane => JudgeInfo.result == NoteResult.None
+			&& !(NativeConnector != null && this is FrictionHideLongNote);
 
-		internal float BodyLaneEnd => JudgeInfo.result == NoteResult.None ? JudgeLaneEnd : JudgedLaneEnd;
+		internal float BodyLaneStart => UsesHeadJudgeLane ? JudgeLaneStart : JudgedLaneStart;
+
+		internal float BodyLaneEnd => UsesHeadJudgeLane ? JudgeLaneEnd : JudgedLaneEnd;
 
 		public override bool AutoJudgment(MusicScoreInfo currentFrameInfo)
 		{
