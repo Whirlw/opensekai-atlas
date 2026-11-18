@@ -413,6 +413,41 @@ namespace OpenSekai.App.UI
             }
         }
 
+        /// <summary>
+        /// Starts the package in <paramref name="packageDirectory"/> from outside the page (a level
+        /// just downloaded from a server): the list is reread, the package selected and started.
+        /// </summary>
+        internal void PlayPackage(string packageDirectory)
+        {
+            if (_isStartingPlayback || string.IsNullOrEmpty(packageDirectory))
+            {
+                return;
+            }
+
+            Refresh();
+            string wanted = System.IO.Path.GetFullPath(packageDirectory).TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
+            SongPackageItem match = null;
+            foreach (SongPackageItem item in _items)
+            {
+                string directory = item?.Entry?.RootDirectory;
+                if (directory != null && string.Equals(
+                        System.IO.Path.GetFullPath(directory).TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar),
+                        wanted, StringComparison.OrdinalIgnoreCase))
+                {
+                    match = item;
+                    break;
+                }
+            }
+
+            if (match != null && !ReferenceEquals(match, _selected))
+            {
+                _selected = match;
+                _view.SetSelection(match);
+            }
+
+            StartPlayback(packageDirectory, match != null ? LibraryModel.BuildTitle(match) : System.IO.Path.GetFileName(wanted), false);
+        }
+
         internal void StartPlayback(SongPackageItem item, bool isAuto)
         {
             if (_isStartingPlayback || item?.Entry == null)

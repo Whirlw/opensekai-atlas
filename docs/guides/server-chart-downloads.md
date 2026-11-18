@@ -1,6 +1,8 @@
 # Android 社区谱面下载
 
-首页「服务器」打开 `https://opensekai.com/`。用户自行搜索、登录、完成网站人机验证并点击下载，系统 WebView 的 DownloadListener 将 HTTPS 下载交给 Android DownloadManager。返回游戏后自动解压、验证并刷新曲库，无需再次选择文件。
+首页「服务器」进入服务器列表。游戏不内置任何谱面服务器，列表一开始是空的；用右上角（或空列表中间）的「添加服务器」添加 Sonolus 服务器（游戏内浏览，见 [服务器页面](../architecture/server-screen.md)）或任意 HTTPS 谱面网站。
+
+点网页服务器后，在内置浏览器中打开它的地址；顶栏的返回按钮先退网页历史，到第一页时回到游戏，系统返回键 / 手势相同，右侧有刷新和关闭。用户自行搜索、登录、完成网站人机验证并点击下载，系统 WebView 的 DownloadListener 将 HTTPS 下载交给 Android DownloadManager。返回游戏后自动解压、验证并刷新曲库，无需再次选择文件。
 
 ## 集成方式
 
@@ -8,8 +10,9 @@
 
 主要文件：
 
-- `HomeView` / `HomeScreen`：服务器按钮、进度和导入结果提示、曲库刷新。
-- `ChartBrowserActivity.java`：WebView、关闭按钮、返回键与手势、生命周期及销毁。
+- `HomeView` / `HomeScreen`：服务器卡、进出动画、进度和导入结果提示、曲库刷新。
+- `ServerScreen` / `ServerListPage`：服务器列表与添加；网页服务器经 `ServerChartDownloads.Open(url, title)` 打开。
+- `ChartBrowserActivity.java`：WebView、顶栏（返回 / 站名与状态 / 刷新 / 关闭）、加载进度条、返回键与手势、生命周期及销毁。
 - `MiniWebView.java`：DownloadManager、Cookie / User-Agent / Referer、持久任务记录和查询。
 - `ServerChartDownloads.cs`：启动及返回前台后的轮询、串行导入、状态提示和重试。
 - `SafeZipExtractor.cs`：后台安全解压；`SongPackageManager.ImportDownloadedZipAsync` 校验并原子发布。
@@ -26,7 +29,7 @@ WebView 是独立的原生 Activity。网页显示期间 Unity 可能暂停；�
 
 ## 安全与限制
 
-只接受 HTTPS 的 `opensekai.com` 及其子域名，以及网站下载页面实际使用的 `tzi998.oss-cn-shanghai.aliyuncs.com` 存储域名。网站更换存储域名时需审查并更新 `MiniWebView.trusted`。Cloudflare 验证使用网页自身的脚本和 iframe，无 JS 到 Unity 的桥接接口。SSL 错误使用系统默认拒绝策略；禁用 file/content 访问及混合内容。
+网页只能在所打开站点的 host 及其子域名内导航（OpenSekai 另加其下载页面实际使用的 `tzi998.oss-cn-shanghai.aliyuncs.com` 存储域名，见 `MiniWebView.extraHostsFor`），站外链接被拦截。下载必须由本站页面发起且为 HTTPS，文件可以来自 CDN；Cookie 只发给本站 host。下载内容按曲包严格校验后才导入。Cloudflare 验证使用网页自身的脚本和 iframe，无 JS 到 Unity 的桥接接口。SSL 错误使用系统默认拒绝策略；禁用 file/content 访问及混合内容。
 
 DownloadManager 自己处理 HTTP 重定向，插件无法逐跳审查其目标，因此白名单约束初始 URL 和网页导航；可信服务器须保证下载重定向目的地可信。仅支持 DownloadListener 能提供的 HTTP GET 下载，`blob:`、`data:`、需要 POST 请求体的文件响应不支持，不注入通用 JS 下载桥。网站的验证 POST 若最终跳到 HTTPS GET 附件地址可正常使用。网站验证码由用户完成，不能自动绕过。
 
@@ -36,7 +39,7 @@ Android 10–16 使用相同的系统下载与应用专属目录 API；Android 1
 
 ## 验证清单
 
-1. Android 构建进入首页，点服务器，确认内置网页打开，登录/人机验证可用。
+1. Android 构建进入首页，点服务器，添加一个网页服务器（例如 `https://opensekai.com/`）并打开，确认网页打开，登录/人机验证可用。
 2. 下载一个真实曲包，返回游戏，确认自动出现进度、成功提示，曲库能找到并播放。
 3. 同时下载多个谱面；未知 Content-Length 不显示错误百分比。
 4. 关闭/重复打开网页、网页返回、返回手势、旋转屏幕和切后台，确认界面与下载正常。

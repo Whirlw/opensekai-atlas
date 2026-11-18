@@ -13,6 +13,13 @@ namespace OpenSekai.App.UI
     /// time, so the splash can drive the entrance from its own timeline and a screenshot can stop
     /// at any frame.
     /// </summary>
+    /// <summary>Which card grows over the page when the home page hands over.</summary>
+    internal enum HomeDestination
+    {
+        Library,
+        Server
+    }
+
     internal sealed class HomeView : IDisposable
     {
         private readonly RectTransform _root;
@@ -21,14 +28,12 @@ namespace OpenSekai.App.UI
         private readonly RectTransform _headerRect;
         private readonly CanvasGroup _footer;
         private readonly RectTransform _librarySlot;
+        private readonly RectTransform _serverSlot;
         private readonly HomeLibraryCard _library;
         private readonly HomeFeatureCard _server;
         private readonly HomeFeatureCard _packs;
-        private readonly RectTransform _toast;
-        private readonly CanvasGroup _toastGroup;
-        private readonly TextMeshProUGUI _toastText;
+        private readonly UiToast _toast;
         private MotionHandle _transition;
-        private MotionHandle _toastMotion;
 
         /// <summary>Last value <see cref="ApplyExpansion"/> applied; NaN before the first.</summary>
         private float _expansion = float.NaN;
@@ -69,10 +74,10 @@ namespace OpenSekai.App.UI
             float halfGap = HomeTheme.Layout.GRID_GAP * 0.5f;
             float share = HomeTheme.Layout.HERO_SHARE;
 
-            RectTransform serverSlot = Slot(grid, "ServerSlot", new Vector2(share, 0.5f), Vector2.one,
+            RectTransform serverSlot = _serverSlot = Slot(grid, "ServerSlot", new Vector2(share, 0.5f), Vector2.one,
                 new Vector2(halfGap, halfGap), Vector2.zero);
             _server = new HomeFeatureCard(serverSlot, "ServerCard", "SERVER", "服务器", "浏览社区谱面 · 下载后自动导入",
-                HomeTheme.Colors.Periwinkle, root => new HomeGlobeArt(root), () => openServer?.Invoke(), available: true);
+                HomeTheme.Colors.Periwinkle, root => new HomeGlobeArt(root), () => openServer?.Invoke(), available: openServer != null);
             LibraryUi.Stretch(_server.Root);
 
             RectTransform packsSlot = Slot(grid, "PacksSlot", new Vector2(share, 0f), new Vector2(1f, 0.5f),
@@ -85,7 +90,7 @@ namespace OpenSekai.App.UI
             _library = new HomeLibraryCard(_librarySlot, openLibrary);
             LibraryUi.Stretch(_library.Root);
 
-            _toast = BuildToast(_root, out _toastGroup, out _toastText);
+            _toast = new UiToast(_root, HomeTheme.Layout.FOOTER_HEIGHT, HomeTheme.Colors.Violet);
 
             ApplyEnter(EnterDuration);
         }
@@ -160,34 +165,78 @@ namespace OpenSekai.App.UI
         /// ground color, everything else faded. The hand-over to the library runs it up, the
         /// return runs it back down.
         /// </summary>
-        internal void ApplyExpansion(float amount)
+        internal void ApplyExpansion(float amount) => ApplyExpansion(HomeDestination.Library, amount);
+
+        /// <summary>
+        /// The hand-over to <paramref name="target"/>: 0 is the page at rest, 1 is that card grown
+        /// past every edge of the screen in the ground color with everything else faded. Any call
+        /// with 0 settles every card back into its slot.
+        /// </summary>
+        internal void ApplyExpansion(HomeDestination target, float amount)
         {
             _expansion = amount;
             float margin = LibraryTheme.Spacing.PAGE_MARGIN;
             float bleed = HomeTheme.Layout.HERO_RADIUS + 8f;
             float halfGap = HomeTheme.Layout.GRID_GAP * 0.5f;
+            float share = HomeTheme.Layout.HERO_SHARE;
+            var bleedMin = new Vector2(-margin - bleed, -HomeTheme.Layout.FOOTER_HEIGHT - bleed);
+            var bleedMax = new Vector2(margin + bleed, HomeTheme.Layout.HEADER_HEIGHT + bleed);
+            float library = target == HomeDestination.Library ? amount : 0f;
+            float server = target == HomeDestination.Server ? amount : 0f;
+
             _librarySlot.anchorMin = Vector2.zero;
-            _librarySlot.anchorMax = Vector2.Lerp(new Vector2(HomeTheme.Layout.HERO_SHARE, 1f), Vector2.one, amount);
-            _librarySlot.offsetMin = Vector2.Lerp(Vector2.zero,
-                new Vector2(-margin - bleed, -HomeTheme.Layout.FOOTER_HEIGHT - bleed), amount);
-            _librarySlot.offsetMax = Vector2.Lerp(new Vector2(-halfGap, 0f),
-                new Vector2(margin + bleed, HomeTheme.Layout.HEADER_HEIGHT + bleed), amount);
-            _library.SetCovering(HomeMotion.Span(amount, 0.25f, 0.75f, Ease.InOutQuad));
+            _librarySlot.anchorMax = Vector2.Lerp(new Vector2(share, 1f), Vector2.one, library);
+            _librarySlot.offsetMin = Vector2.Lerp(Vector2.zero, bleedMin, library);
+            _librarySlot.offsetMax = Vector2.Lerp(new Vector2(-halfGap, 0f), bleedMax, library);
+            _serverSlot.anchorMin = Vector2.Lerp(new Vector2(share, 0.5f), Vector2.zero, server);
+            _serverSlot.anchorMax = Vector2.one;
+            _serverSlot.offsetMin = Vector2.Lerp(new Vector2(halfGap, halfGap), bleedMin, server);
+            _serverSlot.offsetMax = Vector2.Lerp(Vector2.zero, bleedMax, server);
+
+            // The growing card draws over the others; at rest the library card is on top again.
+            if (server > 0f)
+            {
+                _serverSlot.SetAsLastSibling();
+            }
+            else
+            {
+                _librarySlot.SetAsLastSibling();
+            }
+
+            _library.SetCovering(HomeMotion.Span(library, 0.25f, 0.75f, Ease.InOutQuad));
+            _server.SetCovering(HomeMotion.Span(server, 0.25f, 0.75f, Ease.InOutQuad));
 
             float content = 1f - HomeMotion.Span(amount, 0f, 0.4f, Ease.OutQuad);
-            _library.SetInnerAlpha(content, content);
             float others = 1f - HomeMotion.Span(amount, 0f, 0.45f, Ease.OutQuad);
-            _server.Group.alpha = others;
-            _packs.Group.alpha = others;
             float shrink = 1f - 0.05f * HomeMotion.Span(amount, 0f, 0.6f, Ease.OutCubic);
-            _server.Root.localScale = new Vector3(shrink, shrink, 1f);
-            _packs.Root.localScale = new Vector3(shrink, shrink, 1f);
+            var shrunk = new Vector3(shrink, shrink, 1f);
+            if (target == HomeDestination.Server)
+            {
+                _server.SetInnerAlpha(content);
+                _server.Group.alpha = 1f;
+                _server.Root.localScale = Vector3.one;
+                _library.SetInnerAlpha(1f, 1f);
+                _library.Group.alpha = others;
+                _library.Root.localScale = shrunk;
+            }
+            else
+            {
+                _library.SetInnerAlpha(content, content);
+                _library.Group.alpha = 1f;
+                _library.Root.localScale = Vector3.one;
+                _server.SetInnerAlpha(1f);
+                _server.Group.alpha = others;
+                _server.Root.localScale = shrunk;
+            }
+
+            _packs.Group.alpha = others;
+            _packs.Root.localScale = shrunk;
             _header.alpha = others;
             _footer.alpha = others;
             _library.Root.anchoredPosition = Vector2.zero;
-            _library.Root.localScale = Vector3.one;
-            _library.Group.alpha = 1f;
+            _server.Root.anchoredPosition = Vector2.zero;
             _library.Interactable = amount <= 0f;
+            _server.Interactable = amount <= 0f;
         }
 
         /// <summary>Plays the entrance from the start.</summary>
@@ -198,17 +247,23 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>Grows the library card over the page; <paramref name="onCovered"/> runs once it covers it.</summary>
-        internal void PlayExpand(Action onCovered)
+        internal void PlayExpand(Action onCovered) => PlayExpand(HomeDestination.Library, onCovered);
+
+        /// <summary>Grows <paramref name="target"/>'s card over the page; <paramref name="onCovered"/> runs once it covers it.</summary>
+        internal void PlayExpand(HomeDestination target, Action onCovered)
         {
             Interactable = false;
-            Run(0f, 1f, HomeTheme.Motion.EXPAND, ApplyExpansion, onCovered, Ease.InOutCubic);
+            Run(0f, 1f, HomeTheme.Motion.EXPAND, amount => ApplyExpansion(target, amount), onCovered, Ease.InOutCubic);
         }
 
         /// <summary>Starts from the covered page and shrinks the library card back into place.</summary>
-        internal void PlayCollapse(Action onDone = null)
+        internal void PlayCollapse(Action onDone = null) => PlayCollapse(HomeDestination.Library, onDone);
+
+        /// <summary>Starts from the page covered by <paramref name="target"/>'s card and shrinks it back into place.</summary>
+        internal void PlayCollapse(HomeDestination target, Action onDone)
         {
             Interactable = false;
-            Run(1f, 0f, HomeTheme.Motion.COLLAPSE, ApplyExpansion, () =>
+            Run(1f, 0f, HomeTheme.Motion.COLLAPSE, amount => ApplyExpansion(target, amount), () =>
             {
                 Interactable = true;
                 onDone?.Invoke();
@@ -222,30 +277,12 @@ namespace OpenSekai.App.UI
             _transition = default;
         }
 
-        internal void ShowToast(string message)
-        {
-            _toastText.text = message;
-            float width = Mathf.Ceil(_toastText.GetPreferredValues(message).x) + 112f;
-            _toast.sizeDelta = new Vector2(width, _toast.sizeDelta.y);
-            _toastMotion.TryCancel();
-            float hold = HomeTheme.Motion.TOAST;
-            _toastMotion = LMotion.Create(0f, hold + 0.6f, hold + 0.6f)
-                .WithScheduler(HomeMotion.Scheduler)
-                .WithOnComplete(() => _toast.gameObject.SetActive(false))
-                .Bind(time =>
-                {
-                    float shown = HomeMotion.Span(time, 0f, 0.28f, Ease.OutCubic) * (1f - HomeMotion.Span(time, hold + 0.3f, 0.3f, Ease.InQuad));
-                    _toastGroup.alpha = shown;
-                    _toast.anchoredPosition = new Vector2(0f, HomeTheme.Layout.FOOTER_HEIGHT + 4f + 14f * shown);
-                });
-            _toast.gameObject.SetActive(true);
-            _toast.SetAsLastSibling();
-        }
+        internal void ShowToast(string message) => _toast.Show(message);
 
         public void Dispose()
         {
             StopTransition();
-            _toastMotion.TryCancel();
+            _toast.Dispose();
             _server.Dispose();
             _packs.Dispose();
         }
@@ -322,26 +359,5 @@ namespace OpenSekai.App.UI
 
         /// <summary>The wordmark's text, with "ATLAS" in the brand's light violet.</summary>
         internal static string Wordmark => "OPEN SEKAI <color=" + HomeTheme.Colors.WORDMARK_ACCENT_HEX + ">ATLAS</color>";
-
-        private static RectTransform BuildToast(RectTransform root, out CanvasGroup group, out TextMeshProUGUI text)
-        {
-            const float height = 64f;
-            RectTransform toast = LibraryUi.CreateRect("Toast", root);
-            LibraryWidgets.Place(toast, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                new Vector2(0f, HomeTheme.Layout.FOOTER_HEIGHT), new Vector2(480f, height));
-            group = toast.gameObject.AddComponent<CanvasGroup>();
-            group.blocksRaycasts = false;
-            LibraryWidgets.Shadow(toast, height * 0.5f, 30f, 10f, 140);
-            Image surface = LibraryWidgets.Panel("Surface", toast, height * 0.5f, LibraryTheme.Colors.SurfaceRaised);
-            LibraryUi.Stretch(surface.rectTransform);
-            LibraryWidgets.Outline(surface, height * 0.5f);
-            Image icon = LibraryWidgets.Icon(toast, LibraryIcon.Info, HomeTheme.Colors.Violet, 26f);
-            LibraryWidgets.Place(icon.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(30f, 0f), new Vector2(26f, 26f));
-            text = LibraryWidgets.Label(
-                "Text", toast, string.Empty, 22f, LibraryTheme.Colors.TextPrimary, FontStyles.Normal, TextAlignmentOptions.Left);
-            LibraryWidgets.Inset(text.rectTransform, 70f, 0f, 30f, 0f);
-            toast.gameObject.SetActive(false);
-            return toast;
-        }
     }
 }

@@ -11,6 +11,7 @@ using Newtonsoft.Json;
 using OpenSekai.App.Playback;
 using OpenSekai.App.UI;
 using OpenSekai.Infrastructure.Packages;
+using OpenSekai.Infrastructure.Sonolus;
 using OpenSekai.Shared.Playback;
 using Sekai;
 using Sekai.Core.Live;
@@ -101,6 +102,7 @@ namespace OpenSekai.EditorTools.Screenshots
                     case "intro": body = HomeShot(shot, true); break;
                     case "handoff": body = HandoffShot(shot); break;
                     case "about": body = AboutShot(shot); break;
+                    case "server": body = ServerShot(shot); break;
                     default:
                         Fail(shot, "unknown kind '" + shot.kind + "'");
                         continue;
@@ -379,9 +381,102 @@ namespace OpenSekai.EditorTools.Screenshots
             yield return Capture(shot, FileStem(shot, null), "about card", null);
 
             home.ShowHomeImmediately();
-            typeof(HomeScreen).GetMethod("ShowComingSoon", Any).Invoke(home, new object[] { "服务器" });
+            typeof(HomeScreen).GetMethod("ShowComingSoon", Any).Invoke(home, new object[] { "资源包" });
             yield return new WaitForSecondsRealtime(0.5f);
             yield return Capture(shot, FileStem(shot, null) + "-soon", "coming-soon hint", null);
+            home.ShowLibraryImmediately();
+        }
+
+        /// <summary>
+        /// The server part: the server card growing over the home page (two held frames), the
+        /// real tap into the server list, the 添加服务器 card, then UntitledCharts (from the live
+        /// server, so these frames need the network): its level home page, the advanced search,
+        /// every level, and the first level's page with each of its three tabs. Last, back out
+        /// to the home page the way the back button goes.
+        /// </summary>
+        private IEnumerator ServerShot(Shot shot)
+        {
+            yield return WaitForLibrary();
+            HomeScreen home = HomeScreen.Current;
+            if (home == null)
+            {
+                throw new InvalidOperationException("The Library scene has no home page.");
+            }
+
+            string stem = FileStem(shot, null);
+            home.SeekIntro(HomeScreen.IntroLength);
+            yield return WaitUntil(() => home.IsBrandReady, "the brand emblem");
+            yield return new WaitForSecondsRealtime(1.2f);
+            foreach (float amount in new[] { 0.35f, 0.7f })
+            {
+                home.SeekServerHandoff(amount);
+                yield return null;
+                yield return null;
+                yield return Capture(shot, FileStem(shot, amount), "server card grown " + amount.ToString("0.00"), null, amount);
+            }
+
+            home.ShowHomeImmediately();
+            yield return null;
+            home.EnterServer();
+            yield return WaitUntil(() => home.IsServerShown, "the server list after the hand-over");
+            yield return new WaitForSecondsRealtime(1f);
+            yield return Capture(shot, stem + "-list", "server list", null);
+
+            ServerScreen screen = UnityEngine.Object.FindFirstObjectByType<ServerScreen>();
+            if (screen == null || !(screen.Top is ServerListPage list))
+            {
+                throw new InvalidOperationException("The server part did not open on its list.");
+            }
+
+            list.OpenAddPanel();
+            yield return new WaitForSecondsRealtime(0.6f);
+            yield return Capture(shot, stem + "-add", "add server card", null);
+            list.CloseAddPanel();
+
+            // Opened directly, not added: a screenshot run never changes the player's server list.
+            var untitled = new OpenSekai.App.Server.ServerEntry(
+                "screenshots-untitledcharts", OpenSekai.App.Server.ServerKind.Sonolus, "UntitledCharts", "https://untitledcharts.com");
+            screen.OpenServer(untitled);
+            SonolusBrowsePage browse = null;
+            yield return WaitUntil(() => (browse = screen.Top as SonolusBrowsePage) != null && browse.IsHomeReady, "the UntitledCharts sections");
+            yield return new WaitForSecondsRealtime(3f);
+            yield return Capture(shot, stem + "-sonolus-home", "UntitledCharts level home page", null);
+
+            browse.OpenAdvancedSearch();
+            yield return new WaitForSecondsRealtime(0.8f);
+            yield return Capture(shot, stem + "-sonolus-search", "advanced search", null);
+            browse.CloseAdvancedSearch();
+
+            browse.ShowAllLevels();
+            yield return WaitUntil(() => browse.IsListReady, "every level");
+            yield return new WaitForSecondsRealtime(3f);
+            yield return Capture(shot, stem + "-sonolus-all", "every level", null);
+
+            SonolusLevel first = browse.FirstLevel;
+            screen.OpenLevel(browse.Session, first);
+            SonolusLevelPage level = null;
+            yield return WaitUntil(() => (level = screen.Top as SonolusLevelPage) != null && level.HasDetails, "the level details");
+            yield return new WaitForSecondsRealtime(2.5f);
+            yield return Capture(shot, stem + "-level", "level page, description", null);
+            string[] tabs = { null, "community", "leaderboard" };
+            for (int tab = 1; tab < 3; tab++)
+            {
+                level.ShowTab(tab);
+                int current = tab;
+                yield return WaitUntil(() => level.IsTabLoaded, "the level page's " + tabs[current] + " tab");
+                yield return new WaitForSecondsRealtime(0.8f);
+                yield return Capture(shot, stem + "-level-" + tabs[tab], "level page, " + tabs[tab], null);
+            }
+
+            while (screen.TryHandleBack())
+            {
+                yield return new WaitForSecondsRealtime(0.5f);
+            }
+
+            screen.Back();
+            yield return WaitUntil(() => home.IsHomeShown && !home.IsServerShown, "the home page after back");
+            yield return new WaitForSecondsRealtime(1f);
+            yield return Capture(shot, stem + "-home", "after the server list's back button", null);
             home.ShowLibraryImmediately();
         }
 

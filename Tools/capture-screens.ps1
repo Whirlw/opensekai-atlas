@@ -49,6 +49,8 @@
 #   -FinishAnimation  allperfect (default) | fullcombo | clear | finish | none.
 #   -Result       Result sample preset: default | fc | ap | auto | failed | retired | loaderror.
 #   -HomePage     The home page at rest (the splash's last frame).
+#   -Server       The server part: hand-over frames, list, add card, then UntitledCharts (needs the
+#                 network): level home page, advanced search, every level, one level and its tabs.
 #   -Intro        Seconds into the splash; it hands over to the home page at about 4.4 s. Pass
 #                 -Intro default for a set of eight frames across the whole sequence.
 #   -PlainAuto    Live frames show plain autoplay (AUTO, no combo) instead of PERFECT + combo.
@@ -70,6 +72,7 @@ param(
     [switch]$SettingsTrace,
     [string]$Result,
     [switch]$HomePage,
+    [switch]$Server,
     [string[]]$Intro,
     [switch]$All,
     [switch]$PlainAuto,
@@ -125,6 +128,7 @@ if ($Request) {
     }
     $shots = New-Object System.Collections.ArrayList
     if ($HomePage) { [void]$shots.Add(@{ kind = 'home' }) }
+    if ($Server) { [void]$shots.Add(@{ kind = 'server' }) }
     if ($introDefault) { [void]$shots.Add(@{ kind = 'intro' }) }
     elseif ($introTimes) { [void]$shots.Add(@{ kind = 'intro'; times = @($introTimes) }) }
     if ($Library) { [void]$shots.Add(@{ kind = 'library' }) }
@@ -164,7 +168,7 @@ if ($Request) {
         if ($Difficulty) { $shot.difficulty = $Difficulty }
         [void]$shots.Add($shot)
     }
-    if ($shots.Count -eq 0) { throw 'Nothing to capture: pass -All, -HomePage, -Intro, -Live, -Info, -Finish, -Library, -Settings, -SettingsTrace, -Result or -Request.' }
+    if ($shots.Count -eq 0) { throw 'Nothing to capture: pass -All, -HomePage, -Server, -Intro, -Live, -Info, -Finish, -Library, -Settings, -SettingsTrace, -Result or -Request.' }
 
     $requestPath = Join-Path $requestDir "request-$stamp.json"
     $body = @{ outDir = $OutDir; width = $Width; height = $Height; shots = @($shots) }

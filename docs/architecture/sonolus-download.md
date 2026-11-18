@@ -1,6 +1,7 @@
 # Sonolus 谱面下载接入调研
 
 > 日期：2026-11-17。接口调研记录；后续实现已调整为并行原生加载，见 [NextRUSH+ 原生加载](native-next-rush.md)。
+> 2026-11-18：游戏内 Sonolus 客户端（栏目、搜索、详情、社区、排行榜、下载、游玩）已实现，见 [服务器页面](server-screen.md)。
 > 验证服务器：<https://untitledcharts.com/>。
 
 ## 结论
@@ -101,7 +102,7 @@ C:\Users\31089\AppData\Local\Temp\OpenSekai-Sonolus-20261117-gimmick\
 
 | 现有位置 | 接入方式 |
 | --- | --- |
-| `Assets/Game/Runtime/OpenSekai/App/UI/Home/HomeView.cs` | 服务器卡片当前调用 comingSoon，后续替换为服务器页导航 |
+| `Assets/Game/Runtime/OpenSekai/App/UI/Home/HomeView.cs` | 服务器卡片已接通服务器页面（[服务器页面](server-screen.md)） |
 | `Assets/Game/Runtime/OpenSekai/Infrastructure/Charts/ChartFileReader.cs` | 当前 JSON 仅接受 ChartDocument，SUS/TXT 走 SusRuntimeConverter；Sonolus 输入应显式分流 |
 | `Assets/Game/Runtime/OpenSekai.Core/Charts/ChartDocument.cs` | 转换后的统一本地格式；NoteList、MusicScoreEventDataList、连接 ID |
 | `Assets/Game/Runtime/OpenSekai/Charts/ChartTimeline.cs` | 每拍 480 ticks，负责 BPM 到时间换算 |
