@@ -118,7 +118,7 @@ manifest 示例：
 将输出曲包通过曲库“导入”按钮导入，即可离线加载。
 工具的 master 难度是显示默认值；Sonolus 的通用 LevelItem 没有项目难度类别的直接对应字段。
 
-游戏内服务器接入见 [服务器谱面下载](../guides/server-chart-downloads.md)。此处的命令行工具供开发验证。
+游戏内可直接浏览 Sonolus 服务器并下载入库，详见 [服务器页面](server-screen.md)和[服务器谱面下载](../guides/server-chart-downloads.md)。命令行工具保留给开发验证，网络部分沿用调研探针的超时与校验。
 
 ## 验证
 

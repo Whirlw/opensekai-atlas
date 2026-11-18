@@ -33,6 +33,7 @@ namespace OpenSekai.App.UI
 
         private AppContext _context;
         private LibraryScreen _library;
+        private ServerScreen _server;
         private Camera _camera;
         private GameObject _canvasRoot;
         private HomeBackdrop _backdrop;
@@ -56,6 +57,9 @@ namespace OpenSekai.App.UI
         public static float IntroLength => HomeSplash.Length;
 
         public bool IsHomeShown => _homeShown;
+
+        /// <summary>True while the server part is on screen.</summary>
+        public bool IsServerShown => _server != null && _server.IsPresented;
 
         /// <summary>True once the emblem's layers are drawn (they are drawn off the main thread).</summary>
         public bool IsBrandReady => BrandSprites.Loaded != null;
@@ -90,6 +94,7 @@ namespace OpenSekai.App.UI
             _splash.Stop();
             _splash.Evaluate(HomeSplash.Length);
             _navigating = false;
+            HideServer();
             HideHome();
             _library?.SetPresented(true, false);
         }
@@ -101,6 +106,7 @@ namespace OpenSekai.App.UI
             _splash.Stop();
             _navigating = false;
             _library?.SetPresented(false, false);
+            HideServer();
             ShowHome();
             _about.Hide();
             _splash.Evaluate(HomeSplash.Length);
@@ -139,6 +145,34 @@ namespace OpenSekai.App.UI
             _view.ApplyExpansion(Mathf.Clamp01(amount));
         }
 
+        /// <summary>Shows the server list at once, as if the player had gone in.</summary>
+        public void ShowServerImmediately()
+        {
+            _view.StopTransition();
+            _splash.Stop();
+            _splash.Evaluate(HomeSplash.Length);
+            _navigating = false;
+            _library?.SetPresented(false, false);
+            HideHome();
+            EnsureServer().SetPresented(true, false);
+        }
+
+        /// <summary>
+        /// Holds the hand-over to the server part at <paramref name="amount"/> (0 the page at rest,
+        /// 1 the server card covering the screen), for screenshots of the transition.
+        /// </summary>
+        public void SeekServerHandoff(float amount)
+        {
+            ShowHomeImmediately();
+            _idle.TryCancel();
+            _idle = default;
+            TickIdle(IntroLength);
+            _view.ApplyExpansion(HomeDestination.Server, Mathf.Clamp01(amount));
+        }
+
+        /// <summary>What tapping the server card does.</summary>
+        public void EnterServer() => OpenServer();
+
         /// <summary>What tapping the library card does.</summary>
         public void EnterLibrary() => OpenLibrary();
 
@@ -174,7 +208,7 @@ namespace OpenSekai.App.UI
 
             var root = (RectTransform)_canvasRoot.transform;
             _backdrop = new HomeBackdrop(root);
-            _view = new HomeView(root, OpenLibrary, OpenAbout, ShowComingSoon, ServerChartDownloads.Open);
+            _view = new HomeView(root, OpenLibrary, OpenAbout, ShowComingSoon, OpenServer);
             if (ServerChartDownloads.Current != null)
             {
                 ServerChartDownloads.Current.StatusChanged += ShowServerStatus;
@@ -275,6 +309,84 @@ namespace OpenSekai.App.UI
             });
         }
 
+        /// <summary>The server card grows over the page, then the server list rises out of it.</summary>
+        private void OpenServer()
+        {
+            if (_navigating || !_homeShown)
+            {
+                return;
+            }
+
+            _navigating = true;
+            UiSound.Play(UiCue.Forward);
+            ServerScreen server = EnsureServer();
+            _view.PlayExpand(HomeDestination.Server, () =>
+            {
+                HideHome();
+                server.SetPresented(true, true);
+                _navigating = false;
+            });
+        }
+
+        /// <summary>The server part falls into the ground, then its card shrinks back into the page.</summary>
+        private void ReturnFromServer()
+        {
+            if (_navigating || _server == null || !_server.IsPresented)
+            {
+                return;
+            }
+
+            _navigating = true;
+            _server.PlayExit(() =>
+            {
+                _server.SetPresented(false, false);
+                ShowHome();
+                _splash.Evaluate(HomeSplash.Length);
+                _view.PlayCollapse(HomeDestination.Server, () => _navigating = false);
+            });
+        }
+
+        /// <summary>A level downloaded from a server should start: the library takes over and starts it.</summary>
+        private void PlayFromServer(string packageDirectory)
+        {
+            if (_navigating || _server == null || _library == null)
+            {
+                return;
+            }
+
+            _navigating = true;
+            _server.PlayExit(() =>
+            {
+                _server.SetPresented(false, false);
+                _library.SetPresented(true, false);
+                _navigating = false;
+                _library.PlayPackage(packageDirectory);
+            });
+        }
+
+        private ServerScreen EnsureServer()
+        {
+            if (_server != null)
+            {
+                return _server;
+            }
+
+            _server = ServerScreen.Create();
+            _server.transform.SetParent(transform, false);
+            _server.BackRequested += ReturnFromServer;
+            _server.PlayRequested += PlayFromServer;
+            _server.LibraryChanged += OnServerImported;
+            return _server;
+        }
+
+        private void HideServer()
+        {
+            if (_server != null && _server.IsPresented)
+            {
+                _server.SetPresented(false, false);
+            }
+        }
+
         private void OpenAbout()
         {
             if (!_navigating)
@@ -327,6 +439,17 @@ namespace OpenSekai.App.UI
             if (_homeShown)
             {
                 HandleHomeBack();
+                return;
+            }
+
+            if (_server != null && _server.IsPresented)
+            {
+                if (!_server.TryHandleBack())
+                {
+                    UiSound.Play(UiCue.Back);
+                    ReturnFromServer();
+                }
+
                 return;
             }
 
@@ -583,6 +706,13 @@ namespace OpenSekai.App.UI
             if (_library != null)
             {
                 _library.BackRequested -= GoHome;
+            }
+
+            if (_server != null)
+            {
+                _server.BackRequested -= ReturnFromServer;
+                _server.PlayRequested -= PlayFromServer;
+                _server.LibraryChanged -= OnServerImported;
             }
 
             _idle.TryCancel();

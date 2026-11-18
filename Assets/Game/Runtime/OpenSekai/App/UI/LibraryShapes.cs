@@ -6,7 +6,8 @@ namespace OpenSekai.App.UI
     internal enum LibraryIcon
     {
         Back, Search, Add, Refresh, Settings, List, Grid, Check, Wave, Play, More,
-        Close, Minus, ChevronRight, Export, Trash, Info, Forward
+        Close, Minus, ChevronRight, Export, Trash, Info, Forward,
+        Heart, Comment, Clock, Trophy, Tag, Globe, Download, Browser, User
     }
 
     /// <summary>
@@ -198,9 +199,65 @@ namespace OpenSekai.App.UI
                         Mathf.Min(Line(4, 6.5f, 20, 6.5f), Line(9.5f, 3.5f, 14.5f, 3.5f)),
                         Mathf.Min(Mathf.Min(Line(6.5f, 6.5f, 7.5f, 20), Line(17.5f, 6.5f, 16.5f, 20)),
                             Mathf.Min(Line(7.5f, 20, 16.5f, 20), Mathf.Min(Line(10.5f, 10.5f, 10.5f, 16), Line(13.5f, 10.5f, 13.5f, 16)))));
+                case LibraryIcon.Heart:
+                    return Mathf.Min(Mathf.Min(Circle(8.4f, 9.6f, 4.1f), Circle(15.6f, 9.6f, 4.1f)),
+                        Triangle(point, new Vector2(4.6f, 11.2f), new Vector2(19.4f, 11.2f), new Vector2(12f, 19.8f)));
+                case LibraryIcon.Comment:
+                    return Mathf.Min(RoundedRectRing(point, new Vector2(12f, 10.5f), new Vector2(8f, 6f), 2.5f),
+                        Mathf.Min(Line(8.5f, 16.5f, 7.5f, 20.5f), Line(7.5f, 20.5f, 12.5f, 16.5f)));
+                case LibraryIcon.Clock:
+                    return Mathf.Min(Ring(12, 12, 8.5f), Mathf.Min(Line(12, 12, 12, 7.2f), Line(12, 12, 15.2f, 14.2f)));
+                case LibraryIcon.Trophy:
+                    return Mathf.Min(
+                        Mathf.Min(Mathf.Max(Ring(12, 8.5f, 5f), 8.5f - point.y), Mathf.Min(Line(7, 4.5f, 17, 4.5f),
+                            Mathf.Min(Line(7, 4.5f, 7, 8.5f), Line(17, 4.5f, 17, 8.5f)))),
+                        Mathf.Min(Line(12, 13.5f, 12, 18.5f), Line(8, 19.5f, 16, 19.5f)));
+                case LibraryIcon.Tag:
+                    return Mathf.Min(
+                        Mathf.Min(Mathf.Min(Line(4.5f, 4.5f, 12, 4.5f), Line(12, 4.5f, 19.5f, 12)),
+                            Mathf.Min(Line(19.5f, 12, 12, 19.5f), Mathf.Min(Line(12, 19.5f, 4.5f, 12), Line(4.5f, 12, 4.5f, 4.5f)))),
+                        Ring(8.6f, 8.6f, 1.4f));
+                case LibraryIcon.Globe:
+                    return Mathf.Min(Ring(12, 12, 8.5f),
+                        Mathf.Min(Line(3.5f, 12, 20.5f, 12), Mathf.Abs(Ellipse(point, new Vector2(12f, 12f), new Vector2(4f, 8.5f))) - 1f));
+                case LibraryIcon.Download:
+                    return Mathf.Min(
+                        Mathf.Min(Line(12, 3.5f, 12, 14.5f), Mathf.Min(Line(12, 14.5f, 7.5f, 10), Line(12, 14.5f, 16.5f, 10))),
+                        Line(5, 19.5f, 19, 19.5f));
+                case LibraryIcon.Browser:
+                    return Mathf.Min(RoundedRectRing(point, new Vector2(12f, 12f), new Vector2(8.5f, 7.5f), 2f),
+                        Line(3.5f, 9f, 20.5f, 9f));
+                case LibraryIcon.User:
+                    return Mathf.Min(Ring(12, 8.2f, 3.6f), Mathf.Max(Ring(12, 21.5f, 7.5f), point.y - 20.5f));
                 default:
                     return Mathf.Min(Circle(5, 12, 1.9f), Mathf.Min(Circle(12, 12, 1.9f), Circle(19, 12, 1.9f)));
             }
+        }
+
+        /// <summary>Signed distance to a filled triangle (negative inside).</summary>
+        private static float Triangle(Vector2 point, Vector2 a, Vector2 b, Vector2 c)
+        {
+            float edge = Mathf.Min(DistanceToSegment(point, a, b), Mathf.Min(DistanceToSegment(point, b, c), DistanceToSegment(point, c, a)));
+            float Side(Vector2 p0, Vector2 p1) => (p1.x - p0.x) * (point.y - p0.y) - (p1.y - p0.y) * (point.x - p0.x);
+            float s0 = Side(a, b), s1 = Side(b, c), s2 = Side(c, a);
+            bool inside = (s0 >= 0f && s1 >= 0f && s2 >= 0f) || (s0 <= 0f && s1 <= 0f && s2 <= 0f);
+            return inside ? -edge : edge;
+        }
+
+        /// <summary>Distance to the stroke of a rounded rectangle, one unit either side of its edge.</summary>
+        private static float RoundedRectRing(Vector2 point, Vector2 center, Vector2 halfSize, float radius)
+        {
+            Vector2 d = new Vector2(Mathf.Abs(point.x - center.x), Mathf.Abs(point.y - center.y)) - halfSize + new Vector2(radius, radius);
+            float outside = new Vector2(Mathf.Max(d.x, 0f), Mathf.Max(d.y, 0f)).magnitude + Mathf.Min(Mathf.Max(d.x, d.y), 0f) - radius;
+            return Mathf.Abs(outside) - 1f;
+        }
+
+        /// <summary>Approximate signed distance to an ellipse's outline.</summary>
+        private static float Ellipse(Vector2 point, Vector2 center, Vector2 radii)
+        {
+            Vector2 p = point - center;
+            float k = new Vector2(p.x / radii.x, p.y / radii.y).magnitude;
+            return (k - 1f) * Mathf.Min(radii.x, radii.y);
         }
 
         private static float RefreshDistance(Vector2 point)

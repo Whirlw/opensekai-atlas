@@ -30,9 +30,9 @@ namespace OpenSekai.App.UI
             Surface.gameObject.AddComponent<Mask>().showMaskGraphic = true;
 
             // Light from above: a soft wash down from the top edge, clipped to the card's corners.
-            Image highlight = LibraryWidgets.Shape("Highlight", Surface.transform, HomeShapes.FadeUp(), HomeTheme.Colors.CardHighlight);
-            highlight.type = Image.Type.Simple;
-            LibraryWidgets.TopStrip(highlight.rectTransform, 0f, 0f, 0f, 140f);
+            Highlight = LibraryWidgets.Shape("Highlight", Surface.transform, HomeShapes.FadeUp(), HomeTheme.Colors.CardHighlight);
+            Highlight.type = Image.Type.Simple;
+            LibraryWidgets.TopStrip(Highlight.rectTransform, 0f, 0f, 0f, 140f);
 
             Content = LibraryUi.CreateRect("Content", Surface.transform);
             LibraryUi.Stretch(Content);
@@ -57,8 +57,27 @@ namespace OpenSekai.App.UI
         internal Image Shadow { get; }
         internal Image Surface { get; }
         internal Image Outline { get; }
+        internal Image Highlight { get; }
         internal RectTransform Content { get; }
         internal Button Button { get; }
+
+        /// <summary>
+        /// 0 leaves the card in its own colors; 1 is the page ground it grows into when it opens
+        /// a page over the whole screen (shadow, hairline and top light gone).
+        /// </summary>
+        internal void SetCovering(float amount)
+        {
+            Surface.color = Color.Lerp(HomeTheme.Colors.Card, LibraryTheme.Colors.Ground, amount);
+            Color shadow = Shadow.color;
+            shadow.a = (1f - amount) * (LibraryTheme.CoverShadow.OPACITY / 255f);
+            Shadow.color = shadow;
+            Color outline = LibraryTheme.Colors.Hairline;
+            outline.a *= 1f - amount;
+            Outline.color = outline;
+            Color highlight = HomeTheme.Colors.CardHighlight;
+            highlight.a *= 1f - amount;
+            Highlight.color = highlight;
+        }
     }
 
     /// <summary>
@@ -410,6 +429,7 @@ namespace OpenSekai.App.UI
         internal const float ART_SIZE = 280f;
 
         private readonly HomeCardFrame _frame;
+        private readonly CanvasGroup _copy;
         private readonly Image _statusDot;
         private readonly IHomeCardArt _art;
         private MotionHandle _shake;
@@ -427,6 +447,7 @@ namespace OpenSekai.App.UI
             });
 
             RectTransform content = _frame.Content;
+            _copy = content.gameObject.AddComponent<CanvasGroup>();
             Image glow = LibraryUi.CreateImage("Glow", content, HomeTheme.Colors.WithAlpha(tint, 40));
             glow.sprite = LibraryShapes.Glow();
             glow.raycastTarget = false;
@@ -488,6 +509,12 @@ namespace OpenSekai.App.UI
         {
             set => _frame.Button.interactable = value;
         }
+
+        /// <summary>Fades what is drawn on the card (copy, art, chip) without fading the card itself.</summary>
+        internal void SetInnerAlpha(float alpha) => _copy.alpha = alpha;
+
+        /// <inheritdoc cref="HomeCardFrame.SetCovering"/>
+        internal void SetCovering(float amount) => _frame.SetCovering(amount);
 
         internal void Tick(double time)
         {

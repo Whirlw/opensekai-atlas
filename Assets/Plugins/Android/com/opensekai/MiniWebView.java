@@ -12,7 +12,10 @@ import android.webkit.URLUtil;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.File;
+import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import com.unity3d.player.UnityPlayer;
 
@@ -20,20 +23,44 @@ import com.unity3d.player.UnityPlayer;
 public final class MiniWebView {
     private static Context context() { return UnityPlayer.currentActivity.getApplicationContext(); }
     private static SharedPreferences records(Context c) { return c.getSharedPreferences("chart-downloads", Context.MODE_PRIVATE); }
-    static boolean trusted(String url) {
+    /** Storage hosts a site is known to hand its downloads to; reviewed per site. */
+    static Set<String> extraHostsFor(String host) {
+        Set<String> extra = new HashSet<>();
+        String h = host == null ? "" : host.toLowerCase(Locale.ROOT);
+        if (h.equals("opensekai.com") || h.endsWith(".opensekai.com")) extra.add("tzi998.oss-cn-shanghai.aliyuncs.com");
+        return extra;
+    }
+
+    /** HTTPS on the default port to one of the hosts or a subdomain of one, without user info. */
+    static boolean trusted(String url, Set<String> hosts) {
+        if (url == null) return false;
         Uri uri = Uri.parse(url);
         String host = uri.getHost();
-        return "https".equalsIgnoreCase(uri.getScheme()) && host != null &&
-            (host.equalsIgnoreCase("opensekai.com") || host.toLowerCase(java.util.Locale.ROOT).endsWith(".opensekai.com") ||
-             host.equalsIgnoreCase("tzi998.oss-cn-shanghai.aliyuncs.com")) &&
-            (uri.getPort() == -1 || uri.getPort() == 443) && uri.getUserInfo() == null;
+        if (!"https".equalsIgnoreCase(uri.getScheme()) || host == null || uri.getUserInfo() != null) return false;
+        if (uri.getPort() != -1 && uri.getPort() != 443) return false;
+        host = host.toLowerCase(Locale.ROOT);
+        for (String allowed : hosts) {
+            if (host.equals(allowed) || host.endsWith("." + allowed)) return true;
+        }
+        return false;
     }
-    public static void open() {
+
+    /** Opens a chart website; only its host (and known storage hosts) can be browsed. */
+    public static void open(String url, String title) {
         Activity activity = UnityPlayer.currentActivity;
-        activity.runOnUiThread(() -> activity.startActivity(new Intent(activity, ChartBrowserActivity.class)));
+        activity.runOnUiThread(() -> {
+            Intent intent = new Intent(activity, ChartBrowserActivity.class);
+            intent.putExtra(ChartBrowserActivity.EXTRA_URL, url);
+            intent.putExtra(ChartBrowserActivity.EXTRA_TITLE, title);
+            activity.startActivity(intent);
+        });
     }
-    static void download(Activity activity, String url, String agent, String disposition, String mime, String referer) throws Exception {
-        if (!trusted(url) || !trusted(referer)) throw new SecurityException("仅支持 OpenSekai 的 HTTPS 下载；不支持 blob/data 链接。");
+    static void download(Activity activity, String url, String agent, String disposition, String mime, String referer, Set<String> hosts) throws Exception {
+        // The page that started the download must be the site itself; the file may come from its
+        // CDN over HTTPS. What arrives is checked as a chart package before it is imported.
+        Uri target = Uri.parse(url);
+        if (!"https".equalsIgnoreCase(target.getScheme()) || target.getUserInfo() != null || !trusted(referer, hosts))
+            throw new SecurityException("仅支持本站页面发起的 HTTPS 下载；不支持 blob/data 链接。");
         String name = URLUtil.guessFileName(url, disposition, mime).replaceAll("[^a-zA-Z0-9._\\-\\p{L}\\p{N}]", "_");
         // Leave room for UUID and multi-byte UTF-8 names under common 255-byte filesystem limits.
         if (name.length() > 48) name = name.substring(name.length() - 48);
@@ -50,7 +77,8 @@ public final class MiniWebView {
         request.setAllowedOverMetered(true);
         if (mime != null && !mime.isEmpty()) request.setMimeType(mime);
         if (agent != null && !agent.isEmpty()) request.addRequestHeader("User-Agent", agent);
-        String cookie = CookieManager.getInstance().getCookie(url);
+        // Cookies only go to the site's own hosts, never to a third-party CDN.
+        String cookie = trusted(url, hosts) ? CookieManager.getInstance().getCookie(url) : null;
         if (cookie != null && !cookie.isEmpty()) request.addRequestHeader("Cookie", cookie);
         request.addRequestHeader("Referer", referer);
         Context c = activity.getApplicationContext();

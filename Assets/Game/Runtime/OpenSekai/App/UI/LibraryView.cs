@@ -786,41 +786,8 @@ namespace OpenSekai.App.UI
             return button;
         }
 
-        private static TMP_InputField CreateSearchField(Transform parent, float height)
-        {
-            Image background = LibraryWidgets.Panel("Search", parent, height * 0.5f, LibraryTheme.Colors.Control);
-            background.raycastTarget = true;
-            LibraryWidgets.Outline(background, height * 0.5f);
-            Image icon = LibraryWidgets.Icon(background.transform, LibraryIcon.Search, LibraryTheme.Colors.TextMuted, 26f);
-            LibraryWidgets.Place(icon.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-                new Vector2(22f, 0f), new Vector2(26f, 26f));
-
-            RectTransform area = LibraryUi.CreateRect("TextArea", background.transform);
-            LibraryWidgets.Inset(area, 60f, 6f, 22f, 6f);
-            area.gameObject.AddComponent<RectMask2D>();
-
-            TextMeshProUGUI placeholder = LibraryWidgets.Label(
-                "Placeholder", area, "搜索曲名、作者", LibraryTheme.FontSize.BODY, LibraryTheme.Colors.TextMuted);
-            LibraryUi.Stretch(placeholder.rectTransform);
-            TextMeshProUGUI text = LibraryWidgets.Label(
-                "Text", area, string.Empty, LibraryTheme.FontSize.BODY, LibraryTheme.Colors.TextPrimary);
-            text.overflowMode = TextOverflowModes.Overflow;
-            LibraryUi.Stretch(text.rectTransform);
-
-            TMP_InputField input = background.gameObject.AddComponent<TMP_InputField>();
-            input.targetGraphic = background;
-            input.transition = Selectable.Transition.None;
-            input.textViewport = area;
-            input.textComponent = text;
-            input.placeholder = placeholder;
-            input.fontAsset = text.font;
-            input.pointSize = LibraryTheme.FontSize.BODY;
-            input.lineType = TMP_InputField.LineType.SingleLine;
-            input.caretColor = LibraryTheme.Colors.TextPrimary;
-            input.customCaretColor = true;
-            input.selectionColor = new Color32(157, 184, 255, 96);
-            return input;
-        }
+        private static TMP_InputField CreateSearchField(Transform parent, float height) =>
+            LibraryWidgets.TextField("Search", parent, height, "搜索曲名、作者", LibraryIcon.Search);
 
         private void BuildBrowseControls(RectTransform bar, RectTransform overlay)
         {

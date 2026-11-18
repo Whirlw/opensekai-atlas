@@ -25,6 +25,7 @@
 - [音频](architecture/audio.md)
 - [曲包与谱面数据](architecture/chart-package.md)
 - [首页、开屏与品牌标](architecture/home-and-brand.md)
+- [服务器页面](architecture/server-screen.md)
 - [中间点的四种形态与判定（契约）](architecture/interior-point-kinds.md)
 - [判定规则设计](architecture/judging-design.md)
 - [打歌运行时](architecture/live-runtime.md)

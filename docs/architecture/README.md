@@ -1,4 +1,4 @@
-﻿# 架构
+# 架构
 
 > 目的：说明这套代码为什么这样分层、数据从曲包流到画面经过哪些环节，供改代码的人定位。
 > 适用读者：开发者。
@@ -20,6 +20,7 @@
 | --- | --- |
 | [模块划分](modules.md) | 目录职责、依赖方向、`Assets` 下剩余代码的归属 |
 | [曲包与谱面数据](chart-package.md) | `.oskp` 结构、`ChartDocument`、兼容旧类型名的 binder |
+| [服务器页面](server-screen.md) | 服务器列表、网页服务器、Sonolus 原生浏览 / 搜索 / 详情 / 下载 / 游玩 |
 | [Sonolus 下载接入调研](sonolus-download.md) | 公开接口实测、NextRUSH+ 转换边界与分阶段接入方案 |
 | [NextRUSH+ 原生加载](native-next-rush.md) | 并行加载入口、原始曲包、基础兼容范围与下载验证工具 |
 | [NextRUSH+ 完整支持计划](../plans/next-rush-support-plan.md) | 固定兼容基线、音乐偏移/分组变速/锚点、完整玩法与分阶段验收；忽略技能和 Fever |

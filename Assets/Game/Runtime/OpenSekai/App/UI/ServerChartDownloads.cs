@@ -30,20 +30,33 @@ namespace OpenSekai.App.UI
             Current = host.AddComponent<ServerChartDownloads>();
         }
 
-        public static void Open()
+        /// <summary>
+        /// Opens a chart website in the system WebView (its own Android activity, with a back
+        /// button in its bar). Downloads started there are picked up and imported on return.
+        /// </summary>
+        /// <param name="url">HTTPS page to open: the address of a server the player added.</param>
+        /// <param name="title">Shown in the browser's bar.</param>
+        public static void Open(string url, string title = null)
         {
             Initialize();
             Current._lastStatus = null;
+            if (string.IsNullOrEmpty(url))
+            {
+                Current.Report("没有要打开的网址。");
+                return;
+            }
+
 #if UNITY_ANDROID && !UNITY_EDITOR
             try
             {
                 Current._attempted.Clear(); // Retained archives can be retried by opening Server again.
                 using var plugin = new AndroidJavaClass("com.opensekai.MiniWebView");
-                plugin.CallStatic("open");
+                plugin.CallStatic("open", url, title ?? string.Empty);
             }
             catch (Exception e) { Current.Report("无法打开谱面服务器：" + e.Message); }
 #else
-            Current.Report("内置网页下载目前支持 Android，请在 Android 设备上使用。");
+            Application.OpenURL(url);
+            Current.Report("内置网页下载仅支持 Android；已在系统浏览器中打开，下载的曲包请用曲库“导入”。");
 #endif
         }
 
