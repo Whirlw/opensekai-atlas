@@ -120,5 +120,19 @@ namespace Sekai.Live
                 default: return Color.white;
             }
         }
+
+        // The NextRUSH+ v3 skin uses solid guide swatches for the full-screen presentation.
+        internal Color FullScreenGuideColor() => Kind switch
+        {
+            101 => new Color32(237, 237, 237, 255),
+            102 => new Color32(214, 115, 123, 255),
+            103 => new Color32(99, 255, 172, 252),
+            104 => new Color32(115, 123, 214, 255),
+            105 => new Color32(255, 205, 53, 252),
+            106 => new Color32(214, 115, 205, 255),
+            107 => new Color32(115, 172, 214, 255),
+            108 => new Color32(0, 0, 0, 255),
+            _ => Color.white
+        };
     }
 }

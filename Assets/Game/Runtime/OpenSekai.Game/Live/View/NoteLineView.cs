@@ -360,8 +360,9 @@ namespace Sekai
 				_hasViewport = true;
 			}
 
-			Color color = SetSegmentStyle(time, bar, segment);
+			Color color = segment.IsGuide ? segment.FullScreenGuideColor() : SetSegmentStyle(time, bar, segment);
 			color.a *= alpha;
+			float textureMode = segment.IsGuide ? 2f : 1f;
 			int vertexIndex = _meshCount++ * TRAPEZOID_VERTEX_COUNT;
 			for (int i = 0; i < TRAPEZOID_VERTEX_COUNT; i++)
 			{
@@ -371,7 +372,7 @@ namespace Sekai
 					? (top ? _viewportTopLeft : _viewportBottomLeft)
 					: (top ? _viewportTopRight : _viewportBottomRight);
 				_colors[index] = color;
-				_uv[index] = new Vector2(1, 0);
+				_uv[index] = new Vector2(textureMode, 0);
 				_leftPoint[index] = _rightPoint[index] = Vector2.zero;
 				_uvOffsetLeft[index] = new Vector2(_statusValue.x, 0);
 				_uvOffsetRight[index] = new Vector2(_statusValue.y, 0);

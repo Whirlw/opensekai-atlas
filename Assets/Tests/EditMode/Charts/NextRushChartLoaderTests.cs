@@ -17,6 +17,7 @@ using Sekai;
 using Sekai.Core.Live;
 using Sekai.Live;
 using UnityEngine;
+using UnityEngine.Rendering;
 using InputTouchPhase = UnityEngine.InputSystem.TouchPhase;
 
 namespace OpenSekai.Tests.EditMode.Charts
@@ -1242,7 +1243,7 @@ namespace OpenSekai.Tests.EditMode.Charts
             var style = N("AnchorNote", "style", 1);
             var styleEnd = N("AnchorNote", "styleEnd", 5);
             Add(head, R("next", "end"));
-            Add(style, V("segmentKind", 103), V("segmentLayer", 3), V("segmentPresentation", 1),
+            Add(style, V("segmentKind", 106), V("segmentLayer", 3), V("segmentPresentation", 1),
                 V("segmentThroughJudgeLine", 1), V("segmentAlpha", 0), R("#TIMESCALE_GROUP", "styleGroup"));
             var chart = Load(Chart(head, end, style, styleEnd, Segment("head", "end", "style", "styleEnd"),
                 E("#TIMESCALE_GROUP", "styleGroup", R("first", "hide")),
@@ -1281,7 +1282,14 @@ namespace OpenSekai.Tests.EditMode.Charts
                 Assert.That(points.Min(v => v.y), Is.Zero.Within(0.00001));
                 Assert.That(points.Max(v => v.y), Is.EqualTo(1).Within(0.00001));
                 Assert.That(mesh.colors.All(color => Mathf.Abs(color.a - 0.5f) < 0.00001f), Is.True);
-                Assert.That(mesh.uv.All(uv => uv.x == 1), Is.True);
+                Assert.That(mesh.colors.All(color => Mathf.Abs(color.r - 214f / 255) < 0.00001f
+                    && Mathf.Abs(color.g - 115f / 255) < 0.00001f
+                    && Mathf.Abs(color.b - 205f / 255) < 0.00001f), Is.True);
+                Assert.That(mesh.uv.All(uv => uv.x == 2), Is.True);
+                if (SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null)
+                {
+                    AssertFullScreenGuidePixel(camera, renderer);
+                }
                 view.Excute(1.75f);
                 Assert.That(renderer.enabled, Is.False);
                 view.Excute(1.9f);
@@ -1294,6 +1302,35 @@ namespace OpenSekai.Tests.EditMode.Charts
                 LiveConfig.ViewLeadSeconds = originalViewLead;
                 UnityEngine.Object.DestroyImmediate(host);
                 UnityEngine.Object.DestroyImmediate(cameraHost);
+            }
+        }
+
+        private static void AssertFullScreenGuidePixel(Camera camera, Renderer overlay)
+        {
+            const int testLayer = 31;
+            overlay.gameObject.layer = testLayer;
+            camera.cullingMask = 1 << testLayer;
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.backgroundColor = Color.black;
+            var target = RenderTexture.GetTemporary(16, 16, 24, RenderTextureFormat.ARGB32);
+            var pixel = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+            var previous = RenderTexture.active;
+            try
+            {
+                RenderPipeline.SubmitRenderRequest(camera, new RenderPipeline.StandardRequest { destination = target });
+                RenderTexture.active = target;
+                pixel.ReadPixels(new Rect(8, 8, 1, 1), 0, 0, false);
+                Color result = pixel.GetPixel(0, 0);
+                // The authored swatch is half opaque at this frame and blends over black.
+                Assert.That(result.r, Is.EqualTo(107f / 255).Within(2f / 255));
+                Assert.That(result.g, Is.EqualTo(57.5f / 255).Within(2f / 255));
+                Assert.That(result.b, Is.EqualTo(102.5f / 255).Within(2f / 255));
+            }
+            finally
+            {
+                RenderTexture.active = previous;
+                RenderTexture.ReleaseTemporary(target);
+                UnityEngine.Object.DestroyImmediate(pixel);
             }
         }
 

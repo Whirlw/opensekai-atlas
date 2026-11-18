@@ -78,6 +78,10 @@ Shader "Sekai/Unlit/NoteLine"
 
             fixed4 frag(v2f i) : SV_Target
             {
+                // Full-screen Guides provide a solid swatch in the vertex color.
+                if (i.texcoord.x > 1.5)
+                    return fixed4(i.color.rgb, saturate(i.color.a));
+
                 float2 screenUv = i.screenPosition.xy / i.screenPosition.w;
                 float2 textureUv;
                 if (i.texcoord.x > 0.5)
