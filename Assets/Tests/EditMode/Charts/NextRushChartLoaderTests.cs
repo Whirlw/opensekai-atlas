@@ -225,7 +225,7 @@ namespace OpenSekai.Tests.EditMode.Charts
             Assert.That(() => Load(Chart(E("FeverStartV2", null))), Throws.TypeOf<InvalidDataException>().With.Message.Contains("FeverStartV2"));
         }
 
-        [TestCase("NormalHeadTraceNote")]
+        [TestCase("NormalHeadFlickNote")]
         [TestCase("NormalTailTapNote")]
         [TestCase("DamageNote")]
         public void UnsupportedArchetypesAreRefused(string archetype)
@@ -750,6 +750,100 @@ namespace OpenSekai.Tests.EditMode.Charts
                 Assert.That(hold.TailNote.Result, Is.EqualTo(NoteResult.JustPerfect));
             }
             AssertCompletesAutoplay(Load(json));
+        }
+
+        [TestCase("NormalHeadTraceNote", -0.04f, NoteResult.JustPerfect)]
+        [TestCase("CriticalHeadTraceNote", 0.06f, NoteResult.JustPerfect)]
+        [TestCase("NormalHeadTraceNote", -0.10f, NoteResult.Miss)]
+        [TestCase("CriticalHeadTraceNote", 0.10f, NoteResult.Miss)]
+        public void TraceHeadUsesChartTimeAndScoresOnceWithItsMovingHold(string archetype, float offset, NoteResult expected)
+        {
+            var head = N(archetype, "head", 2, 3);
+            var tail = N("NormalTailReleaseNote", "tail", 4, -3);
+            Add(head, R("next", "tail"), R("#TIMESCALE_GROUP", "stopped"));
+            Add(tail, R("activeHead", "head"));
+            var json = Chart(head, tail, Segment("head", "tail", "head", "tail", "head", "tail"),
+                E("TransientHiddenTickNote", null, V("#BEAT", 3), V("isAttached", 1),
+                    R("attachHead", "head"), R("attachTail", "tail")),
+                E("#TIMESCALE_GROUP", "stopped", R("first", "stop")),
+                E("#TIMESCALE_CHANGE", "stop", V("#BEAT", 0), V("#TIMESCALE", 0), R("next", "move")),
+                E("#TIMESCALE_CHANGE", "move", V("#BEAT", 2.5), V("#TIMESCALE", 1)));
+            var chart = Load(json);
+            var key = chart.Score.NoteArray.OfType<FrictionNote>().Single();
+            var bar = chart.Score.NoteArray.OfType<FrictionHideLongNote>().Single();
+            Assert.That(key.Type, Is.EqualTo(archetype.StartsWith("Critical", StringComparison.Ordinal)
+                ? NoteType.Critical : NoteType.Default));
+            Assert.That(chart.TotalNoteCount, Is.EqualTo(3));
+
+            using (var harness = new LiveHarness())
+            {
+                harness.Arrange(chart.Score);
+                var lane = LiveConfig.JudgmentPositions[8];
+                harness.Step(0.8f, 10.8, LiveHarness.Touch(1, LiveConfig.JudgmentPositions[0], 10.8));
+                harness.Step(1f + offset, 11d + offset, LiveHarness.Touch(1, lane, 10.8, InputTouchPhase.Moved));
+                if (offset < 0)
+                {
+                    Assert.That(key.Result, Is.EqualTo(NoteResult.None));
+                    harness.Step(1.01f, 11.01);
+                }
+                harness.Step(1.12f, 11.12);
+                Assert.That(key.Result, Is.EqualTo(expected));
+                harness.Step(1.43f, 11.43, LiveHarness.Touch(2, LiveConfig.JudgmentPositions[5], 11.43));
+                harness.Step(1.5f, 11.5, LiveHarness.Touch(2, LiveConfig.JudgmentPositions[5], 11.43, InputTouchPhase.Stationary));
+                Assert.That(bar.JudgedPoints.Single().Result, Is.EqualTo(NoteResult.JustPerfect));
+                harness.Step(2f, 12, LiveHarness.Touch(2, LiveConfig.JudgmentPositions[2], 12, InputTouchPhase.Ended));
+                Assert.That(bar.TailNote.Result, Is.EqualTo(NoteResult.JustPerfect));
+            }
+
+            AssertCompletesAutoplay(Load(json));
+        }
+
+        [Test]
+        public void StandaloneTicksScoreOnContactAndClearEarlyContactOnRetry()
+        {
+            var chart = Load(Chart(N("NormalTickNote", null, 2), N("CriticalTickNote", null, 4)));
+            var keys = chart.Score.NoteArray.OfType<ConnectionNote>().ToArray();
+            Assert.That(chart.TotalNoteCount, Is.EqualTo(2));
+            using var harness = new LiveHarness();
+            harness.Arrange(chart.Score);
+            var lane = LiveConfig.JudgmentPositions[5];
+            harness.Step(0.95f, 10.95, LiveHarness.Touch(1, lane, 10.95, InputTouchPhase.Stationary));
+            Assert.That(keys[0].Result, Is.EqualTo(NoteResult.None));
+            harness.Step(1.01f, 11.01);
+            harness.Step(1.03f, 11.03);
+            Assert.That(keys[0].Result, Is.EqualTo(NoteResult.JustPerfect));
+            harness.Step(1.95f, 11.95, LiveHarness.Touch(2, lane, 11.95, InputTouchPhase.Stationary));
+            Assert.That(keys[1].Result, Is.EqualTo(NoteResult.None));
+            chart.Score.ResetNote();
+            harness.Logic.Notes.Reset();
+            harness.Logic.RefreshInput();
+            harness.Step(2.10f, 22.10);
+            Assert.That(keys.Select(key => key.Result), Is.EqualTo(new[] { NoteResult.Miss, NoteResult.Miss }));
+        }
+
+        [Test]
+        public void OffstageGuideKeepsItsAlphaAndBorrowsAnIndependentTraceWithoutScoringItTwice()
+        {
+            var head = N("AnchorNote", "head", 2, -14);
+            var trace = N("NormalTraceNote", "trace", 3);
+            var tail = N("AnchorNote", "tail", 4, 14);
+            Add(head, R("next", "trace"), V("segmentKind", 103), V("segmentAlpha", 2));
+            Add(trace, R("next", "tail"));
+            Add(tail, V("segmentAlpha", 0));
+            var chart = Load(Chart(head, trace, tail, Segment("head", "trace", "head", "tail"),
+                Segment("trace", "tail", "head", "tail")));
+            var guide = chart.Score.NoteArray.OfType<GuideNote>().Single();
+            var key = chart.Score.NoteArray.OfType<FrictionNote>().Single();
+            var guideMiddle = guide.NoteList.Single(note => note.MusicScoreInfo.time == key.MusicScoreInfo.time);
+            Assert.That(guide.LaneStartF, Is.LessThan(0));
+            Assert.That(guide.TailNote.LaneEndF, Is.GreaterThan(11));
+            Assert.That(guideMiddle.LaneStartF, Is.EqualTo(key.LaneStartF));
+            Assert.That(guideMiddle.HasJudgment, Is.False);
+            Assert.That(guide.NativeConnector.StartAlpha, Is.EqualTo(2));
+            Assert.That(guide.NativeConnector.EndAlpha, Is.EqualTo(1));
+            Assert.That(guideMiddle.NativeConnector.StartAlpha, Is.EqualTo(1));
+            Assert.That(guideMiddle.NativeConnector.EndAlpha, Is.Zero);
+            Assert.That(chart.TotalNoteCount, Is.EqualTo(1));
         }
 
         [Test]

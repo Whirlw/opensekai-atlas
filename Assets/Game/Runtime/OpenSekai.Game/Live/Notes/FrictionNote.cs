@@ -34,6 +34,12 @@ namespace Sekai.Live
 
 		public override void Excute(MusicScoreInfo currentFrameInfo, float offsetTime)
 		{
+			if (UsesNextRushContactWindow)
+			{
+				base.Excute(currentFrameInfo, offsetTime);
+				return;
+			}
+
 			this.offsetTime = offsetTime;
 			if (State == NoteState.Done)
 			{
@@ -79,6 +85,7 @@ namespace Sekai.Live
 
 		public override bool IsJudgment(ref LiveTouch touch, float lane)
 		{
+			if (UsesNextRushContactWindow) return base.IsJudgment(ref touch, lane);
 			return State != NoteState.Done
 				&& JudgeLaneStart <= lane
 				&& JudgeLaneEnd >= lane
@@ -87,6 +94,7 @@ namespace Sekai.Live
 
 		public override bool Judgment(ref LiveTouch touch, float lane)
 		{
+			if (UsesNextRushContactWindow) return base.Judgment(ref touch, lane);
 			if (State == NoteState.Last)
 			{
 				OffsetJudgeTime = 0f;

@@ -2,6 +2,10 @@
 {
 	public class FrictionHideLongNote : FrictionLongNote
 	{
+		private FrictionNote _nextRushTraceHead;
+
+		public void SetNextRushTraceHead(FrictionNote head) => _nextRushTraceHead = head;
+
 		// This bar ends in a friction note: the friction note's own judgement finishes it, not a release.
 		protected override NoteResult CompletedTouchResult => NoteResult.Pass;
 
@@ -79,6 +83,11 @@
 		public override bool IsJudgment(ref LiveTouch touch, float lane)
 		{
 			if (NativeConnector == null) return base.IsJudgment(ref touch, lane);
+			if (_nextRushTraceHead != null)
+			{
+				float elapsed = MusicScore.CurrentFrameInfo.time - MusicScoreInfo.time;
+				if (elapsed < 0f || (!_nextRushTraceHead.HasNextRushContact && elapsed <= 0.125f)) return false;
+			}
 			return State != NoteState.Done && ContainsLane(lane)
 				&& LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(this), OffsetJudgeTime);
 		}

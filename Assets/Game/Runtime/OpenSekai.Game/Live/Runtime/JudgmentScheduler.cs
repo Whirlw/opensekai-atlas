@@ -293,7 +293,7 @@ namespace Sekai.Core.Live
 					{
 						if (!note.IsJudgment(ref input.Touch, lane)) continue;
 						note.Judgment(ref input.Touch, lane);
-						SilenceIfFriction(note, input);
+						SilenceIfContactNote(note, input);
 					}
 					// An armed flick takes a swipe from any finger, so every finger of the frame is offered
 					// to it until one completes it; a resting finger listed first must not shut out the one
@@ -353,12 +353,12 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>
-		/// A finger that a friction or friction-flick key judged may not light the empty lanes again
+		/// A finger used by a contact key may not light the empty lanes again
 		/// until it leaves the screen.
 		/// </summary>
-		private void SilenceIfFriction(NoteBase note, InputTmp input)
+		private void SilenceIfContactNote(NoteBase note, InputTmp input)
 		{
-			if (note is FrictionNote || note is FrictionFlickNote)
+			if (note is FrictionNote or FrictionFlickNote or ConnectionNote { UsesNextRushContactWindow: true })
 			{
 				_input.SilencedTouches.Add(input.Touch.touchId);
 			}

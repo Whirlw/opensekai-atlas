@@ -22,9 +22,9 @@
 | Normal/Critical 后缀 | 已接入基础运行时 | 待 P4 |
 | --- | --- | --- |
 | 独立 | Tap、Flick、Trace、TraceFlick | Release |
-| Head | Tap | Flick、Trace、TraceFlick、Release |
+| Head | Tap、Trace | Flick、TraceFlick、Release |
 | Tail | Flick、Trace、TraceFlick、Release | Tap |
-| 中间 | Tick | |
+| 中间或独立接触键 | Tick | |
 
 候选实体仍需通过字段、值域与引用图检查。预检报告 `NextRushCompatibility.Analyze` 可直接用于不可播放的谱面，提供 revision、每个实体类型的数量、分类及预检阻塞原因。成功编译后的 `RuntimeChartDefinition.NextRushCompatibility` 保留该报告。
 
@@ -39,7 +39,7 @@
 | #BPM_CHANGE | `#BEAT`、`#BPM` | 从第 0 拍开始，BPM 为正。同拍多事件拒绝。样本附带的 `meter` 只接受 4（默认 4） |
 | #TIMESCALE_GROUP | `first`、`forceNoteSpeed` | 编译各组独立轨迹，保留 `editorName`、`editorHidden` 编辑器元数据 |
 | #TIMESCALE_CHANGE | `#BEAT`、`#TIMESCALE`、`#TIMESCALE_SKIP`、`#TIMESCALE_GROUP`、`#TIMESCALE_EASE=0`、`transitionStyle=0`、`hideNotes`、`next` | 已接入分组轨迹。Life Reset Button 附带的 `editorLane` 作为编辑器元数据保留 |
-| 全部音符（含 Anchor、Fake、Damage、隐藏点） | `#BEAT`、`#TIMESCALE_GROUP`、`stage`、`lane`、`size`、`elevation=0`、`direction`、`style`、`activeHead`、`isAttached`、`connectorEase`、`isSeparator`、`segmentKind`、`segmentAlpha`、`segmentLayer`、`segmentThroughJudgeLine`、`segmentPresentation`、`attachHead`、`attachTail`、`next`、`prev`、`effectKind` | 基础音符使用 12 轨浮点几何、方向 0–2、线性全不透明连接。其余字段组合见 P2–P5。当前隐藏 Tick 只接受 `#BEAT`、`isAttached=1`、`attachHead`、`attachTail` |
+| 全部音符（含 Anchor、Fake、Damage、隐藏点） | `#BEAT`、`#TIMESCALE_GROUP`、`stage`、`lane`、`size`、`elevation=0`、`direction`、`style`、`activeHead`、`isAttached`、`connectorEase`、`isSeparator`、`segmentKind`、`segmentAlpha`、`segmentLayer`、`segmentThroughJudgeLine`、`segmentPresentation`、`attachHead`、`attachTail`、`next`、`prev`、`effectKind` | 可判定键使用 12 轨浮点几何和方向 0–2。Anchor 可延伸到舞台外。连接曲线、层级和透明度的处理见 [原生加载](native-next-rush.md)。当前隐藏 Tick 接受 `#BEAT`、`isAttached=1`、`attachHead`、`attachTail`、`activeHead` |
 | Connector | `head`、`tail`、`segmentHead`、`segmentTail`、`activeHead`、`activeTail`、`legacyHiddenPop` | 几何边与 next 相符，同一条链内样式区间可以跨多个边，支持 Guide 与无判定尾。跨链及独立判定区间、`legacyHiddenPop` 待接入 |
 | SimLine | `left`、`right` | 校验为同拍音符，按 OpenSekai 设置重建 |
 | Stage | `fromStart`、`untilEnd`、`firstMaskChange`、`firstPivotChange`、`firstStyleChange`、`firstTransformChange` | P5 |
@@ -81,7 +81,7 @@
 | --- | --- | --- |
 | Hallway | 995 实体，848 判定点，偏移 0 秒，revision 2 | `meter`、`editorName` |
 | Kamisama | 1265 实体，偏移 −0.511 秒，2 组变速、7 事件、51 Anchor、154 隐藏 Tick、178 Connector，缺省 revision 1，含 FeverChance 和 FeverStart 各 1 | `editorName`、`editorHidden` |
-| Life Reset Button | 8576 实体，偏移 +1.271 秒，3 组变速、136 事件、4997 Anchor、248 隐藏 Tick、1286 Connector、31 个 HeadTrace，revision 2 | `meter`、`editorName`、`editorLane` |
+| Life Reset Button | 8576 实体，1837 判定点，偏移 +1.271 秒，3 组变速、136 事件、4997 Anchor、248 隐藏 Tick、1286 Connector、31 个 HeadTrace，revision 2 | `meter`、`editorName`、`editorLane` |
 
 P3 的 Kamisama 样本需处理 32 个 Anchor 到 Anchor 的连接，以及 11 个 Anchor 到真实尾键的连接。样本使用连接缓动 1–5、片段种类 1 / 2 / 103、透明度 0 / 1 和附着标记 0 / 1。
 

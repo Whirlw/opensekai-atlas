@@ -2,7 +2,13 @@ namespace Sekai.Live
 {
 	public class ConnectionNote : NoteBase
 	{
+		private const float NextRushContactWindow = 5f / 60f;
 		private LongNote _endpointSection;
+
+		internal bool UsesNextRushContactWindow { get; private set; }
+		internal bool HasNextRushContact { get; private set; }
+
+		public void SetNextRushContactWindow() => UsesNextRushContactWindow = true;
 
 		public void SetNextRushEndpointSection(LongNote section)
 		{
@@ -35,6 +41,20 @@ namespace Sekai.Live
 			this.offsetTime = offsetTime;
 			if (State == NoteState.Done)
 			{
+				return;
+			}
+
+			if (UsesNextRushContactWindow)
+			{
+				float previous = OffsetJudgeTime;
+				OffsetJudgeTime = currentFrameInfo.time - MusicScoreInfo.time;
+				if (State == NoteState.Wait) State = NoteState.Scrolling;
+				Progress = CalcProgress(currentFrameInfo, offsetTime);
+				// Give contact on the crossing frame a chance before using the recorded early touch.
+				if (HasNextRushContact && (previous > 0f || OffsetJudgeTime >= NextRushContactWindow))
+					FinishNextRushContact(NoteResult.JustPerfect);
+				else if (OffsetJudgeTime >= NextRushContactWindow)
+					FinishNextRushContact(NoteResult.Miss);
 				return;
 			}
 
@@ -81,12 +101,26 @@ namespace Sekai.Live
 
 		public override bool IsJudgment(ref LiveTouch touch, float lane)
 		{
+			if (UsesNextRushContactWindow)
+				return State != NoteState.Done && JudgeLaneStart <= lane && JudgeLaneEnd >= lane
+					&& UnityEngine.Mathf.Abs(OffsetJudgeTime) < NextRushContactWindow
+					&& touch.phase != UnityEngine.InputSystem.TouchPhase.Canceled;
+
 			return State == NoteState.Last && JudgeLaneStart <= lane && JudgeLaneEnd >= lane
 				&& (_endpointSection == null || !_endpointSection.PublishesHeadMiss || _endpointSection.Head.IsSettled);
 		}
 
 		public override bool Judgment(ref LiveTouch touch, float lane)
 		{
+			if (UsesNextRushContactWindow)
+			{
+				if (!IsJudgment(ref touch, lane)) return false;
+				HasNextRushContact = true;
+				if (OffsetJudgeTime < 0f) return false;
+				FinishNextRushContact(NoteResult.JustPerfect);
+				return true;
+			}
+
 			if (State == NoteState.Last)
 			{
 				OffsetJudgeTime = 0f;
@@ -98,6 +132,19 @@ namespace Sekai.Live
 
 			// Not in its late window yet: the press is not for this slide.
 			return true;
+		}
+
+		public override void ResetNote()
+		{
+			base.ResetNote();
+			HasNextRushContact = false;
+		}
+
+		private void FinishNextRushContact(NoteResult result)
+		{
+			if (result == NoteResult.JustPerfect) Progress = 1f;
+			JudgeInfo = (result, NoteResultDescription.None);
+			State = NoteState.Done;
 		}
 
 		public override void Terminate()

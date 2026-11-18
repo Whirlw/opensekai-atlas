@@ -17,6 +17,7 @@ namespace OpenSekai.Infrastructure.Charts
     {
         public const string Format = "next-rush";
         private const int MaxFileBytes = 32 * 1024 * 1024;
+        private const double MaxAnchorEdge = 4096;
         private static readonly HashSet<string> NoteFields = new HashSet<string>(new[] {
             "#BEAT", "#TIMESCALE_GROUP", "lane", "size", "style", "direction", "isAttached", "isSeparator",
             "connectorEase", "segmentKind", "segmentAlpha", "segmentLayer", "effectKind", "segmentThroughJudgeLine",
@@ -153,9 +154,10 @@ namespace OpenSekai.Infrastructure.Charts
                 foreach (var entry in _notes)
                 {
                     var entity = entry.Key;
+                    string kind = Kind(entity);
                     if (_edges.ContainsKey(entity) && !incoming.Contains(entity))
                         BindChain(entity, roots);
-                    if (!IsChainNode(Kind(entity)))
+                    if (!IsChainNode(kind) || kind == "HeadTraceNote")
                         roots.Add(entry.Value);
                 }
                 if (_outgoingBars.Count != _edges.Count) throw Invalid("长条连接存在循环");
@@ -175,11 +177,13 @@ namespace OpenSekai.Infrastructure.Charts
                     string kind = Kind(entry.Key);
                     bool anchor = kind == "AnchorNote";
                     bool tail = kind.StartsWith("Tail", StringComparison.Ordinal);
-                    bool member = entry.Value is LongNote || tail || kind == "TickNote"
+                    bool member = IsHoldHead(kind) || tail || kind == "TickNote"
                         || anchor && (entry.Key.Has("next") || entry.Key.Has("prev") || entry.Key.Has("activeHead"));
                     bool endpointTick = _endpointTicks.Contains(entry.Key);
                     bool independentBridgeTail = tail && !onPath && _crossChainPoints.Contains(entry.Key);
-                    if (member && !onPath && !endpointTick && !independentBridgeTail)
+                    bool standaloneTick = kind == "TickNote" && !onPath && !endpointTick
+                        && !entry.Key.Has("next") && !entry.Key.Has("prev") && !entry.Key.Has("activeHead");
+                    if (member && !onPath && !endpointTick && !independentBridgeTail && !standaloneTick)
                         throw Invalid("孤立的长条节点 " + entry.Key.Name);
                     if (entry.Key.Has("next") && !onPath) throw Unsupported("缺少 Connector 的长条片段");
                     _incomingBars.TryGetValue(entry.Key, out var before);
@@ -199,9 +203,14 @@ namespace OpenSekai.Infrastructure.Charts
                             ?? (after != null && after is not GuideNote ? after : before is GuideNote ? null : before));
                         roots.Add(tick);
                     }
+                    if (standaloneTick)
+                    {
+                        ((ConnectionNote)entry.Value).SetNextRushContactWindow();
+                        roots.Add(entry.Value);
+                    }
                     if (independentBridgeTail)
                         BindIndependentTail(entry.Key, roots);
-                    if (!member && !IsChainNode(Kind(entry.Key)) && !onPath
+                    if (!member && !onPath
                         && (entry.Key.Has("next") || entry.Key.Has("prev") || entry.Key.Has("activeHead")))
                         throw Unsupported("独立音符的长条连接");
                 }
@@ -287,7 +296,7 @@ namespace OpenSekai.Infrastructure.Charts
                 if (!attached && (entity.Has("attachHead") || entity.Has("attachTail")))
                     throw Invalid("没有附着标记的音符包含附着引用");
                 double alpha = entity.Number("segmentAlpha", 1);
-                if (alpha < 0 || alpha > 1) throw Invalid("长条透明度超出范围");
+                if (alpha < 0 || alpha > float.MaxValue) throw Invalid("长条透明度超出范围");
                 double ease = entity.Number("connectorEase", 1);
                 if (ease < 0 || ease > 41 || ease % 1 != 0)
                     throw Unsupported("connectorEase=" + ease);
@@ -299,8 +308,16 @@ namespace OpenSekai.Infrastructure.Charts
                     throw Unsupported("向下划键方向");
                 if (!kind.Contains("Flick") && entity.Number("direction") != 0) throw Unsupported("非划键方向");
                 double size = entity.Number("size"), lane = entity.Number("lane");
-                if (!attached && (!entity.Has("lane") || size < (kind == "AnchorNote" ? 0 : 0.5) || lane - size < -6 || lane + size > 6))
-                    throw Unsupported("超出 12 轨或宽度小于一轨的音符");
+                if (!attached)
+                {
+                    if (!entity.Has("lane") || size < 0) throw Invalid("音符位置或宽度无效");
+                    if (kind == "AnchorNote")
+                    {
+                        if (Math.Abs(lane) + size > MaxAnchorEdge) throw Unsupported("Anchor 超出几何范围");
+                    }
+                    else if (size < 0.5 || Math.Abs(lane) + size > 6)
+                        throw Unsupported("超出 12 轨或宽度小于一轨的音符");
+                }
                 if (attached) { lane = 0; size = 0; }
                 float left = (float)(lane - size + 6), right = (float)(lane + size + 5);
                 var info = At(Beat(entity));
@@ -314,7 +331,7 @@ namespace OpenSekai.Infrastructure.Charts
                         note = new NormalNote(info, id, a, b, NoteCategory.Normal, 1, type, Offset(NoteCategory.Normal)); break;
                     case "FlickNote": case "TailFlickNote":
                         note = new FlickNote(info, id, a, b, NoteCategory.Flick, 1, type, direction, Offset(NoteCategory.Flick), flick); break;
-                    case "TraceNote": case "TailTraceNote":
+                    case "TraceNote": case "TailTraceNote": case "HeadTraceNote":
                         note = new FrictionNote(info, id, a, b, NoteCategory.Friction, _config, type, 1, NoteLineType.Linear); break;
                     case "TraceFlickNote": case "TailTraceFlickNote":
                         note = new FrictionFlickNote(info, id, a, b, NoteCategory.FrictionFlick, 1, type, direction, flick, Offset(NoteCategory.FrictionFlick)); break;
@@ -327,6 +344,7 @@ namespace OpenSekai.Infrastructure.Charts
                         break;
                     default: throw Unsupported(entity.Archetype);
                 }
+                if (kind == "HeadTraceNote") ((FrictionNote)note).SetNextRushContactWindow();
                 SetGeometry(note, left, right);
                 SetNativeScroll(entity, note, group);
                 return note;
@@ -387,7 +405,7 @@ namespace OpenSekai.Infrastructure.Charts
                         {
                             point = _notes[next];
                         }
-                        else if (_attachments.ContainsKey(next) && !IsChainNode(kind))
+                        else if (!IsChainNode(kind))
                         {
                             point = BorrowEndpoint(next);
                         }
@@ -423,11 +441,14 @@ namespace OpenSekai.Infrastructure.Charts
                 {
                     if (activeHead != start) throw Unsupported("Connector 的判定区间须与连续几何片段对齐");
                     if (source is LongNote scoredHead) return scoredHead;
-                    if (kind != "AnchorNote" && kind != "TickNote") throw Unsupported("长条判定起点 " + start.Archetype);
-                    return CopyGeometry(start, new FrictionHideLongNote(source.MusicScoreInfo, ++_nextId,
-                        source.LaneStart, source.LaneEnd, NoteCategory.FrictionHideLong, source.Type, _config, 1));
+                    if (kind != "AnchorNote" && kind != "TickNote" && kind != "HeadTraceNote")
+                        throw Unsupported("长条判定起点 " + start.Archetype);
+                    var carrier = new FrictionHideLongNote(source.MusicScoreInfo, ++_nextId,
+                        source.LaneStart, source.LaneEnd, NoteCategory.FrictionHideLong, source.Type, _config, 1);
+                    if (source is FrictionNote traceHead) carrier.SetNextRushTraceHead(traceHead);
+                    return CopyGeometry(start, carrier);
                 }
-                if (source is LongNote) throw Unsupported("长条头缺少从该节点开始的判定区间");
+                if (IsHoldHead(kind)) throw Unsupported("长条头缺少从该节点开始的判定区间");
                 return CreateGuide(start);
             }
 
@@ -502,7 +523,7 @@ namespace OpenSekai.Infrastructure.Charts
                     RestoreNode(end, note);
                     return;
                 }
-                if (note is LongNote && nextActiveHead != end)
+                if (IsHoldHead(kind) && nextActiveHead != end)
                     throw Unsupported("长条头缺少从该节点开始的判定区间");
                 if (realTail) BindIndependentTail(end, roots);
                 if (kind == "AnchorNote" && !_edges.ContainsKey(end))
@@ -563,7 +584,7 @@ namespace OpenSekai.Infrastructure.Charts
             private void BindIndependentAttachment(NextRushEntity entity, NoteBase note, Attachment attachment)
             {
                 string kind = Kind(entity);
-                if (note is LongNote || kind.StartsWith("Tail", StringComparison.Ordinal))
+                if (IsHoldHead(kind) || kind.StartsWith("Tail", StringComparison.Ordinal))
                     throw Invalid("孤立的附着长条节点");
                 if (kind == "TickNote")
                 {
@@ -757,8 +778,10 @@ namespace OpenSekai.Infrastructure.Charts
             }
             private static string Kind(NextRushEntity entity) => entity.Archetype == "AnchorNote" ? "AnchorNote"
                 : NextRushCompatibility.GetNoteKind(entity.Archetype);
+            private static bool IsHoldHead(string kind) => kind.StartsWith("Head", StringComparison.Ordinal);
+
             private static bool IsChainNode(string kind) => kind == "TickNote" || kind == "AnchorNote"
-                || kind != null && (kind.StartsWith("Head", StringComparison.Ordinal) || kind.StartsWith("Tail", StringComparison.Ordinal));
+                || IsHoldHead(kind) || kind.StartsWith("Tail", StringComparison.Ordinal);
             private static NoteType TypeOf(NextRushEntity entity) => entity.Archetype.StartsWith("Critical", StringComparison.Ordinal) ? NoteType.Critical : NoteType.Default;
             private static double Beat(NextRushEntity entity)
             {

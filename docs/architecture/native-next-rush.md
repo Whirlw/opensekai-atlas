@@ -76,11 +76,11 @@ manifest 示例：
 - Normal/Critical Tap、Flick、Trace、TraceFlick；方向支持普通、左、右。
 - HeadTap 起点、Tick 中继、TailRelease/TailFlick/TailTrace/TailTraceFlick 尾部。Anchor 可作隐藏中继、无判定尾和 Guide 端点，允许同拍几何连接。Guide 可指向独立 Tap、Flick、Trace 和 TraceFlick，或无活动长条引用的 TailRelease、TailFlick、TailTrace、TailTraceFlick。独立的 TailRelease 使用松手判定窗口，Guide 本身不产生判定。
 - 按实体字符串名称建立引用关系，实体顺序无关。Connector 的 `head/tail` 表示实际边，`segmentHead/segmentTail` 提供覆盖该边的样式区间，`activeHead/activeTail` 对应当前长条判定区间。继续读取早期加载器接受的连接表示。
-- 同一条几何链可在连续可判定段和 Guide 段之间切换。HeadTap、Anchor 和 Tick 均可作为可判定段起点。相邻段共享交界的几何，头、尾和 Tick 各自只结算一次。
+- 同一条几何链可在连续可判定段和 Guide 段之间切换。HeadTap、HeadTrace、Anchor 和 Tick 均可作为可判定段起点。普通和高亮 HeadTrace、独立 Tick 按谱面时钟在前后各 5 帧（以 60 Hz 为基准）的窗口内接受接触。HeadTrace 作为单独的键结算，条身继续使用连接几何。相邻段共享交界的几何，头、尾和 Tick 各自只结算一次。
 - Tick 可用作判定段起点或终点。端点 Tick 使用自身的轨道和接触判定，条身结束时仍可独立结算。Guide 可以借用其它链的非附着节点而保持原来的判定归属。跨越 `next/prev` 链边界的可判定连接可连成一个连续条身，前提是几何不分叉、活动区间覆盖整段。
 - 按谱面创建 TransientHiddenTickNote，允许附在连接两端，也允许与可见 Tick 同拍。可见 Tick 和独立键可附着在同一条连接的相邻几何节点上，使用曲线计算判定轨道，以两端各自的变速轨迹计算纵向显示位置。每个原生判定点单独结算。
 - Connector 可以经过附着分隔点，也可从附着端点起止。附着点从源路径继承轨道、宽度和变速轨迹；相邻子段使用源缓动的对应区间。几何路径允许附着点插在 `next/prev` 的两个节点之间，仍按 `activeHead/activeTail` 选择判定段。
-- lane/size 转为 12 轨内的浮点轨道边界。Anchor 允许零宽。连接缓动 0–41 用于绘制、条身命中范围和附着位置，其中回弹及弹性曲线保留超调。普通和高亮长条支持带颜色变体，透明度固定为 1。8 种 Guide 颜色按样式端点透明度渐变。样式可引用跨链的区间，连接是否隐藏及是否穿判定线由样式起点决定。穿线时按两端的变速轨迹绘制。无判定尾的连接在尾节点过线后最多继续绘制 5 秒，真实尾键仍按本身规则结算。
+- 可判定音符使用 12 轨内的浮点轨道边界。Anchor 可零宽或位于舞台外，其任一边界限于中心线两侧 4096 轨内。连接缓动 0–41 用于绘制、条身命中范围和附着位置，其中回弹及弹性曲线保留超调。普通和高亮长条支持带颜色变体，透明度固定为 1。8 种 Guide 颜色按样式端点的透明度渐变，保留大于 1 的源值参与插值。Guide 中间也可借用独立键的几何，独立键照常结算一次。样式可引用跨链的区间，连接是否隐藏及是否穿判定线由样式起点决定。穿线时按两端的变速轨迹绘制。无判定尾的连接在尾节点过线后最多继续绘制 5 秒，真实尾键仍按本身规则结算。
 - 连接按样式起点的 `segmentLayer` 排在舞台下方、舞台上方的两个层级，或音符键上方。同层 Guide 位于普通和高亮条上方。`segmentPresentation=1` 在该边的时间范围内铺满游戏镜头，透明度按谱面时间插值，并遵循样式起点变速组的隐藏设置。
 - SimLine 通过本地同时押线逻辑重建，遵循设置开关。
 - 变速组支持独立轨迹、跳距、隐藏、强制速度及 TIMESCALE / SCROLL 混用。适用于当前可编译的音符与线性长条。
@@ -91,7 +91,7 @@ manifest 示例：
 - 非 4/4 拍及第 0 拍前的 BPM 变化。
 - 分叉或合流的可判定连接、递归附着，以及使用尚未接入的音符族或 Damage 的判定区间。
 - fake、damage、动态舞台、向下划键。
-- HeadTrace/HeadFlick 等其它长条起点、TailTap、跨越不连续几何边的判定区间和未知实体/字段。
+- HeadFlick、HeadTraceFlick、HeadRelease、独立 Release、TailTap、跨越不连续几何边的判定区间和未知实体/字段。
 
 原生数据加载支持不等于复刻完整 NextRUSH+ 引擎。目前复用本项目判定、计分、音效和画面；后续玩法扩展应在原始数据保留的前提下逐项接入运行时。
 
@@ -169,3 +169,5 @@ P3 已用原始 Kamisama 曲包通过安装、原始谱面字节校验和 120 Hz
 普通长条头到达判定线后固定在线上，可见性跟随当前连接片段，尾节点到线时退场。合成谱回归覆盖经过 Anchor 继续显示、变速组隐藏与恢复、尾部退场。全量 EditMode 回归 1053 通过、19 跳过、0 失败，包含原始 Kamisama 曲包。修复后的原谱画面待人工复核。
 
 P3 后续全量 EditMode 回归 1058 通过、19 跳过、0 失败。合成谱覆盖可见 Tick 的曲线位置和双组变速、阶跃两侧的命中位置、Guide 末端的独立手动输入以及跨链样式透明度。原始 Kamisama 曲包再次通过导入和自动播放，仍为 885 个判定点。
+
+P4 已用校验过 SHA-256 的 Life Reset Button 原始 LevelData 完成 120 Hz 自动播放，8576 个实体、1837 个判定点。Kamisama 与 Hallway 原谱再次通过，分别为 885 和 848 个判定点。合成输入覆盖普通和高亮 HeadTrace 的早触、晚触和超窗，以及独立 Tick 重开后的接触清除。全量 EditMode 回归 1098 通过、19 跳过、0 失败，Windows 曲库 PlayMode 5 项通过。Life Reset Button 的原谱手动输入、画面与 Android 表现仍待验收。
