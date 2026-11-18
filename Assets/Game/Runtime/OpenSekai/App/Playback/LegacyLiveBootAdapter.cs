@@ -53,6 +53,7 @@ namespace OpenSekai.App.Playback
             boot.MusicData.CustomPlayLevel = entry.Manifest.playLevel;
             boot.MusicData.MusicScore = score;
             boot.MusicData.StartMusicTimeMs = 0L;
+            boot.MusicData.NativeBgmOffsetSeconds = session.Chart.NextRush?.BgmOffset;
             boot.MusicData.PlayStartEffectEnabled = !settings.SkipsCustomMusicScoreMusicInfo;
             return boot;
         }

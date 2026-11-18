@@ -251,7 +251,7 @@ namespace Sekai.Live
 		public override void OnUpdate(float musicTime)
 		{
 			_isPlayedHaptic = false;
-			float viewTime = musicTime - (_baseController?.BootData?.MusicData?.Music?.fillerSec ?? 0f);
+			float viewTime = (float)(_baseController?.BootData?.MusicData?.AudioToChartTime(musicTime) ?? musicTime);
 			_notesViewManager?.OnUpdate(viewTime);
 			_longTapEffectView?.Excute(viewTime);
 			UpdateLaneMask();

@@ -11,8 +11,10 @@ using OpenSekai.Infrastructure.Charts;
 using OpenSekai.Infrastructure.Packages;
 using OpenSekai.Shared.Packages;
 using OpenSekai.Shared.Settings;
+using OpenSekai.Shared.Live.Simulation;
 using OpenSekai.Tests.EditMode.Live;
 using Sekai;
+using Sekai.Core.Live;
 using Sekai.Live;
 using UnityEngine;
 
@@ -151,6 +153,77 @@ namespace OpenSekai.Tests.EditMode.Charts
             Assert.That(Load(json, false).Score.NoteArray[0].PairNote, Is.Null);
         }
 
+        [TestCase(null, NextRushRevision.Sonolus110)]
+        [TestCase(0, NextRushRevision.Base)]
+        [TestCase(1, NextRushRevision.Sonolus110)]
+        [TestCase(2, NextRushRevision.ApparentElevation)]
+        public void InitializationRevisionIsRetained(int? revision, NextRushRevision expected)
+        {
+            var json = Chart(N("NormalTapNote", null, 1));
+            json["entities"][0]["data"] = revision.HasValue ? new JArray(V("revision", revision.Value)) : new JArray();
+
+            var result = Load(json);
+
+            Assert.That(result.NextRushCompatibility.Revision, Is.EqualTo(expected));
+            Assert.That(result.TotalNoteCount, Is.EqualTo(1));
+        }
+
+        [TestCase(-1)]
+        [TestCase(1.5)]
+        [TestCase(3)]
+        public void UnknownInitializationRevisionBlocksPlayback(double revision)
+        {
+            var json = Chart(N("NormalTapNote", null, 1));
+            json["entities"][0]["data"] = new JArray(V("revision", revision));
+
+            Assert.That(() => Load(json), Throws.TypeOf<InvalidDataException>().With.Message.Contains("Initialization.revision"));
+        }
+
+        [Test]
+        public void SkillAndFeverAreReportedWithoutCreatingNotesOrEvents()
+        {
+            var tap = N("NormalTapNote", "tap", 1);
+            var baseline = Load(Chart(tap));
+            var result = Load(Chart((JObject)tap.DeepClone(),
+                E("Skill", "skill", V("unknownBusinessField", 1000), R("unusedReference", "missing")),
+                E("FeverChance", null, V("#BEAT", 0)), E("FeverStart", null, V("#BEAT", 0.5))));
+
+            Assert.That(result.NextRushCompatibility.Archetypes
+                .Where(a => a.Status == NextRushEntityStatus.IgnoredByProject)
+                .Select(a => (a.Archetype, a.Count)), Is.EquivalentTo(new[] { ("Skill", 1), ("FeverChance", 1), ("FeverStart", 1) }));
+            Assert.That(result.NextRush.NamedEntities["skill"].Reference("unusedReference"), Is.EqualTo("missing"));
+            Assert.That(result.TotalNoteCount, Is.EqualTo(baseline.TotalNoteCount));
+            Assert.That(result.TicksMax, Is.EqualTo(baseline.TicksMax));
+            Assert.That(result.Score.NoteArray.Single().MusicScoreInfo.time, Is.EqualTo(baseline.Score.NoteArray.Single().MusicScoreInfo.time));
+            Assert.That(result.Score.EventArray, Is.Empty);
+        }
+
+        [Test]
+        public void IgnoredSkillCannotResolveAsANoteOrCamera()
+        {
+            var json = Hold();
+            ((JArray)json["entities"]).Add(E("Skill", "skill"));
+            var head = ((JArray)json["entities"]).OfType<JObject>().Single(e => (string)e["name"] == "head");
+            head["data"].Single(f => (string)f["name"] == "next")["ref"] = "skill";
+            Assert.That(() => Load(json), Throws.TypeOf<InvalidDataException>().With.Message.Contains("next"));
+
+            ((JArray)json["entities"][0]["data"]).Add(R("firstCamera", "skill"));
+            Assert.That(() => Load(json), Throws.TypeOf<InvalidDataException>().With.Message.Contains("firstCamera"));
+        }
+
+        [Test]
+        public void CompatibilityReportDistinguishesDeferredRuntimeOnlyAndUnknownEntities()
+        {
+            var json = Chart(E("StaticStage", null), E("FeverStartV2", null), E("AnchorNote", null));
+            var report = NextRushCompatibility.Analyze(NextRushChart.Parse(json.ToString()));
+
+            Assert.That(report.PassesPreflight, Is.False);
+            Assert.That(report.Archetypes.Single(a => a.Archetype == "StaticStage").Status, Is.EqualTo(NextRushEntityStatus.RuntimeOnly));
+            Assert.That(report.Archetypes.Single(a => a.Archetype == "FeverStartV2").Status, Is.EqualTo(NextRushEntityStatus.Unknown));
+            Assert.That(report.Archetypes.Single(a => a.Archetype == "AnchorNote").Status, Is.EqualTo(NextRushEntityStatus.Unsupported));
+            Assert.That(() => Load(Chart(E("FeverStartV2", null))), Throws.TypeOf<InvalidDataException>().With.Message.Contains("FeverStartV2"));
+        }
+
         [TestCase("#TIMESCALE_CHANGE")]
         [TestCase("AnchorNote")]
         [TestCase("NormalHeadTraceNote")]
@@ -173,13 +246,143 @@ namespace OpenSekai.Tests.EditMode.Charts
             Assert.Throws<InvalidDataException>(() => Load(Chart(note)));
         }
 
-        [TestCase(1.271)]
-        [TestCase(-1.271)]
-        public void UnimplementedOffsetsAreExplicitlyRefused(double offset)
+        [TestCase(-1d, -1.25, 3.25, -4.25, 7)]
+        [TestCase(-0.51, -0.76, 3.74, -3.76, 7)]
+        [TestCase(0d, -0.25, 4.25, -3.25, 7.25)]
+        [TestCase(0.51, 0.26, 4.76, -3, 7.76)]
+        [TestCase(1d, 0.75, 5.25, -3, 8.25)]
+        public void NativeOffsetPreservesTheThreeSecondIntroAndResultRules(
+            double offset, double first, double last, double start, double result)
+        {
+            var json = Chart(N("NormalTapNote", null, -0.5), N("NormalTapNote", null, 8.5));
+            json["bgmOffset"] = offset;
+            var boot = Boot(json);
+            var root = new GameObject("NextRUSH timeline test");
+            try
+            {
+                var controller = root.AddComponent<TimelineProbe>();
+                controller.Arrange(boot, 4000L);
+
+                Assert.That(boot.MusicData.NativeBgmOffsetSeconds, Is.EqualTo(offset));
+                Assert.That(boot.MusicData.AudioToChartTime(0), Is.EqualTo(-offset));
+                Assert.That(boot.MusicData.Music.fillerSec, Is.EqualTo(2f), "the original manifest value is preserved");
+                Assert.That(controller.Span.FirstNoteSeconds, Is.EqualTo(first).Within(1e-6));
+                Assert.That(controller.Span.LastNoteSeconds, Is.EqualTo(last).Within(1e-6));
+                Assert.That(controller.Span.StartSeconds, Is.EqualTo(start).Within(1e-6));
+                Assert.That(controller.Span.ResultEffectSeconds, Is.EqualTo(result).Within(1e-6));
+                controller.CallPreExit();
+                Assert.That(controller.ResultAtMs, Is.EqualTo(result * 1000).Within(1), "normal results use an absolute audio deadline");
+            }
+            finally { UnityEngine.Object.DestroyImmediate(root); }
+        }
+
+        [TestCase(0.51, 1.98)]
+        [TestCase(-0.51, 4.02)]
+        public void SyntheticAudioClickAlignsWithTheNoteAndInputCompensations(double offset, double beat)
+        {
+            var json = Chart(N("NormalTapNote", "click", beat));
+            json["bgmOffset"] = offset;
+            var boot = Boot(json);
+            var root = new GameObject("NextRUSH click test");
+            const int sampleRate = 8000;
+            var click = AudioClip.Create("click", 2 * sampleRate, 1, sampleRate, false);
+            try
+            {
+                Assert.That(click.SetData(new[] { 0.8f }, sampleRate * 3 / 2), Is.True);
+                Assert.That(AudibleRange.TryFind(click, out float audioSeconds, out _), Is.True);
+                Assert.That(audioSeconds, Is.EqualTo(1.5f));
+
+                var controller = root.AddComponent<TimelineProbe>();
+                controller.Arrange(boot, 2000L, new TimingCompensation(40f, 10f, 25f));
+                var score = boot.MusicData.MusicScore;
+                var note = score.NoteArray.Single();
+                Assert.That(controller.SampleViewAt(1530L), Is.EqualTo(note.MusicScoreInfo.time).Within(1e-6f));
+                float logicTime = controller.SampleLogicAt(1565L);
+                Assert.That(logicTime, Is.EqualTo(note.MusicScoreInfo.time).Within(1e-6f));
+
+                using var harness = new LiveHarness();
+                harness.Arrange(score);
+                harness.OnUpdate(logicTime, 10d);
+                harness.AddTouch(1, LiveConfig.JudgmentPositions[5], 10d);
+                harness.OnInput();
+                Assert.That(note.Result, Is.EqualTo(NoteResult.JustPerfect));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(click);
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void NegativeBeatUsesTheInitialBpmAcrossZeroAndLaterChanges()
+        {
+            var chart = Load(Chart(N("NormalTapNote", null, -1.5),
+                E("#BPM_CHANGE", null, V("#BEAT", 2), V("#BPM", 60)),
+                N("NormalTapNote", null, 2.5)));
+            Assert.That(chart.Score.NoteArray.Select(n => n.MusicScoreInfo.time), Is.EqualTo(new[] { -0.75f, 1.5f }));
+            chart.Score.GetMusicScoreInfoFromTime(-0.75f, out var frame);
+            Assert.That(frame.bar, Is.EqualTo(-1));
+            Assert.That(frame.barProgress, Is.EqualTo(0.625f));
+        }
+
+        [Test]
+        public void OffsetOutsidePlaybackRangeIsRefused()
         {
             var json = Chart(N("NormalTapNote", null, 1));
-            json["bgmOffset"] = offset;
+            json["bgmOffset"] = 1e30;
             Assert.That(() => Load(json), Throws.TypeOf<InvalidDataException>().With.Message.Contains("bgmOffset"));
+        }
+
+        private FreeLiveBootData Boot(JObject json)
+        {
+            var package = new SongPackage(_directory, new SongPackageManifest
+            {
+                id = "timing-test",
+                scoreFileName = "level-data.json",
+                fillerSec = 2f
+            });
+            var request = new PlayRequest(_directory, false, SceneManager.Scene.Library);
+            var session = PlaySession.FromChart(request, package, Load(json), _config,
+                new PlaybackSettingsSnapshot(new LiveSettingData()));
+            var boot = LegacyLiveBootAdapter.Create(session, 0);
+            // The probe supplies the audio file duration directly and uses no shared audio cue.
+            boot.CustomMusicScoreId = null;
+            boot.MusicData.Music.assetbundleName = null;
+            boot.MusicData.Vocal.assetbundleName = null;
+            return boot;
+        }
+
+        private sealed class TimelineProbe : BaseLiveController
+        {
+            internal LiveTimelineSpan Span => timelineSpan;
+            internal long? ResultAtMs { get; private set; }
+
+            internal void Arrange(FreeLiveBootData boot, long durationMs, TimingCompensation compensation = default)
+            {
+                BootData = boot;
+                musicLength = durationMs;
+                timingCompensation = compensation;
+                BuildTimelineSpan(boot.MusicData.MusicScore);
+                state = LiveControllerState.Playing;
+            }
+
+            internal float SampleLogicAt(long audioMs)
+            {
+                currentMusicTimeMs = audioMs;
+                return CurrentLogicChartTime;
+            }
+
+            internal double SampleViewAt(long audioMs)
+            {
+                currentMusicTimeMs = audioMs;
+                return BootData.MusicData.AudioToChartTime(currentAudioLatencyMusicTimeMs);
+            }
+
+            protected override void PreExit(float delay, float waitTime, long? resultEffectAtMs = null)
+                => ResultAtMs = resultEffectAtMs;
+            protected override void OnAwake() { }
+            protected override void OnExit() { }
         }
 
         [Test]

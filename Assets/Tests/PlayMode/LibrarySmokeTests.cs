@@ -7,6 +7,7 @@ using OpenSekai.App;
 using OpenSekai.App.Playback;
 using OpenSekai.App.UI;
 using OpenSekai.Infrastructure.Packages;
+using OpenSekai.Shared.Live.Simulation;
 using OpenSekai.Shared.Playback;
 using Sekai;
 using Sekai.Core.Live;
@@ -28,8 +29,12 @@ namespace OpenSekai.Tests.PlayMode
         [UnityTest]
         public IEnumerator LibrarySceneBootsAndShowsThePage()
         {
-            AsyncOperation load = SceneLoader.LoadSceneAsync(LibraryScenePath, LoadSceneMode.Single);
-            Assert.That(load, Is.Not.Null, "the library scene must exist at " + LibraryScenePath);
+            if (SceneLoader.GetActiveScene().path != LibraryScenePath)
+            {
+                AsyncOperation load = SceneLoader.LoadSceneAsync(LibraryScenePath, LoadSceneMode.Single);
+                Assert.That(load, Is.Not.Null, "the library scene must exist at " + LibraryScenePath);
+                yield return load;
+            }
 
             float deadline = Time.realtimeSinceStartup + BootTimeoutSeconds;
             LibraryScreen screen = null;
@@ -47,9 +52,13 @@ namespace OpenSekai.Tests.PlayMode
 
             Assert.That(screen, Is.Not.Null, "LibraryScreen was not created within " + BootTimeoutSeconds + " s");
             Assert.That(screen.IsReady, Is.True, "the library view should be assembled");
+            Assert.That(HomeScreen.Current, Is.Not.Null, "the library scene provides the home page");
+            if (!screen.IsPresented)
+                HomeScreen.Current.ShowLibraryImmediately();
+            Assert.That(screen.IsPresented, Is.True);
             var back = screen.transform.Find("TopBar/Back")?.GetComponent<Button>();
             Assert.That(back, Is.Not.Null, "the library should reserve a back button in its top bar");
-            Assert.That(back.interactable, Is.False, "the back button stays disabled until the main menu exists");
+            Assert.That(back.interactable, Is.True, "the back button can return to the home page");
             Assert.That(ScreenManager.ExistsInstance, Is.True, "ScreenManager should be alive after boot");
             // Without an EventSystem the page renders but nothing is clickable: uGUI pointer events
             // never fire. The only EventSystem in the project is the one this boot path instantiates.
@@ -72,9 +81,11 @@ namespace OpenSekai.Tests.PlayMode
                 packages.SaveManifest(missing, missing.Manifest);
 
                 screen = LibraryScreen.Create(new AppContext(packages, PlayService.Instance));
-                var audio = screen.GetComponent<AudioSource>();
+                AudioSource audio = null;
                 var preview = screen.transform.Find("Main/DetailColumn/Detail/Info/Preview");
-                yield return WaitFor(() => audio.isPlaying && preview.gameObject.activeInHierarchy,
+                yield return WaitFor(() =>
+                        (audio = screen.GetComponents<AudioSource>().FirstOrDefault(source => source.isPlaying)) != null &&
+                        preview.gameObject.activeInHierarchy,
                     BootTimeoutSeconds, "playing the selected song preview");
                 AudioClip initialClip = audio.clip;
                 var length = screen.transform.Find("Main/DetailColumn/Detail/Info/Length").GetComponent<TMP_Text>();
@@ -86,7 +97,7 @@ namespace OpenSekai.Tests.PlayMode
                 Assert.That(audio.clip, Is.SameAs(initialClip), "changing the view keeps the selected preview");
 
                 screen.transform.Find("TopBar/Search").GetComponent<TMP_InputField>().text = "ZZZ";
-                Assert.That(audio.clip, Is.Null);
+                yield return WaitFor(() => audio.clip == null, BootTimeoutSeconds, "ending the preview fade");
                 Assert.That(preview.gameObject.activeInHierarchy, Is.False);
                 Assert.That(screen.transform.Find("Main/DetailColumn/Detail/Actions/Start").GetComponent<Button>().interactable, Is.False);
             }
@@ -109,12 +120,7 @@ namespace OpenSekai.Tests.PlayMode
             yield return LibrarySceneBootsAndShowsThePage();
             var originalLibrary = Object.FindFirstObjectByType<LibraryScreen>();
             string fixture = Path.GetFullPath(Path.Combine(Application.dataPath, "../Tools/fixtures/baseline_tap"));
-            originalLibrary.ShowResult(PlayResult.FromLoadError("Baseline Tap", true, fixture, "Retry smoke setup"));
-            var retryPanel = Object.FindFirstObjectByType<LibraryResultPanel>();
-            Assert.That(retryPanel, Is.Not.Null, "the library should display the retry panel");
-            var retry = retryPanel.transform.Find("Panel/Retry")?.GetComponent<Button>();
-            Assert.That(retry, Is.Not.Null, "the result panel should wire its retry button");
-            retry.onClick.Invoke();
+            StartThroughLibraryRetry(fixture);
 
             yield return WaitFor(
                 () => SceneLoader.GetActiveScene().name == "Core" && Object.FindFirstObjectByType<SoloLiveController>() != null,
@@ -136,6 +142,138 @@ namespace OpenSekai.Tests.PlayMode
             Assert.That(result.Score, Is.EqualTo(1_000_000),
                 $"Rank={result.Rank}, auto={result.AutoCount}/{result.TotalCombo}, misses={result.Miss}");
             Assert.That(result.Rank, Is.EqualTo(ScoreRank.S));
+        }
+
+        [UnityTest]
+        public IEnumerator NextRushOffsetKeepsThePlaybackClockThroughPauseRetryAndResult()
+        {
+            yield return LibrarySceneBootsAndShowsThePage();
+            string directory = Path.Combine(Path.GetTempPath(), "OpenSekai-NextRushTiming-" + System.Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+            try
+            {
+                WriteNextRushTimingPackage(directory);
+                StartThroughLibraryRetry(directory);
+
+                const BindingFlags Fields = BindingFlags.Instance | BindingFlags.NonPublic;
+                var panelResultField = typeof(LibraryResultPanel).GetField("_current", Fields);
+                SoloLiveController controller = null;
+                yield return WaitFor(
+                    () =>
+                    {
+                        var activePanel = Object.FindFirstObjectByType<LibraryResultPanel>();
+                        var loadResult = activePanel == null ? null : (PlayResult)panelResultField.GetValue(activePanel);
+                        if (loadResult?.Kind == PlayResultKind.LoadError)
+                            Assert.Fail(loadResult.Message);
+                        controller = Object.FindFirstObjectByType<SoloLiveController>();
+                        return controller != null && controller.JustPlayingState;
+                    },
+                    BootTimeoutSeconds, "reaching the signed run-in");
+
+                var clockField = typeof(BaseLiveController).GetField("currentMusicTimeMs", Fields);
+                var spanField = typeof(BaseLiveController).GetField("timelineSpan", Fields);
+                var resultPendingField = typeof(SoloLiveController).GetField("_resultEffectPending", Fields);
+                long ClockMs() => (long)clockField.GetValue(controller);
+                var span = (LiveTimelineSpan)spanField.GetValue(controller);
+                Assert.That(span.PlaybackEndSeconds, Is.EqualTo(4f).Within(0.002f));
+                Assert.That(span.MusicStartSeconds, Is.EqualTo(0.5f).Within(0.002f));
+                Assert.That(span.MusicEndSeconds, Is.EqualTo(3f).Within(0.002f));
+                Assert.That(span.FirstNoteSeconds, Is.LessThan(span.MusicStartSeconds));
+                Assert.That(span.LastNoteSeconds, Is.GreaterThan(span.PlaybackEndSeconds));
+                Assert.That(ClockMs() / 1000d, Is.EqualTo(span.FirstNoteSeconds - 3).Within(0.20));
+
+                controller.PauseLive();
+                long beforeMusic = ClockMs();
+                yield return new WaitForSecondsRealtime(0.12f);
+                Assert.That(ClockMs(), Is.EqualTo(beforeMusic));
+                Assert.That(SoundManager.Instance.GetAudioSyncedUnityTimer(), Is.LessThanOrEqualTo(1L));
+                controller.ResumeNoCountDown();
+                yield return WaitFor(() => ClockMs() > beforeMusic + 50, 2f, "resuming the silent run-in");
+
+                controller.Retry();
+                yield return WaitFor(() => controller.JustPlayingState, BootTimeoutSeconds, "restarting the signed run-in");
+                Assert.That(ClockMs() / 1000d, Is.EqualTo(span.StartSeconds).Within(0.20));
+
+                yield return WaitFor(() => ClockMs() >= 850L, BootTimeoutSeconds, "reaching the playing audio");
+                controller.PauseLive();
+                long duringMusic = ClockMs();
+                yield return new WaitForSecondsRealtime(0.20f);
+                Assert.That(ClockMs(), Is.EqualTo(duringMusic));
+                controller.ResumeNoCountDown();
+                yield return WaitFor(() => ClockMs() > duringMusic + 50L, 2f, "resuming the playing audio");
+                Assert.That(ClockMs() - duringMusic, Is.LessThan(200L));
+
+                yield return WaitFor(() => !controller.JustPlayingState, BootTimeoutSeconds, "judging the last note after the audio file");
+                Assert.That(ClockMs() / 1000d, Is.EqualTo(span.LastNoteSeconds).Within(0.20));
+                Assert.That((bool)resultPendingField.GetValue(controller), Is.True);
+                yield return WaitFor(() => !(bool)resultPendingField.GetValue(controller), 6f, "starting the result effect");
+                Assert.That(ClockMs() / 1000d, Is.EqualTo(span.LastNoteSeconds + 3).Within(0.15));
+
+                yield return WaitFor(
+                    () => SceneLoader.GetActiveScene().name == "Library" && Object.FindFirstObjectByType<LibraryResultPanel>() != null,
+                    BootTimeoutSeconds, "showing the NextRUSH+ result");
+                var panel = Object.FindFirstObjectByType<LibraryResultPanel>();
+                var result = (PlayResult)panelResultField.GetValue(panel);
+                Assert.That(result.Kind, Is.EqualTo(PlayResultKind.Completed));
+                Assert.That(result.AutoCount, Is.EqualTo(3));
+            }
+            finally
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+        }
+
+        private static void StartThroughLibraryRetry(string directory)
+        {
+            var library = Object.FindFirstObjectByType<LibraryScreen>();
+            library.ShowResult(PlayResult.FromLoadError("Playback test", true, directory, "Retry smoke setup"));
+            var panel = Object.FindFirstObjectByType<LibraryResultPanel>();
+            Assert.That(panel, Is.Not.Null, "the library should display the retry panel");
+            var retry = panel.GetComponentsInChildren<Button>(true).SingleOrDefault(button => button.name == "Retry");
+            Assert.That(retry, Is.Not.Null, "the result panel should wire its retry button");
+            retry.onClick.Invoke();
+        }
+
+        private static void WriteNextRushTimingPackage(string directory)
+        {
+            File.WriteAllText(Path.Combine(directory, "manifest.json"),
+                "{\"formatVersion\":1,\"id\":\"next-rush-p1-" + System.Guid.NewGuid().ToString("N") +
+                "\",\"chartFormat\":\"next-rush\",\"title\":\"Native timing test\",\"scoreFileName\":\"level-data.json\",\"audioFileName\":\"audio.wav\"}");
+            File.WriteAllText(Path.Combine(directory, "level-data.json"), @"{
+                ""bgmOffset"": 0.51,
+                ""entities"": [
+                    { ""archetype"": ""Initialization"", ""data"": [] },
+                    { ""archetype"": ""#BPM_CHANGE"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 0 }, { ""name"": ""#BPM"", ""value"": 120 }] },
+                    { ""archetype"": ""NormalTapNote"", ""data"": [{ ""name"": ""#BEAT"", ""value"": -2 }, { ""name"": ""lane"", ""value"": 0 }, { ""name"": ""size"", ""value"": 1 }] },
+                    { ""archetype"": ""NormalTapNote"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 1.98 }, { ""name"": ""lane"", ""value"": 0 }, { ""name"": ""size"", ""value"": 1 }] },
+                    { ""archetype"": ""NormalTapNote"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 8 }, { ""name"": ""lane"", ""value"": 0 }, { ""name"": ""size"", ""value"": 1 }] }
+                ]
+            }");
+
+            const int sampleRate = 16000;
+            const int samples = 4 * sampleRate;
+            using var wav = new BinaryWriter(File.Create(Path.Combine(directory, "audio.wav")));
+            void Header(string value) => wav.Write(System.Text.Encoding.ASCII.GetBytes(value));
+            Header("RIFF");
+            wav.Write(36 + 2 * samples);
+            Header("WAVEfmt ");
+            wav.Write(16);
+            wav.Write((short)1);
+            wav.Write((short)1);
+            wav.Write(sampleRate);
+            wav.Write(2 * sampleRate);
+            wav.Write((short)2);
+            wav.Write((short)16);
+            Header("data");
+            wav.Write(2 * samples);
+            for (int n = 0; n < samples; n++)
+            {
+                // Audible between 0.5 s and 3 s, with an impulse at 1.5 s.
+                short sample = n == 3 * sampleRate / 2 ? (short)12000
+                    : n >= sampleRate / 2 && n < 3 * sampleRate ? (short)(n % 16 < 8 ? 2000 : -2000)
+                    : (short)0;
+                wav.Write(sample);
+            }
         }
 
         [UnityTest]

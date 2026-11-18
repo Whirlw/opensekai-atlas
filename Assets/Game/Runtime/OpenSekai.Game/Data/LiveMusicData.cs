@@ -40,6 +40,15 @@ namespace Sekai
 
 		public long StartMusicTimeMs { get; set; }
 
+		/// <summary>For a NextRUSH+ chart, the audio-file time of chart second zero.</summary>
+		public double? NativeBgmOffsetSeconds { get; set; }
+
+		private double AudioTimeAtChartZero => NativeBgmOffsetSeconds ?? (Music?.fillerSec ?? 0f);
+
+		public double AudioToChartTime(double audioSeconds) => audioSeconds - AudioTimeAtChartZero;
+
+		public double ChartToAudioTime(double chartSeconds) => chartSeconds + AudioTimeAtChartZero;
+
 		public bool PlayStartEffectEnabled { get; set; }
 
 		public CollaborationModeState CollaboModeState { get; private set; }

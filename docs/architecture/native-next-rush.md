@@ -1,8 +1,8 @@
 # NextRUSH+ 原生谱面加载
 
-> 更新：2026-11-17。第一阶段已实现：并行加载、基础玩法、原始曲包导入与下载验证工具。
+> 更新于 2026-11-18。已实现并行加载、基础玩法、原始曲包导入、P0 兼容预检和 P1 有符号音乐时间映射。
 
-后续范围与阶段见 [NextRUSH+ 完整支持计划](../plans/next-rush-support-plan.md)。按用户约定，后续将直接忽略技能和 Fever 实体；当前代码尚未接入该忽略规则。
+预检记录 `Skill`、`FeverChance`、`FeverStart` 后跳过其业务逻辑。预检字段、固定版本和真实样本哈希见 [兼容基线](next-rush-compatibility.md)，后续阶段见 [NextRUSH+ 完整支持计划](../plans/next-rush-support-plan.md)。
 
 ## 结构
 
@@ -10,6 +10,7 @@
 现有 JSON / SUS → ChartFileReader → RuntimeChartConverter ──┐
                                                          ├→ RuntimeChartDefinition → PlaySession → Live
 NextRUSH+ LevelData → NextRushChart → NextRushChartLoader ──┘
+                              ↘ NextRushCompatibility 预检
 ```
 
 NextRUSH+ 不经过 ChartDocument，不生成中间 score.json，也不反向转换成旧格式。
@@ -20,6 +21,7 @@ NextRUSH+ 不经过 ChartDocument，不生成中间 score.json，也不反向转
 | 位置 | 职责 |
 | --- | --- |
 | `OpenSekai.Core/Charts/NextRushChart.cs` | 不依赖 Unity 的数据解析，保留实体名称、archetype 和 value/ref 字段；拒绝重复名称/字段、非有限数值 |
+| `OpenSekai.Core/Charts/NextRushCompatibility.cs` | 按固定上游 play 输入分类，记录 revision、实体类型和数量、约定忽略项与预检阻塞原因 |
 | `OpenSekai/Infrastructure/Charts/NextRushChartLoader.cs` | 读取 GZip/JSON；解释 native BPM、音符及连接，直接创建 MusicScore；检查兼容性 |
 | `OpenSekai/Infrastructure/Charts/RuntimeChartLoader.cs` | 根据曲包格式标识分派，未知格式报错 |
 | `OpenSekai/Charts/RuntimeChartDefinition.cs` | 两种来源共用的播放结果与统计 |
@@ -67,8 +69,10 @@ manifest 示例：
 
 ## 第一阶段兼容范围
 
-- Initialization revision 2，默认初始生命配置。
+- 接受 Initialization revision 0、1、2，缺省为 1。当前使用项目自己的计分规则和默认初始生命。
+- 保留 `Skill`、`FeverChance`、`FeverStart` 原始实体和忽略记录。它们不创建播放事件或判定点。引用方仍须满足所用字段的实体类型。
 - 从第 0 拍开始的 BPM，支持变 BPM，4/4 拍。原生拍数用 double 计算时间，不先量化到 480 ticks；共同运行时的时间字段仍为 float。
+- 第 0 拍前的音符沿用第 0 拍的 BPM 向前换算，保留负时间。
 - Normal/Critical Tap、Flick、Trace、TraceFlick；方向支持普通、左、右。
 - HeadTap 起点、Tick 中继、TailRelease/TailFlick/TailTrace/TailTraceFlick 尾部，线性普通/高亮长条。
 - 按实体字符串名称建立引用关系，顺序无关；校验孤立节点、循环、共享节点、缺失引用、时间逆序和 Connector 片段。
@@ -79,12 +83,23 @@ manifest 示例：
 
 以下会明确报“NextRUSH+ 暂不支持”，不会静默丢弃：
 
-- **非零 bgmOffset**：保留在原始数据中，但当前播放器只有旧 filler 时钟。其符号与有符号时钟接入需要独立验证；当前零偏移谱面可播放。
-- 分组变速事件、skip、停止、倒流、非 4/4 拍及负拍。
+- 分组变速事件、变速事件的 skip、停止、倒流、非 4/4 拍及第 0 拍前的 BPM 变化。
 - Anchor/guide 装饰连接、fake、damage、动态舞台、颜色覆盖、透明度、非线性 easing、向下划键。
 - HeadTrace/HeadFlick 等其它长条起点、TailTap、自定义判定区间和未知实体/字段。
 
 原生数据加载支持不等于复刻完整 NextRUSH+ 引擎。目前复用本项目判定、计分、音效和画面；后续玩法扩展应在原始数据保留的前提下逐项接入运行时。
+
+## 音乐偏移与三秒规则
+
+以秒为单位，`音频时间 = 谱面时间 + bgmOffset`。音频文件第 0 秒对应谱面时间 `−bgmOffset`。正偏移让第 0 拍晚于文件开头，负偏移让第 0 拍早于文件开头。固定上游的 SUS 分析器将 `WAVEOFFSET` 取反并交给 USC 转换器，后者把该值写入 `bgmOffset`。 [SUS 分析器](https://github.com/UntitledCharts/sonolus-next-rush-engine/blob/1f086fb6fcc56fcb38cbf9eba6b98dbefc630316/js/src/sus/analyze.ts) · [USC 转换器](https://github.com/UntitledCharts/sonolus-next-rush-engine/blob/1f086fb6fcc56fcb38cbf9eba6b98dbefc630316/js/src/usc/convert.ts)
+
+用原始音频交叉核对。Kamisama 首个音符在第 2 拍、119.5 BPM，换算到音频约 0.493 秒，解码后起音约 0.495 秒。Life Reset Button 首个音符在第 0.0625 拍、200 BPM，换算到音频约 1.290 秒，解码后起音约 1.280 秒。起音以 5 ms 帧估算。
+
+运行时保留音符的谱面时间。Live 统一用文件时间启动、暂停、恢复、重开和执行跳过。判定用 `音频时间 − bgmOffset − L − J`，画面用 `音频时间 − bgmOffset − L + V`，自动播放的 `J` 为 0。原生偏移以 double 保留，曲包原有 `fillerSec` 仍原样存储，并供 JSON / SUS 路径使用。原生谱面时间和偏移各限于 ±1,000,000 秒。
+
+- **开局**以曲目信息页退场为起点。音乐可听起点与首个音符中较早的时刻落在 3 秒后。若音符入场需要更久，则按所需入场时间提前开局。
+- **结尾**以音乐可听终点与最后一个音符中较晚的时刻为准。若音符延续到音频文件结束之后，时钟继续推进。
+- **结算**在上述结尾后 3 秒启动结算演出，随后沿用演出与转场时长。片尾跳过仍可按原有条件提前触发演出。
 
 ## 下载验证与使用
 
@@ -103,7 +118,7 @@ manifest 示例：
 将输出曲包通过曲库“导入”按钮导入，即可离线加载。
 工具的 master 难度是显示默认值；Sonolus 的通用 LevelItem 没有项目难度类别的直接对应字段。
 
-**尚未接通游戏内服务器页面。** 首页的服务器卡片仍是占位入口。这是供开发验证的命令行下载工具，网络部分沿用调研探针的超时与校验，尚不是带下载队列、大小限制和重试的游戏内服务。
+游戏内服务器接入见 [服务器谱面下载](../guides/server-chart-downloads.md)。此处的命令行工具供开发验证。
 
 ## 验证
 
@@ -121,4 +136,10 @@ unity test . --mode EditMode --filter NextRush --output TestResults/next-rush.xm
 第二个变量可选；提供时还验证真实曲包经现有安装链路后媒体存在、谱面字节不变和原生播放完成。
 没有提供第一个变量时，线上样本测试会跳过，其余合成测试不访问网络。
 
-Android 真机画面与音乐同步尚未验收；非零偏移和特殊玩法不在本阶段支持范围内。
+Android 真机画面与音乐同步尚待验收。Kamisama 的分组变速和 Anchor 仍待后续阶段接入。
+
+2026-11-18，P0 完整 EditMode 回归为 1001 通过、18 跳过、0 失败。其中 NextRUSH+ 专项 39 项全部通过，包含 Hallway 原始 LevelData 的 848 判定点和自动播放回归。
+
+P1 完整 EditMode 回归为 1010 通过、18 跳过、0 失败。其中 NextRUSH+ 专项 46 项全部通过，覆盖 ±0.51 秒、±1 秒、零偏移、负拍与变 BPM、合成音频点击及三种玩家补偿。负时间划键用例验证提前划键松手和尾部即时判定。
+
+Windows 的曲库 PlayMode 回归 5 项全部通过。原生用例使用 +0.51 秒偏移和一段 4 秒音频，验证开局预滚、预滚和音乐播放中暂停恢复、局内重开、音频文件结束后的最后一个音符，以及末音符 3 秒后触发结算演出。旧 JSON 用例在同一轮从曲库完成整首自动播放并返回结算。

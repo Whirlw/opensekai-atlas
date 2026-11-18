@@ -116,10 +116,11 @@ namespace Sekai.Core.Live
 
 		private bool _skipShown;
 		private bool _forcedFinish;
-		private long _outroSkipAtMs = -1L;
+		private long? _outroSkipAtMs;
 
 		// The finish sequence waiting to run, kept so the outro skip can start it early.
 		private bool _resultEffectPending;
+		private long? _resultEffectAtMs;
 		private float _pendingResultWait;
 		private float _pendingFinishWait;
 
@@ -171,6 +172,8 @@ namespace Sekai.Core.Live
 			TraceTimeline("outro skip at=" + currentMusicTimeMs);
 			// The music stops here; nothing after this point plays it again.
 			SoundManager.Instance.StopIngame();
+			_resultEffectAtMs = null;
+			_outroSkipAtMs = null;
 			if (_finishCoroutine != null)
 			{
 				StopCoroutine(_finishCoroutine);
@@ -181,14 +184,13 @@ namespace Sekai.Core.Live
 		protected override void OnUpdate()
 		{
 			base.OnUpdate();
-			if (state == LiveControllerState.Finish && _outroSkipAtMs >= 0L)
+			if (state == LiveControllerState.Finish && _resultEffectAtMs.HasValue)
 			{
-				// Nothing else reads the clock once the live is finished; it is kept moving only to
-				// know when the outro skip is due.
+				// The result effect and outro skip both use the same clock as the music and chart.
 				UpdateMusicTime();
-				if (currentMusicTimeMs >= _outroSkipAtMs)
+				if (_outroSkipAtMs is long skipAtMs && currentMusicTimeMs >= skipAtMs)
 				{
-					_outroSkipAtMs = -1L;
+					_outroSkipAtMs = null;
 					if (_resultEffectPending && currentMusicTimeMs + MinimumOutroSkipMs < ResultEffectMs)
 					{
 						ShowSkip(SkipOutro);
@@ -209,9 +211,8 @@ namespace Sekai.Core.Live
 			{
 				HideSkip();
 			}
-			float fillerSec = BootData?.MusicData?.Music?.fillerSec ?? 0f;
 			LatencyCapture.RecordFrame(currentGameTime, currentMusicTimeMs / 1000d, musicPhase == MusicPhase.Playing);
-			_liveLogic?.OnUpdate(currentLogicMusicTime - fillerSec, currentGameTime);
+			_liveLogic?.OnUpdate(CurrentLogicChartTime, currentGameTime);
 			if (BootData?.IsAuto == true)
 			{
 				_liveLogic?.OnAutoInput();
@@ -398,8 +399,9 @@ namespace Sekai.Core.Live
 			LatencyCapture.End("retry");
 			_pauseOverlay?.Hide();
 			HideSkip();
-			_outroSkipAtMs = -1L;
+			_outroSkipAtMs = null;
 			_resultEffectPending = false;
+			_resultEffectAtMs = null;
 			liveOutUIController?.Destroy();
 			SoundManager.Instance.StopIngame();
 			_playHistoryRecorded = false;
@@ -502,7 +504,7 @@ namespace Sekai.Core.Live
 			base.OnFinished();
 		}
 
-		protected override void PreExit(float delay, float waitTime)
+		protected override void PreExit(float delay, float waitTime, long? resultEffectAtMs = null)
 		{
 			if (state == LiveControllerState.Finish)
 			{
@@ -520,15 +522,15 @@ namespace Sekai.Core.Live
 				LatencyCapture.Record("finish_history", value: (Time.realtimeSinceStartupAsDouble - historyStart) * 1000d);
 			PublishPlayResultForLibrary();
 			state = LiveControllerState.Finish;
-			SetFinish(delay, waitTime, 2f);
+			SetFinish(delay, waitTime, 2f, resultEffectAtMs);
 
 			// The chart is done but the music runs on: the result effect waits for it unless the player
 			// skips. The button only comes up the margin after the last note, so the end of the chart is
 			// seen, and not at all when the effect is due within that margin.
 			HideSkip();
-			_outroSkipAtMs = result == 3 && timelineSpan.HasOutroSkip && musicPhase == MusicPhase.Playing
+			_outroSkipAtMs = result == 3 && resultEffectAtMs.HasValue && timelineSpan.HasOutroSkip
 				? (long)System.Math.Ceiling((timelineSpan.LastNoteSeconds + LiveTimelineSpanMargin) * 1000d)
-				: -1L;
+				: null;
 		}
 
 		private void TryAppendPlayHistory()
@@ -583,7 +585,7 @@ namespace Sekai.Core.Live
 			SceneManager.Instance.RequestScene(returnScene);
 		}
 
-		private void SetFinish(float delay, float waitTime, float finishWaitSeconds)
+		private void SetFinish(float delay, float waitTime, float finishWaitSeconds, long? resultEffectAtMs)
 		{
 			if (_finishCoroutine != null)
 			{
@@ -595,6 +597,7 @@ namespace Sekai.Core.Live
 				_liveLogic.OnFailure -= OnFailure;
 			}
 			_resultEffectPending = true;
+			_resultEffectAtMs = resultEffectAtMs;
 			_pendingResultWait = waitTime;
 			_pendingFinishWait = finishWaitSeconds;
 			_finishCoroutine = StartCoroutine(SetFinishCoroutine(delay, waitTime, finishWaitSeconds));
@@ -602,6 +605,10 @@ namespace Sekai.Core.Live
 
 		private System.Collections.IEnumerator SetFinishCoroutine(float delay, float waitTime, float finishWaitSeconds)
 		{
+			while (_resultEffectAtMs is long dueMs && currentMusicTimeMs < dueMs)
+			{
+				yield return null;
+			}
 			if (delay > 0f)
 			{
 				yield return new WaitForSeconds(delay);
@@ -613,7 +620,8 @@ namespace Sekai.Core.Live
 		{
 			// The effect is starting, so there is nothing left to skip to.
 			_resultEffectPending = false;
-			_outroSkipAtMs = -1L;
+			_resultEffectAtMs = null;
+			_outroSkipAtMs = null;
 			HideSkip();
 			LiveViewExt.Result(_liveViews, (int)GetLiveResultAnimationType());
 			if (waitTime > 0f)

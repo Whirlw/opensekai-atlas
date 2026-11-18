@@ -52,7 +52,10 @@ namespace OpenSekai.Infrastructure.Charts
         {
             if (source == null) throw new ArgumentNullException(nameof(source));
             if (config == null) throw new ArgumentNullException(nameof(config));
-            return new Builder(source, config, showPair).Build();
+            var compatibility = NextRushCompatibility.Analyze(source);
+            if (compatibility.InvalidData.Count > 0) throw Invalid(string.Join("、", compatibility.InvalidData.Take(8)));
+            if (compatibility.UnsupportedFeatures.Count > 0) throw Unsupported(string.Join("、", compatibility.UnsupportedFeatures.Take(8)));
+            return new Builder(source, config, showPair).Build(compatibility);
         }
 
         private sealed class Builder
@@ -70,23 +73,15 @@ namespace OpenSekai.Infrastructure.Charts
             public Builder(NextRushChart source, LiveBundleBuildData config, bool showPair)
             { _source = source; _config = config; _showPair = showPair; }
 
-            public RuntimeChartDefinition Build()
+            public RuntimeChartDefinition Build(NextRushCompatibilityReport compatibility)
             {
-                // The legacy audio clock only has a nonnegative filler. Refuse rather than lose native timing.
-                if (_source.BgmOffset != 0) throw Unsupported("非零 bgmOffset（音乐偏移）");
                 BuildTiming();
-                int initializations = 0;
                 foreach (var entity in _source.Entities)
                 {
+                    if (NextRushCompatibility.Classify(entity.Archetype) == NextRushEntityStatus.IgnoredByProject) continue;
                     switch (entity.Archetype)
                     {
-                        case "#BPM_CHANGE": break;
-                        case "Initialization":
-                            if (++initializations > 1) throw Invalid("重复的 Initialization");
-                            Fields(entity, "revision", "initialLife");
-                            if (entity.Number("revision", 2) != 2) throw Unsupported("Initialization revision");
-                            if (entity.Number("initialLife", 1000) != 1000) throw Unsupported("自定义初始生命值");
-                            break;
+                        case "#BPM_CHANGE": case "Initialization": break;
                         case "#TIMESCALE_GROUP":
                             Fields(entity, "editorName");
                             if (entity.Has("editorName")) entity.Reference("editorName");
@@ -96,7 +91,6 @@ namespace OpenSekai.Infrastructure.Charts
                         default: _notes.Add(entity, CreateNote(entity)); break;
                     }
                 }
-                if (initializations != 1) throw Invalid("需要 Initialization 及受支持的 revision");
                 var roots = new List<NoteBase>();
                 foreach (var entry in _notes)
                 {
@@ -124,7 +118,7 @@ namespace OpenSekai.Infrastructure.Charts
                 if (_showPair) SetPairs(roots);
                 var score = new MusicScore(_timing, Array.Empty<EventBase>(), roots.OrderBy(n => n.MusicScoreInfo.time).ToArray());
                 double lastBeat = _notes.Keys.Select(e => Beat(e)).Concat(_hidden.Select(e => Beat(e))).DefaultIfEmpty(0).Max();
-                return RuntimeChartDefinition.CreateNative(_source, score, checked((long)Math.Round(lastBeat * ChartTimeline.TICKS_PER_BEAT)));
+                return RuntimeChartDefinition.CreateNative(_source, score, checked((long)Math.Round(lastBeat * ChartTimeline.TICKS_PER_BEAT)), compatibility);
             }
 
             private void BuildTiming()
@@ -165,6 +159,8 @@ namespace OpenSekai.Infrastructure.Charts
 
             private static MusicScoreInfo Info(double beat, double time, double bpm)
             {
+                if (double.IsNaN(time) || Math.Abs(time) > NextRushChart.MaxAbsoluteTimeSeconds)
+                    throw Invalid("谱面时间超出播放范围");
                 int bar = (int)Math.Floor(beat / 4);
                 return new MusicScoreInfo(bar, (float)(beat / 4 - bar), (float)time, (float)bpm, 4f, 1f, 1f);
             }
@@ -174,8 +170,6 @@ namespace OpenSekai.Infrastructure.Charts
                 Fields(entity, NoteFields.ToArray());
                 string kind = Kind(entity);
                 var type = TypeOf(entity);
-                if (type == NoteType.Default && !entity.Archetype.StartsWith("Normal", StringComparison.Ordinal))
-                    throw Unsupported(entity.Archetype);
                 var group = Resolve(entity, "#TIMESCALE_GROUP", false);
                 if (group != null && group.Archetype != "#TIMESCALE_GROUP") throw Invalid("音符引用的变速组无效");
                 foreach (string field in new[] { "style", "isAttached", "isSeparator", "segmentLayer", "effectKind", "segmentThroughJudgeLine", "segmentPresentation", "elevation" })
@@ -328,13 +322,12 @@ namespace OpenSekai.Infrastructure.Charts
                     ordered[ordered.Length - 1].SetPairNote(ordered[0]);
                 }
             }
-            private static string Kind(NextRushEntity entity) => entity.Archetype.StartsWith("Critical", StringComparison.Ordinal)
-                ? entity.Archetype.Substring(8) : entity.Archetype.StartsWith("Normal", StringComparison.Ordinal) ? entity.Archetype.Substring(6) : entity.Archetype;
+            private static string Kind(NextRushEntity entity) => NextRushCompatibility.GetNoteKind(entity.Archetype);
             private static NoteType TypeOf(NextRushEntity entity) => entity.Archetype.StartsWith("Critical", StringComparison.Ordinal) ? NoteType.Critical : NoteType.Default;
             private static double Beat(NextRushEntity entity)
             {
                 double beat = entity.Number("#BEAT");
-                if (!entity.Has("#BEAT") || beat < 0 || beat > 1000000) throw Invalid("拍数缺失或超出范围");
+                if (!entity.Has("#BEAT") || Math.Abs(beat) > 1000000) throw Invalid("拍数缺失或超出范围");
                 return beat;
             }
             private static void Fields(NextRushEntity entity, params string[] allowed)

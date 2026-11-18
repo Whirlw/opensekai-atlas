@@ -30,23 +30,23 @@ namespace Sekai.Live
 			public int TouchId;
 			public bool Seen;
 			public Vector2 Accum;
-			public float WindowStart;
+			public float? WindowStart;
 			public bool Armed;
 			public bool TrueDirection;
-			public float LeftAt;
+			public float? LeftAt;
 		}
 
 		private readonly FlickNote _note;
 		private readonly Finger[] _fingers = new Finger[10];
-		private float _lastFrameTime = -1f;
+		private float? _lastFrameTime;
 
 		/// <summary>
 		/// The music time since the previous input frame this judge saw, or one reference frame on its
 		/// first. A swipe's speed is measured on the music clock, not on the engine's frame time.
 		/// </summary>
 		internal float FrameDeltaTime(float now) =>
-			_lastFrameTime >= 0f && now > _lastFrameTime
-				? Mathf.Min(now - _lastFrameTime, 0.1f)
+			_lastFrameTime is float lastFrameTime && now > lastFrameTime
+				? Mathf.Min(now - lastFrameTime, 0.1f)
 				: FlickGesture.ReferenceFrameSeconds;
 
 		internal FlickTailJudge(FlickNote note)
@@ -58,7 +58,7 @@ namespace Sekai.Live
 		internal void Reset()
 		{
 			ClearFingers();
-			_lastFrameTime = -1f;
+			_lastFrameTime = null;
 		}
 
 		private void ClearFingers()
@@ -149,7 +149,7 @@ namespace Sekai.Live
 			}
 
 			ref Finger finger = ref _fingers[slot];
-			if (finger.Armed && finger.LeftAt < 0f && (ended || !InLanes(lane)))
+			if (finger.Armed && !finger.LeftAt.HasValue && (ended || !InLanes(lane)))
 			{
 				finger.LeftAt = now;
 			}
@@ -178,10 +178,7 @@ namespace Sekai.Live
 				{
 					if (finger.Armed)
 					{
-						if (finger.LeftAt < 0f)
-						{
-							finger.LeftAt = now;
-						}
+						finger.LeftAt ??= now;
 					}
 					else
 					{
@@ -206,12 +203,12 @@ namespace Sekai.Live
 		/// <summary>Grades any due swipe before closing the tail window.</summary>
 		internal void SettleFrame(float now)
 		{
-			Settle(now, -1f, false);
+			Settle(now, null, false);
 			if (_note.State != NoteState.Done && LongEndJudgement.IsPast(now - _note.MusicScoreInfo.time))
 				_note.FinishAsTail((NoteResult.Miss, NoteResultDescription.None));
 		}
 
-		private bool Settle(float now, float swipeTime, bool swipeTrueDirection)
+		private bool Settle(float now, float? swipeTime, bool swipeTrueDirection)
 		{
 			if (_note.State == NoteState.Done)
 			{
@@ -222,9 +219,9 @@ namespace Sekai.Live
 			bool found = false;
 			(NoteResult result, NoteResultDescription description) best = default;
 
-			if (swipeTime >= 0f)
+			if (swipeTime is float recordedSwipeTime)
 			{
-				best = _note.GradeAsTail(swipeTime, swipeTrueDirection);
+				best = _note.GradeAsTail(recordedSwipeTime, swipeTrueDirection);
 				found = best.result != NoteResult.None;
 			}
 
@@ -237,7 +234,7 @@ namespace Sekai.Live
 				}
 
 				// Lifted or slid out: 50 ms after that. Still in the lanes: the tail time itself.
-				float due = finger.LeftAt >= 0f ? finger.LeftAt + ReleaseDelaySeconds : tailTime;
+				float due = finger.LeftAt is float leftAt ? leftAt + ReleaseDelaySeconds : tailTime;
 				if (due > now)
 				{
 					continue;
@@ -271,7 +268,7 @@ namespace Sekai.Live
 		{
 			trueDirection = false;
 			float flickDistance = _note.FlickDistance;
-			if (finger.WindowStart < 0f)
+			if (!finger.WindowStart.HasValue)
 			{
 				finger.WindowStart = now - Mathf.Max(deltaTime, 0f);
 				finger.Accum = Vector2.zero;
@@ -279,7 +276,7 @@ namespace Sekai.Live
 
 			finger.Accum += delta;
 			float frameSeconds = FlickGesture.ReferenceFrameSeconds;
-			float elapsed = now - finger.WindowStart;
+			float elapsed = now - finger.WindowStart.Value;
 
 			// Wait for one frame of travel, unless a whole flick distance is already covered: that much in a
 			// few milliseconds cannot be jitter, and waiting would only add latency.
@@ -334,7 +331,7 @@ namespace Sekai.Live
 
 		private void Free(int i)
 		{
-			_fingers[i] = new Finger { TouchId = 0, WindowStart = -1f, LeftAt = -1f };
+			_fingers[i] = default;
 		}
 	}
 }

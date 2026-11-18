@@ -11,6 +11,7 @@ namespace OpenSekai.Charts
     {
         public const int MaxJsonCharacters = 32 * 1024 * 1024;
         public const int MaxEntities = 100000;
+        public const double MaxAbsoluteTimeSeconds = 1000000;
         public double BgmOffset { get; }
         public IReadOnlyList<NextRushEntity> Entities { get; }
         public IReadOnlyDictionary<string, NextRushEntity> NamedEntities { get; }

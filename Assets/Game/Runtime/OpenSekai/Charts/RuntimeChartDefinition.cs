@@ -10,7 +10,8 @@ namespace OpenSekai.Charts
     /// </summary>
     public sealed class RuntimeChartDefinition
     {
-        private RuntimeChartDefinition(ChartDocument document, MusicScore score, int totalNoteCount, bool hasPlayableNotes, long ticksMax, NextRushChart nextRush = null)
+        private RuntimeChartDefinition(ChartDocument document, MusicScore score, int totalNoteCount, bool hasPlayableNotes,
+            long ticksMax, NextRushChart nextRush = null, NextRushCompatibilityReport compatibility = null)
         {
             Document = document;
             Score = score;
@@ -18,6 +19,7 @@ namespace OpenSekai.Charts
             HasPlayableNotes = hasPlayableNotes;
             TicksMax = ticksMax;
             NextRush = nextRush;
+            NextRushCompatibility = compatibility;
         }
 
         /// <summary>The authored chart, still in ticks; kept for hashes and future re-conversion.</summary>
@@ -35,6 +37,7 @@ namespace OpenSekai.Charts
 
         /// <summary>Native source for NextRUSH charts. Document is null for this format.</summary>
         public NextRushChart NextRush { get; }
+        public NextRushCompatibilityReport NextRushCompatibility { get; }
 
         public static RuntimeChartDefinition Create(ChartDocument document, MusicScore score)
         {
@@ -43,11 +46,12 @@ namespace OpenSekai.Charts
             return new RuntimeChartDefinition(document, score, totalNoteCount, hasPlayableNotes, document?.MusicScoreTicksMax ?? 0);
         }
 
-        public static RuntimeChartDefinition CreateNative(NextRushChart source, MusicScore score, long ticksMax)
+        public static RuntimeChartDefinition CreateNative(NextRushChart source, MusicScore score, long ticksMax,
+            NextRushCompatibilityReport compatibility)
         {
             if (source == null) throw new System.ArgumentNullException(nameof(source));
             int count = score != null ? LiveUtility.CalculateTotalComboCount(score) : 0;
-            return new RuntimeChartDefinition(null, score, count, count > 0, ticksMax, source);
+            return new RuntimeChartDefinition(null, score, count, count > 0, ticksMax, source, compatibility);
         }
     }
 }
