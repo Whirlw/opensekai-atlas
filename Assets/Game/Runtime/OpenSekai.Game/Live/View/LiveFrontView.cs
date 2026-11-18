@@ -275,7 +275,7 @@ namespace Sekai.Live
 			}
 
 			_notesViewManager?.SpawnNote(note);
-			if (note is LongNote)
+			if (note is LongNote && note.State != NoteState.Done)
 			{
 				_longTapEffectView?.Add(note);
 			}

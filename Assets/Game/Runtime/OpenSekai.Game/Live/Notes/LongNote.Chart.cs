@@ -7,6 +7,8 @@ namespace Sekai.Live
 {
 	public partial class LongNote
 	{
+		internal double NativeConnectorDisplayEnd { get; private set; } = double.NegativeInfinity;
+
 		public override Action<NoteBase> OnUpdateScore
 		{
 			set
@@ -185,6 +187,17 @@ namespace Sekai.Live
 			}
 
 			LineNoteList = LineNoteList.OrderBy(note => note.MusicScoreInfo.time).ToList();
+			NativeConnectorDisplayEnd = double.NegativeInfinity;
+			if (NativeScroll != null && TailNote is { HasJudgment: false })
+			{
+				for (int i = 1; i < LineNoteList.Count; i++)
+				{
+					if (LineNoteList[i - 1] is NoteBase { NativeConnector: { ThroughJudgeLine: true } }
+						&& LineNoteList[i] is NoteBase end)
+						NativeConnectorDisplayEnd = Math.Max(NativeConnectorDisplayEnd,
+							end.NativeTarget.Time + NextRushConnectorSegment.ThroughJudgeLineDespawnDelay);
+				}
+			}
 
 			if (ViewNoteList != null)
 			{

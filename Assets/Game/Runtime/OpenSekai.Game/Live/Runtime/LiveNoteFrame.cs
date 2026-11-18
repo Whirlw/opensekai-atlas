@@ -297,7 +297,7 @@ namespace Sekai.Core.Live
 		private void PreloadNativeVisual(NoteBase note)
 		{
 			double progress = note.NativeViewProgress(_nativeViewTime, out bool hidden);
-			bool visible = !hidden && progress > 0 && progress <= LiveConfig.NativeKeyProgressEnd;
+			bool visible = note.State != NoteState.Done && !hidden && progress > 0 && progress <= LiveConfig.NativeKeyProgressEnd;
 			if (note is LongNote bar)
 			{
 				double previous = progress;
@@ -309,12 +309,13 @@ namespace Sekai.Core.Live
 					if (child is not NoteBase node || node == note || node.NativeScroll == null)
 						continue;
 					double next = node.NativeViewProgress(_nativeViewTime, out bool childHidden);
-					if (_nativeViewTime < node.NativeTarget.Time)
+					var segment = previousNode.NativeConnector;
+					bool edgeHidden = segment?.IsHidden(_nativeViewTime, hideSegment) ?? hideSegment;
+					if (!edgeHidden)
 					{
-						double segmentStart = _nativeViewTime >= previousTime ? 1 : previous;
-						bool edgeHidden = previousNode.NativeConnector?.IsHidden(_nativeViewTime, hideSegment) ?? hideSegment;
-						visible |= !edgeHidden && System.Math.Max(segmentStart, next) > 0
-							&& System.Math.Min(segmentStart, next) <= 1;
+						double a = previous, b = next;
+						visible |= NextRushConnectorSegment.TryClip(segment, _nativeViewTime, previousTime,
+							node.NativeTarget.Time, ref a, ref b, out _, out _);
 					}
 					if (node.IsVisible && node.State != NoteState.Done && !childHidden && next > 0 && next <= LiveConfig.NativeKeyProgressEnd
 						&& _nativeViewTime < node.NativeTarget.Time && bar.ViewNoteList.Contains(node))

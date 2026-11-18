@@ -194,8 +194,10 @@ namespace OpenSekai.Infrastructure.Charts
                 var type = TypeOf(entity);
                 var group = Resolve(entity, "#TIMESCALE_GROUP", false);
                 if (group != null && group.Archetype != "#TIMESCALE_GROUP") throw Invalid("音符引用的变速组无效");
-                foreach (string field in new[] { "style", "segmentLayer", "effectKind", "segmentThroughJudgeLine", "segmentPresentation", "elevation" })
+                foreach (string field in new[] { "style", "segmentLayer", "effectKind", "segmentPresentation", "elevation" })
                     if (entity.Number(field) != 0) throw Unsupported(entity.Archetype + "." + field);
+                double through = entity.Number("segmentThroughJudgeLine");
+                if (through != 0 && through != 1) throw Invalid("穿判定线标记无效");
                 double attachment = entity.Number("isAttached");
                 double separator = entity.Number("isSeparator");
                 if ((attachment != 0 && attachment != 1) || (separator != 0 && separator != 1))
@@ -206,7 +208,7 @@ namespace OpenSekai.Infrastructure.Charts
                 double alpha = entity.Number("segmentAlpha", 1);
                 if (alpha < 0 || alpha > 1) throw Invalid("长条透明度超出范围");
                 double ease = entity.Number("connectorEase", 1);
-                if (ease < 0 || ease > 41 || ease >= 30 && ease <= 37 || ease % 1 != 0)
+                if (ease < 0 || ease > 41 || ease % 1 != 0)
                     throw Unsupported("connectorEase=" + ease);
                 double segment = entity.Number("segmentKind", type == NoteType.Critical ? 2 : 1);
                 if (segment % 1 != 0 || !(segment == 1 || segment == 2 || segment >= 11 && segment <= 18
@@ -411,7 +413,7 @@ namespace OpenSekai.Infrastructure.Charts
                         double defaultKind = TypeOf(a) == NoteType.Critical ? 2 : 1;
                         _notes[head].NativeConnector = new NextRushConnectorSegment(
                             (int)a.Number("segmentKind", defaultKind), (int)head.Number("connectorEase", 1),
-                            AlphaAt(head, a, b), AlphaAt(tail, a, b), styleHead);
+                            AlphaAt(head, a, b), AlphaAt(tail, a, b), styleHead, a.Number("segmentThroughJudgeLine") == 1);
                     }
                     else if (entity.Archetype == "SimLine")
                     {

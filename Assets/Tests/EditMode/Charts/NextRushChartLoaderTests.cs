@@ -522,6 +522,91 @@ namespace OpenSekai.Tests.EditMode.Charts
             Assert.That(bar.LaneStartF, Is.EqualTo(8f));
         }
 
+        [TestCase(30, 0.4, -0.09935168)]
+        [TestCase(31, 0.6, 1.09935168)]
+        [TestCase(32, 0.25, -0.09968184)]
+        [TestCase(33, 0.25, 0.54384875)]
+        [TestCase(34, 0.85, -0.35355339)]
+        [TestCase(35, 0.15, 1.35355339)]
+        [TestCase(36, 0.45, 0.04341204)]
+        [TestCase(37, 0.075, 0.67677670)]
+        public void OvershootingConnectorFunctionsKeepTheirSignedOutput(int ease, double fraction, double expected)
+        {
+            Assert.That(NextRushConnectorSegment.Interpolate(ease, 0), Is.Zero);
+            Assert.That(NextRushConnectorSegment.Interpolate(ease, 1), Is.EqualTo(1));
+            Assert.That(NextRushConnectorSegment.Interpolate(ease, (float)fraction), Is.EqualTo(expected).Within(0.00001));
+        }
+
+        [Test]
+        public void OvershootingConnectorMovesBothTheHoldAndItsAttachedTickPastTheEndpoint()
+        {
+            var head = N("NormalHeadTapNote", "head", 1, -3);
+            var tail = N("NormalTailReleaseNote", "tail", 3, 3);
+            var tick = E("NormalTickNote", "tick", V("#BEAT", 1.8), V("isAttached", 1),
+                R("attachHead", "head"), R("attachTail", "tail"), R("activeHead", "head"));
+            Add(head, R("next", "tail"), V("connectorEase", 30));
+            Add(tail, R("activeHead", "head"));
+            var chart = Load(Chart(head, tail, tick, Segment("head", "tail", "head", "tail", "head", "tail")));
+            var bar = chart.Score.NoteArray.OfType<LongNote>().Single();
+            var attached = bar.NoteList.OfType<ConnectionNote>().Single();
+            float expected = 2 - 0.09935168f * 6;
+            Assert.That(attached.LaneStartF, Is.EqualTo(expected).Within(0.00001));
+            using var harness = new LiveHarness();
+            harness.Arrange(chart.Score);
+            harness.Logic.Notes.BindNativeVisuals(1);
+            harness.Step(0.9f, 10.9);
+            Assert.That(bar.LaneStartF, Is.EqualTo(expected).Within(0.00001));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ThroughJudgeLineGuideCanDrawAfterItsGeometryAndIndependentKeySettle(bool through)
+        {
+            var guide = N("AnchorNote", "guide", 1.8, -2);
+            var tail = N("NormalTapNote", "tail", 2, 2);
+            var styleHead = N("AnchorNote", "styleHead", 1.5);
+            Add(styleHead, V("segmentKind", 103), V("segmentThroughJudgeLine", through ? 1 : 0));
+            Add(guide, R("next", "tail"));
+            var chart = Load(Chart(guide, tail, styleHead, Segment("guide", "tail", "styleHead", "tail")));
+            var bar = chart.Score.NoteArray.OfType<GuideNote>().Single();
+            Assert.That(chart.TotalNoteCount, Is.EqualTo(1));
+            using var harness = new LiveHarness();
+            harness.Arrange(chart.Score);
+            harness.Logic.Notes.BindNativeVisuals(1);
+            var host = new GameObject("through-judge-line guide");
+            var view = host.AddComponent<NoteLineView>();
+            Mesh mesh = null;
+            float originalViewLead = LiveConfig.ViewLeadSeconds;
+            try
+            {
+                LiveConfig.ViewLeadSeconds = 0;
+                view.Setup(_config, "traceLine_eff.png", 1);
+                view.Add(bar);
+                view.Excute(0.95f);
+                mesh = host.GetComponent<MeshFilter>().sharedMesh;
+                float judgeY = LiveConfig.JudgmentPositions[0].y;
+                Assert.That(mesh.vertices.Min(v => v.y) < judgeY - 0.01f, Is.EqualTo(through));
+
+                Assert.That(bar.AutoJudgment(new MusicScoreInfo(0, 0.5f, 1.01f, 120, 4, 1, 1)), Is.True);
+                Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+                view.Remove(bar);
+                view.Excute(1.01f);
+                Assert.That(view.BarCount, Is.EqualTo(through ? 1 : 0));
+                Assert.That(mesh.vertices.Min(v => v.y) < judgeY - 0.01f, Is.EqualTo(through));
+
+                view.Excute(6f);
+                Assert.That(view.BarCount, Is.Zero);
+                Assert.That(mesh.vertices.All(v => v == Vector3.zero), Is.True);
+            }
+            finally
+            {
+                LiveConfig.ViewLeadSeconds = originalViewLead;
+                UnityEngine.Object.DestroyImmediate(mesh);
+                UnityEngine.Object.DestroyImmediate(view.Material);
+                UnityEngine.Object.DestroyImmediate(host);
+            }
+        }
+
         [Test]
         public void OrdinaryHeadStaysOnTheLineAfterPassingAnAnchor()
         {

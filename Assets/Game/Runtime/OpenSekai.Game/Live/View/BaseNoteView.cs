@@ -110,7 +110,9 @@ namespace Sekai
 
 		protected Vector2 GetLaneCenter(float laneStart, float laneEnd)
 		{
-			return (GetLanePosition(laneStart) + GetLanePosition(laneEnd)) * 0.5f;
+			return note is NoteBase { NativeScroll: not null }
+				? LiveConfig.NativeLanePosition((laneStart + laneEnd) * 0.5f)
+				: (GetLanePosition(laneStart) + GetLanePosition(laneEnd)) * 0.5f;
 		}
 
 		protected Vector2 GetLanePosition(float lane)

@@ -154,6 +154,7 @@ namespace Sekai.Live
 			if (note is LongNote longNote)
 			{
 				_noteLineView?.Add(longNote);
+				if (longNote.State == NoteState.Done) return;
 			}
 
 			NotePool pool = FindPool(note.Category, note.Type);

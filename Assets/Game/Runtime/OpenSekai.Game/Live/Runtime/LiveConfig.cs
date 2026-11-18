@@ -141,6 +141,9 @@ namespace Sekai.Live
 		public static float ViewLeadSeconds { get; set; }
 		internal const double NativeKeyProgressEnd = 1.35;
 
+		internal static Vector2 NativeLanePosition(float lane) =>
+			JudgmentPositions[0] + Vector2.right * (lane * widthX);
+
 		/// <summary>The progress a key is drawn at: its logic progress moved by <see cref="ViewLeadSeconds"/>.</summary>
 		public static float ViewProgressOf(INote note)
 		{

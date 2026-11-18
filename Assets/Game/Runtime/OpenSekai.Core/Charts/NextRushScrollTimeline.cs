@@ -281,6 +281,12 @@ namespace OpenSekai.Charts
             switch (ease)
             {
                 case 1: return u;
+                case 32:
+                    double back = Back(u <= 0.5 ? 2 * u : 2 - 2 * u, 1.70158 * 1.525) / 2;
+                    return u <= 0.5 ? back : 1 - back;
+                case 36:
+                    double elastic = Elastic(u <= 0.5 ? 2 * u : 2 - 2 * u, 0.45) / 2;
+                    return u <= 0.5 ? elastic : 1 - elastic;
                 case 39: return 1;
                 case 40: return u < 0.5 ? 0 : 1;
                 case 41: return 0.5;
@@ -305,9 +311,17 @@ namespace OpenSekai.Charts
                 case 3: return Math.Pow(u, 4);
                 case 4: return Math.Pow(u, 5);
                 case 5: return u == 0 ? 0 : Math.Pow(2, 10 * u - 10);
+                case 7: return Back(u, 1.70158);
+                case 8: return Elastic(u, 0.3);
                 default: return 1 - Math.Sqrt(Math.Max(0, 1 - u * u));
             }
         }
+
+        private static double Back(double u, double overshoot) =>
+            u * u * (1 + (overshoot + 1) * (u - 1));
+
+        private static double Elastic(double u, double period) =>
+            u == 0 || u == 1 ? u : -Math.Pow(2, 10 * u - 10) * Math.Sin((u - 1 - period / 4) * 2 * Math.PI / period);
 
         private static double EaseIntegral(int ease, double u)
         {

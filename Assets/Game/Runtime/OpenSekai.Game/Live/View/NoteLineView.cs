@@ -100,8 +100,7 @@ namespace Sekai
 			}
 
 			Material.color = new Color(1f, 1f, 1f, alpha);
-			_renderer.material = Material;
-			Material = _renderer.material;
+			_renderer.sharedMaterial = Material;
 
 			_longNotes = new List<NoteBase>(DEFAULT_LIST_CAPACITY);
 			SetupVertexArray();
@@ -172,6 +171,7 @@ namespace Sekai
 
 		public void Remove(LongNote note)
 		{
+			if (note != null && note.NativeConnectorDisplayEnd > double.NegativeInfinity) return;
 			if (note != null && _longNotes != null && _longNotes.Remove(note))
 			{
 				if (LiveTrace.IsOn(LiveTraceCategory.Pool))
@@ -191,7 +191,7 @@ namespace Sekai
 
 		public void Remove(GuideNote note)
 		{
-			_longNotes?.Remove(note);
+			Remove((LongNote)note);
 		}
 
 		public void Clear()
@@ -220,7 +220,8 @@ namespace Sekai
 					continue;
 				}
 
-				if (note.State != NoteState.Done)
+				if (note.State != NoteState.Done
+					|| note is LongNote bar && (double)time + LiveConfig.ViewLeadSeconds < bar.NativeConnectorDisplayEnd)
 				{
 					continue;
 				}
@@ -278,10 +279,8 @@ namespace Sekai
 				{
 					LiveTrace.Write(LiveTraceCategory.View, "mesh time=" + time.ToString("F3") + " startT=" + startNote.MusicScoreInfo.time.ToString("F3") + " endT=" + endNote.MusicScoreInfo.time.ToString("F3") + " centerPos=" + centerPosition + " meshCount=" + _meshCount);
 				}
-				int nextMeshCount = _meshCount + centerPosition;
-				if (POOL_COUNT < nextMeshCount)
+				if (centerPosition >= 2 && _meshCount + centerPosition - 1 > POOL_COUNT)
 				{
-					_meshCount = nextMeshCount;
 					return;
 				}
 
@@ -548,40 +547,29 @@ namespace Sekai
 		{
 			var segment = start.NativeConnector;
 			if (segment != null && segment.StartAlpha == 0 && segment.EndAlpha == 0) return 0;
+			var owner = start as LongNote ?? start.ParentNote as LongNote;
+			if (segment?.ThroughJudgeLine == true
+				&& owner?.TailNote is { HasJudgment: true, State: NoteState.Done }) return 0;
 			double now = (double)time + LiveConfig.ViewLeadSeconds;
-			if (now >= end.NativeTarget.Time) return 0;
 			double a = start.NativeViewProgress(now, out bool hidden);
 			double b = end.NativeViewProgress(now, out _);
-			if (segment?.IsHidden(now, hidden) ?? hidden) return 0;
-
-			double first = 0, last = 1;
-			if (now > start.NativeTarget.Time)
-			{
-				first = (now - start.NativeTarget.Time) / (end.NativeTarget.Time - start.NativeTarget.Time);
-				a = 1;
-			}
-			double extent = b - a;
-			if (extent == 0)
-			{
-				if (a <= 0 || a > 1) return 0;
-			}
-			else
-			{
-				double top = -a / extent, line = (1 - a) / extent;
-				double from = Math.Max(0, Math.Min(top, line)), to = Math.Min(1, Math.Max(top, line));
-				if (to <= from) return 0;
-				last = first + (1 - first) * to;
-				first += (1 - first) * from;
-				a = Math.Min(1, Math.Max(0, a + extent * from));
-				b = Math.Min(1, Math.Max(0, b - extent * (1 - to)));
-			}
+			if ((segment?.IsHidden(now, hidden) ?? hidden)
+				|| !NextRushConnectorSegment.TryClip(segment, now, start.NativeTarget.Time, end.NativeTarget.Time,
+					ref a, ref b, out double first, out double last)) return 0;
 			// The mesh's winding expects the first cross section closest to the judge line.
 			if (a < b)
 			{
 				(a, b) = (b, a);
 				(first, last) = (last, first);
 			}
-			int minSplits = segment != null && segment.Ease != 1 && a != b ? Mathf.Min(4, SplitMeshCount) : 1;
+			int minSplits = 1;
+			if (segment != null && a != b)
+			{
+				// Keep sampling over the curve even when endpoint motion compresses its screen height.
+				int samples = segment.Ease >= 30 && segment.Ease <= 37
+					? Mathf.Max(4, Mathf.CeilToInt(32 * (float)Math.Abs(last - first))) : segment.Ease != 1 ? 4 : 1;
+				minSplits = Mathf.Min(samples, SplitMeshCount);
+			}
 			int splits = Mathf.Clamp(Mathf.CeilToInt((float)(a - b) * SplitMeshCount), minSplits, SplitMeshCount);
 			List<INote> viewNotes = start.ParentNote is LongNote bar ? bar.LineNoteList : start.ViewNoteList;
 			int index = viewNotes != null ? Mathf.Max(0, viewNotes.IndexOf(start)) : 0;
@@ -614,10 +602,10 @@ namespace Sekai
 			void Write(float fraction, float along, float eased)
 			{
 				float progress = OpenSekai.Shared.Live.NoteLineProgress.View(Mathf.Lerp((float)a, (float)b, fraction));
-				float left = Mathf.Lerp(start.NativeLeft, end.NativeLeft, eased);
-				float right = Mathf.Lerp(start.NativeRight, end.NativeRight, eased);
-				Vector2 center = LiveUtility.EarlyVec2Lerp(LiveConfig.SpawnPosition, GetLanePosition((left + right) / 2), progress);
-				float halfWidth = progress * (((right - left + 1) * LiveConfig.widthX) - 0.1f) / 2;
+				float left = Mathf.LerpUnclamped(start.NativeLeft, end.NativeLeft, eased);
+				float right = Mathf.LerpUnclamped(start.NativeRight, end.NativeRight, eased);
+				Vector2 center = LiveUtility.EarlyVec2Lerp(LiveConfig.SpawnPosition, LiveConfig.NativeLanePosition((left + right) / 2), progress);
+				float halfWidth = progress * Mathf.Max(0, ((right - left + 1) * LiveConfig.widthX) - 0.1f) / 2;
 				_meshSettingBuffer[written++] = new Setting
 				{
 					CurrentViewProgress = progress,
