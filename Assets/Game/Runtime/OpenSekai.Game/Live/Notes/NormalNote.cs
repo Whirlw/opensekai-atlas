@@ -1,7 +1,17 @@
+using OpenSekai.Shared.Live;
+
 namespace Sekai.Live
 {
 	public class NormalNote : NoteBase
 	{
+		internal bool IsIndependentRelease { get; private set; }
+
+		public void SetNextRushIndependentRelease()
+		{
+			IsIndependentRelease = true;
+			Category = NoteCategory.Long;
+		}
+
 		public override NoteState State
 		{
 			get => state;
@@ -47,6 +57,11 @@ namespace Sekai.Live
 			}
 
 			var offset = MusicScoreInfo.time - touch.musicTime;
+			if (IsIndependentRelease)
+			{
+				return touch.phase == UnityEngine.InputSystem.TouchPhase.Ended && LongEndJudgement.Accepts(-offset);
+			}
+
 			if (!LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(this), offset))
 			{
 				return false;
@@ -64,11 +79,26 @@ namespace Sekai.Live
 			}
 		}
 
+		internal void SettleExpiredRelease(float now)
+		{
+			if (LongEndJudgement.IsPast(now - MusicScoreInfo.time))
+			{
+				FinishWith(NoteResult.Miss);
+			}
+		}
+
 		public override bool Judgment(ref LiveTouch touch, float lane)
 		{
 			if (State == NoteState.Done)
 			{
 				return false;
+			}
+
+			if (IsIndependentRelease)
+			{
+				if (!IsJudgment(ref touch, lane)) return false;
+				FinishWith(CalcNoteResult(touch.musicTime));
+				return true;
 			}
 
 			if ((Category == NoteCategory.Normal && touch.phase != UnityEngine.InputSystem.TouchPhase.Began)
@@ -88,6 +118,8 @@ namespace Sekai.Live
 
 		public override NoteResult CalcNoteResult(float musicTime)
 		{
+			if (IsIndependentRelease) return LongEndJudgement.Evaluate(musicTime - MusicScoreInfo.time);
+
 			return (GradesAsBarPart
 				? LiveConfig.CalculateLongEndNoteResult(this, musicTime)
 				: LiveConfig.CalculateDefaultNoteResult(this, musicTime)).Item1;

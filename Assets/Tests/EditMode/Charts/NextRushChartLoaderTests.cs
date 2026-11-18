@@ -17,6 +17,7 @@ using Sekai;
 using Sekai.Core.Live;
 using Sekai.Live;
 using UnityEngine;
+using InputTouchPhase = UnityEngine.InputSystem.TouchPhase;
 
 namespace OpenSekai.Tests.EditMode.Charts
 {
@@ -505,6 +506,61 @@ namespace OpenSekai.Tests.EditMode.Charts
                 Assert.That(key.Result, Is.EqualTo(NoteResult.JustPerfect));
             }
             AssertCompletesAutoplay(chart);
+        }
+
+        [Test]
+        public void GuideReleaseTailUsesItsOwnLaneAndReleaseWindow()
+        {
+            var guide = N("AnchorNote", "guide", 2, -3);
+            var tail = N("CriticalTailReleaseNote", "tail", 4, 3);
+            Add(guide, R("next", "tail"));
+            Add(tail, R("prev", "guide"));
+            var chart = Load(Chart(tail, guide, Segment("guide", "tail", "guide", "tail")));
+            var bar = chart.Score.NoteArray.OfType<GuideNote>().Single();
+            var release = chart.Score.NoteArray.OfType<NormalNote>().Single();
+            Assert.That(chart.TotalNoteCount, Is.EqualTo(1));
+            Assert.That(bar.TailNote.HasJudgment, Is.False);
+            Assert.That(release.ParentNote, Is.Null);
+            Assert.That(release.Type, Is.EqualTo(NoteType.Critical));
+            using (var harness = new LiveHarness())
+            {
+                harness.Arrange(chart.Score);
+                var wrongLane = LiveConfig.JudgmentPositions[2];
+                var lane = LiveConfig.JudgmentPositions[8];
+                harness.Step(1.95f, 11.95, LiveHarness.Touch(1, wrongLane, 11.95), LiveHarness.Touch(2, lane, 11.95));
+                harness.Step(2, 12, LiveHarness.Touch(1, wrongLane, 12, InputTouchPhase.Ended),
+                    LiveHarness.Touch(2, lane, 12, InputTouchPhase.Canceled));
+                Assert.That(release.Result, Is.EqualTo(NoteResult.None));
+                harness.Step(2.04f, 12.04, LiveHarness.Touch(3, lane, 12.04));
+                Assert.That(release.Result, Is.EqualTo(NoteResult.None));
+                harness.Step(2.16f, 12.16, LiveHarness.Touch(3, lane, 12.10, InputTouchPhase.Ended));
+                Assert.That(release.Result, Is.EqualTo(NoteResult.Great));
+                Assert.That(bar.Result, Is.EqualTo(NoteResult.Pass));
+            }
+            AssertCompletesAutoplay(Load(Chart(tail, guide, Segment("guide", "tail", "guide", "tail"))));
+        }
+
+        [TestCase(2.04f, NoteResult.JustPerfect)]
+        [TestCase(2.09f, NoteResult.Miss)]
+        [TestCase(2.12f, NoteResult.Great)]
+        public void GuideReleaseTailChecksRecentTapAndTimesOut(float liftTime, NoteResult expected)
+        {
+            var guide = N("AnchorNote", "guide", 2);
+            var tail = N("NormalTailReleaseNote", "tail", 4);
+            Add(guide, R("next", "tail"));
+            Add(tail, R("prev", "guide"));
+            var chart = Load(Chart(guide, tail, N("NormalTapNote", "tap", 3.88),
+                Segment("guide", "tail", "guide", "tail")));
+            var release = chart.Score.NoteArray.OfType<NormalNote>().Single(n => n.IsIndependentRelease);
+            using var harness = new LiveHarness();
+            harness.Arrange(chart.Score);
+            var lane = LiveConfig.JudgmentPositions[5];
+            harness.Step(1.94f, 11.94, LiveHarness.Touch(1, lane, 11.94));
+            Assert.That(chart.Score.NoteArray.OfType<NormalNote>().Single(n => n != release).Result,
+                Is.EqualTo(NoteResult.JustPerfect));
+            harness.Step(liftTime, 10d + liftTime, LiveHarness.Touch(1, lane, 10d + liftTime, InputTouchPhase.Ended));
+            harness.Step(2.16f, 12.16);
+            Assert.That(release.Result, Is.EqualTo(expected));
         }
 
         [Test]

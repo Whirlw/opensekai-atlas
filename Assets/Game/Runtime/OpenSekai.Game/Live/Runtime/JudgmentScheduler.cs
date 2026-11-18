@@ -269,6 +269,7 @@ namespace Sekai.Core.Live
 			{
 				NoteBase note = _input.JudgmentNotes[n];
 				if (note == null || note.State == NoteState.Done || note is LongHoldCombo
+					|| note is NormalNote { IsIndependentRelease: true }
 					|| LiveCandidatePipeline.IsPressStep(note)) continue;
 				if (note is FlickNote flickTail && flickTail.JudgesAsBarTail)
 				{

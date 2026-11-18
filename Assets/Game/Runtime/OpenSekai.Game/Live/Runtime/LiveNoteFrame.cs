@@ -137,7 +137,8 @@ namespace Sekai.Core.Live
 			{
 				bar.AdvanceBeforeInput(Frame, offsetTime);
 			}
-			else if (!_session.IsAuto && note is NormalNote && LiveCandidatePipeline.IsPressStep(note))
+			else if (!_session.IsAuto && note is NormalNote normal
+				&& (normal.IsIndependentRelease || LiveCandidatePipeline.IsPressStep(normal)))
 			{
 				note.AdvanceNote(Frame, offsetTime, settleTimeout: false);
 			}

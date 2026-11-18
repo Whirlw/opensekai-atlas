@@ -190,9 +190,11 @@ namespace Sekai.Core.Live
 						$"liftSelected finger={input.Touch.fingerId} touch={input.Touch.touchId} lane={input.Lane:F2} phase={input.Touch.phase} barT={barTime:F3} tailId={(tail == null ? -1 : tail.Id)} tailT={(tail == null ? -1f : tail.MusicScoreInfo.time):F3}");
 				}
 
-				bool settled = target != null && target.JudgeTailAsRelease(input.Touch.musicTime);
+				bool settled = tail is NormalNote { IsIndependentRelease: true }
+					? tail.Judgment(ref input.Touch, input.Lane)
+					: target != null && target.JudgeTailAsRelease(input.Touch.musicTime);
 				if (LiveTrace.IsOn(LiveTraceCategory.Release))
-					LiveTrace.Write(LiveTraceCategory.Release, $"liftResult finger={input.Touch.fingerId} touch={input.Touch.touchId} settled={settled} result={(target?.ChildNote as NoteBase)?.Result}");
+					LiveTrace.Write(LiveTraceCategory.Release, $"liftResult finger={input.Touch.fingerId} touch={input.Touch.touchId} settled={settled} result={tail?.Result}");
 				if (settled)
 				{
 					if (LatencyCapture.Active)
@@ -200,6 +202,13 @@ namespace Sekai.Core.Live
 							tail.Id, song: input.Touch.musicTime, note: tail.MusicScoreInfo.time, result: tail.Result);
 					_usedLiftFingers.Add(input.Touch.fingerId);
 				}
+			}
+
+			// Input timestamps can still land inside the window on a frame that overshoots it.
+			foreach (NoteBase note in judgmentNotes)
+			{
+				if (note is NormalNote { IsIndependentRelease: true } release)
+					release.SettleExpiredRelease(frame.time);
 			}
 		}
 
@@ -312,6 +321,7 @@ namespace Sekai.Core.Live
 		/// that tap rather than a deliberate release: 100 ms.
 		/// </summary>
 		internal const float QuickTapSeconds = 0.1f;
+		private const float NextRushReleaseLockoutSeconds = 1f / 6f;
 
 		/// <summary>
 		/// Collects ordinary tails in reach. A contact whose press was consumed by a tap or by a flick's
@@ -323,13 +333,24 @@ namespace Sekai.Core.Live
 		{
 			float lane = lift.Lane;
 			float time = lift.Touch.musicTime;
-			bool quickTap = _keyPressTimes.TryGetValue(lift.Touch.touchId, out float pressTime)
-				&& time - pressTime <= QuickTapSeconds;
+			bool followsKeyPress = _keyPressTimes.TryGetValue(lift.Touch.touchId, out float pressTime);
+			bool quickTap = followsKeyPress && time - pressTime <= QuickTapSeconds;
 			bool tracing = LiveTrace.IsOn(LiveTraceCategory.Release);
 			System.Text.StringBuilder candidates = tracing ? new System.Text.StringBuilder() : null;
 
 			foreach (NoteBase note in judgmentNotes)
 			{
+				if (note is NormalNote { IsIndependentRelease: true } release)
+				{
+					if (release.IsJudgment(ref lift.Touch, lane)
+						&& (!followsKeyPress || time - pressTime > NextRushReleaseLockoutSeconds
+							|| LongEndJudgement.IsPerfect(time - release.MusicScoreInfo.time)))
+					{
+						lift.CandidateNotes.Add(release);
+					}
+					continue;
+				}
+
 				if (note is not LongNote candidate)
 				{
 					continue;

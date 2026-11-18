@@ -286,7 +286,7 @@ namespace OpenSekai.Infrastructure.Charts
                     bool realTail = kind.StartsWith("Tail", StringComparison.Ordinal);
                     bool independentGuideTail = root is GuideNote
                         && (kind == "TapNote" || kind == "FlickNote" || kind == "TraceNote" || kind == "TraceFlickNote"
-                            || kind == "TailFlickNote" || kind == "TailTraceNote" || kind == "TailTraceFlickNote");
+                            || realTail);
                     bool isTail = independentGuideTail || realTail || kind == "AnchorNote" && !next.Has("next");
                     if (kind == "TickNote" || kind == "AnchorNote" && !isTail) root.AddConnectionNote(note);
                     else if (isTail)
@@ -295,6 +295,7 @@ namespace OpenSekai.Infrastructure.Charts
                         if (independentGuideTail)
                         {
                             if (next.Has("activeHead")) throw Unsupported("装饰条尾键的独立判定区间");
+                            if (kind == "TailReleaseNote") ((NormalNote)note).SetNextRushIndependentRelease();
                             if (realTail) roots.Add(note);
                             // The endpoint's key has its own input lifecycle. The guide only borrows its geometry.
                             var endpoint = new HiddenConnectionNote(note.MusicScoreInfo, ++_nextId, note.LaneStart,
@@ -304,10 +305,7 @@ namespace OpenSekai.Infrastructure.Charts
                             root.AddNoteListAndSetupChildNote(endpoint);
                         }
                         else
-                        {
-                            if (realTail && root is GuideNote) throw Unsupported("装饰条连接到 Release 尾键");
                             root.AddNoteListAndSetupChildNote(note);
-                        }
                     }
                     else throw Unsupported("长条中间节点 " + next.Archetype);
                     // Legacy parenting promotes a tail to its head's critical type. Native entities
