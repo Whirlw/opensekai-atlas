@@ -1,0 +1,30 @@
+using System;
+using System.Linq;
+using UnityEditor;
+using UnityEditor.Build;
+using UnityEditor.Build.Reporting;
+
+public static class PhaseTwoDeviceBuild
+{
+    public static void Run()
+    {
+        string[] args = Environment.GetCommandLineArgs();
+        int output = Array.IndexOf(args, "-buildOutput");
+        if (output < 0 || output + 1 >= args.Length)
+            throw new ArgumentException("Unity CLI must supply -buildOutput");
+
+        PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android, "io.github.opensekai.p25check");
+        PlayerSettings.productName = "OpenSekai P2-5";
+        Sekai.EditorTools.OpenSekaiAssetBundleBuildPipeline.BuildForTarget(BuildTarget.Android, true);
+        var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+        {
+            scenes = EditorBuildSettings.scenes.Where(scene => scene.enabled).Select(scene => scene.path).ToArray(),
+            target = BuildTarget.Android,
+            targetGroup = BuildTargetGroup.Android,
+            locationPathName = args[output + 1],
+            options = BuildOptions.None
+        });
+        if (report.summary.result != BuildResult.Succeeded)
+            throw new BuildFailedException("Android player build result: " + report.summary.result);
+    }
+}

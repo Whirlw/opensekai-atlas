@@ -1,0 +1,97 @@
+#if UNITY_ANDROID && !UNITY_EDITOR
+using System;
+using System.Linq;
+using System.Reflection;
+using System.Threading;
+using Cysharp.Threading.Tasks;
+using OpenSekai.App.Playback;
+using OpenSekai.App.UI;
+using OpenSekai.Infrastructure.Packages;
+using OpenSekai.Shared.Playback;
+using OpenSekai.Shared.Settings;
+using Sekai;
+using Sekai.Core.Live;
+using UnityEngine;
+using GameScenes = Sekai.SceneManager;
+using UnityScenes = UnityEngine.SceneManagement.SceneManager;
+
+internal static class PhaseTwoAudioSmoke
+{
+    private const string Tag = "[PhaseTwoAudioSmoke]";
+    private const string Fixture = "codexbaseline20261101tap";
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void StartIfRequested()
+    {
+        using var player = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
+        using var activity = player.GetStatic<AndroidJavaObject>("currentActivity");
+        using var intent = activity.Call<AndroidJavaObject>("getIntent");
+        if (intent.Call<bool>("getBooleanExtra", "opensekaiPhaseTwoAudioSmoke", false))
+            Run().Forget();
+    }
+
+    private static async UniTaskVoid Run()
+    {
+        try
+        {
+            await WaitFor(() => UnityEngine.Object.FindFirstObjectByType<LibraryScreen>() != null, 30f);
+            var sound = SoundManager.Instance;
+            string[] bundles =
+            {
+                "live/tap_se/custom01", "live/tap_se/custom02",
+                "live/sound/live_se/default", "live/sound/live_se/common"
+            };
+            await WaitFor(() => bundles.All(sound.IsLoadedSoundBundle), 30f);
+            int[] counts = bundles.Select(bundle => sound.GetCueInfos(bundle).Length).ToArray();
+            if (!counts.SequenceEqual(new[] { 13, 13, 12, 4 }))
+                throw new InvalidOperationException("Unexpected WAV bundle sizes: " + string.Join(",", counts));
+            Debug.Log($"{Tag} Built-in WAV bundles {string.Join(",", counts)}");
+
+            var settings = LiveSettingsStore.Shared.Load();
+            settings.CustomMusicScoreAutoResultAnimation = LiveSettingData.AUTO_RESULT_ANIMATION_CLEAR;
+            var entry = SongPackageManager.Shared.LoadItems()
+                .First(item => item.HasManifest && item.HasScore && item.HasAudio && item.Entry.Manifest.id == Fixture)
+                .Entry;
+            var start = await PlayService.Instance.StartAsync(
+                new PlayRequest(entry.RootDirectory, true, GameScenes.Scene.Library), CancellationToken.None);
+            if (!start.Started)
+                throw new InvalidOperationException("Could not start the WAV fixture: " + start.Status);
+
+            await WaitFor(() => UnityScenes.GetActiveScene().name == "Core"
+                && UnityEngine.Object.FindFirstObjectByType<SoloLiveController>() != null
+                && sound.TryGetAudioSyncedUnityTimer(out long time) && time > 500L, 35f);
+            var controller = UnityEngine.Object.FindFirstObjectByType<SoloLiveController>();
+            Debug.Log($"{Tag} Chart WAV clock advanced; BGM id={sound.GetCurrentIngamePlaybackId()}");
+            await WaitFor(() => controller.IsPlayableState, 15f);
+            controller.PauseLive();
+            controller.Resume();
+            Debug.Log($"{Tag} Requested countdown via pause and resume");
+
+            await WaitFor(() => UnityScenes.GetActiveScene().name == "Library"
+                && UnityEngine.Object.FindFirstObjectByType<LibraryResultPanel>() != null, 100f);
+            var panel = UnityEngine.Object.FindFirstObjectByType<LibraryResultPanel>();
+            var result = (PlayResult)typeof(LibraryResultPanel)
+                .GetField("_current", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(panel);
+            if (result == null || result.Kind != PlayResultKind.Completed || result.Score != 1000000
+                || !result.IsAuto || result.AutoCount != result.TotalCombo || result.Rank != ScoreRank.S)
+                throw new InvalidOperationException("The fixture did not complete at 1000000/S.");
+            Debug.Log($"{Tag} PASS: returned to Library; score={result.Score}; rank={result.Rank}; auto={result.AutoCount}/{result.TotalCombo}");
+        }
+        catch (Exception error)
+        {
+            Debug.LogError($"{Tag} FAIL: {error.GetType().Name}: {error.Message}");
+        }
+    }
+
+    private static async UniTask WaitFor(Func<bool> condition, float timeout)
+    {
+        float deadline = Time.realtimeSinceStartup + timeout;
+        while (!condition())
+        {
+            if (Time.realtimeSinceStartup >= deadline)
+                throw new TimeoutException("Active scene: " + UnityScenes.GetActiveScene().name);
+            await UniTask.Yield();
+        }
+    }
+}
+#endif
