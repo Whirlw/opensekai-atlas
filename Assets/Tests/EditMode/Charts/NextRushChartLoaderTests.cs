@@ -610,13 +610,17 @@ namespace OpenSekai.Tests.EditMode.Charts
             AssertCompletesAutoplay(chart);
         }
 
-        [Test]
-        public void GuideReleaseTailUsesItsOwnLaneAndReleaseWindow()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void GuideReleaseTailUsesItsOwnLaneAndReleaseWindow(bool independentGeometry)
         {
             var guide = N("AnchorNote", "guide", 2, -3);
             var tail = N("CriticalTailReleaseNote", "tail", 4, 3);
-            Add(guide, R("next", "tail"));
-            Add(tail, R("prev", "guide"));
+            if (!independentGeometry)
+            {
+                Add(guide, R("next", "tail"));
+                Add(tail, R("prev", "guide"));
+            }
             var chart = Load(Chart(tail, guide, Segment("guide", "tail", "guide", "tail")));
             var bar = chart.Score.NoteArray.OfType<GuideNote>().Single();
             var release = chart.Score.NoteArray.OfType<NormalNote>().Single();
@@ -759,6 +763,142 @@ namespace OpenSekai.Tests.EditMode.Charts
             Assert.Throws<InvalidDataException>(() => Load(Chart(head, anchor, tail,
                 Segment("head", "anchor", "head", "anchor", "head", "tail"),
                 Segment("anchor", "tail", "anchor", "tail"))));
+        }
+
+        [Test]
+        public void TickAtTheEndOfAHoldSettlesOnceWithoutAReleaseTail()
+        {
+            var head = N("NormalHeadTapNote", "head", 2);
+            var tick = N("CriticalTickNote", "tick", 4);
+            var end = N("AnchorNote", "end", 6);
+            Add(head, R("next", "tick"));
+            Add(tick, R("next", "end"), R("activeHead", "head"), V("segmentKind", 101));
+            var json = Chart(tick, end, head, Segment("head", "tick", "head", "tick", "head", "tick"),
+                Segment("tick", "end", "tick", "end"));
+            foreach (bool touchedAtTick in new[] { true, false })
+            {
+                var chart = Load(json);
+                var bar = chart.Score.NoteArray.OfType<LongNote>().Single(n => n.HasJudgment);
+                var endpoint = chart.Score.NoteArray.OfType<ConnectionNote>().Single();
+                Assert.That(chart.TotalNoteCount, Is.EqualTo(2));
+                Assert.That(bar.TailNote.HasJudgment, Is.False);
+                Assert.That(bar.JudgedPoints, Is.Empty);
+                Assert.That(endpoint.ParentNote, Is.Null);
+                Assert.That(endpoint.Type, Is.EqualTo(NoteType.Critical));
+
+                using var harness = new LiveHarness();
+                harness.Arrange(chart.Score);
+                var lane = LiveConfig.JudgmentPositions[5];
+                harness.Step(1f, 11, LiveHarness.Touch(1, lane, 11));
+                if (touchedAtTick)
+                    harness.Step(2.01f, 12.01, LiveHarness.Touch(1, lane, 12.01, InputTouchPhase.Stationary));
+                else
+                    harness.Step(2.01f, 12.01);
+                harness.Step(2.04f, 12.04);
+                Assert.That(endpoint.Result, Is.EqualTo(touchedAtTick ? NoteResult.JustPerfect : NoteResult.Miss));
+                Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+            }
+            AssertCompletesAutoplay(Load(json));
+        }
+
+        [Test]
+        public void TickAtTheStartOfAnActiveSectionScoresOnceAndAllowsItsReleaseTail()
+        {
+            var guide = N("AnchorNote", "guide", 2, -3);
+            var tick = N("NormalTickNote", "tick", 4, 3);
+            var end = N("NormalTailReleaseNote", "end", 6, 3);
+            Add(guide, R("next", "tick"));
+            Add(tick, R("next", "end"), R("activeHead", "tick"), V("segmentKind", 1));
+            Add(end, R("activeHead", "tick"));
+            var json = Chart(tick, guide, end, Segment("guide", "tick", "guide", "tick"),
+                Segment("tick", "end", "tick", "end", "tick", "end"));
+            var chart = Load(json);
+            var hold = chart.Score.NoteArray.OfType<FrictionHideLongNote>().Single();
+            var key = chart.Score.NoteArray.OfType<ConnectionNote>().Single();
+            Assert.That(hold.HasJudgment, Is.False);
+            Assert.That(chart.TotalNoteCount, Is.EqualTo(2));
+            using (var harness = new LiveHarness())
+            {
+                harness.Arrange(chart.Score);
+                var lane = LiveConfig.JudgmentPositions[8];
+                harness.Step(2, 12, LiveHarness.Touch(1, lane, 12));
+                harness.Step(2.5f, 12.5, LiveHarness.Touch(1, lane, 12.5, InputTouchPhase.Stationary));
+                harness.Step(3, 13, LiveHarness.Touch(1, lane, 13, InputTouchPhase.Ended));
+                Assert.That(key.Result, Is.EqualTo(NoteResult.JustPerfect));
+                Assert.That(hold.TailNote.Result, Is.EqualTo(NoteResult.JustPerfect));
+            }
+            AssertCompletesAutoplay(Load(json));
+        }
+
+        [Test]
+        public void CrossChainGuideBorrowsTwoExistingNodesWithoutLinkingTheirJudgments()
+        {
+            var a = N("NormalHeadTapNote", "a", 1, -3);
+            var middle = N("AnchorNote", "middle", 2, -2);
+            var aEnd = N("AnchorNote", "aEnd", 3, -1);
+            var b = N("CriticalHeadTapNote", "b", 2.5, 2);
+            var bEnd = N("CriticalTailReleaseNote", "bEnd", 5, 3);
+            Add(a, R("next", "middle"));
+            Add(middle, R("next", "aEnd"), V("segmentKind", 104));
+            Add(b, R("next", "bEnd"));
+            var chart = Load(Chart(aEnd, b, middle, bEnd, a,
+                Segment("a", "middle", "a", "aEnd", "a", "aEnd"),
+                Segment("middle", "aEnd", "a", "aEnd", "a", "aEnd"),
+                Segment("b", "bEnd", "b", "bEnd", "b", "bEnd"),
+                Segment("middle", "bEnd", "middle", "bEnd")));
+            var holds = chart.Score.NoteArray.OfType<LongNote>().Where(n => n.HasJudgment).ToArray();
+            var guide = chart.Score.NoteArray.OfType<GuideNote>().Single();
+            Assert.That(holds[0].LineNoteList, Has.Count.EqualTo(3));
+            Assert.That(holds[1].LineNoteList, Has.Count.EqualTo(2));
+            Assert.That(guide.NativeConnector.Kind, Is.EqualTo(104));
+            Assert.That(guide.NativeLeft, Is.EqualTo(((NoteBase)holds[0].LineNoteList[1]).NativeLeft));
+            Assert.That(guide.TailNote.NativeLeft, Is.EqualTo(holds[1].TailNote.NativeLeft));
+            Assert.That(guide.NoteList.All(note => !note.HasJudgment), Is.True);
+            Assert.That(chart.TotalNoteCount, Is.EqualTo(3));
+            AssertCompletesAutoplay(chart);
+            Assert.That(holds[1].TailNote.Result, Is.EqualTo(NoteResult.Auto));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CrossChainGeometryRejectsDuplicateEdgesAndSameBeatCycles(bool cycle)
+        {
+            var a = N("AnchorNote", "a", 2, -1);
+            var b = N("AnchorNote", "b", 2, 1);
+            Assert.That(() => Load(Chart(a, b, Segment("a", "b", "a", "b"),
+                cycle ? Segment("b", "a", "b", "a") : Segment("a", "b", "a", "b"))),
+                Throws.TypeOf<InvalidDataException>().With.Message.Contains(cycle ? "循环" : "重复"));
+        }
+
+        [Test]
+        public void ActiveConnectorCanJoinTwoRawChainsIntoOneContinuousHold()
+        {
+            var head = N("NormalHeadTapNote", "head", 1, -4);
+            var left = N("AnchorNote", "left", 2, -3);
+            var right = N("AnchorNote", "right", 4, 3);
+            var end = N("NormalTailReleaseNote", "end", 5, 4);
+            Add(head, R("next", "left"));
+            Add(right, R("next", "end"), V("connectorEase", 2));
+            Add(end, R("prev", "right"), R("activeHead", "head"));
+            var json = Chart(head, left, right, end,
+                Segment("head", "left", "head", "left", "head", "end"),
+                Segment("left", "right", "left", "right", "head", "end"),
+                Segment("right", "end", "right", "end", "head", "end"));
+            var chart = Load(json);
+            var hold = chart.Score.NoteArray.OfType<LongNote>().Single();
+            Assert.That(chart.TotalNoteCount, Is.EqualTo(2));
+            Assert.That(hold.LineNoteList, Has.Count.EqualTo(4));
+            using (var harness = new LiveHarness())
+            {
+                harness.Arrange(chart.Score);
+                harness.Step(0.5f, 10.5, LiveHarness.Touch(1, LiveConfig.JudgmentPositions[1], 10.5));
+                harness.Step(1.5f, 11.5, LiveHarness.Touch(1, LiveConfig.JudgmentPositions[5], 11.5, InputTouchPhase.Moved));
+                Assert.That(hold.LaneStartF, Is.EqualTo(5).Within(1e-5));
+                Assert.That(hold.HasFinger, Is.True);
+                harness.Step(2.5f, 12.5, LiveHarness.Touch(1, LiveConfig.JudgmentPositions[9], 12.5, InputTouchPhase.Ended));
+                Assert.That(hold.TailNote.Result, Is.EqualTo(NoteResult.JustPerfect));
+            }
+            AssertCompletesAutoplay(Load(json));
         }
 
         [Test]

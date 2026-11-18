@@ -76,7 +76,8 @@ manifest 示例：
 - Normal/Critical Tap、Flick、Trace、TraceFlick；方向支持普通、左、右。
 - HeadTap 起点、Tick 中继、TailRelease/TailFlick/TailTrace/TailTraceFlick 尾部。Anchor 可作隐藏中继、无判定尾和 Guide 端点，允许同拍几何连接。Guide 可指向独立 Tap、Flick、Trace 和 TraceFlick，或无活动长条引用的 TailRelease、TailFlick、TailTrace、TailTraceFlick。独立的 TailRelease 使用松手判定窗口，Guide 本身不产生判定。
 - 按实体字符串名称建立引用关系，实体顺序无关。Connector 的 `head/tail` 表示实际边，`segmentHead/segmentTail` 提供覆盖该边的样式区间，`activeHead/activeTail` 对应当前长条判定区间。继续读取早期加载器接受的连接表示。
-- 同一条几何链可在连续可判定段和 Guide 段之间切换。HeadTap 或 Anchor 可作为可判定段起点。相邻段共享交界的几何，头、尾和 Tick 各自只结算一次。
+- 同一条几何链可在连续可判定段和 Guide 段之间切换。HeadTap、Anchor 和 Tick 均可作为可判定段起点。相邻段共享交界的几何，头、尾和 Tick 各自只结算一次。
+- Tick 可用作判定段起点或终点。端点 Tick 使用自身的轨道和接触判定，条身结束时仍可独立结算。Guide 可以借用其它链的非附着节点而保持原来的判定归属。跨越 `next/prev` 链边界的可判定连接可连成一个连续条身，前提是几何不分叉、活动区间覆盖整段。
 - 按谱面创建 TransientHiddenTickNote，允许附在连接两端，也允许与可见 Tick 同拍。可见 Tick 和独立键可附着在同一条连接的相邻几何节点上，使用曲线计算判定轨道，以两端各自的变速轨迹计算纵向显示位置。每个原生判定点单独结算。
 - Connector 可以经过附着分隔点，也可从附着端点起止。附着点从源路径继承轨道、宽度和变速轨迹；相邻子段使用源缓动的对应区间。几何路径允许附着点插在 `next/prev` 的两个节点之间，仍按 `activeHead/activeTail` 选择判定段。
 - lane/size 转为 12 轨内的浮点轨道边界。Anchor 允许零宽。连接缓动 0–41 用于绘制、条身命中范围和附着位置，其中回弹及弹性曲线保留超调。普通和高亮长条支持带颜色变体，透明度固定为 1。8 种 Guide 颜色按样式端点透明度渐变。样式可引用跨链的区间，连接是否隐藏及是否穿判定线由样式起点决定。穿线时按两端的变速轨迹绘制。无判定尾的连接在尾节点过线后最多继续绘制 5 秒，真实尾键仍按本身规则结算。
@@ -88,9 +89,9 @@ manifest 示例：
 以下会明确报“NextRUSH+ 暂不支持”，不会静默丢弃：
 
 - 非 4/4 拍及第 0 拍前的 BPM 变化。
-- 直接连接不同 `next/prev` 链的非附着几何节点、递归附着，以及使用尚未接入的音符族或 Damage 的判定区间。
+- 分叉或合流的可判定连接、递归附着，以及使用尚未接入的音符族或 Damage 的判定区间。
 - fake、damage、动态舞台、向下划键。
-- HeadTrace/HeadFlick 等其它长条起点、TailTap、以 Tick 为判定段端点、跨越不连续几何边的判定区间和未知实体/字段。
+- HeadTrace/HeadFlick 等其它长条起点、TailTap、跨越不连续几何边的判定区间和未知实体/字段。
 
 原生数据加载支持不等于复刻完整 NextRUSH+ 引擎。目前复用本项目判定、计分、音效和画面；后续玩法扩展应在原始数据保留的前提下逐项接入运行时。
 

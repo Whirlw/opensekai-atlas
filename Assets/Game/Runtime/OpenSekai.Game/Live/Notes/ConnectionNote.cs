@@ -2,6 +2,13 @@ namespace Sekai.Live
 {
 	public class ConnectionNote : NoteBase
 	{
+		private LongNote _endpointSection;
+
+		public void SetNextRushEndpointSection(LongNote section)
+		{
+			_endpointSection = section;
+		}
+
 		/// <summary>
 		/// How long a slide stays judgeable after its time passes: one reference frame.
 		/// </summary>
@@ -74,7 +81,8 @@ namespace Sekai.Live
 
 		public override bool IsJudgment(ref LiveTouch touch, float lane)
 		{
-			return State == NoteState.Last && JudgeLaneStart <= lane && JudgeLaneEnd >= lane;
+			return State == NoteState.Last && JudgeLaneStart <= lane && JudgeLaneEnd >= lane
+				&& (_endpointSection == null || !_endpointSection.PublishesHeadMiss || _endpointSection.Head.IsSettled);
 		}
 
 		public override bool Judgment(ref LiveTouch touch, float lane)
