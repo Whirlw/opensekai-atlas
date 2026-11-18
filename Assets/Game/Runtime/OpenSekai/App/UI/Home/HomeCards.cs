@@ -21,7 +21,9 @@ namespace OpenSekai.App.UI
             Body = LibraryUi.CreateRect("Body", Root);
             LibraryUi.Stretch(Body);
 
-            Shadow = LibraryWidgets.Shadow(Body, radius, 48f, 18f, 150);
+            Shadow = LibraryWidgets.Shadow(
+                Body, radius, LibraryTheme.CoverShadow.BLUR, LibraryTheme.CoverShadow.DROP,
+                LibraryTheme.CoverShadow.OPACITY);
             Surface = LibraryWidgets.Panel("Surface", Body, radius, HomeTheme.Colors.Card);
             Surface.raycastTarget = true;
             LibraryUi.Stretch(Surface.rectTransform);
@@ -326,7 +328,7 @@ namespace OpenSekai.App.UI
             _cover.color = fill;
             _coverFade.color = fill;
             Color shadow = _frame.Shadow.color;
-            shadow.a = (1f - amount) * (150f / 255f);
+            shadow.a = (1f - amount) * (LibraryTheme.CoverShadow.OPACITY / 255f);
             _frame.Shadow.color = shadow;
             Color outline = LibraryTheme.Colors.Hairline;
             outline.a *= 1f - amount;

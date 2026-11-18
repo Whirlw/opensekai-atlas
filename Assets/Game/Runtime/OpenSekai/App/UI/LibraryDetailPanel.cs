@@ -93,7 +93,9 @@ namespace OpenSekai.App.UI
             LibraryWidgets.Place(
                 _coverFrame, new Vector2(0f, 1f), new Vector2(0.5f, 0.5f),
                 new Vector2(coverSize * 0.5f, -coverSize * 0.5f), new Vector2(coverSize, coverSize));
-            LibraryWidgets.Shadow(_coverFrame, LibraryTheme.Radius.PANEL, 28f, 4f, 65);
+            LibraryWidgets.Shadow(
+                _coverFrame, LibraryTheme.Radius.PANEL, LibraryTheme.CoverShadow.BLUR,
+                LibraryTheme.CoverShadow.DROP, LibraryTheme.CoverShadow.OPACITY);
             Image frame = LibraryWidgets.Panel("Frame", _coverFrame, LibraryTheme.Radius.PANEL, LibraryTheme.Colors.CoverPlaceholder);
             LibraryUi.Stretch(frame.rectTransform);
             frame.gameObject.AddComponent<Mask>().showMaskGraphic = true;
