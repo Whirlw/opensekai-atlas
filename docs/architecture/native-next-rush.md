@@ -74,10 +74,10 @@ manifest 示例：
 - 从第 0 拍开始的 BPM，支持变 BPM，4/4 拍。原生拍数用 double 计算时间，不先量化到 480 ticks；共同运行时的时间字段仍为 float。
 - 第 0 拍前的音符沿用第 0 拍的 BPM 向前换算，保留负时间。
 - Normal/Critical Tap、Flick、Trace、TraceFlick；方向支持普通、左、右。
-- HeadTap 起点、Tick 中继、TailRelease/TailFlick/TailTrace/TailTraceFlick 尾部。Anchor 可作隐藏中继、无判定尾和 Guide 端点，允许同拍几何连接。
+- HeadTap 起点、Tick 中继、TailRelease/TailFlick/TailTrace/TailTraceFlick 尾部。Anchor 可作隐藏中继、无判定尾和 Guide 端点，允许同拍几何连接。Guide 可指向独立 Tap、Flick、Trace 和 TraceFlick，或无活动长条引用的 TailFlick、TailTrace、TailTraceFlick，尾键自行判定。
 - 按实体字符串名称建立引用关系，实体顺序无关。Connector 的 `head/tail` 表示实际边，`segmentHead/segmentTail` 提供覆盖该边的样式区间，`activeHead/activeTail` 对应当前长条判定区间。继续读取早期加载器接受的连接表示。
-- 按谱面创建 TransientHiddenTickNote，允许附在连接两端，也允许与独立的可见 Tick 同拍。每个原生判定点单独结算，旧转换器的自动 hold-combo 不参与。
-- lane/size 转为 12 轨内的浮点轨道边界。Anchor 允许零宽。连接缓动 1–5 同时用于绘制、长条命中范围及隐藏 Tick 位置。普通和高亮长条的片段透明度固定为 1，8 种 Guide 颜色按谱面的端点透明度渐变。
+- 按谱面创建 TransientHiddenTickNote，允许附在连接两端，也允许与可见 Tick 同拍。可见 Tick 和独立键可附着在同一条连接的相邻几何节点上，使用曲线计算判定轨道，以两端各自的变速轨迹计算纵向显示位置。每个原生判定点单独结算。
+- lane/size 转为 12 轨内的浮点轨道边界。Anchor 允许零宽。连接缓动 0–29、38–41 用于绘制、条身命中范围和附着位置。普通和高亮长条支持带颜色变体，透明度固定为 1。8 种 Guide 颜色按样式端点透明度渐变。样式可引用跨链的区间，连接是否隐藏由样式起点所属的变速组决定。
 - SimLine 通过本地同时押线逻辑重建，遵循设置开关。
 - 变速组支持独立轨迹、跳距、隐藏、强制速度及 TIMESCALE / SCROLL 混用。适用于当前可编译的音符与线性长条。
 - 原始文件最多 32 MiB；解压后最多 32 Mi 个字符；实体最多 100000，JSON 深度最多 32。
@@ -85,7 +85,7 @@ manifest 示例：
 以下会明确报“NextRUSH+ 暂不支持”，不会静默丢弃：
 
 - 非 4/4 拍及第 0 拍前的 BPM 变化。
-- 带独立判定区间的 Connector、跨链样式区间、Guide 直接接真实尾键、可见节点附着、高级连接缓动及层级/展示/穿线样式。
+- 带独立判定区间的 Connector、混合玩法连接、以附着音符作几何端点或分隔点、Guide 接 Release 尾键、回弹和弹性缓动 30–37，以及连接层级、全屏展示和穿判定线。
 - fake、damage、动态舞台、向下划键。
 - HeadTrace/HeadFlick 等其它长条起点、TailTap、自定义判定区间和未知实体/字段。
 
@@ -163,3 +163,5 @@ P2 使用本地原始谱面单独验证变速编译。Kamisama 的 2 组 7 事�
 P3 已用原始 Kamisama 曲包通过安装、原始谱面字节校验和 120 Hz 自动播放。1265 个实体中有 51 个 Anchor 和 154 个隐藏 Tick，共 885 个判定点。全量 EditMode 回归 1048 通过、19 跳过、0 失败。Hallway 原谱单独复验，848 个判定点及自动播放通过。Windows 曲库 PlayMode 5 项通过，合成谱覆盖曲线 Anchor 尾、Guide、暂停恢复、重开和结算。用户已确认 M1 验收。
 
 普通长条头到达判定线后固定在线上，可见性跟随当前连接片段，尾节点到线时退场。合成谱回归覆盖经过 Anchor 继续显示、变速组隐藏与恢复、尾部退场。全量 EditMode 回归 1053 通过、19 跳过、0 失败，包含原始 Kamisama 曲包。修复后的原谱画面待人工复核。
+
+P3 后续全量 EditMode 回归 1058 通过、19 跳过、0 失败。合成谱覆盖可见 Tick 的曲线位置和双组变速、阶跃两侧的命中位置、Guide 末端的独立手动输入以及跨链样式透明度。原始 Kamisama 曲包再次通过导入和自动播放，仍为 885 个判定点。

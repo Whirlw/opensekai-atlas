@@ -64,7 +64,9 @@ namespace Sekai
 			gameObject.SetActive(true);
 			if (spriteRenderer != null)
 			{
-				spriteRenderer.size = LiveUtility.CalcSpriteRendererSize(note.LaneEnd - note.LaneStart);
+				float width = note is NoteBase { NativeScroll: not null }
+					? note.LaneEndF - note.LaneStartF : note.LaneEnd - note.LaneStart;
+				spriteRenderer.size = LiveUtility.CalcSpriteRendererSize(width);
 			}
 			UpdateSpritePayload(0f);
 		}
@@ -87,7 +89,8 @@ namespace Sekai
 				return Vector3.zero;
 			}
 
-			Vector2 center = GetLaneCenter(note.LaneStart, note.LaneEnd);
+			Vector2 center = note is NoteBase { NativeScroll: not null }
+				? GetLaneCenter(note.LaneStartF, note.LaneEndF) : GetLaneCenter(note.LaneStart, note.LaneEnd);
 			Vector2 effectiveSpawnPos = spawnPosition;
 			if (note is NoteBase noteBase && noteBase.IsNegativeSpeed)
 			{

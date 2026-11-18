@@ -2,6 +2,7 @@
 
 > 状态：P0 至 P2 的兼容预检、正负音乐偏移和分组变速已接入。P3 已接入 Kamisama 使用的 Anchor、Guide、同拍几何边、曲线、透明度和隐藏 Tick 附着。原始 Kamisama 曲包通过导入、字节校验和自动播放，885 个判定点与谱面一致。用户已确认 M1 验收，随后反馈普通长条头经过节点后消失。修复已加入回归用例，待原谱画面复核。P0 的同设备性能基线和 Android 端同步仍待采集。固定源码与样本见 [兼容基线](../architecture/next-rush-compatibility.md)，现行支持范围见 [原生加载](../architecture/native-next-rush.md)。
 > 制定日期：2026-11-17。
+> P3 后续已接入 Guide 接独立键、可见附着点、跨链样式引用、彩色长条和非超调缓动。连接的独立判定区间、附着端点、层级、全屏展示和穿判定线仍待实现。
 > 计划制定时的实现基线为 `abffa9d3`。现行行为见 [NextRUSH+ 原生加载](../architecture/native-next-rush.md)。
 > 用户约定：**Skill、FeverChance、FeverStart 直接忽略，不实现技能与 Fever。**
 
@@ -40,9 +41,9 @@
 | 分组变速 | 已接入多组、缓动、停止、倒流、skip、两种 transitionStyle、隐藏与强制速度 | 组合谱面画面与性能验收 |
 | 判定音符 | 基础独立键和部分头尾 | Tap/Flick/Trace/TraceFlick/Release 的独立、头、尾变体及 Tick |
 | 方向 | 普通、左、右 | 上游全部方向枚举，包含向下划动及镜像映射 |
-| Anchor / Guide | 已接入隐藏几何点、无判定尾、独立 Guide | 混合连接和 Guide 至真实尾键 |
-| Connector | 普通/高亮长条、Guide、曲线 1–5 和透明度 | 全部类型、曲线、层级、presentation、穿判定线 |
-| 附着节点 | 隐藏判定点沿曲线附着，允许同拍 | 可见节点附着、独立 activeHead/Tail 和跨链几何 |
+| Anchor / Guide | 已接入隐藏几何点、无判定尾、Guide 接 Tap/Flick/Trace/TraceFlick | 混合连接、接 Release 尾键 |
+| Connector | 普通/高亮彩色长条、Guide、缓动 0–29 与 38–41、透明度和跨链样式引用 | 其余类型、回弹与弹性缓动、层级、全屏展示、穿判定线 |
+| 附着节点 | 隐藏 Tick、可见 Tick 和独立键沿曲线附着 | 附着分隔点与几何端点、独立 activeHead/Tail 和跨链几何 |
 | Fake / Damage | 拒绝 | 全部 Fake 变体、伤害音符、伤害条与隐藏伤害点 |
 | 动态舞台 | 拒绝 | 相机、多个舞台、平移旋转、pivot、mask、样式及高度 |
 | Initialization | revision 2、默认生命 | 基线 revision 的兼容分支、缺省值、初始生命及相机引用 |

@@ -91,12 +91,12 @@ namespace Sekai.Core.Live
 			foreach (var note in Notes)
 			{
 				if (note?.NativeScroll == null) continue;
-				double start = PrepareVisual(note, displayLead);
+				double start = note.PrepareNativeVisual(displayLead);
 				if (note is LongNote bar)
 				{
 					foreach (var child in bar.NoteList)
 						if (child != note && child.NativeScroll != null)
-							start = Math.Min(start, PrepareVisual(child, displayLead));
+							start = Math.Min(start, child.PrepareNativeVisual(displayLead));
 				}
 				entries.Add((start, note));
 			}
@@ -104,12 +104,6 @@ namespace Sekai.Core.Live
 			Array.Sort(_nativeVisuals, (a, b) => a.start.CompareTo(b.start));
 			_nativeVisualIndex = 0;
 			_activeNativeVisuals.Clear();
-		}
-
-		private static double PrepareVisual(NoteBase note, double displayLead)
-		{
-			note.NativePreempt = note.NativeScroll.Preempt(displayLead);
-			return note.NativeScroll.ActivationTime(note.NativeTarget, note.NativePreempt);
 		}
 
 		internal void WalkNativeVisuals(double now, Action<NoteBase> visit)

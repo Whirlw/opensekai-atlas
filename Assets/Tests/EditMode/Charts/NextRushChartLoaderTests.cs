@@ -421,6 +421,8 @@ namespace OpenSekai.Tests.EditMode.Charts
         [TestCase(1, 0)]
         [TestCase(2, 1)]
         [TestCase(2, 0)]
+        [TestCase(13, 0)]
+        [TestCase(24, 0)]
         public void PlayableConnectorStaysOpaqueAcrossAnAuthoredFade(int kind, double initialAlpha)
         {
             var head = N("NormalHeadTapNote", "head", 1);
@@ -442,6 +444,85 @@ namespace OpenSekai.Tests.EditMode.Charts
         }
 
         [Test]
+        public void AttachedVisibleTickSharesTheCurveAndBothScrollGroups()
+        {
+            var head = N("NormalHeadTapNote", "head", 1, -4);
+            var tail = N("NormalTailReleaseNote", "tail", 5, 4);
+            var tick = E("CriticalTickNote", "tick", V("#BEAT", 3), V("isAttached", 1),
+                R("attachHead", "head"), R("attachTail", "tail"), R("activeHead", "head"));
+            Add(head, R("next", "tail"), V("isSeparator", 1), V("connectorEase", 10));
+            Add(tail, R("activeHead", "head"), R("#TIMESCALE_GROUP", "fast"));
+            var chart = Load(Chart(tick, tail, head,
+                Segment("head", "tail", "head", "tail", "head", "tail"),
+                E("#TIMESCALE_GROUP", "fast", R("first", "fastChange")),
+                E("#TIMESCALE_CHANGE", "fastChange", V("#BEAT", 0), V("#TIMESCALE", 2))));
+            var bar = chart.Score.NoteArray.OfType<LongNote>().Single();
+            var attached = bar.JudgedPoints.Single();
+            Assert.That(attached.Type, Is.EqualTo(NoteType.Critical));
+            Assert.That(attached.IsVisible, Is.True);
+            Assert.That(attached.LaneStartF, Is.EqualTo(2).Within(1e-6));
+            Assert.That(attached.JudgeLaneStart + attached.JudgeLaneEnd, Is.EqualTo(5).Within(1e-6));
+            Assert.That(bar.LineNoteList, Has.Count.EqualTo(2));
+            Assert.That(chart.TotalNoteCount, Is.EqualTo(3));
+            using (var harness = new LiveHarness())
+            {
+                harness.Arrange(chart.Score);
+                harness.Logic.Notes.BindNativeVisuals(1);
+                Assert.That(attached.NativeViewProgress(1.25, out _), Is.EqualTo(0.5).Within(1e-6));
+            }
+            AssertCompletesAutoplay(chart);
+            Assert.That(attached.Result, Is.EqualTo(NoteResult.Auto));
+        }
+
+        [Test]
+        public void GuideUsesAnExternalStyleAndLeavesItsEndKeyPlayable()
+        {
+            var guide = N("AnchorNote", "guide", 2);
+            var tail = N("CriticalTapNote", "tail", 4);
+            var styleHead = N("AnchorNote", "styleHead", 0);
+            var styleTail = N("AnchorNote", "styleTail", 8);
+            Add(guide, R("next", "tail"));
+            Add(tail, R("prev", "guide"));
+            Add(styleHead, V("segmentKind", 104), V("segmentAlpha", 0));
+            var chart = Load(Chart(guide, tail, styleHead, styleTail,
+                Segment("guide", "tail", "styleHead", "styleTail")));
+            var bar = chart.Score.NoteArray.OfType<GuideNote>().Single();
+            var key = chart.Score.NoteArray.OfType<NormalNote>().Single();
+            Assert.That(bar.NativeConnector.Kind, Is.EqualTo(104));
+            Assert.That(bar.NativeConnector.StartAlpha, Is.EqualTo(0.25));
+            Assert.That(bar.NativeConnector.EndAlpha, Is.EqualTo(0.5));
+            Assert.That(bar.TailNote.HasJudgment, Is.False);
+            Assert.That(key.ParentNote, Is.Null);
+            Assert.That(chart.TotalNoteCount, Is.EqualTo(1));
+            using (var harness = new LiveHarness())
+            {
+                harness.Arrange(chart.Score);
+                harness.Step(1.9f, 11.9);
+                harness.Step(2, 12, LiveHarness.Touch(1, LiveConfig.JudgmentPositions[5], 12));
+                Assert.That(key.Result, Is.EqualTo(NoteResult.JustPerfect));
+            }
+            AssertCompletesAutoplay(chart);
+        }
+
+        [Test]
+        public void StepConnectorKeepsEachSideAtItsOwnLane()
+        {
+            var head = N("NormalHeadTapNote", "head", 1, -3);
+            var tail = N("NormalTailReleaseNote", "tail", 3, 3);
+            Add(head, R("next", "tail"), V("connectorEase", 40));
+            Add(tail, R("activeHead", "head"));
+            var chart = Load(Chart(head, tail, Segment("head", "tail", "head", "tail", "head", "tail")));
+            var bar = chart.Score.NoteArray.OfType<LongNote>().Single();
+            using var harness = new LiveHarness();
+            harness.Arrange(chart.Score);
+            harness.Logic.Notes.BindNativeVisuals(1);
+            harness.Step(0.99f, 10.99);
+            Assert.That(bar.LaneStartF, Is.EqualTo(2f));
+            harness.Step(1f, 11);
+            Assert.That(bar.LaneStartF, Is.EqualTo(8f));
+        }
+
+        [Test]
         public void OrdinaryHeadStaysOnTheLineAfterPassingAnAnchor()
         {
             var head = N("NormalHeadTapNote", "head", 1);
@@ -452,7 +533,7 @@ namespace OpenSekai.Tests.EditMode.Charts
             Add(tail, R("activeHead", "head"));
             var chart = Load(Chart(head, anchor, tail,
                 Segment("head", "anchor", "head", "tail", "head", "tail"),
-                Segment("anchor", "tail", "head", "tail", "head", "tail"),
+                Segment("anchor", "tail", "anchor", "tail", "head", "tail"),
                 E("#TIMESCALE_GROUP", "anchorGroup", R("first", "hide")),
                 E("#TIMESCALE_CHANGE", "hide", V("#BEAT", 2.5), V("#TIMESCALE", 1), V("hideNotes", 1), R("next", "show")),
                 E("#TIMESCALE_CHANGE", "show", V("#BEAT", 3), V("#TIMESCALE", 1))));

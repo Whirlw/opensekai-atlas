@@ -276,7 +276,7 @@ namespace OpenSekai.Charts
             return change.Speed + (next.Speed - change.Speed) * EaseValue(change.Ease, u);
         }
 
-        private static double EaseValue(int ease, double u)
+        internal static double EaseValue(int ease, double u)
         {
             switch (ease)
             {

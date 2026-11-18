@@ -309,8 +309,9 @@ namespace Sekai
 			Color color = GetNoteColor(baseNote);
 			if (segment != null)
 			{
-				_statusValue.y = segment.Kind == 2 ? 0.025f : 0.525f;
-				if (segment.IsGuide) color = segment.GuideColor();
+				_statusValue.y = segment.IsCritical ? 0.025f : 0.525f;
+				if (segment.IsGuide) color = segment.StyleColor();
+				else if (segment.HasColor) color *= segment.StyleColor();
 			}
 			for (int i = 0; i < meshDataCount - 1 && _meshCount < POOL_COUNT; i++)
 			{
@@ -551,7 +552,7 @@ namespace Sekai
 			if (now >= end.NativeTarget.Time) return 0;
 			double a = start.NativeViewProgress(now, out bool hidden);
 			double b = end.NativeViewProgress(now, out _);
-			if (hidden) return 0;
+			if (segment?.IsHidden(now, hidden) ?? hidden) return 0;
 
 			double first = 0, last = 1;
 			if (now > start.NativeTarget.Time)
@@ -585,17 +586,39 @@ namespace Sekai
 			List<INote> viewNotes = start.ParentNote is LongNote bar ? bar.LineNoteList : start.ViewNoteList;
 			int index = viewNotes != null ? Mathf.Max(0, viewNotes.IndexOf(start)) : 0;
 			int segmentCount = Mathf.Max(1, (viewNotes?.Count ?? 2) - 1);
+			bool step = segment?.Ease == 40;
+			int written = 0;
 			for (int i = 0; i <= splits; i++)
 			{
 				float fraction = (float)i / splits;
 				float along = Mathf.Lerp((float)first, (float)last, fraction);
+				if (step && i > 0)
+				{
+					float previous = Mathf.Lerp((float)first, (float)last, (float)(i - 1) / splits);
+					bool forward = first < last;
+					if (forward ? previous < 0.5f && along >= 0.5f : previous > 0.5f && along <= 0.5f)
+					{
+						float jump = (float)((0.5 - first) / (last - first));
+						// Equal heights leave no mesh between the two sides of the jump.
+						Write(jump, 0.5f, forward ? 0f : 1f);
+						Write(jump, 0.5f, forward ? 1f : 0f);
+						if (along == 0.5f) continue;
+					}
+				}
+				float eased = step && along == 0.5f ? (last < 0.5 ? 0f : 1f)
+					: segment == null ? along : NextRushConnectorSegment.Interpolate(segment.Ease, along);
+				Write(fraction, along, eased);
+			}
+			return written;
+
+			void Write(float fraction, float along, float eased)
+			{
 				float progress = OpenSekai.Shared.Live.NoteLineProgress.View(Mathf.Lerp((float)a, (float)b, fraction));
-				float eased = segment == null ? along : NextRushConnectorSegment.Interpolate(segment.Ease, along);
 				float left = Mathf.Lerp(start.NativeLeft, end.NativeLeft, eased);
 				float right = Mathf.Lerp(start.NativeRight, end.NativeRight, eased);
 				Vector2 center = LiveUtility.EarlyVec2Lerp(LiveConfig.SpawnPosition, GetLanePosition((left + right) / 2), progress);
 				float halfWidth = progress * (((right - left + 1) * LiveConfig.widthX) - 0.1f) / 2;
-				_meshSettingBuffer[i] = new Setting
+				_meshSettingBuffer[written++] = new Setting
 				{
 					CurrentViewProgress = progress,
 					Alpha = segment == null ? 1 : Mathf.Lerp(segment.StartAlpha, segment.EndAlpha, along),
@@ -607,7 +630,6 @@ namespace Sekai
 					LineProgress = (index + along) / segmentCount
 				};
 			}
-			return splits + 1;
 		}
 
 		private static Vector2 GetLanePosition(float lane)

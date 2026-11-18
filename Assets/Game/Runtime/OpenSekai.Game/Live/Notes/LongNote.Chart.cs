@@ -87,7 +87,7 @@ namespace Sekai.Live
 			LineNoteList.Add(this);
 		}
 
-		public void AddConnectionNote(NoteBase connectionNote)
+		public void AddConnectionNote(NoteBase connectionNote, bool shapesLine = true)
 		{
 			if (connectionNote == null)
 			{
@@ -101,7 +101,7 @@ namespace Sekai.Live
 			connectionNote.SetDecoration(IsDecoration);
 			NoteList.Add(connectionNote);
 			ViewNoteList.Add(connectionNote);
-			LineNoteList.Add(connectionNote);
+			if (shapesLine) LineNoteList.Add(connectionNote);
 			connectionNote.SetParentNote(this);
 		}
 

@@ -303,6 +303,7 @@ namespace Sekai.Core.Live
 				double previous = progress;
 				bool hideSegment = hidden;
 				double previousTime = note.NativeTarget.Time;
+				var previousNode = note;
 				foreach (var child in bar.LineNoteList)
 				{
 					if (child is not NoteBase node || node == note || node.NativeScroll == null)
@@ -311,7 +312,8 @@ namespace Sekai.Core.Live
 					if (_nativeViewTime < node.NativeTarget.Time)
 					{
 						double segmentStart = _nativeViewTime >= previousTime ? 1 : previous;
-						visible |= !hideSegment && System.Math.Max(segmentStart, next) > 0
+						bool edgeHidden = previousNode.NativeConnector?.IsHidden(_nativeViewTime, hideSegment) ?? hideSegment;
+						visible |= !edgeHidden && System.Math.Max(segmentStart, next) > 0
 							&& System.Math.Min(segmentStart, next) <= 1;
 					}
 					if (node.IsVisible && node.State != NoteState.Done && !childHidden && next > 0 && next <= LiveConfig.NativeKeyProgressEnd
@@ -319,7 +321,17 @@ namespace Sekai.Core.Live
 						_presentation.Spawn(_session.Views, node, Frame.time);
 					previous = next;
 					previousTime = node.NativeTarget.Time;
+					previousNode = node;
 					hideSegment = childHidden;
+				}
+				foreach (var child in bar.ViewNoteList)
+				{
+					if (child is not NoteBase { HasNativeAttachment: true, IsVisible: true } attached
+						|| attached.State == NoteState.Done || _nativeViewTime >= attached.NativeTarget.Time)
+						continue;
+					double next = attached.NativeViewProgress(_nativeViewTime, out bool childHidden);
+					if (!childHidden && next > 0 && next <= LiveConfig.NativeKeyProgressEnd)
+						_presentation.Spawn(_session.Views, attached, Frame.time);
 				}
 			}
 			if (visible)

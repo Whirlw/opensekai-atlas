@@ -166,7 +166,11 @@ namespace Sekai.Live
 					for (int i = 1; i < bar.LineNoteList.Count; i++)
 					{
 						if (bar.LineNoteList[i] is not NoteBase end || end.NativeScroll == null) break;
-						if (now < end.NativeTarget.Time) return start.NativeScroll.SampleFrame(now).Hidden ? 0f : 1f;
+						if (now < end.NativeTarget.Time)
+						{
+							bool edgeHidden = start.NativeScroll.SampleFrame(now).Hidden;
+							return (start.NativeConnector?.IsHidden(now, edgeHidden) ?? edgeHidden) ? 0f : 1f;
+						}
 						start = end;
 					}
 					return 0f;

@@ -18,6 +18,9 @@ namespace Sekai.Live
 		internal float NativeLeft { get; private set; }
 		internal float NativeRight { get; private set; }
 		public NextRushConnectorSegment NativeConnector { get; set; }
+		private NoteBase _nativeAttachHead;
+		private NoteBase _nativeAttachTail;
+		internal bool HasNativeAttachment => _nativeAttachHead != null;
 
 		public void SetNextRushScroll(NextRushScrollTimeline timeline, double targetTime)
 		{
@@ -27,10 +30,45 @@ namespace Sekai.Live
 			NativeRight = LaneEndF;
 		}
 
+		public void SetNextRushAttachment(NoteBase head, NoteBase tail)
+		{
+			_nativeAttachHead = head;
+			_nativeAttachTail = tail;
+		}
+
+		internal double PrepareNativeVisual(double displayLead)
+		{
+			NativePreempt = NativeScroll.Preempt(displayLead);
+			double activation = NativeScroll.ActivationTime(NativeTarget, NativePreempt);
+			if (!HasNativeAttachment) return activation;
+
+			// A blend can first enter view as soon as either source does.
+			double first = _nativeAttachHead.PrepareNativeVisual(displayLead);
+			double last = _nativeAttachTail.PrepareNativeVisual(displayLead);
+			return Math.Min(activation, Math.Min(first, last));
+		}
+
 		internal double NativeViewProgress(double now, out bool hidden)
 		{
 			var sample = NativeScroll.SampleFrame(now);
 			hidden = sample.Hidden;
+			if (HasNativeAttachment)
+			{
+				double start = _nativeAttachHead.NativeTarget.Time;
+				double end = _nativeAttachTail.NativeTarget.Time;
+				double tail = _nativeAttachTail.NativeViewProgress(now, out _);
+				if (start == end)
+				{
+					if (now >= start) return 1;
+					return (_nativeAttachHead.NativeViewProgress(now, out _) + tail) / 2;
+				}
+
+				double head = now < start ? _nativeAttachHead.NativeViewProgress(now, out _) : 1;
+				double remainingStart = Math.Max(start, now);
+				double fraction = remainingStart >= end ? 0.5
+					: Math.Clamp((NativeTarget.Time - remainingStart) / (end - remainingStart), 0, 1);
+				return head + (tail - head) * fraction;
+			}
 			return 1 - NativeScroll.Distance(sample, NativeTarget) / NativePreempt;
 		}
 		protected Action<NoteBase> onUpdateScore;
