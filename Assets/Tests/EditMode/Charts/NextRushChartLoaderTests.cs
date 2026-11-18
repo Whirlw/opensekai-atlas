@@ -366,6 +366,9 @@ namespace OpenSekai.Tests.EditMode.Charts
         [TestCase("style", 1)]
         [TestCase("direction", 3)]
         [TestCase("segmentAlpha", -0.5)]
+        [TestCase("segmentLayer", 4)]
+        [TestCase("segmentLayer", 1.5)]
+        [TestCase("segmentPresentation", 2)]
         [TestCase("connectorEase", 99)]
         [TestCase("futureField", 1)]
         public void UnsupportedFieldsAreNeverSilentlyDropped(string field, double value)
@@ -575,24 +578,23 @@ namespace OpenSekai.Tests.EditMode.Charts
             harness.Logic.Notes.BindNativeVisuals(1);
             var host = new GameObject("through-judge-line guide");
             var view = host.AddComponent<NoteLineView>();
-            Mesh mesh = null;
             float originalViewLead = LiveConfig.ViewLeadSeconds;
             try
             {
                 LiveConfig.ViewLeadSeconds = 0;
-                view.Setup(_config, "traceLine_eff.png", 1);
+                view.Setup(_config, "traceLine_eff.png", 1, guide: true);
                 view.Add(bar);
                 view.Excute(0.95f);
-                mesh = host.GetComponent<MeshFilter>().sharedMesh;
+                Mesh mesh = host.GetComponent<MeshFilter>().sharedMesh;
                 float judgeY = LiveConfig.JudgmentPositions[0].y;
-                Assert.That(mesh.vertices.Min(v => v.y) < judgeY - 0.01f, Is.EqualTo(through));
+                Assert.That(mesh.vertices.Any(v => v.y < judgeY - 0.01f), Is.EqualTo(through));
 
                 Assert.That(bar.AutoJudgment(new MusicScoreInfo(0, 0.5f, 1.01f, 120, 4, 1, 1)), Is.True);
                 Assert.That(bar.State, Is.EqualTo(NoteState.Done));
                 view.Remove(bar);
                 view.Excute(1.01f);
                 Assert.That(view.BarCount, Is.EqualTo(through ? 1 : 0));
-                Assert.That(mesh.vertices.Min(v => v.y) < judgeY - 0.01f, Is.EqualTo(through));
+                Assert.That(mesh.vertices.Any(v => v.y < judgeY - 0.01f), Is.EqualTo(through));
 
                 view.Excute(6f);
                 Assert.That(view.BarCount, Is.Zero);
@@ -601,9 +603,123 @@ namespace OpenSekai.Tests.EditMode.Charts
             finally
             {
                 LiveConfig.ViewLeadSeconds = originalViewLead;
-                UnityEngine.Object.DestroyImmediate(mesh);
-                UnityEngine.Object.DestroyImmediate(view.Material);
                 UnityEngine.Object.DestroyImmediate(host);
+            }
+        }
+
+        [Test]
+        public void NativeConnectorEdgesUseTheirOwnSortingBatchAndStyleKind()
+        {
+            var head = N("AnchorNote", "head", 1);
+            var a = N("AnchorNote", "a", 1.2);
+            var b = N("AnchorNote", "b", 1.4);
+            var c = N("AnchorNote", "c", 1.6);
+            var end = N("AnchorNote", "end", 1.8);
+            Add(head, R("next", "a"), V("segmentLayer", 2), V("segmentKind", 1));
+            Add(a, R("next", "b"), V("segmentLayer", 1), V("segmentKind", 101));
+            Add(b, R("next", "c"), V("segmentLayer", 0), V("segmentKind", 2));
+            Add(c, R("next", "end"), V("segmentLayer", 3), V("segmentKind", 102));
+            var chart = Load(Chart(head, a, b, c, end, Segment("head", "a", "head", "a"),
+                Segment("a", "b", "a", "b"), Segment("b", "c", "b", "c"), Segment("c", "end", "c", "end")));
+            var bar = chart.Score.NoteArray.OfType<GuideNote>().Single();
+            using var harness = new LiveHarness();
+            harness.Arrange(chart.Score);
+            harness.Logic.Notes.BindNativeVisuals(1);
+            var holdHost = new GameObject("holds");
+            var guideHost = new GameObject("guides");
+            float originalViewLead = LiveConfig.ViewLeadSeconds;
+            try
+            {
+                LiveConfig.ViewLeadSeconds = 0;
+                var holdView = holdHost.AddComponent<NoteLineView>();
+                var guideView = guideHost.AddComponent<NoteLineView>();
+                holdView.Setup(_config, "longNoteLine.png", 1);
+                guideView.Setup(_config, "traceLine_eff.png", 1, guide: true);
+                holdView.Add(bar);
+                guideView.Add(bar);
+                holdView.Excute(0);
+                guideView.Excute(0);
+                var holdMeshes = holdHost.GetComponentsInChildren<MeshRenderer>().Where(r => r.enabled).ToArray();
+                var guideMeshes = guideHost.GetComponentsInChildren<MeshRenderer>().Where(r => r.enabled).ToArray();
+                Assert.That(holdMeshes.Select(r => r.name), Is.EquivalentTo(new[] { "holds", "Under" }));
+                Assert.That(guideMeshes.Select(r => r.name), Is.EquivalentTo(new[] { "Bottom", "Over" }));
+                Assert.That(holdMeshes.Single(r => r.name == "Under").sortingOrder, Is.LessThan(-101));
+                Assert.That(guideMeshes.Single(r => r.name == "Bottom").sortingOrder, Is.GreaterThan(-99)
+                    .And.LessThan(holdHost.GetComponent<MeshRenderer>().sortingOrder));
+                Assert.That(holdHost.GetComponent<MeshRenderer>().sortingOrder, Is.LessThan(0));
+                Assert.That(guideMeshes.Single(r => r.name == "Over").sortingOrder, Is.GreaterThan(31));
+                holdView.Clear();
+                guideView.Clear();
+                Assert.That(holdMeshes.Concat(guideMeshes).All(r => !r.enabled), Is.True);
+            }
+            finally
+            {
+                LiveConfig.ViewLeadSeconds = originalViewLead;
+                UnityEngine.Object.DestroyImmediate(holdHost);
+                UnityEngine.Object.DestroyImmediate(guideHost);
+            }
+        }
+
+        [Test]
+        public void FullScreenConnectorUsesCameraViewportChartTimeAndStyleGroupVisibility()
+        {
+            var head = N("AnchorNote", "head", 2);
+            var end = N("AnchorNote", "end", 4);
+            var style = N("AnchorNote", "style", 1);
+            var styleEnd = N("AnchorNote", "styleEnd", 5);
+            Add(head, R("next", "end"));
+            Add(style, V("segmentKind", 103), V("segmentLayer", 3), V("segmentPresentation", 1),
+                V("segmentThroughJudgeLine", 1), V("segmentAlpha", 0), R("#TIMESCALE_GROUP", "styleGroup"));
+            var chart = Load(Chart(head, end, style, styleEnd, Segment("head", "end", "style", "styleEnd"),
+                E("#TIMESCALE_GROUP", "styleGroup", R("first", "hide")),
+                E("#TIMESCALE_CHANGE", "hide", V("#BEAT", 3.25), V("#TIMESCALE", 1), V("hideNotes", 1), R("next", "show")),
+                E("#TIMESCALE_CHANGE", "show", V("#BEAT", 3.75), V("#TIMESCALE", 1))));
+            var bar = chart.Score.NoteArray.OfType<GuideNote>().Single();
+            Assert.That(bar.NativeConnector.FullScreen, Is.True);
+            Assert.That(bar.NativeConnector.Layer, Is.EqualTo(NextRushConnectorLayer.Over));
+            using var harness = new LiveHarness();
+            harness.Arrange(chart.Score);
+            harness.Logic.Notes.BindNativeVisuals(1);
+            var host = new GameObject("full-screen connector");
+            var cameraHost = new GameObject("full-screen test camera");
+            float originalViewLead = LiveConfig.ViewLeadSeconds;
+            try
+            {
+                LiveConfig.ViewLeadSeconds = 0;
+                cameraHost.transform.position = new Vector3(2, 3, -5);
+                var camera = cameraHost.AddComponent<Camera>();
+                camera.orthographic = true;
+                camera.aspect = 2.1f;
+                var view = host.AddComponent<NoteLineView>();
+                view.Setup(_config, "traceLine_eff.png", 1, viewCamera: camera, guide: true);
+                view.Add(bar);
+                view.Excute(0.99f);
+                Assert.That(host.transform.Find("Over"), Is.Null);
+                view.Excute(1.5f);
+                var overlay = host.transform.Find("Over");
+                Assert.That(overlay, Is.Not.Null);
+                var mesh = overlay.GetComponent<MeshFilter>().sharedMesh;
+                var renderer = overlay.GetComponent<MeshRenderer>();
+                Assert.That(mesh.vertexCount, Is.EqualTo(8));
+                var points = mesh.vertices.Select(v => camera.WorldToViewportPoint(overlay.TransformPoint(v))).ToArray();
+                Assert.That(points.Min(v => v.x), Is.Zero.Within(0.00001));
+                Assert.That(points.Max(v => v.x), Is.EqualTo(1).Within(0.00001));
+                Assert.That(points.Min(v => v.y), Is.Zero.Within(0.00001));
+                Assert.That(points.Max(v => v.y), Is.EqualTo(1).Within(0.00001));
+                Assert.That(mesh.colors.All(color => Mathf.Abs(color.a - 0.5f) < 0.00001f), Is.True);
+                Assert.That(mesh.uv.All(uv => uv.x == 1), Is.True);
+                view.Excute(1.75f);
+                Assert.That(renderer.enabled, Is.False);
+                view.Excute(1.9f);
+                Assert.That(renderer.enabled, Is.True);
+                view.Excute(2f);
+                Assert.That(renderer.enabled, Is.False);
+            }
+            finally
+            {
+                LiveConfig.ViewLeadSeconds = originalViewLead;
+                UnityEngine.Object.DestroyImmediate(host);
+                UnityEngine.Object.DestroyImmediate(cameraHost);
             }
         }
 

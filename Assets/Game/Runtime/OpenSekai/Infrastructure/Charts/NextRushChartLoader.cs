@@ -194,8 +194,12 @@ namespace OpenSekai.Infrastructure.Charts
                 var type = TypeOf(entity);
                 var group = Resolve(entity, "#TIMESCALE_GROUP", false);
                 if (group != null && group.Archetype != "#TIMESCALE_GROUP") throw Invalid("音符引用的变速组无效");
-                foreach (string field in new[] { "style", "segmentLayer", "effectKind", "segmentPresentation", "elevation" })
+                foreach (string field in new[] { "style", "effectKind", "elevation" })
                     if (entity.Number(field) != 0) throw Unsupported(entity.Archetype + "." + field);
+                double layer = entity.Number("segmentLayer");
+                if (layer < 0 || layer > 3 || layer % 1 != 0) throw Unsupported("segmentLayer=" + layer);
+                double presentation = entity.Number("segmentPresentation");
+                if (presentation != 0 && presentation != 1) throw Unsupported("segmentPresentation=" + presentation);
                 double through = entity.Number("segmentThroughJudgeLine");
                 if (through != 0 && through != 1) throw Invalid("穿判定线标记无效");
                 double attachment = entity.Number("isAttached");
@@ -410,10 +414,11 @@ namespace OpenSekai.Infrastructure.Charts
                             : activeHead != owner || activeTail != _chainEnds[owner])
                             throw Unsupported("Connector 的独立判定区间");
                         if (!segments.Add(head)) throw Invalid("重复的长条连接片段");
-                        double defaultKind = TypeOf(a) == NoteType.Critical ? 2 : 1;
+                        double defaultKind = guide ? 101 : TypeOf(a) == NoteType.Critical ? 2 : 1;
                         _notes[head].NativeConnector = new NextRushConnectorSegment(
                             (int)a.Number("segmentKind", defaultKind), (int)head.Number("connectorEase", 1),
-                            AlphaAt(head, a, b), AlphaAt(tail, a, b), styleHead, a.Number("segmentThroughJudgeLine") == 1);
+                            AlphaAt(head, a, b), AlphaAt(tail, a, b), styleHead, a.Number("segmentThroughJudgeLine") == 1,
+                            (NextRushConnectorLayer)(int)a.Number("segmentLayer"), a.Number("segmentPresentation") == 1);
                     }
                     else if (entity.Archetype == "SimLine")
                     {

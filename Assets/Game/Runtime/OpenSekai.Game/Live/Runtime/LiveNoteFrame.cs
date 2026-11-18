@@ -313,9 +313,14 @@ namespace Sekai.Core.Live
 					bool edgeHidden = segment?.IsHidden(_nativeViewTime, hideSegment) ?? hideSegment;
 					if (!edgeHidden)
 					{
-						double a = previous, b = next;
-						visible |= NextRushConnectorSegment.TryClip(segment, _nativeViewTime, previousTime,
-							node.NativeTarget.Time, ref a, ref b, out _, out _);
+						if (segment?.FullScreen == true)
+							visible |= segment.TryFullScreenAlpha(_nativeViewTime, previousTime, node.NativeTarget.Time, out _);
+						else
+						{
+							double a = previous, b = next;
+							visible |= NextRushConnectorSegment.TryClip(segment, _nativeViewTime, previousTime,
+								node.NativeTarget.Time, ref a, ref b, out _, out _);
+						}
 					}
 					if (node.IsVisible && node.State != NoteState.Done && !childHidden && next > 0 && next <= LiveConfig.NativeKeyProgressEnd
 						&& _nativeViewTime < node.NativeTarget.Time && bar.ViewNoteList.Contains(node))

@@ -8,6 +8,10 @@ namespace Sekai.Live
 	public partial class LongNote
 	{
 		internal double NativeConnectorDisplayEnd { get; private set; } = double.NegativeInfinity;
+		private int _nativeHoldLayers;
+		private int _nativeGuideLayers;
+
+		internal int NativeConnectorLayers(bool guide) => guide ? _nativeGuideLayers : _nativeHoldLayers;
 
 		public override Action<NoteBase> OnUpdateScore
 		{
@@ -188,12 +192,19 @@ namespace Sekai.Live
 
 			LineNoteList = LineNoteList.OrderBy(note => note.MusicScoreInfo.time).ToList();
 			NativeConnectorDisplayEnd = double.NegativeInfinity;
-			if (NativeScroll != null && TailNote is { HasJudgment: false })
+			_nativeHoldLayers = 0;
+			_nativeGuideLayers = 0;
+			if (NativeScroll != null)
 			{
+				bool canDisplayAfterTail = TailNote is { HasJudgment: false };
 				for (int i = 1; i < LineNoteList.Count; i++)
 				{
-					if (LineNoteList[i - 1] is NoteBase { NativeConnector: { ThroughJudgeLine: true } }
-						&& LineNoteList[i] is NoteBase end)
+					if (LineNoteList[i - 1] is not NoteBase { NativeConnector: { } segment }) continue;
+					int bit = 1 << (int)segment.Layer;
+					if (segment.IsGuide) _nativeGuideLayers |= bit;
+					else _nativeHoldLayers |= bit;
+
+					if (canDisplayAfterTail && segment.ThroughJudgeLine && !segment.FullScreen && LineNoteList[i] is NoteBase end)
 						NativeConnectorDisplayEnd = Math.Max(NativeConnectorDisplayEnd,
 							end.NativeTarget.Time + NextRushConnectorSegment.ThroughJudgeLineDespawnDelay);
 				}

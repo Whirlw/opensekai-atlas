@@ -61,9 +61,11 @@ namespace Sekai.Live
 			bool isCustomMusicScore = baseController.BootData?.IsCustomMusicScore ?? false;
 			LiveBundleBuildData bundleBuildData = baseController.BootData?.BundleBuildData;
 			_noteLineView = CreateLineView<NoteLineView>("NoteLineView");
-			_noteLineView.Setup(bundleBuildData, "longNoteLine.png", LiveConfig.LongNoteAlpha, isCustomMusicScore);
+			_noteLineView.Setup(bundleBuildData, "longNoteLine.png", LiveConfig.LongNoteAlpha, isCustomMusicScore,
+				baseController.BaseCamera);
 			_guideLineView = CreateLineView<NoteLineView>("GuideLineView");
-			_guideLineView.Setup(bundleBuildData, "traceLine_eff.png", LiveConfig.GuideAlpha, isCustomMusicScore);
+			_guideLineView.Setup(bundleBuildData, "traceLine_eff.png", LiveConfig.GuideAlpha, isCustomMusicScore,
+				baseController.BaseCamera, guide: true);
 			if (_isEnablePairNotesLine)
 			{
 				_pairNoteLineView = CreateLineView<PairNoteLineView>("PairNoteLineView");
@@ -145,16 +147,17 @@ namespace Sekai.Live
 				return;
 			}
 
-			if (note is GuideNote guideNote)
-			{
-				_guideLineView?.Add(guideNote);
-				return;
-			}
-
 			if (note is LongNote longNote)
 			{
-				_noteLineView?.Add(longNote);
-				if (longNote.State == NoteState.Done) return;
+				if (longNote.NativeScroll != null)
+				{
+					if (longNote.NativeConnectorLayers(false) != 0) _noteLineView?.Add(longNote);
+					if (longNote.NativeConnectorLayers(true) != 0) _guideLineView?.Add(longNote);
+				}
+				else if (longNote is GuideNote) _guideLineView?.Add(longNote);
+				else _noteLineView?.Add(longNote);
+
+				if (longNote is GuideNote || longNote.State == NoteState.Done) return;
 			}
 
 			NotePool pool = FindPool(note.Category, note.Type);
@@ -177,15 +180,17 @@ namespace Sekai.Live
 				return;
 			}
 
-			if (note is GuideNote guideNote)
-			{
-				_guideLineView?.Remove(guideNote);
-				return;
-			}
-
 			if (note is LongNote longNote)
 			{
-				_noteLineView?.Remove(longNote);
+				if (longNote.NativeScroll != null)
+				{
+					if (longNote.NativeConnectorLayers(false) != 0) _noteLineView?.Remove(longNote);
+					if (longNote.NativeConnectorLayers(true) != 0) _guideLineView?.Remove(longNote);
+				}
+				else if (longNote is GuideNote) _guideLineView?.Remove(longNote);
+				else _noteLineView?.Remove(longNote);
+
+				if (longNote is GuideNote) return;
 				// Unspawn all child notes for decoration long notes
 				if (longNote.IsDecoration && longNote.NoteList != null)
 				{

@@ -194,6 +194,15 @@ namespace OpenSekai.Tests.PlayMode
                 yield return WaitFor(() => controller.JustPlayingState, BootTimeoutSeconds, "restarting the signed run-in");
                 Assert.That(ClockMs() / 1000d, Is.EqualTo(span.StartSeconds).Within(0.20));
 
+                MeshRenderer overlay = null;
+                yield return WaitFor(() =>
+                {
+                    overlay = GameObject.Find("GuideLineView/Over")?.GetComponent<MeshRenderer>();
+                    return overlay != null && overlay.enabled;
+                }, BootTimeoutSeconds, "drawing the authored full-screen guide through the live camera");
+                Assert.That(overlay.sortingOrder, Is.GreaterThan(31));
+                Assert.That(overlay.GetComponent<MeshFilter>().sharedMesh.vertexCount, Is.EqualTo(8));
+
                 yield return WaitFor(() => ClockMs() >= 850L, BootTimeoutSeconds, "reaching the playing audio");
                 controller.PauseLive();
                 long duringMusic = ClockMs();
@@ -202,6 +211,7 @@ namespace OpenSekai.Tests.PlayMode
                 controller.ResumeNoCountDown();
                 yield return WaitFor(() => ClockMs() > duringMusic + 50L, 2f, "resuming the playing audio");
                 Assert.That(ClockMs() - duringMusic, Is.LessThan(200L));
+                yield return WaitFor(() => !overlay.enabled, 2f, "removing the full-screen guide at the end of its chart interval");
 
                 yield return WaitFor(() => !controller.JustPlayingState, BootTimeoutSeconds, "judging the last note after the audio file");
                 Assert.That(ClockMs() / 1000d, Is.EqualTo(span.LastNoteSeconds).Within(0.20));
@@ -247,7 +257,7 @@ namespace OpenSekai.Tests.PlayMode
                     { ""archetype"": ""NormalHeadTapNote"", ""name"": ""head"", ""data"": [{ ""name"": ""#BEAT"", ""value"": -2 }, { ""name"": ""lane"", ""value"": 0 }, { ""name"": ""size"", ""value"": 1 }, { ""name"": ""next"", ""ref"": ""anchor"" }, { ""name"": ""connectorEase"", ""value"": 2 }] },
                     { ""archetype"": ""AnchorNote"", ""name"": ""anchor"", ""data"": [{ ""name"": ""#BEAT"", ""value"": -1 }, { ""name"": ""lane"", ""value"": 2 }, { ""name"": ""size"", ""value"": 1 }, { ""name"": ""activeHead"", ""ref"": ""head"" }] },
                     { ""archetype"": ""Connector"", ""data"": [{ ""name"": ""head"", ""ref"": ""head"" }, { ""name"": ""tail"", ""ref"": ""anchor"" }, { ""name"": ""segmentHead"", ""ref"": ""head"" }, { ""name"": ""segmentTail"", ""ref"": ""anchor"" }, { ""name"": ""activeHead"", ""ref"": ""head"" }, { ""name"": ""activeTail"", ""ref"": ""anchor"" }] },
-                    { ""archetype"": ""AnchorNote"", ""name"": ""guideStart"", ""data"": [{ ""name"": ""#BEAT"", ""value"": -1 }, { ""name"": ""lane"", ""value"": -2 }, { ""name"": ""size"", ""value"": 1 }, { ""name"": ""next"", ""ref"": ""guideEnd"" }, { ""name"": ""segmentKind"", ""value"": 103 }, { ""name"": ""segmentAlpha"", ""value"": 0 }] },
+                    { ""archetype"": ""AnchorNote"", ""name"": ""guideStart"", ""data"": [{ ""name"": ""#BEAT"", ""value"": -1 }, { ""name"": ""lane"", ""value"": -2 }, { ""name"": ""size"", ""value"": 1 }, { ""name"": ""next"", ""ref"": ""guideEnd"" }, { ""name"": ""segmentKind"", ""value"": 103 }, { ""name"": ""segmentAlpha"", ""value"": 0 }, { ""name"": ""segmentLayer"", ""value"": 3 }, { ""name"": ""segmentPresentation"", ""value"": 1 }] },
                     { ""archetype"": ""AnchorNote"", ""name"": ""guideEnd"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 1 }, { ""name"": ""lane"", ""value"": -4 }, { ""name"": ""size"", ""value"": 1 }] },
                     { ""archetype"": ""Connector"", ""data"": [{ ""name"": ""head"", ""ref"": ""guideStart"" }, { ""name"": ""tail"", ""ref"": ""guideEnd"" }, { ""name"": ""segmentHead"", ""ref"": ""guideStart"" }, { ""name"": ""segmentTail"", ""ref"": ""guideEnd"" }] },
                     { ""archetype"": ""NormalTapNote"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 1.98 }, { ""name"": ""lane"", ""value"": 0 }, { ""name"": ""size"", ""value"": 1 }] },

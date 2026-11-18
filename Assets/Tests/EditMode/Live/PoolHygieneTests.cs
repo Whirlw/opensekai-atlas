@@ -39,6 +39,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			"LaneOffset", "_flickDistance",
 			// Native geometry and the session's display lead survive a retry of the same chart.
 			"NativeLeft", "NativeRight", "NativeTarget", "NativePreempt",
+			"NativeConnectorDisplayEnd", "_nativeHoldLayers", "_nativeGuideLayers",
 		};
 
 		private static MusicScoreInfo Info(float time) => new MusicScoreInfo(0, time / 2, time, 120, 4, 1, 1);

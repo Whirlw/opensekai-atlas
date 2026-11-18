@@ -4,6 +4,14 @@ using UnityEngine;
 
 namespace Sekai.Live
 {
+    public enum NextRushConnectorLayer
+    {
+        Top,
+        Bottom,
+        Under,
+        Over
+    }
+
     public sealed class NextRushConnectorSegment
     {
         public int Kind { get; }
@@ -11,6 +19,8 @@ namespace Sekai.Live
         public float StartAlpha { get; }
         public float EndAlpha { get; }
         public bool ThroughJudgeLine { get; }
+        public NextRushConnectorLayer Layer { get; }
+        public bool FullScreen { get; }
         internal const double ThroughJudgeLineDespawnDelay = 5;
         internal bool IsGuide => Kind >= 101 && Kind <= 108;
         internal bool IsCritical => Kind == 2 || Kind >= 21 && Kind <= 28;
@@ -18,7 +28,7 @@ namespace Sekai.Live
         private readonly NoteBase _styleHead;
 
         public NextRushConnectorSegment(int kind, int ease, float startAlpha, float endAlpha, NoteBase styleHead = null,
-            bool throughJudgeLine = false)
+            bool throughJudgeLine = false, NextRushConnectorLayer layer = NextRushConnectorLayer.Top, bool fullScreen = false)
         {
             Kind = kind;
             Ease = ease;
@@ -27,6 +37,8 @@ namespace Sekai.Live
             EndAlpha = IsGuide ? endAlpha : 1f;
             _styleHead = styleHead;
             ThroughJudgeLine = throughJudgeLine;
+            Layer = layer;
+            FullScreen = fullScreen;
         }
 
         public static float Interpolate(int ease, float t) =>
@@ -34,6 +46,14 @@ namespace Sekai.Live
 
         internal bool IsHidden(double time, bool fallback) =>
             _styleHead?.NativeScroll?.SampleFrame(time).Hidden ?? fallback;
+
+        internal bool TryFullScreenAlpha(double now, double startTime, double endTime, out float alpha)
+        {
+            alpha = 0;
+            if (now < startTime || now >= endTime) return false;
+            alpha = Mathf.Lerp(StartAlpha, EndAlpha, (float)((now - startTime) / (endTime - startTime)));
+            return alpha > 0;
+        }
 
         internal static bool TryClip(NextRushConnectorSegment segment, double now, double startTime, double endTime,
             ref double start, ref double end, out double first, out double last)
