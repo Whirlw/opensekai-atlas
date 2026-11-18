@@ -37,7 +37,7 @@ namespace OpenSekai.App.UI
         /// <param name="openLibrary">The library card was tapped.</param>
         /// <param name="openAbout">The header's about button was tapped.</param>
         /// <param name="comingSoon">A card for an unbuilt part was tapped; gets the part's name.</param>
-        internal HomeView(RectTransform parent, Action openLibrary, Action openAbout, Action<string> comingSoon)
+        internal HomeView(RectTransform parent, Action openLibrary, Action openAbout, Action<string> comingSoon, Action openServer = null)
         {
             _root = LibraryUi.CreateRect("Home", parent);
             LibraryUi.Stretch(_root);
@@ -71,8 +71,8 @@ namespace OpenSekai.App.UI
 
             RectTransform serverSlot = Slot(grid, "ServerSlot", new Vector2(share, 0.5f), Vector2.one,
                 new Vector2(halfGap, halfGap), Vector2.zero);
-            _server = new HomeFeatureCard(serverSlot, "ServerCard", "SERVER", "服务器", "联机曲库 · 排行榜 · 与好友分享",
-                HomeTheme.Colors.Periwinkle, root => new HomeGlobeArt(root), () => comingSoon?.Invoke("服务器"));
+            _server = new HomeFeatureCard(serverSlot, "ServerCard", "SERVER", "服务器", "浏览社区谱面 · 下载后自动导入",
+                HomeTheme.Colors.Periwinkle, root => new HomeGlobeArt(root), () => openServer?.Invoke(), available: true);
             LibraryUi.Stretch(_server.Root);
 
             RectTransform packsSlot = Slot(grid, "PacksSlot", new Vector2(share, 0f), new Vector2(1f, 0.5f),

@@ -42,6 +42,7 @@
 | 曲包与谱面数据 | [architecture/chart-package.md](architecture/chart-package.md) | `.oskp` 目录结构、manifest 字段、ChartDocument 读取链路 | 2026-11-02 | 现行 |
 | Sonolus 下载接入调研 | [architecture/sonolus-download.md](architecture/sonolus-download.md) | UntitledCharts 接口与资源实测、NextRUSH+ 转换及项目接入方案 | 2026-11-17 | 现行 |
 | NextRUSH+ 原生加载 | [architecture/native-next-rush.md](architecture/native-next-rush.md) | 原生并行加载、基础兼容范围、原始曲包下载和验证 | 2026-11-17 | 现行 |
+| NextRUSH+ 完整支持计划 | [architecture/next-rush-support-plan.md](architecture/next-rush-support-plan.md) | 固定兼容基线与分阶段实施、验收；技能和 Fever 按约定忽略 | 2026-11-17 | 待实施 |
 | 打歌运行时 | [architecture/live-runtime.md](architecture/live-runtime.md) | 开局六步、时钟、输入回填、计分、结算与暂停 | 2026-11-02 | 现行 |
 | 判定规则设计 | [architecture/judging-design.md](architecture/judging-design.md) | 判定权归属、三条通道、时间/轨道规则、长条四段结构、不变量清单 | 2026-11-13 | 现行 |
 | 开局数据契约 | [architecture/play-session.md](architecture/play-session.md) | PlaySession / RuntimeChartDefinition 的字段、构造与和 FreeLiveBootData 的关系 | 2026-11-03 | 现行 |

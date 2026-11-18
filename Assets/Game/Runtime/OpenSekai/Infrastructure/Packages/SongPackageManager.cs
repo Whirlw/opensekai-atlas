@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using OpenSekai.Charts;
@@ -222,7 +223,7 @@ namespace OpenSekai.Infrastructure.Packages
 			Directory.CreateDirectory(tempRoot);
 			try
 			{
-				ZipFile.ExtractToDirectory(zipPath, tempRoot);
+				SafeZipExtractor.Extract(zipPath, tempRoot);
 				string entryRoot = FindEntryRoot(tempRoot);
 				return ImportFolder(entryRoot);
 			}
@@ -235,6 +236,61 @@ namespace OpenSekai.Infrastructure.Packages
 			}
 		}
 
+        /// <summary>Extract and validate off-thread; publish and update the shared cache on the caller's Unity context.</summary>
+        public async Task<SongPackage> ImportDownloadedZipAsync(string zipPath, string downloadId, Action<float> progress = null)
+        {
+            // A deterministic receipt allows a completed download to be acknowledged after a process restart.
+            string receipt = "server-" + long.Parse(downloadId).ToString();
+            string installed = Path.Combine(RootDirectory, receipt);
+            if (File.Exists(Path.Combine(installed, SongPackageStorage.MANIFEST_FILE_NAME)))
+                return Track(SongPackageStorage.LoadEntry(installed));
+            string staging = Path.Combine(Path.GetDirectoryName(RootDirectory), ".chart-import-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                // Android's StatFs query uses JNI. Capture it on Unity's thread before Task.Run.
+                long? availableBytes = SafeZipExtractor.GetAvailableBytes(staging);
+                string prepared = await Task.Run(() =>
+                {
+                    SafeZipExtractor.Extract(zipPath, staging, progress, availableBytes);
+                    string folder = FindEntryRoot(staging);
+                    if (folder == null) throw new InvalidDataException("曲包缺少 manifest.json。");
+                    var manifest = JsonConvert.DeserializeObject<SongPackageManifest>(File.ReadAllText(Path.Combine(folder, SongPackageStorage.MANIFEST_FILE_NAME)));
+                    if (manifest == null) throw new InvalidDataException("曲包清单无效。");
+                    manifest.Normalize();
+                    foreach (string file in new[] { manifest.scoreFileName, manifest.audioFileName, manifest.jacketFileName, manifest.videoFileName })
+                    {
+                        if (string.IsNullOrEmpty(file)) continue;
+                        string normalized = file.Replace('\\', '/');
+                        string resolved = Path.GetFullPath(Path.Combine(folder, normalized));
+                        if (normalized.Contains(":") || Path.IsPathRooted(normalized) || !IsPathInsideDirectory(folder, resolved)
+                            || Array.Exists(normalized.Split('/'), part => part == ".."))
+                            throw new InvalidDataException("曲包清单引用了外部文件。");
+                        if (normalized.Contains("/"))
+                            throw new InvalidDataException("曲包清单引用的资源必须与 manifest.json 位于同一目录。");
+                    }
+                    string score = Path.Combine(folder, manifest.scoreFileName);
+                    if (!File.Exists(score)) throw new InvalidDataException("曲包缺少谱面文件。");
+                    if (NextRushChartLoader.IsNativeFileName(score)) NextRushChartLoader.ReadFile(score);
+                    else if (Path.GetExtension(score).Equals(".json", StringComparison.OrdinalIgnoreCase)
+                        && ChartFileReader.ReadFile(score, 0) == null) throw new InvalidDataException("谱面内容无效。");
+                    manifest.importedAtUtc = DateTimeOffset.UtcNow;
+                    WriteManifest(folder, manifest);
+                    return folder;
+                });
+                var preparedEntry = SongPackageStorage.LoadEntry(prepared);
+                // SUS conversion loads the game's resource configuration and must stay on Unity's thread.
+                if (!NextRushChartLoader.IsNativeFileName(preparedEntry.ScorePath)
+                    && !Path.GetExtension(preparedEntry.ScorePath).Equals(".json", StringComparison.OrdinalIgnoreCase))
+                    ChartFileReader.Read(preparedEntry);
+                Directory.CreateDirectory(RootDirectory);
+                Directory.Move(prepared, installed);
+                return Track(SongPackageStorage.LoadEntry(installed));
+            }
+            finally
+            {
+                if (Directory.Exists(staging)) Directory.Delete(staging, true);
+            }
+        }
 		public string ExportZip(SongPackage entry, string destinationPath = null)
 		{
 			if (entry == null || !Directory.Exists(entry.RootDirectory))

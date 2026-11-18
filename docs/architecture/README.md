@@ -22,6 +22,7 @@
 | [曲包与谱面数据](chart-package.md) | `.oskp` 结构、`ChartDocument`、兼容旧类型名的 binder |
 | [Sonolus 下载接入调研](sonolus-download.md) | 公开接口实测、NextRUSH+ 转换边界与分阶段接入方案 |
 | [NextRUSH+ 原生加载](native-next-rush.md) | 并行加载入口、原始曲包、基础兼容范围与下载验证工具 |
+| [NextRUSH+ 完整支持计划](next-rush-support-plan.md) | 固定兼容基线、音乐偏移/分组变速/锚点、完整玩法与分阶段验收；忽略技能和 Fever |
 | [打歌运行时](live-runtime.md) | 场景切换、时钟、输入回填、判定、计分、结算 |
 | [判定规则设计](judging-design.md) | 判定权归属、三条通道、时间与轨道规则、长条四段结构、不变量清单 |
 | [开局数据契约](play-session.md) | `PlaySession` / `RuntimeChartDefinition`，以及它们与 `FreeLiveBootData` 的关系 |

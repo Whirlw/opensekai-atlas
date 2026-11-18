@@ -174,7 +174,12 @@ namespace OpenSekai.App.UI
 
             var root = (RectTransform)_canvasRoot.transform;
             _backdrop = new HomeBackdrop(root);
-            _view = new HomeView(root, OpenLibrary, OpenAbout, ShowComingSoon);
+            _view = new HomeView(root, OpenLibrary, OpenAbout, ShowComingSoon, ServerChartDownloads.Open);
+            if (ServerChartDownloads.Current != null)
+            {
+                ServerChartDownloads.Current.StatusChanged += ShowServerStatus;
+                ServerChartDownloads.Current.Imported += OnServerImported;
+            }
             _emblem = new BrandEmblem(_view.BrandSlot, "Emblem");
             LibraryUi.Stretch(_emblem.Root);
             _splash = new HomeSplash(root, _backdrop, _emblem, _view);
@@ -282,6 +287,14 @@ namespace OpenSekai.App.UI
         {
             UiSound.Play(UiCue.Blocked);
             _view.ShowToast(part + "还在路上，敬请期待");
+        }
+
+        private void ShowServerStatus(string message) => _view.ShowToast(message);
+
+        private void OnServerImported()
+        {
+            _library?.Refresh();
+            RefreshLibrarySummary();
         }
 
         private void ShowHome()
@@ -557,6 +570,11 @@ namespace OpenSekai.App.UI
 
         private void OnDestroy()
         {
+            if (ServerChartDownloads.Current != null)
+            {
+                ServerChartDownloads.Current.StatusChanged -= ShowServerStatus;
+                ServerChartDownloads.Current.Imported -= OnServerImported;
+            }
             if (Current == this)
             {
                 Current = null;

@@ -414,12 +414,12 @@ namespace OpenSekai.App.UI
 
         internal HomeFeatureCard(
             Transform parent, string name, string eyebrow, string title, string description, Color32 tint,
-            Func<RectTransform, IHomeCardArt> createArt, Action onClick)
+            Func<RectTransform, IHomeCardArt> createArt, Action onClick, bool available = false)
         {
             _frame = new HomeCardFrame(parent, name, HomeTheme.Layout.CARD_RADIUS, null, 0.975f);
             _frame.Button.onClick.AddListener(() =>
             {
-                Shake();
+                if (!available) Shake();
                 _art?.Poke();
                 onClick?.Invoke();
             });
@@ -465,7 +465,7 @@ namespace OpenSekai.App.UI
             _statusDot.raycastTarget = false;
             LibraryWidgets.Place(_statusDot.rectTransform, new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(26f, 0f), new Vector2(10f, 10f));
             TextMeshProUGUI chipLabel = LibraryWidgets.Label(
-                "Label", chip.transform, "即将推出", 19f, LibraryTheme.Colors.TextSecondary, FontStyles.Normal, TextAlignmentOptions.Left);
+                "Label", chip.transform, available ? "进入社区" : "即将推出", 19f, LibraryTheme.Colors.TextSecondary, FontStyles.Normal, TextAlignmentOptions.Left);
             LibraryWidgets.Inset(chipLabel.rectTransform, 44f, 0f, 12f, 0f);
 
             void Stretch(RectTransform rect, float left, float top, float height)
