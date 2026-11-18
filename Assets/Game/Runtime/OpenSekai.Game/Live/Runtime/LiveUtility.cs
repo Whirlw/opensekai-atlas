@@ -370,6 +370,7 @@ namespace Sekai
 			var progress = Mathf.Clamp01(LiveConfig.GetNoteLineParentProgress(currentFrameInfo.time, currentNote, nextNote));
 			if (currentNote is NoteBase from && from.NativeScroll != null && nextNote is NoteBase to && to.NativeScroll != null)
 			{
+				if (from.NativeConnector != null) progress = NextRushConnectorSegment.Interpolate(from.NativeConnector.Ease, progress);
 				noteBase.LaneStartF = Mathf.Lerp(from.NativeLeft, to.NativeLeft, progress);
 				noteBase.LaneEndF = Mathf.Lerp(from.NativeRight, to.NativeRight, progress);
 			}

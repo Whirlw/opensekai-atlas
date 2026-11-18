@@ -18,6 +18,7 @@ namespace Sekai
 		private struct Setting
 		{
 			public float CurrentViewProgress;
+			public float Alpha;
 
 			public TwoPoint LanePosition;
 
@@ -286,7 +287,7 @@ namespace Sekai
 
 				if (centerPosition >= 2)
 				{
-					MeshCreate(ref _meshCount, time, baseNote, centerPosition);
+					MeshCreate(ref _meshCount, time, baseNote, centerPosition, (startNote as NoteBase)?.NativeConnector);
 				}
 
 				startNote = endNote;
@@ -297,7 +298,7 @@ namespace Sekai
 			}
 		}
 
-		private void MeshCreate(ref int _meshCount, float time, INote baseNote, int meshDataCount)
+		private void MeshCreate(ref int _meshCount, float time, INote baseNote, int meshDataCount, NextRushConnectorSegment segment)
 		{
 			if (meshDataCount < 2)
 			{
@@ -306,11 +307,18 @@ namespace Sekai
 
 			SetStatusValue(time, baseNote);
 			Color color = GetNoteColor(baseNote);
+			if (segment != null)
+			{
+				_statusValue.y = segment.Kind == 2 ? 0.025f : 0.525f;
+				if (segment.Kind >= 101) color = segment.GuideColor();
+			}
 			for (int i = 0; i < meshDataCount - 1 && _meshCount < POOL_COUNT; i++)
 			{
 				int vertexIndex = _meshCount * TRAPEZOID_VERTEX_COUNT;
 				CalculateTrapezoidVertex(_meshSettingBuffer[i], _meshSettingBuffer[i + 1]);
-				UpdateVertex(vertexIndex, color);
+				float startAlpha = segment == null ? 1 : _meshSettingBuffer[i].Alpha;
+				float endAlpha = segment == null ? 1 : _meshSettingBuffer[i + 1].Alpha;
+				UpdateVertex(vertexIndex, color, startAlpha, endAlpha);
 				UpdateUV(vertexIndex, i);
 				_meshCount++;
 			}
@@ -419,7 +427,7 @@ namespace Sekai
 			_trapezoidVertexInfo[1].Bottom.Right.x += startSetting.CurrentViewProgress * 0.4f;
 		}
 
-		private void UpdateVertex(int vertexIndex, Color color)
+		private void UpdateVertex(int vertexIndex, Color color, float startAlpha, float endAlpha)
 		{
 			for (int t = 0; t < 2; t++)
 			{
@@ -446,7 +454,7 @@ namespace Sekai
 					int index = offset + i;
 					_uvOffsetLeft[index] = new Vector2(_statusValue.x, offsetRange.x);
 					_uvOffsetRight[index] = new Vector2(_statusValue.y, offsetRange.y);
-					_colors[index] = color;
+					_colors[index] = new Color(color.r, color.g, color.b, color.a * ((i & 1) == 0 ? startAlpha : endAlpha));
 				}
 			}
 		}
@@ -537,6 +545,8 @@ namespace Sekai
 
 		private int SampleNativeSegment(float time, NoteBase start, NoteBase end)
 		{
+			var segment = start.NativeConnector;
+			if (segment != null && segment.StartAlpha == 0 && segment.EndAlpha == 0) return 0;
 			double now = (double)time + LiveConfig.ViewLeadSeconds;
 			if (now >= end.NativeTarget.Time) return 0;
 			double a = start.NativeViewProgress(now, out bool hidden);
@@ -570,7 +580,8 @@ namespace Sekai
 				(a, b) = (b, a);
 				(first, last) = (last, first);
 			}
-			int splits = Mathf.Clamp(Mathf.CeilToInt((float)(a - b) * SplitMeshCount), 1, SplitMeshCount);
+			int minSplits = segment != null && segment.Ease != 1 && a != b ? Mathf.Min(4, SplitMeshCount) : 1;
+			int splits = Mathf.Clamp(Mathf.CeilToInt((float)(a - b) * SplitMeshCount), minSplits, SplitMeshCount);
 			List<INote> viewNotes = start.ParentNote is LongNote bar ? bar.LineNoteList : start.ViewNoteList;
 			int index = viewNotes != null ? Mathf.Max(0, viewNotes.IndexOf(start)) : 0;
 			int segmentCount = Mathf.Max(1, (viewNotes?.Count ?? 2) - 1);
@@ -579,13 +590,15 @@ namespace Sekai
 				float fraction = (float)i / splits;
 				float along = Mathf.Lerp((float)first, (float)last, fraction);
 				float progress = OpenSekai.Shared.Live.NoteLineProgress.View(Mathf.Lerp((float)a, (float)b, fraction));
-				float left = Mathf.Lerp(start.NativeLeft, end.NativeLeft, along);
-				float right = Mathf.Lerp(start.NativeRight, end.NativeRight, along);
+				float eased = segment == null ? along : NextRushConnectorSegment.Interpolate(segment.Ease, along);
+				float left = Mathf.Lerp(start.NativeLeft, end.NativeLeft, eased);
+				float right = Mathf.Lerp(start.NativeRight, end.NativeRight, eased);
 				Vector2 center = LiveUtility.EarlyVec2Lerp(LiveConfig.SpawnPosition, GetLanePosition((left + right) / 2), progress);
 				float halfWidth = progress * (((right - left + 1) * LiveConfig.widthX) - 0.1f) / 2;
 				_meshSettingBuffer[i] = new Setting
 				{
 					CurrentViewProgress = progress,
+					Alpha = segment == null ? 1 : Mathf.Lerp(segment.StartAlpha, segment.EndAlpha, along),
 					LanePosition = new TwoPoint
 					{
 						Left = new Vector2(center.x - halfWidth, center.y),

@@ -98,6 +98,18 @@ namespace Sekai.Live
 
 			internal static void UpdateLane(LongNote bar, ref MusicScoreInfo currentFrameInfo)
 			{
+				if (bar.NativeConnector != null)
+				{
+					INote from = bar, to = bar.childNote;
+					for (int i = 1; i < bar.LineNoteList.Count; i++)
+					{
+						to = bar.LineNoteList[i];
+						if (currentFrameInfo.time < to.MusicScoreInfo.time || i == bar.LineNoteList.Count - 1) break;
+						from = to;
+					}
+					LiveUtility.CalcExcuteNoteLane(bar, ref from, ref to, ref currentFrameInfo, bar.MusicScoreInfo, bar.childNote);
+					return;
+				}
 				INote currentNote = bar;
 				INote nextNote = bar.childNote;
 				if (bar.ViewNoteList != null)

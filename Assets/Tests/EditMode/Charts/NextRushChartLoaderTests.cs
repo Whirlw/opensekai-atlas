@@ -214,17 +214,16 @@ namespace OpenSekai.Tests.EditMode.Charts
         [Test]
         public void CompatibilityReportDistinguishesDeferredRuntimeOnlyAndUnknownEntities()
         {
-            var json = Chart(E("StaticStage", null), E("FeverStartV2", null), E("AnchorNote", null));
+            var json = Chart(E("StaticStage", null), E("FeverStartV2", null), E("DamageNote", null));
             var report = NextRushCompatibility.Analyze(NextRushChart.Parse(json.ToString()));
 
             Assert.That(report.PassesPreflight, Is.False);
             Assert.That(report.Archetypes.Single(a => a.Archetype == "StaticStage").Status, Is.EqualTo(NextRushEntityStatus.RuntimeOnly));
             Assert.That(report.Archetypes.Single(a => a.Archetype == "FeverStartV2").Status, Is.EqualTo(NextRushEntityStatus.Unknown));
-            Assert.That(report.Archetypes.Single(a => a.Archetype == "AnchorNote").Status, Is.EqualTo(NextRushEntityStatus.Unsupported));
+            Assert.That(report.Archetypes.Single(a => a.Archetype == "DamageNote").Status, Is.EqualTo(NextRushEntityStatus.Unsupported));
             Assert.That(() => Load(Chart(E("FeverStartV2", null))), Throws.TypeOf<InvalidDataException>().With.Message.Contains("FeverStartV2"));
         }
 
-        [TestCase("AnchorNote")]
         [TestCase("NormalHeadTraceNote")]
         [TestCase("NormalTailTapNote")]
         [TestCase("DamageNote")]
@@ -366,14 +365,69 @@ namespace OpenSekai.Tests.EditMode.Charts
 
         [TestCase("style", 1)]
         [TestCase("direction", 3)]
-        [TestCase("segmentAlpha", 0.5)]
-        [TestCase("connectorEase", 2)]
+        [TestCase("segmentAlpha", -0.5)]
+        [TestCase("connectorEase", 99)]
         [TestCase("futureField", 1)]
         public void UnsupportedFieldsAreNeverSilentlyDropped(string field, double value)
         {
             var note = N("NormalTapNote", null, 1);
             Add(note, V(field, value));
             Assert.Throws<InvalidDataException>(() => Load(Chart(note)));
+        }
+
+        private static JObject Segment(string head, string tail, string start, string end, string activeHead = null, string activeTail = null)
+        {
+            var segment = E("Connector", null, R("head", head), R("tail", tail), R("segmentHead", start), R("segmentTail", end));
+            if (activeHead != null) Add(segment, R("activeHead", activeHead), R("activeTail", activeTail));
+            return segment;
+        }
+
+        [Test]
+        public void AnchorsShapeSameBeatEdgesGuidesAndHiddenTicksWithoutAddingJudgments()
+        {
+            var head = N("NormalHeadTapNote", "head", 2, -2);
+            var middle = N("AnchorNote", "middle", 2, -1);
+            var tail = N("AnchorNote", "tail", 4, 3);
+            Add(head, R("next", "middle"));
+            Add(middle, R("next", "tail"), V("connectorEase", 2));
+            Add(tail, R("activeHead", "head"));
+            var tick = E("TransientHiddenTickNote", null, V("#BEAT", 3), V("isAttached", 1),
+                R("attachHead", "middle"), R("attachTail", "tail"));
+            var guide = N("AnchorNote", "guide", 0);
+            var guideMiddle = N("AnchorNote", "guideMiddle", 1);
+            var guideEnd = N("AnchorNote", "guideEnd", 2);
+            Add(guide, R("next", "guideMiddle"), V("segmentKind", 103), V("segmentAlpha", 0));
+            Add(guideMiddle, R("next", "guideEnd"));
+            var chart = Load(Chart(guideEnd, tail, tick, middle, head, guideMiddle, guide,
+                Segment("head", "middle", "head", "middle", "head", "tail"),
+                Segment("middle", "tail", "middle", "tail", "head", "tail"),
+                Segment("guide", "guideMiddle", "guide", "guideEnd"),
+                Segment("guideMiddle", "guideEnd", "guide", "guideEnd")));
+            Assert.That(chart.TotalNoteCount, Is.EqualTo(2));
+            var bar = chart.Score.NoteArray.OfType<LongNote>().Single(n => n.HasJudgment);
+            Assert.That(bar.ChildNote, Is.TypeOf<HiddenConnectionNote>());
+            Assert.That(bar.LineNoteList.Count, Is.EqualTo(3));
+            Assert.That(bar.LineNoteList[0].MusicScoreInfo.time, Is.EqualTo(bar.LineNoteList[1].MusicScoreInfo.time));
+            Assert.That(bar.NoteList.OfType<LongHoldCombo>().Single().LaneStartF, Is.EqualTo(5).Within(0.00001));
+            var body = chart.Score.NoteArray.OfType<GuideNote>().Single();
+            Assert.That(body.NativeConnector.Kind, Is.EqualTo(103));
+            Assert.That(body.NativeConnector.EndAlpha, Is.EqualTo(0.5).Within(0.00001));
+            Assert.That(body.NoteList.All(note => !note.HasJudgment), Is.True);
+            AssertCompletesAutoplay(chart);
+        }
+
+        [Test]
+        public void NativeHiddenTickAtAVisibleTicksBeatKeepsItsOwnJudgment()
+        {
+            var json = Hold();
+            var hidden = ((JArray)json["entities"]).OfType<JObject>().Single(e => (string)e["archetype"] == "TransientHiddenTickNote");
+            hidden["data"] = new JArray(V("#BEAT", 2), V("isAttached", 1), R("attachHead", "middle"), R("attachTail", "tail"));
+            var chart = Load(json);
+            var hold = chart.Score.NoteArray.OfType<LongNote>().Single();
+            Assert.That(hold.JudgedPoints.Count, Is.EqualTo(2));
+            Assert.That(hold.JudgedPoints[0].MusicScoreInfo.time, Is.EqualTo(hold.JudgedPoints[1].MusicScoreInfo.time));
+            AssertCompletesAutoplay(chart);
+            Assert.That(hold.JudgedPoints.Select(n => n.Result), Is.All.EqualTo(NoteResult.Auto));
         }
 
         [TestCase(-1d, -1.25, 3.25, -4.25, 7)]
@@ -617,10 +671,17 @@ namespace OpenSekai.Tests.EditMode.Charts
                 Assert.That(File.ReadAllBytes(imported.ScorePath), Is.EqualTo(File.ReadAllBytes(Path.Combine(directory, "level-data.json.gz"))));
                 result = RuntimeChartLoader.Load(imported, _config);
             }
-            int authored = source.Entities.Count(e => e.Archetype.EndsWith("Note", StringComparison.Ordinal));
+            int authored = source.Entities.Count(e => e.Archetype.EndsWith("Note", StringComparison.Ordinal) && e.Archetype != "AnchorNote");
             Assert.That(result.TotalNoteCount, Is.EqualTo(authored), "native scored entities must appear exactly once");
+            AssertCompletesAutoplay(result);
+            TestContext.WriteLine($"Native server sample: {source.Entities.Count} entities, {result.TotalNoteCount} judged points, autoplay completed.");
+        }
+
+        private static void AssertCompletesAutoplay(RuntimeChartDefinition result)
+        {
             using var harness = new LiveHarness();
-            harness.Arrange(result.Score);
+            harness.Arrange(result.Score, auto: true);
+            harness.Logic.Notes.BindNativeVisuals(1);
             float end = result.Score.NoteArray.SelectMany(n => n.NoteList).Max(n => n.MusicScoreInfo.time) + 3;
             for (float time = -2; time < end; time += 1f / 120)
             {
@@ -629,7 +690,6 @@ namespace OpenSekai.Tests.EditMode.Charts
                 if (harness.Logic.IsNotesAllFinished) break;
             }
             Assert.That(harness.Logic.IsNotesAllFinished, Is.True);
-            TestContext.WriteLine($"Native server sample: {source.Entities.Count} entities, {result.TotalNoteCount} judged points, autoplay completed.");
         }
     }
 }

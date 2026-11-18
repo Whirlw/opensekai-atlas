@@ -17,6 +17,7 @@ namespace Sekai.Live
 		internal double NativePreempt { get; set; }
 		internal float NativeLeft { get; private set; }
 		internal float NativeRight { get; private set; }
+		public NextRushConnectorSegment NativeConnector { get; set; }
 
 		public void SetNextRushScroll(NextRushScrollTimeline timeline, double targetTime)
 		{

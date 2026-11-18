@@ -178,7 +178,10 @@ namespace Sekai.Live
 		{
 			if (NoteList != null)
 			{
-				NoteList.Sort((a, b) => a.MusicScoreInfo.time.CompareTo(b.MusicScoreInfo.time));
+				if (NativeScroll != null)
+					NoteList = NoteList.OrderBy(note => note.MusicScoreInfo.time).ToList();
+				else
+					NoteList.Sort((a, b) => a.MusicScoreInfo.time.CompareTo(b.MusicScoreInfo.time));
 			}
 
 			LineNoteList = LineNoteList.OrderBy(note => note.MusicScoreInfo.time).ToList();

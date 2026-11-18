@@ -74,10 +74,10 @@ manifest 示例：
 - 从第 0 拍开始的 BPM，支持变 BPM，4/4 拍。原生拍数用 double 计算时间，不先量化到 480 ticks；共同运行时的时间字段仍为 float。
 - 第 0 拍前的音符沿用第 0 拍的 BPM 向前换算，保留负时间。
 - Normal/Critical Tap、Flick、Trace、TraceFlick；方向支持普通、左、右。
-- HeadTap 起点、Tick 中继、TailRelease/TailFlick/TailTrace/TailTraceFlick 尾部，线性普通/高亮长条。
-- 按实体字符串名称建立引用关系，顺序无关；校验孤立节点、循环、共享节点、缺失引用、时间逆序和 Connector 片段。
-- 按服务端 TransientHiddenTickNote 创建隐藏判定点，只创建一次；该路径不运行旧转换器的自动 hold-combo 生成。
-- lane/size 转为浮点轨道边界，保留一轨宽及以上的分数位置；范围限制在当前 12 轨内。隐藏点沿线性片段按时间插值。
+- HeadTap 起点、Tick 中继、TailRelease/TailFlick/TailTrace/TailTraceFlick 尾部。Anchor 可作隐藏中继、无判定尾和 Guide 端点，允许同拍几何连接。
+- 按实体字符串名称建立引用关系，实体顺序无关。Connector 的 `head/tail` 表示实际边，`segmentHead/segmentTail` 提供覆盖该边的样式区间，`activeHead/activeTail` 对应当前长条判定区间。继续读取早期加载器接受的连接表示。
+- 按谱面创建 TransientHiddenTickNote，允许附在连接两端，也允许与独立的可见 Tick 同拍。每个原生判定点单独结算，旧转换器的自动 hold-combo 不参与。
+- lane/size 转为 12 轨内的浮点轨道边界。Anchor 允许零宽。连接缓动 1–5 同时用于绘制、长条命中范围及隐藏 Tick 位置。样式涵盖普通、高亮、8 种 Guide 颜色和端点透明度渐变。
 - SimLine 通过本地同时押线逻辑重建，遵循设置开关。
 - 变速组支持独立轨迹、跳距、隐藏、强制速度及 TIMESCALE / SCROLL 混用。适用于当前可编译的音符与线性长条。
 - 原始文件最多 32 MiB；解压后最多 32 Mi 个字符；实体最多 100000，JSON 深度最多 32。
@@ -85,7 +85,8 @@ manifest 示例：
 以下会明确报“NextRUSH+ 暂不支持”，不会静默丢弃：
 
 - 非 4/4 拍及第 0 拍前的 BPM 变化。
-- Anchor/guide 装饰连接、fake、damage、动态舞台、颜色覆盖、透明度、非线性连接、向下划键。
+- 带独立判定区间的 Connector、跨链样式区间、Guide 直接接真实尾键、可见节点附着、高级连接缓动及层级/展示/穿线样式。
+- fake、damage、动态舞台、向下划键。
 - HeadTrace/HeadFlick 等其它长条起点、TailTap、自定义判定区间和未知实体/字段。
 
 原生数据加载支持不等于复刻完整 NextRUSH+ 引擎。目前复用本项目判定、计分、音效和画面；后续玩法扩展应在原始数据保留的前提下逐项接入运行时。
@@ -147,7 +148,7 @@ unity test . --mode EditMode --filter NextRush --output TestResults/next-rush.xm
 第二个变量可选；提供时还验证真实曲包经现有安装链路后媒体存在、谱面字节不变和原生播放完成。
 没有提供第一个变量时，线上样本测试会跳过，其余合成测试不访问网络。
 
-Android 真机画面与音乐同步尚待验收。Kamisama 仍受 Anchor 和连接图支持范围限制。
+Android 真机画面与音乐同步尚待验收。
 
 2026-11-18，P0 完整 EditMode 回归为 1001 通过、18 跳过、0 失败。其中 NextRUSH+ 专项 39 项全部通过，包含 Hallway 原始 LevelData 的 848 判定点和自动播放回归。
 
@@ -157,4 +158,6 @@ Windows 的曲库 PlayMode 回归 5 项全部通过。原生用例使用 +0.51 �
 
 P2 在 Windows 的隔离 Unity 项目运行完整 EditMode 回归，1047 通过、19 跳过、0 失败。NextRUSH+ 专项 55 项全部通过，包含 Hallway 的 848 判定点及自动播放、双组独立轨迹、隐藏时手动判定、停止与倒流重入、同拍跳距和混合变速。
 
-使用本地原始谱面单独验证变速编译。Kamisama 的 2 组 7 事件正确读入，核对第 203、204 和 207 拍的速度边界。Life Reset Button 的 3 组 136 事件正确读入。两份样本的整谱播放仍取决于后续连接与音符支持。Android 未连设备，未采集真机同步与性能数据。
+P2 使用本地原始谱面单独验证变速编译。Kamisama 的 2 组 7 事件正确读入，核对第 203、204 和 207 拍的速度边界。Life Reset Button 的 3 组 136 事件正确读入。Android 未连设备，未采集真机同步与性能数据。
+
+P3 已用原始 Kamisama 曲包通过安装、原始谱面字节校验和 120 Hz 自动播放。1265 个实体中有 51 个 Anchor 和 154 个隐藏 Tick，共 885 个判定点。全量 EditMode 回归 1048 通过、19 跳过、0 失败。Hallway 原谱单独复验，848 个判定点及自动播放通过。Windows 曲库 PlayMode 5 项通过，合成谱覆盖曲线 Anchor 尾、Guide、暂停恢复、重开和结算。Windows 实机手动输入及与上游画面的对照仍待验收。

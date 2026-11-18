@@ -81,17 +81,20 @@ namespace Sekai.Live
 				return points;
 			}
 
-			var seen = new HashSet<int>();
-			for (int i = 1; i < NoteList.Count - 1; i++)
+			// Native LevelData lists each scoring point explicitly, including ticks
+			// sharing a timestamp with a separate visible point.
+			var seen = NativeConnector == null ? new HashSet<int>() : null;
+			int end = seen == null ? NoteList.Count : NoteList.Count - 1;
+			for (int i = 1; i < end; i++)
 			{
 				NoteBase part = NoteList[i];
 				if (part == null || !IsJudgedInteriorPoint(part)
-					|| ((HasIndependentTail || HasManagedTail) && ReferenceEquals(part, TailNote)))
+					|| ((seen == null || HasIndependentTail || HasManagedTail) && ReferenceEquals(part, TailNote)))
 				{
 					continue;
 				}
 
-				if (!seen.Add(JudgementPosition(part.MusicScoreInfo)))
+				if (seen != null && !seen.Add(JudgementPosition(part.MusicScoreInfo)))
 				{
 					continue;
 				}

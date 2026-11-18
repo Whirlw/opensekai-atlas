@@ -314,7 +314,7 @@ namespace Sekai.Core.Live
 						visible |= !hideSegment && System.Math.Max(segmentStart, next) > 0
 							&& System.Math.Min(segmentStart, next) <= 1;
 					}
-					if (node.State != NoteState.Done && !childHidden && next > 0 && next <= LiveConfig.NativeKeyProgressEnd
+					if (node.IsVisible && node.State != NoteState.Done && !childHidden && next > 0 && next <= LiveConfig.NativeKeyProgressEnd
 						&& _nativeViewTime < node.NativeTarget.Time && bar.ViewNoteList.Contains(node))
 						_presentation.Spawn(_session.Views, node, Frame.time);
 					previous = next;

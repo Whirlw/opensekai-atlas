@@ -7,10 +7,10 @@
 | 实体 | 当前处理 |
 | --- | --- |
 | `Initialization`、`#BPM_CHANGE`、`#TIMESCALE_GROUP` | 接受兼容子集，限制见字段表 |
-| `Connector`、`SimLine` | 校验连接，重建基础长条和同时押线 |
+| `Connector`、`SimLine` | 校验连接，重建长条、Guide 和同时押线 |
 | `Normal`、`Critical` 音符 | 两个前缀分别与下表各行组合，再加 `Note` 后缀 |
-| `TransientHiddenTickNote` | 附着在线性长条上时提供一个隐藏判定点 |
-| `AnchorNote` | P3 |
+| `TransientHiddenTickNote` | 附着在长条边上时提供一个隐藏判定点，允许与该边端点同拍 |
+| `AnchorNote` | 隐藏几何点、无判定长条尾和独立 Guide 端点 |
 | `DamageNote`、`TransientHiddenDamageTickNote` | P4 |
 | `Fake` 系列 | P4。上游为上述 32 个 Normal/Critical 组合，以及 Anchor、Damage、隐藏 Tick、隐藏 Damage Tick 各提供一个对应的 `Fake` 前缀实体，共 36 个 |
 | `#TIMESCALE_CHANGE` | 编译链接事件，供原生分组轨迹求值 |
@@ -40,7 +40,7 @@
 | #TIMESCALE_GROUP | `first`、`forceNoteSpeed` | 编译各组独立轨迹，保留 `editorName`、`editorHidden` 编辑器元数据 |
 | #TIMESCALE_CHANGE | `#BEAT`、`#TIMESCALE`、`#TIMESCALE_SKIP`、`#TIMESCALE_GROUP`、`#TIMESCALE_EASE=0`、`transitionStyle=0`、`hideNotes`、`next` | 已接入分组轨迹。Life Reset Button 附带的 `editorLane` 作为编辑器元数据保留 |
 | 全部音符（含 Anchor、Fake、Damage、隐藏点） | `#BEAT`、`#TIMESCALE_GROUP`、`stage`、`lane`、`size`、`elevation=0`、`direction`、`style`、`activeHead`、`isAttached`、`connectorEase`、`isSeparator`、`segmentKind`、`segmentAlpha`、`segmentLayer`、`segmentThroughJudgeLine`、`segmentPresentation`、`attachHead`、`attachTail`、`next`、`prev`、`effectKind` | 基础音符使用 12 轨浮点几何、方向 0–2、线性全不透明连接。其余字段组合见 P2–P5。当前隐藏 Tick 只接受 `#BEAT`、`isAttached=1`、`attachHead`、`attachTail` |
-| Connector | `head`、`tail`、`segmentHead`、`segmentTail`、`activeHead`、`activeTail`、`legacyHiddenPop` | 当前要求判定头尾与连接头尾一致，几何片段与 next 相符。独立段和 `legacyHiddenPop` 待 P3 |
+| Connector | `head`、`tail`、`segmentHead`、`segmentTail`、`activeHead`、`activeTail`、`legacyHiddenPop` | 几何边与 next 相符，同一条链内样式区间可以跨多个边，支持 Guide 与无判定尾。跨链及独立判定区间、`legacyHiddenPop` 待接入 |
 | SimLine | `left`、`right` | 校验为同拍音符，按 OpenSekai 设置重建 |
 | Stage | `fromStart`、`untilEnd`、`firstMaskChange`、`firstPivotChange`、`firstStyleChange`、`firstTransformChange` | P5 |
 | CameraChange | `#BEAT`、`lane`、`size`、`zoom=1`、`zoomTargetLane`、`zoomTargetY`、`zoomVerticalAlign`、`rotate`、`stageTilt=1`、`ease`、`next` | P5 |
