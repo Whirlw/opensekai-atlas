@@ -77,7 +77,7 @@ manifest 示例：
 - HeadTap 起点、Tick 中继、TailRelease/TailFlick/TailTrace/TailTraceFlick 尾部。Anchor 可作隐藏中继、无判定尾和 Guide 端点，允许同拍几何连接。
 - 按实体字符串名称建立引用关系，实体顺序无关。Connector 的 `head/tail` 表示实际边，`segmentHead/segmentTail` 提供覆盖该边的样式区间，`activeHead/activeTail` 对应当前长条判定区间。继续读取早期加载器接受的连接表示。
 - 按谱面创建 TransientHiddenTickNote，允许附在连接两端，也允许与独立的可见 Tick 同拍。每个原生判定点单独结算，旧转换器的自动 hold-combo 不参与。
-- lane/size 转为 12 轨内的浮点轨道边界。Anchor 允许零宽。连接缓动 1–5 同时用于绘制、长条命中范围及隐藏 Tick 位置。样式涵盖普通、高亮、8 种 Guide 颜色和端点透明度渐变。
+- lane/size 转为 12 轨内的浮点轨道边界。Anchor 允许零宽。连接缓动 1–5 同时用于绘制、长条命中范围及隐藏 Tick 位置。普通和高亮长条的片段透明度固定为 1，8 种 Guide 颜色按谱面的端点透明度渐变。
 - SimLine 通过本地同时押线逻辑重建，遵循设置开关。
 - 变速组支持独立轨迹、跳距、隐藏、强制速度及 TIMESCALE / SCROLL 混用。适用于当前可编译的音符与线性长条。
 - 原始文件最多 32 MiB；解压后最多 32 Mi 个字符；实体最多 100000，JSON 深度最多 32。

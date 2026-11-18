@@ -8,13 +8,15 @@ namespace Sekai.Live
         public int Ease { get; }
         public float StartAlpha { get; }
         public float EndAlpha { get; }
+        internal bool IsGuide => Kind >= 101 && Kind <= 108;
 
         public NextRushConnectorSegment(int kind, int ease, float startAlpha, float endAlpha)
         {
             Kind = kind;
             Ease = ease;
-            StartAlpha = startAlpha;
-            EndAlpha = endAlpha;
+            // The upstream renderer forces authored alpha to 1 for playable connectors.
+            StartAlpha = IsGuide ? startAlpha : 1f;
+            EndAlpha = IsGuide ? endAlpha : 1f;
         }
 
         public static float Interpolate(int ease, float t)

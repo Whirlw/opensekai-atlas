@@ -411,9 +411,34 @@ namespace OpenSekai.Tests.EditMode.Charts
             Assert.That(bar.NoteList.OfType<LongHoldCombo>().Single().LaneStartF, Is.EqualTo(5).Within(0.00001));
             var body = chart.Score.NoteArray.OfType<GuideNote>().Single();
             Assert.That(body.NativeConnector.Kind, Is.EqualTo(103));
+            Assert.That(body.NativeConnector.StartAlpha, Is.Zero);
             Assert.That(body.NativeConnector.EndAlpha, Is.EqualTo(0.5).Within(0.00001));
             Assert.That(body.NoteList.All(note => !note.HasJudgment), Is.True);
             AssertCompletesAutoplay(chart);
+        }
+
+        [TestCase(1, 1)]
+        [TestCase(1, 0)]
+        [TestCase(2, 1)]
+        [TestCase(2, 0)]
+        public void PlayableConnectorStaysOpaqueAcrossAnAuthoredFade(int kind, double initialAlpha)
+        {
+            var head = N("NormalHeadTapNote", "head", 1);
+            var middle = N("AnchorNote", "middle", 2);
+            var tail = N("AnchorNote", "tail", 3);
+            Add(head, R("next", "middle"), V("segmentKind", kind), V("segmentAlpha", initialAlpha));
+            Add(middle, R("next", "tail"));
+            Add(tail, R("activeHead", "head"), V("segmentAlpha", 0));
+            var chart = Load(Chart(head, middle, tail,
+                Segment("head", "middle", "head", "tail", "head", "tail"),
+                Segment("middle", "tail", "head", "tail", "head", "tail")));
+            var bar = chart.Score.NoteArray.OfType<LongNote>().Single();
+            foreach (var segment in bar.LineNoteList.OfType<NoteBase>().Take(2).Select(n => n.NativeConnector))
+            {
+                Assert.That(segment.Kind, Is.EqualTo(kind));
+                Assert.That(segment.StartAlpha, Is.EqualTo(1f));
+                Assert.That(segment.EndAlpha, Is.EqualTo(1f));
+            }
         }
 
         [Test]

@@ -310,7 +310,7 @@ namespace Sekai
 			if (segment != null)
 			{
 				_statusValue.y = segment.Kind == 2 ? 0.025f : 0.525f;
-				if (segment.Kind >= 101) color = segment.GuideColor();
+				if (segment.IsGuide) color = segment.GuideColor();
 			}
 			for (int i = 0; i < meshDataCount - 1 && _meshCount < POOL_COUNT; i++)
 			{
