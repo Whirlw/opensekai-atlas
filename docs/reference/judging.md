@@ -72,11 +72,11 @@ if (barAnswersInput) judgmentNotes.Add(note);
 if (!barAnswersInput && tailNote != null) judgmentNotes.Add(tailNote);
 ```
 
-真实谱面驱动用例：`Assets/Tests/EditMode/Live/DecorationTailFromChartTests.cs`（夹具 `Tools/fixtures/deco-tail-test10/score.json`）。设计与教训见 [判定通道与解耦收尾](../operations/judgment-channel-brief.md) §5.1 与 §11。
+真实谱面驱动用例：`Assets/Tests/EditMode/Live/DecorationTailFromChartTests.cs`（夹具 `Tools/fixtures/deco-tail-test10/score.json`）。设计与教训见 [判定通道与解耦收尾](../archive/judging-2026-11/judgment-channel-brief.md) §5.1 与 §11。
 
 ## 摩擦与隐藏（Friction / FrictionHide）
 
-这两类在谱面里是两个**不同的** `category`，运行时也必须保持不同——2026-11-07 之前转换器把它们合并成同一个「无判定载体」，代价是摩擦既没有判定、也没有声音、也没有尾键（见 [判定通道与解耦收尾](../operations/judgment-channel-brief.md) §5.3）。
+这两类在谱面里是两个**不同的** `category`，运行时也必须保持不同——2026-11-07 之前转换器把它们合并成同一个「无判定载体」，代价是摩擦既没有判定、也没有声音、也没有尾键（见 [判定通道与解耦收尾](../archive/judging-2026-11/judgment-channel-brief.md) §5.3）。
 
 | 谱面类别 | 运行时类型 | 有判定 | 有声音 | 说明 |
 | --- | --- | --- | --- | --- |
@@ -107,7 +107,7 @@ if (!barAnswersInput && tailNote != null) judgmentNotes.Add(tailNote);
 
 回归用例：`Assets/Tests/EditMode/Live/TailReleaseLaneTests.cs`、`Assets/Tests/EditMode/Live/HoldQuotaTests.cs`。
 
-> 头、体、尾的解耦仍未收尾，待办见 [`operations/tail-classes.md`](../operations/tail-classes.md) §十二/§十三。
+> 头、体、尾解耦的历史分析见 [条尾三类](../archive/judging-2026-11/tail-classes.md) §十二/§十三；其中待办描述对应记录时的状态。
 
 ## 谁会黏在判定线上
 

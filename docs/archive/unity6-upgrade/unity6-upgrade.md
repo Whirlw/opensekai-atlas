@@ -2,7 +2,7 @@
 
 - 目的：把 2022.3.62f3 → 6000.6.7f1 的升级拆成可勾选的步骤，并列出本项目会踩的坑。
 - 适用读者：要执行升级的人（本机需装 Unity 6 编辑器）。
-- 前置条件：能跑通当前的 Android 构建；读过 `docs/Unity-2022.3.62f3-to-6000.6.7f1-Android-升级指南.md`。
+- 前置条件：能跑通当前的 Android 构建；读过 `docs/archive/unity6-upgrade/Unity-2022.3.62f3-to-6000.6.7f1-Android-升级指南.md`。
 - 最后更新：2026-11-02
 
 ## 概述
@@ -29,7 +29,7 @@
 
 ### 本次执行进度（2026-11-02）
 
-证据与续接见 [升级执行记录](../changelog/2026-11-unity6-upgrade.md)。下列勾选仅表示本次实际完成的步骤。
+证据与续接见 [升级执行记录](../../changelog/2026-11-unity6-upgrade.md)。下列勾选仅表示本次实际完成的步骤。
 
 - [x] 创建 `upgrade/unity6`；记录基线 SHA、编辑器版本与 manifest SHA256；完成仓库外备份与逐文件哈希校验。
 - [x] 2022.3.62f3 Play 基线：曲库中文正常、自动打歌结算 `1,000,000 / S`，留存 MCP 原始返回和截图。
@@ -45,7 +45,7 @@
 `Builds/Atlas-2026-11-02-c2/OpenSekaiAtlas.apk`＝114,737,541 B（109.42 MiB），Unity 6 包 119,412,356 B（113.88 MiB），**+4.08%**，在 ±5% 内。
 验收基准一律取「升级前最后一次构建」，不再写死绝对体积。
 
-升级前 manifest 实测 **39 项（11 个外部包 + 28 个内置模块）**，升级后 **46 项**（见 [升级执行记录](../changelog/2026-11-unity6-upgrade.md) 的逐包差异）。
+升级前 manifest 实测 **39 项（11 个外部包 + 28 个内置模块）**，升级后 **46 项**（见 [升级执行记录](../../changelog/2026-11-unity6-upgrade.md) 的逐包差异）。
 
 ### 一、升级前的项目现状（2026-11-02 实测）
 
@@ -134,8 +134,8 @@ A：先看 `logcat -s Unity:E`；常见是 `UnityThemeSelector` 在 Unity 6 被�
 
 ## 相关文档
 
-- [Android 构建](android-build.md)
-- [Android 性能基线](android-performance.md)
-- [构建宏与剥离](../reference/build-defines.md)
-- [决策 0003：移除 UI 第三方包](../decisions/0003-drop-ui-packages.md)
-- [重构日志 §15–§19](../changelog/2026-11-refactor-log.md)
+- [Android 构建](../../operations/android-build.md)
+- [Android 性能基线](../../operations/android-performance.md)
+- [构建宏与剥离](../../reference/build-defines.md)
+- [决策 0003：移除 UI 第三方包](../../decisions/0003-drop-ui-packages.md)
+- [重构日志 §15–§19](../../changelog/2026-11-refactor-log.md)

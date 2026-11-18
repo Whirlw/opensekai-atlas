@@ -21,7 +21,7 @@
 | Assets/Tests/EditMode/Live/LongNoteGraceTests.cs | 三项联合断言助手；新增 HeldBodyNeverEntersAnInputPhase、FingerPresenceTracksAssignmentAndReset；迁移 HeldBar 构造。 |
 | Assets/Tests/EditMode/Live/LongNoteHeadTests.cs、HeadDecouplingTests.cs、LongHoldPipelineTests.cs、LiveLogicInputTests.cs、TailReleaseLaneTests.cs | 仅按下表替换获准的条体状态断言，保留具体音符断言；LongHoldPipelineTests 另迁移获准构造。 |
 | Assets/Tests/EditMode/Live/FlickEndBehaviourTests.cs | 只迁移清单内 11 处持有态构造，无任何断言变化。 |
-| docs/operations/live-judging-task-a-report.md | 本报告，记录修改、授权、验收与失败历史。 |
+| docs/archive/judging-2026-11/live-judging-task-a-report.md | 本报告，记录修改、授权、验收与失败历史。 |
 
 ## 11 处获准断言替换
 

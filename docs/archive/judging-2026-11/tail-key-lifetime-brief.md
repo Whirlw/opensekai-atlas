@@ -4,7 +4,7 @@
 
 > 目的：把「尾键什么时候显示、跟随、下移、回收」从 `Note.State` 与六个布尔开关里解耦出来，收敛成一处纯函数 `TailKeyLifetime`。
 > 适用读者：接手本任务的外部执行者。
-> 前置条件：读过 [判定通道与解耦收尾](judgment-channel-brief.md)（尤其 §5、§5.1、§11）与 [判定与窗口](../reference/judging.md)。
+> 前置条件：读过 [判定通道与解耦收尾](judgment-channel-brief.md)（尤其 §5、§5.1、§11）与 [判定与窗口](../../reference/judging.md)。
 > 最后更新：2026-11-07
 
 ## 1. 一句话目标
@@ -93,6 +93,6 @@
 ## 8. 相关文档
 
 - [判定通道与解耦收尾](judgment-channel-brief.md)（§4 WP3 是本任务书的前身，§5.1 是解析度更高的判据）
-- [判定与窗口](../reference/judging.md)
+- [判定与窗口](../../reference/judging.md)
 - [长条 v3 交接](long-hold-v3-handoff.md)
-- [测试与走查](testing.md)
+- [测试与走查](../../operations/testing.md)

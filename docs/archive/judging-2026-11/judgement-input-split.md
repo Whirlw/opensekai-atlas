@@ -371,7 +371,7 @@ private static void Stage(LiveLogic logic, string name) =>
 
 ## 十三、部件 1 已转为外部实现者任务（2026-11-10）
 
-任务书：`docs/operations/long-note-head-split.md`（自包含，含代码地图、失败记录、工具链、验收标准）。
+任务书：`docs/archive/judging-2026-11/long-note-head-split.md`（自包含，含代码地图、失败记录、工具链、验收标准）。
 
 本仓库内的判定相关工作在此暂停，接手顺序：
 

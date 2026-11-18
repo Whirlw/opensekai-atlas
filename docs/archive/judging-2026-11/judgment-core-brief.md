@@ -2,7 +2,7 @@
 
 > 目的：把 `LiveLogic` 每帧判定主循环里仍然隐式的规则显式化、纯函数化，并补上表征测试，避免再出现「成串漏判」这类只能靠真机录像定位的问题。
 > 适用读者：接手本任务的外部执行者。
-> 前置条件：读过 [判定与窗口](../reference/judging.md)、[长条 v3 交接](long-hold-v3-handoff.md)。
+> 前置条件：读过 [判定与窗口](../../reference/judging.md)、[长条 v3 交接](long-hold-v3-handoff.md)。
 > 最后更新：2026-11-04
 
 ## 1. 一句话目标
@@ -166,7 +166,7 @@ break;
 2. 313 条基线不回归；新增用例总数 ≥ 20。
 3. 真机三段走查通过，且提供每段的截图或录像。
 4. 交付报告说明「哪些代码从 `LiveLogic` 移出、移出后 `LiveLogic` 行数变化」。
-5. `docs/reference/judging.md` 与 `docs/operations/long-hold-v3-handoff.md` 同步更新。
+5. `docs/reference/judging.md` 与 `docs/archive/judging-2026-11/long-hold-v3-handoff.md` 同步更新。
 
 ## 9. 交付报告格式（缺一不可）
 
@@ -179,7 +179,7 @@ break;
 
 ## 10. 相关文档
 
-- [判定与窗口](../reference/judging.md)
+- [判定与窗口](../../reference/judging.md)
 - [长条 v3 交接](long-hold-v3-handoff.md)
 - [触摸源抽象任务书](touch-source-brief.md)
-- [测试](testing.md)
+- [测试](../../operations/testing.md)

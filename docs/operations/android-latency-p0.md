@@ -54,7 +54,7 @@ adb pull "/sdcard/Android/data/io.github.opensekai/files/logs/latency-实际文�
 | A1–A3 | 常用路由 / 实际档位 | 开 | 60 Hz 侧拍；单麦声学对照 |  |  |
 | B1–B3 | 与 A 相同 | 关 | 同 A |  |  |
 
-手感单独记「反馈跟手程度」「是否稳定偏早或偏晚」「密集段是否有漏键感」。退出后马上记一行，再看数据。P1 的 A/B 用 A 和 B 表示两个音频方案，采样开关另记一列。按更新后的[延迟优化计划](android-latency-optimization-plan.md#p1--打击音分段和真机-ab)交替采集。跨设备比较和亚帧级外部验收留待相应设备。
+手感单独记「反馈跟手程度」「是否稳定偏早或偏晚」「密集段是否有漏键感」。退出后马上记一行，再看数据。P1 的 A/B 用 A 和 B 表示两个音频方案，采样开关另记一列。按更新后的[延迟优化计划](../plans/android-latency-optimization-plan.md#p1--打击音分段和真机-ab)交替采集。跨设备比较和亚帧级外部验收留待相应设备。
 
 ## 3. P1 打击音 A/B
 

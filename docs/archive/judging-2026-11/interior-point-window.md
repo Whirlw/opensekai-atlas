@@ -121,7 +121,7 @@ C:\Program Files\Unity\Hub\Editor\6000.6.7f1\Editor\Data\DotNetSdk\dotnet.exe ^
 ## 7. 交付物
 
 1. 代码改动（生产 1 处 + 测试 14 条改基准 + 新增 2 条）。
-2. 一份报告 `docs/operations/interior-point-window-report.md`：改了什么、每处为什么、14 条测试各自怎么改的、新增 2 条的断言、最终测试数字、以及**你认为仍有风险的地方**。
+2. 一份报告 `docs/archive/judging-2026-11/interior-point-window-report.md`：改了什么、每处为什么、14 条测试各自怎么改的、新增 2 条的断言、最终测试数字、以及**你认为仍有风险的地方**。
 3. 截图或数字证明 friction 场景不再整批判定（可以是单测里的组合断言，不需要真机）。
 
 ## 8. 验收（由本仓库维护者执行）

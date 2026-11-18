@@ -18,7 +18,7 @@
 | Assets/Game/Runtime/Sekai/Core/Live/LiveLogic.cs | 独立驱动条体及其它非按下音符；所有 LongNote 子类先扫描触摸，已有 owner 只用 owner，无 owner 选车道内最近者、相等取小 fingerId；每条只驱动一次，统一调用虚方法 Judgment。旧等级排序、剪枝及 pickup 不再进入主流程。 |
 | Assets/Tests/EditMode/Live/LiveLogicInputTests.cs | 新增双指同键一次、双指分键各一次、移动外来指不提名持有条、Moved 不判普通键；原测试断言未改。 |
 | Assets/Tests/EditMode/Live/LongHoldPipelineTests.cs | 迁移 stage 脚手架和获准的 pickup 三处旧容器断言；新增双驱计数。保留原调用次数、最终 holder、时间等其余断言。 |
-| docs/operations/live-judging-task-b-report.md | 本报告，包含失败、授权迁移、逐步验收和剩余人工验收项。 |
+| docs/archive/judging-2026-11/live-judging-task-b-report.md | 本报告，包含失败、授权迁移、逐步验收和剩余人工验收项。 |
 
 LiveHoldCoordinator.cs 相对父提交差异为空。FlickNote/FrictionNote/FrictionLongNote/FrictionHideLongNote 以及谱面转换实现均未修改；临时诊断代码已撤销。旧静态等级/预留辅助入口保留供既有契约测试，主判定流程使用新按下排序。
 

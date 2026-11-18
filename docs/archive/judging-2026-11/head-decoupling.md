@@ -77,7 +77,7 @@ C:\Program Files\Unity\Hub\Editor\6000.6.7f1\Editor\Data\DotNetSdk\dotnet.exe ^
 ## 7. 交付
 
 1. 代码改动（预计 2–4 个文件）。
-2. `docs/operations/head-decoupling-report.md`：耦合点逐条怎么解、4 条新测试的断言、最终数字、以及"哪些地方我判断可能影响手感但没敢改"。
+2. `docs/archive/judging-2026-11/head-decoupling-report.md`：耦合点逐条怎么解、4 条新测试的断言、最终数字、以及"哪些地方我判断可能影响手感但没敢改"。
 3. 不要顺手做别的重构；一次只交这件事。
 
 ## 8. 验收（本仓库维护者）

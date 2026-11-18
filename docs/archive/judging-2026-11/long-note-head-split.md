@@ -1,7 +1,7 @@
 # 任务：把长条的「判定」从条上拆下来（部件 1）
 
 > 这份文档是给**外部实现者**的任务书。读完这一份即可开工，不需要先读别的。
-> 与之配套的背景文档是 `docs/operations/judgement-input-split.md`（记录了这一轮之前的所有尝试与结论），
+> 与之配套的背景文档是 `docs/archive/judging-2026-11/judgement-input-split.md`（记录了这一轮之前的所有尝试与结论），
 > 遇到「为什么不能那样做」时去那里查。
 
 - 仓库根：`E:\DeepseekHarness\OpenSekai`
@@ -254,7 +254,7 @@ $rsp=Get-ChildItem 'Library\Bee\artifacts' -Recurse -Filter 'OpenSekai.Game.rsp'
 1. 代码：`Assets/Game/Runtime/Sekai/Live/LongNoteHead.cs`（新增）+ `LongNote.cs` / `LiveHoldCoordinator.cs`
    / `LiveCandidatePipeline.cs` 的必要改动
 2. 新增测试：至少覆盖「头部结算仍在同一帧生效」「内部点归属不变」「尾键入口不变」
-3. 一份 `docs/operations/long-note-head-split-report.md`，写清：
+3. 一份 `docs/archive/judging-2026-11/long-note-head-split-report.md`，写清：
    - 每个搬走了什么、留在原处的是什么（表格）
    - 全量测试前后数字
    - 有哪几条测试的断言被改动过（如果有，逐条说明为什么不是放宽标准）

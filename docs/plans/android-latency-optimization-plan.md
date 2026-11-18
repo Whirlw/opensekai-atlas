@@ -13,7 +13,7 @@
 | 音乐时间有单调计时和漂移保护 | BGM 经 `SoundManager` 与 `CriAtomShim` 走 Unity `AudioSource.Play()`。播放位置从 `Stopwatch` 推进，并用主音源 `timeSamples` 观测纠偏。漂移保护的最小死区为 15 ms，达到 60 ms 进入硬重同步决策。前奏、音频结束后使用帧步进，控制器的音乐时间以整毫秒传递。这条时间轴已可用，但实现与提案的 DSP 排程不同。[BaseLiveController](../../Assets/Game/Runtime/OpenSekai.Game/Live/Runtime/BaseLiveController.cs#L458) · [CriAtomShim 起播](../../Assets/Game/Runtime/OpenSekai.Game/Platform/CriWare/CriAtomShim.cs#L797) · [音频纠偏](../../Assets/Game/Runtime/OpenSekai.Game/Platform/CriWare/CriAtomShim.cs#L1164) · [AudioClockDrift](../../Assets/Game/Runtime/OpenSekai.Core/Simulation/AudioClockDrift.cs#L78) |
 | 音频、显示、玩家偏移分开 | 设置界面及存储已有 `AudioLatencyMs`、`VisualLatencyMs`、`JudgeOffsetMs`。音频位置为 A，三个偏移为 L、V、J，则判定时间为 `A − L − J`，显示时间为 `A − L + V`，手动判定中的正 J 补偿习惯晚打；自动演奏忽略 J。谱面 `fillerSec` 独立应用。已有旧设置迁移，参考页仍描述旧界面，以代码为准。[设置界面](../../Assets/Game/Runtime/OpenSekai/App/UI/LibrarySettingsPanel.cs#L117) · [TimingCompensation](../../Assets/Game/Runtime/OpenSekai.Core/Simulation/TimingCompensation.cs) · [历史设置迁移](../../Assets/Game/Runtime/OpenSekai.Game/Shared/Settings/LiveSettingsStore.cs#L30) |
 | 暂停、恢复和低延迟音频配置已有基础 | 后台或失焦触发暂停，恢复会刷新 Live 输入、恢复音频并重置计时关联。启动时读取 Android 输出属性，按条件调整采样率、DSP 缓冲并记录实际配置。音频设备变更目前更新诊断信息，未联动校准和歌曲会话。[SoloLiveController](../../Assets/Game/Runtime/OpenSekai.Game/Live/Runtime/SoloLiveController.cs#L236) · [恢复流程](../../Assets/Game/Runtime/OpenSekai.Game/Live/Runtime/SoloLiveController.cs#L449) · [AudioOutputTuning](../../Assets/Game/Runtime/OpenSekai.Game/Platform/AudioOutputTuning.cs#L37) |
-| P0 采样和汇总 | 诊断开关已能记录 EnhancedTouch 回调、判定消费、判定发布、打击音请求、特效触发、帧时间、BGM 修正和溢出。已在一台真机完成补光侧拍配对。打击音请求埋点位于 `SoundManager` 调用前，播放提交与混音边界尚需补测。[P0 基线采集手册](android-latency-p0.md) |
+| P0 采样和汇总 | 诊断开关已能记录 EnhancedTouch 回调、判定消费、判定发布、打击音请求、特效触发、帧时间、BGM 修正和溢出。已在一台真机完成补光侧拍配对。打击音请求埋点位于 `SoundManager` 调用前，播放提交与混音边界尚需补测。[P0 基线采集手册](../operations/android-latency-p0.md) |
 
 ## 2. 可实现，现有链路尚未覆盖
 
@@ -23,7 +23,7 @@
 | 跨帧迟到事件和取消语义 | 同帧输入能先于按下 Miss 被消费，但后续帧送来的命中可能遇到已经结算或移出候选的音符。P2 首批已区分 `Canceled` 和 `Ended`，取消用于清理接触状态，正常抬起按事件时间算分。现有长条 50 ms 持握宽限属于玩法规则。[LiveNoteFrame](../../Assets/Game/Runtime/OpenSekai.Game/Live/Runtime/LiveNoteFrame.cs#L115) · [LiveHoldCoordinator](../../Assets/Game/Runtime/OpenSekai.Game/Live/Runtime/LiveHoldCoordinator.cs#L157) · [LongNote](../../Assets/Game/Runtime/OpenSekai.Game/Live/Notes/LongNote.cs#L386) |
 | Android MotionEvent、事件队列与时钟映射 | 源 Manifest 已指向自定义 `UnityPlayerActivity`，现有 Java 实现只转发分享回调。可以在同一入口旁路采集 DOWN、UP、CANCEL、当前和历史 MOVE，再批量交给 Unity。需验证实际合并后的 Manifest、Activity 和 IL2CPP 真机运行。API 26–33 走毫秒；API 34+ 可读取纳秒单位的当前和历史事件；API 34 可先用毫秒同源锚点并实测误差；API 35+ 可用 `uptimeNanos()`。原生队列和直接 DSP 映射尚未实现。[Activity](../../Assets/Plugins/Android/com/opensekai/CustomUnityPlayerActivity.java) · [Manifest](../../Assets/Plugins/Android/AndroidManifest.xml#L16) · [MotionEvent](https://developer.android.com/reference/android/view/MotionEvent) · [SystemClock](https://developer.android.com/reference/android/os/SystemClock) |
 | DSP 预排程与段落锚点 | 可以让 BGM 使用 `PlayScheduled()`，为开局、跳转和恢复建立新锚点，同时保留现有混音与 SE 路径供比较。统一歌曲位置后继续派生出判定时间和显示时间。DSP 读数粒度及混音与实际输出间隔仍要测量。[Unity PlayScheduled](https://docs.unity.com/en-us/engine/6000.0/script-reference/unityengine/audiosource/playscheduled) · [Unity dspTime](https://docs.unity.com/en-us/engine/6000.0/script-reference/unityengine/audiosettings/dsptime) |
-| 校准流程、输出路由档案、低开销测量 | 已有三个可手调值、逐类追踪和性能 HUD。还需节拍校准、路由切换失效策略、物理基线、分位数和丢样统计。当前输出设备枚举只能作为线索，已连接蓝牙设备不等于当前 BGM 正经该设备输出。[AudioOutputTuning](../../Assets/Game/Runtime/OpenSekai.Game/Platform/AudioOutputTuning.cs#L81) · [历史帧率基线](android-performance.md) |
+| 校准流程、输出路由档案、低开销测量 | 已有三个可手调值、逐类追踪和性能 HUD。还需节拍校准、路由切换失效策略、物理基线、分位数和丢样统计。当前输出设备枚举只能作为线索，已连接蓝牙设备不等于当前 BGM 正经该设备输出。[AudioOutputTuning](../../Assets/Game/Runtime/OpenSekai.Game/Platform/AudioOutputTuning.cs#L81) · [历史帧率基线](../operations/android-performance.md) |
 
 ## 3. 当前架构无法提供的保证
 
@@ -45,7 +45,7 @@
 | 敲屏声峰值 → 同轨打击音波形对齐点 | 29 / 40 | 70.29 ms | 75.29 ms |
 | 可辨接触 → 首个明确可见反馈 | 20 | 2 帧，约 33 ms | 1 / 2 / 3 帧各 3 / 15 / 2 次 |
 
-同局无路由缓冲溢出和 BGM 纠偏。该谱的 40 次匹配以普通单键为主，密谱、取消、同帧短触和长时间漂移仍待专项覆盖。60 fps 画面每帧约 16.7 ms，先看帧数分布。音频约 70 ms 是共用录音时基下的声学读数，触控事件时间戳使用应用时基，两者的差额只用于定位优先级。早先三个俯拍样本的约 84 ms 属于另一组录制条件，差值无法归因到软件。 [补光侧拍报告](../../TestResults/latency-p0-lit/p0-lit-report.md) · [P0 基线采集手册](android-latency-p0.md)
+同局无路由缓冲溢出和 BGM 纠偏。该谱的 40 次匹配以普通单键为主，密谱、取消、同帧短触和长时间漂移仍待专项覆盖。60 fps 画面每帧约 16.7 ms，先看帧数分布。音频约 70 ms 是共用录音时基下的声学读数，触控事件时间戳使用应用时基，两者的差额只用于定位优先级。早先三个俯拍样本的约 84 ms 属于另一组录制条件，差值无法归因到软件。 [补光侧拍报告](../../TestResults/latency-p0-lit/p0-lit-report.md) · [P0 基线采集手册](../operations/android-latency-p0.md)
 
 | 指标 | 测法与建议首轮门槛 |
 | --- | --- |
@@ -107,4 +107,4 @@
 
 每阶段交付基线数据、对照结果、已覆盖设备与路由、回归报告和可回退开关。新输入源、DSP 排程、校准和缓冲策略各自可回退，切换在局间或重建会话时生效。收紧判定窗属于手感变更，在跨机型实测后独立决策。
 
-首轮单机通过后，再按 P0 的设备、路由和负载矩阵推广。历史 165 Hz 帧时和自动演奏记录仍用于帧率与流程回归，物理延迟使用本轮及后续同条件 A/B 数据。[真机性能](android-performance.md)
+首轮单机通过后，再按 P0 的设备、路由和负载矩阵推广。历史 165 Hz 帧时和自动演奏记录仍用于帧率与流程回归，物理延迟使用本轮及后续同条件 A/B 数据。[真机性能](../operations/android-performance.md)

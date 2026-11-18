@@ -42,5 +42,5 @@ break;
 
 ## 相关
 
-- 任务书：[live-judging-remaining](../operations/live-judging-remaining.md) 的任务 C。
+- 任务书：[live-judging-remaining](../archive/judging-2026-11/live-judging-remaining.md) 的任务 C。
 - 同期的判定解耦：[2026-11-judging-decoupling](2026-11-judging-decoupling.md)。

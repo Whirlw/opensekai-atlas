@@ -1,7 +1,7 @@
 # 2026-11 输入判定收口：中间点窗口、划尾延迟、头体解耦
 
 时间：2026-11-10
-相关任务书：[judgement-input-split](../operations/judgement-input-split.md)、[interior-point-window](../operations/interior-point-window.md)、[head-decoupling](../operations/head-decoupling.md)
+相关任务书：[judgement-input-split](../archive/judging-2026-11/judgement-input-split.md)、[interior-point-window](../archive/judging-2026-11/interior-point-window.md)、[head-decoupling](../archive/judging-2026-11/head-decoupling.md)
 
 ## 一句话
 

@@ -1,8 +1,10 @@
 # Open Sekai Atlas 结构重整计划书
 
+> 历史归档：以下状态、待办和验收结论均保留原记录时的上下文，请勿直接视为当前项目状态。
+
 > 目的：把当前“旧引擎 + 新播放器外壳”的代码结构整理成边界清晰、可测试、可继续裁剪的工程，并让文档与真实目录重新一致。
 > 适用读者：接手代码的开发者、做重构的人、发版前做门禁的人。
-> 前置条件：读过 [架构总览](README.md) 与 [模块划分](modules.md)；当前基线为 `f14b717c`。
+> 前置条件：读过 [架构总览](../../architecture/README.md) 与 [模块划分](../../architecture/modules.md)；当前基线为 `f14b717c`。
 > 最后更新：2026-11-12
 > 状态：**M1、M2、M3 已达标，M4 收尾中**（P4-1 至 P4-4 的主体已完成；剩余为发布前的门禁复跑与两条已知缺陷的处置，见各批记录。M2 保留一条开局音既有缺陷，见 Phase 2 记录）。按任务依赖推进，每个工作包独立提交并记录验收结果。
 
@@ -161,14 +163,14 @@ Assets/Game/Runtime/
 
 - 为三个 `HeadSettlementTests` 提交最小谱面 fixture，保留原测试需要的重叠长条和速度倍率场景。优先复用 `Tools/fixtures/hold-overlap-regression/`，先确认它能覆盖各用例的前置条件。需要落盘的测试使用独占临时目录，并在 `TearDown` 清理。
 - 单独复现 `AFingerReturningInsideTheGraceTakesTheBarBack`，核对宽限期规则和最近通过的版本。确认是回归时单独修复并保留原断言；确认是未交付契约时，登记具体测试名、原因和跟踪项。结论未确认前暂停 P2-3 的长条拆分。
-- 从干净检出用 [现有 EditMode 脚本](../../Tools/run-editmode-tests.ps1) 连续跑两次，分别指定 `-ReportPath`，保存命令、Unity 版本、两份 XML 报告及跳过用例清单。后续以这份基线比较用例结果。
+- 从干净检出用 [现有 EditMode 脚本](../../../Tools/run-editmode-tests.ps1) 连续跑两次，分别指定 `-ReportPath`，保存命令、Unity 版本、两份 XML 报告及跳过用例清单。后续以这份基线比较用例结果。
 
 验收：三例可脱离本地 `Temp` 运行；两次结果一致；所有失败或跳过均有具体用例与原因，新增失败为 0。
 
 **P0-5 验证整首自动化测试的运行方式**
 
-- 从现有 `LibrarySmokeTests` 出发，使用 `Tools/fixtures/baseline_tap` 验证跨 `Library → Core → Library` 的测试运行方式。先解决 [测试文档记录的跨场景销毁问题](../operations/testing.md#整首打歌的自动化)——这个问题后来证伪了：异步测试路径不受域重载影响，见 P4-3 执行记录。
-- 保存运行命令、测试报告和所需资源准备步骤。原型通过后作为 P4-3 的输入；若仍受 Test Runner 生命周期阻塞，记录失败证据，继续保留现有曲库 PlayMode 冒烟和 [Android 整首验收](../operations/android-build.md)。
+- 从现有 `LibrarySmokeTests` 出发，使用 `Tools/fixtures/baseline_tap` 验证跨 `Library → Core → Library` 的测试运行方式。先解决 [测试文档记录的跨场景销毁问题](../../operations/testing.md#整首打歌的自动化)——这个问题后来证伪了：异步测试路径不受域重载影响，见 P4-3 执行记录。
+- 保存运行命令、测试报告和所需资源准备步骤。原型通过后作为 P4-3 的输入；若仍受 Test Runner 生命周期阻塞，记录失败证据，继续保留现有曲库 PlayMode 冒烟和 [Android 整首验收](../../operations/android-build.md)。
 
 验收：有一份可复现的原型结果。Phase 1 依据 EditMode 和 Android 基线验收，整首 PlayMode 接入由原型结果决定。
 
@@ -240,7 +242,7 @@ Phase 1 验收：Core 无 Unity API 及上层依赖，Core 测试可在 Unity Ed
 - 复用现有 `LongNoteHead` 和 `Live/Tails/` 的四种尾行为；分离条体状态、尾判和显示回收职责，沿用现有的状态与判定契约。
 - P0-4 确认宽限期契约后，先补 `LongNoteGraceTests`、`TailReleaseLaneTests`、`HoldQuotaTests` 的缺失覆盖，再移动代码。
 
-验收：`LongNote` < 500 个非空行；长条测试满足 P0-4 基线；按 [真机验收清单](../operations/device-acceptance-checklist.md) 核对宽限期内回按、换手、双长条重叠和尾判时序。
+验收：`LongNote` < 500 个非空行；长条测试满足 P0-4 基线；按 [真机验收清单](../../operations/device-acceptance-checklist.md) 核对宽限期内回按、换手、双长条重叠和尾判时序。
 
 **P2-4 `LiveLogic`（933 行）**
 
@@ -727,8 +729,8 @@ git mv Old/Path.cs.meta New/Path.cs.meta
 
 ## 12. 相关文档
 
-- [架构总览](README.md)
-- [模块划分](modules.md)
-- [构建与运行](../getting-started/build-and-run.md)
-- [测试](../operations/testing.md)
-- [文档索引](../INDEX.md)
+- [架构总览](../../architecture/README.md)
+- [模块划分](../../architecture/modules.md)
+- [构建与运行](../../getting-started/build-and-run.md)
+- [测试](../../operations/testing.md)
+- [文档索引](../../INDEX.md)

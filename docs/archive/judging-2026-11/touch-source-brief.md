@@ -4,7 +4,7 @@
 
 > 目的：把「输入从哪来」从判定主链里分离出来，让判定可以被 EditMode 测试驱动；同时给出可验收的边界。
 > 适用读者：承接本任务的外部执行者，以及复核这个分支的人。
-> 前置条件：读过 [测试](testing.md) 与 [编辑器菜单](editor-menus.md)。
+> 前置条件：读过 [测试](../../operations/testing.md) 与 [编辑器菜单](../../operations/editor-menus.md)。
 > 最后更新：2026-11-03
 
 ## 概述
@@ -116,9 +116,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File Tools\run-editmode-tests.ps1
 
 ## 相关文档
 
-- [测试](testing.md)
-- [判定窗口与容差](../reference/judging.md)
-- [Live 运行时](../architecture/live-runtime.md)
+- [测试](../../operations/testing.md)
+- [判定窗口与容差](../../reference/judging.md)
+- [Live 运行时](../../architecture/live-runtime.md)
 
 ## 复核记录（2026-11-03，分支 `design/touch-source`）
 

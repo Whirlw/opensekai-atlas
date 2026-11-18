@@ -22,8 +22,8 @@
 ## 1. 先读这些文档（顺序别换）
 
 1. `docs/README.md` —— 文档约定与本机工具表。
-2. `docs/operations/unity6-upgrade.md` —— 本次升级的清单，**这是你的主参照**。
-3. `docs/Unity-2022.3.62f3-to-6000.6.7f1-Android-升级指南.md` —— 引擎侧变更的原始依据。
+2. `docs/archive/unity6-upgrade/unity6-upgrade.md` —— 本次升级的清单，**这是你的主参照**。
+3. `docs/archive/unity6-upgrade/Unity-2022.3.62f3-to-6000.6.7f1-Android-升级指南.md` —— 引擎侧变更的原始依据。
 4. `docs/operations/android-build.md` —— 出包与三个已知坑。
 5. `docs/operations/android-performance.md` —— 升级后要复现的性能基线。
 6. `docs/operations/troubleshooting.md` —— 卡住时先查这里。
@@ -46,7 +46,7 @@
    - 复制 `ProjectSettings/`、`Assets/Plugins/Android/` 到仓库外做备份，路径写进最终报告。
    - 跑一次 Play 门禁，确认升级前基线是好的（见第 4 节）。
 2. **打开工程**：用 Unity 6000.6.7f1 打开，允许资源迁移；中途不要保存场景、不要接受脚本自动更新（选 No）。
-3. **修编译**：按 `docs/operations/unity6-upgrade.md` 第三节的 API 表替换（`FindObjectOfType` 9 处、`FindObjectsOfType` 7 处）。其余报错逐个处理，每类错误单独 commit。
+3. **修编译**：按 `docs/archive/unity6-upgrade/unity6-upgrade.md` 第三节的 API 表替换（`FindObjectOfType` 9 处、`FindObjectsOfType` 7 处）。其余报错逐个处理，每类错误单独 commit。
 4. **图形面**：
    - 删 `Assets/Graphics/Shaders/TextMeshPro_Mobile_Distance Field.shader`，材质改指 uGUI 2.0 包内的 TMP shader。
    - 删 Overdraw 相关（`OverdrawRenderer.asset`、`MysekaiOverdrawRendererFeature`）。
@@ -55,7 +55,7 @@
 6. **编辑器门禁**（见第 4 节）。
 7. **Android 包**：出包后按第 4 节的命令核验，再装机。
 8. **性能回归**：用 `OPENSEKAI_PERF_HUD` 宏打一首，对比 `docs/operations/android-performance.md` 的表（打歌稳态 165 fps、`worst` 6.04 ms）。
-9. **收尾**：更新 `docs/changelog/`（新增一篇升级记录）、`docs/operations/unity6-upgrade.md` 的勾选框、`docs/INDEX.md`。
+9. **收尾**：更新 `docs/changelog/`（新增一篇升级记录）、`docs/archive/unity6-upgrade/unity6-upgrade.md` 的勾选框、`docs/INDEX.md`。
 
 ## 4. 验收标准（不过就停下报告，不要绕过）
 
@@ -114,6 +114,6 @@ Android 门禁（`adb` 与 `aapt2` 路径自行按本机 Unity 版本替换）�
 
 你把它贴给我，我会据此：
 
-1. 对照 `docs/operations/unity6-upgrade.md` 的验收清单复核它是否真跑通；
+1. 对照 `docs/archive/unity6-upgrade/unity6-upgrade.md` 的验收清单复核它是否真跑通；
 2. 补完它留下的 `TODO`；
 3. 决定是否合并到主线，以及是否继续做剩下的 asmdef 拆分。

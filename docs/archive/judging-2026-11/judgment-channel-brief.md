@@ -4,7 +4,7 @@
 
 > 目的：把长条那一轮（20 个缺陷）暴露出的四类系统性欠账一次处理掉——**判定通道没有显式表达**、**视图与判定共用状态**、**对象池跨局污染**、**单位与时间多真源**。
 > 适用读者：接手本任务的外部执行者，以及后续维护判定内核的人。
-> 前置条件：读过 [判定与窗口](../reference/judging.md)、[长条 v3 交接](long-hold-v3-handoff.md)（尤其 §9–§11）、[判定内核任务书](judgment-core-brief.md)（A/C/D 已完成）。
+> 前置条件：读过 [判定与窗口](../../reference/judging.md)、[长条 v3 交接](long-hold-v3-handoff.md)（尤其 §9–§11）、[判定内核任务书](judgment-core-brief.md)（A/C/D 已完成）。
 > 最后更新：2026-11-07
 
 ## 1. 一句话目标
@@ -282,7 +282,7 @@ for (int i = 0; i < sampleCount && i < _meshSettingBuffer.Length; i++)   // 用�
 
 ## 12. 相关文档
 
-- [判定与窗口](../reference/judging.md)
+- [判定与窗口](../../reference/judging.md)
 - [长条 v3 交接](long-hold-v3-handoff.md)（§9–§11 是本次任务的直接前因）
 - [判定内核任务书](judgment-core-brief.md)（A/C/D 已完成，B 由本文件取代）
-- [测试与走查](testing.md)
+- [测试与走查](../../operations/testing.md)

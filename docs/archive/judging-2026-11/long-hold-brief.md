@@ -128,7 +128,7 @@ EvaluateJudgment();                 // 每手指判第一条候选，判完 brea
 
 ## 12. 相关文档
 
-- [判定窗口与容差](../reference/judging.md)
-- [测试与 CI](testing.md)
-- [Android 构建与真机门禁](android-build.md)
+- [判定窗口与容差](../../reference/judging.md)
+- [测试与 CI](../../operations/testing.md)
+- [Android 构建与真机门禁](../../operations/android-build.md)
 - [触摸源抽象任务书](touch-source-brief.md)（同类交接文档，可作为格式参考）

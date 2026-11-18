@@ -1,0 +1,27 @@
+# 判定与长条任务归档
+
+这些文档记录当时的任务、判断和验证，不代表当前待办或现行实现。
+
+- [自动播放先于音符行走判定（DEINOS PHAINEIN 掉血）](autoplay-frame-order.md)
+- [交接（判定解耦）](handoff-2026-11-11.md)
+- [head-decoupling-report.md](head-decoupling-report.md)
+- [长条头与条体解耦（交给外部实现者的任务书）](head-decoupling.md)
+- [interior-point-window-report.md](interior-point-window-report.md)
+- [中间点的判定窗口（交给外部实现者的任务书）](interior-point-window.md)
+- [judgement-input-split.md](judgement-input-split.md)
+- [judgment-channel-brief.md](judgment-channel-brief.md)
+- [判定内核纯函数化：交给外部执行者的任务书](judgment-core-brief.md)
+- [live-judging-remaining.md](live-judging-remaining.md)
+- [任务 A 完成报告](live-judging-task-a-report.md)
+- [任务 B 完成报告](live-judging-task-b-report.md)
+- [任务 C 报告：护栏发现同段计算错误，停止并回退](live-judging-task-c-report.md)
+- [LiveLogic 现状依赖图与分层拆分计划](live-logic-refactor.md)
+- [双长条断连：交给外部执行者的任务书](long-hold-brief.md)
+- [长条第三轮交接（2026-11-03，接手先读此文件）](long-hold-v3-handoff.md)
+- [长条头彻底解耦（C 方案）](long-note-head-full-decoupling.md)
+- [long-note-head-split-report.md](long-note-head-split-report.md)
+- [任务：把长条的「判定」从条上拆下来（部件 1）](long-note-head-split.md)
+- [owner-removal-and-release-tail.md](owner-removal-and-release-tail.md)
+- [条尾三类：谁影响谁](tail-classes.md)
+- [tail-key-lifetime-brief.md](tail-key-lifetime-brief.md)
+- [… 按下方三步实现 …](touch-source-brief.md)

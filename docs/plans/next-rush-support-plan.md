@@ -2,7 +2,7 @@
 
 > 状态：待实施；本文描述目标，不代表已经支持。
 > 制定日期：2026-11-17。
-> 当前实现基线：提交 `abffa9d3`，参见 [NextRUSH+ 原生加载](native-next-rush.md)。
+> 当前实现基线：提交 `abffa9d3`，参见 [NextRUSH+ 原生加载](../architecture/native-next-rush.md)。
 > 用户约定：**Skill、FeverChance、FeverStart 直接忽略，不实现技能与 Fever。**
 
 ## 1. 目标与范围
@@ -228,6 +228,6 @@ P0 先采集旧版和当前原生路径的加载耗时、峰值内存、每帧 C
 - [音符行为](https://github.com/UntitledCharts/sonolus-next-rush-engine/blob/1f086fb6fcc56fcb38cbf9eba6b98dbefc630316/sekai/play/note.py)、[连接行为](https://github.com/UntitledCharts/sonolus-next-rush-engine/blob/1f086fb6fcc56fcb38cbf9eba6b98dbefc630316/sekai/play/connector.py)。
 - [动态舞台](https://github.com/UntitledCharts/sonolus-next-rush-engine/blob/1f086fb6fcc56fcb38cbf9eba6b98dbefc630316/sekai/play/dynamic_stage.py)、[选项与计分模式](https://github.com/UntitledCharts/sonolus-next-rush-engine/blob/1f086fb6fcc56fcb38cbf9eba6b98dbefc630316/sekai/lib/options.py)。
 - [Sonolus LevelData 结构](https://wiki.sonolus.com/level-specs/resources/level-data)。
-- 项目现状：[原生加载](native-next-rush.md)、[下载调研](sonolus-download.md)、[判定设计](judging-design.md)、[音频](audio.md)、[开局契约](play-session.md)。
+- 项目现状：[原生加载](../architecture/native-next-rush.md)、[下载调研](../architecture/sonolus-download.md)、[判定设计](../architecture/judging-design.md)、[音频](../architecture/audio.md)、[开局契约](../architecture/play-session.md)。
 
 随阶段交付：兼容实体/字段清单、合成与真实样本档案、自动化结果、参考画面/输入对照记录、设备性能记录、历史成绩迁移说明，以及更新后的现行支持文档。本文继续记录阶段状态，现行行为以实现文档为准。
