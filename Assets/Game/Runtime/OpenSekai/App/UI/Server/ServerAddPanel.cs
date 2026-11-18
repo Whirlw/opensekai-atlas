@@ -59,7 +59,7 @@ namespace OpenSekai.App.UI
 
             Caption(body, "地址", top);
             top += 38f;
-            _address = LibraryWidgets.TextField("Address", body, FIELD_HEIGHT, "untitledcharts.com", LibraryIcon.Globe);
+            _address = LibraryWidgets.TextField("Address", body, FIELD_HEIGHT, "请输入服务器地址", LibraryIcon.Globe);
             _address.characterLimit = 2048;
             _address.contentType = TMP_InputField.ContentType.Standard;
             LibraryWidgets.TopStrip((RectTransform)_address.transform, 0f, 0f, top, FIELD_HEIGHT);
@@ -130,10 +130,10 @@ namespace OpenSekai.App.UI
             bool sonolus = kind == ServerKind.Sonolus;
             Paint(_sonolusKind, _sonolusLabel, sonolus);
             Paint(_webKind, _webLabel, !sonolus);
-            ((TextMeshProUGUI)_address.placeholder).text = sonolus ? "untitledcharts.com" : "https://example.com/";
+            ((TextMeshProUGUI)_address.placeholder).text = "请输入服务器地址";
             _hint.text = sonolus
                 ? "可以输入服务器地址，或直接粘贴谱面分享链接、sonolus:// 链接"
-                : "以 https:// 开头；在网页里下载的 ZIP / OSKP 曲包会自动导入曲库";
+                : "默认以 https:// 开头；在网页里下载的 ZIP / OSKP 曲包会自动导入曲库";
             _error.text = string.Empty;
         }
 

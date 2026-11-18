@@ -15,7 +15,9 @@ namespace OpenSekai.App.UI
     {
         public static ServerChartDownloads Current { get; private set; }
         public event Action<string> StatusChanged;
+#pragma warning disable CS0067 // Raised by the Android-only import path.
         public event Action Imported;
+#pragma warning restore CS0067
         private readonly HashSet<string> _attempted = new HashSet<string>();
         private Task _import;
         private float _progress;
