@@ -57,10 +57,10 @@ namespace OpenSekai.Charts
             {
                 case "Skill": case "FeverChance": case "FeverStart":
                     return NextRushEntityStatus.IgnoredByProject;
-                case "Initialization": case "#BPM_CHANGE": case "#TIMESCALE_GROUP":
+                case "Initialization": case "#BPM_CHANGE": case "#TIMESCALE_GROUP": case "#TIMESCALE_CHANGE":
                 case "Connector": case "SimLine": case "TransientHiddenTickNote":
                     return NextRushEntityStatus.CompilerCandidate;
-                case "#TIMESCALE_CHANGE": case "Stage": case "CameraChange":
+                case "Stage": case "CameraChange":
                 case "StageTransformChange": case "StageMaskChange": case "StagePivotChange": case "StageStyleChange":
                 case "AnchorNote": case "DamageNote": case "TransientHiddenDamageTickNote":
                 case "FakeAnchorNote": case "FakeDamageNote":

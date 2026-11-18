@@ -1,4 +1,5 @@
 using System;
+using OpenSekai.Charts;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Newtonsoft.Json;
@@ -11,6 +12,26 @@ namespace Sekai.Live
 {
 	public class NoteBase : INote
 	{
+		internal NextRushScrollTimeline NativeScroll { get; private set; }
+		internal NextRushScrollTimeline.Position NativeTarget { get; private set; }
+		internal double NativePreempt { get; set; }
+		internal float NativeLeft { get; private set; }
+		internal float NativeRight { get; private set; }
+
+		public void SetNextRushScroll(NextRushScrollTimeline timeline, double targetTime)
+		{
+			NativeScroll = timeline;
+			NativeTarget = timeline.Sample(targetTime);
+			NativeLeft = LaneStartF;
+			NativeRight = LaneEndF;
+		}
+
+		internal double NativeViewProgress(double now, out bool hidden)
+		{
+			var sample = NativeScroll.SampleFrame(now);
+			hidden = sample.Hidden;
+			return 1 - NativeScroll.Distance(sample, NativeTarget) / NativePreempt;
+		}
 		protected Action<NoteBase> onUpdateScore;
 
 		protected Action<NoteBase> onUpdateCombo;

@@ -67,6 +67,8 @@ namespace OpenSekai.Infrastructure.Charts
             private readonly Dictionary<NextRushEntity, NextRushEntity> _owners = new Dictionary<NextRushEntity, NextRushEntity>();
             private readonly List<NextRushEntity> _hidden = new List<NextRushEntity>();
             private readonly List<(double beat, double time, double bpm)> _bpm = new List<(double, double, double)>();
+            private Dictionary<NextRushEntity, NextRushScrollTimeline> _groups;
+            private NextRushScrollTimeline _defaultScroll;
             private MusicScoreInfo[] _timing;
             private int _nextId;
 
@@ -76,16 +78,15 @@ namespace OpenSekai.Infrastructure.Charts
             public RuntimeChartDefinition Build(NextRushCompatibilityReport compatibility)
             {
                 BuildTiming();
+                _groups = NextRushScrollCompiler.Compile(_source, TimingAt);
+                if (_groups.Count != 0)
+                    _defaultScroll = new NextRushScrollTimeline(Array.Empty<NextRushScrollTimeline.Change>(), 0);
                 foreach (var entity in _source.Entities)
                 {
                     if (NextRushCompatibility.Classify(entity.Archetype) == NextRushEntityStatus.IgnoredByProject) continue;
                     switch (entity.Archetype)
                     {
-                        case "#BPM_CHANGE": case "Initialization": break;
-                        case "#TIMESCALE_GROUP":
-                            Fields(entity, "editorName");
-                            if (entity.Has("editorName")) entity.Reference("editorName");
-                            break;
+                        case "#BPM_CHANGE": case "Initialization": case "#TIMESCALE_GROUP": case "#TIMESCALE_CHANGE": break;
                         case "Connector": case "SimLine": break;
                         case "TransientHiddenTickNote": _hidden.Add(entity); break;
                         default: _notes.Add(entity, CreateNote(entity)); break;
@@ -146,6 +147,12 @@ namespace OpenSekai.Infrastructure.Charts
 
             private MusicScoreInfo At(double beat)
             {
+                var timing = TimingAt(beat);
+                return Info(beat, timing.time, timing.bpm);
+            }
+
+            private (double time, double bpm) TimingAt(double beat)
+            {
                 int low = 0, high = _bpm.Count - 1;
                 while (low < high)
                 {
@@ -154,7 +161,7 @@ namespace OpenSekai.Infrastructure.Charts
                     if (at <= beat) low = mid; else high = mid - 1;
                 }
                 var start = _bpm[low];
-                return Info(beat, start.time + (beat - start.beat) * 60 / start.bpm, start.bpm);
+                return (start.time + (beat - start.beat) * 60 / start.bpm, start.bpm);
             }
 
             private static MusicScoreInfo Info(double beat, double time, double bpm)
@@ -209,6 +216,11 @@ namespace OpenSekai.Infrastructure.Charts
                     default: throw Unsupported(entity.Archetype);
                 }
                 SetGeometry(note, left, right);
+                if (_defaultScroll != null)
+                {
+                    var scroll = group != null && _groups.TryGetValue(group, out var timeline) ? timeline : _defaultScroll;
+                    note.SetNextRushScroll(scroll, TimingAt(Beat(entity)).time);
+                }
                 return note;
             }
 

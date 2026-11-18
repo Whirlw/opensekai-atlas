@@ -13,7 +13,7 @@ namespace Sekai
 				return;
 			}
 
-			if (note.Progress <= 0f)
+			if (!LiveConfig.IsKeyVisible(note, musicTime))
 			{
 				if (LiveTrace.IsOn(LiveTraceCategory.Frame))
 				{
@@ -42,7 +42,7 @@ namespace Sekai
 				return;
 			}
 
-			float progress = CalcProgress();
+			float progress = CalcProgress(musicTime);
 			if (LiveTrace.IsOn(LiveTraceCategory.Frame))
 			{
 				LiveTrace.Write(LiveTraceCategory.Frame, "view barT=" + note.MusicScoreInfo.time.ToString("F3") + " state=" + note.State + " raw=" + note.Progress.ToString("F3") + " view=" + progress.ToString("F3"));
@@ -58,14 +58,14 @@ namespace Sekai
 			}
 		}
 
-		protected float CalcProgress()
+		protected float CalcProgress(float musicTime)
 		{
 			if (note == null)
 			{
 				return 0f;
 			}
 
-			float progress = LiveConfig.ViewProgressOf(note);
+			float progress = LiveConfig.ViewProgressOf(note, musicTime);
 			if (note.State == NoteState.Done)
 			{
 				return LiveConfig.GetNoteViewProgress(progress);

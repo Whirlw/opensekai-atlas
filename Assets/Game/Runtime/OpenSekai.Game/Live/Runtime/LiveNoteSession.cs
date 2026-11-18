@@ -19,6 +19,9 @@ namespace Sekai.Core.Live
 		private readonly List<NoteBase> _highSpeedScratch = new List<NoteBase>();
 		private int _noteIndex;
 		private int _highSpeedIndex;
+		private (double start, NoteBase note)[] _nativeVisuals = Array.Empty<(double, NoteBase)>();
+		private readonly List<NoteBase> _activeNativeVisuals = new List<NoteBase>();
+		private int _nativeVisualIndex;
 
 		public NoteBase[] Notes { get; private set; } = Empty;
 
@@ -74,10 +77,57 @@ namespace Sekai.Core.Live
 		{
 			NoteIndex = 0;
 			HighSpeedIndex = 0;
+			_nativeVisualIndex = 0;
+			_activeNativeVisuals.Clear();
 			_heads.Clear();
 			// A new take starts with no open notes: carrying the previous take's lists over meant a retry
 			// ticked notes it had never scanned, before their own bar was on screen at all.
 			_tails.Clear();
+		}
+
+		internal void BindNativeVisuals(double displayLead)
+		{
+			var entries = new List<(double start, NoteBase note)>();
+			foreach (var note in Notes)
+			{
+				if (note?.NativeScroll == null) continue;
+				double start = PrepareVisual(note, displayLead);
+				if (note is LongNote bar)
+				{
+					foreach (var child in bar.NoteList)
+						if (child != note && child.NativeScroll != null)
+							start = Math.Min(start, PrepareVisual(child, displayLead));
+				}
+				entries.Add((start, note));
+			}
+			_nativeVisuals = entries.ToArray();
+			Array.Sort(_nativeVisuals, (a, b) => a.start.CompareTo(b.start));
+			_nativeVisualIndex = 0;
+			_activeNativeVisuals.Clear();
+		}
+
+		private static double PrepareVisual(NoteBase note, double displayLead)
+		{
+			note.NativePreempt = note.NativeScroll.Preempt(displayLead);
+			return note.NativeScroll.ActivationTime(note.NativeTarget, note.NativePreempt);
+		}
+
+		internal void WalkNativeVisuals(double now, Action<NoteBase> visit)
+		{
+			while (_nativeVisualIndex < _nativeVisuals.Length && _nativeVisuals[_nativeVisualIndex].start <= now)
+				_activeNativeVisuals.Add(_nativeVisuals[_nativeVisualIndex++].note);
+			for (int i = _activeNativeVisuals.Count - 1; i >= 0; i--)
+			{
+				var note = _activeNativeVisuals[i];
+				if (note.State == NoteState.Done)
+				{
+					int last = _activeNativeVisuals.Count - 1;
+					_activeNativeVisuals[i] = _activeNativeVisuals[last];
+					_activeNativeVisuals.RemoveAt(last);
+				}
+				else
+					visit(note);
+			}
 		}
 
 		/// <summary>

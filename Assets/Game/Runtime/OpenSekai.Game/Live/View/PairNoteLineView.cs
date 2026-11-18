@@ -127,6 +127,11 @@ namespace Sekai
 				}
 
 				INote note = _pairNotes[i];
+				if (note is NoteBase native && native.NativeScroll != null)
+				{
+					DrawNativePair(note, musicTime, vertexIndex);
+					continue;
+				}
 				if (note.State == NoteState.Scrolling && note.Progress > 0f)
 				{
 					float progress = LiveConfig.GetNoteViewProgress(LiveConfig.ViewProgressOf(note));
@@ -154,6 +159,25 @@ namespace Sekai
 			}
 
 			ApplyMesh();
+		}
+
+		private void DrawNativePair(INote note, float time, int vertex)
+		{
+			float a = LiveConfig.ViewProgressOf(note, time);
+			float b = LiveConfig.ViewProgressOf(note.PairNote, time);
+			if (a <= 0 || b <= 0)
+			{
+				ClearVertex(vertex);
+				return;
+			}
+			a = LiveConfig.GetNoteViewProgress(a);
+			b = LiveConfig.GetNoteViewProgress(b);
+			Vector2 start = LiveUtility.EarlyVec2Lerp(LiveConfig.SpawnPosition, LaneCenter(note), a);
+			Vector2 end = LiveUtility.EarlyVec2Lerp(LiveConfig.SpawnPosition, LaneCenter(note.PairNote), b);
+			_vertices[vertex] = new Vector3(start.x, start.y + a * 0.2f, 0f);
+			_vertices[vertex + 1] = new Vector3(end.x, end.y + b * 0.2f, 0f);
+			_vertices[vertex + 2] = new Vector3(start.x, start.y - a * 0.2f, 0f);
+			_vertices[vertex + 3] = new Vector3(end.x, end.y - b * 0.2f, 0f);
 		}
 
 		private void ClearVertex()

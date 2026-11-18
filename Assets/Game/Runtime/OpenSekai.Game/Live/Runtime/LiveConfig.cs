@@ -139,6 +139,7 @@ namespace Sekai.Live
 		/// <see cref="OpenSekai.Shared.Live.Simulation.TimingCompensation"/>). Set by the live controller.
 		/// </summary>
 		public static float ViewLeadSeconds { get; set; }
+		internal const double NativeKeyProgressEnd = 1.35;
 
 		/// <summary>The progress a key is drawn at: its logic progress moved by <see cref="ViewLeadSeconds"/>.</summary>
 		public static float ViewProgressOf(INote note)
@@ -151,6 +152,19 @@ namespace Sekai.Live
 			float offsetTime = note is NoteBase noteBase ? noteBase.offsetTime : 0f;
 			return OpenSekai.Shared.Live.Simulation.TimingCompensation.ViewProgress(note.Progress, offsetTime, ViewLeadSeconds);
 		}
+
+		internal static float ViewProgressOf(INote note, float time)
+		{
+			if (note is NoteBase native && native.NativeScroll != null)
+			{
+				double progress = native.NativeViewProgress((double)time + ViewLeadSeconds, out bool hidden);
+				return hidden || progress > NativeKeyProgressEnd ? 0f : (float)progress;
+			}
+			return ViewProgressOf(note);
+		}
+
+		internal static bool IsKeyVisible(INote note, float time) =>
+			note is NoteBase native && native.NativeScroll != null ? ViewProgressOf(note, time) > 0f : note.Progress > 0f;
 
 		public static float CacheTimingTime { get; set; }
 

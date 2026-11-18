@@ -1,6 +1,6 @@
 # NextRUSH+ 完整谱面支持计划
 
-> 状态：P0 的兼容预检、revision 默认值和约定忽略已接入。P1 已接入正负音乐偏移、负时间和开局与结算的三秒规则。固定源码与样本见 [兼容基线](../architecture/next-rush-compatibility.md)，时间换算见 [原生加载](../architecture/native-next-rush.md#音乐偏移与三秒规则)。P0 的同设备性能基线和 Android 端同步仍待采集。
+> 状态：P0 的兼容预检、revision 默认值和约定忽略已接入。P1 已接入正负音乐偏移、负时间和开局与结算的三秒规则。P2 已接入分组变速与基础长条端点轨迹，离线核对了 Kamisama 的 2 组 7 个事件和 Life Reset Button 的 3 组 136 个事件。Kamisama 全谱仍待 P3 的 Anchor 与连接图。P0 的同设备性能基线和 Android 端同步仍待采集。固定源码与样本见 [兼容基线](../architecture/next-rush-compatibility.md)，轨迹与时间换算见 [原生加载](../architecture/native-next-rush.md)。
 > 制定日期：2026-11-17。
 > 计划制定时的实现基线为 `abffa9d3`。现行行为见 [NextRUSH+ 原生加载](../architecture/native-next-rush.md)。
 > 用户约定：**Skill、FeverChance、FeverStart 直接忽略，不实现技能与 Fever。**
@@ -28,7 +28,7 @@
 
 ## 2. 当前能力与缺口
 
-已实现：原生 JSON/GZip 解析、命名实体引用、基础 Normal/Critical 音符、部分长条、线性连接、变 BPM、浮点轨道、原始曲包导入导出和开发用下载脚本。当前拒绝非零音乐偏移、分组变速、Anchor、非线性连接及其他特殊功能。
+已实现：原生 JSON/GZip 解析、命名实体引用、基础 Normal/Critical 音符、部分长条、线性连接、变 BPM、有符号音乐偏移、分组变速、浮点轨道、原始曲包导入导出和下载入口。当前拒绝 Anchor、非线性连接及其余尚未接入的玩法。
 
 已有验证：专项测试 29 项通过；较早一轮完整 EditMode 回归 974 通过、18 跳过。基础真实谱面 You're Walking Down The Hallway 已验证 848 个判定点和自动播放完成。Android 音画同步尚未验收。这些结果不代表特殊玩法已验证。
 
@@ -37,7 +37,7 @@
 | 原始数据和曲包 | 已接通，保留压缩字节 | 保留来源、引擎版本与资源 hash，兼容报告可复查 |
 | 音乐偏移 | 有符号偏移和负时间，继续走统一播放时钟 | Android 上验证同步、暂停恢复和歌曲结束 |
 | BPM 与拍数 | 变 BPM、负拍音符，仍要求 BPM 从第 0 拍开始和 4/4 | 按上游实际语义支持合法数据，时间计算不依赖旧 ticks 量化 |
-| 分组变速 | 拒绝事件 | 多组、缓动、停止、倒流、skip、两种 transitionStyle、隐藏与强制速度 |
+| 分组变速 | 已接入多组、缓动、停止、倒流、skip、两种 transitionStyle、隐藏与强制速度 | 组合谱面画面与性能验收 |
 | 判定音符 | 基础独立键和部分头尾 | Tap/Flick/Trace/TraceFlick/Release 的独立、头、尾变体及 Tick |
 | 方向 | 普通、左、右 | 上游全部方向枚举，包含向下划动及镜像映射 |
 | Anchor / Guide | 拒绝 | 隐藏几何点、装饰端点、独立装饰连接及混合连接 |

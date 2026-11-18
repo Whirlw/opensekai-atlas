@@ -224,7 +224,6 @@ namespace OpenSekai.Tests.EditMode.Charts
             Assert.That(() => Load(Chart(E("FeverStartV2", null))), Throws.TypeOf<InvalidDataException>().With.Message.Contains("FeverStartV2"));
         }
 
-        [TestCase("#TIMESCALE_CHANGE")]
         [TestCase("AnchorNote")]
         [TestCase("NormalHeadTraceNote")]
         [TestCase("NormalTailTapNote")]
@@ -232,6 +231,137 @@ namespace OpenSekai.Tests.EditMode.Charts
         public void UnsupportedArchetypesAreRefused(string archetype)
         {
             Assert.Throws<InvalidDataException>(() => Load(Chart(N(archetype, null, 1))));
+        }
+
+        [Test]
+        public void GroupsUseIndependentTrajectoriesWithoutMovingJudgmentTimes()
+        {
+            var a = N("NormalTapNote", "a", 6, -2);
+            var b = N("NormalTapNote", "b", 6, 2);
+            Add(a, R("#TIMESCALE_GROUP", "fast"));
+            Add(b, R("#TIMESCALE_GROUP", "slow"));
+            var result = Load(Chart(a, b,
+                E("#TIMESCALE_GROUP", "fast", R("first", "fast1"), R("editorName", "highlight"), V("editorHidden", 1)),
+                E("#TIMESCALE_GROUP", "slow", R("first", "slow1"), V("forceNoteSpeed", 12)),
+                E("#TIMESCALE_CHANGE", "fast1", V("#BEAT", 0), V("#TIMESCALE", 2), R("next", "fast2")),
+                E("#TIMESCALE_CHANGE", "fast2", V("#BEAT", 4), V("#TIMESCALE", 2), V("#TIMESCALE_SKIP", 1)),
+                E("#TIMESCALE_CHANGE", "slow1", V("#BEAT", 0), V("#TIMESCALE", 0), V("hideNotes", 1))));
+            var notes = result.Score.NoteArray.OrderBy(n => n.LaneStartF).ToArray();
+            foreach (var note in notes) Assert.That(note.MusicScoreInfo.time, Is.EqualTo(3));
+            Assert.That(notes[0].NativeScroll.Distance(notes[0].NativeScroll.Sample(1), notes[0].NativeTarget),
+                Is.EqualTo(4.5).Within(1e-9));
+            Assert.That(notes[1].NativeScroll.Sample(1).Hidden, Is.True);
+            Assert.That(notes[1].NativeScroll.Preempt(2), Is.EqualTo(0.35).Within(1e-9));
+
+            using var harness = new LiveHarness();
+            harness.Arrange(result.Score);
+            harness.Logic.Notes.BindNativeVisuals(1);
+            harness.Step(2.6f, 12.6);
+            harness.Step(2.9f, 12.9);
+            Assert.That(LiveConfig.ViewProgressOf(notes[1], 2.9f), Is.Zero);
+            var left = LiveConfig.JudgmentPositions[3];
+            var right = LiveConfig.JudgmentPositions[7];
+            harness.Step(3f, 13, LiveHarness.Touch(1, left, 13), LiveHarness.Touch(2, right, 13));
+            harness.Step(3.2f, 13.2);
+            harness.Step(3.3f, 13.3);
+            Assert.That(harness.Logic.IsNotesAllFinished, Is.True);
+            Assert.That(notes.Select(n => n.Result), Is.All.EqualTo(NoteResult.JustPerfect));
+        }
+
+        [TestCase("cycle")]
+        [TestCase("owner")]
+        [TestCase("order")]
+        [TestCase("orphan")]
+        public void InvalidTimescaleGraphsAreRejected(string problem)
+        {
+            var group = E("#TIMESCALE_GROUP", "group", R("first", "first"));
+            var first = E("#TIMESCALE_CHANGE", "first", V("#BEAT", 2), V("#TIMESCALE", 1));
+            var second = E("#TIMESCALE_CHANGE", "second", V("#BEAT", problem == "order" ? 1 : 2), V("#TIMESCALE", 1));
+            if (problem != "orphan") Add(first, R("next", "second"));
+            if (problem == "cycle") Add(second, R("next", "first"));
+            if (problem == "owner") Add(second, R("#TIMESCALE_GROUP", "elsewhere"));
+            Assert.Throws<InvalidDataException>(() =>
+                Load(Chart(group, first, second, E("#TIMESCALE_GROUP", "elsewhere"))));
+        }
+
+        [Test]
+        public void TimelineConservativelyActivatesBeforeStopAndReverseReentry()
+        {
+            var timeline = new NextRushScrollTimeline(new[]
+            {
+                new NextRushScrollTimeline.Change(2, 0, 0, 0, false, true),
+                new NextRushScrollTimeline.Change(4, -1, 0, 0, false, false),
+                new NextRushScrollTimeline.Change(6, 1, 0, 0, false, false)
+            }, 0);
+            var hit = timeline.Sample(9);
+            Assert.That(timeline.ActivationTime(hit, 1.25), Is.EqualTo(1.75).Within(1e-9));
+            Assert.That(timeline.Distance(timeline.Sample(2), hit), Is.EqualTo(1).Within(1e-9));
+            Assert.That(timeline.Sample(3).Hidden, Is.True);
+            Assert.That(timeline.Distance(timeline.Sample(5), hit), Is.EqualTo(2).Within(1e-9));
+            Assert.That(timeline.Distance(timeline.Sample(8), hit), Is.EqualTo(1).Within(1e-9));
+        }
+
+        [Test]
+        public void VisualWalkerKeepsAnUnjudgedNoteAvailableForReentryAndRestart()
+        {
+            var tap = N("NormalTapNote", "tap", 18);
+            Add(tap, R("#TIMESCALE_GROUP", "group"));
+            var note = Load(Chart(tap, E("#TIMESCALE_GROUP", "group", R("first", "reverse")),
+                E("#TIMESCALE_CHANGE", "reverse", V("#BEAT", 4), V("#TIMESCALE", -1), R("next", "forward")),
+                E("#TIMESCALE_CHANGE", "forward", V("#BEAT", 12), V("#TIMESCALE", 1)))).Score.NoteArray.Single();
+            var session = new LiveNoteSession();
+            session.Bind(new[] { note });
+            session.BindNativeVisuals(0.5);
+            double progress = double.NaN;
+            double now = 0.8;
+            void Visit(NoteBase n) => progress = n.NativeViewProgress(now, out _);
+            session.WalkNativeVisuals(now, Visit);
+            Assert.That(progress, Is.GreaterThan(0));
+            now = 6;
+            session.WalkNativeVisuals(now, Visit);
+            Assert.That(progress, Is.LessThan(0));
+            now = 8.75;
+            session.WalkNativeVisuals(now, Visit);
+            Assert.That(progress, Is.EqualTo(0.5).Within(1e-9));
+            Assert.That(note.State, Is.EqualTo(NoteState.Wait));
+            session.Reset();
+            progress = double.NaN;
+            now = 0.8;
+            session.WalkNativeVisuals(now, Visit);
+            Assert.That(progress, Is.GreaterThan(0));
+        }
+
+        [Test]
+        public void MixedModesComposeScrollWidthsAndTimescaleDistancesInBothDirections()
+        {
+            var timeline = new NextRushScrollTimeline(new[]
+            {
+                new NextRushScrollTimeline.Change(0, 2, 0, 1, true, false),
+                new NextRushScrollTimeline.Change(2, 4, 2, 0, false, false),
+                new NextRushScrollTimeline.Change(4, 1, 0, 0, true, false)
+            }, 0);
+            var a = timeline.Sample(1);
+            var b = timeline.Sample(5);
+            // Width to the first boundary is 1 + 2/4. Its initial speed is 3.
+            // The remaining run distances are 8 and 1, scaled by the first run's 3/4.
+            Assert.That(timeline.Distance(a, b), Is.EqualTo(11.25).Within(1e-9));
+            Assert.That(timeline.Distance(b, a), Is.EqualTo(-15).Within(1e-9));
+            Assert.That(timeline.Distance(timeline.Sample(0), a), Is.EqualTo(2).Within(1e-9));
+        }
+
+        [Test]
+        public void LinearEaseAndSameTimeSkipsUseLinkedMarkerOrder()
+        {
+            var timeline = new NextRushScrollTimeline(new[]
+            {
+                new NextRushScrollTimeline.Change(0, 1, 0, 1, false, false),
+                new NextRushScrollTimeline.Change(2, 3, 1, 0, false, true),
+                new NextRushScrollTimeline.Change(2, -1, 2, 0, false, false)
+            }, 0);
+            Assert.That(timeline.Distance(timeline.Sample(0), timeline.Sample(1)), Is.EqualTo(1.5).Within(1e-9));
+            Assert.That(timeline.Distance(timeline.Sample(0), timeline.Sample(2)), Is.EqualTo(7).Within(1e-9));
+            Assert.That(timeline.Distance(timeline.Sample(2), timeline.Sample(3)), Is.EqualTo(-1).Within(1e-9));
+            Assert.That(timeline.Sample(2).Hidden, Is.False);
         }
 
         [TestCase("style", 1)]

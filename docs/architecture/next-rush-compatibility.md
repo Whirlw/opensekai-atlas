@@ -13,7 +13,7 @@
 | `AnchorNote` | P3 |
 | `DamageNote`、`TransientHiddenDamageTickNote` | P4 |
 | `Fake` 系列 | P4。上游为上述 32 个 Normal/Critical 组合，以及 Anchor、Damage、隐藏 Tick、隐藏 Damage Tick 各提供一个对应的 `Fake` 前缀实体，共 36 个 |
-| `#TIMESCALE_CHANGE` | P2 |
+| `#TIMESCALE_CHANGE` | 编译链接事件，供原生分组轨迹求值 |
 | `Stage`、`CameraChange`、`StageTransformChange`、`StageMaskChange`、`StagePivotChange`、`StageStyleChange` | P5 |
 | `Skill`、`FeverChance`、`FeverStart` | 约定忽略。保留原始实体，只校验 LevelData 语法 |
 | `StaticStage`、`_InputManager`、`SlideManager`、`ConnectorSfxManager`、`SlotGlowEffect`、`SlotEffect`、`ComboJudge`、`JudgmentAccuracy`、`DamageFlash`、`ParticleManager` | 引擎生成，作为 LevelData 输入时拒绝 |
@@ -37,8 +37,8 @@
 | LevelData | `bgmOffset`、`entities` | P1 支持有符号偏移，换算规则见 [音乐偏移与三秒规则](native-next-rush.md#音乐偏移与三秒规则) |
 | Initialization | `revision=1`、`initialLife=1000`、`firstCamera` | 记录有效 revision。自定义生命待 P4，相机引用需指向 CameraChange，实际使用待 P5 |
 | #BPM_CHANGE | `#BEAT`、`#BPM` | 从第 0 拍开始，BPM 为正。同拍多事件拒绝。样本附带的 `meter` 只接受 4（默认 4） |
-| #TIMESCALE_GROUP | `first`、`forceNoteSpeed` | 当前支持只含编辑器名称 `editorName` 的空组，动态组待 P2。观察到附加编辑器字段 `editorName`、`editorHidden` |
-| #TIMESCALE_CHANGE | `#BEAT`、`#TIMESCALE`、`#TIMESCALE_SKIP`、`#TIMESCALE_GROUP`、`#TIMESCALE_EASE=0`、`transitionStyle=0`、`hideNotes`、`next` | 均待 P2。Life Reset Button 另带 `editorLane`，服务器 play 资源无对应输入 |
+| #TIMESCALE_GROUP | `first`、`forceNoteSpeed` | 编译各组独立轨迹，保留 `editorName`、`editorHidden` 编辑器元数据 |
+| #TIMESCALE_CHANGE | `#BEAT`、`#TIMESCALE`、`#TIMESCALE_SKIP`、`#TIMESCALE_GROUP`、`#TIMESCALE_EASE=0`、`transitionStyle=0`、`hideNotes`、`next` | 已接入分组轨迹。Life Reset Button 附带的 `editorLane` 作为编辑器元数据保留 |
 | 全部音符（含 Anchor、Fake、Damage、隐藏点） | `#BEAT`、`#TIMESCALE_GROUP`、`stage`、`lane`、`size`、`elevation=0`、`direction`、`style`、`activeHead`、`isAttached`、`connectorEase`、`isSeparator`、`segmentKind`、`segmentAlpha`、`segmentLayer`、`segmentThroughJudgeLine`、`segmentPresentation`、`attachHead`、`attachTail`、`next`、`prev`、`effectKind` | 基础音符使用 12 轨浮点几何、方向 0–2、线性全不透明连接。其余字段组合见 P2–P5。当前隐藏 Tick 只接受 `#BEAT`、`isAttached=1`、`attachHead`、`attachTail` |
 | Connector | `head`、`tail`、`segmentHead`、`segmentTail`、`activeHead`、`activeTail`、`legacyHiddenPop` | 当前要求判定头尾与连接头尾一致，几何片段与 next 相符。独立段和 `legacyHiddenPop` 待 P3 |
 | SimLine | `left`、`right` | 校验为同拍音符，按 OpenSekai 设置重建 |
@@ -82,5 +82,7 @@
 | Hallway | 995 实体，848 判定点，偏移 0 秒，revision 2 | `meter`、`editorName` |
 | Kamisama | 1265 实体，偏移 −0.511 秒，2 组变速、7 事件、51 Anchor、154 隐藏 Tick、178 Connector，缺省 revision 1，含 FeverChance 和 FeverStart 各 1 | `editorName`、`editorHidden` |
 | Life Reset Button | 8576 实体，偏移 +1.271 秒，3 组变速、136 事件、4997 Anchor、248 隐藏 Tick、1286 Connector、31 个 HeadTrace，revision 2 | `meter`、`editorName`、`editorLane` |
+
+P3 的 Kamisama 样本需处理 32 个 Anchor 到 Anchor 的连接，以及 11 个 Anchor 到真实尾键的连接。样本使用连接缓动 1–5、片段种类 1 / 2 / 103、透明度 0 / 1 和附着标记 0 / 1。
 
 谱面、引擎资源和媒体置于本地测试目录。后续应使用上表的原始字节哈希确认版本。

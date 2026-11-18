@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using OpenSekai.Shared.Diagnostics;
 using Sekai.Live;
@@ -456,6 +457,8 @@ namespace Sekai
 			{
 				return 0;
 			}
+			if (startNoteBase.NativeScroll != null && endNoteBase.NativeScroll != null)
+				return SampleNativeSegment(time, startNoteBase, endNoteBase);
 
 			float startOffset = startNoteBase.CalcTimeOffset(startNoteBase);
 			// The final segment follows the chart's scroll timing even after its key stops ticking.
@@ -530,6 +533,68 @@ namespace Sekai
 			}
 
 			return Mathf.Min(sampleCount, _meshSettingBuffer.Length);
+		}
+
+		private int SampleNativeSegment(float time, NoteBase start, NoteBase end)
+		{
+			double now = (double)time + LiveConfig.ViewLeadSeconds;
+			if (now >= end.NativeTarget.Time) return 0;
+			double a = start.NativeViewProgress(now, out bool hidden);
+			double b = end.NativeViewProgress(now, out _);
+			if (hidden) return 0;
+
+			double first = 0, last = 1;
+			if (now > start.NativeTarget.Time)
+			{
+				first = (now - start.NativeTarget.Time) / (end.NativeTarget.Time - start.NativeTarget.Time);
+				a = 1;
+			}
+			double extent = b - a;
+			if (extent == 0)
+			{
+				if (a <= 0 || a > 1) return 0;
+			}
+			else
+			{
+				double top = -a / extent, line = (1 - a) / extent;
+				double from = Math.Max(0, Math.Min(top, line)), to = Math.Min(1, Math.Max(top, line));
+				if (to <= from) return 0;
+				last = first + (1 - first) * to;
+				first += (1 - first) * from;
+				a = Math.Min(1, Math.Max(0, a + extent * from));
+				b = Math.Min(1, Math.Max(0, b - extent * (1 - to)));
+			}
+			// The mesh's winding expects the first cross section closest to the judge line.
+			if (a < b)
+			{
+				(a, b) = (b, a);
+				(first, last) = (last, first);
+			}
+			int splits = Mathf.Clamp(Mathf.CeilToInt((float)(a - b) * SplitMeshCount), 1, SplitMeshCount);
+			List<INote> viewNotes = start.ParentNote is LongNote bar ? bar.LineNoteList : start.ViewNoteList;
+			int index = viewNotes != null ? Mathf.Max(0, viewNotes.IndexOf(start)) : 0;
+			int segmentCount = Mathf.Max(1, (viewNotes?.Count ?? 2) - 1);
+			for (int i = 0; i <= splits; i++)
+			{
+				float fraction = (float)i / splits;
+				float along = Mathf.Lerp((float)first, (float)last, fraction);
+				float progress = OpenSekai.Shared.Live.NoteLineProgress.View(Mathf.Lerp((float)a, (float)b, fraction));
+				float left = Mathf.Lerp(start.NativeLeft, end.NativeLeft, along);
+				float right = Mathf.Lerp(start.NativeRight, end.NativeRight, along);
+				Vector2 center = LiveUtility.EarlyVec2Lerp(LiveConfig.SpawnPosition, GetLanePosition((left + right) / 2), progress);
+				float halfWidth = progress * (((right - left + 1) * LiveConfig.widthX) - 0.1f) / 2;
+				_meshSettingBuffer[i] = new Setting
+				{
+					CurrentViewProgress = progress,
+					LanePosition = new TwoPoint
+					{
+						Left = new Vector2(center.x - halfWidth, center.y),
+						Right = new Vector2(center.x + halfWidth, center.y)
+					},
+					LineProgress = (index + along) / segmentCount
+				};
+			}
+			return splits + 1;
 		}
 
 		private static Vector2 GetLanePosition(float lane)

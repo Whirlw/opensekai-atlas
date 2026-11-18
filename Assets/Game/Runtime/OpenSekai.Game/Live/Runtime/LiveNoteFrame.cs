@@ -9,6 +9,8 @@ namespace Sekai.Core.Live
 		private readonly LiveSessionState _session;
 		private readonly LiveInputRouter _input;
 		private readonly LivePresentationBridge _presentation;
+		private readonly System.Action<NoteBase> _visitNativeVisual;
+		private double _nativeViewTime;
 
 		internal LiveNoteFrame(LiveLogic logic, LiveSessionState session, LiveInputRouter input, LivePresentationBridge presentation)
 		{
@@ -16,6 +18,7 @@ namespace Sekai.Core.Live
 			_session = session;
 			_input = input;
 			_presentation = presentation;
+			_visitNativeVisual = PreloadNativeVisual;
 		}
 
 		private MusicScoreInfo Frame => _logic.currentFrameInfo;
@@ -58,6 +61,8 @@ namespace Sekai.Core.Live
 			}
 
 			UpdateNotes();
+			_nativeViewTime = (double)Frame.time + LiveConfig.ViewLeadSeconds;
+			_session.Notes.WalkNativeVisuals(_nativeViewTime, _visitNativeVisual);
 			if (_session.IsAuto)
 			{
 				_logic.ApplyFrameOutcome();
@@ -268,6 +273,11 @@ namespace Sekai.Core.Live
 		/// </summary>
 		private void PreloadView(NoteBase note, float offsetTime)
 		{
+			if (note.NativeScroll != null)
+			{
+				return;
+			}
+
 			if (note.State == NoteState.Done || offsetTime <= 0f)
 			{
 				return;
@@ -282,6 +292,38 @@ namespace Sekai.Core.Live
 			// Idempotent on the view side (the note pool keys off the note), so it can simply be asked every
 			// frame of the margin instead of remembering that it was asked.
 			_presentation.Spawn(_session.Views, note, Frame.time);
+		}
+
+		private void PreloadNativeVisual(NoteBase note)
+		{
+			double progress = note.NativeViewProgress(_nativeViewTime, out bool hidden);
+			bool visible = !hidden && progress > 0 && progress <= LiveConfig.NativeKeyProgressEnd;
+			if (note is LongNote bar)
+			{
+				double previous = progress;
+				bool hideSegment = hidden;
+				double previousTime = note.NativeTarget.Time;
+				foreach (var child in bar.LineNoteList)
+				{
+					if (child is not NoteBase node || node == note || node.NativeScroll == null)
+						continue;
+					double next = node.NativeViewProgress(_nativeViewTime, out bool childHidden);
+					if (_nativeViewTime < node.NativeTarget.Time)
+					{
+						double segmentStart = _nativeViewTime >= previousTime ? 1 : previous;
+						visible |= !hideSegment && System.Math.Max(segmentStart, next) > 0
+							&& System.Math.Min(segmentStart, next) <= 1;
+					}
+					if (node.State != NoteState.Done && !childHidden && next > 0 && next <= LiveConfig.NativeKeyProgressEnd
+						&& _nativeViewTime < node.NativeTarget.Time && bar.ViewNoteList.Contains(node))
+						_presentation.Spawn(_session.Views, node, Frame.time);
+					previous = next;
+					previousTime = node.NativeTarget.Time;
+					hideSegment = childHidden;
+				}
+			}
+			if (visible)
+				_presentation.Spawn(_session.Views, note, Frame.time);
 		}
 
 		/// <summary>One high speed note: same shape, its own display lead.</summary>
@@ -485,6 +527,8 @@ namespace Sekai.Core.Live
 			{
 				return 0f;
 			}
+			if (note.NativeScroll != null)
+				return OpenSekai.Shared.Live.JudgeListLead.Seconds;
 
 			float currentProgress = Frame.bar + Frame.barProgress;
 			float noteProgress = note.MusicScoreInfo.bar + note.MusicScoreInfo.barProgress;

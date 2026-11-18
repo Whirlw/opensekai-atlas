@@ -1,4 +1,4 @@
-﻿using Sekai.Live;
+using Sekai.Live;
 using UnityEngine;
 
 namespace Sekai
@@ -15,13 +15,13 @@ namespace Sekai
 				return;
 			}
 
-			if (note.Progress <= 0f)
+			if (!LiveConfig.IsKeyVisible(note, musicTime))
 			{
 				transform.localScale = Vector3.zero;
 				return;
 			}
 
-			float progress = LiveConfig.GetNoteViewProgress(LiveConfig.ViewProgressOf(note));
+			float progress = LiveConfig.GetNoteViewProgress(LiveConfig.ViewProgressOf(note, musicTime));
 			transform.localPosition = CalcNotePosition(ref progress);
 			transform.localScale = Vector3.one * progress;
 			UpdateFrictionSpritePayload(progress);
