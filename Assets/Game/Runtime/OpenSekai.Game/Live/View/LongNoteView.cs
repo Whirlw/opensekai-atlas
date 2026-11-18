@@ -31,7 +31,8 @@ namespace Sekai
 			// A rub head's key goes the moment the head is judged, like a standalone friction note.
 			if (note.State == NoteState.Done
 				|| (note is LongNote endedBar && (endedBar.HeadKeyLeftWithItsVerdict
-					|| (endedBar.ChildNote != null && musicTime >= endedBar.ChildNote.MusicScoreInfo.time))))
+					|| (endedBar.NativeScroll == null && endedBar.ChildNote != null
+						&& musicTime >= endedBar.ChildNote.MusicScoreInfo.time))))
 			{
 				if (LiveTrace.IsOn(LiveTraceCategory.Frame))
 				{

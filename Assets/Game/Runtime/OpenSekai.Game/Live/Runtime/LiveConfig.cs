@@ -157,7 +157,21 @@ namespace Sekai.Live
 		{
 			if (note is NoteBase native && native.NativeScroll != null)
 			{
-				double progress = native.NativeViewProgress((double)time + ViewLeadSeconds, out bool hidden);
+				double now = (double)time + ViewLeadSeconds;
+				if (native is LongNote bar && bar.KeepsHeadOnTheLine && now >= native.NativeTarget.Time)
+				{
+					// Once the head reaches the line, its key belongs to the remaining body.
+					// Use the current edge's visibility, like the body mesh, rather than the old head's travel.
+					var start = native;
+					for (int i = 1; i < bar.LineNoteList.Count; i++)
+					{
+						if (bar.LineNoteList[i] is not NoteBase end || end.NativeScroll == null) break;
+						if (now < end.NativeTarget.Time) return start.NativeScroll.SampleFrame(now).Hidden ? 0f : 1f;
+						start = end;
+					}
+					return 0f;
+				}
+				double progress = native.NativeViewProgress(now, out bool hidden);
 				return hidden || progress > NativeKeyProgressEnd ? 0f : (float)progress;
 			}
 			return ViewProgressOf(note);

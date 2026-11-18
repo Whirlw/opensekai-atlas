@@ -1,6 +1,6 @@
 # NextRUSH+ 完整谱面支持计划
 
-> 状态：P0 至 P2 的兼容预检、正负音乐偏移和分组变速已接入。P3 已接入 Kamisama 使用的 Anchor、Guide、同拍几何边、曲线、透明度和隐藏 Tick 附着。原始 Kamisama 曲包通过导入、字节校验和自动播放，885 个判定点与谱面一致。M1 的实机手动与上游画面对照仍待验收。P0 的同设备性能基线和 Android 端同步仍待采集。固定源码与样本见 [兼容基线](../architecture/next-rush-compatibility.md)，现行支持范围见 [原生加载](../architecture/native-next-rush.md)。
+> 状态：P0 至 P2 的兼容预检、正负音乐偏移和分组变速已接入。P3 已接入 Kamisama 使用的 Anchor、Guide、同拍几何边、曲线、透明度和隐藏 Tick 附着。原始 Kamisama 曲包通过导入、字节校验和自动播放，885 个判定点与谱面一致。用户已确认 M1 验收，随后反馈普通长条头经过节点后消失。修复已加入回归用例，待原谱画面复核。P0 的同设备性能基线和 Android 端同步仍待采集。固定源码与样本见 [兼容基线](../architecture/next-rush-compatibility.md)，现行支持范围见 [原生加载](../architecture/native-next-rush.md)。
 > 制定日期：2026-11-17。
 > 计划制定时的实现基线为 `abffa9d3`。现行行为见 [NextRUSH+ 原生加载](../architecture/native-next-rush.md)。
 > 用户约定：**Skill、FeverChance、FeverStart 直接忽略，不实现技能与 Fever。**

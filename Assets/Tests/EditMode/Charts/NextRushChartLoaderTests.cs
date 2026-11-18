@@ -442,6 +442,53 @@ namespace OpenSekai.Tests.EditMode.Charts
         }
 
         [Test]
+        public void OrdinaryHeadStaysOnTheLineAfterPassingAnAnchor()
+        {
+            var head = N("NormalHeadTapNote", "head", 1);
+            var anchor = N("AnchorNote", "anchor", 2);
+            var tail = N("NormalTailReleaseNote", "tail", 4);
+            Add(head, R("next", "anchor"));
+            Add(anchor, R("next", "tail"), R("#TIMESCALE_GROUP", "anchorGroup"));
+            Add(tail, R("activeHead", "head"));
+            var chart = Load(Chart(head, anchor, tail,
+                Segment("head", "anchor", "head", "tail", "head", "tail"),
+                Segment("anchor", "tail", "head", "tail", "head", "tail"),
+                E("#TIMESCALE_GROUP", "anchorGroup", R("first", "hide")),
+                E("#TIMESCALE_CHANGE", "hide", V("#BEAT", 2.5), V("#TIMESCALE", 1), V("hideNotes", 1), R("next", "show")),
+                E("#TIMESCALE_CHANGE", "show", V("#BEAT", 3), V("#TIMESCALE", 1))));
+            var bar = chart.Score.NoteArray.OfType<LongNote>().Single();
+            using var harness = new LiveHarness();
+            harness.Arrange(chart.Score);
+            harness.Logic.Notes.BindNativeVisuals(1);
+
+            var host = new GameObject("native long head view");
+            float originalViewLead = LiveConfig.ViewLeadSeconds;
+            try
+            {
+                LiveConfig.ViewLeadSeconds = 0f;
+                var view = host.AddComponent<LongNoteView>();
+                view.Setup(new Vector2(0, 6), LiveConfig.JudgmentPositions, 1);
+                view.Spawn(bar, 0);
+
+                view.Move(0.8f);
+                Assert.That(host.transform.localScale.x, Is.EqualTo(1f));
+                view.Move(1.1f);
+                Assert.That(host.transform.localScale.x, Is.EqualTo(1f));
+                view.Move(1.3f);
+                Assert.That(host.transform.localScale.x, Is.Zero);
+                view.Move(1.6f);
+                Assert.That(host.transform.localScale.x, Is.EqualTo(1f));
+                view.Move(2f);
+                Assert.That(host.transform.localScale.x, Is.Zero);
+            }
+            finally
+            {
+                LiveConfig.ViewLeadSeconds = originalViewLead;
+                UnityEngine.Object.DestroyImmediate(host);
+            }
+        }
+
+        [Test]
         public void NativeHiddenTickAtAVisibleTicksBeatKeepsItsOwnJudgment()
         {
             var json = Hold();
