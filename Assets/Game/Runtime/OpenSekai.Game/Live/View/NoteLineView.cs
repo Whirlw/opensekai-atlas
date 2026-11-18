@@ -321,7 +321,7 @@ namespace Sekai
 			if (segment != null)
 			{
 				_statusValue.y = segment.IsCritical ? 0.025f : 0.525f;
-				if (segment.IsGuide) color = segment.StyleColor();
+				if (segment.IsGuide) color = segment.GuideColor();
 				else if (segment.HasColor) color *= segment.StyleColor();
 			}
 			return color;
@@ -330,14 +330,16 @@ namespace Sekai
 		private void MeshCreate(float time, INote baseNote, int meshDataCount, NextRushConnectorSegment segment)
 		{
 			Color color = SetSegmentStyle(time, baseNote, segment);
+			bool solidGuide = segment?.IsGuide == true;
+			float textureMode = solidGuide ? -1f : 0f;
 			for (int i = 0; i < meshDataCount - 1; i++)
 			{
 				int vertexIndex = _meshCount * TRAPEZOID_VERTEX_COUNT;
-				CalculateTrapezoidVertex(_meshSettingBuffer[i], _meshSettingBuffer[i + 1]);
+				CalculateTrapezoidVertex(_meshSettingBuffer[i], _meshSettingBuffer[i + 1], solidGuide);
 				float startAlpha = segment == null ? 1 : _meshSettingBuffer[i].Alpha;
 				float endAlpha = segment == null ? 1 : _meshSettingBuffer[i + 1].Alpha;
 				UpdateVertex(vertexIndex, color, startAlpha, endAlpha);
-				UpdateUV(vertexIndex, i);
+				UpdateUV(vertexIndex, i, textureMode);
 				_meshCount++;
 			}
 		}
@@ -360,7 +362,7 @@ namespace Sekai
 				_hasViewport = true;
 			}
 
-			Color color = segment.IsGuide ? segment.FullScreenGuideColor() : SetSegmentStyle(time, bar, segment);
+			Color color = SetSegmentStyle(time, bar, segment);
 			color.a *= alpha;
 			float textureMode = segment.IsGuide ? 2f : 1f;
 			int vertexIndex = _meshCount++ * TRAPEZOID_VERTEX_COUNT;
@@ -426,16 +428,16 @@ namespace Sekai
 			return defaultColor;
 		}
 
-		private void UpdateUV(int vertexIndex, int meshDataIndex)
+		private void UpdateUV(int vertexIndex, int meshDataIndex, float textureMode)
 		{
 			float startLineProgress = _meshSettingBuffer[meshDataIndex].LineProgress;
 			float endLineProgress = _meshSettingBuffer[meshDataIndex + 1].LineProgress;
 			for (int offset = 0; offset <= 4; offset += 4)
 			{
-				_uv[vertexIndex + offset + 3] = new Vector2(0, endLineProgress);
-				_uv[vertexIndex + offset + 1] = new Vector2(0, endLineProgress);
-				_uv[vertexIndex + offset + 2] = new Vector2(0, startLineProgress);
-				_uv[vertexIndex + offset] = new Vector2(0, startLineProgress);
+				_uv[vertexIndex + offset + 3] = new Vector2(textureMode, endLineProgress);
+				_uv[vertexIndex + offset + 1] = new Vector2(textureMode, endLineProgress);
+				_uv[vertexIndex + offset + 2] = new Vector2(textureMode, startLineProgress);
+				_uv[vertexIndex + offset] = new Vector2(textureMode, startLineProgress);
 			}
 		}
 
@@ -452,8 +454,22 @@ namespace Sekai
 			_statusValue.y = baseNote != null && baseNote.Type == NoteType.Critical ? 0.025f : 0.525f;
 		}
 
-		private void CalculateTrapezoidVertex(Setting startSetting, Setting endSetting)
+		private void CalculateTrapezoidVertex(Setting startSetting, Setting endSetting, bool solidGuide)
 		{
+			if (solidGuide)
+			{
+				// Fill the space between the endpoints with two quads sharing a center edge.
+				var top = endSetting.LanePosition;
+				var bottom = startSetting.LanePosition;
+				Vector2 topCenter = (top.Left + top.Right) * 0.5f;
+				Vector2 bottomCenter = (bottom.Left + bottom.Right) * 0.5f;
+				_trapezoidVertexInfo[0].Top = new TwoPoint { Left = top.Left, Right = topCenter };
+				_trapezoidVertexInfo[0].Bottom = new TwoPoint { Left = bottom.Left, Right = bottomCenter };
+				_trapezoidVertexInfo[1].Top = new TwoPoint { Left = topCenter, Right = top.Right };
+				_trapezoidVertexInfo[1].Bottom = new TwoPoint { Left = bottomCenter, Right = bottom.Right };
+				return;
+			}
+
 			_trapezoidVertexInfo[0].Top.Right = endSetting.LanePosition.Left;
 			_trapezoidVertexInfo[0].Top.Left = endSetting.LanePosition.Left;
 			_trapezoidVertexInfo[0].Bottom.Right = startSetting.LanePosition.Left;
@@ -649,7 +665,8 @@ namespace Sekai
 				float left = Mathf.LerpUnclamped(start.NativeLeft, end.NativeLeft, eased);
 				float right = Mathf.LerpUnclamped(start.NativeRight, end.NativeRight, eased);
 				Vector2 center = LiveUtility.EarlyVec2Lerp(LiveConfig.SpawnPosition, LiveConfig.NativeLanePosition((left + right) / 2), progress);
-				float halfWidth = progress * Mathf.Max(0, ((right - left + 1) * LiveConfig.widthX) - 0.1f) / 2;
+				float inset = segment?.IsGuide == true ? 0f : 0.1f;
+				float halfWidth = progress * Mathf.Max(0, (right - left + 1) * LiveConfig.widthX - inset) / 2;
 				_meshSettingBuffer[written++] = new Setting
 				{
 					CurrentViewProgress = progress,

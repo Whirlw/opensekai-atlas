@@ -78,7 +78,7 @@ Shader "Sekai/Unlit/NoteLine"
 
             fixed4 frag(v2f i) : SV_Target
             {
-                // Full-screen Guides provide a solid swatch in the vertex color.
+                // Full-screen Guides cover the viewport, including the area above the note mask.
                 if (i.texcoord.x > 1.5)
                     return fixed4(i.color.rgb, saturate(i.color.a));
 
@@ -91,6 +91,9 @@ Shader "Sekai/Unlit/NoteLine"
                 else
                 {
                     clip(_NoteShowRate - screenUv.y);
+                    if (i.texcoord.x < -0.5)
+                        return fixed4(i.color.rgb, saturate(i.color.a));
+
                     float left = i.leftPoint.y;
                     float right = i.rightPoint.y;
                     float lineRate = saturate((i.localPosition.x - left) / max(right - left, 0.0001));

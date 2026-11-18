@@ -1236,6 +1236,60 @@ namespace OpenSekai.Tests.EditMode.Charts
         }
 
         [Test]
+        public void NativeGuideFillsItsWidthWithSolidColorAndUsesOnlyAuthoredAlpha()
+        {
+            var start = N("AnchorNote", "start", 2, size: 2);
+            var solidEnd = N("AnchorNote", "solidEnd", 3, size: 2);
+            var fadeEnd = N("AnchorNote", "fadeEnd", 4, size: 2);
+            Add(start, R("next", "solidEnd"), V("segmentKind", 102));
+            Add(solidEnd, R("next", "fadeEnd"), V("segmentKind", 102));
+            Add(fadeEnd, V("segmentAlpha", 0));
+            var chart = Load(Chart(start, solidEnd, fadeEnd, Segment("start", "solidEnd", "start", "solidEnd"),
+                Segment("solidEnd", "fadeEnd", "solidEnd", "fadeEnd")));
+            using var harness = new LiveHarness();
+            harness.Arrange(chart.Score);
+            harness.Logic.Notes.BindNativeVisuals(1);
+            var host = new GameObject("solid native Guide");
+            var cameraHost = new GameObject("solid Guide test camera");
+            float originalViewLead = LiveConfig.ViewLeadSeconds;
+            try
+            {
+                LiveConfig.ViewLeadSeconds = 0;
+                var view = host.AddComponent<NoteLineView>();
+                view.Setup(_config, "traceLine_eff.png", 1, guide: true);
+                view.Add(chart.Score.NoteArray.OfType<GuideNote>().Single());
+                view.Excute(1f);
+                var mesh = host.GetComponent<MeshFilter>().sharedMesh;
+                var renderer = host.GetComponent<MeshRenderer>();
+                Assert.That(renderer.enabled, Is.True);
+                Assert.That(mesh.uv.All(uv => uv.x == -1), Is.True);
+                Assert.That(mesh.colors.Min(color => color.a), Is.Zero);
+                Assert.That(mesh.colors.Max(color => color.a), Is.EqualTo(1));
+                Assert.That(mesh.vertices[2], Is.EqualTo(mesh.vertices[4]));
+                Assert.That(mesh.vertices[3], Is.EqualTo(mesh.vertices[5]));
+                if (SystemInfo.graphicsDeviceType == GraphicsDeviceType.Null) return;
+
+                var vertices = mesh.vertices;
+                var inner = (vertices[0] + vertices[7]) * 0.5f;
+                Vector3 across = (vertices[6] - vertices[0]) * 0.25f;
+                var camera = cameraHost.AddComponent<Camera>();
+                camera.orthographic = true;
+                var bounds = renderer.bounds;
+                camera.transform.position = bounds.center + new Vector3(0, 0, -5);
+                camera.orthographicSize = Mathf.Max(bounds.extents.x, bounds.extents.y) * 1.1f;
+                var pixels = ReadGuidePixels(camera, renderer, inner - across, inner, inner + across);
+                foreach (Color pixel in pixels)
+                    AssertPixelColor(pixel, new Color32(214, 115, 123, 255));
+            }
+            finally
+            {
+                LiveConfig.ViewLeadSeconds = originalViewLead;
+                UnityEngine.Object.DestroyImmediate(host);
+                UnityEngine.Object.DestroyImmediate(cameraHost);
+            }
+        }
+
+        [Test]
         public void FullScreenConnectorUsesCameraViewportChartTimeAndStyleGroupVisibility()
         {
             var head = N("AnchorNote", "head", 2);
@@ -1288,7 +1342,9 @@ namespace OpenSekai.Tests.EditMode.Charts
                 Assert.That(mesh.uv.All(uv => uv.x == 2), Is.True);
                 if (SystemInfo.graphicsDeviceType != GraphicsDeviceType.Null)
                 {
-                    AssertFullScreenGuidePixel(camera, renderer);
+                    Color pixel = ReadGuidePixels(camera, renderer, camera.ViewportToWorldPoint(new Vector3(0.5f, 0.5f, 5f)))[0];
+                    // The authored swatch is half opaque at this frame and blends over black.
+                    AssertPixelColor(pixel, new Color(107f / 255, 57.5f / 255, 102.5f / 255));
                 }
                 view.Excute(1.75f);
                 Assert.That(renderer.enabled, Is.False);
@@ -1305,33 +1361,41 @@ namespace OpenSekai.Tests.EditMode.Charts
             }
         }
 
-        private static void AssertFullScreenGuidePixel(Camera camera, Renderer overlay)
+        private static Color[] ReadGuidePixels(Camera camera, Renderer guide, params Vector3[] worldPositions)
         {
             const int testLayer = 31;
-            overlay.gameObject.layer = testLayer;
+            const int size = 128;
+            guide.gameObject.layer = testLayer;
             camera.cullingMask = 1 << testLayer;
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = Color.black;
-            var target = RenderTexture.GetTemporary(16, 16, 24, RenderTextureFormat.ARGB32);
-            var pixel = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+            var target = RenderTexture.GetTemporary(size, size, 24, RenderTextureFormat.ARGB32);
+            var pixels = new Texture2D(size, size, TextureFormat.RGBA32, false);
             var previous = RenderTexture.active;
             try
             {
                 RenderPipeline.SubmitRenderRequest(camera, new RenderPipeline.StandardRequest { destination = target });
                 RenderTexture.active = target;
-                pixel.ReadPixels(new Rect(8, 8, 1, 1), 0, 0, false);
-                Color result = pixel.GetPixel(0, 0);
-                // The authored swatch is half opaque at this frame and blends over black.
-                Assert.That(result.r, Is.EqualTo(107f / 255).Within(2f / 255));
-                Assert.That(result.g, Is.EqualTo(57.5f / 255).Within(2f / 255));
-                Assert.That(result.b, Is.EqualTo(102.5f / 255).Within(2f / 255));
+                pixels.ReadPixels(new Rect(0, 0, size, size), 0, 0, false);
+                return worldPositions.Select(position =>
+                {
+                    var viewport = camera.WorldToViewportPoint(position);
+                    return pixels.GetPixel((int)(viewport.x * size), (int)(viewport.y * size));
+                }).ToArray();
             }
             finally
             {
                 RenderTexture.active = previous;
                 RenderTexture.ReleaseTemporary(target);
-                UnityEngine.Object.DestroyImmediate(pixel);
+                UnityEngine.Object.DestroyImmediate(pixels);
             }
+        }
+
+        private static void AssertPixelColor(Color actual, Color expected)
+        {
+            Assert.That(actual.r, Is.EqualTo(expected.r).Within(2f / 255));
+            Assert.That(actual.g, Is.EqualTo(expected.g).Within(2f / 255));
+            Assert.That(actual.b, Is.EqualTo(expected.b).Within(2f / 255));
         }
 
         [Test]

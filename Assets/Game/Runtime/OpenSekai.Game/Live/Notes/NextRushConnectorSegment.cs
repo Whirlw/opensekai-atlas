@@ -121,8 +121,8 @@ namespace Sekai.Live
             }
         }
 
-        // The NextRUSH+ v3 skin uses solid guide swatches for the full-screen presentation.
-        internal Color FullScreenGuideColor() => Kind switch
+        // The NextRUSH+ v3 skin uses solid swatches for Guides.
+        internal Color GuideColor() => Kind switch
         {
             101 => new Color32(237, 237, 237, 255),
             102 => new Color32(214, 115, 123, 255),
