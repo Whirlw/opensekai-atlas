@@ -66,6 +66,9 @@ namespace OpenSekai.Infrastructure.Charts
             private readonly Dictionary<NextRushEntity, NoteBase> _notes = new Dictionary<NextRushEntity, NoteBase>();
             private readonly HashSet<NextRushEntity> _geometryNodes = new HashSet<NextRushEntity>();
             private readonly Dictionary<NextRushEntity, ConnectorEdge> _edges = new Dictionary<NextRushEntity, ConnectorEdge>();
+            private readonly Dictionary<NextRushEntity, Attachment> _attachments = new Dictionary<NextRushEntity, Attachment>();
+            private readonly Dictionary<NextRushEntity, List<NextRushEntity>> _attachmentSlices =
+                new Dictionary<NextRushEntity, List<NextRushEntity>>();
             private readonly Dictionary<NextRushEntity, LongNote> _activeSections = new Dictionary<NextRushEntity, LongNote>();
             private readonly Dictionary<NextRushEntity, LongNote> _outgoingBars = new Dictionary<NextRushEntity, LongNote>();
             private readonly Dictionary<NextRushEntity, LongNote> _incomingBars = new Dictionary<NextRushEntity, LongNote>();
@@ -91,6 +94,21 @@ namespace OpenSekai.Infrastructure.Charts
                 }
             }
 
+            private readonly struct Attachment
+            {
+                internal readonly NextRushEntity head, tail;
+                internal readonly float fraction;
+                internal readonly int ease;
+
+                internal Attachment(NextRushEntity head, NextRushEntity tail, float fraction, int ease)
+                {
+                    this.head = head;
+                    this.tail = tail;
+                    this.fraction = fraction;
+                    this.ease = ease;
+                }
+            }
+
             public Builder(NextRushChart source, LiveBundleBuildData config, bool showPair)
             { _source = source; _config = config; _showPair = showPair; }
 
@@ -100,10 +118,6 @@ namespace OpenSekai.Infrastructure.Charts
                 _groups = NextRushScrollCompiler.Compile(_source, TimingAt);
                 if (_groups.Count != 0 || _source.Entities.Any(e => e.Archetype == "Connector"))
                     _defaultScroll = new NextRushScrollTimeline(Array.Empty<NextRushScrollTimeline.Change>(), 0);
-                var incoming = new HashSet<NextRushEntity>();
-                foreach (var entity in _source.Entities)
-                    if (IsChainNode(Kind(entity)) && entity.Has("next"))
-                        incoming.Add(Resolve(entity, "next", true));
                 foreach (var entity in _source.Entities)
                 {
                     if (NextRushCompatibility.Classify(entity.Archetype) == NextRushEntityStatus.IgnoredByProject) continue;
@@ -115,28 +129,48 @@ namespace OpenSekai.Infrastructure.Charts
                         default: _notes.Add(entity, CreateNote(entity)); break;
                     }
                 }
+                foreach (var entry in _notes)
+                {
+                    if (entry.Key.Has("next") && !_notes.ContainsKey(Resolve(entry.Key, "next", true)))
+                        throw Invalid("长条 next 未指向音符");
+                    if (entry.Key.Number("isAttached") != 1) continue;
+                    if (entry.Key.Has("next") || entry.Key.Has("prev")) throw Unsupported("附着节点包含 next 或 prev");
+                    var attachment = ResolveAttachment(entry.Key);
+                    _attachments.Add(entry.Key, attachment);
+                    SetAttachmentGeometry(entry.Value, attachment);
+                    SetNativeScroll(entry.Key, entry.Value, Resolve(entry.Key, "#TIMESCALE_GROUP", false));
+                    entry.Value.SetNextRushAttachment(_notes[attachment.head], _notes[attachment.tail]);
+                }
                 ReadConnectors();
+                var incoming = new HashSet<NextRushEntity>();
+                foreach (var edge in _edges.Values)
+                    if (!incoming.Add(edge.tail)) throw Invalid("长条连接存在共享节点");
                 var roots = new List<NoteBase>();
                 foreach (var entry in _notes)
                 {
                     var entity = entry.Key;
-                    if (IsChainNode(Kind(entity)) && entity.Has("next") && !incoming.Contains(entity))
+                    if (_edges.ContainsKey(entity) && !incoming.Contains(entity))
                         BindChain(entity, roots);
-                    else if (!IsChainNode(Kind(entity)))
+                    if (!IsChainNode(Kind(entity)))
                         roots.Add(entry.Value);
                 }
                 foreach (var entry in _notes)
                 {
-                    if (entry.Key.Number("isAttached") == 1)
+                    bool onPath = _geometryNodes.Contains(entry.Key);
+                    if (_attachments.TryGetValue(entry.Key, out var attachment))
                     {
-                        BindVisibleAttachment(entry.Key, entry.Value);
-                        continue;
+                        RequireAttachmentPath(attachment);
+                        if (!onPath)
+                        {
+                            BindIndependentAttachment(entry.Key, entry.Value, attachment);
+                            continue;
+                        }
                     }
                     bool anchor = Kind(entry.Key) == "AnchorNote";
                     bool member = entry.Value is LongNote || Kind(entry.Key).StartsWith("Tail", StringComparison.Ordinal) || Kind(entry.Key) == "TickNote"
                         || anchor && (entry.Key.Has("next") || entry.Key.Has("prev") || entry.Key.Has("activeHead"));
-                    bool onPath = _geometryNodes.Contains(entry.Key);
                     if (member && !onPath) throw Invalid("孤立的长条节点 " + entry.Key.Name);
+                    if (entry.Key.Has("next") && !onPath) throw Unsupported("缺少 Connector 的长条片段");
                     if (onPath && entry.Key.Has("activeHead"))
                     {
                         var active = Resolve(entry.Key, "activeHead", true);
@@ -149,7 +183,7 @@ namespace OpenSekai.Infrastructure.Charts
                         && (entry.Key.Has("next") || entry.Key.Has("prev") || entry.Key.Has("activeHead")))
                         throw Unsupported("独立音符的长条连接");
                 }
-                if (_outgoingBars.Count != _edges.Count) throw Invalid("Connector 不在有效的 next 链中");
+                if (_outgoingBars.Count != _edges.Count) throw Invalid("长条连接存在循环");
                 ValidateSimLines();
                 foreach (var tick in _hidden) BindHiddenTick(tick);
                 foreach (var root in roots.OfType<LongNote>()) root.SortNoteList();
@@ -288,12 +322,12 @@ namespace OpenSekai.Infrastructure.Charts
 
             private void BindChain(NextRushEntity head, List<NoteBase> roots)
             {
-                if (head.Name == null || head.Has("prev")) throw Invalid("长条起点缺少 name 或包含 prev");
                 _geometryNodes.Add(head);
+                NextRushEntity lastUnattached = null;
+                CheckNextLink(head, ref lastUnattached);
                 var current = head;
-                while (current.Has("next"))
+                while (_edges.TryGetValue(current, out var first))
                 {
-                    if (!_edges.TryGetValue(current, out var first)) throw Unsupported("缺少 Connector 的长条片段");
                     var start = current;
                     var bar = CreateSection(start, first.activeHead);
                     if (first.activeHead != null) _activeSections.Add(start, bar);
@@ -305,9 +339,7 @@ namespace OpenSekai.Infrastructure.Charts
                     {
                         var next = edge.tail;
                         if (!_geometryNodes.Add(next)) throw Invalid("长条连接存在循环或共享节点");
-                        if (next.Has("prev") && Resolve(next, "prev", true) != current) throw Invalid("长条 prev 与 next 不一致");
-                        if (current.Number("isAttached") == 1 || next.Number("isAttached") == 1)
-                            throw Unsupported("附着的连接端点");
+                        CheckNextLink(next, ref lastUnattached);
                         _outgoingBars.Add(current, bar);
                         _incomingBars.Add(next, bar);
                         point.NativeConnector = edge.segment;
@@ -324,14 +356,33 @@ namespace OpenSekai.Infrastructure.Charts
                         }
 
                         string kind = Kind(next);
-                        if (kind != "TickNote" && kind != "AnchorNote") throw Unsupported("长条中间节点 " + next.Archetype);
-                        point = _notes[next];
+                        if (kind == "TickNote" || kind == "AnchorNote")
+                        {
+                            point = _notes[next];
+                        }
+                        else if (_attachments.ContainsKey(next) && !IsChainNode(kind))
+                        {
+                            point = BorrowEndpoint(next);
+                        }
+                        else throw Unsupported("长条中间节点 " + next.Archetype);
                         bar.AddConnectionNote(point);
                         RestoreNode(next, point);
                         current = next;
                         edge = following;
                     }
                 }
+                if (lastUnattached != null && lastUnattached.Has("next"))
+                    throw Unsupported("缺少 Connector 的长条片段");
+            }
+
+            private void CheckNextLink(NextRushEntity point, ref NextRushEntity previous)
+            {
+                // LevelData keeps attached separators out of the next/prev chain.
+                if (_attachments.ContainsKey(point)) return;
+                if (previous != null && Resolve(previous, "next", false) != point
+                    || point.Has("prev") && Resolve(point, "prev", true) != previous)
+                    throw Invalid("Connector 的未附着节点与 next/prev 不一致");
+                previous = point;
             }
 
             private LongNote CreateSection(NextRushEntity start, NextRushEntity activeHead)
@@ -370,7 +421,7 @@ namespace OpenSekai.Infrastructure.Charts
                     RestoreNode(end, note);
                     roots.Add(note);
                 }
-                if (kind == "AnchorNote" && !end.Has("next"))
+                if (kind == "AnchorNote" && !_edges.ContainsKey(end))
                 {
                     bar.AddNoteListAndSetupChildNote(note);
                     RestoreNode(end, note);
@@ -378,9 +429,14 @@ namespace OpenSekai.Infrastructure.Charts
                 }
 
                 // Adjacent sections share geometry but never share keys or their runtime state.
-                var endpoint = CopyGeometry(end, new HiddenConnectionNote(note.MusicScoreInfo, ++_nextId,
+                bar.AddNoteListAndSetupChildNote(BorrowEndpoint(end));
+            }
+
+            private HiddenConnectionNote BorrowEndpoint(NextRushEntity entity)
+            {
+                var note = _notes[entity];
+                return CopyGeometry(entity, new HiddenConnectionNote(note.MusicScoreInfo, ++_nextId,
                     note.LaneStart, note.LaneEnd, NoteCategory.Hidden, note.Type, 1, Offset(NoteCategory.Hidden)));
-                bar.AddNoteListAndSetupChildNote(endpoint);
             }
 
             private T CopyGeometry<T>(NextRushEntity entity, T copy) where T : NoteBase
@@ -388,6 +444,8 @@ namespace OpenSekai.Infrastructure.Charts
                 var note = _notes[entity];
                 SetGeometry(copy, note.LaneStartF, note.LaneEndF);
                 SetNativeScroll(entity, copy, Resolve(entity, "#TIMESCALE_GROUP", false));
+                if (_attachments.TryGetValue(entity, out var attachment))
+                    copy.SetNextRushAttachment(_notes[attachment.head], _notes[attachment.tail]);
                 return copy;
             }
 
@@ -403,19 +461,18 @@ namespace OpenSekai.Infrastructure.Charts
                 Fields(entity, "#BEAT", "isAttached", "attachHead", "attachTail", "activeHead");
                 if (entity.Number("isAttached") != 1) throw Unsupported("未附着的隐藏判定点");
                 var attachment = ResolveAttachment(entity);
+                RequireAttachmentPath(attachment);
                 var root = AttachmentHold(entity, attachment.head, attachment.tail);
                 var tick = new LongHoldCombo(At(Beat(entity)), root.Type, ++_nextId, 1, Offset(NoteCategory.Combo));
                 root.AddHoldCombo(tick);
-                SetAttachmentGeometry(entity, tick, attachment.head, attachment.tail);
+                SetAttachmentGeometry(tick, attachment);
             }
 
-            private void BindVisibleAttachment(NextRushEntity entity, NoteBase note)
+            private void BindIndependentAttachment(NextRushEntity entity, NoteBase note, Attachment attachment)
             {
                 string kind = Kind(entity);
-                if (note is LongNote || kind.StartsWith("Tail", StringComparison.Ordinal)
-                    || entity.Has("next") || entity.Has("prev") || entity.Number("isSeparator") != 0)
-                    throw Unsupported("附着的连接端点或分隔点");
-                var attachment = ResolveAttachment(entity);
+                if (note is LongNote || kind.StartsWith("Tail", StringComparison.Ordinal))
+                    throw Invalid("孤立的附着长条节点");
                 if (kind == "TickNote")
                 {
                     AttachmentHold(entity, attachment.head, attachment.tail).AddConnectionNote(note, shapesLine: false);
@@ -423,21 +480,28 @@ namespace OpenSekai.Infrastructure.Charts
                 }
                 else if (entity.Has("activeHead"))
                     throw Unsupported("独立附着音符的判定区间");
-                SetAttachmentGeometry(entity, note, attachment.head, attachment.tail);
-                SetNativeScroll(entity, note, Resolve(entity, "#TIMESCALE_GROUP", false));
-                note.SetNextRushAttachment(_notes[attachment.head], _notes[attachment.tail]);
             }
 
-            private (NextRushEntity head, NextRushEntity tail) ResolveAttachment(NextRushEntity entity)
+            private Attachment ResolveAttachment(NextRushEntity entity)
             {
                 var head = Resolve(entity, "attachHead", true);
                 var tail = Resolve(entity, "attachTail", true);
-                if (!_geometryNodes.Contains(head) || !_geometryNodes.Contains(tail)
+                if (!_notes.ContainsKey(head) || !_notes.ContainsKey(tail)
                     || head.Number("isAttached") != 0 || tail.Number("isAttached") != 0
                     || (head != tail && Resolve(head, "next", false) != tail)
                     || Beat(entity) < Beat(head) || Beat(entity) > Beat(tail))
                     throw Invalid("音符的附着连接无效");
-                return (head, tail);
+                double start = TimingAt(Beat(head)).time;
+                double end = TimingAt(Beat(tail)).time;
+                double time = TimingAt(Beat(entity)).time;
+                return new Attachment(head, tail, start == end ? 0.5f : (float)((time - start) / (end - start)),
+                    (int)head.Number("connectorEase", 1));
+            }
+
+            private void RequireAttachmentPath(Attachment attachment)
+            {
+                if (!_geometryNodes.Contains(attachment.head) || !_geometryNodes.Contains(attachment.tail))
+                    throw Invalid("音符的附着引用不属于连接路径");
             }
 
             private LongNote AttachmentHold(NextRushEntity entity, NextRushEntity head, NextRushEntity tail)
@@ -446,6 +510,21 @@ namespace OpenSekai.Infrastructure.Charts
                 _outgoingBars.TryGetValue(head, out var outgoing);
                 LongNote incoming = null;
                 if (head == tail) _incomingBars.TryGetValue(head, out incoming);
+                else if (_edges.TryGetValue(head, out var edge) && edge.tail != tail)
+                {
+                    var slices = AttachmentSlices(head, tail);
+                    double at = Beat(entity);
+                    int low = 1;
+                    int high = slices.Count - 1;
+                    while (low < high)
+                    {
+                        int middle = (low + high) / 2;
+                        if (Beat(slices[middle]) < at) low = middle + 1;
+                        else high = middle;
+                    }
+                    outgoing = _outgoingBars[slices[low - 1]];
+                    if (Beat(slices[low]) == at) _outgoingBars.TryGetValue(slices[low], out incoming);
+                }
                 var root = outgoing ?? incoming;
                 if (active != null && (!_activeSections.TryGetValue(active, out root)
                     || root != outgoing && root != incoming))
@@ -454,16 +533,35 @@ namespace OpenSekai.Infrastructure.Charts
                 return root;
             }
 
-            private void SetAttachmentGeometry(NextRushEntity entity, NoteBase note, NextRushEntity head, NextRushEntity tail)
+            private List<NextRushEntity> AttachmentSlices(NextRushEntity head, NextRushEntity tail)
             {
-                var a = _notes[head]; var b = _notes[tail];
-                var timing = TimingAt(Beat(entity)).time;
-                var start = TimingAt(Beat(head)).time;
-                var end = TimingAt(Beat(tail)).time;
-                float progress = NextRushConnectorSegment.Interpolate((int)head.Number("connectorEase", 1),
-                    start == end ? 0.5f : (float)((timing - start) / (end - start)));
-                SetGeometry(note, a.LaneStartF + (b.LaneStartF - a.LaneStartF) * progress,
-                    a.LaneEndF + (b.LaneEndF - a.LaneEndF) * progress);
+                if (_attachmentSlices.TryGetValue(head, out var slices)) return slices;
+                slices = new List<NextRushEntity> { head };
+                var current = head;
+                while (current != tail)
+                {
+                    current = _edges[current].tail;
+                    slices.Add(current);
+                }
+                _attachmentSlices.Add(head, slices);
+                return slices;
+            }
+
+            private void SetAttachmentGeometry(NoteBase note, Attachment attachment)
+            {
+                var a = _notes[attachment.head];
+                var b = _notes[attachment.tail];
+                float progress = NextRushConnectorSegment.Interpolate(attachment.ease, attachment.fraction);
+                float left = a.LaneStartF + (b.LaneStartF - a.LaneStartF) * progress;
+                float right = a.LaneEndF + (b.LaneEndF - a.LaneEndF) * progress;
+                if (right - left < -1f)
+                {
+                    // Overshooting a narrowing attachment can collapse its authored half-width to zero.
+                    float lane = (left + right + 1f) / 2f;
+                    left = lane;
+                    right = lane - 1f;
+                }
+                SetGeometry(note, left, right);
             }
 
             private void ReadConnectors()
@@ -484,9 +582,8 @@ namespace OpenSekai.Infrastructure.Charts
                         head = a;
                         tail = b;
                     }
-                    if (!_notes.ContainsKey(head) || !_notes.ContainsKey(tail) || Resolve(head, "next", false) != tail
-                        || Beat(tail) < Beat(head))
-                        throw Invalid("Connector 的几何端点与 next 不一致");
+                    if (!_notes.ContainsKey(head) || !_notes.ContainsKey(tail) || Beat(tail) < Beat(head))
+                        throw Invalid("Connector 的几何端点无效");
                     if (!_notes.TryGetValue(a, out var styleHead) || !_notes.ContainsKey(b)
                         || Beat(a) > Beat(head) || Beat(b) < Beat(tail))
                         throw Invalid("Connector 的样式区间没有覆盖连接");
@@ -495,10 +592,16 @@ namespace OpenSekai.Infrastructure.Charts
                             || Beat(activeHead) > Beat(head) || Beat(activeTail) < Beat(tail)))
                         throw Invalid("Connector 的判定区间没有覆盖连接");
                     double defaultKind = activeHead == null ? 101 : TypeOf(a) == NoteType.Critical ? 2 : 1;
+                    bool headAttached = _attachments.TryGetValue(head, out var headAttachment);
+                    bool tailAttached = _attachments.TryGetValue(tail, out var tailAttachment);
+                    bool sameBeat = Beat(head) == Beat(tail);
                     var segment = new NextRushConnectorSegment(
-                        (int)a.Number("segmentKind", defaultKind), (int)head.Number("connectorEase", 1),
+                        (int)a.Number("segmentKind", defaultKind),
+                        headAttached ? headAttachment.ease : (int)head.Number("connectorEase", 1),
                         AlphaAt(head, a, b), AlphaAt(tail, a, b), styleHead, a.Number("segmentThroughJudgeLine") == 1,
-                        (NextRushConnectorLayer)(int)a.Number("segmentLayer"), a.Number("segmentPresentation") == 1);
+                        (NextRushConnectorLayer)(int)a.Number("segmentLayer"), a.Number("segmentPresentation") == 1,
+                        headAttached && !sameBeat ? headAttachment.fraction : 0f,
+                        tailAttached && !sameBeat ? tailAttachment.fraction : 1f);
                     if (!_edges.TryAdd(head, new ConnectorEdge(tail, activeHead, activeTail, segment)))
                         throw Invalid("重复的长条连接片段");
                 }

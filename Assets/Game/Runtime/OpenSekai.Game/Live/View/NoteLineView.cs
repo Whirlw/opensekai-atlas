@@ -615,7 +615,8 @@ namespace Sekai
 			List<INote> viewNotes = start.ParentNote is LongNote bar ? bar.LineNoteList : start.ViewNoteList;
 			int index = viewNotes != null ? Mathf.Max(0, viewNotes.IndexOf(start)) : 0;
 			int segmentCount = Mathf.Max(1, (viewNotes?.Count ?? 2) - 1);
-			bool step = segment?.Ease == 40;
+			float stepBoundary = segment?.StepBoundary ?? float.NaN;
+			bool step = stepBoundary >= 0f && stepBoundary <= 1f;
 			int written = 0;
 			for (int i = 0; i <= splits; i++)
 			{
@@ -625,17 +626,18 @@ namespace Sekai
 				{
 					float previous = Mathf.Lerp((float)first, (float)last, (float)(i - 1) / splits);
 					bool forward = first < last;
-					if (forward ? previous < 0.5f && along >= 0.5f : previous > 0.5f && along <= 0.5f)
+					if (forward ? previous < stepBoundary && along >= stepBoundary
+						: previous > stepBoundary && along <= stepBoundary)
 					{
-						float jump = (float)((0.5 - first) / (last - first));
+						float jump = (float)((stepBoundary - first) / (last - first));
 						// Equal heights leave no mesh between the two sides of the jump.
-						Write(jump, 0.5f, forward ? 0f : 1f);
-						Write(jump, 0.5f, forward ? 1f : 0f);
-						if (along == 0.5f) continue;
+						Write(jump, stepBoundary, forward ? 0f : 1f);
+						Write(jump, stepBoundary, forward ? 1f : 0f);
+						if (along == stepBoundary) continue;
 					}
 				}
-				float eased = step && along == 0.5f ? (last < 0.5 ? 0f : 1f)
-					: segment == null ? along : NextRushConnectorSegment.Interpolate(segment.Ease, along);
+				float eased = step && along == stepBoundary ? (last < stepBoundary ? 0f : 1f)
+					: segment?.Interpolate(along) ?? along;
 				Write(fraction, along, eased);
 			}
 			return written;

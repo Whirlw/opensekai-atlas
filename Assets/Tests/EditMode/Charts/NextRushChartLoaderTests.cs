@@ -479,6 +479,108 @@ namespace OpenSekai.Tests.EditMode.Charts
         }
 
         [Test]
+        public void AttachedSeparatorSplitsTheOriginalCurveWithoutRestartingItsEase()
+        {
+            var head = N("NormalHeadTapNote", "head", 1, -4);
+            var tail = N("NormalTailReleaseNote", "tail", 5, 4);
+            var middle = E("AnchorNote", "middle", V("#BEAT", 3), V("isAttached", 1), V("isSeparator", 1),
+                R("attachHead", "head"), R("attachTail", "tail"), R("activeHead", "head"));
+            Add(head, R("next", "tail"), V("connectorEase", 2));
+            Add(tail, R("prev", "head"), R("activeHead", "head"));
+            var json = Chart(middle, tail, head,
+                Segment("middle", "tail", "middle", "tail", "head", "tail"),
+                Segment("head", "middle", "head", "middle", "head", "tail"));
+            var chart = Load(json);
+            var bar = chart.Score.NoteArray.OfType<LongNote>().Single();
+            var separator = (NoteBase)bar.LineNoteList[1];
+            Assert.That(bar.LineNoteList, Has.Count.EqualTo(3));
+            Assert.That(chart.TotalNoteCount, Is.EqualTo(2));
+            Assert.That(separator.HasNativeAttachment, Is.True);
+            Assert.That(separator.NativeLeft, Is.EqualTo(3f).Within(1e-6));
+            Assert.That(bar.NativeConnector.Interpolate(0.5f), Is.EqualTo(0.25f).Within(1e-6));
+            Assert.That(separator.NativeConnector.Interpolate(0.5f), Is.EqualTo(5f / 12f).Within(1e-6));
+
+            using (var harness = new LiveHarness())
+            {
+                harness.Arrange(chart.Score);
+                harness.Step(0.5f, 10.5, LiveHarness.Touch(1, LiveConfig.JudgmentPositions[1], 10.5));
+                harness.Step(2f, 12, LiveHarness.Touch(1, LiveConfig.JudgmentPositions[6], 12, InputTouchPhase.Moved));
+                Assert.That(bar.LaneStartF, Is.EqualTo(5.5f).Within(1e-5));
+                harness.Step(2.5f, 12.5, LiveHarness.Touch(1, LiveConfig.JudgmentPositions[9], 12.5, InputTouchPhase.Ended));
+                Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.JustPerfect));
+                Assert.That(bar.TailNote.Result, Is.EqualTo(NoteResult.JustPerfect));
+            }
+            AssertCompletesAutoplay(Load(json));
+        }
+
+        [Test]
+        public void AttachedGuideEndpointKeepsBothSourceScrollGroupsAndItsOwnReleaseJudgment()
+        {
+            var head = N("NormalHeadTapNote", "source", 1, -4);
+            var tail = N("AnchorNote", "tail", 5, 4);
+            var guide = N("AnchorNote", "guide", 2, 4);
+            var release = E("CriticalTailReleaseNote", "release", V("#BEAT", 3), V("isAttached", 1), V("isSeparator", 1),
+                R("attachHead", "source"), R("attachTail", "tail"));
+            Add(head, R("next", "tail"), V("connectorEase", 10));
+            Add(tail, R("#TIMESCALE_GROUP", "fast"));
+            var json = Chart(guide, tail, release, head,
+                Segment("guide", "release", "guide", "release"),
+                Segment("source", "tail", "source", "tail", "source", "tail"),
+                E("#TIMESCALE_GROUP", "fast", R("first", "fastChange")),
+                E("#TIMESCALE_CHANGE", "fastChange", V("#BEAT", 0), V("#TIMESCALE", 2)));
+            var chart = Load(json);
+            var bar = chart.Score.NoteArray.OfType<GuideNote>().Single();
+            var key = chart.Score.NoteArray.OfType<NormalNote>().Single();
+            Assert.That(chart.TotalNoteCount, Is.EqualTo(2));
+            Assert.That(bar.TailNote.HasJudgment, Is.False);
+            Assert.That(key.ParentNote, Is.Null);
+            Assert.That(bar.TailNote.NativeLeft, Is.EqualTo(2f).Within(1e-6));
+            using (var harness = new LiveHarness())
+            {
+                harness.Arrange(chart.Score);
+                harness.Logic.Notes.BindNativeVisuals(1);
+                Assert.That(key.NativeViewProgress(1.25, out _), Is.EqualTo(0.5).Within(1e-6));
+                Assert.That(bar.TailNote.NativeViewProgress(1.25, out _), Is.EqualTo(0.5).Within(1e-6));
+                var lane = LiveConfig.JudgmentPositions[2];
+                harness.Step(1.3f, 11.3, LiveHarness.Touch(1, lane, 11.3));
+                harness.Step(1.5f, 11.5, LiveHarness.Touch(1, lane, 11.5, InputTouchPhase.Ended));
+                Assert.That(key.Result, Is.EqualTo(NoteResult.JustPerfect));
+            }
+            AssertCompletesAutoplay(Load(json));
+        }
+
+        [Test]
+        public void AttachedSeparatorCanStartAnActiveSectionAndOwnItsHiddenTick()
+        {
+            var head = N("AnchorNote", "head", 1, -4);
+            var tail = N("AnchorNote", "tail", 5, 4);
+            var separator = E("AnchorNote", "separator", V("#BEAT", 3), V("isAttached", 1), V("isSeparator", 1),
+                R("attachHead", "head"), R("attachTail", "tail"), R("activeHead", "separator"));
+            var tick = E("TransientHiddenTickNote", null, V("#BEAT", 4), V("isAttached", 1),
+                R("attachHead", "head"), R("attachTail", "tail"), R("activeHead", "separator"));
+            Add(head, R("next", "tail"));
+            Add(tail, R("activeHead", "separator"));
+            var chart = Load(Chart(head, tail, separator, tick, Segment("head", "separator", "head", "separator"),
+                Segment("separator", "tail", "separator", "tail", "separator", "tail")));
+            var guide = chart.Score.NoteArray.OfType<GuideNote>().Single();
+            var hold = chart.Score.NoteArray.OfType<FrictionHideLongNote>().Single();
+            Assert.That(hold.HasNativeAttachment, Is.True);
+            Assert.That(guide.TailNote.NativeLeft, Is.EqualTo(hold.NativeLeft));
+            Assert.That(hold.JudgedPoints.Single().ParentNote, Is.SameAs(hold));
+            Assert.That(chart.TotalNoteCount, Is.EqualTo(1));
+            AssertCompletesAutoplay(chart);
+            Assert.That(hold.JudgedPoints.Single().Result, Is.EqualTo(NoteResult.Auto));
+        }
+
+        [Test]
+        public void AttachmentCannotPointBackToAnAttachedSeparator()
+        {
+            var a = E("AnchorNote", "a", V("#BEAT", 2), V("isAttached", 1), R("attachHead", "b"), R("attachTail", "b"));
+            var b = E("AnchorNote", "b", V("#BEAT", 2), V("isAttached", 1), R("attachHead", "a"), R("attachTail", "a"));
+            Assert.Throws<InvalidDataException>(() => Load(Chart(a, b, Segment("a", "b", "a", "b"))));
+        }
+
+        [Test]
         public void GuideUsesAnExternalStyleAndLeavesItsEndKeyPlayable()
         {
             var guide = N("AnchorNote", "guide", 2);

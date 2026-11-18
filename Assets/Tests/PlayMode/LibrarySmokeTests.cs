@@ -194,6 +194,13 @@ namespace OpenSekai.Tests.PlayMode
                 yield return WaitFor(() => controller.JustPlayingState, BootTimeoutSeconds, "restarting the signed run-in");
                 Assert.That(ClockMs() / 1000d, Is.EqualTo(span.StartSeconds).Within(0.20));
 
+                yield return WaitFor(() =>
+                {
+                    var line = GameObject.Find("NoteLineView");
+                    return line != null && line.GetComponent<MeshRenderer>().enabled
+                        && line.GetComponent<MeshFilter>().sharedMesh.vertexCount > 8;
+                }, BootTimeoutSeconds, "drawing the hold with its attached separator after retry");
+
                 MeshRenderer overlay = null;
                 yield return WaitFor(() =>
                 {
@@ -255,8 +262,10 @@ namespace OpenSekai.Tests.PlayMode
                     { ""archetype"": ""Initialization"", ""data"": [] },
                     { ""archetype"": ""#BPM_CHANGE"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 0 }, { ""name"": ""#BPM"", ""value"": 120 }] },
                     { ""archetype"": ""NormalHeadTapNote"", ""name"": ""head"", ""data"": [{ ""name"": ""#BEAT"", ""value"": -2 }, { ""name"": ""lane"", ""value"": 0 }, { ""name"": ""size"", ""value"": 1 }, { ""name"": ""next"", ""ref"": ""anchor"" }, { ""name"": ""connectorEase"", ""value"": 2 }] },
+                    { ""archetype"": ""AnchorNote"", ""name"": ""separator"", ""data"": [{ ""name"": ""#BEAT"", ""value"": -1.5 }, { ""name"": ""isAttached"", ""value"": 1 }, { ""name"": ""isSeparator"", ""value"": 1 }, { ""name"": ""attachHead"", ""ref"": ""head"" }, { ""name"": ""attachTail"", ""ref"": ""anchor"" }, { ""name"": ""activeHead"", ""ref"": ""head"" }] },
                     { ""archetype"": ""AnchorNote"", ""name"": ""anchor"", ""data"": [{ ""name"": ""#BEAT"", ""value"": -1 }, { ""name"": ""lane"", ""value"": 2 }, { ""name"": ""size"", ""value"": 1 }, { ""name"": ""activeHead"", ""ref"": ""head"" }] },
-                    { ""archetype"": ""Connector"", ""data"": [{ ""name"": ""head"", ""ref"": ""head"" }, { ""name"": ""tail"", ""ref"": ""anchor"" }, { ""name"": ""segmentHead"", ""ref"": ""head"" }, { ""name"": ""segmentTail"", ""ref"": ""anchor"" }, { ""name"": ""activeHead"", ""ref"": ""head"" }, { ""name"": ""activeTail"", ""ref"": ""anchor"" }] },
+                    { ""archetype"": ""Connector"", ""data"": [{ ""name"": ""head"", ""ref"": ""head"" }, { ""name"": ""tail"", ""ref"": ""separator"" }, { ""name"": ""segmentHead"", ""ref"": ""head"" }, { ""name"": ""segmentTail"", ""ref"": ""separator"" }, { ""name"": ""activeHead"", ""ref"": ""head"" }, { ""name"": ""activeTail"", ""ref"": ""anchor"" }] },
+                    { ""archetype"": ""Connector"", ""data"": [{ ""name"": ""head"", ""ref"": ""separator"" }, { ""name"": ""tail"", ""ref"": ""anchor"" }, { ""name"": ""segmentHead"", ""ref"": ""separator"" }, { ""name"": ""segmentTail"", ""ref"": ""anchor"" }, { ""name"": ""activeHead"", ""ref"": ""head"" }, { ""name"": ""activeTail"", ""ref"": ""anchor"" }] },
                     { ""archetype"": ""AnchorNote"", ""name"": ""guideStart"", ""data"": [{ ""name"": ""#BEAT"", ""value"": -1 }, { ""name"": ""lane"", ""value"": -2 }, { ""name"": ""size"", ""value"": 1 }, { ""name"": ""next"", ""ref"": ""guideEnd"" }, { ""name"": ""segmentKind"", ""value"": 103 }, { ""name"": ""segmentAlpha"", ""value"": 0 }, { ""name"": ""segmentLayer"", ""value"": 3 }, { ""name"": ""segmentPresentation"", ""value"": 1 }] },
                     { ""archetype"": ""AnchorNote"", ""name"": ""guideEnd"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 1 }, { ""name"": ""lane"", ""value"": -4 }, { ""name"": ""size"", ""value"": 1 }] },
                     { ""archetype"": ""Connector"", ""data"": [{ ""name"": ""head"", ""ref"": ""guideStart"" }, { ""name"": ""tail"", ""ref"": ""guideEnd"" }, { ""name"": ""segmentHead"", ""ref"": ""guideStart"" }, { ""name"": ""segmentTail"", ""ref"": ""guideEnd"" }] },

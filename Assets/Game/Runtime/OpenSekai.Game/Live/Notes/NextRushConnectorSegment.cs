@@ -26,9 +26,14 @@ namespace Sekai.Live
         internal bool IsCritical => Kind == 2 || Kind >= 21 && Kind <= 28;
         internal bool HasColor => Kind >= 11 && Kind <= 28;
         private readonly NoteBase _styleHead;
+        private readonly float _easeFrom;
+        private readonly float _easeTo;
+        private readonly float _easedFrom;
+        private readonly float _easedExtent;
 
         public NextRushConnectorSegment(int kind, int ease, float startAlpha, float endAlpha, NoteBase styleHead = null,
-            bool throughJudgeLine = false, NextRushConnectorLayer layer = NextRushConnectorLayer.Top, bool fullScreen = false)
+            bool throughJudgeLine = false, NextRushConnectorLayer layer = NextRushConnectorLayer.Top, bool fullScreen = false,
+            float easeFrom = 0f, float easeTo = 1f)
         {
             Kind = kind;
             Ease = ease;
@@ -39,10 +44,29 @@ namespace Sekai.Live
             ThroughJudgeLine = throughJudgeLine;
             Layer = layer;
             FullScreen = fullScreen;
+            _easeFrom = easeFrom;
+            _easeTo = easeTo;
+            _easedFrom = EaseEndpoint(ease, easeFrom);
+            _easedExtent = EaseEndpoint(ease, easeTo) - _easedFrom;
         }
 
         public static float Interpolate(int ease, float t) =>
             ease == 0 || ease == 38 ? 0f : (float)NextRushScrollTimeline.EaseValue(ease, t);
+
+        private static float EaseEndpoint(int ease, float value) =>
+            value <= 0f ? 0f : value >= 1f ? 1f : Interpolate(ease, value);
+
+        internal float Interpolate(float fraction)
+        {
+            if (_easeFrom == 0f && _easeTo == 1f) return Interpolate(Ease, fraction);
+            if (Ease == 0 || Ease == 38) return 0f;
+            if (_easedExtent == 0f) return fraction;
+            if (fraction <= 0f || fraction >= 1f) return fraction;
+            return (Interpolate(Ease, Mathf.Lerp(_easeFrom, _easeTo, fraction)) - _easedFrom) / _easedExtent;
+        }
+
+        internal float StepBoundary => Ease == 40 && _easedExtent != 0f
+            ? (0.5f - _easeFrom) / (_easeTo - _easeFrom) : float.NaN;
 
         internal bool IsHidden(double time, bool fallback) =>
             _styleHead?.NativeScroll?.SampleFrame(time).Hidden ?? fallback;

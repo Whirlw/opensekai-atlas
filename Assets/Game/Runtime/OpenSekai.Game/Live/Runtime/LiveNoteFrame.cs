@@ -323,7 +323,8 @@ namespace Sekai.Core.Live
 								node.NativeTarget.Time, ref a, ref b, out _, out _);
 						}
 					}
-					if (node.IsVisible && node.State != NoteState.Done && !childHidden && next > 0 && next <= LiveConfig.NativeKeyProgressEnd
+					if (!node.HasNativeAttachment && node.IsVisible && node.State != NoteState.Done && !childHidden
+						&& next > 0 && next <= LiveConfig.NativeKeyProgressEnd
 						&& _nativeViewTime < node.NativeTarget.Time && bar.ViewNoteList.Contains(node))
 						_presentation.Spawn(_session.Views, node, Frame.time);
 					previous = next;
