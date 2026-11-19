@@ -180,7 +180,7 @@ TIMESCALE 积分速度并累加跳距。SCROLL 使用当前瞬时速度与含跳
 
 也支持 `sonolus://host[/prefix]/levels/{name}` 链接和服务器路径前缀。
 工具调用 `probe-sonolus.ps1` 获取详情、下载谱面/音频/封面并验证 SHA-1，识别媒体文件头，保留谱面原始压缩字节和来源详情，再打包为 `.oskp`。
-仅接受该站当前确认的 `NextRUSH_P` 引擎名称；该检查不代替播放时的实际功能检查。
+UntitledCharts 使用 `NextRUSH_P`，Sbuga 使用 `next-rush`。在服务器页面添加 `https://sonolus.sbuga.com` 即可浏览 Sbuga。两种引擎的原始 LevelData 共用本页的加载器和功能检查。
 下载完成不代表所有玩法均可播放，不兼容的数据仍可保存，播放时会给出原因。
 
 默认输出到随机临时目录；也可指定 `-OutputPath 'E:/Downloads/chart.oskp'`，已有文件不会覆盖。

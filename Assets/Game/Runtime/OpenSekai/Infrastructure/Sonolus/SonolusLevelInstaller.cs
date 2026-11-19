@@ -28,7 +28,7 @@ namespace OpenSekai.Infrastructure.Sonolus
     }
 
     /// <summary>
-    /// Turns a Sonolus level into a native NextRUSH+ package in the library: downloads the chart
+    /// Turns a Sonolus level into a native NextRUSH package in the library: downloads the chart
     /// data, music and cover, checks each against its SHA-1 when the server gives one, checks the
     /// chart parses, writes manifest.json and sonolus-source.json into a staging folder and hands
     /// it to <see cref="SongPackageManager.ImportFolder"/>. Nothing reaches the library unless every
@@ -37,7 +37,7 @@ namespace OpenSekai.Infrastructure.Sonolus
     /// </summary>
     public sealed class SonolusLevelInstaller
     {
-        /// <summary>The one engine whose charts the game can load natively.</summary>
+        /// <summary>Sonolus engine identifier for NextRUSH+.</summary>
         public const string SUPPORTED_ENGINE = "NextRUSH_P";
 
         public const string SOURCE_FILE_NAME = "sonolus-source.json";
@@ -82,9 +82,9 @@ namespace OpenSekai.Infrastructure.Sonolus
                 return false;
             }
 
-            if (!string.Equals(level.EngineName, SUPPORTED_ENGINE, StringComparison.Ordinal))
+            if (level.EngineName != SUPPORTED_ENGINE && level.EngineName != "next-rush")
             {
-                reason = "暂不支持 " + (level.EngineTitle ?? level.EngineName ?? "未知") + " 引擎的谱面，仅支持 NextRUSH+。";
+                reason = "暂不支持 " + (level.EngineTitle ?? level.EngineName ?? "未知") + " 引擎的谱面，仅支持 NextRUSH 和 NextRUSH+。";
                 return false;
             }
 

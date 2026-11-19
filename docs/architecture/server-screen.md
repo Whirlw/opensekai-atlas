@@ -61,7 +61,7 @@ UntitledCharts 实测（2026-11-18）：`levels/info` 有 4 个栏目（Random S
 
 ### 下载与入库
 
-只接受 `engine.name == NextRUSH_P` 的谱面，其它引擎在详情页标明原因并禁用下载。
+接受 NextRUSH+（`NextRUSH_P`）和 Sbuga Next RUSH（`next-rush`）的谱面，其它引擎在详情页标明原因并禁用下载。
 上限：谱面数据 32 MiB、音乐 256 MiB、封面 16 MiB；有 hash 的资源逐个校验 SHA-1，失败不入库。
 暂存目录在 `temporaryCachePath/SonolusStaging/<随机>`，谱面能解析后才交给 `ImportFolder`，结束即删除。
 
@@ -111,7 +111,7 @@ powershell -File Tools/capture-screens.ps1 -Server -Width 1920 -Height 1080
 ## 常见问题与故障排查
 
 - **添加时提示「服务器返回的不是 Sonolus 数据」**：地址指向了网站首页以外的东西，或服务器不在根路径；带上路径前缀，或直接粘贴一个谱面分享链接。
-- **详情页「下载」是灰的**：谱面不是 NextRUSH+ 引擎，或详情还没加载完。
+- **详情页「下载」是灰的**：谱面使用了其他引擎，或详情还没加载完。
 - **游玩后回到的是曲库**：结算卡属于曲库；服务器页面不在打歌后恢复。
 - **封面一直是占位**：封面不是 PNG / JPEG，或下载失败（见日志 `[Sonolus] Cover download failed`）。
 

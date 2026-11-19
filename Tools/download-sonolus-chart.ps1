@@ -1,4 +1,4 @@
-# Downloads a native NextRUSH+ package for the game's existing .oskp/.zip import.
+# Downloads a native NextRUSH or NextRUSH+ package for the game's existing .oskp/.zip import.
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][uri]$LevelUrl,
@@ -15,7 +15,7 @@ $work = Join-Path ([IO.Path]::GetTempPath()) ('OpenSekai-NextRush-' + [guid]::Ne
 $probe = & (Join-Path $PSScriptRoot 'probe-sonolus.ps1') -Server $server -LevelName $name -IncludeMedia -OutputDirectory $work
 $details = Get-Content -LiteralPath (Join-Path $work 'details.json') -Raw | ConvertFrom-Json
 $item = $details.item
-if ($item.engine.name -ne 'NextRUSH_P') { throw "Unsupported engine: $($item.engine.name). Only NextRUSH+ is supported." }
+if ($item.engine.name -cnotin @('NextRUSH_P', 'next-rush')) { throw "Unsupported engine: $($item.engine.name). Expected NextRUSH or NextRUSH+." }
 $package = Join-Path $work 'package'
 $null = New-Item -ItemType Directory -Path $package
 
@@ -38,10 +38,12 @@ $cover = 'jacket' + (Get-MediaExtension (Join-Path $work 'cover.bin') $false)
 Copy-Item -LiteralPath (Join-Path $work 'level-data.json.gz') -Destination (Join-Path $package 'level-data.json.gz')
 Copy-Item -LiteralPath (Join-Path $work 'bgm.bin') -Destination (Join-Path $package $audio)
 Copy-Item -LiteralPath (Join-Path $work 'cover.bin') -Destination (Join-Path $package $cover)
+$difficulty = $item.tags | ForEach-Object { $_.title } | Where-Object { $_ -in @('easy', 'normal', 'hard', 'expert', 'master', 'append') } | Select-Object -First 1
+if ($difficulty) { $difficulty = $difficulty.ToLowerInvariant() } else { $difficulty = 'master' }
 $manifest = [ordered]@{
     formatVersion = 1; id = [guid]::NewGuid().ToString('N'); chartFormat = 'next-rush'
     title = $item.title; scoreTitle = $item.title; composer = $item.artists; userName = $item.author
-    description = $details.description; playLevel = $item.rating; musicDifficultyType = 'master'
+    description = $details.description; playLevel = $item.rating; musicDifficultyType = $difficulty
     audioFileName = $audio; jacketFileName = $cover; scoreFileName = 'level-data.json.gz'
     fillerSec = 0; secForMusicScoreMaker = 0
 }
@@ -53,4 +55,4 @@ if ([IO.File]::Exists($OutputPath)) { throw "Output already exists: $OutputPath"
 if (-not [IO.Directory]::Exists([IO.Path]::GetDirectoryName($OutputPath))) { throw 'Output directory does not exist.' }
 [IO.Compression.ZipFile]::CreateFromDirectory($package, $OutputPath)
 [pscustomobject]@{ Title = $item.title; Engine = $item.engine.name; Package = $OutputPath; Report = $probe.Report }
-Write-Host 'Import this package in the library. Playback will check the supported NextRUSH+ features.'
+Write-Host 'Import this package in the library. Playback will check the supported native chart features.'

@@ -184,6 +184,9 @@ namespace OpenSekai.Tests.EditMode.Sonolus
             SonolusLevel level = SonolusLevel.From(JToken.Parse(LevelJson));
             Assert.That(SonolusLevelInstaller.IsSupported(level, out _), Is.True);
             JObject other = JObject.Parse(LevelJson);
+            other["engine"]["name"] = "next-rush";
+            other["engine"]["title"] = "Next RUSH";
+            Assert.That(SonolusLevelInstaller.IsSupported(SonolusLevel.From(other), out _), Is.True);
             other["engine"]["name"] = "pjsekai";
             other["engine"]["title"] = "PJSekai";
             Assert.That(SonolusLevelInstaller.IsSupported(SonolusLevel.From(other), out string reason), Is.False);
