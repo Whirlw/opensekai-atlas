@@ -2,11 +2,13 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Collections;
+using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using OpenSekai.App;
 using OpenSekai.App.Playback;
 using OpenSekai.App.UI;
 using OpenSekai.Infrastructure.Packages;
+using OpenSekai.Infrastructure.Sonolus;
 using OpenSekai.Shared.Live.Simulation;
 using OpenSekai.Shared.Playback;
 using Sekai;
@@ -148,6 +150,99 @@ namespace OpenSekai.Tests.PlayMode
                 $"Rank={result.Rank}, auto={result.AutoCount}/{result.TotalCombo}, misses={result.Miss}");
             Assert.That(result.Rank, Is.EqualTo(ScoreRank.S));
         }
+
+        [UnityTest]
+        public IEnumerator InterruptedSonolusUpdateLeavesTheOldPackagePlayableFromTheLibrary()
+        {
+            yield return LibrarySceneBootsAndShowsThePage();
+            var originalLibrary = Object.FindFirstObjectByType<LibraryScreen>();
+            LibraryScreen recoveredLibrary = null;
+            string root = Path.Combine(Path.GetTempPath(), "OpenSekai-SonolusRecovery-" + System.Guid.NewGuid().ToString("N"));
+            string fixture = Path.GetFullPath(Path.Combine(Application.dataPath, "../Tools/fixtures/baseline_tap"));
+            string libraryRoot = Path.Combine(root, "library");
+            string indexRoot = Path.Combine(root, "index");
+            string stagingRoot = Path.Combine(root, "staging");
+            try
+            {
+                var server = SonolusServerAddress.Parse("example.com");
+                var oldLevel = BaselineSonolusLevel(1);
+                var newLevel = BaselineSonolusLevel(2);
+                var installer = new SonolusLevelInstaller(new SongPackageManager(libraryRoot), indexRoot, stagingRoot);
+                var oldPackage = installer.PublishPackage(StageBaseline("old"), server, oldLevel);
+                var unpublished = installer.PreparePublish(StageBaseline("update"), server, newLevel);
+                Assert.That(unpublished.RootDirectory, Is.Not.EqualTo(oldPackage.RootDirectory));
+                Assert.That(Directory.Exists(unpublished.RootDirectory), Is.True);
+                Assert.That(Directory.Exists(oldPackage.RootDirectory), Is.True);
+
+                var recoveredPackages = new SongPackageManager(libraryRoot);
+                var recoveredInstaller = new SonolusLevelInstaller(recoveredPackages, indexRoot, stagingRoot);
+                string recoveredDirectory = recoveredInstaller.FindInstalled(server, oldLevel.Name);
+                Assert.That(recoveredDirectory, Is.EqualTo(oldPackage.RootDirectory));
+                Assert.That(recoveredInstaller.StateOf(server, oldLevel), Is.EqualTo(SonolusInstallState.Installed));
+                Assert.That(recoveredInstaller.StateOf(server, newLevel), Is.EqualTo(SonolusInstallState.Outdated));
+                Assert.That(Directory.Exists(unpublished.RootDirectory), Is.False);
+                Assert.That(recoveredPackages.LoadItems().Select(item => item.Entry.RootDirectory),
+                    Is.EqualTo(new[] { recoveredDirectory }));
+
+                recoveredLibrary = LibraryScreen.Create(new AppContext(recoveredPackages, PlayService.Instance));
+                Transform actions = recoveredLibrary.transform.Find("Main/DetailColumn/Detail/Actions");
+                Assert.That(actions, Is.Not.Null);
+                var auto = actions.Find("Auto").GetComponent<Button>();
+                var start = actions.Find("Start").GetComponent<Button>();
+                Assert.That(start.interactable, Is.True, "the recovered package should be selected and playable");
+                auto.onClick.Invoke();
+                start.onClick.Invoke();
+
+                yield return WaitFor(() => SceneLoader.GetActiveScene().name == "Core"
+                    && Object.FindFirstObjectByType<SoloLiveController>() != null,
+                    BootTimeoutSeconds, "starting the recovered package through the library");
+                Assert.That(SoundManager.Instance.IsLoadedSoundBundle(oldPackage.AudioCueName), Is.True);
+                Assert.That(SoundManager.Instance.IsLoadedSoundBundle(unpublished.AudioCueName), Is.False);
+
+                yield return WaitFor(() => SceneLoader.GetActiveScene().name == "Library"
+                    && Object.FindFirstObjectByType<LibraryResultPanel>() != null,
+                    90f, "showing the recovered package's autoplay result");
+                var panel = Object.FindFirstObjectByType<LibraryResultPanel>();
+                var result = (PlayResult)typeof(LibraryResultPanel)
+                    .GetField("_current", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(panel);
+                Assert.That(result, Is.Not.Null);
+                Assert.That(result.PackageDirectory, Is.EqualTo(recoveredDirectory));
+                Assert.That(result.Kind, Is.EqualTo(PlayResultKind.Completed));
+                Assert.That(result.IsAuto, Is.True);
+                Assert.That(result.Score, Is.EqualTo(1_000_000));
+            }
+            finally
+            {
+                if (recoveredLibrary != null)
+                {
+                    Object.DestroyImmediate(recoveredLibrary.gameObject);
+                    if (originalLibrary != null) LibraryPageRegistry.Register(originalLibrary);
+                }
+                if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+            }
+
+            string StageBaseline(string revision)
+            {
+                string destination = Directory.CreateDirectory(Path.Combine(root, "sources", revision)).FullName;
+                foreach (string file in Directory.EnumerateFiles(fixture))
+                    File.Copy(file, Path.Combine(destination, Path.GetFileName(file)));
+                string manifestPath = Path.Combine(destination, "manifest.json");
+                var manifest = JObject.Parse(File.ReadAllText(manifestPath));
+                manifest["id"] = "sonolus-recovery-" + revision;
+                File.WriteAllText(manifestPath, manifest.ToString());
+                return destination;
+            }
+        }
+
+        private static SonolusLevel BaselineSonolusLevel(int version) => SonolusLevel.From(new JObject
+        {
+            ["name"] = "baseline-tap",
+            ["version"] = version,
+            ["engine"] = new JObject { ["name"] = SonolusLevelInstaller.SUPPORTED_ENGINE },
+            ["data"] = new JObject { ["url"] = "/chart" },
+            ["bgm"] = new JObject { ["url"] = "/music" },
+            ["cover"] = new JObject { ["url"] = "/cover" }
+        });
 
         [UnityTest]
         public IEnumerator NextRushOffsetKeepsThePlaybackClockThroughPauseRetryAndResult()

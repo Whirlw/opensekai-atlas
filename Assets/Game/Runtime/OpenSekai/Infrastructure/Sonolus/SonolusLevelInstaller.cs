@@ -20,10 +20,10 @@ namespace OpenSekai.Infrastructure.Sonolus
         /// <summary>Not in the library.</summary>
         Missing,
 
-        /// <summary>In the library, with the same chart data the server has now.</summary>
+        /// <summary>In the library, with the same chart, music and cover the server has now.</summary>
         Installed,
 
-        /// <summary>In the library, but the server's chart data has changed since.</summary>
+        /// <summary>In the library, but the server's assets have changed since.</summary>
         Outdated
     }
 
@@ -43,6 +43,7 @@ namespace OpenSekai.Infrastructure.Sonolus
         public const string SOURCE_FILE_NAME = "sonolus-source.json";
         public const string DATA_FILE_NAME = "level-data.json.gz";
         private const string INDEX_FILE_NAME = "sonolus-downloads.json";
+        private const string UPDATE_MARKER_PREFIX = ".sonolus-update-";
         private const int IMPORTER_VERSION = 1;
 
         private const long MAX_DATA_BYTES = 32L * 1024 * 1024;
@@ -62,7 +63,11 @@ namespace OpenSekai.Infrastructure.Sonolus
             _packages = packages ?? throw new ArgumentNullException(nameof(packages));
             _indexPath = Path.Combine(indexDirectory, INDEX_FILE_NAME);
             _stagingRoot = stagingRoot;
+            TryRecoverPublication();
         }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void RecoverOnStartup() => _ = Shared;
 
         public static SonolusLevelInstaller Shared => _shared ?? (_shared = new SonolusLevelInstaller(
             SongPackageManager.Shared, Application.persistentDataPath, Path.Combine(Application.temporaryCachePath, "SonolusStaging")));
@@ -105,11 +110,19 @@ namespace OpenSekai.Infrastructure.Sonolus
                 return SonolusInstallState.Missing;
             }
 
-            string hash = level.Data?.Hash;
-            bool same = string.IsNullOrEmpty(hash) || string.IsNullOrEmpty(entry.DataHash)
-                ? entry.Version == level.Version
-                : string.Equals(hash, entry.DataHash, StringComparison.OrdinalIgnoreCase);
+            bool sameVersion = entry.Version == level.Version;
+            bool same = MatchesResource(entry.Data, level.Data, sameVersion)
+                && MatchesResource(entry.Bgm, level.Bgm, sameVersion)
+                && MatchesResource(entry.Cover, level.Cover, sameVersion);
             return same ? SonolusInstallState.Installed : SonolusInstallState.Outdated;
+        }
+
+        private static bool MatchesResource(SonolusSrl installed, SonolusSrl remote, bool sameVersion)
+        {
+            if (installed == null || remote == null) return installed == remote;
+            if (!string.IsNullOrEmpty(installed.Hash) || !string.IsNullOrEmpty(remote.Hash))
+                return string.Equals(installed.Hash, remote.Hash, StringComparison.OrdinalIgnoreCase);
+            return sameVersion && string.Equals(installed.Url, remote.Url, StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -129,15 +142,11 @@ namespace OpenSekai.Infrastructure.Sonolus
             }
 
             SonolusServerAddress server = client.Address;
-            string existing = FindInstalled(server, level.Name);
-            if (existing != null && StateOf(server, level) == SonolusInstallState.Installed)
+            SongPackage current = FindCurrentPackage(server, level);
+            if (current != null)
             {
-                SongPackage current = SongPackageStorage.LoadEntry(existing);
-                if (current != null)
-                {
-                    progress?.Invoke(1f, "已在曲库中");
-                    return current;
-                }
+                progress?.Invoke(1f, "已在曲库中");
+                return current;
             }
 
             // Weights roughly follow typical sizes: the music dominates.
@@ -178,65 +187,192 @@ namespace OpenSekai.Infrastructure.Sonolus
             }
 
             progress?.Invoke(0.95f, "正在检查谱面…");
+            string manifestJson = BuildManifest(details, audioExtension, coverExtension);
+            string sourceJson = BuildSource(server, details);
+            return await StageAndPublishAsync(server, level, staging =>
+            {
+                File.WriteAllBytes(Path.Combine(staging, DATA_FILE_NAME), data);
+                NextRushChartLoader.ReadFile(Path.Combine(staging, DATA_FILE_NAME));
+                File.WriteAllBytes(Path.Combine(staging, "audio" + audioExtension), audio);
+                if (cover != null)
+                    File.WriteAllBytes(Path.Combine(staging, "jacket" + coverExtension), cover);
+                File.WriteAllText(Path.Combine(staging, SongPackageStorage.MANIFEST_FILE_NAME), manifestJson, new UTF8Encoding(false));
+                File.WriteAllText(Path.Combine(staging, SOURCE_FILE_NAME), sourceJson, new UTF8Encoding(false));
+            }, progress, cancellationToken);
+        }
+
+        internal async UniTask<SongPackage> StageAndPublishAsync(SonolusServerAddress server, SonolusLevel level,
+            Action<string> writePackage, Action<float, string> progress, CancellationToken cancellationToken)
+        {
             string staging = Path.Combine(_stagingRoot, Guid.NewGuid().ToString("N"));
             try
             {
-                string manifestJson = BuildManifest(details, audioExtension, coverExtension);
-                string sourceJson = BuildSource(server, details);
-                await UniTask.RunOnThreadPool(() =>
+                try
                 {
-                    Directory.CreateDirectory(staging);
-                    File.WriteAllBytes(Path.Combine(staging, DATA_FILE_NAME), data);
-                    // Parse once before anything reaches the library: a corrupt file fails here.
-                    NextRushChartLoader.ReadFile(Path.Combine(staging, DATA_FILE_NAME));
-                    File.WriteAllBytes(Path.Combine(staging, "audio" + audioExtension), audio);
-                    if (cover != null)
+                    await UniTask.RunOnThreadPool(() =>
                     {
-                        File.WriteAllBytes(Path.Combine(staging, "jacket" + coverExtension), cover);
-                    }
-
-                    File.WriteAllText(Path.Combine(staging, SongPackageStorage.MANIFEST_FILE_NAME), manifestJson, new UTF8Encoding(false));
-                    File.WriteAllText(Path.Combine(staging, SOURCE_FILE_NAME), sourceJson, new UTF8Encoding(false));
-                }, cancellationToken: cancellationToken);
-            }
-            catch (Exception exception) when (!(exception is OperationCanceledException) && !(exception is SonolusException))
-            {
-                TryDelete(staging);
-                throw new SonolusException("谱面数据无效：" + exception.Message);
-            }
-
-            SongPackage installed;
-            try
-            {
+                        Directory.CreateDirectory(staging);
+                        writePackage(staging);
+                    }, cancellationToken: cancellationToken);
+                }
+                catch (Exception exception) when (!(exception is OperationCanceledException) && !(exception is SonolusException))
+                {
+                    throw new SonolusException("谱面数据无效：" + exception.Message);
+                }
                 cancellationToken.ThrowIfCancellationRequested();
                 progress?.Invoke(0.98f, "正在加入曲库…");
-                installed = _packages.ImportFolder(staging) ?? throw new SonolusException("无法加入曲库。");
+                cancellationToken.ThrowIfCancellationRequested();
+                SongPackage installed = FindCurrentPackage(server, level) ?? PublishPackage(staging, server, level, ownsDownloadStage: true);
+                progress?.Invoke(1f, "已加入曲库");
+                return installed;
             }
             finally
             {
                 TryDelete(staging);
             }
+        }
 
-            // The new copy is in; the old one (an update) goes.
-            if (existing != null && !string.Equals(Path.GetFullPath(existing), Path.GetFullPath(installed.RootDirectory), StringComparison.OrdinalIgnoreCase))
+        private SongPackage FindCurrentPackage(SonolusServerAddress server, SonolusLevel level)
+        {
+            return StateOf(server, level) == SonolusInstallState.Installed
+                ? SongPackageStorage.LoadEntry(FindInstalled(server, level.Name)) : null;
+        }
+
+        internal SongPackage PublishPackage(string staging, SonolusServerAddress server, SonolusLevel level, bool ownsDownloadStage = false)
+        {
+            SongPackage installed;
+            try
             {
-                SongPackage old = SongPackageStorage.LoadEntry(existing);
-                try
-                {
-                    if (old != null)
-                    {
-                        _packages.DeleteEntry(old);
-                    }
-                }
-                catch (Exception exception)
-                {
-                    Debug.LogWarning("[Sonolus] Could not remove the replaced package: " + exception.Message);
-                }
+                installed = PreparePublish(staging, server, level, ownsDownloadStage);
+                CommitPublication(server, level, installed);
+            }
+            catch (Exception exception)
+            {
+                TryRecoverPublication();
+                throw new SonolusException("无法保存下载记录：" + exception.Message);
             }
 
-            Remember(server, level, installed.RootDirectory);
-            progress?.Invoke(1f, "已加入曲库");
+            TryRecoverPublication();
             return installed;
+        }
+
+        private string PendingPath => _indexPath + ".pending";
+
+        // Phase one publishes the files while the durable index still selects the old edition.
+        internal SongPackage PreparePublish(string staging, SonolusServerAddress server, SonolusLevel level, bool ownsDownloadStage = false)
+        {
+            RecoverPublication();
+            if (File.Exists(_indexPath)) _index = ReadIndexFile();
+            string previous = FindInstalled(server, level.Name);
+            if (previous != null) previous = _packages.RequirePackageDirectory(previous);
+            string key = KeyOf(server, level.Name);
+            if (previous == null && LoadIndex().ContainsKey(key))
+            {
+                // A package removed from the library has no recoverable old edition.
+                var remaining = new Dictionary<string, IndexEntry>(_index, StringComparer.Ordinal);
+                remaining.Remove(key);
+                SaveIndex(remaining);
+                _index = remaining;
+            }
+            SongPackage planned = _packages.PlanFolderImport(staging) ?? throw new SonolusException("无法加入曲库。");
+            Guid operation = Guid.NewGuid();
+            var pending = new Publication
+            {
+                Id = operation.ToString("N"),
+                Key = key,
+                Previous = previous == null ? null : Path.GetFileName(previous),
+                Incoming = Path.GetFileName(planned.RootDirectory)
+            };
+            if (ownsDownloadStage) pending.DownloadStage = Path.GetFileName(staging);
+            AtomicFile.WriteAllText(PendingPath, JsonConvert.SerializeObject(pending));
+            if (previous != null) Stamp(previous, pending.Id);
+            return _packages.PublishFolder(staging, planned, operation, copy => Stamp(copy, pending.Id));
+        }
+
+        private static void Stamp(string directory, string id)
+        {
+            string marker = Path.Combine(directory, UPDATE_MARKER_PREFIX + id);
+            SongPackageStorage.RejectReparsePoint(marker);
+            AtomicFile.WriteAllText(marker, id);
+        }
+
+        private static bool HasStamp(string directory, string id)
+        {
+            if (directory == null) return false;
+            string marker = Path.Combine(directory, UPDATE_MARKER_PREFIX + id);
+            SongPackageStorage.RejectReparsePoint(marker);
+            return File.Exists(marker) && File.ReadAllText(marker) == id;
+        }
+
+        private void TryRecoverPublication()
+        {
+            try
+            {
+                RecoverPublication();
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("[Sonolus] Update cleanup will be retried: " + exception.Message);
+            }
+        }
+
+        private string PackagePath(string name)
+        {
+            SongPackageStorage.ValidatePathComponent(name, nameof(name));
+            return _packages.RequirePackageDirectory(Path.Combine(_packages.RootDirectory, name));
+        }
+
+        private void RecoverPublication()
+        {
+            if (!File.Exists(PendingPath)) return;
+            var pending = JsonConvert.DeserializeObject<Publication>(File.ReadAllText(PendingPath));
+            if (pending == null || !Guid.TryParseExact(pending.Id, "N", out Guid operation) || string.IsNullOrEmpty(pending.Key))
+                throw new InvalidDataException("更新记录无效。");
+            string incoming = PackagePath(pending.Incoming);
+            string previous = pending.Previous == null ? null : PackagePath(pending.Previous);
+            if (previous != null && _packages.PathsEqual(previous, incoming))
+                throw new InvalidDataException("更新记录中的曲包目录重复。");
+
+            // Read strictly from disk. A corrupt or unavailable index cannot authorize deletion.
+            var index = ReadIndexFile();
+            string active = index.TryGetValue(pending.Key, out var selected) ? selected.Directory : null;
+            bool committed = active != null && _packages.PathsEqual(active, incoming);
+            bool previousSelected = active == null ? previous == null : previous != null && _packages.PathsEqual(active, previous);
+            if (!committed && !previousSelected)
+                throw new InvalidDataException("下载索引与更新记录不一致。");
+            string keep = committed ? incoming : previous;
+            string discard = committed ? previous : incoming;
+            if (keep != null && SongPackageStorage.LoadEntry(keep) == null)
+                throw new InvalidDataException("索引指向的曲包无法读取。");
+
+            string retired = _packages.ImportStagingPath(operation);
+            if (discard != null && HasStamp(discard, pending.Id))
+            {
+                foreach (var record in index.Values)
+                {
+                    if (_packages.PathsEqual(record.Directory, discard))
+                        throw new InvalidDataException("待清理曲包仍被下载索引引用。");
+                }
+                // Rename first so interruption during recursive cleanup never loses ownership evidence.
+                Directory.Move(discard, retired);
+            }
+            SongPackageManager.DeleteOwnedTree(retired);
+            if (discard != null) _packages.RefreshCachedDirectory(discard);
+            if (keep != null) _packages.RefreshCachedDirectory(keep);
+            if (HasStamp(keep, pending.Id)) File.Delete(Path.Combine(keep, UPDATE_MARKER_PREFIX + pending.Id));
+            if (pending.DownloadStage != null)
+            {
+                if (!Guid.TryParseExact(pending.DownloadStage, "N", out _)) throw new InvalidDataException("无效的暂存目录。");
+                SongPackageStorage.RejectReparsePoint(_stagingRoot);
+                SongPackageManager.DeleteOwnedTree(Path.Combine(_stagingRoot, pending.DownloadStage));
+            }
+            File.Delete(PendingPath);
+            _index = index;
+        }
+
+        private sealed class Publication
+        {
+            public string Id, Key, Previous, Incoming, DownloadStage;
         }
 
         /// <summary>The manifest of the package, mapped from the level's fields.</summary>
@@ -398,11 +534,9 @@ namespace OpenSekai.Infrastructure.Sonolus
                 return false;
             }
 
-            // Deleted from the library since: forget it.
+            // The package may have been deleted from the library. The next successful install replaces this entry.
             if (!File.Exists(Path.Combine(entry.Directory, SongPackageStorage.MANIFEST_FILE_NAME)))
             {
-                index.Remove(KeyOf(server, levelName));
-                SaveIndex();
                 entry = null;
                 return false;
             }
@@ -410,16 +544,21 @@ namespace OpenSekai.Infrastructure.Sonolus
             return true;
         }
 
-        private void Remember(SonolusServerAddress server, SonolusLevel level, string directory)
+        internal void CommitPublication(SonolusServerAddress server, SonolusLevel level, SongPackage installed)
         {
-            LoadIndex()[KeyOf(server, level.Name)] = new IndexEntry
+            var updated = new Dictionary<string, IndexEntry>(LoadIndex(), StringComparer.Ordinal)
             {
-                Directory = directory,
-                DataHash = level.Data?.Hash,
-                Version = level.Version,
-                Title = level.Title
+                [KeyOf(server, level.Name)] = new IndexEntry
+                {
+                    Directory = installed.RootDirectory,
+                    Data = level.Data,
+                    Bgm = level.Bgm,
+                    Cover = File.Exists(installed.JacketPath) ? level.Cover : null,
+                    Version = level.Version
+                }
             };
-            SaveIndex();
+            SaveIndex(updated);
+            _index = updated;
         }
 
         private Dictionary<string, IndexEntry> LoadIndex()
@@ -429,72 +568,69 @@ namespace OpenSekai.Infrastructure.Sonolus
                 return _index;
             }
 
-            _index = new Dictionary<string, IndexEntry>(StringComparer.Ordinal);
             try
             {
-                if (File.Exists(_indexPath) && JToken.Parse(File.ReadAllText(_indexPath)) is JObject loaded)
-                {
-                    foreach (KeyValuePair<string, JToken> pair in loaded)
-                    {
-                        if (pair.Value is JObject value)
-                        {
-                            _index[pair.Key] = new IndexEntry
-                            {
-                                Directory = Json.String(value, "directory"),
-                                DataHash = Json.String(value, "dataHash"),
-                                Version = (int)Json.Number(value, "version"),
-                                Title = Json.String(value, "title")
-                            };
-                        }
-                    }
-                }
+                _index = ReadIndexFile();
             }
             catch (Exception exception)
             {
-                Debug.LogWarning("[Sonolus] Download index unreadable, starting over: " + exception.Message);
+                Debug.LogWarning("[Sonolus] Download index unreadable: " + exception.Message);
+                return new Dictionary<string, IndexEntry>(StringComparer.Ordinal);
             }
 
             return _index;
         }
 
-        private void SaveIndex()
+        private Dictionary<string, IndexEntry> ReadIndexFile()
         {
-            try
+            var entries = new Dictionary<string, IndexEntry>(StringComparer.Ordinal);
+            string json;
+            try { json = File.ReadAllText(_indexPath); }
+            catch (FileNotFoundException) { return entries; }
+            catch (DirectoryNotFoundException) { return entries; }
+            foreach (var pair in JObject.Parse(json).Properties())
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(_indexPath));
-                string temporary = _indexPath + ".tmp";
-                var json = new JObject();
-                foreach (KeyValuePair<string, IndexEntry> pair in _index)
+                if (pair.Value is not JObject value || string.IsNullOrEmpty(Json.String(value, "directory")))
+                    throw new InvalidDataException("下载索引包含无效的曲包记录。");
+                entries[pair.Name] = new IndexEntry
                 {
-                    json[pair.Key] = new JObject
-                    {
-                        ["directory"] = pair.Value.Directory,
-                        ["dataHash"] = pair.Value.DataHash,
-                        ["version"] = pair.Value.Version,
-                        ["title"] = pair.Value.Title
-                    };
-                }
-
-                File.WriteAllText(temporary, json.ToString(Formatting.Indented), new UTF8Encoding(false));
-                if (File.Exists(_indexPath))
-                {
-                    File.Delete(_indexPath);
-                }
-
-                File.Move(temporary, _indexPath);
+                    Directory = Json.String(value, "directory"),
+                    Data = SonolusSrl.From(value["data"]),
+                    Bgm = SonolusSrl.From(value["bgm"]),
+                    Cover = SonolusSrl.From(value["cover"]),
+                    Version = (int)Json.Number(value, "version")
+                };
             }
-            catch (Exception exception)
-            {
-                Debug.LogWarning("[Sonolus] Could not save the download index: " + exception.Message);
-            }
+            return entries;
         }
+
+        private void SaveIndex(Dictionary<string, IndexEntry> index)
+        {
+            var json = new JObject();
+            foreach (KeyValuePair<string, IndexEntry> pair in index)
+            {
+                json[pair.Key] = new JObject
+                {
+                    ["directory"] = pair.Value.Directory,
+                    ["data"] = ResourceJson(pair.Value.Data),
+                    ["bgm"] = ResourceJson(pair.Value.Bgm),
+                    ["cover"] = ResourceJson(pair.Value.Cover),
+                    ["version"] = pair.Value.Version
+                };
+            }
+            AtomicFile.WriteAllText(_indexPath, json.ToString(Formatting.Indented));
+        }
+
+        private static JObject ResourceJson(SonolusSrl resource) => resource == null ? null
+            : new JObject { ["hash"] = resource.Hash, ["url"] = resource.Url };
 
         private sealed class IndexEntry
         {
             internal string Directory;
-            internal string DataHash;
+            internal SonolusSrl Data;
+            internal SonolusSrl Bgm;
+            internal SonolusSrl Cover;
             internal int Version;
-            internal string Title;
         }
     }
 }

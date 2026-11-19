@@ -75,8 +75,9 @@ jacket.png|jpg         可选；封面失败不影响入库
 sonolus-source.json    服务器地址、name、version、引擎、各资源 hash、导入器版本、完整详情
 ```
 
-「已下载」索引在 `persistentDataPath/sonolus-downloads.json`，键是 `服务器 host+前缀 | level name`，值是曲包目录和 data hash。
-目录被删掉（曲库里删除了曲包）后自动失效。服务器上的 data hash 变了显示「更新」：新曲包入库成功后才删除旧曲包（旧曲包的游玩记录随之不再显示）。
+「已下载」索引在 `persistentDataPath/sonolus-downloads.json`，按服务器和谱面名称记录安装目录、谱面、音乐及封面资源。目录被删后，安装记录自动失效。
+其中任一资源的哈希改变都会显示「更新」。双方都未提供哈希时，按资源地址和版本判断。更新先安装新包，再原子保存索引，成功后才删除旧包。
+复制开始前，安装器将本次更新的新旧目录和操作标识写入 `sonolus-downloads.json.pending`。应用启动时按磁盘上的下载索引恢复：索引尚未切换就保留旧包，已切换就保留新包。清理仅针对本次更新标记的目录和专用暂存区，曲库缓存同步后才移除更新记录。
 
 下载可随时取消；能否播放仍以 [NextRUSH+ 原生加载](native-next-rush.md) 的兼容范围为准，不兼容的谱面在开局时报原因。
 
