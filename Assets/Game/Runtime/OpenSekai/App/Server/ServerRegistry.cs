@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using OpenSekai.Infrastructure.Packages;
 using OpenSekai.Infrastructure.Sonolus;
 using UnityEngine;
 
@@ -122,33 +122,64 @@ namespace OpenSekai.App.Server
             }
 
             var entry = new ServerEntry("user-" + Guid.NewGuid().ToString("N").Substring(0, 12), kind, title, normalized);
+            var updated = new List<ServerEntry>(_servers) { entry };
+            if (!TrySave(updated, out error))
+            {
+                return null;
+            }
+
             _servers.Add(entry);
-            Save();
             Changed?.Invoke();
             return entry;
         }
 
-        public void Rename(ServerEntry entry, string name)
+        public bool TryRename(ServerEntry entry, string name, out string error)
         {
-            if (entry == null || string.IsNullOrWhiteSpace(name) || entry.Name == name.Trim())
+            int index = _servers.IndexOf(entry);
+            error = null;
+            if (index < 0 || string.IsNullOrWhiteSpace(name))
             {
-                return;
+                error = index < 0 ? "服务器已不在列表中。" : "请输入服务器名称。";
+                return false;
             }
 
-            entry.Name = name.Trim();
-            Save();
+            string title = name.Trim();
+            if (entry.Name == title)
+            {
+                return true;
+            }
+
+            var updated = new List<ServerEntry>(_servers);
+            updated[index] = new ServerEntry(entry.Id, entry.Kind, title, entry.Address);
+            if (!TrySave(updated, out error))
+            {
+                return false;
+            }
+
+            entry.Name = title;
             Changed?.Invoke();
+            return true;
         }
 
-        public void Remove(ServerEntry entry)
+        public bool TryRemove(ServerEntry entry, out string error)
         {
-            if (entry == null || !_servers.Remove(entry))
+            int index = _servers.IndexOf(entry);
+            if (index < 0)
             {
-                return;
+                error = "服务器已不在列表中。";
+                return false;
             }
 
-            Save();
+            var updated = new List<ServerEntry>(_servers);
+            updated.RemoveAt(index);
+            if (!TrySave(updated, out error))
+            {
+                return false;
+            }
+
+            _servers.RemoveAt(index);
             Changed?.Invoke();
+            return true;
         }
 
         /// <summary>An HTTPS address with its query and fragment kept, or null with the reason.</summary>
@@ -229,10 +260,10 @@ namespace OpenSekai.App.Server
             }
         }
 
-        private void Save()
+        private bool TrySave(IReadOnlyList<ServerEntry> entries, out string error)
         {
             var servers = new JArray();
-            foreach (ServerEntry server in _servers)
+            foreach (ServerEntry server in entries)
             {
                 servers.Add(new JObject
                 {
@@ -251,19 +282,15 @@ namespace OpenSekai.App.Server
 
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(_path));
-                string temporary = _path + ".tmp";
-                File.WriteAllText(temporary, root.ToString(Formatting.Indented), new UTF8Encoding(false));
-                if (File.Exists(_path))
-                {
-                    File.Delete(_path);
-                }
-
-                File.Move(temporary, _path);
+                AtomicFile.WriteAllText(_path, root.ToString(Formatting.Indented));
+                error = null;
+                return true;
             }
             catch (Exception exception)
             {
                 Debug.LogWarning("[Servers] Could not save the server list: " + exception.Message);
+                error = "无法保存服务器列表，请检查应用存储后重试。";
+                return false;
             }
         }
     }

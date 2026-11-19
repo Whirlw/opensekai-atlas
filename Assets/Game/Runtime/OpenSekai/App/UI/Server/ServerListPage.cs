@@ -291,9 +291,15 @@ namespace OpenSekai.App.UI
             }
 
             ServerEntry entry = _entry;
+            if (!_screen.Registry.TryRemove(entry, out string error))
+            {
+                UiSound.Play(UiCue.Error);
+                _screen.ShowToast(error);
+                return;
+            }
+
             Close();
             UiSound.Play(UiCue.Delete);
-            _screen.Registry.Remove(entry);
             _screen.ShowToast("已移除 " + entry.Name);
         }
     }

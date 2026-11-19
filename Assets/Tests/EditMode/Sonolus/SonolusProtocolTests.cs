@@ -271,8 +271,52 @@ namespace OpenSekai.Tests.EditMode.Sonolus
                 var reloaded = new ServerRegistry(root);
                 Assert.That(reloaded.Servers.Select(server => server.Address),
                     Is.EqualTo(new[] { "https://example.com/custom", "https://example.org/charts" }));
-                reloaded.Remove(reloaded.Find(added.Id));
+                Assert.That(reloaded.TryRename(reloaded.Find(site.Id), "renamed", out error), Is.True, error);
+                Assert.That(new ServerRegistry(root).Find(site.Id).Name, Is.EqualTo("renamed"));
+                Assert.That(reloaded.TryRemove(reloaded.Find(added.Id), out error), Is.True, error);
                 Assert.That(new ServerRegistry(root).Servers.Single().Kind, Is.EqualTo(ServerKind.WebView));
+            }
+            finally
+            {
+                if (Directory.Exists(root))
+                {
+                    Directory.Delete(root, true);
+                }
+            }
+        }
+
+        [Test]
+        public void FailedServerSaveLeavesTheListAndItsLastSavedContentsIntact()
+        {
+            string root = Path.Combine(Path.GetTempPath(), "servers-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var registry = new ServerRegistry(root);
+                ServerEntry existing = registry.TryAdd(ServerKind.Sonolus, "original", "example.com", out string error);
+                Assert.That(existing, Is.Not.Null, error);
+                string path = Path.Combine(root, "servers.json");
+                string savedFile = Path.Combine(root, "previous.json");
+                string original = File.ReadAllText(path);
+                File.Move(path, savedFile);
+                Directory.CreateDirectory(path); // A directory cannot be replaced by the new configuration file.
+
+                int changes = 0;
+                registry.Changed += () => changes++;
+                Assert.That(registry.TryAdd(ServerKind.WebView, "other", "example.org", out error), Is.Null);
+                Assert.That(error, Does.Contain("无法保存服务器列表"));
+                Assert.That(registry.TryRename(existing, "new name", out error), Is.False);
+                Assert.That(error, Does.Contain("无法保存服务器列表"));
+                Assert.That(registry.TryRemove(existing, out error), Is.False);
+                Assert.That(error, Does.Contain("无法保存服务器列表"));
+
+                Assert.That(changes, Is.Zero);
+                Assert.That(registry.Servers.Single(), Is.SameAs(existing));
+                Assert.That(existing.Name, Is.EqualTo("original"));
+                Assert.That(Directory.GetFiles(root, "*.tmp"), Is.Empty);
+                Directory.Delete(path);
+                File.Move(savedFile, path);
+                Assert.That(File.ReadAllText(path), Is.EqualTo(original));
+                Assert.That(new ServerRegistry(root).Find(existing.Id).Name, Is.EqualTo("original"));
             }
             finally
             {
