@@ -101,12 +101,23 @@ namespace OpenSekai.Tests.EditMode.Packages
         }
 
         [Test]
-        public void ANewLaunchReadsTheSnapshotInsteadOfTheHistory()
+        public void ACurrentSnapshotCanLoadWithoutOpeningTheHistory()
         {
             var cache = new PlayHistorySummaryCache();
             cache.Append(_path, Run("a", 100, "2026-11-01T00:00:00Z"));
-            cache.Append(_path, Run("a", 250, "2026-11-02T00:00:00Z"));
-            File.Delete(_path);
+            using (File.Open(_path, FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                var relaunched = new PlayHistorySummaryCache().Load(_path);
+                Assert.That(relaunched["a"].PlayCount, Is.EqualTo(1));
+            }
+        }
+
+        [Test]
+        public void ANewLaunchIncludesRunsWrittenAfterTheSnapshot()
+        {
+            var cache = new PlayHistorySummaryCache();
+            cache.Append(_path, Run("a", 100, "2026-11-01T00:00:00Z"));
+            WriteExisting(Run("a", 250, "2026-11-02T00:00:00Z"));
 
             var relaunched = new PlayHistorySummaryCache().Load(_path);
 
@@ -114,6 +125,20 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(relaunched["a"].Best.totalScore, Is.EqualTo(250));
             Assert.That(relaunched["a"].PlayCount, Is.EqualTo(2));
             Assert.That(relaunched["a"].LastPlayedAtUtc, Is.EqualTo("2026-11-02T00:00:00Z"));
+        }
+
+        [Test]
+        public void AnInterruptedLineDoesNotSwallowTheNextCompletedRun()
+        {
+            var cache = new PlayHistorySummaryCache();
+            cache.Append(_path, Run("a", 100, "2026-11-01T00:00:00Z"));
+            File.AppendAllText(_path, "{\"scoreKey\":");
+            var summary = cache.Append(_path, Run("a", 250, "2026-11-02T00:00:00Z"));
+
+            Assert.That(summary.PlayCount, Is.EqualTo(2));
+            var rebuilt = new PlayHistorySummaryCache().Reload(_path)["a"];
+            Assert.That(rebuilt.PlayCount, Is.EqualTo(2));
+            Assert.That(rebuilt.Best.totalScore, Is.EqualTo(250));
         }
     }
 }
