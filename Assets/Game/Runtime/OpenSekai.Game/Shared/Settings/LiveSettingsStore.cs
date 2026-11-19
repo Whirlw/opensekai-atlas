@@ -27,7 +27,6 @@ namespace OpenSekai.Shared.Settings
                 catch (Exception e) { Debug.LogWarning("LiveSettingData could not be loaded. path:" + _path + " error:" + e.Message); }
             }
             _cached = _cached ?? new LiveSettingData();
-            if (_cached.FrameRateLimit <= 0 && _cached.Use120FPS) _cached.FrameRateLimit = 120;
             // The old frame-based clock shift becomes an audio latency in ms, once.
             if (_cached.TimingAdjustData != 0f)
             {

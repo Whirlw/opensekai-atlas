@@ -92,8 +92,6 @@ namespace Sekai
 
 		public bool IsFastLateFlick { get; set; }
 
-		public bool Use120FPS { get; set; }
-
 		/// <summary>
 		/// Frame rate cap for live play, in Hz. 0 follows the display refresh rate.
 		/// The runtime limits this to supported refresh rates.
@@ -223,7 +221,6 @@ namespace Sekai
 			LiveMode = LiveModeType.Default3D;
 			UseAllPerfectEffect = true;
 			QualityType = MVQualityType.Default;
-			Use120FPS = false;
 			FrameRateLimit = 0;
 			UseLegacyJudgeTiming = false;
 			UseFramePressMatching = false;

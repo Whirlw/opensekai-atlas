@@ -65,7 +65,7 @@ EditMode：
 - `Charts/RuntimeChartConverterTests`：七类 `noteBaseType` 到具体 Note 的映射、长条是「一个 root + hold 子节点」、连接音符并入同一 root、装饰音符不参与计数、Critical 保留类型、BPM 事件进时间轴、只有链头成为 root、孤立尾巴被丢弃、悬空 `nextConnectionId` 不致命、环形连接抛 `InvalidDataException`、FrictionLong 对折叠成 `FrictionHideLongNote`。
 - `Packages/PlayHistoryRecordTests`：旧记录（无 `chartHash`/`rulesVersion`/`sessionId`）仍可反序列化、新字段回落、新记录往返、未知字段忽略。
 - `Packages/SongPackageManagerTests`：新建/列出/删除/复制、导出 `.oskp` 后导入回读、导出归档里含 `manifest.json` 与 `score.json`、导入的副本沿用 manifest id 但拿到新目录、坏包与缺失文件的处理。
-- `Settings/LiveSettingsStoreTests`：缺文件默认值、保存读回、自动建目录、旧的 `Use120FPS` 升级成 `FrameRateLimit`、坏 JSON 回落、`null` 路径拒绝。
+- `Settings/LiveSettingsStoreTests`：缺文件默认值、保存读回、自动建目录、从 120 Hz 改为跟随屏幕后重启生效、坏 JSON 回落、`null` 路径拒绝。
 - `Live/DecorationTailFromChartTests`：**真实谱面驱动**——读 `Tools/fixtures/deco-tail-test10/score.json`（取自报告者 `Test10.zip`），`ChartJson.Read` → `RuntimeChartConverter.Convert` → 用真实 `OnUpdate`/`OnInput` 把手指依次送到每根 `GuideNote` 条的尾时间（flick / friction-flick 给划动采样，普通尾给按下），断言每种尾都判出结果。这是目前唯一能验证「尾进不进候选」的用例，**动到 `_judgmentNoteList` 注册时必须跑它**。
 - `Live/DecorationTailJudgmentTests`：装饰条的四种尾（普通尾按下、划键尾划动、摩擦尾触摸、摩擦划键尾划动）各一条，用手工音符经 `LiveHarness` 走真实 `OnUpdate` / `OnInput`，另有两条对照：不碰的尾不被判、划键尾只按不划不被判。旧版手工 `new` 后反射调内部阶段、进不了候选，曾被停放，现已改写恢复。谱面版本见 `DecorationTailFromChartTests`。
 - `Live/TailReleaseLaneTests`：真实谱面 + `LiveHarness` 逐帧驱动一根普通尾长条，验证**抬手归属**——另一根手指在别的轨道按下再抬起时尾不许被判定、条也不许结束；持握者自己在条内抬手时尾必须被判。拥挤的尾：范围内还有其他触摸时只认 Perfect 区间的抬手，单独抬手任何评级都判；范围外的触摸、同帧也抬起的触摸、同一触摸的多个样本都不算拥挤。**动到 `CoverHoldsWithAnyFinger` 的松手分支时必须跑它**。
