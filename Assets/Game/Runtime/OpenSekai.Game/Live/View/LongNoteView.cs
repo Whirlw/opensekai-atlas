@@ -44,6 +44,15 @@ namespace Sekai
 			}
 
 			float progress = CalcProgress(musicTime);
+			if (note is LongNote { NativeConnector: not null } bar)
+			{
+				int style = bar.NativeStyle;
+				if (bar.TryNativeEdge((double)musicTime + LiveConfig.ViewLeadSeconds, out var start, out _, visualTime: true))
+					style = start.NativeConnector.HeadStyle(style);
+				ApplyStyle(style);
+			}
+			else if (note is NormalNote { NativeScroll: not null, IsDecoration: true } marker)
+				ApplyStyle(marker.NativeStyle);
 			if (LiveTrace.IsOn(LiveTraceCategory.Frame))
 			{
 				LiveTrace.Write(LiveTraceCategory.Frame, "view barT=" + note.MusicScoreInfo.time.ToString("F3") + " state=" + note.State + " raw=" + note.Progress.ToString("F3") + " view=" + progress.ToString("F3"));

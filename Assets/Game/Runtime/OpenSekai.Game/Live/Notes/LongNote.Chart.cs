@@ -159,7 +159,7 @@ namespace Sekai.Live
 			NoteList ??= new List<NoteBase> { this };
 			ViewNoteList ??= new List<INote> { this };
 			// The draw list holds every note the bar owns. Whether a note shows anything is the note's own
-			// business; settlement is decided separately, in SettleLeftoverAsPerfect, where only the points
+			// business; settlement is decided separately, in SettleComboPointsAtEnd, where only the points
 			// the bar itself ends are graded.
 			if (independentTail)
 			{

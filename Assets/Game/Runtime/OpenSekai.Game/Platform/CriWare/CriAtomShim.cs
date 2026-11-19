@@ -535,7 +535,7 @@ namespace CriWare
 
 		public CriAtomExPlayback Start() => Start(0);
 
-		internal CriAtomExPlayback Start(int requestSequence)
+		internal CriAtomExPlayback Start(int requestSequence, bool loop = false)
 		{
 			if (_acb == null || string.IsNullOrEmpty(_cueName))
 			{
@@ -544,7 +544,7 @@ namespace CriWare
 			}
 
 			CriAtomExAcb.CueAudioClip[] clips = _acb.GetOrCreateAudioClips(_cueName);
-			_currentPlayback = CriAtomAudioRuntime.Play(clips, _volume, _startTimeMs / 1000f, requestSequence);
+			_currentPlayback = CriAtomAudioRuntime.Play(clips, _volume, _startTimeMs / 1000f, requestSequence, loop);
 			_startTimeMs = 0L;
 			return _currentPlayback;
 		}
@@ -745,7 +745,7 @@ namespace CriWare
 		}
 
 		public static CriAtomExPlayback Play(CriAtomExAcb.CueAudioClip[] clips, float _volume, float startTimeSeconds,
-			int requestSequence = 0)
+			int requestSequence = 0, bool loop = false)
 		{
 			if (clips == null || clips.Length == 0)
 			{
@@ -785,6 +785,7 @@ namespace CriWare
 				AudioSource source = sources[sourceIndex];
 				source.Stop();
 				source.playOnAwake = false;
+				source.loop = loop;
 				source.spatialBlend = 0f;
 				source.clip = clip;
 				source.volume = Mathf.Max(0f, _volume * clips[i].VolumeScale);

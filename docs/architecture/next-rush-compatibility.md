@@ -7,12 +7,12 @@
 | 实体 | 当前处理 |
 | --- | --- |
 | `Initialization`、`#BPM_CHANGE`、`#TIMESCALE_GROUP` | 接受兼容子集，限制见字段表 |
-| `Connector`、`SimLine` | 校验连接，重建长条、Guide 和同时押线 |
+| `Connector`、`SimLine` | 校验连接，重建长条、Guide、Damage 和 Fake 条身及同时押线 |
 | `Normal`、`Critical` 音符 | 两个前缀分别与下表各行组合，再加 `Note` 后缀 |
-| `TransientHiddenTickNote` | 附着在长条边上时提供一个隐藏判定点，允许与该边端点同拍 |
+| `TransientHiddenTickNote` | 附着时沿长条取位置。未附着时使用自己的轨道与宽度，可独立接触、引用判定段或作为连接端点。每个实体结算一次 |
 | `AnchorNote` | 隐藏几何点、无判定长条尾和独立 Guide 端点 |
-| `DamageNote`、`TransientHiddenDamageTickNote` | P4 |
-| `Fake` 系列 | P4。上游为上述 32 个 Normal/Critical 组合，以及 Anchor、Damage、隐藏 Tick、隐藏 Damage Tick 各提供一个对应的 `Fake` 前缀实体，共 36 个 |
+| `DamageNote`、`TransientHiddenDamageTickNote` | 独立伤害键和隐藏伤害点均已接入。隐藏点可沿连接路径附着 |
+| `Fake` 系列 | 32 个 Normal/Critical 组合及 Anchor、Damage、隐藏 Tick、隐藏 Damage Tick 的 Fake 版本均已接入。Fake 只影响几何和显示 |
 | `#TIMESCALE_CHANGE` | 编译链接事件，供原生分组轨迹求值 |
 | `Stage`、`CameraChange`、`StageTransformChange`、`StageMaskChange`、`StagePivotChange`、`StageStyleChange` | P5 |
 | `Skill`、`FeverChance`、`FeverStart` | 约定忽略。保留原始实体，只校验 LevelData 语法 |
@@ -22,7 +22,7 @@
 | Normal/Critical 后缀 | 已接入基础运行时 | 待 P4 |
 | --- | --- | --- |
 | 独立 | Tap、Flick、Trace、TraceFlick、Release | |
-| Head | Tap、Trace、Release | Flick、TraceFlick |
+| Head | Tap、Flick、Trace、TraceFlick、Release | |
 | Tail | Tap、Flick、Trace、TraceFlick、Release | |
 | 中间或独立接触键 | Tick | |
 
@@ -35,13 +35,13 @@
 | 实体 | 输入字段 | OpenSekai 当前处理 |
 | --- | --- | --- |
 | LevelData | `bgmOffset`、`entities` | P1 支持有符号偏移，换算规则见 [音乐偏移与三秒规则](native-next-rush.md#音乐偏移与三秒规则) |
-| Initialization | `revision=1`、`initialLife=1000`、`firstCamera` | 记录有效 revision。自定义生命待 P4，相机引用需指向 CameraChange，实际使用待 P5 |
-| #BPM_CHANGE | `#BEAT`、`#BPM` | 从第 0 拍开始，BPM 为正。同拍多事件拒绝。样本附带的 `meter` 只接受 4（默认 4） |
+| Initialization | `revision=1`、`initialLife=1000`、`firstCamera` | 记录有效 revision，按 `initialLife` 初始化生命。相机引用需指向 CameraChange，实际使用待 P5 |
+| #BPM_CHANGE | `#BEAT`、`#BPM`、可选数值 `meter` | 至少一个事件，BPM 为正，同拍多事件拒绝。OpenSekai 将第 0 拍定为 0 秒，首事件之前沿用首个 BPM。固定版本的 NextRUSH+ 将拍数交给 Sonolus 的 `BeatToTime`；[官方接口说明](https://wiki.sonolus.com/engine-specs/functions/beat-to-time) 未说明首事件之前的规则。客户端对照点为第 4 拍首次设为 90 BPM、背景音乐偏移为 0 时，第 3 拍在 OpenSekai 为 2 秒，Sonolus 实测值待补。`meter` 保留在原谱中 |
 | #TIMESCALE_GROUP | `first`、`forceNoteSpeed` | 编译各组独立轨迹，保留 `editorName`、`editorHidden` 编辑器元数据 |
 | #TIMESCALE_CHANGE | `#BEAT`、`#TIMESCALE`、`#TIMESCALE_SKIP`、`#TIMESCALE_GROUP`、`#TIMESCALE_EASE=0`、`transitionStyle=0`、`hideNotes`、`next` | 已接入分组轨迹。Life Reset Button 附带的 `editorLane` 作为编辑器元数据保留 |
-| 全部音符（含 Anchor、Fake、Damage、隐藏点） | `#BEAT`、`#TIMESCALE_GROUP`、`stage`、`lane`、`size`、`elevation=0`、`direction`、`style`、`activeHead`、`isAttached`、`connectorEase`、`isSeparator`、`segmentKind`、`segmentAlpha`、`segmentLayer`、`segmentThroughJudgeLine`、`segmentPresentation`、`attachHead`、`attachTail`、`next`、`prev`、`effectKind` | 可判定键使用 12 轨浮点几何和方向 0–2。Anchor 可延伸到舞台外。连接曲线、层级和透明度的处理见 [原生加载](native-next-rush.md)。当前隐藏 Tick 接受 `#BEAT`、`isAttached=1`、`attachHead`、`attachTail`、`activeHead` |
-| Connector | `head`、`tail`、`segmentHead`、`segmentTail`、`activeHead`、`activeTail`、`legacyHiddenPop` | 几何边与 next 相符，同一条链内样式区间可以跨多个边，支持 Guide 与无判定尾。跨链及独立判定区间、`legacyHiddenPop` 待接入 |
-| SimLine | `left`、`right` | 校验为同拍音符，按 OpenSekai 设置重建 |
+| 全部音符（含 Anchor、Fake、Damage、隐藏点） | `#BEAT`、`#TIMESCALE_GROUP`、`stage`、`lane`、`size`、`elevation=0`、`direction`、`style`、`activeHead`、`isAttached`、`connectorEase`、`isSeparator`、`segmentKind`、`segmentAlpha`、`segmentLayer`、`segmentThroughJudgeLine`、`segmentPresentation`、`attachHead`、`attachTail`、`next`、`prev`、`effectKind` | 可判定键和 Anchor 接受零宽以及部分或全部超出 12 轨的浮点几何，已支持的划键接受方向 0–5。连接曲线、层级和透明度的处理见 [原生加载](native-next-rush.md)。支持样式 0–8 和打击音覆盖 0–10。附着的普通隐藏 Tick 读取通用音符字段，可直接作为 Connector 的几何端点。未附着的普通隐藏 Tick 读取自身的音符字段，`lane` 和 `size` 缺省为 0 |
+| Connector | `head`、`tail`、`segmentHead`、`segmentTail`、`activeHead`、`activeTail`、`legacyHiddenPop` | 支持跨链、分叉、合流、不连续判定区间、跨边样式、Guide 与无判定尾。同拍几何须无环，重复边会报错。开启 `legacyHiddenPop` 时，以样式起点的变速组及玩家流速计算首次可见时间，连接段从该时刻开始参与绘制 |
+| SimLine | `left`、`right` | 端点可以是同拍或跨拍的可见键、Anchor 或隐藏 Tick。左右引用同一节点时线段长度为零；任一端点宽度为零时该线也不可见。两端所在拍均使用谱面指定的连线，其他拍沿用本地自动配对。两者都遵循设置开关 |
 | Stage | `fromStart`、`untilEnd`、`firstMaskChange`、`firstPivotChange`、`firstStyleChange`、`firstTransformChange` | P5 |
 | CameraChange | `#BEAT`、`lane`、`size`、`zoom=1`、`zoomTargetLane`、`zoomTargetY`、`zoomVerticalAlign`、`rotate`、`stageTilt=1`、`ease`、`next` | P5 |
 | StageTransformChange | `#BEAT`、`stage`、`rotate`、`xLaneTranslate`、`yLaneTranslate`、`elevation`、`anchor`、`rotationCenter`、`rotationCenterXOffset`、`rotationCenterYOffset`、`ease`、`next` | P5 |

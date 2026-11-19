@@ -18,6 +18,10 @@ namespace Sekai.Live
 		internal float NativeLeft { get; private set; }
 		internal float NativeRight { get; private set; }
 		public NextRushConnectorSegment NativeConnector { get; set; }
+		public int NativeStyle { get; set; }
+		public NextRushEffectKind NativeEffectKind { get; set; }
+		internal List<NoteBase> NativeSimLineTargets { get; private set; }
+		internal List<NoteBase> NativeSimLineSources { get; private set; }
 		private NoteBase _nativeAttachHead;
 		private NoteBase _nativeAttachTail;
 		internal bool HasNativeAttachment => _nativeAttachHead != null;
@@ -36,17 +40,46 @@ namespace Sekai.Live
 			_nativeAttachTail = tail;
 		}
 
+		public void AddNextRushSimLine(NoteBase end)
+		{
+			(NativeSimLineTargets ??= new List<NoteBase>()).Add(end);
+			if (UsesIndependentSimLineTrajectories(end))
+				(end.NativeSimLineSources ??= new List<NoteBase>()).Add(this);
+		}
+
+		internal bool UsesIndependentSimLineTrajectories(NoteBase end) =>
+			NativeScroll != null && end.NativeScroll != null
+			&& (NativeScroll != end.NativeScroll || NativeTarget.Time != end.NativeTarget.Time
+				|| HasNativeAttachment || end.HasNativeAttachment || !IsVisible || !end.IsVisible);
+
+		internal void PlaceVisualHead(float left, float right)
+		{
+			LaneStartF = left;
+			LaneEndF = right;
+			Progress = 1f;
+		}
+
 		internal double PrepareNativeVisual(double displayLead)
 		{
-			NativePreempt = NativeScroll.Preempt(displayLead);
-			double activation = NativeScroll.ActivationTime(NativeTarget, NativePreempt);
+			double activation = PrepareBasicVisual(displayLead);
+			if (NativeConnector?.LegacyHiddenPop == true)
+				activation = Math.Min(activation, NativeConnector.PrepareLegacySpawn(displayLead));
 			if (!HasNativeAttachment) return activation;
 
 			// A blend can first enter view as soon as either source does.
-			double first = _nativeAttachHead.PrepareNativeVisual(displayLead);
-			double last = _nativeAttachTail.PrepareNativeVisual(displayLead);
+			double first = _nativeAttachHead.PrepareBasicVisual(displayLead);
+			double last = _nativeAttachTail.PrepareBasicVisual(displayLead);
 			return Math.Min(activation, Math.Min(first, last));
 		}
+
+		private double PrepareBasicVisual(double displayLead)
+		{
+			NativePreempt = NativeScroll.Preempt(displayLead);
+			return NativeScroll.ActivationTime(NativeTarget, NativePreempt);
+		}
+
+		private double BasicViewProgress(double now) =>
+			1 - NativeScroll.Distance(NativeScroll.SampleFrame(now), NativeTarget) / NativePreempt;
 
 		internal double NativeViewProgress(double now, out bool hidden)
 		{
@@ -56,14 +89,14 @@ namespace Sekai.Live
 			{
 				double start = _nativeAttachHead.NativeTarget.Time;
 				double end = _nativeAttachTail.NativeTarget.Time;
-				double tail = _nativeAttachTail.NativeViewProgress(now, out _);
+				double tail = _nativeAttachTail.BasicViewProgress(now);
 				if (start == end)
 				{
 					if (now >= start) return 1;
-					return (_nativeAttachHead.NativeViewProgress(now, out _) + tail) / 2;
+					return (_nativeAttachHead.BasicViewProgress(now) + tail) / 2;
 				}
 
-				double head = now < start ? _nativeAttachHead.NativeViewProgress(now, out _) : 1;
+				double head = now < start ? _nativeAttachHead.BasicViewProgress(now) : 1;
 				double remainingStart = Math.Max(start, now);
 				double fraction = remainingStart >= end ? 0.5
 					: Math.Clamp((NativeTarget.Time - remainingStart) / (end - remainingStart), 0, 1);
@@ -285,12 +318,16 @@ namespace Sekai.Live
 		}
 
 		[JsonIgnore]
+		public bool UsesNextRushJudgment { get; set; }
+
+		private (NoteResult result, NoteResultDescription description) _judgeInfo;
+
+		[JsonIgnore]
 		public (NoteResult result, NoteResultDescription description) JudgeInfo
 		{
-			[CompilerGenerated]
-			get;
-			[CompilerGenerated]
-			protected set;
+			get => _judgeInfo;
+			protected set => _judgeInfo = UsesNextRushJudgment && value.result == NoteResult.JustPerfect
+				? (NoteResult.Perfect, value.description) : value;
 		}
 
 		[JsonIgnore]

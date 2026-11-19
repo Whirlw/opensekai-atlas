@@ -113,10 +113,13 @@ namespace OpenSekai.App.Playback
                 PlaybackSettingsSnapshot settings = LiveSettingsStore.Shared.CaptureSnapshot();
                 LiveBundleBuildData config = ResourceCatalog.LiveBundleConfig.Load();
                 if(config == null) throw new InvalidOperationException("Live bundle configuration is missing.");
-                var chart = RuntimeChartLoader.Load(entry, config, settings.ShowSimultaneousLine);
+                var chart = RuntimeChartLoader.Load(entry, config, settings.ShowSimultaneousLine, settings.IsMirror);
                 if (chart == null || !chart.HasPlayableNotes)
                 {
-                    return Result(PlayStartStatus.Failed, "没有可游玩的音符。");
+                    if (chart?.NextRush == null || chart.Score?.HasVisualNotes != true)
+                        return Result(PlayStartStatus.Failed, "没有可游玩的音符。");
+                    if (!request.IsAuto)
+                        return Result(PlayStartStatus.Failed, "此谱面仅含装饰，请选择自动游玩。");
                 }
                 _surface.BeginSession(SongPackageHash.Compute(entry.ScorePath));
                 cancellationToken.ThrowIfCancellationRequested();

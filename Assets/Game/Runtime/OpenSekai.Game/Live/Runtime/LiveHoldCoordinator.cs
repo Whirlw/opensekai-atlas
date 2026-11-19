@@ -80,7 +80,7 @@ namespace Sekai.Core.Live
 
 					LiveLogic.InputTmp candidate = inputs[i];
 					float lane = candidate.Lane;
-					if (lane < 0f || !held.IsJudgment(ref candidate.Touch, lane))
+					if (float.IsNegativeInfinity(lane) || !held.IsJudgment(ref candidate.Touch, lane))
 					{
 						continue;
 					}
@@ -160,7 +160,7 @@ namespace Sekai.Core.Live
 			foreach (LiveLogic.InputTmp input in inputs)
 			{
 				input.CandidateNotes.Clear();
-				if (input.Touch.phase == UnityEngine.InputSystem.TouchPhase.Ended && input.Lane >= 0f)
+				if (input.Touch.phase == UnityEngine.InputSystem.TouchPhase.Ended && !float.IsNegativeInfinity(input.Lane))
 				{
 					CollectLiftCandidates(judgmentNotes, input);
 				}
@@ -289,7 +289,7 @@ namespace Sekai.Core.Live
 		// Where the bar is now: a bending body leaves its head's lanes, and the finger that follows it
 		// must keep covering it.
 		private static bool TouchesBar(float lane, LongNote bar) =>
-			lane >= 0f && HoldSweep.TouchesLane(lane, bar.BodyLaneStart, bar.BodyLaneEnd);
+			!float.IsNegativeInfinity(lane) && HoldSweep.TouchesLane(lane, bar.BodyLaneStart, bar.BodyLaneEnd);
 
 		private static bool RefreshFromAnyFinger(LongNote held, int count, List<LiveLogic.InputTmp> inputs)
 		{
@@ -303,7 +303,7 @@ namespace Sekai.Core.Live
 				}
 
 				float lane = input.Lane;
-				if (lane < 0f || !held.ContainsLane(lane))
+				if (float.IsNegativeInfinity(lane) || !held.ContainsLane(lane))
 				{
 					continue;
 				}
@@ -334,7 +334,6 @@ namespace Sekai.Core.Live
 			float lane = lift.Lane;
 			float time = lift.Touch.musicTime;
 			bool followsKeyPress = _keyPressTimes.TryGetValue(lift.Touch.touchId, out float pressTime);
-			bool quickTap = followsKeyPress && time - pressTime <= QuickTapSeconds;
 			bool tracing = LiveTrace.IsOn(LiveTraceCategory.Release);
 			System.Text.StringBuilder candidates = tracing ? new System.Text.StringBuilder() : null;
 
@@ -367,6 +366,8 @@ namespace Sekai.Core.Live
 				}
 
 				float tailTime = tail.MusicScoreInfo.time;
+				float lockout = candidate.UsesNextRushJudgment ? NextRushReleaseLockoutSeconds : QuickTapSeconds;
+				bool quickTap = followsKeyPress && time - pressTime <= lockout;
 				if (quickTap && !LongEndJudgement.IsPerfect(time - tailTime))
 				{
 					if (tracing)

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using OpenSekai.Shared.Diagnostics;
 using Sekai.Live;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Sekai
 {
@@ -54,7 +55,7 @@ namespace Sekai
 		};
 
 		private int SplitMeshCount;
-		private int POOL_COUNT;
+		private int _meshCapacity;
 		private readonly LayerBatch[] _batches = new LayerBatch[4];
 		private Camera _viewCamera;
 		private bool _guideView;
@@ -93,7 +94,6 @@ namespace Sekai
 			Camera viewCamera = null, bool guide = false)
 		{
 			SplitMeshCount = Mathf.Max(1, GetSplitMeshCount(isCustomMusicScore));
-			POOL_COUNT = Mathf.Max(1, SplitMeshCount * GetPoolMultiplier(isCustomMusicScore));
 			_viewCamera = viewCamera;
 			_guideView = guide;
 
@@ -108,7 +108,7 @@ namespace Sekai
 			Material.color = new Color(1f, 1f, 1f, alpha);
 
 			_longNotes = new List<NoteBase>(DEFAULT_LIST_CAPACITY);
-			SetupVertexArray();
+			EnsureMeshCapacity(SplitMeshCount * GetPoolMultiplier(isCustomMusicScore));
 
 			_batches[(int)NextRushConnectorLayer.Top] = CreateBatch(gameObject);
 			_meshSettingBuffer = new Setting[SplitMeshCount + 10];
@@ -127,19 +127,23 @@ namespace Sekai
 			return new LayerBatch { Mesh = mesh, Renderer = renderer };
 		}
 
-		private void SetupVertexArray()
+		private void EnsureMeshCapacity(int required)
 		{
-			int vertexCount = POOL_COUNT * TRAPEZOID_VERTEX_COUNT;
-			_vertices = new Vector3[vertexCount];
-			_leftPoint = new Vector2[vertexCount];
-			_rightPoint = new Vector2[vertexCount];
-			_uvOffsetLeft = new Vector2[vertexCount];
-			_uvOffsetRight = new Vector2[vertexCount];
-			_uv = new Vector2[vertexCount];
-			_colors = new Color[vertexCount];
-			_triangles = new int[POOL_COUNT * TRAPEZOID_INDEX_COUNT];
+			if (required <= _meshCapacity) return;
 
-			for (int meshIndex = 0; meshIndex < POOL_COUNT; meshIndex++)
+			// Dense Guide layers can exceed the initial capacity. Reuse the grown buffers next frame.
+			int capacity = Mathf.Max(required, _meshCapacity * 2);
+			int vertexCount = capacity * TRAPEZOID_VERTEX_COUNT;
+			Array.Resize(ref _vertices, vertexCount);
+			Array.Resize(ref _leftPoint, vertexCount);
+			Array.Resize(ref _rightPoint, vertexCount);
+			Array.Resize(ref _uvOffsetLeft, vertexCount);
+			Array.Resize(ref _uvOffsetRight, vertexCount);
+			Array.Resize(ref _uv, vertexCount);
+			Array.Resize(ref _colors, vertexCount);
+			Array.Resize(ref _triangles, capacity * TRAPEZOID_INDEX_COUNT);
+
+			for (int meshIndex = _meshCapacity; meshIndex < capacity; meshIndex++)
 			{
 				int vertexBase = TRAPEZOID_VERTEX_COUNT * meshIndex;
 				int triangleBase = TRAPEZOID_INDEX_COUNT * meshIndex;
@@ -155,6 +159,7 @@ namespace Sekai
 					_triangles[quadIndex + 5] = quadVertex + 2;
 				}
 			}
+			_meshCapacity = capacity;
 		}
 
 		/// <summary>
@@ -291,7 +296,6 @@ namespace Sekai
 				var segment = (startNote as NoteBase)?.NativeConnector;
 				if (segment == null || (segment.Layer == layer && segment.IsGuide == _guideView))
 				{
-					if (_meshCount >= POOL_COUNT) return;
 					if (segment?.FullScreen == true)
 					{
 						DrawFullScreen(time, bar, (NoteBase)startNote, (NoteBase)endNote, segment);
@@ -301,7 +305,7 @@ namespace Sekai
 						int centerPosition = GetCenterPosition(time, startNote, endNote, isTail);
 						if (centerPosition < 2 && LiveTrace.IsOn(LiveTraceCategory.View))
 							LiveTrace.Write(LiveTraceCategory.View, "mesh time=" + time.ToString("F3") + " startT=" + startNote.MusicScoreInfo.time.ToString("F3") + " endT=" + endNote.MusicScoreInfo.time.ToString("F3") + " centerPos=" + centerPosition + " meshCount=" + _meshCount);
-						if (centerPosition >= 2 && _meshCount + centerPosition - 1 <= POOL_COUNT)
+						if (centerPosition >= 2)
 							MeshCreate(time, baseNote, centerPosition, segment);
 					}
 				}
@@ -323,12 +327,16 @@ namespace Sekai
 				_statusValue.y = segment.IsCritical ? 0.025f : 0.525f;
 				if (segment.IsGuide) color = segment.GuideColor();
 				else if (segment.HasColor) color *= segment.StyleColor();
+				if (segment.TracksDamageContact && baseNote is GuideNote damage
+					&& (!damage.DamageContact || damage.State == NoteState.Done))
+					color *= ReleaseColor;
 			}
 			return color;
 		}
 
 		private void MeshCreate(float time, INote baseNote, int meshDataCount, NextRushConnectorSegment segment)
 		{
+			EnsureMeshCapacity(_meshCount + meshDataCount - 1);
 			Color color = SetSegmentStyle(time, baseNote, segment);
 			bool solidGuide = segment?.IsGuide == true;
 			float textureMode = solidGuide ? -1f : 0f;
@@ -365,6 +373,7 @@ namespace Sekai
 			Color color = SetSegmentStyle(time, bar, segment);
 			color.a *= alpha;
 			float textureMode = segment.IsGuide ? 2f : 1f;
+			EnsureMeshCapacity(_meshCount + 1);
 			int vertexIndex = _meshCount++ * TRAPEZOID_VERTEX_COUNT;
 			for (int i = 0; i < TRAPEZOID_VERTEX_COUNT; i++)
 			{
@@ -724,6 +733,8 @@ namespace Sekai
 			Mesh mesh = batch.Mesh;
 			int vertices = _meshCount * TRAPEZOID_VERTEX_COUNT;
 			if (mesh.vertexCount > vertices) mesh.Clear();
+			if (vertices > ushort.MaxValue && mesh.indexFormat == IndexFormat.UInt16)
+				mesh.indexFormat = IndexFormat.UInt32;
 			mesh.SetVertices(_vertices, 0, vertices);
 			mesh.SetColors(_colors, 0, vertices);
 			mesh.SetUVs(0, _uv, 0, vertices);

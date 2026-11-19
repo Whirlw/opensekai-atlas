@@ -15,14 +15,17 @@
 | 普通划键 `Flick` | 2.5 / 2.5 | 宽 83.3 ms | 6.5 / 7.5 | 7 / 8 | 7.5 / 8.5 |
 | 关键划键 `Flick_Critical` | 3.5 / 3.5 | ±58.3 ms，宽 116.7 ms | 6.5 / 7.5 | 7 / 8 | 7.5 / 8.5 |
 | 长条结束 `Long_End` | 3.5 / 4 | 宽 125 ms | 6.5 / 8 | 7.5 / 8.5 | 7.5 / 8.5 |
-| `Friction` / `Friction_Flick` | 复制对应的 `Flick` 表 | — | — | — | — |
+| 摩擦 `Friction` / 条内连击点 `LongHoldCombo` | 5 / 5（接触窗） | ±83.3 ms | — | — | — |
+| `Friction_Flick` | 复制对应的 `Flick` 表 | — | — | — | — | — |
 | `Friction_Long` / `Friction_Long_End` | 分别复制对应的 `Long` / `Long_End` 表 | — | — | — | — |
 
 `IsJudgmentTiming` 的外边界是开区间。单键和普通长条头的输入窗口为早晚各 **125 ms**，普通划键的晚界为 **141.7 ms**。实际发布 Miss 的时机见[判定规则设计](../architecture/judging-design.md#五判定窗口)，条内尾部评分见下文。
 
-单键和普通长条头先按触摸样本时间处理本帧输入，再按当前音乐时间结算超时。摩擦和摩擦划键分别使用 `Friction` 和 `Friction_Flick` 窗口，独立键与条尾使用同一套规则。
+单键和普通长条头先按触摸样本时间处理本帧输入，再按当前音乐时间结算超时。摩擦在前后各 5 个参考帧的开区间接收接触，接触成功给 JustPerfect。摩擦划键沿用 `Friction_Flick` 判定表。独立键与条尾使用同一套规则。
 
 ## 数据来源与测试
+
+NextRUSH+ 原生谱将 JustPerfect 统一记录为 Perfect，Bad 保留独立判定和计数，自动播放沿用 Auto。普通与高亮的独立 TraceFlick 使用提前 6.5 帧、延后 7.5 帧的输入窗口。普通长条尾和独立 Release 使用相同的近期按键保护：同指最近一次有效按键距抬手不超过 1/6 秒时，只有落在尾键 Perfect 窗内的抬手可以结算。
 
 这八组帧数与项目早期整理的判定分析逐项吻合（83.3 / 110 / 116.7 / 125 / 125 / 141.7 全部对上），数值已固化在 `LiveConfig` 与测试里。早期分析资料未随仓库分发。测试 `Assets/Tests/EditMode/Live/JudgeFrameTableTests.cs` 把换算与窗口宽度钉死。
 

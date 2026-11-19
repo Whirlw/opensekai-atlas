@@ -53,8 +53,10 @@ namespace Sekai.Core.Live
 			{
 				return note.State == NoteState.Scrolling;
 			}
+			if (note is FrictionFlickNote { IsTraceFlickOwner: true } traceFlick)
+				return !traceFlick.HasCapturedPress;
 
-			return note is NormalNote && note.Category == NoteCategory.Normal;
+			return note is NormalNote { TakesPress: true };
 		}
 
 		/// <summary>
@@ -65,7 +67,7 @@ namespace Sekai.Core.Live
 		/// </summary>
 		internal static bool AdmitsPress(NoteBase note, float touchTime, float lane)
 		{
-			if (!IsPressStep(note) || lane < 0f)
+			if (!IsPressStep(note) || float.IsNegativeInfinity(lane))
 			{
 				return false;
 			}
@@ -105,6 +107,23 @@ namespace Sekai.Core.Live
 		/// </param>
 		internal void SortPressCandidates(List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame, bool deduplicate = true)
 		{
+			// An overlapping tap has priority over optional TraceFlick capture on the same beat.
+			foreach (var input in inputs)
+			{
+				var candidates = input.CandidateNotes;
+				if (candidates.Count < 2) continue;
+				for (int i = candidates.Count - 1; i >= 0; i--)
+				{
+					if (candidates[i] is not FrictionFlickNote { IsTraceFlickOwner: true } traceFlick) continue;
+					for (int j = 0; j < candidates.Count; j++)
+					{
+						var other = candidates[j];
+						if (other is FrictionFlickNote || other.MusicScoreInfo.time != traceFlick.MusicScoreInfo.time) continue;
+						candidates.RemoveAt(i);
+						break;
+					}
+				}
+			}
 			if (deduplicate)
 			{
 				DeduplicateCandidates(inputs, ref frame);

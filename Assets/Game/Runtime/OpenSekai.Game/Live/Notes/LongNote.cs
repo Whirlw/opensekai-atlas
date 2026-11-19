@@ -34,11 +34,7 @@ namespace Sekai.Live
 
 				if (value == NoteState.Done)
 				{
-					// The bar shares its fate with its interior points and nothing else: whatever point the
-					// bar's own end made unreachable is settled Perfect here, so the bar leaving can never
-					// leave a marker unjudged. A point that already has a verdict keeps it (its own Miss,
-					// its own hit), which is why the settle only touches what is still open.
-					SettleLeftoverAsPerfect();
+					SettleComboPointsAtEnd();
 					WasHoldingWhenTerminated = HasFinger;
 					state = value;
 					OnUnSpawnNote();
@@ -83,6 +79,7 @@ namespace Sekai.Live
 			}
 
 			Progress = CalcProgress(currentFrameInfo, offsetTime);
+			Body.Update(currentFrameInfo.time);
 
 			if (NoteList != null)
 			{
@@ -92,7 +89,8 @@ namespace Sekai.Live
 					var childOffsetTime = CalcTimeOffset?.Invoke(note) ?? offsetTime;
 					if (currentFrameInfo.time < note.MusicScoreInfo.time - childOffsetTime)
 					{
-						break;
+					if (currentFrameInfo.time < note.MusicScoreInfo.time - ConnectionNote.ContactWindowSeconds) break;
+					if (note is not LongHoldCombo) continue;
 					}
 
 					// A judged end note that judges itself has its own clock in the session (LiveNoteSession
@@ -124,8 +122,6 @@ namespace Sekai.Live
 			{
 				Head.SettleExpiredHead(currentFrameInfo.time);
 			}
-
-			Body.Update(currentFrameInfo.time);
 
 			if ((prevState != State || prevResult != Result) && LiveTrace.IsOn(LiveTraceCategory.Hold))
 			{
@@ -393,9 +389,7 @@ namespace Sekai.Live
 		internal void RestoreHeldState() => Body.RestoreHeldState();
 
 		/// <summary>
-		/// Refresh a hold that this finger already owns. Interior combo ticks are judged inside
-		/// ConnectionNoteJudgment, so a refresh that skipped it would leave the sixteenth-note markers
-		/// unjudged even though the hold stays alive.
+		/// Refresh the hold and let its interior points see the updated body state.
 		/// </summary>
 		internal void RefreshHeldInput(ref LiveTouch touch, float lane)
 		{
@@ -495,6 +489,12 @@ namespace Sekai.Live
 		public override void ResetNote()
 		{
 			base.ResetNote();
+			if (NativeScroll != null)
+			{
+				// Native heads can draw before the judgment scan updates the bar's lane.
+				LaneStartF = NativeLeft;
+				LaneEndF = NativeRight;
+			}
 			lastInputTime = 0f;
 			_body?.Reset();
 			WasHoldingWhenTerminated = false;

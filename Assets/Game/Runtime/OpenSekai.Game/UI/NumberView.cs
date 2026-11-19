@@ -65,12 +65,15 @@ namespace Sekai
 
 		private bool _hasIcon;
 
-		public void Setup(string color, string _surplusColor = "#ffffff00")
+		private int _digitsAtNormalScale;
+		private Vector3 _normalScale;
+
+		public void Setup(string color, string _surplusColor = "#ffffff00", int minimumDigits = 0)
 		{
-			Setup(ColorUtility.Create(color), ColorUtility.Create(_surplusColor));
+			Setup(ColorUtility.Create(color), ColorUtility.Create(_surplusColor), minimumDigits);
 		}
 
-		public void Setup(Color _defaultColor, Color _surplusColor)
+		public void Setup(Color _defaultColor, Color _surplusColor, int minimumDigits = 0)
 		{
 			this._defaultColor = _defaultColor;
 			this._surplusColor = _surplusColor;
@@ -78,6 +81,18 @@ namespace Sekai
 			_hasIcon = _plusIconSprite != null || _minusiconSprite != null;
 
 			_numberSpriteRenderers = GetComponentsInChildren<SpriteRenderer>();
+			int iconSlots = _hasIcon ? 1 : 0;
+			int required = minimumDigits + iconSlots;
+			if (minimumDigits > 0 && _numberSpriteRenderers.Length > iconSlots && _numberSpriteRenderers.Length < required)
+			{
+				_digitsAtNormalScale = _numberSpriteRenderers.Length - iconSlots;
+				_normalScale = transform.localScale;
+				var template = _numberSpriteRenderers[_numberSpriteRenderers.Length - 1];
+				int existing = _numberSpriteRenderers.Length;
+				System.Array.Resize(ref _numberSpriteRenderers, required);
+				for (int i = existing; i < required; i++)
+					_numberSpriteRenderers[i] = Instantiate(template, template.transform.parent);
+			}
 			_spriteStatus = new SpriteStatus[_numberSpriteRenderers.Length];
 			_maxDigitCount = Mathf.Max(0, _numberSpriteRenderers.Length - (_hasIcon ? 1 : 0));
 			_digitValues = new int[Mathf.Max(1, _numberSpriteRenderers.Length)];
@@ -111,6 +126,8 @@ namespace Sekai
 			}
 
 			int digitCount = CalculateDigit(number);
+			if (_digitsAtNormalScale > 0)
+				transform.localScale = _normalScale * Mathf.Min(1f, (float)_digitsAtNormalScale / digitCount);
 			int iconIndex = _align == Align.Left ? 0 : digitCount;
 			if (_hasIcon && iconIndex >= 0 && iconIndex < _numberSpriteRenderers.Length)
 			{
@@ -226,44 +243,21 @@ namespace Sekai
 			{
 				_digitValues = new int[Mathf.Max(1, _maxDigitCount)];
 			}
-			if (number == 0)
-			{
-				_digitValues[0] = 0;
-				return 1;
-			}
-
-			int absNumber = Mathf.Abs(number);
+			long remaining = System.Math.Abs((long)number);
 			int digitCount = 0;
-			int divisor = 1;
 			do
 			{
-				divisor *= 10;
+				if (digitCount < _maxDigitCount)
+					_digitValues[digitCount] = (int)(remaining % 10);
 				digitCount++;
+				remaining /= 10;
 			}
-			while (absNumber >= divisor && divisor > 0);
+			while (remaining > 0);
 
 			if (digitCount > _maxDigitCount)
 			{
 				CP.LogUtility.LogError("Not enough digits. Need to Add some SpriteRenderer.");
-				int trimCount = digitCount - _maxDigitCount;
-				for (int i = 0; i < trimCount; i++)
-				{
-					absNumber %= Mathf.Max(1, divisor / 10);
-					divisor /= 10;
-				}
-				digitCount = Mathf.Max(1, _maxDigitCount);
-			}
-
-			int workingDivisor = 1;
-			for (int i = 1; i < digitCount; i++)
-			{
-				workingDivisor *= 10;
-			}
-			for (int i = digitCount - 1; i >= 0; i--)
-			{
-				_digitValues[i] = absNumber / workingDivisor;
-				absNumber %= workingDivisor;
-				workingDivisor = Mathf.Max(1, workingDivisor / 10);
+				return Mathf.Max(1, _maxDigitCount);
 			}
 			return digitCount;
 		}

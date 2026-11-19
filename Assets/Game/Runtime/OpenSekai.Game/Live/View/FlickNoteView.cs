@@ -5,7 +5,7 @@ namespace Sekai
 {
 	public class FlickNoteView : BaseNoteView
 	{
-		protected static readonly float ScrollCount;
+		private const float ScrollCount = 2f;
 
 		[SerializeField]
 		[UnityEngine.Serialization.FormerlySerializedAs("defaultArrowSprites")]
@@ -35,41 +35,48 @@ namespace Sekai
 		[UnityEngine.Serialization.FormerlySerializedAs("slanRoot")]
 		private Transform _slanRoot;
 
-		protected SpriteRenderer currentArrow;
+		private SpriteRenderer currentArrow;
 
-		protected Transform currentMoveRoot;
+		private Transform currentMoveRoot;
+		private bool _downOmni;
 
 		public override void Spawn(INote note, float posZ)
 		{
 			base.Spawn(note, posZ);
 
 			int widthIndex = Mathf.Clamp(note.LaneEnd - note.LaneStart, 0, Mathf.Max(0, (_defaultArrowSprites?.Length ?? 1) - 1));
-			bool useSlan = note.Direction != NoteDirection.Default;
-			SetArrow(_defaultArrow, _defaultArrowSprites, widthIndex, !useSlan);
-			SetArrow(_slanArrow, _slanArrowSprites, widthIndex, useSlan);
+			_downOmni = note.Direction == NoteDirection.Down;
+			bool useSlan = note.Direction is not (NoteDirection.Default or NoteDirection.Down);
+			bool showArrow = note is not (FlickNote { IsConnectorHeadView: true } or FrictionFlickNote { IsConnectorHeadView: true });
+			SetArrow(_defaultArrow, _defaultArrowSprites, widthIndex, showArrow && !useSlan);
+			SetArrow(_slanArrow, _slanArrowSprites, widthIndex, showArrow && useSlan);
+			if (_defaultArrow != null)
+			{
+				_defaultArrow.flipY = _downOmni;
+			}
 
 			currentArrow = useSlan ? _slanArrow : _defaultArrow;
 			currentMoveRoot = useSlan ? _slanMoveRoot : _defaultMoveRoot;
 
-			Transform directionRoot = _slanRoot;
-			if (directionRoot != null)
+			if (_slanRoot != null && useSlan)
 			{
-				if (note.Direction == NoteDirection.Left)
-				{
-					directionRoot.localScale = LiveUtility.Vector3One;
-					directionRoot.localEulerAngles = LiveUtility.FlickLeftEulerAngles;
-				}
-				else
-				{
-					directionRoot.localScale = LiveUtility.Vector3OneMinusX;
-					directionRoot.localEulerAngles = LiveUtility.FlickRightEulerAngles;
-				}
+				bool down = note.Direction is NoteDirection.DownLeft or NoteDirection.DownRight;
+				bool rotateFromLeft = note.Direction is NoteDirection.Left or NoteDirection.DownRight;
+				_slanRoot.localScale = rotateFromLeft ? LiveUtility.Vector3One : LiveUtility.Vector3OneMinusX;
+				Vector3 angles = rotateFromLeft ? LiveUtility.FlickLeftEulerAngles : LiveUtility.FlickRightEulerAngles;
+				if (down) angles.z += 180f;
+				_slanRoot.localEulerAngles = angles;
 			}
 		}
 
 		public override void Move(float musicTime)
 		{
 			base.Move(musicTime);
+			UpdateFlickArrow(musicTime);
+		}
+
+		protected void UpdateFlickArrow(float musicTime)
+		{
 			if (currentMoveRoot == null || currentArrow == null)
 			{
 				return;
@@ -77,18 +84,13 @@ namespace Sekai
 
 			float t = Mathf.Repeat(musicTime * ScrollCount, 1f);
 			float y = t * 2f;
-			currentMoveRoot.localPosition = Vector3.up * y;
+			currentMoveRoot.localPosition = Vector3.up * (_downOmni ? -y : y);
 			float alphaT = Mathf.Clamp01(y - 1f);
 			currentArrow.color = Color.Lerp(ColorUtility.WHITE_ALPHA_1, ColorUtility.WHITE_ALPHA_0, alphaT);
 		}
 
 		public FlickNoteView()
 		{
-		}
-
-		static FlickNoteView()
-		{
-			ScrollCount = 2f;
 		}
 
 		private static void SetArrow(SpriteRenderer renderer, Sprite[] sprites, int index, bool visible)

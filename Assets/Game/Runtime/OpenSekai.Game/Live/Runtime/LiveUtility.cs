@@ -125,7 +125,7 @@ namespace Sekai
 						return isCritical ? JudgeFrameType.Friction_Long_End_Critical : JudgeFrameType.Friction_Long_End;
 					}
 
-					return isCritical ? JudgeFrameType.Friction_Critical : JudgeFrameType.Friction;
+				return isCritical ? JudgeFrameType.Flick_Critical : JudgeFrameType.Flick;
 				case NoteCategory.FrictionLong:
 				case NoteCategory.FrictionHideLong:
 					if (hasParent)

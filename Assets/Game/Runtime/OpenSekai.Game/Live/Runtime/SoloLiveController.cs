@@ -278,6 +278,7 @@ namespace Sekai.Core.Live
 					_resumeCoroutine = null;
 				}
 				state = LiveControllerState.Pause;
+				_liveLogic?.ConnectorAudio.Silence();
 				SoundManager.Instance.Pause();
 				LiveViewExt.Pause(_liveViews);
 				ShowPauseDialog();
@@ -351,6 +352,7 @@ namespace Sekai.Core.Live
 			}
 
 			state = LiveControllerState.Pause;
+			_liveLogic?.ConnectorAudio.Silence();
 			SoundManager.Instance.Pause();
 			LiveViewExt.Pause(_liveViews);
 		}
@@ -408,13 +410,14 @@ namespace Sekai.Core.Live
 			result = 0;
 			state = LiveControllerState.None;
 			currentMusicTimeMs = System.Math.Max(0L, BootData?.MusicData?.StartMusicTimeMs ?? 0L);
-			RetryProcess();
 			LiveViewExt.Retry(_liveViews);
+			RetryProcess();
 			StartCoroutine(LiveStart(6f));
 		}
 
 		private void RetryProcess()
 		{
+			_liveLogic?.ConnectorAudio.Reset();
 			if (_liveLogic != null)
 			{
 				_liveLogic.OnFinished -= OnFinished;
@@ -484,6 +487,7 @@ namespace Sekai.Core.Live
 
 		protected override void OnDestroy()
 		{
+			_liveLogic?.ConnectorAudio.Reset();
 			LatencyCapture.End("destroy");
 			base.OnDestroy();
 		}
@@ -506,6 +510,7 @@ namespace Sekai.Core.Live
 
 		protected override void PreExit(float delay, float waitTime, long? resultEffectAtMs = null)
 		{
+			_liveLogic?.ConnectorAudio.Silence();
 			if (state == LiveControllerState.Finish)
 			{
 				return;
@@ -656,6 +661,7 @@ namespace Sekai.Core.Live
 			}
 
 			LiveScore score = _liveLogic?.Score ?? default;
+			if (score.totalComboCount == 0) return LiveResultAnimationType.None;
 			// Check if this is an Auto play
 			bool isAutoPlay = BootData?.IsAuto == true;
 			int autoResultAnimation = LiveSettingsStore.Shared.Load()?.AutoResultAnimationMode ?? LiveSettingData.AUTO_RESULT_ANIMATION_NONE;

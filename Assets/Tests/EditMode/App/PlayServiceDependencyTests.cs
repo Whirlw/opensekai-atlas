@@ -2,8 +2,10 @@ using System;
 using System.IO;
 using System.Threading;
 using NUnit.Framework;
+using Newtonsoft.Json.Linq;
 using OpenSekai.App.Playback;
 using OpenSekai.Shared.Packages;
+using OpenSekai.Shared.Settings;
 using Sekai;
 using Sekai.Core;
 using Sekai.Core.Live;
@@ -164,6 +166,28 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(second.Status, Is.EqualTo(PlayStartStatus.Started));
             Assert.That(_boot.PublishCount, Is.EqualTo(2));
             Assert.That(_surface.SubscribeCount, Is.EqualTo(2));
+            Assert.That(_audio.ReleaseCount, Is.Zero);
+        }
+
+        [TestCase(false, 0f)]
+        [TestCase(true, 11f)]
+        public async System.Threading.Tasks.Task AStartedLiveUsesTheMirrorSettingWhenConvertingTheChart(bool mirrored, float lane)
+        {
+            LiveSettingData settings = LiveSettingsStore.Shared.Load();
+            bool previous = settings.IsMirror;
+            try
+            {
+                settings.IsMirror = mirrored;
+                PlayStartResult result = await _service.StartAsync(Request(), CancellationToken.None);
+
+                Assert.That(result.Status, Is.EqualTo(PlayStartStatus.Started), result.Message);
+                var boot = (FreeLiveBootData)_boot.State.Boot;
+                Assert.That(boot.MusicData.MusicScore.NoteArray[0].LaneStartF, Is.EqualTo(lane));
+            }
+            finally
+            {
+                settings.IsMirror = previous;
+            }
         }
 
         [Test]
@@ -178,9 +202,49 @@ namespace OpenSekai.Tests.EditMode
         }
 
         private static PlayRequest Request()
+            => Request(FixtureDirectory);
+
+        [TestCase(true, true, PlayStartStatus.Started)]
+        [TestCase(false, true, PlayStartStatus.Failed)]
+        [TestCase(true, false, PlayStartStatus.Failed)]
+        public async System.Threading.Tasks.Task NativeDecorationPlaybackRequiresAutoAndVisualContent(
+            bool auto, bool hasFakeKey, PlayStartStatus expected)
         {
-            return Request(FixtureDirectory);
-        }        private static PlayRequest Request(string directory)
+            string directory = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(),
+                "OpenSekai-visual-playback-" + Guid.NewGuid().ToString("N"))).FullName;
+            try
+            {
+                var manifest = JObject.Parse(File.ReadAllText(Path.Combine(FixtureDirectory, "manifest.json")));
+                manifest["chartFormat"] = "next-rush";
+                File.WriteAllText(Path.Combine(directory, "manifest.json"), manifest.ToString());
+                File.Copy(Path.Combine(FixtureDirectory, "audio.wav"), Path.Combine(directory, "audio.wav"));
+                var entities = JArray.Parse(@"[
+                    {'archetype':'Initialization','data':[{'name':'revision','value':2}]},
+                    {'archetype':'#BPM_CHANGE','data':[{'name':'#BEAT','value':0},{'name':'#BPM','value':120}]}
+                ]");
+                if (hasFakeKey)
+                    entities.Add(JObject.Parse(@"{'archetype':'FakeNormalTapNote','data':[
+                        {'name':'#BEAT','value':2},{'name':'lane','value':0},{'name':'size','value':1}]}"));
+                File.WriteAllText(Path.Combine(directory, "score.json"),
+                    new JObject { ["bgmOffset"] = 0, ["entities"] = entities }.ToString());
+
+                var result = await _service.StartAsync(new PlayRequest(directory, auto, SceneManager.Scene.Library),
+                    CancellationToken.None);
+                Assert.That(result.Status, Is.EqualTo(expected), result.Message);
+                Assert.That(_surface.PushedLiveLoading, Is.EqualTo(expected == PlayStartStatus.Started ? 1 : 0));
+                if (expected == PlayStartStatus.Started)
+                {
+                    var boot = (FreeLiveBootData)_boot.State.Boot;
+                    Assert.That(boot.IsAuto, Is.True);
+                    Assert.That(boot.MusicData.TotalNoteCount, Is.Zero);
+                }
+                else Assert.That(result.Message, Is.EqualTo(hasFakeKey
+                    ? "此谱面仅含装饰，请选择自动游玩。" : "没有可游玩的音符。"));
+            }
+            finally { Directory.Delete(directory, true); }
+        }
+
+        private static PlayRequest Request(string directory)
         {
             return new PlayRequest(directory, false, SceneManager.Scene.Library);
         }

@@ -21,6 +21,7 @@ namespace Sekai.Core.Live
 		private Camera _camera;
 
 		internal List<NoteBase> JudgmentNotes { get; } = new List<NoteBase>();
+		internal List<GuideNote> DamageConnectors { get; } = new List<GuideNote>();
 		internal List<LiveLogic.InputTmp> ActiveInputs { get; } = new List<LiveLogic.InputTmp>(InputCapacity);
 		internal LiveHoldCoordinator Holds { get; } = new LiveHoldCoordinator(InputCapacity);
 
@@ -28,9 +29,7 @@ namespace Sekai.Core.Live
 		private readonly Dictionary<int, float> _previousTouchLanes = new Dictionary<int, float>(FingerCapacity);
 
 		/// <summary>
-		/// Touches that landed above the judgement line. The vertical gate is asked once, when a touch is
-		/// born; a touch that failed it is not an input for the rest of its life, so nothing downstream
-		/// has to ask about the y axis again.
+		/// JSON/SUS touches that started above the accepted height stay excluded until release.
 		/// </summary>
 		private readonly HashSet<int> _touchesAboveTheLine = new HashSet<int>();
 
@@ -94,7 +93,11 @@ namespace Sekai.Core.Live
 			}
 		}
 
-		internal void BeginFrame() => JudgmentNotes.Clear();
+		internal void BeginFrame()
+		{
+			JudgmentNotes.Clear();
+			DamageConnectors.Clear();
+		}
 
 		internal void Register(NoteBase note)
 		{
@@ -127,7 +130,8 @@ namespace Sekai.Core.Live
 			return phase == InputTouchPhase.Ended || phase == InputTouchPhase.Canceled;
 		}
 
-		private void OnProcessTouch(in OpenSekai.Shared.Live.Simulation.SimTouch simTouch, ref int activeInputCount)
+		private void OnProcessTouch(in OpenSekai.Shared.Live.Simulation.SimTouch simTouch, bool residentSample,
+			ref int activeInputCount)
 		{
 			float judgmentLane = ResolveJudgmentLane(in simTouch);
 			int touchId = simTouch.TouchId;
@@ -141,6 +145,7 @@ namespace Sekai.Core.Live
 				LiveTouch processTouch = new LiveTouch(simTouch.FingerId, simTouch.TouchId, simTouch.Delta, simTouch.WorldPosition, simTouch.Phase, simTouch.MusicTime);
 				LiveLogic.InputTmp input = _inputBuffer[activeInputCount++];
 				input.Reset(ref processTouch, judgmentLane);
+				input.IsResidentSample = residentSample;
 				if (_previousTouchLanes.TryGetValue(touchId, out float previousLane))
 					input.PreviousLane = previousLane;
 				ActiveInputs.Add(input);
@@ -159,14 +164,23 @@ namespace Sekai.Core.Live
 
 
 		/// <summary>
-		/// Resolves one raw sample to a lane. This is the only place the vertical gate is consulted: the
-		/// first sample of a touch decides whether the touch is an input at all, and the answer is kept in
-		/// <see cref="_touchesAboveTheLine"/> for every sample that follows.
+		/// Native hit tests use the sample's current position. Legacy charts remember the start height.
 		/// </summary>
 		private float ResolveJudgmentLane(in OpenSekai.Shared.Live.Simulation.SimTouch simTouch)
 		{
 			Vector2[] positions = LiveConfig.JudgmentPositions;
 			float judgmentOffsetY = _bundle?.JudgmentOffsetY ?? 0f;
+
+			if (_logic.Session.MusicScore?.UseExtendedLanes == true)
+			{
+				// The fixed stage's upper hitbox extent is 3.5 / 1.19 lane widths.
+				float upperExtent = LiveConfig.widthX * (3.5f / 1.19f);
+				if (simTouch.Phase == InputTouchPhase.Canceled ||
+					OpenSekai.Shared.Live.TouchLane.IsAboveTheLine(positions, simTouch.WorldPosition, upperExtent))
+					return OpenSekai.Shared.Live.TouchLane.Outside;
+
+				return (simTouch.WorldPosition.x - positions[0].x) / LiveConfig.widthX;
+			}
 
 			if (simTouch.Phase == InputTouchPhase.Began
 				&& OpenSekai.Shared.Live.TouchLane.IsAboveTheLine(positions, simTouch.WorldPosition, judgmentOffsetY))

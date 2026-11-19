@@ -31,10 +31,18 @@ namespace OpenSekai.Tests.PlayMode
             _clock.Reset();
         }
 
-        [Test]
-        public void IntroEvaluatesFadeInAndFadeOutInOrderOnOneLargeStep()
+        [TestCase(false, 1f)]
+        [TestCase(true, 0f)]
+        public void IntroRunsVisibleThenHiddenCallbacksOnOneLargeStep(bool retry, float initialAlpha)
         {
             MusicInfoView view = CreateIntro(out CanvasGroup page);
+            if (retry)
+            {
+                view.Play();
+                _clock.Update(4);
+                Assert.That(view.gameObject.activeSelf, Is.False);
+            }
+
             var phases = new List<string>();
             view.Play(onFinish: () =>
             {
@@ -48,7 +56,8 @@ namespace OpenSekai.Tests.PlayMode
                 phases.Add("visible");
             });
 
-            Assert.That(page.alpha, Is.Zero);
+            Assert.That(view.gameObject.activeSelf, Is.True);
+            Assert.That(page.alpha, Is.EqualTo(initialAlpha));
             _clock.Update(4);
             Assert.That(phases, Is.EqualTo(new[] { "visible", "hidden" }));
         }

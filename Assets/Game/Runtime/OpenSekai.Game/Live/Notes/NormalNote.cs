@@ -4,10 +4,15 @@ namespace Sekai.Live
 {
 	public class NormalNote : NoteBase
 	{
+		private readonly bool _isNextRushHeadTap;
+		internal bool TakesPress => Category == NoteCategory.Normal || _isNextRushHeadTap;
 		internal bool IsIndependentRelease { get; private set; }
+		public bool IsTailReleaseOwner { get; }
+		private NoteBase _releaseOwner;
 
-		public void SetNextRushIndependentRelease()
+		public void SetNextRushIndependentRelease(NoteBase releaseOwner = null)
 		{
+			_releaseOwner = releaseOwner;
 			IsIndependentRelease = true;
 			Category = NoteCategory.Long;
 		}
@@ -35,9 +40,12 @@ namespace Sekai.Live
 			Category = NoteCategory.Normal;
 		}
 
-		public NormalNote(MusicScoreInfo info, int id, int laneStart, int laneEnd, NoteCategory category, float speedRatio, NoteType type, float laneOffset)
+		public NormalNote(MusicScoreInfo info, int id, int laneStart, int laneEnd, NoteCategory category, float speedRatio, NoteType type, float laneOffset,
+			bool isNextRushHeadTap = false, bool isTailReleaseOwner = false)
 			: base(info, id, laneStart, laneEnd, category, speedRatio, laneOffset, type)
 		{
+			_isNextRushHeadTap = isNextRushHeadTap;
+			IsTailReleaseOwner = isTailReleaseOwner;
 		}
 
 		public override void SetParentNote(LongNote note)
@@ -59,7 +67,10 @@ namespace Sekai.Live
 			var offset = MusicScoreInfo.time - touch.musicTime;
 			if (IsIndependentRelease)
 			{
-				return touch.phase == UnityEngine.InputSystem.TouchPhase.Ended && LongEndJudgement.Accepts(-offset);
+				return (_releaseOwner == null || _releaseOwner.Result != NoteResult.None
+					|| _releaseOwner is FrictionFlickNote { HasCapturedPress: true } or FlickNote { CanStartNextRushHold: true }
+					|| _releaseOwner is LongNote hold && hold.Head.IsSettled)
+					&& touch.phase == UnityEngine.InputSystem.TouchPhase.Ended && LongEndJudgement.Accepts(-offset);
 			}
 
 			if (!LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(this), offset))
@@ -67,8 +78,8 @@ namespace Sekai.Live
 				return false;
 			}
 
-			return (Category == NoteCategory.Normal && touch.phase == UnityEngine.InputSystem.TouchPhase.Began)
-				|| (Category == NoteCategory.Long && touch.phase == UnityEngine.InputSystem.TouchPhase.Ended);
+			return TakesPress ? touch.phase == UnityEngine.InputSystem.TouchPhase.Began
+				: Category == NoteCategory.Long && touch.phase == UnityEngine.InputSystem.TouchPhase.Ended;
 		}
 
 		internal void SettleExpiredPress(float now)
@@ -101,8 +112,8 @@ namespace Sekai.Live
 				return true;
 			}
 
-			if ((Category == NoteCategory.Normal && touch.phase != UnityEngine.InputSystem.TouchPhase.Began)
-				|| (Category == NoteCategory.Long && touch.phase != UnityEngine.InputSystem.TouchPhase.Ended))
+			if ((TakesPress && touch.phase != UnityEngine.InputSystem.TouchPhase.Began)
+				|| (!TakesPress && Category == NoteCategory.Long && touch.phase != UnityEngine.InputSystem.TouchPhase.Ended))
 			{
 				return false;
 			}

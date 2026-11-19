@@ -36,7 +36,7 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>Hands one finished touch to the judging side. It owns what the touch means.</summary>
-		public delegate void TouchSink(in SimTouch touch, ref int activeInputCount);
+		public delegate void TouchSink(in SimTouch touch, bool residentSample, ref int activeInputCount);
 
 		/// <summary>
 		/// Turns this frame's raw samples into touches: drops the ones that repeat or arrive out of
@@ -98,6 +98,9 @@ namespace Sekai.Core.Live
 			int touchId = touch.touchId;
 			InputTouchPhase phase = touch.phase;
 			double time = touch.time;
+			// The device can report a contact that is still down with its previous event timestamp.
+			bool residentSample = phase == InputTouchPhase.Stationary
+				|| !IsEndedOrCanceled(phase) && _positions.TryGetValue(touchId, out var last) && last.time == time;
 			if (IsRepeat(touchId, time))
 			{
 				if (phase == InputTouchPhase.None)
@@ -117,7 +120,7 @@ namespace Sekai.Core.Live
 			Vector2 delta = TakeDelta(in touch);
 			var simTouch = new SimTouch(touch.fingerId, touchId, delta, touch.worldPosition, phase, musicTime);
 			LatencyCapture.Record("consumed", touchId, touch.fingerId, phase, source: time, song: musicTime);
-			sink(in simTouch, ref activeInputCount);
+			sink(in simTouch, residentSample, ref activeInputCount);
 		}
 
 #if UNITY_EDITOR
@@ -176,7 +179,7 @@ namespace Sekai.Core.Live
 			var simTouch = new SimTouch(MouseFallbackFingerId, MouseFallbackTouchId, delta, worldPosition, phase, musicTime);
 			LatencyCapture.Record("consumed", MouseFallbackTouchId, MouseFallbackFingerId, phase,
 				source: time, song: musicTime, detail: "editor_mouse");
-			sink(in simTouch, ref activeInputCount);
+			sink(in simTouch, phase == InputTouchPhase.Stationary, ref activeInputCount);
 
 			if (IsEndedOrCanceled(phase))
 			{

@@ -91,6 +91,8 @@ namespace Sekai.Core.Live
 		{
 		}
 
+		public virtual void NativeHitSound(NoteBase note, string cue) { }
+
 		public virtual void Unpicked(int lane, ref LiveTouch touch)
 		{
 		}

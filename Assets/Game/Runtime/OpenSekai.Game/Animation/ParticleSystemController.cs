@@ -9,6 +9,8 @@ namespace Sekai
 		private ParticleSystem[] _particleSystems;
 
 		private ParticleSystemRenderer[] _renderers;
+		private MaterialPropertyBlock _palette;
+		private int _style;
 
 		private bool _isPlayInternal;
 
@@ -71,6 +73,12 @@ namespace Sekai
 
 		public void Play()
 		{
+			Play(0);
+		}
+
+		internal void Play(int style)
+		{
+			SetStyle(style);
 			if (_isPlayInternal)
 			{
 				if (_particleSystem != null)
@@ -102,6 +110,8 @@ namespace Sekai
 
 			_isPlayInternal = true;
 		}
+
+		internal void SetStyle(int style) => NextRushPalette.Apply(_renderers, style, ref _style, ref _palette);
 
 		public void Stop()
 		{

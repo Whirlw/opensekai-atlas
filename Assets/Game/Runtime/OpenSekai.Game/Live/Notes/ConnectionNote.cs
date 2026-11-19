@@ -2,11 +2,17 @@ namespace Sekai.Live
 {
 	public class ConnectionNote : NoteBase
 	{
-		private const float NextRushContactWindow = 5f / 60f;
+		internal const float ContactWindowFrames = 5f;
+		internal const float ContactWindowSeconds = ContactWindowFrames / 60f;
 		private LongNote _endpointSection;
 
 		internal bool UsesNextRushContactWindow { get; private set; }
-		internal bool HasNextRushContact { get; private set; }
+		internal virtual bool UsesContactWindow => UsesNextRushContactWindow;
+		internal virtual float EarlyContactSeconds => ContactWindowSeconds;
+		internal virtual float LateContactSeconds => ContactWindowSeconds;
+		internal bool AcceptsContactAt(float now, float target) =>
+			now > target - EarlyContactSeconds && now < target + LateContactSeconds;
+		internal bool HasRecordedContact { get; private set; }
 
 		public void SetNextRushContactWindow() => UsesNextRushContactWindow = true;
 
@@ -44,17 +50,22 @@ namespace Sekai.Live
 				return;
 			}
 
-			if (UsesNextRushContactWindow)
+			if (_endpointSection is GuideNote { IsFakeHold: true })
 			{
-				float previous = OffsetJudgeTime;
+				AdvanceNote(currentFrameInfo, offsetTime, settleTimeout: false);
+				if (currentFrameInfo.time >= MusicScoreInfo.time) FinishContact(NoteResult.JustPerfect);
+				return;
+			}
+
+			if (UsesContactWindow)
+			{
 				OffsetJudgeTime = currentFrameInfo.time - MusicScoreInfo.time;
 				if (State == NoteState.Wait) State = NoteState.Scrolling;
 				Progress = CalcProgress(currentFrameInfo, offsetTime);
-				// Give contact on the crossing frame a chance before using the recorded early touch.
-				if (HasNextRushContact && (previous > 0f || OffsetJudgeTime >= NextRushContactWindow))
-					FinishNextRushContact(NoteResult.JustPerfect);
-				else if (OffsetJudgeTime >= NextRushContactWindow)
-					FinishNextRushContact(NoteResult.Miss);
+				if (HasRecordedContact && currentFrameInfo.time >= MusicScoreInfo.time)
+					FinishContact(NoteResult.JustPerfect);
+				else if (currentFrameInfo.time >= MusicScoreInfo.time + LateContactSeconds)
+					FinishContact(NoteResult.Miss);
 				return;
 			}
 
@@ -101,9 +112,9 @@ namespace Sekai.Live
 
 		public override bool IsJudgment(ref LiveTouch touch, float lane)
 		{
-			if (UsesNextRushContactWindow)
+			if (UsesContactWindow)
 				return State != NoteState.Done && JudgeLaneStart <= lane && JudgeLaneEnd >= lane
-					&& UnityEngine.Mathf.Abs(OffsetJudgeTime) < NextRushContactWindow
+					&& AcceptsContactAt(MusicScoreInfo.time + OffsetJudgeTime, MusicScoreInfo.time)
 					&& touch.phase != UnityEngine.InputSystem.TouchPhase.Canceled;
 
 			return State == NoteState.Last && JudgeLaneStart <= lane && JudgeLaneEnd >= lane
@@ -112,12 +123,16 @@ namespace Sekai.Live
 
 		public override bool Judgment(ref LiveTouch touch, float lane)
 		{
-			if (UsesNextRushContactWindow)
+			if (UsesContactWindow)
 			{
 				if (!IsJudgment(ref touch, lane)) return false;
-				HasNextRushContact = true;
-				if (OffsetJudgeTime < 0f) return false;
-				FinishNextRushContact(NoteResult.JustPerfect);
+				HasRecordedContact = true;
+				if (OffsetJudgeTime < 0f)
+				{
+					State = NoteState.Input;
+					return false;
+				}
+				FinishContact(NoteResult.JustPerfect);
 				return true;
 			}
 
@@ -134,13 +149,16 @@ namespace Sekai.Live
 			return true;
 		}
 
+		internal static bool InContactWindow(float now, float target) =>
+			now > target - ContactWindowSeconds && now < target + ContactWindowSeconds;
+
 		public override void ResetNote()
 		{
 			base.ResetNote();
-			HasNextRushContact = false;
+			HasRecordedContact = false;
 		}
 
-		private void FinishNextRushContact(NoteResult result)
+		protected void FinishContact(NoteResult result)
 		{
 			if (result == NoteResult.JustPerfect) Progress = 1f;
 			JudgeInfo = (result, NoteResultDescription.None);

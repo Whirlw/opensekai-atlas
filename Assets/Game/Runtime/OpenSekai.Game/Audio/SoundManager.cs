@@ -239,6 +239,8 @@ namespace Sekai
 			return PlaySEInternal(cueName, 1f, 0f);
 		}
 
+		internal uint PlayHoldLoop(string cueName) => PlaySEInternal(cueName, 1f, 0f, loop: true);
+
 		public void PlayIngameSEOneShot(string cueName)
 		{
 			PlaySEInternal(cueName, 1f, 0f);
@@ -267,7 +269,7 @@ namespace Sekai
 		{
 		}
 
-		private uint PlaySEInternal(string cueName, float volume, float startTime, int requestSequence = 0)
+		private uint PlaySEInternal(string cueName, float volume, float startTime, int requestSequence = 0, bool loop = false)
 		{
 			string resolvedCueName = _catalog.ResolveCueName(cueName, out CriAtomExAcb acb);
 			if (string.IsNullOrEmpty(resolvedCueName) || acb == null)
@@ -285,7 +287,7 @@ namespace Sekai
 				{
 					player.SetStartTime((long)(startTime * 1000f));
 				}
-				CriAtomExPlayback _playback = player.Start(requestSequence);
+				CriAtomExPlayback _playback = player.Start(requestSequence, loop);
 				return _playback.id;
 			}
 			catch (Exception exception)

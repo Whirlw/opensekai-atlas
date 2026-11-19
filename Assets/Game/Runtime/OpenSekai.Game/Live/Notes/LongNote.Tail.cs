@@ -33,6 +33,7 @@ namespace Sekai.Live
 			&& IsTailCandidate(TailNote);
 
 		internal bool HasPendingManagedTail => HasManagedTail && TailNote.State != NoteState.Done;
+		internal virtual bool IsReleaseTailReady => true;
 
 		/// <summary>
 		/// How this bar is meant to end, derived from the note that ends it. Deliberately not cached:

@@ -24,15 +24,17 @@ namespace OpenSekai.Charts
     public sealed class NextRushCompatibilityReport
     {
         public NextRushRevision? Revision { get; }
+        public int InitialLife { get; }
         public IReadOnlyList<(string Archetype, NextRushEntityStatus Status, int Count)> Archetypes { get; }
         public IReadOnlyList<string> UnsupportedFeatures { get; }
         public IReadOnlyList<string> InvalidData { get; }
         public bool PassesPreflight => UnsupportedFeatures.Count == 0 && InvalidData.Count == 0;
 
-        internal NextRushCompatibilityReport(NextRushRevision? revision,
+        internal NextRushCompatibilityReport(NextRushRevision? revision, int initialLife,
             List<(string, NextRushEntityStatus, int)> archetypes, List<string> unsupported, List<string> invalid)
         {
             Revision = revision;
+            InitialLife = initialLife;
             Archetypes = archetypes.AsReadOnly();
             UnsupportedFeatures = unsupported.AsReadOnly();
             InvalidData = invalid.AsReadOnly();
@@ -58,13 +60,13 @@ namespace OpenSekai.Charts
                 case "Skill": case "FeverChance": case "FeverStart":
                     return NextRushEntityStatus.IgnoredByProject;
                 case "Initialization": case "#BPM_CHANGE": case "#TIMESCALE_GROUP": case "#TIMESCALE_CHANGE":
-                case "Connector": case "SimLine": case "TransientHiddenTickNote": case "AnchorNote":
+                case "Connector": case "SimLine": case "TransientHiddenTickNote": case "AnchorNote": case "DamageNote":
+                case "TransientHiddenDamageTickNote":
+                case "FakeAnchorNote": case "FakeDamageNote":
+                case "FakeTransientHiddenTickNote": case "FakeTransientHiddenDamageTickNote":
                     return NextRushEntityStatus.CompilerCandidate;
                 case "Stage": case "CameraChange":
                 case "StageTransformChange": case "StageMaskChange": case "StagePivotChange": case "StageStyleChange":
-                case "DamageNote": case "TransientHiddenDamageTickNote":
-                case "FakeAnchorNote": case "FakeDamageNote":
-                case "FakeTransientHiddenTickNote": case "FakeTransientHiddenDamageTickNote":
                     return NextRushEntityStatus.Unsupported;
                 case "StaticStage": case "_InputManager": case "ParticleManager":
                 case "SlideManager": case "ConnectorSfxManager":
@@ -73,18 +75,13 @@ namespace OpenSekai.Charts
             }
 
             if (archetype == null) return NextRushEntityStatus.Unknown;
-            bool fake = archetype.StartsWith("Fake", StringComparison.Ordinal);
-            string kind = GetNoteKind(fake ? archetype.Substring(4) : archetype);
+            string kind = GetNoteKind(WithoutFakePrefix(archetype));
             if (kind == null || !NoteKinds.Contains(kind)) return NextRushEntityStatus.Unknown;
-            if (fake) return NextRushEntityStatus.Unsupported;
-            switch (kind)
-            {
-                case "HeadFlickNote": case "HeadTraceFlickNote":
-                    return NextRushEntityStatus.Unsupported;
-                default:
-                    return NextRushEntityStatus.CompilerCandidate;
-            }
+            return NextRushEntityStatus.CompilerCandidate;
         }
+
+        public static string WithoutFakePrefix(string archetype) =>
+            archetype.StartsWith("Fake", StringComparison.Ordinal) ? archetype.Substring(4) : archetype;
 
         public static string GetNoteKind(string archetype)
         {
@@ -121,17 +118,18 @@ namespace OpenSekai.Charts
             }
 
             NextRushRevision? revision = null;
+            int initialLife = 1000;
             var initializations = source.Entities.Where(e => e.Archetype == "Initialization").Take(2).ToArray();
             if (initializations.Length != 1)
                 invalid.Add("需要且只能有一个 Initialization");
             else
-                revision = AnalyzeInitialization(source, initializations[0], unsupported, invalid);
+                revision = AnalyzeInitialization(source, initializations[0], unsupported, invalid, ref initialLife);
 
-            return new NextRushCompatibilityReport(revision, archetypes, unsupported, invalid);
+            return new NextRushCompatibilityReport(revision, initialLife, archetypes, unsupported, invalid);
         }
 
         private static NextRushRevision? AnalyzeInitialization(NextRushChart source, NextRushEntity entity,
-            List<string> unsupported, List<string> invalid)
+            List<string> unsupported, List<string> invalid, ref int initialLife)
         {
             foreach (var field in entity.Fields)
                 if (field != "revision" && field != "initialLife" && field != "firstCamera")
@@ -151,8 +149,11 @@ namespace OpenSekai.Charts
 
             try
             {
-                if (entity.Number("initialLife", 1000) != 1000)
-                    unsupported.Add("Initialization.initialLife（自定义初始生命值）");
+                double value = entity.Number("initialLife", initialLife);
+                if (value < 0 || value > int.MaxValue || value % 1 != 0)
+                    invalid.Add("Initialization.initialLife 需要有效的非负整数");
+                else
+                    initialLife = (int)value;
             }
             catch (InvalidDataException) { invalid.Add("Initialization.initialLife 需要数值"); }
 

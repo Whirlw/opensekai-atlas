@@ -22,7 +22,8 @@ namespace Sekai
 			    set => _Gen = value;
 			}
 
-						private uint _PlaybackId;
+			internal bool SoundRequested;
+			private uint _PlaybackId;
 			public uint PlaybackId
 			{
 			    get => _PlaybackId;
@@ -34,6 +35,13 @@ namespace Sekai
 			{
 			    get => _IsUsed;
 			    set => _IsUsed = value;
+			}
+
+			internal void StopSound()
+			{
+				SoundManager.Instance.StopSE(PlaybackId);
+				PlaybackId = 0;
+				SoundRequested = false;
 			}
 
 			public EffectPair(string bundleName, string genPath, string auraPath, Transform parent)
@@ -113,8 +121,7 @@ namespace Sekai
 			pair.Gen?.Stop();
 			pair.Aura?.Stop();
 			pair.IsUsed = false;
-			SoundManager.Instance.StopSE(pair.PlaybackId);
-			pair.PlaybackId = 0;
+			pair.StopSound();
 		}
 
 		public void Clear()
@@ -129,12 +136,21 @@ namespace Sekai
 				pair.Gen?.Stop();
 				pair.Aura?.Stop();
 				pair.IsUsed = false;
-				SoundManager.Instance.StopSE(pair.PlaybackId);
-				pair.PlaybackId = 0;
+				pair.StopSound();
 			}
 
 			_longNotes.Clear();
 		}
+
+		internal void Silence()
+		{
+			foreach (var pair in _longNotes.Values)
+			{
+				pair.StopSound();
+			}
+		}
+
+		private void OnDisable() => Silence();
 
 		public void Excute(float time)
 		{
@@ -151,6 +167,12 @@ namespace Sekai
 				// The rule lives in LiveUtility so a plain note can be tested for it without the prefabs.
 				if (LiveUtility.IsBeingHeldForEffect(note, time))
 				{
+					int style = note is NoteBase styled ? styled.NativeStyle : 0;
+					if (note is LongNote { NativeConnector: not null } bar
+						&& bar.TryNativeEdge(time, out var start, out _))
+						style = start.NativeConnector.HeadStyle(style);
+					pair.Gen?.SetStyle(style);
+					pair.Aura?.SetStyle(style);
 					float x = LiveUtility.CalcLaneTransformX((note.LaneStartF + note.LaneEndF) * 0.5f);
 					float width = note.LaneEndF + 1f - note.LaneStartF;
 					if (pair.Gen != null)
@@ -166,26 +188,19 @@ namespace Sekai
 
 					if (pair.Gen != null && pair.Aura != null && (!pair.Gen.IsPlaying || !pair.Aura.IsPlaying))
 					{
-						pair.Gen.Play();
-						pair.Aura.Play();
+						pair.Gen.Play(style);
+						pair.Aura.Play(style);
+					}
+
+					if (!pair.SoundRequested)
+					{
+						pair.SoundRequested = true;
 						string cue = HoldCueName(note);
-						// The particles stop on every grey frame, but the loop only stops at Release, so a
-						// finger coming back inside the grace keeps the loop already playing. Starting another
-						// here stacked a new se_live_long on every return and lost the old one's handle, so it
-						// could never be stopped (device trace 2026-11-15, bar 65.407: 16 starts in 2.6 s).
-						bool startsSound = !string.IsNullOrEmpty(cue) && pair.PlaybackId == 0;
+						if (cue != null) pair.PlaybackId = SoundManager.Instance.PlayHoldLoop(cue);
 						if (OpenSekai.Shared.Diagnostics.LiveTrace.IsOn(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Hold))
-						{
-							OpenSekai.Shared.Diagnostics.LiveTrace.Write(
-								OpenSekai.Shared.Diagnostics.LiveTraceCategory.Hold,
+							OpenSekai.Shared.Diagnostics.LiveTrace.Write(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Hold,
 								"holdLoop cat=" + note.Category + " type=" + note.Type + " cue=" + (cue ?? "-") + " id=" + note.Id
-								+ " sound=" + (startsSound ? "start" : string.IsNullOrEmpty(cue) ? "none" : "keep"));
-						}
-						// A hidden carrier is silent by design: the effect still plays, the sound does not.
-						if (startsSound)
-						{
-							pair.PlaybackId = SoundManager.Instance.PlayIngameSE(cue);
-						}
+								+ " sound=" + (cue == null ? "none" : "start"));
 					}
 				}
 
@@ -199,8 +214,7 @@ namespace Sekai
 				// and a finger coming back inside it should not restart the hold from silence.
 				if (note.State == NoteState.Release)
 				{
-					SoundManager.Instance.StopSE(pair.PlaybackId);
-					pair.PlaybackId = 0;
+					pair.StopSound();
 				}
 			}
 		}
@@ -212,6 +226,7 @@ namespace Sekai
 
 		private static string HoldCueName(INote note)
 		{
+			if (note is LongNote { NativeConnector: not null }) return null;
 			// A friction bar is rubbed, not pressed, so it keeps the trace loop while the finger is on
 			// it. The hide variant is the opposite by design: it is a silent carrier for hidden
 			// checkpoints, so it starts no sound at all.

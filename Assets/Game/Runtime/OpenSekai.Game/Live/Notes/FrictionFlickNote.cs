@@ -4,6 +4,7 @@ using UnityEngine.InputSystem;
 using Sekai;
 
 using OpenSekai.Shared.Live;
+using InputTouchPhase = UnityEngine.InputSystem.TouchPhase;
 
 namespace Sekai.Live
 {
@@ -15,6 +16,17 @@ namespace Sekai.Live
 
 		/// <summary>The swipe length this note asks for, in the same units as a touch delta.</summary>
 		internal float FlickDistance => _flickDistance;
+		private float NextRushEarlyWindow => (IsTailFlickOwner ? 7.5f : 6.5f) / 60f;
+		private float NextRushLateWindow => (IsTailFlickOwner ? 8.5f : 7.5f) / 60f;
+		private float _nextRushCorrectTime;
+		private bool _nextRushHadContact;
+		internal bool UsesNextRushTraceFlickInput { get; }
+		public bool IsTraceFlickOwner { get; }
+		public bool IsTailTraceFlickOwner { get; }
+		public bool IsTailFlickOwner => IsTraceFlickOwner && Category == NoteCategory.Flick;
+		internal bool CanStartNextRushHold => HasCapturedPress || State == NoteState.Done;
+		internal bool IsConnectorHeadView { get; }
+		internal bool HasCapturedPress { get; private set; }
 
 		public override NoteState State
 		{
@@ -39,16 +51,28 @@ namespace Sekai.Live
 			Category = NoteCategory.FrictionFlick;
 		}
 
-		public FrictionFlickNote(MusicScoreInfo info, int id, int laneStart, int laneEnd, NoteCategory category, float speedRatio, NoteType type, NoteDirection direction, float screenDpiToInch, float laneOffset)
+		public FrictionFlickNote(MusicScoreInfo info, int id, int laneStart, int laneEnd, NoteCategory category, float speedRatio,
+			NoteType type, NoteDirection direction, float screenDpiToInch, float laneOffset, bool useNextRushTraceFlickInput = false,
+			bool isTraceFlickOwner = false, bool isConnectorHeadView = false, bool isTailTraceFlickOwner = false)
 			: base(info, id, laneStart, laneEnd, category, speedRatio, laneOffset, type)
 		{
 			inputResults = new (int id, bool distance, bool trueDirection)[8];
 			_flickDistance = screenDpiToInch;
 			Direction = direction;
+			IsTraceFlickOwner = isTraceFlickOwner;
+			IsTailTraceFlickOwner = isTailTraceFlickOwner;
+			IsConnectorHeadView = isConnectorHeadView;
+			UsesNextRushTraceFlickInput = useNextRushTraceFlickInput || isTraceFlickOwner || isTailTraceFlickOwner;
 		}
 
 		public override void Excute(MusicScoreInfo currentFrameInfo, float offsetTime)
 		{
+			if (UsesNextRushTraceFlickInput)
+			{
+				AdvanceNote(currentFrameInfo, offsetTime, settleTimeout: false);
+				return;
+			}
+
 			// A caught note settles the moment it reaches the line, and that has to be decided BEFORE the base
 			// class can close the window. Waiting one more frame after the last input (the old shape of this
 			// check) dropped the note on the very frame its window closed: device log
@@ -61,6 +85,64 @@ namespace Sekai.Live
 			}
 
 			base.Excute(currentFrameInfo, offsetTime);
+		}
+
+		internal bool ReadNextRushHeadSample(ref LiveTouch touch, float lane, float sampleTime)
+		{
+			if (State is not (NoteState.Scrolling or NoteState.Input) || touch.phase == InputTouchPhase.Canceled)
+				return false;
+			float offset = sampleTime - MusicScoreInfo.time;
+			if (offset <= -NextRushEarlyWindow || offset >= NextRushLateWindow) return false;
+
+			bool unregistered = IsLaneCheck(touch);
+			if (unregistered && (float.IsNegativeInfinity(lane) || lane < JudgeLaneStart || lane > JudgeLaneEnd)) return false;
+			State = NoteState.Input;
+			bool moved = false, correct = false;
+			UpdateDelta(touch.delta, ref moved, ref correct);
+			if (unregistered || moved) AddInputResult(ref touch, ref moved, ref correct);
+			if (correct) _nextRushCorrectTime = sampleTime;
+			return true;
+		}
+
+		internal void SettleNextRushHead(float now, bool hasContact)
+		{
+			float target = MusicScoreInfo.time;
+			bool contactRecently = _nextRushHadContact || hasContact;
+			_nextRushHadContact = hasContact;
+			if (State == NoteState.Done || now < target) return;
+			bool hasMotion = false, correct = false;
+			foreach (var input in inputResults)
+			{
+				if (!input.distance) continue;
+				hasMotion = true;
+				correct |= input.trueDirection;
+			}
+
+			if (IsTailFlickOwner && hasMotion && (!contactRecently ||
+				correct && _nextRushCorrectTime >= target + LiveConfig.JustPerfectJudgeTimeHalf))
+			{
+				float time = contactRecently ? _nextRushCorrectTime : now;
+				FinishNextRushHead(LiveConfig.CalculateLongEndFlickNoteResult(this, time, correct));
+			}
+			else if (correct && !IsTailFlickOwner)
+			{
+				// A valid early trace swipe waits for the head to reach the line.
+				FinishNextRushHead((NoteResult.Perfect, NoteResultDescription.None));
+			}
+			else if (now > target + NextRushLateWindow)
+			{
+				FinishNextRushHead((NoteResult.Miss, NoteResultDescription.None));
+			}
+			else if (hasMotion && !contactRecently)
+			{
+				FinishNextRushHead((NoteResult.Great, NoteResultDescription.FlickMiss));
+			}
+		}
+
+		private void FinishNextRushHead((NoteResult, NoteResultDescription) result)
+		{
+			JudgeInfo = onUpdateResult != null ? onUpdateResult(result) : result;
+			State = NoteState.Done;
 		}
 
 		private bool JudgmentFlick(float musicTime)
@@ -109,6 +191,13 @@ namespace Sekai.Live
 
 		public override bool IsJudgment(ref LiveTouch touch, float lane)
 		{
+			if (IsTraceFlickOwner)
+			{
+				float pressOffset = touch.musicTime - MusicScoreInfo.time;
+				return !HasCapturedPress && State is NoteState.Scrolling or NoteState.Input
+					&& touch.phase == InputTouchPhase.Began && pressOffset > -NextRushEarlyWindow && pressOffset < NextRushLateWindow
+					&& lane >= JudgeLaneStart && lane <= JudgeLaneEnd;
+			}
 			if (State == NoteState.Done)
 			{
 				return false;
@@ -148,6 +237,13 @@ namespace Sekai.Live
 
 		public override bool Judgment(ref LiveTouch touch, float lane)
 		{
+			// A fresh press can unlock a release tail. The swipe itself uses the contact channel.
+			if (IsTraceFlickOwner)
+			{
+				if (!IsJudgment(ref touch, lane)) return false;
+				HasCapturedPress = true;
+				return true;
+			}
 			if (State == NoteState.Done)
 			{
 				return false;
@@ -220,6 +316,9 @@ namespace Sekai.Live
 		{
 			base.ResetNote();
 			Array.Clear(inputResults, 0, inputResults.Length);
+			_nextRushCorrectTime = 0f;
+			_nextRushHadContact = false;
+			HasCapturedPress = false;
 		}
 	}
 }

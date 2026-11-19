@@ -133,7 +133,11 @@ namespace Sekai.Core.Live
 
 		private void AdvanceNote(NoteBase note, float offsetTime)
 		{
-			if (!_session.IsAuto && note is LongNote bar && bar.PublishesHeadMiss)
+			if (note.IsDecoration && note.NativeScroll != null && note is not LongNote)
+			{
+				note.AdvanceNote(Frame, offsetTime, settleTimeout: false);
+			}
+			else if (!_session.IsAuto && note is LongNote bar && bar.PublishesHeadMiss)
 			{
 				bar.AdvanceBeforeInput(Frame, offsetTime);
 			}
@@ -177,6 +181,8 @@ namespace Sekai.Core.Live
 			if (note.State != NoteState.Done && (!note.IsDecoration || PlayableTailOf(note)))
 			{
 				_input.Register(note);
+				if (note is GuideNote { TracksDamageContact: true } damage)
+					_input.DamageConnectors.Add(damage);
 			}
 
 			return LiveNoteSession.Scan.Handle;
@@ -274,7 +280,7 @@ namespace Sekai.Core.Live
 		/// </summary>
 		private void PreloadView(NoteBase note, float offsetTime)
 		{
-			if (note.NativeScroll != null)
+			if (note.NativeScroll != null || note is NextRushHiddenTickNote)
 			{
 				return;
 			}
@@ -298,9 +304,21 @@ namespace Sekai.Core.Live
 		private void PreloadNativeVisual(NoteBase note)
 		{
 			double progress = note.NativeViewProgress(_nativeViewTime, out bool hidden);
-			bool visible = note.State != NoteState.Done && !hidden && progress > 0 && progress <= LiveConfig.NativeKeyProgressEnd;
+			bool visible = note.State != NoteState.Done && !hidden && progress > 0 && progress <= LiveConfig.NativeKeyProgressEnd
+				&& (note is LongNote || note.IsVisible && (!note.IsDecoration || _nativeViewTime < note.NativeTarget.Time));
 			if (note is LongNote bar)
 			{
+				if (bar.ConnectorHeadViewNote is NoteBase marker)
+				{
+					var previousType = marker.Type;
+					if (bar.UpdateConnectorHeadView(_nativeViewTime))
+					{
+						if (previousType != marker.Type) _presentation.Unspawn(_session.Views, marker);
+						_presentation.Spawn(_session.Views, marker, Frame.time);
+					}
+					else
+						_presentation.Unspawn(_session.Views, marker);
+				}
 				double previous = progress;
 				bool hideSegment = hidden;
 				double previousTime = note.NativeTarget.Time;

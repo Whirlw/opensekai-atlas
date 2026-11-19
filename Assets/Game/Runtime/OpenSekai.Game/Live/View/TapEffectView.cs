@@ -19,10 +19,11 @@ namespace Sekai
 			public NoteType type;
 
 			public NoteDirection direction;
+			public int style;
 
-			public int laneStart;
+			public float laneStart;
 
-			public int laneEnd;
+			public float laneEnd;
 
 			public INote pairNote;
 
@@ -181,7 +182,7 @@ namespace Sekai
 			}
 
 			list[lane].transform.localPosition = new Vector3(LiveUtility.CalcLaneTransformX(lane), 0f, 0f);
-			list[lane].Play();
+			list[lane].Play(_noteInfo.style);
 		}
 
 		private void TapAura()
@@ -192,7 +193,9 @@ namespace Sekai
 				return;
 			}
 
-			for (int lane = _noteInfo.laneStart; lane <= _noteInfo.laneEnd; lane++)
+			float width = _noteInfo.laneEnd - _noteInfo.laneStart + 1f;
+			int count = Mathf.Min(Mathf.CeilToInt(width), LiveConfig.JudgmentPositions.Length);
+			for (int i = 0; i < count; i++)
 			{
 				ParticleSystemController controller = pool.Spawn();
 				if (controller == null)
@@ -200,8 +203,9 @@ namespace Sekai
 					continue;
 				}
 
+				float lane = _noteInfo.laneStart - 0.5f + (i + 0.5f) * width / count;
 				controller.transform.localPosition = new Vector3(LiveUtility.CalcLaneTransformX(lane), 0f, 0f);
-				controller.Play();
+				controller.Play(_noteInfo.style);
 			}
 		}
 
@@ -215,7 +219,7 @@ namespace Sekai
 			}
 
 			controller.transform.localPosition = new Vector3(LiveUtility.CalcLaneTransformX(GetLaneCenter()), 0f, 0f);
-			controller.Play();
+			controller.Play(_noteInfo.style);
 		}
 
 		private void FlickSlash()
@@ -233,9 +237,17 @@ namespace Sekai
 
 			controller.transform.localPosition = new Vector3(LiveUtility.CalcLaneTransformX(GetLaneCenter()), 0f, 0f);
 			controller.transform.localScale = new Vector3(_noteInfo.laneEnd - _noteInfo.laneStart + 1f, 1f, 1f);
-			float z = _noteInfo.direction == NoteDirection.Right ? -15f : _noteInfo.direction == NoteDirection.Left ? 15f : 0f;
+			float z = _noteInfo.direction switch
+			{
+				NoteDirection.Left => 15f,
+				NoteDirection.Right => -15f,
+				NoteDirection.Down => 180f,
+				NoteDirection.DownLeft => 165f,
+				NoteDirection.DownRight => 195f,
+				_ => 0f
+			};
 			controller.transform.localEulerAngles = new Vector3(0f, 0f, z);
-			controller.Play();
+			controller.Play(_noteInfo.style);
 		}
 
 		private void PlayUnpickedEffect(int lane, ref LiveTouch touch)
@@ -308,19 +320,27 @@ namespace Sekai
 					"tapFx cat=" + note.Category + " type=" + note.Type + " res=" + result + " id=" + note.Id);
 			}
 
+			bool native = note is NoteBase { NativeScroll: not null };
 			_noteInfo = new NoteInfo
 			{
 				result = result,
 				category = note.Category,
 				type = note.Type,
 				direction = note.Direction,
-				laneStart = note.LaneStart,
-				laneEnd = note.LaneEnd,
+				style = note is NoteBase styled ? styled.NativeStyle : 0,
+				laneStart = native ? note.LaneStartF : note.LaneStart,
+				laneEnd = native ? note.LaneEndF : note.LaneEnd,
 				pairNote = note.PairNote,
 				noteId = note.Id
 			};
 			switch (_noteInfo.category)
 			{
+				case NoteCategory.FrictionHide:
+				case NoteCategory.FrictionHideLong:
+				case NoteCategory.Hidden:
+					return;
+				case var _ when native && _noteInfo.laneEnd - _noteInfo.laneStart + 1f <= 0f:
+					break;
 				case NoteCategory.Connection:
 					Connection();
 					break;
@@ -341,10 +361,6 @@ namespace Sekai
 				case NoteCategory.FrictionLong:
 					Friction();
 					break;
-				case NoteCategory.FrictionHide:
-				case NoteCategory.FrictionHideLong:
-				case NoteCategory.Hidden:
-					return;
 				default:
 					PlayLaneEffect();
 					TapAura();
@@ -353,7 +369,8 @@ namespace Sekai
 			}
 
 			LatencyCapture.Record("note_effect", noteId: note.Id, result: result);
-			_playSeAction?.Invoke();
+			if (note is not NoteBase { NativeEffectKind: not NextRushEffectKind.Default })
+				_playSeAction?.Invoke();
 			if (checkPlayedHaptic == null || !checkPlayedHaptic())
 			{
 				PlayHaptic();
@@ -362,7 +379,9 @@ namespace Sekai
 
 		private void PlayLaneEffect()
 		{
-			for (int lane = _noteInfo.laneStart; lane <= _noteInfo.laneEnd; lane++)
+			int first = Mathf.Max(0, Mathf.FloorToInt(_noteInfo.laneStart));
+			int last = Mathf.Min(LiveConfig.JudgmentPositions.Length - 1, Mathf.CeilToInt(_noteInfo.laneEnd));
+			for (int lane = first; lane <= last; lane++)
 			{
 				TapLane(lane);
 			}
@@ -382,7 +401,7 @@ namespace Sekai
 			}
 
 			controller.transform.localPosition = new Vector3(LiveUtility.CalcLaneTransformX(GetLaneCenter()), 0f, 0f);
-			controller.Play();
+			controller.Play(_noteInfo.style);
 		}
 
 		private void Friction()
@@ -399,8 +418,10 @@ namespace Sekai
 			}
 
 			controller.transform.localPosition = new Vector3(LiveUtility.CalcLaneTransformX(GetLaneCenter()), 0f, 0f);
-			controller.Play();
+			controller.Play(_noteInfo.style);
 		}
+
+		internal void PlayNativeCue(NoteBase note, string cue) => PlaySE(cue, cue, note.Id, note.PairNote);
 
 		private void PlaySe()
 		{

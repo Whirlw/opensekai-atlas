@@ -6,7 +6,39 @@ namespace Sekai
 	public class FrictionNoteView : BaseNoteView
 	{
 		[SerializeField]
+		private Sprite _damageBody;
+
+		[SerializeField]
+		private Sprite _damageIcon;
+
+		private Sprite _frictionBody;
+		private Sprite _frictionIcon;
+		private bool _showingDamage;
+
+		[SerializeField]
 		protected SpriteRenderer centerIconRenderer;
+
+		public override void Spawn(INote note, float posZ)
+		{
+			if (note is NextRushDamageNote && _damageBody != null && _damageIcon != null)
+			{
+				if (!_showingDamage)
+				{
+					_frictionBody = spriteRenderer.sprite;
+					_frictionIcon = centerIconRenderer.sprite;
+					spriteRenderer.sprite = _damageBody;
+					centerIconRenderer.sprite = _damageIcon;
+					_showingDamage = true;
+				}
+			}
+			else if (_showingDamage)
+			{
+				spriteRenderer.sprite = _frictionBody;
+				centerIconRenderer.sprite = _frictionIcon;
+				_showingDamage = false;
+			}
+			base.Spawn(note, posZ);
+		}
 
 		public override void Move(float musicTime)
 		{
@@ -22,6 +54,7 @@ namespace Sekai
 			}
 
 			float progress = CalcProgress(musicTime);
+			if (note is NoteBase native) ApplyStyle(native.NativeStyle);
 			transform.localScale = Vector3.one * progress;
 			transform.localPosition = CalcNotePosition(ref progress);
 			UpdateSpritePayload(progress);

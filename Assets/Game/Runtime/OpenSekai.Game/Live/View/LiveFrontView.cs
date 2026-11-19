@@ -151,6 +151,7 @@ namespace Sekai.Live
 
 		public override void OnUnload()
 		{
+			_longTapEffectView?.Clear();
 			CancelMotions();
 			_liveResultView?.Unload();
 			_cutinManager?.Dispose();
@@ -295,6 +296,8 @@ namespace Sekai.Live
 			}
 		}
 
+		public override void NativeHitSound(NoteBase note, string cue) => _tapEffect?.PlayNativeCue(note, cue);
+
 		public override void JudgmentNote(NoteBase note)
 		{
 			if (note == null)
@@ -352,6 +355,7 @@ namespace Sekai.Live
 		public override void SetupScore(LiveScore score)
 		{
 			_scoreView?.SetupScore(score);
+			UpdateLife(score);
 		}
 
 		public override void UpdateScore(LiveScore score)
@@ -377,6 +381,7 @@ namespace Sekai.Live
 
 		public override void Pause()
 		{
+			_longTapEffectView?.Silence();
 			_countdownView?.StopCountdown();
 		}
 

@@ -23,7 +23,7 @@
 
 `live-*.log` 的第一行写着生成它的构建：`commit=<短哈希>[+dirty] built=<UTC 时间>`（`BuildStampBuildStep` 在每次打包前写入，`editor` 表示没有打包信息）。分析前先确认这个提交与仓库里要对照的代码一致；不一致时，日志反映的是另一份代码。
 
-开启「判定结果」（`Judge`）追踪后，长条内部点（`LongHoldCombo`）的每次变化都有一行：`pointDue`（到点，进入唯一的一次输入判定，`by=` 是推进它的方法）、`pointHit`、`pointMiss`、`pointInherit`（尾已结算，直接继承）、`pointTerminateHit` / `pointTerminateMiss`（条结束时结算）。每行带 `now`、`dueAt` 和所属长条的状态、是否有手指、当前判定车道。内部点只在到点后的那一次输入判定里能被判中，所以一个 Miss 要看它 `dueAt` 那一帧条和手指的情况。
+开启「判定结果」（`Judge`）追踪后，长条内部点（`LongHoldCombo`）的每次变化都有一行：`pointDue`（到达谱面时刻，`by=` 是推进它的方法）、`pointHit`、`pointMiss`、`pointTerminateHit` / `pointTerminateMiss`（条结束时结算）。每行带 `now`、`dueAt` 和所属长条的状态、是否有手指、当前判定车道。内部点在 ±83.3 ms 内记录父条处于按住或 `Last` 的接触，`inPlay` 表示是否已有记录。排查 Miss 时对照整个接触窗内的条身状态。
 
 每次运行会在 `TestResults/android-logs/` 下创建子目录，并输出 `summary.md` 的路径。先读摘要，再按行号查看 `logcat.log` 或 `live-*.log`。用 `report.json` 查看全部错误组、每次出现的位置、设备和版本、采集状态、追踪类别计数以及各性能窗口的数据。
 

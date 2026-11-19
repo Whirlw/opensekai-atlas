@@ -83,9 +83,8 @@ namespace Sekai.Core.Live
 					return;
 				}
 
-				// A decorative note is not judged by autoplay at all: the frame walk plays its effect
-				// and takes it off the board itself. Judging it here would silence that effect.
-				if (skipDecoration && note.IsDecoration)
+				// The frame walk retires native Fake notes silently, including when autoplay is on.
+				if (note.IsDecoration && (skipDecoration || note.NativeScroll != null))
 				{
 					index++;
 					continue;

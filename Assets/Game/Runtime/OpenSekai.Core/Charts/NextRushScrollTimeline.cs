@@ -72,8 +72,10 @@ namespace OpenSekai.Charts
 
         public NextRushScrollTimeline(IReadOnlyList<Change> changes, double forceSpeed)
         {
-            if (forceSpeed > 12) throw new InvalidDataException("NextRUSH+ forceNoteSpeed 超出有效范围");
-            _forcePreempt = forceSpeed > 0 ? 0.35 + 3.65 * Math.Pow((12 - forceSpeed) / 11, 1.31) : 0;
+            if (double.IsNaN(forceSpeed) || double.IsInfinity(forceSpeed))
+                throw new InvalidDataException("NextRUSH+ forceNoteSpeed 必须是有限数值");
+            // The upstream curve ends at 0.35 seconds. Its fractional power has no real value above speed 12.
+            _forcePreempt = forceSpeed > 0 ? 0.35 + 3.65 * Math.Pow(Math.Max(0, 12 - forceSpeed) / 11, 1.31) : 0;
             _markers = new Change[changes.Count];
             _coordinate = new double[changes.Count];
             _scrollSkip = new double[changes.Count];
@@ -135,6 +137,141 @@ namespace OpenSekai.Charts
         }
 
         public double Preempt(double playerPreempt) => _forcePreempt > 0 ? _forcePreempt : playerPreempt;
+
+        private Dictionary<double, double> _legacySpawnTimes;
+        private double _legacyDuration;
+
+        public double LegacyConnectorSpawnTime(Position target, double duration)
+        {
+            _legacySpawnTimes ??= new Dictionary<double, double>();
+            if (_legacyDuration != duration)
+            {
+                _legacySpawnTimes.Clear();
+                _legacyDuration = duration;
+            }
+            if (!_legacySpawnTimes.TryGetValue(target.Time, out double spawn))
+            {
+                spawn = FindLegacySpawnTime(target, duration);
+                _legacySpawnTimes.Add(target.Time, spawn);
+            }
+            return spawn;
+        }
+
+        // A legacy connector uses the first visibility window of one unoffset source.
+        // Inspect each continuous piece independently: a skip can jump over the whole window.
+        private double FindLegacySpawnTime(Position target, double duration)
+        {
+            const double earliest = -2, padding = 0.01, step = 1.0 / 120;
+            double anchor = earliest;
+            while (anchor <= target.Time)
+            {
+                var position = Sample(anchor);
+                int marker = position.Marker;
+                bool hasNext = marker + 1 < _markers.Length;
+                double end = hasNext ? Math.Min(target.Time, _markers[marker + 1].Time) : target.Time;
+                double distance = Distance(position, target);
+                bool scroll = IsScroll(position);
+                double speed = scroll ? ScrollSpeed(position.Speed) : position.Speed;
+                double span = marker < 0 ? 1 : hasNext ? _markers[marker + 1].Time - _markers[marker].Time
+                    : Math.Max(1, anchor - _markers[marker].Time);
+                bool linear = marker < 0 || !hasNext || _markers[marker].Ease is 0 or 38
+                    || _markers[marker].Speed == _markers[marker + 1].Speed;
+                if (linear)
+                {
+                    double width = end - anchor;
+                    double magnitude = Math.Max(Math.Abs(distance - speed * width),
+                        Math.Max(Math.Abs(distance), Math.Abs(position.Speed) * Math.Max(span, width)));
+                    if (scroll) magnitude = Math.Max(magnitude, (Math.Abs(distance / speed) + width) * Math.Abs(speed));
+                    double slack = (speed == 0 ? 0 : 0.01) + duration * 1e-4 + magnitude * 1e-6;
+                    double entry = anchor;
+                    if (distance > duration + slack)
+                        entry = speed > 0 ? anchor + (distance - duration - slack) / speed : double.PositiveInfinity;
+                    else if (distance < -slack)
+                        entry = speed < 0 ? anchor + (distance + slack) / speed : double.PositiveInfinity;
+                    if (entry <= end) return Math.Max(earliest, entry - padding - (entry > anchor ? step : 0));
+                }
+                else
+                {
+                    double left = anchor, right = end;
+                    int coarseChecks = 0;
+                    double peakSpeed = Math.Max(Math.Abs(_markers[marker].Speed), Math.Abs(_markers[marker + 1].Speed));
+                    double integrationSlack = scroll ? 0 : 3 * Math.Abs(_markers[marker + 1].Speed - _markers[marker].Speed)
+                        * span * VisibilityIntegrationError(_markers[marker].Ease);
+                    while (true)
+                    {
+                        if (!Intersects(left, right))
+                        {
+                            if (right == end) break;
+                            left = right;
+                            right = end;
+                        }
+                        else
+                        {
+                            double width = right - left;
+                            if (width <= step || width <= 0.2 && coarseChecks++ < 2 && Intersects(right, right))
+                                return Math.Max(earliest, left - padding);
+                            right = left + width * 0.5;
+                        }
+                    }
+
+                    bool Intersects(double a, double b)
+                    {
+                        double va = SpeedAt(marker, a), vb = SpeedAt(marker, b);
+                        double lo, hi;
+                        double magnitude = Math.Max(Math.Abs(distance), peakSpeed * span);
+                        if (scroll)
+                        {
+                            double w = distance / speed;
+                            double q = w - (a - anchor), r = w - (b - anchor);
+                            va = ScrollSpeed(va);
+                            vb = ScrollSpeed(vb);
+                            lo = Math.Min(Math.Min(va * q, va * r), Math.Min(vb * q, vb * r));
+                            hi = Math.Max(Math.Max(va * q, va * r), Math.Max(vb * q, vb * r));
+                            magnitude = Math.Max(magnitude, (Math.Abs(w) + b - anchor) *
+                                Math.Max(0.0001, peakSpeed));
+                        }
+                        else
+                        {
+                            double v = distance - Integral(marker, anchor, a);
+                            lo = v - Math.Max(0, Math.Max(va, vb)) * (b - a);
+                            hi = v - Math.Min(0, Math.Min(va, vb)) * (b - a);
+                        }
+                        double slack = 0.01 + duration * 1e-4 + integrationSlack
+                            + Math.Max(magnitude, Math.Max(Math.Abs(lo), Math.Abs(hi))) * 1e-6;
+                        return lo <= duration + slack && hi >= -slack;
+                    }
+                }
+                if (anchor == target.Time) break;
+                anchor = end;
+            }
+            return double.PositiveInfinity;
+        }
+
+        // first_visible widens its bounds by the upstream numerical integration error,
+        // even though the local timeline uses analytic integrals.
+        private static double VisibilityIntegrationError(int ease)
+        {
+            if (ease < 6 || ease >= 38) return 0;
+            const double width = 1.0 / 64;
+            int family = (ease - 2) / 4;
+            bool combined = (ease - 2) % 4 >= 2;
+            if (family == 6)
+            {
+                double h = combined ? 2 * width : width;
+                double gap = Math.Sqrt(h - h * h / 4) - Math.Sqrt(2 * h - h * h) / 2;
+                return width * gap * 2 / 3;
+            }
+            double derivative = family switch
+            {
+                1 => Math.Pow(Math.PI / 2, 4),
+                3 => 24,
+                4 => 120,
+                5 => Math.Pow(10 * Math.Log(2), 4),
+                _ => 0
+            };
+            double error = derivative * Math.Pow(width, 5) / 2880 * (combined ? 16 : 1);
+            return family == 5 ? error + width / 3072 * (combined ? 2 : 1) : error;
+        }
 
         // Live uses one display clock for all the consumers of a group.
         public Position SampleFrame(double time)

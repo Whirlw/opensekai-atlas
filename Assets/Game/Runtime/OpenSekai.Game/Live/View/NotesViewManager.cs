@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Sekai.Core.Live;
 using UnityEngine;
 using Sekai;
@@ -69,7 +69,8 @@ namespace Sekai.Live
 			if (_isEnablePairNotesLine)
 			{
 				_pairNoteLineView = CreateLineView<PairNoteLineView>("PairNoteLineView");
-				_pairNoteLineView.Setup();
+				_pairNoteLineView.Setup(baseController.BootData?.MusicData?.MusicScore,
+					LiveConfig.GetNoteDisplayOffsetTime(baseController.BootData?.LiveSettingData?.NoteSpeed ?? 6f));
 			}
 
 			SetupNoteMask(noteShowRate);
@@ -167,7 +168,7 @@ namespace Sekai.Live
 				_spawnNoteDict[note] = noteView;
 			}
 
-			if (_isEnablePairNotesLine && note.PairNote != null && !(note is NoteBase decorationNote && decorationNote.IsDecoration))
+			if (_isEnablePairNotesLine)
 			{
 				_pairNoteLineView?.Add(note);
 			}
@@ -190,6 +191,8 @@ namespace Sekai.Live
 				else if (longNote is GuideNote) _guideLineView?.Remove(longNote);
 				else _noteLineView?.Remove(longNote);
 
+				if (longNote.ConnectorHeadViewNote is NoteBase marker)
+					UnspawnNote(marker);
 				if (longNote is GuideNote) return;
 				// Unspawn all child notes for decoration long notes
 				if (longNote.IsDecoration && longNote.NoteList != null)

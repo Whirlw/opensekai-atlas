@@ -117,7 +117,7 @@ namespace Sekai.Live
 			}
 
 			bool ended = touch.phase == InputTouchPhase.Ended;
-			float moveLane = previousLane >= 0f || ended ? previousLane : lane;
+			float moveLane = !float.IsNegativeInfinity(previousLane) || ended ? previousLane : lane;
 			if (touch.delta.sqrMagnitude > 0f && InLanes(moveLane))
 			{
 				if (slot < 0)
@@ -299,7 +299,7 @@ namespace Sekai.Live
 		}
 
 		private bool InLanes(float lane) =>
-			lane >= 0f && lane >= _note.JudgeLaneStart && lane <= _note.JudgeLaneEnd;
+			!float.IsNegativeInfinity(lane) && lane >= _note.JudgeLaneStart && lane <= _note.JudgeLaneEnd;
 
 		private int Find(int touchId)
 		{

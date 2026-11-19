@@ -8,6 +8,15 @@ namespace Sekai.Live
 	{
 		public static MusicScoreInfo CurrentFrameInfo;
 
+		public int? InitialLife { get; }
+		internal bool UseExtendedLanes { get; }
+		internal NextRushConnectorSound[] ConnectorSounds { get; } = Array.Empty<NextRushConnectorSound>();
+		internal (NoteBase left, NoteBase right)[] HiddenSimLines { get; }
+		internal float FirstHiddenLineTime { get; } = float.PositiveInfinity;
+		internal float LastHiddenLineTime { get; } = float.NegativeInfinity;
+		public bool HasVisualNotes => HiddenSimLines?.Length > 0
+			|| (NoteArray != null && Array.Exists(NoteArray, note => note?.IsVisible == true));
+
 		public MusicScoreInfo[] musicScoreInfoArray
 		{
 			[CompilerGenerated]
@@ -45,12 +54,27 @@ namespace Sekai.Live
 			CurrentFrameInfo.speedRatio = 1f;
 		}
 
-		public MusicScore(MusicScoreInfo[] musicScoreInfoArray, EventBase[] eventArray, NoteBase[] noteArray)
+		public MusicScore(MusicScoreInfo[] musicScoreInfoArray, EventBase[] eventArray, NoteBase[] noteArray,
+			int? initialLife = null, bool useExtendedLanes = false, NextRushConnectorSound[] connectorSounds = null,
+			(NoteBase left, NoteBase right)[] hiddenSimLines = null)
 			: this()
 		{
 			this.musicScoreInfoArray = musicScoreInfoArray;
 			EventArray = eventArray;
 			NoteArray = noteArray;
+			InitialLife = initialLife;
+			UseExtendedLanes = useExtendedLanes;
+			ConnectorSounds = connectorSounds ?? Array.Empty<NextRushConnectorSound>();
+			HiddenSimLines = hiddenSimLines;
+			if (hiddenSimLines != null)
+			{
+				foreach (var (left, right) in hiddenSimLines)
+				{
+					float a = left.MusicScoreInfo.time, b = right.MusicScoreInfo.time;
+					FirstHiddenLineTime = Math.Min(FirstHiddenLineTime, Math.Min(a, b));
+					LastHiddenLineTime = Math.Max(LastHiddenLineTime, Math.Max(a, b));
+				}
+			}
 		}
 
 		public void SetMusicScoreInfo(MusicScoreInfo[] musicScoreInfo)

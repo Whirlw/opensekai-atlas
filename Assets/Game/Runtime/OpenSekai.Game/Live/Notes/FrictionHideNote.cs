@@ -2,6 +2,14 @@
 {
 	public class FrictionHideNote : FrictionNote
 	{
+		private bool isTouched;
+
+		public override void ResetNote()
+		{
+			base.ResetNote();
+			isTouched = false;
+		}
+
 		public override bool HasJudgment => false;
 
 		/// <summary>A hidden point only shapes and times its bar; nothing of it is drawn.</summary>

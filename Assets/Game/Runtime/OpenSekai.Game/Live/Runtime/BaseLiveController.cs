@@ -382,6 +382,13 @@ namespace Sekai.Core.Live
 			LiveMusicData music = BootData?.MusicData;
 			float first = float.NaN;
 			float last = float.NaN;
+			if (musicScore?.HiddenSimLines?.Length > 0)
+			{
+				first = (float)((music?.ChartToAudioTime(musicScore.FirstHiddenLineTime) ?? musicScore.FirstHiddenLineTime)
+					+ timingCompensation.LogicDelaySeconds);
+				last = (float)((music?.ChartToAudioTime(musicScore.LastHiddenLineTime) ?? musicScore.LastHiddenLineTime)
+					+ timingCompensation.LogicDelaySeconds);
+			}
 			NoteBase[] roots = musicScore?.NoteArray;
 			if (roots != null)
 			{

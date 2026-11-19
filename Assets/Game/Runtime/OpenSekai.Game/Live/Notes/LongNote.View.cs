@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using UnityEngine;
 
 namespace Sekai.Live
 {
@@ -10,6 +11,56 @@ namespace Sekai.Live
 		internal List<INote> LineNoteList { get; private set; } = new List<INote>();
 
 		protected string _guideColor = null;
+
+		internal NoteBase ConnectorHeadViewNote { get; private set; }
+
+		public void SetNextRushConnectorHeadViewNote(NoteBase note) => ConnectorHeadViewNote = note;
+
+		internal bool UpdateConnectorHeadView(double now)
+		{
+			if (!TryNativeEdge(now, out var start, out var end, visualTime: true))
+			{
+				// A legacy fake damage head sits at the first endpoint during its lead-in.
+				if (NativeConnector?.HasLegacyFakeDamageLeadIn != true
+					|| now >= NativeTarget.Time || LineNoteList.Count < 2) return false;
+				start = this;
+				end = (NoteBase)LineNoteList[1];
+				if (now >= end.NativeTarget.Time) return false;
+			}
+			var segment = start.NativeConnector;
+			if (segment.IsGuide || segment.FullScreen || segment.IsHidden(now, start.NativeScroll.SampleFrame(now).Hidden)) return false;
+			double duration = end.NativeTarget.Time - start.NativeTarget.Time;
+			float progress = now <= start.NativeTarget.Time ? 0f :
+				segment.Interpolate((float)((now - start.NativeTarget.Time) / duration));
+			float left = Mathf.LerpUnclamped(start.NativeLeft, end.NativeLeft, progress);
+			float right = Mathf.LerpUnclamped(start.NativeRight, end.NativeRight, progress);
+			if (right - left <= -1f) return false;
+			ConnectorHeadViewNote.PlaceVisualHead(left, Mathf.Max(left, right));
+			ConnectorHeadViewNote.NativeStyle = segment.HeadStyle(start.NativeStyle);
+			if (this is FrictionHideLongNote && ConnectorHeadViewNote is not NextRushDamageNote)
+				ConnectorHeadViewNote.Type = segment.IsCritical ? NoteType.Critical : NoteType.Default;
+			return true;
+		}
+
+		internal bool TryNativeEdge(double time, out NoteBase start, out NoteBase end, bool visualTime = false)
+		{
+			start = end = null;
+			int last = LineNoteList.Count - 1;
+			if (last < 1 || time < TimeOf(this) || time >= TimeOf(LineNoteList[last])) return false;
+
+			int low = 1, high = last;
+			while (low < high)
+			{
+				int middle = (low + high) / 2;
+				if (TimeOf(LineNoteList[middle]) <= time) low = middle + 1;
+				else high = middle;
+			}
+			start = (NoteBase)LineNoteList[low - 1];
+			end = (NoteBase)LineNoteList[low];
+			return true;
+
+			double TimeOf(INote point) => visualTime ? ((NoteBase)point).NativeTarget.Time : point.MusicScoreInfo.time;
+		}
 
 		public string guideColor
 		{

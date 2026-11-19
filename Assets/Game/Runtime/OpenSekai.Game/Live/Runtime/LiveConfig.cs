@@ -161,6 +161,8 @@ namespace Sekai.Live
 			if (note is NoteBase native && native.NativeScroll != null)
 			{
 				double now = (double)time + ViewLeadSeconds;
+				if (native.IsDecoration && native is not LongNote && now >= native.NativeTarget.Time)
+					return 0f;
 				if (native is LongNote bar && bar.KeepsHeadOnTheLine && now >= native.NativeTarget.Time)
 				{
 					// Once the head reaches the line, its key belongs to the remaining body.
@@ -185,7 +187,9 @@ namespace Sekai.Live
 		}
 
 		internal static bool IsKeyVisible(INote note, float time) =>
-			note is NoteBase native && native.NativeScroll != null ? ViewProgressOf(note, time) > 0f : note.Progress > 0f;
+			note is NoteBase native && native.NativeScroll != null
+				? note.LaneEndF - note.LaneStartF + 1f > 0f && ViewProgressOf(note, time) > 0f
+				: note.Progress > 0f;
 
 		public static float CacheTimingTime { get; set; }
 
@@ -253,9 +257,9 @@ namespace Sekai.Live
 			AddJudgeFrame(JudgeFrameType.Long_End_Critical, 3.5f, 4f, 6.5f, 8f, 7.5f, 8.5f, 7.5f, 8.5f);
 			AddJudgeFrame(JudgeFrameType.Long_End_Flick_Critical, 3.5f, 4f, 6.5f, 8f, 7.5f, 8.5f, 7.5f, 8.5f);
 
-			// TODO: confirm the friction-specific judge frames.
-			CopyJudgeFrame(JudgeFrameType.Friction, JudgeFrameType.Flick);
-			CopyJudgeFrame(JudgeFrameType.Friction_Critical, JudgeFrameType.Flick_Critical);
+			const float contact = ConnectionNote.ContactWindowFrames;
+			AddJudgeFrame(JudgeFrameType.Friction, contact, contact, contact, contact, contact, contact, contact, contact);
+			CopyJudgeFrame(JudgeFrameType.Friction_Critical, JudgeFrameType.Friction);
 			CopyJudgeFrame(JudgeFrameType.Friction_Flick, JudgeFrameType.Flick);
 			CopyJudgeFrame(JudgeFrameType.Friction_Flick_Critical, JudgeFrameType.Flick_Critical);
 			CopyJudgeFrame(JudgeFrameType.Friction_Long, JudgeFrameType.Long);

@@ -11,17 +11,23 @@ namespace OpenSekai.Infrastructure.Charts
     /// <summary>Dispatches source formats into the common live boundary.</summary>
     public static class RuntimeChartLoader
     {
-        public static RuntimeChartDefinition Load(SongPackage package, LiveBundleBuildData config, bool showPair = true)
+        public static RuntimeChartDefinition Load(SongPackage package, LiveBundleBuildData config, bool showPair = true,
+            bool isMirror = false)
         {
             if (package == null) throw new ArgumentNullException(nameof(package));
-            string format = package.Manifest.chartFormat;
-            bool native = string.Equals(format, NextRushChartLoader.Format, StringComparison.OrdinalIgnoreCase)
-                || (string.IsNullOrEmpty(format) && NextRushChartLoader.IsNativeFileName(package.ScorePath));
-            if (native) return NextRushChartLoader.Load(NextRushChartLoader.ReadFile(package.ScorePath), config, showPair);
-            if (!string.IsNullOrEmpty(format)) throw new InvalidDataException("不支持的谱面格式：" + format);
+            if (IsNextRushChart(package))
+                return NextRushChartLoader.Load(NextRushChartLoader.ReadFile(package.ScorePath), config, showPair, isMirror);
             var document = ChartFileReader.Read(package);
             if (document == null) throw new InvalidDataException("无法读取谱面文件。");
-            return RuntimeChartDefinition.Create(document, RuntimeChartConverter.Convert(document, config, showPair));
+            return RuntimeChartDefinition.Create(document, RuntimeChartConverter.Convert(document, config, showPair, isMirror));
+        }
+
+        internal static bool IsNextRushChart(SongPackage package)
+        {
+            string format = package.Manifest.chartFormat;
+            if (string.IsNullOrEmpty(format)) return NextRushChartLoader.IsNativeFileName(package.ScorePath);
+            if (string.Equals(format, NextRushChartLoader.Format, StringComparison.OrdinalIgnoreCase)) return true;
+            throw new InvalidDataException("不支持的谱面格式：" + format);
         }
     }
 }

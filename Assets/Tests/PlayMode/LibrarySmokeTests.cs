@@ -11,6 +11,7 @@ using OpenSekai.Shared.Live.Simulation;
 using OpenSekai.Shared.Playback;
 using Sekai;
 using Sekai.Core.Live;
+using Sekai.Live;
 using UnityEngine;
 using SceneLoader = UnityEngine.SceneManagement.SceneManager;
 using UnityEngine.SceneManagement;
@@ -177,7 +178,18 @@ namespace OpenSekai.Tests.PlayMode
                 var clockField = typeof(BaseLiveController).GetField("currentMusicTimeMs", Fields);
                 var spanField = typeof(BaseLiveController).GetField("timelineSpan", Fields);
                 var resultPendingField = typeof(SoloLiveController).GetField("_resultEffectPending", Fields);
+                var logicField = typeof(SoloLiveController).GetField("_liveLogic", Fields);
+                var front = Object.FindFirstObjectByType<LiveFrontView>();
+                var lifeView = (LifeView)typeof(LiveFrontView).GetField("_lifeView", Fields).GetValue(front);
+                var gauge = (SpriteRenderer)typeof(LifeView).GetField("_lifeDefaultGauge", Fields).GetValue(lifeView);
+                var fullGauge = (Vector2)typeof(LifeView).GetField("_lifeDefaultGaugeSize", Fields).GetValue(lifeView);
+                void AssertStartingLife()
+                {
+                    Assert.That(((LiveLogic)logicField.GetValue(controller)).Score.life, Is.EqualTo(325));
+                    Assert.That(gauge.size.x, Is.EqualTo(fullGauge.x * 0.325f).Within(0.001f));
+                }
                 long ClockMs() => (long)clockField.GetValue(controller);
+                AssertStartingLife();
                 var span = (LiveTimelineSpan)spanField.GetValue(controller);
                 Assert.That(span.PlaybackEndSeconds, Is.EqualTo(4f).Within(0.002f));
                 Assert.That(span.MusicStartSeconds, Is.EqualTo(0.5f).Within(0.002f));
@@ -194,9 +206,17 @@ namespace OpenSekai.Tests.PlayMode
                 controller.ResumeNoCountDown();
                 yield return WaitFor(() => ClockMs() > beforeMusic + 50, 2f, "resuming the silent run-in");
 
+                front.UpdateLife(new LiveScore { life = int.MaxValue });
+                var digits = (NumberView)typeof(LifeView).GetField("_number", Fields).GetValue(lifeView);
+                var renderers = (SpriteRenderer[])typeof(NumberView).GetField("_numberSpriteRenderers", Fields).GetValue(digits);
+                var digitSprites = (Sprite[])typeof(NumberView).GetField("_numberSprites", Fields).GetValue(digits);
+                Assert.That(renderers.Take(10).Select(renderer => renderer.sprite),
+                    Is.EqualTo("7463847412".Select(digit => digitSprites[digit - '0'])));
+
                 controller.Retry();
                 yield return WaitFor(() => controller.JustPlayingState, BootTimeoutSeconds, "restarting the signed run-in");
                 Assert.That(ClockMs() / 1000d, Is.EqualTo(span.StartSeconds).Within(0.20));
+                AssertStartingLife();
 
                 yield return WaitFor(() =>
                 {
@@ -263,7 +283,7 @@ namespace OpenSekai.Tests.PlayMode
             File.WriteAllText(Path.Combine(directory, "level-data.json"), @"{
                 ""bgmOffset"": 0.51,
                 ""entities"": [
-                    { ""archetype"": ""Initialization"", ""data"": [] },
+                    { ""archetype"": ""Initialization"", ""data"": [{ ""name"": ""initialLife"", ""value"": 325 }] },
                     { ""archetype"": ""#BPM_CHANGE"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 0 }, { ""name"": ""#BPM"", ""value"": 120 }] },
                     { ""archetype"": ""NormalHeadTapNote"", ""name"": ""head"", ""data"": [{ ""name"": ""#BEAT"", ""value"": -2 }, { ""name"": ""lane"", ""value"": 0 }, { ""name"": ""size"", ""value"": 1 }, { ""name"": ""next"", ""ref"": ""anchor"" }, { ""name"": ""connectorEase"", ""value"": 2 }] },
                     { ""archetype"": ""AnchorNote"", ""name"": ""separator"", ""data"": [{ ""name"": ""#BEAT"", ""value"": -1.5 }, { ""name"": ""isAttached"", ""value"": 1 }, { ""name"": ""isSeparator"", ""value"": 1 }, { ""name"": ""attachHead"", ""ref"": ""head"" }, { ""name"": ""attachTail"", ""ref"": ""anchor"" }, { ""name"": ""activeHead"", ""ref"": ""head"" }] },

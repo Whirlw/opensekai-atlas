@@ -70,9 +70,8 @@ namespace OpenSekai.Tests.EditMode.Live
             var due = new LongHoldCombo(Info(1f), NoteType.Default, 1, 0);
             bar.AddHoldCombo(due);
             bar.SortNoteList();
-            // A single update puts the accumulated points in Last without resolving them.
+            // A dropped frame may skip their entire contact window.
             bar.Excute(Info(1f), 0);
-            foreach (var point in expired) Assert.That(point.State, Is.EqualTo(NoteState.Last));
             int scored = 0;
             bar.OnJudgment = note => { if (note is LongHoldCombo) scored++; };
 
@@ -81,11 +80,87 @@ namespace OpenSekai.Tests.EditMode.Live
 
             foreach (var point in expired)
             {
-                Assert.That(point.Result, Is.EqualTo(NoteResult.None));
-                Assert.That(point.State, Is.Not.EqualTo(NoteState.Done));
+                Assert.That(point.Result, Is.EqualTo(NoteResult.Miss));
+                Assert.That(point.State, Is.EqualTo(NoteState.Done));
             }
             Assert.That(due.Result, Is.EqualTo(NoteResult.JustPerfect));
             Assert.That(scored, Is.EqualTo(1), "three expired points must not join the one live point, even on a repeated refresh");
+        }
+
+        [TestCase(NoteState.InputBegan)]
+        [TestCase(NoteState.Input)]
+        [TestCase(NoteState.Last)]
+        public void ANearlyHeldOrGraceStateCountsWithoutAnotherTouch(NoteState state)
+        {
+            var bar = Bar();
+            var point = new LongHoldCombo(Info(1f), NoteType.Default, 1f, 0f);
+            bar.AddHoldCombo(point);
+
+            bar.SetStateUnnotice(state);
+            point.Excute(Info(0.95f), 0f);
+            Assert.That(point.Result, Is.EqualTo(NoteResult.None));
+
+            bar.SetStateUnnotice(NoteState.Release);
+            point.Excute(Info(1f), 0f);
+            Assert.That(point.Result, Is.EqualTo(NoteResult.JustPerfect));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void AReleasedBarNeedsActualFingerCoverage(bool covered)
+        {
+            var bar = Bar();
+            var point = new LongHoldCombo(Info(1f), NoteType.Default, 1f, 0f);
+            bar.AddHoldCombo(point);
+            bar.SetStateUnnotice(NoteState.Release);
+            if (covered) bar.RecordHoldingInput(1f);
+
+            point.Excute(Info(1f), 0f);
+            point.Excute(Info(1.084f), 0f);
+
+            Assert.That(point.Result, Is.EqualTo(covered ? NoteResult.JustPerfect : NoteResult.Miss));
+        }
+
+        [Test]
+        public void AHeadPressedAfterItsFirstPointCanStillSaveThePoint()
+        {
+            var bar = new LongNote(Info(1f), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
+            var point = new LongHoldCombo(Info(1.019f), NoteType.Default, 3, 1f, 0f);
+            bar.AddHoldCombo(point);
+            bar.AddNoteListAndSetupChildNote(new NormalNote(Info(2f), 2, 4, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f));
+            bar.SortNoteList();
+            using var harness = new LiveHarness();
+            harness.Arrange(new MusicScore(new[] { Info(0f) }, System.Array.Empty<EventBase>(), new NoteBase[] { bar }));
+            harness.Step(1.021f, 11.021);
+            harness.Step(1.027f, 11.027);
+            Assert.That(point.Result, Is.EqualTo(NoteResult.None));
+
+            harness.Step(1.039f, 11.039, LiveHarness.Touch(1, LiveConfig.JudgmentPositions[4], 11.032));
+
+            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.Perfect));
+            Assert.That(point.Result, Is.EqualTo(NoteResult.JustPerfect));
+        }
+
+        [TestCase(-0.084f, false)]
+        [TestCase(-0.082f, true)]
+        [TestCase(0.082f, true)]
+        [TestCase(0.084f, false)]
+        public void FrictionAndStandaloneTickUseTheSameContactWindow(float offset, bool expected)
+        {
+            var friction = new FrictionNote(Info(1f), 1, 4, 5, NoteCategory.Friction, null, NoteType.Default, 1f);
+            var tick = new ConnectionNote(Info(1f), 2, 4, 5, NoteCategory.Connection, NoteType.Default, 1f, 0f);
+            tick.SetNextRushContactWindow();
+            var touch = new LiveTouch { phase = TouchPhase.Stationary };
+
+            foreach (var key in new ConnectionNote[] { friction, tick })
+            {
+                key.Excute(Info(1f + offset), 0.5f);
+                Assert.That(key.IsJudgment(ref touch, 4.5f), Is.EqualTo(expected));
+                if (expected) key.Judgment(ref touch, 4.5f);
+                if (offset < 0f) Assert.That(key.Result, Is.EqualTo(NoteResult.None));
+                key.Excute(Info(1.1f), 0.5f);
+                Assert.That(key.Result, Is.EqualTo(expected ? NoteResult.JustPerfect : NoteResult.Miss));
+            }
         }
 
         [Test]

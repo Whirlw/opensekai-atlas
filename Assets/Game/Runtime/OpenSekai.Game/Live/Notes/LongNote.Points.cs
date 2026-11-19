@@ -6,7 +6,7 @@ namespace Sekai.Live
 {
 	public partial class LongNote
 	{
-		private void SettleLeftoverAsPerfect()
+		protected void SettleComboPointsAtEnd()
 		{
 			if (NoteList == null)
 			{
@@ -15,18 +15,10 @@ namespace Sekai.Live
 
 			for (int i = 0; i < NoteList.Count; i++)
 			{
-				NoteBase part = NoteList[i];
-				if (part == null || !(part is LongHoldCombo))
+				if (NoteList[i] is LongHoldCombo point && point.ParentNote == this)
 				{
-					continue;
+					point.Terminate();
 				}
-
-				if (part.ParentNote != this || part.Result != NoteResult.None)
-				{
-					continue;
-				}
-
-				part.FinishWith(NoteResult.Perfect);
 			}
 		}
 

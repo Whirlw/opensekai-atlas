@@ -190,9 +190,11 @@ namespace OpenSekai.Tests.EditMode.Live
 
             if (hit)
             {
-                _harness.Step(1.10f, 11.10d,
-                    LiveHarness.Touch(1, LiveConfig.JudgmentPositions[8], 11.10d),
-                    LiveHarness.Touch(2, LiveConfig.JudgmentPositions[2], 11.10d));
+                float contact = flick ? 1.10f : 1.07f;
+                double sampleTime = 10d + contact;
+                _harness.Step(contact, sampleTime,
+                    LiveHarness.Touch(1, LiveConfig.JudgmentPositions[8], sampleTime),
+                    LiveHarness.Touch(2, LiveConfig.JudgmentPositions[2], sampleTime));
                 _harness.Step(1.12f, 11.12d,
                     new LiveTouchSample(1, new Vector2(800f, 700f), LiveConfig.JudgmentPositions[8], 11.12d, TouchPhase.Moved, Vector2.zero),
                     new LiveTouchSample(2, new Vector2(800f, 700f), LiveConfig.JudgmentPositions[2], 11.12d, TouchPhase.Moved, Vector2.zero));

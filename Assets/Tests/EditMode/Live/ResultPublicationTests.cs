@@ -279,7 +279,7 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         [Test]
-        public void APointTheBodyNeverReachedIsPublishedPerfectAfterTheTailThatEndedIt()
+        public void AnEarlyContactedPointIsPublishedAfterTheTailThatEndedItsBar()
         {
             NormalNote tail = Tail();
             LongNote bar = Bar(tail);
@@ -299,9 +299,9 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(tailEntries, Has.Length.EqualTo(4), string.Join(" | ", board.Log));
             Assert.That(Of(board, "late"), Is.EqualTo(new[]
             {
-                "S late Perfect #2->3 +333333", "C late Perfect", "D late Perfect", "J late Perfect",
+                "S late JustPerfect #2->3 +333333", "C late JustPerfect", "D late JustPerfect", "J late JustPerfect",
             }), string.Join(" | ", board.Log));
-            Assert.That(board.Log.IndexOf(tailEntries[3]), Is.LessThan(board.Log.IndexOf("S late Perfect #2->3 +333333")),
+            Assert.That(board.Log.IndexOf(tailEntries[3]), Is.LessThan(board.Log.IndexOf("S late JustPerfect #2->3 +333333")),
                 "the tail's verdict ends the bar, and the bar's end settles the point");
         }
 

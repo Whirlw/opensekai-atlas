@@ -121,14 +121,7 @@ namespace OpenSekai.Live.Conversion
 			float judgeLaneEnd = note.JudgeLaneEnd;
 			note.JudgeLaneStart = 11 - judgeLaneEnd;
 			note.JudgeLaneEnd = 11 - judgeLaneStart;
-			if (note.Direction == NoteDirection.Left)
-			{
-				note.Direction = NoteDirection.Right;
-			}
-			else if (note.Direction == NoteDirection.Right)
-			{
-				note.Direction = NoteDirection.Left;
-			}
+			note.Direction = note.Direction.Mirrored();
 		}
 
 		private NoteBase[] ConvertNoteArray(List<ChartNote> noteArray, MusicScoreInfo[] eventBaseArray, LiveBundleBuildData liveBundleBuildData, ChartDocument conversionData, long? filterBeforeTicks = null)

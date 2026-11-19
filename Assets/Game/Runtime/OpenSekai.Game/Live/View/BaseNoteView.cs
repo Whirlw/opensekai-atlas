@@ -20,6 +20,10 @@ namespace Sekai
 		protected INote note;
 
 		protected float posZ;
+		private MaterialPropertyBlock _palette;
+		private int _style;
+
+		protected void ApplyStyle(int style) => NextRushPalette.Apply(noteRenderers, style, ref _style, ref _palette);
 
 		public virtual void Setup(Vector2 spawnPosition, Vector2[] judgmentPositions, float noteShowRate)
 		{
@@ -52,6 +56,7 @@ namespace Sekai
 			}
 
 			float progress = LiveConfig.GetNoteViewProgress(LiveConfig.ViewProgressOf(note, musicTime));
+			if (note is NoteBase native) ApplyStyle(native.NativeStyle);
 			transform.localPosition = CalcNotePosition(ref progress);
 			transform.localScale = Vector3.one * progress;
 			UpdateSpritePayload(progress);
@@ -61,6 +66,7 @@ namespace Sekai
 		{
 			this.note = note;
 			this.posZ = posZ;
+			ApplyStyle(note is NoteBase native ? native.NativeStyle : 0);
 			gameObject.SetActive(true);
 			if (spriteRenderer != null)
 			{

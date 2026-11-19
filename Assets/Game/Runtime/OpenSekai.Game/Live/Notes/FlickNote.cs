@@ -5,6 +5,7 @@ using Sekai;
 
 using OpenSekai.Shared.Diagnostics;
 using OpenSekai.Shared.Live;
+using InputTouchPhase = UnityEngine.InputSystem.TouchPhase;
 
 namespace Sekai.Live
 {
@@ -18,6 +19,9 @@ namespace Sekai.Live
 
 		/// <summary>The swipe length this note asks for, in the same units as a touch delta.</summary>
 		internal float FlickDistance => _flickDistance;
+		internal bool IsNextRushHead { get; }
+		internal bool IsConnectorHeadView { get; }
+		internal bool CanStartNextRushHold => State is NoteState.Input or NoteState.Done;
 
 		private FlickTailJudge _tailJudge;
 
@@ -65,16 +69,26 @@ namespace Sekai.Live
 			Category = NoteCategory.Flick;
 		}
 
-		public FlickNote(MusicScoreInfo info, int id, int laneStart, int laneEnd, NoteCategory category, float speedRatio, NoteType type, NoteDirection direction, float laneOffset, float screenDpiToInch)
+		public FlickNote(MusicScoreInfo info, int id, int laneStart, int laneEnd, NoteCategory category, float speedRatio,
+			NoteType type, NoteDirection direction, float laneOffset, float screenDpiToInch, bool isNextRushHead = false,
+			bool isConnectorHeadView = false)
 			: base(info, id, laneStart, laneEnd, category, speedRatio, laneOffset, type)
 		{
 			inputResults = new (int id, bool distance, bool trueDirection)[8];
 			_flickDistance = screenDpiToInch;
 			Direction = direction;
+			IsNextRushHead = isNextRushHead;
+			IsConnectorHeadView = isConnectorHeadView;
 		}
 
 		public override void Excute(MusicScoreInfo currentFrameInfo, float offsetTime)
 		{
+			if (IsNextRushHead)
+			{
+				AdvanceNote(currentFrameInfo, offsetTime, settleTimeout: false);
+				return;
+			}
+
 			if (JudgesAsBarTail)
 			{
 				TailJudge.SettleFrame(currentFrameInfo.time);
@@ -91,6 +105,28 @@ namespace Sekai.Live
 				{
 					JudgmentFlick(currentFrameInfo.time);
 				}
+			}
+		}
+
+		internal bool AcceptsNextRushHeadSample(ref LiveTouch touch, float lane)
+		{
+			if (State != NoteState.Input || touch.phase == InputTouchPhase.Canceled
+				|| !LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(this),
+					MusicScoreInfo.time - touch.musicTime)) return false;
+
+			// A registered finger may swipe out of the head's lane into the moving hold.
+			return touch.phase == InputTouchPhase.Began
+				? !float.IsNegativeInfinity(lane) && JudgeLaneStart <= lane && lane <= JudgeLaneEnd
+				: HasInputResult(touch.touchId);
+		}
+
+		internal void SettleNextRushHead(float now)
+		{
+			if (State != NoteState.Done && LiveConfig.IsPastJudgeWindow(
+				LiveUtility.GetINoteToJudgeFrameType(this), MusicScoreInfo.time - now))
+			{
+				JudgeInfo = (NoteResult.Miss, NoteResultDescription.None);
+				State = NoteState.Done;
 			}
 		}
 

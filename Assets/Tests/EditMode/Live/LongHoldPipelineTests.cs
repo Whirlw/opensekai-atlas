@@ -278,16 +278,14 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void ARubNoteStaysInThePipelineUntilItReachesTheLine()
         {
-            // FrictionNote.Judgment sets isTouched and returns false while Progress < 1; the completion
-            // happens in Excute at Progress >= 1. Dropping the note from the judge list on that first
-            // (false) Judgment means it never completes, so a rub you start before the line fails.
+            // Early contact arms the rub. The note must stay registered until its chart time.
             var logic = new LiveLogic(null);
             var rub = new FrictionNote(Info(2f), 11, 4, 5, NoteCategory.Friction, null, NoteType.Default, 1);
-            rub.Excute(Info(1.9f), 0.5f);
+            rub.Excute(Info(1.95f), 0.5f);
             Assert.That(rub.Progress, Is.LessThan(1f), "precondition: the rub is still approaching");
             logic.Input.JudgmentNotes.Add(rub);
             var finger = Input(1, 4.5f);
-            finger.Touch.musicTime = 1.9f;
+            finger.Touch.musicTime = 1.95f;
             finger.Touch.phase = TouchPhase.Moved;
             logic.Input.ActiveInputs.Add(finger);
             logic.Scheduler.Run();
@@ -695,13 +693,15 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void InteriorComboStillMissesWhenNoInputArrives()
         {
-            var note = new HeldNote(1);
+            var note = new LongNote(Info(0f), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
             var combo = new LongHoldCombo(Info(2), NoteType.Default, 1, 0);
             note.AddHoldCombo(combo);
             note.SortNoteList();
             note.Excute(Info(2.001f), 0);
             Assert.That(combo.State, Is.EqualTo(NoteState.Last));
             note.Excute(Info(2.017f), 0);
+            Assert.That(combo.Result, Is.EqualTo(NoteResult.None));
+            note.Excute(Info(2.084f), 0);
             Assert.That(combo.Result, Is.EqualTo(NoteResult.Miss));
         }
         [Test]
