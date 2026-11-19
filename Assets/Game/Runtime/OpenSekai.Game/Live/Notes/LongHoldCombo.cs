@@ -97,6 +97,21 @@ namespace Sekai.Live
 
 		public override bool IsJudgment(ref LiveTouch touch, float lane) => false;
 
+		internal void SettleFromTail(NoteBase tail, float now)
+		{
+			if (!CanJudge || Result != NoteResult.None) return;
+
+			bool tailHasInput = tail.HasSlideEndInputAt(now);
+			if (tail.State != NoteState.Done && (!tailHasInput || now < MusicScoreInfo.time)) return;
+
+			if (_hasContact || _alwaysHeld)
+				Finish(NoteResult.JustPerfect, "pointTerminateHit", now);
+			else if (tailHasInput)
+				Finish(NoteResult.Perfect, "pointTailHit", now);
+			else
+				Finish(NoteResult.Miss, "pointTerminateMiss", now);
+		}
+
 		public override void Terminate()
 		{
 			if (!CanJudge) return;

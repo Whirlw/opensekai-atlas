@@ -4,8 +4,10 @@ namespace Sekai.Live
 	{
 		internal override bool UsesContactWindow => true;
 		public bool IsTailTraceOwner { get; }
-		internal override float EarlyContactSeconds => IsTailTraceOwner ? 6.5f / 60f : base.EarlyContactSeconds;
-		internal override float LateContactSeconds => IsTailTraceOwner ? 8f / 60f : base.LateContactSeconds;
+		private readonly bool _isTraceTail;
+		private bool UsesTailWindow => _isTraceTail || IsTailTraceOwner || GradesAsBarPart && ParentRole == OpenSekai.Shared.Live.NoteParentRole.Tail;
+		internal override float EarlyContactSeconds => UsesTailWindow ? 6.5f / 60f : base.EarlyContactSeconds;
+		internal override float LateContactSeconds => UsesTailWindow ? 8f / 60f : base.LateContactSeconds;
 
 		public override NoteState State
 		{
@@ -29,9 +31,10 @@ namespace Sekai.Live
 			Category = NoteCategory.Friction;
 		}
 
-		public FrictionNote(MusicScoreInfo info, int id, int laneStart, int laneEnd, NoteCategory category, LiveBundleBuildData bundleBuildData, NoteType type, float speedRatio, NoteLineType lineType = NoteLineType.Linear, bool isTailTraceOwner = false)
+		public FrictionNote(MusicScoreInfo info, int id, int laneStart, int laneEnd, NoteCategory category, LiveBundleBuildData bundleBuildData, NoteType type, float speedRatio, NoteLineType lineType = NoteLineType.Linear, bool isTailTraceOwner = false, bool isTraceTail = false)
 			: base(info, id, laneStart, laneEnd, category, type, speedRatio, LiveUtility.GetLaneOffset(category, bundleBuildData), lineType)
 		{
+			_isTraceTail = isTraceTail;
 			IsTailTraceOwner = isTailTraceOwner;
 		}
 	}

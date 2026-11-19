@@ -424,6 +424,12 @@ namespace Sekai.Core.Live
 			if (barAnswersInput)
 			{
 				judgmentNotes.Add(note);
+				if (note is LongNote tickBar)
+				{
+					foreach (var part in tickBar.JudgedPoints)
+						if (part is ConnectionNote { IsConnectedVisibleTick: true, State: NoteState.Last }
+							&& !judgmentNotes.Contains(part)) judgmentNotes.Add(part);
+				}
 
 				// A bar answers input for its own head and hold, but it does not grade a tail that judges
 				// itself: a rub, a rub flick or a hidden carrier is played exactly like a note that hangs

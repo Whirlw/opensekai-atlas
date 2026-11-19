@@ -206,15 +206,13 @@ namespace OpenSekai.Tests.EditMode.Live
         [TestCase(0.01f)]
         public void ASlideStaysJudgeableAfterItsTimePasses(float lateness)
         {
-            // Slide (connection) notes used to fail on the very next Excute once their time passed,
-            // which left a one frame window: at 165 Hz that is ~6 ms, so the note looked unjudgeable.
             var logic = new LiveLogic(null);
             var slide = new ConnectionNote(Info(1f), 7, 4, 5, NoteCategory.Connection, NoteType.Default, 1, 0);
             slide.Excute(Info(0.9f), 0);
             slide.Excute(Info(1f), 0);
-            Assert.That(slide.State, Is.EqualTo(NoteState.Last), "the slide becomes judgeable when its time passes");
+            Assert.That(slide.Result, Is.EqualTo(NoteResult.None));
             slide.Excute(Info(1f + lateness), 0);
-            Assert.That(slide.State, Is.EqualTo(NoteState.Last), "it must survive a few late frames");
+            Assert.That(slide.Result, Is.EqualTo(NoteResult.None));
             logic.Input.JudgmentNotes.Add(slide);
             var finger = Input(1, 4.5f);
             finger.Touch.musicTime = 1f + lateness;

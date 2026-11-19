@@ -74,7 +74,7 @@ namespace OpenSekai.Tests.EditMode.Live
             var slide = new ConnectionNote(Info(1f), 5, 4, 5, NoteCategory.Connection, NoteType.Default, 1, 0);
             LiveTouch touch = Touch(TouchPhase.Began, 0.5f);
 
-            Assert.That(slide.Judgment(ref touch, 4.5f), Is.True);
+            Assert.That(slide.Judgment(ref touch, 4.5f), Is.False);
             Assert.That(Finished(slide), Is.False);
         }
 

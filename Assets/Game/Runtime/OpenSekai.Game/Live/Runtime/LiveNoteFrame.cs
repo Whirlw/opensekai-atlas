@@ -195,6 +195,9 @@ namespace Sekai.Core.Live
 		/// </summary>
 		private void RegisterOpenHead(NoteBase note)
 		{
+			if (!_session.IsAuto && note is LongNote comboBar)
+				_session.Notes.RegisterTailLinkedComboBar(comboBar);
+
 			if (note is LongNote bar && bar.PublishesHeadMiss)
 			{
 				_session.Notes.RegisterHead(bar.Head);

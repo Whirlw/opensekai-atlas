@@ -16,11 +16,15 @@ namespace Sekai.Live
 
 		/// <summary>The swipe length this note asks for, in the same units as a touch delta.</summary>
 		internal float FlickDistance => _flickDistance;
-		private float NextRushEarlyWindow => (IsTailFlickOwner ? 7.5f : 6.5f) / 60f;
-		private float NextRushLateWindow => (IsTailFlickOwner ? 8.5f : 7.5f) / 60f;
+		internal bool IsTraceTail { get; }
+		private bool UsesTailInputWindow => IsTraceTail || IsTailFlickOwner || IsTailTraceFlickOwner || GradesAsBarPart && ParentRole == NoteParentRole.Tail;
+		private const float GradeLateWindow = 7.5f / 60f;
+		private bool _everCorrect;
+		private float NextRushEarlyWindow => (UsesTailInputWindow ? 7.5f : 6.5f) / 60f;
+		private float NextRushLateWindow => (UsesTailInputWindow ? 8.5f : 7.5f) / 60f;
 		private float _nextRushCorrectTime;
+		private float _missPendingAt = float.PositiveInfinity;
 		private bool _nextRushHadContact;
-		internal bool UsesNextRushTraceFlickInput { get; }
 		public bool IsTraceFlickOwner { get; }
 		public bool IsTailTraceFlickOwner { get; }
 		public bool IsTailFlickOwner => IsTraceFlickOwner && Category == NoteCategory.Flick;
@@ -52,55 +56,60 @@ namespace Sekai.Live
 		}
 
 		public FrictionFlickNote(MusicScoreInfo info, int id, int laneStart, int laneEnd, NoteCategory category, float speedRatio,
-			NoteType type, NoteDirection direction, float screenDpiToInch, float laneOffset, bool useNextRushTraceFlickInput = false,
-			bool isTraceFlickOwner = false, bool isConnectorHeadView = false, bool isTailTraceFlickOwner = false)
+			NoteType type, NoteDirection direction, float screenDpiToInch, float laneOffset,
+			bool isTraceFlickOwner = false, bool isConnectorHeadView = false, bool isTailTraceFlickOwner = false, bool isTraceTail = false)
 			: base(info, id, laneStart, laneEnd, category, speedRatio, laneOffset, type)
 		{
 			inputResults = new (int id, bool distance, bool trueDirection)[8];
 			_flickDistance = screenDpiToInch;
 			Direction = direction;
 			IsTraceFlickOwner = isTraceFlickOwner;
+			IsTraceTail = isTraceTail;
 			IsTailTraceFlickOwner = isTailTraceFlickOwner;
 			IsConnectorHeadView = isConnectorHeadView;
-			UsesNextRushTraceFlickInput = useNextRushTraceFlickInput || isTraceFlickOwner || isTailTraceFlickOwner;
 		}
 
 		public override void Excute(MusicScoreInfo currentFrameInfo, float offsetTime)
 		{
-			if (UsesNextRushTraceFlickInput)
+			AdvanceNote(currentFrameInfo, offsetTime, settleTimeout: false);
+			if (State == NoteState.Done) return;
+			float now = currentFrameInfo.time;
+			if (now > _missPendingAt)
+				FinishNextRushHead((NoteResult.Miss, NoteResultDescription.None));
+			else if (now > MusicScoreInfo.time + 8.5f / 60f)
+				_missPendingAt = now;
+			else if (!IsTailFlickOwner && now >= MusicScoreInfo.time && (_everCorrect || !_nextRushHadContact))
 			{
-				AdvanceNote(currentFrameInfo, offsetTime, settleTimeout: false);
-				return;
+				bool moved = false, correct = false;
+				foreach (var input in inputResults)
+				{
+					moved |= input.distance;
+					correct |= input.trueDirection;
+				}
+				if (moved) FinishTraceFlick(now, correct);
 			}
-
-			// A caught note settles the moment it reaches the line, and that has to be decided BEFORE the base
-			// class can close the window. Waiting one more frame after the last input (the old shape of this
-			// check) dropped the note on the very frame its window closed: device log
-			// live-20261113-152906.log shows the single combo break of that run as childState=Input at
-			// now=19.824, Last at 19.830 and res=Miss at 19.836 for t=19.688 - a caught note with a recorded
-			// flick, one frame of grace short.
-			if (State == NoteState.Input && CalcProgress(currentFrameInfo, offsetTime) >= 1f)
-			{
-				JudgmentFlick(currentFrameInfo.time);
-			}
-
-			base.Excute(currentFrameInfo, offsetTime);
 		}
 
 		internal bool ReadNextRushHeadSample(ref LiveTouch touch, float lane, float sampleTime)
 		{
-			if (State is not (NoteState.Scrolling or NoteState.Input) || touch.phase == InputTouchPhase.Canceled)
+			if (!float.IsPositiveInfinity(_missPendingAt) || touch.touchId == 0 || State is not (NoteState.Scrolling or NoteState.Input) || touch.phase == InputTouchPhase.Canceled)
 				return false;
-			float offset = sampleTime - MusicScoreInfo.time;
-			if (offset <= -NextRushEarlyWindow || offset >= NextRushLateWindow) return false;
-
 			bool unregistered = IsLaneCheck(touch);
-			if (unregistered && (float.IsNegativeInfinity(lane) || lane < JudgeLaneStart || lane > JudgeLaneEnd)) return false;
+			if (unregistered && (sampleTime <= MusicScoreInfo.time - NextRushEarlyWindow
+				|| sampleTime >= MusicScoreInfo.time + NextRushLateWindow || float.IsNegativeInfinity(lane)
+				|| lane < JudgeLaneStart || lane > JudgeLaneEnd || inputResults[^1].id != 0)) return false;
+			RecordSlideEndInput(NextRushLateWindow);
 			State = NoteState.Input;
 			bool moved = false, correct = false;
 			UpdateDelta(touch.delta, ref moved, ref correct);
 			if (unregistered || moved) AddInputResult(ref touch, ref moved, ref correct);
-			if (correct) _nextRushCorrectTime = sampleTime;
+			if (correct)
+			{
+				_everCorrect = true;
+				_nextRushCorrectTime = sampleTime;
+				if (!IsTailFlickOwner && sampleTime >= MusicScoreInfo.time + LiveConfig.JustPerfectJudgeTimeHalf)
+					FinishTraceFlick(sampleTime, true);
+			}
 			return true;
 		}
 
@@ -124,69 +133,25 @@ namespace Sekai.Live
 				float time = contactRecently ? _nextRushCorrectTime : now;
 				FinishNextRushHead(LiveConfig.CalculateLongEndFlickNoteResult(this, time, correct));
 			}
-			else if (correct && !IsTailFlickOwner)
+			else if (!IsTailFlickOwner && hasMotion && (!contactRecently || Category == NoteCategory.Flick && correct))
 			{
-				// A valid early trace swipe waits for the head to reach the line.
-				FinishNextRushHead((NoteResult.Perfect, NoteResultDescription.None));
+				FinishTraceFlick(now, correct);
 			}
-			else if (now > target + NextRushLateWindow)
-			{
-				FinishNextRushHead((NoteResult.Miss, NoteResultDescription.None));
-			}
-			else if (hasMotion && !contactRecently)
-			{
+		}
+
+		private void FinishTraceFlick(float time, bool correct)
+		{
+			var result = CalcNoteResult(time);
+			if (!correct && result == NoteResult.Perfect)
 				FinishNextRushHead((NoteResult.Great, NoteResultDescription.FlickMiss));
-			}
+			else
+				FinishNextRushHead((result, NoteResultDescription.None));
 		}
 
 		private void FinishNextRushHead((NoteResult, NoteResultDescription) result)
 		{
 			JudgeInfo = onUpdateResult != null ? onUpdateResult(result) : result;
 			State = NoteState.Done;
-		}
-
-		private bool JudgmentFlick(float musicTime)
-		{
-			if (inputResults == null || inputResults.Length == 0)
-			{
-				return false;
-			}
-
-			bool hasInput = false;
-			bool direction = false;
-			foreach (var result in inputResults)
-			{
-				if (result.id != 0 && result.distance && result.trueDirection)
-				{
-					hasInput = true;
-					direction = true;
-					break;
-				}
-			}
-
-			if (!hasInput)
-			{
-				foreach (var result in inputResults)
-				{
-					if (result.id != 0 && result.distance)
-					{
-						hasInput = true;
-						direction = result.trueDirection;
-						break;
-					}
-				}
-			}
-
-
-			if (!hasInput)
-			{
-				return false;
-			}
-
-			var judgeInfo = LiveConfig.CalculateFrictionFlickNoteResult(this, musicTime, direction);
-			JudgeInfo = onUpdateResult != null ? onUpdateResult(judgeInfo) : judgeInfo;
-			State = NoteState.Done;
-			return true;
 		}
 
 		public override bool IsJudgment(ref LiveTouch touch, float lane)
@@ -198,23 +163,9 @@ namespace Sekai.Live
 					&& touch.phase == InputTouchPhase.Began && pressOffset > -NextRushEarlyWindow && pressOffset < NextRushLateWindow
 					&& lane >= JudgeLaneStart && lane <= JudgeLaneEnd;
 			}
-			if (State == NoteState.Done)
-			{
-				return false;
-			}
-
-			if (!IsLaneCheck(touch))
-			{
-				return true;
-			}
-
-			if (JudgeLaneStart > lane || JudgeLaneEnd < lane)
-			{
-				return false;
-			}
-
-			var offset = MusicScoreInfo.time - touch.musicTime;
-			return LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(this), offset);
+			return State is NoteState.Scrolling or NoteState.Input && (!IsLaneCheck(touch)
+				|| lane >= JudgeLaneStart && lane <= JudgeLaneEnd && touch.musicTime > MusicScoreInfo.time - NextRushEarlyWindow
+				&& touch.musicTime < MusicScoreInfo.time + NextRushLateWindow);
 		}
 
 		private bool IsLaneCheck(LiveTouch touch)
@@ -244,36 +195,8 @@ namespace Sekai.Live
 				HasCapturedPress = true;
 				return true;
 			}
-			if (State == NoteState.Done)
-			{
-				return false;
-			}
-
-			if (State == NoteState.Scrolling)
-			{
-				State = NoteState.Input;
-			}
-
-			if (State != NoteState.Input)
-			{
-				return false;
-			}
-
-			var isUpdatedDelta = false;
-			var trueDirection = false;
-			UpdateDelta(touch.delta, ref isUpdatedDelta, ref trueDirection);
-			if (isUpdatedDelta)
-			{
-				AddInputResult(ref touch, ref isUpdatedDelta, ref trueDirection);
-			}
-
-			if (trueDirection && isUpdatedDelta && MusicScoreInfo.time - touch.musicTime <= -LiveConfig.JustPerfectJudgeTimeHalf)
-			{
-				bool done = JudgmentFlick(touch.musicTime);
-				return done;
-			}
-
-			return false;
+			ReadNextRushHeadSample(ref touch, lane, touch.musicTime);
+			return State == NoteState.Done;
 		}
 
 		private void AddInputResult(ref LiveTouch touch, ref bool isUpdatedDelta, ref bool _isTrueDirection)
@@ -309,13 +232,17 @@ namespace Sekai.Live
 
 		public override NoteResult CalcNoteResult(float musicTime)
 		{
-			return LiveConfig.CalculateFrictionFlickNoteResult(this, musicTime, true).Item1;
+			if (IsTailFlickOwner) return LiveConfig.CalculateLongEndFlickNoteResult(this, musicTime, true).Item1;
+			return musicTime >= MusicScoreInfo.time - 6.5f / 60f && musicTime <= MusicScoreInfo.time + GradeLateWindow
+				? NoteResult.Perfect : NoteResult.Miss;
 		}
 
 		public override void ResetNote()
 		{
 			base.ResetNote();
 			Array.Clear(inputResults, 0, inputResults.Length);
+			_missPendingAt = float.PositiveInfinity;
+			_everCorrect = false;
 			_nextRushCorrectTime = 0f;
 			_nextRushHadContact = false;
 			HasCapturedPress = false;

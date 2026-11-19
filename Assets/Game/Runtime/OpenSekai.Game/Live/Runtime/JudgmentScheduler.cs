@@ -53,6 +53,12 @@ namespace Sekai.Core.Live
 			_noteFrame.SettleExpiredPresses();
 			JudgeReleaseChannel();
 			JudgeResidentChannel();
+			_session.Notes.SettleTailLinkedComboPoints(Frame);
+			foreach (var note in _input.JudgmentNotes)
+			{
+				if (note is ConnectionNote { UsesNextRushContactWindow: true, ParentNote: null } tick)
+					tick.SettleFromCompletedTail();
+			}
 			if (!_session.IsAuto && _logic.result < 3)
 				_logic.ConnectorAudio.Update(_session.MusicScore, Frame.time, false, _input.ActiveInputs, _session.NoteDisplayTimeOffset);
 
@@ -125,7 +131,7 @@ namespace Sekai.Core.Live
 						}
 						flick.SettleNextRushHead(Frame.time);
 						break;
-					case FrictionFlickNote { UsesNextRushTraceFlickInput: true } traceFlick:
+					case FrictionFlickNote traceFlick:
 						bool hasContact = false;
 						foreach (InputTmp input in _input.ActiveInputs)
 						{
@@ -368,7 +374,7 @@ namespace Sekai.Core.Live
 			{
 				NoteBase note = _input.JudgmentNotes[n];
 				if (note == null || note.State == NoteState.Done || note is LongHoldCombo or NextRushDamageNote
-					|| note is FlickNote { IsNextRushHead: true } or FrictionFlickNote { UsesNextRushTraceFlickInput: true }
+					|| note is FlickNote { IsNextRushHead: true } or FrictionFlickNote
 					|| note is NormalNote { IsIndependentRelease: true }
 					|| LiveCandidatePipeline.IsPressStep(note)) continue;
 				if (note is FlickNote flickTail && flickTail.JudgesAsBarTail)

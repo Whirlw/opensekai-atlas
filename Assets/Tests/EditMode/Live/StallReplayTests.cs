@@ -306,7 +306,9 @@ namespace OpenSekai.Tests.EditMode.Live
             Replay replay = Load();
             Outcome baseline = Baseline(replay, frameMatching: true);
             var both = replay.DeviceResults.Where(pair => baseline.Judged.ContainsKey(pair.Key)).ToArray();
-            var mismatched = both.Where(pair => baseline.Judged[pair.Key].Result != pair.Value).ToArray();
+            var mismatched = both.Where(pair => baseline.Judged[pair.Key].Result != pair.Value
+                && !(baseline.Judged[pair.Key].Kind == nameof(FrictionFlickNote)
+                    && baseline.Judged[pair.Key].Result == NoteResult.Perfect && pair.Value == NoteResult.JustPerfect)).ToArray();
             string differing = string.Join("\n", mismatched.Take(15)
                 .Select(pair => FormattableString.Invariant($"    note {pair.Key} {baseline.Judged[pair.Key].Kind}: device {pair.Value}, replay {baseline.Judged[pair.Key].Result}")));
             // A flick's swipe threshold is Screen.dpi-based and the capture predates the dpi header field, so

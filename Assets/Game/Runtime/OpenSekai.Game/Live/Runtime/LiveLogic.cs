@@ -204,6 +204,7 @@ namespace Sekai.Core.Live
 		{
 			Input.Reset();
 			Scheduler.ResetDamageInputs();
+			Clock.ResetFrameHistory();
 		}
 
 		/// <summary>

@@ -260,10 +260,10 @@ namespace Sekai.Live
 			const float contact = ConnectionNote.ContactWindowFrames;
 			AddJudgeFrame(JudgeFrameType.Friction, contact, contact, contact, contact, contact, contact, contact, contact);
 			CopyJudgeFrame(JudgeFrameType.Friction_Critical, JudgeFrameType.Friction);
-			CopyJudgeFrame(JudgeFrameType.Friction_Flick, JudgeFrameType.Flick);
-			CopyJudgeFrame(JudgeFrameType.Friction_Flick_Critical, JudgeFrameType.Flick_Critical);
-			CopyJudgeFrame(JudgeFrameType.Friction_Long, JudgeFrameType.Long);
-			CopyJudgeFrame(JudgeFrameType.Friction_Long_Critical, JudgeFrameType.Long_Critical);
+			AddJudgeFrame(JudgeFrameType.Friction_Flick, 6.5f, 7.5f, 6.5f, 7.5f, 6.5f, 7.5f, 6.5f, 7.5f);
+			CopyJudgeFrame(JudgeFrameType.Friction_Flick_Critical, JudgeFrameType.Friction_Flick);
+			CopyJudgeFrame(JudgeFrameType.Friction_Long, JudgeFrameType.Friction);
+			CopyJudgeFrame(JudgeFrameType.Friction_Long_Critical, JudgeFrameType.Friction);
 			CopyJudgeFrame(JudgeFrameType.Friction_Long_End, JudgeFrameType.Long_End);
 			CopyJudgeFrame(JudgeFrameType.Friction_Long_End_Critical, JudgeFrameType.Long_End_Critical);
 		}

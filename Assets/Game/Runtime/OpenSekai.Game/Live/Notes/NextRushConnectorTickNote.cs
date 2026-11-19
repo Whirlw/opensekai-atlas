@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using UnityEngine;
 
 namespace Sekai.Live
 {
@@ -7,27 +6,18 @@ namespace Sekai.Live
 	public class NextRushConnectorTickNote : ConnectionNote
 	{
 		private NoteBase _owner;
-		private NoteBase _next;
-		private int _ease;
+		private bool _isAttached;
 		private List<LongNote> _outgoingHolds;
 		private float _pendingAt = float.PositiveInfinity;
-		private NoteBase _from;
 
 		public NextRushConnectorTickNote(MusicScoreInfo info, int id, int left, int right, NoteType type, float laneOffset)
 			: base(info, id, left, right, NoteCategory.Connection, type, 1, laneOffset) { }
 
-		public void SetAttachedConnector(NoteBase owner, NoteBase from, NoteBase to, int ease)
-		{
-			_from = from;
-			SetNextRushContactWindow();
-			SetConnector(owner, to, ease);
-		}
-
-		public void SetConnector(NoteBase owner, NoteBase next, int ease)
+		public void SetConnectorOwner(NoteBase owner, bool isAttached)
 		{
 			_owner = owner;
-			_next = next;
-			_ease = ease;
+			_isAttached = isAttached;
+			SetNextRushContactWindow();
 		}
 
 		public void AddOutgoingHold(LongNote bar) => (_outgoingHolds ??= new List<LongNote>()).Add(bar);
@@ -67,24 +57,9 @@ namespace Sekai.Live
 				|| _owner is LongNote bar && bar.PublishesHeadMiss && !bar.Head.IsSettled
 				|| _owner is NormalNote { TakesPress: true, HasJudgment: true, Result: NoteResult.None }
 				|| _owner is FrictionFlickNote { IsTailFlickOwner: true, CanStartNextRushHold: false }
-				|| _owner is FlickNote { HasJudgment: true } flick && (_from != null || flick.IsNextRushHead)
+				|| _owner is FlickNote { HasJudgment: true } flick && (_isAttached || flick.IsNextRushHead)
 					&& !flick.CanStartNextRushHold) return false;
-			float left = JudgeLaneStart, right = JudgeLaneEnd;
-			if (_from != null && _next.MusicScoreInfo.time > _from.MusicScoreInfo.time)
-			{
-				float fraction = Mathf.InverseLerp(_from.MusicScoreInfo.time, _next.MusicScoreInfo.time, _pendingAt);
-				float t = NextRushConnectorSegment.Interpolate(_ease, fraction);
-				left += Mathf.LerpUnclamped(_from.NativeLeft, _next.NativeLeft, t) - NativeLeft;
-				right += Mathf.LerpUnclamped(_from.NativeRight, _next.NativeRight, t) - NativeRight;
-			}
-			else if (_from == null && _next != null && _next.MusicScoreInfo.time > MusicScoreInfo.time)
-			{
-				float fraction = Mathf.InverseLerp(MusicScoreInfo.time, _next.MusicScoreInfo.time, _pendingAt);
-				float progress = NextRushConnectorSegment.Interpolate(_ease, fraction);
-				left = Mathf.LerpUnclamped(left, _next.JudgeLaneStart, progress);
-				right = Mathf.LerpUnclamped(right, _next.JudgeLaneEnd, progress);
-			}
-			return left <= lane && lane <= right;
+			return ContainsConnectorInput(ref touch, lane, _pendingAt);
 		}
 
 		public override void ResetNote()

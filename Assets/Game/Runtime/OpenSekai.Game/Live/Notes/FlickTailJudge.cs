@@ -118,6 +118,9 @@ namespace Sekai.Live
 
 			bool ended = touch.phase == InputTouchPhase.Ended;
 			float moveLane = !float.IsNegativeInfinity(previousLane) || ended ? previousLane : lane;
+			if (InLanes(lane) || (touch.delta.sqrMagnitude > 0f && InLanes(moveLane)))
+				_note.RecordSlideEndInput(LongEndJudgement.LateGoodMs / 1000f);
+
 			if (touch.delta.sqrMagnitude > 0f && InLanes(moveLane))
 			{
 				if (slot < 0)

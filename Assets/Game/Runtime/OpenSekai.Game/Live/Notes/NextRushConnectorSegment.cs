@@ -66,7 +66,7 @@ namespace Sekai.Live
         public static float Interpolate(int ease, float t) =>
             ease == 0 || ease == 38 ? 0f : (float)NextRushScrollTimeline.EaseValue(ease, t);
 
-        private static float EaseEndpoint(int ease, float value) =>
+        internal static float EaseEndpoint(int ease, float value) =>
             value <= 0f ? 0f : value >= 1f ? 1f : Interpolate(ease, value);
 
         internal float Interpolate(float fraction)

@@ -142,7 +142,10 @@ namespace Sekai.Core.Live
 
 			if (activeInputCount <= _inputBuffer.Length - 1)
 			{
-				LiveTouch processTouch = new LiveTouch(simTouch.FingerId, simTouch.TouchId, simTouch.Delta, simTouch.WorldPosition, simTouch.Phase, simTouch.MusicTime);
+				LiveTouch processTouch = new LiveTouch(simTouch.FingerId, simTouch.TouchId, simTouch.Delta, simTouch.WorldPosition, simTouch.Phase, simTouch.MusicTime)
+				{
+					PreviousFrameMusicTime = _logic.Clock.PreviousFrameTime
+				};
 				LiveLogic.InputTmp input = _inputBuffer[activeInputCount++];
 				input.Reset(ref processTouch, judgmentLane);
 				input.IsResidentSample = residentSample;

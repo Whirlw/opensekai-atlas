@@ -320,6 +320,13 @@ namespace Sekai.Live
 		[JsonIgnore]
 		public bool UsesNextRushJudgment { get; set; }
 
+		private float _slideEndInputUntil = float.NegativeInfinity;
+
+		internal void RecordSlideEndInput(float lateWindow) => _slideEndInputUntil = MusicScoreInfo.time + lateWindow;
+
+		internal bool HasSlideEndInputAt(float now) =>
+			(Result >= NoteResult.Bad && Result != NoteResult.Auto) || now <= _slideEndInputUntil;
+
 		private (NoteResult result, NoteResultDescription description) _judgeInfo;
 
 		[JsonIgnore]
@@ -827,6 +834,7 @@ namespace Sekai.Live
 			Progress = 0f;
 			viewReleased = false;
 			resultPublished = false;
+			_slideEndInputUntil = float.NegativeInfinity;
 			JudgeInfo = (NoteResult.None, NoteResultDescription.None);
 			offsetTime = 0f;
 			// IsHighSpeedNote is not play state: it says which walk the bound chart filed this note in, and

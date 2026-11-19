@@ -77,7 +77,7 @@ manifest 示例：
 - HeadTap、HeadTrace、HeadRelease、HeadFlick、HeadTraceFlick 起点，Tick 中继，TailTap、TailRelease、TailFlick、TailTrace、TailTraceFlick 尾部。Anchor 可作隐藏中继、无判定尾和 Guide 端点，允许同拍几何连接。Guide 可以借用独立键或尾键的几何，自身无判定。
 - 按实体字符串名称建立引用关系，实体顺序无关。Connector 的 `head/tail` 表示实际边，`segmentHead/segmentTail` 提供覆盖该边的样式区间，`activeHead/activeTail` 对应当前长条判定区间。继续读取早期加载器接受的连接表示。
 - `legacyHiddenPop=1` 时，从谱面时间 −2 秒起，在 `segmentHead` 自己的变速组中查找它首次进入可见范围的时间，并计入上游的提前显示余量。预读时长使用玩家流速。到达该时刻后，条身仍按实际端点、画面裁切和当前的 `hideNotes` 绘制。字段省略或为 0 时，条身按普通连接段显示。
-- 同一条几何链可在连续可判定段和 Guide 段之间切换。HeadTap、HeadTrace、HeadRelease、Anchor 和 Tick 均可作为可判定段起点。HeadTrace 和独立 Tick 按谱面时钟在前后各 5 帧（以 60 Hz 为基准）的窗口内接受接触。HeadTrace、HeadRelease 作为单独的键结算，条身继续使用连接几何。相邻段共享交界的几何，头、尾和 Tick 各自只结算一次。
+- 同一条几何链可在连续可判定段和 Guide 段之间切换。HeadTap、HeadTrace、HeadRelease、Anchor 和 Tick 均可作为可判定段起点。HeadTrace 和自身无 `activeHead` 且未附着的 Tick 在前后各 5 个 60 Hz 参考帧（±83.3 ms）内接受接触。Tick 参与条身几何时也按自身字段选窗。HeadTrace、HeadRelease 作为单独的键结算，条身继续使用连接几何。相邻段共享交界的几何，头、尾和 Tick 各自只结算一次。
 - 独立 Release、HeadRelease 与 Guide 端点的 TailRelease 按抬手时间和松手窗口结算，同一抬手只分配给一个候选。TailTap 沿用现有 Tap 判定表，要求在尾键位置重新按下。即使原长条已结束或未按住，尾键仍可独立完成判定。
 - HeadFlick 需要在头部按下，再由已进入该划键的手指划动。HeadTraceFlick 接受移动中的接触，提前做对方向的划动时等头部到达判定线再结算。手指进入头部后可以划出原轨道。两类头部均独立于条身计分，按谱面方向判定，漏掉头部后仍可接住后续条身。极短的 HeadFlick 长条须等头部收到按下或判 Miss 后，才接受抬手判定尾键。
 - 独立 DamageNote 在目标时刻检查谱面范围内的触碰，每个键计入一个判定点。触碰判 Miss、扣 40 点生命并打断 Combo，避开判成功，自动播放安全通过。伤害键与同轨、同拍的普通键可独立判定。键身和中央晶体使用由 Friction 绘图脚本生成的紫色贴图。
@@ -123,6 +123,8 @@ manifest 示例：
 跨边 Tick 按自身拍数归入路径上对应的判定段。路径经过分叉时，可用 `activeHead` 区分同拍的候选分支。如果仍有多个候选或没有可判定的条身，加载器报告归属错误。独立可见键只需确定插值位置。它可以引用一个同拍 Anchor，也可以在两个独立 Anchor 之间插值，即使谱面没有 Connector。
 
 普通可见或隐藏 Tick 可附着在可判定长条、Damage 条、Guide 或跨链装饰连接上，并以另一条覆盖该拍的可判定长条作为 `activeHead`。这时附着端点提供位置、宽度和滚动轨迹，手动演奏在 Tick 到拍帧检查该位置的接触。若归属长条以按下起始，该头键需先收到按下或完成判定。同拍按中头键和 Tick 时，两者各结算一次。
+
+连接型可见 Tick、跨条附着的隐藏 Tick，以及未附着但带 `activeHead` 的隐藏 Tick，都在过线帧按实际帧间隔查找命中范围。先沿前序节点回查本帧最早过线的未附着可见连接型 Tick，并使用该点的位置和宽度。如果回查无结果，就沿连接跨过已到时的几何节点，跳过附着节点，碰到本帧过线的第一个可见连接型 Tick 即停下。若停在两个几何节点之间，则按当前线段的缓动插值位置和宽度。同条附着的隐藏 Tick 沿用 `LongHoldCombo` 的 ±83.3 ms 条身接触窗与丢手宽限。
 
 独立 Tap、Flick、Trace、TraceFlick 和 Release 也可以从附着路径取得键位，同时用 `activeHead` 引用另一条可判定长条。这些键在插值位置按自身动作结算一次。Release 还会检查所引用的头键：可判定头键须先完成判定，或在支持捕获按下时已收到按下，随后才接受抬手。
 可见的 `DamageNote` 也支持这种跨长条附着。到达目标拍时，它按附着路径插值得到的键位检查接触，触碰该位置会触发一次伤害。玩家可以在同拍按住另一条长条上的 `activeHead`，只要手指在伤害键范围外就能避开伤害。

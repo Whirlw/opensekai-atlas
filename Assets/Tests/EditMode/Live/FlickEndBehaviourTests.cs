@@ -992,11 +992,11 @@ namespace OpenSekai.Tests.EditMode.Live
 
         [Test]
 
-        public void EndingABarDoesNotGrantAnUncontactedComboPoint()
+        public void APlayedTailGrantsAnUncontactedComboPointThatIsStillPending()
 
         {
 
-            // A finished point keeps its verdict and an uncontacted point still misses.
+            // A finished point keeps its verdict when the tail supplies input to an open point.
 
             var bar = new LongNote(Info(0f), 401, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
 
@@ -1024,7 +1024,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             Assert.That(bar.State, Is.EqualTo(NoteState.Done));
 
-            Assert.That(late.Result, Is.EqualTo(NoteResult.Miss), "the tail does not substitute for contact in the point's window");
+            Assert.That(late.Result, Is.EqualTo(NoteResult.Perfect), "the accepted lift settles the pending point");
 
             Assert.That(earned.Result, Is.EqualTo(NoteResult.Great), "and leaves an earned verdict alone");
 

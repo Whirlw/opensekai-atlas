@@ -18,6 +18,7 @@ namespace Sekai.Live
 		public UnityEngine.InputSystem.TouchPhase phase;
 
 		public float musicTime;
+		internal float? PreviousFrameMusicTime;
 
 		public LiveTouch(int fingerId, int touchId, Vector2 delta, Vector3 worldPosition, UnityEngine.InputSystem.TouchPhase phase, float musicTime)
 		{
@@ -27,6 +28,7 @@ namespace Sekai.Live
 			this.worldPosition = worldPosition;
 			this.phase = phase;
 			this.musicTime = musicTime;
+			PreviousFrameMusicTime = null;
 		}
 
 		public LiveTouch(int fingerId, int touchId, Vector2 delta, Vector3 worldPosition, UnityEngine.TouchPhase phase, float musicTime)
@@ -45,6 +47,7 @@ namespace Sekai.Live
 				_ => UnityEngine.InputSystem.TouchPhase.None
 			};
 			this.musicTime = musicTime;
+			PreviousFrameMusicTime = null;
 		}
 	}
 }

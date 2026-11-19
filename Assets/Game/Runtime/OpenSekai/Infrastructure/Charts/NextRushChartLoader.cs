@@ -68,7 +68,7 @@ namespace OpenSekai.Infrastructure.Charts
             private readonly Dictionary<NextRushEntity, NoteBase> _notes = new Dictionary<NextRushEntity, NoteBase>();
             private readonly Dictionary<NextRushEntity, NoteBase> _standaloneKeys = new Dictionary<NextRushEntity, NoteBase>();
             private Dictionary<NextRushEntity, double> _playableEndBeats;
-            private readonly List<(NextRushConnectorTickNote tick, NextRushEntity owner, Attachment geometry)> _independentTicks = new();
+            private readonly List<(NextRushConnectorTickNote tick, NextRushEntity owner)> _independentTicks = new();
             private readonly List<(NextRushEntity head, NextRushEntity tail, NextRushEntity firstEnd, NextRushEntity style, int kind, bool legacy)> _soundStarts = new();
             private readonly List<(NextRushEntity head, NextRushEntity tail, NextRushEntity owner, NextRushEntity end)> _soundEdges = new();
             private readonly HashSet<NextRushEntity> _geometryNodes = new HashSet<NextRushEntity>();
@@ -194,7 +194,7 @@ namespace OpenSekai.Infrastructure.Charts
                         if (!entry.Value.IsDecoration && entry.Value.ParentNote == null && entry.Value is NextRushConnectorTickNote tickNote
                             && TryIndependentTickOwner(entry.Key, attachment, out var owner))
                         {
-                            _independentTicks.Add((tickNote, owner, attachment));
+                            _independentTicks.Add((tickNote, owner));
                             roots.Add(tickNote);
                             continue;
                         }
@@ -239,11 +239,7 @@ namespace OpenSekai.Infrastructure.Charts
                             ?? (IsTickHold(after) ? after : IsTickHold(before) ? before : null));
                         roots.Add(tick);
                     }
-                    if (standaloneTick)
-                    {
-                        ((ConnectionNote)entry.Value).SetNextRushContactWindow();
-                        roots.Add(entry.Value);
-                    }
+                    if (standaloneTick) roots.Add(entry.Value);
                     if (independentBridgeTail)
                         BindIndependentTail(entry.Key, roots);
                     if (kind != "TransientHiddenDamageTickNote" && !member && !onPath
@@ -263,13 +259,18 @@ namespace OpenSekai.Infrastructure.Charts
                 foreach (var (entity, attachment) in _attachments)
                     if (_notes[entity] is NextRushHiddenTickNote)
                         BindAttachedHiddenTick(entity, attachment, roots);
+                foreach (var (head, edge) in _edges)
+                    BindComboTail(_outgoingBars[head], edge.activeTail);
+                foreach (var (endpoints, edge) in _graphEdges)
+                    if (_graphBars.TryGetValue(endpoints, out var branch))
+                        BindComboTail(branch, edge.activeTail);
                 foreach (var entry in _notes)
                     if (entry.Value is NextRushHiddenTickNote hidden && !_attachments.ContainsKey(entry.Key))
                         BindUnattachedHiddenTick(entry.Key, hidden);
-                foreach (var (tick, owner, geometry) in _independentTicks)
-                    tick.SetAttachedConnector(_standaloneKeys.TryGetValue(owner, out var key) ? key : _notes[owner],
-                        _notes[geometry.head], _notes[geometry.tail], geometry.ease);
+                foreach (var (tick, owner) in _independentTicks)
+                    tick.SetConnectorOwner(_standaloneKeys.TryGetValue(owner, out var key) ? key : _notes[owner], isAttached: true);
                 BindDamageTicks();
+                BindConnectorTickInputPaths();
                 var hiddenLines = new List<(NoteBase left, NoteBase right)>();
                 var authoredPairTimes = BindSimLines(hiddenLines);
                 foreach (var root in roots.OfType<LongNote>()) root.SortNoteList();
@@ -440,22 +441,25 @@ namespace OpenSekai.Infrastructure.Charts
                         note = new NextRushDamageNote(info, id, a, b, hidden: true); break;
                     case "TraceNote": case "TailTraceNote": case "HeadTraceNote":
                         note = new FrictionNote(info, id, a, b, NoteCategory.Friction, _config, type, 1,
-                            isTailTraceOwner: activeHead && !fake && kind == "TailTraceNote"); break;
+                            isTailTraceOwner: activeHead && !fake && kind == "TailTraceNote", isTraceTail: kind == "TailTraceNote"); break;
                     case "TraceFlickNote": case "TailTraceFlickNote": case "HeadTraceFlickNote":
                         note = new FrictionFlickNote(info, id, a, b, NoteCategory.FrictionFlick, 1, type, direction,
-                            flick, Offset(NoteCategory.FrictionFlick), useNextRushTraceFlickInput: !fake && kind is ("TraceFlickNote" or "HeadTraceFlickNote"),
+                            flick, Offset(NoteCategory.FrictionFlick),
                             isTraceFlickOwner: activeHead && !fake && kind == "TraceFlickNote",
                             isConnectorHeadView: connectorHeadView,
-                            isTailTraceFlickOwner: activeHead && !fake && kind == "TailTraceFlickNote"); break;
+                            isTailTraceFlickOwner: activeHead && !fake && kind == "TailTraceFlickNote",
+                            isTraceTail: kind == "TailTraceFlickNote"); break;
                     case "HeadTapNote":
                         note = fake
                             ? new NormalNote(info, id, a, b, NoteCategory.Long, 1, type, Offset(NoteCategory.Long))
                             : new LongNote(info, id, a, b, NoteCategory.Long, type, 1, Offset(NoteCategory.Long));
                         break;
                     case "TickNote":
-                        note = attached && !fake
+                        var tick = attached && !fake
                             ? new NextRushConnectorTickNote(info, id, a, b, type, Offset(NoteCategory.Connection))
                             : new ConnectionNote(info, id, a, b, NoteCategory.Connection, type, 1, Offset(NoteCategory.Connection));
+                        if (!fake && UsesTickContactWindow(entity)) tick.SetNextRushContactWindow();
+                        note = tick;
                         break;
                     case "TransientHiddenTickNote" when !fake:
                         note = new NextRushHiddenTickNote(info, id, a, b, Offset(NoteCategory.Connection)); break;
@@ -551,6 +555,14 @@ namespace OpenSekai.Infrastructure.Charts
                             _endpointTicks.Add(next);
                             point = BorrowEndpoint(next);
                         }
+                        else if (kind == "TickNote" && UsesTickContactWindow(next))
+                        {
+                            // The tick keeps its own input window and still follows the section's tail result.
+                            var tick = (ConnectionNote)_notes[next];
+                            tick.SetNextRushEndpointSection(bar);
+                            roots.Add(tick);
+                            point = BorrowEndpoint(next);
+                        }
                         else if (kind == "TickNote" || kind == "AnchorNote")
                         {
                             point = _notes[next];
@@ -566,7 +578,7 @@ namespace OpenSekai.Infrastructure.Charts
                                 var swipe = new FrictionFlickNote(source.MusicScoreInfo, ++_nextId, source.LaneStart,
                                     source.LaneEnd, source.Category, 1, source.Type, source.Direction,
                                     LiveUtility.ScreenDpiToInch(_config.FlickDistance), Offset(source.Category),
-                                    useNextRushTraceFlickInput: true);
+                                    isTraceTail: kind == "TailTraceFlickNote");
                                 _standaloneKeys.Add(next, CopyGeometry(next, swipe));
                                 roots.Add(swipe);
                             }
@@ -860,9 +872,7 @@ namespace OpenSekai.Infrastructure.Charts
                     if (!_notes.TryGetValue(active, out var owner) || Beat(active) > Beat(entity))
                         throw Invalid("隐藏判定点的 activeHead 无效");
                     if (_standaloneKeys.TryGetValue(active, out var key)) owner = key;
-                    var next = Resolve(entity, "next", false);
-                    while (next != null && _attachments.ContainsKey(next)) next = Resolve(next, "next", false);
-                    tick.SetConnector(owner, next != null ? _notes[next] : null, (int)entity.Number("connectorEase", 1));
+                    tick.SetConnectorOwner(owner, isAttached: false);
                 }
                 if (_edges.TryGetValue(entity, out var edge) && edge.activeHead != null)
                     tick.AddOutgoingHold(_outgoingBars[entity]);
@@ -880,7 +890,7 @@ namespace OpenSekai.Infrastructure.Charts
                 if (TryIndependentTickOwner(entity, attachment, out var owner))
                 {
                     var independent = (NextRushHiddenTickNote)_notes[entity];
-                    _independentTicks.Add((independent, owner, attachment));
+                    _independentTicks.Add((independent, owner));
                     roots.Add(independent);
                     return;
                 }
@@ -891,6 +901,13 @@ namespace OpenSekai.Infrastructure.Charts
                 else root.AddHoldCombo(tick);
                 // Adding a combo assigns the hold's lanes. Restore the tick's authored attachment.
                 _notes[entity] = CopyGeometry(entity, tick);
+            }
+
+            private void BindComboTail(LongNote bar, NextRushEntity entity)
+            {
+                if (entity == null || !Kind(entity).StartsWith("Tail", StringComparison.Ordinal)) return;
+                var tail = _standaloneKeys.TryGetValue(entity, out var key) ? key : _notes[entity];
+                if (tail.HasJudgment) bar.SetComboTail(tail);
             }
 
             private void BindDamageTicks()
@@ -936,6 +953,61 @@ namespace OpenSekai.Infrastructure.Charts
                     var head = entity.Number("isAttached") == 1 ? Resolve(entity, "attachHead", true) : entity;
                     path.TryGetValue(head, out var point);
                     ((NextRushDamageNote)entry.Value).SetTickWindow(At(start).time, point);
+                }
+            }
+
+            private void BindConnectorTickInputPaths()
+            {
+                // Same-hold hidden ticks were already converted to LongHoldCombo by this point.
+                var ticks = _notes.Where(entry => entry.Value is ConnectionNote { HasJudgment: true }
+                    && (entry.Value is NextRushHiddenTickNote || Kind(entry.Key) == "TickNote")
+                    && !UsesTickContactWindow(entry.Key)).ToArray();
+                if (ticks.Length == 0) return;
+
+                var visibleTicks = ticks.Where(entry => entry.Value.IsVisible).Select(entry => entry.Key).ToHashSet();
+                var points = new Dictionary<NextRushEntity, NextRushTickPathPoint>(_notes.Count);
+                foreach (var (entity, note) in _notes)
+                {
+                    bool attached = _attachments.TryGetValue(entity, out var attachment);
+                    points.Add(entity, new NextRushTickPathPoint(note,
+                        attached ? attachment.ease : (int)entity.Number("connectorEase", 1),
+                        attached ? attachment.fraction : null, visibleTicks.Contains(entity)));
+                }
+
+                // The authored links select the path at a junction. Older charts may rely on a
+                // single Connector edge when a link is absent; never choose an arbitrary branch.
+                var outgoing = new Dictionary<NextRushEntity, NextRushEntity>();
+                foreach (var (head, edge) in _edges) AddUnique(outgoing, head, edge.tail);
+                foreach (var (head, tail) in _graphEdges.Keys) AddUnique(outgoing, head, tail);
+                foreach (var (head, tail) in _crossChainGuides.Keys) AddUnique(outgoing, head, tail);
+
+                var nextLinks = new Dictionary<NextRushEntity, NextRushEntity>();
+                var previousLinks = new Dictionary<NextRushEntity, NextRushEntity>();
+                foreach (var entity in points.Keys)
+                {
+                    var next = Resolve(entity, "next", false) ?? outgoing.GetValueOrDefault(entity);
+                    if (next == null || !points.ContainsKey(next)) continue;
+                    nextLinks.Add(entity, next);
+                    AddUnique(previousLinks, next, entity);
+                }
+                foreach (var (entity, point) in points)
+                {
+                    var previous = Resolve(entity, "prev", false) ?? previousLinks.GetValueOrDefault(entity);
+                    point.SetNeighbors(PointFor(previous), PointFor(nextLinks.GetValueOrDefault(entity)));
+                }
+                foreach (var (entity, note) in ticks)
+                {
+                    var head = Resolve(entity, "attachHead", false) ?? entity;
+                    var tail = Resolve(entity, "attachTail", false) ?? nextLinks.GetValueOrDefault(entity);
+                    ((ConnectionNote)note).SetConnectorInputPath(points[head], PointFor(tail));
+                }
+
+                NextRushTickPathPoint PointFor(NextRushEntity entity) =>
+                    entity == null ? null : points.GetValueOrDefault(entity);
+
+                static void AddUnique(Dictionary<NextRushEntity, NextRushEntity> links, NextRushEntity from, NextRushEntity to)
+                {
+                    if (!links.TryAdd(from, to) && links[from] != to) links[from] = null;
                 }
             }
 
@@ -1586,6 +1658,9 @@ namespace OpenSekai.Infrastructure.Charts
 
             private static bool IsBoundTailKind(string kind, NoteBase note) =>
                 kind.StartsWith("Tail", StringComparison.Ordinal) && !IsStandaloneTail(kind, note);
+
+            private static bool UsesTickContactWindow(NextRushEntity tick) =>
+                !tick.Has("activeHead") && tick.Number("isAttached") != 1;
 
             private static bool IsChainNode(string kind) => kind == "TickNote" || kind == "AnchorNote"
                 || IsHoldHead(kind) || kind.StartsWith("Tail", StringComparison.Ordinal);

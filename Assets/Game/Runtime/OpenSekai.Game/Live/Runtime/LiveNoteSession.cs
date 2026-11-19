@@ -98,6 +98,7 @@ namespace Sekai.Core.Live
 			// A new take starts with no open notes: carrying the previous take's lists over meant a retry
 			// ticked notes it had never scanned, before their own bar was on screen at all.
 			_tails.Clear();
+			_tailLinkedComboBars.Clear();
 		}
 
 		internal void BindNativeVisuals(double displayLead)
@@ -192,6 +193,23 @@ namespace Sekai.Core.Live
 		/// </summary>
 		private readonly List<NoteBase> _tails = new List<NoteBase>();
 		internal IReadOnlyList<NoteBase> PendingTails => _tails;
+
+		private readonly List<LongNote> _tailLinkedComboBars = new List<LongNote>();
+
+		internal void RegisterTailLinkedComboBar(LongNote bar)
+		{
+			if (!_tailLinkedComboBars.Contains(bar) && bar.HasTailLinkedComboPoints)
+				_tailLinkedComboBars.Add(bar);
+		}
+
+		internal void SettleTailLinkedComboPoints(MusicScoreInfo frame)
+		{
+			for (int i = _tailLinkedComboBars.Count - 1; i >= 0; i--)
+			{
+				if (!_tailLinkedComboBars[i].AdvanceTailLinkedComboPoints(frame))
+					_tailLinkedComboBars.RemoveAt(i);
+			}
+		}
 
 		/// <summary>Tails still waiting for their own clock, for tests and invariants.</summary>
 		public int PendingTailCount => _tails.Count;

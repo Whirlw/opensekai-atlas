@@ -431,7 +431,7 @@ namespace OpenSekai.Tests.EditMode.Charts
                     new LiveTouchSample(1, screen, lane, 10d + swipe, InputTouchPhase.Moved, delta));
                 if (swipe < 2f)
                     harness.Step(2f, 12d, new LiveTouchSample(1, screen, lane, 12d, InputTouchPhase.Stationary, Vector2.zero));
-                if (key is FrictionFlickNote { UsesNextRushTraceFlickInput: true } && expected == NoteResult.Great)
+                if (key is FrictionFlickNote && expected == NoteResult.Great)
                 {
                     Assert.That(key.Result, Is.EqualTo(NoteResult.None));
                     harness.Step(2.02f, 12.02);
@@ -478,6 +478,7 @@ namespace OpenSekai.Tests.EditMode.Charts
                 lane, 10d + swipe, InputTouchPhase.Moved, delta));
             if (frames < 0) harness.Step(2f, 12d);
             harness.Step(2.2f, 12.2);
+            harness.Step(2.21f, 12.21);
             Assert.That(score.NoteArray.Single().Result, Is.EqualTo(expected));
         }
 
@@ -1303,7 +1304,8 @@ namespace OpenSekai.Tests.EditMode.Charts
             harness.Arrange(chart.Score);
             harness.Step(.8f, 10.8, LiveHarness.Touch(1, LiveConfig.JudgmentPositions[2], 10.8));
             harness.Step(1f, 11, LiveHarness.Touch(1, LiveConfig.JudgmentPositions[2], 11, InputTouchPhase.Stationary));
-            harness.Step(1.14f, 11.14);
+            harness.Step(1.15f, 11.15);
+            harness.Step(1.16f, 11.16);
             Assert.That(key.Result, Is.EqualTo(NoteResult.Miss));
             harness.Step(1.45f, 11.45, LiveHarness.Touch(2, LiveConfig.JudgmentPositions[5], 11.45));
             harness.Step(1.5f, 11.5, LiveHarness.Touch(2, LiveConfig.JudgmentPositions[5], 11.5, InputTouchPhase.Stationary));
@@ -2703,6 +2705,127 @@ namespace OpenSekai.Tests.EditMode.Charts
                 Is.All.EqualTo(NoteResult.Auto));
         }
 
+        [TestCase(1.998f, 1.5f, NoteResult.Perfect, NoteResult.Perfect)]
+        [TestCase(1.998f, 9.5f, NoteResult.Miss, NoteResult.Miss)]
+        [TestCase(2f, 9.5f, NoteResult.Miss, NoteResult.Perfect)]
+        [TestCase(2f, 1.5f, NoteResult.Miss, NoteResult.Miss)]
+        public void ConnectedVisibleTicksUseTheFirstTickCrossedThisFrame(float previousFrame, float lane,
+            NoteResult first, NoteResult second)
+        {
+            var head = N("NormalHeadTapNote", "head", 2, -4);
+            var a = N("NormalTickNote", "a", 4, -4, 0.5);
+            var turn = N("AnchorNote", "turn", 4.01, 3, 0.5);
+            var b = N("CriticalTickNote", "b", 4.02, 4, 0.5);
+            var end = N("AnchorNote", "end", 6, -4);
+            Add(a, R("activeHead", "head"));
+            Add(b, R("activeHead", "head"));
+            Add(head, R("next", "a"));
+            Add(a, R("next", "turn"));
+            Add(turn, R("next", "b"));
+            Add(b, R("next", "end"));
+            JObject Edge(string from, string to) => Segment(from, to, "head", "end", "head", "end");
+            var score = Load(Chart(b, end, turn, head, a, Edge("head", "a"), Edge("a", "turn"),
+                Edge("turn", "b"), Edge("b", "end"))).Score;
+            var ticks = score.NoteArray.SelectMany(n => n.NoteList).OfType<ConnectionNote>()
+                .OrderBy(n => n.MusicScoreInfo.time).ToArray();
+
+            using var harness = new LiveHarness();
+            harness.Arrange(score);
+            harness.Step(1f, 11, LiveHarness.Touch(1, LiveConfig.NativeLanePosition(1.5f), 11));
+            harness.Step(previousFrame, 10d + previousFrame);
+            harness.Step(2.014f, 12.014, LiveHarness.Touch(2, LiveConfig.NativeLanePosition(lane), 12.014));
+            harness.Step(2.03f, 12.03);
+            Assert.That(ticks.Select(tick => tick.Result), Is.EqualTo(new[] { first, second }));
+        }
+
+        [TestCase(false, 6f, NoteResult.Perfect)]
+        [TestCase(false, 1.5f, NoteResult.Miss)]
+        [TestCase(false, 8f, NoteResult.Miss)]
+        [TestCase(true, 9.5f, NoteResult.Perfect)]
+        [TestCase(true, 6f, NoteResult.Miss)]
+        [TestCase(false, 6f, NoteResult.Perfect, true)]
+        [TestCase(true, 9.5f, NoteResult.Perfect, true)]
+        [TestCase(false, 6f, NoteResult.Perfect, true, "TransientHiddenTickNote")]
+        [TestCase(false, 1.5f, NoteResult.Miss, true, "TransientHiddenTickNote")]
+        [TestCase(true, 9.5f, NoteResult.Perfect, true, "TransientHiddenTickNote")]
+        [TestCase(true, 6f, NoteResult.Miss, true, "TransientHiddenTickNote")]
+        public void AttachedConnectorTickFollowsCrossedNodesAndStopsAtTheFirstVisibleTick(bool visibleTurn,
+            float lane, NoteResult expected, bool independentOwner = false, string archetype = "CriticalTickNote")
+        {
+            var head = N("NormalHeadTapNote", "head", 2, -4, 0.5);
+            var attachTail = N("AnchorNote", "attachTail", 4.004, -4, 0.5);
+            var turn = N(visibleTurn ? "NormalTickNote" : "AnchorNote", "turn", 4.008, 4, 0.5);
+            var curveStart = N("AnchorNote", "curveStart", 4.012, -4, 0.5);
+            var end = N("AnchorNote", "end", 4.052, 4, 0.5);
+            var attached = E(archetype, "attached", V("#BEAT", 4.002), V("isAttached", 1),
+                R("attachHead", "head"), R("attachTail", "attachTail"),
+                R("activeHead", independentOwner ? "owner" : "head"));
+            Add(head, R("next", "attachTail"));
+            Add(attachTail, R("next", "turn"));
+            Add(turn, R("next", "curveStart"));
+            Add(curveStart, R("next", "end"), V("connectorEase", 2));
+            if (visibleTurn) Add(turn, R("activeHead", "head"));
+            JObject Edge(string from, string to) => Segment(from, to, "head", "end", "head", "end");
+            var entities = new List<JObject> { head, attached, attachTail, turn, curveStart, end,
+                Edge("head", "attachTail"), Edge("attachTail", "turn"), Edge("turn", "curveStart"),
+                Edge("curveStart", "end") };
+            if (independentOwner)
+            {
+                var owner = N("NormalHeadTapNote", "owner", 2, 0, 0.5);
+                Add(owner, R("next", "ownerEnd"));
+                entities.Add(owner);
+                entities.Add(N("AnchorNote", "ownerEnd", 6, 0, 0.5));
+                entities.Add(Segment("owner", "ownerEnd", "owner", "ownerEnd", "owner", "ownerEnd"));
+            }
+            var score = Load(Chart(entities.ToArray())).Score;
+            var tick = score.NoteArray.SelectMany(n => n.NoteList).OfType<NextRushConnectorTickNote>().Single();
+
+            using var harness = new LiveHarness();
+            harness.Arrange(score);
+            var headTouch = LiveHarness.Touch(1, LiveConfig.NativeLanePosition(1.5f), 11);
+            if (independentOwner)
+                harness.Step(1f, 11, headTouch, LiveHarness.Touch(3, LiveConfig.NativeLanePosition(5.5f), 11));
+            else harness.Step(1f, 11, headTouch);
+            harness.Step(1.998f, 11.998);
+            // At 2.021 the head-to-tail chord is long past. The last segment is 75% through its
+            // quadratic ease (lane 6 instead of 7.5), unless the frame crosses the visible turn tick.
+            harness.Step(2.021f, 12.021, LiveHarness.Touch(2, LiveConfig.NativeLanePosition(lane), 12.021));
+            harness.Step(2.024f, 12.024);
+            Assert.That(tick.Result, Is.EqualTo(expected));
+        }
+
+        [TestCase(6f, false, NoteResult.Perfect)]
+        [TestCase(1.5f, false, NoteResult.Miss)]
+        [TestCase(6f, true, NoteResult.Miss)]
+        public void UnattachedHiddenTickWithActiveHeadFollowsTheCurveOnItsCrossingFrame(float lane, bool late,
+            NoteResult expected)
+        {
+            var head = N("NormalHeadTapNote", "head", 2, -4, 0.5);
+            var tickNode = N("TransientHiddenTickNote", "tick", 4.002, -4, 0.5);
+            var turn = N("AnchorNote", "turn", 4.008, 4, 0.5);
+            var curveStart = N("AnchorNote", "curveStart", 4.012, -4, 0.5);
+            var end = N("AnchorNote", "end", 4.052, 4, 0.5);
+            Add(head, R("next", "tick"));
+            Add(tickNode, R("next", "turn"), R("activeHead", "head"));
+            Add(turn, R("next", "curveStart"));
+            Add(curveStart, R("next", "end"), V("connectorEase", 2));
+            JObject Edge(string from, string to) => Segment(from, to, "head", "end", "head", "end");
+            var score = Load(Chart(head, tickNode, turn, curveStart, end, Edge("head", "tick"),
+                Edge("tick", "turn"), Edge("turn", "curveStart"), Edge("curveStart", "end"))).Score;
+            var tick = score.NoteArray.OfType<NextRushHiddenTickNote>().Single();
+
+            using var harness = new LiveHarness();
+            harness.Arrange(score);
+            harness.Step(1f, 11, LiveHarness.Touch(1, LiveConfig.NativeLanePosition(1.5f), 11));
+            harness.Step(1.998f, 11.998);
+            if (late) harness.Step(2.021f, 12.021);
+            float touchTime = late ? 2.024f : 2.021f;
+            harness.Step(touchTime, 10d + touchTime,
+                LiveHarness.Touch(2, LiveConfig.NativeLanePosition(lane), 10d + touchTime));
+            harness.Step(2.025f, 12.025);
+            Assert.That(tick.Result, Is.EqualTo(expected));
+        }
+
         private static JObject IndependentKeyOnForeignGuide(string archetype)
         {
             var guide = N("AnchorNote", "guide", 2, 1);
@@ -3107,6 +3230,34 @@ namespace OpenSekai.Tests.EditMode.Charts
             AssertCompletesAutoplay(Load(json));
         }
 
+        [Test]
+        public void AHiddenTickCanUseItsAuthoredTapTailAfterTheBodyEnds()
+        {
+            var head = N("NormalHeadTapNote", "head", 2, -3);
+            var tail = N("NormalTailTapNote", "tail", 4, 3);
+            Add(head, R("next", "tail"));
+            Add(tail, R("prev", "head"), R("activeHead", "head"));
+            var tick = E("TransientHiddenTickNote", null, V("#BEAT", 3.94), V("isAttached", 1),
+                R("attachHead", "head"), R("attachTail", "tail"), R("activeHead", "head"));
+            var score = Load(Chart(head, tail, tick, Segment("head", "tail", "head", "tail", "head", "tail"))).Score;
+            var bar = score.NoteArray.OfType<LongNote>().Single();
+            var point = bar.NoteList.OfType<LongHoldCombo>().Single();
+            var tailKey = score.NoteArray.OfType<NormalNote>().Single();
+            using var harness = new LiveHarness();
+            harness.Arrange(score);
+            harness.Step(1f, 11);
+            harness.Step(1.2f, 11.2);
+            harness.Step(2.002f, 12.002);
+
+            Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+            Assert.That(point.Result, Is.EqualTo(NoteResult.None));
+
+            harness.Step(2.024f, 12.024, LiveHarness.Touch(1, LiveConfig.JudgmentPositions[8], 12.024));
+
+            Assert.That(tailKey.Result, Is.EqualTo(NoteResult.Perfect));
+            Assert.That(point.Result, Is.EqualTo(NoteResult.Perfect));
+        }
+
         [TestCase("NormalHeadReleaseNote", false)]
         [TestCase("CriticalHeadReleaseNote", true)]
         [TestCase("NormalReleaseNote", true)]
@@ -3315,6 +3466,8 @@ namespace OpenSekai.Tests.EditMode.Charts
             else
                 harness.Step(1.5f, 11.5, LiveHarness.Touch(1, lane, 11.5,
                     release ? InputTouchPhase.Ended : InputTouchPhase.Stationary));
+            if (key is FrictionFlickNote { Category: NoteCategory.FrictionFlick })
+                harness.Step(1.51f, 11.51, LiveHarness.Touch(1, lane, 11.51, InputTouchPhase.Stationary));
             Assert.That(key.Result, Is.EqualTo(NoteResult.Perfect));
             int finger = release ? 2 : 1;
             harness.Step(1.93f, 11.93, LiveHarness.Touch(finger, lane, 11.93,
@@ -3571,6 +3724,92 @@ namespace OpenSekai.Tests.EditMode.Charts
             harness.Logic.RefreshInput();
             harness.Step(2.10f, 22.10);
             Assert.That(keys.Select(key => key.Result), Is.EqualTo(new[] { NoteResult.Miss, NoteResult.Miss }));
+        }
+
+        [Test]
+        public void EarlyReleaseTailStillSettlesAPendingWindowedTick()
+        {
+            var head = N("NormalHeadTapNote", "head", 2, 3);
+            var tickNode = N("NormalTickNote", "tick", 3.9, -3);
+            var tail = N("NormalTailReleaseNote", "tail", 4, 3);
+            Add(head, R("next", "tick"));
+            Add(tickNode, R("next", "tail"));
+            Add(tail, R("activeHead", "head"));
+            var score = Load(Chart(head, tickNode, tail,
+                Segment("head", "tick", "head", "tail", "head", "tail"),
+                Segment("tick", "tail", "head", "tail", "head", "tail"))).Score;
+            var bar = score.NoteArray.OfType<LongNote>().Single();
+            var tick = score.NoteArray.SelectMany(n => n.NoteList).OfType<ConnectionNote>().Single();
+            var tailLane = LiveConfig.NativeLanePosition(8.5f);
+            using var harness = new LiveHarness();
+            harness.Arrange(score);
+            harness.Step(1f, 11, LiveHarness.Touch(1, tailLane, 11));
+            Assert.That(tick.Result, Is.EqualTo(NoteResult.None));
+
+            // The lift is outside the tick's lanes and precedes its target time.
+            harness.Step(1.91f, 11.91, LiveHarness.Touch(1, tailLane, 11.91, InputTouchPhase.Ended));
+            Assert.That(bar.TailNote.Result, Is.GreaterThanOrEqualTo(NoteResult.Bad));
+            Assert.That(tick.Result, Is.EqualTo(NoteResult.Perfect));
+        }
+
+        [TestCase(false, 93.340, NoteResult.Perfect)]
+        [TestCase(false, 93.390, NoteResult.Miss)]
+        [TestCase(true, 93.340, NoteResult.Miss)]
+        public void SameBeatHeadAndTickUseTheTicksOwnInputWindow(bool hasActiveHead, double pressTime,
+            NoteResult expectedTickResult)
+        {
+            // Life Reset Button, beat 311: the left head and tick overlap while the right finger flicks.
+            var head = N("NormalHeadTapNote", "head", 311, -3, 3);
+            var tick = N("NormalTickNote", "tick", 311, -2, 4);
+            var anchor = N("AnchorNote", "anchor", 333, -2, 1);
+            var flick = N("NormalFlickNote", null, 311, 3, 3);
+            Add(head, R("next", "tick"));
+            Add(tick, R("next", "anchor"), V("connectorEase", 3));
+            Add(anchor, R("activeHead", "head"));
+            if (hasActiveHead) Add(tick, R("activeHead", "head"));
+            var chart = Chart(head, tick, anchor, flick,
+                Segment("head", "tick", "head", "anchor", "head", "anchor"),
+                Segment("tick", "anchor", "head", "anchor", "head", "anchor"));
+            chart["entities"][1]["data"][1]["value"] = 200;
+            var score = Load(chart).Score;
+            var notes = score.NoteArray.SelectMany(n => n.NoteList).ToArray();
+            ReplayLifeResetButtonHeadAndTick(score, notes.OfType<LongNote>().Single(n => n.PublishesHeadMiss),
+                notes.OfType<ConnectionNote>().Single(), pressTime, expectedTickResult);
+        }
+
+        [Test]
+        public void LifeResetButtonDeviceTraceReplaysOnTheOriginalChartWhenProvided()
+        {
+            string path = Environment.GetEnvironmentVariable("OPENSEKAI_LIFE_RESET_CHART");
+            if (string.IsNullOrEmpty(path)) Assert.Ignore("Provide OPENSEKAI_LIFE_RESET_CHART to replay the original chart.");
+            var score = NextRushChartLoader.Load(NextRushChartLoader.ReadFile(path), _config).Score;
+            var notes = score.NoteArray.SelectMany(n => n.NoteList).ToArray();
+            ReplayLifeResetButtonHeadAndTick(score, (LongNote)notes.Single(n => n.Id == 6055),
+                (ConnectionNote)notes.Single(n => n.Id == 6056), 93.340, NoteResult.Perfect);
+        }
+
+        private static void ReplayLifeResetButtonHeadAndTick(MusicScore score, LongNote head, ConnectionNote tick,
+            double pressTime, NoteResult expectedTickResult)
+        {
+            // Android LiveTrace touch timestamps 2839.095 and 2839.102 map to 93.333 and 93.340.
+            const double clockOrigin = 2745.762;
+            const int flickTouch = 6413;
+            const int headTouch = 6414;
+            var flickLane = LiveConfig.NativeLanePosition(9.70f);
+            var headLane = LiveConfig.NativeLanePosition(2.40f);
+            using var harness = new LiveHarness();
+            harness.Arrange(score, score.NoteArray.Where(n => n.MusicScoreInfo.time >= 93.300f).ToArray());
+            harness.Step(92.790f, clockOrigin + 92.790);
+            harness.Step(93.300f, clockOrigin + 93.300);
+            harness.Step(93.317f, clockOrigin + 93.317);
+            harness.Step(93.335f, clockOrigin + 93.335,
+                LiveHarness.Touch(flickTouch, flickLane, 2839.095));
+            double frame = pressTime + 0.007;
+            harness.Step((float)frame, clockOrigin + frame,
+                LiveHarness.Touch(flickTouch, flickLane, 2839.095, InputTouchPhase.Stationary),
+                LiveHarness.Touch(headTouch, headLane, clockOrigin + pressTime));
+            if (pressTime == 93.340) Assert.That(head.Result, Is.EqualTo(NoteResult.Perfect));
+            Assert.That(tick.Result, Is.EqualTo(expectedTickResult));
         }
 
         [Test]

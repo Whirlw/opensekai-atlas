@@ -6,6 +6,18 @@ namespace Sekai.Live
 {
 	public partial class LongNote
 	{
+		private NoteBase _comboTail;
+		internal NoteBase LinkedPointTail => _comboTail ?? (TailNote is { HasJudgment: true, IsSkip: false }
+			and (NormalNote or FlickNote or FrictionNote or FrictionFlickNote) ? TailNote : null);
+
+		internal bool HasTailLinkedComboPoints => !IsDecoration && LinkedPointTail != null
+			&& NoteList?.Exists(IsTailLinkedPoint) == true;
+
+		private static bool IsTailLinkedPoint(NoteBase point) => point is LongHoldCombo { HasJudgment: true }
+			or ConnectionNote { IsConnectedVisibleTick: true };
+
+		public void SetComboTail(NoteBase tail) => _comboTail = tail;
+
 		protected void SettleComboPointsAtEnd()
 		{
 			if (NoteList == null)
@@ -13,13 +25,48 @@ namespace Sekai.Live
 				return;
 			}
 
+			NoteBase tail = LinkedPointTail;
+			float now = MusicScore.CurrentFrameInfo.time;
 			for (int i = 0; i < NoteList.Count; i++)
 			{
 				if (NoteList[i] is LongHoldCombo point && point.ParentNote == this)
 				{
-					point.Terminate();
+					if (tail == null || IsAutoPlaying)
+						point.Terminate();
+					else
+					{
+						point.ObserveBarContact(now);
+						point.SettleFromTail(tail, now);
+					}
 				}
 			}
+		}
+
+		internal bool AdvanceTailLinkedComboPoints(MusicScoreInfo frame)
+		{
+			var tail = LinkedPointTail;
+			if (tail == null) return false;
+			bool barEnded = State == NoteState.Done;
+			if (!barEnded && tail.State != NoteState.Done && !tail.HasSlideEndInputAt(frame.time)) return true;
+
+			bool pending = false;
+			foreach (var note in NoteList)
+			{
+				if (note == null || note.ParentNote != this || note.State == NoteState.Done) continue;
+				if (note is ConnectionNote { IsConnectedVisibleTick: true } tick)
+				{
+					if (tail.State == NoteState.Done) tick.Terminate();
+					else if (barEnded) tick.Excute(frame, 0);
+					pending |= tick.State != NoteState.Done;
+					continue;
+				}
+				if (note is not LongHoldCombo { HasJudgment: true } point)
+					continue;
+				if (barEnded) point.Excute(frame, 0);
+				point.SettleFromTail(tail, frame.time);
+				pending |= point.State != NoteState.Done;
+			}
+			return !barEnded || pending;
 		}
 
 		protected void ConnectionNoteTerminate()
@@ -29,10 +76,12 @@ namespace Sekai.Live
 				return;
 			}
 
+			bool keepsLinkedPoints = !IsAutoPlaying && !IsDecoration && LinkedPointTail != null;
 			for (var i = 1; i < NoteList.Count - 1; i++)
 			{
 				var note = NoteList[i];
 				if (note != null && note.State != NoteState.Done
+					&& !(keepsLinkedPoints && IsTailLinkedPoint(note) && note.ParentNote == this)
 					&& !((HasIndependentTail || HasManagedTail) && ReferenceEquals(note, TailNote)))
 				{
 					note.Terminate();
