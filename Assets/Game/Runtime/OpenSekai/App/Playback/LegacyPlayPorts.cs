@@ -101,6 +101,10 @@ namespace OpenSekai.App.Playback
             {
                 throw new InvalidOperationException("The screen manager is not available.");
             }
+            if (screens.IsUILayerWorking || screens.IsActiveScreen(MenuScreenType.LiveLoading))
+            {
+                throw new InvalidOperationException("The live loading screen could not be opened.");
+            }
             screens.PushUIScreen(MenuScreenType.LiveLoading, false);
         }
 
@@ -155,6 +159,8 @@ namespace OpenSekai.App.Playback
             SoundManager.Instance.IngameBgmGain = LoudnessNormalization.GainFor(lufs);
             return true;
         }
+
+        public void Release() => SoundManager.Instance.ReleasePackageAudio();
     }
 
     /// <summary>Deck selection still lives on the retained player-data singleton.</summary>

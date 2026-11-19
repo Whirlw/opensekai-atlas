@@ -120,11 +120,13 @@ namespace OpenSekai.Tests.PlayMode
             yield return LibrarySceneBootsAndShowsThePage();
             var originalLibrary = Object.FindFirstObjectByType<LibraryScreen>();
             string fixture = Path.GetFullPath(Path.Combine(Application.dataPath, "../Tools/fixtures/baseline_tap"));
+            string songCue = OpenSekai.Shared.Packages.SongPackageStorage.LoadEntry(fixture).AudioCueName;
             StartThroughLibraryRetry(fixture);
 
             yield return WaitFor(
                 () => SceneLoader.GetActiveScene().name == "Core" && Object.FindFirstObjectByType<SoloLiveController>() != null,
                 BootTimeoutSeconds, "loading Core and creating the live controller");
+            Assert.That(SoundManager.Instance.IsLoadedSoundBundle(songCue), Is.True);
 
             yield return WaitFor(
                 () => SceneLoader.GetActiveScene().name == "Library" && Object.FindFirstObjectByType<LibraryResultPanel>() != null,
@@ -132,6 +134,8 @@ namespace OpenSekai.Tests.PlayMode
             var returnedLibrary = Object.FindFirstObjectByType<LibraryScreen>();
             Assert.That(returnedLibrary, Is.Not.Null);
             Assert.That(originalLibrary == null, Is.True, "the original Library scene should have unloaded");
+            Assert.That(SoundManager.Instance.IsLoadedSoundBundle(songCue), Is.False,
+                "returning to Library releases the completed song from the process-wide audio catalog");
 
             var panel = Object.FindFirstObjectByType<LibraryResultPanel>();
             var result = (PlayResult)typeof(LibraryResultPanel)

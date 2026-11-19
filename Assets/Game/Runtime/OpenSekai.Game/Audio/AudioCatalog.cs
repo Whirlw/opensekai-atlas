@@ -641,5 +641,18 @@ namespace Sekai
 			_loadedBundles.Add(bundleName);
 			AddLoadedBundleSearchOrder(bundleName);
 		}
+
+		internal void Unregister(CriAtomExAcb acb)
+		{
+			// A cue sheet can be registered under several names. Drop all aliases that still point to it.
+			for (int i = _loadedBundleSearchOrder.Count - 1; i >= 0; i--)
+			{
+				string name = _loadedBundleSearchOrder[i];
+				if (!_acbByBundleName.TryGetValue(name, out var registered) || registered != acb) continue;
+				_acbByBundleName.Remove(name);
+				_loadedBundles.Remove(name);
+				_loadedBundleSearchOrder.RemoveAt(i);
+			}
+		}
 	}
 }

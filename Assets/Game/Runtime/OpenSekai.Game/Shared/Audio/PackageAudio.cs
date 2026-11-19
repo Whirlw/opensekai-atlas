@@ -30,7 +30,7 @@ namespace OpenSekai.Shared.Audio
 			}
 
 			Package.AudioLengthMs = (long)(_audioClip.length * 1000f);
-			SoundManager.Instance.RegisterExternalAudioClip(Package.AudioCueName, Package.AudioCueName, _audioClip);
+			SoundManager.Instance.RegisterPackageAudioClip(Package.AudioCueName, _audioClip);
 			return true;
 		}
 

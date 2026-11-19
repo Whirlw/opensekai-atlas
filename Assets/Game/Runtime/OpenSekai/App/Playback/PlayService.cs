@@ -67,6 +67,7 @@ namespace OpenSekai.App.Playback
 
             IsStarting = true;
             bool transitionAccepted = false;
+            bool audioRegistrationStarted = false;
             bool bootPublished = false;
             LiveBootState previousBoot = default;
             try
@@ -120,6 +121,7 @@ namespace OpenSekai.App.Playback
                 _surface.BeginSession(SongPackageHash.Compute(entry.ScorePath));
                 cancellationToken.ThrowIfCancellationRequested();
                 progress?.Invoke("正在加载音频...");
+                audioRegistrationStarted = true;
                 if (!await _audio.RegisterAsync(entry, cancellationToken))
                 {
                     return Result(PlayStartStatus.Failed, "无法加载音频文件。");
@@ -182,6 +184,7 @@ namespace OpenSekai.App.Playback
                     {
                         _boot.Restore(previousBoot);
                     }
+                    if (audioRegistrationStarted) _audio.Release();
                     ReleaseStartLock();
                 }
             }

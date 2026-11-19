@@ -117,6 +117,21 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(_surface.SceneExitHandlers, Is.Zero);
             Assert.That(_surface.SubscribeCount, Is.EqualTo(1));
             Assert.That(_surface.UnsubscribeCount, Is.EqualTo(1));
+            Assert.That(_audio.ReleaseCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async System.Threading.Tasks.Task CancellationAfterAudioRegistrationReleasesTheClipWithoutPublishingBoot()
+        {
+            using var cancellation = new CancellationTokenSource();
+            _audio.OnRegister = cancellation.Cancel;
+
+            PlayStartResult result = await _service.StartAsync(Request(), cancellation.Token);
+
+            Assert.That(result.Status, Is.EqualTo(PlayStartStatus.Cancelled));
+            Assert.That(_audio.ReleaseCount, Is.EqualTo(1));
+            Assert.That(_boot.PublishCount, Is.Zero);
+            Assert.That(_service.IsStarting, Is.False);
         }
 
         [Test]
@@ -130,6 +145,7 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(_service.IsStarting, Is.True);
             Assert.That(_surface.SceneExitHandlers, Is.EqualTo(1));
             Assert.That(_surface.PushedLiveLoading, Is.EqualTo(1));
+            Assert.That(_audio.ReleaseCount, Is.Zero);
             // The published boot must carry the deck the port reported, not one read from a singleton.
             var published = _boot.State.Boot as FreeLiveBootData;
             Assert.That(published, Is.Not.Null);
@@ -200,11 +216,16 @@ namespace OpenSekai.Tests.EditMode
         private sealed class FakeAudioRegistrar : IPackageAudioRegistrar
         {
             public bool Result { get; set; }
+            public Action OnRegister { get; set; }
+            public int ReleaseCount { get; private set; }
 
             public UniTask<bool> RegisterAsync(SongPackage package, CancellationToken cancellationToken)
             {
+                OnRegister?.Invoke();
                 return UniTask.FromResult(Result);
             }
+
+            public void Release() => ReleaseCount++;
         }
 
         private sealed class FakeDeckSelection : ILiveDeckSelection

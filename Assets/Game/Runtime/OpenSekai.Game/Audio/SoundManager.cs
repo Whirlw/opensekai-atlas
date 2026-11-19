@@ -25,6 +25,8 @@ namespace Sekai
 
 		private CriAtomExPlayer _soundEffectPlayer;
 		private CriAtomExPlayer _ingameBgmPlayer;
+		private CriAtomExAcb _packageAudio;
+		private AudioClip _packageClip;
 		private CriAtomExPlayback _currentIngamePlayback = CriAtomExPlayback.Invalid;
 		private uint _currentIngamePlaybackRequestId;
 		private AudioSyncedUnityTimer _audioSyncedUnityTimer;
@@ -58,6 +60,24 @@ namespace Sekai
 
 		public void RegisterExternalAudioClip(string bundleName, string cueName, AudioClip clip) =>
 			_externalSoundPack.RegisterClip(bundleName, cueName, clip);
+
+		internal void RegisterPackageAudioClip(string cueName, AudioClip clip)
+		{
+			if (ReferenceEquals(_packageClip, clip)) return;
+			ReleasePackageAudio();
+			_packageClip = clip;
+			_packageAudio = _externalSoundPack.RegisterClip(cueName, cueName, clip);
+		}
+
+		/// <summary>Ends the package's lifetime. Stopping playback alone keeps it ready for a retry.</summary>
+		public void ReleasePackageAudio()
+		{
+			StopIngame();
+			if (_packageAudio != null) _catalog.Unregister(_packageAudio);
+			if (_packageClip != null) UnityEngine.Object.Destroy(_packageClip);
+			_packageAudio = null;
+			_packageClip = null;
+		}
 
 		public bool ExistsCueName(string cueName) => _catalog.ExistsCueName(cueName);
 
