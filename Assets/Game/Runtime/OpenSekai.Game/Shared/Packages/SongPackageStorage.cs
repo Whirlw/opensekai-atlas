@@ -58,13 +58,11 @@ namespace OpenSekai.Shared.Packages
 			}
 
 			string manifestPath = Path.Combine(rootDirectory, MANIFEST_FILE_NAME);
-			if (!File.Exists(manifestPath))
-			{
-				return null;
-			}
-
 			try
 			{
+				RejectReparsePoint(rootDirectory);
+				RejectReparsePoint(manifestPath);
+				if (!File.Exists(manifestPath)) return null;
 				SongPackageManifest manifest = JsonConvert.DeserializeObject<SongPackageManifest>(File.ReadAllText(manifestPath));
 				if (manifest == null)
 				{
@@ -72,6 +70,7 @@ namespace OpenSekai.Shared.Packages
 				}
 
 				manifest.Normalize();
+				ValidateManifestPaths(manifest);
 				return new SongPackage(rootDirectory, manifest);
 			}
 			catch (Exception exception)
@@ -93,12 +92,63 @@ namespace OpenSekai.Shared.Packages
 			}
 
 			manifest.Normalize();
+			ValidatePathComponent(manifest.id, nameof(manifest.id));
 			string title = SanitizeFileName(manifest.title);
 			if (string.IsNullOrEmpty(title))
 			{
 				title = "Untitled";
 			}
-			return title + "_" + manifest.id;
+			string name = title + "_" + manifest.id;
+			return IsReservedDeviceName(name) ? "_" + name : name;
+		}
+
+		public static void ValidateManifestPaths(SongPackageManifest manifest)
+		{
+			ValidatePathComponent(manifest.id, nameof(manifest.id));
+			ValidateOptionalFileName(manifest.scoreFileName, nameof(manifest.scoreFileName));
+			ValidateOptionalFileName(manifest.audioFileName, nameof(manifest.audioFileName));
+			ValidateOptionalFileName(manifest.jacketFileName, nameof(manifest.jacketFileName));
+			ValidateOptionalFileName(manifest.videoFileName, nameof(manifest.videoFileName));
+		}
+
+		private static void ValidateOptionalFileName(string value, string field)
+		{
+			if (!string.IsNullOrEmpty(value)) ValidatePathComponent(value, field);
+		}
+
+		public static void ValidatePathComponent(string value, string field)
+		{
+			if (string.IsNullOrWhiteSpace(value) || value.EndsWith(".", StringComparison.Ordinal)
+				|| value.EndsWith(" ", StringComparison.Ordinal) || value.Any(IsInvalidFileNameChar)
+				|| IsReservedDeviceName(value))
+			{
+				throw new InvalidDataException("曲包路径字段必须是单个有效的文件名：" + field);
+			}
+		}
+
+		private static bool IsInvalidFileNameChar(char value) => char.IsControl(value) || "<>:\"/\\|?*".IndexOf(value) >= 0;
+
+		private static bool IsReservedDeviceName(string value)
+		{
+			int dot = value.IndexOf('.');
+			string name = (dot < 0 ? value : value.Substring(0, dot)).TrimEnd(' ').ToUpperInvariant();
+			return name is "CON" or "PRN" or "AUX" or "NUL"
+				|| name.Length == 4 && (name.StartsWith("COM", StringComparison.Ordinal) || name.StartsWith("LPT", StringComparison.Ordinal))
+					&& "123456789¹²³".IndexOf(name[3]) >= 0;
+		}
+
+		public static void RejectReparsePoint(string path)
+		{
+			try
+			{
+				string fullPath = Path.GetFullPath(path);
+				if (fullPath.Length > Path.GetPathRoot(fullPath).Length)
+					fullPath = fullPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+				if ((File.GetAttributes(fullPath) & FileAttributes.ReparsePoint) != 0)
+					throw new InvalidDataException("曲包路径不支持符号链接或目录联接。");
+			}
+			catch (FileNotFoundException) { }
+			catch (DirectoryNotFoundException) { }
 		}
 
 		private static string SanitizeFileName(string value)
@@ -108,8 +158,7 @@ namespace OpenSekai.Shared.Packages
 				return string.Empty;
 			}
 
-			HashSet<char> invalidChars = new HashSet<char>(Path.GetInvalidFileNameChars());
-			char[] chars = value.Trim().Select(c => invalidChars.Contains(c) || char.IsWhiteSpace(c) ? '_' : c).ToArray();
+			char[] chars = value.Trim().Select(c => IsInvalidFileNameChar(c) || char.IsWhiteSpace(c) ? '_' : c).ToArray();
 			string result = new string(chars);
 			while (result.Contains("__"))
 			{

@@ -129,6 +129,30 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(Directory.GetDirectories(_root, ".chart-import-*"), Is.Empty);
         }
 
+        [UnityTest] public IEnumerator DownloadedNativeChartUsesTheFormatDeclaredInItsManifest()
+        {
+            var manager = new SongPackageManager(Path.Combine(_root, "library"));
+            string zip = Path.Combine(_root, "native.zip");
+            const string scoreName = "level-data.json.gz";
+            using (var archive = ZipFile.Open(zip, ZipArchiveMode.Create))
+            {
+                using (var manifest = new StreamWriter(archive.CreateEntry("manifest.json").Open()))
+                    manifest.Write(@"{""id"":""next-rush-demo"",""chartFormat"":""next-rush"",""scoreFileName"":""level-data.json.gz""}");
+                using (var compressed = new GZipStream(archive.CreateEntry(scoreName).Open(), CompressionMode.Compress))
+                using (var score = new StreamWriter(compressed))
+                    score.Write(@"{""bgmOffset"":0,""entities"":[]}");
+            }
+
+            var task = manager.ImportDownloadedZipAsync(zip, "45");
+            while (!task.IsCompleted) yield return null;
+            var installed = task.GetAwaiter().GetResult();
+
+            Assert.That(installed.Manifest.chartFormat, Is.EqualTo("next-rush"));
+            Assert.That(Path.GetFileName(installed.ScorePath), Is.EqualTo(scoreName));
+            Assert.That(File.Exists(installed.ScorePath), Is.True);
+            Assert.That(Directory.GetDirectories(_root, ".chart-import-*"), Is.Empty);
+        }
+
         [UnityTest] public IEnumerator InvalidDownloadLeavesExistingLibraryUntouched()
         {
             var manager = new SongPackageManager(Path.Combine(_root, "library"));

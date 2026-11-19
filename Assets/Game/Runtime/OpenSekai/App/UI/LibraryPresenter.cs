@@ -282,21 +282,19 @@ namespace OpenSekai.App.UI
             // filter extension itself, and passing "Test.oskp" produced "Test.oskp.oskp".
             string baseName = SafeFileName(LibraryModel.BuildTitle(item));
             string destination = LibraryImport.PickExportDestination(baseName);
-            if (string.IsNullOrEmpty(destination))
-            {
-                // Mobile has no save dialog: write next to the library so the file is still reachable.
-                string exportDirectory = Path.Combine(_packages.RootDirectory, "Exports");
-                destination = Path.Combine(exportDirectory, baseName + PackageExtension);
-                _view.SetStatus("正在导出到 " + destination + " …");
-            }
-            else if (!destination.EndsWith(PackageExtension, StringComparison.OrdinalIgnoreCase))
-            {
-                // Some dialogs do not append the filter extension when the user typed one.
-                destination += PackageExtension;
-            }
-
             try
             {
+                if (string.IsNullOrEmpty(destination))
+                {
+                    destination = _packages.GetDefaultExportPath(baseName + PackageExtension);
+                    _view.SetStatus("正在导出到 " + destination + " …");
+                }
+                else if (!destination.EndsWith(PackageExtension, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Some dialogs do not append the filter extension when the user typed one.
+                    destination += PackageExtension;
+                }
+
                 string written = _packages.ExportZip(item.Entry, destination);
                 _view.SetStatus("已导出：" + written);
                 UiSound.Play(UiCue.Success);
@@ -338,11 +336,11 @@ namespace OpenSekai.App.UI
                 return "package";
             }
 
-            char[] invalid = Path.GetInvalidFileNameChars();
+            const string invalid = "<>:\"/\\|?*";
             char[] buffer = value.ToCharArray();
             for (int i = 0; i < buffer.Length; i++)
             {
-                if (Array.IndexOf(invalid, buffer[i]) >= 0 || buffer[i] == '/' || buffer[i] == '\\')
+                if (invalid.IndexOf(buffer[i]) >= 0 || char.IsControl(buffer[i]))
                 {
                     buffer[i] = '_';
                 }
@@ -399,7 +397,14 @@ namespace OpenSekai.App.UI
                 SongPackage package = isFolder
                     ? _packages.ImportFolder(path)
                     : _packages.ImportZip(path);
-                string name = package?.Manifest != null && !string.IsNullOrWhiteSpace(package.Manifest.title)
+                if (package == null)
+                {
+                    _view.SetStatus("导入失败：无法读取曲包，请检查文件以及是否包含有效的 manifest.json。");
+                    UiSound.Play(UiCue.Error);
+                    return;
+                }
+
+                string name = package.Manifest != null && !string.IsNullOrWhiteSpace(package.Manifest.title)
                     ? package.Manifest.title
                     : "曲包";
                 _view.SetStatus("导入成功：" + name);

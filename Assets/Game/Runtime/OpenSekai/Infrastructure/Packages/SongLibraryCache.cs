@@ -85,7 +85,7 @@ namespace OpenSekai.Infrastructure.Packages
 		/// package). Its loudness carries over while the audio file is unchanged.
 		/// </summary>
 		/// <param name="movedFrom">The folder it was moved from, whose cached values it may reuse.</param>
-		internal SongPackageItem Track(string directory, string movedFrom = null)
+		internal SongPackageItem Track(string directory, string movedFrom = null, bool requirePersistence = false)
 		{
 			if (string.IsNullOrEmpty(directory) || !IsInsideRoot(directory))
 			{
@@ -109,7 +109,7 @@ namespace OpenSekai.Infrastructure.Packages
 			}
 
 			_sorted = null;
-			Save();
+			Save(requirePersistence);
 			return cached?.Item;
 		}
 
@@ -325,7 +325,7 @@ namespace OpenSekai.Infrastructure.Packages
 			}
 		}
 
-		private void Save()
+		private void Save(bool requirePersistence = false)
 		{
 			if (!Directory.Exists(_root))
 			{
@@ -365,7 +365,7 @@ namespace OpenSekai.Infrastructure.Packages
 					File.Delete(legacy);
 				}
 			}
-			catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException)
+			catch (Exception exception) when (!requirePersistence && (exception is IOException || exception is UnauthorizedAccessException))
 			{
 				Debug.LogWarning("[Library] Could not save the library cache: " + exception.Message);
 			}

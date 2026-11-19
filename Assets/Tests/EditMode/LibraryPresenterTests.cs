@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -144,6 +145,29 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(_view.Items.Single().Entry.Manifest.id, Is.EqualTo("codexbaseline20261101tap"));
             Assert.That(_view.Items.Single().HasScore, Is.True);
             Assert.That(_view.Items.Single().HasAudio, Is.True);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ImportWithoutAManifestReportsFailureAndKeepsTheLibrary(bool isFolder)
+        {
+            AddPackage("track", "Track", 1);
+            _presenter.Refresh();
+            string folder = Path.Combine(_root, "no-manifest");
+            Directory.CreateDirectory(folder);
+            File.WriteAllText(Path.Combine(folder, "readme.txt"), "No chart package here.");
+            string path = folder;
+            if (!isFolder)
+            {
+                path = Path.Combine(_root, "no-manifest.zip");
+                ZipFile.CreateFromDirectory(folder, path);
+            }
+
+            _presenter.StartImport(path, isFolder);
+
+            Assert.That(_view.Status, Does.StartWith("导入失败").And.Contain("manifest.json"));
+            Assert.That(_view.Items.Single().Entry.Manifest.id, Is.EqualTo("track"));
+            Assert.That(_packages.LoadItems().Count, Is.EqualTo(1));
         }
 
         [Test]
