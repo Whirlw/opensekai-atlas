@@ -27,6 +27,7 @@ namespace OpenSekai.App.UI
         private const float SEARCH_WIDTH = 520f;
 
         private readonly SonolusSession _session;
+        private readonly Func<IEnumerable<KeyValuePair<string, string>>, int, string, CancellationToken, UniTask<SonolusPage<SonolusLevel>>> _listLevels;
         private readonly TextMeshProUGUI _title;
         private readonly TextMeshProUGUI _subtitle;
         private readonly TMP_InputField _search;
@@ -69,9 +70,12 @@ namespace OpenSekai.App.UI
             Results
         }
 
-        internal SonolusBrowsePage(ServerScreen screen, SonolusSession session) : base(screen, "SonolusBrowse")
+        internal SonolusBrowsePage(ServerScreen screen, SonolusSession session,
+            Func<IEnumerable<KeyValuePair<string, string>>, int, string, CancellationToken, UniTask<SonolusPage<SonolusLevel>>> listLevels = null)
+            : base(screen, "SonolusBrowse")
         {
             _session = session;
+            _listLevels = listLevels ?? session.Client.ListLevelsAsync;
             RectTransform bar = ServerWidgets.TopBar(Root, session.Title, screen.Back, out _title, out _subtitle);
             _subtitle.text = session.Address.Host + session.Address.Prefix;
             float height = LibraryTheme.Layout.CONTROL_HEIGHT;
@@ -384,7 +388,6 @@ namespace OpenSekai.App.UI
             _mode = mode;
             ApplyMode();
             _grid.SetItemCount(0);
-            _status.ShowLoading("正在加载谱面…");
             LoadPage();
         }
 
@@ -397,6 +400,11 @@ namespace OpenSekai.App.UI
 
             _loadingMore = true;
             _listLoad = new CancellationTokenSource();
+            if (_nextPage == 0)
+            {
+                _status.ShowLoading("正在加载谱面…");
+            }
+
             LoadPageAsync(_listLoad.Token).Forget();
             UpdatePageInfo();
         }
@@ -406,7 +414,10 @@ namespace OpenSekai.App.UI
             int page = _nextPage;
             try
             {
-                SonolusPage<SonolusLevel> result = await _session.Client.ListLevelsAsync(_query, page, _cursor, cancellationToken);
+                SonolusPage<SonolusLevel> result = await _listLevels(_query, page, _cursor, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+                _listLoad.Dispose();
+                _listLoad = null;
                 _loadingMore = false;
                 int before = _results.Count;
                 _results.AddRange(result.Items);
@@ -437,6 +448,13 @@ namespace OpenSekai.App.UI
             }
             catch (SonolusException exception)
             {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                _listLoad.Dispose();
+                _listLoad = null;
                 _loadingMore = false;
                 if (_results.Count == 0)
                 {
@@ -517,6 +535,18 @@ namespace OpenSekai.App.UI
                 {
                     _status.Hide();
                 }
+            }
+            else if (_nextPage == 0)
+            {
+                LoadPage();
+            }
+            else if (_results.Count == 0)
+            {
+                _status.ShowMessage("没有找到符合条件的谱面");
+            }
+            else
+            {
+                MaybeLoadMore();
             }
         }
 
