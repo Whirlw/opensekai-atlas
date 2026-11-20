@@ -31,10 +31,10 @@ namespace OpenSekai.Shared.Live.Simulation
 		public const float MinimumSkipSeconds = 0.25f;
 
 		/// <summary>From the info page going away to the first of the music and the first note.</summary>
-		public const float RunInSeconds = 3f;
+		public const float RunInSeconds = 1f;
 
 		/// <summary>From the last of the music and the last note to the result effect.</summary>
-		public const float RunOutSeconds = 3f;
+		public const float RunOutSeconds = 1f;
 
 		/// <summary>A span whose audio plays exactly over its audible part (no silence at either end).</summary>
 		public LiveTimelineSpan(float musicStartSeconds, float musicEndSeconds, float firstNoteSeconds, float lastNoteSeconds, float leadInSeconds)

@@ -530,7 +530,7 @@ namespace OpenSekai.Tests.PlayMode
                 Assert.That(span.MusicEndSeconds, Is.EqualTo(3f).Within(0.002f));
                 Assert.That(span.FirstNoteSeconds, Is.LessThan(span.MusicStartSeconds));
                 Assert.That(span.LastNoteSeconds, Is.GreaterThan(span.PlaybackEndSeconds));
-                Assert.That(ClockMs() / 1000d, Is.EqualTo(span.FirstNoteSeconds - 3).Within(0.20));
+                Assert.That(ClockMs() / 1000d, Is.EqualTo(span.StartSeconds).Within(0.20));
 
                 controller.PauseLive();
                 long beforeMusic = ClockMs();
@@ -582,7 +582,7 @@ namespace OpenSekai.Tests.PlayMode
                 Assert.That(ClockMs() / 1000d, Is.EqualTo(span.LastNoteSeconds).Within(0.20));
                 Assert.That((bool)resultPendingField.GetValue(controller), Is.True);
                 yield return WaitFor(() => !(bool)resultPendingField.GetValue(controller), 6f, "starting the result effect");
-                Assert.That(ClockMs() / 1000d, Is.EqualTo(span.LastNoteSeconds + 3).Within(0.15));
+                Assert.That(ClockMs() / 1000d, Is.EqualTo(span.LastNoteSeconds + 1).Within(0.15));
 
                 yield return WaitFor(
                     () => SceneLoader.GetActiveScene().name == "Library" && Object.FindFirstObjectByType<LibraryResultPanel>() != null,
