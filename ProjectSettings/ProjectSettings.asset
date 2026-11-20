@@ -13,7 +13,7 @@ PlayerSettings:
   useOnDemandResources: 0
   accelerometerFrequency: 60
   companyName: OpenSekai
-  productName: Open Sekai Atlas
+  productName: OpenSekai
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
   m_SplashScreenBackgroundColor: {r: 0.047058824, g: 0.05882353, b: 0.078431375, a: 1}
