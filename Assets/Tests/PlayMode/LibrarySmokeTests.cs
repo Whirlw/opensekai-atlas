@@ -406,8 +406,12 @@ namespace OpenSekai.Tests.PlayMode
                 string audioPath = Path.Combine(source, "audio.wav");
                 byte[] chartData = File.ReadAllBytes(chartPath);
                 byte[] audioData = File.ReadAllBytes(audioPath);
+                string extensionlessPath = Path.Combine(source, "audio-resource-hash");
+                File.Move(audioPath, extensionlessPath);
+                AudioType audioType = SonolusClient.AudioTypeOf(audioData);
+                Assert.That(audioType, Is.EqualTo(AudioType.WAV));
                 AudioClip clip;
-                using (var request = UnityWebRequestMultimedia.GetAudioClip(new System.Uri(audioPath).AbsoluteUri, AudioType.UNKNOWN))
+                using (var request = UnityWebRequestMultimedia.GetAudioClip(new System.Uri(extensionlessPath).AbsoluteUri, audioType))
                 {
                     yield return request.SendWebRequest();
                     Assert.That(request.result, Is.EqualTo(UnityWebRequest.Result.Success), request.error);

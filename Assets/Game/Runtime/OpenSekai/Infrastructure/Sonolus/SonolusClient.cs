@@ -148,16 +148,70 @@ namespace OpenSekai.Infrastructure.Sonolus
             string url = resource != null ? Address.Resolve(resource.Url) : null;
             if (url == null) throw new SonolusException("服务器没有提供有效的 HTTPS 音频地址。");
 
-            using var request = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.UNKNOWN);
+            AudioType type = await ProbeAudioTypeAsync(url, maxBytes, cancellationToken);
+            if (type == AudioType.UNKNOWN)
+                throw new SonolusException("音乐格式无法识别（仅支持 MP3 / OGG / WAV）。");
+
+            using var request = UnityWebRequestMultimedia.GetAudioClip(url, type);
             request.timeout = DOWNLOAD_TIMEOUT_SECONDS;
             await SendAsync(request, maxBytes, progress, cancellationToken);
             byte[] data = request.downloadHandler.data;
-            if (data == null || SonolusLevelInstaller.AudioExtension(data) == null)
-                throw new SonolusException("音乐格式无法识别（仅支持 MP3 / OGG / WAV）。");
+            if (AudioTypeOf(data) != type)
+                throw new SonolusException("服务器返回的音乐与文件头不一致，请重试。");
 
             AudioClip clip = DownloadHandlerAudioClip.GetContent(request);
             if (clip == null) throw new SonolusException("无法解码服务器音频。");
             return (clip, data);
+        }
+
+        // Sonolus audio URLs are often content hashes. FMOD cannot reliably infer the format
+        // from an extensionless URL with AudioType.UNKNOWN, especially on mobile.
+        private static async UniTask<AudioType> ProbeAudioTypeAsync(
+            string url, long maxBytes, CancellationToken cancellationToken)
+        {
+            var header = new AudioHeaderDownload();
+            using var request = new UnityWebRequest(url, UnityWebRequest.kHttpVerbGET, header, null);
+            request.timeout = JSON_TIMEOUT_SECONDS;
+            try
+            {
+                await SendAsync(request, maxBytes, null, cancellationToken);
+            }
+            catch (SonolusException) when (header.StoppedAfterHeader
+                && request.responseCode >= 200 && request.responseCode < 300)
+            {
+                // The handler declines the remaining body once it has the signature.
+            }
+
+            return header.Type;
+        }
+
+        internal static AudioType AudioTypeOf(byte[] header) => SonolusLevelInstaller.AudioExtension(header) switch
+        {
+            ".mp3" => AudioType.MPEG,
+            ".ogg" => AudioType.OGGVORBIS,
+            ".wav" => AudioType.WAV,
+            _ => AudioType.UNKNOWN
+        };
+
+        private sealed class AudioHeaderDownload : DownloadHandlerScript
+        {
+            private readonly byte[] _header = new byte[12];
+            private int _length;
+
+            internal AudioHeaderDownload() : base(new byte[4096]) { }
+
+            internal AudioType Type => _length == _header.Length ? AudioTypeOf(_header) : AudioType.UNKNOWN;
+            internal bool StoppedAfterHeader { get; private set; }
+
+            protected override bool ReceiveData(byte[] data, int dataLength)
+            {
+                if (dataLength == 0) return true;
+                int copied = Math.Min(_header.Length - _length, dataLength);
+                Array.Copy(data, 0, _header, _length, copied);
+                _length += copied;
+                StoppedAfterHeader = copied < dataLength;
+                return !StoppedAfterHeader;
+            }
         }
 
         private async UniTask<JToken> GetJsonAsync(
