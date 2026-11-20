@@ -684,15 +684,18 @@ namespace Sekai.Core.Live
 				return;
 			}
 
+			var events = _session.MusicScore?.musicScoreInfoArray;
+			var reversalEvents = events != null && System.Array.Exists(events, info => info.speedRatio < 0f)
+				? events : null;
 			HashSet<NoteBase> visited = new HashSet<NoteBase>();
 
 			foreach (NoteBase note in notes)
 			{
-				BindNoteCallbacks(note, visited);
+				BindNoteCallbacks(note, visited, reversalEvents);
 			}
 		}
 
-		private void BindNoteCallbacks(NoteBase note, HashSet<NoteBase> visited)
+		private void BindNoteCallbacks(NoteBase note, HashSet<NoteBase> visited, MusicScoreInfo[] reversalEvents)
 		{
 			if (note == null || !visited.Add(note))
 			{
@@ -707,6 +710,9 @@ namespace Sekai.Core.Live
 			note.OnDamage = OnDamage;
 			note.OnUpdateResult = OnUpdateResult;
 			note.CalcTimeOffset = _noteFrame.CalcTimeOffset;
+			if (note.NativeScroll == null)
+				note.ScrollApproachStart = NoteSpeedRatio.FindApproachStart(reversalEvents,
+					note.MusicScoreInfo, _session.NoteDisplayTimeOffset, note.speedRatio);
 
 			if (note.NoteList == null)
 			{
@@ -715,7 +721,7 @@ namespace Sekai.Core.Live
 
 			foreach (NoteBase childNote in note.NoteList)
 			{
-				BindNoteCallbacks(childNote, visited);
+				BindNoteCallbacks(childNote, visited, reversalEvents);
 			}
 		}
 	}

@@ -120,6 +120,117 @@ namespace OpenSekai.Tests.EditMode.Live
 				+ string.Join("\n  ", early.Take(8)));
 		}
 
+		[TestCase(6f)]
+		[TestCase(10.6f)]
+		public void ForwardKeysAfterTheReversalOnlyAppearOnTheirFinalApproach(float speed)
+		{
+			var score = AutoplayCompletionTests.LoadFixture("deinos-phainein-device");
+			using var harness = new LiveHarness();
+			float previousWindow = LiveConfig.CacheSpeedTime;
+			try
+			{
+				LiveConfig.CacheSpeedTime = 0f;
+				harness.Arrange(score, displayTimeOffset: LiveConfig.GetNoteDisplayOffsetTime(speed), auto: true);
+				harness.BindViews();
+				float reversal = score.GetTimeFromBar(37, 0f);
+				float firstForwardKey = score.GetTimeFromBar(38, 0f);
+				var keys = score.NoteArray.SelectMany(root => root.NoteList)
+					.Where(n => (n is NormalNote || n is LongNote) && n.IsVisible && n.MusicScoreInfo.time >= firstForwardKey
+						&& n.MusicScoreInfo.time < firstForwardKey + 4f)
+					.Distinct().ToArray();
+
+				int visibleSamples = 0;
+				for (int frame = 0; frame <= 8142; frame++)
+				{
+					float now = frame / 165f;
+					harness.OnUpdate(now, now + 10d);
+					harness.Logic.OnAutoInput();
+					harness.Logic.OnView();
+					if (frame < 7056) continue;
+					foreach (var key in keys)
+					{
+						float due = key.MusicScoreInfo.time;
+						if (due <= now || key.State == NoteState.Done || !LiveConfig.IsKeyVisible(key, now))
+							continue;
+
+						visibleSamples++;
+						Assert.That(now, Is.GreaterThanOrEqualTo(reversal), $"early {key.Id} on frame {frame}");
+						Assert.That(key.IsNegativeSpeed, Is.False, $"reversed {key.Id} on frame {frame}");
+						float lead = key.CalcTimeOffset(key);
+						Assert.That(key.Progress, Is.EqualTo(1f - (due - now) / lead).Within(0.005f),
+							$"stale {key.GetType().Name} {key.Id} on frame {frame}");
+					}
+				}
+				Assert.That(visibleSamples, Is.GreaterThan(0));
+			}
+			finally
+			{
+				LiveConfig.CacheSpeedTime = previousWindow;
+			}
+		}
+		private sealed class BarMeshView : Sekai.Core.Live.LiveViewBase
+		{
+			internal Sekai.NoteLineView Lines;
+
+			public override void SpawnNote(NoteBase note)
+			{
+				if (note is LongNote bar) Lines.Add(bar);
+			}
+
+			public override void UnspawnNote(NoteBase note)
+			{
+				if (note is LongNote bar) Lines.Remove(bar);
+			}
+		}
+
+		[TestCase(1f)]
+		[TestCase(6f)]
+		[TestCase(10.6f)]
+		public void DeinosReversalDoesNotDrawFutureHoldBodiesBelowTheLine(float speed)
+		{
+			var score = AutoplayCompletionTests.LoadFixture("deinos-phainein-device");
+			using var harness = new LiveHarness();
+			var host = new UnityEngine.GameObject("DEINOS hold mesh");
+			var view = host.AddComponent<BarMeshView>();
+			float cached = LiveConfig.CacheSpeedTime;
+			try
+			{
+				view.Lines = host.AddComponent<Sekai.NoteLineView>();
+				view.Lines.Setup(null, "longNoteLine.png", 1f);
+				LiveConfig.CacheSpeedTime = 0f;
+				harness.Arrange(score, displayTimeOffset: LiveConfig.GetNoteDisplayOffsetTime(speed), auto: true);
+				harness.BindViews(view);
+				var vertices = new List<UnityEngine.Vector3>();
+				bool drewBeforeReversal = false, drewAfterReversal = false;
+				float reversal = score.GetTimeFromBar(37, 0f);
+				// At 165 Hz these samples span ticks 65000..75000 of the 190 BPM chart.
+				for (int frame = 0; frame <= 8142; frame++)
+				{
+					float now = frame / 165f;
+					harness.OnUpdate(now, now + 10d);
+					harness.Logic.OnAutoInput();
+					harness.Logic.OnView();
+					if (frame < 7056) continue;
+					view.Lines.Excute(now);
+					foreach (var filter in host.GetComponentsInChildren<UnityEngine.MeshFilter>())
+					{
+						if (!filter.GetComponent<UnityEngine.MeshRenderer>().enabled) continue;
+						filter.sharedMesh.GetVertices(vertices);
+						float bottom = vertices.Min(v => v.y);
+						Assert.That(bottom, Is.GreaterThanOrEqualTo(LiveConfig.JudgmentPositions[0].y - 0.001f),
+							$"frame {frame}, chart {now:F5}s, speed {speed}");
+						drewBeforeReversal |= now < reversal;
+						drewAfterReversal |= now > reversal;
+					}
+				}
+				Assert.That(drewBeforeReversal && drewAfterReversal, Is.True);
+			}
+			finally
+			{
+				LiveConfig.CacheSpeedTime = cached;
+				UnityEngine.Object.DestroyImmediate(host);
+			}
+		}
 		private static bool InSection(NoteBase note) =>
 			note.MusicScoreInfo.bar >= FIRST_BAR && note.MusicScoreInfo.bar < LAST_BAR;
 	}

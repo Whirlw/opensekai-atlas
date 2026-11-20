@@ -35,7 +35,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			// own speedRatio: which walk the chart filed it in. Clearing it on reset made a high speed note
 			// advance twice a frame (HighSpeedResetTests).
 			"IsHighSpeedNote",
-			"speedRatio", "IsNegativeSpeed",
+			"speedRatio", "IsNegativeSpeed", "ScrollApproachStart",
 			"LaneOffset", "_flickDistance",
 			// Native geometry and the session's display lead survive a retry of the same chart.
 			"NativeLeft", "NativeRight", "NativeTarget", "NativePreempt", "NativeStyle", "NativeEffectKind",

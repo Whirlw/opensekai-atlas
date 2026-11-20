@@ -271,6 +271,13 @@ namespace Sekai
 		private void NextExecute(INote baseNote, float time, NextRushConnectorLayer layer)
 		{
 			LongNote bar = baseNote as LongNote;
+			// Preloading the bar also registers its full mesh. A later node can already be
+			// inside its own window while the head is still on an earlier pass of a reversal.
+			if (bar != null && bar.NativeScroll == null && time < bar.ScrollApproachStart)
+			{
+				return;
+			}
+
 			List<INote> viewNotes = bar != null ? bar.LineNoteList : baseNote?.ViewNoteList;
 			if (viewNotes == null || viewNotes.Count < 2)
 			{

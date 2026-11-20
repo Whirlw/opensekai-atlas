@@ -12,6 +12,15 @@ namespace OpenSekai.Tests.EditMode.Live
             return new MusicScoreInfo(0, barProgress, barProgress * 2f, 120f, 4f, speedRatio, 1f);
         }
 
+        [TestCase(1f)]
+        [TestCase(-1f)]
+        public void ReturnAcrossTheLineStartsANewApproach(float direction)
+        {
+            var events = new[] { Speed(0f, -2f * direction), Speed(2f, direction) };
+            // The target at 6 seconds also crosses the line at 3 seconds on the earlier pass.
+            Assert.That(NoteSpeedRatio.FindApproachStart(events, Speed(3f, direction), 4f, 1f),
+                Is.EqualTo(3f).Within(1e-5f));
+        }
         [Test]
         public void NoteBehindThePlayheadUsesTheFallback()
         {

@@ -488,6 +488,8 @@ namespace Sekai.Live
 		/// </summary>
 		internal virtual int ChartOrder { get; set; }
 
+		internal float ScrollApproachStart { get; set; } = float.NegativeInfinity;
+
 		/// <summary>
 		/// 标记音符是否使用负流速渲染（从屏幕下方飞入）
 		/// </summary>

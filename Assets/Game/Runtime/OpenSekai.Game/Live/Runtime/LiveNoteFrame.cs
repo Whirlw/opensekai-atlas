@@ -579,6 +579,13 @@ namespace Sekai.Core.Live
 			float timeOffset = OpenSekai.Shared.Live.NoteDisplayOffset.Resolve(
 				_session.NoteDisplayTimeOffset, speedRatio, note.speedRatio, ref isNegativeSpeed);
 			note.IsNegativeSpeed = isNegativeSpeed;
+			if (Frame.time < note.ScrollApproachStart)
+			{
+				// A reversal can bring a future key near the line on an earlier pass.
+				// Cap its lead before it can enter Scrolling and leave a stale child position.
+				float approachLead = note.MusicScoreInfo.time - note.ScrollApproachStart;
+				return timeOffset > 0f ? Mathf.Min(timeOffset, approachLead) : approachLead;
+			}
 			return timeOffset;
 		}
 

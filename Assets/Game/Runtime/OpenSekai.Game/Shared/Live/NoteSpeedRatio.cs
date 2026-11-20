@@ -17,6 +17,48 @@ namespace OpenSekai.Shared.Live
     /// </remarks>
     public static class NoteSpeedRatio
     {
+        // Walk backwards from the hit. A key can meet the line or leave the screen several
+        // times across a reversal. Only the connected approach ending at its hit is drawn.
+        internal static float FindApproachStart(MusicScoreInfo[] events, MusicScoreInfo target,
+            float displayWindow, float noteSpeed)
+        {
+            if (events == null || events.Length == 0 || noteSpeed == 0f)
+                return float.NegativeInfinity;
+
+            int lo = 0, hi = events.Length;
+            while (lo < hi)
+            {
+                int mid = lo + (hi - lo) / 2;
+                if (events[mid].time < target.time) lo = mid + 1;
+                else hi = mid;
+            }
+
+            double targetBar = (double)target.bar + target.barProgress;
+            double endBar = targetBar, endTime = target.time, distance = 0d;
+            for (int i = lo - 1; i >= 0; i--)
+            {
+                var start = events[i];
+                double startBar = (double)start.bar + start.barProgress;
+                double atStart = distance + (endBar - startBar) * start.speedRatio;
+                if (distance != 0d && distance * atStart <= 0d)
+                {
+                    double fraction = distance / (distance - atStart);
+                    return (float)(endTime + (start.time - endTime) * fraction);
+                }
+
+                // Resolve uses bar-weighted speed times seconds to the hit. Use those same
+                // units to recognize an off-screen boundary, including across BPM changes.
+                double bars = targetBar - startBar;
+                if (bars > 0d && Math.Abs(atStart * noteSpeed) * (target.time - start.time) >= displayWindow * bars)
+                    return start.time;
+
+                endBar = startBar;
+                endTime = start.time;
+                distance = atStart;
+            }
+            return float.NegativeInfinity;
+        }
+
         /// <summary>
         /// Length-weighted average of the speed events between the current playhead and the note.
         /// </summary>
