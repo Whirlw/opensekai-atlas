@@ -753,6 +753,7 @@ namespace OpenSekai.App.UI
                 Color tint = tints[i];
                 Image face = LibraryWidgets.Panel("Face", card, 20f, Color.Lerp(HomeTheme.Colors.Card, tint, 0.2f));
                 LibraryUi.Stretch(face.rectTransform);
+                face.gameObject.AddComponent<Mask>().showMaskGraphic = true;
                 Image wash = LibraryWidgets.Shape("Wash", face.transform, HomeShapes.FadeUp(), HomeTheme.Colors.WithAlpha(tints[i], 46));
                 wash.type = Image.Type.Simple;
                 LibraryUi.Stretch(wash.rectTransform);
