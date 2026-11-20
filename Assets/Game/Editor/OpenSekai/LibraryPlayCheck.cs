@@ -57,7 +57,7 @@ namespace OpenSekai.EditorTools
                     "No package with id '" + BASELINE_PACKAGE_ID + "' was found in " + SongPackageStorage.RootDirectory
                     + " (nor in Tools/fixtures/baseline_tap).");
             }
-            // The lightweight library page is the only host left in the Library scene.
+            HomeScreen.Current?.ShowLibraryImmediately();
             LibraryScreen libraryPage = UnityEngine.Object.FindFirstObjectByType<LibraryScreen>();
             if (libraryPage == null)
             {

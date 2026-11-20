@@ -219,6 +219,50 @@ namespace OpenSekai.Tests.PlayMode
             yield return null;
         }
 
+        private static IEnumerator LoadColdHome()
+        {
+            // Live round-trip tests leave the persistent scene manager remembering TransitionBlank.
+            // Start the scene with the same fresh manager that an app launch gets.
+            if (ScreenManager.ExistsInstance) ScreenManager.Instance.ExitScene();
+            var manager = Object.FindFirstObjectByType<Sekai.SceneManager>();
+            if (manager != null) Object.Destroy(manager.gameObject);
+            yield return null;
+            yield return SceneLoader.LoadSceneAsync(LIBRARY_SCENE_PATH, LoadSceneMode.Single);
+            yield return WaitFor(() => HomeScreen.Current != null, BOOT_TIMEOUT_SECONDS, "building the home page");
+        }
+
+        [UnityTest]
+        public IEnumerator HomePreloadsOneHiddenLibraryAfterTheIntro()
+        {
+            yield return LoadColdHome();
+            var home = HomeScreen.Current;
+            home.SeekIntro(0.5f);
+            yield return null;
+            Assert.That(Object.FindFirstObjectByType<LibraryScreen>(), Is.Null);
+
+            const BindingFlags PRIVATE = BindingFlags.Instance | BindingFlags.NonPublic;
+            var splash = (HomeSplash)typeof(HomeScreen).GetField("_splash", PRIVATE).GetValue(home);
+            var time = typeof(HomeSplash).GetField("_time", PRIVATE);
+            splash.Play(null);
+            for (int i = 0; i < 120; i++) splash.Tick(0.05f, jacketsReady: false);
+            Assert.That((float)time.GetValue(splash), Is.EqualTo(HomeSplash.HANDOFF));
+            splash.Skip();
+            splash.Tick(0.05f, jacketsReady: false);
+            Assert.That((float)time.GetValue(splash), Is.EqualTo(HomeSplash.HANDOFF));
+            splash.Tick(0.05f, jacketsReady: true);
+            Assert.That((float)time.GetValue(splash), Is.GreaterThan(HomeSplash.HANDOFF));
+            Assert.That(Object.FindFirstObjectByType<LibraryScreen>(), Is.Null);
+
+            home.ShowHomeImmediately();
+            yield return WaitFor(() => Object.FindFirstObjectByType<LibraryScreen>()?.IsReady == true,
+                BOOT_TIMEOUT_SECONDS, "preloading the hidden library");
+            var library = Object.FindFirstObjectByType<LibraryScreen>();
+            Assert.That(library.IsPresented, Is.False);
+            home.EnterLibrary();
+            yield return WaitFor(() => library.IsPresented, BOOT_TIMEOUT_SECONDS, "revealing the preloaded library");
+            Assert.That(Object.FindObjectsByType<LibraryScreen>(FindObjectsSortMode.None), Has.Length.EqualTo(1));
+        }
+
         [UnityTest]
         public IEnumerator LibrarySceneBootsAndShowsThePage()
         {
@@ -229,26 +273,25 @@ namespace OpenSekai.Tests.PlayMode
                 yield return load;
             }
 
-            float deadline = Time.realtimeSinceStartup + BOOT_TIMEOUT_SECONDS;
-            LibraryScreen screen = null;
-
-            while (Time.realtimeSinceStartup < deadline)
+            yield return WaitFor(() => HomeScreen.Current != null, BOOT_TIMEOUT_SECONDS, "building the home page");
+            var home = HomeScreen.Current;
+            var screen = Object.FindFirstObjectByType<LibraryScreen>();
+            if (screen == null)
             {
-                screen = Object.FindObjectOfType<LibraryScreen>();
-                if (screen != null)
-                {
-                    break;
-                }
-
-                yield return null;
+                home.ShowHomeImmediately();
+                Assert.That(Object.FindFirstObjectByType<LibraryScreen>(), Is.Null);
+                home.EnterLibrary();
+                yield return WaitFor(() => Object.FindFirstObjectByType<LibraryScreen>()?.IsPresented == true,
+                    BOOT_TIMEOUT_SECONDS, "opening the library for the first time");
+                screen = Object.FindFirstObjectByType<LibraryScreen>();
             }
-
-            Assert.That(screen, Is.Not.Null, "LibraryScreen was not created within " + BOOT_TIMEOUT_SECONDS + " s");
-            Assert.That(screen.IsReady, Is.True, "the library view should be assembled");
-            Assert.That(HomeScreen.Current, Is.Not.Null, "the library scene provides the home page");
-            if (!screen.IsPresented)
-                HomeScreen.Current.ShowLibraryImmediately();
-            Assert.That(screen.IsPresented, Is.True);
+            else if (!screen.IsPresented)
+            {
+                home.ShowHomeImmediately();
+                home.EnterLibrary();
+                yield return WaitFor(() => screen.IsPresented, BOOT_TIMEOUT_SECONDS, "presenting the preloaded library");
+            }
+            Assert.That(screen.IsReady, Is.True);
             var back = screen.transform.Find("TopBar/Back")?.GetComponent<Button>();
             Assert.That(back, Is.Not.Null, "the library should reserve a back button in its top bar");
             Assert.That(back.interactable, Is.True, "the back button can return to the home page");
@@ -425,7 +468,8 @@ namespace OpenSekai.Tests.PlayMode
         [UnityTest]
         public IEnumerator ServerPlaybackRestoresTheSamePagesAndCaches()
         {
-            yield return LibrarySceneBootsAndShowsThePage();
+            yield return LoadColdHome();
+            Assert.That(Object.FindFirstObjectByType<LibraryScreen>(), Is.Null);
             var originalHome = HomeScreen.Current;
             originalHome.ShowServerImmediately();
             var server = Object.FindFirstObjectByType<ServerScreen>();
@@ -439,7 +483,7 @@ namespace OpenSekai.Tests.PlayMode
                 () =>
                 {
                     if (originalHome != null)
-                        Assert.That(Object.FindFirstObjectByType<LibraryScreen>().IsPresented, Is.False);
+                        Assert.That(Object.FindFirstObjectByType<LibraryScreen>(), Is.Null);
                     return SceneLoader.GetActiveScene().name == "Core" && Object.FindFirstObjectByType<SoloLiveController>() != null;
                 },
                 BOOT_TIMEOUT_SECONDS, "starting the server chart");
@@ -458,7 +502,7 @@ namespace OpenSekai.Tests.PlayMode
             Assert.That(server.Top, Is.SameAs(page));
             Assert.That(server.Covers, Is.SameAs(covers));
             Assert.That(server.Installer, Is.SameAs(installer));
-            Assert.That(Object.FindFirstObjectByType<LibraryScreen>().IsPresented, Is.False);
+            Assert.That(Object.FindFirstObjectByType<LibraryScreen>(), Is.Null);
             Assert.That(panel.GetComponentsInChildren<TextMeshProUGUI>().Any(label => label.text == "返回服务器"), Is.True);
             Assert.That(server.TryHandleBack(), Is.True);
             Assert.That(panel.IsOpen, Is.False);

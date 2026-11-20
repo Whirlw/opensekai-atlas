@@ -31,6 +31,8 @@ namespace OpenSekai.App.UI
         private int _firstActive;
         private int _endActive;
 
+        internal bool DeferBinding { get; set; }
+
         internal int ItemCount => _itemCount;
 
         /// <summary>First index that has a live cell.</summary>
@@ -100,7 +102,15 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>Syncs the live cells with the current scroll position; cheap when the range did not change.</summary>
-        internal void Refresh()
+        internal void Refresh() => Refresh(DeferBinding ? 0 : int.MaxValue);
+
+        internal bool BindNextVisibleCell()
+        {
+            Refresh(1);
+            return _activeCells.Count == _endActive - _firstActive;
+        }
+
+        private void Refresh(int bindingBudget)
         {
             if (_content == null)
             {
@@ -126,11 +136,12 @@ namespace OpenSekai.App.UI
                 Release(_releaseScratch[i]);
             }
 
-            for (int index = first; index < end; index++)
+            for (int index = first; index < end && bindingBudget > 0; index++)
             {
                 if (!_activeCells.ContainsKey(index))
                 {
                     Bind(index);
+                    bindingBudget--;
                 }
             }
         }

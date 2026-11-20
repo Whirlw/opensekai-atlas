@@ -21,9 +21,6 @@ namespace OpenSekai.App.UI
     /// its library card over the screen into the library's ground, and takes back over when the
     /// library's back button (or the Android back key) is pressed. Only one of the two pages is
     /// drawn at a time; each has its own camera.
-    ///
-    /// The library is always built, even under the splash, so anything that waits for the library
-    /// page (the editor's checks and screenshot runs) still finds it ready.
     /// </summary>
     public sealed class HomeScreen : MonoBehaviour
     {
@@ -35,6 +32,11 @@ namespace OpenSekai.App.UI
 
         private AppContext _context;
         private LibraryScreen _library;
+        private bool _libraryCovered;
+        private int _homeShownFrame;
+        private bool _introSummaryPending;
+        private bool _showHomeWhenReady;
+        private bool _homeJacketsReady;
         private ServerScreen _server;
         private CancellationTokenSource _serverPlayCancellation;
         private LibraryLoadingOverlay _serverLoading;
@@ -49,7 +51,7 @@ namespace OpenSekai.App.UI
         private JacketThumbnails _thumbnails;
         private CancellationTokenSource _jacketLoad;
         private MotionHandle _idle;
-        private int _idleLoops;
+        private double _idleTime;
         private float _idleLast;
         private float _quitArmedUntil = -1f;
         private bool _homeShown;
@@ -69,22 +71,21 @@ namespace OpenSekai.App.UI
         /// <summary>True once the emblem has its bundled layers.</summary>
         public bool IsBrandReady => _emblem != null;
 
-        /// <param name="library">The library page this home page hands over to and takes back from.</param>
         /// <param name="coldStart">Open the home page on launch, or restore the previous page after a live.</param>
-        public static HomeScreen Create(AppContext context, LibraryScreen library, bool coldStart, bool playIntro)
+        public static HomeScreen Create(AppContext context, bool coldStart, bool playIntro)
         {
             var host = new GameObject("HomeScreen");
             HomeScreen screen = host.AddComponent<HomeScreen>();
-            screen.Build(context, library);
+            screen.Build(context);
             if (coldStart)
             {
                 if (playIntro) screen.StartIntro();
-                else screen.ShowHomeImmediately();
+                else screen.StartWithoutIntro();
             }
             else
             {
                 screen.HideHome();
-                if (!screen.RestoreServerAfterLive()) library?.SetPresented(true, false);
+                if (!screen.RestoreServerAfterLive()) screen.ShowReadyLibrary(false);
             }
 
             return screen;
@@ -101,18 +102,20 @@ namespace OpenSekai.App.UI
             _navigating = false;
             HideServer();
             HideHome();
-            _library?.SetPresented(true, false);
+            ShowReadyLibrary(false);
         }
 
         /// <summary>Shows the settled home page at once.</summary>
-        public void ShowHomeImmediately()
+        public void ShowHomeImmediately() => ShowSettledHome(refreshSummary: true);
+
+        private void ShowSettledHome(bool refreshSummary)
         {
             _view.StopTransition();
             _splash.Stop();
             _navigating = false;
             _library?.SetPresented(false, false);
             HideServer();
-            ShowHome();
+            ShowHome(refreshSummary);
             _about.Hide();
             _splash.Evaluate(HomeSplash.Length);
             _view.ApplyExpansion(0f);
@@ -186,15 +189,10 @@ namespace OpenSekai.App.UI
 
         // ---------------------------------------------------------------- building
 
-        private void Build(AppContext context, LibraryScreen library)
+        private void Build(AppContext context)
         {
             Current = this;
             _context = context;
-            _library = library;
-            if (_library != null)
-            {
-                _library.BackRequested += GoHome;
-            }
 
             _camera = CreateCamera();
             _canvasRoot = new GameObject("HomeCanvas", typeof(RectTransform));
@@ -230,9 +228,17 @@ namespace OpenSekai.App.UI
         private void StartIntro()
         {
             _library?.SetPresented(false, false);
-            ShowHome();
+            ShowHome(refreshSummary: false);
+            _introSummaryPending = true;
             _view.Interactable = false;
             _splash.Play(OnIntroDone);
+        }
+
+        private void StartWithoutIntro()
+        {
+            _canvasRoot.SetActive(false);
+            _showHomeWhenReady = true;
+            RefreshLibrarySummary();
         }
 
         private void OnIntroDone()
@@ -242,21 +248,40 @@ namespace OpenSekai.App.UI
 
         // ---------------------------------------------------------------- navigation
 
+        private void ShowReadyLibrary(bool animate)
+        {
+            var library = EnsureLibrary();
+            library.FinishBuild();
+            library.SetPresented(true, animate);
+        }
+
+        private LibraryScreen EnsureLibrary()
+        {
+            if (_library == null)
+            {
+                _library = LibraryScreen.BeginBuild(_context);
+                _library.BackRequested += GoHome;
+            }
+
+            return _library;
+        }
+
         private void OpenLibrary()
         {
-            if (_navigating || _library == null)
+            if (_navigating || !_homeShown)
             {
                 return;
             }
 
             _navigating = true;
-            UiSound.Play(UiCue.Forward);
-            _view.PlayExpand(() =>
+            if (_splash.IsPlaying)
             {
-                HideHome();
-                _library.SetPresented(true, true);
-                _navigating = false;
-            });
+                // The card accepts taps during the last moments of the home entrance.
+                _splash.Stop();
+                _splash.Evaluate(HomeSplash.Length);
+            }
+            UiSound.Play(UiCue.Forward);
+            _view.PlayExpand(() => _libraryCovered = true);
         }
 
         private void GoHome()
@@ -465,19 +490,26 @@ namespace OpenSekai.App.UI
             Debug.Log("[HomeScreen] Library refreshed after server import.");
         }
 
-        private void ShowHome()
+        private void ShowHome(bool refreshSummary = true)
         {
+            _showHomeWhenReady = false;
             _homeShown = true;
+            _homeShownFrame = Time.frameCount;
+            _introSummaryPending = false;
+            _libraryCovered = false;
             _canvasRoot.SetActive(true);
             _camera.enabled = true;
             _quitArmedUntil = -1f;
-            RefreshLibrarySummary();
+            if (refreshSummary) RefreshLibrarySummary();
             StartIdle();
         }
 
         private void HideHome()
         {
+            _showHomeWhenReady = false;
             _homeShown = false;
+            _libraryCovered = false;
+            _splash.Stop();
             _idle.TryCancel();
             _idle = default;
             _about.Hide();
@@ -488,7 +520,38 @@ namespace OpenSekai.App.UI
 
         private void Update()
         {
-            if (_homeShown && Application.isFocused) _splash.Tick(Time.unscaledDeltaTime);
+            if (_showHomeWhenReady)
+            {
+                if (_homeJacketsReady) ShowSettledHome(refreshSummary: false);
+                return;
+            }
+            if (_homeShown)
+            {
+                if (_introSummaryPending && Time.frameCount > _homeShownFrame)
+                {
+                    _introSummaryPending = false;
+                    RefreshLibrarySummary();
+                }
+                if (_splash.IsPlaying && !_libraryCovered)
+                {
+                    if (Application.isFocused)
+                    {
+                        _splash.Tick(Time.unscaledDeltaTime, _homeJacketsReady);
+                    }
+                }
+                else if (_homeShownFrame < Time.frameCount)
+                {
+                    // Let the settled home page render before spending frames on the hidden library.
+                    var library = EnsureLibrary();
+                    library.AdvanceBuild();
+                    if (_libraryCovered && library.IsReady)
+                    {
+                        HideHome();
+                        library.SetPresented(true, true);
+                        _navigating = false;
+                    }
+                }
+            }
 
             if (!NativeInput.BackPressedThisFrame || DialogBase.OwnsHardwareBack) return;
             if (_serverPlayCancellation != null)
@@ -567,7 +630,7 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            _idleLoops = 0;
+            _idleTime = 0d;
             _idleLast = 0f;
             float period = HomeTheme.Motion.IDLE_PERIOD;
             _idle = LMotion.Create(0f, period, period)
@@ -578,13 +641,12 @@ namespace OpenSekai.App.UI
 
         private void OnIdle(float time)
         {
-            if (time < _idleLast)
-            {
-                _idleLoops++;
-            }
-
+            float elapsed = time - _idleLast;
+            if (elapsed < 0f) elapsed += HomeTheme.Motion.IDLE_PERIOD;
+            // A long frame or resuming the app should not fling the covers up the card.
+            _idleTime += Mathf.Min(elapsed, 0.05f);
             _idleLast = time;
-            TickIdle(_idleLoops * (double)HomeTheme.Motion.IDLE_PERIOD + time);
+            TickIdle(_idleTime);
         }
 
         private void TickIdle(double time)
@@ -597,11 +659,12 @@ namespace OpenSekai.App.UI
 
         /// <summary>
         /// Counts packages and plays, finds the last song played, and loads the jackets for the
-        /// library card. Packages and history both come from caches the library page already
-        /// filled, so nothing is read from disk here but thumbnails.
+        /// library card independently of the library page.
         /// </summary>
         private void RefreshLibrarySummary()
         {
+            _homeJacketsReady = false;
+            CancelJacketLoad();
             IReadOnlyList<SongPackageItem> items;
             IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary> history;
             try
@@ -613,6 +676,7 @@ namespace OpenSekai.App.UI
             {
                 Debug.LogWarning("[Home] Could not read the library: " + exception.Message);
                 _view.SetSummary(HomeLibrarySummary.Empty);
+                _homeJacketsReady = true;
                 return;
             }
 
@@ -654,7 +718,6 @@ namespace OpenSekai.App.UI
                 AddJacket(jackets, item);
             }
 
-            CancelJacketLoad();
             _jacketLoad = new CancellationTokenSource();
             LoadJacketsAsync(jackets, recent, _jacketLoad.Token).Forget();
         }
@@ -700,6 +763,7 @@ namespace OpenSekai.App.UI
             }
 
             _view.SetMarquee(sprites.ToArray());
+            _homeJacketsReady = true;
         }
 
         private void CancelJacketLoad()

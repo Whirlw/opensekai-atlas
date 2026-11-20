@@ -189,11 +189,13 @@ namespace OpenSekai.App.UI
             IsPlaying = true;
         }
 
-        internal void Tick(float deltaTime)
+        internal void Tick(float deltaTime, bool jacketsReady)
         {
             if (!IsPlaying || _paused) return;
+            if (_time == HANDOFF && !jacketsReady) return;
             // Cold-start stalls should stretch the animation instead of skipping its reveal.
             float next = _time + Mathf.Min(deltaTime, MAX_FRAME_SECONDS);
+            if (_time < HANDOFF) next = Mathf.Min(next, HANDOFF);
             if (next >= Length) Complete();
             else Advance(next);
         }

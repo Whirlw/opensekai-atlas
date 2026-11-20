@@ -157,7 +157,7 @@ namespace OpenSekai.EditorTools.Screenshots
         {
             yield return WaitForLibrary();
             LibraryScreen screen = UnityEngine.Object.FindFirstObjectByType<LibraryScreen>();
-            LibrarySettingsPanel settings = UnityEngine.Object.FindFirstObjectByType<LibrarySettingsPanel>(FindObjectsInactive.Include);
+            LibrarySettingsPanel settings = screen.GetComponentInChildren<LibrarySettingsPanel>(true);
             LibraryResultPanel resultPanel = UnityEngine.Object.FindFirstObjectByType<LibraryResultPanel>(FindObjectsInactive.Include);
             LibraryActionsPanel actionsPanel = UnityEngine.Object.FindFirstObjectByType<LibraryActionsPanel>(FindObjectsInactive.Include);
             LibraryLoadingOverlay loading = UnityEngine.Object.FindFirstObjectByType<LibraryLoadingOverlay>(FindObjectsInactive.Include);
@@ -172,8 +172,8 @@ namespace OpenSekai.EditorTools.Screenshots
             string detail = null;
             if (panel == "settings" || panel == "settings-trace")
             {
-                if (settings == null) throw new InvalidOperationException("LibrarySettingsPanel not found.");
-                settings.Show();
+                ((LibraryView)view).ShowSettings();
+                settings = screen.GetComponentInChildren<LibrarySettingsPanel>(true);
                 if (panel == "settings-trace")
                 {
                     GameObject trace = settings.transform.GetComponentsInChildren<Transform>(true)
@@ -188,6 +188,7 @@ namespace OpenSekai.EditorTools.Screenshots
                 ResultSample sample = shot.result ?? new ResultSample();
                 // Played from the selected package, so the card shows its jacket like a real run.
                 screen.ShowResult(ToResult(sample, selected?.Entry?.RootDirectory));
+                resultPanel = screen.GetComponentInChildren<LibraryResultPanel>(true);
                 detail = sample.kind + " " + sample.score + " " + sample.rank;
             }
 
@@ -195,6 +196,7 @@ namespace OpenSekai.EditorTools.Screenshots
             {
                 if (presenter == null || selected == null) throw new InvalidOperationException("No package is selected.");
                 presenter.GetType().GetMethod("OpenActionsForSelected", ANY).Invoke(presenter, null);
+                actionsPanel = screen.GetComponentInChildren<LibraryActionsPanel>(true);
                 if (panel == "actions-armed")
                 {
                     // The first tap on 删除曲包 only arms it.
@@ -852,9 +854,7 @@ namespace OpenSekai.EditorTools.Screenshots
             return WaitUntil(() =>
             {
                 LibraryScreen screen = UnityEngine.Object.FindFirstObjectByType<LibraryScreen>();
-                // A cold start opens on the splash and the home page, with the library built
-                // under them; library shots want the library itself on screen.
-                if (screen != null && !screen.IsPresented && HomeScreen.Current != null && !PlayService.Instance.IsStarting)
+                if ((screen == null || !screen.IsPresented) && HomeScreen.Current != null && !PlayService.Instance.IsStarting)
                 {
                     HomeScreen.Current.ShowLibraryImmediately();
                 }

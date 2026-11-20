@@ -99,6 +99,7 @@ namespace OpenSekai.App.UI
         private readonly CanvasGroup _art;
         private readonly RectTransform _marquee;
         private readonly RectTransform[] _columns = new RectTransform[COLUMNS];
+        private readonly int[] _columnSteps = new int[COLUMNS];
         private readonly Image[] _jackets = new Image[COLUMNS * ROWS];
         private readonly GameObject[] _placeholders = new GameObject[COLUMNS * ROWS];
         private readonly Image _cover;
@@ -149,6 +150,7 @@ namespace OpenSekai.App.UI
                 LibraryWidgets.Place(strip, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                     new Vector2((column - (COLUMNS - 1) * 0.5f) * pitch, 0f), new Vector2(pitch, pitch * ROWS));
                 _columns[column] = strip;
+                _columnSteps[column] = int.MinValue;
                 for (int row = 0; row < ROWS; row++)
                 {
                     int index = column * ROWS + row;
@@ -369,12 +371,14 @@ namespace OpenSekai.App.UI
                 float speed = HomeTheme.Motion.MARQUEE_SPEED * (column == 1 ? 0.8f : 1f);
                 float offset = (float)((time * speed * direction + column * pitch * 0.5f) % span);
                 RectTransform strip = _columns[column];
+                int step = Mathf.FloorToInt(offset / pitch);
+                strip.anchoredPosition = new Vector2(strip.anchoredPosition.x, offset - step * pitch);
+                if (_columnSteps[column] == step) continue;
+                _columnSteps[column] = step;
                 for (int row = 0; row < ROWS; row++)
                 {
-                    float y = row * pitch + offset;
-                    // Wrap into [-span/2, span/2) so every tile stays inside its strip.
-                    y = Mathf.Repeat(y + span * 0.5f, span) - span * 0.5f;
-                    ((RectTransform)strip.GetChild(row)).anchoredPosition = new Vector2(0f, y);
+                    int slot = (row + step + ROWS + ROWS / 2) % ROWS - ROWS / 2;
+                    ((RectTransform)strip.GetChild(row)).anchoredPosition = new Vector2(0f, slot * pitch);
                 }
             }
         }

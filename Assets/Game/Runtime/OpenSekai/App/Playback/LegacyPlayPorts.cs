@@ -57,6 +57,7 @@ namespace OpenSekai.App.Playback
         {
             get
             {
+                if (UI.HomeScreen.Current != null && UI.HomeScreen.Current.IsServerShown) return true;
                 ILibraryPage page = LibraryPageRegistry.Current;
                 if (page != null)
                 {

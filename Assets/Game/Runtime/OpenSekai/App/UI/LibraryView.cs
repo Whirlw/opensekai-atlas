@@ -104,7 +104,7 @@ namespace OpenSekai.App.UI
         private VirtualListView ActiveList =>
             _state != null && _state.ViewMode == LibraryViewMode.Grid ? _tileList : _rowList;
 
-        internal void BuildLayout(LibraryPresenter presenter)
+        internal IEnumerable<object> BuildLayout(LibraryPresenter presenter)
         {
             _presenter = presenter;
 
@@ -144,8 +144,11 @@ namespace OpenSekai.App.UI
             RectTransform overlay = LibraryUi.CreateRect("Overlay", root);
             LibraryUi.Stretch(overlay);
 
+            ApplyVisibility();
             BuildTopBar(root, overlay, margin);
+            yield return null;
             BuildListColumn(main);
+            yield return null;
 
             RectTransform detailRoot = LibraryUi.CreateRect("DetailColumn", main);
             detailRoot.anchorMin = new Vector2(DETAIL_COLUMN, 0f);
@@ -171,50 +174,17 @@ namespace OpenSekai.App.UI
             ApplyVisibility();
         }
 
-        internal void BuildPanels(LibraryPresenter presenter)
+        internal IEnumerable<object> BuildInitialListing()
         {
-            var root = _page.transform;
-
-            try
+            // A hidden library can bind its first screen of jackets across frames while home scrolls.
+            _rowList.DeferBinding = _tileList.DeferBinding = !_presented;
+            _presenter.Refresh();
+            if (!_presented)
             {
-                _settingsPanel = LibrarySettingsPanel.Create(root, presenter.OnSettingsChanged);
+                yield return null;
+                while (!ActiveList.BindNextVisibleCell()) yield return null;
             }
-            catch (Exception exception)
-            {
-                _settingsPanel = null;
-                Debug.LogWarning("[LibraryScreen] Could not build the settings panel: " + exception);
-            }
-
-            try
-            {
-                _resultPanel = LibraryResultPanel.Create(root, presenter.OnResultRetry);
-                _resultPanel.OnClose = ResumePreview;
-            }
-            catch (Exception exception)
-            {
-                _resultPanel = null;
-                Debug.LogWarning("[LibraryScreen] Could not build the result panel: " + exception);
-            }
-
-            try
-            {
-                _loadingOverlay = LibraryLoadingOverlay.Create(root, presenter.OnCancelPlayback);
-            }
-            catch (Exception exception)
-            {
-                _loadingOverlay = null;
-                Debug.LogWarning("[LibraryScreen] Could not build the loading overlay: " + exception);
-            }
-
-            try
-            {
-                _actionsPanel = LibraryActionsPanel.Create(root);
-            }
-            catch (Exception exception)
-            {
-                _actionsPanel = null;
-                Debug.LogWarning("[LibraryScreen] Could not build the actions panel: " + exception);
-            }
+            _rowList.DeferBinding = _tileList.DeferBinding = false;
         }
 
         public void Render(LibraryViewState state)
@@ -253,7 +223,7 @@ namespace OpenSekai.App.UI
                 list.ScrollTo(selectedIndex);
             }
 
-            PlayEnter(list);
+            if (_presented) PlayEnter(list);
 
             _emptyText.gameObject.SetActive(_items.Count == 0);
             _emptyText.text = listing.TotalCount == 0 ? "还没有曲包" : "没有符合条件的曲包";
@@ -301,9 +271,7 @@ namespace OpenSekai.App.UI
         public void ShowSettings()
         {
             if (_settingsPanel == null)
-            {
-                return;
-            }
+                _settingsPanel = LibrarySettingsPanel.Create(_page.transform, _presenter.OnSettingsChanged);
 
             _settingsPanel.SetAccent(Accent);
             _settingsPanel.Show();
@@ -312,11 +280,16 @@ namespace OpenSekai.App.UI
         public void ShowResult(PlayResult result)
         {
             _preview?.StopPreview();
-            if (_resultPanel == null || result == null)
+            if (result == null)
             {
                 return;
             }
 
+            if (_resultPanel == null)
+            {
+                _resultPanel = LibraryResultPanel.Create(_page.transform, _presenter.OnResultRetry);
+                _resultPanel.OnClose = ResumePreview;
+            }
             _resultPanel.Show(result, null, Accent);
             LoadPanelArtwork(result.PackageDirectory, _resultPanel.SetArtwork);
         }
@@ -326,9 +299,7 @@ namespace OpenSekai.App.UI
             _startingPlayback = true;
             _preview?.StopPreview();
             if (_loadingOverlay == null)
-            {
-                return;
-            }
+                _loadingOverlay = LibraryLoadingOverlay.Create(_page.transform, _presenter.OnCancelPlayback);
 
             _loadingOverlay.Show(title, "正在准备…", null, Accent);
             LoadPanelArtwork(packageDirectory, _loadingOverlay.SetArtwork);
@@ -618,12 +589,13 @@ namespace OpenSekai.App.UI
 
         public void ShowActions(SongPackageItem item, Action export, Action delete)
         {
-            if (_actionsPanel == null || item == null)
+            if (item == null)
             {
                 return;
             }
 
             Sprite cover = item == _selected ? _detail?.Cover : null;
+            if (_actionsPanel == null) _actionsPanel = LibraryActionsPanel.Create(_page.transform);
             _actionsPanel.Show(LibraryModel.BuildTitle(item), DescribePackage(item), cover, Accent, export, delete);
         }
 
