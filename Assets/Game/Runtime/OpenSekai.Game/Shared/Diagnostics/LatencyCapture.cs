@@ -14,13 +14,13 @@ namespace OpenSekai.Shared.Diagnostics
 {
     public static class LatencyCapture
     {
-        private const string PrefKey = "diagnostics.latency_capture";
-        private const string MixPrefKey = "diagnostics.audio_mix_probe";
+        private const string PREF_KEY = "diagnostics.latency_capture";
+        private const string MIX_PREF_KEY = "diagnostics.audio_mix_probe";
         // A dense Master segment records about 0.8 rows per ms of play; keep a full song in memory.
-        internal const int Capacity = 262144;
+        internal const int CAPACITY = 262144;
         // Android probe rows are appended at segment end and must not compete with gameplay rows.
-        private const int ProbeCapacity = AndroidTouchProbe.Capacity + 4096;
-        private const int MixCapacity = 2048;
+        private const int PROBE_CAPACITY = AndroidTouchProbe.CAPACITY + 4096;
+        private const int MIX_CAPACITY = 2048;
 
         private struct Sample
         {
@@ -47,20 +47,20 @@ namespace OpenSekai.Shared.Diagnostics
 
         public static bool Enabled
         {
-            get => PlayerPrefs.GetInt(PrefKey, 0) != 0;
+            get => PlayerPrefs.GetInt(PREF_KEY, 0) != 0;
             set
             {
-                PlayerPrefs.SetInt(PrefKey, value ? 1 : 0);
+                PlayerPrefs.SetInt(PREF_KEY, value ? 1 : 0);
                 PlayerPrefs.Save();
             }
         }
 
         public static bool MixProbeEnabled
         {
-            get => PlayerPrefs.GetInt(MixPrefKey, 0) != 0;
+            get => PlayerPrefs.GetInt(MIX_PREF_KEY, 0) != 0;
             set
             {
-                PlayerPrefs.SetInt(MixPrefKey, value ? 1 : 0);
+                PlayerPrefs.SetInt(MIX_PREF_KEY, value ? 1 : 0);
                 PlayerPrefs.Save();
             }
         }
@@ -73,17 +73,17 @@ namespace OpenSekai.Shared.Diagnostics
             if (Active || !Enabled)
                 return;
 
-            _samples = Interlocked.Exchange(ref _spareSamples, null) ?? new Sample[Capacity];
+            _samples = Interlocked.Exchange(ref _spareSamples, null) ?? new Sample[CAPACITY];
             _count = 0;
             _overflow = 0;
-            _probeSamples = new Sample[ProbeCapacity];
+            _probeSamples = new Sample[PROBE_CAPACITY];
             _probeCount = 0;
             _probeOverflow = 0;
             bool probe = MixProbeEnabled;
             if (probe)
             {
                 // Each ticket belongs to one capture. An in-flight callback keeps its old ticket.
-                _mixTickets = new AudioMixProbe.Ticket[MixCapacity];
+                _mixTickets = new AudioMixProbe.Ticket[MIX_CAPACITY];
                 for (int i = 0; i < _mixTickets.Length; i++)
                     _mixTickets[i] = new AudioMixProbe.Ticket();
             }

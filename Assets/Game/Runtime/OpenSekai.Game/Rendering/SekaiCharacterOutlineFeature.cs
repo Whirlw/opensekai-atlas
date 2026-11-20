@@ -5,8 +5,9 @@ namespace Sekai.Rendering
 {
 	public class SekaiCharacterOutlineFeature : ScriptableRendererFeature
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_settings")]
 		[SerializeField]
-		private SekaiCharacterOutlinePass.OutlineSettings _settings = new SekaiCharacterOutlinePass.OutlineSettings();
+		private SekaiCharacterOutlinePass.OutlineSettings settings = new SekaiCharacterOutlinePass.OutlineSettings();
 
 		private SekaiCharacterOutlinePass _pass;
 
@@ -19,7 +20,7 @@ namespace Sekai.Rendering
 		{
 			if (_pass != null)
 			{
-				_pass.Setup(_settings);
+				_pass.Setup(settings);
 				_pass.renderPassEvent = RenderPassEvent.BeforeRendering;
 				renderer.EnqueuePass(_pass);
 			}

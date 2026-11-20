@@ -14,7 +14,7 @@ namespace OpenSekai.Tests.EditMode.Live
 	[TestFixture]
 	public class SingleTimeSourceTests
 	{
-		private static readonly string[] OffsetJudgeTimeReaders =
+		private static readonly string[] _offsetJudgeTimeReaders =
 		{
 			// The declaration, the refresh in Excute, the pool reset, and the pair note helper that
 			// keeps the cache for the view. Nothing on the judging path may read it.
@@ -22,7 +22,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			"LiveUtility.cs",
 		};
 
-		private static readonly string[] FrameCountUsers =
+		private static readonly string[] _frameCountUsers =
 		{
 			// ReferenceFrame documents the constant; the two views only use the frame number to dedupe
 			// feedback inside a single displayed frame, which is a rendering concern.
@@ -53,7 +53,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			var offenders = new List<string>();
 			foreach (FileInfo file in RuntimeSources())
 			{
-				if (Array.IndexOf(OffsetJudgeTimeReaders, file.Name) >= 0)
+				if (Array.IndexOf(_offsetJudgeTimeReaders, file.Name) >= 0)
 				{
 					continue;
 				}
@@ -76,7 +76,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			var offenders = new List<string>();
 			foreach (FileInfo file in RuntimeSources())
 			{
-				if (Array.IndexOf(FrameCountUsers, file.Name) >= 0)
+				if (Array.IndexOf(_frameCountUsers, file.Name) >= 0)
 				{
 					continue;
 				}

@@ -7,9 +7,9 @@ namespace Sekai.Live
 {
 	public class NotesViewManager
 	{
-		private static readonly int DefaultNoteDictCapacity;
+		private static readonly int _defaultNoteDictCapacity;
 
-		private static readonly int NoteShowRateId = Shader.PropertyToID("_NoteShowRate");
+		private static readonly int _noteShowRateId = Shader.PropertyToID("_NoteShowRate");
 
 		private Dictionary<INote, BaseNoteView> _spawnNoteDict;
 
@@ -27,7 +27,7 @@ namespace Sekai.Live
 
 		public void Setup(Transform liveRoot)
 		{
-			_spawnNoteDict = new Dictionary<INote, BaseNoteView>(DefaultNoteDictCapacity);
+			_spawnNoteDict = new Dictionary<INote, BaseNoteView>(_defaultNoteDictCapacity);
 			GameObject root = new GameObject("NoteRoot");
 			_noteRoot = root.transform;
 			_noteRoot.SetParent(liveRoot, false);
@@ -105,7 +105,7 @@ namespace Sekai.Live
 		{
 			if (material != null)
 			{
-				material.SetFloat(NoteShowRateId, NoteShowRate);
+				material.SetFloat(_noteShowRateId, NoteShowRate);
 			}
 		}
 
@@ -233,7 +233,7 @@ namespace Sekai.Live
 
 		static NotesViewManager()
 		{
-			DefaultNoteDictCapacity = 100;
+			_defaultNoteDictCapacity = 100;
 		}
 
 		private Dictionary<NoteType, NotePool> CreateTypedPools(

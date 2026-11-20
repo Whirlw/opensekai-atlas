@@ -35,7 +35,7 @@
 				if (!isDecorationConnection)
 				{
 					OffsetJudgeTime = currentFrameInfo.time - MusicScoreInfo.time;
-					if (OffsetJudgeTime > ConnectionNote.SlideLateWindowSeconds)
+					if (OffsetJudgeTime > ConnectionNote.SLIDE_LATE_WINDOW_SECONDS)
 					{
 						JudgeInfo = (NoteResult.Pass, NoteResultDescription.None);
 						State = NoteState.Done;

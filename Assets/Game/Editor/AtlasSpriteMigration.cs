@@ -26,14 +26,14 @@ namespace OpenSekai.EditorTools
     /// </summary>
     public static class AtlasSpriteMigration
     {
-        private const string SpriteFolder = "Assets/Graphics/Sprites";
-        private const string TextureFolder = "Assets/Graphics/Textures";
-        private const string OutputRoot = "Assets/Graphics/AtlasSprites";
-        private const string AtlasFolder = "Assets/Graphics/SpriteAtlases";
-        private const string ArtSourceHud = "ArtSource/HUD";
-        private const string ReportFolder = "TestResults";
+        private const string SPRITE_FOLDER = "Assets/Graphics/Sprites";
+        private const string TEXTURE_FOLDER = "Assets/Graphics/Textures";
+        private const string OUTPUT_ROOT = "Assets/Graphics/AtlasSprites";
+        private const string ATLAS_FOLDER = "Assets/Graphics/SpriteAtlases";
+        private const string ART_SOURCE_HUD = "ArtSource/HUD";
+        private const string REPORT_FOLDER = "TestResults";
 
-        private static readonly string[] ReferenceExtensions =
+        private static readonly string[] _referenceExtensions =
         {
             ".prefab", ".unity", ".asset", ".anim", ".controller", ".overrideController", ".mat",
             ".playable", ".spriteatlas", ".spriteatlasv2"
@@ -77,8 +77,8 @@ namespace OpenSekai.EditorTools
         /// </summary>
         public static string AtlasPathFor(string atlasName)
         {
-            var rebuilt = $"{AtlasFolder}/Rebuilt/{atlasName}.spriteatlas";
-            return File.Exists(rebuilt) ? rebuilt : $"{AtlasFolder}/{atlasName}.spriteatlasv2";
+            var rebuilt = $"{ATLAS_FOLDER}/Rebuilt/{atlasName}.spriteatlas";
+            return File.Exists(rebuilt) ? rebuilt : $"{ATLAS_FOLDER}/{atlasName}.spriteatlasv2";
         }
 
         /// <summary>Migrates every sprite that points into a <c>sactx-*-&lt;atlasName&gt;-*.png</c> page.</summary>
@@ -87,7 +87,7 @@ namespace OpenSekai.EditorTools
             var report = new StringBuilder();
             report.AppendLine($"[AtlasSpriteMigration] {atlasName}");
 
-            var atlasPages = Directory.GetFiles(TextureFolder, $"sactx-*-{atlasName}-*.png")
+            var atlasPages = Directory.GetFiles(TEXTURE_FOLDER, $"sactx-*-{atlasName}-*.png")
                 .Select(p => p.Replace('\\', '/'))
                 .ToDictionary(p => AssetDatabase.AssetPathToGUID(p), p => p);
             if (atlasPages.Count == 0)
@@ -95,7 +95,7 @@ namespace OpenSekai.EditorTools
                 return report.AppendLine("no sactx page found").ToString();
             }
 
-            var outputFolder = $"{OutputRoot}/{atlasName}";
+            var outputFolder = $"{OUTPUT_ROOT}/{atlasName}";
             var entries = CollectSprites(atlasPages, outputFolder);
             if (entries.Count == 0)
             {
@@ -181,8 +181,8 @@ namespace OpenSekai.EditorTools
             }
             report.AppendLine($"references checked={before.Count} broken={broken}");
 
-            Directory.CreateDirectory(ReportFolder);
-            File.WriteAllText($"{ReportFolder}/atlas-migration-{atlasName}.txt", report.ToString());
+            Directory.CreateDirectory(REPORT_FOLDER);
+            File.WriteAllText($"{REPORT_FOLDER}/atlas-migration-{atlasName}.txt", report.ToString());
             return report.ToString();
         }
 
@@ -195,25 +195,25 @@ namespace OpenSekai.EditorTools
         {
             var entries = new List<Entry>();
             var takenNames = new HashSet<string>();
-            foreach (var path in Directory.GetFiles(SpriteFolder, "*.asset").Select(p => p.Replace('\\', '/')).OrderBy(p => p))
+            foreach (var path in Directory.GetFiles(SPRITE_FOLDER, "*.asset").Select(p => p.Replace('\\', '/')).OrderBy(p => p))
             {
                 var yaml = File.ReadAllText(path);
-                var tex = TextureRx.Match(yaml);
+                var tex = _textureRx.Match(yaml);
                 if (!tex.Success || !atlasPages.TryGetValue(tex.Groups[1].Value, out var page))
                 {
                     continue;
                 }
-                var rect = RectRx.Match(yaml);
-                var pivot = PivotRx.Match(yaml);
-                var border = BorderRx.Match(yaml);
-                var ppu = PpuRx.Match(yaml);
-                var spriteName = NameRx.Match(yaml).Groups[1].Value.Trim();
+                var rect = _rectRx.Match(yaml);
+                var pivot = _pivotRx.Match(yaml);
+                var border = _borderRx.Match(yaml);
+                var ppu = _ppuRx.Match(yaml);
+                var spriteName = _nameRx.Match(yaml).Groups[1].Value.Trim();
 
                 // AtlasImage looks sprites up by name, so the file keeps the sprite's own name. Two
                 // assets share gauge_base_h16_dbl; they take the names their ArtSource files use.
                 var fileName = Path.GetFileName(path);
                 string name;
-                if (!NameOverrides.TryGetValue(fileName, out name))
+                if (!_nameOverrides.TryGetValue(fileName, out name))
                 {
                     name = spriteName;
                     if (takenNames.Contains(name) || File.Exists($"{outputFolder}/{name}.png"))
@@ -239,19 +239,19 @@ namespace OpenSekai.EditorTools
             return entries;
         }
 
-        private static readonly Dictionary<string, string> NameOverrides = new Dictionary<string, string>
+        private static readonly Dictionary<string, string> _nameOverrides = new Dictionary<string, string>
         {
             // Pinned the same way in Tools/apply-atlas-art.ps1: the score trough and the life trough.
             { "gauge_base_h16_dbl_0.asset", "gauge_base_h16_dbl" },
             { "gauge_base_h16_dbl.asset", "gauge_base_h16_dbl_2" }
         };
 
-        private static readonly Regex NameRx = new Regex(@"^  m_Name: (.*)$", RegexOptions.Multiline);
-        private static readonly Regex TextureRx = new Regex(@"m_RD:\s*\r?\n\s*serializedVersion: \d+\s*\r?\n\s*texture: \{fileID: 2800000, guid: ([0-9a-f]{32})");
-        private static readonly Regex RectRx = new Regex(@"m_Rect:\s*\r?\n\s*serializedVersion: 2\s*\r?\n\s*x: (\S+)\s*\r?\n\s*y: (\S+)\s*\r?\n\s*width: (\S+)\s*\r?\n\s*height: (\S+)");
-        private static readonly Regex PivotRx = new Regex(@"m_Pivot: \{x: ([^,]+), y: ([^}]+)\}");
-        private static readonly Regex BorderRx = new Regex(@"m_Border: \{x: ([^,]+), y: ([^,]+), z: ([^,]+), w: ([^}]+)\}");
-        private static readonly Regex PpuRx = new Regex(@"m_PixelsToUnits: (\S+)");
+        private static readonly Regex _nameRx = new Regex(@"^  m_Name: (.*)$", RegexOptions.Multiline);
+        private static readonly Regex _textureRx = new Regex(@"m_RD:\s*\r?\n\s*serializedVersion: \d+\s*\r?\n\s*texture: \{fileID: 2800000, guid: ([0-9a-f]{32})");
+        private static readonly Regex _rectRx = new Regex(@"m_Rect:\s*\r?\n\s*serializedVersion: 2\s*\r?\n\s*x: (\S+)\s*\r?\n\s*y: (\S+)\s*\r?\n\s*width: (\S+)\s*\r?\n\s*height: (\S+)");
+        private static readonly Regex _pivotRx = new Regex(@"m_Pivot: \{x: ([^,]+), y: ([^}]+)\}");
+        private static readonly Regex _borderRx = new Regex(@"m_Border: \{x: ([^,]+), y: ([^,]+), z: ([^,]+), w: ([^}]+)\}");
+        private static readonly Regex _ppuRx = new Regex(@"m_PixelsToUnits: (\S+)");
 
         private static float F(Match match, int group)
         {
@@ -269,7 +269,7 @@ namespace OpenSekai.EditorTools
 
             foreach (var candidate in new[] { entry.Name, Path.GetFileNameWithoutExtension(entry.OldPath) })
             {
-                var art = $"{ArtSourceHud}/{candidate}.png";
+                var art = $"{ART_SOURCE_HUD}/{candidate}.png";
                 if (!File.Exists(art))
                 {
                     continue;
@@ -343,7 +343,7 @@ namespace OpenSekai.EditorTools
             importer.SaveAndReimport();
         }
 
-        private static readonly SpriteAtlasPackingSettings Packing = new SpriteAtlasPackingSettings
+        private static readonly SpriteAtlasPackingSettings _packing = new SpriteAtlasPackingSettings
         {
             padding = 4,
             blockOffset = 1,
@@ -360,7 +360,7 @@ namespace OpenSekai.EditorTools
                 var existing = AssetDatabase.LoadAssetAtPath<SpriteAtlas>(path);
                 existing.Remove(existing.GetPackables());
                 existing.Add(new Object[] { AssetDatabase.LoadAssetAtPath<DefaultAsset>(folder) });
-                existing.SetPackingSettings(Packing);
+                existing.SetPackingSettings(_packing);
                 existing.SetIncludeInBuild(true);
                 EditorUtility.SetDirty(existing);
                 AssetDatabase.SaveAssets();
@@ -378,7 +378,7 @@ namespace OpenSekai.EditorTools
 
             var importer = (SpriteAtlasImporter)AssetImporter.GetAtPath(path);
             importer.includeInBuild = true;
-            importer.packingSettings = Packing;
+            importer.packingSettings = _packing;
             importer.textureSettings = new SpriteAtlasTextureSettings
             {
                 readable = false,
@@ -432,7 +432,7 @@ namespace OpenSekai.EditorTools
             foreach (var file in Directory.GetFiles("Assets", "*.*", SearchOption.AllDirectories))
             {
                 var path = file.Replace('\\', '/');
-                if (skip.Contains(path) || !ReferenceExtensions.Contains(Path.GetExtension(path)))
+                if (skip.Contains(path) || !_referenceExtensions.Contains(Path.GetExtension(path)))
                 {
                     continue;
                 }

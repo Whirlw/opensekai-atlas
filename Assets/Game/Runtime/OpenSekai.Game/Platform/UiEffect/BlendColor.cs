@@ -16,11 +16,13 @@ namespace UiEffect
 			Override = 3
 		}
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_blendMode")]
 		[SerializeField]
-		private BlendMode _blendMode;
+		private BlendMode blendModeValue;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_color")]
 		[SerializeField]
-		private Color _color;
+		private Color colorValue;
 
 		public BlendMode blendMode
 		{

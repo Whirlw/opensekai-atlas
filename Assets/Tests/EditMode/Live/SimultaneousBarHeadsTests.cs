@@ -16,8 +16,8 @@ namespace OpenSekai.Tests.EditMode.Live
 	/// </summary>
 	public sealed class SimultaneousBarHeadsTests
 	{
-		private const float Frame = 1f / 60f;
-		private const double InputBase = 10d;
+		private const float FRAME = 1f / 60f;
+		private const double INPUT_BASE = 10d;
 
 		private static MusicScoreInfo Info(float time) => new MusicScoreInfo(0, time / 2f, time, 120, 4, 1, 1);
 
@@ -57,9 +57,9 @@ namespace OpenSekai.Tests.EditMode.Live
 			LongNote shortBar = ShortBar();
 			harness.Arrange(ScoreOf(longBar, shortBar));
 
-			harness.Step(0f, InputBase);
-			harness.Step(0.03f, InputBase + 0.03f,
-				LiveHarness.Touch(2, LanePosition(10f), InputBase + 0.03f, InputTouchPhase.Began));
+			harness.Step(0f, INPUT_BASE);
+			harness.Step(0.03f, INPUT_BASE + 0.03f,
+				LiveHarness.Touch(2, LanePosition(10f), INPUT_BASE + 0.03f, InputTouchPhase.Began));
 
 			Assert.That(shortBar.Head.Result, Is.Not.EqualTo(NoteResult.None).And.Not.EqualTo(NoteResult.Miss),
 				"a press inside the head's window judges it, whatever the bar's own end is doing");
@@ -75,14 +75,14 @@ namespace OpenSekai.Tests.EditMode.Live
 			LongNote shortBar = ShortBar();
 			harness.Arrange(ScoreOf(longBar, shortBar));
 
-			harness.Step(0f, InputBase);
+			harness.Step(0f, INPUT_BASE);
 			for (int frame = 1; frame <= 6; frame++)
 			{
-				harness.Step(frame * Frame, InputBase + frame * Frame);
+				harness.Step(frame * FRAME, INPUT_BASE + frame * FRAME);
 			}
 
-			harness.Step(0.1f, InputBase + 0.1f,
-				LiveHarness.Touch(2, LanePosition(10f), InputBase + 0.1f, InputTouchPhase.Began));
+			harness.Step(0.1f, INPUT_BASE + 0.1f,
+				LiveHarness.Touch(2, LanePosition(10f), INPUT_BASE + 0.1f, InputTouchPhase.Began));
 
 			Assert.That(shortBar.Head.Result, Is.Not.EqualTo(NoteResult.None).And.Not.EqualTo(NoteResult.Miss),
 				"the head answers inside its window even though the bar is over");
@@ -97,9 +97,9 @@ namespace OpenSekai.Tests.EditMode.Live
 			harness.Arrange(ScoreOf(longBar, shortBar));
 
 			// Both presses on one frame, long bar first - the reported order.
-			harness.Step(0f, InputBase,
-				LiveHarness.Touch(1, LanePosition(1.5f), InputBase, InputTouchPhase.Began),
-				LiveHarness.Touch(2, LanePosition(10f), InputBase, InputTouchPhase.Began));
+			harness.Step(0f, INPUT_BASE,
+				LiveHarness.Touch(1, LanePosition(1.5f), INPUT_BASE, InputTouchPhase.Began),
+				LiveHarness.Touch(2, LanePosition(10f), INPUT_BASE, InputTouchPhase.Began));
 
 			Assert.That(longBar.Head.Result, Is.Not.EqualTo(NoteResult.None).And.Not.EqualTo(NoteResult.Miss),
 				"the long bar's head is pressed first and is judged");
@@ -115,9 +115,9 @@ namespace OpenSekai.Tests.EditMode.Live
 			LongNote shortBar = ShortBar();
 			harness.Arrange(ScoreOf(longBar, shortBar));
 
-			harness.Step(0f, InputBase,
-				LiveHarness.Touch(1, LanePosition(10f), InputBase, InputTouchPhase.Began),
-				LiveHarness.Touch(2, LanePosition(1.5f), InputBase, InputTouchPhase.Began));
+			harness.Step(0f, INPUT_BASE,
+				LiveHarness.Touch(1, LanePosition(10f), INPUT_BASE, InputTouchPhase.Began),
+				LiveHarness.Touch(2, LanePosition(1.5f), INPUT_BASE, InputTouchPhase.Began));
 
 			Assert.That(shortBar.Head.Result, Is.Not.EqualTo(NoteResult.None).And.Not.EqualTo(NoteResult.Miss));
 			Assert.That(longBar.Head.Result, Is.Not.EqualTo(NoteResult.None).And.Not.EqualTo(NoteResult.Miss),
@@ -138,14 +138,14 @@ namespace OpenSekai.Tests.EditMode.Live
 			far.AddNoteListAndSetupChildNote(new NormalNote(Info(1.6f), 5, 0, 3, NoteCategory.Normal, 1f, NoteType.Default, 0f));
 			harness.Arrange(ScoreOf(tap, near, far));
 
-			const float press = 0.559f;
-			for (int frame = 0; frame * Frame < press; frame++)
+			const float PRESS = 0.559f;
+			for (int frame = 0; frame * FRAME < PRESS; frame++)
 			{
-				harness.Step(frame * Frame, InputBase + frame * Frame);
+				harness.Step(frame * FRAME, INPUT_BASE + frame * FRAME);
 			}
 
-			harness.Step(press, InputBase + press,
-				LiveHarness.Touch(1, LanePosition(3f), InputBase + press, InputTouchPhase.Began));
+			harness.Step(PRESS, INPUT_BASE + PRESS,
+				LiveHarness.Touch(1, LanePosition(3f), INPUT_BASE + PRESS, InputTouchPhase.Began));
 
 			Assert.That(tap.Result, Is.Not.EqualTo(NoteResult.None), "the press channel spends the press on the tap");
 			Assert.That(near.Head.Result, Is.EqualTo(NoteResult.None), "the finger's one press is already spent");
@@ -164,22 +164,22 @@ namespace OpenSekai.Tests.EditMode.Live
 			harness.Arrange(ScoreOf(bar));
 
 			int frame = 0;
-			for (; frame * Frame < 0.5f; frame++)
+			for (; frame * FRAME < 0.5f; frame++)
 			{
-				harness.Step(frame * Frame, InputBase + frame * Frame);
+				harness.Step(frame * FRAME, INPUT_BASE + frame * FRAME);
 			}
 
-			harness.Step(frame * Frame, InputBase + frame * Frame,
-				LiveHarness.Touch(1, LanePosition(1.5f), InputBase + frame * Frame, InputTouchPhase.Began));
+			harness.Step(frame * FRAME, INPUT_BASE + frame * FRAME,
+				LiveHarness.Touch(1, LanePosition(1.5f), INPUT_BASE + frame * FRAME, InputTouchPhase.Began));
 			Assert.That(bar.Head.Result, Is.Not.EqualTo(NoteResult.None).And.Not.EqualTo(NoteResult.Miss));
 
 			float furthest = 0f;
-			for (frame++; frame * Frame < 1.3f; frame++)
+			for (frame++; frame * FRAME < 1.3f; frame++)
 			{
 				float centre = (bar.LaneStartF + bar.LaneEndF) * 0.5f;
 				furthest = Mathf.Max(furthest, centre);
-				harness.Step(frame * Frame, InputBase + frame * Frame,
-					LiveHarness.Touch(1, LanePosition(centre), InputBase + frame * Frame, InputTouchPhase.Moved));
+				harness.Step(frame * FRAME, INPUT_BASE + frame * FRAME,
+					LiveHarness.Touch(1, LanePosition(centre), INPUT_BASE + frame * FRAME, InputTouchPhase.Moved));
 			}
 
 			Assert.That(furthest, Is.GreaterThan(bar.JudgeLaneEnd), "the finger has left the head's lanes");

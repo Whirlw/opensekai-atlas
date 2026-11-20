@@ -9,9 +9,9 @@ namespace OpenSekai.Charts
     /// <summary>NextRUSH LevelData, retaining named entities and their native fields.</summary>
     public sealed class NextRushChart
     {
-        public const int MaxJsonCharacters = 32 * 1024 * 1024;
-        public const int MaxEntities = 100000;
-        public const double MaxAbsoluteTimeSeconds = 1000000;
+        public const int MAX_JSON_CHARACTERS = 32 * 1024 * 1024;
+        public const int MAX_ENTITIES = 100000;
+        public const double MAX_ABSOLUTE_TIME_SECONDS = 1000000;
         public double BgmOffset { get; }
         public IReadOnlyList<NextRushEntity> Entities { get; }
         public IReadOnlyDictionary<string, NextRushEntity> NamedEntities { get; }
@@ -25,14 +25,14 @@ namespace OpenSekai.Charts
 
         public static NextRushChart Parse(string json)
         {
-            if (json == null || json.Length > MaxJsonCharacters)
+            if (json == null || json.Length > MAX_JSON_CHARACTERS)
                 throw new InvalidDataException("NextRUSH+ 谱面为空或超过大小限制。");
             using var input = new StringReader(json);
             using var reader = new JsonTextReader(input) { MaxDepth = 32, DateParseHandling = DateParseHandling.None };
             var root = JObject.Load(reader, new JsonLoadSettings { DuplicatePropertyNameHandling = DuplicatePropertyNameHandling.Error });
             if (reader.Read()) throw new InvalidDataException("NextRUSH+ 谱面包含多余的 JSON 内容。");
             double offset = NextRushEntity.ReadNumber(root["bgmOffset"], "bgmOffset");
-            if (!(root["entities"] is JArray array) || array.Count > MaxEntities)
+            if (!(root["entities"] is JArray array) || array.Count > MAX_ENTITIES)
                 throw new InvalidDataException("NextRUSH+ entities 无效或数量超过限制。");
             var entities = new List<NextRushEntity>(array.Count);
             var named = new Dictionary<string, NextRushEntity>(StringComparer.Ordinal);

@@ -64,7 +64,7 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>Where the audio is in its life, as the live clock sees it.</summary>
-		protected enum MusicPhase
+		protected internal enum MusicPhase
 		{
 			/// <summary>The clock has not started (loading, the info page).</summary>
 			NotStarted = 0,
@@ -77,20 +77,26 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>A clock step longer than this (a hitch) is cut short while the clock runs on its own.</summary>
-		private const float MaxFreeClockStepSeconds = 0.1f;
+		private const float MAX_FREE_CLOCK_STEP_SECONDS = 0.1f;
 
 		/// <summary>How long the result effect stays up before the fade to the result.</summary>
-		private const float ResultEffectHoldSeconds = 4f;
+		private const float RESULT_EFFECT_HOLD_SECONDS = 4f;
 
 		/// <summary>How much longer than the start wait the info page may take before the live goes on without it.</summary>
-		private const float IntroWaitSlackSeconds = 4f;
+		private const float INTRO_WAIT_SLACK_SECONDS = 4f;
 
 		protected MusicPhase musicPhase;
+
+#if UNITY_EDITOR
+		internal bool CaptureFinished => state == LiveControllerState.Finish;
+		internal long CaptureTimeMs { get => currentMusicTimeMs; set => currentMusicTimeMs = value; }
+		internal MusicPhase CapturePhase { get => musicPhase; set => musicPhase = value; }
+#endif
 
 		/// <summary>The music and chart spans read when the chart loaded. See <see cref="BuildTimelineSpan"/>.</summary>
 		protected OpenSekai.Shared.Live.Simulation.LiveTimelineSpan timelineSpan;
 
-		protected long TimelineStartMs => (long)Math.Floor(timelineSpan.StartSeconds * 1000d);
+		protected internal long TimelineStartMs => (long)Math.Floor(timelineSpan.StartSeconds * 1000d);
 
 		protected long TimelineEndMs => (long)Math.Ceiling(timelineSpan.EndSeconds * 1000d);
 
@@ -241,7 +247,7 @@ namespace Sekai.Core.Live
 
 				// Let the file's silence play during the info page, but wait for the actual fade-out
 				// callback before letting the clock advance past the playable start.
-				float deadline = Time.realtimeSinceStartup + Mathf.Max(waitTime, introSeconds) + IntroWaitSlackSeconds;
+				float deadline = Time.realtimeSinceStartup + Mathf.Max(waitTime, introSeconds) + INTRO_WAIT_SLACK_SECONDS;
 				while (!IsIntroFinished() && Time.realtimeSinceStartup < deadline)
 				{
 					yield return null;
@@ -514,7 +520,7 @@ namespace Sekai.Core.Live
 
 		private void AdvanceFreeClock()
 		{
-			double stepMs = Math.Min(Time.unscaledDeltaTime, MaxFreeClockStepSeconds) * 1000d + _freeClockRemainderMs;
+			double stepMs = Math.Min(Time.unscaledDeltaTime, MAX_FREE_CLOCK_STEP_SECONDS) * 1000d + _freeClockRemainderMs;
 			long wholeMs = (long)stepMs;
 			currentMusicTimeMs += wholeMs;
 			_freeClockRemainderMs = stepMs - wholeMs;
@@ -558,13 +564,13 @@ namespace Sekai.Core.Live
 			// last note, whichever ends last. The outro skip brings it forward.
 			if (state == LiveControllerState.Playing)
 			{
-				PreExit(0f, ResultEffectHoldSeconds, ResultEffectMs);
+				PreExit(0f, RESULT_EFFECT_HOLD_SECONDS, ResultEffectMs);
 			}
 			else
 			{
 				// Explicit exits can also arrive from a pause menu with the playback clock stopped.
 				float remainingSeconds = Math.Max(0L, ResultEffectMs - currentMusicTimeMs) / 1000f;
-				PreExit(remainingSeconds, ResultEffectHoldSeconds);
+				PreExit(remainingSeconds, RESULT_EFFECT_HOLD_SECONDS);
 			}
 		}
 

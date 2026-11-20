@@ -84,14 +84,14 @@ namespace OpenSekai.App.UI
 
             if (onClose != null)
             {
-                const float closeSize = 64f;
+                const float CLOSE_SIZE = 64f;
                 CloseButton = LibraryWidgets.PillButton(
-                    "Close", _card, string.Empty, () => onClose(), closeSize, closeSize,
+                    "Close", _card, string.Empty, () => onClose(), CLOSE_SIZE, CLOSE_SIZE,
                     LibraryTheme.Colors.Control, LibraryTheme.Colors.TextSecondary, sound: UiCue.Close);
                 LibraryWidgets.Icon(CloseButton.transform, LibraryIcon.Close, LibraryTheme.Colors.TextSecondary, 26f);
                 LibraryWidgets.Place(
                     (RectTransform)CloseButton.transform, new Vector2(1f, 1f), new Vector2(1f, 0.5f),
-                    new Vector2(-28f, -header * 0.5f), new Vector2(closeSize, closeSize));
+                    new Vector2(-28f, -header * 0.5f), new Vector2(CLOSE_SIZE, CLOSE_SIZE));
             }
 
             Body = LibraryUi.CreateRect("Body", _card);

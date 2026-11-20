@@ -6,11 +6,13 @@ namespace Sekai
 	[ExecuteInEditMode]
 	public class UIPartsImageOutline : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_targetImage")]
 		[SerializeField]
-		private CustomImage _targetImage;
+		private CustomImage targetImage;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_outline")]
 		[SerializeField]
-		private float _outline;
+		private float outline;
 
 		private RectTransform _targetTransform;
 
@@ -23,7 +25,7 @@ namespace Sekai
 
 		private void SetupTransforms()
 		{
-			_targetTransform = _targetImage != null ? _targetImage.transform as RectTransform : null;
+			_targetTransform = targetImage != null ? targetImage.transform as RectTransform : null;
 			_myTransform = transform as RectTransform;
 		}
 
@@ -42,8 +44,8 @@ namespace Sekai
 			Vector2 targetSize = _targetTransform.sizeDelta;
 			Vector3 targetScale = _targetTransform.localScale;
 			_myTransform.sizeDelta = new Vector2(
-				targetSize.x * targetScale.x + _outline,
-				targetSize.y * targetScale.y + _outline);
+				targetSize.x * targetScale.x + outline,
+				targetSize.y * targetScale.y + outline);
 		}
 
 		public UIPartsImageOutline()

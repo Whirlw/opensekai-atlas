@@ -11,7 +11,7 @@ namespace OpenSekai.EditorTools
 {
     public static class MissingScriptAudit
     {
-        private static readonly Regex ScriptReference = new Regex(
+        private static readonly Regex _scriptReference = new Regex(
             @"^  m_Script: \{fileID: (?<id>-?\d+)(?:, guid: (?<guid>[a-f0-9]{32}), type: \d+)?\}",
             RegexOptions.Multiline);
 
@@ -19,8 +19,8 @@ namespace OpenSekai.EditorTools
         [MenuItem("OpenSekai/Dev/Audit Missing Scripts")]
         public static void Run()
         {
-            const string output = "TestResults/missing-scripts.tsv";
-            Directory.CreateDirectory(Path.GetDirectoryName(output));
+            const string OUTPUT = "TestResults/missing-scripts.tsv";
+            Directory.CreateDirectory(Path.GetDirectoryName(OUTPUT));
             var lines = new List<string> { "asset\tkind\tguid\tfileID\tcount" };
             var scripts = new Dictionary<string, HashSet<long>>(StringComparer.Ordinal);
             var paths = AssetDatabase.GetAllAssetPaths().OrderBy(path => path, StringComparer.Ordinal);
@@ -66,8 +66,8 @@ namespace OpenSekai.EditorTools
                     lines.Add($"{path}\tcomponent\t\t\t{missingComponents - unresolved}");
             }
 
-            File.WriteAllLines(output, lines);
-            Debug.Log($"Missing script audit recorded {lines.Count - 1} rows in {output}.");
+            File.WriteAllLines(OUTPUT, lines);
+            Debug.Log($"Missing script audit recorded {lines.Count - 1} rows in {OUTPUT}.");
         }
 
         private static int CountMissingComponents(GameObject root)
@@ -84,7 +84,7 @@ namespace OpenSekai.EditorTools
             if (reader.ReadBlock(header, 0, header.Length) != header.Length || new string(header) != "%YAML")
                 yield break;
 
-            foreach (Match match in ScriptReference.Matches(reader.ReadToEnd()))
+            foreach (Match match in _scriptReference.Matches(reader.ReadToEnd()))
             {
                 long fileId = long.Parse(match.Groups["id"].Value, System.Globalization.CultureInfo.InvariantCulture);
                 string guid = match.Groups["guid"].Value;

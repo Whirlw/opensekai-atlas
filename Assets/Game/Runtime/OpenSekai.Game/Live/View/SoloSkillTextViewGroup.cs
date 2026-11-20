@@ -6,8 +6,9 @@ namespace Sekai.Core.Live
 {
 	public class SoloSkillTextViewGroup : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_skillTextViewPrefab")]
 		[SerializeField]
-		private SkillTextView _skillTextViewPrefab;
+		private SkillTextView skillTextViewPrefab;
 
 		private readonly Dictionary<int, SkillTextView> _skillTextViewMap;
 
@@ -15,7 +16,7 @@ namespace Sekai.Core.Live
 
 		public void Setup(LiveDeckMember[] members, SkillData[] skillDatas, int eventId)
 		{
-			if (members == null || _skillTextViewPrefab == null)
+			if (members == null || skillTextViewPrefab == null)
 			{
 				return;
 			}
@@ -35,7 +36,7 @@ namespace Sekai.Core.Live
 					continue;
 				}
 
-				SkillTextView view = Instantiate(_skillTextViewPrefab, transform);
+				SkillTextView view = Instantiate(skillTextViewPrefab, transform);
 				view.Setup(member, skillData, eventId);
 				if (!_skillTextViewMap.ContainsKey(cardId))
 				{

@@ -46,7 +46,25 @@ namespace OpenSekai.App.UI
         internal event Action BackRequested;
 
         /// <summary>Starts an installed package by directory, title and play mode.</summary>
-        internal event Action<string, string, bool, TemporarySongPackage> PlayRequested;
+        internal readonly struct PlayRequest
+        {
+            internal readonly string PackageDirectory;
+            internal readonly string Title;
+            internal readonly bool IsAuto;
+            internal readonly TemporarySongPackage Temporary;
+
+            internal PlayRequest(string directory, string title, bool isAuto, TemporarySongPackage temporary)
+            {
+                PackageDirectory = directory;
+                Title = title;
+                IsAuto = isAuto;
+                Temporary = temporary;
+            }
+        }
+
+        internal event Action<PlayRequest> PlayRequested;
+
+        private void RaisePlayRequested(PlayRequest request) => PlayRequested?.Invoke(request);
 
         /// <summary>A download added or replaced a package in the library.</summary>
         internal event Action LibraryChanged;
@@ -294,7 +312,7 @@ namespace OpenSekai.App.UI
         internal void RequestPlay(string packageDirectory, string title, TemporarySongPackage temporary = null)
         {
             _temporaryPlay = temporary;
-            PlayRequested?.Invoke(packageDirectory, title, false, temporary);
+            RaisePlayRequested(new PlayRequest(packageDirectory, title, false, temporary));
         }
 
         internal void ShowResult(PlayResult result)
@@ -303,7 +321,7 @@ namespace OpenSekai.App.UI
             if (_result == null)
             {
                 _result = LibraryResultPanel.Create(ModalLayer,
-                    retry => PlayRequested?.Invoke(retry.PackageDirectory, retry.Title, retry.IsAuto, _temporaryPlay), "返回服务器");
+                    retry => RaisePlayRequested(new PlayRequest(retry.PackageDirectory, retry.Title, retry.IsAuto, _temporaryPlay)), "返回服务器");
                 _result.OnClose = () => _temporaryPlay = null;
             }
 
@@ -311,7 +329,7 @@ namespace OpenSekai.App.UI
             _result.Show(result, CurrentCover, Accent);
         }
 
-        internal void NotifyLibraryChanged() => LibraryChanged?.Invoke();
+        internal void RaiseLibraryChanged() => LibraryChanged?.Invoke();
 
         internal void ShowToast(string message) => _toast.Show(message);
 
@@ -393,7 +411,6 @@ namespace OpenSekai.App.UI
             if (ServerChartDownloads.Current != null)
             {
                 ServerChartDownloads.Current.StatusChanged += OnWebDownloadStatus;
-                ServerChartDownloads.Current.Imported += NotifyLibraryChanged;
             }
 
             _camera.enabled = false;
@@ -479,7 +496,6 @@ namespace OpenSekai.App.UI
             if (ServerChartDownloads.Current != null)
             {
                 ServerChartDownloads.Current.StatusChanged -= OnWebDownloadStatus;
-                ServerChartDownloads.Current.Imported -= NotifyLibraryChanged;
             }
 
             _curtainMotion.TryCancel();

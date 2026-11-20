@@ -12,15 +12,15 @@ namespace OpenSekai.Tests.EditMode.Live
 {
     public sealed class LiveLogicInputTests
     {
-        private const double InputTime = 10d;
-        private const int Lane = 4;
-        private FakeTouchSource source;
-        private LiveLogic logic;
-        private Mouse isolatedMouse;
-        private Mouse previousMouse;
-        private bool previousLegacyTiming;
-        private MusicScoreInfo previousFrame;
-        private LiveConfig.NoteTypeJudgeData previousJudgeData;
+        private const double INPUT_TIME = 10d;
+        private const int LANE = 4;
+        private FakeTouchSource _source;
+        private LiveLogic _logic;
+        private Mouse _isolatedMouse;
+        private Mouse _previousMouse;
+        private bool _previousLegacyTiming;
+        private MusicScoreInfo _previousFrame;
+        private LiveConfig.NoteTypeJudgeData _previousJudgeData;
 
         private sealed class CountingNormalNote : NormalNote
         {
@@ -39,32 +39,32 @@ namespace OpenSekai.Tests.EditMode.Live
         [SetUp]
         public void SetUp()
         {
-            previousLegacyTiming = LiveConfig.UseLegacyJudgeTiming;
-            previousFrame = MusicScore.CurrentFrameInfo;
-            previousJudgeData = LiveConfig.noteTypeJudgeData;
+            _previousLegacyTiming = LiveConfig.UseLegacyJudgeTiming;
+            _previousFrame = MusicScore.CurrentFrameInfo;
+            _previousJudgeData = LiveConfig.noteTypeJudgeData;
             LiveConfig.LoadMasterConfig();
             LiveConfig.UseLegacyJudgeTiming = false;
             // A fresh, idle current mouse keeps the editor fallback independent of physical input.
-            previousMouse = Mouse.current;
-            isolatedMouse = InputSystem.AddDevice<Mouse>();
-            source = new FakeTouchSource();
-            logic = new LiveLogic(null);
-            logic.SetTouchSource(source);
+            _previousMouse = Mouse.current;
+            _isolatedMouse = InputSystem.AddDevice<Mouse>();
+            _source = new FakeTouchSource();
+            _logic = new LiveLogic(null);
+            _logic.SetTouchSource(_source);
         }
 
         [TearDown]
         public void TearDown()
         {
-            InputSystem.RemoveDevice(isolatedMouse);
-            if (previousMouse != null && previousMouse.added) previousMouse.MakeCurrent();
-            LiveConfig.UseLegacyJudgeTiming = previousLegacyTiming;
-            LiveConfig.noteTypeJudgeData = previousJudgeData;
-            MusicScore.CurrentFrameInfo = previousFrame;
+            InputSystem.RemoveDevice(_isolatedMouse);
+            if (_previousMouse != null && _previousMouse.added) _previousMouse.MakeCurrent();
+            LiveConfig.UseLegacyJudgeTiming = _previousLegacyTiming;
+            LiveConfig.noteTypeJudgeData = _previousJudgeData;
+            MusicScore.CurrentFrameInfo = _previousFrame;
         }
 
         private static MusicScoreInfo Info(float time) => new MusicScoreInfo(0, time / 2f, time, 120f, 4f, 1f, 1f);
 
-        private static Vector3 Position(int lane = Lane) => LiveConfig.JudgmentPositions[lane];
+        private static Vector3 Position(int lane = LANE) => LiveConfig.JudgmentPositions[lane];
 
         [TestCase(60, false, 5760, 9600)]
         [TestCase(165, false, 5760, 9600)]
@@ -90,10 +90,10 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(notes.Length, Is.EqualTo(2));
             notes[0].Id = startTicks;
             notes[1].Id = otherTicks;
-            logic.Session.MusicScore = score;
-            logic.Notes.Bind(notes);
-            logic.Session.NoteDisplayTimeOffset = 1f;
-            logic.Session.Views = Array.Empty<LiveViewBase>();
+            _logic.Session.MusicScore = score;
+            _logic.Notes.Bind(notes);
+            _logic.Session.NoteDisplayTimeOffset = 1f;
+            _logic.Session.Views = Array.Empty<LiveViewBase>();
             bool[] begun = new bool[2];
             float start = notes[0].MusicScoreInfo.time;
             float end = notes.Min(n => n.ChildNote.MusicScoreInfo.time);
@@ -102,8 +102,8 @@ namespace OpenSekai.Tests.EditMode.Live
                 float time = start + frame / (float)fps;
                 foreach (var n in notes)
                     typeof(LongNote).GetField("lastInputTime", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(n, time - 1f);
-                logic.OnUpdate(time, InputTime + time);
-                source.Clear();
+                _logic.OnUpdate(time, INPUT_TIME + time);
+                _source.Clear();
                 for (int i = 0; i < notes.Length; i++)
                 {
                     var n = notes[i];
@@ -139,10 +139,10 @@ namespace OpenSekai.Tests.EditMode.Live
                             (otherTo.DefaultLeftLane + otherTo.DefaultRightLane) * 0.5f, otherRate);
                         finger = lane < otherLane || (lane == otherLane && i == 0) ? 1 : 2;
                     }
-                    source.Add(Touch(finger, world, InputTime + time, begun[i] ? InputTouchPhase.Moved : InputTouchPhase.Began));
+                    _source.Add(Touch(finger, world, INPUT_TIME + time, begun[i] ? InputTouchPhase.Moved : InputTouchPhase.Began));
                     begun[i] = true;
                 }
-                logic.OnInput();
+                _logic.OnInput();
                 for (int i = 0; i < notes.Length; i++)
                     if (begun[i])
                     {
@@ -156,7 +156,7 @@ namespace OpenSekai.Tests.EditMode.Live
             }
         }
 
-        private static LiveTouchSample Touch(int id, Vector3 position, double time = InputTime,
+        private static LiveTouchSample Touch(int id, Vector3 position, double time = INPUT_TIME,
             InputTouchPhase phase = InputTouchPhase.Began)
         {
             // Deliberately different: judging must use supplied world coordinates, not screen coordinates.
@@ -166,30 +166,30 @@ namespace OpenSekai.Tests.EditMode.Live
 
         private CountingNormalNote Arrange(float frameTime = 0f, params CountingNormalNote[] additionalNotes)
         {
-            var note = new CountingNormalNote(1, 0f, Lane);
+            var note = new CountingNormalNote(1, 0f, LANE);
             var notes = new NoteBase[additionalNotes.Length + 1];
             notes[0] = note;
             Array.Copy(additionalNotes, 0, notes, 1, additionalNotes.Length);
             // Supply only the chart and empty views, avoiding Setup's storage, camera and asset loading.
             // Candidate construction and all judgment stages still run through real OnUpdate / OnInput.
-            logic.Session.MusicScore = new MusicScore(new[] { Info(0f) }, Array.Empty<EventBase>(), notes);
-            logic.Notes.Bind(notes);
-            logic.Session.NoteDisplayTimeOffset = 1f;
-            logic.Session.Views = Array.Empty<LiveViewBase>();
-            logic.OnUpdate(frameTime, InputTime);
+            _logic.Session.MusicScore = new MusicScore(new[] { Info(0f) }, Array.Empty<EventBase>(), notes);
+            _logic.Notes.Bind(notes);
+            _logic.Session.NoteDisplayTimeOffset = 1f;
+            _logic.Session.Views = Array.Empty<LiveViewBase>();
+            _logic.OnUpdate(frameTime, INPUT_TIME);
             return note;
         }
 
         private void AssertRejectedThenAcceptFreshTouch(CountingNormalNote note)
         {
             NoteState before = note.State;
-            logic.OnInput();
+            _logic.OnInput();
             Assert.That(note.State, Is.EqualTo(before));
             Assert.That(note.Result, Is.EqualTo(NoteResult.None));
             Assert.That(note.JudgmentCalls, Is.Zero);
-            source.Clear();
-            source.Add(Touch(2, Position()));
-            logic.OnInput();
+            _source.Clear();
+            _source.Add(Touch(2, Position()));
+            _logic.OnInput();
             Assert.That(note.Result, Is.EqualTo(NoteResult.JustPerfect), "In-lane control must traverse the judge table.");
             Assert.That(note.JudgmentCalls, Is.EqualTo(1));
         }
@@ -198,8 +198,8 @@ namespace OpenSekai.Tests.EditMode.Live
         public void OnTimeTouchJudgesJustPerfect()
         {
             var note = Arrange();
-            source.Add(Touch(1, Position()));
-            logic.OnInput();
+            _source.Add(Touch(1, Position()));
+            _logic.OnInput();
             Assert.That(note.Result, Is.EqualTo(NoteResult.JustPerfect));
             Assert.That(note.State, Is.EqualTo(NoteState.Done));
             Assert.That(note.JudgmentCalls, Is.EqualTo(1));
@@ -230,10 +230,10 @@ namespace OpenSekai.Tests.EditMode.Live
                 notes[i].AddNoteListAndSetupChildNote(new NormalNote(Info(3), 100 + i, endLeft, endRight, NoteCategory.Normal, 1, NoteType.Default, 0));
                 notes[i].LineType = i == 0 ? NoteLineType.EaseIn : NoteLineType.EaseOut;
             }
-            logic.Session.MusicScore = new MusicScore(new[] { Info(0) }, Array.Empty<EventBase>(), notes);
-            logic.Notes.Bind(notes);
-            logic.Session.NoteDisplayTimeOffset = 1f;
-            logic.Session.Views = Array.Empty<LiveViewBase>();
+            _logic.Session.MusicScore = new MusicScore(new[] { Info(0) }, Array.Empty<EventBase>(), notes);
+            _logic.Notes.Bind(notes);
+            _logic.Session.NoteDisplayTimeOffset = 1f;
+            _logic.Session.Views = Array.Empty<LiveViewBase>();
             for (int frame = 0; frame < 180; frame++)
             {
                 // EditMode executes these simulated frames in one engine frame. Age the last input
@@ -243,8 +243,8 @@ namespace OpenSekai.Tests.EditMode.Live
                         typeof(LongNote).GetField("lastInputTime", BindingFlags.Instance | BindingFlags.NonPublic)
                             .SetValue(note, frame / 60f - 1f);
                 float time = frame / 60f;
-                logic.OnUpdate(time, InputTime + time);
-                source.Clear();
+                _logic.OnUpdate(time, INPUT_TIME + time);
+                _source.Clear();
                 for (int i = 0; i < 2; i++)
                 {
                     // Follow the rendered center, calculated independently from the mutable judge lanes.
@@ -254,10 +254,10 @@ namespace OpenSekai.Tests.EditMode.Live
                     float lane = Mathf.Lerp(startCenter, endCenter, rate);
                     int laneIndex = Mathf.FloorToInt(lane);
                     Vector3 world = Vector3.Lerp(Position(laneIndex), Position(laneIndex + 1), lane - laneIndex);
-                    source.Add(Touch(i + 1, world, InputTime + time,
+                    _source.Add(Touch(i + 1, world, INPUT_TIME + time,
                         frame == 0 ? InputTouchPhase.Began : InputTouchPhase.Moved));
                 }
-                logic.OnInput();
+                _logic.OnInput();
                 foreach (var note in notes)
                 {
                     // Trace heads finalize their first touch in the following Excute call.
@@ -276,8 +276,8 @@ namespace OpenSekai.Tests.EditMode.Live
         public void JustPerfectHalfBoundaryIsInclusive(int side)
         {
             var note = Arrange(side * LiveConfig.JustPerfectJudgeTimeHalf);
-            source.Add(Touch(1, Position()));
-            logic.OnInput();
+            _source.Add(Touch(1, Position()));
+            _logic.OnInput();
             Assert.That(note.Result, Is.EqualTo(NoteResult.JustPerfect));
             Assert.That(note.Description, Is.EqualTo(NoteResultDescription.Just));
         }
@@ -287,8 +287,8 @@ namespace OpenSekai.Tests.EditMode.Live
         public void JustOutsideJustPerfectHalfJudgesPerfect(int side)
         {
             var note = Arrange(side * (LiveConfig.JustPerfectJudgeTimeHalf + 0.0001f));
-            source.Add(Touch(1, Position()));
-            logic.OnInput();
+            _source.Add(Touch(1, Position()));
+            _logic.OnInput();
             Assert.That(note.Result, Is.EqualTo(NoteResult.Perfect));
             Assert.That(note.Description, Is.EqualTo(side < 0 ? NoteResultDescription.Fast : NoteResultDescription.Late));
         }
@@ -298,8 +298,8 @@ namespace OpenSekai.Tests.EditMode.Live
         {
             var note = Arrange(0.3f);
             Assert.That(note.Result, Is.EqualTo(NoteResult.None), "Expiry waits for the input pass.");
-            source.Add(Touch(1, Position()));
-            logic.OnInput();
+            _source.Add(Touch(1, Position()));
+            _logic.OnInput();
             Assert.That(note.CalcNoteResult(0.3f), Is.EqualTo(NoteResult.Miss));
             Assert.That(note.JudgmentCalls, Is.Zero);
             Assert.That(note.Result, Is.EqualTo(NoteResult.Miss));
@@ -319,11 +319,11 @@ namespace OpenSekai.Tests.EditMode.Live
             bar.AddNoteListAndSetupChildNote(new FrictionHideNote(Info(0.102f), 3, 8, 8,
                 NoteCategory.Hidden, null, NoteType.Default, speed, 0f));
             harness.Arrange(new MusicScore(new[] { Info(0f) }, Array.Empty<EventBase>(), new NoteBase[] { tap, bar }));
-            harness.Step(0f, InputTime);
+            harness.Step(0f, INPUT_TIME);
 
-            harness.Step(frameTime, InputTime + frameTime,
-                LiveHarness.Touch(1, Position(2), InputTime + sampleTime),
-                LiveHarness.Touch(2, Position(8), InputTime + sampleTime));
+            harness.Step(frameTime, INPUT_TIME + frameTime,
+                LiveHarness.Touch(1, Position(2), INPUT_TIME + sampleTime),
+                LiveHarness.Touch(2, Position(8), INPUT_TIME + sampleTime));
 
             Assert.That(tap.Result, Is.EqualTo(expected));
             Assert.That(bar.Head.Result, Is.EqualTo(expected));
@@ -333,7 +333,7 @@ namespace OpenSekai.Tests.EditMode.Live
         public void TouchAboveJudgmentToleranceLeavesNoteUnchanged()
         {
             var note = Arrange();
-            source.Add(Touch(1, Position() + Vector3.up));
+            _source.Add(Touch(1, Position() + Vector3.up));
             AssertRejectedThenAcceptFreshTouch(note);
         }
 
@@ -346,88 +346,88 @@ namespace OpenSekai.Tests.EditMode.Live
             note.LaneStart = note.LaneEnd = edgeLane;
             note.LaneStartF = note.LaneEndF = edgeLane;
             note.JudgeLaneStart = note.JudgeLaneEnd = edgeLane;
-            source.Add(Touch(1, Position(edgeLane) + Vector3.right * direction));
+            _source.Add(Touch(1, Position(edgeLane) + Vector3.right * direction));
             var before = note.State;
-            logic.OnInput();
+            _logic.OnInput();
             Assert.That(note.State, Is.EqualTo(before));
             Assert.That(note.Result, Is.EqualTo(NoteResult.None));
             Assert.That(note.JudgmentCalls, Is.Zero);
-            source.Clear();
-            source.Add(Touch(2, Position(edgeLane)));
-            logic.OnInput();
+            _source.Clear();
+            _source.Add(Touch(2, Position(edgeLane)));
+            _logic.OnInput();
             Assert.That(note.Result, Is.EqualTo(NoteResult.JustPerfect));
         }
 
         [Test]
         public void HeldTouchDoesNotPressASecondNote()
         {
-            var next = new CountingNormalNote(2, 0.02f, Lane);
+            var next = new CountingNormalNote(2, 0.02f, LANE);
             var first = Arrange(0f, next);
-            source.Add(Touch(1, Position()));
-            logic.OnInput();
+            _source.Add(Touch(1, Position()));
+            _logic.OnInput();
             Assert.That(first.Result, Is.EqualTo(NoteResult.JustPerfect));
             Assert.That(next.Result, Is.EqualTo(NoteResult.None));
 
-            logic.OnUpdate(0.02f, InputTime);
-            logic.OnInput(); // same Began sample/time must become Moved
-            source.Clear();
-            source.Add(Touch(1, Position(), InputTime + 0.02d, InputTouchPhase.Stationary));
-            logic.OnInput();
-            Assert.That(logic.TapCount, Is.EqualTo(1));
+            _logic.OnUpdate(0.02f, INPUT_TIME);
+            _logic.OnInput(); // same Began sample/time must become Moved
+            _source.Clear();
+            _source.Add(Touch(1, Position(), INPUT_TIME + 0.02d, InputTouchPhase.Stationary));
+            _logic.OnInput();
+            Assert.That(_logic.TapCount, Is.EqualTo(1));
             Assert.That(next.Result, Is.EqualTo(NoteResult.None));
             Assert.That(next.JudgmentCalls, Is.Zero);
 
-            source.Clear();
-            source.Add(Touch(2, Position(), InputTime + 0.02d));
-            logic.OnInput();
+            _source.Clear();
+            _source.Add(Touch(2, Position(), INPUT_TIME + 0.02d));
+            _logic.OnInput();
             Assert.That(next.Result, Is.EqualTo(NoteResult.JustPerfect));
-            Assert.That(logic.TapCount, Is.EqualTo(2));
+            Assert.That(_logic.TapCount, Is.EqualTo(2));
         }
 
         [Test]
         public void OlderSampleForSameTouchIdIsIgnored()
         {
             var note = Arrange();
-            source.Add(Touch(1, Position(), InputTime + 1d, InputTouchPhase.Moved));
-            logic.OnInput();
-            source.Clear();
-            source.Add(Touch(1, Position()));
+            _source.Add(Touch(1, Position(), INPUT_TIME + 1d, InputTouchPhase.Moved));
+            _logic.OnInput();
+            _source.Clear();
+            _source.Add(Touch(1, Position()));
             AssertRejectedThenAcceptFreshTouch(note);
-            Assert.That(logic.TapCount, Is.EqualTo(1));
+            Assert.That(_logic.TapCount, Is.EqualTo(1));
         }
 
         [Test]
         public void EndedTouchIdCannotPressAgainUntilInputIsRefreshed()
         {
             var note = Arrange();
-            source.Add(Touch(1, Position(), InputTime, InputTouchPhase.Ended));
-            logic.OnInput();
-            source.Clear();
-            source.Add(Touch(1, Position(), InputTime + 0.01d));
+            _source.Add(Touch(1, Position(), INPUT_TIME, InputTouchPhase.Ended));
+            _logic.OnInput();
+            _source.Clear();
+            _source.Add(Touch(1, Position(), INPUT_TIME + 0.01d));
             AssertRejectedThenAcceptFreshTouch(note);
-            Assert.That(logic.TapCount, Is.EqualTo(1));
+            Assert.That(_logic.TapCount, Is.EqualTo(1));
         }
 
         [Test]
         public void TwoTouchesOnOneNoteInvokeJudgmentOnlyOnce()
         {
             var note = Arrange();
-            source.Add(Touch(1, Position()));
-            source.Add(Touch(2, Position()));
-            logic.OnInput();
+            _source.Add(Touch(1, Position()));
+            _source.Add(Touch(2, Position()));
+            _logic.OnInput();
             Assert.That(note.Result, Is.EqualTo(NoteResult.JustPerfect));
             Assert.That(note.State, Is.EqualTo(NoteState.Done));
             Assert.That(note.JudgmentCalls, Is.EqualTo(1));
-            Assert.That(logic.TapCount, Is.EqualTo(2));
+            Assert.That(_logic.TapCount, Is.EqualTo(2));
         }
 
         [Test]
         public void SimultaneousPressesOnOneKeyPublishOnce()
         {
             var note = Arrange();
-            source.Add(Touch(2, Position()));
-            source.Add(Touch(1, Position()));
-            logic.OnInput();
+            _source.Add(Touch(2, Position()));
+            _source.Add(Touch(1, Position()));
+            _logic.OnInput();
             Assert.That(note.JudgmentCalls, Is.EqualTo(1));
             Assert.That(note.Result, Is.EqualTo(NoteResult.JustPerfect));
         }
@@ -436,8 +436,8 @@ namespace OpenSekai.Tests.EditMode.Live
         public void AMovedFingerCannotPressAnOrdinaryKey()
         {
             var note = Arrange();
-            source.Add(Touch(1, Position(), InputTime, InputTouchPhase.Moved));
-            logic.OnInput();
+            _source.Add(Touch(1, Position(), INPUT_TIME, InputTouchPhase.Moved));
+            _logic.OnInput();
             Assert.That(note.JudgmentCalls, Is.Zero);
             Assert.That(note.Result, Is.EqualTo(NoteResult.None));
             Assert.That(note.State, Is.Not.EqualTo(NoteState.Done));
@@ -448,9 +448,9 @@ namespace OpenSekai.Tests.EditMode.Live
         {
             var right = new CountingNormalNote(2, 0f, 8);
             var left = Arrange(0f, right);
-            source.Add(Touch(1, Position()));
-            source.Add(Touch(2, Position(8)));
-            logic.OnInput();
+            _source.Add(Touch(1, Position()));
+            _source.Add(Touch(2, Position(8)));
+            _logic.OnInput();
             Assert.That(left.JudgmentCalls, Is.EqualTo(1));
             Assert.That(right.JudgmentCalls, Is.EqualTo(1));
         }

@@ -13,7 +13,7 @@ namespace OpenSekai.App.UI
         private const float CARD_HEIGHT = 640f;
         private const float EMBLEM_SIZE = 176f;
 
-        private static readonly string[,] Credits =
+        private static readonly string[,] _credits =
         {
             { "代码", "MIT License" },
             { "字体", "思源黑体 · Noto Sans SC · Barlow Condensed（SIL OFL 1.1）" },
@@ -60,7 +60,7 @@ namespace OpenSekai.App.UI
             RectTransform list = LibraryUi.CreateRect("Credits", body);
             LibraryWidgets.Inset(list, 0f, 0f, 0f, EMBLEM_SIZE + 44f);
             float rowHeight = LibraryTheme.Layout.SETTING_ROW_HEIGHT - 8f;
-            for (int i = 0; i < Credits.GetLength(0); i++)
+            for (int i = 0; i < _credits.GetLength(0); i++)
             {
                 RectTransform row = LibraryUi.CreateRect("Row" + i, list);
                 LibraryWidgets.TopStrip(row, 0f, 0f, i * rowHeight, rowHeight);
@@ -71,13 +71,13 @@ namespace OpenSekai.App.UI
                     LibraryWidgets.TopStrip(line.rectTransform, 0f, 0f, 0f, 1f);
                 }
 
-                TextMeshProUGUI label = LibraryWidgets.Label("Label", row, Credits[i, 0], LibraryTheme.FontSize.BODY, LibraryTheme.Colors.TextMuted);
+                TextMeshProUGUI label = LibraryWidgets.Label("Label", row, _credits[i, 0], LibraryTheme.FontSize.BODY, LibraryTheme.Colors.TextMuted);
                 label.rectTransform.anchorMin = Vector2.zero;
                 label.rectTransform.anchorMax = new Vector2(0f, 1f);
                 label.rectTransform.pivot = new Vector2(0f, 0.5f);
                 label.rectTransform.offsetMin = Vector2.zero;
                 label.rectTransform.offsetMax = new Vector2(96f, 0f);
-                TextMeshProUGUI value = LibraryWidgets.Label("Value", row, Credits[i, 1], LibraryTheme.FontSize.BODY, LibraryTheme.Colors.TextPrimary);
+                TextMeshProUGUI value = LibraryWidgets.Label("Value", row, _credits[i, 1], LibraryTheme.FontSize.BODY, LibraryTheme.Colors.TextPrimary);
                 LibraryWidgets.Inset(value.rectTransform, 96f, 0f, 0f, 0f);
             }
 

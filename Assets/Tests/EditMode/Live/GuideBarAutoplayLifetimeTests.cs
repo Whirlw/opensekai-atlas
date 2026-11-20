@@ -85,8 +85,8 @@ namespace OpenSekai.Tests.EditMode.Live
 			using (var harness = new LiveHarness())
 			{
 				harness.Arrange(score);
-				const float frame = 1f / 60f;
-				for (float now = 0f; now < 2.5f && goneAt == null; now += frame)
+				const float FRAME = 1f / 60f;
+				for (float now = 0f; now < 2.5f && goneAt == null; now += FRAME)
 				{
 					harness.OnUpdate(now, 10d + now);
 					harness.OnInput();
@@ -116,8 +116,8 @@ namespace OpenSekai.Tests.EditMode.Live
 			{
 				harness.Arrange(score);
 				float end = score.NoteArray.Max(note => note.MusicScoreInfo.time) + 2f;
-				const float frame = 1f / 60f;
-				for (float now = 0f; now < end; now += frame)
+				const float FRAME = 1f / 60f;
+				for (float now = 0f; now < end; now += FRAME)
 				{
 					harness.OnUpdate(now, 10d + now);
 					foreach (GuideNote bar in score.NoteArray.OfType<GuideNote>())
@@ -162,8 +162,8 @@ namespace OpenSekai.Tests.EditMode.Live
 			{
 				harness.Arrange(score);
 				float end = score.NoteArray.Max(note => note.MusicScoreInfo.time) + 2f;
-				const float frame = 1f / 60f;
-				for (float now = 0f; now < end; now += frame)
+				const float FRAME = 1f / 60f;
+				for (float now = 0f; now < end; now += FRAME)
 				{
 					harness.OnUpdate(now, 10d + now);
 					harness.Logic.OnAutoInput();

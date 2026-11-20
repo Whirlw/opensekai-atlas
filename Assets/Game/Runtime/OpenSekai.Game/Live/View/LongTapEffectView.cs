@@ -8,33 +8,33 @@ namespace Sekai
 	{
 		public class EffectPair
 		{
-						private ParticleSystemController _Aura;
+						private ParticleSystemController _aura;
 			public ParticleSystemController Aura
 			{
-			    get => _Aura;
-			    set => _Aura = value;
+			    get => _aura;
+			    set => _aura = value;
 			}
 
-						private ParticleSystemController _Gen;
+						private ParticleSystemController _gen;
 			public ParticleSystemController Gen
 			{
-			    get => _Gen;
-			    set => _Gen = value;
+			    get => _gen;
+			    set => _gen = value;
 			}
 
 			internal bool SoundRequested;
-			private uint _PlaybackId;
+			private uint _playbackId;
 			public uint PlaybackId
 			{
-			    get => _PlaybackId;
-			    set => _PlaybackId = value;
+			    get => _playbackId;
+			    set => _playbackId = value;
 			}
 
-						private bool _IsUsed;
+						private bool _isUsed;
 			public bool IsUsed
 			{
-			    get => _IsUsed;
-			    set => _IsUsed = value;
+			    get => _isUsed;
+			    set => _isUsed = value;
 			}
 
 			internal void StopSound()

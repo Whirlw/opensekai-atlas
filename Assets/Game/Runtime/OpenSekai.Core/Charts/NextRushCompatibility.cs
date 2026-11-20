@@ -44,9 +44,9 @@ namespace OpenSekai.Charts
     /// <summary>Classifies authored entities against the pinned play-mode input. The compiler validates note fields and graphs.</summary>
     public static class NextRushCompatibility
     {
-        public const string UpstreamCommit = "1f086fb6fcc56fcb38cbf9eba6b98dbefc630316";
+        public const string UPSTREAM_COMMIT = "1f086fb6fcc56fcb38cbf9eba6b98dbefc630316";
 
-        private static readonly HashSet<string> NoteKinds = new HashSet<string>(StringComparer.Ordinal)
+        private static readonly HashSet<string> _noteKinds = new HashSet<string>(StringComparer.Ordinal)
         {
             "TapNote", "FlickNote", "TraceNote", "TraceFlickNote", "ReleaseNote",
             "HeadTapNote", "HeadFlickNote", "HeadTraceNote", "HeadTraceFlickNote", "HeadReleaseNote",
@@ -76,7 +76,7 @@ namespace OpenSekai.Charts
 
             if (archetype == null) return NextRushEntityStatus.Unknown;
             string kind = GetNoteKind(WithoutFakePrefix(archetype));
-            if (kind == null || !NoteKinds.Contains(kind)) return NextRushEntityStatus.Unknown;
+            if (kind == null || !_noteKinds.Contains(kind)) return NextRushEntityStatus.Unknown;
             return NextRushEntityStatus.CompilerCandidate;
         }
 
@@ -96,7 +96,7 @@ namespace OpenSekai.Charts
             var archetypes = new List<(string, NextRushEntityStatus, int)>();
             var unsupported = new List<string>();
             var invalid = new List<string>();
-            if (Math.Abs(source.BgmOffset) > NextRushChart.MaxAbsoluteTimeSeconds)
+            if (Math.Abs(source.BgmOffset) > NextRushChart.MAX_ABSOLUTE_TIME_SECONDS)
                 invalid.Add("bgmOffset 超出播放时间范围");
 
             foreach (var group in source.Entities.GroupBy(e => e.Archetype, StringComparer.Ordinal))

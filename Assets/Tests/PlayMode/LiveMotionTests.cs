@@ -31,6 +31,46 @@ namespace OpenSekai.Tests.PlayMode
             _clock.Reset();
         }
 
+        [Test]
+        public void DisablingAFaderCancelsThePendingCallbackAndAllowsReplay()
+        {
+            var sprite = _root.AddComponent<SpriteRenderer>();
+            var fader = _root.AddComponent<ColorFader>();
+            int completions = 0;
+            fader.Play(Color.red, 1f, 0.5f, () => completions++);
+            Assert.That(fader.IsPlayFading, Is.True);
+            _root.SetActive(false);
+            Assert.That(fader.IsPlayFading, Is.False);
+            _root.SetActive(true);
+            fader.Play(Color.blue, 0f, 0f, () => completions++);
+            Assert.That(completions, Is.EqualTo(1));
+            Assert.That(sprite.color, Is.EqualTo(Color.blue));
+        }
+
+        [Test]
+        public void RepeatedTabSetupKeepsOneSelectionSubscription()
+        {
+            var tabs = _root.AddComponent<UIPartsDialogTabGroup>();
+            for (int i = 0; i < 2; i++)
+            {
+                var tab = new GameObject("Tab", typeof(RectTransform));
+                tab.transform.SetParent(_root.transform, false);
+                tab.AddComponent<UIPartsDialogTab>();
+            }
+            tabs.Setup();
+            tabs.Setup();
+            int changes = 0;
+            tabs.ToggleGroup.SelectedIndexChanged += _ => changes++;
+            tabs.ToggleGroup.SelectedIndex = 1;
+            Assert.That(changes, Is.EqualTo(1));
+            Assert.That(tabs.ToggleGroup.SelectedIndex, Is.EqualTo(1));
+            Assert.That(_root.transform.GetChild(1).GetComponent<UIPartsDialogTab>().IsOn, Is.True);
+            var field = typeof(Sekai.UI.CustomIndexToggleGroup).GetField("SelectedIndexChanged",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            var handlers = (System.Action<int>)field.GetValue(tabs.ToggleGroup);
+            Assert.That(handlers.GetInvocationList(), Has.Length.EqualTo(2));
+        }
+
         [TestCase(false, 1f)]
         [TestCase(true, 0f)]
         public void IntroRunsVisibleThenHiddenCallbacksOnOneLargeStep(bool retry, float initialAlpha)
@@ -69,7 +109,7 @@ namespace OpenSekai.Tests.PlayMode
             var jacket = new GameObject("Jacket", typeof(RectTransform), typeof(CanvasGroup));
             jacket.transform.SetParent(_root.transform, false);
             CanvasGroup group = jacket.GetComponent<CanvasGroup>();
-            SetField(view, "_jacketGroup", group);
+            SetField(view, "jacketGroup", group);
             view.JacketFadeOutDelaySec = 0.25f;
             int finished = 0;
 
@@ -106,7 +146,7 @@ namespace OpenSekai.Tests.PlayMode
             popup.SetParent(_root.transform, false);
             popup.localPosition = new Vector3(0f, 2f, 3f);
             popup.localScale = new Vector3(1f, -1f, 1f);
-            SetField(view, "_addScoreRoot", popup);
+            SetField(view, "addScoreRoot", popup);
             view.Setup(null);
             var score = new LiveScore { totalScore = 100 };
 
@@ -131,7 +171,7 @@ namespace OpenSekai.Tests.PlayMode
         {
             page = _root.AddComponent<CanvasGroup>();
             var view = _root.AddComponent<MusicInfoView>();
-            SetField(view, "_viewGroup", page);
+            SetField(view, "viewGroup", page);
             view.Setup(null);
             return view;
         }

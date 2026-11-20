@@ -10,27 +10,35 @@ namespace Sekai
 {
 	public class ScreenLayerLiveLoading : ScreenLayer
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_transitionerPrefab")]
 		[SerializeField]
-		private GameObject _transitionerPrefab;
+		private GameObject transitionerPrefab;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_background")]
 		[SerializeField]
-		private SekaiBG _background;
+		private SekaiBG background;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_frontGroup")]
 		[SerializeField]
-		private CanvasGroup _frontGroup;
+		private CanvasGroup frontGroup;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_progressBar")]
 		[SerializeField]
-		private CustomImage _progressBar;
+		private CustomImage progressBar;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_gaugeAnimation")]
 		[SerializeField]
-		private LoadingIndicatorAnimation _gaugeAnimation;
+		private LoadingIndicatorAnimation gaugeAnimation;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_whiteOutImage")]
 		[SerializeField]
-		private CustomImage _whiteOutImage;
+		private CustomImage whiteOutImage;
 
 		private bool _transitionStarted;
 		private LiveTransitioner _transitioner;
 		private MotionHandle _frontFade;
+		private MotionHandle _whiteFade;
+		private Coroutine _whiteOutDelay;
 
 		// The library has already read the chart and registered audio before this screen is pushed,
 		// so the animation only covers the scene swap. Keep that cover short.
@@ -47,46 +55,46 @@ namespace Sekai
 			if (LiveEntryCurtain.IsHeld)
 			{
 				_transitionStarted = true;
-				if (_frontGroup != null)
+				if (frontGroup != null)
 				{
-					_frontGroup.alpha = 0f;
+					frontGroup.alpha = 0f;
 				}
-				if (_whiteOutImage != null)
+				if (whiteOutImage != null)
 				{
-					_whiteOutImage.gameObject.SetActive(false);
+					whiteOutImage.gameObject.SetActive(false);
 				}
-				if (_gaugeAnimation != null)
+				if (gaugeAnimation != null)
 				{
-					_gaugeAnimation.gameObject.SetActive(false);
+					gaugeAnimation.gameObject.SetActive(false);
 				}
 				LiveEntryCurtain.WhenCovered(OnFinishTransitionFadeOut);
 				return;
 			}
 
-			if (_frontGroup != null)
+			if (frontGroup != null)
 			{
 				_frontFade.TryCancel();
-				_frontGroup.alpha = 0f;
+				frontGroup.alpha = 0f;
 				_frontFade = LMotion.Create(0f, 1f, 0.2f)
 					.WithEase(Ease.OutQuad)
 					.WithDelay(0.1f)
-					.BindToAlpha(_frontGroup);
+					.BindToAlpha(frontGroup);
 			}
-			if (_whiteOutImage != null)
+			if (whiteOutImage != null)
 			{
-				Color color = _whiteOutImage.color;
+				Color color = whiteOutImage.color;
 				color.a = 1f;
-				_whiteOutImage.color = color;
+				whiteOutImage.color = color;
 			}
-			if (_background != null)
+			if (background != null)
 			{
-				_background.Initialize();
-				_background.gameObject.SetActive(false);
+				background.Initialize();
+				background.gameObject.SetActive(false);
 			}
 			UpdateProgress(0f);
-			if (_gaugeAnimation != null)
+			if (gaugeAnimation != null)
 			{
-				var gaugeCanvas = _gaugeAnimation.GetComponent<Canvas>();
+				var gaugeCanvas = gaugeAnimation.GetComponent<Canvas>();
 				if (gaugeCanvas != null)
 				{
 					gaugeCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -95,53 +103,54 @@ namespace Sekai
 				}
 			}
 
-			StartCoroutine(PlayStartWhiteOut());
+			_whiteOutDelay = StartCoroutine(PlayStartWhiteOut());
 			StartTransition(OnFinishTransitionFadeOut);
 		}
 
-		private void OnDestroy()
+		private void OnDisable()
 		{
 			_frontFade.TryCancel();
+			_whiteFade.TryCancel();
+			if (_whiteOutDelay != null)
+			{
+				StopCoroutine(_whiteOutDelay);
+				_whiteOutDelay = null;
+			}
 		}
 
 		private IEnumerator PlayStartWhiteOut()
 		{
 			yield return new WaitForSeconds(START_FADE_OUT_DELAY);
-			if (_background != null)
+			if (background != null)
 			{
-				_background.gameObject.SetActive(true);
+				background.gameObject.SetActive(true);
 			}
 
-			if (_whiteOutImage == null)
+			if (whiteOutImage == null)
 			{
 				yield break;
 			}
 
-			var color = _whiteOutImage.color;
-			var elapsed = 0f;
-			while (elapsed < START_FADE_OUT_DURATION)
-			{
-				elapsed += Time.deltaTime;
-				color.a = Mathf.Lerp(1f, 0f, Mathf.Clamp01(elapsed / START_FADE_OUT_DURATION));
-				_whiteOutImage.color = color;
-				yield return null;
-			}
-
-			color.a = 0f;
-			_whiteOutImage.color = color;
+			_whiteFade = LMotion.Create(1f, 0f, START_FADE_OUT_DURATION)
+				.Bind(alpha =>
+				{
+					Color color = whiteOutImage.color;
+					color.a = alpha;
+					whiteOutImage.color = color;
+				});
 		}
 
 		private void UpdateProgress(float progress)
 		{
 			progress = Mathf.Clamp01(progress);
-			if (_progressBar != null)
+			if (progressBar != null)
 			{
-				_progressBar.fillAmount = progress;
+				progressBar.fillAmount = progress;
 			}
 
-			if (_gaugeAnimation != null)
+			if (gaugeAnimation != null)
 			{
-				_gaugeAnimation.PlayAnimation(progress);
+				gaugeAnimation.PlayAnimation(progress);
 			}
 		}
 
@@ -153,20 +162,20 @@ namespace Sekai
 			}
 
 			_transitionStarted = true;
-			if (_background != null)
+			if (background != null)
 			{
-				_background.Transition();
+				background.Transition();
 			}
 
 			UpdateProgress(1f);
-			if (_transitionerPrefab == null)
+			if (transitionerPrefab == null)
 			{
 				onFinished?.Invoke();
 				return;
 			}
 
-			GameObject transitionerObject = Instantiate(_transitionerPrefab);
-			transitionerObject.name = _transitionerPrefab.name;
+			GameObject transitionerObject = Instantiate(transitionerPrefab);
+			transitionerObject.name = transitionerPrefab.name;
 			_transitioner = transitionerObject.GetComponent<LiveTransitioner>();
 			if (_transitioner == null)
 			{

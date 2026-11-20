@@ -5,23 +5,25 @@ namespace Sekai
 {
 	public class TweenAlpha : TweenBase
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_from")]
 		[Range(0f, 1f)]
 		[SerializeField]
-		private float _from;
+		private float from;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_to")]
 		[Range(0f, 1f)]
 		[SerializeField]
-		private float _to;
+		private float to;
 
 		public float From
 		{
 			get
 			{
-				return _from;
+				return from;
 			}
 			set
 			{
-				_from = Mathf.Clamp01(value);
+				from = Mathf.Clamp01(value);
 			}
 		}
 
@@ -29,11 +31,11 @@ namespace Sekai
 		{
 			get
 			{
-				return _to;
+				return to;
 			}
 			set
 			{
-				_to = Mathf.Clamp01(value);
+				to = Mathf.Clamp01(value);
 			}
 		}
 
@@ -65,8 +67,8 @@ namespace Sekai
 			{
 				return;
 			}
-			float start = playDirection == PlayDirection.Forward ? _from : _to;
-			float end = playDirection == PlayDirection.Forward ? _to : _from;
+			float start = playDirection == PlayDirection.Forward ? from : to;
+			float end = playDirection == PlayDirection.Forward ? to : from;
 			tweenTarget.Alpha = start;
 			PlayMotion(LMotion.Create(start, end, Mathf.Max(0f, duration)),
 				static (value, owner) => owner.TweenTarget.Alpha = value);
@@ -84,7 +86,7 @@ namespace Sekai
 			{
 				t = curve.Evaluate(t);
 			}
-			tweenTarget.Alpha = Mathf.LerpUnclamped(_from, _to, Mathf.Clamp01(t));
+			tweenTarget.Alpha = Mathf.LerpUnclamped(from, to, Mathf.Clamp01(t));
 		}
 
 		protected override void OnReference()

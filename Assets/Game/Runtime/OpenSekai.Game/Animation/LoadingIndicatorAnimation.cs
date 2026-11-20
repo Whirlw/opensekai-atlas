@@ -10,8 +10,9 @@ namespace Sekai
 			Complete = 1
 		}
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_animator")]
 		[SerializeField]
-		private Animator _animator;
+		private Animator animator;
 
 		private State _currentState;
 		private bool _hasPlayed;
@@ -24,9 +25,9 @@ namespace Sekai
 				return;
 			}
 
-			if (_animator != null)
+			if (animator != null)
 			{
-				_animator.Play(nextState == State.Complete ? "clip_UIPartsDownloadIndicator_complete" : "clip_UIPartsDownloadIndicator", 0, 0f);
+				animator.Play(nextState == State.Complete ? "clip_UIPartsDownloadIndicator_complete" : "clip_UIPartsDownloadIndicator", 0, 0f);
 			}
 			_currentState = nextState;
 			_hasPlayed = true;

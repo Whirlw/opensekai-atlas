@@ -15,7 +15,7 @@ namespace OpenSekai.Shared.Conversion
 	/// </remarks>
 	internal static class SusTokens
 	{
-		private const string FloatPattern = @"[-+]?(?:\d+(?:\.\d*)?|\.\d+)";
+		private const string FLOAT_PATTERN = @"[-+]?(?:\d+(?:\.\d*)?|\.\d+)";
 
 		internal static readonly Regex EventNotesRegex =
 			new Regex("^#(?<bar>\\d{3})(?<event_type>[0-9a-z]{2}):(?<data>.+)", RegexOptions.Compiled);
@@ -27,13 +27,13 @@ namespace OpenSekai.Shared.Conversion
 			new Regex("^#BPM(?<bpm_id>[0-9A-Z]{2}):(?<bpm>.+)", RegexOptions.Compiled);
 
 		internal static readonly Regex VolumeRegex =
-			new Regex($@"(?<barIndex>\d+)'(?<tickOffset>\d+):(?<volume>{FloatPattern})(?:\r|$)", RegexOptions.Compiled);
+			new Regex($@"(?<barIndex>\d+)'(?<tickOffset>\d+):(?<volume>{FLOAT_PATTERN})(?:\r|$)", RegexOptions.Compiled);
 
 		internal static readonly Regex TicksPerBeatRegex =
 			new Regex("^#REQUEST ticks_per_beat (?<ticks_per_beat>\\d+)", RegexOptions.Compiled);
 
 		internal static readonly Regex HighSpeedRegex =
-			new Regex($@"(?<barIndex>\d+)'(?<tickOffset>\d+):(?<speedRatio>{FloatPattern})(?:\r|$)", RegexOptions.Compiled);
+			new Regex($@"(?<barIndex>\d+)'(?<tickOffset>\d+):(?<speedRatio>{FLOAT_PATTERN})(?:\r|$)", RegexOptions.Compiled);
 
 		/// <summary>Lane of the lane column character; <c>f</c> is the effect column, <c>e</c> is unused.</summary>
 		internal static int GetNoteLine(string lineNo)
@@ -111,7 +111,7 @@ namespace OpenSekai.Shared.Conversion
 
 				valueList.Add(data.Substring(i, 2).ToLowerInvariant());
 				i += 2;
-				float speedRatio = SusChartData.DefaultSpeedRatio;
+				float speedRatio = SusChartData.DEFAULT_SPEED_RATIO;
 				if (i < data.Length && data[i] == ',')
 				{
 					i++;
@@ -120,7 +120,7 @@ namespace OpenSekai.Shared.Conversion
 					{
 						i++;
 					}
-					speedRatio = ParseFloat(data.Substring(start, i - start), SusChartData.DefaultSpeedRatio);
+					speedRatio = ParseFloat(data.Substring(start, i - start), SusChartData.DEFAULT_SPEED_RATIO);
 				}
 				speedList.Add(speedRatio);
 			}

@@ -75,7 +75,7 @@ namespace OpenSekai.Tests.EditMode.Live
                 LatencyCapture.MixProbeEnabled = false;
                 LatencyCapture.Begin(marker, "master", false, 0f, 0f, 0f, false);
                 // Gameplay rows fill their buffer first; probe rows keep their reserved space.
-                for (int i = 0; i <= LatencyCapture.Capacity; i++)
+                for (int i = 0; i <= LatencyCapture.CAPACITY; i++)
                     LatencyCapture.Record("filler");
                 LatencyCapture.Record("clock_anchor", time: 12.5, value: 0.01, androidReceive: 5012.25, detail: "begin");
                 LatencyCapture.Record("android_edge", touch: 3, finger: 2, phase: UnityEngine.InputSystem.TouchPhase.Ended,
@@ -85,7 +85,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
                 string[] lines = Directory.GetFiles(directory, "latency-*.tsv").Except(existing).Select(File.ReadAllLines)
                     .Single(file => file[0].Contains($" chart={marker} "));
-                Assert.That(lines[2], Is.EqualTo($"# end=play_stopped rows={LatencyCapture.Capacity + 2} overflow=1 probe_overflow=0"));
+                Assert.That(lines[2], Is.EqualTo($"# end=play_stopped rows={LatencyCapture.CAPACITY + 2} overflow=1 probe_overflow=0"));
                 string[] columns = lines[3].Split('\t');
                 Assert.That(columns.Skip(15), Is.EqualTo(new[] { "x", "y", "android_event_s", "android_receive_s" }));
                 string[] anchor = lines.Skip(4).Select(line => line.Split('\t')).Single(row => row[1] == "clock_anchor");

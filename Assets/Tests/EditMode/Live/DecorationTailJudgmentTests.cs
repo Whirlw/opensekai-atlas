@@ -17,8 +17,8 @@ namespace OpenSekai.Tests.EditMode.Live
     [TestFixture]
     public sealed class DecorationTailJudgmentTests
     {
-        private const float Frame = 1f / 60f;
-        private const double InputBase = 10d;
+        private const float FRAME = 1f / 60f;
+        private const double INPUT_BASE = 10d;
 
         private LiveHarness _harness;
 
@@ -45,24 +45,24 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         private void Step(float now, params LiveTouchSample[] touches) =>
-            _harness.Step(now, InputBase + now, touches);
+            _harness.Step(now, INPUT_BASE + now, touches);
 
         private void Idle(float from, float until)
         {
-            for (float now = from; now < until - Frame * 0.5f; now += Frame)
+            for (float now = from; now < until - FRAME * 0.5f; now += FRAME)
             {
                 Step(now);
             }
         }
 
         private static LiveTouchSample Sample(TouchPhase phase, float now, float screenX = 800f) =>
-            new LiveTouchSample(1, new Vector2(screenX, 600f), Position, InputBase + now, phase, Vector2.zero);
+            new LiveTouchSample(1, new Vector2(screenX, 600f), Position, INPUT_BASE + now, phase, Vector2.zero);
 
         /// <summary>A finger rests on the end from <paramref name="from"/> until just before <paramref name="until"/>.</summary>
         private void Rest(float from, float until)
         {
             Step(from, Sample(TouchPhase.Began, from));
-            for (float now = from + Frame; now < until - Frame * 0.5f; now += Frame)
+            for (float now = from + FRAME; now < until - FRAME * 0.5f; now += FRAME)
             {
                 Step(now, Sample(TouchPhase.Stationary, now));
             }
@@ -72,8 +72,8 @@ namespace OpenSekai.Tests.EditMode.Live
         private void SwipeLeft(float at)
         {
             Step(at, Sample(TouchPhase.Moved, at, 560f));
-            Step(at + Frame, Sample(TouchPhase.Ended, at + Frame, 320f));
-            Idle(at + Frame * 2f, at + 0.2f);
+            Step(at + FRAME, Sample(TouchPhase.Ended, at + FRAME, 320f));
+            Idle(at + FRAME * 2f, at + 0.2f);
         }
 
         private static void AssertPlayed(NoteBase tail, string what) =>
@@ -86,7 +86,7 @@ namespace OpenSekai.Tests.EditMode.Live
                 new NormalNote(Info(1f), 11, 4, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f));
             Idle(0f, 1f);
             Step(1f, Sample(TouchPhase.Began, 1f));
-            Step(1f + Frame, Sample(TouchPhase.Ended, 1f + Frame));
+            Step(1f + FRAME, Sample(TouchPhase.Ended, 1f + FRAME));
             AssertPlayed(tail, "the press has to grade the end note");
         }
 
@@ -95,8 +95,8 @@ namespace OpenSekai.Tests.EditMode.Live
         {
             NoteBase tail = ArrangeDecorativeBar(new FlickNote(Info(1f), 12, 4, 5,
                 NoteCategory.Flick, 1f, NoteType.Default, NoteDirection.Left, 0f, 0f));
-            Idle(0f, 1f - Frame);
-            Step(1f - Frame, Sample(TouchPhase.Began, 1f - Frame));
+            Idle(0f, 1f - FRAME);
+            Step(1f - FRAME, Sample(TouchPhase.Began, 1f - FRAME));
             SwipeLeft(1f);
             AssertPlayed(tail, "the swipe has to grade the flick end");
         }
@@ -138,10 +138,10 @@ namespace OpenSekai.Tests.EditMode.Live
         {
             NoteBase tail = ArrangeDecorativeBar(new FlickNote(Info(1f), 16, 4, 5,
                 NoteCategory.Flick, 1f, NoteType.Default, NoteDirection.Left, 0f, 0f));
-            Idle(0f, 1f - Frame);
-            Rest(1f - Frame, 1.1f);
+            Idle(0f, 1f - FRAME);
+            Rest(1f - FRAME, 1.1f);
             Step(1.1f, Sample(TouchPhase.Ended, 1.1f));
-            Idle(1.1f + Frame, 1.5f);
+            Idle(1.1f + FRAME, 1.5f);
             Assert.That(tail.Result, Is.EqualTo(NoteResult.None).Or.EqualTo(NoteResult.Miss));
         }
 

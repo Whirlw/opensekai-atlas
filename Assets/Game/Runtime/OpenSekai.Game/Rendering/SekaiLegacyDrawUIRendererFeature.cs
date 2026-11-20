@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
@@ -10,74 +11,69 @@ namespace Sekai.Rendering
 		[Serializable]
 		public class AreaCameraSettings
 		{
-						private int _Event_DrawUI = (int)RenderPassEvent.AfterRenderingTransparents;
-			public int Event_DrawUI
-			{
-			    get => _Event_DrawUI;
-			    set => _Event_DrawUI = value;
-			}
-						private int _Event_CopyScreenToCapture = (int)RenderPassEvent.AfterRenderingPostProcessing;
-			public int Event_CopyScreenToCapture
-			{
-			    get => _Event_CopyScreenToCapture;
-			    set => _Event_CopyScreenToCapture = value;
-			}
+			[FormerlySerializedAs("Event_DrawUI")]
+			[SerializeField]
+			private int eventDrawUI = (int)RenderPassEvent.AfterRenderingTransparents;
+
+			public int EventDrawUI => eventDrawUI;
+
+			[FormerlySerializedAs("Event_CopyScreenToCapture")]
+			[SerializeField]
+			private int eventCopyScreenToCapture = (int)RenderPassEvent.AfterRenderingPostProcessing;
+
+			public int EventCopyScreenToCapture => eventCopyScreenToCapture;
 		}
 
 		[Serializable]
 		public class PassSettings
 		{
-						private int _Event_DrawBlurUI = (int)RenderPassEvent.AfterRenderingOpaques;
-			public int Event_DrawBlurUI
-			{
-			    get => _Event_DrawBlurUI;
-			    set => _Event_DrawBlurUI = value;
-			}
-						private int _Event_Blur = (int)RenderPassEvent.AfterRenderingPostProcessing;
-			public int Event_Blur
-			{
-			    get => _Event_Blur;
-			    set => _Event_Blur = value;
-			}
-						private int _Event_DrawUI = (int)RenderPassEvent.AfterRendering;
-			public int Event_DrawUI
-			{
-			    get => _Event_DrawUI;
-			    set => _Event_DrawUI = value;
-			}
+			[FormerlySerializedAs("Event_DrawBlurUI")]
+			[SerializeField]
+			private int eventDrawBlurUI = (int)RenderPassEvent.AfterRenderingOpaques;
+
+			public int EventDrawBlurUI => eventDrawBlurUI;
+
+			[FormerlySerializedAs("Event_Blur")]
+			[SerializeField]
+			private int eventBlur = (int)RenderPassEvent.AfterRenderingPostProcessing;
+
+			public int EventBlur => eventBlur;
+
+			[FormerlySerializedAs("Event_DrawUI")]
+			[SerializeField]
+			private int eventDrawUI = (int)RenderPassEvent.AfterRendering;
+
+			public int EventDrawUI => eventDrawUI;
 		}
 
 		[Serializable]
 		public class UIBlurSettings
 		{
-						private LayerMask _BlurLayerMask;
-			public LayerMask BlurLayerMask
-			{
-			    get => _BlurLayerMask;
-			    set => _BlurLayerMask = value;
-			}
-						private LayerMask _UILayerMask;
-			public LayerMask UILayerMask
-			{
-			    get => _UILayerMask;
-			    set => _UILayerMask = value;
-			}
-						private RenderQueueRange _RenderQueueRange = RenderQueueRange.transparent;
-			public RenderQueueRange RenderQueueRange
-			{
-			    get => _RenderQueueRange;
-			    set => _RenderQueueRange = value;
-			}
+			[FormerlySerializedAs("BlurLayerMask")]
+			[SerializeField]
+			private LayerMask blurLayerMask;
+
+			public LayerMask BlurLayerMask => blurLayerMask;
+
+			[FormerlySerializedAs("UILayerMask")]
+			[SerializeField]
+			private LayerMask uiLayerMask;
+
+			public LayerMask UILayerMask => uiLayerMask;
+			public RenderQueueRange RenderQueueRange => RenderQueueRange.transparent;
 		}
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_blurSettings")]
 		[SerializeField]
-		private UIBlurSettings _blurSettings = new UIBlurSettings();
+		private UIBlurSettings blurSettings = new UIBlurSettings();
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_passSettings")]
 		[SerializeField]
-		private PassSettings _passSettings = new PassSettings();
+		private PassSettings passSettings = new PassSettings();
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_areaCameraSettings")]
 		[SerializeField]
-		private AreaCameraSettings _areaCameraSettings = new AreaCameraSettings();
+		private AreaCameraSettings areaCameraSettings = new AreaCameraSettings();
 
 		private SekaiUIBuffer _uIBuffer;
 		private SekaiUIBlurSetupPass _setupPass;
@@ -154,33 +150,33 @@ namespace Sekai.Rendering
 			_copyScreenToCapturePass.renderPassEvent = (RenderPassEvent)1;
 			_copyScreenToCapturePass.Setup(null, SekaiUIBuffer.CaptureColorTexHandle);
 
-			_drawBlurUIPass.renderPassEvent = (RenderPassEvent)_passSettings.Event_DrawBlurUI;
+			_drawBlurUIPass.renderPassEvent = (RenderPassEvent)passSettings.EventDrawBlurUI;
 			_drawBlurUIPass.Setup(
-				cameraLayerMask & _blurSettings.BlurLayerMask,
+				cameraLayerMask & blurSettings.BlurLayerMask,
 				StencilState.defaultValue,
 				0,
 				SekaiUIBuffer.CaptureColorTexHandle,
 				SekaiUIBuffer.CaptureDepthTexHandle,
 				false,
-				_blurSettings.RenderQueueRange);
+				blurSettings.RenderQueueRange);
 
-			_blurPass.renderPassEvent = (RenderPassEvent)_passSettings.Event_Blur;
+			_blurPass.renderPassEvent = (RenderPassEvent)passSettings.EventBlur;
 			_blurPass.Setup(SekaiUIBuffer.CaptureColorTexHandle, SekaiUIBuffer.UIBlurTexHandle);
 
-			_drawUIPass.renderPassEvent = (RenderPassEvent)_passSettings.Event_DrawUI;
+			_drawUIPass.renderPassEvent = (RenderPassEvent)passSettings.EventDrawUI;
 			_drawUIPass.Setup(
-				cameraLayerMask & _blurSettings.UILayerMask,
+				cameraLayerMask & blurSettings.UILayerMask,
 				StencilState.defaultValue,
 				0,
 				null,
 				null,
 				true,
-				_blurSettings.RenderQueueRange);
+				blurSettings.RenderQueueRange);
 		}
 
 		private void SetupDefaultCameraPass(ScriptableRenderer renderer, in RenderingData renderingData)
 		{
-			_drawUIPass.renderPassEvent = (RenderPassEvent)_areaCameraSettings.Event_DrawUI;
+			_drawUIPass.renderPassEvent = (RenderPassEvent)areaCameraSettings.EventDrawUI;
 			_drawUIPass.Setup(
 				GetCameraLayerMask(renderingData.cameraData.camera),
 				StencilState.defaultValue,
@@ -188,7 +184,7 @@ namespace Sekai.Rendering
 				null,
 				null,
 				true,
-				_blurSettings.RenderQueueRange);
+				blurSettings.RenderQueueRange);
 		}
 
 		private static LayerMask GetCameraLayerMask(Camera camera)

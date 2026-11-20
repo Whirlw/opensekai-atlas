@@ -5,9 +5,9 @@ namespace Sekai
 {
 	public static partial class NativeInput
 	{
-		private static readonly UnityEngine.Touch[] NoTouches;
+		private static readonly UnityEngine.Touch[] _noTouches;
 
-		private static readonly UnityEngine.Touch[] PcTouches;
+		private static readonly UnityEngine.Touch[] _pcTouches;
 		private static UnityEngine.Touch[] _touches;
 		private static bool _touchesDirty = true;
 
@@ -24,7 +24,7 @@ namespace Sekai
 			{
 				var activeTouches = ActiveTouches;
 				if (!_touchesDirty && _touches.Length == activeTouches.Count) return _touches;
-				if (_touches.Length != activeTouches.Count) _touches = activeTouches.Count == 0 ? NoTouches : new UnityEngine.Touch[activeTouches.Count];
+				if (_touches.Length != activeTouches.Count) _touches = activeTouches.Count == 0 ? _noTouches : new UnityEngine.Touch[activeTouches.Count];
 				for (int i = 0; i < activeTouches.Count; i++)
 				{
 					var touch = activeTouches[i];
@@ -53,10 +53,10 @@ namespace Sekai
 
 		static NativeInput()
 		{
-			NoTouches = new UnityEngine.Touch[0];
-			PcTouches = new UnityEngine.Touch[1];
-			PcTouches[0].fingerId = 0;
-			_touches = NoTouches;
+			_noTouches = new UnityEngine.Touch[0];
+			_pcTouches = new UnityEngine.Touch[1];
+			_pcTouches[0].fingerId = 0;
+			_touches = _noTouches;
 			UnityEngine.InputSystem.InputSystem.onAfterUpdate += InvalidateTouches;
 		}
 

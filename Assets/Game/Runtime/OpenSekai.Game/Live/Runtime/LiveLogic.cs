@@ -12,20 +12,20 @@ namespace Sekai.Core.Live
 		{
 			public LiveTouch Touch;
 			internal bool IsResidentSample { get; set; }
-			internal float PreviousLane { get; set; } = OpenSekai.Shared.Live.TouchLane.Outside;
+			internal float PreviousLane { get; set; } = OpenSekai.Shared.Live.TouchLane.OUTSIDE;
 			/// <summary>Which press pass of the frame may judge this Began; see <see cref="JudgmentScheduler"/>.</summary>
 			internal int PressWave { get; set; }
-			private float _Lane;
+			private float _lane;
 			public float Lane
 			{
-			    get => _Lane;
-			    set => _Lane = value;
+			    get => _lane;
+			    set => _lane = value;
 			}
-			private List<NoteBase> _CandidateNotes;
+			private List<NoteBase> _candidateNotes;
 			public List<NoteBase> CandidateNotes
 			{
-			    get => _CandidateNotes;
-			    set => _CandidateNotes = value;
+			    get => _candidateNotes;
+			    set => _candidateNotes = value;
 			}
 
 			public InputTmp()
@@ -54,7 +54,7 @@ namespace Sekai.Core.Live
 				Touch = touch;
 				IsResidentSample = false;
 				Lane = lane;
-				PreviousLane = OpenSekai.Shared.Live.TouchLane.Outside;
+				PreviousLane = OpenSekai.Shared.Live.TouchLane.OUTSIDE;
 				PressWave = 0;
 				CandidateNotes.Clear();
 			}
@@ -92,8 +92,11 @@ namespace Sekai.Core.Live
 			Scheduler = new JudgmentScheduler(this, Session, Input, NoteFrame, _presentation);
 		}
 
-		public event Action OnFinished;
-		public event Action OnFailure;
+		public event Action Finished;
+		public event Action Failed;
+
+		private void RaiseFailed() => Failed?.Invoke();
+		private void RaiseFinished() => Finished?.Invoke();
 
 		public ScoreLogic scoreLogic
 		{
@@ -121,7 +124,7 @@ namespace Sekai.Core.Live
 
 		public LiveNoteSession Notes => Session.Notes;
 
-		public int result;
+		private int _result;
 		public int TapCount
 		{
 			get => Session.TapCount;
@@ -182,7 +185,7 @@ namespace Sekai.Core.Live
 				camera = Camera.main ?? UnityEngine.Object.FindFirstObjectByType<Camera>();
 			}
 			Input.SetCamera(camera);
-			result = 0;
+			Result = 0;
 			Session.Reset(_presentation);
 			RefreshInput();
 		}
@@ -216,22 +219,22 @@ namespace Sekai.Core.Live
 
 		public int Result
 		{
-			get => result;
+			get => _result;
 			set
 			{
-				if (result == value)
+				if (_result == value)
 				{
 					return;
 				}
 
-				result = value;
+				_result = value;
 				if (value == 2)
 				{
-					OnFailure?.Invoke();
+					RaiseFailed();
 				}
 				if (value >= 3)
 				{
-					OnFinished?.Invoke();
+					RaiseFinished();
 				}
 			}
 		}
@@ -240,7 +243,7 @@ namespace Sekai.Core.Live
 		public void OnAutoInput()
 		{
 			NoteFrame.AutoUpdate();
-			if (result < 3) ConnectorAudio.Update(Session.MusicScore, currentFrameInfo.time, true, null);
+			if (_result < 3) ConnectorAudio.Update(Session.MusicScore, currentFrameInfo.time, true, null);
 			else ConnectorAudio.Silence();
 		}
 
@@ -270,10 +273,9 @@ namespace Sekai.Core.Live
 				Result = 2;
 			}
 
-			if (IsNotesAllFinished && result == 0)
+			if (IsNotesAllFinished && _result == 0)
 			{
-				result = 3;
-				OnFinished?.Invoke();
+				Result = 3;
 			}
 		}
 

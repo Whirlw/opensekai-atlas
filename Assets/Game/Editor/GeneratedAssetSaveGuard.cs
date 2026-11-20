@@ -27,8 +27,8 @@ namespace OpenSekai.EditorTools
     /// </summary>
     public sealed class GeneratedAssetSaveGuard : AssetModificationProcessor
     {
-        private const string ManifestRelativePath = "Tools/generated-assets.txt";
-        private static readonly Regex Entry = new Regex(@"^(?<hash>[0-9a-f]{64})\s+(?<size>\d+)\s+(?<path>.+?)\s*$");
+        private const string MANIFEST_RELATIVE_PATH = "Tools/generated-assets.txt";
+        private static readonly Regex _entry = new Regex(@"^(?<hash>[0-9a-f]{64})\s+(?<size>\d+)\s+(?<path>.+?)\s*$");
 
         private static int _allowDepth;
         private static string[] _paths;
@@ -142,7 +142,7 @@ namespace OpenSekai.EditorTools
             if (!ReferenceEquals(kept, paths))
             {
                 Debug.Log("[GeneratedAssets] kept " + (paths.Length - kept.Length)
-                    + " generated asset(s) out of the save; they stay as committed (" + ManifestRelativePath + ")");
+                    + " generated asset(s) out of the save; they stay as committed (" + MANIFEST_RELATIVE_PATH + ")");
             }
 
             return kept;
@@ -151,7 +151,7 @@ namespace OpenSekai.EditorTools
         private static string[] ReadManifest()
         {
             string projectRoot = Path.GetDirectoryName(Application.dataPath);
-            string manifest = Path.Combine(projectRoot ?? ".", ManifestRelativePath);
+            string manifest = Path.Combine(projectRoot ?? ".", MANIFEST_RELATIVE_PATH);
             if (!File.Exists(manifest))
             {
                 return Array.Empty<string>();
@@ -165,7 +165,7 @@ namespace OpenSekai.EditorTools
                     continue;
                 }
 
-                Match match = Entry.Match(line);
+                Match match = _entry.Match(line);
                 if (match.Success)
                 {
                     paths.Add(match.Groups["path"].Value.Replace('\\', '/'));

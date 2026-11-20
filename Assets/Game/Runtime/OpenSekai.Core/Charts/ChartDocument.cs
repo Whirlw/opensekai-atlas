@@ -16,7 +16,8 @@ namespace OpenSekai.Charts
         public long MusicScoreTicksMax { get; set; }
         public int MusicId { get; set; }
         public string FullComboDataHash { get; set; }
-        [JsonIgnore] public bool HasPlayableNotes => NoteList != null && NoteList.Exists(note => note != null);
+        [JsonIgnore]
+        public bool HasPlayableNotes => NoteList != null && NoteList.Exists(note => note != null);
 
         public ChartDocument Copy() => new ChartDocument
         {

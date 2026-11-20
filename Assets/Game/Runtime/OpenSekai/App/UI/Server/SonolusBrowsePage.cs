@@ -83,11 +83,11 @@ namespace OpenSekai.App.UI
             Button refresh = ServerWidgets.IconButton(bar, "Refresh", LibraryIcon.Refresh, Reload);
             LibraryWidgets.Place((RectTransform)refresh.transform, right, right, new Vector2(-rightInset, 0f), new Vector2(height, height));
 
-            const float filterWidth = 150f;
-            _filter = ServerWidgets.LabelledButton(bar, "Filter", "筛选", LibraryIcon.Settings, OpenAdvanced, filterWidth, height,
+            const float FILTER_WIDTH = 150f;
+            _filter = ServerWidgets.LabelledButton(bar, "Filter", "筛选", LibraryIcon.Settings, OpenAdvanced, FILTER_WIDTH, height,
                 LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, UiCue.None);
             LibraryWidgets.Outline((Image)_filter.targetGraphic, height * 0.5f);
-            LibraryWidgets.Place((RectTransform)_filter.transform, right, right, new Vector2(-(rightInset + height + 16f), 0f), new Vector2(filterWidth, height));
+            LibraryWidgets.Place((RectTransform)_filter.transform, right, right, new Vector2(-(rightInset + height + 16f), 0f), new Vector2(FILTER_WIDTH, height));
             _filterDot = LibraryUi.CreateImage("Dot", _filter.transform, LibraryTheme.Colors.DefaultAccent);
             _filterDot.sprite = LibraryShapes.RoundedRect(6f);
             _filterDot.type = Image.Type.Sliced;
@@ -101,7 +101,7 @@ namespace OpenSekai.App.UI
             searchRect.anchorMin = new Vector2(0.5f, 0.5f);
             searchRect.anchorMax = right;
             searchRect.offsetMin = new Vector2(16f, -height * 0.5f);
-            searchRect.offsetMax = new Vector2(-(rightInset + height + 16f + filterWidth + 16f), height * 0.5f);
+            searchRect.offsetMax = new Vector2(-(rightInset + height + 16f + FILTER_WIDTH + 16f), height * 0.5f);
             _search.onSubmit.AddListener(RunQuickSearch);
             _search.onEndEdit.AddListener(text =>
             {

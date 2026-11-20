@@ -7,11 +7,13 @@ namespace Sekai
 	[RequireComponent(typeof(CustomIndexToggleGroup))]
 	public sealed class UIPartsDialogTabGroup : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_toggleGroup")]
 		[SerializeField]
-		private CustomIndexToggleGroup _toggleGroup;
+		private CustomIndexToggleGroup toggleGroup;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_tabPrefab")]
 		[SerializeField]
-		private UIPartsDialogTab _tabPrefab;
+		private UIPartsDialogTab tabPrefab;
 
 		private readonly List<UIPartsDialogTab> _tabList;
 
@@ -19,60 +21,77 @@ namespace Sekai
 		{
 			get
 			{
-				return _toggleGroup;
+				return toggleGroup;
 			}
 		}
 
 		public void Setup()
 		{
-			if (_toggleGroup == null)
+			if (toggleGroup == null)
 			{
-				_toggleGroup = GetComponent<CustomIndexToggleGroup>();
+				toggleGroup = GetComponent<CustomIndexToggleGroup>();
 			}
 			SetupTab();
 		}
 
-		private void OnTabSelectedChanged()
+		private void OnSelectedIndexChanged(int index)
 		{
 			for (int i = 0; i < _tabList.Count; i++)
 			{
 				UIPartsDialogTab tab = _tabList[i];
 				if (tab != null)
 				{
-					tab.IsOn = _toggleGroup != null && _toggleGroup.SelectedIndex == i;
+					tab.IsOn = index == i;
 				}
 			}
 		}
+
+		private void OnDestroy()
+		{
+			if (toggleGroup != null)
+			{
+				toggleGroup.SelectedIndexChanged -= OnSelectedIndexChanged;
+			}
+		}
+
 
 		private void SetupTab()
 		{
 			_tabList.Clear();
 			GetComponentsInChildren(true, _tabList);
-			for (int i = 0; i < _tabList.Count; i++)
+			toggleGroup.SelectedIndexChanged -= OnSelectedIndexChanged;
+			foreach (var tab in _tabList)
 			{
-				_tabList[i]?.Setup(OnTabSelectedChanged);
+				tab.Setup(null);
+				var toggle = tab.GetComponent<CustomToggle>();
+				if (!toggleGroup.IndexToggles.Contains(toggle))
+				{
+					toggleGroup.IndexToggles.Add(toggle);
+				}
 			}
-			if (_toggleGroup != null)
+
+			toggleGroup.CollectToggles(false);
+			int index = toggleGroup.SelectedIndex;
+			if (toggleGroup.IndexToggles.Count > 0)
 			{
-				_toggleGroup.CollectToggles(false);
-				_toggleGroup.OnSelectedIndexChanged -= _ => OnTabSelectedChanged();
-				_toggleGroup.OnSelectedIndexChanged += _ => OnTabSelectedChanged();
+				toggleGroup.SetSelectedIndexWithoutNotify(index);
 			}
-			OnTabSelectedChanged();
+			OnSelectedIndexChanged(index);
+			toggleGroup.SelectedIndexChanged += OnSelectedIndexChanged;
 		}
 
 		public void Setup(int tabCount)
 		{
-			if (_toggleGroup == null)
+			if (toggleGroup == null)
 			{
-				_toggleGroup = GetComponent<CustomIndexToggleGroup>();
+				toggleGroup = GetComponent<CustomIndexToggleGroup>();
 			}
 			tabCount = Mathf.Max(0, tabCount);
-			if (_tabPrefab != null)
+			if (tabPrefab != null)
 			{
 				for (int i = transform.childCount; i < tabCount; i++)
 				{
-					Instantiate(_tabPrefab, transform, false);
+					Instantiate(tabPrefab, transform, false);
 				}
 			}
 			for (int i = 0; i < transform.childCount; i++)

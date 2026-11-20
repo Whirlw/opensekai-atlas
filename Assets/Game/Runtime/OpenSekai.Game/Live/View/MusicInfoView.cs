@@ -21,102 +21,129 @@ namespace Sekai.Live
 	/// </summary>
 	public class MusicInfoView : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_safeAreaAdjuster")]
 		[SerializeField]
-		private SafeAreaAdjuster _safeAreaAdjuster;
+		private SafeAreaAdjuster safeAreaAdjuster;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_viewGroup")]
 		[SerializeField]
-		private CanvasGroup _viewGroup;
+		private CanvasGroup viewGroup;
 
 		/// <summary>Text rows, in the order they slide in.</summary>
+		[UnityEngine.Serialization.FormerlySerializedAs("_infoGroup")]
 		[SerializeField]
-		private CanvasGroup[] _infoGroup;
+		private CanvasGroup[] infoGroup;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_band")]
 		[SerializeField]
-		private RectTransform _band;
+		private RectTransform band;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_bandEdges")]
 		[SerializeField]
-		private RectTransform[] _bandEdges;
+		private RectTransform[] bandEdges;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_jacketGroup")]
 		[SerializeField]
-		private CanvasGroup _jacketGroup;
+		private CanvasGroup jacketGroup;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_shine")]
 		[SerializeField]
-		private RectTransform _shine;
+		private RectTransform shine;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_rule")]
 		[SerializeField]
-		private RectTransform _rule;
+		private RectTransform rule;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_sparkles")]
 		[SerializeField]
-		private RectTransform[] _sparkles;
+		private RectTransform[] sparkles;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_textColumn")]
 		[SerializeField]
-		private RectTransform _textColumn;
+		private RectTransform textColumn;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_jacket")]
 		[SerializeField]
-		private CustomRawImage _jacket;
+		private CustomRawImage jacket;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_difficultyJacket")]
 		[SerializeField]
-		private UIPartsMusicDifficulty _difficultyJacket;
+		private UIPartsMusicDifficulty difficultyJacket;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_difficultyJacketText")]
 		[SerializeField]
-		private CustomTextMesh _difficultyJacketText;
+		private CustomTextMesh difficultyJacketText;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_titleLabel")]
 		[SerializeField]
-		private CustomTextMesh _titleLabel;
+		private CustomTextMesh titleLabel;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_creatorLabel")]
 		[SerializeField]
-		private CustomTextMesh _creatorLabel;
+		private CustomTextMesh creatorLabel;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_singerLabel")]
 		[SerializeField]
-		private CustomTextMesh _singerLabel;
+		private CustomTextMesh singerLabel;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_collaborationRibbon")]
 		[SerializeField]
-		private UIPartsMusicCollaborationRibbon _collaborationRibbon;
+		private UIPartsMusicCollaborationRibbon collaborationRibbon;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_musicInfoRoot")]
 		[SerializeField]
-		private GameObject _musicInfoRoot;
+		private GameObject musicInfoRoot;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_scoreInfoRoot")]
 		[SerializeField]
-		private GameObject _scoreInfoRoot;
+		private GameObject scoreInfoRoot;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_scoreTitleLabel")]
 		[SerializeField]
-		private CustomTextMesh _scoreTitleLabel;
+		private CustomTextMesh scoreTitleLabel;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_scoreCreatorLabel")]
 		[SerializeField]
-		private CustomTextMesh _scoreCreatorLabel;
+		private CustomTextMesh scoreCreatorLabel;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_scoreIcon")]
 		[SerializeField]
-		private GameObject _scoreIcon;
+		private GameObject scoreIcon;
 
 		/// <summary>"LV 32" beside the difficulty chip.</summary>
+		[UnityEngine.Serialization.FormerlySerializedAs("_levelLabel")]
 		[SerializeField]
-		private CustomTextMesh _levelLabel;
+		private CustomTextMesh levelLabel;
 
 		/// <summary>Tinted with the difficulty's color; each keeps its own alpha.</summary>
+		[UnityEngine.Serialization.FormerlySerializedAs("_difficultyGraphics")]
 		[SerializeField]
-		private Graphic[] _difficultyGraphics;
+		private Graphic[] difficultyGraphics;
 
 		/// <summary>Tinted with the light accent taken from the jacket; each keeps its own alpha.</summary>
+		[UnityEngine.Serialization.FormerlySerializedAs("_accentGraphics")]
 		[SerializeField]
-		private Graphic[] _accentGraphics;
+		private Graphic[] accentGraphics;
 
 		/// <summary>Tinted with the darker glow color taken from the jacket; each keeps its own alpha.</summary>
+		[UnityEngine.Serialization.FormerlySerializedAs("_glowGraphics")]
 		[SerializeField]
-		private Graphic[] _glowGraphics;
+		private Graphic[] glowGraphics;
 
 		/// <summary>How long the page holds before it starts fading out, in seconds at scale 1.</summary>
+		[UnityEngine.Serialization.FormerlySerializedAs("_JacketFadeOutDelaySec")]
 		[SerializeField]
-		private float _JacketFadeOutDelaySec = 2.35f;
+		private float jacketFadeOutDelaySec = 2.35f;
 
 		private const string INSTRUMENTAL_VOCAL_NAMES_WORDING_KEY = "WORD_INSTRUMENTLE_VERSION_NAMES";
 
 		// The library page's colors (LibraryTheme / JacketPalette), repeated here because the live
 		// assembly cannot see the library's.
-		private static readonly Color DefaultAccent = new Color32(157, 184, 255, 255);
-		private static readonly Color DefaultGlow = new Color32(37, 52, 92, 255);
-		private static readonly Color NeutralAccent = new Color32(196, 204, 216, 255);
-		private static readonly Color NeutralGlow = new Color32(52, 58, 68, 255);
-		private static readonly Color DifficultyFallback = new Color32(197, 206, 218, 255);
+		private static readonly Color _defaultAccent = new Color32(157, 184, 255, 255);
+		private static readonly Color _defaultGlow = new Color32(37, 52, 92, 255);
+		private static readonly Color _neutralAccent = new Color32(196, 204, 216, 255);
+		private static readonly Color _neutralGlow = new Color32(52, 58, 68, 255);
+		private static readonly Color _difficultyFallback = new Color32(197, 206, 218, 255);
 		private const float GRAY_SATURATION = 0.08f;
 		private const int PALETTE_SAMPLES = 4096;
 
@@ -133,8 +160,8 @@ namespace Sekai.Live
 
 		public float JacketFadeOutDelaySec
 		{
-			get => _JacketFadeOutDelaySec;
-			set => _JacketFadeOutDelaySec = value;
+			get => jacketFadeOutDelaySec;
+			set => jacketFadeOutDelaySec = value;
 		}
 
 		private bool _playStartEffectEnabled;
@@ -162,7 +189,7 @@ namespace Sekai.Live
 		public Texture2D JacketTexture { get; private set; }
 
 		/// <summary>The accent taken from the jacket, the way the library's JacketPalette does.</summary>
-		public Color Accent { get; private set; } = DefaultAccent;
+		public Color Accent { get; private set; } = _defaultAccent;
 
 		public void Setup(LiveBootDataBase bootData)
 		{
@@ -172,20 +199,20 @@ namespace Sekai.Live
 			CacheLayout();
 			ResetToHidden();
 
-			_difficultyJacket?.Setup(musicData?.DifficultyEnum ?? MusicDifficulty.none);
+			difficultyJacket?.Setup(musicData?.DifficultyEnum ?? MusicDifficulty.none);
 			SetupDifficulty(musicData?.DifficultyString);
 			int level = musicData?.PlayLevel ?? 0;
-			_levelLabel?.SetText(level > 0 ? "LV " + level : string.Empty);
+			levelLabel?.SetText(level > 0 ? "LV " + level : string.Empty);
 
 			FreeLiveBootData freeLiveBootData = bootData as FreeLiveBootData;
 			bool isCustomScore = freeLiveBootData != null && bootData.IsCustomMusicScore;
 			bool showCustomScoreInfo = isCustomScore && (bootData.LiveSettingData?.UsesCustomMusicScoreMusicInfoDisplay ?? true);
-			_scoreIcon?.SetActive(showCustomScoreInfo);
-			_scoreInfoRoot?.SetActive(showCustomScoreInfo);
+			scoreIcon?.SetActive(showCustomScoreInfo);
+			scoreInfoRoot?.SetActive(showCustomScoreInfo);
 			_textColumnPosition = _textColumnBasePosition + (showCustomScoreInfo ? Vector2.zero : new Vector2(0f, NO_SCORE_INFO_COLUMN_OFFSET_Y));
-			if (_textColumn != null)
+			if (textColumn != null)
 			{
-				_textColumn.anchoredPosition = _textColumnPosition;
+				textColumn.anchoredPosition = _textColumnPosition;
 			}
 
 			string title = musicData?.Music?.title ?? string.Empty;
@@ -194,41 +221,41 @@ namespace Sekai.Live
 			string arranger = musicData?.Music?.arranger ?? string.Empty;
 			string singer = ResolveVocalText(musicData?.Vocal, string.Empty);
 
-			_titleLabel?.SetText(title);
-			_creatorLabel?.SetText(BuildCredits(lyricist, composer, arranger));
+			titleLabel?.SetText(title);
+			creatorLabel?.SetText(BuildCredits(lyricist, composer, arranger));
 			// The layout captions the line 演唱, so the name goes in plain; the old "Vo." wording
 			// would repeat it.
-			_singerLabel?.SetText(string.IsNullOrWhiteSpace(singer) ? "—" : singer);
+			singerLabel?.SetText(string.IsNullOrWhiteSpace(singer) ? "—" : singer);
 
-			if (_collaborationRibbon != null)
+			if (collaborationRibbon != null)
 			{
 				string collaborationLabel = ResolveCollaborationLabel(freeLiveBootData, isCustomScore);
 				bool hasCollaboration = !string.IsNullOrWhiteSpace(collaborationLabel);
-				_collaborationRibbon.gameObject.SetActive(hasCollaboration);
+				collaborationRibbon.gameObject.SetActive(hasCollaboration);
 				if (hasCollaboration)
 				{
-					_collaborationRibbon.SetText(collaborationLabel);
+					collaborationRibbon.SetText(collaborationLabel);
 				}
 			}
 
 			if (showCustomScoreInfo)
 			{
-				_scoreTitleLabel?.SetText(freeLiveBootData.CustomMusicScoreTitle ?? title);
-				_scoreCreatorLabel?.SetText(freeLiveBootData.CustomMusicScoreAuthorName ?? string.Empty);
+				scoreTitleLabel?.SetText(freeLiveBootData.CustomMusicScoreTitle ?? title);
+				scoreCreatorLabel?.SetText(freeLiveBootData.CustomMusicScoreAuthorName ?? string.Empty);
 			}
 
 			Texture2D texture = LoadJacketTexture(bootData, musicData);
-			if (_jacket != null)
+			if (jacket != null)
 			{
-				_jacket.texture = texture;
-				_jacket.enabled = texture != null;
+				jacket.texture = texture;
+				jacket.enabled = texture != null;
 			}
 
 			PaletteOf(texture, out Color accent, out Color glow);
 			JacketTexture = texture;
 			Accent = accent;
-			Tint(_accentGraphics, accent);
-			Tint(_glowGraphics, glow);
+			Tint(accentGraphics, accent);
+			Tint(glowGraphics, glow);
 		}
 
 		/// <summary>
@@ -278,8 +305,8 @@ namespace Sekai.Live
 		/// </summary>
 		private static void PaletteOf(Texture2D texture, out Color accent, out Color glow)
 		{
-			accent = DefaultAccent;
-			glow = DefaultGlow;
+			accent = _defaultAccent;
+			glow = _defaultGlow;
 			if (texture == null || !texture.isReadable)
 			{
 				return;
@@ -323,8 +350,8 @@ namespace Sekai.Live
 			Color.RGBToHSV(average, out float hue, out float saturation, out float _);
 			if (saturation < GRAY_SATURATION)
 			{
-				accent = NeutralAccent;
-				glow = NeutralGlow;
+				accent = _neutralAccent;
+				glow = _neutralGlow;
 				return;
 			}
 
@@ -343,7 +370,7 @@ namespace Sekai.Live
 				case "expert": return new Color32(245, 154, 154, 255);
 				case "master": return new Color32(205, 166, 245, 255);
 				case "append": return new Color32(242, 176, 222, 255);
-				default: return DifficultyFallback;
+				default: return _difficultyFallback;
 			}
 		}
 
@@ -354,15 +381,15 @@ namespace Sekai.Live
 				difficulty = "none";
 			}
 
-			_difficultyJacket?.Setup(difficulty);
-			if (_difficultyJacketText != null)
+			difficultyJacket?.Setup(difficulty);
+			if (difficultyJacketText != null)
 			{
-				_difficultyJacketText.SetText(difficulty.ToUpperInvariant());
-				_difficultyJacketText.gameObject.SetActive(true);
+				difficultyJacketText.SetText(difficulty.ToUpperInvariant());
+				difficultyJacketText.gameObject.SetActive(true);
 			}
 
 			Color color = DifficultyColor(difficulty);
-			Tint(_difficultyGraphics, color);
+			Tint(difficultyGraphics, color);
 		}
 
 		/// <param name="durationScale">Stretches every time on the page's timeline.</param>
@@ -385,8 +412,8 @@ namespace Sekai.Live
 			}
 
 			CacheLayout();
-			_safeAreaAdjuster?.Setup();
-			_safeAreaAdjuster?.Apply();
+			safeAreaAdjuster?.Setup();
+			safeAreaAdjuster?.Apply();
 			ResetToHidden();
 			gameObject.SetActive(true);
 
@@ -441,29 +468,29 @@ namespace Sekai.Live
 			float contentExit = disableOnlyJacketOnFinish ? exitAt : float.PositiveInfinity;
 			if (!opensPage)
 			{
-				if (_viewGroup != null)
+				if (viewGroup != null)
 				{
-					_viewGroup.alpha = 1f;
+					viewGroup.alpha = 1f;
 				}
-				if (_band != null)
+				if (band != null)
 				{
-					SetScaleY(_band, 1f);
+					SetScaleY(band, 1f);
 				}
 			}
 			else
 			{
-				if (_viewGroup != null)
+				if (viewGroup != null)
 				{
-					Track(t0, VIEW_FADE_IN_DURATION * s, Ease.OutQuad, p => _viewGroup.alpha = p, pageExit);
+					Track(t0, VIEW_FADE_IN_DURATION * s, Ease.OutQuad, p => viewGroup.alpha = p, pageExit);
 				}
-				if (_band != null)
+				if (band != null)
 				{
-					Track(t0, 0.38f * s, Ease.OutCubic, p => SetScaleY(_band, p), pageExit);
+					Track(t0, 0.38f * s, Ease.OutCubic, p => SetScaleY(band, p), pageExit);
 				}
 			}
-			if (_bandEdges != null)
+			if (bandEdges != null)
 			{
-				foreach (RectTransform edge in _bandEdges)
+				foreach (RectTransform edge in bandEdges)
 				{
 					if (edge != null)
 					{
@@ -472,27 +499,27 @@ namespace Sekai.Live
 				}
 			}
 
-			if (_jacketGroup != null)
+			if (jacketGroup != null)
 			{
-				RectTransform rect = (RectTransform)_jacketGroup.transform;
+				RectTransform rect = (RectTransform)jacketGroup.transform;
 				Vector2 from = rect.anchoredPosition;
-				Track(t0 + 0.1f * s, 0.3f * s, Ease.OutQuad, p => _jacketGroup.alpha = p, contentExit);
+				Track(t0 + 0.1f * s, 0.3f * s, Ease.OutQuad, p => jacketGroup.alpha = p, contentExit);
 				Track(t0 + 0.1f * s, 0.48f * s, Ease.OutCubic,
 					p => rect.anchoredPosition = Vector2.LerpUnclamped(from, _jacketBasePosition, p), pageExit);
 				Track(t0 + 0.1f * s, 0.55f * s, Ease.OutCubic,
 					p => rect.localScale = Vector3.one * Mathf.LerpUnclamped(1.06f, 1f, p));
 			}
-			if (_shine != null)
+			if (shine != null)
 			{
 				Track(t0 + 0.55f * s, 0.6f * s, Ease.InOutSine,
-					p => SetPositionX(_shine, Mathf.LerpUnclamped(-SHINE_TRAVEL_X, SHINE_TRAVEL_X, p)));
+					p => SetPositionX(shine, Mathf.LerpUnclamped(-SHINE_TRAVEL_X, SHINE_TRAVEL_X, p)));
 			}
 
-			if (_infoGroup != null)
+			if (infoGroup != null)
 			{
-				for (int i = 0; i < _infoGroup.Length; i++)
+				for (int i = 0; i < infoGroup.Length; i++)
 				{
-					CanvasGroup row = _infoGroup[i];
+					CanvasGroup row = infoGroup[i];
 					if (row == null)
 					{
 						continue;
@@ -506,15 +533,15 @@ namespace Sekai.Live
 					Track(at, 0.42f * s, Ease.OutCubic, p => rect.anchoredPosition = Vector2.LerpUnclamped(from, to, p));
 				}
 			}
-			if (_rule != null)
+			if (rule != null)
 			{
-				Track(t0 + 0.36f * s, 0.55f * s, Ease.OutQuart, p => SetScaleX(_rule, p));
+				Track(t0 + 0.36f * s, 0.55f * s, Ease.OutQuart, p => SetScaleX(rule, p));
 			}
-			if (_sparkles != null)
+			if (sparkles != null)
 			{
-				for (int i = 0; i < _sparkles.Length; i++)
+				for (int i = 0; i < sparkles.Length; i++)
 				{
-					RectTransform sparkle = _sparkles[i];
+					RectTransform sparkle = sparkles[i];
 					if (sparkle == null)
 					{
 						continue;
@@ -535,13 +562,13 @@ namespace Sekai.Live
 
 			if (disableOnlyJacketOnFinish)
 			{
-				if (_jacketGroup != null)
+				if (jacketGroup != null)
 				{
-					Exit(0f, Ease.OutQuad, () => _jacketGroup.alpha, a => _jacketGroup.alpha = a);
+					Exit(0f, Ease.OutQuad, () => jacketGroup.alpha, a => jacketGroup.alpha = a);
 				}
-				if (_infoGroup != null)
+				if (infoGroup != null)
 				{
-					foreach (CanvasGroup row in _infoGroup)
+					foreach (CanvasGroup row in infoGroup)
 					{
 						if (row != null)
 						{
@@ -552,23 +579,23 @@ namespace Sekai.Live
 			}
 			else
 			{
-				if (_jacketGroup != null)
+				if (jacketGroup != null)
 				{
-					RectTransform rect = (RectTransform)_jacketGroup.transform;
+					RectTransform rect = (RectTransform)jacketGroup.transform;
 					Exit(_jacketBasePosition.x + EXIT_DRIFT_X, Ease.InQuad, () => rect.anchoredPosition.x, x => SetPositionX(rect, x));
 				}
-				if (_textColumn != null)
+				if (textColumn != null)
 				{
 					Exit(_textColumnPosition.x + EXIT_DRIFT_X, Ease.InQuad,
-						() => _textColumn.anchoredPosition.x, x => SetPositionX(_textColumn, x));
+						() => textColumn.anchoredPosition.x, x => SetPositionX(textColumn, x));
 				}
-				if (_band != null)
+				if (band != null)
 				{
-					Exit(0.6f, Ease.InQuad, () => _band.localScale.y, y => SetScaleY(_band, y));
+					Exit(0.6f, Ease.InQuad, () => band.localScale.y, y => SetScaleY(band, y));
 				}
-				if (_viewGroup != null)
+				if (viewGroup != null)
 				{
-					Exit(0f, Ease.InQuad, () => _viewGroup.alpha, a => _viewGroup.alpha = a);
+					Exit(0f, Ease.InQuad, () => viewGroup.alpha, a => viewGroup.alpha = a);
 				}
 				duration = exitEnd;
 			}
@@ -633,9 +660,9 @@ namespace Sekai.Live
 
 		public void FadeViewGroup(float alpha)
 		{
-			if (_viewGroup != null)
+			if (viewGroup != null)
 			{
-				_viewGroup.alpha = alpha;
+				viewGroup.alpha = alpha;
 			}
 		}
 
@@ -652,22 +679,22 @@ namespace Sekai.Live
 				return;
 			}
 			_hasLayoutCache = true;
-			if (_textColumn != null)
+			if (textColumn != null)
 			{
-				_textColumnBasePosition = _textColumn.anchoredPosition;
+				_textColumnBasePosition = textColumn.anchoredPosition;
 				_textColumnPosition = _textColumnBasePosition;
 			}
-			if (_jacketGroup != null)
+			if (jacketGroup != null)
 			{
-				_jacketBasePosition = ((RectTransform)_jacketGroup.transform).anchoredPosition;
+				_jacketBasePosition = ((RectTransform)jacketGroup.transform).anchoredPosition;
 			}
-			int count = _infoGroup?.Length ?? 0;
+			int count = infoGroup?.Length ?? 0;
 			_rowBasePositions = new Vector2[count];
 			for (int i = 0; i < count; i++)
 			{
-				if (_infoGroup[i] != null)
+				if (infoGroup[i] != null)
 				{
-					_rowBasePositions[i] = ((RectTransform)_infoGroup[i].transform).anchoredPosition;
+					_rowBasePositions[i] = ((RectTransform)infoGroup[i].transform).anchoredPosition;
 				}
 			}
 		}
@@ -676,21 +703,21 @@ namespace Sekai.Live
 		private void ResetToHidden()
 		{
 			// The exit drifts the column left; a retry replays on the same view, so put it back.
-			if (_textColumn != null)
+			if (textColumn != null)
 			{
-				_textColumn.anchoredPosition = _textColumnPosition;
+				textColumn.anchoredPosition = _textColumnPosition;
 			}
-			if (_viewGroup != null)
+			if (viewGroup != null)
 			{
-				_viewGroup.alpha = 0f;
+				viewGroup.alpha = 0f;
 			}
-			if (_band != null)
+			if (band != null)
 			{
-				_band.localScale = new Vector3(1f, 0f, 1f);
+				band.localScale = new Vector3(1f, 0f, 1f);
 			}
-			if (_bandEdges != null)
+			if (bandEdges != null)
 			{
-				foreach (RectTransform edge in _bandEdges)
+				foreach (RectTransform edge in bandEdges)
 				{
 					if (edge != null)
 					{
@@ -698,26 +725,26 @@ namespace Sekai.Live
 					}
 				}
 			}
-			if (_jacketGroup != null)
+			if (jacketGroup != null)
 			{
-				_jacketGroup.alpha = 0f;
-				RectTransform jacketRect = (RectTransform)_jacketGroup.transform;
+				jacketGroup.alpha = 0f;
+				RectTransform jacketRect = (RectTransform)jacketGroup.transform;
 				jacketRect.anchoredPosition = _jacketBasePosition + new Vector2(JACKET_SLIDE_X, 0f);
 				jacketRect.localScale = Vector3.one * 1.06f;
 			}
-			if (_shine != null)
+			if (shine != null)
 			{
-				_shine.anchoredPosition = new Vector2(-SHINE_TRAVEL_X, _shine.anchoredPosition.y);
+				shine.anchoredPosition = new Vector2(-SHINE_TRAVEL_X, shine.anchoredPosition.y);
 			}
-			if (_rule != null)
+			if (rule != null)
 			{
-				_rule.localScale = new Vector3(0f, 1f, 1f);
+				rule.localScale = new Vector3(0f, 1f, 1f);
 			}
-			if (_infoGroup != null)
+			if (infoGroup != null)
 			{
-				for (int i = 0; i < _infoGroup.Length; i++)
+				for (int i = 0; i < infoGroup.Length; i++)
 				{
-					CanvasGroup row = _infoGroup[i];
+					CanvasGroup row = infoGroup[i];
 					if (row == null)
 					{
 						continue;
@@ -726,9 +753,9 @@ namespace Sekai.Live
 					((RectTransform)row.transform).anchoredPosition = _rowBasePositions[i] + new Vector2(ROW_SLIDE_X, 0f);
 				}
 			}
-			if (_sparkles != null)
+			if (sparkles != null)
 			{
-				foreach (RectTransform sparkle in _sparkles)
+				foreach (RectTransform sparkle in sparkles)
 				{
 					if (sparkle != null)
 					{
@@ -777,7 +804,7 @@ namespace Sekai.Live
 
 		private static Texture2D LoadJacketTexture(LiveBootDataBase bootData, LiveMusicData musicData)
 		{
-			Texture2D customTexture = LoadCustomJacketTexture(bootData as FreeLiveBootData);
+			Texture2D customTexture = LiveMediaFiles.LoadCustomJacketTexture(bootData as FreeLiveBootData);
 			if (customTexture != null)
 			{
 				return customTexture;
@@ -798,29 +825,6 @@ namespace Sekai.Live
 			return texture;
 		}
 
-		private static Texture2D LoadCustomJacketTexture(FreeLiveBootData bootData)
-		{
-			if (bootData == null) return null;
 
-			try
-			{
-				byte[] jacket = bootData.TemporaryJacketData;
-				if (jacket == null && !string.IsNullOrEmpty(bootData.CustomMusicScorePath))
-				{
-					string path = SongPackageStorage.LoadEntry(bootData.CustomMusicScorePath)?.JacketPath;
-					if (File.Exists(path)) jacket = File.ReadAllBytes(path);
-				}
-				if (jacket == null) return null;
-
-				Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-				if (ImageConversion.LoadImage(texture, jacket)) return texture;
-				Destroy(texture);
-				return null;
-			}
-			catch
-			{
-				return null;
-			}
-		}
 	}
 }

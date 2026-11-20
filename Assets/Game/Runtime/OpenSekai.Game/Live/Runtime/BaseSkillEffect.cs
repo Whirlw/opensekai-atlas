@@ -5,13 +5,13 @@ namespace Sekai.Core.Live
 {
 	public class BaseSkillEffect : ISkillEffect
 	{
-		private int _Level_k__BackingField;
+		private int _levelKBackingField;
 
-		private float _LifeTime_k__BackingField;
+		private float _lifeTimeKBackingField;
 
-		private int _Order_k__BackingField;
+		private int _orderKBackingField;
 
-		private bool _IsEncore_k__BackingField;
+		private bool _isEncoreKBackingField;
 
 		public virtual SkillType Type
 		{
@@ -34,12 +34,12 @@ namespace Sekai.Core.Live
 			[CompilerGenerated]
 			get
 			{
-				return _Level_k__BackingField;
+				return _levelKBackingField;
 			}
 			[CompilerGenerated]
 			protected set
 			{
-				_Level_k__BackingField = value;
+				_levelKBackingField = value;
 			}
 		}
 
@@ -48,12 +48,12 @@ namespace Sekai.Core.Live
 			[CompilerGenerated]
 			get
 			{
-				return _LifeTime_k__BackingField;
+				return _lifeTimeKBackingField;
 			}
 			[CompilerGenerated]
 			protected set
 			{
-				_LifeTime_k__BackingField = value;
+				_lifeTimeKBackingField = value;
 			}
 		}
 
@@ -62,12 +62,12 @@ namespace Sekai.Core.Live
 			[CompilerGenerated]
 			get
 			{
-				return _Order_k__BackingField;
+				return _orderKBackingField;
 			}
 			[CompilerGenerated]
 			protected set
 			{
-				_Order_k__BackingField = value;
+				_orderKBackingField = value;
 			}
 		}
 
@@ -76,12 +76,12 @@ namespace Sekai.Core.Live
 			[CompilerGenerated]
 			get
 			{
-				return _IsEncore_k__BackingField;
+				return _isEncoreKBackingField;
 			}
 			[CompilerGenerated]
 			set
 			{
-				_IsEncore_k__BackingField = value;
+				_isEncoreKBackingField = value;
 			}
 		}
 

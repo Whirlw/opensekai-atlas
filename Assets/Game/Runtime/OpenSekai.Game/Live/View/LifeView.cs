@@ -6,40 +6,51 @@ namespace Sekai
 {
 	public class LifeView : MonoBehaviour
 	{
-		private const int MaxLifeDigits = 10;
+		private const int MAX_LIFE_DIGITS = 10;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_lifeDefault")]
 		[SerializeField]
-		private Transform _lifeDefault;
+		private Transform lifeDefault;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_lifeDamage")]
 		[SerializeField]
-		private Transform _lifeDamage;
+		private Transform lifeDamage;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_lifeDefaultGauge")]
 		[SerializeField]
-		private SpriteRenderer _lifeDefaultGauge;
+		private SpriteRenderer lifeDefaultGauge;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_lifeDamageGauge")]
 		[SerializeField]
-		private SpriteRenderer _lifeDamageGauge;
+		private SpriteRenderer lifeDamageGauge;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_number")]
 		[SerializeField]
-		private NumberView _number;
+		private NumberView number;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_outlineNumber")]
 		[SerializeField]
-		private NumberView _outlineNumber;
+		private NumberView outlineNumber;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_pauseButton")]
 		[SerializeField]
-		private SpriteRenderer _pauseButton;
+		private SpriteRenderer pauseButton;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_pauseButtonDisable")]
 		[SerializeField]
-		private SpriteRenderer _pauseButtonDisable;
+		private SpriteRenderer pauseButtonDisable;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_skipButton")]
 		[SerializeField]
-		private SpriteRenderer _skipButton;
+		private SpriteRenderer skipButton;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_pauseButtonController")]
 		[SerializeField]
-		private LiveSpriteButton _pauseButtonController;
+		private LiveSpriteButton pauseButtonController;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_skipButtonController")]
 		[SerializeField]
-		private LiveSpriteButton _skipButtonController;
+		private LiveSpriteButton skipButtonController;
 
 		private int _maxLife;
 
@@ -61,15 +72,15 @@ namespace Sekai
 				_liveBundleBuildData = ResourceCatalog.LiveBundleConfig.Load();
 			}
 			_maxLife = _liveBundleBuildData != null && _liveBundleBuildData.Life > 0 ? _liveBundleBuildData.Life : 1000;
-			_lifeDefaultGaugeSize = _lifeDefaultGauge != null ? _lifeDefaultGauge.size : Vector2.one;
-			_lifeDamageGaugeSize = _lifeDamageGauge != null ? _lifeDamageGauge.size : Vector2.one;
-			if (_number != null)
+			_lifeDefaultGaugeSize = lifeDefaultGauge != null ? lifeDefaultGauge.size : Vector2.one;
+			_lifeDamageGaugeSize = lifeDamageGauge != null ? lifeDamageGauge.size : Vector2.one;
+			if (number != null)
 			{
-				_number.Setup("#ffffff", minimumDigits: MaxLifeDigits);
+				number.Setup("#ffffff", minimumDigits: MAX_LIFE_DIGITS);
 			}
-			if (_outlineNumber != null)
+			if (outlineNumber != null)
 			{
-				_outlineNumber.Setup("#ffffff", minimumDigits: MaxLifeDigits);
+				outlineNumber.Setup("#ffffff", minimumDigits: MAX_LIFE_DIGITS);
 			}
 			SetupButton(callback);
 			Clear();
@@ -80,26 +91,26 @@ namespace Sekai
 			_pauseEnabled = callback != null;
 			_onSkip = null;
 			ShowPauseButton();
-			if (_pauseEnabled && _pauseButtonController != null)
+			if (_pauseEnabled && pauseButtonController != null)
 			{
-				_pauseButtonController.Setup(callback);
+				pauseButtonController.Setup(callback);
 			}
-			if (_skipButtonController != null)
+			if (skipButtonController != null)
 			{
-				_skipButtonController.Setup(PressSkip);
+				skipButtonController.Setup(PressSkip);
 			}
 		}
 
 		public void CalculateButtonBounds(Camera camera)
 		{
 			_buttonCamera = camera;
-			if (_pauseButtonController != null)
+			if (pauseButtonController != null)
 			{
-				_pauseButtonController.CalculateBounds(camera);
+				pauseButtonController.CalculateBounds(camera);
 			}
-			if (_skipButtonController != null && _skipButton != null && _skipButton.gameObject.activeInHierarchy)
+			if (skipButtonController != null && skipButton != null && skipButton.gameObject.activeInHierarchy)
 			{
-				_skipButtonController.CalculateBounds(camera);
+				skipButtonController.CalculateBounds(camera);
 			}
 		}
 
@@ -115,19 +126,19 @@ namespace Sekai
 		/// </summary>
 		public void ShowSkip(Action onSkip)
 		{
-			if (onSkip == null || _skipButton == null)
+			if (onSkip == null || skipButton == null)
 			{
 				return;
 			}
 
 			_onSkip = onSkip;
-			SetActive(_pauseButton, false);
-			SetActive(_pauseButtonDisable, false);
-			SetActive(_skipButton, true);
+			SetActive(pauseButton, false);
+			SetActive(pauseButtonDisable, false);
+			SetActive(skipButton, true);
 			// The bounds of a renderer that was switched off are empty, so they are taken now.
-			if (_skipButtonController != null && _buttonCamera != null)
+			if (skipButtonController != null && _buttonCamera != null)
 			{
-				_skipButtonController.CalculateBounds(_buttonCamera);
+				skipButtonController.CalculateBounds(_buttonCamera);
 			}
 		}
 
@@ -140,9 +151,9 @@ namespace Sekai
 
 		private void ShowPauseButton()
 		{
-			SetActive(_skipButton, false);
-			SetActive(_pauseButton, _pauseEnabled);
-			SetActive(_pauseButtonDisable, !_pauseEnabled);
+			SetActive(skipButton, false);
+			SetActive(pauseButton, _pauseEnabled);
+			SetActive(pauseButtonDisable, !_pauseEnabled);
 		}
 
 		private void PressSkip()
@@ -154,29 +165,29 @@ namespace Sekai
 
 		public void Clear()
 		{
-			if (_lifeDefault != null)
+			if (lifeDefault != null)
 			{
-				_lifeDefault.localScale = Vector3.one;
+				lifeDefault.localScale = Vector3.one;
 			}
-			if (_lifeDamage != null)
+			if (lifeDamage != null)
 			{
-				_lifeDamage.localScale = Vector3.zero;
+				lifeDamage.localScale = Vector3.zero;
 			}
-			if (_lifeDefaultGauge != null)
+			if (lifeDefaultGauge != null)
 			{
-				_lifeDefaultGauge.size = _lifeDefaultGaugeSize;
+				lifeDefaultGauge.size = _lifeDefaultGaugeSize;
 			}
-			if (_lifeDamageGauge != null)
+			if (lifeDamageGauge != null)
 			{
-				_lifeDamageGauge.size = _lifeDamageGaugeSize;
+				lifeDamageGauge.size = _lifeDamageGaugeSize;
 			}
-			if (_number != null)
+			if (number != null)
 			{
-				_number.UpdateNumber(_maxLife);
+				number.UpdateNumber(_maxLife);
 			}
-			if (_outlineNumber != null)
+			if (outlineNumber != null)
 			{
-				_outlineNumber.UpdateNumber(_maxLife);
+				outlineNumber.UpdateNumber(_maxLife);
 			}
 		}
 
@@ -184,29 +195,29 @@ namespace Sekai
 		{
 			float rate = _maxLife <= 0 ? 0f : Mathf.Clamp01((float)life / _maxLife);
 			bool isDefault = rate > 0.2f;
-			if (_lifeDefault != null)
+			if (lifeDefault != null)
 			{
-				_lifeDefault.localScale = isDefault ? Vector3.one : Vector3.zero;
+				lifeDefault.localScale = isDefault ? Vector3.one : Vector3.zero;
 			}
-			if (_lifeDamage != null)
+			if (lifeDamage != null)
 			{
-				_lifeDamage.localScale = isDefault ? Vector3.zero : Vector3.one;
+				lifeDamage.localScale = isDefault ? Vector3.zero : Vector3.one;
 			}
-			if (_lifeDefaultGauge != null)
+			if (lifeDefaultGauge != null)
 			{
-				_lifeDefaultGauge.size = new Vector2(_lifeDefaultGaugeSize.x * rate, _lifeDefaultGaugeSize.y);
+				lifeDefaultGauge.size = new Vector2(_lifeDefaultGaugeSize.x * rate, _lifeDefaultGaugeSize.y);
 			}
-			if (_lifeDamageGauge != null)
+			if (lifeDamageGauge != null)
 			{
-				_lifeDamageGauge.size = new Vector2(_lifeDamageGaugeSize.x * rate, _lifeDamageGaugeSize.y);
+				lifeDamageGauge.size = new Vector2(_lifeDamageGaugeSize.x * rate, _lifeDamageGaugeSize.y);
 			}
-			if (_number != null)
+			if (number != null)
 			{
-				_number.UpdateNumber(life);
+				number.UpdateNumber(life);
 			}
-			if (_outlineNumber != null)
+			if (outlineNumber != null)
 			{
-				_outlineNumber.UpdateNumber(life);
+				outlineNumber.UpdateNumber(life);
 			}
 		}
 

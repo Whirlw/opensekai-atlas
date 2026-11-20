@@ -28,24 +28,24 @@ namespace OpenSekai.App.UI
         private const float FOOTER_HEIGHT = 44f;
 
         // LiveConfig clamps the note skin to 0..1 and both skins ship as custom01/custom02.
-        private static readonly string[] SkinLabels = { "样式 1", "样式 2" };
-        private static readonly string[] NoteSeLabels = { "音效 1", "音效 2" };
-        private static readonly string[] NoteEffectLabels = { "特效 1", "特效 2" };
-        private static readonly string[] JudgeTimingLabels = { "触摸时刻", "下一帧(旧式)" };
-        private static readonly string[] PressMatchingLabels = { "按时间顺序", "同帧候选(旧式)" };
+        private static readonly string[] _skinLabels = { "样式 1", "样式 2" };
+        private static readonly string[] _noteSeLabels = { "音效 1", "音效 2" };
+        private static readonly string[] _noteEffectLabels = { "特效 1", "特效 2" };
+        private static readonly string[] _judgeTimingLabels = { "触摸时刻", "下一帧(旧式)" };
+        private static readonly string[] _pressMatchingLabels = { "按时间顺序", "同帧候选(旧式)" };
 
-        private static readonly LiveTraceCategory[] InputCategories =
+        private static readonly LiveTraceCategory[] _inputCategories =
         {
             LiveTraceCategory.RawTouch, LiveTraceCategory.Press, LiveTraceCategory.Resident,
             LiveTraceCategory.Release, LiveTraceCategory.Judge
         };
-        private static readonly string[] InputCategoryLabels = { "原始触摸（高频）", "按下事件", "常驻通道（高频）", "抬起事件", "判定结果" };
-        private static readonly LiveTraceCategory[] ViewCategories =
+        private static readonly string[] _inputCategoryLabels = { "原始触摸（高频）", "按下事件", "常驻通道（高频）", "抬起事件", "判定结果" };
+        private static readonly LiveTraceCategory[] _viewCategories =
         {
             LiveTraceCategory.Hold, LiveTraceCategory.Tail, LiveTraceCategory.Swipe, LiveTraceCategory.Pool,
             LiveTraceCategory.View, LiveTraceCategory.Frame, LiveTraceCategory.Audio
         };
-        private static readonly string[] ViewCategoryLabels = { "长条持握", "长条尾键", "划动", "对象回收", "画面表现", "画面逐帧（高频）", "音频同步" };
+        private static readonly string[] _viewCategoryLabels = { "长条持握", "长条尾键", "划动", "对象回收", "画面表现", "画面逐帧（高频）", "音频同步" };
 
         private LiveSettingData _settings;
         private ApplicationLocalSettings _localSettings;
@@ -140,12 +140,12 @@ namespace OpenSekai.App.UI
             _rows.AddMilliseconds(timing, "判定偏移（正 = 打得晚）",
                 () => _settings.JudgeOffsetMs,
                 value => { _settings.JudgeOffsetMs = TimingCompensation.ClampJudgeOffset(value); SaveSettings(); });
-            _rows.AddSegmented(timing, "判定时机", JudgeTimingLabels,
+            _rows.AddSegmented(timing, "判定时机", _judgeTimingLabels,
                 () => _settings.UseLegacyJudgeTiming ? 1 : 0,
                 index => { _settings.UseLegacyJudgeTiming = index == 1; SaveSettings(); }, 150f);
             // Legacy judge timing flattens timestamps, so it locks the old per-frame matching; the player's own
             // choice is kept and comes back when legacy timing is turned off.
-            _rows.AddSegmented(timing, "多押分配", PressMatchingLabels,
+            _rows.AddSegmented(timing, "多押分配", _pressMatchingLabels,
                 () => _settings.UseLegacyJudgeTiming || _settings.UseFramePressMatching ? 1 : 0,
                 index => { _settings.UseFramePressMatching = index == 1; SaveSettings(); }, 150f,
                 locked: () => _settings.UseLegacyJudgeTiming);
@@ -202,11 +202,11 @@ namespace OpenSekai.App.UI
             top += LibrarySettingRows.SectionHeight(4) + gap;
 
             LibrarySettingRows.Section look = _rows.AddSection(content, "外观（下一次开局生效）", 3, rightStart, 0f, top);
-            _rows.AddSegmented(look, "音符皮肤", SkinLabels,
+            _rows.AddSegmented(look, "音符皮肤", _skinLabels,
                 () => _settings.NoteSkinIndex, value => { _settings.NoteSkinIndex = value; SaveSettings(); });
-            _rows.AddSegmented(look, "打击音", NoteSeLabels,
+            _rows.AddSegmented(look, "打击音", _noteSeLabels,
                 () => _settings.NoteSeIndex, value => { _settings.NoteSeIndex = value; SaveSettings(); });
-            _rows.AddSegmented(look, "打击特效", NoteEffectLabels,
+            _rows.AddSegmented(look, "打击特效", _noteEffectLabels,
                 () => _settings.NoteEffect, value => { _settings.NoteEffect = value; SaveSettings(); });
             top += LibrarySettingRows.SectionHeight(3) + gap;
 
@@ -235,21 +235,21 @@ namespace OpenSekai.App.UI
 
             float padding = LibraryTheme.Layout.MODAL_PADDING;
             float header = LibraryTheme.Layout.MODAL_HEADER_HEIGHT;
-            const float backSize = 64f;
+            const float BACK_SIZE = 64f;
             Button back = LibraryWidgets.PillButton(
-                "Back", pageRect, string.Empty, CloseTrace, backSize, backSize,
+                "Back", pageRect, string.Empty, CloseTrace, BACK_SIZE, BACK_SIZE,
                 LibraryTheme.Colors.Control, LibraryTheme.Colors.TextSecondary, sound: UiCue.Back);
             LibraryWidgets.Icon(back.transform, LibraryIcon.Back, LibraryTheme.Colors.TextSecondary, 26f);
             LibraryWidgets.Place((RectTransform)back.transform, new Vector2(0f, 1f), new Vector2(0f, 0.5f),
-                new Vector2(28f, -header * 0.5f), new Vector2(backSize, backSize));
+                new Vector2(28f, -header * 0.5f), new Vector2(BACK_SIZE, BACK_SIZE));
 
             TextMeshProUGUI title = LibraryWidgets.Label(
                 "Title", pageRect, "追踪选项", 34f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
-            LibraryWidgets.TopStrip(title.rectTransform, 28f + backSize + 20f, padding, 26f, 46f);
+            LibraryWidgets.TopStrip(title.rectTransform, 28f + BACK_SIZE + 20f, padding, 26f, 46f);
             TextMeshProUGUI hint = LibraryWidgets.Label(
                 "Hint", pageRect, "分类追踪需开启测试模式。延迟采样在退出打歌时保存。",
                 LibraryTheme.FontSize.BODY, LibraryTheme.Colors.TextMuted);
-            LibraryWidgets.TopStrip(hint.rectTransform, 28f + backSize + 20f, padding, 72f, 28f);
+            LibraryWidgets.TopStrip(hint.rectTransform, 28f + BACK_SIZE + 20f, padding, 72f, 28f);
 
             RectTransform body = LibraryUi.CreateRect("Body", pageRect);
             LibraryWidgets.Inset(body, padding, padding, padding, header);
@@ -266,13 +266,13 @@ namespace OpenSekai.App.UI
                 value => LatencyCapture.MixProbeEnabled = value);
 
             float top = LibrarySettingRows.SectionHeight(4) + gap;
-            LibrarySettingRows.Section input = _rows.AddSection(content, "输入与判定", InputCategories.Length, 0f, rightStart, top);
-            AddCategories(input, InputCategories, InputCategoryLabels);
-            float leftHeight = top + LibrarySettingRows.SectionHeight(InputCategories.Length);
+            LibrarySettingRows.Section input = _rows.AddSection(content, "输入与判定", _inputCategories.Length, 0f, rightStart, top);
+            AddCategories(input, _inputCategories, _inputCategoryLabels);
+            float leftHeight = top + LibrarySettingRows.SectionHeight(_inputCategories.Length);
 
-            LibrarySettingRows.Section view = _rows.AddSection(content, "长条与画面", ViewCategories.Length, rightStart, 0f, 0f);
-            AddCategories(view, ViewCategories, ViewCategoryLabels);
-            float rightHeight = LibrarySettingRows.SectionHeight(ViewCategories.Length);
+            LibrarySettingRows.Section view = _rows.AddSection(content, "长条与画面", _viewCategories.Length, rightStart, 0f, 0f);
+            AddCategories(view, _viewCategories, _viewCategoryLabels);
+            float rightHeight = LibrarySettingRows.SectionHeight(_viewCategories.Length);
 
             content.sizeDelta = new Vector2(0f, Mathf.Max(leftHeight, rightHeight) + 8f);
             _tracePanel.SetActive(false);
@@ -339,8 +339,8 @@ namespace OpenSekai.App.UI
             }
 
             int count = 0;
-            foreach (LiveTraceCategory category in InputCategories) if ((LiveTrace.Categories & category) != 0) count++;
-            foreach (LiveTraceCategory category in ViewCategories) if ((LiveTrace.Categories & category) != 0) count++;
+            foreach (LiveTraceCategory category in _inputCategories) if ((LiveTrace.Categories & category) != 0) count++;
+            foreach (LiveTraceCategory category in _viewCategories) if ((LiveTrace.Categories & category) != 0) count++;
             return count + " 项已开启";
         }
 

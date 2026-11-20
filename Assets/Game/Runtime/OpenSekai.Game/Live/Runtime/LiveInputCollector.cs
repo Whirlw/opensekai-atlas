@@ -124,8 +124,8 @@ namespace Sekai.Core.Live
 		}
 
 #if UNITY_EDITOR
-		private const int MouseFallbackTouchId = -1;
-		private const int MouseFallbackFingerId = 0;
+		private const int MOUSE_FALLBACK_TOUCH_ID = -1;
+		private const int MOUSE_FALLBACK_FINGER_ID = 0;
 
 		private void ProcessMouseFallback(
 			Camera calcCamera,
@@ -163,10 +163,10 @@ namespace Sekai.Core.Live
 			Vector2 delta = mouse.delta.ReadValue();
 			if (phase == InputTouchPhase.Began)
 			{
-				Remember(MouseFallbackTouchId, time, screenPosition);
+				Remember(MOUSE_FALLBACK_TOUCH_ID, time, screenPosition);
 				delta = LiveUtility.Vector2Zero;
 			}
-			else if (TryGetPosition(MouseFallbackTouchId, out var cachedPosition))
+			else if (TryGetPosition(MOUSE_FALLBACK_TOUCH_ID, out var cachedPosition))
 			{
 				delta = screenPosition - cachedPosition.position;
 			}
@@ -176,19 +176,19 @@ namespace Sekai.Core.Live
 				? calcCamera.ScreenToWorldPoint(screenPoint)
 				: new Vector3(screenPosition.x, screenPosition.y, 0f);
 			float musicTime = resolveMusicTime(time);
-			var simTouch = new SimTouch(MouseFallbackFingerId, MouseFallbackTouchId, delta, worldPosition, phase, musicTime);
-			LatencyCapture.Record("consumed", MouseFallbackTouchId, MouseFallbackFingerId, phase,
+			var simTouch = new SimTouch(MOUSE_FALLBACK_FINGER_ID, MOUSE_FALLBACK_TOUCH_ID, delta, worldPosition, phase, musicTime);
+			LatencyCapture.Record("consumed", MOUSE_FALLBACK_TOUCH_ID, MOUSE_FALLBACK_FINGER_ID, phase,
 				source: time, song: musicTime, detail: "editor_mouse");
 			sink(in simTouch, phase == InputTouchPhase.Stationary, ref activeInputCount);
 
 			if (IsEndedOrCanceled(phase))
 			{
-				Forget(MouseFallbackTouchId);
+				Forget(MOUSE_FALLBACK_TOUCH_ID);
 			}
 			else
 			{
-				Remember(MouseFallbackTouchId, time, screenPosition);
-				Commit(MouseFallbackTouchId, time, phase);
+				Remember(MOUSE_FALLBACK_TOUCH_ID, time, screenPosition);
+				Commit(MOUSE_FALLBACK_TOUCH_ID, time, phase);
 			}
 		}
 #endif

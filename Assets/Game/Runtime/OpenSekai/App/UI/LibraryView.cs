@@ -136,8 +136,8 @@ namespace OpenSekai.App.UI
 
             float margin = LibraryTheme.Spacing.PAGE_MARGIN;
             RectTransform main = LibraryUi.CreateRect("Main", root);
-            const float columnBottom = 40f;
-            LibraryWidgets.Inset(main, margin, columnBottom, margin, LibraryTheme.Layout.TOP_BAR_HEIGHT);
+            const float COLUMN_BOTTOM = 40f;
+            LibraryWidgets.Inset(main, margin, COLUMN_BOTTOM, margin, LibraryTheme.Layout.TOP_BAR_HEIGHT);
 
             // The overlay hosts dropdown lists; it is moved above everything else once the page is built.
             RectTransform overlay = LibraryUi.CreateRect("Overlay", root);
@@ -726,14 +726,14 @@ namespace OpenSekai.App.UI
             float right = AddSettingsButton(bar, _presenter.OpenSettings);
             right = AddBarButton(bar, "Refresh", LibraryIcon.Refresh, _presenter.Resync, right);
 
-            const float importWidth = 140f;
+            const float IMPORT_WIDTH = 140f;
             bool canPickFolder = LibraryImport.SupportsFolderPick;
             Button import = LibraryWidgets.PillButton("Import", bar, "导入",
-                canPickFolder ? null : _presenter.ImportZip, importWidth, height,
+                canPickFolder ? null : _presenter.ImportZip, IMPORT_WIDTH, height,
                 new Color32(255, 255, 255, 26), LibraryTheme.Colors.TextPrimary,
                 sound: canPickFolder ? UiCue.None : UiCue.Press);
             LibraryWidgets.Place((RectTransform)import.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
-                new Vector2(-right, 0f), new Vector2(importWidth, height));
+                new Vector2(-right, 0f), new Vector2(IMPORT_WIDTH, height));
             LibraryWidgets.Inset(import.GetComponentInChildren<TextMeshProUGUI>().rectTransform, 32f, 0f, 0f, 0f);
             Image add = LibraryWidgets.Icon(import.transform, LibraryIcon.Add, LibraryTheme.Colors.TextPrimary, 26f);
             add.rectTransform.anchoredPosition = new Vector2(-30f, 0f);
@@ -752,7 +752,7 @@ namespace OpenSekai.App.UI
                 });
             }
 
-            right += importWidth + 16f;
+            right += IMPORT_WIDTH + 16f;
             TMP_InputField search = CreateSearchField(bar, height);
             RectTransform searchRect = (RectTransform)search.transform;
             searchRect.anchorMin = new Vector2(DETAIL_COLUMN, 0.5f);
@@ -793,13 +793,13 @@ namespace OpenSekai.App.UI
 
         private void BuildBrowseControls(RectTransform bar, RectTransform overlay)
         {
-            const float height = BROWSE_CONTROL_HEIGHT;
-            const float modeWidth = 72f;
-            const float toggleWidth = modeWidth * 2f + 12f;
+            const float HEIGHT = BROWSE_CONTROL_HEIGHT;
+            const float MODE_WIDTH = 72f;
+            const float TOGGLE_WIDTH = MODE_WIDTH * 2f + 12f;
             _browseControls = LibraryUi.CreateRect("Controls", bar);
             _browseControls.anchorMin = new Vector2(0f, 0.5f);
             _browseControls.anchorMax = new Vector2(LIST_COLUMN, 0.5f);
-            _browseControls.offsetMax = new Vector2(0f, height * 0.5f);
+            _browseControls.offsetMax = new Vector2(0f, HEIGHT * 0.5f);
 
             var layout = _browseControls.gameObject.AddComponent<HorizontalLayoutGroup>();
             layout.childAlignment = TextAnchor.MiddleLeft;
@@ -808,35 +808,35 @@ namespace OpenSekai.App.UI
             layout.childForceExpandWidth = false;
             layout.childForceExpandHeight = false;
 
-            _groupDropdown = LibraryDropdown.Create(_browseControls, overlay, "分组", GROUP_DROPDOWN_WIDTH, height);
+            _groupDropdown = LibraryDropdown.Create(_browseControls, overlay, "分组", GROUP_DROPDOWN_WIDTH, HEIGHT);
             SetBrowseControlWidth(_groupDropdown.gameObject, 140f, GROUP_DROPDOWN_WIDTH);
             SetBrowseControlWidth(LibraryUi.CreateRect("DropdownGap", _browseControls).gameObject, 10f, 10f);
-            _sortDropdown = LibraryDropdown.Create(_browseControls, overlay, "排序", SORT_DROPDOWN_WIDTH, height);
+            _sortDropdown = LibraryDropdown.Create(_browseControls, overlay, "排序", SORT_DROPDOWN_WIDTH, HEIGHT);
             SetBrowseControlWidth(_sortDropdown.gameObject, 152f, SORT_DROPDOWN_WIDTH);
             LayoutElement space = LibraryUi.CreateRect("Space", _browseControls).gameObject.AddComponent<LayoutElement>();
             space.minWidth = 6f;
             space.flexibleWidth = 1f;
 
-            Image toggle = LibraryWidgets.Panel("ViewMode", _browseControls, height * 0.5f, LibraryTheme.Colors.Control);
-            toggle.rectTransform.sizeDelta = new Vector2(toggleWidth, height);
-            SetBrowseControlWidth(toggle.gameObject, toggleWidth, toggleWidth);
-            LibraryWidgets.Outline(toggle, height * 0.5f);
+            Image toggle = LibraryWidgets.Panel("ViewMode", _browseControls, HEIGHT * 0.5f, LibraryTheme.Colors.Control);
+            toggle.rectTransform.sizeDelta = new Vector2(TOGGLE_WIDTH, HEIGHT);
+            SetBrowseControlWidth(toggle.gameObject, TOGGLE_WIDTH, TOGGLE_WIDTH);
+            LibraryWidgets.Outline(toggle, HEIGHT * 0.5f);
             _listModeButton = LibraryWidgets.PillButton(
-                "List", toggle.transform, string.Empty, () => _presenter.SetViewMode(LibraryViewMode.List), modeWidth, height - 8f,
+                "List", toggle.transform, string.Empty, () => _presenter.SetViewMode(LibraryViewMode.List), MODE_WIDTH, HEIGHT - 8f,
                 LibraryTheme.Colors.TextPrimary, LibraryTheme.Colors.TextOnAccent, LibraryTheme.FontSize.CAPTION, FontStyles.Bold,
                 UiCue.None);
             _listModeIcon = LibraryWidgets.Icon(_listModeButton.transform, LibraryIcon.List, LibraryTheme.Colors.TextOnAccent, 28f);
             LibraryWidgets.Place(
                 (RectTransform)_listModeButton.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-                new Vector2(4f, 0f), new Vector2(modeWidth, height - 8f));
+                new Vector2(4f, 0f), new Vector2(MODE_WIDTH, HEIGHT - 8f));
             _gridModeButton = LibraryWidgets.PillButton(
-                "Grid", toggle.transform, string.Empty, () => _presenter.SetViewMode(LibraryViewMode.Grid), modeWidth, height - 8f,
+                "Grid", toggle.transform, string.Empty, () => _presenter.SetViewMode(LibraryViewMode.Grid), MODE_WIDTH, HEIGHT - 8f,
                 LibraryTheme.Colors.TextPrimary, LibraryTheme.Colors.TextOnAccent, LibraryTheme.FontSize.CAPTION, FontStyles.Bold,
                 UiCue.None);
             _gridModeIcon = LibraryWidgets.Icon(_gridModeButton.transform, LibraryIcon.Grid, LibraryTheme.Colors.TextSecondary, 28f);
             LibraryWidgets.Place(
                 (RectTransform)_gridModeButton.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
-                new Vector2(-4f, 0f), new Vector2(modeWidth, height - 8f));
+                new Vector2(-4f, 0f), new Vector2(MODE_WIDTH, HEIGHT - 8f));
         }
 
         private static void SetBrowseControlWidth(GameObject control, float minimum, float preferred)

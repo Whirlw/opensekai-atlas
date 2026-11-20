@@ -5,55 +5,59 @@ namespace Sekai
 {
 	public class UIPartsMusicCollaborationRibbon : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_collaborationText")]
 		[SerializeField]
-		private CustomTextMesh _collaborationText;
+		private CustomTextMesh collaborationText;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_collaborationTextPadding")]
 		[SerializeField]
-		private float _collaborationTextPadding;
+		private float collaborationTextPadding;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_widthMax")]
 		[SerializeField]
-		private float _widthMax;
+		private float widthMax;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_coverImage")]
 		[SerializeField]
-		private CustomImage _coverImage;
+		private CustomImage coverImage;
 
 		public bool Lock
 		{
 			get
 			{
-				return _coverImage != null && _coverImage.gameObject.activeSelf;
+				return coverImage != null && coverImage.gameObject.activeSelf;
 			}
 			set
 			{
-				if (_coverImage != null)
+				if (coverImage != null)
 				{
-					_coverImage.gameObject.SetActive(value);
+					coverImage.gameObject.SetActive(value);
 				}
 			}
 		}
 
 		public void SetText(string text)
 		{
-			if (_collaborationText == null)
+			if (collaborationText == null)
 			{
 				return;
 			}
-			_collaborationText.SetText(text);
+			collaborationText.SetText(text);
 			RectTransform rectTransform = transform as RectTransform;
 			if (rectTransform == null)
 			{
 				return;
 			}
 			Vector2 size = rectTransform.sizeDelta;
-			float preferredWidth = _collaborationText.preferredWidth + _collaborationTextPadding;
-			size.x = Mathf.Min(preferredWidth, _widthMax);
+			float preferredWidth = collaborationText.preferredWidth + collaborationTextPadding;
+			size.x = Mathf.Min(preferredWidth, widthMax);
 			rectTransform.sizeDelta = size;
 		}
 
 		public UIPartsMusicCollaborationRibbon()
 		{
-			_collaborationTextPadding = 18f;
-			_widthMax = 856f;
+			collaborationTextPadding = 18f;
+			widthMax = 856f;
 		}
 	}
 }

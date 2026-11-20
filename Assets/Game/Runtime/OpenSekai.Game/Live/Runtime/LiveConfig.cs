@@ -139,7 +139,7 @@ namespace Sekai.Live
 		/// <see cref="OpenSekai.Shared.Live.Simulation.TimingCompensation"/>). Set by the live controller.
 		/// </summary>
 		public static float ViewLeadSeconds { get; set; }
-		internal const double NativeKeyProgressEnd = 1.35;
+		internal const double NATIVE_KEY_PROGRESS_END = 1.35;
 
 		internal static Vector2 NativeLanePosition(float lane) =>
 			JudgmentPositions[0] + Vector2.right * (lane * widthX);
@@ -183,7 +183,7 @@ namespace Sekai.Live
 					return 0f;
 				}
 				double progress = native.NativeViewProgress(now, out bool hidden);
-				return hidden || progress > NativeKeyProgressEnd ? 0f : (float)progress;
+				return hidden || progress > NATIVE_KEY_PROGRESS_END ? 0f : (float)progress;
 			}
 			return ViewProgressOf(note);
 		}
@@ -259,8 +259,8 @@ namespace Sekai.Live
 			AddJudgeFrame(JudgeFrameType.Long_End_Critical, 3.5f, 4f, 6.5f, 8f, 7.5f, 8.5f, 7.5f, 8.5f);
 			AddJudgeFrame(JudgeFrameType.Long_End_Flick_Critical, 3.5f, 4f, 6.5f, 8f, 7.5f, 8.5f, 7.5f, 8.5f);
 
-			const float contact = ConnectionNote.ContactWindowFrames;
-			AddJudgeFrame(JudgeFrameType.Friction, contact, contact, contact, contact, contact, contact, contact, contact);
+			const float CONTACT = ConnectionNote.CONTACT_WINDOW_FRAMES;
+			AddJudgeFrame(JudgeFrameType.Friction, CONTACT, CONTACT, CONTACT, CONTACT, CONTACT, CONTACT, CONTACT, CONTACT);
 			CopyJudgeFrame(JudgeFrameType.Friction_Critical, JudgeFrameType.Friction);
 			AddJudgeFrame(JudgeFrameType.Friction_Flick, 6.5f, 7.5f, 6.5f, 7.5f, 6.5f, 7.5f, 6.5f, 7.5f);
 			CopyJudgeFrame(JudgeFrameType.Friction_Flick_Critical, JudgeFrameType.Friction_Flick);

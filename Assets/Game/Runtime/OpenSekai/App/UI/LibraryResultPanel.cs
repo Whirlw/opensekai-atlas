@@ -25,7 +25,7 @@ namespace OpenSekai.App.UI
         private const float BUTTON_HEIGHT = LibraryTheme.Layout.MODAL_BUTTON_HEIGHT;
         private const float SCORE_COUNT_SECONDS = 0.7f;
 
-        private static readonly string[] JudgeNames = { "PERFECT", "GREAT", "GOOD", "BAD", "MISS" };
+        private static readonly string[] _judgeNames = { "PERFECT", "GREAT", "GOOD", "BAD", "MISS" };
 
         private Action<PlayResult> _onRetry;
         internal Action OnClose { private get; set; }
@@ -49,7 +49,7 @@ namespace OpenSekai.App.UI
         private TextMeshProUGUI _errorBody;
         private GameObject _strip;
         private GameObject _judgeGroup;
-        private readonly TextMeshProUGUI[] _judges = new TextMeshProUGUI[JudgeNames.Length];
+        private readonly TextMeshProUGUI[] _judges = new TextMeshProUGUI[_judgeNames.Length];
         private TextMeshProUGUI _comboCaption;
         private TextMeshProUGUI _combo;
         private TextMeshProUGUI _autoNote;
@@ -234,17 +234,17 @@ namespace OpenSekai.App.UI
             RectTransform judges = LibraryUi.CreateRect("Grades", strip.transform);
             LibraryWidgets.Inset(judges, 36f, 24f, 36f, 24f);
             _judgeGroup = judges.gameObject;
-            const float judgeWidth = 150f;
-            for (int i = 0; i < JudgeNames.Length; i++)
+            const float JUDGE_WIDTH = 150f;
+            for (int i = 0; i < _judgeNames.Length; i++)
             {
                 TextMeshProUGUI caption = LibraryWidgets.Label(
-                    "JudgeName" + i, judges, JudgeNames[i], 17f, LibraryTheme.Colors.TextMuted, FontStyles.Bold);
+                    "JudgeName" + i, judges, _judgeNames[i], 17f, LibraryTheme.Colors.TextMuted, FontStyles.Bold);
                 LibraryUi.UseCondensedFont(caption);
                 caption.characterSpacing = 3f;
-                LibraryWidgets.Place(caption.rectTransform, topLeft, topLeft, new Vector2(i * judgeWidth, 0f), new Vector2(judgeWidth, 24f));
+                LibraryWidgets.Place(caption.rectTransform, topLeft, topLeft, new Vector2(i * JUDGE_WIDTH, 0f), new Vector2(JUDGE_WIDTH, 24f));
                 _judges[i] = LibraryWidgets.Label("Judge" + i, judges, string.Empty, 40f, LibraryTheme.Colors.TextPrimary);
                 LibraryUi.UseCondensedFont(_judges[i]);
-                LibraryWidgets.Place(_judges[i].rectTransform, Vector2.zero, Vector2.zero, new Vector2(i * judgeWidth, -4f), new Vector2(judgeWidth, 52f));
+                LibraryWidgets.Place(_judges[i].rectTransform, Vector2.zero, Vector2.zero, new Vector2(i * JUDGE_WIDTH, -4f), new Vector2(JUDGE_WIDTH, 52f));
             }
 
             _comboCaption = LibraryWidgets.Label(
@@ -265,20 +265,20 @@ namespace OpenSekai.App.UI
             // Actions.
             RectTransform actions = LibraryUi.CreateRect("Actions", card);
             LibraryWidgets.BottomStrip(actions, PADDING, PADDING, PADDING, BUTTON_HEIGHT);
-            const float backWidth = 220f;
-            const float retryWidth = 280f;
+            const float BACK_WIDTH = 220f;
+            const float RETRY_WIDTH = 280f;
             Button back = LibraryWidgets.PillButton(
-                "Back", actions, backLabel, Close, backWidth, BUTTON_HEIGHT,
+                "Back", actions, backLabel, Close, BACK_WIDTH, BUTTON_HEIGHT,
                 LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, 24f, sound: UiCue.Back);
             LibraryWidgets.Outline((Image)back.targetGraphic, BUTTON_HEIGHT * 0.5f);
             LibraryWidgets.Place((RectTransform)back.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
-                new Vector2(-(retryWidth + 16f), 0f), new Vector2(backWidth, BUTTON_HEIGHT));
+                new Vector2(-(RETRY_WIDTH + 16f), 0f), new Vector2(BACK_WIDTH, BUTTON_HEIGHT));
 
             Button retry = LibraryWidgets.PillButton(
-                "Retry", actions, "再玩一次", Retry, retryWidth, BUTTON_HEIGHT,
+                "Retry", actions, "再玩一次", Retry, RETRY_WIDTH, BUTTON_HEIGHT,
                 LibraryTheme.Colors.DefaultAccent, LibraryTheme.Colors.TextOnAccent, 26f, FontStyles.Bold, UiCue.Retry);
             LibraryWidgets.Place((RectTransform)retry.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
-                Vector2.zero, new Vector2(retryWidth, BUTTON_HEIGHT));
+                Vector2.zero, new Vector2(RETRY_WIDTH, BUTTON_HEIGHT));
             _retryBackground = (Image)retry.targetGraphic;
             _retryLabel = retry.GetComponentInChildren<TextMeshProUGUI>();
             LibraryWidgets.Inset(_retryLabel.rectTransform, 36f, 0f, 0f, 0f);
@@ -331,11 +331,11 @@ namespace OpenSekai.App.UI
             _errorBlock.SetActive(!hasScore);
             _retryLabel.text = hasScore ? "再玩一次" : "重试";
             // Icon and label sit together as one centered group, whatever the label's length.
-            const float iconGap = 10f;
+            const float ICON_GAP = 10f;
             float labelWidth = Mathf.Ceil(_retryLabel.GetPreferredValues(_retryLabel.text).x);
-            float group = 26f + iconGap + labelWidth;
+            float group = 26f + ICON_GAP + labelWidth;
             _retryIcon.rectTransform.anchoredPosition = new Vector2(-group * 0.5f + 13f, 0f);
-            LibraryWidgets.Inset(_retryLabel.rectTransform, 26f + iconGap, 0f, 0f, 0f);
+            LibraryWidgets.Inset(_retryLabel.rectTransform, 26f + ICON_GAP, 0f, 0f, 0f);
             if (!hasScore)
             {
                 _errorBody.text = string.IsNullOrWhiteSpace(result.Message) ? "曲包无法载入。" : result.Message;

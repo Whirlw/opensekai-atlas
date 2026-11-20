@@ -7,12 +7,12 @@ namespace Sekai.Live
 {
 	public class LiveResultView : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_background")]
 		[SerializeField]
-		private SpriteRenderer _background;
+		private SpriteRenderer background;
 
 		private bool _shouldPlayVoiceSE;
 		private MotionHandle _backgroundMotion;
-		private MotionHandle _resultDelay;
 
 		public void Setup(bool shouldPlayVoiceSE)
 		{
@@ -62,36 +62,39 @@ namespace Sekai.Live
 
 		private void Fade(string prefabName)
 		{
-			if (_background != null)
+			_backgroundMotion.TryCancel();
+			var fade = LMotion.Create(0f, 1f, 0.2f)
+				.WithEase(Ease.OutCirc)
+				.WithScheduler(LiveMotion.Scheduler(unscaled: true))
+				.WithOnComplete(() => ShowResult(prefabName));
+			if (background == null)
 			{
-				_background.gameObject.SetActive(true);
-				_backgroundMotion.TryCancel();
-				Color from = _background.color;
-				Color to = new Color(0f, 0f, 0f, 0.5f);
-				_backgroundMotion = LMotion.Create(0f, 1f, 0.2f)
-					.WithEase(Ease.OutCirc)
-					.WithScheduler(LiveMotion.Scheduler())
-					.Bind(progress => _background.color = Color.LerpUnclamped(from, to, progress));
+				_backgroundMotion = fade.RunWithoutBinding();
+				return;
 			}
 
-			_resultDelay.TryCancel();
-			_resultDelay = LiveMotion.Delay(0.2f, () =>
+			background.gameObject.SetActive(true);
+			Color from = background.color;
+			Color to = new Color(0f, 0f, 0f, 0.5f);
+			_backgroundMotion = fade.Bind(progress => background.color = Color.LerpUnclamped(from, to, progress));
+		}
+
+		private void ShowResult(string prefabName)
+		{
+			GameObject prefab = AssetBundleUtility.LoadAsset<GameObject>(LiveConfig.ResultBundleName, prefabName, false);
+			if (prefab == null)
 			{
-				GameObject prefab = AssetBundleUtility.LoadAsset<GameObject>(LiveConfig.ResultBundleName, prefabName, false);
-				if (prefab == null)
+				prefab = Resources.Load<GameObject>(prefabName);
+			}
+			if (prefab != null)
+			{
+				GameObject instance = Instantiate(prefab, transform);
+				Renderer[] renderers = instance.GetComponentsInChildren<Renderer>(true);
+				for (int i = 0; i < renderers.Length; i++)
 				{
-					prefab = Resources.Load<GameObject>(prefabName);
+					renderers[i].sortingOrder += 220;
 				}
-				if (prefab != null)
-				{
-					GameObject instance = Instantiate(prefab, transform);
-					Renderer[] renderers = instance.GetComponentsInChildren<Renderer>(true);
-					for (int i = 0; i < renderers.Length; i++)
-					{
-						renderers[i].sortingOrder += 220;
-					}
-				}
-			});
+			}
 		}
 
 		private void OnDisable() => CancelMotions();
@@ -99,7 +102,6 @@ namespace Sekai.Live
 		private void CancelMotions()
 		{
 			_backgroundMotion.TryCancel();
-			_resultDelay.TryCancel();
 		}
 
 		private void PlayEndVoice(string cueName)

@@ -22,35 +22,35 @@ namespace OpenSekai.EditorTools
 	/// </summary>
 	public static class MusicInfoPageBuilder
 	{
-		private const string PrefabPath = "Assets/Graphics/Resources/live/view/FrontUIView.prefab";
-		private const string SpriteDir = "Assets/Graphics/Textures/MusicInfo";
-		private const string BoldFontPath = "Assets/Graphics/Resources/font/SourceHanSansSC-Bold SDF_Base.asset";
-		private const string MediumFontPath = "Assets/Graphics/Resources/font/SourceHanSansSC-Medium SDF_Base.asset";
-		private const string CondensedSourcePath = "Assets/Game/Resources/Fonts/BarlowCondensed-SemiBold.ttf";
-		private const string CondensedFontPath = "Assets/Graphics/Resources/font/BarlowCondensed-SemiBold SDF.asset";
-		private const string CondensedCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .-+/:·";
+		private const string PREFAB_PATH = "Assets/Graphics/Resources/live/view/FrontUIView.prefab";
+		private const string SPRITE_DIR = "Assets/Graphics/Textures/MusicInfo";
+		private const string BOLD_FONT_PATH = "Assets/Graphics/Resources/font/SourceHanSansSC-Bold SDF_Base.asset";
+		private const string MEDIUM_FONT_PATH = "Assets/Graphics/Resources/font/SourceHanSansSC-Medium SDF_Base.asset";
+		private const string CONDENSED_SOURCE_PATH = "Assets/Game/Resources/Fonts/BarlowCondensed-SemiBold.ttf";
+		private const string CONDENSED_FONT_PATH = "Assets/Graphics/Resources/font/BarlowCondensed-SemiBold SDF.asset";
+		private const string CONDENSED_CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .-+/:·";
 
 		// Shape sprites are drawn at twice the canvas size so corners stay sharp on a phone screen.
-		private const int Scale = 2;
-		private const float SpritePixelsPerUnit = 100f * Scale;
+		private const int SCALE = 2;
+		private const float SPRITE_PIXELS_PER_UNIT = 100f * SCALE;
 
-		private const float JacketSize = 460f;
-		private const float JacketRadius = 28f;
-		private const float JacketX = -470f;
-		private const float ColumnX = -180f;
-		private const float ColumnWidth = 1000f;
-		private const float CaptionWidth = 76f;
-		private const float ChipHeight = 42f;
+		private const float JACKET_SIZE = 460f;
+		private const float JACKET_RADIUS = 28f;
+		private const float JACKET_X = -470f;
+		private const float COLUMN_X = -180f;
+		private const float COLUMN_WIDTH = 1000f;
+		private const float CAPTION_WIDTH = 76f;
+		private const float CHIP_HEIGHT = 42f;
 
 		// LibraryTheme.Colors.
-		private static readonly Color Ground = new Color32(12, 15, 20, 255);
-		private static readonly Color CoverPlaceholder = new Color32(37, 44, 56, 255);
-		private static readonly Color Hairline = new Color32(255, 255, 255, 20);
-		private static readonly Color TextPrimary = new Color32(242, 244, 247, 255);
-		private static readonly Color TextSecondary = new Color32(197, 206, 218, 255);
-		private static readonly Color TextMuted = new Color32(154, 166, 181, 255);
-		private static readonly Color Accent = new Color32(157, 184, 255, 255);
-		private static readonly Color Glow = new Color32(37, 52, 92, 255);
+		private static readonly Color _ground = new Color32(12, 15, 20, 255);
+		private static readonly Color _coverPlaceholder = new Color32(37, 44, 56, 255);
+		private static readonly Color _hairline = new Color32(255, 255, 255, 20);
+		private static readonly Color _textPrimary = new Color32(242, 244, 247, 255);
+		private static readonly Color _textSecondary = new Color32(197, 206, 218, 255);
+		private static readonly Color _textMuted = new Color32(154, 166, 181, 255);
+		private static readonly Color _accent = new Color32(157, 184, 255, 255);
+		private static readonly Color _glow = new Color32(37, 52, 92, 255);
 
 		private static TMP_FontAsset _bold;
 		private static TMP_FontAsset _medium;
@@ -61,26 +61,26 @@ namespace OpenSekai.EditorTools
 		{
 			WriteSprites();
 			ConfigureSprites();
-			_bold = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(BoldFontPath);
-			_medium = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(MediumFontPath);
+			_bold = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(BOLD_FONT_PATH);
+			_medium = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(MEDIUM_FONT_PATH);
 			_condensed = LoadOrCreateCondensedFont() ?? _bold;
 
-			GameObject prefab = PrefabUtility.LoadPrefabContents(PrefabPath);
+			GameObject prefab = PrefabUtility.LoadPrefabContents(PREFAB_PATH);
 			try
 			{
 				MusicInfoView view = prefab.GetComponentInChildren<MusicInfoView>(true);
 				if (view == null)
 				{
-					throw new System.InvalidOperationException("No MusicInfoView in " + PrefabPath);
+					throw new System.InvalidOperationException("No MusicInfoView in " + PREFAB_PATH);
 				}
 				Build(view);
-				PrefabUtility.SaveAsPrefabAsset(prefab, PrefabPath);
+				PrefabUtility.SaveAsPrefabAsset(prefab, PREFAB_PATH);
 			}
 			finally
 			{
 				PrefabUtility.UnloadPrefabContents(prefab);
 			}
-			Debug.Log("[MusicInfoPageBuilder] rebuilt " + PrefabPath);
+			Debug.Log("[MusicInfoPageBuilder] rebuilt " + PREFAB_PATH);
 		}
 
 		/// <summary>Batch-mode entry: <c>-executeMethod OpenSekai.EditorTools.MusicInfoPageBuilder.RebuildFromCommandLine</c>.</summary>
@@ -101,25 +101,25 @@ namespace OpenSekai.EditorTools
 		// ------------------------------------------------------------------ sprites
 
 		/// <summary>9-slice border of each generated sprite, in pixels.</summary>
-		private static readonly Dictionary<string, int> Borders = new Dictionary<string, int>();
+		private static readonly Dictionary<string, int> _borders = new Dictionary<string, int>();
 
 		private static void WriteSprites()
 		{
-			Directory.CreateDirectory(SpriteDir);
-			Borders.Clear();
-			WriteRounded("ml_round28", JacketRadius, 0f);
-			WriteRounded("ml_ring28", JacketRadius, 1f);
+			Directory.CreateDirectory(SPRITE_DIR);
+			_borders.Clear();
+			WriteRounded("ml_round28", JACKET_RADIUS, 0f);
+			WriteRounded("ml_ring28", JACKET_RADIUS, 1f);
 			WriteRounded("ml_round8", 8f, 0f);
 			WriteRounded("ml_ring8", 8f, 1.5f);
 			WriteRounded("ml_round2", 2f, 0f);
-			WriteShadow("ml_shadow28", JacketRadius, 40f);
+			WriteShadow("ml_shadow28", JACKET_RADIUS, 40f);
 			WriteGlow("ml_glow", 256);
 		}
 
 		private static void WriteRounded(string name, float radius, float stroke)
 		{
-			int r = Mathf.Max(1, Mathf.RoundToInt(radius * Scale));
-			float s = stroke * Scale;
+			int r = Mathf.Max(1, Mathf.RoundToInt(radius * SCALE));
+			float s = stroke * SCALE;
 			int size = r * 2 + 2;
 			var pixels = new Color32[size * size];
 			for (int y = 0; y < size; y++)
@@ -140,13 +140,13 @@ namespace OpenSekai.EditorTools
 				}
 			}
 			WritePng(name, size, size, pixels);
-			Borders[name] = r;
+			_borders[name] = r;
 		}
 
 		private static void WriteShadow(string name, float radius, float blur)
 		{
-			int corner = Mathf.RoundToInt(radius * Scale);
-			int spread = Mathf.RoundToInt(blur * Scale);
+			int corner = Mathf.RoundToInt(radius * SCALE);
+			int spread = Mathf.RoundToInt(blur * SCALE);
 			int border = corner + spread;
 			int size = border * 2 + 2;
 			var pixels = new Color32[size * size];
@@ -162,7 +162,7 @@ namespace OpenSekai.EditorTools
 				}
 			}
 			WritePng(name, size, size, pixels);
-			Borders[name] = border;
+			_borders[name] = border;
 		}
 
 		private static void WriteGlow(string name, int size)
@@ -185,7 +185,7 @@ namespace OpenSekai.EditorTools
 				}
 			}
 			WritePng(name, size, size, pixels);
-			Borders[name] = 0;
+			_borders[name] = 0;
 		}
 
 		private static void WritePng(string name, int width, int height, Color32[] pixels)
@@ -195,7 +195,7 @@ namespace OpenSekai.EditorTools
 			{
 				texture.SetPixels32(pixels);
 				texture.Apply(false);
-				File.WriteAllBytes(SpriteDir + "/" + name + ".png", texture.EncodeToPNG());
+				File.WriteAllBytes(SPRITE_DIR + "/" + name + ".png", texture.EncodeToPNG());
 			}
 			finally
 			{
@@ -206,21 +206,21 @@ namespace OpenSekai.EditorTools
 		private static void ConfigureSprites()
 		{
 			AssetDatabase.Refresh();
-			foreach (string file in Directory.GetFiles(SpriteDir, "ml_*.png"))
+			foreach (string file in Directory.GetFiles(SPRITE_DIR, "ml_*.png"))
 			{
 				string path = file.Replace('\\', '/');
 				string name = Path.GetFileNameWithoutExtension(path);
 				TextureImporter importer = (TextureImporter)AssetImporter.GetAtPath(path);
 				importer.textureType = TextureImporterType.Sprite;
 				importer.spriteImportMode = SpriteImportMode.Single;
-				importer.spritePixelsPerUnit = name == "ml_glow" ? 100f : SpritePixelsPerUnit;
+				importer.spritePixelsPerUnit = name == "ml_glow" ? 100f : SPRITE_PIXELS_PER_UNIT;
 				importer.mipmapEnabled = false;
 				importer.alphaIsTransparency = true;
 				importer.wrapMode = TextureWrapMode.Clamp;
 				importer.filterMode = FilterMode.Bilinear;
 				// Soft alpha ramps band under block compression; these are small, keep them exact.
 				importer.textureCompression = TextureImporterCompression.Uncompressed;
-				int border = Borders.TryGetValue(name, out int value) ? value : 0;
+				int border = _borders.TryGetValue(name, out int value) ? value : 0;
 				importer.spriteBorder = new Vector4(border, border, border, border);
 				importer.SaveAndReimport();
 			}
@@ -228,7 +228,7 @@ namespace OpenSekai.EditorTools
 
 		private static Sprite LoadSprite(string name)
 		{
-			Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(SpriteDir + "/" + name + ".png");
+			Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>(SPRITE_DIR + "/" + name + ".png");
 			if (sprite == null)
 			{
 				throw new FileNotFoundException("Missing sprite " + name);
@@ -242,29 +242,29 @@ namespace OpenSekai.EditorTools
 		/// </summary>
 		private static TMP_FontAsset LoadOrCreateCondensedFont()
 		{
-			TMP_FontAsset existing = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(CondensedFontPath);
+			TMP_FontAsset existing = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(CONDENSED_FONT_PATH);
 			if (existing != null)
 			{
 				return existing;
 			}
 
-			Font source = AssetDatabase.LoadAssetAtPath<Font>(CondensedSourcePath);
+			Font source = AssetDatabase.LoadAssetAtPath<Font>(CONDENSED_SOURCE_PATH);
 			if (source == null)
 			{
-				Debug.LogWarning("[MusicInfoPageBuilder] " + CondensedSourcePath + " is missing; the chip uses the bold face.");
+				Debug.LogWarning("[MusicInfoPageBuilder] " + CONDENSED_SOURCE_PATH + " is missing; the chip uses the bold face.");
 				return null;
 			}
 
 			TMP_FontAsset asset = TMP_FontAsset.CreateFontAsset(
 				source, 90, 9, GlyphRenderMode.SDFAA, 512, 512, AtlasPopulationMode.Dynamic, false);
-			asset.name = Path.GetFileNameWithoutExtension(CondensedFontPath);
-			asset.TryAddCharacters(CondensedCharacters, out string _);
+			asset.name = Path.GetFileNameWithoutExtension(CONDENSED_FONT_PATH);
+			asset.TryAddCharacters(CONDENSED_CHARACTERS, out string _);
 			if (_bold != null)
 			{
 				asset.fallbackFontAssetTable = new List<TMP_FontAsset> { _bold };
 			}
 
-			AssetDatabase.CreateAsset(asset, CondensedFontPath);
+			AssetDatabase.CreateAsset(asset, CONDENSED_FONT_PATH);
 			Texture2D atlas = asset.atlasTextures[0];
 			atlas.name = asset.name + " Atlas";
 			AssetDatabase.AddObjectToAsset(atlas, asset);
@@ -274,7 +274,7 @@ namespace OpenSekai.EditorTools
 			asset.atlasPopulationMode = AtlasPopulationMode.Static;
 			EditorUtility.SetDirty(asset);
 			AssetDatabase.SaveAssets();
-			return AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(CondensedFontPath);
+			return AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(CONDENSED_FONT_PATH);
 		}
 
 		// ------------------------------------------------------------------ layout
@@ -299,25 +299,25 @@ namespace OpenSekai.EditorTools
 			// jacket's colors: a strong one behind the jacket and a faint one under the text.
 			RectTransform ground = Node("Ground", viewRoot);
 			Stretch(ground);
-			AddImage(ground, null, Ground);
-			Image glowMain = AddImage(Node("GlowMain", ground), LoadSprite("ml_glow"), WithAlpha(Glow, 0.62f));
-			Place(glowMain.rectTransform, new Vector2(JacketX + 40f, 40f), new Vector2(1700f, 1700f));
-			Image glowSecondary = AddImage(Node("GlowSecondary", ground), LoadSprite("ml_glow"), WithAlpha(Accent, 0.08f));
+			AddImage(ground, null, _ground);
+			Image glowMain = AddImage(Node("GlowMain", ground), LoadSprite("ml_glow"), WithAlpha(_glow, 0.62f));
+			Place(glowMain.rectTransform, new Vector2(JACKET_X + 40f, 40f), new Vector2(1700f, 1700f));
+			Image glowSecondary = AddImage(Node("GlowSecondary", ground), LoadSprite("ml_glow"), WithAlpha(_accent, 0.08f));
 			Place(glowSecondary.rectTransform, new Vector2(420f, -360f), new Vector2(1200f, 1200f));
 
 			// Jacket: shadow, rounded mask, hairline.
 			RectTransform jacketGroupRect = Node("JacketGroup", viewRoot);
-			Place(jacketGroupRect, new Vector2(JacketX, 0f), new Vector2(JacketSize, JacketSize));
+			Place(jacketGroupRect, new Vector2(JACKET_X, 0f), new Vector2(JACKET_SIZE, JACKET_SIZE));
 			CanvasGroup jacketGroup = jacketGroupRect.gameObject.AddComponent<CanvasGroup>();
 			jacketGroup.blocksRaycasts = false;
 
 			Image shadow = AddImage(Node("Shadow", jacketGroupRect), LoadSprite("ml_shadow28"), new Color(0f, 0f, 0f, 0.42f));
 			shadow.type = Image.Type.Sliced;
-			Place(shadow.rectTransform, new Vector2(0f, -8f), new Vector2(JacketSize + 80f, JacketSize + 80f));
+			Place(shadow.rectTransform, new Vector2(0f, -8f), new Vector2(JACKET_SIZE + 80f, JACKET_SIZE + 80f));
 
-			Image maskImage = AddImage(Node("JacketMask", jacketGroupRect), LoadSprite("ml_round28"), CoverPlaceholder);
+			Image maskImage = AddImage(Node("JacketMask", jacketGroupRect), LoadSprite("ml_round28"), _coverPlaceholder);
 			maskImage.type = Image.Type.Sliced;
-			Place(maskImage.rectTransform, Vector2.zero, new Vector2(JacketSize, JacketSize));
+			Place(maskImage.rectTransform, Vector2.zero, new Vector2(JACKET_SIZE, JACKET_SIZE));
 			maskImage.gameObject.AddComponent<Mask>().showMaskGraphic = true;
 
 			RectTransform jacketRect = Node("Jacket", maskImage.rectTransform);
@@ -325,52 +325,52 @@ namespace OpenSekai.EditorTools
 			CustomRawImage jacket = jacketRect.gameObject.AddComponent<CustomRawImage>();
 			jacket.raycastTarget = false;
 
-			Image outline = AddImage(Node("Outline", jacketGroupRect), LoadSprite("ml_ring28"), Hairline);
+			Image outline = AddImage(Node("Outline", jacketGroupRect), LoadSprite("ml_ring28"), _hairline);
 			outline.type = Image.Type.Sliced;
-			Place(outline.rectTransform, Vector2.zero, new Vector2(JacketSize, JacketSize));
+			Place(outline.rectTransform, Vector2.zero, new Vector2(JACKET_SIZE, JACKET_SIZE));
 
 			// Text column, left-aligned at ColumnX; rows are positioned from its origin.
 			RectTransform column = Node("TextColumn", viewRoot);
-			Place(column, new Vector2(ColumnX, 18f), new Vector2(ColumnWidth, 0f));
+			Place(column, new Vector2(COLUMN_X, 18f), new Vector2(COLUMN_WIDTH, 0f));
 			column.pivot = new Vector2(0f, 0.5f);
 
 			// Row 0: difficulty chip, level and the collaboration label.
-			RectTransform tagRow = Row("TagRow", column, 160f, ChipHeight);
+			RectTransform tagRow = Row("TagRow", column, 160f, CHIP_HEIGHT);
 			RectTransform diffRect = Node("Difficulty", tagRow);
-			LeftAt(diffRect, 0f, new Vector2(148f, ChipHeight));
+			LeftAt(diffRect, 0f, new Vector2(148f, CHIP_HEIGHT));
 			UIPartsMusicDifficulty difficulty = diffRect.gameObject.AddComponent<UIPartsMusicDifficulty>();
-			Image chipFill = AddImage(Node("Fill", diffRect), LoadSprite("ml_round8"), WithAlpha(TextSecondary, 0.14f));
+			Image chipFill = AddImage(Node("Fill", diffRect), LoadSprite("ml_round8"), WithAlpha(_textSecondary, 0.14f));
 			chipFill.type = Image.Type.Sliced;
 			Stretch(chipFill.rectTransform);
-			Image chipRing = AddImage(Node("Ring", diffRect), LoadSprite("ml_ring8"), WithAlpha(TextSecondary, 0.5f));
+			Image chipRing = AddImage(Node("Ring", diffRect), LoadSprite("ml_ring8"), WithAlpha(_textSecondary, 0.5f));
 			chipRing.type = Image.Type.Sliced;
 			Stretch(chipRing.rectTransform);
-			CustomTextMesh diffText = AddText(Node("Label", diffRect), _condensed, 28f, TextSecondary, TextAlignmentOptions.Center, 6f);
+			CustomTextMesh diffText = AddText(Node("Label", diffRect), _condensed, 28f, _textSecondary, TextAlignmentOptions.Center, 6f);
 			Stretch(diffText.rectTransform);
 			diffText.fontSizeMin = 18f;
 			diffText.margin = new Vector4(12f, 0f, 12f, 0f);
 
-			CustomTextMesh level = AddText(Node("Level", tagRow), _condensed, 30f, TextSecondary, TextAlignmentOptions.Left, 2f);
-			LeftAt(level.rectTransform, 166f, new Vector2(120f, ChipHeight));
+			CustomTextMesh level = AddText(Node("Level", tagRow), _condensed, 30f, _textSecondary, TextAlignmentOptions.Left, 2f);
+			LeftAt(level.rectTransform, 166f, new Vector2(120f, CHIP_HEIGHT));
 			level.enableAutoSizing = false;
 
 			RectTransform ribbonRect = Node("CollaborationRibbon", tagRow);
-			LeftAt(ribbonRect, 300f, new Vector2(400f, ChipHeight));
+			LeftAt(ribbonRect, 300f, new Vector2(400f, CHIP_HEIGHT));
 			UIPartsMusicCollaborationRibbon ribbon = ribbonRect.gameObject.AddComponent<UIPartsMusicCollaborationRibbon>();
-			CustomTextMesh ribbonText = AddText(Node("Text", ribbonRect), _medium, 22f, TextMuted, TextAlignmentOptions.Left, 0f);
+			CustomTextMesh ribbonText = AddText(Node("Text", ribbonRect), _medium, 22f, _textMuted, TextAlignmentOptions.Left, 0f);
 			Stretch(ribbonText.rectTransform);
 			ribbonText.enableAutoSizing = false;
-			SetField(ribbon, "_collaborationText", ribbonText);
-			SetField(ribbon, "_collaborationTextPadding", 4f);
-			SetField(ribbon, "_widthMax", ColumnWidth - 300f);
+			SetField(ribbon, "collaborationText", ribbonText);
+			SetField(ribbon, "collaborationTextPadding", 4f);
+			SetField(ribbon, "widthMax", COLUMN_WIDTH - 300f);
 
 			// Row 1: title, with the accent rule under it.
 			RectTransform titleRow = Row("TitleRow", column, 82f, 92f);
-			CustomTextMesh title = AddText(Node("Title", titleRow), _bold, 64f, TextPrimary, TextAlignmentOptions.Left, 0f);
+			CustomTextMesh title = AddText(Node("Title", titleRow), _bold, 64f, _textPrimary, TextAlignmentOptions.Left, 0f);
 			Stretch(title.rectTransform);
 			title.fontSizeMin = 34f;
 
-			Image rule = AddImage(Node("Rule", titleRow), LoadSprite("ml_round2"), Accent);
+			Image rule = AddImage(Node("Rule", titleRow), LoadSprite("ml_round2"), _accent);
 			rule.type = Image.Type.Sliced;
 			RectTransform ruleRect = rule.rectTransform;
 			ruleRect.anchorMin = ruleRect.anchorMax = new Vector2(0f, 0.5f);
@@ -381,48 +381,48 @@ namespace OpenSekai.EditorTools
 			// Row 2: credits. Row 3: chart credits. Captions in the muted color, values beside them.
 			RectTransform musicInfo = Row("MusicInfo", column, -34f, 88f);
 			Caption(musicInfo, "创作", 22f);
-			CustomTextMesh creator = AddText(Node("Creator", musicInfo), _medium, 26f, TextSecondary, TextAlignmentOptions.Left, 0f);
+			CustomTextMesh creator = AddText(Node("Creator", musicInfo), _medium, 26f, _textSecondary, TextAlignmentOptions.Left, 0f);
 			ValueLine(creator.rectTransform, 22f, 40f);
 			Caption(musicInfo, "演唱", -22f);
-			CustomTextMesh singer = AddText(Node("Singer", musicInfo), _medium, 26f, TextSecondary, TextAlignmentOptions.Left, 0f);
+			CustomTextMesh singer = AddText(Node("Singer", musicInfo), _medium, 26f, _textSecondary, TextAlignmentOptions.Left, 0f);
 			ValueLine(singer.rectTransform, -22f, 40f);
 
 			RectTransform scoreInfo = Row("ScoreInfo", column, -112f, 44f);
 			GameObject scoreCaption = Caption(scoreInfo, "谱面", 0f);
-			CustomTextMesh scoreCreator = AddText(Node("ScoreCreator", scoreInfo), _medium, 26f, TextSecondary, TextAlignmentOptions.Left, 0f);
+			CustomTextMesh scoreCreator = AddText(Node("ScoreCreator", scoreInfo), _medium, 26f, _textSecondary, TextAlignmentOptions.Left, 0f);
 			ValueLine(scoreCreator.rectTransform, 0f, 40f);
 
-			SetField(view, "_viewGroup", viewGroup);
-			SetField(view, "_band", ground);
-			SetArray(view, "_bandEdges", new Object[0]);
-			SetField(view, "_jacketGroup", jacketGroup);
-			SetField(view, "_shine", null);
-			SetField(view, "_rule", ruleRect);
-			SetArray(view, "_sparkles", new Object[0]);
-			SetField(view, "_textColumn", column);
-			SetArray(view, "_infoGroup", new Object[]
+			SetField(view, "viewGroup", viewGroup);
+			SetField(view, "band", ground);
+			SetArray(view, "bandEdges", new Object[0]);
+			SetField(view, "jacketGroup", jacketGroup);
+			SetField(view, "shine", null);
+			SetField(view, "rule", ruleRect);
+			SetArray(view, "sparkles", new Object[0]);
+			SetField(view, "textColumn", column);
+			SetArray(view, "infoGroup", new Object[]
 			{
 				tagRow.GetComponent<CanvasGroup>(), titleRow.GetComponent<CanvasGroup>(),
 				musicInfo.GetComponent<CanvasGroup>(), scoreInfo.GetComponent<CanvasGroup>(),
 			});
-			SetField(view, "_jacket", jacket);
-			SetField(view, "_difficultyJacket", difficulty);
-			SetField(view, "_difficultyJacketText", diffText);
-			SetField(view, "_titleLabel", title);
-			SetField(view, "_creatorLabel", creator);
-			SetField(view, "_singerLabel", singer);
-			SetField(view, "_collaborationRibbon", ribbon);
-			SetField(view, "_musicInfoRoot", musicInfo.gameObject);
-			SetField(view, "_scoreInfoRoot", scoreInfo.gameObject);
+			SetField(view, "jacket", jacket);
+			SetField(view, "difficultyJacket", difficulty);
+			SetField(view, "difficultyJacketText", diffText);
+			SetField(view, "titleLabel", title);
+			SetField(view, "creatorLabel", creator);
+			SetField(view, "singerLabel", singer);
+			SetField(view, "collaborationRibbon", ribbon);
+			SetField(view, "musicInfoRoot", musicInfo.gameObject);
+			SetField(view, "scoreInfoRoot", scoreInfo.gameObject);
 			// The chart's own title repeats the song title nearly always; the page shows who charted it.
-			SetField(view, "_scoreTitleLabel", null);
-			SetField(view, "_scoreCreatorLabel", scoreCreator);
-			SetField(view, "_scoreIcon", scoreCaption);
-			SetField(view, "_levelLabel", level);
-			SetArray(view, "_difficultyGraphics", new Object[] { chipFill, chipRing, diffText });
-			SetArray(view, "_accentGraphics", new Object[] { rule, glowSecondary });
-			SetArray(view, "_glowGraphics", new Object[] { glowMain });
-			SetField(view, "_JacketFadeOutDelaySec", 2.35f);
+			SetField(view, "scoreTitleLabel", null);
+			SetField(view, "scoreCreatorLabel", scoreCreator);
+			SetField(view, "scoreIcon", scoreCaption);
+			SetField(view, "levelLabel", level);
+			SetArray(view, "difficultyGraphics", new Object[] { chipFill, chipRing, diffText });
+			SetArray(view, "accentGraphics", new Object[] { rule, glowSecondary });
+			SetArray(view, "glowGraphics", new Object[] { glowMain });
+			SetField(view, "jacketFadeOutDelaySec", 2.35f);
 		}
 
 		// ------------------------------------------------------------------ nodes
@@ -481,10 +481,10 @@ namespace OpenSekai.EditorTools
 		/// <summary>A muted caption at the start of a credit line, centred on <paramref name="y"/>.</summary>
 		private static GameObject Caption(RectTransform row, string text, float y)
 		{
-			CustomTextMesh caption = AddText(Node("Caption", row), _medium, 22f, TextMuted, TextAlignmentOptions.Left, 0f);
+			CustomTextMesh caption = AddText(Node("Caption", row), _medium, 22f, _textMuted, TextAlignmentOptions.Left, 0f);
 			caption.enableAutoSizing = false;
 			caption.text = text;
-			LeftAt(caption.rectTransform, 0f, new Vector2(CaptionWidth, 40f));
+			LeftAt(caption.rectTransform, 0f, new Vector2(CAPTION_WIDTH, 40f));
 			caption.rectTransform.anchoredPosition = new Vector2(0f, y);
 			return caption.gameObject;
 		}
@@ -495,8 +495,8 @@ namespace OpenSekai.EditorTools
 			rect.anchorMin = new Vector2(0f, 0.5f);
 			rect.anchorMax = new Vector2(1f, 0.5f);
 			rect.pivot = new Vector2(0f, 0.5f);
-			rect.anchoredPosition = new Vector2(CaptionWidth, y);
-			rect.sizeDelta = new Vector2(-CaptionWidth, height);
+			rect.anchoredPosition = new Vector2(CAPTION_WIDTH, y);
+			rect.sizeDelta = new Vector2(-CAPTION_WIDTH, height);
 		}
 
 		private static Image AddImage(RectTransform rect, Sprite sprite, Color color)

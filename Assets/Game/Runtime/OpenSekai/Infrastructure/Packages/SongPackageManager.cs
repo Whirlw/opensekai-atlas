@@ -21,7 +21,7 @@ namespace OpenSekai.Infrastructure.Packages
         public string RootDirectory { get; }
         private readonly string _temporaryDirectory;
         private readonly SongLibraryCache _cache;
-        private static readonly StringComparison PathComparison = Path.DirectorySeparatorChar == '\\'
+        private static readonly StringComparison _pathComparison = Path.DirectorySeparatorChar == '\\'
             ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
         public SongPackageManager(string rootDirectory, string _temporaryDirectory = null)
         {
@@ -33,21 +33,21 @@ namespace OpenSekai.Infrastructure.Packages
 
 		private const int JACKET_TEXTURE_SIZE = 740;
 
-		private readonly HashSet<string> AudioExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+		private readonly HashSet<string> _audioExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
 			".ogg",
 			".mp3",
 			".wav"
 		};
 
-		private readonly HashSet<string> JacketExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+		private readonly HashSet<string> _jacketExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
 			".png",
 			".jpg",
 			".jpeg"
 		};
 
-		private readonly HashSet<string> ScoreExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+		private readonly HashSet<string> _scoreExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
 			".json",
 			".txt",
@@ -55,7 +55,7 @@ namespace OpenSekai.Infrastructure.Packages
 			".gz"
 		};
 
-		private readonly HashSet<string> VideoExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+		private readonly HashSet<string> _videoExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 		{
 			".mp4"
 		};
@@ -380,7 +380,7 @@ namespace OpenSekai.Infrastructure.Packages
 				entry,
 				sourcePath,
 				"audio",
-				AudioExtensions,
+				_audioExtensions,
 				manifest => manifest.audioFileName,
 				(manifest, fileName) => manifest.audioFileName = fileName);
 		}
@@ -391,7 +391,7 @@ namespace OpenSekai.Infrastructure.Packages
 				entry,
 				sourcePath,
 				"jacket",
-				JacketExtensions,
+				_jacketExtensions,
 				manifest => manifest.jacketFileName,
 				(manifest, fileName) => manifest.jacketFileName = fileName,
 				ResizeAndWriteJacketFile);
@@ -410,7 +410,7 @@ namespace OpenSekai.Infrastructure.Packages
                 return ReplaceNativeScoreFile(entry, sourcePath);
 
 			string extension = Path.GetExtension(sourcePath);
-			if (string.IsNullOrEmpty(extension) || !ScoreExtensions.Contains(extension))
+			if (string.IsNullOrEmpty(extension) || !_scoreExtensions.Contains(extension))
 			{
 				throw new InvalidOperationException("不支持的谱面文件扩展名：" + extension);
 			}
@@ -476,7 +476,7 @@ namespace OpenSekai.Infrastructure.Packages
                 DeleteExistingScoreFiles(entry.RootDirectory, manifest.scoreFileName);
                 File.Copy(temporary, destinationPath, true);
                 manifest.scoreFileName = name;
-                manifest.chartFormat = NextRushChartLoader.Format;
+                manifest.chartFormat = NextRushChartLoader.FORMAT;
                 WriteManifest(entry.RootDirectory, manifest);
                 return Track(SongPackageStorage.LoadEntry(entry.RootDirectory));
             }
@@ -489,7 +489,7 @@ namespace OpenSekai.Infrastructure.Packages
 				entry,
 				sourcePath,
 				"video",
-				VideoExtensions,
+				_videoExtensions,
 				manifest => manifest.videoFileName,
 				(manifest, fileName) => manifest.videoFileName = fileName);
 		}
@@ -762,7 +762,7 @@ namespace OpenSekai.Infrastructure.Packages
 				if (!string.IsNullOrEmpty(fileName) && !string.Equals(fileName, SongPackageStorage.MANIFEST_FILE_NAME, StringComparison.OrdinalIgnoreCase))
 				{
 					string extension = Path.GetExtension(fileName);
-					if (ScoreExtensions.Contains(extension))
+					if (_scoreExtensions.Contains(extension))
 					{
 						deletePaths.Add(Path.Combine(rootDirectory, fileName));
 					}
@@ -771,7 +771,7 @@ namespace OpenSekai.Infrastructure.Packages
 
 			foreach (string path in Directory.GetFiles(rootDirectory, "score.*"))
 			{
-				if (ScoreExtensions.Contains(Path.GetExtension(path)))
+				if (_scoreExtensions.Contains(Path.GetExtension(path)))
 				{
 					deletePaths.Add(path);
 				}
@@ -908,14 +908,14 @@ namespace OpenSekai.Infrastructure.Packages
 		{
 			string normalizedLeft = Path.GetFullPath(left).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 			string normalizedRight = Path.GetFullPath(right).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-			return string.Equals(normalizedLeft, normalizedRight, PathComparison);
+			return string.Equals(normalizedLeft, normalizedRight, _pathComparison);
 		}
 
 		private bool IsPathInsideDirectory(string directory, string path)
 		{
 			string normalizedDirectory = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
 			string normalizedPath = Path.GetFullPath(path);
-			return normalizedPath.StartsWith(normalizedDirectory, PathComparison);
+			return normalizedPath.StartsWith(normalizedDirectory, _pathComparison);
 		}
 
 		private string CreateTemporaryPath(string prefix, string extension = null)
@@ -932,8 +932,7 @@ namespace OpenSekai.Infrastructure.Packages
 				return string.Empty;
 			}
 
-			const string invalidChars = "<>:\"/\\|?*";
-			char[] chars = value.Trim().Select(c => invalidChars.IndexOf(c) >= 0 || char.IsWhiteSpace(c) || char.IsControl(c) ? '_' : c).ToArray();
+			char[] chars = value.Trim().Select(c => SongPackageStorage.IsInvalidFileNameChar(c) || char.IsWhiteSpace(c) ? '_' : c).ToArray();
 			return new string(chars).Trim('_');
 		}
 	}

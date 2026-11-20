@@ -10,15 +10,15 @@ namespace OpenSekai.Shared.Diagnostics
     /// </summary>
     internal static class AndroidTouchProbe
     {
-        internal const int Capacity = 16384;
-        private const int EdgeAnchors = 9;
-        private const double AnchorIntervalSeconds = 1.0;
+        internal const int CAPACITY = 16384;
+        private const int EDGE_ANCHORS = 9;
+        private const double ANCHOR_INTERVAL_SECONDS = 1.0;
 
 #if UNITY_ANDROID && !UNITY_EDITOR
         private static double _nextAnchor;
         private static AndroidJavaClass _class;
         private static IntPtr _nowNanos;
-        private static readonly jvalue[] NoArgs = new jvalue[0];
+        private static readonly jvalue[] _noArgs = new jvalue[0];
         private static bool _running;
 
         internal static void Begin()
@@ -29,12 +29,12 @@ namespace OpenSekai.Shared.Diagnostics
                 _class ??= new AndroidJavaClass("com.opensekai.TouchProbe");
                 if (_nowNanos == IntPtr.Zero)
                     _nowNanos = AndroidJNI.GetStaticMethodID(_class.GetRawClass(), "nowNanos", "()J");
-                _class.CallStatic("start", Capacity);
+                _class.CallStatic("start", CAPACITY);
                 _running = true;
                 long uptimeOffset = _class.CallStatic<long>("uptimeMinusNanoTimeMicros");
                 bool nanos = _class.CallStatic<bool>("nanosEventTime");
                 LatencyCapture.Record("android_probe", value: uptimeOffset / 1000.0,
-                    detail: FormattableString.Invariant($"start capacity={Capacity} event_time_ns={nanos} uptime_minus_nanotime_ms={uptimeOffset / 1000.0:R}"));
+                    detail: FormattableString.Invariant($"start capacity={CAPACITY} event_time_ns={nanos} uptime_minus_nanotime_ms={uptimeOffset / 1000.0:R}"));
                 AnchorBurst("begin");
             }
             catch (Exception exception)
@@ -83,7 +83,7 @@ namespace OpenSekai.Shared.Diagnostics
 
         private static void AnchorBurst(string detail)
         {
-            for (int i = 0; i < EdgeAnchors; i++)
+            for (int i = 0; i < EDGE_ANCHORS; i++)
                 Anchor(detail);
         }
 
@@ -91,9 +91,9 @@ namespace OpenSekai.Shared.Diagnostics
         private static void Anchor(string detail)
         {
             double before = Time.realtimeSinceStartupAsDouble;
-            long android = AndroidJNI.CallStaticLongMethod(_class.GetRawClass(), _nowNanos, NoArgs);
+            long android = AndroidJNI.CallStaticLongMethod(_class.GetRawClass(), _nowNanos, _noArgs);
             double after = Time.realtimeSinceStartupAsDouble;
-            _nextAnchor = after + AnchorIntervalSeconds;
+            _nextAnchor = after + ANCHOR_INTERVAL_SECONDS;
             LatencyCapture.Record("clock_anchor", time: (before + after) * 0.5, value: (after - before) * 1000.0,
                 androidReceive: android * 1e-9, detail: detail);
         }

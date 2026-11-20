@@ -18,14 +18,14 @@ namespace OpenSekai.Tests.EditMode.Live
     /// </summary>
     public sealed class PressOwnershipTests
     {
-        private const double InputTime = 10d;
-        private FakeTouchSource source;
-        private LiveLogic logic;
-        private Mouse isolatedMouse;
-        private Mouse previousMouse;
-        private bool previousLegacyTiming;
-        private MusicScoreInfo previousFrame;
-        private LiveConfig.NoteTypeJudgeData previousJudgeData;
+        private const double INPUT_TIME = 10d;
+        private FakeTouchSource _source;
+        private LiveLogic _logic;
+        private Mouse _isolatedMouse;
+        private Mouse _previousMouse;
+        private bool _previousLegacyTiming;
+        private MusicScoreInfo _previousFrame;
+        private LiveConfig.NoteTypeJudgeData _previousJudgeData;
 
         private sealed class CountingNote : NormalNote
         {
@@ -48,26 +48,26 @@ namespace OpenSekai.Tests.EditMode.Live
         [SetUp]
         public void SetUp()
         {
-            previousLegacyTiming = LiveConfig.UseLegacyJudgeTiming;
-            previousFrame = MusicScore.CurrentFrameInfo;
-            previousJudgeData = LiveConfig.noteTypeJudgeData;
+            _previousLegacyTiming = LiveConfig.UseLegacyJudgeTiming;
+            _previousFrame = MusicScore.CurrentFrameInfo;
+            _previousJudgeData = LiveConfig.noteTypeJudgeData;
             LiveConfig.LoadMasterConfig();
             LiveConfig.UseLegacyJudgeTiming = false;
-            previousMouse = Mouse.current;
-            isolatedMouse = InputSystem.AddDevice<Mouse>();
-            source = new FakeTouchSource();
-            logic = new LiveLogic(null);
-            logic.SetTouchSource(source);
+            _previousMouse = Mouse.current;
+            _isolatedMouse = InputSystem.AddDevice<Mouse>();
+            _source = new FakeTouchSource();
+            _logic = new LiveLogic(null);
+            _logic.SetTouchSource(_source);
         }
 
         [TearDown]
         public void TearDown()
         {
-            InputSystem.RemoveDevice(isolatedMouse);
-            if (previousMouse != null && previousMouse.added) previousMouse.MakeCurrent();
-            LiveConfig.UseLegacyJudgeTiming = previousLegacyTiming;
-            LiveConfig.noteTypeJudgeData = previousJudgeData;
-            MusicScore.CurrentFrameInfo = previousFrame;
+            InputSystem.RemoveDevice(_isolatedMouse);
+            if (_previousMouse != null && _previousMouse.added) _previousMouse.MakeCurrent();
+            LiveConfig.UseLegacyJudgeTiming = _previousLegacyTiming;
+            LiveConfig.noteTypeJudgeData = _previousJudgeData;
+            MusicScore.CurrentFrameInfo = _previousFrame;
         }
 
         private static MusicScoreInfo Info(float time) => new MusicScoreInfo(0, time / 2f, time, 120f, 4f, 1f, 1f);
@@ -83,7 +83,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
         private static LiveTouchSample Press(int touchId, float lane, int? fingerId = null)
         {
-            return new LiveTouchSample(touchId, new Vector2(800f, 600f), At(lane), InputTime,
+            return new LiveTouchSample(touchId, new Vector2(800f, 600f), At(lane), INPUT_TIME,
                 InputTouchPhase.Began, Vector2.zero, fingerId);
         }
 
@@ -95,11 +95,11 @@ namespace OpenSekai.Tests.EditMode.Live
 
         private void Arrange(params NoteBase[] notes)
         {
-            logic.Session.MusicScore = new MusicScore(new[] { Info(0f) }, Array.Empty<EventBase>(), notes);
-            logic.Notes.Bind(notes);
-            logic.Session.NoteDisplayTimeOffset = 1f;
-            logic.Session.Views = Array.Empty<LiveViewBase>();
-            logic.OnUpdate(0f, InputTime);
+            _logic.Session.MusicScore = new MusicScore(new[] { Info(0f) }, Array.Empty<EventBase>(), notes);
+            _logic.Notes.Bind(notes);
+            _logic.Session.NoteDisplayTimeOffset = 1f;
+            _logic.Session.Views = Array.Empty<LiveViewBase>();
+            _logic.OnUpdate(0f, INPUT_TIME);
         }
 
         private static LiveLogic.InputTmp Input(int fingerId, float lane, params NoteBase[] candidates)
@@ -127,9 +127,9 @@ namespace OpenSekai.Tests.EditMode.Live
             var right = new CountingNote(2, 0f, 5, 2f, 6f);
             Arrange(left, right);
 
-            source.Add(Press(1, 5f));
-            source.Add(Press(2, 3f));
-            logic.OnInput();
+            _source.Add(Press(1, 5f));
+            _source.Add(Press(2, 3f));
+            _logic.OnInput();
 
             Assert.That(left.JudgmentCalls, Is.EqualTo(1));
             Assert.That(right.JudgmentCalls, Is.EqualTo(1));
@@ -151,9 +151,9 @@ namespace OpenSekai.Tests.EditMode.Live
             if (sharedNoteFirst) Arrange(shared, early);
             else Arrange(early, shared);
 
-            source.Add(Press(1, 4.2f)); // reaches both; 0.8 lanes from the shared note
-            source.Add(Press(2, 6f));   // reaches only the shared note; 1.0 lane from it
-            logic.OnInput();
+            _source.Add(Press(1, 4.2f)); // reaches both; 0.8 lanes from the shared note
+            _source.Add(Press(2, 6f));   // reaches only the shared note; 1.0 lane from it
+            _logic.OnInput();
 
             Assert.That(early.JudgmentCalls, Is.EqualTo(1));
             Assert.That(early.Result, Is.EqualTo(NoteResult.JustPerfect));
@@ -168,18 +168,18 @@ namespace OpenSekai.Tests.EditMode.Live
             var right = new CountingNote(2, 0f, 6, 5.5f, 6.5f);
             Arrange(left, right);
 
-            source.Add(Press(1, 3f, fingerId: 7));
-            source.Add(Press(2, 6f, fingerId: 7));
-            logic.OnInput();
+            _source.Add(Press(1, 3f, fingerId: 7));
+            _source.Add(Press(2, 6f, fingerId: 7));
+            _logic.OnInput();
 
             Assert.That(left.JudgmentCalls + right.JudgmentCalls, Is.EqualTo(1));
             Assert.That(left.Result, Is.EqualTo(NoteResult.JustPerfect), "The first sample spends the credit.");
             Assert.That(right.Result, Is.EqualTo(NoteResult.None));
-            Assert.That(logic.TapCount, Is.EqualTo(2), "Both samples are still taps.");
+            Assert.That(_logic.TapCount, Is.EqualTo(2), "Both samples are still taps.");
 
-            source.Clear();
-            source.Add(Press(3, 6f, fingerId: 7));
-            logic.OnInput();
+            _source.Clear();
+            _source.Add(Press(3, 6f, fingerId: 7));
+            _logic.OnInput();
             Assert.That(right.Result, Is.EqualTo(NoteResult.JustPerfect), "The next frame has a credit of its own.");
         }
 
@@ -192,11 +192,11 @@ namespace OpenSekai.Tests.EditMode.Live
             var first = new CountingNote(1, 0f, 3, 2.5f, 4.5f);
             var second = new CountingNote(2, 0.08f, 3, 2.5f, 4.5f);
             Arrange(first, second);
-            logic.OnUpdate(0.1f, InputTime + 0.1);
+            _logic.OnUpdate(0.1f, INPUT_TIME + 0.1);
 
-            source.Add(PressAt(1, laterPressNearer ? 4.2f : 3.5f, InputTime, fingerId: 7));
-            source.Add(PressAt(2, laterPressNearer ? 3.5f : 4.2f, InputTime + 0.08, fingerId: 7));
-            logic.OnInput();
+            _source.Add(PressAt(1, laterPressNearer ? 4.2f : 3.5f, INPUT_TIME, fingerId: 7));
+            _source.Add(PressAt(2, laterPressNearer ? 3.5f : 4.2f, INPUT_TIME + 0.08, fingerId: 7));
+            _logic.OnInput();
 
             Assert.That(first.Result, Is.EqualTo(NoteResult.JustPerfect), "The first press takes the first note on time.");
             Assert.That(second.Result, Is.EqualTo(NoteResult.JustPerfect), "The second press takes the second note on time.");
@@ -212,11 +212,11 @@ namespace OpenSekai.Tests.EditMode.Live
             var early = new CountingNote(1, 0f, 5, 2.5f, 6.5f);
             var late = new CountingNote(2, 0.042f, 3, 2.5f, 6.5f);
             Arrange(early, late);
-            logic.OnUpdate(0.06f, InputTime + 0.06);
+            _logic.OnUpdate(0.06f, INPUT_TIME + 0.06);
 
-            source.Add(PressAt(1, 3.2f, InputTime, fingerId: 0));
-            source.Add(PressAt(2, 5f, InputTime + 0.042, fingerId: 1));
-            logic.OnInput();
+            _source.Add(PressAt(1, 3.2f, INPUT_TIME, fingerId: 0));
+            _source.Add(PressAt(2, 5f, INPUT_TIME + 0.042, fingerId: 1));
+            _logic.OnInput();
 
             Assert.That(early.Result, Is.EqualTo(NoteResult.JustPerfect), "The earlier press takes the earlier note.");
             Assert.That(late.Result, Is.EqualTo(NoteResult.JustPerfect), "The later press takes the later note.");
@@ -236,10 +236,10 @@ namespace OpenSekai.Tests.EditMode.Live
             try
             {
                 LiveConfig.UseFramePressMatching = frameMatching;
-                logic.OnUpdate(0.01f, InputTime + 0.01);
-                source.Add(PressAt(1, 4f, InputTime, fingerId: 0));
-                source.Add(PressAt(2, 3f, InputTime + 0.003, fingerId: 1));
-                logic.OnInput();
+                _logic.OnUpdate(0.01f, INPUT_TIME + 0.01);
+                _source.Add(PressAt(1, 4f, INPUT_TIME, fingerId: 0));
+                _source.Add(PressAt(2, 3f, INPUT_TIME + 0.003, fingerId: 1));
+                _logic.OnInput();
             }
             finally
             {
@@ -275,7 +275,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(inputs.Select(i => i.PressWave), Is.EqualTo(new[] { 0, 1, 2, 0, 3, 0 }), "serial: one press per pass, ties in input order");
             Assert.That(serialPasses, Is.EqualTo(4));
 
-            int framePasses = JudgmentScheduler.AssignPressWaves(inputs, JudgmentScheduler.PressPassSeconds);
+            int framePasses = JudgmentScheduler.AssignPressWaves(inputs, JudgmentScheduler.PRESS_PASS_SECONDS);
             Assert.That(inputs.Select(i => i.PressWave), Is.EqualTo(new[] { 0, 0, 0, 0, 1, 0 }), "frame matching: one pass per 60 fps frame");
             Assert.That(framePasses, Is.EqualTo(2));
         }
@@ -287,11 +287,11 @@ namespace OpenSekai.Tests.EditMode.Live
             var left = new CountingNote(1, 0f, 3, 2.5f, 3.5f);
             var right = new CountingNote(2, 0.01f, 6, 5.5f, 6.5f);
             Arrange(left, right);
-            logic.OnUpdate(0.02f, InputTime + 0.02);
+            _logic.OnUpdate(0.02f, INPUT_TIME + 0.02);
 
-            source.Add(PressAt(1, 3f, InputTime, fingerId: 7));
-            source.Add(PressAt(2, 6f, InputTime + 0.01, fingerId: 7));
-            logic.OnInput();
+            _source.Add(PressAt(1, 3f, INPUT_TIME, fingerId: 7));
+            _source.Add(PressAt(2, 6f, INPUT_TIME + 0.01, fingerId: 7));
+            _logic.OnInput();
 
             Assert.That(left.JudgmentCalls + right.JudgmentCalls, Is.EqualTo(1));
             Assert.That(left.Result, Is.EqualTo(NoteResult.JustPerfect), "The first sample spends the credit.");
@@ -379,7 +379,7 @@ namespace OpenSekai.Tests.EditMode.Live
         {
             var first = new CountingNote(1, 0f, 4, 3f, 5f);
             var second = new CountingNote(2, 0f, 4, 3f, 5f);
-            logic.Notes.Bind(new NoteBase[] { first, second });
+            _logic.Notes.Bind(new NoteBase[] { first, second });
             Assert.That(first.ChartOrder, Is.LessThan(second.ChartOrder), "Bind numbers the chart.");
 
             var input = collectedInChartOrder ? Input(1, 4f, first, second) : Input(1, 4f, second, first);
@@ -393,7 +393,7 @@ namespace OpenSekai.Tests.EditMode.Live
             var tap = new NormalNote(Info(0f), 1, 4, 4, NoteCategory.Normal, 1f, NoteType.Default, 0f);
             var bar = new LongNote(Info(0f), 2, 4, 4, NoteCategory.Long, NoteType.Default, 1f, 0f);
             bar.AddNoteListAndSetupChildNote(new NormalNote(Info(1f), 3, 4, 4, NoteCategory.Normal, 1f, NoteType.Default, 0f));
-            logic.Notes.Bind(new NoteBase[] { bar, tap });
+            _logic.Notes.Bind(new NoteBase[] { bar, tap });
             Assert.That(bar.Head.Candidate.ChartOrder, Is.EqualTo(bar.ChartOrder));
             Assert.That(LiveCandidatePipeline.PrecedesForOneFinger(bar.Head.Candidate, tap), Is.True);
             Assert.That(LiveCandidatePipeline.PrecedesForOneFinger(tap, bar.Head.Candidate), Is.False);
@@ -540,12 +540,12 @@ namespace OpenSekai.Tests.EditMode.Live
             var old = new CountingNote(1, 0f, 4, 3f, 5f);
             var next = new CountingNote(2, 0.12f, 4, 3f, 5f);
             Arrange(old, next);
-            logic.OnUpdate(0.11f, InputTime + 0.11d);
+            _logic.OnUpdate(0.11f, INPUT_TIME + 0.11d);
             Assert.That(old.CalcNoteResult(0.11f), Is.LessThan(NoteResult.Great).And.GreaterThan(NoteResult.None), "Precondition.");
 
-            source.Add(new LiveTouchSample(1, new Vector2(800f, 600f), At(4f), InputTime + 0.11d,
+            _source.Add(new LiveTouchSample(1, new Vector2(800f, 600f), At(4f), INPUT_TIME + 0.11d,
                 InputTouchPhase.Began, Vector2.zero));
-            logic.OnInput();
+            _logic.OnInput();
 
             Assert.That(next.JudgmentCalls, Is.EqualTo(1));
             Assert.That(next.Result, Is.GreaterThanOrEqualTo(NoteResult.Great));

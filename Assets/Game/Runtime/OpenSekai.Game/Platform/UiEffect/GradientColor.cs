@@ -10,28 +10,35 @@ namespace UiEffect
 	{
 		private const int ONE_TEXT_VERTEX = 6;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_colorTop")]
 		[SerializeField]
-		private Color _colorTop;
+		private Color colorTopValue;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_colorBottom")]
 		[SerializeField]
-		private Color _colorBottom;
+		private Color colorBottomValue;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_colorLeft")]
 		[SerializeField]
-		private Color _colorLeft;
+		private Color colorLeftValue;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_colorRight")]
 		[SerializeField]
-		private Color _colorRight;
+		private Color colorRightValue;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_gradientOffsetVertical")]
 		[Range(-1f, 1f)]
 		[SerializeField]
-		private float _gradientOffsetVertical;
+		private float gradientOffsetVerticalValue;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_gradientOffsetHorizontal")]
 		[Range(-1f, 1f)]
 		[SerializeField]
-		private float _gradientOffsetHorizontal;
+		private float gradientOffsetHorizontalValue;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_splitTextGradient")]
 		[SerializeField]
-		private bool _splitTextGradient;
+		private bool splitTextGradientValue;
 
 		public Color colorTop
 		{

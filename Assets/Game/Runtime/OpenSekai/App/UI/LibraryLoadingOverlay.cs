@@ -37,7 +37,7 @@ namespace OpenSekai.App.UI
 
         private const string LIVE_SCENE_NAME = "Core";
 
-        private static readonly Color32 BackgroundColor = new Color32(12, 15, 20, 255);
+        private static readonly Color32 _backgroundColor = new Color32(12, 15, 20, 255);
 
         private CanvasGroup _group;
         private RectTransform _content;
@@ -96,7 +96,7 @@ namespace OpenSekai.App.UI
             _cancelRequested = onCancel;
             _group = root.gameObject.AddComponent<CanvasGroup>();
 
-            Image background = LibraryUi.CreateImage("Background", root, BackgroundColor);
+            Image background = LibraryUi.CreateImage("Background", root, _backgroundColor);
             LibraryUi.Stretch(background.rectTransform);
             background.raycastTarget = true;
 
@@ -153,14 +153,14 @@ namespace OpenSekai.App.UI
             _barFill.offsetMin = Vector2.zero;
             _barFill.offsetMax = Vector2.zero;
 
-            const float cancelWidth = 200f;
-            const float cancelHeight = 68f;
+            const float CANCEL_WIDTH = 200f;
+            const float CANCEL_HEIGHT = 68f;
             _cancelButton = LibraryWidgets.PillButton(
-                "Cancel", _content, "取消", OnCancelClicked, cancelWidth, cancelHeight,
+                "Cancel", _content, "取消", OnCancelClicked, CANCEL_WIDTH, CANCEL_HEIGHT,
                 LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, sound: UiCue.Cancel);
             LibraryWidgets.Place((RectTransform)_cancelButton.transform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
-                new Vector2(0f, -(top + 170f)), new Vector2(cancelWidth, cancelHeight));
-            LibraryWidgets.Outline((Image)_cancelButton.targetGraphic, cancelHeight * 0.5f);
+                new Vector2(0f, -(top + 170f)), new Vector2(CANCEL_WIDTH, CANCEL_HEIGHT));
+            LibraryWidgets.Outline((Image)_cancelButton.targetGraphic, CANCEL_HEIGHT * 0.5f);
         }
 
         /// <summary>Shows the overlay for one package; safe to call repeatedly.</summary>

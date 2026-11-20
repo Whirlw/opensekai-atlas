@@ -4,23 +4,23 @@ namespace Sekai
 {
 	public class ScreenLayerState
 	{
-				private ScreenLayerData _Data;
+				private ScreenLayerData _data;
 		public ScreenLayerData Data
 		{
-		    get => _Data;
-		    set => _Data = value;
+		    get => _data;
+		    set => _data = value;
 		}
-				private GameObject _RefInstance;
+				private GameObject _refInstance;
 		public GameObject RefInstance
 		{
-		    get => _RefInstance;
-		    set => _RefInstance = value;
+		    get => _refInstance;
+		    set => _refInstance = value;
 		}
-				private ScreenLayer _ScreenLayer;
+				private ScreenLayer _screenLayer;
 		public ScreenLayer ScreenLayer
 		{
-		    get => _ScreenLayer;
-		    set => _ScreenLayer = value;
+		    get => _screenLayer;
+		    set => _screenLayer = value;
 		}
 	}
 }

@@ -7,11 +7,13 @@ namespace Sekai.UI
 	[ExecuteInEditMode]
 	public class AlphaMask : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_maskImage")]
 		[SerializeField]
-		private Image _maskImage;
+		private Image maskImage;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_unmask")]
 		[SerializeField]
-		private bool _unmask;
+		private bool unmask;
 
 		private Canvas _canvas;
 
@@ -41,11 +43,11 @@ namespace Sekai.UI
 		{
 			get
 			{
-				if (_maskImage == null)
+				if (maskImage == null)
 				{
-					_maskImage = GetComponent<Image>();
+					maskImage = GetComponent<Image>();
 				}
-				return _maskImage;
+				return maskImage;
 			}
 		}
 
@@ -111,7 +113,7 @@ namespace Sekai.UI
 			}
 			MaskMaterial.SetTexture("_MaskTex", MaskImage.sprite.texture);
 			MaskMaterial.SetMatrix("_MaskMatrix", CalculateMatrix(camera));
-			MaskMaterial.SetFloat("_Unmask", _unmask ? 1f : 0f);
+			MaskMaterial.SetFloat("_Unmask", unmask ? 1f : 0f);
 		}
 
 		private Matrix4x4 CalculateMatrix(Camera camera)

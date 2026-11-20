@@ -89,7 +89,7 @@ namespace OpenSekai.App.UI
                 int status = (int)item["status"];
                 long bytes = (long?)item["bytes"] ?? 0;
                 long total = (long?)item["total"] ?? -1;
-                if (bytes > SafeZipExtractor.MaxTotalBytes || total > SafeZipExtractor.MaxTotalBytes)
+                if (bytes > SafeZipExtractor.MAX_TOTAL_BYTES || total > SafeZipExtractor.MAX_TOTAL_BYTES)
                 {
                     plugin.CallStatic("cancel", id);
                     Report("曲包下载超过 2 GiB，已取消。");

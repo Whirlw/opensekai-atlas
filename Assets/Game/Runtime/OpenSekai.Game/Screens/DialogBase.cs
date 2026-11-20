@@ -41,8 +41,9 @@ namespace Sekai
 		[SerializeField]
 		protected GameObject windowObject;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_needBackgroundCover")]
 		[SerializeField]
-		private bool _needBackgroundCover;
+		private bool needBackgroundCover;
 
 		[SerializeField]
 		protected OpenSE openSE;
@@ -268,7 +269,7 @@ namespace Sekai
 
 		protected void SetupBackgroundGrayoutCover()
 		{
-			if (!_needBackgroundCover || fillCover != null)
+			if (!needBackgroundCover || fillCover != null)
 			{
 				return;
 			}
@@ -398,21 +399,13 @@ namespace Sekai
 
 		private void DestroyMyself()
 		{
-			DisableAllColliders();
-			OnFinishCloseAnimationCallback();
-			OnClose?.Invoke();
-			OnClosed?.Invoke();
-			currentState = DialogState.Closed;
+			FinishCloseWithoutDestroy();
 			UnityEngine.Object.Destroy(gameObject);
 		}
 
 		private void SleepMyself()
 		{
-			DisableAllColliders();
-			OnFinishCloseAnimationCallback();
-			OnClose?.Invoke();
-			OnClosed?.Invoke();
-			currentState = DialogState.Closed;
+			FinishCloseWithoutDestroy();
 			gameObject.SetActive(false);
 		}
 

@@ -26,8 +26,8 @@ namespace OpenSekai.Tests.EditMode.Live
     [TestFixture]
     public class DecorationTailFromChartTests
     {
-        private const double InputTime = 10d;
-        private const string ChartPath = "Tools/fixtures/deco-tail-test10/score.json";
+        private const double INPUT_TIME = 10d;
+        private const string CHART_PATH = "Tools/fixtures/deco-tail-test10/score.json";
 
         private bool _previousLegacyTiming;
         private LiveConfig.NoteTypeJudgeData _previousJudgeData;
@@ -67,7 +67,7 @@ namespace OpenSekai.Tests.EditMode.Live
         private static MusicScore LoadScore()
         {
             var config = ScriptableObject.CreateInstance<LiveBundleBuildData>();
-            var document = ChartJson.Read(System.IO.File.ReadAllText(ChartPath));
+            var document = ChartJson.Read(System.IO.File.ReadAllText(CHART_PATH));
             return RuntimeChartConverter.Convert(document, config);
         }
 
@@ -127,8 +127,8 @@ namespace OpenSekai.Tests.EditMode.Live
                 double last = 0d;
                 for (float t = start; t <= tailTime + 0.02f; t += 1f / 240f)
                 {
-                    logic.OnUpdate(t, InputTime + t);
-                    last = InputTime + t;
+                    logic.OnUpdate(t, INPUT_TIME + t);
+                    last = INPUT_TIME + t;
                 }
 
                 harness.Source.Clear();
@@ -147,8 +147,8 @@ namespace OpenSekai.Tests.EditMode.Live
                 harness.Source.Clear();
                 for (float t = tailTime; t <= tailTime + 0.2f; t += 1f / 60f)
                 {
-                    logic.OnUpdate(t, InputTime + t);
-                    harness.Source.Add(Touch(1, position, InputTime + t, InputTouchPhase.Stationary, Vector2.zero));
+                    logic.OnUpdate(t, INPUT_TIME + t);
+                    harness.Source.Add(Touch(1, position, INPUT_TIME + t, InputTouchPhase.Stationary, Vector2.zero));
                     logic.OnInput();
                     harness.Source.Clear();
                 }

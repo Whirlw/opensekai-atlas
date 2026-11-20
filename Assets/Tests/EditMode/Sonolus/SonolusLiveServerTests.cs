@@ -56,7 +56,7 @@ namespace OpenSekai.Tests.EditMode.Sonolus
                 SongPackage package = await installer.InstallAsync(client, details, (progress, _) => last = progress, token);
 
                 Assert.That(last, Is.EqualTo(1f));
-                Assert.That(package.Manifest.chartFormat, Is.EqualTo(NextRushChartLoader.Format));
+                Assert.That(package.Manifest.chartFormat, Is.EqualTo(NextRushChartLoader.FORMAT));
                 Assert.That(File.Exists(package.ScorePath) && File.Exists(package.AudioPath), Is.True);
                 Assert.That(File.Exists(Path.Combine(package.RootDirectory, SonolusLevelInstaller.SOURCE_FILE_NAME)), Is.True);
                 Assert.That(SonolusLevelInstaller.Sha1Hex(File.ReadAllBytes(package.ScorePath)), Is.EqualTo(details.Level.Data.Hash).IgnoreCase,

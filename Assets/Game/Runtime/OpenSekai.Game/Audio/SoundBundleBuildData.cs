@@ -1,25 +1,21 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Sekai
 {
     public class SoundBundleBuildData : ScriptableObject
     {
+        [UnityEngine.Serialization.FormerlySerializedAs("_acfFile")]
         [SerializeField]
-        private string _acfFile;
+        private string acfFile;
 
+        [UnityEngine.Serialization.FormerlySerializedAs("_acbFiles")]
         [SerializeField]
-        private SoundBundleData[] _acbFiles;
+        private SoundBundleData[] acbFiles;
 
-        public string AcfFile
-        {
-            get => _acfFile;
-            set => _acfFile = value;
-        }
+        public string AcfFile => acfFile;
 
-        public SoundBundleData[] AcbFiles
-        {
-            get => _acbFiles;
-            set => _acbFiles = value;
-        }
+        public IReadOnlyList<SoundBundleData> AcbFiles => Array.AsReadOnly(acbFiles ?? Array.Empty<SoundBundleData>());
     }
 }

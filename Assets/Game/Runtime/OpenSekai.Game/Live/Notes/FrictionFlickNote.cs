@@ -10,7 +10,7 @@ namespace Sekai.Live
 {
 	public class FrictionFlickNote : NoteBase
 	{
-		private readonly (int id, bool distance, bool trueDirection)[] inputResults;
+		private readonly (int id, bool distance, bool trueDirection)[] _inputResults;
 
 		private readonly float _flickDistance;
 
@@ -18,7 +18,7 @@ namespace Sekai.Live
 		internal float FlickDistance => _flickDistance;
 		internal bool IsTraceTail { get; }
 		private bool UsesTailInputWindow => IsTraceTail || IsTailFlickOwner || IsTailTraceFlickOwner || GradesAsBarPart && ParentRole == NoteParentRole.Tail;
-		private const float GradeLateWindow = 7.5f / 60f;
+		private const float GRADE_LATE_WINDOW = 7.5f / 60f;
 		private bool _everCorrect;
 		private float NextRushEarlyWindow => (UsesTailInputWindow ? 7.5f : 6.5f) / 60f;
 		private float NextRushLateWindow => (UsesTailInputWindow ? 8.5f : 7.5f) / 60f;
@@ -50,7 +50,7 @@ namespace Sekai.Live
 		}
 		public FrictionFlickNote()
 		{
-			inputResults = new (int id, bool distance, bool trueDirection)[8];
+			_inputResults = new (int id, bool distance, bool trueDirection)[8];
 			Category = NoteCategory.FrictionFlick;
 		}
 
@@ -59,7 +59,7 @@ namespace Sekai.Live
 			bool isTraceFlickOwner = false, bool isTailTraceFlickOwner = false, bool isTraceTail = false)
 			: base(info, id, laneStart, laneEnd, category, speedRatio, laneOffset, type)
 		{
-			inputResults = new (int id, bool distance, bool trueDirection)[8];
+			_inputResults = new (int id, bool distance, bool trueDirection)[8];
 			_flickDistance = screenDpiToInch;
 			Direction = direction;
 			IsTraceFlickOwner = isTraceFlickOwner;
@@ -79,7 +79,7 @@ namespace Sekai.Live
 			else if (!IsTailFlickOwner && now >= MusicScoreInfo.time && (_everCorrect || !_nextRushHadContact))
 			{
 				bool moved = false, correct = false;
-				foreach (var input in inputResults)
+				foreach (var input in _inputResults)
 				{
 					moved |= input.distance;
 					correct |= input.trueDirection;
@@ -95,7 +95,7 @@ namespace Sekai.Live
 			bool unregistered = IsLaneCheck(touch);
 			if (unregistered && (sampleTime <= MusicScoreInfo.time - NextRushEarlyWindow
 				|| sampleTime >= MusicScoreInfo.time + NextRushLateWindow || float.IsNegativeInfinity(lane)
-				|| lane < JudgeLaneStart || lane > JudgeLaneEnd || inputResults[^1].id != 0)) return false;
+				|| lane < JudgeLaneStart || lane > JudgeLaneEnd || _inputResults[^1].id != 0)) return false;
 			RecordSlideEndInput(NextRushLateWindow);
 			State = NoteState.Input;
 			bool moved = false, correct = false;
@@ -118,7 +118,7 @@ namespace Sekai.Live
 			_nextRushHadContact = hasContact;
 			if (State == NoteState.Done || now < target) return;
 			bool hasMotion = false, correct = false;
-			foreach (var input in inputResults)
+			foreach (var input in _inputResults)
 			{
 				if (!input.distance) continue;
 				hasMotion = true;
@@ -175,7 +175,7 @@ namespace Sekai.Live
 				return true;
 			}
 
-			foreach (var result in inputResults)
+			foreach (var result in _inputResults)
 			{
 				if (result.id != 0 && result.id == touch.touchId)
 				{
@@ -201,11 +201,11 @@ namespace Sekai.Live
 
 		private void AddInputResult(ref LiveTouch touch, ref bool isUpdatedDelta, ref bool _isTrueDirection)
 		{
-			for (var i = 0; i < inputResults.Length; i++)
+			for (var i = 0; i < _inputResults.Length; i++)
 			{
-				if (inputResults[i].id == 0 || inputResults[i].id == touch.touchId)
+				if (_inputResults[i].id == 0 || _inputResults[i].id == touch.touchId)
 				{
-					inputResults[i] = (touch.touchId, isUpdatedDelta, _isTrueDirection);
+					_inputResults[i] = (touch.touchId, isUpdatedDelta, _isTrueDirection);
 					return;
 				}
 			}
@@ -233,14 +233,14 @@ namespace Sekai.Live
 		public override NoteResult CalcNoteResult(float musicTime)
 		{
 			if (IsTailFlickOwner) return LiveConfig.CalculateLongEndFlickNoteResult(this, musicTime, true).Item1;
-			return musicTime >= MusicScoreInfo.time - 6.5f / 60f && musicTime <= MusicScoreInfo.time + GradeLateWindow
+			return musicTime >= MusicScoreInfo.time - 6.5f / 60f && musicTime <= MusicScoreInfo.time + GRADE_LATE_WINDOW
 				? NoteResult.Perfect : NoteResult.Miss;
 		}
 
 		public override void ResetNote()
 		{
 			base.ResetNote();
-			Array.Clear(inputResults, 0, inputResults.Length);
+			Array.Clear(_inputResults, 0, _inputResults.Length);
 			_missPendingAt = float.PositiveInfinity;
 			_everCorrect = false;
 			_nextRushCorrectTime = 0f;

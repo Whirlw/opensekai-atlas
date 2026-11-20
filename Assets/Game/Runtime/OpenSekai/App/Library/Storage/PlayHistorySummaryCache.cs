@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Text;
 using Newtonsoft.Json;
@@ -20,6 +21,7 @@ namespace OpenSekai.App.Library
 		private const int SNAPSHOT_VERSION = 2;
 
 		private Dictionary<string, CustomMusicScorePlayHistorySummary> _summaries;
+		private IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary> _view;
 		private string _path;
 		private long _historyBytes;
 
@@ -29,26 +31,28 @@ namespace OpenSekai.App.Library
 			return Path.ChangeExtension(historyPath, ".summary.json");
 		}
 
-		internal Dictionary<string, CustomMusicScorePlayHistorySummary> Load(string historyPath)
+		internal IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary> Load(string historyPath)
 		{
 			if (_summaries != null && IsSameFile(historyPath))
 			{
-				return _summaries;
+				return _view;
 			}
 
 			_historyBytes = HistoryBytes(historyPath);
 			_summaries = ReadSnapshot(historyPath, _historyBytes) ?? Rebuild(historyPath, _historyBytes);
+			_view = new ReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary>(_summaries);
 			_path = historyPath;
-			return _summaries;
+			return _view;
 		}
 
 		/// <summary>Folds the whole history file again and replaces the snapshot: the refresh button's resync.</summary>
-		internal Dictionary<string, CustomMusicScorePlayHistorySummary> Reload(string historyPath)
+		internal IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary> Reload(string historyPath)
 		{
 			_historyBytes = HistoryBytes(historyPath);
 			_summaries = Rebuild(historyPath, _historyBytes);
+			_view = new ReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary>(_summaries);
 			_path = historyPath;
-			return _summaries;
+			return _view;
 		}
 
 		/// <summary>
@@ -57,8 +61,8 @@ namespace OpenSekai.App.Library
 		/// </summary>
 		internal CustomMusicScorePlayHistorySummary Append(string historyPath, CustomMusicScorePlayHistoryRecord record)
 		{
-			Dictionary<string, CustomMusicScorePlayHistorySummary> summaries = Load(historyPath);
-			if (_historyBytes != HistoryBytes(historyPath)) summaries = Reload(historyPath);
+			Load(historyPath);
+			if (_historyBytes != HistoryBytes(historyPath)) Reload(historyPath);
 			using (var stream = new FileStream(historyPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read))
 			{
 				// An interrupted append can leave an incomplete JSON object without a final newline.
@@ -76,8 +80,8 @@ namespace OpenSekai.App.Library
 				}
 				_historyBytes = stream.Length;
 			}
-			CustomMusicScorePlayHistorySummary summary = CustomMusicScorePlayHistoryStorage.Fold(summaries, record);
-			WriteSnapshot(historyPath, summaries, _historyBytes);
+			CustomMusicScorePlayHistorySummary summary = CustomMusicScorePlayHistoryStorage.Fold(_summaries, record);
+			WriteSnapshot(historyPath, _summaries, _historyBytes);
 			return summary;
 		}
 
@@ -121,12 +125,8 @@ namespace OpenSekai.App.Library
 						continue;
 					}
 
-					summaries[pair.Key] = new CustomMusicScorePlayHistorySummary
-					{
-						Best = pair.Value.best,
-						LastPlayedAtUtc = pair.Value.lastPlayedAtUtc ?? string.Empty,
-						PlayCount = pair.Value.playCount
-					};
+					summaries[pair.Key] = new CustomMusicScorePlayHistorySummary(
+						pair.Value.best, pair.Value.lastPlayedAtUtc ?? string.Empty, pair.Value.playCount);
 				}
 				return summaries;
 			}

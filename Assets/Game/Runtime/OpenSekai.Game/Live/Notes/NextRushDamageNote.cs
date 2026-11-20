@@ -5,7 +5,7 @@ namespace Sekai.Live
 	/// <summary>A scored hazard. The input pass answers it once, after sampling the current contacts.</summary>
 	public sealed class NextRushDamageNote : NoteBase
 	{
-		internal const int LifePenalty = 40;
+		internal const int LIFE_PENALTY = 40;
 		private PathPoint _path;
 		public override bool IsVisible { get; }
 		internal float InputStart { get; private set; }

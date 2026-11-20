@@ -6,26 +6,33 @@ namespace Sekai
 {
 	public class ConsecutiveAutoLiveView : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_pauseButton")]
 		[SerializeField]
-		private SpriteRenderer _pauseButton;
+		private SpriteRenderer pauseButton;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_pauseButtonDisable")]
 		[SerializeField]
-		private SpriteRenderer _pauseButtonDisable;
+		private SpriteRenderer pauseButtonDisable;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_pauseButtonController")]
 		[SerializeField]
-		private LiveSpriteButton _pauseButtonController;
+		private LiveSpriteButton pauseButtonController;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_autoLivePauseButton")]
 		[SerializeField]
-		private SpriteRenderer _autoLivePauseButton;
+		private SpriteRenderer autoLivePauseButton;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_autoLivePauseButtonDisable")]
 		[SerializeField]
-		private SpriteRenderer _autoLivePauseButtonDisable;
+		private SpriteRenderer autoLivePauseButtonDisable;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_autoLivePauseButtonController")]
 		[SerializeField]
-		private LiveSpriteButton _autoLivePauseButtonController;
+		private LiveSpriteButton autoLivePauseButtonController;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_autoLabel")]
 		[SerializeField]
-		private SpriteRenderer _autoLabel;
+		private SpriteRenderer autoLabel;
 
 		private LiveOutUIController _liveOutUIController;
 
@@ -38,47 +45,47 @@ namespace Sekai
 
 		private void SetupButton(Action callback)
 		{
-			SetActive(_autoLivePauseButton, callback != null);
-			SetActive(_autoLivePauseButtonDisable, false);
-			if (_autoLivePauseButtonController != null)
+			SetActive(autoLivePauseButton, callback != null);
+			SetActive(autoLivePauseButtonDisable, false);
+			if (autoLivePauseButtonController != null)
 			{
-				_autoLivePauseButtonController.Setup(callback);
+				autoLivePauseButtonController.Setup(callback);
 			}
 		}
 
 		public void Pause()
 		{
-			_autoLivePauseButtonController?.OnClick();
+			autoLivePauseButtonController?.OnClick();
 		}
 
 		public void CalculateButtonBounds(Camera camera)
 		{
-			if (_autoLivePauseButtonController != null)
+			if (autoLivePauseButtonController != null)
 			{
-				_autoLivePauseButtonController.CalculateBounds(camera);
+				autoLivePauseButtonController.CalculateBounds(camera);
 			}
 		}
 
 		public void Show()
 		{
 			bool useFakePerfect = LiveSettingsStore.Shared.Load()?.UsesAutoFakePerfectMode ?? false;
-			SetActive(_pauseButton, false);
-			SetActive(_pauseButtonDisable, false);
+			SetActive(pauseButton, false);
+			SetActive(pauseButtonDisable, false);
 			// Hide auto pause button in Fake Perfect mode
-			SetActive(_autoLivePauseButton, !useFakePerfect);
-			SetActive(_autoLivePauseButtonDisable, false);
+			SetActive(autoLivePauseButton, !useFakePerfect);
+			SetActive(autoLivePauseButtonDisable, false);
 			// Hide auto label in Fake Perfect mode
-			SetActive(_autoLabel, !useFakePerfect);
+			SetActive(autoLabel, !useFakePerfect);
 			gameObject.SetActive(true);
 		}
 
 		public void Hide()
 		{
-			SetActive(_pauseButton, true);
-			SetActive(_pauseButtonDisable, false);
-			SetActive(_autoLivePauseButton, true);
-			SetActive(_autoLivePauseButtonDisable, true);
-			SetActive(_autoLabel, true);
+			SetActive(pauseButton, true);
+			SetActive(pauseButtonDisable, false);
+			SetActive(autoLivePauseButton, true);
+			SetActive(autoLivePauseButtonDisable, true);
+			SetActive(autoLabel, true);
 			gameObject.SetActive(false);
 		}
 

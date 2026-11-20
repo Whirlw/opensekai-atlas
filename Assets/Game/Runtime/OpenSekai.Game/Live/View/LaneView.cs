@@ -5,14 +5,17 @@ namespace Sekai
 {
 	public class LaneView : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_defaultLaneBase")]
 		[SerializeField]
-		private SpriteRenderer _defaultLaneBase;
+		private SpriteRenderer defaultLaneBase;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_defaultLaneLine")]
 		[SerializeField]
-		private SpriteRenderer _defaultLaneLine;
+		private SpriteRenderer defaultLaneLine;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_defaultJudgeLine")]
 		[SerializeField]
-		private SpriteRenderer _defaultJudgeLine;
+		private SpriteRenderer defaultJudgeLine;
 
 		public void Setup(LiveSettingData liveSetting)
 		{
@@ -22,20 +25,20 @@ namespace Sekai
 			}
 			float laneAlpha = liveSetting.LaneTransparent;
 			float judgeLineAlpha = LiveConfig.JudgeLineAlpha;
-			if (_defaultLaneBase != null)
+			if (defaultLaneBase != null)
 			{
-				_defaultLaneBase.color = new Color(1f, 1f, 1f, laneAlpha);
-				_defaultLaneBase.enabled = laneAlpha > 0f;
+				defaultLaneBase.color = new Color(1f, 1f, 1f, laneAlpha);
+				defaultLaneBase.enabled = laneAlpha > 0f;
 			}
-			if (_defaultLaneLine != null)
+			if (defaultLaneLine != null)
 			{
-				_defaultLaneLine.color = new Color(1f, 1f, 1f, judgeLineAlpha);
-				_defaultLaneLine.enabled = judgeLineAlpha > 0f;
+				defaultLaneLine.color = new Color(1f, 1f, 1f, judgeLineAlpha);
+				defaultLaneLine.enabled = judgeLineAlpha > 0f;
 			}
-			if (_defaultJudgeLine != null)
+			if (defaultJudgeLine != null)
 			{
-				_defaultJudgeLine.color = new Color(1f, 1f, 1f, judgeLineAlpha);
-				_defaultJudgeLine.enabled = judgeLineAlpha > 0f;
+				defaultJudgeLine.color = new Color(1f, 1f, 1f, judgeLineAlpha);
+				defaultJudgeLine.enabled = judgeLineAlpha > 0f;
 			}
 		}
 

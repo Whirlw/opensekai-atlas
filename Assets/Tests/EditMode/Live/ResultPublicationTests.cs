@@ -23,7 +23,7 @@ namespace OpenSekai.Tests.EditMode.Live
     /// </summary>
     public sealed class ResultPublicationTests
     {
-        private const double Clock = 10d;
+        private const double CLOCK = 10d;
         private LiveHarness _harness;
         private Recorder _board;
         private readonly Dictionary<object, string> _labels = new Dictionary<object, string>();
@@ -31,7 +31,7 @@ namespace OpenSekai.Tests.EditMode.Live
         /// <summary>The score board, recording each call and the base score index it moved.</summary>
         private sealed class Recorder : ScoreLogic
         {
-            private static readonly FieldInfo ScoredCount =
+            private static readonly FieldInfo _scoredCount =
                 typeof(ScoreLogic).GetField("_scoredNoteCount", BindingFlags.Instance | BindingFlags.NonPublic);
 
             internal readonly List<string> Log = new List<string>();
@@ -55,9 +55,9 @@ namespace OpenSekai.Tests.EditMode.Live
 
             public override int CalculateAddScore(NoteBase note, float factor = 1f)
             {
-                int before = (int)ScoredCount.GetValue(this);
+                int before = (int)_scoredCount.GetValue(this);
                 int add = base.CalculateAddScore(note, factor);
-                int after = (int)ScoredCount.GetValue(this);
+                int after = (int)_scoredCount.GetValue(this);
                 Log.Add($"S {Label(note)} {note.Result} #{before}->{after} +{add}");
                 return add;
             }
@@ -90,7 +90,7 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         private static LiveTouchSample Sample(int id, float lane, float time, InputTouchPhase phase, float screenX = 800f) =>
-            new LiveTouchSample(id, new Vector2(screenX, 600f), At(lane), Clock + time, phase, Vector2.zero);
+            new LiveTouchSample(id, new Vector2(screenX, 600f), At(lane), CLOCK + time, phase, Vector2.zero);
 
         private T Named<T>(T note, string label) where T : class
         {
@@ -109,11 +109,11 @@ namespace OpenSekai.Tests.EditMode.Live
             return _board;
         }
 
-        private void Frame(float time, params LiveTouchSample[] touches) => _harness.Step(time, Clock + time, touches);
+        private void Frame(float time, params LiveTouchSample[] touches) => _harness.Step(time, CLOCK + time, touches);
 
         private void AutoFrame(float time)
         {
-            _harness.OnUpdate(time, Clock + time);
+            _harness.OnUpdate(time, CLOCK + time);
             _harness.Logic.OnAutoInput();
             _harness.OnView();
         }
@@ -402,9 +402,9 @@ namespace OpenSekai.Tests.EditMode.Live
             // A retry starts the music again from zero while the game clock keeps running.
             void Play(double gameOffset, int finger)
             {
-                void At(float t, params LiveTouchSample[] touches) => _harness.Step(t, Clock + gameOffset + t, touches);
+                void At(float t, params LiveTouchSample[] touches) => _harness.Step(t, CLOCK + gameOffset + t, touches);
                 LiveTouchSample Touch(float t, InputTouchPhase phase) =>
-                    new LiveTouchSample(finger, new Vector2(800f, 600f), ResultPublicationTests.At(4.5f), Clock + gameOffset + t, phase, Vector2.zero);
+                    new LiveTouchSample(finger, new Vector2(800f, 600f), ResultPublicationTests.At(4.5f), CLOCK + gameOffset + t, phase, Vector2.zero);
                 At(0.4f);
                 At(0.5f, Touch(0.5f, InputTouchPhase.Began));
                 for (float t = 0.52f; t < 1.5f - 1e-4f; t += 0.02f) At(t, Touch(t, InputTouchPhase.Stationary));
@@ -417,7 +417,7 @@ namespace OpenSekai.Tests.EditMode.Live
             string[] firstTake = board.Log.ToArray();
 
             // What a retry does: the take is open again, the cursors and tick lists go, every note is reset.
-            _harness.Logic.result = 0;
+            _harness.Logic.Result = 0;
             _harness.Logic.Notes.Reset();
             _harness.Logic.Session.MusicScore.ResetNote();
             board.Setup(null, _harness.Logic.Session.MusicScore);

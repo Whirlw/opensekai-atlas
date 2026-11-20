@@ -320,7 +320,7 @@ namespace Sekai.Core.Live
 		/// How soon after a consumed tap or flick press a lift of the same contact counts as the end of
 		/// that tap rather than a deliberate release: one sixth of a second.
 		/// </summary>
-		internal const float QuickTapSeconds = 1f / 6f;
+		internal const float QUICK_TAP_SECONDS = 1f / 6f;
 
 		/// <summary>
 		/// Collects ordinary tails in reach. A contact whose press was consumed by a tap or by a flick's
@@ -341,7 +341,7 @@ namespace Sekai.Core.Live
 				if (note is NormalNote { IsIndependentRelease: true } release)
 				{
 					if (release.IsJudgment(ref lift.Touch, lane)
-						&& (!followsKeyPress || time > pressTime + QuickTapSeconds
+						&& (!followsKeyPress || time > pressTime + QUICK_TAP_SECONDS
 							|| LongEndJudgement.IsPerfect(time - release.MusicScoreInfo.time)))
 					{
 						lift.CandidateNotes.Add(release);
@@ -365,7 +365,7 @@ namespace Sekai.Core.Live
 				}
 
 				float tailTime = tail.MusicScoreInfo.time;
-				bool quickTap = followsKeyPress && time <= pressTime + QuickTapSeconds;
+				bool quickTap = followsKeyPress && time <= pressTime + QUICK_TAP_SECONDS;
 				if (quickTap && !LongEndJudgement.IsPerfect(time - tailTime))
 				{
 					if (tracing)

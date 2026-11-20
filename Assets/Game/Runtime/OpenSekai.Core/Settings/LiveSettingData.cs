@@ -117,7 +117,8 @@ namespace Sekai
 
 		public int NoteEffect { get; set; }
 
-		public float _noteShowRate { get; set; }
+		[JsonProperty("_noteShowRate")]
+		private float _noteShowRate;
 
 		[JsonIgnore]
 		public float NoteShowRate

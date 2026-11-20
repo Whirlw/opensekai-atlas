@@ -11,9 +11,9 @@ namespace Sekai
 	internal static class AudibleRange
 	{
 		/// <summary>About -60 dBFS: well under anything a listener would call sound, well over dither.</summary>
-		internal const float SilenceThreshold = 0.001f;
+		internal const float SILENCE_THRESHOLD = 0.001f;
 
-		private const int BlockFrames = 16384;
+		private const int BLOCK_FRAMES = 16384;
 
 		internal static bool TryFind(AudioClip clip, out float startSeconds, out float endSeconds)
 		{
@@ -33,12 +33,12 @@ namespace Sekai
 
 				int frames = clip.samples;
 				int channels = clip.channels;
-				float[] block = new float[BlockFrames * channels];
+				float[] block = new float[BLOCK_FRAMES * channels];
 
 				int first = -1;
-				for (int offset = 0; offset < frames && first < 0; offset += BlockFrames)
+				for (int offset = 0; offset < frames && first < 0; offset += BLOCK_FRAMES)
 				{
-					float[] buffer = Read(clip, offset, Math.Min(BlockFrames, frames - offset), block);
+					float[] buffer = Read(clip, offset, Math.Min(BLOCK_FRAMES, frames - offset), block);
 					if (buffer == null)
 					{
 						return false;
@@ -46,7 +46,7 @@ namespace Sekai
 
 					for (int i = 0; i < buffer.Length; i++)
 					{
-						if (Math.Abs(buffer[i]) > SilenceThreshold)
+						if (Math.Abs(buffer[i]) > SILENCE_THRESHOLD)
 						{
 							first = offset + i / channels;
 							break;
@@ -60,9 +60,9 @@ namespace Sekai
 				}
 
 				int last = first;
-				for (int offset = (frames - 1) / BlockFrames * BlockFrames; offset >= first; offset -= BlockFrames)
+				for (int offset = (frames - 1) / BLOCK_FRAMES * BLOCK_FRAMES; offset >= first; offset -= BLOCK_FRAMES)
 				{
-					float[] buffer = Read(clip, offset, Math.Min(BlockFrames, frames - offset), block);
+					float[] buffer = Read(clip, offset, Math.Min(BLOCK_FRAMES, frames - offset), block);
 					if (buffer == null)
 					{
 						return false;
@@ -71,7 +71,7 @@ namespace Sekai
 					int found = -1;
 					for (int i = buffer.Length - 1; i >= 0; i--)
 					{
-						if (Math.Abs(buffer[i]) > SilenceThreshold)
+						if (Math.Abs(buffer[i]) > SILENCE_THRESHOLD)
 						{
 							found = offset + i / channels;
 							break;
@@ -101,7 +101,7 @@ namespace Sekai
 		// gets an array of its own size.
 		private static float[] Read(AudioClip clip, int offset, int frameCount, float[] block)
 		{
-			float[] buffer = frameCount == BlockFrames ? block : new float[frameCount * clip.channels];
+			float[] buffer = frameCount == BLOCK_FRAMES ? block : new float[frameCount * clip.channels];
 			return clip.GetData(buffer, offset) ? buffer : null;
 		}
 	}

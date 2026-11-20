@@ -13,20 +13,20 @@ namespace Sekai
 		[CompilerGenerated]
 		private sealed class _003CCountdown_003Ed__6 : IEnumerator<object>, IEnumerator, IDisposable
 		{
-			private int _003C_003E1__state;
+			private int _state;
 
-			private object _003C_003E2__current;
+			private object _current;
 
 			public CountdownView _003C_003E4__this;
 
-			private int _003Ci_003E5__2;
+			private int _i;
 
 			object IEnumerator<object>.Current
 			{
 				[DebuggerHidden]
 				get
 				{
-					return _003C_003E2__current;
+					return _current;
 				}
 			}
 
@@ -35,14 +35,14 @@ namespace Sekai
 				[DebuggerHidden]
 				get
 				{
-					return _003C_003E2__current;
+					return _current;
 				}
 			}
 
 			[DebuggerHidden]
 			public _003CCountdown_003Ed__6(int _003C_003E1__state)
 			{
-				this._003C_003E1__state = _003C_003E1__state;
+				this._state = _003C_003E1__state;
 			}
 
 			[DebuggerHidden]
@@ -63,8 +63,8 @@ namespace Sekai
 			[DebuggerHidden]
 			void IEnumerator.Reset()
 			{
-				_003C_003E1__state = -2;
-				_003C_003E2__current = null;
+				_state = -2;
+				_current = null;
 			}
 		}
 

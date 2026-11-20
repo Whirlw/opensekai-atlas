@@ -115,14 +115,14 @@ namespace OpenSekai.Shared.Audio
                 return null;
             }
 
-            const int chunkFrames = 4096;
+            const int CHUNK_FRAMES = 4096;
             var meter = new LoudnessMeter(clip.frequency, clip.channels);
-            var buffer = new float[chunkFrames * clip.channels];
+            var buffer = new float[CHUNK_FRAMES * clip.channels];
             var watch = Stopwatch.StartNew();
-            for (int offset = 0; offset < clip.samples; offset += chunkFrames)
+            for (int offset = 0; offset < clip.samples; offset += CHUNK_FRAMES)
             {
-                int frames = Math.Min(chunkFrames, clip.samples - offset);
-                if (frames < chunkFrames)
+                int frames = Math.Min(CHUNK_FRAMES, clip.samples - offset);
+                if (frames < CHUNK_FRAMES)
                 {
                     // GetData wraps round to the start when the buffer runs past the end.
                     buffer = new float[frames * clip.channels];
@@ -172,36 +172,36 @@ namespace OpenSekai.Shared.Audio
 
             internal static Biquad Shelf(int sampleRate)
             {
-                const double f0 = 1681.974450955533;
-                const double gain = 3.999843853973347;
-                const double q = 0.7071752369554196;
-                double k = Math.Tan(Math.PI * f0 / sampleRate);
-                double vh = Math.Pow(10.0, gain / 20.0);
+                const double F_0 = 1681.974450955533;
+                const double GAIN = 3.999843853973347;
+                const double Q = 0.7071752369554196;
+                double k = Math.Tan(Math.PI * F_0 / sampleRate);
+                double vh = Math.Pow(10.0, GAIN / 20.0);
                 double vb = Math.Pow(vh, 0.4996667741545416);
-                double a0 = 1.0 + k / q + k * k;
+                double a0 = 1.0 + k / Q + k * k;
                 return new Biquad
                 {
-                    _b0 = (vh + vb * k / q + k * k) / a0,
+                    _b0 = (vh + vb * k / Q + k * k) / a0,
                     _b1 = 2.0 * (k * k - vh) / a0,
-                    _b2 = (vh - vb * k / q + k * k) / a0,
+                    _b2 = (vh - vb * k / Q + k * k) / a0,
                     _a1 = 2.0 * (k * k - 1.0) / a0,
-                    _a2 = (1.0 - k / q + k * k) / a0
+                    _a2 = (1.0 - k / Q + k * k) / a0
                 };
             }
 
             internal static Biquad HighPass(int sampleRate)
             {
-                const double f0 = 38.13547087602444;
-                const double q = 0.5003270373238773;
-                double k = Math.Tan(Math.PI * f0 / sampleRate);
-                double a0 = 1.0 + k / q + k * k;
+                const double F_0 = 38.13547087602444;
+                const double Q = 0.5003270373238773;
+                double k = Math.Tan(Math.PI * F_0 / sampleRate);
+                double a0 = 1.0 + k / Q + k * k;
                 return new Biquad
                 {
                     _b0 = 1.0,
                     _b1 = -2.0,
                     _b2 = 1.0,
                     _a1 = 2.0 * (k * k - 1.0) / a0,
-                    _a2 = (1.0 - k / q + k * k) / a0
+                    _a2 = (1.0 - k / Q + k * k) / a0
                 };
             }
 

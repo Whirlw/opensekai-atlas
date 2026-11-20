@@ -18,18 +18,18 @@ namespace Sekai
 	{
 		public class SceneBackKeyHandler
 		{
-						private Action _OnExecuteBackKeyProcess;
+						private Action _onExecuteBackKeyProcess;
 			public Action OnExecuteBackKeyProcess
 			{
-			    get => _OnExecuteBackKeyProcess;
-			    set => _OnExecuteBackKeyProcess = value;
+			    get => _onExecuteBackKeyProcess;
+			    set => _onExecuteBackKeyProcess = value;
 			}
 
-						private bool _EnableBackKeyProcess;
+						private bool _enableBackKeyProcess;
 			public bool EnableBackKeyProcess
 			{
-			    get => _EnableBackKeyProcess;
-			    set => _EnableBackKeyProcess = value;
+			    get => _enableBackKeyProcess;
+			    set => _enableBackKeyProcess = value;
 			}
 
 			public SceneBackKeyHandler()
@@ -113,7 +113,7 @@ namespace Sekai
 				this._target = _target;
 				this._targetObject = _targetObject;
 				this._layerType = _layerType;
-				SetLayer(ScreenBlurController.DefaultLayerName);
+				SetLayer(ScreenBlurController.DEFAULT_LAYER_NAME);
 			}
 
 			public void AddCanvasCopyFrom(Canvas baseCanvas)
@@ -236,20 +236,35 @@ namespace Sekai
 		private Vector2 _contentSize;
 		private ScreenConfig.ScreenSize _screenSize;
 
-		[SerializeField] private Action<bool> _OnBackUIScreenOverride;
-		[SerializeField] private bool _IsAutoClearBackUIScreenOverride = true;
-		[SerializeField] private Action<MenuScreenType> _OnChangeUILayer;
-		[SerializeField] private Action<ScreenConfig.ScreenSize> _OnChangeScreenSize;
-		[SerializeField] private Action _OnExecuteBackKeyProcess;
-		[SerializeField] private List<MenuScreenType> _MaintainableScreenList = new List<MenuScreenType>
+		[UnityEngine.Serialization.FormerlySerializedAs("_OnBackUIScreenOverride")]
+		[SerializeField]
+		private Action<bool> onBackUIScreenOverride;
+		[UnityEngine.Serialization.FormerlySerializedAs("_IsAutoClearBackUIScreenOverride")]
+		[SerializeField]
+		private bool isAutoClearBackUIScreenOverride = true;
+		[UnityEngine.Serialization.FormerlySerializedAs("_OnChangeUILayer")]
+		[SerializeField]
+		private Action<MenuScreenType> onChangeUILayer;
+		[UnityEngine.Serialization.FormerlySerializedAs("_OnChangeScreenSize")]
+		[SerializeField]
+		private Action<ScreenConfig.ScreenSize> onChangeScreenSize;
+		[UnityEngine.Serialization.FormerlySerializedAs("_OnExecuteBackKeyProcess")]
+		[SerializeField]
+		private Action onExecuteBackKeyProcess;
+		[UnityEngine.Serialization.FormerlySerializedAs("_MaintainableScreenList")]
+		[SerializeField]
+		private List<MenuScreenType> maintainableScreenList = new List<MenuScreenType>
 		{
 			(MenuScreenType)26, (MenuScreenType)37, (MenuScreenType)123, (MenuScreenType)89, (MenuScreenType)77
 		};
 
 		protected ScreenLayerDataList entryScreenLayers;
 		protected Dictionary<MenuScreenType, ScreenLayerState> screenMap;
-		[SerializeField] protected ColorFader fadeController;
-		[SerializeField] private int _uiCameraPriority;
+		[SerializeField]
+		protected ColorFader fadeController;
+		[UnityEngine.Serialization.FormerlySerializedAs("_uiCameraPriority")]
+		[SerializeField]
+		private int uiCameraPriority;
 
 		public ScreenManager()
 		{
@@ -262,14 +277,14 @@ namespace Sekai
 		internal HeaderService Header { get; }
 		internal Dictionary<MenuScreenType, ScreenLayerState> RegisteredScreens => screenMap;
 		internal ColorFader FadeController { get => fadeController; set => fadeController = value; }
-		internal int UICameraPriority => _uiCameraPriority;
+		internal int UICameraPriority => uiCameraPriority;
 
-		public Action<bool> OnBackUIScreenOverride { get => _OnBackUIScreenOverride; set => _OnBackUIScreenOverride = value; }
-		public bool IsAutoClearBackUIScreenOverride { get => _IsAutoClearBackUIScreenOverride; set => _IsAutoClearBackUIScreenOverride = value; }
-		public Action<MenuScreenType> OnChangeUILayer { get => _OnChangeUILayer; set => _OnChangeUILayer = value; }
-		public Action<ScreenConfig.ScreenSize> OnChangeScreenSize { get => _OnChangeScreenSize; set => _OnChangeScreenSize = value; }
-		public Action OnExecuteBackKeyProcess { get => _OnExecuteBackKeyProcess; set => _OnExecuteBackKeyProcess = value; }
-		public List<MenuScreenType> MaintainableScreenList { get => _MaintainableScreenList; set => _MaintainableScreenList = value; }
+		public Action<bool> OnBackUIScreenOverride { get => onBackUIScreenOverride; set => onBackUIScreenOverride = value; }
+		public bool IsAutoClearBackUIScreenOverride { get => isAutoClearBackUIScreenOverride; set => isAutoClearBackUIScreenOverride = value; }
+		public Action<MenuScreenType> OnChangeUILayer { get => onChangeUILayer; set => onChangeUILayer = value; }
+		public Action<ScreenConfig.ScreenSize> OnChangeScreenSize { get => onChangeScreenSize; set => onChangeScreenSize = value; }
+		public Action OnExecuteBackKeyProcess { get => onExecuteBackKeyProcess; set => onExecuteBackKeyProcess = value; }
+		public List<MenuScreenType> MaintainableScreenList { get => maintainableScreenList; set => maintainableScreenList = value; }
 		public Action OnExecuteMysekaiBackKeyProcess { get; set; }
 		public bool EnableMysekaiBackKeyProcess { get; set; }
 		public object BootArgObject { get; set; }

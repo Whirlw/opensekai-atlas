@@ -2,12 +2,12 @@
 {
 	public class FrictionHideNote : FrictionNote
 	{
-		private bool isTouched;
+		private bool _isTouched;
 
 		public override void ResetNote()
 		{
 			base.ResetNote();
-			isTouched = false;
+			_isTouched = false;
 		}
 
 		public override bool HasJudgment => false;
@@ -59,7 +59,7 @@
 			}
 
 			Progress = progress;
-			if ((State == NoteState.Input || isTouched) && Progress >= 1f)
+			if ((State == NoteState.Input || _isTouched) && Progress >= 1f)
 			{
 				OffsetJudgeTime = 0f;
 				Progress = 1f;
@@ -93,7 +93,7 @@
 				return true;
 			}
 
-			isTouched = true;
+			_isTouched = true;
 			State = NoteState.Input;
 			return false;
 		}

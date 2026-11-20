@@ -12,11 +12,11 @@ namespace Sekai
 		    set => _playedPreliminaryTournamentId = value;
 		}
 
-				private int _StageId;
+				private int _stageId;
 		public int StageId
 		{
-		    get => _StageId;
-		    set => _StageId = value;
+		    get => _stageId;
+		    set => _stageId = value;
 		}
 
 		public LiveMusicData MusicData { get; set; }

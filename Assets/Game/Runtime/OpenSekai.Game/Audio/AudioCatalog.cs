@@ -19,7 +19,7 @@ namespace Sekai
 		private const string LIVE_TAP_SE_BUNDLE_NAME_PREFIX = "live/tap_se";
 		private const string LIVE_TAP_SE_CUSTOM01_BUNDLE_NAME = "live/tap_se/custom01";
 		private const string LIVE_MUSIC_BUNDLE_NAME_BASE = "music/long/{0}";
-		private static readonly string[] LiveTapPredecodeCueNames =
+		private static readonly string[] _liveTapPredecodeCueNames =
 		{
 			"se_live_long",
 			"se_live_long_critical",
@@ -36,7 +36,7 @@ namespace Sekai
 			"se_live_trace_critical"
 		};
 
-		private static readonly string[] LiveDefaultPredecodeCueNames =
+		private static readonly string[] _liveDefaultPredecodeCueNames =
 		{
 			"se_live_long",
 			"se_live_long_critical",
@@ -60,13 +60,13 @@ namespace Sekai
 			"se_live_end_all_perfect"
 		};
 
-		private static readonly Dictionary<string, string[]> PredecodeCueNamesByBundleName = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+		private static readonly Dictionary<string, string[]> _predecodeCueNamesByBundleName = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
 		{
-			{ LIVE_DEFAULT_SOUND_BUNDLE_NAME, LiveDefaultPredecodeCueNames },
-			{ LIVE_TAP_SE_BUNDLE_NAME_PREFIX, LiveTapPredecodeCueNames },
-			{ LIVE_TAP_SE_CUSTOM01_BUNDLE_NAME, LiveTapPredecodeCueNames }
+			{ LIVE_DEFAULT_SOUND_BUNDLE_NAME, _liveDefaultPredecodeCueNames },
+			{ LIVE_TAP_SE_BUNDLE_NAME_PREFIX, _liveTapPredecodeCueNames },
+			{ LIVE_TAP_SE_CUSTOM01_BUNDLE_NAME, _liveTapPredecodeCueNames }
 		};
-		private static readonly HashSet<string> LiveTapCueNameSet = new HashSet<string>(LiveTapPredecodeCueNames, StringComparer.OrdinalIgnoreCase);
+		private static readonly HashSet<string> _liveTapCueNameSet = new HashSet<string>(_liveTapPredecodeCueNames, StringComparer.OrdinalIgnoreCase);
 
 		private readonly HashSet<string> _loadedBundles = new HashSet<string>();
 		private readonly List<string> _loadedBundleSearchOrder = new List<string>();
@@ -193,7 +193,7 @@ namespace Sekai
 
 		private static bool IsLiveTapCueName(string cueName)
 		{
-			return !string.IsNullOrEmpty(cueName) && LiveTapCueNameSet.Contains(cueName);
+			return !string.IsNullOrEmpty(cueName) && _liveTapCueNameSet.Contains(cueName);
 		}
 
 		private bool TryResolveCurrentLiveTapSeCue(string cueName, out CriAtomExAcb acb, out string resolvedCueName)
@@ -483,14 +483,14 @@ namespace Sekai
 		private bool TryLoadSoundBundleFromBuildData(string bundleName, List<string> diagnosticCandidates)
 		{
 			SoundBundleBuildData buildData = AcbAssetSource.GetSoundBundleBuildData(bundleName);
-			SoundBundleData[] acbFiles = buildData?.AcbFiles;
-			if (acbFiles == null || acbFiles.Length == 0)
+			IReadOnlyList<SoundBundleData> acbFiles = buildData?.AcbFiles;
+			if (acbFiles == null || acbFiles.Count == 0)
 			{
 				return false;
 			}
 
 			bool loadedAny = false;
-			for (int i = 0; i < acbFiles.Length; i++)
+			for (int i = 0; i < acbFiles.Count; i++)
 			{
 				SoundBundleData soundBundleData = acbFiles[i];
 				if (soundBundleData == null)
@@ -599,7 +599,7 @@ namespace Sekai
 			}
 
 			string normalized = bundleName.Replace('\\', '/').Trim('/');
-			if (PredecodeCueNamesByBundleName.TryGetValue(normalized, out string[] cueNames))
+			if (_predecodeCueNamesByBundleName.TryGetValue(normalized, out string[] cueNames))
 			{
 				return cueNames;
 			}
@@ -608,7 +608,7 @@ namespace Sekai
 			while (slashIndex > 0)
 			{
 				normalized = normalized.Substring(0, slashIndex);
-				if (PredecodeCueNamesByBundleName.TryGetValue(normalized, out cueNames))
+				if (_predecodeCueNamesByBundleName.TryGetValue(normalized, out cueNames))
 				{
 					return cueNames;
 				}

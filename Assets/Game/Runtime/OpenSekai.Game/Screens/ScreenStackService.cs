@@ -246,9 +246,9 @@ namespace Sekai
 				return false;
 			}
 
-			if (layer.Data.hasLayerCamera && layer.ScreenLayer.LayerCamera != null && _owner.CameraStack != null)
+			if (layer.Data.HasLayerCamera && layer.ScreenLayer.LayerCamera != null && _owner.CameraStack != null)
 			{
-				_owner.CameraStack.AddToStack(layer.ScreenLayer.LayerCamera, layer.Data.layerCameraPriority);
+				_owner.CameraStack.AddToStack(layer.ScreenLayer.LayerCamera, layer.Data.LayerCameraPriority);
 			}
 
 			return true;
@@ -263,7 +263,7 @@ namespace Sekai
 
 			if (layer.ScreenLayer != null)
 			{
-				if (layer.Data != null && layer.Data.hasLayerCamera && layer.ScreenLayer.LayerCamera != null && _owner.CameraStack != null)
+				if (layer.Data != null && layer.Data.HasLayerCamera && layer.ScreenLayer.LayerCamera != null && _owner.CameraStack != null)
 				{
 					_owner.CameraStack.RemoveFromStack(layer.ScreenLayer.LayerCamera);
 				}
@@ -493,7 +493,7 @@ namespace Sekai
 				layer.ScreenLayer.ReverseStartAnimationType();
 			}
 
-			_layerBgmPlayer?.Play(layer.Data.bgmType);
+			_layerBgmPlayer?.Play(layer.Data.BgmType);
 			_layerBackgroundChanger?.Show(layer.Data.BackgroundType);
 			if (applyHeaderSetting)
 			{

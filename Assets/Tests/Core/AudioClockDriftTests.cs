@@ -20,7 +20,7 @@ namespace OpenSekai.Tests.Core
 
         private static float[] Same(float value)
         {
-            var readings = new float[AudioClockDrift.WindowSize];
+            var readings = new float[AudioClockDrift.WINDOW_SIZE];
             for (int i = 0; i < readings.Length; i++)
             {
                 readings[i] = value;
@@ -33,7 +33,7 @@ namespace OpenSekai.Tests.Core
         public void NoDecisionUntilTheWindowIsFull()
         {
             var drift = new AudioClockDrift();
-            for (int i = 0; i < AudioClockDrift.WindowSize - 1; i++)
+            for (int i = 0; i < AudioClockDrift.WINDOW_SIZE - 1; i++)
             {
                 Assert.That(drift.Add(0.5f, out _), Is.False);
             }
@@ -56,7 +56,7 @@ namespace OpenSekai.Tests.Core
             AudioClockCorrection correction = Feed(new AudioClockDrift(), Same(0.030f));
             Assert.That(correction.Kind, Is.EqualTo(AudioClockCorrectionKind.Slew));
             Assert.That(correction.RateScale, Is.LessThan(1f));
-            Assert.That(correction.RateScale, Is.GreaterThanOrEqualTo(1f - AudioClockDrift.MaxSlewRate));
+            Assert.That(correction.RateScale, Is.GreaterThanOrEqualTo(1f - AudioClockDrift.MAX_SLEW_RATE));
             Assert.That(correction.JumpSeconds, Is.Zero, "a slew never steps the clock");
         }
 
@@ -66,17 +66,17 @@ namespace OpenSekai.Tests.Core
             AudioClockCorrection correction = Feed(new AudioClockDrift(), Same(-0.030f));
             Assert.That(correction.Kind, Is.EqualTo(AudioClockCorrectionKind.Slew));
             Assert.That(correction.RateScale, Is.GreaterThan(1f));
-            Assert.That(correction.RateScale, Is.LessThanOrEqualTo(1f + AudioClockDrift.MaxSlewRate));
+            Assert.That(correction.RateScale, Is.LessThanOrEqualTo(1f + AudioClockDrift.MAX_SLEW_RATE));
         }
 
         [Test]
         public void SlewRateIsProportionalUntilCapped()
         {
             AudioClockCorrection small = AudioClockDrift.Decide(0.016f, 0f);
-            Assert.That(small.RateScale, Is.EqualTo(1f - 0.016f / AudioClockDrift.SlewTimeConstantSeconds).Within(1e-6f));
+            Assert.That(small.RateScale, Is.EqualTo(1f - 0.016f / AudioClockDrift.SLEW_TIME_CONSTANT_SECONDS).Within(1e-6f));
 
             AudioClockCorrection large = AudioClockDrift.Decide(0.059f, 0f);
-            Assert.That(large.RateScale, Is.EqualTo(1f - AudioClockDrift.MaxSlewRate).Within(1e-6f));
+            Assert.That(large.RateScale, Is.EqualTo(1f - AudioClockDrift.MAX_SLEW_RATE).Within(1e-6f));
         }
 
         [Test]
@@ -120,9 +120,9 @@ namespace OpenSekai.Tests.Core
         [Test]
         public void DeadBandFollowsTheScatterWithinItsLimits()
         {
-            Assert.That(AudioClockDrift.DeadBand(0f), Is.EqualTo(AudioClockDrift.MinDeadBandSeconds));
+            Assert.That(AudioClockDrift.DeadBand(0f), Is.EqualTo(AudioClockDrift.MIN_DEAD_BAND_SECONDS));
             Assert.That(AudioClockDrift.DeadBand(0.020f), Is.EqualTo(0.020f).Within(1e-6f));
-            Assert.That(AudioClockDrift.DeadBand(1f), Is.EqualTo(AudioClockDrift.HardResyncSeconds * 0.5f),
+            Assert.That(AudioClockDrift.DeadBand(1f), Is.EqualTo(AudioClockDrift.HARD_RESYNC_SECONDS * 0.5f),
                 "there is always room left to slew before a hard resync");
         }
 

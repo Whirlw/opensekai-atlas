@@ -36,22 +36,22 @@ namespace OpenSekai.App.UI
             /// <summary>Accent used until a jacket supplies its own.</summary>
             internal static readonly Color32 DefaultAccent = new Color32(157, 184, 255, 255);
 
-            private static readonly Color32 DifficultyEasy = new Color32(123, 216, 143, 255);
-            private static readonly Color32 DifficultyNormal = new Color32(124, 200, 245, 255);
-            private static readonly Color32 DifficultyHard = new Color32(245, 196, 81, 255);
-            private static readonly Color32 DifficultyExpert = new Color32(245, 154, 154, 255);
-            private static readonly Color32 DifficultyMaster = new Color32(205, 166, 245, 255);
-            private static readonly Color32 DifficultyAppend = new Color32(242, 176, 222, 255);
+            private static readonly Color32 _difficultyEasy = new Color32(123, 216, 143, 255);
+            private static readonly Color32 _difficultyNormal = new Color32(124, 200, 245, 255);
+            private static readonly Color32 _difficultyHard = new Color32(245, 196, 81, 255);
+            private static readonly Color32 _difficultyExpert = new Color32(245, 154, 154, 255);
+            private static readonly Color32 _difficultyMaster = new Color32(205, 166, 245, 255);
+            private static readonly Color32 _difficultyAppend = new Color32(242, 176, 222, 255);
 
             /// <summary>Label color of a manifest <c>musicDifficultyType</c>; unknown types read as plain text.</summary>
             internal static Color32 Difficulty(string difficultyType)
             {
-                if (string.Equals(difficultyType, "easy", StringComparison.OrdinalIgnoreCase)) return DifficultyEasy;
-                if (string.Equals(difficultyType, "normal", StringComparison.OrdinalIgnoreCase)) return DifficultyNormal;
-                if (string.Equals(difficultyType, "hard", StringComparison.OrdinalIgnoreCase)) return DifficultyHard;
-                if (string.Equals(difficultyType, "expert", StringComparison.OrdinalIgnoreCase)) return DifficultyExpert;
-                if (string.Equals(difficultyType, "master", StringComparison.OrdinalIgnoreCase)) return DifficultyMaster;
-                if (string.Equals(difficultyType, "append", StringComparison.OrdinalIgnoreCase)) return DifficultyAppend;
+                if (string.Equals(difficultyType, "easy", StringComparison.OrdinalIgnoreCase)) return _difficultyEasy;
+                if (string.Equals(difficultyType, "normal", StringComparison.OrdinalIgnoreCase)) return _difficultyNormal;
+                if (string.Equals(difficultyType, "hard", StringComparison.OrdinalIgnoreCase)) return _difficultyHard;
+                if (string.Equals(difficultyType, "expert", StringComparison.OrdinalIgnoreCase)) return _difficultyExpert;
+                if (string.Equals(difficultyType, "master", StringComparison.OrdinalIgnoreCase)) return _difficultyMaster;
+                if (string.Equals(difficultyType, "append", StringComparison.OrdinalIgnoreCase)) return _difficultyAppend;
                 return TextSecondary;
             }
         }

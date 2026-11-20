@@ -51,11 +51,11 @@ namespace OpenSekai.Infrastructure.Sonolus
         private const long MAX_AUDIO_BYTES = 256L * 1024 * 1024;
         private const long MAX_COVER_BYTES = 16L * 1024 * 1024;
 
-        private static readonly string[] DifficultyNames = { "easy", "normal", "hard", "expert", "master", "append" };
+        private static readonly string[] _difficultyNames = { "easy", "normal", "hard", "expert", "master", "append" };
         private static SonolusLevelInstaller _shared;
-        private const long TemporaryPackageBudget = 128L * 1024 * 1024;
-        private const int TemporaryPackageLimit = 3;
-        private static readonly LinkedList<(string Key, SonolusLevel Level, TemporarySongPackage Package)> TemporaryPackages =
+        private const long TEMPORARY_PACKAGE_BUDGET = 128L * 1024 * 1024;
+        private const int TEMPORARY_PACKAGE_LIMIT = 3;
+        private static readonly LinkedList<(string Key, SonolusLevel Level, TemporarySongPackage Package)> _temporaryPackages =
             new LinkedList<(string, SonolusLevel, TemporarySongPackage)>();
 
         private readonly SongPackageManager _packages;
@@ -74,9 +74,9 @@ namespace OpenSekai.Infrastructure.Sonolus
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ClearTemporaryPackages()
         {
-            foreach (var entry in TemporaryPackages)
+            foreach (var entry in _temporaryPackages)
                 if (entry.Package.Audio != null) UnityEngine.Object.Destroy(entry.Package.Audio);
-            TemporaryPackages.Clear();
+            _temporaryPackages.Clear();
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -229,10 +229,10 @@ namespace OpenSekai.Infrastructure.Sonolus
 
         private static void ForgetTemporary(TemporarySongPackage package)
         {
-            for (var node = TemporaryPackages.First; node != null; node = node.Next)
+            for (var node = _temporaryPackages.First; node != null; node = node.Next)
             {
                 if (node.Value.Package != package) continue;
-                TemporaryPackages.Remove(node);
+                _temporaryPackages.Remove(node);
                 if (package.Audio != null) UnityEngine.Object.Destroy(package.Audio);
                 return;
             }
@@ -241,7 +241,7 @@ namespace OpenSekai.Infrastructure.Sonolus
         internal static TemporarySongPackage FindTemporary(SonolusServerAddress server, SonolusLevel level)
         {
             string key = KeyOf(server, level.Name);
-            for (var node = TemporaryPackages.Last; node != null; node = node.Previous)
+            for (var node = _temporaryPackages.Last; node != null; node = node.Previous)
             {
                 var cached = node.Value;
                 if (cached.Key != key || cached.Package.Audio == null) continue;
@@ -250,8 +250,8 @@ namespace OpenSekai.Infrastructure.Sonolus
                     || !MatchesResource(cached.Level.Bgm, level.Bgm, sameVersion)
                     || !MatchesResource(cached.Level.Cover, level.Cover, sameVersion)) continue;
 
-                TemporaryPackages.Remove(node);
-                TemporaryPackages.AddLast(node);
+                _temporaryPackages.Remove(node);
+                _temporaryPackages.AddLast(node);
                 return cached.Package;
             }
 
@@ -303,17 +303,17 @@ namespace OpenSekai.Infrastructure.Sonolus
 
         internal static void RememberTemporary(SonolusServerAddress server, SonolusLevel level, TemporarySongPackage package)
         {
-            TemporaryPackages.AddLast((KeyOf(server, level.Name), level, package));
+            _temporaryPackages.AddLast((KeyOf(server, level.Name), level, package));
 
             long retainedBytes = 0;
-            foreach (var entry in TemporaryPackages)
+            foreach (var entry in _temporaryPackages)
                 retainedBytes += entry.Package.RetainedBytes;
 
-            while (TemporaryPackages.Count > TemporaryPackageLimit
-                || (TemporaryPackages.Count > 1 && retainedBytes > TemporaryPackageBudget))
+            while (_temporaryPackages.Count > TEMPORARY_PACKAGE_LIMIT
+                || (_temporaryPackages.Count > 1 && retainedBytes > TEMPORARY_PACKAGE_BUDGET))
             {
-                var oldest = TemporaryPackages.First.Value.Package;
-                TemporaryPackages.RemoveFirst();
+                var oldest = _temporaryPackages.First.Value.Package;
+                _temporaryPackages.RemoveFirst();
                 retainedBytes -= oldest.RetainedBytes;
                 if (oldest.Audio != null) UnityEngine.Object.Destroy(oldest.Audio);
             }
@@ -504,7 +504,7 @@ namespace OpenSekai.Infrastructure.Sonolus
             {
                 formatVersion = 1,
                 id = SongPackageStorage.GenerateShortId(),
-                chartFormat = NextRushChartLoader.Format,
+                chartFormat = NextRushChartLoader.FORMAT,
                 title = level.Title,
                 scoreTitle = level.Title,
                 composer = level.Artists,
@@ -539,7 +539,7 @@ namespace OpenSekai.Infrastructure.Sonolus
                 foreach (SonolusTag tag in level.Tags)
                 {
                     string title = tag.Title?.Trim();
-                    foreach (string name in DifficultyNames)
+                    foreach (string name in _difficultyNames)
                     {
                         if (string.Equals(title, name, StringComparison.OrdinalIgnoreCase))
                         {

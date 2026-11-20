@@ -15,7 +15,7 @@ namespace OpenSekai.Shared.Live
     public static class TouchLane
     {
         /// <summary>Returned when the touch is outside the playable area.</summary>
-        public const float Outside = float.NegativeInfinity;
+        public const float OUTSIDE = float.NegativeInfinity;
 
         /// <summary>
         /// True when the sample exceeds the upper edge of the judgement area.
@@ -37,18 +37,18 @@ namespace OpenSekai.Shared.Live
         {
             if (lanePositions == null || lanePositions.Length == 0)
             {
-                return Outside;
+                return OUTSIDE;
             }
 
             if (lanePositions[0].x - touchPosition.x > toleranceX)
             {
-                return Outside;
+                return OUTSIDE;
             }
 
             int lastIndex = lanePositions.Length - 1;
             if (touchPosition.x - lanePositions[lastIndex].x > toleranceX)
             {
-                return Outside;
+                return OUTSIDE;
             }
 
             for (int i = 0; i < lanePositions.Length; i++)

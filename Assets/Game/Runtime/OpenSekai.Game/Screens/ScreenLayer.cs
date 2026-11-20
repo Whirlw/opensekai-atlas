@@ -33,8 +33,9 @@ namespace Sekai
 		{
 		}
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_layerCamera")]
 		[SerializeField]
-		private Camera _layerCamera;
+		private Camera layerCamera;
 
 		protected GameObject screenRootObject;
 		protected GameObject componentRootObject;
@@ -42,7 +43,7 @@ namespace Sekai
 		protected State state;
 
 		public virtual bool EnableBlur => false;
-		public Camera LayerCamera => _layerCamera;
+		public Camera LayerCamera => layerCamera;
 		public ScreenLayerData Data => screenData;
 		public WillExitBehaviourStatus WillExitBehaviour { get; protected set; }
 		public State ScreenLayerState => state;
@@ -82,9 +83,9 @@ namespace Sekai
 		{
 			screenRootObject = gameObject;
 			componentRootObject = transform.Find("ComponentRoot")?.gameObject ?? gameObject;
-			if (_layerCamera == null)
+			if (layerCamera == null)
 			{
-				_layerCamera = GetComponentInChildren<Camera>(true);
+				layerCamera = GetComponentInChildren<Camera>(true);
 			}
 		}
 

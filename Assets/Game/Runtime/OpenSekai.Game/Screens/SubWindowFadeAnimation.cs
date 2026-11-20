@@ -9,95 +9,96 @@ namespace Sekai
 {
 	public class SubWindowFadeAnimation : SubWindowAnimationBase
 	{
-		private readonly float OPEN_ANIMATION_DURATION;
-		private readonly float CLOSE_ANIMATION_DURATION;
+		private readonly float _openANIMATIONDURATION;
+		private readonly float _closeANIMATIONDURATION;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_canvasGroup")]
 		[SerializeField]
-		private CanvasGroup _canvasGroup;
+		private CanvasGroup canvasGroup;
 
 		private MotionHandle _motion;
 
 		public override UniTask OpenAnimation(CancellationToken ct = default)
 		{
-			if (_canvasGroup == null)
+			if (canvasGroup == null)
 			{
 				OpenImmediately();
 				return UniTask.CompletedTask;
 			}
 
-			_canvasGroup.blocksRaycasts = true;
-			return FadeTo(1f, OPEN_ANIMATION_DURATION, ct);
+			canvasGroup.blocksRaycasts = true;
+			return FadeTo(1f, _openANIMATIONDURATION, ct);
 		}
 
 		public override void InitializeAnimation()
 		{
 			CancelFade();
-			_canvasGroup = _canvasGroup != null ? _canvasGroup : GetComponent<CanvasGroup>();
-			if (_canvasGroup == null)
+			canvasGroup = canvasGroup != null ? canvasGroup : GetComponent<CanvasGroup>();
+			if (canvasGroup == null)
 			{
 				return;
 			}
 
-			_canvasGroup.alpha = 0f;
-			_canvasGroup.blocksRaycasts = false;
+			canvasGroup.alpha = 0f;
+			canvasGroup.blocksRaycasts = false;
 		}
 
 		public override UniTask CloseAnimation(CancellationToken ct = default)
 		{
-			return CloseAnimation(CLOSE_ANIMATION_DURATION, ct);
+			return CloseAnimation(_closeANIMATIONDURATION, ct);
 		}
 
 		public override UniTask CloseAnimation(float duration, CancellationToken ct = default)
 		{
-			if (_canvasGroup == null)
+			if (canvasGroup == null)
 			{
 				CloseImmediately();
 				return UniTask.CompletedTask;
 			}
 
-			_canvasGroup.blocksRaycasts = false;
+			canvasGroup.blocksRaycasts = false;
 			return FadeTo(0f, duration, ct);
 		}
 
 		public override void OpenImmediately()
 		{
 			CancelFade();
-			if (_canvasGroup == null)
+			if (canvasGroup == null)
 			{
-				_canvasGroup = GetComponent<CanvasGroup>();
+				canvasGroup = GetComponent<CanvasGroup>();
 			}
-			if (_canvasGroup == null)
+			if (canvasGroup == null)
 			{
 				return;
 			}
 
-			_canvasGroup.alpha = 1f;
-			_canvasGroup.blocksRaycasts = true;
+			canvasGroup.alpha = 1f;
+			canvasGroup.blocksRaycasts = true;
 		}
 
 		public override void CloseImmediately()
 		{
 			CancelFade();
-			if (_canvasGroup == null)
+			if (canvasGroup == null)
 			{
-				_canvasGroup = GetComponent<CanvasGroup>();
+				canvasGroup = GetComponent<CanvasGroup>();
 			}
-			if (_canvasGroup == null)
+			if (canvasGroup == null)
 			{
 				return;
 			}
 
-			_canvasGroup.alpha = 0f;
-			_canvasGroup.blocksRaycasts = false;
+			canvasGroup.alpha = 0f;
+			canvasGroup.blocksRaycasts = false;
 		}
 
 		private async UniTask FadeTo(float alpha, float duration, CancellationToken ct)
 		{
 			CancelFade();
 			ct.ThrowIfCancellationRequested();
-			MotionHandle motion = LMotion.Create(_canvasGroup.alpha, alpha, Mathf.Max(0f, duration))
+			MotionHandle motion = LMotion.Create(canvasGroup.alpha, alpha, Mathf.Max(0f, duration))
 				.WithEase(Ease.OutQuad)
-				.BindToAlpha(_canvasGroup);
+				.BindToAlpha(canvasGroup);
 			_motion = motion;
 			try
 			{
@@ -123,8 +124,8 @@ namespace Sekai
 
 		public SubWindowFadeAnimation()
 		{
-			OPEN_ANIMATION_DURATION = 0.2f;
-			CLOSE_ANIMATION_DURATION = 0.2f;
+			_openANIMATIONDURATION = 0.2f;
+			_closeANIMATIONDURATION = 0.2f;
 		}
 	}
 }

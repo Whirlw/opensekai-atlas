@@ -18,26 +18,33 @@ namespace Sekai.Live
 		private const int DEFAULT_MOVIE_TEXTURE_WIDTH = 1920;
 		private const int DEFAULT_MOVIE_TEXTURE_HEIGHT = 1080;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_movieCamera")]
 		[SerializeField]
-		private Camera _movieCamera;
+		private Camera movieCamera;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_jacketCamera")]
 		[SerializeField]
-		private Camera _jacketCamera;
+		private Camera jacketCamera;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_jacketModeRoot")]
 		[SerializeField]
-		private GameObject _jacketModeRoot;
+		private GameObject jacketModeRoot;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_movieModeRoot")]
 		[SerializeField]
-		private GameObject _movieModeRoot;
+		private GameObject movieModeRoot;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_backgroundRenderer")]
 		[SerializeField]
-		private SpriteRenderer _backgroundRenderer;
+		private SpriteRenderer backgroundRenderer;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_movieRenderer")]
 		[SerializeField]
-		private SpriteRenderer _movieRenderer;
+		private SpriteRenderer movieRenderer;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_jackets")]
 		[SerializeField]
-		private SpriteRenderer[] _jackets;
+		private SpriteRenderer[] jackets;
 
 		private BaseLiveController _baseController;
 		private Texture2D _externalJacketTexture;
@@ -59,9 +66,9 @@ namespace Sekai.Live
 		private void Awake()
 		{
 			DisableMovieMode();
-			if (_jacketCamera != null)
+			if (jacketCamera != null)
 			{
-				_jacketCamera.enabled = false;
+				jacketCamera.enabled = false;
 			}
 		}
 
@@ -86,16 +93,16 @@ namespace Sekai.Live
 		private void SetupRenderTarget()
 		{
 			bool useMovieCamera = ShouldUseMovieCamera();
-			if (_jacketCamera != null)
+			if (jacketCamera != null)
 			{
-				_jacketCamera.enabled = false;
-				_jacketCamera.targetTexture = useMovieCamera ? null : _baseController?.BackgroundTexture;
+				jacketCamera.enabled = false;
+				jacketCamera.targetTexture = useMovieCamera ? null : _baseController?.BackgroundTexture;
 			}
 
-			if (_movieCamera != null)
+			if (movieCamera != null)
 			{
-				_movieCamera.enabled = false;
-				_movieCamera.targetTexture = useMovieCamera ? _baseController?.BackgroundTexture : null;
+				movieCamera.enabled = false;
+				movieCamera.targetTexture = useMovieCamera ? _baseController?.BackgroundTexture : null;
 			}
 		}
 
@@ -106,9 +113,9 @@ namespace Sekai.Live
 
 		private void SetupJacket()
 		{
-			if (_jacketModeRoot != null)
+			if (jacketModeRoot != null)
 			{
-				_jacketModeRoot.SetActive(true);
+				jacketModeRoot.SetActive(true);
 			}
 			DisableMovieMode();
 
@@ -125,14 +132,14 @@ namespace Sekai.Live
 
 		private void LoadDefaultBackground()
 		{
-			if (_backgroundRenderer != null)
+			if (backgroundRenderer != null)
 			{
 				Sprite sprite = AssetBundleUtility.LoadAsset<Sprite>(DEFAULT_BACKGROUND_BUNDLE_NAME, DEFAULT_BACKGROUND_ASSET_NAME);
 				if (sprite != null)
 				{
-					_backgroundRenderer.sprite = sprite;
+					backgroundRenderer.sprite = sprite;
 				}
-				_backgroundRenderer.gameObject.SetActive(true);
+				backgroundRenderer.gameObject.SetActive(true);
 			}
 		}
 
@@ -256,7 +263,7 @@ namespace Sekai.Live
 
 		private void RenderJacketBackground()
 		{
-			if (_jacketCamera == null)
+			if (jacketCamera == null)
 			{
 				return;
 			}
@@ -267,23 +274,23 @@ namespace Sekai.Live
 				gameObject.SetActive(true);
 			}
 
-			if (_jacketModeRoot != null)
+			if (jacketModeRoot != null)
 			{
-				_jacketModeRoot.SetActive(true);
+				jacketModeRoot.SetActive(true);
 			}
 			DisableMovieMode();
 
 			_baseController?.EnsureBackgroundTextureSizeForCurrentScreen();
-			_jacketCamera.targetTexture = _baseController?.BackgroundTexture;
+			jacketCamera.targetTexture = _baseController?.BackgroundTexture;
 			float aspect = GetRenderTargetAspect();
 			if (aspect > 0f)
 			{
-				_jacketCamera.aspect = aspect;
-				_jacketCamera.ResetProjectionMatrix();
+				jacketCamera.aspect = aspect;
+				jacketCamera.ResetProjectionMatrix();
 			}
-			_jacketCamera.enabled = true;
-			_jacketCamera.Render();
-			_jacketCamera.enabled = false;
+			jacketCamera.enabled = true;
+			jacketCamera.Render();
+			jacketCamera.enabled = false;
 			_lastRenderedScreenWidth = Screen.width;
 			_lastRenderedScreenHeight = Screen.height;
 
@@ -296,11 +303,11 @@ namespace Sekai.Live
 		private bool TrySetupMovie()
 		{
 			string moviePath = ResolveCustomMoviePath();
-			if (!ShouldUseMovieCamera() || string.IsNullOrEmpty(moviePath) || !File.Exists(moviePath) || _movieCamera == null || _movieRenderer == null)
+			if (!ShouldUseMovieCamera() || string.IsNullOrEmpty(moviePath) || !File.Exists(moviePath) || movieCamera == null || movieRenderer == null)
 			{
 				return false;
 			}
-			_moviePlaybackPath = PrepareMoviePlaybackPath(moviePath);
+			_moviePlaybackPath = LiveMediaFiles.PrepareMoviePlaybackPath(moviePath);
 			if (string.IsNullOrEmpty(_moviePlaybackPath) || !File.Exists(_moviePlaybackPath))
 			{
 				return false;
@@ -310,21 +317,21 @@ namespace Sekai.Live
 			_pendingMoviePlay = false;
 			_pendingMovieStartTime = 0f;
 			SetJacketsActive(false);
-			if (_jacketModeRoot != null)
+			if (jacketModeRoot != null)
 			{
-				_jacketModeRoot.SetActive(false);
+				jacketModeRoot.SetActive(false);
 			}
-			if (_movieModeRoot != null)
+			if (movieModeRoot != null)
 			{
-				_movieModeRoot.SetActive(true);
+				movieModeRoot.SetActive(true);
 			}
-			_movieRenderer.gameObject.SetActive(true);
-			_movieRenderer.enabled = false;
+			movieRenderer.gameObject.SetActive(true);
+			movieRenderer.enabled = false;
 
 			EnsureMovieQuad();
 			SetupVideoPlayer(_moviePlaybackPath);
 			UpdateMovieRenderTarget();
-			_movieCamera.enabled = true;
+			movieCamera.enabled = true;
 			return true;
 		}
 
@@ -347,11 +354,11 @@ namespace Sekai.Live
 		{
 			if (_videoPlayer == null)
 			{
-				_videoPlayer = _movieRenderer.GetComponent<VideoPlayer>();
+				_videoPlayer = movieRenderer.GetComponent<VideoPlayer>();
 			}
 			if (_videoPlayer == null)
 			{
-				_videoPlayer = _movieRenderer.gameObject.AddComponent<VideoPlayer>();
+				_videoPlayer = movieRenderer.gameObject.AddComponent<VideoPlayer>();
 			}
 
 			_videoPlayer.prepareCompleted -= OnMoviePrepared;
@@ -431,7 +438,7 @@ namespace Sekai.Live
 				return;
 			}
 
-			Transform parent = _movieModeRoot != null ? _movieModeRoot.transform : transform;
+			Transform parent = movieModeRoot != null ? movieModeRoot.transform : transform;
 			_movieQuadObject = new GameObject(MOVIE_QUAD_NAME);
 			_movieQuadObject.layer = gameObject.layer;
 			_movieQuadObject.transform.SetParent(parent, false);
@@ -480,7 +487,7 @@ namespace Sekai.Live
 
 			Material material = shader != null
 				? new Material(shader)
-				: new Material(_movieRenderer.sharedMaterial);
+				: new Material(movieRenderer.sharedMaterial);
 			material.name = "OpenSekai 2DMV Material";
 			if (material.HasProperty("_Cull"))
 			{
@@ -515,18 +522,18 @@ namespace Sekai.Live
 
 		private void UpdateMovieRenderTarget()
 		{
-			if (_movieCamera == null)
+			if (movieCamera == null)
 			{
 				return;
 			}
 
 			_baseController?.EnsureBackgroundTextureSizeForCurrentScreen();
-			_movieCamera.targetTexture = _baseController?.BackgroundTexture;
-			float aspect = GetRenderTargetAspect(_movieCamera);
+			movieCamera.targetTexture = _baseController?.BackgroundTexture;
+			float aspect = GetRenderTargetAspect(movieCamera);
 			if (aspect > 0f)
 			{
-				_movieCamera.aspect = aspect;
-				_movieCamera.ResetProjectionMatrix();
+				movieCamera.aspect = aspect;
+				movieCamera.ResetProjectionMatrix();
 			}
 			UpdateMovieQuadScale(aspect);
 			_lastRenderedScreenWidth = Screen.width;
@@ -535,7 +542,7 @@ namespace Sekai.Live
 
 		private void UpdateMovieQuadScale(float targetAspect)
 		{
-			if (_movieQuadObject == null || _movieCamera == null)
+			if (_movieQuadObject == null || movieCamera == null)
 			{
 				return;
 			}
@@ -545,7 +552,7 @@ namespace Sekai.Live
 				targetAspect = BASE_ASPECT;
 			}
 			float videoAspect = GetMovieAspect();
-			float viewHeight = _movieCamera.orthographic ? _movieCamera.orthographicSize * 2f : 10f;
+			float viewHeight = movieCamera.orthographic ? movieCamera.orthographicSize * 2f : 10f;
 			float viewWidth = viewHeight * targetAspect;
 			float quadWidth = viewWidth;
 			float quadHeight = viewHeight;
@@ -607,98 +614,6 @@ namespace Sekai.Live
 			return 0f;
 		}
 
-		private string PrepareMoviePlaybackPath(string moviePath)
-		{
-#if UNITY_ANDROID
-			return CopyMovieToAsciiCachePath(moviePath);
-#else
-			return moviePath;
-#endif
-		}
-
-#if UNITY_ANDROID
-		private string CopyMovieToAsciiCachePath(string moviePath)
-		{
-			try
-			{
-				FileInfo sourceInfo = new FileInfo(moviePath);
-				if (!sourceInfo.Exists)
-				{
-					return null;
-				}
-
-				string cacheDirectory = Path.Combine(Application.temporaryCachePath, "OpenSekai2DMV");
-				Directory.CreateDirectory(cacheDirectory);
-				string cachePath = Path.Combine(cacheDirectory, CreateAsciiMovieCacheFileName(sourceInfo));
-				FileInfo cacheInfo = new FileInfo(cachePath);
-				if (!cacheInfo.Exists || cacheInfo.Length != sourceInfo.Length || cacheInfo.LastWriteTimeUtc != sourceInfo.LastWriteTimeUtc)
-				{
-					File.Copy(sourceInfo.FullName, cachePath, true);
-					File.SetLastWriteTimeUtc(cachePath, sourceInfo.LastWriteTimeUtc);
-				}
-				return cachePath;
-			}
-			catch (System.Exception exception)
-			{
-				Debug.LogWarningFormat("Failed to prepare 2DMV cache. path:{0} error:{1}", moviePath, exception.Message);
-				return null;
-			}
-		}
-
-		private static string CreateAsciiMovieCacheFileName(FileInfo sourceInfo)
-		{
-			string extension = NormalizeMovieExtension(sourceInfo.Extension);
-			uint hash = 2166136261U;
-			AddStringToHash(ref hash, sourceInfo.FullName);
-			AddStringToHash(ref hash, sourceInfo.Length.ToString());
-			AddStringToHash(ref hash, sourceInfo.LastWriteTimeUtc.Ticks.ToString());
-			return "video_" + hash.ToString("x8") + extension;
-		}
-
-		private static string NormalizeMovieExtension(string extension)
-		{
-			if (string.IsNullOrEmpty(extension) || extension.Length > 8)
-			{
-				return ".mp4";
-			}
-
-			extension = extension.ToLowerInvariant();
-			for (int i = 0; i < extension.Length; i++)
-			{
-				char c = extension[i];
-				if (i == 0)
-				{
-					if (c != '.')
-					{
-						return ".mp4";
-					}
-				}
-				else if ((c < '0' || c > '9') && (c < 'a' || c > 'z'))
-				{
-					return ".mp4";
-				}
-			}
-			return extension;
-		}
-
-		private static void AddStringToHash(ref uint hash, string value)
-		{
-			if (string.IsNullOrEmpty(value))
-			{
-				return;
-			}
-
-			unchecked
-			{
-				for (int i = 0; i < value.Length; i++)
-				{
-					hash ^= value[i];
-					hash *= 16777619U;
-				}
-			}
-		}
-#endif
-
 		private void StopMovie()
 		{
 			_pendingMoviePlay = false;
@@ -712,7 +627,7 @@ namespace Sekai.Live
 
 		private float GetRenderTargetAspect()
 		{
-			return GetRenderTargetAspect(_jacketCamera);
+			return GetRenderTargetAspect(jacketCamera);
 		}
 
 		private float GetRenderTargetAspect(Camera targetCamera)
@@ -730,23 +645,23 @@ namespace Sekai.Live
 		{
 			_movieModeActive = false;
 			StopMovie();
-			if (_movieModeRoot != null)
+			if (movieModeRoot != null)
 			{
-				_movieModeRoot.SetActive(false);
+				movieModeRoot.SetActive(false);
 			}
 			if (_movieQuadObject != null)
 			{
 				_movieQuadObject.SetActive(false);
 			}
-			if (_movieRenderer != null)
+			if (movieRenderer != null)
 			{
-				_movieRenderer.enabled = false;
-				_movieRenderer.gameObject.SetActive(false);
+				movieRenderer.enabled = false;
+				movieRenderer.gameObject.SetActive(false);
 			}
-			if (_movieCamera != null)
+			if (movieCamera != null)
 			{
-				_movieCamera.enabled = false;
-				_movieCamera.targetTexture = null;
+				movieCamera.enabled = false;
+				movieCamera.targetTexture = null;
 			}
 		}
 
@@ -773,30 +688,14 @@ namespace Sekai.Live
 
 		private Texture2D LoadCustomJacketTexture(FreeLiveBootData bootData)
 		{
-			if (bootData == null) return null;
-			byte[] jacket = bootData.TemporaryJacketData;
-			if (jacket == null && !string.IsNullOrEmpty(bootData.CustomMusicScorePath))
-			{
-				string path = SongPackageStorage.LoadEntry(bootData.CustomMusicScorePath)?.JacketPath;
-				if (File.Exists(path)) jacket = File.ReadAllBytes(path);
-			}
-			if (jacket == null) return null;
-
 			ClearExternalJacketAssets();
-			Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-			if (ImageConversion.LoadImage(texture, jacket))
-			{
-				_externalJacketTexture = texture;
-				return texture;
-			}
-
-			Destroy(texture);
-			return null;
+			_externalJacketTexture = LiveMediaFiles.LoadCustomJacketTexture(bootData);
+			return _externalJacketTexture;
 		}
 
 		private void ApplyJacketTexture(Texture2D texture)
 		{
-			if (_jackets == null)
+			if (jackets == null)
 			{
 				return;
 			}
@@ -812,7 +711,7 @@ namespace Sekai.Live
 			_externalJacketSprite = Sprite.Create(texture, region, new Vector2(0.5f, 0.5f),
 				100f, 0, SpriteMeshType.FullRect);
 
-			foreach (SpriteRenderer jacket in _jackets)
+			foreach (SpriteRenderer jacket in jackets)
 			{
 				if (jacket != null)
 				{
@@ -830,7 +729,7 @@ namespace Sekai.Live
 			Vector2 size = jacket.size;
 			Transform surface = jacket.transform;
 			SpriteMask mask = surface.parent != null ? surface.parent.GetComponentInChildren<SpriteMask>(true) : null;
-			if (_jacketCamera == null || mask == null || mask.sprite == null || size.x <= 0f || size.y <= 0f)
+			if (jacketCamera == null || mask == null || mask.sprite == null || size.x <= 0f || size.y <= 0f)
 				return size;
 
 			// The mask and the art are on differently tilted planes. Project the mask's
@@ -842,8 +741,8 @@ namespace Sekai.Live
 			{
 				var edge = new Vector3((corner & 1) == 0 ? bounds.min.x : bounds.max.x,
 					(corner & 2) == 0 ? bounds.min.y : bounds.max.y, bounds.center.z);
-				Vector3 viewport = _jacketCamera.WorldToViewportPoint(mask.transform.TransformPoint(edge));
-				Ray ray = _jacketCamera.ViewportPointToRay(viewport);
+				Vector3 viewport = jacketCamera.WorldToViewportPoint(mask.transform.TransformPoint(edge));
+				Ray ray = jacketCamera.ViewportPointToRay(viewport);
 				if (!plane.Raycast(ray, out float distance)) continue;
 
 				Vector3 point = surface.InverseTransformPoint(ray.GetPoint(distance));
@@ -855,12 +754,12 @@ namespace Sekai.Live
 
 		private void SetJacketsActive(bool active)
 		{
-			if (_jackets == null)
+			if (jackets == null)
 			{
 				return;
 			}
 
-			foreach (SpriteRenderer jacket in _jackets)
+			foreach (SpriteRenderer jacket in jackets)
 			{
 				if (jacket != null)
 				{

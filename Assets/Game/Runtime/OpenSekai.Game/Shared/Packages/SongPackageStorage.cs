@@ -126,7 +126,7 @@ namespace OpenSekai.Shared.Packages
 			}
 		}
 
-		private static bool IsInvalidFileNameChar(char value) => char.IsControl(value) || "<>:\"/\\|?*".IndexOf(value) >= 0;
+		public static bool IsInvalidFileNameChar(char value) => char.IsControl(value) || "<>:\"/\\|?*".IndexOf(value) >= 0;
 
 		private static bool IsReservedDeviceName(string value)
 		{

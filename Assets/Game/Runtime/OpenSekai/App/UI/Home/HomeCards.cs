@@ -477,11 +477,11 @@ namespace OpenSekai.App.UI
             Stretch(descriptionLabel.rectTransform, pad, pad + 108f, 30f);
 
             // 即将推出 chip with a breathing light.
-            const float chipHeight = 46f;
-            const float chipWidth = 158f;
-            Image chip = LibraryWidgets.Panel("Soon", content, chipHeight * 0.5f, HomeTheme.Colors.Chip);
-            LibraryWidgets.Outline(chip, chipHeight * 0.5f);
-            LibraryWidgets.Place(chip.rectTransform, Vector2.zero, Vector2.zero, new Vector2(pad, pad - 4f), new Vector2(chipWidth, chipHeight));
+            const float CHIP_HEIGHT = 46f;
+            const float CHIP_WIDTH = 158f;
+            Image chip = LibraryWidgets.Panel("Soon", content, CHIP_HEIGHT * 0.5f, HomeTheme.Colors.Chip);
+            LibraryWidgets.Outline(chip, CHIP_HEIGHT * 0.5f);
+            LibraryWidgets.Place(chip.rectTransform, Vector2.zero, Vector2.zero, new Vector2(pad, pad - 4f), new Vector2(CHIP_WIDTH, CHIP_HEIGHT));
             _statusDot = LibraryUi.CreateImage("Dot", chip.transform, tint);
             _statusDot.sprite = LibraryShapes.RoundedRect(5f);
             _statusDot.type = Image.Type.Sliced;
@@ -565,7 +565,7 @@ namespace OpenSekai.App.UI
         private const int MERIDIANS = 3;
         private const float TURN_SECONDS = 14f;
         private const float PULSE_SECONDS = 3f;
-        private static readonly Vector2[] NodeCoordinates =
+        private static readonly Vector2[] _nodeCoordinates =
         {
             // longitude, latitude in radians
             new Vector2(0.3f, 0.5f), new Vector2(1.4f, -0.2f), new Vector2(2.5f, 0.75f),
@@ -574,7 +574,7 @@ namespace OpenSekai.App.UI
 
         private readonly RectTransform _globe;
         private readonly Image[] _meridians = new Image[MERIDIANS];
-        private readonly Image[] _nodes = new Image[NodeCoordinates.Length];
+        private readonly Image[] _nodes = new Image[_nodeCoordinates.Length];
         private readonly Image[] _pulses = new Image[2];
         private readonly RectTransform _orbit;
         private readonly Image _satellite;
@@ -661,7 +661,7 @@ namespace OpenSekai.App.UI
 
             for (int i = 0; i < _nodes.Length; i++)
             {
-                Vector2 coordinate = NodeCoordinates[i];
+                Vector2 coordinate = _nodeCoordinates[i];
                 float longitude = coordinate.x + turn;
                 float depth = Mathf.Cos(coordinate.y) * Mathf.Cos(longitude);
                 float x = Mathf.Cos(coordinate.y) * Mathf.Sin(longitude) * _radius;

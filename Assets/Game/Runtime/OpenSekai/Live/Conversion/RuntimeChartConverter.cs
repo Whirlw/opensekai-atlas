@@ -380,15 +380,15 @@ namespace OpenSekai.Live.Conversion
 
 			// One automatic point every 240 ticks - an eighth of a 4/4 bar, which is the same span
 			// whatever meter the chart is written in. Measured in ticks so a meter cannot move it.
-			const int comboStepTicks = 240;
-			int divisions = OpenSekai.Charts.ChartTimeline.TICKS_PER_BAR > 0 ? (int)(OpenSekai.Charts.ChartTimeline.TICKS_PER_BAR / comboStepTicks) : 8;
+			const int COMBO_STEP_TICKS = 240;
+			int divisions = OpenSekai.Charts.ChartTimeline.TICKS_PER_BAR > 0 ? (int)(OpenSekai.Charts.ChartTimeline.TICKS_PER_BAR / COMBO_STEP_TICKS) : 8;
 			int startIndex = (int)Math.Floor(longNote.MusicScoreInfo.barProgress * divisions) + 1 + longNote.MusicScoreInfo.bar * divisions;
 			int endIndex = (int)Math.Ceiling(note.MusicScoreInfo.barProgress * divisions) - 1 + note.MusicScoreInfo.bar * divisions;
 
 			// A grid point only counts as a middle of THIS bar. Every note of the bar's own chain - its
 			// head, its connection notes, its end - already owns its position, so no middle goes there;
 			// what other bars and other lanes do at the same moment is their own business.
-			HashSet<int> occupied = OccupiedGridIndices(longNote, comboStepTicks);
+			HashSet<int> occupied = OccupiedGridIndices(longNote, COMBO_STEP_TICKS);
 
 			for (int i = startIndex; i <= endIndex; i++)
 			{

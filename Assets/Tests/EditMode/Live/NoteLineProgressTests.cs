@@ -10,15 +10,15 @@ namespace OpenSekai.Tests.EditMode.Live
 	/// </summary>
 	public sealed class NoteLineProgressTests
 	{
-		private const float Offset = 1f;
-		private const float NoteTime = 10f;
+		private const float OFFSET = 1f;
+		private const float NOTE_TIME = 10f;
 
 		[Test]
 		public void ABodySampleNeverPassesTheLine()
 		{
 			// 0.2 s past its own time would be 1.2 unclamped. The body must not go there: letting it
 			// also inflates the split count until the tail end of the mesh no longer fits.
-			float progress = NoteLineProgress.Body(Offset, NoteTime + 0.2f, NoteTime);
+			float progress = NoteLineProgress.Body(OFFSET, NOTE_TIME + 0.2f, NOTE_TIME);
 
 			Assert.That(progress, Is.EqualTo(1f).Within(1e-4f), "the body always ends on the line");
 		}
@@ -26,7 +26,7 @@ namespace OpenSekai.Tests.EditMode.Live
 		[Test]
 		public void ABodySampleStillAdvancesBeforeItsTime()
 		{
-			float progress = NoteLineProgress.Body(Offset, NoteTime - 0.4f, NoteTime);
+			float progress = NoteLineProgress.Body(OFFSET, NOTE_TIME - 0.4f, NOTE_TIME);
 
 			Assert.That(progress, Is.EqualTo(0.6f).Within(1e-4f));
 		}

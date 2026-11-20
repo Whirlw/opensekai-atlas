@@ -15,9 +15,9 @@ namespace OpenSekai.Tests.EditMode.Live
 	/// </summary>
 	public sealed class LongHeadGradeTests
 	{
-		private const float Frame = 1f / 60f;
-		private const double InputBase = 10d;
-		private const float HeadTime = 1f;
+		private const float FRAME = 1f / 60f;
+		private const double INPUT_BASE = 10d;
+		private const float HEAD_TIME = 1f;
 
 		private static MusicScoreInfo Info(float time) => new MusicScoreInfo(0, time / 2f, time, 120, 4, 1, 1);
 
@@ -30,30 +30,30 @@ namespace OpenSekai.Tests.EditMode.Live
 		/// <summary>A plain bar in lanes 0..3 from 1 s to 2 s, ending on an ordinary note.</summary>
 		private static LongNote Bar()
 		{
-			var bar = new LongNote(Info(HeadTime), 1, 0, 3, NoteCategory.Long, NoteType.Default, 1f, 0f);
+			var bar = new LongNote(Info(HEAD_TIME), 1, 0, 3, NoteCategory.Long, NoteType.Default, 1f, 0f);
 			bar.AddNoteListAndSetupChildNote(new NormalNote(Info(2f), 2, 0, 3, NoteCategory.Normal, 1f, NoteType.Default, 0f));
 			return bar;
 		}
 
 		/// <summary>Runs the loop up to the press, presses once at <paramref name="offset"/> from the head, then
 		/// keeps the finger down for a few more frames and returns the head's result.</summary>
-		private static NoteResult PressAt(float offset, float runUntil = HeadTime + 0.2f)
+		private static NoteResult PressAt(float offset, float runUntil = HEAD_TIME + 0.2f)
 		{
 			using var harness = new LiveHarness();
 			LongNote bar = Bar();
 			harness.Arrange(new MusicScore(new[] { Info(0f) }, Array.Empty<EventBase>(), new NoteBase[] { bar }));
 			Vector3 position = LanePosition(1.5f);
-			float press = HeadTime + offset;
+			float press = HEAD_TIME + offset;
 
-			for (float now = 0.5f; now < press - Frame * 0.5f; now += Frame)
+			for (float now = 0.5f; now < press - FRAME * 0.5f; now += FRAME)
 			{
-				harness.Step(now, InputBase + now);
+				harness.Step(now, INPUT_BASE + now);
 			}
 
-			harness.Step(press, InputBase + press, LiveHarness.Touch(1, position, InputBase + press, InputTouchPhase.Began));
-			for (float now = press + Frame; now <= runUntil; now += Frame)
+			harness.Step(press, INPUT_BASE + press, LiveHarness.Touch(1, position, INPUT_BASE + press, InputTouchPhase.Began));
+			for (float now = press + FRAME; now <= runUntil; now += FRAME)
 			{
-				harness.Step(now, InputBase + now, LiveHarness.Touch(1, position, InputBase + now, InputTouchPhase.Stationary));
+				harness.Step(now, INPUT_BASE + now, LiveHarness.Touch(1, position, INPUT_BASE + now, InputTouchPhase.Stationary));
 			}
 
 			return bar.Head.Result;
@@ -110,7 +110,7 @@ namespace OpenSekai.Tests.EditMode.Live
 		{
 			// 150 ms early: the press is no candidate, the head stays open, and with the finger only resting
 			// (no second press) it ends as a Miss once its window closes.
-			Assert.That(PressAt(-0.15f, runUntil: HeadTime - 0.15f + Frame), Is.EqualTo(NoteResult.None),
+			Assert.That(PressAt(-0.15f, runUntil: HEAD_TIME - 0.15f + FRAME), Is.EqualTo(NoteResult.None),
 				"an early press outside the window leaves the head unjudged");
 			Assert.That(PressAt(-0.15f), Is.EqualTo(NoteResult.Miss), "and the head misses when its window closes");
 		}

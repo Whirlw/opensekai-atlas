@@ -18,23 +18,23 @@ namespace OpenSekai.Tests.EditMode.Live
             EnhancedTouchSupport.Enable();
             try
             {
-                const int touchId = 12345;
+                const int TOUCH_ID = 12345;
                 double pressTime = Time.realtimeSinceStartupAsDouble + 0.001d;
                 double nextTime = pressTime + 0.012d;
                 var pressPosition = new Vector2(100f, 150f);
                 var nextPosition = new Vector2(200f, 150f);
                 InputSystem.QueueStateEvent(screen, new TouchState
                 {
-                    touchId = touchId, phase = TouchPhase.Began, position = pressPosition,
+                    touchId = TOUCH_ID, phase = TouchPhase.Began, position = pressPosition,
                 }, pressTime);
                 InputSystem.QueueStateEvent(screen, new TouchState
                 {
-                    touchId = touchId, phase = nextPhase, position = nextPosition,
+                    touchId = TOUCH_ID, phase = nextPhase, position = nextPosition,
                 }, nextTime);
                 InputSystem.Update();
 
                 var source = new InputSystemTouchSource();
-                int index = FindTouch(source, touchId);
+                int index = FindTouch(source, TOUCH_ID);
                 var snapshot = Sekai.NativeInput.ActiveTouches[index];
                 Assert.That(snapshot.time, Is.EqualTo(nextTime).Within(0.00001d));
 
@@ -44,7 +44,7 @@ namespace OpenSekai.Tests.EditMode.Live
                 Assert.That(down.screenPosition, Is.EqualTo(pressPosition));
 
                 InputSystem.Update();
-                LiveTouchSample next = source[FindTouch(source, touchId)];
+                LiveTouchSample next = source[FindTouch(source, TOUCH_ID)];
                 Assert.That(next.phase, Is.EqualTo(nextPhase));
                 Assert.That(next.time, Is.EqualTo(nextTime).Within(0.00001d));
                 Assert.That(next.screenPosition, Is.EqualTo(nextPosition));

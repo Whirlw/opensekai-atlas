@@ -91,14 +91,9 @@ Unity 电子书原文把 `#region` 点名为"很多开发者视为 code smell"�
 
 ### 本项目的现状
 
-2026-11-02 核对：仓库根目录**没有** `.editorconfig`。目前只有 `Library/PackageCache/com.unity.ide.rider@3.0.36/.editorconfig`，那是包缓存里的文件，不参与项目格式化。
+根目录的 [.editorconfig](../../.editorconfig) 为游戏代码和测试设置常量命名、花括号换行和行末空白规则。结构检查工作流另用 C# 语法树区分序列化字段和普通私有字段，检查命名与声明特性换行。
 
-要落地的话：
-
-1. 在 Rider 里按 [03 篇](03-naming.md)–[05 篇](05-attributes-serialization.md) 配好命名与换行；
-2. 导出 `.editorconfig` 放到仓库根目录（和 `OpenSekai.sln` 同级）；
-3. 提交前把 `Library/`、`Temp/` 排除在版本控制外（`.gitignore` 已处理）；
-4. 提一个 PR 让大家 `Reformat Code` 一次，之后靠配置约束。
+本地在仓库根目录运行 `pwsh -File Tools/verify-coding-standards.ps1`。用 `-Path` 可只检查指定文件或模块。检查器会列出违规位置，发现问题时返回非零退出码。
 
 ## 相关文档
 

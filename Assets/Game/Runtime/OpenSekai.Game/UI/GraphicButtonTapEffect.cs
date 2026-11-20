@@ -7,34 +7,42 @@ namespace Sekai.UI
 {
 	public class GraphicButtonTapEffect : ButtonViewInteractionBase
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_effectGraphic")]
 		[SerializeField]
-		protected Graphic _effectGraphic;
+		protected Graphic effectGraphic;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_effectGraphicIcon")]
 		[SerializeField]
-		protected Graphic _effectGraphicIcon;
+		protected Graphic effectGraphicIcon;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_defaultColorPalette")]
 		[Header("Default color (ColorEntry)")]
 		[SerializeField]
-		protected ColorEntry _defaultColorPalette;
+		protected ColorEntry defaultColorPalette;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_effectColorPalette")]
 		[SerializeField]
 		[Header("Effect color (ColorEntry)")]
-		protected ColorEntry _effectColorPalette;
+		protected ColorEntry effectColorPalette;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_useCustomAlpha")]
 		[Header("Override effect alpha")]
 		[SerializeField]
-		protected bool _useCustomAlpha;
+		protected bool useCustomAlpha;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_customDefaultAlpha")]
 		[SerializeField]
 		[Header("Default override alpha")]
-		protected float _customDefaultAlpha;
+		protected float customDefaultAlpha;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_customEffectAlpha")]
 		[Header("Override effect alpha")]
 		[SerializeField]
-		protected float _customEffectAlpha;
+		protected float customEffectAlpha;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_refreshColorWhenAwake")]
 		[SerializeField]
-		private bool _refreshColorWhenAwake;
+		private bool refreshColorWhenAwake;
 
 		protected Color _defaultColor;
 
@@ -46,7 +54,7 @@ namespace Sekai.UI
 
 		protected virtual void Awake()
 		{
-			if (_refreshColorWhenAwake)
+			if (refreshColorWhenAwake)
 			{
 				RefreshColor();
 			}
@@ -55,19 +63,19 @@ namespace Sekai.UI
 
 		public void RefreshColor()
 		{
-			_defaultColor = global::Sekai.PaletteUtility.GetColor(_defaultColorPalette);
-			_effectColor = global::Sekai.PaletteUtility.GetColor(_effectColorPalette);
+			_defaultColor = global::Sekai.PaletteUtility.GetColor(defaultColorPalette);
+			_effectColor = global::Sekai.PaletteUtility.GetColor(effectColorPalette);
 
-			if (_useCustomAlpha)
+			if (useCustomAlpha)
 			{
-				_defaultColor.a = _customDefaultAlpha;
-				_effectColor.a = _customEffectAlpha;
+				_defaultColor.a = customDefaultAlpha;
+				_effectColor.a = customEffectAlpha;
 			}
 		}
 
 		public void SetEffectGraphic(Graphic effectGraphic)
 		{
-			_effectGraphic = effectGraphic;
+			this.effectGraphic = effectGraphic;
 			ResetInteraction();
 		}
 
@@ -82,26 +90,26 @@ namespace Sekai.UI
 		public override void ResetInteraction()
 		{
 			KillFadeTween();
-			if (_effectGraphic != null)
+			if (effectGraphic != null)
 			{
-				_effectGraphic.color = _defaultColor;
+				effectGraphic.color = _defaultColor;
 			}
-			if (_effectGraphicIcon != null)
+			if (effectGraphicIcon != null)
 			{
-				_effectGraphicIcon.color = _defaultColor;
+				effectGraphicIcon.color = _defaultColor;
 			}
 		}
 
 		public void SetDefaultColor(Color defaultColor)
 		{
 			_defaultColor = defaultColor;
-			if (_effectGraphic != null)
+			if (effectGraphic != null)
 			{
-				_effectGraphic.color = defaultColor;
+				effectGraphic.color = defaultColor;
 			}
-			if (_effectGraphicIcon != null)
+			if (effectGraphicIcon != null)
 			{
-				_effectGraphicIcon.color = defaultColor;
+				effectGraphicIcon.color = defaultColor;
 			}
 		}
 
@@ -123,13 +131,13 @@ namespace Sekai.UI
 		private void Fade(Color color, float duration)
 		{
 			KillFadeTween();
-			if (_effectGraphic != null)
+			if (effectGraphic != null)
 			{
-				_effectMotion = PlayColor(_effectGraphic, color, duration);
+				_effectMotion = PlayColor(effectGraphic, color, duration);
 			}
-			if (_effectGraphicIcon != null)
+			if (effectGraphicIcon != null)
 			{
-				_effectIconMotion = PlayColor(_effectGraphicIcon, color, duration);
+				_effectIconMotion = PlayColor(effectGraphicIcon, color, duration);
 			}
 		}
 

@@ -15,17 +15,17 @@ namespace CP
 		[CompilerGenerated]
 		private sealed class _003CWaitForResponse_003Ed__30 : IEnumerator<object>, IEnumerator, IDisposable
 		{
-			private int _003C_003E1__state;
+			private int _state;
 
-			private object _003C_003E2__current;
+			private object _current;
 
 			public UnityWebRequestClient _003C_003E4__this;
 
 			public Action<UnityWebRequestClient> onProgress;
 
-			private float _003CtimeoutSec_003E5__2;
+			private float _timeoutSec;
 
-			private float _003CbeforeProgress_003E5__3;
+			private float _beforeProgress;
 
 			object IEnumerator<object>.Current
 			{
@@ -77,21 +77,21 @@ namespace CP
 		[CompilerGenerated]
 		private sealed class _003CWaitForResponseForAssetBundle_003Ed__31 : IEnumerator<object>, IEnumerator, IDisposable
 		{
-			private int _003C_003E1__state;
+			private int _state;
 
-			private object _003C_003E2__current;
+			private object _current;
 
 			public UnityWebRequestClient _003C_003E4__this;
 
 			public Action<UnityWebRequestClient, float> onProgress;
 
-			private float _003CtimeoutSec_003E5__2;
+			private float _timeoutSec;
 
-			private float _003CbeforeProgress_003E5__3;
+			private float _beforeProgress;
 
-			private float _003Cprogress_003E5__4;
+			private float _progress;
 
-			private AssetBundleDownloadHandler _003CdownloadHandler_003E5__5;
+			private AssetBundleDownloadHandler _downloadHandler;
 
 			object IEnumerator<object>.Current
 			{

@@ -34,8 +34,8 @@ namespace OpenSekai.Tests.EditMode.Live
 
 		// Device frames and finger lanes (trace grab lines) of the 2026-11-14 run of DEINOS PHAINEIN, where
 		// the speed-3 rub bar at 101.487 s lost its interior point at 101.526 s with a finger on it.
-		private static readonly float[] DeviceT = { 101.408f, 101.414f, 101.420f, 101.426f, 101.432f, 101.438f, 101.444f, 101.450f, 101.457f, 101.463f, 101.469f, 101.475f, 101.481f, 101.487f, 101.494f, 101.499f, 101.505f, 101.511f, 101.517f, 101.523f, 101.529f, 101.535f, 101.541f, 101.547f };
-		private static readonly float[] DeviceLane = { 3.67f, 3.67f, 4.04f, 4.44f, 4.86f, 5.26f, 5.62f, 5.97f, 6.32f, 6.97f, 6.97f, 7.24f, 7.49f, 7.68f, 7.84f, 8.10f, 8.10f, 8.22f, 8.33f, 8.44f, 8.53f, 8.60f, 8.65f, 8.70f };
+		private static readonly float[] _deviceT = { 101.408f, 101.414f, 101.420f, 101.426f, 101.432f, 101.438f, 101.444f, 101.450f, 101.457f, 101.463f, 101.469f, 101.475f, 101.481f, 101.487f, 101.494f, 101.499f, 101.505f, 101.511f, 101.517f, 101.523f, 101.529f, 101.535f, 101.541f, 101.547f };
+		private static readonly float[] _deviceLane = { 3.67f, 3.67f, 4.04f, 4.44f, 4.86f, 5.26f, 5.62f, 5.97f, 6.32f, 6.97f, 6.97f, 7.24f, 7.49f, 7.68f, 7.84f, 8.10f, 8.10f, 8.22f, 8.33f, 8.44f, 8.53f, 8.60f, 8.65f, 8.70f };
 
 		private static Vector3 Pos(float lane)
 		{
@@ -60,11 +60,11 @@ namespace OpenSekai.Tests.EditMode.Live
 				bool down = false;
 				float t = 100.30f;
 				int k = 0;
-				while (k < DeviceT.Length)
+				while (k < _deviceT.Length)
 				{
 					float now, lane;
-					if (t < DeviceT[0]) { now = t; t += 1f / 165f; lane = (held.BodyLaneStart + held.BodyLaneEnd) * 0.5f; }
-					else { now = DeviceT[k]; lane = DeviceLane[k]; k++; }
+					if (t < _deviceT[0]) { now = t; t += 1f / 165f; lane = (held.BodyLaneStart + held.BodyLaneEnd) * 0.5f; }
+					else { now = _deviceT[k]; lane = _deviceLane[k]; k++; }
 
 					harness.OnUpdate(now, 10d + now);
 					if (now >= 100.40f)

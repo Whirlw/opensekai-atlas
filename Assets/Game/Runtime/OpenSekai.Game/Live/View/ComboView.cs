@@ -7,35 +7,45 @@ namespace Sekai
 	{
 		private const float AP_EFFECT_SPEED = 4.1887903f;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_numberRoot")]
 		[SerializeField]
-		private Transform _numberRoot;
+		private Transform numberRoot;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_effectNumberRoot")]
 		[SerializeField]
-		private Transform _effectNumberRoot;
+		private Transform effectNumberRoot;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_allPerfectEffectRoot")]
 		[SerializeField]
-		private Transform _allPerfectEffectRoot;
+		private Transform allPerfectEffectRoot;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_numberSprites")]
 		[SerializeField]
-		private Sprite[] _numberSprites;
+		private Sprite[] numberSprites;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_allPerfectNumberSprites")]
 		[SerializeField]
-		private Sprite[] _allPerfectNumberSprites;
+		private Sprite[] allPerfectNumberSprites;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_allPerfectEffectSprites")]
 		[SerializeField]
-		private Sprite[] _allPerfectEffectSprites;
+		private Sprite[] allPerfectEffectSprites;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_comboSpriteRenderer")]
 		[SerializeField]
-		private SpriteRenderer _comboSpriteRenderer;
+		private SpriteRenderer comboSpriteRenderer;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_apEffectComboRenderer")]
 		[SerializeField]
-		private SpriteRenderer _apEffectComboRenderer;
+		private SpriteRenderer apEffectComboRenderer;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_comboTextSprite")]
 		[SerializeField]
-		private Sprite _comboTextSprite;
+		private Sprite comboTextSprite;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_allPerfectComboTextSprite")]
 		[SerializeField]
-		private Sprite _allPerfectComboTextSprite;
+		private Sprite allPerfectComboTextSprite;
 
 		private SpriteRenderer[] _numberSpriteRenderers;
 
@@ -55,9 +65,9 @@ namespace Sekai
 		{
 			get
 			{
-				if (_numberSpriteRenderers == null && _numberRoot != null)
+				if (_numberSpriteRenderers == null && numberRoot != null)
 				{
-					_numberSpriteRenderers = _numberRoot.GetComponentsInChildren<SpriteRenderer>(true);
+					_numberSpriteRenderers = numberRoot.GetComponentsInChildren<SpriteRenderer>(true);
 				}
 				return _numberSpriteRenderers;
 			}
@@ -67,9 +77,9 @@ namespace Sekai
 		{
 			get
 			{
-				if (_effectNumberSpriteRenderers == null && _effectNumberRoot != null)
+				if (_effectNumberSpriteRenderers == null && effectNumberRoot != null)
 				{
-					_effectNumberSpriteRenderers = _effectNumberRoot.GetComponentsInChildren<SpriteRenderer>(true);
+					_effectNumberSpriteRenderers = effectNumberRoot.GetComponentsInChildren<SpriteRenderer>(true);
 				}
 				return _effectNumberSpriteRenderers;
 			}
@@ -78,9 +88,9 @@ namespace Sekai
 		public void Setup(bool _useAllPerfectEffect)
 		{
 			this._useAllPerfectEffect = _useAllPerfectEffect;
-			_numberSpriteRenderers = _numberRoot != null ? _numberRoot.GetComponentsInChildren<SpriteRenderer>(true) : new SpriteRenderer[0];
-			_effectNumberSpriteRenderers = _effectNumberRoot != null ? _effectNumberRoot.GetComponentsInChildren<SpriteRenderer>(true) : new SpriteRenderer[0];
-			_allPerfectEffectRenderers = _allPerfectEffectRoot != null ? _allPerfectEffectRoot.GetComponentsInChildren<SpriteRenderer>(true) : new SpriteRenderer[0];
+			_numberSpriteRenderers = numberRoot != null ? numberRoot.GetComponentsInChildren<SpriteRenderer>(true) : new SpriteRenderer[0];
+			_effectNumberSpriteRenderers = effectNumberRoot != null ? effectNumberRoot.GetComponentsInChildren<SpriteRenderer>(true) : new SpriteRenderer[0];
+			_allPerfectEffectRenderers = allPerfectEffectRoot != null ? allPerfectEffectRoot.GetComponentsInChildren<SpriteRenderer>(true) : new SpriteRenderer[0];
 			foreach (SpriteRenderer renderer in _numberSpriteRenderers)
 			{
 				OpenSekai.Shared.UI.SpriteQuad.DrawAsRectangle(renderer);
@@ -99,17 +109,17 @@ namespace Sekai
 		public void Clear()
 		{
 			transform.localScale = Vector3.zero;
-			if (_numberRoot != null)
+			if (numberRoot != null)
 			{
-				_numberRoot.localScale = Vector3.zero;
+				numberRoot.localScale = Vector3.zero;
 			}
-			if (_effectNumberRoot != null)
+			if (effectNumberRoot != null)
 			{
-				_effectNumberRoot.localScale = Vector3.zero;
+				effectNumberRoot.localScale = Vector3.zero;
 			}
-			if (_allPerfectEffectRoot != null)
+			if (allPerfectEffectRoot != null)
 			{
-				_allPerfectEffectRoot.localScale = Vector3.zero;
+				allPerfectEffectRoot.localScale = Vector3.zero;
 			}
 			_currentCombo = 0;
 			_time = 0f;
@@ -130,25 +140,25 @@ namespace Sekai
 			_currentCombo = combo;
 			transform.localScale = combo > 0 ? Vector3.one : Vector3.zero;
 
-			Sprite[] digitSprites = _numberSprites;
-			Sprite textSprite = _comboTextSprite;
+			Sprite[] digitSprites = numberSprites;
+			Sprite textSprite = comboTextSprite;
 			_isAllPerfect = isApScore && _useAllPerfectEffect;
 			if (_isAllPerfect)
 			{
-				digitSprites = _allPerfectNumberSprites;
-				textSprite = _allPerfectComboTextSprite;
+				digitSprites = allPerfectNumberSprites;
+				textSprite = allPerfectComboTextSprite;
 			}
-			if (_comboSpriteRenderer != null)
+			if (comboSpriteRenderer != null)
 			{
-				_comboSpriteRenderer.sprite = textSprite;
+				comboSpriteRenderer.sprite = textSprite;
 			}
-			if (_allPerfectEffectRoot != null)
+			if (allPerfectEffectRoot != null)
 			{
-				_allPerfectEffectRoot.gameObject.SetActive(_isAllPerfect);
+				allPerfectEffectRoot.gameObject.SetActive(_isAllPerfect);
 			}
-			if (_apEffectComboRenderer != null)
+			if (apEffectComboRenderer != null)
 			{
-				_apEffectComboRenderer.gameObject.SetActive(_isAllPerfect);
+				apEffectComboRenderer.gameObject.SetActive(_isAllPerfect);
 			}
 
 			int digitCount = combo > 0 ? Mathf.FloorToInt(Mathf.Log10(combo)) + 1 : 1;
@@ -166,7 +176,7 @@ namespace Sekai
 				}
 				if (_allPerfectEffectRenderers != null && i < _allPerfectEffectRenderers.Length)
 				{
-					ApplyComboDigit(_allPerfectEffectRenderers[i], visible, x, _allPerfectEffectSprites, value % 10);
+					ApplyComboDigit(_allPerfectEffectRenderers[i], visible, x, allPerfectEffectSprites, value % 10);
 				}
 				value /= 10;
 			}
@@ -174,17 +184,17 @@ namespace Sekai
 
 		private void Update()
 		{
-			if (_numberRoot != null)
+			if (numberRoot != null)
 			{
 				float appear = Mathf.Clamp01(_time / 0.1f);
-				_numberRoot.localScale = Vector3.one * (0.6f + appear * 0.4f);
+				numberRoot.localScale = Vector3.one * (0.6f + appear * 0.4f);
 			}
 
 			float burst = Mathf.Clamp01((_time - 0.1f) / 0.1f);
 			float effectScale = _time >= 0.1f ? 1f + burst * 0.4f : 0f;
-			if (_effectNumberRoot != null)
+			if (effectNumberRoot != null)
 			{
-				_effectNumberRoot.localScale = Vector3.one * effectScale;
+				effectNumberRoot.localScale = Vector3.one * effectScale;
 			}
 			SpriteRenderer[] effectRenderers = EffectNumberSpriteRenderers;
 			if (effectRenderers != null)
@@ -198,9 +208,9 @@ namespace Sekai
 
 			if (_isAllPerfect)
 			{
-				if (_allPerfectEffectRoot != null && _numberRoot != null)
+				if (allPerfectEffectRoot != null && numberRoot != null)
 				{
-					_allPerfectEffectRoot.localScale = _numberRoot.localScale;
+					allPerfectEffectRoot.localScale = numberRoot.localScale;
 				}
 				float alpha = (Mathf.Sin(Time.time * AP_EFFECT_SPEED) + 1f) * 0.5f;
 				if (_allPerfectEffectRenderers != null)
@@ -210,7 +220,7 @@ namespace Sekai
 						SetRendererAlpha(_allPerfectEffectRenderers[i], alpha);
 					}
 				}
-				SetRendererAlpha(_apEffectComboRenderer, alpha);
+				SetRendererAlpha(apEffectComboRenderer, alpha);
 			}
 
 			_time += Time.deltaTime;

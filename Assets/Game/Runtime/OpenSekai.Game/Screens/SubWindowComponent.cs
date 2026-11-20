@@ -7,23 +7,27 @@ namespace Sekai
 {
 	public class SubWindowComponent : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_windowType")]
 		[SerializeField]
-		private WindowType _windowType;
+		private WindowType windowType;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_contentTransform")]
 		[SerializeField]
-		private RectTransform _contentTransform;
+		private RectTransform contentTransform;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_backPanelTransform")]
 		[SerializeField]
-		private RectTransform _backPanelTransform;
+		private RectTransform backPanelTransform;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_closeButtons")]
 		[SerializeField]
-		private CustomButton[] _closeButtons;
+		private CustomButton[] closeButtons;
 
 		public WindowType GetWindowType
 		{
 			get
 			{
-				return _windowType;
+				return windowType;
 			}
 		}
 
@@ -31,7 +35,7 @@ namespace Sekai
 		{
 			get
 			{
-				return _backPanelTransform != null ? _backPanelTransform.sizeDelta : Vector2.zero;
+				return backPanelTransform != null ? backPanelTransform.sizeDelta : Vector2.zero;
 			}
 		}
 
@@ -39,7 +43,7 @@ namespace Sekai
 		{
 			get
 			{
-				return _contentTransform != null ? _contentTransform.sizeDelta : Vector2.zero;
+				return contentTransform != null ? contentTransform.sizeDelta : Vector2.zero;
 			}
 		}
 
@@ -51,22 +55,22 @@ namespace Sekai
 
 		public void SetBackPanel()
 		{
-			if (_backPanelTransform == null || _contentTransform == null)
+			if (backPanelTransform == null || contentTransform == null)
 			{
 				return;
 			}
-			_backPanelTransform.SetAsFirstSibling();
+			backPanelTransform.SetAsFirstSibling();
 		}
 
 		public void SetCallback(Action onClose)
 		{
-			if (_closeButtons == null)
+			if (closeButtons == null)
 			{
 				return;
 			}
-			for (int i = 0; i < _closeButtons.Length; i++)
+			for (int i = 0; i < closeButtons.Length; i++)
 			{
-				CustomButton button = _closeButtons[i];
+				CustomButton button = closeButtons[i];
 				if (button == null)
 				{
 					continue;

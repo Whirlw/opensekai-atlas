@@ -227,13 +227,13 @@ namespace OpenSekai.Tests.EditMode
                 SongPackageItem zeta = _view.Items.Single(item => item.Entry.Manifest.id == "zeta");
                 var summaries = new Dictionary<string, CustomMusicScorePlayHistorySummary>(StringComparer.Ordinal);
                 CustomMusicScorePlayHistorySummary summary = CustomMusicScorePlayHistoryStorage.Fold(summaries,
-                    new CustomMusicScorePlayHistoryRecord { scoreKey = zeta.ScoreKey, totalScore = 500, playedAtUtc = "2026-11-16T00:00:00Z" });
+                    new CustomMusicScorePlayHistoryRecord { ScoreKey = zeta.ScoreKey, TotalScore = 500, PlayedAtUtc = "2026-11-16T00:00:00Z" });
 
                 presenter.OnScoreRecorded(zeta.ScoreKey, summary);
 
                 Assert.That(loads, Is.EqualTo(1), "the history is not loaded again");
                 Assert.That(_view.RefreshedScores, Is.EqualTo(new[] { zeta.ScoreKey }));
-                Assert.That(LibraryModel.SummaryOf(zeta, _view.State.History).Best.totalScore, Is.EqualTo(500));
+                Assert.That(LibraryModel.SummaryOf(zeta, _view.State.History).Best.TotalScore, Is.EqualTo(500));
                 Assert.That(LibraryModel.SummaryOf(alpha, _view.State.History), Is.Null);
             }
             finally

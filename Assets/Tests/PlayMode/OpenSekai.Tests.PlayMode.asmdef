@@ -8,6 +8,7 @@
         "LitMotion",
         "UniTask",
         "UnityEngine.UI",
+        "Unity.RenderPipelines.Core.Runtime",
         "Unity.TextMeshPro",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"

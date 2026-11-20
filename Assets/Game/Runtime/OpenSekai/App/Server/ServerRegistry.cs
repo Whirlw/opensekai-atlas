@@ -77,6 +77,8 @@ namespace OpenSekai.App.Server
 
         public event Action Changed;
 
+        private void RaiseChanged() => Changed?.Invoke();
+
         public IReadOnlyList<ServerEntry> Servers => _servers;
 
         public ServerEntry Find(string id) => _servers.Find(server => server.Id == id);
@@ -131,7 +133,7 @@ namespace OpenSekai.App.Server
             }
 
             _servers.Add(entry);
-            Changed?.Invoke();
+            RaiseChanged();
             return entry;
         }
 
@@ -159,7 +161,7 @@ namespace OpenSekai.App.Server
             }
 
             entry.Name = title;
-            Changed?.Invoke();
+            RaiseChanged();
             return true;
         }
 
@@ -180,7 +182,7 @@ namespace OpenSekai.App.Server
             }
 
             _servers.RemoveAt(index);
-            Changed?.Invoke();
+            RaiseChanged();
             return true;
         }
 

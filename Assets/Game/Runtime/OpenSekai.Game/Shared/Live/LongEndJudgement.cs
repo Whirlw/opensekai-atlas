@@ -13,29 +13,29 @@ namespace OpenSekai.Shared.Live
     public static class LongEndJudgement
     {
         // Early side: perfect 58.3 ms, great 108.3 ms, good 125 ms.
-        public const float EarlyPerfectMs = 58.3f;
-        public const float EarlyGreatMs = 108.3f;
-        public const float EarlyGoodMs = 125f;
+        public const float EARLY_PERFECT_MS = 58.3f;
+        public const float EARLY_GREAT_MS = 108.3f;
+        public const float EARLY_GOOD_MS = 125f;
 
         // Late side: perfect 66.7 ms, great 133.3 ms, good 141.7 ms.
-        public const float LatePerfectMs = 66.7f;
-        public const float LateGreatMs = 133.3f;
-        public const float LateGoodMs = 141.7f;
+        public const float LATE_PERFECT_MS = 66.7f;
+        public const float LATE_GREAT_MS = 133.3f;
+        public const float LATE_GOOD_MS = 141.7f;
 
         public static bool Accepts(float offsetSeconds)
         {
             float ms = offsetSeconds * 1000f;
-            return ms >= -EarlyGoodMs && ms <= LateGoodMs;
+            return ms >= -EARLY_GOOD_MS && ms <= LATE_GOOD_MS;
         }
 
         /// <summary>Whether a release at this offset lands in the Perfect band (graded JustPerfect).</summary>
         public static bool IsPerfect(float offsetSeconds)
         {
             float ms = offsetSeconds * 1000f;
-            return ms >= -EarlyPerfectMs && ms <= LatePerfectMs;
+            return ms >= -EARLY_PERFECT_MS && ms <= LATE_PERFECT_MS;
         }
 
-        public static bool IsPast(float offsetSeconds) => offsetSeconds * 1000f > LateGoodMs;
+        public static bool IsPast(float offsetSeconds) => offsetSeconds * 1000f > LATE_GOOD_MS;
 
         /// <summary>
         /// Grades a release at <paramref name="offsetSeconds"/> (negative = early). Returns null-ish
@@ -54,13 +54,13 @@ namespace OpenSekai.Shared.Live
 
             if (early)
             {
-                if (magnitude <= EarlyPerfectMs) return NoteResult.JustPerfect;
-                if (magnitude <= EarlyGreatMs) return NoteResult.Great;
+                if (magnitude <= EARLY_PERFECT_MS) return NoteResult.JustPerfect;
+                if (magnitude <= EARLY_GREAT_MS) return NoteResult.Great;
                 return NoteResult.Good;
             }
 
-            if (magnitude <= LatePerfectMs) return NoteResult.JustPerfect;
-            if (magnitude <= LateGreatMs) return NoteResult.Great;
+            if (magnitude <= LATE_PERFECT_MS) return NoteResult.JustPerfect;
+            if (magnitude <= LATE_GREAT_MS) return NoteResult.Great;
             return NoteResult.Good;
         }
     }

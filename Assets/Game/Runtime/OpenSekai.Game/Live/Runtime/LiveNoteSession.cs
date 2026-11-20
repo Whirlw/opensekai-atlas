@@ -15,20 +15,20 @@ namespace Sekai.Core.Live
 	/// </summary>
 	public sealed class LiveNoteSession
 	{
-		private static readonly NoteBase[] Empty = Array.Empty<NoteBase>();
+		private static readonly NoteBase[] _empty = Array.Empty<NoteBase>();
 		private readonly List<NoteBase> _highSpeedScratch = new List<NoteBase>();
 		private int _noteIndex;
 		private int _highSpeedIndex;
 		private int _damageIndex;
-		private NoteBase[] _damageNotes = Empty;
+		private NoteBase[] _damageNotes = _empty;
 		internal bool HasPendingDamageNotes => _damageIndex < _damageNotes.Length;
 		private (double start, NoteBase note)[] _nativeVisuals = Array.Empty<(double, NoteBase)>();
 		private readonly List<NoteBase> _activeNativeVisuals = new List<NoteBase>();
 		private int _nativeVisualIndex;
 
-		public NoteBase[] Notes { get; private set; } = Empty;
+		public NoteBase[] Notes { get; private set; } = _empty;
 
-		public NoteBase[] HighSpeedNotes { get; private set; } = Empty;
+		public NoteBase[] HighSpeedNotes { get; private set; } = _empty;
 
 		/// <summary>Cursor into <see cref="Notes"/>; everything before it is finished or skipped.</summary>
 		public int NoteIndex
@@ -50,7 +50,7 @@ namespace Sekai.Core.Live
 		/// </summary>
 		public void Bind(NoteBase[] notes)
 		{
-			Notes = notes ?? Empty;
+			Notes = notes ?? _empty;
 
 			_highSpeedScratch.Clear();
 			List<NoteBase> damageNotes = null;
@@ -75,8 +75,8 @@ namespace Sekai.Core.Live
 				}
 			}
 
-			HighSpeedNotes = _highSpeedScratch.Count == 0 ? Empty : _highSpeedScratch.ToArray();
-			_damageNotes = damageNotes?.ToArray() ?? Empty;
+			HighSpeedNotes = _highSpeedScratch.Count == 0 ? _empty : _highSpeedScratch.ToArray();
+			_damageNotes = damageNotes?.ToArray() ?? _empty;
 			if (_damageNotes.Length > 1) Array.Sort(_damageNotes, CompareDamageNotes);
 			Reset();
 		}

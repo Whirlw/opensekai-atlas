@@ -13,14 +13,14 @@ namespace OpenSekai.EditorTools
     /// </summary>
     public static class CliBuild
     {
-        private static readonly string[] Scenes =
+        private static readonly string[] _scenes =
         {
             "Assets/Game/Scenes/Library.unity",
             "Assets/Game/Scenes/TransitionBlank.unity",
             "Assets/Game/Scenes/Core.unity",
         };
 
-        private const string DefaultOutputPath = "Builds/Android/OpenSekaiAtlas.apk";
+        private const string DEFAULT_OUTPUT_PATH = "Builds/Android/OpenSekaiAtlas.apk";
 
         public static void PerformBuild()
         {
@@ -31,11 +31,11 @@ namespace OpenSekai.EditorTools
                 Directory.CreateDirectory(directory);
             }
 
-            string[] scenes = Scenes.Where(File.Exists).ToArray();
-            if (scenes.Length != Scenes.Length)
+            string[] scenes = _scenes.Where(File.Exists).ToArray();
+            if (scenes.Length != _scenes.Length)
             {
                 throw new InvalidOperationException(
-                    "Missing build scenes: " + string.Join(", ", Scenes.Except(scenes)));
+                    "Missing build scenes: " + string.Join(", ", _scenes.Except(scenes)));
             }
 
             Debug.Log("[CliBuild] building " + scenes.Length + " scenes -> " + outputPath);
@@ -72,7 +72,7 @@ namespace OpenSekai.EditorTools
                 }
             }
 
-            return DefaultOutputPath;
+            return DEFAULT_OUTPUT_PATH;
         }
     }
 }

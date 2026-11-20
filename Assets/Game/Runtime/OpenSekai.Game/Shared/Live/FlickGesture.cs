@@ -13,8 +13,8 @@ namespace OpenSekai.Shared.Live
     /// </summary>
     public static class FlickGesture
     {
-        public const float ReferenceFrameSeconds = 1f / 60f;
-        private const float Epsilon = 1e-5f;
+        public const float REFERENCE_FRAME_SECONDS = 1f / 60f;
+        private const float EPSILON = 1e-5f;
 
         /// <summary>Required swipe direction for a note; horizontal flicks ask for a 45 degree diagonal.</summary>
         public static Vector2 RequiredDirection(NoteDirection direction)
@@ -36,7 +36,7 @@ namespace OpenSekai.Shared.Live
         /// </summary>
         public static Vector2 ToReferenceFrame(Vector2 delta, float deltaTime)
         {
-            float frameScale = deltaTime / ReferenceFrameSeconds;
+            float frameScale = deltaTime / REFERENCE_FRAME_SECONDS;
             if (frameScale <= 0f)
             {
                 return delta;
@@ -53,7 +53,7 @@ namespace OpenSekai.Shared.Live
         {
             trueDirection = false;
 
-            if (delta.sqrMagnitude <= Epsilon)
+            if (delta.sqrMagnitude <= EPSILON)
             {
                 return false;
             }

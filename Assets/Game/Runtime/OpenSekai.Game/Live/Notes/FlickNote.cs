@@ -13,7 +13,7 @@ namespace Sekai.Live
 	{
 		private float _lastInputTime;
 
-		private readonly (int id, bool distance, bool trueDirection)[] inputResults;
+		private readonly (int id, bool distance, bool trueDirection)[] _inputResults;
 
 		private float _flickDistance;
 
@@ -64,7 +64,7 @@ namespace Sekai.Live
 		}
 		public FlickNote()
 		{
-			inputResults = new (int id, bool distance, bool trueDirection)[8];
+			_inputResults = new (int id, bool distance, bool trueDirection)[8];
 			Category = NoteCategory.Flick;
 		}
 
@@ -72,7 +72,7 @@ namespace Sekai.Live
 			NoteType type, NoteDirection direction, float laneOffset, float screenDpiToInch, bool isNextRushHead = false)
 			: base(info, id, laneStart, laneEnd, category, speedRatio, laneOffset, type)
 		{
-			inputResults = new (int id, bool distance, bool trueDirection)[8];
+			_inputResults = new (int id, bool distance, bool trueDirection)[8];
 			_flickDistance = screenDpiToInch;
 			Direction = direction;
 			IsNextRushHead = isNextRushHead;
@@ -93,7 +93,7 @@ namespace Sekai.Live
 
 			base.Excute(currentFrameInfo, offsetTime);
 			if (State == NoteState.Input
-				&& _lastInputTime + ReferenceFrame.Seconds < currentFrameInfo.time
+				&& _lastInputTime + ReferenceFrame.SECONDS < currentFrameInfo.time
 				&& CalcProgress(currentFrameInfo, offsetTime) >= 1f)
 			{
 				// A tail is graded by its own swipe rule (FlickTailJudge), never by this settle: doing
@@ -129,14 +129,14 @@ namespace Sekai.Live
 
 		private bool JudgmentFlick(float musicTime)
 		{
-			if (inputResults == null || inputResults.Length == 0)
+			if (_inputResults == null || _inputResults.Length == 0)
 			{
 				return false;
 			}
 
 			bool hasInput = false;
 			bool isDirection = false;
-			foreach (var result in inputResults)
+			foreach (var result in _inputResults)
 			{
 				if (result.id != 0 && result.distance && result.trueDirection)
 				{
@@ -148,7 +148,7 @@ namespace Sekai.Live
 
 			if (!hasInput)
 			{
-				foreach (var result in inputResults)
+				foreach (var result in _inputResults)
 				{
 					if (result.id != 0 && result.distance)
 					{
@@ -217,7 +217,7 @@ namespace Sekai.Live
 				return true;
 			}
 
-			foreach (var result in inputResults)
+			foreach (var result in _inputResults)
 			{
 				if (result.id != 0 && result.id == touch.touchId)
 				{
@@ -302,11 +302,11 @@ namespace Sekai.Live
 
 		private void AddInputResult(ref LiveTouch touch, ref bool isUpdatedDelta, ref bool isTrueDirection)
 		{
-			for (var i = 0; i < inputResults.Length; i++)
+			for (var i = 0; i < _inputResults.Length; i++)
 			{
-				if (inputResults[i].id == 0 || inputResults[i].id == touch.touchId)
+				if (_inputResults[i].id == 0 || _inputResults[i].id == touch.touchId)
 				{
-					inputResults[i] = (touch.touchId, isUpdatedDelta, isTrueDirection);
+					_inputResults[i] = (touch.touchId, isUpdatedDelta, isTrueDirection);
 					return;
 				}
 			}
@@ -368,7 +368,7 @@ namespace Sekai.Live
 		public override void ResetNote()
 		{
 			base.ResetNote();
-			Array.Clear(inputResults, 0, inputResults.Length);
+			Array.Clear(_inputResults, 0, _inputResults.Length);
 			_lastInputTime = 0f;
 			_tailJudge?.Reset();
 		}
@@ -378,7 +378,7 @@ namespace Sekai.Live
 
 		private bool HasInputResult(int touchId)
 		{
-			foreach (var result in inputResults)
+			foreach (var result in _inputResults)
 			{
 				if (result.id != 0 && result.id == touchId)
 				{

@@ -16,11 +16,13 @@ namespace Sekai
 			Always = 1
 		}
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_canvas")]
 		[SerializeField]
-		private Canvas _canvas;
+		private Canvas canvas;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_image")]
 		[SerializeField]
-		private CustomImage _image;
+		private CustomImage image;
 
 		private CancellationToken _cancellationToken;
 		private Mode _captureMode = Mode.OnShot;
@@ -36,7 +38,7 @@ namespace Sekai
 				}
 
 				_captureMode = value;
-				if (_image != null && _image.enabled)
+				if (image != null && image.enabled)
 				{
 					Enable();
 				}
@@ -44,16 +46,16 @@ namespace Sekai
 		}
 
 		public bool BlurExecuting => SekaiUIEffectSettings.Blur.IsActive;
-		public bool IsEnabledBlurImage => _image != null && _image.enabled && _image.gameObject.activeInHierarchy;
+		public bool IsEnabledBlurImage => image != null && image.enabled && image.gameObject.activeInHierarchy;
 
 		private void Awake()
 		{
 			InitializeReferences();
 			_cancellationToken = gameObject.GetCancellationTokenOnDestroy();
-			if (_image != null)
+			if (image != null)
 			{
-				_image.enabled = false;
-				_image.raycastTarget = false;
+				image.enabled = false;
+				image.raycastTarget = false;
 			}
 		}
 
@@ -65,20 +67,20 @@ namespace Sekai
 		public void SetCanvas(Canvas baseCanvas)
 		{
 			InitializeReferences();
-			if (_canvas == null || baseCanvas == null)
+			if (canvas == null || baseCanvas == null)
 			{
 				return;
 			}
 
-			_canvas.renderMode = baseCanvas.renderMode;
-			_canvas.worldCamera = baseCanvas.worldCamera;
-			_canvas.planeDistance = baseCanvas.planeDistance;
-			_canvas.pixelPerfect = baseCanvas.pixelPerfect;
-			_canvas.overrideSorting = baseCanvas.overrideSorting;
-			_canvas.overridePixelPerfect = baseCanvas.overridePixelPerfect;
-			_canvas.sortingLayerID = baseCanvas.sortingLayerID;
-			_canvas.sortingOrder = baseCanvas.sortingOrder;
-			_canvas.targetDisplay = baseCanvas.targetDisplay;
+			canvas.renderMode = baseCanvas.renderMode;
+			canvas.worldCamera = baseCanvas.worldCamera;
+			canvas.planeDistance = baseCanvas.planeDistance;
+			canvas.pixelPerfect = baseCanvas.pixelPerfect;
+			canvas.overrideSorting = baseCanvas.overrideSorting;
+			canvas.overridePixelPerfect = baseCanvas.overridePixelPerfect;
+			canvas.sortingLayerID = baseCanvas.sortingLayerID;
+			canvas.sortingOrder = baseCanvas.sortingOrder;
+			canvas.targetDisplay = baseCanvas.targetDisplay;
 		}
 
 		public UniTask SetCaptureMode(Mode mode)
@@ -108,19 +110,19 @@ namespace Sekai
 		public void Disable()
 		{
 			SekaiUIEffectSettings.Blur.IsActive = false;
-			if (_image != null)
+			if (image != null)
 			{
-				_image.enabled = false;
+				image.enabled = false;
 			}
 		}
 
 		private async UniTaskVoid StartBlurCaptureAsync(SekaiUIBlurParameter blur, CancellationToken token)
 		{
 			token.ThrowIfCancellationRequested();
-			if (_image != null)
+			if (image != null)
 			{
-				_image.enabled = true;
-				_image.raycastTarget = false;
+				image.enabled = true;
+				image.raycastTarget = false;
 			}
 
 			blur.IsActive = true;
@@ -135,13 +137,13 @@ namespace Sekai
 
 		private void InitializeReferences()
 		{
-			if (_canvas == null)
+			if (canvas == null)
 			{
-				_canvas = GetComponent<Canvas>();
+				canvas = GetComponent<Canvas>();
 			}
-			if (_image == null)
+			if (image == null)
 			{
-				_image = GetComponentInChildren<CustomImage>(true);
+				image = GetComponentInChildren<CustomImage>(true);
 			}
 		}
 	}

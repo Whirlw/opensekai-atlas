@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
@@ -17,61 +18,61 @@ namespace Sekai.Rendering
 		[Serializable]
 		protected class SekaiDrawObjectsSettings
 		{
-						private RenderPassEvent _Event = RenderPassEvent.AfterRenderingOpaques;
-			public RenderPassEvent Event
-			{
-			    get => _Event;
-			    set => _Event = value;
-			}
-						private SekaiDrawObjectsRenderQueueType _RenderQueueType = SekaiDrawObjectsRenderQueueType.opaque;
-			public SekaiDrawObjectsRenderQueueType RenderQueueType
-			{
-			    get => _RenderQueueType;
-			    set => _RenderQueueType = value;
-			}
-						private bool _UseCustomRenderQueueRange;
-			public bool UseCustomRenderQueueRange
-			{
-			    get => _UseCustomRenderQueueRange;
-			    set => _UseCustomRenderQueueRange = value;
-			}
-						private int _RenderQueueLowerBound;
-			public int RenderQueueLowerBound
-			{
-			    get => _RenderQueueLowerBound;
-			    set => _RenderQueueLowerBound = value;
-			}
-						private int _RenderQueueUpperBound;
-			public int RenderQueueUpperBound
-			{
-			    get => _RenderQueueUpperBound;
-			    set => _RenderQueueUpperBound = value;
-			}
-						private SekaiShaderTagType[] _ShaderTagTypes = Array.Empty<SekaiShaderTagType>();
-			public SekaiShaderTagType[] ShaderTagTypes
-			{
-			    get => _ShaderTagTypes;
-			    set => _ShaderTagTypes = value;
-			}
+			[FormerlySerializedAs("Event")]
+			[SerializeField]
+			private RenderPassEvent passEvent = RenderPassEvent.AfterRenderingOpaques;
+
+			public RenderPassEvent Event => passEvent;
+
+			[FormerlySerializedAs("RenderQueueType")]
+			[SerializeField]
+			private SekaiDrawObjectsRenderQueueType renderQueueType = SekaiDrawObjectsRenderQueueType.opaque;
+
+			public SekaiDrawObjectsRenderQueueType RenderQueueType => renderQueueType;
+
+			[FormerlySerializedAs("UseCustomRenderQueueRange")]
+			[SerializeField]
+			private bool useCustomRenderQueueRange;
+
+			public bool UseCustomRenderQueueRange => useCustomRenderQueueRange;
+
+			[FormerlySerializedAs("RenderQueueLowerBound")]
+			[SerializeField]
+			private int renderQueueLowerBound;
+
+			public int RenderQueueLowerBound => renderQueueLowerBound;
+
+			[FormerlySerializedAs("RenderQueueUpperBound")]
+			[SerializeField]
+			private int renderQueueUpperBound;
+
+			public int RenderQueueUpperBound => renderQueueUpperBound;
+
+			[FormerlySerializedAs("ShaderTagTypes")]
+			[SerializeField]
+			private SekaiShaderTagType[] shaderTagTypes = Array.Empty<SekaiShaderTagType>();
+
+			public SekaiShaderTagType[] ShaderTagTypes => shaderTagTypes;
 		}
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_settings")]
 		[SerializeField]
-		private SekaiDrawObjectsSettings _settings = new SekaiDrawObjectsSettings();
+		private SekaiDrawObjectsSettings settings = new SekaiDrawObjectsSettings();
 
 		private SekaiDrawObjectsPass[] _passes;
 
-		protected SekaiDrawObjectsSettings Settings => _settings;
+		protected SekaiDrawObjectsSettings Settings => settings;
 
 		protected SekaiDrawObjectsPass[] Passes => _passes;
 
 		public override void Create()
 		{
-			CreatePasses(_settings, out _passes);
+			CreatePasses(settings, out _passes);
 		}
 
 		public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
 		{
-			SetupRenderPass(_settings, _passes, renderingData.cameraData.camera);
+			SetupRenderPass(settings, _passes, renderingData.cameraData.camera);
 			EnqueuePasses(_passes, renderer);
 		}
 

@@ -32,24 +32,11 @@ namespace OpenSekai.EditorTools.Screenshots
     /// </summary>
     internal sealed class ScreenshotDriver : IPlayerLoopItem
     {
-        private const BindingFlags Any = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-        private const float FastForwardStep = 0.1f;
-        private const float RealTimeout = 120f;
+        private const BindingFlags ANY = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+        private const float FAST_FORWARD_STEP = 0.1f;
+        private const float REAL_TIMEOUT = 120f;
 
-        private static readonly FieldInfo StateField = typeof(BaseLiveController).GetField("state", Any);
-        private static readonly PropertyInfo TimelineStart = typeof(BaseLiveController).GetProperty("TimelineStartMs", Any);
-        private static readonly FieldInfo TimeField = typeof(BaseLiveController).GetField("currentMusicTimeMs", Any);
-        private static readonly FieldInfo PhaseField = typeof(BaseLiveController).GetField("musicPhase", Any);
-        private static readonly MethodInfo RetireNow = typeof(SoloLiveController).GetMethod("OnRetireByMySelf", Any);
-        private static readonly MethodInfo SkipOutro = typeof(SoloLiveController).GetMethod("SkipOutro", Any);
-
-        private const int StatePlaying = 1;
-        private const int StateFinish = 6;
-        private const int PhaseNotStarted = 0;
-        private const int PhasePlaying = 2;
-        private const int PhaseEnded = 3;
-
-        private static readonly ManualMotionDispatcher MotionClock = new ManualMotionDispatcher();
+        private static readonly ManualMotionDispatcher _motionClock = new ManualMotionDispatcher();
 
         private ShotRequest _request;
         private readonly List<ShotReport> _reports = new List<ShotReport>();
@@ -178,9 +165,9 @@ namespace OpenSekai.EditorTools.Screenshots
             resultPanel?.Hide();
             actionsPanel?.Hide();
             loading?.Hide();
-            object view = screen.GetType().GetField("_view", Any)?.GetValue(screen);
-            object presenter = screen.GetType().GetField("_presenter", Any)?.GetValue(screen);
-            SongPackageItem selected = view?.GetType().GetField("_selected", Any)?.GetValue(view) as SongPackageItem;
+            object view = screen.GetType().GetField("_view", ANY)?.GetValue(screen);
+            object presenter = screen.GetType().GetField("_presenter", ANY)?.GetValue(screen);
+            SongPackageItem selected = view?.GetType().GetField("_selected", ANY)?.GetValue(view) as SongPackageItem;
 
             string detail = null;
             if (panel == "settings" || panel == "settings-trace")
@@ -207,20 +194,20 @@ namespace OpenSekai.EditorTools.Screenshots
             else if (panel == "actions" || panel == "actions-armed")
             {
                 if (presenter == null || selected == null) throw new InvalidOperationException("No package is selected.");
-                presenter.GetType().GetMethod("OpenActionsForSelected", Any).Invoke(presenter, null);
+                presenter.GetType().GetMethod("OpenActionsForSelected", ANY).Invoke(presenter, null);
                 if (panel == "actions-armed")
                 {
                     // The first tap on 删除曲包 only arms it.
-                    actionsPanel.GetType().GetMethod("OnDeleteClicked", Any).Invoke(actionsPanel, null);
+                    actionsPanel.GetType().GetMethod("OnDeleteClicked", ANY).Invoke(actionsPanel, null);
                 }
                 detail = selected.Entry?.RootDirectory;
             }
             else if (panel == "loading")
             {
                 if (view == null || selected == null) throw new InvalidOperationException("No package is selected.");
-                view.GetType().GetMethod("ShowLoading", Any)
+                view.GetType().GetMethod("ShowLoading", ANY)
                     .Invoke(view, new object[] { selected.Entry.Manifest?.title ?? "Loading", selected.Entry.RootDirectory });
-                view.GetType().GetMethod("SetLoadingMessage", Any).Invoke(view, new object[] { "正在读取谱面…" });
+                view.GetType().GetMethod("SetLoadingMessage", ANY).Invoke(view, new object[] { "正在读取谱面…" });
                 detail = selected.Entry?.RootDirectory;
             }
 
@@ -236,7 +223,7 @@ namespace OpenSekai.EditorTools.Screenshots
             actionsPanel?.Hide();
             if (panel == "loading")
             {
-                view?.GetType().GetMethod("HideLoading", Any)?.Invoke(view, null);
+                view?.GetType().GetMethod("HideLoading", ANY)?.Invoke(view, null);
             }
         }
 
@@ -276,8 +263,8 @@ namespace OpenSekai.EditorTools.Screenshots
             yield return StartLive(shot, false, null);
             SoloLiveController controller = null;
             yield return WaitUntil(() => (controller = UnityEngine.Object.FindFirstObjectByType<SoloLiveController>()) != null
-                && State(controller) == StatePlaying, "the live to start");
-            RetireNow.Invoke(controller, null);
+                && controller.JustPlayingState, "the live to start");
+            controller.OnRetireByMySelf();
             yield return WaitForLibrary();
             yield return new WaitForSecondsRealtime(1.5f);
             yield return Capture(shot, FileStem(shot, null), "returned from a retired live", null);
@@ -286,7 +273,7 @@ namespace OpenSekai.EditorTools.Screenshots
         // ---------------------------------------------------------------- home page and splash
 
         /// <summary>Intro times taken when a request names none: lanes, fall, hit, morph, orbit, wordmark, flight, home.</summary>
-        private static readonly float[] DefaultIntroTimes = { 0.45f, 0.95f, 1.12f, 1.45f, 1.9f, 2.6f, 3.5f, 4.4f };
+        private static readonly float[] _defaultIntroTimes = { 0.45f, 0.95f, 1.12f, 1.45f, 1.9f, 2.6f, 3.5f, 4.4f };
 
         /// <summary>
         /// The splash and the home page are one seekable timeline with the backdrop's drift frozen
@@ -303,7 +290,7 @@ namespace OpenSekai.EditorTools.Screenshots
             }
 
             float[] times = intro
-                ? (shot.times != null && shot.times.Count > 0 ? shot.times.ToArray() : DefaultIntroTimes)
+                ? (shot.times != null && shot.times.Count > 0 ? shot.times.ToArray() : _defaultIntroTimes)
                 : new[] { HomeScreen.IntroLength };
             home.SeekIntro(times[0]);
             // The emblem is drawn on worker threads and the jackets load from disk; let both land.
@@ -375,12 +362,12 @@ namespace OpenSekai.EditorTools.Screenshots
             home.SeekIntro(HomeScreen.IntroLength);
             yield return WaitUntil(() => home.IsBrandReady, "the brand emblem");
             yield return new WaitForSecondsRealtime(1.2f);
-            typeof(HomeScreen).GetMethod("OpenAbout", Any).Invoke(home, null);
+            typeof(HomeScreen).GetMethod("OpenAbout", ANY).Invoke(home, null);
             yield return new WaitForSecondsRealtime(0.6f);
             yield return Capture(shot, FileStem(shot, null), "about card", null);
 
             home.ShowHomeImmediately();
-            typeof(HomeScreen).GetMethod("ShowComingSoon", Any).Invoke(home, new object[] { "资源包" });
+            typeof(HomeScreen).GetMethod("ShowComingSoon", ANY).Invoke(home, new object[] { "资源包" });
             yield return new WaitForSecondsRealtime(0.5f);
             yield return Capture(shot, FileStem(shot, null) + "-soon", "coming-soon hint", null);
             home.ShowLibraryImmediately();
@@ -498,7 +485,7 @@ namespace OpenSekai.EditorTools.Screenshots
             if (infoPage)
             {
                 // The page starts in the same step that starts the live clock.
-                yield return WaitUntil(() => { KeepMusicOff(controller); return Phase(controller) != PhaseNotStarted; }, "the info page");
+                yield return WaitUntil(() => { KeepMusicOff(controller); return controller.CapturePhase != BaseLiveController.MusicPhase.NotStarted; }, "the info page");
                 yield return new WaitForEndOfFrame();
                 int startFrame = Time.frameCount;
                 foreach (float offset in times)
@@ -510,7 +497,7 @@ namespace OpenSekai.EditorTools.Screenshots
                         KeepMusicOff(controller);
                     }
                     float actual = (Time.frameCount - startFrame) * frame;
-                    string note = State(controller) == StatePlaying
+                    string note = controller.JustPlayingState
                         ? "the live had already started (the editor ran below ~37 fps real time); the HUD may be fading in"
                         : null;
                     CaptureFrame(shot, FileStem(shot, offset), "info +" + actual.ToString("0.000") + "s", note, actual);
@@ -519,25 +506,25 @@ namespace OpenSekai.EditorTools.Screenshots
             }
 
             yield return StartLiveClock(controller);
-            long startMs = Clock(controller);
+            long startMs = controller.CaptureTimeMs;
             double frameMs = 1000d * frame;
             foreach (float seconds in times)
             {
                 long targetMs = (long)Math.Round(seconds * 1000d);
                 long leadMs = (long)Math.Round(Mathf.Max(0f, shot.lead) * 1000d);
-                long playFromMs = Math.Max(targetMs - leadMs, Clock(controller));
+                long playFromMs = Math.Max(targetMs - leadMs, controller.CaptureTimeMs);
                 string note = targetMs < startMs
                     ? "the live starts at " + (startMs / 1000d).ToString("0.000") + " s (first note minus the lead-in); this is its first frame"
                     : null;
                 int frameIndex = 0;
                 while (true)
                 {
-                    if (controller == null || State(controller) == StateFinish)
+                    if (controller == null || controller.CaptureFinished)
                     {
                         throw new InvalidOperationException("The chart was over before " + seconds + " s (every note was done at "
-                            + (Clock(controller) / 1000d).ToString("0.000") + " s). Use kind \"finish\" for the end of a live.");
+                            + (controller.CaptureTimeMs / 1000d).ToString("0.000") + " s). Use kind \"finish\" for the end of a live.");
                     }
-                    long now = Clock(controller);
+                    long now = controller.CaptureTimeMs;
                     if (now >= targetMs)
                     {
                         break;
@@ -545,23 +532,23 @@ namespace OpenSekai.EditorTools.Screenshots
                     // Fast-forward to exactly lead seconds before the target, then step at fps, so the
                     // frames that matter are the same whatever the live's start point was.
                     long next = now < playFromMs
-                        ? Math.Min(now + (long)(FastForwardStep * 1000f), playFromMs)
+                        ? Math.Min(now + (long)(FAST_FORWARD_STEP * 1000f), playFromMs)
                         : Math.Min(targetMs, Math.Max(now + 1, playFromMs + (long)Math.Round(++frameIndex * frameMs)));
                     yield return Step(controller, next - now);
                 }
-                long captured = Clock(controller);
+                long captured = controller.CaptureTimeMs;
                 CaptureFrame(shot, FileStem(shot, seconds), "music " + (captured / 1000d).ToString("0.000") + "s", note, captured / 1000f);
             }
         }
 
         private static IEnumerator StartLiveClock(SoloLiveController controller)
         {
-            yield return WaitUntil(() => Phase(controller) != PhaseNotStarted, "the live clock to start");
+            yield return WaitUntil(() => controller.CapturePhase != BaseLiveController.MusicPhase.NotStarted, "the live clock to start");
             // The controller waits a short, real-time interval before enabling gameplay. Park its
             // clock before that interval can move the first simulation frame by a variable amount.
             TakeClock(controller);
-            TimeField.SetValue(controller, TimelineStart.GetValue(controller));
-            yield return WaitUntil(() => State(controller) == StatePlaying, "the live to start");
+            controller.CaptureTimeMs = controller.TimelineStartMs;
+            yield return WaitUntil(() => controller.JustPlayingState, "the live to start");
             yield return new WaitForEndOfFrame();
         }
 
@@ -573,7 +560,7 @@ namespace OpenSekai.EditorTools.Screenshots
         {
             stepMs = Math.Max(1L, stepMs);
             Time.captureDeltaTime = stepMs / 1000f;
-            TimeField.SetValue(controller, Clock(controller) + stepMs);
+            controller.CaptureTimeMs += stepMs;
             yield return new WaitForEndOfFrame();
             TakeClock(controller);
         }
@@ -590,10 +577,10 @@ namespace OpenSekai.EditorTools.Screenshots
                 return;
             }
             KeepMusicOff(controller);
-            PhaseField.SetValue(controller, Enum.ToObject(PhaseField.FieldType, PhaseNotStarted));
+            controller.CapturePhase = BaseLiveController.MusicPhase.NotStarted;
         }
 
-        private static readonly HashSet<ParticleSystem> SeededParticles = new HashSet<ParticleSystem>();
+        private static readonly HashSet<ParticleSystem> _seededParticles = new HashSet<ParticleSystem>();
 
         /// <summary>
         /// Particle systems pick a new random seed every play, so the same tap effect looks different
@@ -604,7 +591,7 @@ namespace OpenSekai.EditorTools.Screenshots
         {
             foreach (ParticleSystem system in UnityEngine.Object.FindObjectsByType<ParticleSystem>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             {
-                if (system == null || !SeededParticles.Add(system) || !system.useAutoRandomSeed)
+                if (system == null || !_seededParticles.Add(system) || !system.useAutoRandomSeed)
                 {
                     continue;
                 }
@@ -642,16 +629,16 @@ namespace OpenSekai.EditorTools.Screenshots
         private static void StartMotionClock(float step)
         {
             Time.captureDeltaTime = step;
-            LiveMotion.CaptureScheduler = MotionClock.Scheduler;
+            LiveMotion.CaptureScheduler = _motionClock.Scheduler;
         }
 
         internal static void StopMotionClock()
         {
-            if (LiveMotion.CaptureScheduler == MotionClock.Scheduler)
+            if (LiveMotion.CaptureScheduler == _motionClock.Scheduler)
             {
                 LiveMotion.CaptureScheduler = null;
-                MotionClock.Reset();
-                SeededParticles.Clear();
+                _motionClock.Reset();
+                _seededParticles.Clear();
                 Time.captureDeltaTime = 0f;
             }
         }
@@ -662,10 +649,10 @@ namespace OpenSekai.EditorTools.Screenshots
             {
                 return false;
             }
-            if (LiveMotion.CaptureScheduler == MotionClock.Scheduler)
+            if (LiveMotion.CaptureScheduler == _motionClock.Scheduler)
             {
                 // Tick once after gameplay updates and before rendering the current frame.
-                MotionClock.Update(Time.captureDeltaTime);
+                _motionClock.Update(Time.captureDeltaTime);
                 SeedParticles();
             }
             return true;
@@ -681,20 +668,20 @@ namespace OpenSekai.EditorTools.Screenshots
             }
             float frame = 1f / Mathf.Clamp(shot.fps <= 0 ? 60 : shot.fps, 10, 240);
 
-            StartMotionClock(FastForwardStep);
+            StartMotionClock(FAST_FORWARD_STEP);
             yield return StartLive(shot, false, string.IsNullOrWhiteSpace(shot.finishAnimation) ? "allperfect" : shot.finishAnimation);
             SoloLiveController controller = null;
             yield return WaitUntil(() => (controller = UnityEngine.Object.FindFirstObjectByType<SoloLiveController>()) != null, "the live controller");
             yield return StartLiveClock(controller);
             float deadline = Time.realtimeSinceStartup + 600f;
-            while (State(controller) != StateFinish)
+            while (!controller.CaptureFinished)
             {
                 if (Time.realtimeSinceStartup > deadline) throw new TimeoutException("The live did not finish within 10 minutes.");
-                yield return Step(controller, (long)(FastForwardStep * 1000f));
+                yield return Step(controller, (long)(FAST_FORWARD_STEP * 1000f));
             }
             // From here on only scaled time matters: the result coroutine waits with WaitForSeconds.
             Time.captureDeltaTime = frame;
-            long endedAt = Clock(controller);
+            long endedAt = controller.CaptureTimeMs;
             int startFrame = Time.frameCount;
             foreach (float offset in times)
             {
@@ -786,9 +773,10 @@ namespace OpenSekai.EditorTools.Screenshots
             SoloLiveController controller = UnityEngine.Object.FindFirstObjectByType<SoloLiveController>();
             if (controller != null)
             {
-                Time.captureDeltaTime = FastForwardStep;
+                Time.captureDeltaTime = FAST_FORWARD_STEP;
                 // A finished live waits for the rest of the music; skip it like the player can.
-                (State(controller) == StateFinish ? SkipOutro : RetireNow).Invoke(controller, null);
+                if (controller.CaptureFinished) controller.SkipOutro();
+                else controller.OnRetireByMySelf();
                 // The retire publishes a result for the library; the screenshot run is not a session.
                 PlayResultHandoff.Clear();
             }
@@ -806,16 +794,13 @@ namespace OpenSekai.EditorTools.Screenshots
         /// <summary>The audio would move the clock in real time: stop it, the clock then runs on the frame time.</summary>
         private static void KeepMusicOff(SoloLiveController controller)
         {
-            if (controller != null && Phase(controller) == PhasePlaying)
+            if (controller != null && controller.CapturePhase == BaseLiveController.MusicPhase.Playing)
             {
                 SoundManager.Instance.StopIngame();
-                PhaseField.SetValue(controller, Enum.ToObject(PhaseField.FieldType, PhaseEnded));
+                controller.CapturePhase = BaseLiveController.MusicPhase.Ended;
             }
         }
 
-        private static int State(BaseLiveController c) => Convert.ToInt32(StateField.GetValue(c));
-        private static int Phase(BaseLiveController c) => Convert.ToInt32(PhaseField.GetValue(c));
-        private static long Clock(BaseLiveController c) => (long)TimeField.GetValue(c);
 
         internal static string ResolvePackage(string query)
         {
@@ -882,7 +867,7 @@ namespace OpenSekai.EditorTools.Screenshots
 
         private static IEnumerator WaitUntil(Func<bool> condition, string what)
         {
-            float deadline = Time.realtimeSinceStartup + RealTimeout;
+            float deadline = Time.realtimeSinceStartup + REAL_TIMEOUT;
             while (!condition())
             {
                 if (Time.realtimeSinceStartup > deadline)

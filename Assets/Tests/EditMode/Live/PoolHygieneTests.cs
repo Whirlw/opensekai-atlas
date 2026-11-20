@@ -17,14 +17,14 @@ namespace OpenSekai.Tests.EditMode.Live
 	[TestFixture]
 	public class PoolHygieneTests
 	{
-		private const BindingFlags Fields = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+		private const BindingFlags FIELDS = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
 
 		/// <summary>
 		/// Fields that belong to the note's identity: they are set by the constructor or by the chart
 		/// setup that runs again on every spawn, so <c>ResetNote</c> is not supposed to touch them.
 		/// Anything not listed here is per run state and must come back.
 		/// </summary>
-		private static readonly HashSet<string> Identity = new HashSet<string>
+		private static readonly HashSet<string> _identity = new HashSet<string>
 		{
 			"DefaultLeftLane", "DefaultRightLane",
 			"LaneStart", "LaneEnd", "LaneStartF", "LaneEndF",
@@ -88,14 +88,14 @@ namespace OpenSekai.Tests.EditMode.Live
 			var map = new Dictionary<string, object>();
 			for (Type t = note.GetType(); t != null && t != typeof(object); t = t.BaseType)
 			{
-				foreach (FieldInfo field in t.GetFields(Fields))
+				foreach (FieldInfo field in t.GetFields(FIELDS))
 				{
 					if (!field.FieldType.IsValueType || field.IsInitOnly)
 					{
 						continue;
 					}
 
-					if (Identity.Contains(SimpleName(field.Name)))
+					if (_identity.Contains(SimpleName(field.Name)))
 					{
 						continue;
 					}
@@ -111,9 +111,9 @@ namespace OpenSekai.Tests.EditMode.Live
 		{
 			for (Type t = note.GetType(); t != null && t != typeof(object); t = t.BaseType)
 			{
-				foreach (FieldInfo field in t.GetFields(Fields))
+				foreach (FieldInfo field in t.GetFields(FIELDS))
 				{
-					if (!field.FieldType.IsValueType || field.IsInitOnly || Identity.Contains(SimpleName(field.Name)))
+					if (!field.FieldType.IsValueType || field.IsInitOnly || _identity.Contains(SimpleName(field.Name)))
 					{
 						continue;
 					}

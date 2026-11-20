@@ -22,15 +22,15 @@ namespace OpenSekai.Shared.Live.Simulation
 	/// </summary>
 	public readonly struct TimingCompensation
 	{
-		public const float MinAudioLatencyMs = -200f;
-		public const float MaxAudioLatencyMs = 500f;
-		public const float MinVisualLatencyMs = -200f;
-		public const float MaxVisualLatencyMs = 300f;
-		public const float MinJudgeOffsetMs = -200f;
-		public const float MaxJudgeOffsetMs = 200f;
+		public const float MIN_AUDIO_LATENCY_MS = -200f;
+		public const float MAX_AUDIO_LATENCY_MS = 500f;
+		public const float MIN_VISUAL_LATENCY_MS = -200f;
+		public const float MAX_VISUAL_LATENCY_MS = 300f;
+		public const float MIN_JUDGE_OFFSET_MS = -200f;
+		public const float MAX_JUDGE_OFFSET_MS = 200f;
 
 		/// <summary>The old setting moved the clock forward by its value in 1/60 s frames.</summary>
-		public const float LegacyFrameMs = 1000f / 60f;
+		public const float LEGACY_FRAME_MS = 1000f / 60f;
 
 		public TimingCompensation(float audioLatencyMs, float visualLatencyMs, float judgeOffsetMs)
 		{
@@ -55,15 +55,15 @@ namespace OpenSekai.Shared.Live.Simulation
 		/// <summary>The clock the views draw with.</summary>
 		public float ViewTime(float audioTime) => Math.Max(audioTime - (AudioLatencyMs - VisualLatencyMs) / 1000f, 0f);
 
-		public static float ClampAudioLatency(float ms) => Clamp(ms, MinAudioLatencyMs, MaxAudioLatencyMs);
-		public static float ClampVisualLatency(float ms) => Clamp(ms, MinVisualLatencyMs, MaxVisualLatencyMs);
-		public static float ClampJudgeOffset(float ms) => Clamp(ms, MinJudgeOffsetMs, MaxJudgeOffsetMs);
+		public static float ClampAudioLatency(float ms) => Clamp(ms, MIN_AUDIO_LATENCY_MS, MAX_AUDIO_LATENCY_MS);
+		public static float ClampVisualLatency(float ms) => Clamp(ms, MIN_VISUAL_LATENCY_MS, MAX_VISUAL_LATENCY_MS);
+		public static float ClampJudgeOffset(float ms) => Clamp(ms, MIN_JUDGE_OFFSET_MS, MAX_JUDGE_OFFSET_MS);
 
 		/// <summary>
 		/// The old "判定延迟" moved the whole clock forward by its value in frames, which is a negative
 		/// audio latency: <c>audio + frames/60 = audio - L</c>.
 		/// </summary>
-		public static float AudioLatencyFromLegacyFrames(float frames) => ClampAudioLatency(-frames * LegacyFrameMs);
+		public static float AudioLatencyFromLegacyFrames(float frames) => ClampAudioLatency(-frames * LEGACY_FRAME_MS);
 
 		/// <summary>
 		/// Where a key is drawn, from its logic progress and the lead. A key still travelling to the line

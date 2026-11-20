@@ -17,21 +17,21 @@ namespace OpenSekai.Tests.EditMode.Live
 	public sealed class NoteSpawnTopEdgeTests
 	{
 		/// <summary>The player's own setting (NoteSpeed 10.6) maps to this display window.</summary>
-		private const float Window = 0.5952f;
-		private const float Frame = 1f / 60f;
+		private const float WINDOW = 0.5952f;
+		private const float FRAME = 1f / 60f;
 
 		[Test]
 		public void EveryNoteIsCreatedAtTheTopOfTheScreen()
 		{
 			MusicScore score = AutoplayCompletionTests.LoadFixture("deinos-phainein");
 			using var harness = new LiveHarness();
-			harness.Arrange(score, null, Window);
+			harness.Arrange(score, null, WINDOW);
 
 			var spawn = new Dictionary<NoteBase, (float progress, float lead)>();
 			var slowest = new List<(string note, float progress, float lead)>();
 			NoteBase[] notes = score.NoteArray.Where(note => note != null).ToArray();
 			float end = notes.Max(note => note.MusicScoreInfo.time) + 1f;
-			for (float now = 0f; now < end; now += Frame)
+			for (float now = 0f; now < end; now += FRAME)
 			{
 				harness.OnUpdate(now, 10d + now);
 				harness.Logic.OnAutoInput();

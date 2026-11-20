@@ -337,8 +337,8 @@ namespace OpenSekai.App.UI
             LibraryWidgets.Place(wordmark.rectTransform, leftCenter, leftCenter, new Vector2(wordmarkX, 2f), new Vector2(wordmarkWidth, 52f));
 
             string version = "v" + Application.version;
-            const float chipHeight = 34f;
-            Image chip = LibraryWidgets.Panel("Version", header, chipHeight * 0.5f, HomeTheme.Colors.Chip);
+            const float CHIP_HEIGHT = 34f;
+            Image chip = LibraryWidgets.Panel("Version", header, CHIP_HEIGHT * 0.5f, HomeTheme.Colors.Chip);
             TextMeshProUGUI chipLabel = LibraryWidgets.Label(
                 "Label", chip.transform, version, 20f, LibraryTheme.Colors.TextMuted, FontStyles.Normal, TextAlignmentOptions.Center);
             LibraryUi.UseCondensedFont(chipLabel);
@@ -346,7 +346,7 @@ namespace OpenSekai.App.UI
             LibraryUi.Stretch(chipLabel.rectTransform);
             float chipWidth = Mathf.Ceil(chipLabel.GetPreferredValues(version).x) + 30f;
             LibraryWidgets.Place(chip.rectTransform, leftCenter, leftCenter, new Vector2(wordmarkX + wordmarkWidth + 14f, 0f),
-                new Vector2(chipWidth, chipHeight));
+                new Vector2(chipWidth, CHIP_HEIGHT));
 
             float size = LibraryTheme.Layout.CONTROL_HEIGHT;
             float right = LibraryView.AddSettingsButton(header, () => openSettings());

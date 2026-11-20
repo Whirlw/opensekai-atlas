@@ -11,7 +11,7 @@ namespace OpenSekai.Tests.EditMode.Live
     /// </summary>
     public sealed class JudgeWindowTests
     {
-        private const float JustPerfectHalf = 0.5f;
+        private const float JUST_PERFECT_HALF = 0.5f;
 
         /// <summary>A normal note: 2.5 / 5 / 6.5 / 7.5 half-frames, the shipped table.</summary>
         private static JudgeTimeData Window(
@@ -30,7 +30,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
         private static NoteResult Result(JudgeTimeData data, float offset, bool isDirection = true)
         {
-            return JudgeWindow.ResultFor(data, offset, isDirection, JustPerfectHalf).Item1;
+            return JudgeWindow.ResultFor(data, offset, isDirection, JUST_PERFECT_HALF).Item1;
         }
 
         [Test]
@@ -49,8 +49,8 @@ namespace OpenSekai.Tests.EditMode.Live
         public void DeadOnIsJustPerfect()
         {
             Assert.That(Result(Window(), 0f), Is.EqualTo(NoteResult.JustPerfect));
-            Assert.That(Result(Window(), JustPerfectHalf), Is.EqualTo(NoteResult.JustPerfect));
-            Assert.That(Result(Window(), -JustPerfectHalf), Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(Result(Window(), JUST_PERFECT_HALF), Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(Result(Window(), -JUST_PERFECT_HALF), Is.EqualTo(NoteResult.JustPerfect));
         }
 
         [Test]
@@ -87,7 +87,7 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void WrongDirectionInsideThePerfectWindowIsAGreatWithTheFlickMissReason()
         {
-            (NoteResult result, NoteResultDescription description) = JudgeWindow.ResultFor(Window(), 1f, false, JustPerfectHalf);
+            (NoteResult result, NoteResultDescription description) = JudgeWindow.ResultFor(Window(), 1f, false, JUST_PERFECT_HALF);
 
             Assert.That(result, Is.EqualTo(NoteResult.Great));
             Assert.That(description, Is.EqualTo(NoteResultDescription.FlickMiss));
@@ -103,9 +103,9 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void DescriptionSeparatesEarlyFromLate()
         {
-            Assert.That(JudgeWindow.DescriptionFor(0.2f, JustPerfectHalf), Is.EqualTo(NoteResultDescription.Just));
-            Assert.That(JudgeWindow.DescriptionFor(2f, JustPerfectHalf), Is.EqualTo(NoteResultDescription.Fast));
-            Assert.That(JudgeWindow.DescriptionFor(-2f, JustPerfectHalf), Is.EqualTo(NoteResultDescription.Late));
+            Assert.That(JudgeWindow.DescriptionFor(0.2f, JUST_PERFECT_HALF), Is.EqualTo(NoteResultDescription.Just));
+            Assert.That(JudgeWindow.DescriptionFor(2f, JUST_PERFECT_HALF), Is.EqualTo(NoteResultDescription.Fast));
+            Assert.That(JudgeWindow.DescriptionFor(-2f, JUST_PERFECT_HALF), Is.EqualTo(NoteResultDescription.Late));
         }
     }
 }

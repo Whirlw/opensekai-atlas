@@ -9,23 +9,29 @@ namespace Sekai.UI
 {
 	public class UIAtlasImageLoader : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_atlasImage")]
 		[SerializeField]
-		protected AtlasImage _atlasImage;
+		protected AtlasImage atlasImage;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_loadingObject")]
 		[SerializeField]
-		protected GameObject _loadingObject;
+		protected GameObject loadingObject;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_notFoundObject")]
 		[SerializeField]
-		protected GameObject _notFoundObject;
+		protected GameObject notFoundObject;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_doCache")]
 		[SerializeField]
-		protected bool _doCache;
+		protected bool doCache;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_showIndicator")]
 		[SerializeField]
-		protected bool _showIndicator;
+		protected bool showIndicator;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_onDisableUnload")]
 		[SerializeField]
-		protected bool _onDisableUnload;
+		protected bool onDisableUnload;
 
 		private string _bundleName;
 
@@ -55,7 +61,7 @@ namespace Sekai.UI
 		{
 			get
 			{
-				return _atlasImage;
+				return atlasImage;
 			}
 		}
 
@@ -74,9 +80,9 @@ namespace Sekai.UI
 
 		public void Unload()
 		{
-			if (_atlasImage != null)
+			if (atlasImage != null)
 			{
-				_atlasImage.sprite = null;
+				atlasImage.sprite = null;
 			}
 
 			_bundleName = null;
@@ -93,33 +99,33 @@ namespace Sekai.UI
 
 		public void SetActiveLoadingObject(bool isActive)
 		{
-			if (_loadingObject != null)
+			if (loadingObject != null)
 			{
-				_loadingObject.SetActive(isActive);
+				loadingObject.SetActive(isActive);
 			}
 		}
 
 		public void SetActiveNotFoundObject(bool isActive)
 		{
-			if (_notFoundObject != null)
+			if (notFoundObject != null)
 			{
-				_notFoundObject.SetActive(isActive);
+				notFoundObject.SetActive(isActive);
 			}
 		}
 
 		public void SetupSize(Vector2 size)
 		{
-			if (_atlasImage != null)
+			if (atlasImage != null)
 			{
-				_atlasImage.rectTransform.sizeDelta = size;
+				atlasImage.rectTransform.sizeDelta = size;
 			}
 		}
 
 		public void HideTargetGraphic()
 		{
-			if (_atlasImage != null)
+			if (atlasImage != null)
 			{
-				_atlasImage.enabled = false;
+				atlasImage.enabled = false;
 			}
 		}
 
@@ -133,7 +139,7 @@ namespace Sekai.UI
 			_reserveImageName = null;
 			_reserveLruCache = null;
 
-			SetActiveLoadingObject(_showIndicator);
+			SetActiveLoadingObject(showIndicator);
 			SetActiveNotFoundObject(false);
 			bool success = TryLoadFromResources(atlasName, imageName);
 			_loadStatus = success ? AssetManager.BundleElementLoadStatus.Success : AssetManager.BundleElementLoadStatus.Error;
@@ -159,7 +165,7 @@ namespace Sekai.UI
 
 		private bool TryLoadFromResources(string atlasName, string imageName)
 		{
-			if (_atlasImage == null || string.IsNullOrEmpty(imageName))
+			if (atlasImage == null || string.IsNullOrEmpty(imageName))
 			{
 				return false;
 			}
@@ -172,15 +178,15 @@ namespace Sekai.UI
 
 			if (atlas != null)
 			{
-				_atlasImage.Atlas = atlas;
-				_atlasImage.SpriteName = imageName;
-				_atlasImage.enabled = _atlasImage.sprite != null;
-				return _atlasImage.sprite != null;
+				atlasImage.Atlas = atlas;
+				atlasImage.SpriteName = imageName;
+				atlasImage.enabled = atlasImage.sprite != null;
+				return atlasImage.sprite != null;
 			}
 
 			Sprite sprite = Resources.Load<Sprite>(imageName);
-			_atlasImage.sprite = sprite;
-			_atlasImage.enabled = sprite != null;
+			atlasImage.sprite = sprite;
+			atlasImage.enabled = sprite != null;
 			return sprite != null;
 		}
 
@@ -199,7 +205,7 @@ namespace Sekai.UI
 
 		private void OnDisable()
 		{
-			if (_onDisableUnload)
+			if (onDisableUnload)
 			{
 				Unload();
 			}

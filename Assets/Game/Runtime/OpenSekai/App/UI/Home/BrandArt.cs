@@ -351,11 +351,11 @@ namespace OpenSekai.App.UI
         /// <summary>Signed distance to a superellipse (a squircle), inset from the unit square.</summary>
         private static float Squircle(Vec uv, float inset)
         {
-            const float exponent = 5f;
+            const float EXPONENT = 5f;
             float half = 0.5f - inset;
             float dx = Math.Abs(uv.X - 0.5f) / half;
             float dy = Math.Abs(uv.Y - 0.5f) / half;
-            float r = (float)Math.Pow(Math.Pow(dx, exponent) + Math.Pow(dy, exponent), 1d / exponent);
+            float r = (float)Math.Pow(Math.Pow(dx, EXPONENT) + Math.Pow(dy, EXPONENT), 1d / EXPONENT);
             return (r - 1f) * half;
         }
 

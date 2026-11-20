@@ -28,9 +28,9 @@ namespace Sekai
 		[CompilerGenerated]
 		private sealed class _003CFlareRegularIntervalOnHoldPress_003Ed__30 : IEnumerator<object>, IEnumerator, IDisposable
 		{
-			private int _003C_003E1__state;
+			private int _state;
 
-			private object _003C_003E2__current;
+			private object _current;
 
 			public InputManager _003C_003E4__this;
 
@@ -84,9 +84,9 @@ namespace Sekai
 		[CompilerGenerated]
 		private sealed class _003CUpdateLongPressCheck_003Ed__29 : IEnumerator<object>, IEnumerator, IDisposable
 		{
-			private int _003C_003E1__state;
+			private int _state;
 
-			private object _003C_003E2__current;
+			private object _current;
 
 			public InputManager _003C_003E4__this;
 

@@ -11,7 +11,7 @@ namespace Sekai
 		{
 			private static readonly Stack<InternalHandle> _internalHandlePool;
 
-			private readonly List<(Action<object> continuation, object state)> continuations;
+			private readonly List<(Action<object> continuation, object state)> _continuations;
 
 			private Action<LruAssetCacheLoadingState, TAsset> _cachedUniTaskSubscriptionDelegate;
 

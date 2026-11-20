@@ -45,7 +45,7 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void LeftOfTheToleranceIsOutside()
         {
-            Assert.That(TouchLane.Resolve(Lanes(), new Vector3(-12f, -10f, 0f), 10f), Is.EqualTo(TouchLane.Outside));
+            Assert.That(TouchLane.Resolve(Lanes(), new Vector3(-12f, -10f, 0f), 10f), Is.EqualTo(TouchLane.OUTSIDE));
         }
 
         [Test]
@@ -57,7 +57,7 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void RightOfTheToleranceIsOutside()
         {
-            Assert.That(TouchLane.Resolve(Lanes(), new Vector3(452f, -10f, 0f), 10f), Is.EqualTo(TouchLane.Outside));
+            Assert.That(TouchLane.Resolve(Lanes(), new Vector3(452f, -10f, 0f), 10f), Is.EqualTo(TouchLane.OUTSIDE));
         }
 
         [Test]
@@ -81,8 +81,8 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void NoLanesMeansOutsideAndNoLine()
         {
-            Assert.That(TouchLane.Resolve(null, Vector3.zero, 10f), Is.EqualTo(TouchLane.Outside));
-            Assert.That(TouchLane.Resolve(new Vector2[0], Vector3.zero, 10f), Is.EqualTo(TouchLane.Outside));
+            Assert.That(TouchLane.Resolve(null, Vector3.zero, 10f), Is.EqualTo(TouchLane.OUTSIDE));
+            Assert.That(TouchLane.Resolve(new Vector2[0], Vector3.zero, 10f), Is.EqualTo(TouchLane.OUTSIDE));
             Assert.That(TouchLane.IsAboveTheLine(null, Vector3.zero, 20f), Is.False);
         }
     }

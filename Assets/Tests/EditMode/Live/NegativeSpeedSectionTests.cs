@@ -23,8 +23,8 @@ namespace OpenSekai.Tests.EditMode.Live
 	/// </summary>
 	public sealed class NegativeSpeedSectionTests
 	{
-		private const float FirstBar = 37f;
-		private const float LastBar = 39f;
+		private const float FIRST_BAR = 37f;
+		private const float LAST_BAR = 39f;
 
 		[Test]
 		public void NotesInTheNegativeSpeedSectionDoNotTeleport()
@@ -39,8 +39,8 @@ namespace OpenSekai.Tests.EditMode.Live
 			{
 				harness.Arrange(score);
 				float end = notes.Max(note => note.MusicScoreInfo.time) + 3f;
-				const float frame = 1f / 60f;
-				for (float now = 0f; now < end; now += frame)
+				const float FRAME = 1f / 60f;
+				for (float now = 0f; now < end; now += FRAME)
 				{
 					harness.OnUpdate(now, 10d + now);
 					harness.Logic.OnAutoInput();
@@ -75,7 +75,7 @@ namespace OpenSekai.Tests.EditMode.Live
 				.ToArray();
 
 			Assert.That(offenders.Take(8), Is.Empty,
-				$"{offenders.Length} notes teleported inside bars {FirstBar}..{LastBar}:\n  "
+				$"{offenders.Length} notes teleported inside bars {FIRST_BAR}..{LAST_BAR}:\n  "
 				+ string.Join("\n  ", offenders.Take(8)));
 		}
 
@@ -93,8 +93,8 @@ namespace OpenSekai.Tests.EditMode.Live
 			{
 				harness.Arrange(score);
 				float end = notes.Max(note => note.MusicScoreInfo.time) + 3f;
-				const float frame = 1f / 60f;
-				for (float now = 0f; now < end; now += frame)
+				const float FRAME = 1f / 60f;
+				for (float now = 0f; now < end; now += FRAME)
 				{
 					harness.OnUpdate(now, 10d + now);
 					harness.Logic.OnAutoInput();
@@ -121,6 +121,6 @@ namespace OpenSekai.Tests.EditMode.Live
 		}
 
 		private static bool InSection(NoteBase note) =>
-			note.MusicScoreInfo.bar >= FirstBar && note.MusicScoreInfo.bar < LastBar;
+			note.MusicScoreInfo.bar >= FIRST_BAR && note.MusicScoreInfo.bar < LAST_BAR;
 	}
 }

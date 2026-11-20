@@ -227,7 +227,7 @@ namespace Sekai.Core.Live
 			if (note is NextRushDamageNote)
 			{
 				if (note.Result == NoteResult.Miss)
-					_score.life = UnityEngine.Mathf.Max(0, _score.life - NextRushDamageNote.LifePenalty);
+					_score.life = UnityEngine.Mathf.Max(0, _score.life - NextRushDamageNote.LIFE_PENALTY);
 			}
 			else if (LiveConfig.Damages.TryGetValue(note.Result, out int damage))
 			{

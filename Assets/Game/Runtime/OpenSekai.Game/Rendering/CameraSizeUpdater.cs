@@ -11,26 +11,31 @@ namespace Sekai
 			Height = 2
 		}
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_baseWidth")]
 		[SerializeField]
-		private float _baseWidth;
+		private float baseWidth;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_baseHeight")]
 		[SerializeField]
-		private float _baseHeight;
+		private float baseHeight;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_pixelPerUnit")]
 		[SerializeField]
-		private float _pixelPerUnit;
+		private float pixelPerUnit;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_baseType")]
 		[SerializeField]
-		private BaseType _baseType;
+		private BaseType baseType;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_camera")]
 		[SerializeField]
-		private Camera _camera;
+		private Camera camera;
 
 		public float OrthographicSize
 		{
 			get
 			{
-				return _camera != null ? _camera.orthographicSize : 0f;
+				return camera != null ? camera.orthographicSize : 0f;
 			}
 		}
 
@@ -38,7 +43,7 @@ namespace Sekai
 		{
 			get
 			{
-				return _baseWidth;
+				return baseWidth;
 			}
 		}
 
@@ -46,7 +51,7 @@ namespace Sekai
 		{
 			get
 			{
-				return _baseHeight;
+				return baseHeight;
 			}
 		}
 
@@ -54,7 +59,7 @@ namespace Sekai
 		{
 			get
 			{
-				return _baseHeight / _pixelPerUnit * 0.5f;
+				return baseHeight / pixelPerUnit * 0.5f;
 			}
 		}
 
@@ -70,30 +75,30 @@ namespace Sekai
 
 		private void UpdateOrthographicSize()
 		{
-			if (_camera == null)
+			if (camera == null)
 			{
-				_camera = GetComponent<Camera>();
+				camera = GetComponent<Camera>();
 			}
-			if (_camera == null || _pixelPerUnit == 0f || _baseWidth == 0f || _baseHeight == 0f)
+			if (camera == null || pixelPerUnit == 0f || baseWidth == 0f || baseHeight == 0f)
 			{
 				return;
 			}
 
 			float size = BaseOrthographicSize;
 			float screenAspect = (float)Screen.height / Screen.width;
-			float baseAspect = _baseHeight / _baseWidth;
-			if (_baseType != BaseType.Height && (baseAspect <= screenAspect || _baseType == BaseType.Width))
+			float baseAspect = baseHeight / baseWidth;
+			if (baseType != BaseType.Height && (baseAspect <= screenAspect || baseType == BaseType.Width))
 			{
 				size *= screenAspect / baseAspect;
 			}
-			_camera.orthographicSize = size;
+			camera.orthographicSize = size;
 		}
 
 		public CameraSizeUpdater()
 		{
-			_baseWidth = 1920f;
-			_baseHeight = 1080f;
-			_pixelPerUnit = 108f;
+			baseWidth = 1920f;
+			baseHeight = 1080f;
+			pixelPerUnit = 108f;
 		}
 	}
 }

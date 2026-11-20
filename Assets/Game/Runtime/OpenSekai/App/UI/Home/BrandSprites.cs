@@ -132,9 +132,9 @@ namespace OpenSekai.App.UI
 
         private static Sprite CreateRamp(string name, bool vertical, bool reverse)
         {
-            const int length = 256;
-            int width = vertical ? 4 : length;
-            int height = vertical ? length : 4;
+            const int LENGTH = 256;
+            int width = vertical ? 4 : LENGTH;
+            int height = vertical ? LENGTH : 4;
             var pixels = new Color32[width * height];
             // A fixed seed keeps the dither identical between runs, so screenshots stay comparable.
             var random = new System.Random(20261117);

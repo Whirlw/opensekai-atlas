@@ -13,7 +13,7 @@ namespace OpenSekai.Shared.Live.Simulation
 		/// A touch older than this is treated as this old. A stale touch can survive a pause, a
 		/// resume, or a focus loss, and without a floor it would land far outside any window.
 		/// </summary>
-		public const float MaxInputLatencySeconds = 0.25f;
+		public const float MAX_INPUT_LATENCY_SECONDS = 0.25f;
 
 		/// <summary>
 		/// The legacy formula: the wall clock delta is multiplied by one frame time, which shrinks
@@ -24,8 +24,8 @@ namespace OpenSekai.Shared.Live.Simulation
 		public static float FromLegacyClock(double frameMusicTime, double frameGameTime, double inputTime)
 		{
 			// One frame time at the judge table's fixed rate, matching the legacy formula.
-			const double OneFrameSeconds = 1d / 60d;
-			return (float)(frameMusicTime + (inputTime - frameGameTime) * OneFrameSeconds);
+			const double ONE_FRAME_SECONDS = 1d / 60d;
+			return (float)(frameMusicTime + (inputTime - frameGameTime) * ONE_FRAME_SECONDS);
 		}
 
 		/// <summary>
@@ -39,9 +39,9 @@ namespace OpenSekai.Shared.Live.Simulation
 			{
 				deltaSeconds = 0d;
 			}
-			else if (deltaSeconds < -MaxInputLatencySeconds)
+			else if (deltaSeconds < -MAX_INPUT_LATENCY_SECONDS)
 			{
-				deltaSeconds = -MaxInputLatencySeconds;
+				deltaSeconds = -MAX_INPUT_LATENCY_SECONDS;
 			}
 
 			return (float)(frameMusicTime + deltaSeconds);

@@ -12,11 +12,11 @@ namespace OpenSekai.Tests.Core
     /// </summary>
     public class SusTimingConverterTests
     {
-        private const string FixtureDirectory = "Tools/fixtures/sus-p2-6";
+        private const string FIXTURE_DIRECTORY = "Tools/fixtures/sus-p2-6";
 
         private static MusicScoreInfo[] ConvertFixture(string name)
         {
-            string path = Path.Combine(FixtureDirectory, name + ".sus");
+            string path = Path.Combine(FIXTURE_DIRECTORY, name + ".sus");
             Assert.That(File.Exists(path), Is.True, "fixture not found: " + path);
             SusChartData chart = new SusParser().Parse(File.ReadAllText(path));
             return SusTimingConverter.Convert(chart);
@@ -73,8 +73,8 @@ namespace OpenSekai.Tests.Core
             Assert.That(frames, Has.Length.EqualTo(1));
             Assert.That(frames[0].bar, Is.EqualTo(0));
             Assert.That(frames[0].barProgress, Is.EqualTo(0f).Within(0.0001f));
-            Assert.That(frames[0].bpm, Is.EqualTo(SusChartData.DefaultBpm).Within(0.001f));
-            Assert.That(frames[0].timeSignature, Is.EqualTo(SusChartData.DefaultTimeSignature).Within(0.001f));
+            Assert.That(frames[0].bpm, Is.EqualTo(SusChartData.DEFAULT_BPM).Within(0.001f));
+            Assert.That(frames[0].timeSignature, Is.EqualTo(SusChartData.DEFAULT_TIME_SIGNATURE).Within(0.001f));
         }
 
         private static MusicScoreInfo? FindFrame(MusicScoreInfo[] frames, int bar, float barProgress)

@@ -5,8 +5,9 @@ namespace Sekai
 {
 	public class FrictionNoteView : BaseNoteView
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_damageBody")]
 		[SerializeField]
-		private Sprite _damageBody;
+		private Sprite damageBody;
 
 		private Sprite _frictionBody;
 		private bool _showingDamage;
@@ -16,12 +17,12 @@ namespace Sekai
 
 		public override void Spawn(INote note, float posZ)
 		{
-			if (note is NextRushDamageNote && _damageBody != null)
+			if (note is NextRushDamageNote && damageBody != null)
 			{
 				if (!_showingDamage)
 				{
 					_frictionBody = spriteRenderer.sprite;
-					spriteRenderer.sprite = _damageBody;
+					spriteRenderer.sprite = damageBody;
 					if (centerIconRenderer != null) centerIconRenderer.enabled = false;
 					_showingDamage = true;
 				}

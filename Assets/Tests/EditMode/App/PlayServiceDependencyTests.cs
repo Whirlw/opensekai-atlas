@@ -19,7 +19,7 @@ namespace OpenSekai.Tests.EditMode
     /// </summary>
     public sealed class PlayServiceDependencyTests
     {
-        private static readonly string FixtureDirectory = Path.GetFullPath("Tools/fixtures/baseline_tap");
+        private static readonly string _fixtureDirectory = Path.GetFullPath("Tools/fixtures/baseline_tap");
 
         private FakeSurface _surface;
         private FakeBootPublisher _boot;
@@ -82,7 +82,7 @@ namespace OpenSekai.Tests.EditMode
         public async System.Threading.Tasks.Task ARequestThatTargetsAnotherReturnSceneIsRefused()
         {
             PlayStartResult result = await _service.StartAsync(
-                new PlayRequest(FixtureDirectory, false, SceneManager.Scene.Core), CancellationToken.None);
+                new PlayRequest(_fixtureDirectory, false, SceneManager.Scene.Core), CancellationToken.None);
 
             Assert.That(result.Status, Is.EqualTo(PlayStartStatus.Failed));
             Assert.That(result.Message, Is.EqualTo("无法从当前场景开始游玩。"));
@@ -108,7 +108,7 @@ namespace OpenSekai.Tests.EditMode
             _boot.State = new LiveBootState(null, PlayMode.None);
             _surface.FailOnPush = true;
 
-            PlayStartResult result = await _service.StartAsync(Request(FixtureDirectory), CancellationToken.None);
+            PlayStartResult result = await _service.StartAsync(Request(_fixtureDirectory), CancellationToken.None);
 
             Assert.That(result.Status, Is.EqualTo(PlayStartStatus.Failed));
             Assert.That(_boot.PublishCount, Is.EqualTo(1));
@@ -139,7 +139,7 @@ namespace OpenSekai.Tests.EditMode
         [Test]
         public async System.Threading.Tasks.Task AStartedLiveKeepsTheLockUntilTheSceneExitsAndAllowsTheNextOne()
         {
-            PlayStartResult first = await _service.StartAsync(Request(FixtureDirectory), CancellationToken.None);
+            PlayStartResult first = await _service.StartAsync(Request(_fixtureDirectory), CancellationToken.None);
 
             Assert.That(first.Status, Is.EqualTo(PlayStartStatus.Started));
             Assert.That(_boot.PublishCount, Is.EqualTo(1));
@@ -153,7 +153,7 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(published, Is.Not.Null);
             Assert.That(published.DeckData.UserInfo.DeckId, Is.EqualTo(7));
 
-            PlayStartResult whileRunning = await _service.StartAsync(Request(FixtureDirectory), CancellationToken.None);
+            PlayStartResult whileRunning = await _service.StartAsync(Request(_fixtureDirectory), CancellationToken.None);
             Assert.That(whileRunning.Status, Is.EqualTo(PlayStartStatus.Busy));
 
             _surface.RaiseSceneExit();
@@ -162,7 +162,7 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(_surface.SceneExitHandlers, Is.Zero);
             Assert.That(_surface.UnsubscribeCount, Is.EqualTo(1));
 
-            PlayStartResult second = await _service.StartAsync(Request(FixtureDirectory), CancellationToken.None);
+            PlayStartResult second = await _service.StartAsync(Request(_fixtureDirectory), CancellationToken.None);
             Assert.That(second.Status, Is.EqualTo(PlayStartStatus.Started));
             Assert.That(_boot.PublishCount, Is.EqualTo(2));
             Assert.That(_surface.SubscribeCount, Is.EqualTo(2));
@@ -195,14 +195,14 @@ namespace OpenSekai.Tests.EditMode
         {
             PlayHistoryRecorder.Current = null;
 
-            PlayStartResult result = await _service.StartAsync(Request(FixtureDirectory), CancellationToken.None);
+            PlayStartResult result = await _service.StartAsync(Request(_fixtureDirectory), CancellationToken.None);
 
             Assert.That(result.Status, Is.EqualTo(PlayStartStatus.Started));
             Assert.That(PlayHistoryRecorder.Current, Is.SameAs(_playHistory));
         }
 
         private static PlayRequest Request()
-            => Request(FixtureDirectory);
+            => Request(_fixtureDirectory);
 
         [TestCase(true, true, PlayStartStatus.Started)]
         [TestCase(false, true, PlayStartStatus.Failed)]
@@ -214,10 +214,10 @@ namespace OpenSekai.Tests.EditMode
                 "OpenSekai-visual-playback-" + Guid.NewGuid().ToString("N"))).FullName;
             try
             {
-                var manifest = JObject.Parse(File.ReadAllText(Path.Combine(FixtureDirectory, "manifest.json")));
+                var manifest = JObject.Parse(File.ReadAllText(Path.Combine(_fixtureDirectory, "manifest.json")));
                 manifest["chartFormat"] = "next-rush";
                 File.WriteAllText(Path.Combine(directory, "manifest.json"), manifest.ToString());
-                File.Copy(Path.Combine(FixtureDirectory, "audio.wav"), Path.Combine(directory, "audio.wav"));
+                File.Copy(Path.Combine(_fixtureDirectory, "audio.wav"), Path.Combine(directory, "audio.wav"));
                 var entities = JArray.Parse(@"[
                     {'archetype':'Initialization','data':[{'name':'revision','value':2}]},
                     {'archetype':'#BPM_CHANGE','data':[{'name':'#BEAT','value':0},{'name':'#BPM','value':120}]}

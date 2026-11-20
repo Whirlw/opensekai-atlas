@@ -4,17 +4,21 @@ namespace Sekai
 {
 	public class NoteShowRateView : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_hideAreaView")]
 		[SerializeField]
-		private SpriteRenderer _hideAreaView;
+		private SpriteRenderer hideAreaView;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_showLine")]
 		[SerializeField]
-		private SpriteRenderer _showLine;
+		private SpriteRenderer showLine;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_minShowLineSize")]
 		[SerializeField]
-		private Vector2 _minShowLineSize;
+		private Vector2 minShowLineSize;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_maxShowLineSize")]
 		[SerializeField]
-		private Vector2 _maxShowLineSize;
+		private Vector2 maxShowLineSize;
 
 		private Material _material;
 
@@ -25,7 +29,7 @@ namespace Sekai
 				gameObject.SetActive(false);
 				return;
 			}
-			float settingsRate = 1f - liveSetting._noteShowRate;
+			float settingsRate = liveSetting.NoteShowRate;
 			if (Mathf.Approximately(settingsRate, 1f))
 			{
 				gameObject.SetActive(false);
@@ -34,14 +38,14 @@ namespace Sekai
 
 			Vector2 position = LiveUtility.CalcNoteShowRatePosition(settingsRate);
 			float progress = LiveUtility.CalcNoteShowRate(position);
-			if (_showLine != null)
+			if (showLine != null)
 			{
 				float t = Mathf.Clamp01(settingsRate);
-				_showLine.size = Vector2.Lerp(_maxShowLineSize, _minShowLineSize, t);
-				_showLine.transform.localPosition = new Vector3(0f, position.y + _showLine.size.y * 0.5f, 0f);
+				showLine.size = Vector2.Lerp(maxShowLineSize, minShowLineSize, t);
+				showLine.transform.localPosition = new Vector3(0f, position.y + showLine.size.y * 0.5f, 0f);
 			}
 
-			if (_hideAreaView != null)
+			if (hideAreaView != null)
 			{
 				if (_material == null)
 				{
@@ -53,7 +57,7 @@ namespace Sekai
 				}
 				if (_material != null)
 				{
-					_hideAreaView.material = _material;
+					hideAreaView.material = _material;
 					_material.SetFloat("_NoteShowRate", progress);
 				}
 			}
@@ -66,9 +70,9 @@ namespace Sekai
 			{
 				Destroy(_material);
 				_material = null;
-				if (_hideAreaView != null)
+				if (hideAreaView != null)
 				{
-					_hideAreaView.material = null;
+					hideAreaView.material = null;
 				}
 			}
 		}

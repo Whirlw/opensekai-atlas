@@ -106,7 +106,7 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>How long past the end of the timeline a live may stay open before it is ended by force.</summary>
-		private const long StalledFinishGraceMs = 3000L;
+		private const long STALLED_FINISH_GRACE_MS = 3000L;
 
 		private long IntroSkipTargetMs => (long)System.Math.Floor(timelineSpan.IntroSkipTargetSeconds * 1000d);
 
@@ -157,7 +157,7 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>Cuts the rest of the music and plays the result effect now, then the usual fade to the result.</summary>
-		private void SkipOutro()
+		internal void SkipOutro()
 		{
 			HideSkip();
 			if (state != LiveControllerState.Finish || !_resultEffectPending)
@@ -217,12 +217,12 @@ namespace Sekai.Core.Live
 			{
 				_liveLogic?.OnInput();
 			}
-			if (_liveLogic?.result == 2 && _liveLogic.IsNotesAllFinished)
+			if (_liveLogic?.Result == 2 && _liveLogic.IsNotesAllFinished)
 			{
 				OnFinished();
 			}
 			else if (!_forcedFinish && state == LiveControllerState.Playing && _liveLogic != null
-				&& !_liveLogic.IsNotesAllFinished && currentMusicTimeMs > TimelineEndMs + StalledFinishGraceMs)
+				&& !_liveLogic.IsNotesAllFinished && currentMusicTimeMs > TimelineEndMs + STALLED_FINISH_GRACE_MS)
 			{
 				// The clock is well past the last note and the music, and something is still open: a
 				// note whose state never reached Done. End the live rather than leave it hanging, and
@@ -416,16 +416,16 @@ namespace Sekai.Core.Live
 			_liveLogic?.ConnectorAudio.Reset();
 			if (_liveLogic != null)
 			{
-				_liveLogic.OnFinished -= OnFinished;
-				_liveLogic.OnFailure -= OnFailure;
+				_liveLogic.Finished -= OnFinished;
+				_liveLogic.Failed -= OnFailed;
 			}
 
 			_liveLogic = new LiveLogic(liveBundleBuildData);
 			_liveLogic.Setup(BootData, _liveViews);
 			_liveLogic.SetSkillLogic(new SkillLogic());
 			_liveLogic.SetScoreLogic(new ScoreLogic(liveBundleBuildData));
-			_liveLogic.OnFinished += OnFinished;
-			_liveLogic.OnFailure += OnFailure;
+			_liveLogic.Finished += OnFinished;
+			_liveLogic.Failed += OnFailed;
 		}
 
 		protected override void OnRetire()
@@ -436,7 +436,7 @@ namespace Sekai.Core.Live
 			PreExit(0f, 4f);
 		}
 
-		private void OnRetireByMySelf()
+		internal void OnRetireByMySelf()
 		{
 			_retiredByPlayer = true;
 			liveOutUIController?.Destroy();
@@ -488,7 +488,7 @@ namespace Sekai.Core.Live
 			base.OnDestroy();
 		}
 
-		private void OnFailure()
+		private void OnFailed()
 		{
 			// Only while the audio drives the clock: before and after it the timer reads 0, which used
 			// to throw the clock back to the start of the song.
@@ -594,8 +594,8 @@ namespace Sekai.Core.Live
 			}
 			if (_liveLogic != null)
 			{
-				_liveLogic.OnFinished -= OnFinished;
-				_liveLogic.OnFailure -= OnFailure;
+				_liveLogic.Finished -= OnFinished;
+				_liveLogic.Failed -= OnFailed;
 			}
 			_resultEffectPending = true;
 			_resultEffectAtMs = resultEffectAtMs;

@@ -18,7 +18,7 @@ namespace OpenSekai.Shared.Conversion
 	/// </remarks>
 	public sealed class SusParser
 	{
-		private const int LaneColumn = 13;
+		private const int LANE_COLUMN = 13;
 
 		private SusChartData _chart;
 
@@ -81,7 +81,7 @@ namespace OpenSekai.Shared.Conversion
 			Match match = SusTokens.BpmRegex.Match(lineStr);
 			if (match.Success)
 			{
-				_chart.BpmTable[match.Groups["bpm_id"].Value] = SusTokens.ParseFloat(match.Groups["bpm"].Value, SusChartData.DefaultBpm);
+				_chart.BpmTable[match.Groups["bpm_id"].Value] = SusTokens.ParseFloat(match.Groups["bpm"].Value, SusChartData.DEFAULT_BPM);
 			}
 		}
 
@@ -93,7 +93,7 @@ namespace OpenSekai.Shared.Conversion
 				_chart.HighSpeedInfos.Add(new HighSpeedInfo(
 					SusTokens.ParseInt(match.Groups["barIndex"].Value, 0),
 					SusTokens.ParseInt(match.Groups["tickOffset"].Value, 0),
-					SusTokens.ParseFloat(match.Groups["speedRatio"].Value, SusChartData.DefaultSpeedRatio)));
+					SusTokens.ParseFloat(match.Groups["speedRatio"].Value, SusChartData.DEFAULT_SPEED_RATIO)));
 			}
 		}
 
@@ -105,7 +105,7 @@ namespace OpenSekai.Shared.Conversion
 				_chart.VolumeInfos.Add(new VolumeInfo(
 					SusTokens.ParseInt(match.Groups["barIndex"].Value, 0),
 					SusTokens.ParseInt(match.Groups["tickOffset"].Value, 0),
-					SusTokens.ParseFloat(match.Groups["volume"].Value, SusChartData.DefaultSeVolume)));
+					SusTokens.ParseFloat(match.Groups["volume"].Value, SusChartData.DEFAULT_SE_VOLUME)));
 			}
 		}
 
@@ -160,7 +160,7 @@ namespace OpenSekai.Shared.Conversion
 			{
 				return;
 			}
-			_chart.TimeSignatures.Add(new TimeSignatureInfo(SusTokens.ParseFloat(data, SusChartData.DefaultTimeSignature), bar));
+			_chart.TimeSignatures.Add(new TimeSignatureInfo(SusTokens.ParseFloat(data, SusChartData.DEFAULT_TIME_SIGNATURE), bar));
 		}
 
 		private void CreateBpmEventBarData(int bar, string[] values)
@@ -200,9 +200,9 @@ namespace OpenSekai.Shared.Conversion
 				int noteCode = SusTokens.ParseSusDigit(value[0]);
 				int width = value.Length > 1 ? SusTokens.GetNoteWidth(value[1].ToString()) : -1;
 				float barProgress = i / (float)values.Length;
-				float speedRatio = speedRatios != null && i < speedRatios.Length ? speedRatios[i] : SusChartData.DefaultSpeedRatio;
+				float speedRatio = speedRatios != null && i < speedRatios.Length ? speedRatios[i] : SusChartData.DEFAULT_SPEED_RATIO;
 
-				if (lane == LaneColumn && laneType == 1)
+				if (lane == LANE_COLUMN && laneType == 1)
 				{
 					if (noteCode == 1)
 					{
@@ -341,7 +341,7 @@ namespace OpenSekai.Shared.Conversion
 
 		private void AddNoteInfo(int bar, float barProgress, int lane, int width, NoteCategory category, float speedRatio, NoteType type = NoteType.Default, NoteDirection direction = NoteDirection.Default, NoteLineType lineType = NoteLineType.Linear, int longNo = -1)
 		{
-			if (width == -1 || lane < 0 || width + lane >= LaneColumn)
+			if (width == -1 || lane < 0 || width + lane >= LANE_COLUMN)
 			{
 				return;
 			}

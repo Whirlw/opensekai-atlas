@@ -24,7 +24,7 @@ namespace Sekai.EditorTools
 
 		// Bundles the lightweight player actually loads. Everything else in the project is
 		// full-game content and must not leak into the lite build (plan §9.3).
-		private static readonly string[] LightweightBundleWhitelist =
+		private static readonly string[] _lightweightBundleWhitelist =
 		{
 			"effect_asset/live/result/default",
 			"effect_asset/live/tap_effect/0",
@@ -56,13 +56,13 @@ namespace Sekai.EditorTools
 			// project without a catalog. Bail out before touching anything.
 			if (EditorApplication.isPlaying || EditorApplication.isPlayingOrWillChangePlaymode)
 			{
-				const string playingMessage = "AssetBundles cannot be rebuilt while in play mode. Exit play mode first; Assets/StreamingAssets/data was left untouched.";
+				const string PLAYING_MESSAGE = "AssetBundles cannot be rebuilt while in play mode. Exit play mode first; Assets/StreamingAssets/data was left untouched.";
 				if (failWhenNoBundles)
 				{
-					throw new BuildFailedException(playingMessage);
+					throw new BuildFailedException(PLAYING_MESSAGE);
 				}
 
-				Debug.LogError(playingMessage);
+				Debug.LogError(PLAYING_MESSAGE);
 				return false;
 			}
 
@@ -114,7 +114,7 @@ namespace Sekai.EditorTools
 
 		private static AssetBundleBuild[] CreateLightweightBuilds(string[] configuredBundleNames, out int skippedBundleCount)
 		{
-			var whitelist = new HashSet<string>(LightweightBundleWhitelist, StringComparer.OrdinalIgnoreCase);
+			var whitelist = new HashSet<string>(_lightweightBundleWhitelist, StringComparer.OrdinalIgnoreCase);
 			var builds = new List<AssetBundleBuild>();
 			skippedBundleCount = 0;
 

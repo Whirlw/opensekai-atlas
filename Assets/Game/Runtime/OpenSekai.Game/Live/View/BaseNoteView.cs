@@ -5,7 +5,7 @@ namespace Sekai
 {
 	public abstract class BaseNoteView : MonoBehaviour
 	{
-		private static readonly int NoteShowRateId = Shader.PropertyToID("_NoteShowRate");
+		private static readonly int _noteShowRateId = Shader.PropertyToID("_NoteShowRate");
 
 		[SerializeField]
 		protected SpriteRenderer spriteRenderer;
@@ -173,7 +173,7 @@ namespace Sekai
 				Material material = renderer.material;
 				if (material != null)
 				{
-					material.SetFloat(NoteShowRateId, noteShowRate);
+					material.SetFloat(_noteShowRateId, noteShowRate);
 				}
 			}
 		}

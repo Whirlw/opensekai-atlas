@@ -18,10 +18,10 @@ namespace OpenSekai.App.UI
     /// </summary>
     internal sealed class LibraryPreview : MonoBehaviour
     {
-        private const float PreviewLength = 15f;
+        private const float PREVIEW_LENGTH = 15f;
 
         /// <summary>Old previews allowed to fade at once; with the current one that is four layers.</summary>
-        private const int MaxFading = 3;
+        private const int MAX_FADING = 3;
 
         private readonly List<Voice> _fading = new List<Voice>();
         private readonly Stack<AudioSource> _freeSources = new Stack<AudioSource>();
@@ -85,7 +85,7 @@ namespace OpenSekai.App.UI
                 _current = null;
             }
 
-            while (_fading.Count > MaxFading)
+            while (_fading.Count > MAX_FADING)
             {
                 int quietest = 0;
                 for (int i = 1; i < _fading.Count; i++)
@@ -131,7 +131,7 @@ namespace OpenSekai.App.UI
                 source.volume = 0f;
                 source.timeSamples = Mathf.Min(clip.samples - 1, Mathf.FloorToInt(start * clip.frequency));
                 source.Play();
-                _current = new Voice(source, clip, start, Mathf.Min(start + PreviewLength, clip.length), lufs);
+                _current = new Voice(source, clip, start, Mathf.Min(start + PREVIEW_LENGTH, clip.length), lufs);
                 clip = null;
                 _detail.SetPreviewProgress(0f);
             }
@@ -160,7 +160,7 @@ namespace OpenSekai.App.UI
                 return manifestStart;
             }
 
-            return clipLength > PreviewLength ? (clipLength - PreviewLength) * 0.5f : 0f;
+            return clipLength > PREVIEW_LENGTH ? (clipLength - PREVIEW_LENGTH) * 0.5f : 0f;
         }
 
         private void Update()

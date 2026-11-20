@@ -7,7 +7,8 @@ namespace OpenSekai.Charts
     public class ChartPlaybackEvent
     {
         public MusicScoreInfo MusicScoreInfo { get; set; }
-        [JsonIgnore] public virtual bool IsSkillOrFever => false;
+        [JsonIgnore]
+        public virtual bool IsSkillOrFever => false;
         public ChartPlaybackEvent Copy() => new ChartPlaybackEvent { MusicScoreInfo = MusicScoreInfo };
     }
 

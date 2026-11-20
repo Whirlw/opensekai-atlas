@@ -21,8 +21,8 @@ namespace OpenSekai.EditorTools
     /// </summary>
     public static class PaintKit
     {
-        private const string KitRoot = "LocalPacks/paint-kit";
-        private const string ManifestPath = KitRoot + "/manifest.csv";
+        private const string KIT_ROOT = "LocalPacks/paint-kit";
+        private const string MANIFEST_PATH = KIT_ROOT + "/manifest.csv";
 
         /// <summary>
         /// Set before calling <see cref="ApplyPainted"/> to apply a delivery that came back with its own
@@ -31,9 +31,9 @@ namespace OpenSekai.EditorTools
         public static string OverrideManifestPath;
 
         private static string Manifest =>
-            string.IsNullOrEmpty(OverrideManifestPath) ? ManifestPath : OverrideManifestPath;
+            string.IsNullOrEmpty(OverrideManifestPath) ? MANIFEST_PATH : OverrideManifestPath;
 
-        private static readonly string[] LiveRoots =
+        private static readonly string[] _liveRoots =
         {
             "Assets/Graphics/Resources/live",
             "Assets/Graphics/Resources/effects"
@@ -42,14 +42,14 @@ namespace OpenSekai.EditorTools
         [MenuItem("OpenSekai/Paint Kit/1. Export live sprites", false, 200)]
         public static void ExportLive()
         {
-            Export(LiveRoots, "hud");
+            Export(_liveRoots, "hud");
         }
 
         /// <summary>
         /// 2D-mode backdrop and the large UI backgrounds live outside the live prefabs, so they never
         /// reached the first export. They are single big textures, not atlas sprites.
         /// </summary>
-        private static readonly string[] BackgroundRoots =
+        private static readonly string[] _backgroundRoots =
         {
             "Assets/Game/AssetBundles/resources/startapp/live/2dmode",
             "Assets/Graphics/Resources/commonbg",
@@ -60,14 +60,14 @@ namespace OpenSekai.EditorTools
         [MenuItem("OpenSekai/Paint Kit/3. Export backgrounds", false, 202)]
         public static void ExportBackgrounds()
         {
-            ExportFolder(BackgroundRoots, "backgrounds", KitRoot + "/manifest_backgrounds.csv");
+            ExportFolder(_backgroundRoots, "backgrounds", KIT_ROOT + "/manifest_backgrounds.csv");
         }
 
         /// <summary>
         /// The result banners and the live effect sheets are bundle-only art: no prefab in Resources
         /// points at them, so they too arrive by name at runtime.
         /// </summary>
-        private static readonly string[] EffectRoots =
+        private static readonly string[] _effectRoots =
         {
             "Assets/Game/AssetBundles/resources/tutorial/effect_asset",
             "Assets/Game/AssetBundles/resources/startapp/live/note_preview"
@@ -76,7 +76,7 @@ namespace OpenSekai.EditorTools
         [MenuItem("OpenSekai/Paint Kit/4. Export result and effect art", false, 203)]
         public static void ExportEffects()
         {
-            ExportFolder(EffectRoots, "effects", KitRoot + "/manifest_effects.csv");
+            ExportFolder(_effectRoots, "effects", KIT_ROOT + "/manifest_effects.csv");
         }
 
         /// <summary>
@@ -85,7 +85,7 @@ namespace OpenSekai.EditorTools
         /// </summary>
         private static void ExportFolder(string[] roots, string group, string manifestPath)
         {
-            string outDir = Path.Combine(KitRoot, group);
+            string outDir = Path.Combine(KIT_ROOT, group);
             Directory.CreateDirectory(outDir);
             var manifest = new StringBuilder();
             manifest.AppendLine("file\ttexture\trectX\trectY\twidth\theight\tborderX\tborderY\tborderZ\tborderW\tppu\tmode");
@@ -303,7 +303,7 @@ namespace OpenSekai.EditorTools
                 }
             }
 
-            string outDir = Path.Combine(KitRoot, group);
+            string outDir = Path.Combine(KIT_ROOT, group);
             Directory.CreateDirectory(outDir);
             var manifest = new StringBuilder();
             manifest.AppendLine("file\ttexture\trectX\trectY\twidth\theight\tborderX\tborderY\tborderZ\tborderW\tppu\tmode");
@@ -369,7 +369,7 @@ namespace OpenSekai.EditorTools
                 written++;
             }
 
-            Directory.CreateDirectory(KitRoot);
+            Directory.CreateDirectory(KIT_ROOT);
             File.WriteAllText(Manifest, manifest.ToString(), new UTF8Encoding(false));
             Debug.Log($"[PaintKit] exported {written} files to {outDir}, manifest {Manifest}");
         }

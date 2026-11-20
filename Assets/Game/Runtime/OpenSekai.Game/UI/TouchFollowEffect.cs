@@ -4,28 +4,30 @@ namespace Sekai.UI
 {
 	public class TouchFollowEffect : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_particles")]
 		[SerializeField]
-		private ParticleSystem[] _particles;
+		private ParticleSystem[] particles;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_root")]
 		[SerializeField]
-		private Transform _root;
+		private Transform root;
 
 		public Transform Root
 		{
 			get
 			{
-				return _root;
+				return root;
 			}
 		}
 
 		public void StartEffect()
 		{
-			if (_particles == null)
+			if (particles == null)
 			{
 				return;
 			}
 
-			foreach (ParticleSystem particle in _particles)
+			foreach (ParticleSystem particle in particles)
 			{
 				if (particle == null)
 				{
@@ -45,12 +47,12 @@ namespace Sekai.UI
 
 		public void EndEffect()
 		{
-			if (_particles == null)
+			if (particles == null)
 			{
 				return;
 			}
 
-			foreach (ParticleSystem particle in _particles)
+			foreach (ParticleSystem particle in particles)
 			{
 				if (particle == null)
 				{
@@ -66,12 +68,12 @@ namespace Sekai.UI
 
 		public void StopEffect()
 		{
-			if (_particles == null)
+			if (particles == null)
 			{
 				return;
 			}
 
-			foreach (ParticleSystem particle in _particles)
+			foreach (ParticleSystem particle in particles)
 			{
 				if (particle == null)
 				{

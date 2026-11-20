@@ -8,29 +8,37 @@ namespace Sekai
 {
 	public class JudgmentView : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_miss")]
 		[SerializeField]
-		private Sprite _miss;
+		private Sprite miss;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_bad")]
 		[SerializeField]
-		private Sprite _bad;
+		private Sprite bad;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_good")]
 		[SerializeField]
-		private Sprite _good;
+		private Sprite good;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_great")]
 		[SerializeField]
-		private Sprite _great;
+		private Sprite great;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_perfect")]
 		[SerializeField]
-		private Sprite _perfect;
+		private Sprite perfect;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_justPerfect")]
 		[SerializeField]
-		private Sprite _justPerfect;
+		private Sprite justPerfect;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_auto")]
 		[SerializeField]
-		private Sprite _auto;
+		private Sprite auto;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_spriteRenderer")]
 		[SerializeField]
-		private SpriteRenderer _spriteRenderer;
+		private SpriteRenderer spriteRenderer;
 
 		private Dictionary<NoteResult, Sprite> _sprites;
 
@@ -54,15 +62,15 @@ namespace Sekai
 		private void InitSprites()
 		{
 			bool useFakePerfect = LiveSettingsStore.Shared.Load()?.UsesAutoFakePerfectMode ?? false;
-			Sprite autoSprite = useFakePerfect ? _perfect : _auto;
+			Sprite autoSprite = useFakePerfect ? perfect : auto;
 			_sprites = new Dictionary<NoteResult, Sprite>
 			{
-				{ NoteResult.Miss, _miss },
-				{ NoteResult.Bad, _bad },
-				{ NoteResult.Good, _good },
-				{ NoteResult.Great, _great },
-				{ NoteResult.Perfect, _perfect },
-				{ NoteResult.JustPerfect, _perfect },
+				{ NoteResult.Miss, miss },
+				{ NoteResult.Bad, bad },
+				{ NoteResult.Good, good },
+				{ NoteResult.Great, great },
+				{ NoteResult.Perfect, perfect },
+				{ NoteResult.JustPerfect, perfect },
 				{ NoteResult.Auto, autoSprite }
 			};
 		}
@@ -94,41 +102,41 @@ namespace Sekai
 				_frameResult = worst;
 			}
 
-			if (_sprites == null || !_sprites.TryGetValue(_frameResult, out Sprite sprite) || _spriteRenderer == null)
+			if (_sprites == null || !_sprites.TryGetValue(_frameResult, out Sprite sprite) || spriteRenderer == null)
 			{
 				return false;
 			}
 
-			_spriteRenderer.sprite = sprite;
+			spriteRenderer.sprite = sprite;
 			_time = 0f;
-			_spriteRenderer.transform.localScale = Vector3.zero;
+			spriteRenderer.transform.localScale = Vector3.zero;
 			return true;
 		}
 
 		private void Update()
 		{
-			if (_spriteRenderer == null)
+			if (spriteRenderer == null)
 			{
 				return;
 			}
 			if (_time > 0.3f)
 			{
-				_spriteRenderer.transform.localScale = Vector3.zero;
+				spriteRenderer.transform.localScale = Vector3.zero;
 				return;
 			}
 			float t = Mathf.Clamp01(_time * 20f);
 			float inv = 1f - t;
 			float scale = 1f - inv * inv * inv;
-			_spriteRenderer.transform.localScale = Vector3.one * scale;
+			spriteRenderer.transform.localScale = Vector3.one * scale;
 			_time += Time.deltaTime;
 		}
 
 		private void Hide()
 		{
 			_time = 1f;
-			if (_spriteRenderer != null)
+			if (spriteRenderer != null)
 			{
-				_spriteRenderer.transform.localScale = Vector3.zero;
+				spriteRenderer.transform.localScale = Vector3.zero;
 			}
 		}
 

@@ -27,7 +27,7 @@ namespace OpenSekai.App.UI
         private const int HEADER_LENGTH = 12;
 
         // "OSJT": a stored thumbnail is this tag, the accent and glow colors, then a PNG.
-        private static readonly byte[] Magic = { 0x4F, 0x53, 0x4A, 0x54 };
+        private static readonly byte[] _magic = { 0x4F, 0x53, 0x4A, 0x54 };
 
         private readonly string _cacheDirectory;
         private readonly int _size;
@@ -253,9 +253,9 @@ namespace OpenSekai.App.UI
                 return false;
             }
 
-            for (int i = 0; i < Magic.Length; i++)
+            for (int i = 0; i < _magic.Length; i++)
             {
-                if (bytes[i] != Magic[i])
+                if (bytes[i] != _magic[i])
                 {
                     return false;
                 }
@@ -272,7 +272,7 @@ namespace OpenSekai.App.UI
         private static byte[] BuildStored(JacketPalette palette, byte[] image)
         {
             var bytes = new byte[HEADER_LENGTH + image.Length];
-            Buffer.BlockCopy(Magic, 0, bytes, 0, Magic.Length);
+            Buffer.BlockCopy(_magic, 0, bytes, 0, _magic.Length);
             Color32 accent = palette.Accent;
             Color32 glow = palette.Glow;
             bytes[4] = accent.r;

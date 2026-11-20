@@ -354,10 +354,10 @@ namespace OpenSekai.App.UI
             });
         }
 
-        private void PlayFromServer(string packageDirectory, string title, bool isAuto, TemporarySongPackage temporary)
+        private void OnServerPlayRequested(ServerScreen.PlayRequest request)
         {
-            if (_navigating || _server == null || (temporary == null && string.IsNullOrEmpty(packageDirectory))) return;
-            StartServerLive(packageDirectory, title, isAuto, temporary).Forget();
+            if (_navigating || _server == null || (request.Temporary == null && string.IsNullOrEmpty(request.PackageDirectory))) return;
+            StartServerLive(request.PackageDirectory, request.Title, request.IsAuto, request.Temporary).Forget();
         }
 
         private async UniTaskVoid StartServerLive(string packageDirectory, string title, bool isAuto, TemporarySongPackage temporary)
@@ -464,7 +464,7 @@ namespace OpenSekai.App.UI
         private void BindServer()
         {
             _server.BackRequested += ReturnFromServer;
-            _server.PlayRequested += PlayFromServer;
+            _server.PlayRequested += OnServerPlayRequested;
             _server.LibraryChanged += OnServerImported;
         }
 
@@ -503,6 +503,7 @@ namespace OpenSekai.App.UI
         {
             _library?.Refresh();
             RefreshLibrarySummary();
+            Debug.Log("[HomeScreen] Library refreshed after server import.");
         }
 
         private void ShowHome()
@@ -818,7 +819,7 @@ namespace OpenSekai.App.UI
             if (_server != null)
             {
                 _server.BackRequested -= ReturnFromServer;
-                _server.PlayRequested -= PlayFromServer;
+                _server.PlayRequested -= OnServerPlayRequested;
                 _server.LibraryChanged -= OnServerImported;
             }
 

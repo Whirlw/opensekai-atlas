@@ -5,36 +5,38 @@ namespace Sekai
 {
 	public class UIPartsMusicDifficulty : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_defaultImage")]
 		[SerializeField]
-		private CustomImage _defaultImage;
+		private CustomImage defaultImage;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_appendObject")]
 		[SerializeField]
-		private GameObject _appendObject;
+		private GameObject appendObject;
 
 		public void Setup(MusicDifficulty musicDifficulty)
 		{
 			bool isAppend = musicDifficulty == MusicDifficulty.append;
 			if (isAppend)
 			{
-				if (_defaultImage != null)
+				if (defaultImage != null)
 				{
-					_defaultImage.SetActive(false);
+					defaultImage.SetActive(false);
 				}
-				if (_appendObject != null)
+				if (appendObject != null)
 				{
-					_appendObject.SetActive(true);
+					appendObject.SetActive(true);
 				}
 				return;
 			}
 
-			if (_defaultImage != null)
+			if (defaultImage != null)
 			{
-				_defaultImage.color = ColorUtility.GetDifficultyColor(musicDifficulty);
-				_defaultImage.SetActive(true);
+				defaultImage.color = ColorUtility.GetDifficultyColor(musicDifficulty);
+				defaultImage.SetActive(true);
 			}
-			if (_appendObject != null)
+			if (appendObject != null)
 			{
-				_appendObject.SetActive(false);
+				appendObject.SetActive(false);
 			}
 		}
 
@@ -50,9 +52,9 @@ namespace Sekai
 		public virtual void Show()
 		{
 			gameObject.SetActive(true);
-			if (_defaultImage != null)
+			if (defaultImage != null)
 			{
-				_defaultImage.gameObject.SetActive(true);
+				defaultImage.gameObject.SetActive(true);
 			}
 		}
 

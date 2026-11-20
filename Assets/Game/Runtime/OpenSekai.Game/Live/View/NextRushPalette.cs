@@ -5,7 +5,7 @@ namespace Sekai
 {
 	internal static class NextRushPalette
 	{
-		private static readonly int Property = Shader.PropertyToID("_NextRushPalette");
+		private static readonly int _property = Shader.PropertyToID("_NextRushPalette");
 
 		internal static void Apply(Renderer[] renderers, int style, ref int previous, ref MaterialPropertyBlock block)
 		{
@@ -17,7 +17,7 @@ namespace Sekai
 			{
 				if (renderer == null) continue;
 				renderer.GetPropertyBlock(block);
-				block.SetColor(Property, color);
+				block.SetColor(_property, color);
 				renderer.SetPropertyBlock(block);
 			}
 		}

@@ -12,7 +12,7 @@ namespace CP
 	/// </summary>
 	public class BinarySerializer
 	{
-		private static readonly JsonSerializerSettings Settings = new JsonSerializerSettings
+		private static readonly JsonSerializerSettings _settings = new JsonSerializerSettings
 		{
 			Formatting = Formatting.None,
 			NullValueHandling = NullValueHandling.Ignore,
@@ -27,7 +27,7 @@ namespace CP
 
 		public static byte[] Serialize<T>(T data)
 		{
-			string json = JsonConvert.SerializeObject(data, Settings);
+			string json = JsonConvert.SerializeObject(data, _settings);
 			return Encoding.UTF8.GetBytes(json);
 		}
 
@@ -51,7 +51,7 @@ namespace CP
 			}
 
 			string json = Encoding.UTF8.GetString(bytes);
-			return JsonConvert.DeserializeObject<T>(json, Settings);
+			return JsonConvert.DeserializeObject<T>(json, _settings);
 		}
 	}
 }

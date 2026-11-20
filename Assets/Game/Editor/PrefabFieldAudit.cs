@@ -22,14 +22,14 @@ namespace Sekai.EditorTools
     {
         // The bundles are the ones that silently keep old field names; the note prefabs moved to
         // Resources after that same class of bug shipped to the device, so they are audited too.
-        private static readonly string[] Roots =
+        private static readonly string[] _roots =
         {
             "Assets/Game/AssetBundles",
             "Assets/Game/Resources/live/note"
         };
-        private const string ReportPath = "Logs/prefab-field-audit.txt";
+        private const string REPORT_PATH = "Logs/prefab-field-audit.txt";
 
-        private static readonly HashSet<string> UnityManagedKeys = new HashSet<string>(StringComparer.Ordinal)
+        private static readonly HashSet<string> _unityManagedKeys = new HashSet<string>(StringComparer.Ordinal)
         {
             "m_ObjectHideFlags",
             "m_CorrespondingSourceObject",
@@ -43,9 +43,9 @@ namespace Sekai.EditorTools
             "m_EditorClassIdentifier"
         };
 
-        private static readonly Regex ComponentStart = new Regex(@"^--- !u!(\d+) &(-?\d+)", RegexOptions.Compiled);
-        private static readonly Regex ScriptGuid = new Regex(@"m_Script:\s*\{fileID:\s*-?\d+,\s*guid:\s*([0-9a-f]{32})", RegexOptions.Compiled);
-        private static readonly Regex DirectKey = new Regex(@"^  ([A-Za-z_][A-Za-z0-9_]*):", RegexOptions.Compiled);
+        private static readonly Regex _componentStart = new Regex(@"^--- !u!(\d+) &(-?\d+)", RegexOptions.Compiled);
+        private static readonly Regex _scriptGuid = new Regex(@"m_Script:\s*\{fileID:\s*-?\d+,\s*guid:\s*([0-9a-f]{32})", RegexOptions.Compiled);
+        private static readonly Regex _directKey = new Regex(@"^  ([A-Za-z_][A-Za-z0-9_]*):", RegexOptions.Compiled);
 
         [MenuItem("OpenSekai/Audit/Prefab Serialized Fields")]
         public static void RunFromMenu()
@@ -57,11 +57,11 @@ namespace Sekai.EditorTools
         public static string Run()
         {
             var prefabList = new List<string>();
-            for (int i = 0; i < Roots.Length; i++)
+            for (int i = 0; i < _roots.Length; i++)
             {
-                if (Directory.Exists(Roots[i]))
+                if (Directory.Exists(_roots[i]))
                 {
-                    prefabList.AddRange(Directory.GetFiles(Roots[i], "*.prefab", SearchOption.AllDirectories));
+                    prefabList.AddRange(Directory.GetFiles(_roots[i], "*.prefab", SearchOption.AllDirectories));
                 }
             }
 
@@ -145,13 +145,13 @@ namespace Sekai.EditorTools
             header.AppendLine();
 
             string result = header.ToString() + report.ToString();
-            string directory = Path.GetDirectoryName(ReportPath);
+            string directory = Path.GetDirectoryName(REPORT_PATH);
             if (!string.IsNullOrEmpty(directory))
             {
                 Directory.CreateDirectory(directory);
             }
 
-            File.WriteAllText(ReportPath, result);
+            File.WriteAllText(REPORT_PATH, result);
             return result;
         }
 
@@ -164,7 +164,7 @@ namespace Sekai.EditorTools
             foreach (string line in text.Split('\n'))
             {
                 string trimmed = line.TrimEnd('\r');
-                Match start = ComponentStart.Match(trimmed);
+                Match start = _componentStart.Match(trimmed);
                 if (start.Success)
                 {
                     current = null;
@@ -183,18 +183,18 @@ namespace Sekai.EditorTools
                     continue;
                 }
 
-                Match script = ScriptGuid.Match(trimmed);
+                Match script = _scriptGuid.Match(trimmed);
                 if (script.Success)
                 {
                     current.Guid = script.Groups[1].Value;
                     continue;
                 }
 
-                Match key = DirectKey.Match(trimmed);
+                Match key = _directKey.Match(trimmed);
                 if (key.Success)
                 {
                     string name = key.Groups[1].Value;
-                    if (!UnityManagedKeys.Contains(name))
+                    if (!_unityManagedKeys.Contains(name))
                     {
                         current.Keys.Add(name);
                     }

@@ -19,7 +19,7 @@ namespace OpenSekai.Shared.Conversion
 	/// </remarks>
 	public sealed class SusNoteConverter
 	{
-		private const int LaneMaxIndex = 11;
+		private const int LANE_MAX_INDEX = 11;
 
 		private List<NoteBase> _notes;
 		private Dictionary<int, LongNote> _longNotes;
@@ -89,8 +89,8 @@ namespace OpenSekai.Shared.Conversion
 					int laneEnd = noteInfo.Lane + noteInfo.Width - 1;
 					if (_isMirror)
 					{
-						int mirroredStart = LaneMaxIndex - laneEnd;
-						int mirroredEnd = LaneMaxIndex - laneStart;
+						int mirroredStart = LANE_MAX_INDEX - laneEnd;
+						int mirroredEnd = LANE_MAX_INDEX - laneStart;
 						laneStart = mirroredStart;
 						laneEnd = mirroredEnd;
 					}

@@ -46,15 +46,15 @@ namespace Sekai
 		private const int TRAPEZOID_INDEX_COUNT = 18;
 		private const int DEFAULT_LIST_CAPACITY = 64;
 
-		private static readonly Color PressColor = Color.white;
-		private static readonly Color ReleaseColor = new Color(0.60000002f, 0.70664f, 0.65332f, 1f);
+		private static readonly Color _pressColor = Color.white;
+		private static readonly Color _releaseColor = new Color(0.60000002f, 0.70664f, 0.65332f, 1f);
 		private static readonly Vector2[] _offsetValue =
 		{
 			new Vector2(0f, 0.125f),
 			new Vector2(0.875f, 1f)
 		};
 
-		private int SplitMeshCount;
+		private int _splitMeshCount;
 		private int _meshCapacity;
 		private readonly LayerBatch[] _batches = new LayerBatch[4];
 		private Camera _viewCamera;
@@ -93,7 +93,7 @@ namespace Sekai
 		public void Setup(LiveBundleBuildData _bundleBuildData, string textureName, float alpha, bool isCustomMusicScore = false,
 			Camera viewCamera = null, bool guide = false)
 		{
-			SplitMeshCount = Mathf.Max(1, GetSplitMeshCount(isCustomMusicScore));
+			_splitMeshCount = Mathf.Max(1, GetSplitMeshCount(isCustomMusicScore));
 			_viewCamera = viewCamera;
 			_guideView = guide;
 
@@ -108,10 +108,10 @@ namespace Sekai
 			Material.color = new Color(1f, 1f, 1f, alpha);
 
 			_longNotes = new List<NoteBase>(DEFAULT_LIST_CAPACITY);
-			EnsureMeshCapacity(SplitMeshCount * GetPoolMultiplier(isCustomMusicScore));
+			EnsureMeshCapacity(_splitMeshCount * GetPoolMultiplier(isCustomMusicScore));
 
 			_batches[(int)NextRushConnectorLayer.Top] = CreateBatch(gameObject);
-			_meshSettingBuffer = new Setting[SplitMeshCount + 10];
+			_meshSettingBuffer = new Setting[_splitMeshCount + 10];
 			_trapezoidVertexInfo = new Trapezoid[2];
 			_meshCount = 0;
 		}
@@ -329,7 +329,7 @@ namespace Sekai
 				else if (segment.HasColor) color *= segment.StyleColor();
 				if (segment.TracksDamageContact && baseNote is GuideNote damage
 					&& (!damage.DamageContact || damage.State == NoteState.Done))
-					color *= ReleaseColor;
+					color *= _releaseColor;
 			}
 			return color;
 		}
@@ -405,7 +405,7 @@ namespace Sekai
 			}
 
 			// 默认颜色基于状态
-			Color defaultColor = baseNote != null && baseNote.ShowsAsReleased ? ReleaseColor : PressColor;
+			Color defaultColor = baseNote != null && baseNote.ShowsAsReleased ? _releaseColor : _pressColor;
 
 			// 检查是否为Guide相关类型
 			if (baseNote == null)
@@ -558,7 +558,7 @@ namespace Sekai
 			float startProgress = OpenSekai.Shared.Live.NoteLineProgress.Body(startOffset, time, startNote.MusicScoreInfo.time);
 			float endProgress = OpenSekai.Shared.Live.NoteLineProgress.Body(endOffset, time, endNote.MusicScoreInfo.time);
 			float progressRange = startProgress - endProgress;
-			int splitCount = Mathf.CeilToInt(progressRange * SplitMeshCount);
+			int splitCount = Mathf.CeilToInt(progressRange * _splitMeshCount);
 			if (splitCount < 0)
 			{
 				return splitCount + 1;
@@ -635,9 +635,9 @@ namespace Sekai
 				// Keep sampling over the curve even when endpoint motion compresses its screen height.
 				int samples = segment.Ease >= 30 && segment.Ease <= 37
 					? Mathf.Max(4, Mathf.CeilToInt(32 * (float)Math.Abs(last - first))) : segment.Ease != 1 ? 4 : 1;
-				minSplits = Mathf.Min(samples, SplitMeshCount);
+				minSplits = Mathf.Min(samples, _splitMeshCount);
 			}
-			int splits = Mathf.Clamp(Mathf.CeilToInt((float)(a - b) * SplitMeshCount), minSplits, SplitMeshCount);
+			int splits = Mathf.Clamp(Mathf.CeilToInt((float)(a - b) * _splitMeshCount), minSplits, _splitMeshCount);
 			List<INote> viewNotes = start.ParentNote is LongNote bar ? bar.LineNoteList : start.ViewNoteList;
 			int index = viewNotes != null ? Mathf.Max(0, viewNotes.IndexOf(start)) : 0;
 			int segmentCount = Mathf.Max(1, (viewNotes?.Count ?? 2) - 1);

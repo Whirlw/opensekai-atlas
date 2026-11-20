@@ -30,7 +30,7 @@ namespace Sekai
 
 		public static readonly Vector3 FlickRightEulerAngles;
 
-		private static readonly float NoteViewProgressStartValue;
+		private static readonly float _noteViewProgressStartValue;
 
 		private static int _baseOrderInLayer;
 
@@ -222,14 +222,14 @@ namespace Sekai
 
 		public static Vector2 CalcNoteShowRatePosition(float settingsNoteShowRate, Vector2 spawnPosition, Vector2 judgmentPosition)
 		{
-			var noteViewStartPosition = EarlyVec2Lerp(spawnPosition, judgmentPosition, NoteViewProgressStartValue);
+			var noteViewStartPosition = EarlyVec2Lerp(spawnPosition, judgmentPosition, _noteViewProgressStartValue);
 			return EarlyVec2Lerp(noteViewStartPosition, judgmentPosition, 1f - settingsNoteShowRate);
 		}
 
 		public static float CalcNoteShowRateProgress(float showRate)
 		{
 			var progress = LiveConfig.GetNoteViewProgress(showRate);
-			return progress - (1f - showRate) * (1f - showRate) * NoteViewProgressStartValue;
+			return progress - (1f - showRate) * (1f - showRate) * _noteViewProgressStartValue;
 		}
 
 		public static int CalcNoteSortingOrder(float progress)
@@ -394,13 +394,13 @@ namespace Sekai
 		// (ArtSource/Tools/Notes/draw_notes.ps1), so a note spanning lanes start..end draws its body exactly
 		// over (end - start + 1) lanes of LiveConfig.widthX. The old 1.2178 * span + 2.06 drew 1-6 lane notes
 		// up to 9 px narrower than their lanes and full-width notes wider.
-		private const float NoteBodyInsetUnits = 55f / 108f;
+		private const float NOTE_BODY_INSET_UNITS = 55f / 108f;
 
-		private const float NoteSpriteHeight = 186f / 108f;
+		private const float NOTE_SPRITE_HEIGHT = 186f / 108f;
 
 		public static Vector2 CalcSpriteRendererSize(float size)
 		{
-			return new Vector2((size + 1f) * LiveConfig.widthX + 2f * NoteBodyInsetUnits, NoteSpriteHeight);
+			return new Vector2((size + 1f) * LiveConfig.widthX + 2f * NOTE_BODY_INSET_UNITS, NOTE_SPRITE_HEIGHT);
 		}
 
 		static LiveUtility()
@@ -410,7 +410,7 @@ namespace Sekai
 			Vector3OneMinusX = new Vector3(-1f, 1f, 1f);
 			FlickLeftEulerAngles = new Vector3(0f, 0f, 30f);
 			FlickRightEulerAngles = new Vector3(0f, 0f, -30f);
-			NoteViewProgressStartValue = 0.07265f;
+			_noteViewProgressStartValue = 0.07265f;
 			_baseOrderInLayer = 30;
 			_progressOrderInLayer = 100;
 		}

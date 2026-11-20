@@ -26,7 +26,7 @@ namespace OpenSekai.Shared.Diagnostics
 
         internal sealed class Ticket
         {
-            private const float SignalThreshold = 0.00001f;
+            private const float SIGNAL_THRESHOLD = 0.00001f;
             private long _firstSignalTicks;
 
             internal int RequestSequence;
@@ -39,7 +39,7 @@ namespace OpenSekai.Shared.Diagnostics
                 // Scan the interleaved buffer without modifying the samples.
                 foreach (float sample in data)
                 {
-                    if (sample > SignalThreshold || sample < -SignalThreshold)
+                    if (sample > SIGNAL_THRESHOLD || sample < -SIGNAL_THRESHOLD)
                     {
                         Interlocked.CompareExchange(ref _firstSignalTicks, callbackTicks, 0);
                         return;

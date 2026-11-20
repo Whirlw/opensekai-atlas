@@ -22,10 +22,10 @@ namespace OpenSekai.App.UI
         private const float PIXELS_PER_UNIT = 100f * SCALE;
         private const int GLOW_SIZE = 256;
 
-        private static readonly Dictionary<int, Sprite> RoundedRects = new Dictionary<int, Sprite>();
-        private static readonly Dictionary<long, Sprite> Rings = new Dictionary<long, Sprite>();
-        private static readonly Dictionary<long, Sprite> Shadows = new Dictionary<long, Sprite>();
-        private static readonly Dictionary<LibraryIcon, Sprite> Icons = new Dictionary<LibraryIcon, Sprite>();
+        private static readonly Dictionary<int, Sprite> _roundedRects = new Dictionary<int, Sprite>();
+        private static readonly Dictionary<long, Sprite> _rings = new Dictionary<long, Sprite>();
+        private static readonly Dictionary<long, Sprite> _shadows = new Dictionary<long, Sprite>();
+        private static readonly Dictionary<LibraryIcon, Sprite> _icons = new Dictionary<LibraryIcon, Sprite>();
         private static Sprite _glow;
         private static Sprite _chevron;
 
@@ -33,10 +33,10 @@ namespace OpenSekai.App.UI
         internal static Sprite RoundedRect(float radius)
         {
             int pixels = Mathf.Max(1, Mathf.RoundToInt(radius * SCALE));
-            if (!RoundedRects.TryGetValue(pixels, out Sprite sprite) || sprite == null)
+            if (!_roundedRects.TryGetValue(pixels, out Sprite sprite) || sprite == null)
             {
                 sprite = CreateSliced("RoundedRect" + pixels, pixels, 0f);
-                RoundedRects[pixels] = sprite;
+                _roundedRects[pixels] = sprite;
             }
 
             return sprite;
@@ -48,10 +48,10 @@ namespace OpenSekai.App.UI
             int pixels = Mathf.Max(1, Mathf.RoundToInt(radius * SCALE));
             int stroke = Mathf.Max(1, Mathf.RoundToInt(thickness * SCALE));
             long key = ((long)pixels << 32) | (uint)stroke;
-            if (!Rings.TryGetValue(key, out Sprite sprite) || sprite == null)
+            if (!_rings.TryGetValue(key, out Sprite sprite) || sprite == null)
             {
                 sprite = CreateSliced("Ring" + pixels + "x" + stroke, pixels, stroke);
-                Rings[key] = sprite;
+                _rings[key] = sprite;
             }
 
             return sprite;
@@ -62,7 +62,7 @@ namespace OpenSekai.App.UI
             int corner = Mathf.RoundToInt(radius * SCALE);
             int spread = Mathf.RoundToInt(blur * SCALE);
             long key = ((long)corner << 32) | (uint)spread;
-            if (Shadows.TryGetValue(key, out Sprite shadow) && shadow != null)
+            if (_shadows.TryGetValue(key, out Sprite shadow) && shadow != null)
             {
                 return shadow;
             }
@@ -85,7 +85,7 @@ namespace OpenSekai.App.UI
             Texture2D texture = CreateTexture("Shadow" + corner + "x" + spread, size, size, pixels);
             shadow = Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f),
                 PIXELS_PER_UNIT, 0, SpriteMeshType.FullRect, new Vector4(border, border, border, border));
-            Shadows[key] = shadow;
+            _shadows[key] = shadow;
             return shadow;
         }
 
@@ -113,27 +113,27 @@ namespace OpenSekai.App.UI
 
         internal static Sprite Icon(LibraryIcon icon)
         {
-            if (Icons.TryGetValue(icon, out Sprite sprite) && sprite != null)
+            if (_icons.TryGetValue(icon, out Sprite sprite) && sprite != null)
             {
                 return sprite;
             }
 
-            const int viewSize = 24;
-            const int size = viewSize * SCALE;
-            var pixels = new Color32[size * size];
-            for (int y = 0; y < size; y++)
+            const int VIEW_SIZE = 24;
+            const int SIZE = VIEW_SIZE * SCALE;
+            var pixels = new Color32[SIZE * SIZE];
+            for (int y = 0; y < SIZE; y++)
             {
-                for (int x = 0; x < size; x++)
+                for (int x = 0; x < SIZE; x++)
                 {
-                    var point = new Vector2((x + 0.5f) / SCALE, viewSize - (y + 0.5f) / SCALE);
+                    var point = new Vector2((x + 0.5f) / SCALE, VIEW_SIZE - (y + 0.5f) / SCALE);
                     float alpha = Mathf.Clamp01(0.5f - IconDistance(icon, point) * SCALE);
-                    pixels[y * size + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(alpha * 255f));
+                    pixels[y * SIZE + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(alpha * 255f));
                 }
             }
 
-            Texture2D texture = CreateTexture(icon.ToString(), size, size, pixels);
-            sprite = Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), PIXELS_PER_UNIT);
-            Icons[icon] = sprite;
+            Texture2D texture = CreateTexture(icon.ToString(), SIZE, SIZE, pixels);
+            sprite = Sprite.Create(texture, new Rect(0f, 0f, SIZE, SIZE), new Vector2(0.5f, 0.5f), PIXELS_PER_UNIT);
+            _icons[icon] = sprite;
             return sprite;
         }
 
@@ -338,26 +338,26 @@ namespace OpenSekai.App.UI
 
         private static Sprite CreateChevron()
         {
-            const int size = 20 * SCALE;
-            const float halfStroke = 1.3f * SCALE;
-            var pixels = new Color32[size * size];
+            const int SIZE = 20 * SCALE;
+            const float HALF_STROKE = 1.3f * SCALE;
+            var pixels = new Color32[SIZE * SIZE];
             // A "v": two strokes from the upper corners down to the middle.
-            var left = new Vector2(size * 0.22f, size * 0.64f);
-            var right = new Vector2(size * 0.78f, size * 0.64f);
-            var bottom = new Vector2(size * 0.5f, size * 0.36f);
-            for (int y = 0; y < size; y++)
+            var left = new Vector2(SIZE * 0.22f, SIZE * 0.64f);
+            var right = new Vector2(SIZE * 0.78f, SIZE * 0.64f);
+            var bottom = new Vector2(SIZE * 0.5f, SIZE * 0.36f);
+            for (int y = 0; y < SIZE; y++)
             {
-                for (int x = 0; x < size; x++)
+                for (int x = 0; x < SIZE; x++)
                 {
                     var point = new Vector2(x + 0.5f, y + 0.5f);
                     float distance = Mathf.Min(DistanceToSegment(point, left, bottom), DistanceToSegment(point, right, bottom));
-                    float alpha = Mathf.Clamp01(halfStroke - distance + 0.5f);
-                    pixels[y * size + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(alpha * 255f));
+                    float alpha = Mathf.Clamp01(HALF_STROKE - distance + 0.5f);
+                    pixels[y * SIZE + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(alpha * 255f));
                 }
             }
 
-            Texture2D texture = CreateTexture("Chevron", size, size, pixels);
-            return Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), PIXELS_PER_UNIT);
+            Texture2D texture = CreateTexture("Chevron", SIZE, SIZE, pixels);
+            return Sprite.Create(texture, new Rect(0f, 0f, SIZE, SIZE), new Vector2(0.5f, 0.5f), PIXELS_PER_UNIT);
         }
 
         private static float DistanceToSegment(Vector2 point, Vector2 a, Vector2 b)

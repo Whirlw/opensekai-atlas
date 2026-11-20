@@ -26,7 +26,7 @@ namespace OpenSekai.Infrastructure.Charts
         {
             string format = package.Manifest.chartFormat;
             if (string.IsNullOrEmpty(format)) return NextRushChartLoader.IsNativeFileName(package.ScorePath);
-            if (string.Equals(format, NextRushChartLoader.Format, StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(format, NextRushChartLoader.FORMAT, StringComparison.OrdinalIgnoreCase)) return true;
             throw new InvalidDataException("不支持的谱面格式：" + format);
         }
     }

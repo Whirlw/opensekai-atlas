@@ -21,13 +21,13 @@ namespace Sekai
 	public static class AudioOutputTuning
 	{
 		// android.media.AudioDeviceInfo types.
-		private const int TypeWiredHeadset = 3;
-		private const int TypeWiredHeadphones = 4;
-		private const int TypeBluetoothA2dp = 8;
-		private const int TypeUsbHeadset = 22;
-		private const int TypeBleHeadset = 26;
-		private const int TypeBleSpeaker = 27;
-		private const int GetDevicesOutputs = 2;
+		private const int TYPE_WIRED_HEADSET = 3;
+		private const int TYPE_WIRED_HEADPHONES = 4;
+		private const int TYPE_BLUETOOTH_A_2_DP = 8;
+		private const int TYPE_USB_HEADSET = 22;
+		private const int TYPE_BLE_HEADSET = 26;
+		private const int TYPE_BLE_SPEAKER = 27;
+		private const int GET_DEVICES_OUTPUTS = 2;
 
 		public static string Report { get; private set; } = "audio output not tuned";
 		internal static volatile string LatestRouteReport;
@@ -121,7 +121,7 @@ namespace Sekai
 				int.TryParse(audioManager.Call<string>("getProperty", "android.media.property.OUTPUT_FRAMES_PER_BUFFER"), out nativeBurst);
 				lowLatencyFeature = packageManager.Call<bool>("hasSystemFeature", "android.hardware.audio.low_latency");
 
-				AndroidJavaObject[] devices = audioManager.Call<AndroidJavaObject[]>("getDevices", GetDevicesOutputs);
+				AndroidJavaObject[] devices = audioManager.Call<AndroidJavaObject[]>("getDevices", GET_DEVICES_OUTPUTS);
 				var builder = new StringBuilder();
 				if (devices != null)
 				{
@@ -132,7 +132,7 @@ namespace Sekai
 							int type = device.Call<int>("getType");
 							if (builder.Length > 0) builder.Append(',');
 							builder.Append(Describe(type));
-							if (type == TypeBluetoothA2dp || type == TypeBleHeadset || type == TypeBleSpeaker)
+							if (type == TYPE_BLUETOOTH_A_2_DP || type == TYPE_BLE_HEADSET || type == TYPE_BLE_SPEAKER)
 							{
 								HasBluetoothOutput = true;
 							}
@@ -152,12 +152,12 @@ namespace Sekai
 				case 1: return "earpiece";
 				case 2: return "speaker";
 				case 18: return "telephony";
-				case TypeWiredHeadset: return "wired-headset";
-				case TypeWiredHeadphones: return "wired-headphones";
-				case TypeBluetoothA2dp: return "bluetooth-a2dp";
-				case TypeUsbHeadset: return "usb-headset";
-				case TypeBleHeadset: return "ble-headset";
-				case TypeBleSpeaker: return "ble-speaker";
+				case TYPE_WIRED_HEADSET: return "wired-headset";
+				case TYPE_WIRED_HEADPHONES: return "wired-headphones";
+				case TYPE_BLUETOOTH_A_2_DP: return "bluetooth-a2dp";
+				case TYPE_USB_HEADSET: return "usb-headset";
+				case TYPE_BLE_HEADSET: return "ble-headset";
+				case TYPE_BLE_SPEAKER: return "ble-speaker";
 				default: return "type" + type;
 			}
 		}

@@ -15,10 +15,10 @@ namespace OpenSekai.App.UI
 {
     internal sealed class LibraryPresenter : IDisposable
     {
-        private const string PackageExtension = ".oskp";
-        private const string SortPreference = "library.sort";
-        private const string GroupPreference = "library.group";
-        private const string ViewPreference = "library.view";
+        private const string PACKAGE_EXTENSION = ".oskp";
+        private const string SORT_PREFERENCE = "library.sort";
+        private const string GROUP_PREFERENCE = "library.group";
+        private const string VIEW_PREFERENCE = "library.view";
 
         private readonly ILibraryView _view;
         private readonly SongPackageManager _packages;
@@ -63,9 +63,9 @@ namespace OpenSekai.App.UI
             _persistBrowsePreferences = persistBrowsePreferences;
             if (_persistBrowsePreferences)
             {
-                _model.SortKey = ReadPreference(SortPreference, _model.SortKey);
-                _model.SetGroupKey(ReadPreference(GroupPreference, _model.GroupKey));
-                _viewMode = ReadPreference(ViewPreference, _viewMode);
+                _model.SortKey = ReadPreference(SORT_PREFERENCE, _model.SortKey);
+                _model.SetGroupKey(ReadPreference(GROUP_PREFERENCE, _model.GroupKey));
+                _viewMode = ReadPreference(VIEW_PREFERENCE, _viewMode);
             }
             CustomMusicScorePlayHistoryStorage.Recorded += OnScoreRecorded;
         }
@@ -89,14 +89,14 @@ namespace OpenSekai.App.UI
         internal void SetSort(LibrarySortKey key)
         {
             _model.SortKey = key;
-            SavePreference(SortPreference, key);
+            SavePreference(SORT_PREFERENCE, key);
             Render();
         }
 
         internal void SetGroupMode(LibraryGroupKey key)
         {
             _model.SetGroupKey(key);
-            SavePreference(GroupPreference, key);
+            SavePreference(GROUP_PREFERENCE, key);
             Render();
         }
 
@@ -121,7 +121,7 @@ namespace OpenSekai.App.UI
             }
 
             _viewMode = mode;
-            SavePreference(ViewPreference, mode);
+            SavePreference(VIEW_PREFERENCE, mode);
             Render();
             UiSound.Play(UiCue.Select);
         }
@@ -315,13 +315,13 @@ namespace OpenSekai.App.UI
             {
                 if (string.IsNullOrEmpty(destination))
                 {
-                    destination = _packages.GetDefaultExportPath(baseName + PackageExtension);
+                    destination = _packages.GetDefaultExportPath(baseName + PACKAGE_EXTENSION);
                     _view.SetStatus("正在导出到 " + destination + " …");
                 }
-                else if (!destination.EndsWith(PackageExtension, StringComparison.OrdinalIgnoreCase))
+                else if (!destination.EndsWith(PACKAGE_EXTENSION, StringComparison.OrdinalIgnoreCase))
                 {
                     // Some dialogs do not append the filter extension when the user typed one.
-                    destination += PackageExtension;
+                    destination += PACKAGE_EXTENSION;
                 }
 
                 string written = _packages.ExportZip(item.Entry, destination);
@@ -365,11 +365,10 @@ namespace OpenSekai.App.UI
                 return "package";
             }
 
-            const string invalid = "<>:\"/\\|?*";
             char[] buffer = value.ToCharArray();
             for (int i = 0; i < buffer.Length; i++)
             {
-                if (invalid.IndexOf(buffer[i]) >= 0 || char.IsControl(buffer[i]))
+                if (SongPackageStorage.IsInvalidFileNameChar(buffer[i]))
                 {
                     buffer[i] = '_';
                 }

@@ -48,9 +48,9 @@ namespace Sekai
 
 				public Element _003C_003E4__this;
 
-				private UniTask<TAsset>.Awaiter _003C_003Eu__1;
+				private UniTask<TAsset>.Awaiter _awaiter1;
 
-				private UniTask.Awaiter _003C_003Eu__2;
+				private UniTask.Awaiter _awaiter2;
 
 				private void MoveNext()
 				{

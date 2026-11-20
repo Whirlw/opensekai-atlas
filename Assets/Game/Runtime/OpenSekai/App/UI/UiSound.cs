@@ -41,8 +41,8 @@ namespace OpenSekai.App.UI
         /// <summary>The same cue again inside this window is dropped, so a double fire never doubles up.</summary>
         private const float REPEAT_WINDOW = 0.04f;
 
-        private static readonly Dictionary<UiCue, AudioClip> Clips = new Dictionary<UiCue, AudioClip>();
-        private static readonly Dictionary<UiCue, float> LastPlayed = new Dictionary<UiCue, float>();
+        private static readonly Dictionary<UiCue, AudioClip> _clips = new Dictionary<UiCue, AudioClip>();
+        private static readonly Dictionary<UiCue, float> _lastPlayed = new Dictionary<UiCue, float>();
         private static AudioSource _source;
         private static float? _volume;
 
@@ -67,7 +67,7 @@ namespace OpenSekai.App.UI
             }
 
             float now = Time.unscaledTime;
-            if (LastPlayed.TryGetValue(cue, out float last) && now - last < REPEAT_WINDOW)
+            if (_lastPlayed.TryGetValue(cue, out float last) && now - last < REPEAT_WINDOW)
             {
                 return;
             }
@@ -79,7 +79,7 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            LastPlayed[cue] = now;
+            _lastPlayed[cue] = now;
             source.PlayOneShot(clip, Volume);
         }
 
@@ -94,7 +94,7 @@ namespace OpenSekai.App.UI
 
         private static AudioClip ClipOf(UiCue cue)
         {
-            if (Clips.TryGetValue(cue, out AudioClip clip))
+            if (_clips.TryGetValue(cue, out AudioClip clip))
             {
                 return clip;
             }
@@ -104,7 +104,7 @@ namespace OpenSekai.App.UI
             {
                 Debug.LogWarning("[UiSound] Missing clip for " + cue + ".");
             }
-            Clips[cue] = clip;
+            _clips[cue] = clip;
             return clip;
         }
 

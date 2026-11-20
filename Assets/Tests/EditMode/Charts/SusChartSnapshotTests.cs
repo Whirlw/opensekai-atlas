@@ -23,15 +23,15 @@ namespace OpenSekai.Tests.EditMode.Charts
     /// </remarks>
     public class SusChartSnapshotTests
     {
-        private const string FixtureDirectory = "Tools/fixtures/sus-p2-6";
-        private const string ConfigResourcePath = "live/config/LiveBundleBuildData";
+        private const string FIXTURE_DIRECTORY = "Tools/fixtures/sus-p2-6";
+        private const string CONFIG_RESOURCE_PATH = "live/config/LiveBundleBuildData";
 
         private LiveBundleBuildData _config;
 
         [SetUp]
         public void SetUp()
         {
-            _config = Resources.Load<LiveBundleBuildData>(ConfigResourcePath);
+            _config = Resources.Load<LiveBundleBuildData>(CONFIG_RESOURCE_PATH);
             Assert.That(_config, Is.Not.Null, "the live bundle config the importer reads lane offsets from");
         }
 
@@ -65,7 +65,7 @@ namespace OpenSekai.Tests.EditMode.Charts
             {
                 string text = name == "empty"
                     ? string.Empty
-                    : Normalize(File.ReadAllText(Path.Combine(FixtureDirectory, name + ".sus")));
+                    : Normalize(File.ReadAllText(Path.Combine(FIXTURE_DIRECTORY, name + ".sus")));
                 MusicScore score = new SusRuntimeConverter().Convert(
                     text, _config, isNeedCombo: combine, _isMirror: mirror, showPair: combine);
 
@@ -114,7 +114,7 @@ namespace OpenSekai.Tests.EditMode.Charts
         public void TheImporterStillProducesTheCommittedTranscript()
         {
             List<string> actual = Capture();
-            string expectedPath = Path.Combine(FixtureDirectory, "expected.txt");
+            string expectedPath = Path.Combine(FIXTURE_DIRECTORY, "expected.txt");
             Assert.That(File.Exists(expectedPath), Is.True, expectedPath);
             string[] expected = File.ReadAllLines(expectedPath);
 

@@ -29,29 +29,36 @@ namespace Sekai
 			}
 		}
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_align")]
 		[SerializeField]
-		private Align _align;
+		private Align align;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_numberSpacing")]
 		[SerializeField]
-		private float _numberSpacing;
+		private float numberSpacing;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_defaultColor")]
 		[FormerlySerializedAs("color")]
 		[SerializeField]
-		private Color _defaultColor;
+		private Color defaultColor;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_surplusColor")]
 		[SerializeField]
-		private Color _surplusColor;
+		private Color surplusColor;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_plusIconSprite")]
 		[FormerlySerializedAs("plusiconSprite")]
 		[FormerlySerializedAs("iconSprite")]
 		[SerializeField]
-		private Sprite _plusIconSprite;
+		private Sprite plusIconSprite;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_minusiconSprite")]
 		[SerializeField]
-		private Sprite _minusiconSprite;
+		private Sprite minusiconSprite;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_numberSprites")]
 		[SerializeField]
-		private Sprite[] _numberSprites;
+		private Sprite[] numberSprites;
 
 		private SpriteRenderer[] _numberSpriteRenderers;
 
@@ -75,10 +82,10 @@ namespace Sekai
 
 		public void Setup(Color _defaultColor, Color _surplusColor, int minimumDigits = 0)
 		{
-			this._defaultColor = _defaultColor;
-			this._surplusColor = _surplusColor;
+			this.defaultColor = _defaultColor;
+			this.surplusColor = _surplusColor;
 			_alpha = 1f;
-			_hasIcon = _plusIconSprite != null || _minusiconSprite != null;
+			_hasIcon = plusIconSprite != null || minusiconSprite != null;
 
 			_numberSpriteRenderers = GetComponentsInChildren<SpriteRenderer>();
 			int iconSlots = _hasIcon ? 1 : 0;
@@ -99,12 +106,12 @@ namespace Sekai
 
 			for (int i = 0; i < _numberSpriteRenderers.Length; i++)
 			{
-				int alignIndex = _align == Align.Left ? i : -i;
+				int alignIndex = align == Align.Left ? i : -i;
 				Transform rendererTransform = _numberSpriteRenderers[i].transform;
-				rendererTransform.localPosition = Vector3.right * (_numberSpacing * alignIndex);
-				if (_numberSprites != null && _numberSprites.Length > 0)
+				rendererTransform.localPosition = Vector3.right * (numberSpacing * alignIndex);
+				if (numberSprites != null && numberSprites.Length > 0)
 				{
-					_numberSpriteRenderers[i].sprite = _numberSprites[0];
+					_numberSpriteRenderers[i].sprite = numberSprites[0];
 				}
 				_spriteStatus[i].id = 0;
 				_spriteStatus[i].isSurplus = true;
@@ -118,9 +125,9 @@ namespace Sekai
 		{
 			if (_numberSpriteRenderers == null || _numberSpriteRenderers.Length == 0)
 			{
-				Setup(_defaultColor, _surplusColor);
+				Setup(defaultColor, surplusColor);
 			}
-			if (_numberSpriteRenderers == null || _numberSpriteRenderers.Length == 0 || _numberSprites == null || _numberSprites.Length == 0)
+			if (_numberSpriteRenderers == null || _numberSpriteRenderers.Length == 0 || numberSprites == null || numberSprites.Length == 0)
 			{
 				return;
 			}
@@ -128,18 +135,18 @@ namespace Sekai
 			int digitCount = CalculateDigit(number);
 			if (_digitsAtNormalScale > 0)
 				transform.localScale = _normalScale * Mathf.Min(1f, (float)_digitsAtNormalScale / digitCount);
-			int iconIndex = _align == Align.Left ? 0 : digitCount;
+			int iconIndex = align == Align.Left ? 0 : digitCount;
 			if (_hasIcon && iconIndex >= 0 && iconIndex < _numberSpriteRenderers.Length)
 			{
 				SpriteRenderer renderer = _numberSpriteRenderers[iconIndex];
 				if (number > 0)
 				{
-					renderer.sprite = _plusIconSprite;
+					renderer.sprite = plusIconSprite;
 					_spriteStatus[iconIndex].id = SpriteStatus.IconSpriteId;
 				}
 				else if (number < 0)
 				{
-					renderer.sprite = _minusiconSprite;
+					renderer.sprite = minusiconSprite;
 					_spriteStatus[iconIndex].id = SpriteStatus.IconSpriteId;
 				}
 				else
@@ -154,20 +161,20 @@ namespace Sekai
 				}
 			}
 
-			int offset = _align == Align.Left && _hasIcon && number != 0 ? 1 : 0;
+			int offset = align == Align.Left && _hasIcon && number != 0 ? 1 : 0;
 			for (int displayed = 0; displayed < digitCount; displayed++)
 			{
-				int digitIndex = _align == Align.Left ? digitCount - displayed - 1 : displayed;
+				int digitIndex = align == Align.Left ? digitCount - displayed - 1 : displayed;
 				int rendererIndex = offset + displayed;
 				if (rendererIndex < 0 || rendererIndex >= _numberSpriteRenderers.Length || digitIndex < 0 || digitIndex >= _digitValues.Length)
 				{
 					continue;
 				}
 
-				int digit = Mathf.Clamp(_digitValues[digitIndex], 0, _numberSprites.Length - 1);
+				int digit = Mathf.Clamp(_digitValues[digitIndex], 0, numberSprites.Length - 1);
 				if (_spriteStatus[rendererIndex].id != digit)
 				{
-					_numberSpriteRenderers[rendererIndex].sprite = _numberSprites[digit];
+					_numberSpriteRenderers[rendererIndex].sprite = numberSprites[digit];
 					_spriteStatus[rendererIndex].id = digit;
 				}
 				_numberSpriteRenderers[rendererIndex].enabled = true;
@@ -181,9 +188,9 @@ namespace Sekai
 			int usedCount = digitCount + (_hasIcon && number != 0 ? 1 : 0);
 			for (int i = usedCount; i < _numberSpriteRenderers.Length; i++)
 			{
-				if (_numberSprites.Length > 0 && _spriteStatus[i].id != 0)
+				if (numberSprites.Length > 0 && _spriteStatus[i].id != 0)
 				{
-					_numberSpriteRenderers[i].sprite = _numberSprites[0];
+					_numberSpriteRenderers[i].sprite = numberSprites[0];
 					_spriteStatus[i].id = 0;
 				}
 				// Always refresh surplus digits: a renderer can be marked surplus in an earlier
@@ -194,7 +201,7 @@ namespace Sekai
 
 				// When the surplus style is fully transparent the renderer is switched off as well;
 				// vertex colour alone was not enough to keep the glyph off screen on device.
-				_numberSpriteRenderers[i].enabled = _surplusColor.a > 0.01f;
+				_numberSpriteRenderers[i].enabled = surplusColor.a > 0.01f;
 			}
 
 			UpdateColor();
@@ -230,7 +237,7 @@ namespace Sekai
 				{
 					continue;
 				}
-				Color color = _spriteStatus[i].isSurplus ? _surplusColor : _defaultColor;
+				Color color = _spriteStatus[i].isSurplus ? surplusColor : defaultColor;
 				color.a *= _alpha;
 				_numberSpriteRenderers[i].color = color;
 				_spriteStatus[i].isColorDirty = false;
@@ -264,10 +271,10 @@ namespace Sekai
 
 		public NumberView()
 		{
-			_align = Align.Right;
-			_numberSpacing = 0.95f;
-			_defaultColor = Color.white;
-			_surplusColor = new Color(0f, 0f, 0f, 0f);
+			align = Align.Right;
+			numberSpacing = 0.95f;
+			defaultColor = Color.white;
+			surplusColor = new Color(0f, 0f, 0f, 0f);
 		}
 	}
 }

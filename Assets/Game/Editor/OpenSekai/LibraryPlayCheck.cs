@@ -17,7 +17,7 @@ namespace OpenSekai.EditorTools
     /// <summary>Optional end-to-end check using the local synthetic baseline package.</summary>
     public static class LibraryPlayCheck
     {
-        private const string BaselinePackageId = "codexbaseline20261101tap";
+        private const string BASELINE_PACKAGE_ID = "codexbaseline20261101tap";
 
         [MenuItem("OpenSekai/Library/Play Local Baseline Automatically")]
         public static void PlayLocalBaseline()
@@ -36,7 +36,7 @@ namespace OpenSekai.EditorTools
         {
             var boot = UserDataManager.Instance.FreeLiveBootData;
             var controller = UnityEngine.Object.FindFirstObjectByType<Sekai.Core.Live.SoloLiveController>();
-            if (controller == null || boot?.CustomMusicScoreId != BaselinePackageId)
+            if (controller == null || boot?.CustomMusicScoreId != BASELINE_PACKAGE_ID)
             {
                 throw new InvalidOperationException("No local synthetic playback check is running.");
             }
@@ -54,7 +54,7 @@ namespace OpenSekai.EditorTools
             if (entry == null)
             {
                 throw new InvalidOperationException(
-                    "No package with id '" + BaselinePackageId + "' was found in " + SongPackageStorage.RootDirectory
+                    "No package with id '" + BASELINE_PACKAGE_ID + "' was found in " + SongPackageStorage.RootDirectory
                     + " (nor in Tools/fixtures/baseline_tap).");
             }
             // The lightweight library page is the only host left in the Library scene.
@@ -90,7 +90,7 @@ namespace OpenSekai.EditorTools
         {
             foreach (SongPackageItem item in SongPackageManager.Shared.LoadItems())
             {
-                if (item?.Entry?.Manifest?.id == BaselinePackageId)
+                if (item?.Entry?.Manifest?.id == BASELINE_PACKAGE_ID)
                 {
                     return CustomMusicScoreStorage.LoadEntry(item.Entry.RootDirectory);
                 }

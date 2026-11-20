@@ -47,69 +47,86 @@ namespace Sekai.UI
 		[SerializeField]
 		protected InputManager.IntervalUseType interval = InputManager.IntervalUseType.Use;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_absolutelyPress")]
 		[SerializeField]
-		private bool _absolutelyPress;
+		private bool absolutelyPress;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_enableLongPress")]
 		[SerializeField]
-		private bool _enableLongPress;
+		private bool enableLongPress;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_buttonViewInteraction")]
 		[SerializeField]
-		private ButtonViewInteractionBase _buttonViewInteraction;
+		private ButtonViewInteractionBase buttonViewInteraction;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_shape")]
 		[SerializeField]
-		private ShapeType _shape;
+		private ShapeType shape;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_shapeButtonImage")]
 		[SerializeField]
-		private CustomImage _shapeButtonImage;
+		private CustomImage shapeButtonImage;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_shapeRectDotImage")]
 		[SerializeField]
-		private CustomImage _shapeRectDotImage;
+		private CustomImage shapeRectDotImage;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_shapeRectText")]
 		[SerializeField]
-		private CustomText _shapeRectText;
+		private CustomText shapeRectText;
 
 		[SerializeField]
 		protected DisableActionType disableActionType = DisableActionType.Grayout;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_coverImage")]
 		[SerializeField]
-		private Graphic _coverImage;
+		private Graphic coverImage;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_optionalCoverImages")]
 		[SerializeField]
-		private List<Graphic> _optionalCoverImages;
+		private List<Graphic> optionalCoverImages;
 
 		[SerializeField]
 		protected float pressScale = PRESS_SCALE_RATIO;
 
 		private MotionHandle _pressMotion;
 
-				[SerializeField] private Action _OnLongPressEvent;
+				[UnityEngine.Serialization.FormerlySerializedAs("_OnLongPressEvent")]
+				[SerializeField]
+				private Action onLongPressEvent;
 		public Action OnLongPressEvent
 		{
-		    get => _OnLongPressEvent;
-		    set => _OnLongPressEvent = value;
+		    get => onLongPressEvent;
+		    set => onLongPressEvent = value;
 		}
 
 		private bool _executedLongPress;
 
-				[SerializeField] private Action _OnHoldPressEvent;
+				[UnityEngine.Serialization.FormerlySerializedAs("_OnHoldPressEvent")]
+				[SerializeField]
+				private Action onHoldPressEvent;
 		public Action OnHoldPressEvent
 		{
-		    get => _OnHoldPressEvent;
-		    set => _OnHoldPressEvent = value;
+		    get => onHoldPressEvent;
+		    set => onHoldPressEvent = value;
 		}
 
-				[SerializeField] private Action _OnPressInteractionOverride;
+				[UnityEngine.Serialization.FormerlySerializedAs("_OnPressInteractionOverride")]
+				[SerializeField]
+				private Action onPressInteractionOverride;
 		public Action OnPressInteractionOverride
 		{
-		    get => _OnPressInteractionOverride;
-		    set => _OnPressInteractionOverride = value;
+		    get => onPressInteractionOverride;
+		    set => onPressInteractionOverride = value;
 		}
 
-				[SerializeField] private Action _OnReleaseInteractionOverride;
+				[UnityEngine.Serialization.FormerlySerializedAs("_OnReleaseInteractionOverride")]
+				[SerializeField]
+				private Action onReleaseInteractionOverride;
 		public Action OnReleaseInteractionOverride
 		{
-		    get => _OnReleaseInteractionOverride;
-		    set => _OnReleaseInteractionOverride = value;
+		    get => onReleaseInteractionOverride;
+		    set => onReleaseInteractionOverride = value;
 		}
 
 		private InputManager.ControlState _controlState;
@@ -118,11 +135,13 @@ namespace Sekai.UI
 
 		private CancellationTokenSource _longPressCts;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_enableHoldRepeat")]
 		[SerializeField]
-		private bool _enableHoldRepeat;
+		private bool enableHoldRepeat;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_holdRepeatInterval")]
 		[SerializeField]
-		private float _holdRepeatInterval = 0.2f;
+		private float holdRepeatInterval = 0.2f;
 
 		private bool _isHolding;
 
@@ -138,52 +157,52 @@ namespace Sekai.UI
 
 		public ShapeType Shape
 		{
-			get { return _shape; }
-			set { _shape = value; }
+			get { return shape; }
+			set { shape = value; }
 		}
 
 		public CustomImage ShapeButtonImage
 		{
-			get { return _shapeButtonImage; }
-			set { _shapeButtonImage = value; }
+			get { return shapeButtonImage; }
+			set { shapeButtonImage = value; }
 		}
 
 		public CustomImage ShapeRectDotImage
 		{
-			get { return _shapeRectDotImage; }
-			set { _shapeRectDotImage = value; }
+			get { return shapeRectDotImage; }
+			set { shapeRectDotImage = value; }
 		}
 
 		public CustomText ShapeRectText
 		{
-			get { return _shapeRectText; }
-			set { _shapeRectText = value; }
+			get { return shapeRectText; }
+			set { shapeRectText = value; }
 		}
 
 		public Graphic CoverImage
 		{
-			get { return _coverImage; }
-			set { _coverImage = value; }
+			get { return coverImage; }
+			set { coverImage = value; }
 		}
 
 		public Vector3 BaseScale { get; set; }
 
 		public bool EnableLongPress
 		{
-			get { return _enableLongPress; }
-			set { _enableLongPress = value; }
+			get { return enableLongPress; }
+			set { enableLongPress = value; }
 		}
 
 		public bool EnableHoldRepeat
 		{
-			get { return _enableHoldRepeat; }
-			set { _enableHoldRepeat = value; }
+			get { return enableHoldRepeat; }
+			set { enableHoldRepeat = value; }
 		}
 
 		public float HoldRepeatInterval
 		{
-			get { return _holdRepeatInterval; }
-			set { _holdRepeatInterval = value; }
+			get { return holdRepeatInterval; }
+			set { holdRepeatInterval = value; }
 		}
 
 		protected override void Awake()
@@ -192,15 +211,15 @@ namespace Sekai.UI
 			BaseScale = transform.localScale;
 			// AssetRipper kept the TapEffect objects, but some restored prefabs were
 			// serialized while CustomButton was still a stub and lost this field.
-			_buttonViewInteraction ??= GetComponentInChildren<ButtonViewInteractionBase>(true);
+			buttonViewInteraction ??= GetComponentInChildren<ButtonViewInteractionBase>(true);
 		}
 
 		protected override void OnEnable()
 		{
 			base.OnEnable();
 			HideCover();
-			_buttonViewInteraction?.OnButtonViewEnabled();
-			_buttonViewInteraction?.ResetInteraction();
+			buttonViewInteraction?.OnButtonViewEnabled();
+			buttonViewInteraction?.ResetInteraction();
 			ResetScale();
 		}
 
@@ -213,7 +232,7 @@ namespace Sekai.UI
 			{
 				ShowCover();
 			}
-			_buttonViewInteraction?.OnButtonViewDisabled();
+			buttonViewInteraction?.OnButtonViewDisabled();
 			if (_controlState == InputManager.ControlState.Press)
 			{
 				OnFinishedControlSelectable();
@@ -222,7 +241,7 @@ namespace Sekai.UI
 			{
 				_controlState = InputManager.ControlState.NoControl;
 			}
-			_buttonViewInteraction?.ResetInteraction();
+			buttonViewInteraction?.ResetInteraction();
 		}
 
 		private void OnFinishedControlSelectable()
@@ -254,7 +273,7 @@ namespace Sekai.UI
 		[Skip]
 		public override void OnPointerClick(PointerEventData eventData)
 		{
-			if (!_executedLongPress || _absolutelyPress)
+			if (!_executedLongPress || absolutelyPress)
 			{
 				if (CustomSelectableDefine.CheckPointerClickAction(this, interval, se, otherSeName))
 				{
@@ -317,18 +336,18 @@ namespace Sekai.UI
 		private void SetCoverActive(bool isActive)
 		{
 			Color color = global::Sekai.ColorUtility.COLOR_DISABLE_ALPHA_50;
-			if (_coverImage != null)
+			if (coverImage != null)
 			{
-				_coverImage.color = color;
-				_coverImage.gameObject.SetActive(isActive);
+				coverImage.color = color;
+				coverImage.gameObject.SetActive(isActive);
 			}
-			if (_optionalCoverImages == null)
+			if (optionalCoverImages == null)
 			{
 				return;
 			}
-			for (int i = 0; i < _optionalCoverImages.Count; i++)
+			for (int i = 0; i < optionalCoverImages.Count; i++)
 			{
-				Graphic graphic = _optionalCoverImages[i];
+				Graphic graphic = optionalCoverImages[i];
 				if (graphic != null)
 				{
 					graphic.color = color;
@@ -344,9 +363,9 @@ namespace Sekai.UI
 				OnPressInteractionOverride();
 				return;
 			}
-			if (_buttonViewInteraction != null)
+			if (buttonViewInteraction != null)
 			{
-				_buttonViewInteraction.OnPressed();
+				buttonViewInteraction.OnPressed();
 			}
 		}
 
@@ -357,15 +376,15 @@ namespace Sekai.UI
 				OnReleaseInteractionOverride();
 				return;
 			}
-			if (_buttonViewInteraction != null)
+			if (buttonViewInteraction != null)
 			{
-				_buttonViewInteraction.OnReleased();
+				buttonViewInteraction.OnReleased();
 			}
 		}
 
 		private void StartLongPressCheck()
 		{
-			if (!_enableLongPress)
+			if (!enableLongPress)
 			{
 				return;
 			}
@@ -414,7 +433,7 @@ namespace Sekai.UI
 
 		private void StartHoldRepeat()
 		{
-			if (!_enableHoldRepeat || OnHoldRepeatEvent == null)
+			if (!enableHoldRepeat || OnHoldRepeatEvent == null)
 			{
 				return;
 			}
@@ -432,7 +451,7 @@ namespace Sekai.UI
 			{
 				while (!token.IsCancellationRequested)
 				{
-					float intervalSec = Mathf.Max(0.01f, _holdRepeatInterval);
+					float intervalSec = Mathf.Max(0.01f, holdRepeatInterval);
 					await UniTask.Delay(TimeSpan.FromSeconds(intervalSec), cancellationToken: token);
 					_holdTimer += intervalSec;
 					if (_isHolding && !token.IsCancellationRequested)
@@ -487,7 +506,7 @@ namespace Sekai.UI
 		{
 			_pressMotion.TryCancel();
 			_pressMotion = default;
-			_buttonViewInteraction?.KillFadeTween();
+			buttonViewInteraction?.KillFadeTween();
 		}
 
 		public void SetInterval(InputManager.IntervalUseType intervalType)
@@ -503,7 +522,7 @@ namespace Sekai.UI
 
 		public void SetInteraction(ButtonViewInteractionBase interaction)
 		{
-			_buttonViewInteraction = interaction;
+			buttonViewInteraction = interaction;
 		}
 
 		public void SetActive(bool isActive)

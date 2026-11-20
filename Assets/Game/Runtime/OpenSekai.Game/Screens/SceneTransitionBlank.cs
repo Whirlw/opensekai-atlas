@@ -7,8 +7,9 @@ namespace Sekai
 {
 	public class SceneTransitionBlank : SceneEntryPoint
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_loadingIndicatorPrefab")]
 		[SerializeField]
-		private SceneTransitionLoadingIndicator _loadingIndicatorPrefab;
+		private SceneTransitionLoadingIndicator loadingIndicatorPrefab;
 
 		protected override void Start()
 		{
@@ -58,9 +59,9 @@ namespace Sekai
 
 		private void CreateLoadingIndicator()
 		{
-			if (_loadingIndicatorPrefab != null)
+			if (loadingIndicatorPrefab != null)
 			{
-				Instantiate(_loadingIndicatorPrefab);
+				Instantiate(loadingIndicatorPrefab);
 			}
 		}
 

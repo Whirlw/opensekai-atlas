@@ -13,11 +13,11 @@ namespace OpenSekai.Tests.Core
     /// </summary>
     public class SusParserTests
     {
-        private const string FixtureDirectory = "Tools/fixtures/sus-p2-6";
+        private const string FIXTURE_DIRECTORY = "Tools/fixtures/sus-p2-6";
 
         private static SusChartData ParseFixture(string name)
         {
-            string path = Path.Combine(FixtureDirectory, name + ".sus");
+            string path = Path.Combine(FIXTURE_DIRECTORY, name + ".sus");
             Assert.That(File.Exists(path), Is.True, "fixture not found: " + path);
             return new SusParser().Parse(File.ReadAllText(path));
         }
@@ -119,9 +119,9 @@ namespace OpenSekai.Tests.Core
         [Test]
         public void GuideRowsInheritShapeFromTheNoteAtTheSamePosition()
         {
-            const string text = "#BPM01:120\n#00052:42\n#000921:11\n";
+            const string TEXT = "#BPM01:120\n#00052:42\n#000921:11\n";
 
-            SusChartData chart = new SusParser().Parse(text);
+            SusChartData chart = new SusParser().Parse(TEXT);
 
             NoteInfo guide = chart.GuideInfos[0f][0];
             Assert.That(guide.Category, Is.EqualTo(NoteCategory.Guide));
@@ -133,9 +133,9 @@ namespace OpenSekai.Tests.Core
         {
             // First row is all "00" placeholders; second puts a width-2 note on lane d, which would run
             // past the 13th column.
-            const string text = "#BPM01:120\n#00012:0000\n#0001d:12\n";
+            const string TEXT = "#BPM01:120\n#00012:0000\n#0001d:12\n";
 
-            SusChartData chart = new SusParser().Parse(text);
+            SusChartData chart = new SusParser().Parse(TEXT);
 
             Assert.That(chart.NoteInfos, Is.Empty, "no note row here describes a playable note");
         }
@@ -147,7 +147,7 @@ namespace OpenSekai.Tests.Core
 
             Assert.That(chart.NoteInfos, Is.Empty);
             Assert.That(chart.EventInfos, Is.Empty);
-            Assert.That(chart.TicksPerBeat, Is.EqualTo(SusChartData.DefaultTicksPerBeat));
+            Assert.That(chart.TicksPerBeat, Is.EqualTo(SusChartData.DEFAULT_TICKS_PER_BEAT));
         }
     }
 }

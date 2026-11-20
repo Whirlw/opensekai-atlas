@@ -10,23 +10,23 @@ namespace Sekai
 
 		private class StackCameraLayer
 		{
-						private Camera _Camera;
+						private Camera _camera;
 			public Camera Camera
 			{
-			    get => _Camera;
-			    set => _Camera = value;
+			    get => _camera;
+			    set => _camera = value;
 			}
-						private UniversalAdditionalCameraData _CameraData;
+						private UniversalAdditionalCameraData _cameraData;
 			public UniversalAdditionalCameraData CameraData
 			{
-			    get => _CameraData;
-			    set => _CameraData = value;
+			    get => _cameraData;
+			    set => _cameraData = value;
 			}
-						private int _Priority;
+						private int _priority;
 			public int Priority
 			{
-			    get => _Priority;
-			    set => _Priority = value;
+			    get => _priority;
+			    set => _priority = value;
 			}
 
 			public StackCameraLayer(Camera camera, UniversalAdditionalCameraData cameraData, int priority)

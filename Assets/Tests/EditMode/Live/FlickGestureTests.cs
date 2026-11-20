@@ -11,14 +11,14 @@ namespace OpenSekai.Tests.EditMode.Live
     /// </summary>
     public sealed class FlickGestureTests
     {
-        private const float Frame = 1f / 60f;
-        private const float Threshold = 3f; // pixels per reference frame
+        private const float FRAME = 1f / 60f;
+        private const float THRESHOLD = 3f; // pixels per reference frame
 
         [Test]
         public void SwipeBelowTheThresholdDoesNotCount()
         {
             bool updated = FlickGesture.TryUpdate(
-                new Vector2(0f, Threshold - 0.1f), Frame, NoteDirection.Default, Threshold, out bool trueDirection);
+                new Vector2(0f, THRESHOLD - 0.1f), FRAME, NoteDirection.Default, THRESHOLD, out bool trueDirection);
 
             Assert.That(updated, Is.False);
             Assert.That(trueDirection, Is.False);
@@ -28,7 +28,7 @@ namespace OpenSekai.Tests.EditMode.Live
         public void SwipeAboveTheThresholdCountsForANoteWithoutDirection()
         {
             bool updated = FlickGesture.TryUpdate(
-                new Vector2(0f, Threshold + 0.5f), Frame, NoteDirection.Default, Threshold, out bool trueDirection);
+                new Vector2(0f, THRESHOLD + 0.5f), FRAME, NoteDirection.Default, THRESHOLD, out bool trueDirection);
 
             Assert.That(updated, Is.True);
             Assert.That(trueDirection, Is.True, "an undirected note accepts any swipe");
@@ -37,17 +37,17 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void ZeroDeltaIsRejectedEvenWithATinyThreshold()
         {
-            Assert.That(FlickGesture.TryUpdate(Vector2.zero, Frame, NoteDirection.Default, 0f, out _), Is.False);
+            Assert.That(FlickGesture.TryUpdate(Vector2.zero, FRAME, NoteDirection.Default, 0f, out _), Is.False);
         }
 
         [Test]
         public void UpwardSwipeSatisfiesEveryDirection()
         {
-            Vector2 up = new Vector2(0f, Threshold * 4f);
+            Vector2 up = new Vector2(0f, THRESHOLD * 4f);
 
             foreach (NoteDirection direction in new[] { NoteDirection.Default, NoteDirection.Left, NoteDirection.Right })
             {
-                FlickGesture.TryUpdate(up, Frame, direction, Threshold, out bool trueDirection);
+                FlickGesture.TryUpdate(up, FRAME, direction, THRESHOLD, out bool trueDirection);
                 Assert.That(trueDirection, Is.True, $"straight up should satisfy {direction}");
             }
         }
@@ -55,9 +55,9 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void LeftFlickRejectsASwipeToTheRight()
         {
-            FlickGesture.TryUpdate(new Vector2(-Threshold * 4f, 0f), Frame, NoteDirection.Left, Threshold, out bool left);
-            FlickGesture.TryUpdate(new Vector2(Threshold * 4f, 0f), Frame, NoteDirection.Right, Threshold, out bool right);
-            FlickGesture.TryUpdate(new Vector2(Threshold * 4f, 0f), Frame, NoteDirection.Left, Threshold, out bool wrongWay);
+            FlickGesture.TryUpdate(new Vector2(-THRESHOLD * 4f, 0f), FRAME, NoteDirection.Left, THRESHOLD, out bool left);
+            FlickGesture.TryUpdate(new Vector2(THRESHOLD * 4f, 0f), FRAME, NoteDirection.Right, THRESHOLD, out bool right);
+            FlickGesture.TryUpdate(new Vector2(THRESHOLD * 4f, 0f), FRAME, NoteDirection.Left, THRESHOLD, out bool wrongWay);
 
             Assert.That(left, Is.True);
             Assert.That(right, Is.True);
@@ -67,10 +67,10 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void DiagonalSwipeSatisfiesAHorizontalFlick()
         {
-            Vector2 diagonal = new Vector2(-Threshold * 3f, Threshold * 3f);
+            Vector2 diagonal = new Vector2(-THRESHOLD * 3f, THRESHOLD * 3f);
 
-            FlickGesture.TryUpdate(diagonal, Frame, NoteDirection.Left, Threshold, out bool left);
-            FlickGesture.TryUpdate(diagonal, Frame, NoteDirection.Right, Threshold, out bool right);
+            FlickGesture.TryUpdate(diagonal, FRAME, NoteDirection.Left, THRESHOLD, out bool left);
+            FlickGesture.TryUpdate(diagonal, FRAME, NoteDirection.Right, THRESHOLD, out bool right);
 
             Assert.That(left, Is.True);
             Assert.That(right, Is.True, "a 45 degree diagonal sits exactly on the cone edge");
@@ -81,12 +81,12 @@ namespace OpenSekai.Tests.EditMode.Live
         {
             // The same physical speed sampled at 120 fps yields half the delta per frame; after
             // normalisation both must clear the threshold, and both must fail when halved.
-            Vector2 atSixty = new Vector2(0f, Threshold * 1.5f);
+            Vector2 atSixty = new Vector2(0f, THRESHOLD * 1.5f);
             Vector2 atOneTwenty = atSixty * 0.5f;
 
-            FlickGesture.TryUpdate(atSixty, Frame, NoteDirection.Default, Threshold, out bool sixty);
-            FlickGesture.TryUpdate(atOneTwenty, Frame * 0.5f, NoteDirection.Default, Threshold, out bool oneTwenty);
-            FlickGesture.TryUpdate(atOneTwenty, Frame, NoteDirection.Default, Threshold, out bool slow);
+            FlickGesture.TryUpdate(atSixty, FRAME, NoteDirection.Default, THRESHOLD, out bool sixty);
+            FlickGesture.TryUpdate(atOneTwenty, FRAME * 0.5f, NoteDirection.Default, THRESHOLD, out bool oneTwenty);
+            FlickGesture.TryUpdate(atOneTwenty, FRAME, NoteDirection.Default, THRESHOLD, out bool slow);
 
             Assert.That(sixty, Is.True);
             Assert.That(oneTwenty, Is.True, "a faster sample rate must not make flicks harder");
@@ -96,7 +96,7 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void NonPositiveDeltaTimeLeavesTheDeltaAlone()
         {
-            Vector2 raw = new Vector2(0f, Threshold * 2f);
+            Vector2 raw = new Vector2(0f, THRESHOLD * 2f);
 
             Assert.That(FlickGesture.ToReferenceFrame(raw, 0f), Is.EqualTo(raw));
         }

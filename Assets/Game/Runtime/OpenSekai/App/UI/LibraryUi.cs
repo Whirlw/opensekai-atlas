@@ -9,9 +9,9 @@ namespace OpenSekai.App.UI
 {
     internal static class LibraryUi
     {
-        private static readonly Color32 ButtonColor = new Color32(54, 67, 80, 255);
-        private static readonly Color32 AccentColor = new Color32(72, 148, 214, 255);
-        private static readonly string[] CjkFontCandidates =
+        private static readonly Color32 _buttonColor = new Color32(54, 67, 80, 255);
+        private static readonly Color32 _accentColor = new Color32(72, 148, 214, 255);
+        private static readonly string[] _cjkFontCandidates =
         {
             "Microsoft YaHei UI", "Microsoft YaHei", "SimHei", "Noto Sans CJK SC",
             "Source Han Sans SC", "PingFang SC", "Hiragino Sans GB", "Arial Unicode MS"
@@ -90,9 +90,9 @@ namespace OpenSekai.App.UI
             }
 
             string[] installed = Font.GetOSInstalledFontNames();
-            for (int i = 0; i < CjkFontCandidates.Length && _cjkFontAsset == null; i++)
+            for (int i = 0; i < _cjkFontCandidates.Length && _cjkFontAsset == null; i++)
             {
-                string candidate = FindInstalledFont(installed, CjkFontCandidates[i]);
+                string candidate = FindInstalledFont(installed, _cjkFontCandidates[i]);
                 if (candidate == null)
                 {
                     continue;
@@ -127,7 +127,7 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>Horizontal ellipsis, the only character TMP asks for that no label spells out.</summary>
-        private const char EllipsisCharacter = '\u2026';
+        private const char ELLIPSIS_CHARACTER = '\u2026';
 
         /// <summary>
         /// Seeds the glyph TMP's ellipsis overflow asks for. TMP only calls HasCharacter when it decides
@@ -143,7 +143,7 @@ namespace OpenSekai.App.UI
                 return null;
             }
 
-            if (!asset.HasCharacter(EllipsisCharacter) && !asset.TryAddCharacters("\u2026"))
+            if (!asset.HasCharacter(ELLIPSIS_CHARACTER) && !asset.TryAddCharacters("\u2026"))
             {
                 Debug.LogWarning("[LibraryScreen] Font asset " + asset.name + " cannot add the ellipsis glyph.");
             }
@@ -283,7 +283,7 @@ namespace OpenSekai.App.UI
             rect.sizeDelta = new Vector2(width, height);
 
             Image image = go.GetComponent<Image>();
-            image.color = ButtonColor;
+            image.color = _buttonColor;
 
             Button button = go.GetComponent<Button>();
             button.targetGraphic = image;
@@ -297,7 +297,7 @@ namespace OpenSekai.App.UI
             button.onClick.AddListener(onClick);
 
             TextMeshProUGUI text = CreateText("Label", rect, label, 24f, FontStyles.Bold, TextAlignmentOptions.Center);
-            text.color = AccentColor;
+            text.color = _accentColor;
             Stretch(text.rectTransform);
             return button;
         }

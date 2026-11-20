@@ -63,6 +63,7 @@
 - [开发计划](plans/README.md)
 - [OpenSekai Android 延迟优化计划](plans/android-latency-optimization-plan.md)
 - [NextRUSH+ 完整谱面支持计划](plans/next-rush-support-plan.md)
+- [OpenSekai 代码规范审查与整改计划](plans/coding-standards-audit-2026-11-20.md)
 
 ## 参考（reference/）
 

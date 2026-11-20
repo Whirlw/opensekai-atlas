@@ -31,7 +31,7 @@ namespace Sekai
 			public int noteId;
 		}
 
-		private static readonly int LANE_COUNT;
+		private static readonly int _laneCOUNT;
 
 		private const string COLLABORATION_SE_CATEGORY_1 = "collaborationTap1";
 
@@ -75,14 +75,14 @@ namespace Sekai
 		public void Setup(BaseLiveController liveBaseController)
 		{
 			_isEnableVibration = liveBaseController?.Settings?.UseVibration ?? true;
-			_tapLaneEffectList = new ParticleSystemController[LANE_COUNT];
-			_defaultLaneEffectList = new ParticleSystemController[LANE_COUNT];
-			_criticalLaneEffectList = new ParticleSystemController[LANE_COUNT];
-			_flickLaneEffectList = new ParticleSystemController[LANE_COUNT];
-			_criticalFlickLaneEffectList = new ParticleSystemController[LANE_COUNT];
+			_tapLaneEffectList = new ParticleSystemController[_laneCOUNT];
+			_defaultLaneEffectList = new ParticleSystemController[_laneCOUNT];
+			_criticalLaneEffectList = new ParticleSystemController[_laneCOUNT];
+			_flickLaneEffectList = new ParticleSystemController[_laneCOUNT];
+			_criticalFlickLaneEffectList = new ParticleSystemController[_laneCOUNT];
 			_pairNoteSeMap = new Dictionary<int, string>();
 
-			for (int i = 0; i < LANE_COUNT; i++)
+			for (int i = 0; i < _laneCOUNT; i++)
 			{
 				_tapLaneEffectList[i] = LoadTapEffect(LivePrefabDefine.FX_LANE_TAP);
 				_defaultLaneEffectList[i] = LoadTapEffect(LivePrefabDefine.FX_LANE_DEFAULT);
@@ -584,7 +584,7 @@ namespace Sekai
 
 		static TapEffectView()
 		{
-			LANE_COUNT = LiveUtility.LANE_COUNT + 1;
+			_laneCOUNT = LiveUtility.LANE_COUNT + 1;
 		}
 
 		private static int GetTapSeKey(NoteCategory category, NoteType type)

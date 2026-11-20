@@ -12,38 +12,41 @@ namespace Sekai
 			HasTab = 1
 		}
 
-		private static readonly Dictionary<DialogSize, float> SIZE_DIC;
+		private static readonly Dictionary<DialogSize, float> _sizeDIC;
 
 		private static readonly float _bottomPadding;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_windowRect")]
 		[SerializeField]
-		private RectTransform _windowRect;
+		private RectTransform windowRect;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_paddingLayoutElement")]
 		[SerializeField]
-		private LayoutElement _paddingLayoutElement;
+		private LayoutElement paddingLayoutElement;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_content")]
 		[SerializeField]
-		private LayoutElement _content;
+		private LayoutElement content;
 
 		public void Setup(DialogSize dialogSize, ViewType viewType = ViewType.Default)
 		{
-			if (dialogSize != DialogSize.Manual && SIZE_DIC.TryGetValue(dialogSize, out float width))
+			if (dialogSize != DialogSize.Manual && _sizeDIC.TryGetValue(dialogSize, out float width))
 			{
-				if (_windowRect != null)
+				if (windowRect != null)
 				{
-					Vector2 sizeDelta = _windowRect.sizeDelta;
+					Vector2 sizeDelta = windowRect.sizeDelta;
 					sizeDelta.x = width;
-					_windowRect.sizeDelta = sizeDelta;
+					windowRect.sizeDelta = sizeDelta;
 				}
-				if (_content != null)
+				if (content != null)
 				{
-					_content.preferredWidth = width;
+					content.preferredWidth = width;
 				}
 			}
 
-			if (_paddingLayoutElement != null)
+			if (paddingLayoutElement != null)
 			{
-				_paddingLayoutElement.preferredHeight = viewType == ViewType.HasTab ? 0f : _bottomPadding;
+				paddingLayoutElement.preferredHeight = viewType == ViewType.HasTab ? 0f : _bottomPadding;
 			}
 		}
 
@@ -55,7 +58,7 @@ namespace Sekai
 		{
 			// Size constants used by the dialog prefabs.
 			// Adjust them only with a visual check.
-			SIZE_DIC = new Dictionary<DialogSize, float>
+			_sizeDIC = new Dictionary<DialogSize, float>
 			{
 				{ DialogSize.Small, 720f },
 				{ DialogSize.Medium, 960f },

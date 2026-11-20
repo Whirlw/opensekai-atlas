@@ -115,7 +115,7 @@ namespace Sekai
 		public static readonly Color POSITIVE_VALUE_COLOR;
 		public static readonly Color NEGATIVE_VALUE_COLOR;
 
-		private static readonly Dictionary<int, Color> CHARACTER_COLORS;
+		private static readonly Dictionary<int, Color> _characterCOLORS;
 		public static readonly Dictionary<UnitType, Color> UNIT_SHADOW_COLORS;
 
 		private const int STAGE_FIRST_START = 1;
@@ -194,7 +194,7 @@ namespace Sekai
 			POSITIVE_VALUE_COLOR = PaletteUtility.GetColor(ColorEntry.text_pk);
 			NEGATIVE_VALUE_COLOR = PaletteUtility.GetColor(ColorEntry.text_lbl);
 
-			CHARACTER_COLORS = new Dictionary<int, Color>
+			_characterCOLORS = new Dictionary<int, Color>
 			{
 				{ 1, Create("#33aaee") },
 				{ 2, Create("#ffdd44") },
@@ -361,7 +361,7 @@ namespace Sekai
 
 		public static Color GetCharacterColor(int characterId)
 		{
-			return CHARACTER_COLORS.TryGetValue(characterId, out Color color) ? color : WHITE_ALPHA_0;
+			return _characterCOLORS.TryGetValue(characterId, out Color color) ? color : WHITE_ALPHA_0;
 		}
 
 		public static Color GetExchangeTextColor(int haveCount, int totalCost)

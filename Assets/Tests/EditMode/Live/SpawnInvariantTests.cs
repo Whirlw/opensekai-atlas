@@ -13,20 +13,20 @@ namespace OpenSekai.Tests.EditMode.Live
     /// </summary>
     public sealed class SpawnInvariantTests
     {
-        private LiveConfig.NoteTypeJudgeData previousJudge;
-        private MusicScoreInfo previousFrame;
-        private bool previousEnabled;
-        private LiveTraceCategory previousCategories;
+        private LiveConfig.NoteTypeJudgeData _previousJudge;
+        private MusicScoreInfo _previousFrame;
+        private bool _previousEnabled;
+        private LiveTraceCategory _previousCategories;
 
         private static MusicScoreInfo Info(float time) => new MusicScoreInfo(0, time / 2, time, 120, 4, 1, 1);
 
         [SetUp]
         public void SetUp()
         {
-            previousJudge = LiveConfig.noteTypeJudgeData;
-            previousFrame = MusicScore.CurrentFrameInfo;
-            previousEnabled = LiveTrace.Enabled;
-            previousCategories = LiveTrace.Categories;
+            _previousJudge = LiveConfig.noteTypeJudgeData;
+            _previousFrame = MusicScore.CurrentFrameInfo;
+            _previousEnabled = LiveTrace.Enabled;
+            _previousCategories = LiveTrace.Categories;
             MusicScore.CurrentFrameInfo = Info(0);
             LiveConfig.LoadMasterConfig();
             LiveTrace.Enabled = true;
@@ -37,10 +37,10 @@ namespace OpenSekai.Tests.EditMode.Live
         [TearDown]
         public void TearDown()
         {
-            LiveConfig.noteTypeJudgeData = previousJudge;
-            MusicScore.CurrentFrameInfo = previousFrame;
-            LiveTrace.Enabled = previousEnabled;
-            LiveTrace.Categories = previousCategories;
+            LiveConfig.noteTypeJudgeData = _previousJudge;
+            MusicScore.CurrentFrameInfo = _previousFrame;
+            LiveTrace.Enabled = _previousEnabled;
+            LiveTrace.Categories = _previousCategories;
             LiveTrace.ClearBuffer();
         }
 

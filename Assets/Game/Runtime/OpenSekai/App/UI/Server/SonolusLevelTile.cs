@@ -23,7 +23,7 @@ namespace OpenSekai.App.UI
         private const float COVER_RADIUS = 18f;
         private const float CORNER = 10f;
         private const float ENTER_OFFSET = 16f;
-        private static readonly Color32 CornerBackground = new Color32(12, 15, 20, 220);
+        private static readonly Color32 _cornerBackground = new Color32(12, 15, 20, 220);
 
         private readonly RectTransform _holder;
         private readonly Image _cover;
@@ -66,7 +66,7 @@ namespace OpenSekai.App.UI
             _ring = LibraryWidgets.Shape("Ring", _holder, LibraryShapes.Ring(COVER_RADIUS, 1f), new Color32(255, 255, 255, 15));
             LibraryUi.Stretch(_ring.rectTransform);
 
-            Image chip = LibraryWidgets.Panel("Level", _holder, 9f, CornerBackground);
+            Image chip = LibraryWidgets.Panel("Level", _holder, 9f, _cornerBackground);
             _levelChip = chip.rectTransform;
             LibraryWidgets.Place(_levelChip, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(CORNER, -CORNER), new Vector2(84f, 32f));
             _level = LibraryWidgets.Label("Label", chip.transform, string.Empty, 21f, LibraryTheme.Colors.TextPrimary,
@@ -75,7 +75,7 @@ namespace OpenSekai.App.UI
             _level.characterSpacing = 4f;
             LibraryUi.Stretch(_level.rectTransform);
 
-            Image installed = LibraryWidgets.Panel("Installed", _holder, 16f, CornerBackground);
+            Image installed = LibraryWidgets.Panel("Installed", _holder, 16f, _cornerBackground);
             LibraryWidgets.Place(installed.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-CORNER, -CORNER), new Vector2(32f, 32f));
             LibraryWidgets.Icon(installed.transform, LibraryIcon.Check, new Color32(123, 216, 143, 255), 22f);
             _installed = installed.gameObject;

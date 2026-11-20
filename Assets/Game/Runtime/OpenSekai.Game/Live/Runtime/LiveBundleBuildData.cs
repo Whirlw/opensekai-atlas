@@ -5,41 +5,52 @@ namespace Sekai.Live
 {
 	public class LiveBundleBuildData : ScriptableObject
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_judgmentOffsetX")]
 		[SerializeField]
-		private float _judgmentOffsetX;
+		private float judgmentOffsetX;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_judgmentOffsetY")]
 		[SerializeField]
-		private float _judgmentOffsetY;
+		private float judgmentOffsetY;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_longNoteComboBeat")]
 		[SerializeField]
-		private int _longNoteComboBeat;
+		private int longNoteComboBeat;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_life")]
 		[SerializeField]
-		private int _life;
+		private int life;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_maxLife")]
 		[SerializeField]
-		private int _maxLife;
+		private int maxLife;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_dyingLife")]
 		[SerializeField]
-		private int _dyingLife;
+		private int dyingLife;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_cutinDelayTime")]
 		[SerializeField]
-		private float _cutinDelayTime;
+		private float cutinDelayTime;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_normalNoteOffsetX")]
 		[Tooltip("Normal notes, long-note end")]
 		[SerializeField]
-		private float _normalNoteOffsetX;
+		private float normalNoteOffsetX;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_flickNoteOffsetX")]
 		[Tooltip("Flick start, flick end")]
 		[SerializeField]
-		private float _flickNoteOffsetX;
+		private float flickNoteOffsetX;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_longNoteOffsetX")]
 		[Tooltip("Long-note start")]
 		[SerializeField]
-		private float _longNoteOffsetX;
+		private float longNoteOffsetX;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_flickDistance")]
 		[SerializeField]
-		private float _flickDistance;
+		private float flickDistance;
 
 		private readonly float _initLaneOffsetX;
 
@@ -47,7 +58,7 @@ namespace Sekai.Live
 		{
 			get
 			{
-				return _judgmentOffsetX;
+				return judgmentOffsetX;
 			}
 		}
 
@@ -55,7 +66,7 @@ namespace Sekai.Live
 		{
 			get
 			{
-				return _judgmentOffsetY;
+				return judgmentOffsetY;
 			}
 		}
 
@@ -63,7 +74,7 @@ namespace Sekai.Live
 		{
 			get
 			{
-				return _longNoteComboBeat;
+				return longNoteComboBeat;
 			}
 		}
 
@@ -71,7 +82,7 @@ namespace Sekai.Live
 		{
 			get
 			{
-				return _life;
+				return life;
 			}
 		}
 
@@ -79,7 +90,7 @@ namespace Sekai.Live
 		{
 			get
 			{
-				return _maxLife;
+				return maxLife;
 			}
 		}
 
@@ -87,7 +98,7 @@ namespace Sekai.Live
 		{
 			get
 			{
-				return _dyingLife;
+				return dyingLife;
 			}
 		}
 
@@ -95,7 +106,7 @@ namespace Sekai.Live
 		{
 			get
 			{
-				return Mathf.RoundToInt(_cutinDelayTime);
+				return Mathf.RoundToInt(cutinDelayTime);
 			}
 		}
 
@@ -103,11 +114,11 @@ namespace Sekai.Live
 		{
 			get
 			{
-				return _normalNoteOffsetX;
+				return normalNoteOffsetX;
 			}
 			set
 			{
-				_normalNoteOffsetX = value;
+				normalNoteOffsetX = value;
 			}
 		}
 
@@ -115,11 +126,11 @@ namespace Sekai.Live
 		{
 			get
 			{
-				return _flickNoteOffsetX;
+				return flickNoteOffsetX;
 			}
 			set
 			{
-				_flickNoteOffsetX = value;
+				flickNoteOffsetX = value;
 			}
 		}
 
@@ -127,11 +138,11 @@ namespace Sekai.Live
 		{
 			get
 			{
-				return _longNoteOffsetX;
+				return longNoteOffsetX;
 			}
 			set
 			{
-				_longNoteOffsetX = value;
+				longNoteOffsetX = value;
 			}
 		}
 
@@ -139,11 +150,11 @@ namespace Sekai.Live
 		{
 			get
 			{
-				return _flickDistance;
+				return flickDistance;
 			}
 			set
 			{
-				_flickDistance = value;
+				flickDistance = value;
 			}
 		}
 

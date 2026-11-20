@@ -18,7 +18,7 @@ namespace OpenSekai.Tests.EditMode.Live
 	/// </summary>
 	public sealed class AutoplayFrameSkipTests
 	{
-		private const float MissWindowSeconds = 0.25f;
+		private const float MISS_WINDOW_SECONDS = 0.25f;
 
 		[Test]
 		public void AutoplayOnDeinosKeepsAFullScoreWhenFramesAreDropped()
@@ -62,7 +62,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			using var harness = new LiveHarness();
 			harness.Arrange(score, auto: true);
 			harness.OnUpdate(0.9f, 10.9d);
-			harness.OnUpdate(0.9f + MissWindowSeconds + 0.05f, 11.2d);
+			harness.OnUpdate(0.9f + MISS_WINDOW_SECONDS + 0.05f, 11.2d);
 
 			Assert.That(note.Result, Is.EqualTo(NoteResult.Auto),
 				"a late frame must not decide a note autoplay was going to answer");
@@ -83,7 +83,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			using var harness = new LiveHarness();
 			harness.Arrange(score, auto: true);
 			harness.OnUpdate(0.9f, 10.9d);
-			harness.OnUpdate(0.9f + MissWindowSeconds + 0.05f, 11.2d);
+			harness.OnUpdate(0.9f + MISS_WINDOW_SECONDS + 0.05f, 11.2d);
 
 			Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.Auto),
 				"autoplay owns the head even when the frame skipped its window");

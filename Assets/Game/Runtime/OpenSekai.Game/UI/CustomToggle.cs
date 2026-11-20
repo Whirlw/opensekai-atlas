@@ -22,29 +22,37 @@ namespace Sekai.UI
 		[SerializeField]
 		protected SeType se;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_interval")]
 		[SerializeField]
-		private InputManager.IntervalUseType _interval;
+		private InputManager.IntervalUseType interval;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_disableActionType")]
 		[SerializeField]
-		private DisableActionType _disableActionType;
+		private DisableActionType disableActionType;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_coverImage")]
 		[SerializeField]
-		private Graphic _coverImage;
+		private Graphic coverImage;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_optionalCoverImages")]
 		[SerializeField]
-		private List<Graphic> _optionalCoverImages;
+		private List<Graphic> optionalCoverImages;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_interaction")]
 		[SerializeField]
-		private ButtonViewInteractionBase _interaction;
+		private ButtonViewInteractionBase interaction;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_captionText")]
 		[SerializeField]
-		private CustomTextMesh _captionText;
+		private CustomTextMesh captionText;
 
-				[SerializeField] private Action _onPointerClickAction;
+				[UnityEngine.Serialization.FormerlySerializedAs("_onPointerClickAction")]
+				[SerializeField]
+				private Action onPointerClickActionValue;
 		public Action onPointerClickAction
 		{
-		    get => _onPointerClickAction;
-		    set => _onPointerClickAction = value;
+		    get => onPointerClickActionValue;
+		    set => onPointerClickActionValue = value;
 		}
 
 		protected override void Awake()
@@ -55,7 +63,7 @@ namespace Sekai.UI
 		protected override void OnEnable()
 		{
 			base.OnEnable();
-			if (!interactable && _disableActionType == DisableActionType.Grayout)
+			if (!interactable && disableActionType == DisableActionType.Grayout)
 			{
 				ShowCover(_disableColor?.Value ?? Color.gray);
 			}
@@ -74,7 +82,7 @@ namespace Sekai.UI
 				return;
 			}
 
-			if (CustomSelectableDefine.CheckPointerClickAction(this, _interval, se))
+			if (CustomSelectableDefine.CheckPointerClickAction(this, interval, se))
 			{
 				base.OnPointerClick(eventData);
 				onPointerClickAction?.Invoke();
@@ -83,55 +91,55 @@ namespace Sekai.UI
 
 		private void ShowCover(Color color)
 		{
-			if (_coverImage != null)
+			if (coverImage != null)
 			{
-				_coverImage.color = color;
-				_coverImage.gameObject.SetActive(true);
+				coverImage.color = color;
+				coverImage.gameObject.SetActive(true);
 			}
-			if (_optionalCoverImages == null)
+			if (optionalCoverImages == null)
 			{
 				return;
 			}
-			for (int i = 0; i < _optionalCoverImages.Count; i++)
+			for (int i = 0; i < optionalCoverImages.Count; i++)
 			{
-				if (_optionalCoverImages[i] != null)
+				if (optionalCoverImages[i] != null)
 				{
-					_optionalCoverImages[i].color = color;
-					_optionalCoverImages[i].gameObject.SetActive(true);
+					optionalCoverImages[i].color = color;
+					optionalCoverImages[i].gameObject.SetActive(true);
 				}
 			}
 		}
 
 		public void HideCover()
 		{
-			if (_coverImage != null)
+			if (coverImage != null)
 			{
-				_coverImage.gameObject.SetActive(false);
+				coverImage.gameObject.SetActive(false);
 			}
-			if (_optionalCoverImages == null)
+			if (optionalCoverImages == null)
 			{
 				return;
 			}
-			for (int i = 0; i < _optionalCoverImages.Count; i++)
+			for (int i = 0; i < optionalCoverImages.Count; i++)
 			{
-				if (_optionalCoverImages[i] != null)
+				if (optionalCoverImages[i] != null)
 				{
-					_optionalCoverImages[i].gameObject.SetActive(false);
+					optionalCoverImages[i].gameObject.SetActive(false);
 				}
 			}
 		}
 
 		public void SetOptionalCoverImage(int index)
 		{
-			if (_optionalCoverImages == null)
+			if (optionalCoverImages == null)
 			{
 				return;
 			}
-			for (int i = 0; i < _optionalCoverImages.Count; i++)
+			for (int i = 0; i < optionalCoverImages.Count; i++)
 			{
-				if (_optionalCoverImages[i] != null)
+				if (optionalCoverImages[i] != null)
 				{
-					_optionalCoverImages[i].gameObject.SetActive(i == index);
+					optionalCoverImages[i].gameObject.SetActive(i == index);
 				}
 			}
 		}
@@ -148,9 +156,9 @@ namespace Sekai.UI
 
 		public void SetCaptionText(string caption)
 		{
-			if (_captionText != null)
+			if (captionText != null)
 			{
-				_captionText.text = caption;
+				captionText.text = caption;
 			}
 		}
 

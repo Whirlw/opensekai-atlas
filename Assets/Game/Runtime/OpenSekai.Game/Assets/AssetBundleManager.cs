@@ -37,11 +37,11 @@ namespace Sekai
 
 		public class DownloadInfo
 		{
-						private float _Progress;
+						private float _progress;
 			public float Progress
 			{
-			    get => _Progress;
-			    set => _Progress = value;
+			    get => _progress;
+			    set => _progress = value;
 			}
 			public DownloadResultCode ResultCode;
 		}

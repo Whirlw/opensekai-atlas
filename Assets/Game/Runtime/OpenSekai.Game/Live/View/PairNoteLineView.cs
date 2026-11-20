@@ -227,7 +227,7 @@ namespace Sekai
 			double now = (double)time + LiveConfig.ViewLeadSeconds;
 			float a = (float)left.NativeViewProgress(now, out bool leftHidden);
 			float b = (float)right.NativeViewProgress(now, out bool rightHidden);
-			float cutoff = (float)LiveConfig.NativeKeyProgressEnd;
+			float cutoff = (float)LiveConfig.NATIVE_KEY_PROGRESS_END;
 			float alpha = Mathf.Clamp01(2f * (1f - Mathf.Abs(a - b)));
 			if (leftHidden || rightHidden || alpha <= 0 || Mathf.Max(a, b) <= 0 || Mathf.Min(a, b) > cutoff
 				|| (a - 1f) * (b - 1f) < 0 || right.IsDecoration && now >= right.NativeTarget.Time

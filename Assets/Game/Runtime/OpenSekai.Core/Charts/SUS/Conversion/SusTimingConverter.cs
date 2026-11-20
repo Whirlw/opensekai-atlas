@@ -59,10 +59,10 @@ namespace OpenSekai.Shared.Conversion
 			List<TimelineEntry> entries = BuildTimeline(chart);
 			var seed = new MusicScoreInfo(
 				0, 0f, 0f,
-				SusChartData.DefaultBpm,
-				SusChartData.DefaultTimeSignature,
-				SusChartData.DefaultSpeedRatio,
-				SusChartData.DefaultSeVolume);
+				SusChartData.DEFAULT_BPM,
+				SusChartData.DEFAULT_TIME_SIGNATURE,
+				SusChartData.DEFAULT_SPEED_RATIO,
+				SusChartData.DEFAULT_SE_VOLUME);
 			return Merge(entries, seed);
 		}
 
@@ -75,7 +75,7 @@ namespace OpenSekai.Shared.Conversion
 			var entries = new List<TimelineEntry>();
 			if (!chart.TimeSignatures.Exists(info => info.StartBarIndex == 0))
 			{
-				entries.Add(new TimelineEntry(0, 0f, TimelineKind.TimeSignature, SusChartData.DefaultTimeSignature));
+				entries.Add(new TimelineEntry(0, 0f, TimelineKind.TimeSignature, SusChartData.DEFAULT_TIME_SIGNATURE));
 			}
 			foreach (TimeSignatureInfo info in chart.TimeSignatures)
 			{
@@ -83,7 +83,7 @@ namespace OpenSekai.Shared.Conversion
 			}
 			if (!chart.BpmInfos.Exists(info => info.bar == 0 && Approximately(info.barProgress, 0f)))
 			{
-				entries.Add(new TimelineEntry(0, 0f, TimelineKind.Bpm, SusChartData.DefaultBpm));
+				entries.Add(new TimelineEntry(0, 0f, TimelineKind.Bpm, SusChartData.DEFAULT_BPM));
 			}
 			foreach (BpmInfo info in chart.BpmInfos)
 			{
@@ -191,7 +191,7 @@ namespace OpenSekai.Shared.Conversion
 			{
 				MusicScoreInfo current = scoreInfoList[i];
 				float deltaBars = current.bar - previous.bar + current.barProgress - previous.barProgress;
-				float bpm = previous.bpm <= 0f ? SusChartData.DefaultBpm : previous.bpm;
+				float bpm = previous.bpm <= 0f ? SusChartData.DEFAULT_BPM : previous.bpm;
 				time += deltaBars * previous.timeSignature * 60f / bpm;
 				current.time = time;
 				scoreInfoList[i] = current;
@@ -211,7 +211,7 @@ namespace OpenSekai.Shared.Conversion
 		/// </summary>
 		private static float GetTickOffsetBarProgress(SusChartData chart, int barIndex, int tickOffset)
 		{
-			float timeSignature = SusChartData.DefaultTimeSignature;
+			float timeSignature = SusChartData.DEFAULT_TIME_SIGNATURE;
 			foreach (TimeSignatureInfo info in chart.TimeSignatures.OrderBy(value => value.StartBarIndex))
 			{
 				if (info.StartBarIndex > barIndex)

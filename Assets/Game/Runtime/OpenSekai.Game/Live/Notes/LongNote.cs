@@ -89,7 +89,7 @@ namespace Sekai.Live
 					var childOffsetTime = CalcTimeOffset?.Invoke(note) ?? offsetTime;
 					if (currentFrameInfo.time < note.MusicScoreInfo.time - childOffsetTime)
 					{
-					if (currentFrameInfo.time < note.MusicScoreInfo.time - ConnectionNote.ContactWindowSeconds) break;
+					if (currentFrameInfo.time < note.MusicScoreInfo.time - ConnectionNote.CONTACT_WINDOW_SECONDS) break;
 					if (note is not LongHoldCombo) continue;
 					}
 
@@ -379,12 +379,12 @@ namespace Sekai.Live
 		/// Releasing or stepping out of the bar keeps the hold alive for this many frames; only after
 		/// that does the bar become "released". The chart's own MissMesh is added on top.
 		/// </summary>
-		internal const int HoldGraceFrames = 3;
+		internal const int HOLD_GRACE_FRAMES = 3;
 		/// <summary>
 		/// The same grace as a duration: three frames of the 60 fps judgement tables, so 50 ms on a
 		/// 165 Hz phone and on a 60 Hz one alike.
 		/// </summary>
-		internal static float HoldGraceSeconds => ReferenceFrame.FromFrames(HoldGraceFrames);
+		internal static float HoldGraceSeconds => ReferenceFrame.FromFrames(HOLD_GRACE_FRAMES);
 
 		internal void RestoreHeldState() => Body.RestoreHeldState();
 

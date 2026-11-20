@@ -23,7 +23,7 @@ namespace Sekai.Live
         public bool FullScreen { get; }
         internal bool HasActiveInterval { get; }
         internal bool TracksDamageContact { get; }
-        internal const double ThroughJudgeLineDespawnDelay = 5;
+        internal const double THROUGH_JUDGE_LINE_DESPAWN_DELAY = 5;
         internal bool IsGuide => Kind >= 101 && Kind <= 108;
         public bool IsFake => Kind >= 51 && Kind <= 88;
         private int VisualKind => IsFake ? Kind - 50 : Kind;
@@ -103,9 +103,9 @@ namespace Sekai.Live
             bool through = segment?.ThroughJudgeLine == true;
             first = 0;
             last = 1;
-            if (now >= endTime + (through ? ThroughJudgeLineDespawnDelay : 0)) return false;
+            if (now >= endTime + (through ? THROUGH_JUDGE_LINE_DESPAWN_DELAY : 0)) return false;
 
-            double limit = through ? LiveConfig.NativeKeyProgressEnd : 1;
+            double limit = through ? LiveConfig.NATIVE_KEY_PROGRESS_END : 1;
             if (!through && now > startTime)
             {
                 first = (now - startTime) / (endTime - startTime);
