@@ -16,7 +16,7 @@
 
 - [使用指南](guides/README.md)
 - [打一首歌](guides/play-a-chart.md)
-- [Android 社区谱面下载](guides/server-chart-downloads.md)
+- [从服务器游玩和下载谱面](guides/server-chart-downloads.md)
 
 ## 架构（architecture/）
 

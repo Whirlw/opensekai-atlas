@@ -1,14 +1,14 @@
 # 设置项
 
-> 目的：把「设置面板上的 9 行」与「`LiveSettingData` 的字段」对应起来，说明落盘位置与生效时机。
+> 目的：将设置界面与对应字段关联起来，说明落盘位置与生效时机。
 > 适用读者：开发者、使用者。
 > 前置条件：无。
-> 最后更新：2026-11-02
+> 最后更新：2026-11-20
 
 ## 概述
 
 设置有两个来源：`LiveSettingData`（走 `LiveSettingsStore` 存 JSON）与 `ApplicationLocalSettings`（本地音量等）。
-曲库设置面板只暴露其中 9 项，其余字段由 live 逻辑读取，界面上没有入口。
+从首页、曲库或服务器页右上角打开同一套设置。面板分为判定与延迟、画面、声音、外观和开发。
 
 ## 核心内容
 
@@ -22,23 +22,27 @@
 
 按下追踪记录分配前的候选列表、分配后的选择和实际处理结果；抬起追踪记录满足车道和时间条件的候选、因其他手指被跳过的候选、最终选择和结算结果。列表包含音符身份、时间和车道，空列表表示没有符合初步条件的候选。
 
-### 面板上的 9 项
+### 常用设置
 
 | 面板行 | 字段 | 取值 | 生效时机 |
 | --- | --- | --- | --- |
-| 判定延迟 | `TimingAdjustData` | 秒，步进 0.01 | 下次开局 |
+| 音频延迟 | `AudioLatencyMs` | 毫秒，补偿音频输出延迟 | 下次开局 |
+| 画面延迟 | `VisualLatencyMs` | 毫秒，补偿画面显示延迟 | 下次开局 |
+| 判定偏移（正 = 打得晚） | `JudgeOffsetMs` | 毫秒，调整判定时机 | 下次开局 |
+| 判定时机 / 多押分配 | `UseLegacyJudgeTiming` / `UseFramePressMatching` | 旧判定时机会锁定为逐帧分配 | 下次开局 |
 | 音符流速 | `NoteSpeed` | 步进 0.1 | 下次开局 |
 | 同时押线 | `UseSimultaneousPushingLine` | 开 / 关 | 下次开局（构建运行时谱面时读取） |
 | 帧率 | `FrameRateLimit` | 跟随屏幕 / 120 / 144 / 165 / 185 / 240 | **立即**（`FramerateUtility.ApplyFrameRateLimit`） |
 | 音乐音量 | `ApplicationLocalSettings.LiveVolume` | 0–1 | **立即**（`SoundManager.SetupVolume`） |
-| 音效音量 | 同上（另一个通道） | 0–1 | **立即** |
+| 音效音量 | `ApplicationLocalSettings.LiveVolume.Se` | 0–100% | 立即 |
+| 界面音量 | `ApplicationLocalSettings.UiVolume` | 0–100% | 立即 |
+| 响度平均 | `ApplicationLocalSettings.LoudnessNormalization` | 用于试听和演奏 | 正在播放的试听立即生效 |
+| 2D MV 亮度 | `MovieBrightness` | 0–100%，每步 10%，默认 100% | 下次开局 |
 | 音符皮肤 | `NoteSkinIndex` | 0 / 1 → `live/note/custom01|02` | 下次开局 |
 | 打击音 | `NoteSeIndex` | 0 / 1 → `custom01|02` | 下次开局 |
 | 打击特效 | `NoteEffect` | 0 / 1 → `effect_asset/live/tap_effect/0|1` | 下次开局 |
 
 面板底部有一行提示：「皮肤、打击音与打击特效在下一次开局时生效。」
-
-设置中的「画面 → 2D MV 亮度」独立调节视频亮度，范围 0%–100%，每步 10%，默认 100%，下次开局生效。
 
 ### 其余常用字段（无界面入口）
 
@@ -63,7 +67,7 @@
 
 ### 读取时机
 
-`Assets/Game/Runtime/Sekai/Live/LiveConfig.cs` 的 `LoadOptionData()`（259–274 行）**每次开局**读盘：
+`LiveConfig` 的 `LoadOptionData()`**每次开局**读盘：
 
 ```csharp
 SetNoteSkinAssetBundleName(Mathf.Clamp(liveSettingData.NoteSkinIndex, 0, 1));
@@ -78,11 +82,11 @@ SetFeverEffectName(liveSettingData.FeverEffectTypeIndex);
 
 ## 示例
 
-改判定延迟的等效代码（面板内部就是这么做的）：
+修改判定偏移的等效代码（面板内部就是这么做的）：
 
 ```csharp
 var settings = LiveSettingsStore.Shared.Load();
-settings.TimingAdjustData = value;
+settings.JudgeOffsetMs = TimingCompensation.ClampJudgeOffset(value);
 LiveSettingsStore.Shared.Save(settings);
 ```
 

@@ -3,7 +3,7 @@
 > 目的：把「从当前源码打一个能发到 GitHub Releases 的包」这件事固定下来，包括版本号、签名、校验和与说明模板。
 > 适用读者：要发版或做发布验证的人。
 > 前置条件：读过 [Android 构建](android-build.md)，本机已装 Unity 6000.6.7f1 与 Android Build Support。
-> 最后更新：2026-11-03
+> 最后更新：2026-11-20
 
 ## 概述
 
@@ -26,16 +26,16 @@ git status --porcelain          # 必须是空的
 #    预发布用 0.1.0-dev 这样的后缀；AndroidBundleVersionCode 必须单调递增，
 #    否则覆盖安装会被系统拒绝（INSTALL_FAILED_VERSION_DOWNGRADE）
 # 3. 构建（编辑器打开本工程时走 Pipeline 命令；没人开编辑器时用 unity build）
-unity command build.run --target Android `
-  --outputPath Builds/Release-2026-11-03/OpenSekaiAtlas-release.apk --confirm true
+unity command build run --target Android `
+  --outputPath Builds/Release/OpenSekai.apk --confirm true
 
 # 4. 校验签名与权限
-apksigner verify --print-certs Builds/Release-2026-11-03/OpenSekaiAtlas-release.apk
-aapt2 dump badging Builds/Release-2026-11-03/OpenSekaiAtlas-release.apk |
+apksigner verify --print-certs Builds/Release/OpenSekai.apk
+aapt2 dump badging Builds/Release/OpenSekai.apk |
   Select-String "package:|sdkVersion|targetSdkVersion|native-code|uses-permission"
 
 # 5. 生成校验和并写进 release notes
-Get-FileHash Builds/Release-2026-11-03/OpenSekaiAtlas-release.apk -Algorithm SHA256
+Get-FileHash Builds/Release/OpenSekai.apk -Algorithm SHA256
 ```
 
 ## 详细说明
@@ -64,7 +64,7 @@ Get-FileHash Builds/Release-2026-11-03/OpenSekaiAtlas-release.apk -Algorithm SHA
 ### 版本号与 tag
 
 - `bundleVersion`（`projectVersion`）用语义化版本 `MAJOR.MINOR.PATCH`；`AndroidBundleVersionCode` 是单调递增的整数，每次发布 +1，**不能重复**（Google 的要求不适用，但 Android 覆盖安装仍然要求它不小于已安装版本）。
-- tag 用 `v` + `bundleVersion`，例如 `v2.1.0`。tag 指向的提交必须就是构建用的提交。
+- tag 用 `v` + `bundleVersion`，例如 `v2.1.0`。tag 指向构建用的提交，或指向源码树完全一致的合并提交。发布前用 `git diff --exit-code <构建提交> <发布提交>` 核对。
 - 建议在 release notes 里写出构建用的提交短哈希，便于对照。
 
 ### 发布前检查
@@ -73,7 +73,7 @@ Get-FileHash Builds/Release-2026-11-03/OpenSekaiAtlas-release.apk -Algorithm SHA
 2. 真机门禁：见 [Android 构建](android-build.md) 的「真机门禁」小节（`Test` 谱 221 音符，`Unity:E` 除 AssetPackManager 外无日志）。
 3. `apksigner verify` 的证书 SHA-256 与上表一致。
 4. `aapt2 dump badging` 里 `sdkVersion:'26'`、`targetSdkVersion:'36'`、`native-code:'arm64-v8a'`、权限只有 `INTERNET`。
-5. 用同构建配置的 APK 比较字节数。0.5.0 发布包为 94,039,208 字节（89.68 MiB），见 [Android 构建](android-build.md#050-发布包体积)。
+5. 用同构建配置的 APK 比较字节数。0.6.0 发布包为 95,176,430 字节（90.77 MiB）。 [Android 构建](android-build.md#060-发布包)
 
 ### release notes 模板
 
@@ -102,7 +102,7 @@ Get-FileHash Builds/Release-2026-11-03/OpenSekaiAtlas-release.apk -Algorithm SHA
 本地验证一个已经下发的包是不是这次构建出来的：
 
 ```powershell
-$apk = "Builds/Release-2026-11-03/OpenSekaiAtlas-release.apk"
+$apk = "Builds/Release/OpenSekai.apk"
 (Get-FileHash $apk -Algorithm SHA256).Hash.ToLower()
 # 与 release notes 里的 SHA-256 逐字符对照
 ```
