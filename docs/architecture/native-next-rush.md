@@ -133,7 +133,7 @@ manifest 示例：
 
 `Connector.head` 和 `Connector.tail` 也可直接引用已附着的普通隐藏 Tick。连接段使用该点插值后的位置、宽度和对应的曲线区间。相邻连接段共用一个隐藏 Tick 时，该 Tick 只结算一次。Guide 也可借用可判定长条上的隐藏 Tick 作为端点，Tick 的判定仍归原长条。
 
-`style` 使用当前皮肤的键面、箭头、Tick、击中粒子和轨道闪光生成颜色变体。0 保留原图，1–8 依次为中性、红、绿、蓝、黄、紫、青、黑。调色保留纹理的明暗和透明度。彩色连接段的移动头使用连接段颜色，其他连接段使用样式起点的音符颜色。
+`style` 使用当前皮肤的键面、箭头和 Tick生成颜色变体。0 保留原图，1–8 依次为中性、红、绿、蓝、黄、紫、青、黑。调色保留纹理的明暗和透明度。彩色连接段的移动头使用连接段颜色，其他连接段使用样式起点的音符颜色。
 
 `effectKind` 独立选择单次打击音。0 根据谱面键型选择，1 静音，2–5 为普通 Basic、Flick、Trace、Tick，6–9 为对应的高亮音，10 为 Damage。手动命中和自动播放共用此映射，普通漏按静音。Damage 音在触碰伤害键时播放。隐藏 Tick 的手动结算静音；自动播放时可按显式覆盖值发声。声音使用当前游戏音效包，判定动作沿用原键型。
 
@@ -160,7 +160,9 @@ TIMESCALE 积分速度并累加跳距。SCROLL 使用当前瞬时速度与含跳
 
 事件速度与 BPM 换算后的跳距各限于绝对值 10⁹。数值溢出的混合变速链会在加载时拒绝。变速缓动接受上游无超调的曲线和阶跃，距离采用 double 解析积分。[固定上游轨迹实现](https://github.com/UntitledCharts/sonolus-next-rush-engine/blob/1f086fb6fcc56fcb38cbf9eba6b98dbefc630316/sekai/lib/timescale.py)
 
-## 音乐偏移与三秒规则
+通用音符的击中特效与 Open Sekai 谱面共用同一套打击特效资源，并使用实际判定结果。NextRUSH+ 的额外轨道光效和独立持握光环已移除。谱面自带的引导线、连接段与装饰仍按各实体规则绘制。
+
+## 音乐偏移与演奏时序
 
 以秒为单位，`音频时间 = 谱面时间 + bgmOffset`。音频文件第 0 秒对应谱面时间 `−bgmOffset`。正偏移让第 0 拍晚于文件开头，负偏移让第 0 拍早于文件开头。固定上游的 SUS 分析器将 `WAVEOFFSET` 取反并交给 USC 转换器，后者把该值写入 `bgmOffset`。 [SUS 分析器](https://github.com/UntitledCharts/sonolus-next-rush-engine/blob/1f086fb6fcc56fcb38cbf9eba6b98dbefc630316/js/src/sus/analyze.ts) · [USC 转换器](https://github.com/UntitledCharts/sonolus-next-rush-engine/blob/1f086fb6fcc56fcb38cbf9eba6b98dbefc630316/js/src/usc/convert.ts)
 
@@ -213,7 +215,7 @@ Android 真机画面与音乐同步尚待验收。
 
 P1 完整 EditMode 回归为 1010 通过、18 跳过、0 失败。其中 NextRUSH+ 专项 46 项全部通过，覆盖 ±0.51 秒、±1 秒、零偏移、负拍与变 BPM、合成音频点击及三种玩家补偿。负时间划键用例验证提前划键松手和尾部即时判定。
 
-Windows 的曲库 PlayMode 回归 5 项全部通过。原生用例使用 +0.51 秒偏移和一段 4 秒音频，验证开局预滚、预滚和音乐播放中暂停恢复、局内重开、音频文件结束后的最后一个音符，以及末音符 3 秒后触发结算演出。旧 JSON 用例在同一轮从曲库完成整首自动播放并返回结算。
+早期三秒时序实现的 Windows 曲库 PlayMode 回归有 5 项通过。原生用例使用 +0.51 秒偏移和一段 4 秒音频，验证开局预滚、预滚和音乐播放中暂停恢复、局内重开、音频文件结束后的最后一个音符，以及末音符 3 秒后触发结算演出。旧 JSON 用例在同一轮从曲库完成整首自动播放并返回结算。
 
 P2 在 Windows 的隔离 Unity 项目运行完整 EditMode 回归，1047 通过、19 跳过、0 失败。NextRUSH+ 专项 55 项全部通过，包含 Hallway 的 848 判定点及自动播放、双组独立轨迹、隐藏时手动判定、停止与倒流重入、同拍跳距和混合变速。
 

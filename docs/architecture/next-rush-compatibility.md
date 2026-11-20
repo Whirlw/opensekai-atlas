@@ -34,7 +34,7 @@
 
 | 实体 | 输入字段 | OpenSekai 当前处理 |
 | --- | --- | --- |
-| LevelData | `bgmOffset`、`entities` | P1 支持有符号偏移，换算规则见 [音乐偏移与三秒规则](native-next-rush.md#音乐偏移与三秒规则) |
+| LevelData | `bgmOffset`、`entities` | P1 支持有符号偏移，换算规则见 [音乐偏移与演奏时序](native-next-rush.md#音乐偏移与演奏时序) |
 | Initialization | `revision=1`、`initialLife=1000`、`firstCamera` | 记录有效 revision，按 `initialLife` 初始化生命。相机引用需指向 CameraChange，实际使用待 P5 |
 | #BPM_CHANGE | `#BEAT`、`#BPM`、可选数值 `meter` | 至少一个事件，BPM 为正，同拍多事件拒绝。OpenSekai 将第 0 拍定为 0 秒，首事件之前沿用首个 BPM。固定版本的 NextRUSH+ 将拍数交给 Sonolus 的 `BeatToTime`；[官方接口说明](https://wiki.sonolus.com/engine-specs/functions/beat-to-time) 未说明首事件之前的规则。客户端对照点为第 4 拍首次设为 90 BPM、背景音乐偏移为 0 时，第 3 拍在 OpenSekai 为 2 秒，Sonolus 实测值待补。`meter` 保留在原谱中 |
 | #TIMESCALE_GROUP | `first`、`forceNoteSpeed` | 编译各组独立轨迹，保留 `editorName`、`editorHidden` 编辑器元数据 |

@@ -1,31 +1,29 @@
 # 打歌运行时
 
-> 目的：说明从点击「手动/自动」到回到曲库之间，代码里发生了什么，尤其是时间与计分这两块容易改错的地方。
+> 目的：说明从点击「手动/自动」到返回曲库或服务器之间，代码里发生了什么，尤其是时间与计分这两块容易改错的地方。
 > 适用读者：开发者（改判定、改时间轴、改结算）。
 > 前置条件：读过 [曲包与谱面数据](chart-package.md)。
-> 最后更新：2026-11-02
+> 最后更新：2026-11-20
 
 ## 概述
 
-一条会话跨两个场景：曲库（`Library`）里调 `PlayService.StartAsync` 组装启动数据，切到 `Core` 场景由
-`SoloLiveController` 驱动；打完在 `PreExit` 发布结果，`OnExit` 请求切回曲库。判定、计数、计分都在
-`LiveLogic` / `ScoreLogic` 里，按「音乐时间」推进，而不是按帧。
+曲库和服务器同属 `Library` 场景。两者调用 `PlayService.StartAsync` 准备数据，之后在 `Core` 场景由 `SoloLiveController` 驱动演奏。完成或退出时发布结果，切回 `Library` 场景并恢复开局来源。判定和计分由 `LiveLogic` 与 `ScoreLogic` 按演奏时钟推进。
 
 ## 核心内容
 
-### 开局的六个步骤
+### 开局与返回
 
-`Assets/Game/Runtime/OpenSekai/App/Playback/PlayService.cs`（212 行）：
+1. `PlayService` 检查场景、加载界面及请求是否有效。
+2. 读取已安装曲包的数据，或使用 Sonolus 提供的内存曲包。通过 `RuntimeChartLoader` 或 `NextRushChartLoader` 生成运行时谱面。
+3. 记录谱面哈希，注册磁盘文件或内存字节中的音频，使用设置快照组装 `PlaySession`。
+4. 通过 `LegacyLiveBootAdapter` 发布 `FreeLiveBootData` 并进入 `LiveLoading`。已安装的曲包会携带写入本地成绩所需的曲包键。
+5. 结算或取消回到发起页面。服务器开局保留服务器详情，支持重开或保存临时曲包。
 
-1. 校验曲库页还活着、`LiveLoading` 页面已注册（`IsLibraryAlive` + `TryGetScreenLayerData`）
-2. 读曲包 → 检查 `score.json` / 音频存在 → `ChartFileReader.Read` → `chart.HasPlayableNotes`
-3. `PlaySessionContext.Begin(SHA-256(score.json))` 记录本次会话的谱面哈希
-4. `PackageAudio.RegisterAudioAsync` 解码音频
-5. `LiveSettingsStore.CaptureSnapshot()` 取设置 → `RuntimeChartConverter.Convert` 生成运行时谱面 →
-   `LegacyLiveBootAdapter.Create` 组装 `FreeLiveBootData`
-6. 设置 `UserDataManager.FreeLiveBootData`、`PlayMode = SoloLive`，`PushUIScreen(LiveLoading)`，交给场景切换
+取消或失败会返回对应的状态与提示。 [服务器缓存与安装](server-screen.md)
 
-任何一步失败都返回 `PlayStartStatus.Failed` + 中文原因，页面据此弹「加载失败」结果面板。
+### 开场、跳过和结算
+
+`LiveTimelineSpan` 统一计算手动和自动演奏时序。时间从曲目信息页退场起算，通常在可听音乐起点和首键中较早的时刻前 2 秒开始。首键入场需要更长时间时会再提前。前奏可跳到首键前 2 秒。尾奏从末键后 1 秒可跳过，并立即触发结算特效。自然结算在可听音乐终点和末键中较晚的时刻之后 1 秒触发。按钮仅在对应的可跳过区间内出现。 [音乐偏移](native-next-rush.md#音乐偏移与演奏时序)
 
 ### 时钟
 

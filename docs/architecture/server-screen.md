@@ -3,7 +3,7 @@
 > 目的：说明首页「服务器」入口之后的整套页面：服务器列表、添加服务器、网页服务器（内置 WebView）和 Sonolus 服务器的原生浏览、搜索、详情、下载与游玩。
 > 适用读者：改服务器页面、Sonolus 接入或 WebView 的开发者。
 > 前置条件：读过 [首页、开屏与品牌标](home-and-brand.md) 和 [NextRUSH+ 原生加载](native-next-rush.md)。
-> 最后更新：2026-11-18
+> 最后更新：2026-11-20
 
 ## 概述
 
@@ -56,7 +56,7 @@
 | 排行榜 | `GET /sonolus/levels/{name}/leaderboards/{lb}/records/list?page=n`，空时回退到 `/leaderboards/{lb}` 的 `topRecords` |
 | 下载 / 试听 / 封面 | 跟随 SRL 的 `url`，以 `/` 开头的相对服务器地址（含前缀）拼接 |
 
-`pageCount < 0` 的服务器按 cursor 分页。高级搜索支持 `text`、`textArea`、`slider`、`toggle`、`select`、`multi`；其它类型（如 `serverItem`）不显示也不发送。
+`pageCount < 0` 的服务器按 cursor 分页。提交的高级搜索条件按服务器保存在 `servers.json` 的 `advancedSearch` 中，打开表单时按服务器当前声明恢复。高级搜索支持 `text`、`textArea`、`slider`、`toggle`、`select`、`multi`；其它类型（如 `serverItem`）不显示也不发送。
 
 UntitledCharts 实测（2026-11-18）：`levels/info` 有 4 个栏目（Random Staff Pick、#NEWEST、#RANDOM、#POPULAR）和一个 14 字段的 `advanced` 表单；列表 1557 页；详情含 7 个排行榜。
 
@@ -86,7 +86,7 @@ sonolus-source.json    服务器地址、name、version、引擎、各资源 has
 
 网页服务器在 Android 的独立 Activity（`ChartBrowserActivity`）里打开，顶栏与游戏同色：**返回**（先退网页历史，到第一页时回到游戏）、站名和状态、刷新、关闭。
 系统返回键 / 返回手势同返回按钮。可导航的范围是该站的 host 及其子域名（OpenSekai 另加其曲包存储域名）；站外链接被拦截并在顶栏提示。
-下载必须由本站页面发起、且为 HTTPS，文件本身可来自 CDN；Cookie 只发给本站 host。下载与导入流程见 [Android 社区谱面下载](../guides/server-chart-downloads.md)。
+下载必须由本站页面发起、且为 HTTPS，文件本身可来自 CDN；Cookie 只发给本站 host。下载与导入流程见 [服务器使用指南](../guides/server-chart-downloads.md)。
 编辑器里没有内置 WebView，会用系统浏览器打开网址。
 
 ## 示例
@@ -107,19 +107,19 @@ powershell -File Tools/capture-screens.ps1 -Server -Width 1920 -Height 1080
 - `SonolusLiveServerTests`（可选，联网）：设置 `OPENSEKAI_SONOLUS_LIVE=untitledcharts.com` 后读取栏目与两页列表，把第一首 NextRUSH+ 谱面装进临时曲库，检查谱面字节与 SHA-1 一致、可解析、索引为「已下载」。
 - `Tools/capture-screens.ps1 -Server`：见上文示例。
 
-尚未在 Android 真机上验收 WebView 顶栏、试听解码和下载后开局。
+Android 的 WebView 顶栏、试听解码和下载后开局按网页下载指南的真机清单单独验证。
 
 ## 常见问题与故障排查
 
 - **添加时提示「服务器返回的不是 Sonolus 数据」**：地址指向了网站首页以外的东西，或服务器不在根路径；带上路径前缀，或直接粘贴一个谱面分享链接。
 - **详情页「下载」是灰的**：谱面使用了其他引擎，或详情还没加载完。
-- **游玩后回到的是曲库**：结算卡属于曲库；服务器页面不在打歌后恢复。
+- **游玩后想保存谱面**：在结算点「返回服务器」，回到原详情后点「下载」。若缓存已被回收，则会重新请求所需资源。
 - **封面一直是占位**：封面不是 PNG / JPEG，或下载失败（见日志 `[Sonolus] Cover download failed`）。
 
 ## 相关文档
 
 - [Sonolus 谱面下载接入调研](sonolus-download.md)
 - [NextRUSH+ 原生加载](native-next-rush.md)
-- [Android 社区谱面下载](../guides/server-chart-downloads.md)
+- [服务器使用指南](../guides/server-chart-downloads.md)
 - [首页、开屏与品牌标](home-and-brand.md)
 - [截图工具](../operations/screenshot-tools.md)

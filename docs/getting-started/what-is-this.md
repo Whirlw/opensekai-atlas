@@ -1,15 +1,13 @@
 # 这是什么
 
-> 目的：一句话说清这个仓库现在是什么形态，避免新人按「还有谱面编辑器」的旧印象去读代码。
+> 目的：介绍当前版本的玩家功能和项目入口。
 > 适用读者：新成员、开发者、使用者。
 > 前置条件：无。
-> 最后更新：2026-11-17
+> 最后更新：2026-11-20
 
 ## 概述
 
-本仓库是一个开源的下落式音游播放器，现在处于一次「轻量播放器」重构之后的状态：
-**只保留打歌（曲库 → 加载 → live → 结算 → 返回曲库）**，谱面编辑器已整块移除。
-冷启动先过开屏动画进入首页，首页有曲库、服务器、资源包三个入口，目前只有曲库可用。
+Open Sekai Atlas 是开源下落式音游，Android 应用显示为 OpenSekai。首页可进入曲库和服务器，游玩 Open Sekai 曲包或浏览 Sonolus 谱面。打歌素材可在设置中切换，首页资源包卡片仍为预告。项目基于上游代码进行大规模重构与扩展。 [cubeww/OpenSekai](https://github.com/cubeww/OpenSekai)
 
 - 引擎：Unity **6000.6.7f1**，URP 17.6.0
 - 构建场景：`Library`（首场景）→ `TransitionBlank` → `Core`
@@ -23,12 +21,12 @@
 | --- | --- | --- |
 | 曲库首页 | `Assets/Game/Runtime/OpenSekai/App/UI/LibraryScreen.cs` | 代码构建的 UGUI 页面，含封面、手动/自动入口 |
 | 曲包导入 | `Assets/Game/Runtime/OpenSekai/App/UI/LibraryImport.cs` | ZIP / 文件夹（桌面用 StandaloneFileBrowser，移动端用 NativeFilePicker） |
-| 设置面板 | `Assets/Game/Runtime/OpenSekai/App/UI/LibrarySettingsPanel.cs` | 9 项：判定延迟、流速、同时押线、帧率、音量、音符皮肤、打击音、打击特效 |
+| 设置面板 | `Assets/Game/Runtime/OpenSekai/App/UI/LibrarySettingsPanel.cs` | 流速、判定延迟、帧率、亮度、音量和打歌素材 |
 | 加载浮层 | `Assets/Game/Runtime/OpenSekai/App/UI/LibraryLoadingOverlay.cs` | 开局进度文案 + 取消 |
-| 打歌运行时 | `Assets/Game/Runtime/Sekai/Core/Live/` | `SoloLiveController` / `LiveLogic` / `ScoreLogic` |
-| 结果面板 | `Assets/Game/Runtime/OpenSekai/App/UI/LibraryResultPanel.cs` | 分数、评级、连击、判定、再玩一次 / 返回曲库 |
+| 打歌运行时 | `Assets/Game/Runtime/OpenSekai.Game/Live/Runtime/` | `SoloLiveController` / `LiveLogic` / `ScoreLogic` |
+| 结果面板 | `Assets/Game/Runtime/OpenSekai/App/UI/LibraryResultPanel.cs` | 分数、评级、连击、判定、再玩一次 / 返回来源页 |
 | 暂停层 | `Assets/Game/Runtime/Shared/UI/LivePauseOverlay.cs` | 继续 / 重开 / 退出到曲库 |
-| 成绩历史 | `Sekai/MusicScoreMaker/Common/CustomMusicScorePlayHistoryStorage.cs` | JSONL，含 `chartHash` / `rulesVersion` / `sessionId` |
+| 成绩历史 | `Assets/Game/Runtime/OpenSekai/App/Library/Storage/CustomMusicScorePlayHistoryStorage.cs` | JSONL，含 `chartHash` / `rulesVersion` / `sessionId` |
 
 ### 现在没有的
 
@@ -48,11 +46,11 @@
 
 ### 发行包
 
-0.5.0 Android 发布包为 **94,039,208 字节（89.68 MiB）**。测量文件、构建配置和历史数据见 [Android 构建](../operations/android-build.md)。
+0.6.0 Android 发布包为 **95,176,430 字节（90.77 MiB）**，支持 ARM64。 [0.6.0 发布页](https://github.com/Whirlw/opensekai-atlas/releases/tag/v0.6.0) · [Android 构建](../operations/android-build.md)
 
 ## 示例
 
-上图是重构后的曲库页：左侧封面缩略图、右侧手动/自动入口，头部 4 个按钮（导入 ZIP / 导入文件夹 / 设置 / 刷新）。
+从首页进入曲库后，可以导入曲包、选择谱面并开始手动或自动演奏。
 
 判断「我打开的是不是重构后的工程」：
 

@@ -8,7 +8,7 @@
 ## 概述
 
 出 Android 包只需要三件事：装全 Android Build Support（含 NDK）、跑一次 AssetBundle 打包、执行构建。
-产物在 `Builds/<目录>/`。当前发布样本见 [0.5.0 发布包体积](#050-发布包体积)，升级过程见 [Unity 6 升级执行记录](../changelog/2026-11-unity6-upgrade.md)。
+产物在 `Builds/<目录>/`。当前发布样本见 [0.6.0 发布包](#060-发布包)，升级过程见 [Unity 6 升级执行记录](../changelog/2026-11-unity6-upgrade.md)。
 
 ## 核心内容
 
@@ -108,6 +108,12 @@ adb pull /sdcard/gate.png gate.png
    自检菜单 `OpenSekai/Dev/Verify Recording Permission Rule` 期望输出 `plainDeclarations=0 removeMarkers=2`。
 3. **Unity 复用旧 APK**：只改清单不触发重建，13–35 秒「构建成功」但 APK 的 mtime 与大小都不变。
    必须删 `Library/Bee/Android/Prj/IL2CPP/Gradle`。
+
+### 0.6.0 发布包
+
+`OpenSekai.apk` 为 **95,176,430 字节（90.77 MiB）**。版本为 `0.6.0`（versionCode 87），包名为 `io.github.opensekai`，应用标签为 `OpenSekai`，ABI 为 `arm64-v8a`。已在 PLQ110 上验证覆盖安装和启动。 [0.6.0 发布页](https://github.com/Whirlw/opensekai-atlas/releases/tag/v0.6.0)
+
+SHA-256 为 `3229437792a66487876592bf6d789502849dfda5727c1bc7ebec79b0c0c7e16b`。
 
 ### 0.5.0 发布包体积
 
