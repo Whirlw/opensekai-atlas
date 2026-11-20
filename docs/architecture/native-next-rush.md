@@ -4,6 +4,8 @@
 
 预检记录 `Skill`、`FeverChance`、`FeverStart` 后跳过其业务逻辑。预检字段、固定版本和真实样本哈希见 [兼容基线](next-rush-compatibility.md)，后续阶段见 [NextRUSH+ 完整支持计划](../plans/next-rush-support-plan.md)。
 
+SUS 解析器识别技能与 Fever 行，旧 JSON 的相应类型会读作 `NonPlaybackChartEvent`。谱面迁移及运行时导入会过滤这些事件，当前单人演奏没有技能发动或 Fever 加成。
+
 ## 结构
 
 ```text
