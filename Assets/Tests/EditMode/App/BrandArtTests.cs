@@ -9,6 +9,15 @@ namespace OpenSekai.Tests.EditMode
         private const int SIZE = 256;
 
         [Test]
+        public void ImportedSplashContainsEveryNamedLayer()
+        {
+            foreach (BrandArt.Part part in Enum.GetValues(typeof(BrandArt.Part)))
+            {
+                Assert.That(BrandSprites.Layers[part].name, Is.EqualTo(part.ToString()));
+            }
+        }
+
+        [Test]
         public void EveryLayerHasOnePixelPerTexel()
         {
             foreach (BrandArt.Part part in Enum.GetValues(typeof(BrandArt.Part)))

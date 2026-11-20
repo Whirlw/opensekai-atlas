@@ -151,7 +151,10 @@ namespace OpenSekai.App.UI
                 locked: () => _settings.UseLegacyJudgeTiming);
             top += LibrarySettingRows.SectionHeight(5) + gap;
 
-            LibrarySettingRows.Section display = _rows.AddSection(content, "画面", 4, 0f, rightStart, top);
+            LibrarySettingRows.Section display = _rows.AddSection(content, "画面", 5, 0f, rightStart, top);
+            _rows.AddSwitch(display, "播放开场动画",
+                () => _localSettings.PlayStartupAnimation,
+                value => { _localSettings.PlayStartupAnimation = value; SaveLocal(); });
             _rows.AddStepper(display, "音符流速",
                 () => _settings.NoteSpeed,
                 value => { _settings.NoteSpeed = value; SaveSettings(); },
@@ -177,7 +180,7 @@ namespace OpenSekai.App.UI
                 () => Mathf.Clamp01(_settings.MovieBrightness),
                 value => { _settings.MovieBrightness = value; SaveSettings(); },
                 0f, 1f, 0.1f, "0.0", Percent);
-            float leftHeight = top + LibrarySettingRows.SectionHeight(4);
+            float leftHeight = top + LibrarySettingRows.SectionHeight(5);
 
             // Right column: sound, appearance, developer.
             top = 0f;

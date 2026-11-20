@@ -30,9 +30,6 @@ namespace OpenSekai.App.UI
         private const string THUMBNAIL_DIRECTORY = "JacketThumbnails";
         private const int MARQUEE_JACKETS = 8;
 
-        /// <summary>Longest the splash waits for its emblem to be drawn before starting anyway.</summary>
-        private const float BRAND_WAIT_SECONDS = 2f;
-
         // The hidden server page stack is carried only for a server-started live.
         private static ServerScreen _serverReturningFromLive;
 
@@ -69,20 +66,20 @@ namespace OpenSekai.App.UI
         /// <summary>True while the server part is on screen.</summary>
         public bool IsServerShown => _server != null && _server.IsPresented;
 
-        /// <summary>True once the emblem's layers are drawn (they are drawn off the main thread).</summary>
-        public bool IsBrandReady => BrandSprites.Loaded != null;
+        /// <summary>True once the emblem has its bundled layers.</summary>
+        public bool IsBrandReady => _emblem != null;
 
         /// <param name="library">The library page this home page hands over to and takes back from.</param>
-        /// <param name="playIntro">True on a cold start: the splash plays, then the home page shows.
-        /// False when the scene comes back from a live: the library shows and the home page waits.</param>
-        public static HomeScreen Create(AppContext context, LibraryScreen library, bool playIntro)
+        /// <param name="coldStart">Open the home page on launch, or restore the previous page after a live.</param>
+        public static HomeScreen Create(AppContext context, LibraryScreen library, bool coldStart, bool playIntro)
         {
             var host = new GameObject("HomeScreen");
             HomeScreen screen = host.AddComponent<HomeScreen>();
             screen.Build(context, library);
-            if (playIntro)
+            if (coldStart)
             {
-                screen.StartIntroAsync().Forget();
+                if (playIntro) screen.StartIntro();
+                else screen.ShowHomeImmediately();
             }
             else
             {
@@ -228,51 +225,13 @@ namespace OpenSekai.App.UI
             _about = new HomeAboutPanel(root);
 
             _thumbnails = new JacketThumbnails(Path.Combine(Application.temporaryCachePath, THUMBNAIL_DIRECTORY));
-            LoadBrandAsync().Forget();
         }
 
-        private async UniTaskVoid LoadBrandAsync()
-        {
-            BrandSprites sprites;
-            try
-            {
-                sprites = await BrandSprites.LoadAsync(this.GetCancellationTokenOnDestroy());
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-            catch (Exception exception)
-            {
-                Debug.LogWarning("[Home] Could not draw the emblem: " + exception.Message);
-                return;
-            }
-
-            _emblem.ApplySprites(sprites);
-            _about.ApplySprites(sprites);
-        }
-
-        private async UniTaskVoid StartIntroAsync()
+        private void StartIntro()
         {
             _library?.SetPresented(false, false);
             ShowHome();
             _view.Interactable = false;
-            _splash.Evaluate(0f);
-
-            // The splash opens on the bare ground for a moment anyway; wait there for the emblem's
-            // layers so it never flies in empty. A slow device starts on time without them.
-            CancellationToken token = this.GetCancellationTokenOnDestroy();
-            float deadline = Time.realtimeSinceStartup + BRAND_WAIT_SECONDS;
-            while (BrandSprites.Loaded == null && Time.realtimeSinceStartup < deadline)
-            {
-                await UniTask.Yield(PlayerLoopTiming.Update, token);
-            }
-
-            if (this == null || !_homeShown || _splash.IsPlaying)
-            {
-                return;
-            }
-
             _splash.Play(OnIntroDone);
         }
 
@@ -529,6 +488,8 @@ namespace OpenSekai.App.UI
 
         private void Update()
         {
+            if (_homeShown && Application.isFocused) _splash.Tick(Time.unscaledDeltaTime);
+
             if (!NativeInput.BackPressedThisFrame || DialogBase.OwnsHardwareBack) return;
             if (_serverPlayCancellation != null)
             {

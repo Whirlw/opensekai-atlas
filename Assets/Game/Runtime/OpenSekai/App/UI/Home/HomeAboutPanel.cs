@@ -22,7 +22,6 @@ namespace OpenSekai.App.UI
         };
 
         private readonly LibraryModal _modal;
-        private readonly BrandEmblem _emblem;
 
         internal HomeAboutPanel(RectTransform parent)
         {
@@ -34,8 +33,8 @@ namespace OpenSekai.App.UI
 
             RectTransform emblemFrame = LibraryUi.CreateRect("EmblemFrame", body);
             LibraryWidgets.Place(emblemFrame, topLeft, topLeft, new Vector2(-8f, 6f), new Vector2(EMBLEM_SIZE, EMBLEM_SIZE));
-            _emblem = new BrandEmblem(emblemFrame, "Emblem");
-            LibraryUi.Stretch(_emblem.Root);
+            var emblem = new BrandEmblem(emblemFrame, "Emblem");
+            LibraryUi.Stretch(emblem.Root);
 
             float textLeft = EMBLEM_SIZE + 24f;
             TextMeshProUGUI name = LibraryWidgets.Label("Name", body, HomeView.Wordmark, 54f, LibraryTheme.Colors.TextPrimary);
@@ -98,8 +97,6 @@ namespace OpenSekai.App.UI
         internal void Show() => _modal.Open();
 
         internal void Hide() => _modal.Close();
-
-        internal void ApplySprites(BrandSprites sprites) => _emblem.ApplySprites(sprites);
 
         internal void Dispose() => _modal.Dispose();
     }

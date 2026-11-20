@@ -7,7 +7,7 @@ namespace OpenSekai.App.UI
     /// note highway seen in perspective, with the judgement line for its crossbar, a note falling
     /// toward it, and an orbit around the whole letter for the "world" in the name.
     ///
-    /// Pure math with no Unity types: the splash renders its layers on a worker thread, the editor's
+    /// Pure math with no Unity types: the importer bakes the splash layers, the editor's
     /// icon exporter renders the app icons, and both get the same pixels. Output is RGBA32 with
     /// straight alpha, bottom row first (Unity's texture order).
     /// </summary>

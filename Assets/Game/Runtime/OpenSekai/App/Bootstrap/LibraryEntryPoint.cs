@@ -74,8 +74,8 @@ namespace OpenSekai.App.Bootstrap
                 Debug.LogError("[Library] Could not create the lightweight library screen.");
             }
 
-            HomeScreen.Create(context, library, playIntro: coldStart);
-            Debug.Log("[Library] Player library started (" + (coldStart ? "home page with splash" : "library after a live") + ").");
+            HomeScreen.Create(context, library, coldStart, settings.PlayStartupAnimation);
+            Debug.Log("[Library] Player library started (" + (coldStart ? "home page" : "library after a live") + ").");
         }
 
         private static void EnsureEventSystem()

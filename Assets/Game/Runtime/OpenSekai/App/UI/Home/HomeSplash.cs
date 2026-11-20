@@ -14,7 +14,7 @@ namespace OpenSekai.App.UI
     /// the home page's header as the cards come in.
     ///
     /// The whole sequence, home entrance included, is one function of time (<see cref="Evaluate"/>)
-    /// driven by a single motion, so a tap can jump ahead and a screenshot can stop on any frame.
+    /// advanced once per frame, so a tap can jump ahead and a screenshot can stop on any frame.
     /// </summary>
     internal sealed class HomeSplash : IDisposable
     {
@@ -79,7 +79,8 @@ namespace OpenSekai.App.UI
         private readonly BrandEmblem _emblem;
         private readonly HomeView _home;
 
-        private MotionHandle _timeline;
+        private const float MAX_FRAME_SECONDS = 0.05f;
+        private bool _paused;
         private float _time = -1f;
         private bool _docked = true;
         private Action _onDone;
@@ -177,7 +178,7 @@ namespace OpenSekai.App.UI
             _stage.gameObject.SetActive(false);
         }
 
-        internal bool IsPlaying => _timeline.IsActive();
+        internal bool IsPlaying { get; private set; }
 
         /// <summary>Plays the sequence from the start; <paramref name="onDone"/> runs when the home page has settled.</summary>
         internal void Play(Action onDone)
@@ -185,58 +186,46 @@ namespace OpenSekai.App.UI
             Stop();
             _onDone = onDone;
             Evaluate(0f);
-            _timeline = LMotion.Create(0f, Length, Length)
-                .WithScheduler(HomeMotion.Scheduler)
-                .WithOnComplete(Complete)
-                .Bind(Advance);
+            IsPlaying = true;
+        }
+
+        internal void Tick(float deltaTime)
+        {
+            if (!IsPlaying || _paused) return;
+            // Cold-start stalls should stretch the animation instead of skipping its reveal.
+            float next = _time + Mathf.Min(deltaTime, MAX_FRAME_SECONDS);
+            if (next >= Length) Complete();
+            else Advance(next);
         }
 
         /// <summary>A tap: jumps to the emblem's flight into the header unless it is already under way.</summary>
         internal void Skip()
         {
-            if (!_timeline.IsActive() || _time >= HANDOFF)
+            if (!IsPlaying || _time >= HANDOFF)
             {
                 return;
             }
 
-            _timeline.Time = HANDOFF;
+            Evaluate(HANDOFF);
         }
 
         /// <summary>Shows the frame at <paramref name="time"/> and holds it there.</summary>
         internal void Seek(float time)
         {
-            if (!_timeline.IsActive())
+            if (!IsPlaying)
             {
                 Play(_onDone);
             }
 
-            _timeline.PlaybackSpeed = 0f;
-            _timeline.Time = Mathf.Clamp(time, 0f, Length);
+            _paused = true;
             Evaluate(Mathf.Clamp(time, 0f, Length));
-        }
-
-        /// <summary>Jumps to the end: the home page at rest, emblem docked in the header.</summary>
-        internal void Finish()
-        {
-            if (_timeline.IsActive())
-            {
-                _timeline.Complete();
-            }
-            else
-            {
-                Evaluate(Length);
-                _stage.gameObject.SetActive(false);
-            }
         }
 
         internal void Stop()
         {
-            if (_timeline.IsActive())
-            {
-                _timeline.Cancel();
-            }
-
-            _timeline = default;
+            IsPlaying = false;
+            _paused = false;
+            _onDone = null;
         }
 
         public void Dispose()
@@ -257,7 +246,7 @@ namespace OpenSekai.App.UI
 
         private void Complete()
         {
-            _timeline = default;
+            IsPlaying = false;
             Evaluate(Length);
             _stage.gameObject.SetActive(false);
             Action done = _onDone;

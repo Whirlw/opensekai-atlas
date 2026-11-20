@@ -11,6 +11,8 @@ namespace Sekai
 
 		private static ApplicationLocalSettings _cachedStorage;
 
+		public bool PlayStartupAnimation { get; set; } = true;
+
 		public class VolumeSettings
 		{
 						private float _bgm = 1f;
