@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using Newtonsoft.Json.Linq;
 using OpenSekai.Infrastructure.Sonolus;
 using TMPro;
 using UnityEngine;
@@ -58,11 +59,12 @@ namespace OpenSekai.App.UI
 
         internal bool IsOpen => _modal.IsOpen;
 
-        internal void SetSearch(SonolusSearch search)
+        internal void SetSearch(SonolusSearch search, JObject saved = null)
         {
             _search = search;
             _modal.Title.text = search != null ? ServerWidgets.Localize(search.Title) : "高级搜索";
             ResetValues();
+            RestoreValues(saved);
             Rebuild();
         }
 
@@ -106,6 +108,47 @@ namespace OpenSekai.App.UI
                 else
                 {
                     _values[option.Query] = DefaultOf(option);
+                }
+            }
+        }
+
+        private void RestoreValues(JObject saved)
+        {
+            if (_search == null || saved?["type"] is not JValue type || type.Type != JTokenType.String
+                || (string)type != _search.Type || saved["values"] is not JObject values) return;
+
+            foreach (SonolusSearchOption option in _search.Options)
+            {
+                if (!option.IsSupported || string.IsNullOrEmpty(option.Query)
+                    || values[option.Query] is not JValue field || field.Type != JTokenType.String) continue;
+
+                string value = (string)field;
+                switch (option.Type)
+                {
+                    case "text":
+                    case "textArea":
+                        _values[option.Query] = option.Limit > 0 && value.Length > option.Limit
+                            ? value.Substring(0, option.Limit) : value;
+                        break;
+                    case "toggle":
+                        if (value == "0" || value == "1") _values[option.Query] = value;
+                        break;
+                    case "slider":
+                        if (double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double number)
+                            && !double.IsNaN(number) && !double.IsInfinity(number))
+                        {
+                            double max = option.Max > option.Min ? option.Max : option.Min + 1d;
+                            _values[option.Query] = FormatNumber(Math.Min(max, Math.Max(option.Min, number)));
+                        }
+                        break;
+                    case "select":
+                        if (IndexOf(option, value) >= 0) _values[option.Query] = value;
+                        break;
+                    case "multi":
+                        var chosen = new HashSet<string>(value.Split(','), StringComparer.Ordinal);
+                        bool[] flags = _flags[option.Query];
+                        for (int i = 0; i < flags.Length; i++) flags[i] = chosen.Contains(option.Values[i].Name);
+                        break;
                 }
             }
         }

@@ -289,6 +289,38 @@ namespace OpenSekai.Tests.EditMode.Sonolus
         }
 
         [Test]
+        public void AdvancedFiltersAreSavedPerServerAndCanBeCleared()
+        {
+            string root = Path.Combine(Path.GetTempPath(), "servers-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var registry = new ServerRegistry(root);
+                ServerEntry first = registry.TryAdd(ServerKind.Sonolus, "first", "example.com/first", out string error);
+                ServerEntry second = registry.TryAdd(ServerKind.Sonolus, "second", "example.com/second", out error);
+                var firstQuery = new[] { new KeyValuePair<string, string>("genre", "a,b") };
+                var secondQuery = new[] { new KeyValuePair<string, string>("genre", string.Empty) };
+                Assert.That(registry.TrySaveAdvancedSearch(first, "advanced", firstQuery, out error), Is.True, error);
+                Assert.That(registry.TrySaveAdvancedSearch(second, "advanced", secondQuery, out error), Is.True, error);
+                Assert.That(registry.TryRename(first, "renamed", out error), Is.True, error);
+
+                var reopened = new ServerRegistry(root);
+                ServerEntry firstAgain = reopened.Find(first.Id);
+                Assert.That((string)firstAgain.AdvancedSearch["type"], Is.EqualTo("advanced"));
+                Assert.That((string)firstAgain.AdvancedSearch["values"]["genre"], Is.EqualTo("a,b"));
+                Assert.That((string)reopened.Find(second.Id).AdvancedSearch["values"]["genre"], Is.Empty);
+                Assert.That(reopened.TrySaveAdvancedSearch(firstAgain, "advanced", null, out error), Is.True, error);
+
+                var afterReset = new ServerRegistry(root);
+                Assert.That(afterReset.Find(first.Id).AdvancedSearch, Is.Null);
+                Assert.That(afterReset.Find(second.Id).AdvancedSearch, Is.Not.Null);
+            }
+            finally
+            {
+                if (Directory.Exists(root)) Directory.Delete(root, true);
+            }
+        }
+
+        [Test]
         public void FailedServerSaveLeavesTheListAndItsLastSavedContentsIntact()
         {
             string root = Path.Combine(Path.GetTempPath(), "servers-" + Guid.NewGuid().ToString("N"));

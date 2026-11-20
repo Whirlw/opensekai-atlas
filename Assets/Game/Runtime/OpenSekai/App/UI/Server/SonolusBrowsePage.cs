@@ -278,8 +278,9 @@ namespace OpenSekai.App.UI
                 _session.LevelsInfo = await _session.Client.GetLevelsInfoAsync(cancellationToken);
                 _infoLoad?.Dispose();
                 _infoLoad = null;
-                _searchPanel.SetSearch(FindAdvancedSearch());
-                _filter.gameObject.SetActive(FindAdvancedSearch() != null);
+                SonolusSearch advanced = FindAdvancedSearch();
+                _searchPanel.SetSearch(advanced, _session.Entry.AdvancedSearch);
+                _filter.gameObject.SetActive(advanced != null);
                 BuildHome();
                 if (_mode == Mode.Home)
                 {
@@ -370,6 +371,12 @@ namespace OpenSekai.App.UI
 
         private void RunAdvancedSearch(List<KeyValuePair<string, string>> query, bool changed)
         {
+            if (!Screen.Registry.TrySaveAdvancedSearch(_session.Entry, FindAdvancedSearch()?.Type,
+                changed ? query : null, out string error))
+            {
+                Screen.ShowToast(error);
+            }
+
             _advancedActive = changed;
             _filterDot.enabled = changed;
             _search.SetTextWithoutNotify(string.Empty);

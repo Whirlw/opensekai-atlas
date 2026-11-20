@@ -37,6 +37,8 @@ namespace OpenSekai.App.Server
         /// <summary>For Sonolus, the server's base address; for a website, the HTTPS page it opens on.</summary>
         public string Address { get; }
 
+        internal JObject AdvancedSearch { get; set; }
+
         /// <summary>The host shown under the name.</summary>
         public string DisplayAddress
         {
@@ -150,7 +152,7 @@ namespace OpenSekai.App.Server
             }
 
             var updated = new List<ServerEntry>(_servers);
-            updated[index] = new ServerEntry(entry.Id, entry.Kind, title, entry.Address);
+            updated[index] = new ServerEntry(entry.Id, entry.Kind, title, entry.Address) { AdvancedSearch = entry.AdvancedSearch };
             if (!TrySave(updated, out error))
             {
                 return false;
@@ -179,6 +181,35 @@ namespace OpenSekai.App.Server
 
             _servers.RemoveAt(index);
             Changed?.Invoke();
+            return true;
+        }
+
+        internal bool TrySaveAdvancedSearch(ServerEntry entry, string searchType,
+            IReadOnlyList<KeyValuePair<string, string>> query, out string error)
+        {
+            error = null;
+            int index = _servers.IndexOf(entry);
+            if (index < 0 || entry.Kind != ServerKind.Sonolus) return true;
+
+            JObject search = null;
+            if (query != null)
+            {
+                var values = new JObject();
+                foreach (var field in query)
+                {
+                    if (field.Key != "type") values[field.Key] = field.Value;
+                }
+
+                search = new JObject { ["type"] = searchType, ["values"] = values };
+            }
+
+            if (JToken.DeepEquals(entry.AdvancedSearch, search)) return true;
+
+            var updated = new List<ServerEntry>(_servers);
+            updated[index] = new ServerEntry(entry.Id, entry.Kind, entry.Name, entry.Address) { AdvancedSearch = search };
+            if (!TrySave(updated, out error)) return false;
+
+            entry.AdvancedSearch = search;
             return true;
         }
 
@@ -248,7 +279,10 @@ namespace OpenSekai.App.Server
                                 : ServerKind.Sonolus;
                             if (!string.IsNullOrEmpty(id) && !string.IsNullOrEmpty(address))
                             {
-                                _servers.Add(new ServerEntry(id, kind, string.IsNullOrEmpty(name) ? HostOf(address) : name, address));
+                                _servers.Add(new ServerEntry(id, kind, string.IsNullOrEmpty(name) ? HostOf(address) : name, address)
+                                {
+                                    AdvancedSearch = kind == ServerKind.Sonolus ? value["advancedSearch"] as JObject : null
+                                });
                             }
                         }
                     }
@@ -265,13 +299,15 @@ namespace OpenSekai.App.Server
             var servers = new JArray();
             foreach (ServerEntry server in entries)
             {
-                servers.Add(new JObject
+                var value = new JObject
                 {
                     ["id"] = server.Id,
                     ["kind"] = server.Kind == ServerKind.WebView ? "webview" : "sonolus",
                     ["name"] = server.Name,
                     ["address"] = server.Address
-                });
+                };
+                if (server.AdvancedSearch != null) value["advancedSearch"] = server.AdvancedSearch.DeepClone();
+                servers.Add(value);
             }
 
             var root = new JObject
