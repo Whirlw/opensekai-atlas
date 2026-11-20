@@ -111,12 +111,8 @@ namespace OpenSekai.App.Playback
                 LiveBundleBuildData config = ResourceCatalog.LiveBundleConfig.Load();
                 if (config == null) throw new InvalidOperationException("Live bundle configuration is missing.");
                 var conversion = new ChartConversionSettings(config);
-#if UNITY_WEBGL && !UNITY_EDITOR
-                var (entry, chart, chartHash) = PrepareChart(request, cached, conversion, settings, cancellationToken);
-#else
                 var (entry, chart, chartHash) = await Task.Run(
                     () => PrepareChart(request, cached, conversion, settings, cancellationToken), cancellationToken);
-#endif
                 cancellationToken.ThrowIfCancellationRequested();
                 if (!IsRequestSceneReady(request))
                     return Result(PlayStartStatus.Failed, "曲库状态已变化，请重新开始游玩。");
