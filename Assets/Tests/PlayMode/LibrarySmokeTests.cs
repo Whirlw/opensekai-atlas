@@ -34,7 +34,7 @@ namespace OpenSekai.Tests.PlayMode
         private const float BootTimeoutSeconds = 15f;
 
         [Test]
-        public void LiveBackgroundCoverUsesThePrefabSizeAtAnySourceResolution()
+        public void LiveBackgroundCoverFillsTheMasksAtAnySourceResolution()
         {
             var prefab = Resources.Load<GameObject>("live/view/Background2DView");
             Assert.That(prefab, Is.Not.Null);
@@ -45,7 +45,9 @@ namespace OpenSekai.Tests.PlayMode
             {
                 const BindingFlags fields = BindingFlags.Instance | BindingFlags.NonPublic;
                 var jackets = (SpriteRenderer[])typeof(Background2DView).GetField("_jackets", fields).GetValue(view);
-                var sizes = jackets.Select(jacket => jacket.size).ToArray();
+                var originalSizes = jackets.Select(jacket => jacket.size).ToArray();
+                var camera = (Camera)typeof(Background2DView).GetField("_jacketCamera", fields).GetValue(view);
+                Vector2[] firstSizes = null;
                 var apply = typeof(Background2DView).GetMethod("ApplyJacketTexture", fields);
                 foreach (Texture2D texture in new[] { small, wide })
                 {
@@ -53,14 +55,31 @@ namespace OpenSekai.Tests.PlayMode
                     for (int i = 0; i < jackets.Length; i++)
                     {
                         var jacket = jackets[i];
-                        Assert.That(jacket.size, Is.EqualTo(sizes[i]));
-                        Assert.That(jacket.localBounds.size.x, Is.EqualTo(sizes[i].x).Within(0.001f));
-                        Assert.That(jacket.localBounds.size.y, Is.EqualTo(sizes[i].y).Within(0.001f));
+                        Assert.That(jacket.size.x, Is.GreaterThanOrEqualTo(originalSizes[i].x));
+                        Assert.That(jacket.size.y, Is.GreaterThanOrEqualTo(originalSizes[i].y));
+                        if (firstSizes != null)
+                            Assert.That(Vector2.Distance(jacket.size, firstSizes[i]), Is.LessThan(0.001f));
+
+                        var mask = jacket.transform.parent.GetComponentInChildren<SpriteMask>(true);
+                        var plane = new Plane(jacket.transform.forward, jacket.transform.position);
+                        foreach (Vector2 vertex in mask.sprite.vertices)
+                        {
+                            Vector3 world = mask.transform.TransformPoint(vertex);
+                            Ray ray = camera.ViewportPointToRay(camera.WorldToViewportPoint(world));
+                            Assert.That(plane.Raycast(ray, out float distance), Is.True);
+                            Vector3 local = jacket.transform.InverseTransformPoint(ray.GetPoint(distance));
+                            Assert.That(Mathf.Abs(local.x), Is.LessThanOrEqualTo(jacket.size.x * 0.5f + 0.001f));
+                            Assert.That(Mathf.Abs(local.y), Is.LessThanOrEqualTo(jacket.size.y * 0.5f + 0.001f));
+                        }
                         int side = Mathf.Min(texture.width, texture.height);
                         Assert.That(jacket.sprite.rect,
                             Is.EqualTo(new Rect((texture.width - side) * 0.5f, (texture.height - side) * 0.5f, side, side)));
                     }
+
+                    firstSizes ??= jackets.Select(jacket => jacket.size).ToArray();
                 }
+
+                Assert.That(jackets[0].size.x, Is.GreaterThan(originalSizes[0].x), "the central frame needs a larger sprite");
             }
             finally
             {

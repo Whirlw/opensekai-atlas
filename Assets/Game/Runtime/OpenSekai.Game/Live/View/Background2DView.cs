@@ -816,14 +816,41 @@ namespace Sekai.Live
 			{
 				if (jacket != null)
 				{
-					// The prefab defines the size of each slot; the image resolution is independent.
-					Vector2 size = jacket.size;
+					Vector2 size = SizeToCoverMask(jacket);
 					jacket.sprite = _externalJacketSprite;
 					jacket.drawMode = SpriteDrawMode.Sliced;
 					jacket.size = size;
 					jacket.gameObject.SetActive(true);
 				}
 			}
+		}
+
+		private Vector2 SizeToCoverMask(SpriteRenderer jacket)
+		{
+			Vector2 size = jacket.size;
+			Transform surface = jacket.transform;
+			SpriteMask mask = surface.parent != null ? surface.parent.GetComponentInChildren<SpriteMask>(true) : null;
+			if (_jacketCamera == null || mask == null || mask.sprite == null || size.x <= 0f || size.y <= 0f)
+				return size;
+
+			// The mask and the art are on differently tilted planes. Project the mask's
+			// corners onto the art plane so the image fills the visible frame from the camera.
+			Bounds bounds = mask.sprite.bounds;
+			var plane = new Plane(surface.forward, surface.position);
+			float scale = 1f;
+			for (int corner = 0; corner < 4; corner++)
+			{
+				var edge = new Vector3((corner & 1) == 0 ? bounds.min.x : bounds.max.x,
+					(corner & 2) == 0 ? bounds.min.y : bounds.max.y, bounds.center.z);
+				Vector3 viewport = _jacketCamera.WorldToViewportPoint(mask.transform.TransformPoint(edge));
+				Ray ray = _jacketCamera.ViewportPointToRay(viewport);
+				if (!plane.Raycast(ray, out float distance)) continue;
+
+				Vector3 point = surface.InverseTransformPoint(ray.GetPoint(distance));
+				scale = Mathf.Max(scale, Mathf.Max(2f * Mathf.Abs(point.x) / size.x, 2f * Mathf.Abs(point.y) / size.y));
+			}
+
+			return size * scale;
 		}
 
 		private void SetJacketsActive(bool active)
