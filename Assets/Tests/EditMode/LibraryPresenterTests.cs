@@ -13,6 +13,7 @@ using OpenSekai.App.UI;
 using OpenSekai.Infrastructure.Packages;
 using OpenSekai.Shared.Packages;
 using OpenSekai.Shared.Playback;
+using UnityEngine;
 
 namespace OpenSekai.Tests.EditMode
 {
@@ -42,6 +43,43 @@ namespace OpenSekai.Tests.EditMode
             if (Directory.Exists(_root))
             {
                 Directory.Delete(_root, recursive: true);
+            }
+        }
+
+        [Test]
+        public void BrowsePreferencesDefaultAndSurviveReopening()
+        {
+            string[] keys = { "library.group", "library.sort", "library.view" };
+            var saved = keys.Where(PlayerPrefs.HasKey).ToDictionary(key => key, key => PlayerPrefs.GetString(key));
+            try
+            {
+                foreach (string key in keys) PlayerPrefs.DeleteKey(key);
+                using (var first = new LibraryPresenter(_view, _packages, StartPlayback, persistBrowsePreferences: true))
+                {
+                    first.Refresh();
+                    Assert.That(_view.State.GroupKey, Is.EqualTo(LibraryGroupKey.None));
+                    Assert.That(_view.State.SortKey, Is.EqualTo(LibrarySortKey.Title));
+                    Assert.That(_view.State.ViewMode, Is.EqualTo(LibraryViewMode.List));
+                    first.SetGroupMode(LibraryGroupKey.Difficulty);
+                    first.SetSort(LibrarySortKey.Level);
+                    first.SetViewMode(LibraryViewMode.Grid);
+                }
+
+                using var reopened = new LibraryPresenter(_view, _packages, StartPlayback, persistBrowsePreferences: true);
+                reopened.Refresh();
+                Assert.That(_view.State.GroupKey, Is.EqualTo(LibraryGroupKey.Difficulty));
+                Assert.That(_view.State.SortKey, Is.EqualTo(LibrarySortKey.Level));
+                Assert.That(_view.State.ViewMode, Is.EqualTo(LibraryViewMode.Grid));
+            }
+            finally
+            {
+                foreach (string key in keys)
+                {
+                    if (saved.TryGetValue(key, out string value)) PlayerPrefs.SetString(key, value);
+                    else PlayerPrefs.DeleteKey(key);
+                }
+
+                PlayerPrefs.Save();
             }
         }
 

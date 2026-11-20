@@ -116,7 +116,7 @@ namespace OpenSekai.App.UI
 
         internal LibrarySortKey SortKey { get; set; } = LibrarySortKey.Title;
 
-        internal LibraryGroupKey GroupKey { get; private set; } = LibraryGroupKey.Difficulty;
+        internal LibraryGroupKey GroupKey { get; private set; } = LibraryGroupKey.None;
 
         /// <summary>Group the list is narrowed to; null shows every group.</summary>
         internal string SelectedGroup { get; set; }
