@@ -57,6 +57,7 @@ namespace Sekai
 		public float JudgeOffsetMs { get; set; }
 
 		public float Brightness { get; set; }
+		public float MovieBrightness { get; set; }
 
 		public float LaneTransparent { get; set; }
 
@@ -235,6 +236,7 @@ namespace Sekai
 			VisualLatencyMs = 0f;
 			JudgeOffsetMs = 0f;
 			Brightness = 1f;
+			MovieBrightness = 1f;
 			LaneTransparent = 1f;
 			CustomMusicScoreMusicInfoDisplayMode = MUSIC_INFO_DISPLAY_MODE_CUSTOM_SCORE;
 			CustomMusicScoreLiveBackgroundMode = CUSTOM_MUSIC_SCORE_BACKGROUND_MODE2_DMV;

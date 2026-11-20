@@ -475,10 +475,6 @@ namespace Sekai.Live
 			Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
 			if (shader == null)
 			{
-				shader = Shader.Find("Unlit/Texture");
-			}
-			if (shader == null)
-			{
 				shader = Shader.Find("Sprites/Default");
 			}
 
@@ -505,13 +501,15 @@ namespace Sekai.Live
 			{
 				_movieMaterial.SetTexture("_BaseMap", _movieTexture);
 			}
+			float brightness = Mathf.Clamp01(_baseController?.Settings?.MovieBrightness ?? 1f);
+			var tint = new Color(brightness, brightness, brightness, 1f);
 			if (_movieMaterial.HasProperty("_Color"))
 			{
-				_movieMaterial.SetColor("_Color", Color.white);
+				_movieMaterial.SetColor("_Color", tint);
 			}
 			if (_movieMaterial.HasProperty("_BaseColor"))
 			{
-				_movieMaterial.SetColor("_BaseColor", Color.white);
+				_movieMaterial.SetColor("_BaseColor", tint);
 			}
 		}
 
