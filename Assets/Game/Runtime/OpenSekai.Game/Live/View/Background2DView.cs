@@ -116,7 +116,7 @@ namespace Sekai.Live
 			Texture2D jacketTexture = LoadJacketTexture();
 			if (jacketTexture != null)
 			{
-				ApplyJacketTexture(jacketTexture, destroyWhenReplaced: IsExternalJacketTexture(jacketTexture));
+				ApplyJacketTexture(jacketTexture);
 			}
 
 			RenderJacketBackground();
@@ -794,39 +794,33 @@ namespace Sekai.Live
 			return null;
 		}
 
-		private bool IsExternalJacketTexture(Texture2D texture)
-		{
-			return texture != null && texture == _externalJacketTexture;
-		}
-
-		private void ApplyJacketTexture(Texture2D texture, bool destroyWhenReplaced)
+		private void ApplyJacketTexture(Texture2D texture)
 		{
 			if (_jackets == null)
 			{
 				return;
 			}
 
-			if (destroyWhenReplaced && _externalJacketSprite != null)
+			if (_externalJacketSprite != null)
 			{
 				Destroy(_externalJacketSprite);
 				_externalJacketSprite = null;
 			}
 
-			Sprite sprite = Sprite.Create(
-				texture,
-				new Rect(0f, 0f, texture.width, texture.height),
-				new Vector2(0.5f, 0.5f),
-				100f);
-			if (destroyWhenReplaced)
-			{
-				_externalJacketSprite = sprite;
-			}
+			int side = Mathf.Min(texture.width, texture.height);
+			var region = new Rect((texture.width - side) * 0.5f, (texture.height - side) * 0.5f, side, side);
+			_externalJacketSprite = Sprite.Create(texture, region, new Vector2(0.5f, 0.5f),
+				100f, 0, SpriteMeshType.FullRect);
 
 			foreach (SpriteRenderer jacket in _jackets)
 			{
 				if (jacket != null)
 				{
-					jacket.sprite = sprite;
+					// The prefab defines the size of each slot; the image resolution is independent.
+					Vector2 size = jacket.size;
+					jacket.sprite = _externalJacketSprite;
+					jacket.drawMode = SpriteDrawMode.Sliced;
+					jacket.size = size;
 					jacket.gameObject.SetActive(true);
 				}
 			}

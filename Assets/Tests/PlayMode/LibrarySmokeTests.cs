@@ -33,6 +33,43 @@ namespace OpenSekai.Tests.PlayMode
         private const string LibraryScenePath = "Assets/Game/Scenes/Library.unity";
         private const float BootTimeoutSeconds = 15f;
 
+        [Test]
+        public void LiveBackgroundCoverUsesThePrefabSizeAtAnySourceResolution()
+        {
+            var prefab = Resources.Load<GameObject>("live/view/Background2DView");
+            Assert.That(prefab, Is.Not.Null);
+            var view = Object.Instantiate(prefab).GetComponent<Background2DView>();
+            var small = new Texture2D(160, 160);
+            var wide = new Texture2D(760, 600);
+            try
+            {
+                const BindingFlags fields = BindingFlags.Instance | BindingFlags.NonPublic;
+                var jackets = (SpriteRenderer[])typeof(Background2DView).GetField("_jackets", fields).GetValue(view);
+                var sizes = jackets.Select(jacket => jacket.size).ToArray();
+                var apply = typeof(Background2DView).GetMethod("ApplyJacketTexture", fields);
+                foreach (Texture2D texture in new[] { small, wide })
+                {
+                    apply.Invoke(view, new object[] { texture });
+                    for (int i = 0; i < jackets.Length; i++)
+                    {
+                        var jacket = jackets[i];
+                        Assert.That(jacket.size, Is.EqualTo(sizes[i]));
+                        Assert.That(jacket.localBounds.size.x, Is.EqualTo(sizes[i].x).Within(0.001f));
+                        Assert.That(jacket.localBounds.size.y, Is.EqualTo(sizes[i].y).Within(0.001f));
+                        int side = Mathf.Min(texture.width, texture.height);
+                        Assert.That(jacket.sprite.rect,
+                            Is.EqualTo(new Rect((texture.width - side) * 0.5f, (texture.height - side) * 0.5f, side, side)));
+                    }
+                }
+            }
+            finally
+            {
+                Object.Destroy(view.gameObject);
+                Object.Destroy(small);
+                Object.Destroy(wide);
+            }
+        }
+
         [UnityTest]
         public IEnumerator NextRushKeysPlayTheirOwnParticleAndSlotLayersInBothEffectPacks()
         {
