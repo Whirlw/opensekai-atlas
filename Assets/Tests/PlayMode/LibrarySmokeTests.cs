@@ -545,6 +545,9 @@ namespace OpenSekai.Tests.PlayMode
             yield return LibrarySceneBootsAndShowsThePage();
             string directory = Path.Combine(Path.GetTempPath(), "OpenSekai-NextRushTiming-" + System.Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(directory);
+            var settings = OpenSekai.Shared.Settings.LiveSettingsStore.Shared.Load();
+            int? previousInfoMode = settings.CustomMusicScoreMusicInfoDisplayMode;
+            settings.CustomMusicScoreMusicInfoDisplayMode = LiveSettingData.MUSIC_INFO_DISPLAY_MODE_CUSTOM_SCORE;
             try
             {
                 WriteNextRushTimingPackage(directory);
@@ -639,6 +642,10 @@ namespace OpenSekai.Tests.PlayMode
                 Assert.That((bool)resultPendingField.GetValue(controller), Is.True);
                 yield return WaitFor(() => !(bool)resultPendingField.GetValue(controller), 6f, "starting the result effect");
                 Assert.That(ClockMs() / 1000d, Is.EqualTo(span.LastNoteSeconds + 1).Within(0.15));
+                double resultStarted = Time.timeAsDouble;
+                yield return WaitFor(() => SceneLoader.GetActiveScene().name != "Core", BootTimeoutSeconds,
+                    "leaving gameplay after the common result animation and fade");
+                Assert.That(Time.timeAsDouble - resultStarted, Is.GreaterThanOrEqualTo(5.9d));
 
                 yield return WaitFor(
                     () => SceneLoader.GetActiveScene().name == "Library" && Object.FindFirstObjectByType<LibraryResultPanel>() != null,
@@ -650,14 +657,87 @@ namespace OpenSekai.Tests.PlayMode
             }
             finally
             {
+                settings.CustomMusicScoreMusicInfoDisplayMode = previousInfoMode;
                 Directory.Delete(directory, recursive: true);
             }
         }
 
-        private static void StartThroughLibraryRetry(string directory)
+        [UnityTest]
+        public IEnumerator IntroAndOutroSkipBoundariesMatchInBothModes()
+        {
+            yield return LibrarySceneBootsAndShowsThePage();
+            string directory = Path.Combine(Path.GetTempPath(), "OpenSekai-LiveSkips-" + System.Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+            var settings = OpenSekai.Shared.Settings.LiveSettingsStore.Shared.Load();
+            int? previousInfoMode = settings.CustomMusicScoreMusicInfoDisplayMode;
+            settings.CustomMusicScoreMusicInfoDisplayMode = LiveSettingData.MUSIC_INFO_DISPLAY_MODE_SKIP;
+            try
+            {
+                WriteNextRushTimingPackage(directory);
+                File.WriteAllText(Path.Combine(directory, "level-data.json"), @"{
+                    ""bgmOffset"": 0,
+                    ""entities"": [
+                        { ""archetype"": ""Initialization"", ""data"": [{ ""name"": ""initialLife"", ""value"": 1000 }] },
+                        { ""archetype"": ""#BPM_CHANGE"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 0 }, { ""name"": ""#BPM"", ""value"": 120 }] },
+                        { ""archetype"": ""NormalTapNote"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 4 }, { ""name"": ""lane"", ""value"": 0 }, { ""name"": ""size"", ""value"": 1 }] },
+                        { ""archetype"": ""NormalTapNote"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 5 }, { ""name"": ""lane"", ""value"": 0 }, { ""name"": ""size"", ""value"": 1 }] }
+                    ]
+                }");
+
+                const BindingFlags Fields = BindingFlags.Instance | BindingFlags.NonPublic;
+                var resultField = typeof(LibraryResultPanel).GetField("_current", Fields);
+                var clock = typeof(BaseLiveController).GetField("currentMusicTimeMs", Fields);
+                var spanField = typeof(BaseLiveController).GetField("timelineSpan", Fields);
+                var skipShown = typeof(SoloLiveController).GetField("_skipShown", Fields);
+                var pending = typeof(SoloLiveController).GetField("_resultEffectPending", Fields);
+                var introSkip = typeof(SoloLiveController).GetMethod("SkipIntro", Fields);
+                var outroSkip = typeof(SoloLiveController).GetMethod("SkipOutro", Fields);
+                var resultAnimation = typeof(SoloLiveController).GetMethod("GetLiveResultAnimationType", Fields);
+                foreach (bool isAuto in new[] { false, true })
+                {
+                    StartThroughLibraryRetry(directory, isAuto);
+                    SoloLiveController controller = null;
+                    yield return WaitFor(() =>
+                    {
+                        var panel = Object.FindFirstObjectByType<LibraryResultPanel>();
+                        if (panel != null && resultField.GetValue(panel) is PlayResult { Kind: PlayResultKind.LoadError } error)
+                            Assert.Fail(error.Message);
+                        controller = Object.FindFirstObjectByType<SoloLiveController>();
+                        return controller != null && controller.JustPlayingState;
+                    }, BootTimeoutSeconds, "starting the chart with a skippable intro");
+
+                    ((FreeLiveBootData)controller.BootData).CustomMusicScoreKey = null;
+                    double ClockSeconds() => (long)clock.GetValue(controller) / 1000d;
+                    var span = (LiveTimelineSpan)spanField.GetValue(controller);
+                    Assert.That((bool)skipShown.GetValue(controller), Is.True);
+                    introSkip.Invoke(controller, null);
+                    Assert.That(ClockSeconds(), Is.EqualTo(span.FirstNoteSeconds - 2d).Within(0.002));
+                    Assert.That((bool)skipShown.GetValue(controller), Is.False);
+
+                    yield return WaitFor(() => (bool)skipShown.GetValue(controller), 6f, "showing the outro skip");
+                    Assert.That(ClockSeconds(), Is.EqualTo(span.LastNoteSeconds + 1d).Within(0.12));
+                    Assert.That((bool)pending.GetValue(controller), Is.True);
+                    Assert.That(resultAnimation.Invoke(controller, null), Is.EqualTo(LiveResultAnimationType.Clear));
+                    outroSkip.Invoke(controller, null);
+                    Assert.That((bool)pending.GetValue(controller), Is.False, "the result effect starts immediately");
+                    Assert.That((bool)skipShown.GetValue(controller), Is.False);
+
+                    yield return WaitFor(() => SceneLoader.GetActiveScene().name == "Library"
+                        && Object.FindFirstObjectByType<LibraryResultPanel>() != null,
+                        BootTimeoutSeconds, "opening the result panel");
+                }
+            }
+            finally
+            {
+                settings.CustomMusicScoreMusicInfoDisplayMode = previousInfoMode;
+                Directory.Delete(directory, recursive: true);
+            }
+        }
+
+        private static void StartThroughLibraryRetry(string directory, bool isAuto = true)
         {
             var library = Object.FindFirstObjectByType<LibraryScreen>();
-            library.ShowResult(PlayResult.FromLoadError("Playback test", true, directory, "Retry smoke setup"));
+            library.ShowResult(PlayResult.FromLoadError("Playback test", isAuto, directory, "Retry smoke setup"));
             var panel = Object.FindFirstObjectByType<LibraryResultPanel>();
             Assert.That(panel, Is.Not.Null, "the library should display the retry panel");
             var retry = panel.GetComponentsInChildren<Button>(true).SingleOrDefault(button => button.name == "Retry");

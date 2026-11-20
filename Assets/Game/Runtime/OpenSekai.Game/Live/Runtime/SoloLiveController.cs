@@ -1,4 +1,3 @@
-using OpenSekai.Shared.Settings;
 using System.Collections;
 using Sekai.Live;
 using UnityEngine;
@@ -100,7 +99,7 @@ namespace Sekai.Core.Live
 			_liveLogic?.RefreshInput();
 			BeginLatencyCapture();
 			_forcedFinish = false;
-			if (timelineSpan.HasIntroSkip)
+			if (timelineSpan.HasIntroSkip && currentMusicTimeMs < IntroSkipTargetMs)
 			{
 				ShowSkip(SkipIntro);
 			}
@@ -109,10 +108,7 @@ namespace Sekai.Core.Live
 		/// <summary>How long past the end of the timeline a live may stay open before it is ended by force.</summary>
 		private const long StalledFinishGraceMs = 3000L;
 
-		private const float LiveTimelineSpanMargin = OpenSekai.Shared.Live.Simulation.LiveTimelineSpan.SkipMarginSeconds;
-
-		/// <summary>An outro skip that would bring the result effect forward by less than this is not offered.</summary>
-		private const long MinimumOutroSkipMs = (long)(OpenSekai.Shared.Live.Simulation.LiveTimelineSpan.MinimumSkipSeconds * 1000f);
+		private long IntroSkipTargetMs => (long)System.Math.Floor(timelineSpan.IntroSkipTargetSeconds * 1000d);
 
 		private bool _skipShown;
 		private bool _forcedFinish;
@@ -146,7 +142,7 @@ namespace Sekai.Core.Live
 		private void SkipIntro()
 		{
 			HideSkip();
-			long targetMs = (long)(timelineSpan.IntroSkipTargetSeconds * 1000f);
+			long targetMs = IntroSkipTargetMs;
 			// The run-in counts too: the clock now starts a few seconds before the music.
 			bool clockRunning = musicPhase == MusicPhase.Playing || musicPhase == MusicPhase.RunIn;
 			if (state != LiveControllerState.Playing || !clockRunning || currentMusicTimeMs >= targetMs)
@@ -178,7 +174,7 @@ namespace Sekai.Core.Live
 			{
 				StopCoroutine(_finishCoroutine);
 			}
-			_finishCoroutine = StartCoroutine(SetFinishCoroutine(0f, _pendingResultWait, _pendingFinishWait));
+			_finishCoroutine = StartCoroutine(ResultAnim(_pendingResultWait, _pendingFinishWait));
 		}
 
 		protected override void OnUpdate()
@@ -191,7 +187,7 @@ namespace Sekai.Core.Live
 				if (_outroSkipAtMs is long skipAtMs && currentMusicTimeMs >= skipAtMs)
 				{
 					_outroSkipAtMs = null;
-					if (_resultEffectPending && currentMusicTimeMs + MinimumOutroSkipMs < ResultEffectMs)
+					if (_resultEffectPending && currentMusicTimeMs < ResultEffectMs)
 					{
 						ShowSkip(SkipOutro);
 					}
@@ -207,7 +203,7 @@ namespace Sekai.Core.Live
 			}
 
 			UpdateMusicTime();
-			if (_skipShown && currentMusicTimeMs >= (long)(timelineSpan.IntroSkipTargetSeconds * 1000f))
+			if (_skipShown && currentMusicTimeMs >= IntroSkipTargetMs)
 			{
 				HideSkip();
 			}
@@ -534,7 +530,7 @@ namespace Sekai.Core.Live
 			// seen, and not at all when the effect is due within that margin.
 			HideSkip();
 			_outroSkipAtMs = result == 3 && resultEffectAtMs.HasValue && timelineSpan.HasOutroSkip
-				? (long)System.Math.Ceiling((timelineSpan.LastNoteSeconds + LiveTimelineSpanMargin) * 1000d)
+				? (long)System.Math.Ceiling(timelineSpan.OutroSkipAvailableSeconds * 1000d)
 				: null;
 		}
 
@@ -628,8 +624,9 @@ namespace Sekai.Core.Live
 			_resultEffectAtMs = null;
 			_outroSkipAtMs = null;
 			HideSkip();
-			LiveViewExt.Result(_liveViews, (int)GetLiveResultAnimationType());
-			if (waitTime > 0f)
+			LiveResultAnimationType animation = GetLiveResultAnimationType();
+			LiveViewExt.Result(_liveViews, (int)animation);
+			if (animation != LiveResultAnimationType.None && waitTime > 0f)
 			{
 				yield return new WaitForSeconds(waitTime);
 			}
@@ -662,17 +659,13 @@ namespace Sekai.Core.Live
 
 			LiveScore score = _liveLogic?.Score ?? default;
 			if (score.totalComboCount == 0) return LiveResultAnimationType.None;
-			// Check if this is an Auto play
-			bool isAutoPlay = BootData?.IsAuto == true;
-			int autoResultAnimation = LiveSettingsStore.Shared.Load()?.AutoResultAnimationMode ?? LiveSettingData.AUTO_RESULT_ANIMATION_NONE;
-
-			// If all notes were Auto, handle based on settings
-			if (score.totalComboCount > 0 && score.autoCount == score.totalComboCount)
+			if (score.autoCount == score.totalComboCount)
 			{
-				if (isAutoPlay)
+#if UNITY_EDITOR
+				// The screenshot tool can explicitly preview alternate result animations.
+				if (BootData is FreeLiveBootData { IsAuto: true, ResultAnimationPreviewOverride: int animation })
 				{
-					// Auto play with all Auto notes - use custom result animation setting
-					switch (autoResultAnimation)
+					switch (animation)
 					{
 						case LiveSettingData.AUTO_RESULT_ANIMATION_NONE:
 							return LiveResultAnimationType.None;
@@ -686,6 +679,7 @@ namespace Sekai.Core.Live
 							return LiveResultAnimationType.LifeZero;
 					}
 				}
+#endif
 				return LiveResultAnimationType.Clear;
 			}
 

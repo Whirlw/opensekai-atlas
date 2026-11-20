@@ -8,6 +8,9 @@ namespace Sekai
 
 		public string CustomMusicScorePath { get; set; }
 		public byte[] TemporaryJacketData { get; set; }
+#if UNITY_EDITOR
+		internal int? ResultAnimationPreviewOverride { get; set; }
+#endif
 
 		/// <summary>Content hash of the package's score file; the play history key.</summary>
 		public string CustomMusicScoreKey { get; set; }

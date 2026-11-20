@@ -4850,7 +4850,7 @@ namespace OpenSekai.Tests.EditMode.Charts
         [TestCase(0d, -0.25, 4.25, 5.25)]
         [TestCase(0.51, 0.26, 4.76, 5.76)]
         [TestCase(1d, 0.75, 5.25, 6.25)]
-        public void NativeOffsetPreservesTheOneSecondIntroAndResultRules(
+        public void NativeOffsetPreservesTheTwoSecondIntroAndOneSecondResultRules(
             double offset, double first, double last, double result)
         {
             var json = Chart(N("NormalTapNote", null, -0.5), N("NormalTapNote", null, 8.5));
@@ -4867,7 +4867,7 @@ namespace OpenSekai.Tests.EditMode.Charts
                 Assert.That(boot.MusicData.Music.fillerSec, Is.EqualTo(2f), "the original manifest value is preserved");
                 Assert.That(controller.Span.FirstNoteSeconds, Is.EqualTo(first).Within(1e-6));
                 Assert.That(controller.Span.LastNoteSeconds, Is.EqualTo(last).Within(1e-6));
-                double start = Math.Min(Math.Min(0d, first) - 1d, first - controller.Span.LeadInSeconds);
+                double start = Math.Min(Math.Min(0d, first) - 2d, first - controller.Span.LeadInSeconds);
                 Assert.That(controller.Span.StartSeconds, Is.EqualTo(start).Within(1e-6));
                 Assert.That(controller.Span.ResultEffectSeconds, Is.EqualTo(result).Within(1e-6));
                 controller.CallPreExit();

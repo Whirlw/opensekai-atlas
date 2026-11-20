@@ -58,7 +58,6 @@ namespace OpenSekai.EditorTools.Screenshots
         private float _previousVolume;
         private bool _settingsChanged;
         private int? _previousFakePerfect;
-        private int? _previousResultAnimation;
 
         internal static void Begin(ShotRequest request, Action<RunReport> onDone)
         {
@@ -742,16 +741,13 @@ namespace OpenSekai.EditorTools.Screenshots
             if (!_settingsChanged)
             {
                 _previousFakePerfect = shared.CustomMusicScoreAutoFakePerfectMode;
-                _previousResultAnimation = shared.CustomMusicScoreAutoResultAnimation;
                 _settingsChanged = true;
             }
             shared.CustomMusicScoreAutoFakePerfectMode = fakePerfect;
             boot.LiveSettingData.CustomMusicScoreAutoFakePerfectMode = fakePerfect;
             if (finishAnimation != null)
             {
-                int animation = ResultAnimation(finishAnimation);
-                shared.CustomMusicScoreAutoResultAnimation = animation;
-                boot.LiveSettingData.CustomMusicScoreAutoResultAnimation = animation;
+                boot.ResultAnimationPreviewOverride = ResultAnimation(finishAnimation);
             }
             Log((infoPage ? "info" : "live") + ": " + Path.GetFileName(directory) + " " + boot.MusicData.DifficultyString);
         }
@@ -803,7 +799,6 @@ namespace OpenSekai.EditorTools.Screenshots
             {
                 LiveSettingData shared = OpenSekai.Shared.Settings.LiveSettingsStore.Shared.Load();
                 shared.CustomMusicScoreAutoFakePerfectMode = _previousFakePerfect;
-                shared.CustomMusicScoreAutoResultAnimation = _previousResultAnimation;
                 _settingsChanged = false;
             }
         }

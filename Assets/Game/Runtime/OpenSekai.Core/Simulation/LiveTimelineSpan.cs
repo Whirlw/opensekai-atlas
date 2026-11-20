@@ -18,20 +18,17 @@ namespace OpenSekai.Shared.Live.Simulation
 	/// <see cref="RunInSeconds"/> after the info page is gone, and the result effect comes
 	/// <see cref="RunOutSeconds"/> after whichever of the music and the last note ends last.
 	///
-	/// When the music starts <see cref="SkipMarginSeconds"/> or more before the chart, the intro can be
-	/// skipped to that margin before the first note (or the lead-in, if that is longer). When it ends that
-	/// much after the chart, the outro can be skipped straight to the result.
+	/// The intro skip is available from the playable start until <see cref="RunInSeconds"/>
+	/// before the first note, and jumps to that point. The outro skip is available
+	/// <see cref="OutroSkipDelaySeconds"/> after the last note and plays the result effect immediately.
 	/// </summary>
 	public readonly struct LiveTimelineSpan
 	{
-		/// <summary>How much of a gap gets a skip button, and how far before the first note a skip lands.</summary>
-		public const float SkipMarginSeconds = 3f;
-
-		/// <summary>A skip that would move the clock less than this is not worth a button.</summary>
-		public const float MinimumSkipSeconds = 0.25f;
+		/// <summary>Time after the last note before the outro skip is available.</summary>
+		public const float OutroSkipDelaySeconds = 1f;
 
 		/// <summary>From the info page going away to the first of the music and the first note.</summary>
-		public const float RunInSeconds = 1f;
+		public const float RunInSeconds = 2f;
 
 		/// <summary>From the last of the music and the last note to the result effect.</summary>
 		public const float RunOutSeconds = 1f;
@@ -103,18 +100,15 @@ namespace OpenSekai.Shared.Live.Simulation
 		/// </summary>
 		public float ClockAtIntroStart(float introSeconds) => StartSeconds - Math.Max(0f, introSeconds);
 
-		/// <summary>Where the intro skip lands: the margin before the first note, or its lead-in if longer.</summary>
+		/// <summary>Where the intro skip lands, <see cref="RunInSeconds"/> before the first note.</summary>
 		public float IntroSkipTargetSeconds =>
-			HasNotes ? FirstNoteSeconds - Math.Max(SkipMarginSeconds, LeadInSeconds) : MusicStartSeconds;
+			HasNotes ? FirstNoteSeconds - RunInSeconds : MusicStartSeconds;
 
-		/// <summary>True when the music starts at least the margin before the chart and skipping saves time.</summary>
-		public bool HasIntroSkip =>
-			HasNotes
-			&& FirstNoteSeconds - MusicStartSeconds >= SkipMarginSeconds
-			&& IntroSkipTargetSeconds - MusicStartSeconds >= MinimumSkipSeconds;
+		public float OutroSkipAvailableSeconds => LastNoteSeconds + OutroSkipDelaySeconds;
 
-		/// <summary>True when the music ends at least the margin after the last note.</summary>
-		public bool HasOutroSkip => HasNotes && MusicEndSeconds - LastNoteSeconds >= SkipMarginSeconds;
+		public bool HasIntroSkip => HasNotes && StartSeconds < IntroSkipTargetSeconds;
+
+		public bool HasOutroSkip => HasNotes && OutroSkipAvailableSeconds < ResultEffectSeconds;
 
 		public override string ToString() => string.Concat(
 			"music=", MusicStartSeconds.ToString("F3"), "..", MusicEndSeconds.ToString("F3"),

@@ -233,34 +233,36 @@ namespace Sekai.Core.Live
 
 			OnMusicStart();
 
-			// The start point (the audible music or the chart, whichever is first) is reached the
-			// moment the info page is gone. So the clock starts now, the page's length ahead of it,
-			// and the file plays from wherever that puts it: from its top during the page when its
-			// silence is short, part-way in when the silence is longer than everything since the
-			// audio was loaded.
-			bool waitForIntro = ShouldWaitBeforeRhythmGameStart();
-			float introSeconds = waitForIntro ? IntroDurationSeconds() : 0f;
-			StartTimelineClock(timelineSpan.ClockAtIntroStart(introSeconds));
-
-			if (waitForIntro)
+			if (ShouldWaitBeforeRhythmGameStart())
 			{
-				// The page reports when it is gone; the deadline only keeps a page that never calls
-				// back (its tweens were killed) from holding the live forever.
+				float introSeconds = IntroDurationSeconds();
+				StartTimelineClock(timelineSpan.ClockAtIntroStart(introSeconds));
+				bool heldAtStart = false;
+
+				// Let the file's silence play during the info page, but wait for the actual fade-out
+				// callback before letting the clock advance past the playable start.
 				float deadline = Time.realtimeSinceStartup + Mathf.Max(waitTime, introSeconds) + IntroWaitSlackSeconds;
 				while (!IsIntroFinished() && Time.realtimeSinceStartup < deadline)
 				{
 					yield return null;
-					UpdateMusicTime();
+					if (heldAtStart) continue;
+
+					UpdateMusicTime(TimelineStartMs);
+					if (currentMusicTimeMs >= TimelineStartMs && !IsIntroFinished())
+					{
+						if (musicPhase == MusicPhase.Playing) SoundManager.Instance.Pause();
+						heldAtStart = true;
+					}
 				}
+
+				if (currentMusicTimeMs != TimelineStartMs) SeekTimeline(TimelineStartMs);
+				if (heldAtStart) ResumeMusicPlayback();
 			}
 			else
 			{
 				float until = Time.realtimeSinceStartup + 0.05f;
-				while (Time.realtimeSinceStartup < until)
-				{
-					yield return null;
-					UpdateMusicTime();
-				}
+				while (Time.realtimeSinceStartup < until) yield return null;
+				StartTimelineClock(timelineSpan.StartSeconds);
 			}
 
 			OnRhythmGameStart();
@@ -473,12 +475,15 @@ namespace Sekai.Core.Live
 		/// own, so the notes at either end still get their time instead of a clock pinned to the song's
 		/// edge, which left the last notes waiting for a moment that never came.
 		/// </summary>
-		protected virtual void UpdateMusicTime()
+		protected virtual void UpdateMusicTime() => UpdateMusicTime(long.MaxValue);
+
+		private void UpdateMusicTime(long runInLimit)
 		{
 			switch (musicPhase)
 			{
 				case MusicPhase.RunIn:
 					AdvanceFreeClock();
+					currentMusicTimeMs = Math.Min(currentMusicTimeMs, runInLimit);
 					if (currentMusicTimeMs >= MusicStartMs)
 					{
 						StartMusicPlayback();
