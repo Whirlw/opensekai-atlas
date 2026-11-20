@@ -90,48 +90,57 @@ namespace OpenSekai.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator NextRushKeysPlayTheirOwnParticleAndSlotLayersInBothEffectPacks()
+        public IEnumerator SharedKeysMatchParticlesInBothEffectPacks()
         {
             var cases = new[]
             {
-                (NoteCategory.Normal, NoteType.Default, LivePrefabDefine.FX_NORMAL_PERFECT_AURA, true, true),
-                (NoteCategory.Long, NoteType.Critical, LivePrefabDefine.FX_CRITICAL_LONG_AURA, true, true),
-                (NoteCategory.Flick, NoteType.Default, LivePrefabDefine.FX_FLICK_AURA, true, false),
-                (NoteCategory.FrictionFlick, NoteType.Default, LivePrefabDefine.FX_FLICK_FLASH, false, false),
-                (NoteCategory.FrictionFlick, NoteType.Critical, LivePrefabDefine.FX_CRITICAL_FLICK_FLASH, false, true),
-                (NoteCategory.Friction, NoteType.Default, LivePrefabDefine.FX_FRICITION_AURA, false, false),
-                (NoteCategory.Connection, NoteType.Critical, LivePrefabDefine.FX_CRITICAL_CONNECT_AURA, false, false)
+                (NoteCategory.Normal, NoteType.Default, NoteResult.Perfect, NoteDirection.Default, LivePrefabDefine.FX_NORMAL_PERFECT_AURA),
+                (NoteCategory.Normal, NoteType.Default, NoteResult.Great, NoteDirection.Default, LivePrefabDefine.FX_NORMAL_GREAT_AURA),
+                (NoteCategory.Normal, NoteType.Default, NoteResult.Good, NoteDirection.Default, LivePrefabDefine.FX_NORMAL_GOOD_AURA),
+                (NoteCategory.Normal, NoteType.Default, NoteResult.Bad, NoteDirection.Default, null),
+                (NoteCategory.Long, NoteType.Critical, NoteResult.Perfect, NoteDirection.Default, LivePrefabDefine.FX_CRITICAL_LONG_AURA),
+                (NoteCategory.Flick, NoteType.Default, NoteResult.Perfect, NoteDirection.Left, LivePrefabDefine.FX_FLICK_AURA),
+                (NoteCategory.Flick, NoteType.Critical, NoteResult.Perfect, NoteDirection.DownRight, LivePrefabDefine.FX_CRITICAL_FLICK_FLASH),
+                (NoteCategory.FrictionFlick, NoteType.Default, NoteResult.Perfect, NoteDirection.Right, LivePrefabDefine.FX_FLICK_FLASH),
+                (NoteCategory.Friction, NoteType.Default, NoteResult.Perfect, NoteDirection.Default, LivePrefabDefine.FX_FRICITION_AURA),
+                (NoteCategory.Connection, NoteType.Critical, NoteResult.Perfect, NoteDirection.Default, LivePrefabDefine.FX_CRITICAL_CONNECT_AURA)
             };
             for (int pack = 0; pack < 2; pack++)
             {
-                var host = new GameObject("NextRUSH hit and slot effects");
+                var host = new GameObject("Shared hit particles");
                 var view = host.AddComponent<TapEffectView>();
                 string previous = LiveConfig.EffectBundleName;
                 try
                 {
                     LiveConfig.SetNoteEffectName(pack);
                     view.Setup(null);
-                    view.SetupNativeSlots(host.transform);
                     var particles = host.GetComponentsInChildren<ParticleSystemController>(true);
-                    foreach (var (category, type, expectedParticle, showsSlots, lightsLanes) in cases)
+                    foreach (var (category, type, result, direction, expectedParticle) in cases)
                     {
-                        var note = new NoteBase(default, 1, 5, 6, category, 1, 0, type)
-                        {
-                            NativeEffectKind = NextRushEffectKind.None
-                        };
-                        note.SetJudgeInfoForDecoration(NoteResult.Perfect);
-                        view.Excute(note, null);
-                        var playing = particles.Where(p => p.IsPlaying).ToArray();
-                        Assert.That(playing.Count(p => p.name == expectedParticle + "(Clone)"), Is.EqualTo(1), category.ToString());
-                        Assert.That(playing.Any(p => p.name.StartsWith("fx_lane_")), Is.EqualTo(lightsLanes), category.ToString());
-                        if (category == NoteCategory.FrictionFlick)
-                            Assert.That(playing.All(p => !p.name.Contains("_aura") && !p.name.Contains("_gen")), Is.True);
-                        var slots = host.GetComponentsInChildren<SpriteRenderer>().Where(r => r.enabled).ToArray();
-                        Assert.That(slots.Count(r => r.name == "Slot strike"), Is.EqualTo(showsSlots ? 2 : 0));
-                        Assert.That(slots.Count(r => r.name == "Slot glow"), Is.EqualTo(showsSlots ? 2 : 0));
-                        view.UpdateNativeSlots(MusicScore.CurrentFrameInfo.time + 0.7f);
-                        Assert.That(slots.All(r => !r.enabled), Is.True);
-                        foreach (var particle in playing) particle.Stop();
+                        var note = new NoteBase(default, 1, 5, 6, category, 1, 0, type) { Direction = direction };
+                        note.SetJudgeInfoForDecoration(result);
+                        view.Excute(note, () => true);
+                        var standard = Snapshot();
+                        if (expectedParticle != null)
+                            Assert.That(standard.Any(particle => particle.name == expectedParticle + "(Clone)"), Is.True, category.ToString());
+                        else
+                            Assert.That(standard, Is.Empty, result.ToString());
+                        StopParticles();
+
+                        note.NativeEffectKind = NextRushEffectKind.None;
+                        view.Excute(note, () => true);
+                        Assert.That(Snapshot(), Is.EqualTo(standard), $"{category} {type} {result}");
+                        Assert.That(host.GetComponentsInChildren<SpriteRenderer>(), Is.Empty);
+                        StopParticles();
+                    }
+
+                    (string name, Vector3 position, Vector3 scale, Quaternion rotation)[] Snapshot() =>
+                        particles.Where(p => p.IsPlaying).OrderBy(p => p.name).ThenBy(p => p.transform.localPosition.x)
+                            .Select(p => (p.name, p.transform.localPosition, p.transform.localScale, p.transform.localRotation)).ToArray();
+
+                    void StopParticles()
+                    {
+                        foreach (var particle in particles.Where(p => p.IsPlaying)) particle.Stop();
                     }
                 }
                 finally
@@ -145,11 +154,10 @@ namespace OpenSekai.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator NextRushHoldParticlesFollowTheActiveSegmentAfterTheDelay()
+        public IEnumerator NextRushHoldParticlesFollowTheActiveSegmentAndOnlyFakeHoldsWait()
         {
             var host = new GameObject("NextRUSH hold effects");
             var view = host.AddComponent<LongTapEffectView>();
-            var slots = new NextRushSlotEffects(host.transform);
             string previous = LiveConfig.EffectBundleName;
             float previousLead = LiveConfig.ViewLeadSeconds;
             try
@@ -157,7 +165,6 @@ namespace OpenSekai.Tests.PlayMode
                 LiveConfig.SetNoteEffectName(0);
                 LiveConfig.ViewLeadSeconds = 0;
                 view.Setup();
-                view.NativeSlots = slots;
                 var timeline = new NextRushScrollTimeline(System.Array.Empty<NextRushScrollTimeline.Change>(), 0);
                 MusicScoreInfo At(float time) => new MusicScoreInfo(0, time / 2, time, 120, 4, 1, 1);
                 var config = Resources.Load<LiveBundleBuildData>("live/config/LiveBundleBuildData");
@@ -180,22 +187,33 @@ namespace OpenSekai.Tests.PlayMode
                 Assert.That(Normal() || Critical(), Is.False);
                 view.Excute(1.06f);
                 Assert.That(Normal() && !Critical(), Is.True);
-                var glow = host.GetComponentsInChildren<SpriteRenderer>().Single(r => r.enabled && r.name == "Hold slot glow");
-                var first = glow.transform.localPosition;
+                var first = particles.Single(p => p.name == "fx_note_long_hold_gen(Clone)" && p.IsPlaying).transform.localPosition;
                 view.Excute(1.6f);
                 Assert.That(!Normal() && Critical(), Is.True);
-                Assert.That(glow.enabled, Is.False);
-                glow = host.GetComponentsInChildren<SpriteRenderer>().Single(r => r.enabled && r.name == "Hold slot glow");
-                Assert.That(glow.transform.localPosition.x, Is.GreaterThan(first.x));
+                var later = particles.Single(p => p.name == "fx_note_critical_long_hold_gen(Clone)" && p.IsPlaying).transform.localPosition;
+                Assert.That(later.x, Is.GreaterThan(first.x));
                 view.Excute(2f);
-                Assert.That(Normal() || Critical() || glow.enabled, Is.False);
+                Assert.That(Normal() || Critical(), Is.False);
+                Assert.That(host.GetComponentsInChildren<SpriteRenderer>(), Is.Empty);
+
+                view.Remove(hold);
+                hold.NativeConnector = null;
+                hold.RecordHoldingInput(1f);
+                view.Add(hold);
+                view.Excute(1f);
+                Assert.That(Normal(), Is.True, "the original hold lights as soon as it is held");
+
+                view.Remove(hold);
+                hold.NativeConnector = new NextRushConnectorSegment(1, 1, 1, 1, hasActiveInterval: true);
+                view.Add(hold);
+                view.Excute(1f);
+                Assert.That(Normal(), Is.True, "a regular NextRUSH hold lights at the same time");
             }
             finally
             {
                 LiveConfig.ViewLeadSeconds = previousLead;
                 LiveConfig.SetNoteEffectName(previous == LiveConfig.GetEffectBundleName(1) ? 1 : 0);
                 view.Clear();
-                slots.Dispose();
                 Object.Destroy(host);
             }
             yield return null;

@@ -23,7 +23,6 @@ namespace Sekai
 			}
 
 			internal bool SoundRequested;
-			internal SpriteRenderer SlotGlow;
 			private uint _PlaybackId;
 			public uint PlaybackId
 			{
@@ -78,7 +77,6 @@ namespace Sekai
 		}
 
 		private readonly Dictionary<LongNote, NativeHold> _nativeHolds = new Dictionary<LongNote, NativeHold>();
-		internal NextRushSlotEffects NativeSlots { get; set; }
 
 		public void Setup()
 		{
@@ -235,9 +233,10 @@ namespace Sekai
 				return;
 			}
 
-			if (time < note.MusicScoreInfo.time) return;
-			if (float.IsPositiveInfinity(hold.HeldSince)) hold.HeldSince = time;
-			if (time < hold.HeldSince + 0.05f) return;
+			if (segment.IsFake && time < note.MusicScoreInfo.time) return;
+			if (float.IsPositiveInfinity(hold.HeldSince))
+				hold.HeldSince = Mathf.Max(time, note.MusicScoreInfo.time);
+			if (segment.IsFake && time < hold.HeldSince + 0.05f) return;
 			if (hold.Pair == null || hold.Critical != segment.IsCritical)
 			{
 				ReleaseNativePair(hold);
@@ -247,9 +246,6 @@ namespace Sekai
 			if (hold.Pair == null) return;
 			int style = segment.HeadStyle(0);
 			RenderPair(hold.Pair, left, right, style);
-			hold.Pair.SlotGlow ??= NativeSlots?.CreateHoldGlow();
-			if (hold.Pair.SlotGlow != null)
-				NextRushSlotEffects.DrawHoldGlow(hold.Pair.SlotGlow, left, right, hold.Critical, style, time - hold.HeldSince);
 		}
 
 		private static void ReleaseNativePair(NativeHold hold)
@@ -257,7 +253,6 @@ namespace Sekai
 			if (hold.Pair == null) return;
 			hold.Pair.Gen?.Stop();
 			hold.Pair.Aura?.Stop();
-			if (hold.Pair.SlotGlow != null) hold.Pair.SlotGlow.enabled = false;
 			hold.Pair.IsUsed = false;
 			hold.Pair = null;
 		}

@@ -71,11 +71,6 @@ namespace Sekai
 		private bool _isEnableVibration;
 
 		private Action _playSeAction;
-		private NextRushSlotEffects _nativeSlots;
-
-		internal NextRushSlotEffects SetupNativeSlots(Transform root) => _nativeSlots ??= new NextRushSlotEffects(root);
-
-		internal void UpdateNativeSlots(float time) => _nativeSlots?.Update(time);
 
 		public void Setup(BaseLiveController liveBaseController)
 		{
@@ -131,15 +126,9 @@ namespace Sekai
 			_lastFrame = 0;
 			_pairNoteSeMap?.Clear();
 			_nativeCueTimes.Clear();
-			_nativeSlots?.Clear();
 		}
 
-		public void Dispose()
-		{
-			Clear();
-			_nativeSlots?.Dispose();
-			_nativeSlots = null;
-		}
+		public void Dispose() => Clear();
 
 		private void SetupSEDict(bool isCollaborationMode)
 		{
@@ -205,7 +194,7 @@ namespace Sekai
 			}
 
 			float width = _noteInfo.laneEnd - _noteInfo.laneStart + 1f;
-			int count = _noteInfo.native ? 1 : Mathf.Min(Mathf.CeilToInt(width), LiveConfig.JudgmentPositions.Length);
+			int count = Mathf.Min(Mathf.CeilToInt(width), LiveConfig.JudgmentPositions.Length);
 			for (int i = 0; i < count; i++)
 			{
 				ParticleSystemController controller = pool.Spawn();
@@ -247,13 +236,8 @@ namespace Sekai
 			}
 
 			controller.transform.localPosition = new Vector3(LiveUtility.CalcLaneTransformX(GetLaneCenter()), 0f, 0f);
-			controller.transform.localScale = new Vector3(_noteInfo.native ? 1f : _noteInfo.laneEnd - _noteInfo.laneStart + 1f, 1f, 1f);
-			float z = _noteInfo.native ? _noteInfo.direction switch
-			{
-				NoteDirection.Left or NoteDirection.DownRight => 22.5f,
-				NoteDirection.Right or NoteDirection.DownLeft => -22.5f,
-				_ => 0f
-			} : _noteInfo.direction switch
+			controller.transform.localScale = new Vector3(_noteInfo.laneEnd - _noteInfo.laneStart + 1f, 1f, 1f);
+			float z = _noteInfo.direction switch
 			{
 				NoteDirection.Left => 15f,
 				NoteDirection.Right => -15f,
@@ -344,8 +328,7 @@ namespace Sekai
 				? (bar.NativeLeft, bar.NativeRight) : (note.LaneStartF, note.LaneEndF);
 			_noteInfo = new NoteInfo
 			{
-				// The default Next SEKAI particle pack falls back to the same tap particles for every grade.
-				result = native ? NoteResult.Perfect : result,
+				result = result,
 				category = note.Category,
 				type = note.Type,
 				direction = note.Direction,
@@ -362,7 +345,7 @@ namespace Sekai
 				case NoteCategory.FrictionHideLong:
 				case NoteCategory.Hidden:
 					return;
-				case var _ when native && _noteInfo.laneEnd - _noteInfo.laneStart + 1f <= 0f:
+				case var _ when missed || native && _noteInfo.laneEnd - _noteInfo.laneStart + 1f <= 0f:
 					break;
 				case NoteCategory.Connection:
 					Connection();
@@ -375,14 +358,9 @@ namespace Sekai
 					break;
 				case NoteCategory.Flick:
 				case NoteCategory.FrictionFlick:
-					// Trace flicks share the directional flash. Only critical flicks have a lane
-					// particle in the default pack, and TraceFlick has no tap aura or generator.
-					if (!native || note.Type == NoteType.Critical) PlayLaneEffect();
-					if (!native || note.Category == NoteCategory.Flick)
-					{
-						TapAura();
-						TapGen();
-					}
+					PlayLaneEffect();
+					TapAura();
+					TapGen();
 					FlickSlash();
 					break;
 				case NoteCategory.Friction:
@@ -396,9 +374,6 @@ namespace Sekai
 					break;
 			}
 
-			if (native)
-				_nativeSlots?.Play(note.Category, note.Type, _noteInfo.style, _noteInfo.laneStart - 0.5f,
-					_noteInfo.laneEnd + 0.5f, MusicScore.CurrentFrameInfo.time);
 			LatencyCapture.Record("note_effect", noteId: note.Id, result: result);
 			if (!native)
 				_playSeAction?.Invoke();
