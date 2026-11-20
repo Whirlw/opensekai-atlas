@@ -258,16 +258,14 @@ namespace OpenSekai.App.UI
             float rightStart = columnWidth + COLUMN_GAP;
             float gap = LibraryTheme.Layout.SECTION_GAP;
 
-            LibrarySettingRows.Section shown = _rows.AddSection(content, "诊断工具", 5, 0f, rightStart, 0f);
+            LibrarySettingRows.Section shown = _rows.AddSection(content, "诊断工具", 4, 0f, rightStart, 0f);
             _rows.AddSwitch(shown, "性能 HUD", () => PerformanceHud.Enabled, value => PerformanceHud.Enabled = value);
             _rows.AddSwitch(shown, "Last 长条标红", () => LiveTrace.HighlightLast, value => LiveTrace.HighlightLast = value);
             _rows.AddSwitch(shown, "延迟采样", () => LatencyCapture.Enabled, value => LatencyCapture.Enabled = value);
-            _rows.AddSwitch(shown, "音频缓冲对照 B（重启生效）", () => AudioOutputTuning.BufferComparisonEnabled,
-                value => AudioOutputTuning.BufferComparisonEnabled = value);
             _rows.AddSwitch(shown, "打击音混音采样", () => LatencyCapture.MixProbeEnabled,
                 value => LatencyCapture.MixProbeEnabled = value);
 
-            float top = LibrarySettingRows.SectionHeight(5) + gap;
+            float top = LibrarySettingRows.SectionHeight(4) + gap;
             LibrarySettingRows.Section input = _rows.AddSection(content, "输入与判定", InputCategories.Length, 0f, rightStart, top);
             AddCategories(input, InputCategories, InputCategoryLabels);
             float leftHeight = top + LibrarySettingRows.SectionHeight(InputCategories.Length);

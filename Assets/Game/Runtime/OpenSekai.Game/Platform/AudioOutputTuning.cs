@@ -28,17 +28,6 @@ namespace Sekai
 		private const int TypeBleHeadset = 26;
 		private const int TypeBleSpeaker = 27;
 		private const int GetDevicesOutputs = 2;
-		private const string BufferComparisonKey = "diagnostics.audio_buffer_comparison";
-
-		public static bool BufferComparisonEnabled
-		{
-			get => PlayerPrefs.GetInt(BufferComparisonKey, 0) != 0;
-			set
-			{
-				PlayerPrefs.SetInt(BufferComparisonKey, value ? 1 : 0);
-				PlayerPrefs.Save();
-			}
-		}
 
 		public static string Report { get; private set; } = "audio output not tuned";
 		internal static volatile string LatestRouteReport;
@@ -64,21 +53,12 @@ namespace Sekai
 			}
 
 			AudioOutputDecision decision = AudioOutputPlan.Choose(config.sampleRate, config.dspBufferSize, nativeRate, nativeBurst);
-			int requestedBufferSize = decision.DspBufferSize;
-			bool comparison = BufferComparisonEnabled;
-			// Compare with a larger native-aligned block when the baseline is already at one burst.
-			if (comparison && nativeBurst > 0 && nativeBurst <= AudioOutputPlan.MaxBurstFrames / 2 &&
-				requestedBufferSize == nativeBurst)
-			{
-				requestedBufferSize = nativeBurst * 2;
-			}
-
-			bool resetRequested = decision.SampleRate != config.sampleRate || requestedBufferSize != config.dspBufferSize;
+			bool resetRequested = decision.Changed;
 			bool applied = false;
 			if (resetRequested)
 			{
 				config.sampleRate = decision.SampleRate;
-				config.dspBufferSize = requestedBufferSize;
+				config.dspBufferSize = decision.DspBufferSize;
 				applied = AudioSettings.Reset(config);
 			}
 
@@ -89,11 +69,9 @@ namespace Sekai
 				.Append(" native=").Append(nativeRate).Append('/').Append(nativeBurst)
 				.Append(" lowLatencyFeature=").Append(lowLatencyFeature)
 				.Append(" outputs=").Append(outputs)
-				.Append(" experiment=").Append(comparison ? "B" : "A")
-				.Append(" requested=").Append(decision.SampleRate).Append('/').Append(requestedBufferSize)
+				.Append(" requested=").Append(decision.SampleRate).Append('/').Append(decision.DspBufferSize)
 				.Append(" reset=").Append(!resetRequested ? "not_needed" : applied ? "accepted" : "refused")
-				.Append(" plan=").Append(decision.Reason)
-				.Append(comparison && requestedBufferSize == decision.DspBufferSize ? " (no comparison candidate)" : "");
+				.Append(" plan=").Append(decision.Reason);
 			Report = builder.ToString();
 			LatestRouteReport = Report;
 			Debug.Log(Report);

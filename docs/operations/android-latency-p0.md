@@ -54,16 +54,14 @@ adb pull "/sdcard/Android/data/io.github.opensekai/files/logs/latency-实际文�
 | A1–A3 | 常用路由 / 实际档位 | 开 | 60 Hz 侧拍；单麦声学对照 |  |  |
 | B1–B3 | 与 A 相同 | 关 | 同 A |  |  |
 
-手感单独记「反馈跟手程度」「是否稳定偏早或偏晚」「密集段是否有漏键感」。退出后马上记一行，再看数据。P1 的 A/B 用 A 和 B 表示两个音频方案，采样开关另记一列。按更新后的[延迟优化计划](../plans/android-latency-optimization-plan.md#p1--打击音分段和真机-ab)交替采集。跨设备比较和亚帧级外部验收留待相应设备。
+手感单独记「反馈跟手程度」「是否稳定偏早或偏晚」「密集段是否有漏键感」。退出后马上记录。跨设备比较和亚帧级外部验收留待相应设备。
 
-## 3. P1 打击音 A/B
+## 3. P1 音频缓冲对照记录
 
-1. 在「设置 → 追踪选项」打开「延迟采样」。「音频缓冲对照 B（重启生效）」关 = A，开 = B。每次切换后完全退出并重开游戏。从最近任务列表移除后重开，或用 ADB 强制停止后启动。切换时先结束打歌以保存日志。
-2. 本机 A 的基线为 48 kHz、144 × 4。B 在 A 的请求值已经等于设备报告的 burst 时请求两倍块长，本机即 288 帧。B 用于测试声学延迟对缓冲的敏感程度。先用日志头的 `sample_rate`、`dsp_buffer`、`experiment`、`requested` 和 `reset` 确认两组确有配置差异，采样率一致才继续。只看开关无法确认 Unity 接受了请求。
-3. 固定扬声器、音量、麦克风、机位和设置，用 `LatencyTest` Master 交替录 A1、B1、A2、B2、A3、B3。每局目标至少 20 次清晰可匹配的单键。保留原视频、同局 TSV 和一行手感记录，记录方案与视频文件名的对应关系。完成后切回 A 并完全重启。若 A/B 生效值相同，保留两组日志即可。
+OnePlus PLQ110 曾用 48 kHz、144 × 4 和 288 × 4 两种配置完成同机测量。现行版本使用启动时的自动音频配置。 [P1 声学测量报告](../../TestResults/latency-p1-buffer-ab/p1-buffer-ab-report.md) · [延迟优化计划](../plans/android-latency-optimization-plan.md#p1--打击音分段和真机-ab)
 
 ## 4. P1 混音侧复测
 
-打开「延迟采样」和「打击音混音采样」。后一个开关从下一段打歌起生效。先用 `LatencyTest` Master 在 A、B 各跑一局，结束前留一秒给最后一次打击音。先核对日志头有 `mix_probe=True`、两档实际缓冲仍为 144 × 4 和 288 × 4，且 `SE mix probe` 有配对结果。每段最多跟踪 2048 个单音源打击音。超出限额或多音源 cue 照常播放，汇总时会计为无采样行。
+打开「延迟采样」和「打击音混音采样」。后一个开关从下一段打歌起生效。使用 `LatencyTest` Master，结束前留一秒给最后一次打击音。核对日志头的 `sample_rate`、`dsp_buffer`、`requested`、`reset` 和 `mix_probe=True`，并检查 `SE mix probe` 有配对结果。每段最多跟踪 2048 个单音源打击音。超出限额或多音源 cue 照常播放，汇总时会计为无采样行。
 
 这项读数来自打击音 **音源滤波器** 的首个有效块。混音总线、系统缓冲和扬声器实际出声仍需外部录音验证。采样器走独立的音源池。正式外录时增加同一缓冲下关闭混音采样的一局，比较声学耗时、帧时和请求到 `Play()` 的耗时，检查探针对测量的影响。[Unity 音频滤波器回调](https://docs.unity3d.com/6000.6/Documentation/ScriptReference/MonoBehaviour.OnAudioFilterRead.html)
