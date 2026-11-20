@@ -55,10 +55,10 @@ namespace OpenSekai.App.UI
                 LibraryTheme.Colors.TextSecondary);
             summary.textWrappingMode = TextWrappingModes.Normal;
             summary.overflowMode = TextOverflowModes.Overflow;
-            Strip(summary.rectTransform, textLeft, 106f, 88f);
+            Strip(summary.rectTransform, textLeft, 120f, 88f);
 
             RectTransform list = LibraryUi.CreateRect("Credits", body);
-            LibraryWidgets.Inset(list, 0f, 0f, 0f, EMBLEM_SIZE + 36f);
+            LibraryWidgets.Inset(list, 0f, 0f, 0f, EMBLEM_SIZE + 44f);
             float rowHeight = LibraryTheme.Layout.SETTING_ROW_HEIGHT - 8f;
             for (int i = 0; i < Credits.GetLength(0); i++)
             {
