@@ -2,70 +2,32 @@
 
 # Open Sekai Atlas
 
-开源的下落式音游播放器：开屏 → 首页 → 曲库 → 加载 → 打歌 → 结算 → 回曲库，一条链路跑完。
-首页有曲库、服务器、资源包三个入口：曲库与服务器可用（服务器支持网页下载站和 Sonolus 服务器的游戏内浏览、搜索、下载与游玩），资源包尚未推出。
-谱面编辑器、抽卡、旧页面体系都已整块移除。
+Open Sekai Atlas 是一款以社区自制谱面为主的开源下落式音游。你可以在游戏里搜索、试听并下载谱面，也可以导入自己的曲包。下载到曲库的谱面可以离线游玩。
 
-**仓库里的素材全部可分发**：代码为 MIT，字体为 OFL（思源黑体），音频、音符皮肤、HUD、判定特效、加载背景全部为自制或 CC0 资源。
-来源与核对方式见 [素材来源清单](docs/operations/asset-provenance.md)。
+**当前项目版本 0.6.0** · [Android 下载](https://github.com/Whirlw/opensekai-atlas/releases) · [游玩指南](docs/guides/play-a-chart.md)
 
-## 开发环境
+## 游戏功能
 
-- Unity: **6000.6.7f1**（Unity 6；从 2022.3 升级，过程见 [升级记录](docs/changelog/2026-11-unity6-upgrade.md)）
-- 渲染管线: URP **17.6.0**
-- 输入: **仅新版 Input System**（`activeInputHandler = 1`）
-- 目标平台: Android（IL2CPP，仅 ARM64，minSdk 26 / targetSdk 36）
-- 0.5.0 发布包：**94,039,208 字节（89.68 MiB）**，见 [Android 构建](docs/operations/android-build.md)。
+- **手动打歌与自动演示**。在手动模式挑战点按、长条、划键和摩擦键，也可以用自动模式观看整张谱面的演出。演奏中可以暂停、继续或重开。
+- **结算与本地成绩**。结算显示分数、评级、最大连击和判定分布。手动完成的成绩保存在本地。
+- **游戏内找谱**。添加 Sonolus 服务器后，可以浏览推荐栏目、用关键词或高级筛选找谱，在详情页试听、查看评论和排行榜，再下载、更新或直接开打。也可以添加网页下载站。
+- **管理自己的曲库**。导入、导出或删除曲包，按标题、等级或最近修改排序。曲包支持 `.oskp` 和符合项目格式的 `.zip`，桌面编辑器中也可以导入文件夹。
+- **自定义手感和画面**。调节音符流速、判定延迟、同时押线和音乐与音效音量，选择音符皮肤、打击音与打击特效。帧率可跟随屏幕，也可设为 120、144、165、185 或 240 FPS，实际表现取决于设备。
 
-## 快速开始
+## 开始游玩
 
-1. 用 Unity 6000.6.7f1 打开本目录
-2. 打开 `Assets/Game/Scenes/Library.unity`，按 Play
-3. 菜单 `OpenSekai/Library/Verify Running Scene` 应输出 `[LibraryCheck] "valid":true`
-4. 菜单 `OpenSekai/Library/Play Local Baseline Automatically` 应跑出一首 `1,000,000 / S`
+1. 在 [GitHub Releases](https://github.com/Whirlw/opensekai-atlas/releases) 下载已发布的 APK。Android 版面向 Android 8.0（API 26）及以上的 ARM64 设备。
+2. 已有曲包时，从首页打开「曲库」并选择「导入 ZIP」。想找新谱时，从首页打开「服务器」，添加你使用的 Sonolus 服务器，然后打开谱面详情下载或游玩。
+3. 在曲库选择「手动」或「自动」。第一次游玩时可在「设置」里调整流速和判定延迟。
 
-完整步骤见 [环境与运行](docs/getting-started/build-and-run.md)。
+## 谱面兼容性
 
-## 目录说明
+游戏支持 Open Sekai Atlas 曲包，以及受支持的 Sonolus 谱面。NextRUSH+ 谱面由本地引擎加载，支持变速、弯曲长条、装饰引导线和伤害键。Sonolus 服务器上的谱面能否游玩取决于其引擎和使用的谱面特性。 [NextRUSH+ 兼容清单](docs/architecture/next-rush-compatibility.md) · [曲包格式](docs/architecture/chart-package.md)
 
-- `Assets/Game/Runtime/`：游戏代码，按 `Sekai`（引擎层）/ `OpenSekai`（本仓库页面）/ `Platform` / `Shared` / `CustomMusicScoreManager` 组织，两个 asmdef 单向依赖。
-- `Assets/Game/Scenes/`：`Library.unity`（开屏、首页与曲库）、`Core.unity`（打歌）、`TransitionBlank.unity`。
-- `Assets/Game/Resources/`：运行时 `Resources` 加载的字体、音符皮肤、界面数据。
-- `Assets/Game/AssetBundles/resources/`：AssetBundle 源资源。
-- `Assets/StreamingAssets/data/`：打包后的 AssetBundle 与 `AssetBundleInfo.bytes`（构建产物）。
-- `Assets/StreamingAssets/sound/`：自制的 42 个判定/演出音 wav 与 `manifest.csv`，启动时注册为外部音源。
-- `Assets/Graphics/`：图集、精灵、UI 资源。
-- `Tools/`：构建、素材导入与审计脚本（`apply-atlas-art.ps1`、`audit-audio-provenance.ps1`、`verify-resource-paths.ps1` 等）。
+## 从源码运行
 
-## 文档
+用 **Unity 6000.6.7f1** 打开仓库，打开 `Assets/Game/Scenes/Library.unity` 并点击 Play。 [环境与运行](docs/getting-started/build-and-run.md) · [Android 构建](docs/operations/android-build.md) · [开发文档](docs/README.md)
 
-文档全部在 [`docs/`](docs/README.md)，入口是 [docs/README.md](docs/README.md)，全量清单是 [docs/INDEX.md](docs/INDEX.md)。
+## 许可
 
-| 你想做什么 | 先读 |
-| --- | --- |
-| 了解项目现状 | [这是什么](docs/getting-started/what-is-this.md) |
-| 把工程跑起来 | [环境与运行](docs/getting-started/build-and-run.md) |
-| 导入曲包打一首 | [打一首歌](docs/guides/play-a-chart.md) |
-| 改代码前了解结构 | [架构总览](docs/architecture/README.md) |
-| 改首页、开屏或应用图标 | [首页、开屏与品牌标](docs/architecture/home-and-brand.md) |
-| 出 Android 包 | [Android 构建](docs/operations/android-build.md) |
-| 换素材（皮肤/HUD/音频） | [素材包导入](docs/operations/material-pack-import.md) |
-| 查某个设置项 | [设置项](docs/reference/live-settings.md) |
-| 遇到报错 | [故障排查](docs/operations/troubleshooting.md) |
-| 知道某个取舍的原因 | [ADR 索引](docs/decisions/README.md) |
-
-## 功能特点
-
-- Unity 6 + URP 17.6，仅新版 Input System
-- 高帧率支持（跟随屏幕 / 120 / 144 / 165 / 185 / 240），见 [真机性能](docs/operations/android-performance.md)
-- 轻量化重构：只保留曲库与打歌链路，删除谱面编辑器与抽卡、收窄页面注册表、AB 白名单、摘除依赖
-- 音视频与美术全部为自制/CC0；音频改为散装 wav + 运行时注册，不依赖 CRI ACB
-
-## 资源说明
-
-- **代码**：MIT（见 [LICENSE](LICENSE)）。
-- **字体**：Source Han Sans SC，SIL Open Font License 1.1，许可见 `Assets/Game/Resources/Fonts/OFL.txt`。
-- **音频**：本项目自制的 42 个 wav（CC0-1.0），逐条署名在 [audio-credits.md](docs/reference/audio-credits.md)。
-- **美术**：音符皮肤、HUD、判定特效、加载背景均为自制或程序生成，来源见 [素材来源清单](docs/operations/asset-provenance.md)。
-
-第三方运行库与资源按各自许可分发。
+代码采用 MIT 许可证，思源黑体采用 SIL Open Font License 1.1。随项目分发的美术与音频为自制或 CC0，第三方库与资源按各自许可分发。社区曲包中的音乐、谱面和封面遵循各自的授权。 [MIT 许可证](LICENSE) · [素材来源清单](docs/operations/asset-provenance.md)

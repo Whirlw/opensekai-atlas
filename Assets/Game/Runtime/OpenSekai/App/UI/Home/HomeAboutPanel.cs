@@ -51,11 +51,11 @@ namespace OpenSekai.App.UI
             Strip(version.rectTransform, textLeft, 72f, 30f);
 
             TextMeshProUGUI summary = LibraryWidgets.Label(
-                "Summary", body, "开源的下落式音游播放器：曲库 → 加载 → 打歌 → 结算，一条链路跑完。", 22f,
+                "Summary", body, "开源下落式音游，支持导入本地曲包。\n在 Sonolus 搜谱、试听或直接游玩。\n点「下载」加入曲库，随时离线打歌。", 22f,
                 LibraryTheme.Colors.TextSecondary);
             summary.textWrappingMode = TextWrappingModes.Normal;
             summary.overflowMode = TextOverflowModes.Overflow;
-            Strip(summary.rectTransform, textLeft, 114f, 64f);
+            Strip(summary.rectTransform, textLeft, 106f, 88f);
 
             RectTransform list = LibraryUi.CreateRect("Credits", body);
             LibraryWidgets.Inset(list, 0f, 0f, 0f, EMBLEM_SIZE + 36f);
