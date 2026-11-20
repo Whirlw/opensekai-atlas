@@ -85,9 +85,9 @@ namespace OpenSekai.EditorTools.Screenshots
             bool needsLibrary = !EditorApplication.isPlaying && EditorSceneManager.GetActiveScene().path != LIBRARY_SCENE;
             if (needsLibrary && Enumerable.Range(0, EditorSceneManager.sceneCount).Any(i => EditorSceneManager.GetSceneAt(i).isDirty))
             {
-                const string message = "An open scene has unsaved changes; save it before starting a screenshot run.";
-                WriteStatus(requestPath, "failed", request.outDir, message);
-                throw new InvalidOperationException(message);
+                const string UNSAVED_SCENE_MESSAGE = "An open scene has unsaved changes; save it before starting a screenshot run.";
+                WriteStatus(requestPath, "failed", request.outDir, UNSAVED_SCENE_MESSAGE);
+                throw new InvalidOperationException(UNSAVED_SCENE_MESSAGE);
             }
             try
             {

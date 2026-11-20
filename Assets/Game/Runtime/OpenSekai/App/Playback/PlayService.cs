@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
+using OpenSekai.Charts;
 using Cysharp.Threading.Tasks;
 using Newtonsoft.Json;
 using Sekai;
@@ -97,34 +99,27 @@ namespace OpenSekai.App.Playback
                 {
                     return Result(PlayStartStatus.Failed, "曲库界面尚未就绪。");
                 }
-                if (!_surface.IsLiveLoadingReady)
+                progress?.Invoke("正在读取谱面...");
+                await UniTask.DelayFrame(1, cancellationToken: cancellationToken);
+                if (!await _surface.PrepareLiveLoadingAsync(cancellationToken))
                 {
                     return Result(PlayStartStatus.Failed, "打歌加载界面尚未就绪。");
                 }
 
-                progress?.Invoke("正在读取谱面...");
-                // The cached package when the library holds it; a folder outside the library is read directly.
-                SongPackage entry = temporary?.Metadata
-                    ?? _packages.FindCachedItem(request.PackageDirectory)?.Entry
-                    ?? SongPackageStorage.LoadEntry(request.PackageDirectory);
-                if (entry == null)
-                {
-                    return Result(PlayStartStatus.Failed, "无法加载曲包信息。");
-                }
-                if (temporary == null && !File.Exists(entry.ScorePath))
-                {
-                    return Result(PlayStartStatus.Failed, "找不到谱面文件。");
-                }
-                if (temporary == null && !File.Exists(entry.AudioPath))
-                {
-                    return Result(PlayStartStatus.Failed, "找不到音频文件。");
-                }
+                SongPackage cached = temporary?.Metadata ?? _packages.FindCachedItem(request.PackageDirectory)?.Entry;
                 PlaybackSettingsSnapshot settings = _settings.CaptureSnapshot();
                 LiveBundleBuildData config = ResourceCatalog.LiveBundleConfig.Load();
-                if(config == null) throw new InvalidOperationException("Live bundle configuration is missing.");
-                var chart = temporary == null
-                    ? RuntimeChartLoader.Load(entry, config, settings.ShowSimultaneousLine, settings.IsMirror)
-                    : NextRushChartLoader.Load(temporary.Chart, config, settings.ShowSimultaneousLine, settings.IsMirror);
+                if (config == null) throw new InvalidOperationException("Live bundle configuration is missing.");
+                var conversion = new ChartConversionSettings(config);
+#if UNITY_WEBGL && !UNITY_EDITOR
+                var (entry, chart, chartHash) = PrepareChart(request, cached, conversion, settings, cancellationToken);
+#else
+                var (entry, chart, chartHash) = await Task.Run(
+                    () => PrepareChart(request, cached, conversion, settings, cancellationToken), cancellationToken);
+#endif
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!IsRequestSceneReady(request))
+                    return Result(PlayStartStatus.Failed, "曲库状态已变化，请重新开始游玩。");
                 if (chart == null || !chart.HasPlayableNotes)
                 {
                     if (chart?.NextRush == null || chart.Score?.HasVisualNotes != true)
@@ -132,7 +127,6 @@ namespace OpenSekai.App.Playback
                     if (!request.IsAuto)
                         return Result(PlayStartStatus.Failed, "此谱面仅含装饰，请选择自动游玩。");
                 }
-                string chartHash = temporary?.ChartHash ?? SongPackageHash.Compute(entry.ScorePath);
                 _surface.BeginSession(chartHash);
                 cancellationToken.ThrowIfCancellationRequested();
                 progress?.Invoke("正在加载音频...");
@@ -153,7 +147,7 @@ namespace OpenSekai.App.Playback
                 string message = request.IsAuto ? "正在开始自动游玩..." : "正在开始游玩...";
                 progress?.Invoke(message);
                 cancellationToken.ThrowIfCancellationRequested();
-                if (!_surface.Exists || _surface.CurrentScene != request.ReturnScene || !_surface.IsLibraryReady)
+                if (!IsRequestSceneReady(request))
                 {
                     return Result(PlayStartStatus.Failed, "曲库状态已变化，请重新开始游玩。");
                 }
@@ -207,6 +201,26 @@ namespace OpenSekai.App.Playback
                     ReleaseStartLock();
                 }
             }
+        }
+
+        private bool IsRequestSceneReady(PlayRequest request) =>
+            _surface.Exists && _surface.CurrentScene == request.ReturnScene && _surface.IsLibraryReady;
+
+        private static (SongPackage entry, RuntimeChartDefinition chart, string hash) PrepareChart(
+            PlayRequest request, SongPackage cached, ChartConversionSettings config, PlaybackSettingsSnapshot settings,
+            CancellationToken token)
+        {
+            var temporary = request.TemporaryPackage;
+            SongPackage entry = cached ?? SongPackageStorage.LoadEntry(request.PackageDirectory);
+            if (entry == null) throw new InvalidDataException("无法加载曲包信息。");
+            if (temporary == null && !File.Exists(entry.ScorePath)) throw new InvalidDataException("找不到谱面文件。");
+            if (temporary == null && !File.Exists(entry.AudioPath)) throw new InvalidDataException("找不到音频文件。");
+            token.ThrowIfCancellationRequested();
+            var chart = temporary == null
+                ? RuntimeChartLoader.Load(entry, config, settings.ShowSimultaneousLine, settings.IsMirror)
+                : NextRushChartLoader.Load(temporary.Chart, config, settings.ShowSimultaneousLine, settings.IsMirror);
+            token.ThrowIfCancellationRequested();
+            return (entry, chart, temporary?.ChartHash ?? SongPackageHash.Compute(entry.ScorePath));
         }
 
         private static async UniTask RegisterTemporaryAudio(TemporarySongPackage package, CancellationToken token)

@@ -143,6 +143,22 @@ namespace OpenSekai.Tests.EditMode
         }
 
         [Test]
+        public async System.Threading.Tasks.Task ReadingYieldsWithTheStartLockHeldAndCanBeCancelledBeforeAudio()
+        {
+            using var cancellation = new CancellationTokenSource();
+            string progress = null;
+            var start = _service.StartAsync(Request(), cancellation.Token, value => progress = value);
+            Assert.That(progress, Is.EqualTo("正在读取谱面..."));
+            Assert.That(start.Status, Is.EqualTo(UniTaskStatus.Pending));
+            Assert.That(_service.IsStarting, Is.True);
+            cancellation.Cancel();
+            Assert.That((await start).Status, Is.EqualTo(PlayStartStatus.Cancelled));
+            Assert.That(_audio.ReleaseCount, Is.Zero);
+            Assert.That(_boot.PublishCount, Is.Zero);
+            Assert.That(_service.IsStarting, Is.False);
+        }
+
+        [Test]
         public async System.Threading.Tasks.Task AStartedLiveKeepsTheLockUntilTheSceneExitsAndAllowsTheNextOne()
         {
             PlayStartResult first = await _service.StartAsync(Request(_fixtureDirectory), CancellationToken.None);
@@ -209,6 +225,47 @@ namespace OpenSekai.Tests.EditMode
 
         private static PlayRequest Request()
             => Request(_fixtureDirectory);
+
+        [Test]
+        public async System.Threading.Tasks.Task LeavingTheLibraryWhileReadingDoesNotRegisterAudio()
+        {
+            var start = _service.StartAsync(Request(), CancellationToken.None);
+            _surface.Scene = SceneManager.Scene.Core;
+            bool registered = false;
+            _audio.OnRegister = () => registered = true;
+
+            Assert.That((await start).Status, Is.EqualTo(PlayStartStatus.Failed));
+            Assert.That(registered, Is.False);
+            Assert.That(_boot.PublishCount, Is.Zero);
+            Assert.That(_service.IsStarting, Is.False);
+        }
+
+        [Test]
+        public async System.Threading.Tasks.Task LinkedSusChartCanStartFromAnUncachedFolder()
+        {
+            string directory = Directory.CreateDirectory(Path.Combine(_root, "sus")).FullName;
+            var manifest = JObject.Parse(File.ReadAllText(Path.Combine(_fixtureDirectory, "manifest.json")));
+            manifest["scoreFileName"] = "linked.sus";
+            File.WriteAllText(Path.Combine(directory, "manifest.json"), manifest.ToString());
+            File.Copy("Tools/fixtures/sus-p2-6/linked.sus", Path.Combine(directory, "linked.sus"));
+            File.Copy(Path.Combine(_fixtureDirectory, "audio.wav"), Path.Combine(directory, "audio.wav"));
+            int mainThread = Thread.CurrentThread.ManagedThreadId;
+            int audioThread = 0;
+            _audio.OnRegister = () => audioThread = Thread.CurrentThread.ManagedThreadId;
+
+            var previousFrame = Sekai.Live.MusicScore.CurrentFrameInfo;
+            try
+            {
+                Sekai.Live.MusicScore.CurrentFrameInfo.speedRatio = 2f;
+                var result = await _service.StartAsync(Request(directory), CancellationToken.None);
+
+                Assert.That(result.Status, Is.EqualTo(PlayStartStatus.Started), result.Message);
+                Assert.That(audioThread, Is.EqualTo(mainThread));
+                Assert.That(((FreeLiveBootData)_boot.State.Boot).MusicData.MusicScore.NoteArray, Is.Not.Empty);
+                Assert.That(Sekai.Live.MusicScore.CurrentFrameInfo.speedRatio, Is.EqualTo(2f));
+            }
+            finally { Sekai.Live.MusicScore.CurrentFrameInfo = previousFrame; }
+        }
 
         [TestCase(true, true, PlayStartStatus.Started)]
         [TestCase(false, true, PlayStartStatus.Failed)]
@@ -335,7 +392,7 @@ namespace OpenSekai.Tests.EditMode
 
             public bool IsLibraryReady => LibraryReady;
 
-            public bool IsLiveLoadingReady => LiveLoadingReady;
+            public UniTask<bool> PrepareLiveLoadingAsync(CancellationToken token) => UniTask.FromResult(LiveLoadingReady);
 
             public void BeginSession(string chartHash)
             {

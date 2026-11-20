@@ -709,7 +709,6 @@ namespace CriWare
 		private static GameObject _root;
 		private static AudioListener _fallbackAudioListener;
 		private static AudioListener[] _sceneListeners = Array.Empty<AudioListener>();
-		private static double _nextListenerDiscovery;
 		private static uint _nextPlaybackId = 1;
 
 		public static void EnsureInitialized()
@@ -719,7 +718,6 @@ namespace CriWare
 				_root = new GameObject("CriAtomAudioRuntime");
 				UnityEngine.Object.DontDestroyOnLoad(_root);
 				_root.AddComponent<CriAtomAudioListenerGuard>();
-				_nextListenerDiscovery = 0;
 			}
 			if (_freeStates.Count == 0)
 			{
@@ -1390,7 +1388,6 @@ namespace CriWare
 		internal static void RefreshSceneListeners()
 		{
 			_sceneListeners = UnityEngine.Object.FindObjectsByType<AudioListener>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-			_nextListenerDiscovery = Time.realtimeSinceStartupAsDouble + 0.5;
 		}
 
 		internal static void ReleaseFallbackAudioListenerIfExternalExists()
@@ -1401,8 +1398,6 @@ namespace CriWare
 
 		internal static void UpdateAudioListener()
 		{
-			// Scene events discover scene components. Periodic discovery covers listeners added at runtime.
-			if (Time.realtimeSinceStartupAsDouble >= _nextListenerDiscovery) RefreshSceneListeners();
 			foreach (var listener in _sceneListeners)
 			{
 				if (listener != null && listener != _fallbackAudioListener && listener.isActiveAndEnabled)
@@ -1467,7 +1462,11 @@ namespace CriWare
 
 	internal sealed class CriAtomAudioListenerGuard : MonoBehaviour
 	{
-		private void OnEnable() => UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+		private void OnEnable()
+		{
+			UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+			CriAtomAudioRuntime.RefreshSceneListeners();
+		}
 		private void OnDisable() => UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
 		private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
 			=> CriAtomAudioRuntime.RefreshSceneListeners();

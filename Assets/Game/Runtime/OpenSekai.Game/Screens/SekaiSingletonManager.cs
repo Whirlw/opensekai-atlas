@@ -34,7 +34,6 @@ namespace Sekai
 			EnsureEventSystem();
 			TextMeshProUtility.SetupBuiltinFontAsset();
 			AssetBundleMetaManager.Instance.Initialize();
-			AssetBundleManager.Instance.Initialize();
 			SoundUtility.SetupGlobalSeSettings(GlobalSeSettings.Normal);
 		}
 

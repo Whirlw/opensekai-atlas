@@ -62,7 +62,10 @@ namespace Sekai.Live
 		}
 
 		public FrictionHideLongNote(MusicScoreInfo info, int id, int laneStart, int laneEnd, NoteCategory category, NoteType type, LiveBundleBuildData bundleBuildData, float speedRatio, NoteLineType lineType = NoteLineType.Linear)
-			: base(info, id, laneStart, laneEnd, category, type, bundleBuildData, speedRatio, lineType)
+			: this(info, id, laneStart, laneEnd, category, type, LiveUtility.GetLaneOffset(category, bundleBuildData), speedRatio, lineType) { }
+
+		public FrictionHideLongNote(MusicScoreInfo info, int id, int laneStart, int laneEnd, NoteCategory category, NoteType type, float laneOffset, float speedRatio, NoteLineType lineType = NoteLineType.Linear)
+			: base(info, id, laneStart, laneEnd, category, type, laneOffset, speedRatio, lineType)
 		{
 		}
 

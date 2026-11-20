@@ -14,12 +14,16 @@ namespace OpenSekai.Shared.Conversion
 	/// <see cref="SusEventConverter"/> (DTOs to runtime events). The public surface is unchanged, so
 	/// callers keep constructing this type and calling <see cref="Convert"/>.
 	/// The stage order is load-bearing: the frames exist before any note is placed, the notes exist
-	/// before the fever events count them, and the score starts with a fresh <see cref="MusicScore"/>
-	/// because its constructor seeds the shared current frame.
+	/// before the fever events count them, and each conversion owns its <see cref="MusicScore"/>.
 	/// </remarks>
 	public class SusRuntimeConverter
 	{
 		public MusicScore Convert(string musicScoreData, LiveBundleBuildData config, bool isNeedCombo = true, bool _isMirror = false, bool showPair = true)
+		{
+			return Convert(musicScoreData, new ChartConversionSettings(config), isNeedCombo, _isMirror, showPair);
+		}
+
+		public MusicScore Convert(string musicScoreData, ChartConversionSettings config, bool isNeedCombo, bool _isMirror, bool showPair = true)
 		{
 			MusicScore musicScore = new MusicScore();
 			SusChartData chart = new SusParser().Parse(musicScoreData ?? string.Empty);

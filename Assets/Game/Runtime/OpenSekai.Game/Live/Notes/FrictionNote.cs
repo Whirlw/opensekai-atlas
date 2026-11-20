@@ -32,7 +32,10 @@ namespace Sekai.Live
 		}
 
 		public FrictionNote(MusicScoreInfo info, int id, int laneStart, int laneEnd, NoteCategory category, LiveBundleBuildData bundleBuildData, NoteType type, float speedRatio, NoteLineType lineType = NoteLineType.Linear, bool isTailTraceOwner = false, bool isTraceTail = false)
-			: base(info, id, laneStart, laneEnd, category, type, speedRatio, LiveUtility.GetLaneOffset(category, bundleBuildData), lineType)
+			: this(info, id, laneStart, laneEnd, category, LiveUtility.GetLaneOffset(category, bundleBuildData), type, speedRatio, lineType, isTailTraceOwner, isTraceTail) { }
+
+		public FrictionNote(MusicScoreInfo info, int id, int laneStart, int laneEnd, NoteCategory category, float laneOffset, NoteType type, float speedRatio, NoteLineType lineType = NoteLineType.Linear, bool isTailTraceOwner = false, bool isTraceTail = false)
+			: base(info, id, laneStart, laneEnd, category, type, speedRatio, laneOffset, lineType)
 		{
 			_isTraceTail = isTraceTail;
 			IsTailTraceOwner = isTailTraceOwner;

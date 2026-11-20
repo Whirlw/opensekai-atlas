@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Reflection;
+using System.Threading;
 using NUnit.Framework;
 using Sekai;
 using UnityEditor;
@@ -11,6 +12,27 @@ namespace OpenSekai.Tests.EditMode
     public sealed class AssetBundleLifetimeTests
     {
         [Test]
+        public async System.Threading.Tasks.Task FailedUriReadCanBeRetriedAndCancelled()
+        {
+            string path = Path.Combine(Application.temporaryCachePath, Guid.NewGuid().ToString("N"));
+            string uri = new Uri(path).AbsoluteUri;
+            try
+            {
+                try
+                {
+                    await AssetBundleManager.ReadUriAsync(uri, default);
+                    Assert.Fail("A missing file returned a payload.");
+                }
+                catch (IOException error) { Assert.That(error.Message, Does.Contain(uri)); }
+                File.WriteAllBytes(path, new byte[] { 1, 3, 5 });
+                Assert.That(await AssetBundleManager.ReadUriAsync(uri, default), Is.EqualTo(new byte[] { 1, 3, 5 }));
+                var cancelled = await AssetBundleManager.ReadUriAsync(uri, new CancellationToken(true)).SuppressCancellationThrow();
+                Assert.That(cancelled.IsCanceled, Is.True);
+            }
+            finally { if (File.Exists(path)) File.Delete(path); }
+        }
+
+        [Test]
         public void LastParentReleaseDropsItsRealMeshBundleReference()
         {
             string id = "review" + Guid.NewGuid().ToString("N");
@@ -18,8 +40,8 @@ namespace OpenSekai.Tests.EditMode
             string output = Path.Combine(Application.temporaryCachePath, id);
             var host = new GameObject(id);
             var manager = host.AddComponent<AssetManager>();
-            manager.LoadAssets(id); // Initialize the editor catalog before substituting the packaged catalog.
             var catalog = AssetBundleManager.Instance;
+            catalog.Initialize();
             var infoField = typeof(AssetBundleManager).GetField("_clientAssetBundleInfo", BindingFlags.NonPublic | BindingFlags.Instance);
             var rootField = typeof(AssetBundleManager).GetField("_preparedCache", BindingFlags.NonPublic | BindingFlags.Instance);
             var previous = infoField.GetValue(catalog);

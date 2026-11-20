@@ -264,6 +264,8 @@ namespace OpenSekai.Tests.PlayMode
         {
             string root = Path.Combine(Path.GetTempPath(), "OpenSekai-LibraryPreview-" + System.Guid.NewGuid().ToString("N"));
             var originalPage = LibraryPageRegistry.Current;
+            var originalScreen = originalPage as LibraryScreen;
+            bool restoreScreen = originalScreen != null && originalScreen.gameObject.activeSelf;
             LibraryScreen screen = null;
             try
             {
@@ -274,6 +276,8 @@ namespace OpenSekai.Tests.PlayMode
                 missing.Manifest.title = "ZZZ 缺少音频";
                 packages.SaveManifest(missing, missing.Manifest);
 
+                // The fixture replaces the current page, including its camera and audio listener.
+                if (restoreScreen) originalScreen.gameObject.SetActive(false);
                 screen = LibraryScreen.Create(new AppContext(packages, OpenSekai.Shared.Settings.LiveSettingsStore.Shared));
                 AudioSource audio = null;
                 var preview = screen.transform.Find("Main/DetailColumn/Detail/Info/Preview");
@@ -302,6 +306,7 @@ namespace OpenSekai.Tests.PlayMode
                     Object.DestroyImmediate(screen.gameObject);
                     if (originalPage != null) LibraryPageRegistry.Register(originalPage);
                 }
+                if (restoreScreen && originalScreen != null) originalScreen.gameObject.SetActive(true);
                 if (Directory.Exists(root))
                 {
                     Directory.Delete(root, recursive: true);
@@ -493,6 +498,7 @@ namespace OpenSekai.Tests.PlayMode
                 Assert.That(recoveredPackages.LoadItems().Select(item => item.Entry.RootDirectory),
                     Is.EqualTo(new[] { recoveredDirectory }));
 
+                originalLibrary.gameObject.SetActive(false);
                 recoveredLibrary = LibraryScreen.Create(new AppContext(recoveredPackages, OpenSekai.Shared.Settings.LiveSettingsStore.Shared));
                 Transform actions = recoveredLibrary.transform.Find("Main/DetailColumn/Detail/Actions");
                 Assert.That(actions, Is.Not.Null);
@@ -527,6 +533,7 @@ namespace OpenSekai.Tests.PlayMode
                     Object.DestroyImmediate(recoveredLibrary.gameObject);
                     if (originalLibrary != null) LibraryPageRegistry.Register(originalLibrary);
                 }
+                if (originalLibrary != null) originalLibrary.gameObject.SetActive(true);
                 if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
             }
 

@@ -178,5 +178,38 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(manager.LoadItems().Count, Is.EqualTo(1));
             Assert.That(Directory.GetDirectories(_root, ".chart-import-*"), Is.Empty);
         }
+
+        [TestCase("sus")]
+        [TestCase("txt")]
+        public async System.Threading.Tasks.Task DownloadWithNoPlayableSusNotesIsNotPublished(string extension)
+        {
+            var manager = new SongPackageManager(Path.Combine(_root, "library"));
+            var existing = manager.CreateNewEntry();
+            byte[] originalManifest = File.ReadAllBytes(existing.ManifestPath);
+            byte[] originalScore = File.ReadAllBytes(existing.ScorePath);
+            byte[] originalAudio = { 0x00, 0x7F, 0x80, 0xFF };
+            File.WriteAllBytes(existing.AudioPath, originalAudio);
+            string filename = "empty." + extension;
+            string zip = Archive("manifest.json", "{\"id\":\"empty\",\"scoreFileName\":\"" + filename + "\"}");
+            using (var archive = ZipFile.Open(zip, ZipArchiveMode.Update))
+            using (var score = new StreamWriter(archive.CreateEntry(filename).Open()))
+                score.Write("#TITLE \"Empty\"\n#BPM01:120\n#00008:01");
+
+            try
+            {
+                await manager.ImportDownloadedZipAsync(zip, "46");
+                Assert.Fail("Expected the downloaded score to be rejected.");
+            }
+            catch (InvalidDataException error) { Assert.That(error.Message, Does.Contain("没有可游玩的音符")); }
+            var items = manager.RescanItems();
+            Assert.That(items.Count, Is.EqualTo(1));
+            var retained = items[0].Entry;
+            Assert.That(retained.RootDirectory, Is.EqualTo(existing.RootDirectory));
+            Assert.That(File.ReadAllBytes(retained.ManifestPath), Is.EqualTo(originalManifest));
+            Assert.That(File.ReadAllBytes(retained.ScorePath), Is.EqualTo(originalScore));
+            Assert.That(File.ReadAllBytes(retained.AudioPath), Is.EqualTo(originalAudio));
+            Assert.That(Directory.Exists(Path.Combine(manager.RootDirectory, "server-46")), Is.False);
+            Assert.That(Directory.GetDirectories(_root, ".chart-import-*"), Is.Empty);
+        }
     }
 }

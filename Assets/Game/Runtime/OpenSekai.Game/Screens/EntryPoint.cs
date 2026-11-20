@@ -16,6 +16,7 @@ namespace Sekai.Core
 
 		private async UniTask<BaseController> CreateController()
 		{
+			if (!await PackagedBundleStartup.WaitForReadyAsync(this)) return null;
 			await UniTask.WaitUntil(
 				() => ShaderPreloader.Status != ShaderPreloader.PreloadStatus.Loading
 					&& ShaderPreloader.Status != ShaderPreloader.PreloadStatus.Compiling,

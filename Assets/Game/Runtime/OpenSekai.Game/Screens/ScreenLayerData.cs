@@ -1,3 +1,5 @@
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -151,6 +153,13 @@ namespace Sekai
 			// Try the legacy resource path first, then the lowercase path used by this project.
 			var prefab = Resources.Load<GameObject>("Screen/Prefabs/" + name);
 			return prefab != null ? prefab : Resources.Load<GameObject>("screen/prefabs/" + name);
+		}
+
+		public async UniTask<GameObject> LoadScreenLayerPrefabAsync(CancellationToken token)
+		{
+			var prefab = await Resources.LoadAsync<GameObject>("Screen/Prefabs/" + name).ToUniTask(cancellationToken: token);
+			if (prefab != null) return (GameObject)prefab;
+			return (GameObject)await Resources.LoadAsync<GameObject>("screen/prefabs/" + name).ToUniTask(cancellationToken: token);
 		}
 	}
 }

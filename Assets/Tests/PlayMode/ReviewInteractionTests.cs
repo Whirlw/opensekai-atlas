@@ -87,11 +87,10 @@ namespace OpenSekai.Tests.PlayMode
         {
             // Keep only the listener under test and the fallback active.
             var obj = new GameObject("Review listener");
-            var external = obj.AddComponent<AudioListener>();
             var others = Object.FindObjectsByType<AudioListener>(FindObjectsSortMode.None);
             var disabled = new System.Collections.Generic.List<AudioListener>();
             foreach (var listener in others)
-                if (listener != external && listener.gameObject.name != "CriAtomAudioRuntime" && listener.enabled)
+                if (listener.gameObject.name != "CriAtomAudioRuntime" && listener.enabled)
                 {
                     disabled.Add(listener);
                     listener.enabled = false;
@@ -99,11 +98,14 @@ namespace OpenSekai.Tests.PlayMode
             try
             {
                 CriAtomAudioRuntime.EnsureInitialized();
-                CriAtomAudioRuntime.RefreshSceneListeners();
+                var fallback = GameObject.Find("CriAtomAudioRuntime").GetComponent<AudioListener>();
+                Assert.That(fallback.isActiveAndEnabled, Is.True);
+                var external = obj.AddComponent<AudioListener>();
+                SoundManager.NotifySceneAudioListenersChanged();
+                Assert.That(fallback.enabled, Is.False, "The creating scene hands off in the same frame.");
                 external.enabled = false;
                 yield return null;
                 yield return null;
-                var fallback = GameObject.Find("CriAtomAudioRuntime").GetComponent<AudioListener>();
                 Assert.That(fallback.isActiveAndEnabled, Is.True);
                 external.enabled = true;
                 yield return null;
@@ -117,6 +119,10 @@ namespace OpenSekai.Tests.PlayMode
                 yield return null;
                 yield return null;
                 Assert.That(fallback.enabled, Is.False);
+                Object.Destroy(external);
+                yield return null;
+                yield return null;
+                Assert.That(fallback.enabled, Is.True);
             }
             finally
             {

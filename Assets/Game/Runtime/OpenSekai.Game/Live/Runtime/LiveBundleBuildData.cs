@@ -3,6 +3,23 @@ using UnityEngine;
 
 namespace Sekai.Live
 {
+	/// <summary>Captures Unity asset and display values before a chart is built on a worker.</summary>
+	public readonly struct ChartConversionSettings
+	{
+		private readonly JudgeTuning _tuning;
+		public readonly float FlickPixels;
+		public readonly int LongNoteComboBeat;
+
+		public ChartConversionSettings(LiveBundleBuildData config)
+		{
+			_tuning = LiveBundleBuildData.GetJudgeTuning(config);
+			FlickPixels = _tuning.FlickDistanceInPixels(Screen.dpi);
+			LongNoteComboBeat = config == null ? 0 : config.LongNoteComboBeat;
+		}
+
+		public float LaneOffsetFor(NoteCategory category) => _tuning.LaneOffsetFor(category);
+	}
+
 	public class LiveBundleBuildData : ScriptableObject
 	{
 		[UnityEngine.Serialization.FormerlySerializedAs("_judgmentOffsetX")]

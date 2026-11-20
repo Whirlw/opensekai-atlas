@@ -21,6 +21,11 @@ namespace OpenSekai.Shared.Conversion
 		/// <summary>Rewrites the lanes of every skipped note reachable from <paramref name="roots"/>.</summary>
 		public static void Resolve(IReadOnlyList<NoteBase> roots, LiveBundleBuildData config)
 		{
+			Resolve(roots, new ChartConversionSettings(config));
+		}
+
+		internal static void Resolve(IReadOnlyList<NoteBase> roots, ChartConversionSettings config)
+		{
 			if (roots == null)
 			{
 				return;
@@ -31,7 +36,7 @@ namespace OpenSekai.Shared.Conversion
 			}
 		}
 
-		private static void ResolveRoot(NoteBase root, LiveBundleBuildData config)
+		private static void ResolveRoot(NoteBase root, ChartConversionSettings config)
 		{
 			if (root?.NoteList == null)
 			{
@@ -47,7 +52,7 @@ namespace OpenSekai.Shared.Conversion
 			}
 		}
 
-		private static void Interpolate(INote startNote, INote endNote, NoteBase data, LiveBundleBuildData config)
+		private static void Interpolate(INote startNote, INote endNote, NoteBase data, ChartConversionSettings config)
 		{
 			if (data == null || data.ParentNote is not LongNote parent || parent.NoteList == null)
 			{
@@ -95,7 +100,7 @@ namespace OpenSekai.Shared.Conversion
 			data.LaneEndF = laneEnd;
 			data.LaneStart = Mathf.FloorToInt(laneStart);
 			data.LaneEnd = Mathf.FloorToInt(laneEnd);
-			float laneOffset = LiveUtility.GetLaneOffset(NoteCategory.Combo, config);
+			float laneOffset = config.LaneOffsetFor(NoteCategory.Combo);
 			JudgeTuning.WidenLaneRange(laneStart, laneEnd, laneOffset, out float judgeStart, out float judgeEnd);
 			data.JudgeLaneStart = judgeStart;
 			data.JudgeLaneEnd = judgeEnd;

@@ -25,7 +25,7 @@ namespace OpenSekai.Shared.Conversion
 		private Dictionary<int, LongNote> _longNotes;
 		private Dictionary<int, GuideNote> _guideNotes;
 		private MusicScoreInfo[] _frames;
-		private LiveBundleBuildData _config;
+		private ChartConversionSettings _config;
 		private bool _isMirror;
 		private bool _isShowPair;
 		private NoteBase _pair;
@@ -36,6 +36,11 @@ namespace OpenSekai.Shared.Conversion
 		/// already linked. The returned list is the score's <c>NoteArray</c>.
 		/// </summary>
 		public List<NoteBase> Convert(SusChartData chart, MusicScoreInfo[] frames, LiveBundleBuildData config, bool isNeedCombo, bool isMirror, bool showPair)
+		{
+			return Convert(chart, frames, new ChartConversionSettings(config), isNeedCombo, isMirror, showPair);
+		}
+
+		internal List<NoteBase> Convert(SusChartData chart, MusicScoreInfo[] frames, ChartConversionSettings config, bool isNeedCombo, bool isMirror, bool showPair)
 		{
 			_notes = new List<NoteBase>();
 			_longNotes = new Dictionary<int, LongNote>();
@@ -145,8 +150,8 @@ namespace OpenSekai.Shared.Conversion
 		private void ConvertNormalNote(ref int id, NoteInfo noteInfo, MusicScoreInfo info, int laneStart, int laneEnd, NoteCategory category, bool isNeedCombo)
 		{
 			NoteBase note = noteInfo.IsSkip
-				? new HiddenConnectionNote(info, id++, laneStart, laneEnd, category, noteInfo.Type, noteInfo.SpeedRatio, LiveUtility.GetLaneOffset(category, _config), noteInfo.LineType)
-				: new NormalNote(info, id++, laneStart, laneEnd, category, noteInfo.SpeedRatio, noteInfo.Type, LiveUtility.GetLaneOffset(category, _config));
+				? new HiddenConnectionNote(info, id++, laneStart, laneEnd, category, noteInfo.Type, noteInfo.SpeedRatio, _config.LaneOffsetFor(category), noteInfo.LineType)
+				: new NormalNote(info, id++, laneStart, laneEnd, category, noteInfo.SpeedRatio, noteInfo.Type, _config.LaneOffsetFor(category));
 			if (noteInfo.IsSkip)
 			{
 				note.SetSkip(true);
@@ -156,76 +161,76 @@ namespace OpenSekai.Shared.Conversion
 
 		private void ConvertFlickNote(ref int id, NoteInfo noteInfo, MusicScoreInfo info, int laneStart, int laneEnd, NoteCategory category, bool isNeedCombo)
 		{
-			float laneOffset = LiveUtility.GetLaneOffset(category, _config);
-			float flickDistance = LiveUtility.ScreenDpiToInch(_config == null ? 0f : _config.FlickDistance);
+			float laneOffset = _config.LaneOffsetFor(category);
+			float flickDistance = _config.FlickPixels;
 			NoteBase note = new FlickNote(info, id++, laneStart, laneEnd, category, noteInfo.SpeedRatio, noteInfo.Type, noteInfo.Direction, laneOffset, flickDistance);
 			LongJoinCheck(noteInfo, note, isNeedCombo);
 		}
 
 		private void ConvertLongNote(ref int id, NoteInfo noteInfo, MusicScoreInfo info, int laneStart, int laneEnd, NoteCategory category, bool isNeedCombo)
 		{
-			NoteBase note = new LongNote(info, id++, laneStart, laneEnd, category, noteInfo.Type, noteInfo.SpeedRatio, LiveUtility.GetLaneOffset(category, _config), noteInfo.LineType);
+			NoteBase note = new LongNote(info, id++, laneStart, laneEnd, category, noteInfo.Type, noteInfo.SpeedRatio, _config.LaneOffsetFor(category), noteInfo.LineType);
 			LongJoinCheck(noteInfo, note, isNeedCombo);
 		}
 
 		private void ConvertGuideNote(ref int id, NoteInfo noteInfo, MusicScoreInfo info, int laneStart, int laneEnd, NoteCategory category)
 		{
-			NoteBase note = new GuideNote(info, id++, laneStart, laneEnd, category, noteInfo.Type, _config, noteInfo.SpeedRatio, noteInfo.LineType);
+			NoteBase note = new GuideNote(info, id++, laneStart, laneEnd, category, noteInfo.Type, _config.LaneOffsetFor(category), noteInfo.SpeedRatio, noteInfo.LineType);
 			GuideJoinCheck(noteInfo, note);
 		}
 
 		private void ConvertGuideEndNote(ref int id, NoteInfo noteInfo, MusicScoreInfo info, int laneStart, int laneEnd, NoteCategory category)
 		{
-			NoteBase note = new GuideEndNote(info, id++, laneStart, laneEnd, category, _config, noteInfo.Type, noteInfo.SpeedRatio, noteInfo.LineType);
+			NoteBase note = new GuideEndNote(info, id++, laneStart, laneEnd, category, _config.LaneOffsetFor(category), noteInfo.Type, noteInfo.SpeedRatio, noteInfo.LineType);
 			GuideJoinCheck(noteInfo, note);
 		}
 
 		private void ConvertGuideHiddenNote(ref int id, NoteInfo noteInfo, MusicScoreInfo info, int laneStart, int laneEnd, NoteCategory category)
 		{
-			NoteBase note = new GuideHiddenConnectionNote(info, id++, laneStart, laneEnd, category, _config, noteInfo.Type, noteInfo.SpeedRatio, noteInfo.LineType);
+			NoteBase note = new GuideHiddenConnectionNote(info, id++, laneStart, laneEnd, category, _config.LaneOffsetFor(category), noteInfo.Type, noteInfo.SpeedRatio, noteInfo.LineType);
 			GuideJoinCheck(noteInfo, note);
 		}
 
 		private void ConvertConnectionNote(ref int id, NoteInfo noteInfo, MusicScoreInfo info, int laneStart, int laneEnd, NoteCategory category)
 		{
-			NoteBase note = new ConnectionNote(info, id++, laneStart, laneEnd, category, noteInfo.Type, noteInfo.SpeedRatio, LiveUtility.GetLaneOffset(category, _config), noteInfo.LineType);
+			NoteBase note = new ConnectionNote(info, id++, laneStart, laneEnd, category, noteInfo.Type, noteInfo.SpeedRatio, _config.LaneOffsetFor(category), noteInfo.LineType);
 			LongConnectionCheck(noteInfo, note);
 		}
 
 		private void ConvertHiddenNote(ref int id, NoteInfo noteInfo, MusicScoreInfo info, int laneStart, int laneEnd, NoteCategory category)
 		{
-			NoteBase note = new HiddenConnectionNote(info, id++, laneStart, laneEnd, category, noteInfo.Type, noteInfo.SpeedRatio, LiveUtility.GetLaneOffset(category, _config), noteInfo.LineType);
+			NoteBase note = new HiddenConnectionNote(info, id++, laneStart, laneEnd, category, noteInfo.Type, noteInfo.SpeedRatio, _config.LaneOffsetFor(category), noteInfo.LineType);
 			LongConnectionCheck(noteInfo, note);
 		}
 
 		private void ConvertFrictionNote(ref int id, NoteInfo noteInfo, MusicScoreInfo info, int laneStart, int laneEnd, NoteCategory category, bool isNeedCombo)
 		{
-			NoteBase note = new FrictionNote(info, id++, laneStart, laneEnd, category, _config, noteInfo.Type, noteInfo.SpeedRatio, noteInfo.LineType);
+			NoteBase note = new FrictionNote(info, id++, laneStart, laneEnd, category, _config.LaneOffsetFor(category), noteInfo.Type, noteInfo.SpeedRatio, noteInfo.LineType);
 			LongJoinCheck(noteInfo, note, isNeedCombo);
 		}
 
 		private void ConvertFrictionHideNote(ref int id, NoteInfo noteInfo, MusicScoreInfo info, int laneStart, int laneEnd, NoteCategory category, bool isNeedCombo)
 		{
-			NoteBase note = new FrictionHideNote(info, id++, laneStart, laneEnd, category, _config, noteInfo.Type, noteInfo.SpeedRatio, noteInfo.LineType);
+			NoteBase note = new FrictionHideNote(info, id++, laneStart, laneEnd, category, _config.LaneOffsetFor(category), noteInfo.Type, noteInfo.SpeedRatio, noteInfo.LineType);
 			LongJoinCheck(noteInfo, note, isNeedCombo);
 		}
 
 		private void ConvertFrictionLongNote(ref int id, NoteInfo noteInfo, MusicScoreInfo info, int laneStart, int laneEnd, NoteCategory category, bool isNeedCombo)
 		{
-			NoteBase note = new FrictionLongNote(info, id++, laneStart, laneEnd, category, noteInfo.Type, _config, noteInfo.SpeedRatio, noteInfo.LineType);
+			NoteBase note = new FrictionLongNote(info, id++, laneStart, laneEnd, category, noteInfo.Type, _config.LaneOffsetFor(category), noteInfo.SpeedRatio, noteInfo.LineType);
 			LongJoinCheck(noteInfo, note, isNeedCombo);
 		}
 
 		private void ConvertFrictionHideLongNote(ref int id, NoteInfo noteInfo, MusicScoreInfo info, int laneStart, int laneEnd, NoteCategory category, bool isNeedCombo)
 		{
-			NoteBase note = new FrictionHideLongNote(info, id++, laneStart, laneEnd, category, noteInfo.Type, _config, noteInfo.SpeedRatio, noteInfo.LineType);
+			NoteBase note = new FrictionHideLongNote(info, id++, laneStart, laneEnd, category, noteInfo.Type, _config.LaneOffsetFor(category), noteInfo.SpeedRatio, noteInfo.LineType);
 			LongJoinCheck(noteInfo, note, isNeedCombo);
 		}
 
 		private void ConvertFrictionFlickNote(ref int id, NoteInfo noteInfo, MusicScoreInfo info, int laneStart, int laneEnd, NoteCategory category, bool isNeedCombo)
 		{
-			float laneOffset = LiveUtility.GetLaneOffset(category, _config);
-			float flickDistance = LiveUtility.ScreenDpiToInch(_config == null ? 0f : _config.FlickDistance);
+			float laneOffset = _config.LaneOffsetFor(category);
+			float flickDistance = _config.FlickPixels;
 			NoteBase note = new FrictionFlickNote(info, id++, laneStart, laneEnd, category, noteInfo.SpeedRatio, noteInfo.Type, noteInfo.Direction, flickDistance, laneOffset);
 			LongJoinCheck(noteInfo, note, isNeedCombo);
 		}
@@ -260,7 +265,7 @@ namespace OpenSekai.Shared.Conversion
 
 		private void AddComboNote(NoteInfo noteInfo, NoteBase note, bool isNeedCombo, LongNote longNote)
 		{
-			int longNoteComboBeat = _config == null ? 0 : _config.LongNoteComboBeat;
+			int longNoteComboBeat = _config.LongNoteComboBeat;
 			if (!isNeedCombo || note == null || longNote == null || longNoteComboBeat <= 0)
 			{
 				return;
@@ -282,7 +287,7 @@ namespace OpenSekai.Shared.Conversion
 				}
 
 				MusicScoreInfo comboInfo = MusicScore.GenerateNoteMusicScoreInfo(i / longNoteComboBeat, i % longNoteComboBeat / (float)longNoteComboBeat, _frames);
-				LongHoldCombo combo = new LongHoldCombo(comboInfo, longNote.Type, 0, longNote.speedRatio, LiveUtility.GetLaneOffset(NoteCategory.Combo, _config));
+				LongHoldCombo combo = new LongHoldCombo(comboInfo, longNote.Type, 0, longNote.speedRatio, _config.LaneOffsetFor(NoteCategory.Combo));
 				combo.SetSkip(true);
 				longNote.AddHoldCombo(combo);
 			}

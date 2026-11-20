@@ -1,4 +1,6 @@
 using System;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using Sekai;
 
 namespace OpenSekai.App.Playback
@@ -17,7 +19,7 @@ namespace OpenSekai.App.Playback
         /// <summary>True when the page that owns the start button can still start a live.</summary>
         bool IsLibraryReady { get; }
 
-        bool IsLiveLoadingReady { get; }
+        UniTask<bool> PrepareLiveLoadingAsync(CancellationToken token);
 
         void BeginSession(string chartHash);
 

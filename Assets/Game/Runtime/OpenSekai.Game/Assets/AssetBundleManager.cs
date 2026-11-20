@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using OpenSekai.Shared.Storage;
 using CP;
@@ -86,31 +87,51 @@ namespace Sekai
 		private string _preparedCache;
 		private AsyncLazy<bool> _preparation;
 
-		public async UniTask<bool> PrepareStreamingAssetsAsync()
+		private CancellationTokenSource _preparationLifetime;
+
+		public UniTask<bool> PrepareStreamingAssetsAsync(CancellationToken cancellationToken = default)
 		{
-			if (_initialized) return true;
-			if (IsDirectFilePath(Application.streamingAssetsPath)) return Initialize();
-			var preparation = _preparation ??= new AsyncLazy<bool>(PrepareUriCacheAsync);
-			try { return await preparation.Task; }
+			cancellationToken.ThrowIfCancellationRequested();
+			if (_initialized) return UniTask.FromResult(true);
+			if (IsDirectFilePath(Application.streamingAssetsPath)) return UniTask.FromResult(Initialize());
+			if (_preparation == null)
+			{
+				var lifetime = CancellationTokenSource.CreateLinkedTokenSource(Application.exitCancellationToken);
+				_preparationLifetime = lifetime;
+				_preparation = new AsyncLazy<bool>(() => PrepareUriCacheAsync(lifetime));
+			}
+			// Leaving one scene stops that waiter. Other scenes can still use the same download.
+			return _preparation.Task.AttachExternalCancellation(cancellationToken);
+		}
+
+		private async UniTask<bool> PrepareUriCacheAsync(CancellationTokenSource lifetime)
+		{
+			try { return await PrepareUriCacheAsync(lifetime.Token); }
 			finally
 			{
-				if (ReferenceEquals(_preparation, preparation)) _preparation = null;
+				if (ReferenceEquals(_preparationLifetime, lifetime))
+				{
+					_preparation = null;
+					_preparationLifetime = null;
+				}
+				lifetime.Dispose();
 			}
 		}
 
-		private async UniTask<bool> PrepareUriCacheAsync()
+		private async UniTask<bool> PrepareUriCacheAsync(CancellationToken token)
 		{
 			string catalogUri = CombineStreamingAssetsPath(CACHE_DIRECTORY_NAME, ASSET_BUNDLE_INFO_FILE_NAME);
-			byte[] catalog = await ReadUriAsync(catalogUri);
+			byte[] catalog = await ReadUriAsync(catalogUri, token);
 			var info = BinarySerializer.Deserialize<AssetBundleInfo>(catalog);
 			if (info?.bundles == null || info.bundles.Count == 0) return false;
 			string cache = Path.Combine(Application.temporaryCachePath, "OpenSekaiBundles");
 			foreach (var element in info.bundles.Values)
 			{
+				token.ThrowIfCancellationRequested();
 				string destination = CachedBundlePath(cache, element);
 				if (File.Exists(destination) && new FileInfo(destination).Length == element.fileSize) continue;
 				string uri = CombineStreamingAssetsPath(CACHE_DIRECTORY_NAME, element.cacheDirectoryName, element.cacheFileName);
-				byte[] bytes = await ReadUriAsync(uri);
+				byte[] bytes = await ReadUriAsync(uri, token);
 				if (bytes.LongLength != element.fileSize) throw new IOException("Incomplete AssetBundle: " + element.bundleName);
 				AtomicFile.Write(destination, temp => File.WriteAllBytes(temp, bytes));
 			}
@@ -123,10 +144,28 @@ namespace Sekai
 		private static string CachedBundlePath(string cache, AssetBundleElement element) =>
 			Path.Combine(cache, element.cacheFileName + "-" + element.hash);
 
-		private static async UniTask<byte[]> ReadUriAsync(string uri)
+		internal static async UniTask<byte[]> ReadUriAsync(string uri, CancellationToken token, int timeoutSeconds = 30)
 		{
+			token.ThrowIfCancellationRequested();
 			using var request = UnityWebRequest.Get(uri);
-			await request.SendWebRequest();
+			request.timeout = timeoutSeconds;
+			using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
+			using var timer = deadline.CancelAfterSlim(TimeSpan.FromSeconds(timeoutSeconds), DelayType.Realtime);
+			try
+			{
+				// Await the underlying operation so protocol failures are reported with the requested URI.
+				AsyncOperation operation = request.SendWebRequest();
+				await operation.ToUniTask(cancellationToken: deadline.Token);
+			}
+			catch (OperationCanceledException)
+			{
+				request.Abort();
+				token.ThrowIfCancellationRequested();
+				throw new TimeoutException("Timed out reading packaged asset: " + uri);
+			}
+			token.ThrowIfCancellationRequested();
+			if (request.result != UnityWebRequest.Result.Success)
+				throw new IOException($"Could not read packaged asset {uri} ({request.responseCode}): {request.error}");
 			return request.downloadHandler.data;
 		}
 
@@ -165,6 +204,10 @@ namespace Sekai
 
 		public void ClearCache()
 		{
+			var lifetime = _preparationLifetime;
+			_preparationLifetime = null;
+			_preparation = null;
+			lifetime?.Cancel();
 			ClearServerBundleInfo();
 			_clientAssetBundleInfo = null;
 			_preparedCache = null;

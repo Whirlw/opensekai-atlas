@@ -37,15 +37,7 @@ namespace OpenSekai.App.Bootstrap
 
         protected override async void Start()
         {
-            try
-            {
-                await AssetBundleManager.Instance.PrepareStreamingAssetsAsync();
-            }
-            catch (System.Exception error)
-            {
-                Debug.LogWarning("[Library] Packaged bundles unavailable: " + error.Message);
-            }
-            if (this == null) return;
+            if (!await PackagedBundleStartup.WaitForReadyAsync(this)) return;
             ApplicationLocalSettings settings = ApplicationLocalSettings.LoadFromStorage();
             SoundManager.Instance.SetupVolume(
                 1f, settings.SystemVolume.Bgm, settings.SystemVolume.Se, settings.SystemVolume.Voice);

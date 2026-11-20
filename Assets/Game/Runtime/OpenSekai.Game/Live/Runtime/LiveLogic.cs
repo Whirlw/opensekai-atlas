@@ -175,6 +175,7 @@ namespace Sekai.Core.Live
 
 		public void Setup(LiveBootDataBase _bootData, LiveViewBase[] _liveViews)
 		{
+			MusicScore.CurrentFrameInfo.speedRatio = 1f;
 			ConnectorAudio.Reset();
 			Session.Bind(_bootData, _liveViews);
 			Scheduler.BindNoteCallbacks(Notes.Notes);

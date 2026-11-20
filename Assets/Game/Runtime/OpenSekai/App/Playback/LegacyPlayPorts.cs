@@ -67,21 +67,12 @@ namespace OpenSekai.App.Playback
             }
         }
 
-        public bool IsLiveLoadingReady
+        public async UniTask<bool> PrepareLiveLoadingAsync(CancellationToken token)
         {
-            get
-            {
-                if (!ScreenManager.ExistsInstance)
-                {
-                    return false;
-                }
-
-                ScreenManager screens = ScreenManager.Instance;
-                return screens != null
-                    && screens.TryGetScreenLayerData(MenuScreenType.LiveLoading, out ScreenLayerData loading)
-                    && loading != null
-                    && loading.LoadScreenLayerPrefab() != null;
-            }
+            if (!ScreenManager.ExistsInstance) return false;
+            ScreenManager screens = ScreenManager.Instance;
+            return screens != null && screens.TryGetScreenLayerData(MenuScreenType.LiveLoading, out var loading)
+                && await loading.LoadScreenLayerPrefabAsync(token) != null;
         }
 
         public void BeginSession(string chartHash)
@@ -135,8 +126,8 @@ namespace OpenSekai.App.Playback
     /// </summary>
     internal sealed class LegacyPackageAudioRegistrar : IPackageAudioRegistrar
     {
-        private readonly SongPackageManager packages;
-        internal LegacyPackageAudioRegistrar(SongPackageManager packages) => this.packages = packages;
+        private readonly SongPackageManager _packages;
+        internal LegacyPackageAudioRegistrar(SongPackageManager packages) => _packages = packages;
 
         public async UniTask<bool> RegisterAsync(SongPackage package, CancellationToken cancellationToken)
         {
@@ -147,14 +138,14 @@ namespace OpenSekai.App.Playback
                 return false;
             }
 
-            SongPackageItem item = packages.FindCachedItem(package.RootDirectory);
+            SongPackageItem item = _packages.FindCachedItem(package.RootDirectory);
             float? lufs = item?.LoudnessLufs;
             if (item == null || !item.LoudnessMeasured)
             {
                 lufs = await LoudnessMeter.MeasureAsync(audio.GetAudioClip(), cancellationToken);
-                if (item != null && packages.SetLoudness(item, lufs))
+                if (item != null && _packages.SetLoudness(item, lufs))
                 {
-                    packages.SaveLoudness();
+                    _packages.SaveLoudness();
                 }
             }
 

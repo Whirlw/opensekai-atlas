@@ -57,10 +57,10 @@ namespace Sekai
 		protected DialogState currentState;
 		protected string[] seArray;
 
-		private static readonly List<DialogBase> OpenDialogs = new List<DialogBase>();
+		private static readonly List<DialogBase> _openDialogs = new List<DialogBase>();
 
 		private static double _modalBackTime = -1;
-		public static bool OwnsHardwareBack => OpenDialogs.Count != 0 || _modalBackTime == Time.unscaledTimeAsDouble;
+		public static bool OwnsHardwareBack => _openDialogs.Count != 0 || _modalBackTime == Time.unscaledTimeAsDouble;
 
 		private bool _allowCloseExternal = true;
 		private bool _externalCloseAttached;
@@ -261,20 +261,20 @@ namespace Sekai
 
 		protected virtual void OnEnable()
 		{
-			if (currentState == DialogState.Show && !OpenDialogs.Contains(this)) OpenDialogs.Add(this);
+			if (currentState == DialogState.Show && !_openDialogs.Contains(this)) _openDialogs.Add(this);
 		}
 
 		protected virtual void OnDisable()
 		{
-			OpenDialogs.Remove(this);
+			_openDialogs.Remove(this);
 			KillAnimationTween();
 			DetachCloseExternalListener();
 		}
 
 		protected void OpenPreprocess()
 		{
-			OpenDialogs.Remove(this);
-			OpenDialogs.Add(this);
+			_openDialogs.Remove(this);
+			_openDialogs.Add(this);
 			SyncLayerParentObject();
 			ToFront();
 			SetActiveBackground(true);
@@ -426,7 +426,7 @@ namespace Sekai
 
 		private void FinishCloseWithoutDestroy()
 		{
-			OpenDialogs.Remove(this);
+			_openDialogs.Remove(this);
 			DisableAllColliders();
 			OnFinishCloseAnimationCallback();
 			OnClose?.Invoke();
@@ -458,9 +458,9 @@ namespace Sekai
 
 		internal static bool TryHandleModalBack()
 		{
-			for (int i = OpenDialogs.Count - 1; i >= 0; i--)
+			for (int i = _openDialogs.Count - 1; i >= 0; i--)
 			{
-				var dialog = OpenDialogs[i];
+				var dialog = _openDialogs[i];
 				if (dialog != null && dialog.isActiveAndEnabled && dialog.HandleBackKey()) return true;
 			}
 			return false;

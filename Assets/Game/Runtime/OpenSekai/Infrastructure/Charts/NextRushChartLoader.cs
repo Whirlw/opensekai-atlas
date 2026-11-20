@@ -58,6 +58,11 @@ namespace OpenSekai.Infrastructure.Charts
         {
             if (source == null) throw new ArgumentNullException(nameof(source));
             if (config == null) throw new ArgumentNullException(nameof(config));
+            return Load(source, new ChartConversionSettings(config), showPair, isMirror);
+        }
+
+        internal static RuntimeChartDefinition Load(NextRushChart source, ChartConversionSettings config, bool showPair, bool isMirror)
+        {
             var compatibility = NextRushCompatibility.Analyze(source);
             if (compatibility.InvalidData.Count > 0) throw Invalid(string.Join("、", compatibility.InvalidData.Take(8)));
             if (compatibility.UnsupportedFeatures.Count > 0) throw Unsupported(string.Join("、", compatibility.UnsupportedFeatures.Take(8)));
@@ -67,7 +72,7 @@ namespace OpenSekai.Infrastructure.Charts
         private sealed class Builder
         {
             private readonly NextRushChart _source;
-            private readonly LiveBundleBuildData _config;
+            private readonly ChartConversionSettings _config;
             private readonly bool _showPair;
             private readonly bool _isMirror;
             private readonly Dictionary<NextRushEntity, NoteBase> _notes = new Dictionary<NextRushEntity, NoteBase>();
@@ -134,7 +139,7 @@ namespace OpenSekai.Infrastructure.Charts
                 }
             }
 
-            public Builder(NextRushChart source, LiveBundleBuildData config, bool showPair, bool isMirror)
+            public Builder(NextRushChart source, ChartConversionSettings config, bool showPair, bool isMirror)
             { _source = source; _config = config; _showPair = showPair; _isMirror = isMirror; }
 
             public RuntimeChartDefinition Build(NextRushCompatibilityReport compatibility)
@@ -427,7 +432,7 @@ namespace OpenSekai.Infrastructure.Charts
                 int id = ++_nextId;
                 var (a, b) = LaneIndices(left, right);
                 NoteBase note;
-                float flick = LiveUtility.ScreenDpiToInch(_config.FlickDistance);
+                float flick = _config.FlickPixels;
                 switch (kind)
                 {
                     case "TapNote":
@@ -455,7 +460,7 @@ namespace OpenSekai.Infrastructure.Charts
                     case "TransientHiddenDamageTickNote":
                         note = new NextRushDamageNote(info, id, a, b, hidden: true); break;
                     case "TraceNote": case "TailTraceNote": case "HeadTraceNote":
-                        note = new FrictionNote(info, id, a, b, NoteCategory.Friction, _config, type, 1,
+                        note = new FrictionNote(info, id, a, b, NoteCategory.Friction, Offset(NoteCategory.Friction), type, 1,
                             isTailTraceOwner: activeHead && !fake && kind == "TailTraceNote", isTraceTail: kind == "TailTraceNote"); break;
                     case "TraceFlickNote": case "TailTraceFlickNote": case "HeadTraceFlickNote":
                         note = new FrictionFlickNote(info, id, a, b, NoteCategory.FrictionFlick, 1, type, direction,
@@ -592,7 +597,7 @@ namespace OpenSekai.Infrastructure.Charts
                                 var source = _notes[next];
                                 var swipe = new FrictionFlickNote(source.MusicScoreInfo, ++_nextId, source.LaneStart,
                                     source.LaneEnd, source.Category, 1, source.Type, source.Direction,
-                                    LiveUtility.ScreenDpiToInch(_config.FlickDistance), Offset(source.Category),
+                                    _config.FlickPixels, Offset(source.Category),
                                     isTraceTail: kind == "TailTraceFlickNote");
                                 _standaloneKeys.Add(next, CopyGeometry(next, swipe));
                                 roots.Add(swipe);
@@ -682,7 +687,7 @@ namespace OpenSekai.Infrastructure.Charts
             {
                 var source = _notes[start];
                 var carrier = new FrictionHideLongNote(source.MusicScoreInfo, ++_nextId, source.LaneStart,
-                    source.LaneEnd, NoteCategory.FrictionHideLong, source.Type, _config, 1);
+                    source.LaneEnd, NoteCategory.FrictionHideLong, source.Type, Offset(NoteCategory.FrictionHideLong), 1);
                 var owner = _notes[activeHead];
                 var kind = Kind(activeHead);
                 if (!owner.IsDecoration && owner is FlickNote flick && kind is "FlickNote" or "HeadFlickNote")
@@ -719,7 +724,7 @@ namespace OpenSekai.Infrastructure.Charts
             {
                 var source = _notes[start];
                 var guide = CopyGeometry(start, new GuideNote(source.MusicScoreInfo, ++_nextId, source.LaneStart,
-                    source.LaneEnd, NoteCategory.Guide, source.Type, _config, 1));
+                    source.LaneEnd, NoteCategory.Guide, source.Type, Offset(NoteCategory.Guide), 1));
                 if (activeHead != null)
                     SetConnectorHeadView(guide, activeHead);
                 else if (segment is { IsFake: true, IsDamage: true })
@@ -1617,7 +1622,7 @@ namespace OpenSekai.Infrastructure.Charts
                 if (name == null || !_source.NamedEntities.TryGetValue(name, out var result)) throw Invalid("找不到实体引用 " + field + ": " + name);
                 return result;
             }
-            private float Offset(NoteCategory category) => LiveUtility.GetLaneOffset(category, _config);
+            private float Offset(NoteCategory category) => _config.LaneOffsetFor(category);
             private static (int start, int end) LaneIndices(float left, float right)
             {
                 double start = Math.Floor(left), end = Math.Ceiling(right);

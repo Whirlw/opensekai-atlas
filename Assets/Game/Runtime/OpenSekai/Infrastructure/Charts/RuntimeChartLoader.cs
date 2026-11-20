@@ -15,9 +15,15 @@ namespace OpenSekai.Infrastructure.Charts
             bool isMirror = false)
         {
             if (package == null) throw new ArgumentNullException(nameof(package));
+            if (config == null && IsNextRushChart(package)) throw new ArgumentNullException(nameof(config));
+            return Load(package, new ChartConversionSettings(config), showPair, isMirror);
+        }
+
+        internal static RuntimeChartDefinition Load(SongPackage package, ChartConversionSettings config, bool showPair, bool isMirror)
+        {
             if (IsNextRushChart(package))
                 return NextRushChartLoader.Load(NextRushChartLoader.ReadFile(package.ScorePath), config, showPair, isMirror);
-            var document = ChartFileReader.Read(package);
+            var document = ChartFileReader.Read(package, config);
             if (document == null) throw new InvalidDataException("无法读取谱面文件。");
             return RuntimeChartDefinition.Create(document, RuntimeChartConverter.Convert(document, config, showPair, isMirror));
         }

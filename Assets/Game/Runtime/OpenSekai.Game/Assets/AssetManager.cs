@@ -599,7 +599,6 @@ namespace Sekai
 			_callDisposseHistoryTable = new Dictionary<string, List<bool>>();
 			_loadedAtlasAssetBundleNames = new HashSet<string>();
 			_protectedAssetBundleNames = new HashSet<string>();
-			AssetBundleManager.Instance.Initialize();
 		}
 
 		private static void EnsureStaticCache()
