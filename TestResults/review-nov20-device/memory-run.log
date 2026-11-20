@@ -1,0 +1,14 @@
+11-20 16:39:20.275 19660 19701 I Unity   : [Review] introDone frame=308
+11-20 16:39:22.357 19660 19701 I Unity   : [Review] home enter frame=637
+11-20 16:39:23.366 19660 19701 I Unity   : [Review] library presented=True
+11-20 16:39:24.743 19660 19701 I Unity   : [Review] jar bundle=Done
+11-20 16:39:24.744 19660 19701 I Unity   : [Review] packageCount=20
+11-20 16:39:24.745 19660 19701 I Unity   : [Review] external decodes=0 playback=True
+11-20 16:39:26.746 19660 19701 I Unity   : [Review] preload start
+11-20 16:39:30.598 19660 19701 I Unity   : [Review] decode wave_0001 ms=3837.7178 pcmBytes=68552552
+11-20 16:39:30.640 19660 19701 I Unity   : [Review] preload end
+11-20 16:39:30.640 19660 19701 I Unity   : [Review] cache decodes=0 playback=True
+11-20 16:39:32.806 19660 19701 I Unity   : [Review] syncStartMs=119.2766
+11-20 16:39:33.191 19660 19701 I Unity   : [Review] playback=Started
+11-20 16:39:33.424 19660 19701 I Unity   : [Review] MusicReady frame=1555
+11-20 16:39:33.428 19660 19701 I Unity   : [Review] MusicReady first HCA

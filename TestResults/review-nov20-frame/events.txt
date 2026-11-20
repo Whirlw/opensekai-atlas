@@ -1,0 +1,74 @@
+locallySupported=True
+enabled=True
+event count=71
+0 ClearColor UniversalRenderPipeline.RenderSingleCameraInternal: UICamera(Clone)/ExecuteRenderGraph
+1 DrawProcedural UniversalRenderPipeline.RenderSingleCameraInternal: UICamera(Clone)/ExecuteRenderGraph/Copy Screen to CaptureTex [Sekai]
+2 ClearDepthStencil UniversalRenderPipeline.RenderSingleCameraInternal: UICamera(Clone)/ExecuteRenderGraph
+3 ClearDepthStencil UniversalRenderPipeline.RenderSingleCameraInternal: UICamera(Clone)/ExecuteRenderGraph/(RP 1:0) Render BlurUI [Sekai UICamera] 
+4 SRPBatch UniversalRenderPipeline.RenderSingleCameraInternal: UICamera(Clone)/ExecuteRenderGraph/(RP 1:0) Render BlurUI [Sekai UICamera] /RenderLoop.DrawSRPBatcher
+5 SRPBatch UniversalRenderPipeline.RenderSingleCameraInternal: UICamera(Clone)/ExecuteRenderGraph/(RP 2:0) DrawTransparentObjects/RenderLoop.DrawSRPBatcher
+6 DrawProcedural UniversalRenderPipeline.RenderSingleCameraInternal: UICamera(Clone)/ExecuteRenderGraph/Execute Blur [Sekai UICamera] 
+7 DrawProcedural UniversalRenderPipeline.RenderSingleCameraInternal: UICamera(Clone)/ExecuteRenderGraph/Execute Blur [Sekai UICamera] 
+8 ClearDepthStencil UniversalRenderPipeline.RenderSingleCameraInternal: UICamera(Clone)/ExecuteRenderGraph/(RP 3:0) Render UI [Sekai DefaultCamera]
+9 DrawProcedural UniversalRenderPipeline.RenderSingleCameraInternal: UICamera(Clone)/ExecuteRenderGraph/(RP 4:0) BlitFinalToBackBuffer
+10 ClearAll UniversalRenderPipeline.RenderSingleCameraInternal: BaseCamera/ExecuteRenderGraph
+11 ClearDepthStencil UniversalRenderPipeline.RenderSingleCameraInternal: BaseCamera/ExecuteRenderGraph/(RP 0:0) Render UI [Sekai DefaultCamera]
+12 DrawProcedural UniversalRenderPipeline.RenderSingleCameraInternal: UICamera/ExecuteRenderGraph/Copy Screen to CaptureTex [Sekai]
+13 ClearDepthStencil UniversalRenderPipeline.RenderSingleCameraInternal: UICamera/ExecuteRenderGraph
+14 ClearDepthStencil UniversalRenderPipeline.RenderSingleCameraInternal: UICamera/ExecuteRenderGraph/(RP 2:0) Render BlurUI [Sekai UICamera] 
+15 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: UICamera/ExecuteRenderGraph/(RP 3:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+16 DrawProcedural UniversalRenderPipeline.RenderSingleCameraInternal: UICamera/ExecuteRenderGraph/Execute Blur [Sekai UICamera] 
+17 DrawProcedural UniversalRenderPipeline.RenderSingleCameraInternal: UICamera/ExecuteRenderGraph/Execute Blur [Sekai UICamera] 
+18 ClearDepthStencil UniversalRenderPipeline.RenderSingleCameraInternal: UICamera/ExecuteRenderGraph/(RP 4:0) Render UI [Sekai DefaultCamera]
+19 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: UICamera/ExecuteRenderGraph/(RP 4:0) Render UI [Sekai DefaultCamera]/RenderLoop.Draw/Canvas.RenderSubBatch
+20 DrawProcedural UniversalRenderPipeline.RenderSingleCameraInternal: UICamera/ExecuteRenderGraph/(RP 5:0) BlitFinalToBackBuffer
+21 ClearAll UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph
+22 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+23 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+24 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+25 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+26 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+27 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+28 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+29 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+30 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+31 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+32 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+33 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+34 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+35 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+36 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+37 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+38 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+39 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+40 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+41 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+42 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+43 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+44 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+45 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+46 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+47 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+48 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+49 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+50 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+51 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+52 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+53 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+54 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+55 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+56 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+57 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+58 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+59 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+60 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+61 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+62 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+63 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+64 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+65 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+66 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+67 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+68 Mesh UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 6:0) DrawTransparentObjects/RenderLoop.Draw/Canvas.RenderSubBatch
+69 DrawProcedural UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 7:0) BlitFinalToBackBuffer
+70 ClearDepthStencil UniversalRenderPipeline.RenderSingleCameraInternal: LibraryScreenCamera/ExecuteRenderGraph/(RP 7:1) DrawScreenSpaceUI/UI.RenderOverlays

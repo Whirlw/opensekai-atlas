@@ -1,0 +1,572 @@
+VBCSCompilerPreWarmer: watching VBCSCompiler (PID 30644)
+VBCSCompilerPreWarmer: pre-warm launched (dotnet PID 3944)
+VBCSCompiler prewarm took 68.05 ms
+[Licensing::Module] Trying to connect to existing licensing client channel...
+Built from '6000.6/staging' branch; Version is '6000.6.7f1 (b22767f04f04) revision 11675495'; Using compiler version '194234433'; Build Type 'Release'
+[Licensing::IpcConnector] Channel LicenseClient-31089 doesn't exist
+OS: 'Windows 11  (10.0.26300) CoreCountrySpecific' Language: 'zh' Physical Memory: 48816 MB
+BatchMode: 1, IsHumanControllingUs: 0, StartBugReporterOnCrash: 0, Is64bit: 1
+System  architecture: x64
+Process architecture: x64
+Date: 2026-11-20T16:49:33Z
+[Licensing::Module] Successfully launched the LicensingClient (PId: 10264)
+
+COMMAND LINE ARGUMENTS:
+C:\Program Files\Unity\Hub\Editor\6000.6.7f1\Editor\Unity.exe
+-batchmode
+-quit
+-projectPath
+E:/DeepseekHarness/OpenSekai
+-executeMethod
+OpenSekai.EditorTools.PaintKit.ApplyPainted
+-logFile
+E:/DeepseekHarness/OpenSekai/TestResults/review-nov20-paintkit.log
+Successfully changed project path to: E:/DeepseekHarness/OpenSekai
+E:/DeepseekHarness/OpenSekai
+[UnityMemory] Configuration Parameters - Can be set up in boot.config
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-nav-mesh-worker=65536"
+    "memorysetup-temp-allocator-size-audio-worker=65536"
+    "memorysetup-temp-allocator-size-cloud-worker=32768"
+    "memorysetup-temp-allocator-size-gfx=262144"
+    "memorysetup-remapper-allocator-initial-capacity=32768"
+    "memorysetup-temp-allocator-size-preload-manager=33554432"
+    "memorysetup-allocator-temp-initial-block-size-main=262144"
+    "memorysetup-allocator-temp-initial-block-size-worker=262144"
+    "memorysetup-temp-allocator-size-job-worker=262144"
+    "memorysetup-temp-allocator-size-background-worker=32768"
+    "memorysetup-bucket-allocator-granularity=16"
+    "memorysetup-bucket-allocator-bucket-count=8"
+    "memorysetup-bucket-allocator-block-size=33554432"
+    "memorysetup-bucket-allocator-block-count=8"
+    "memorysetup-main-allocator-block-size=16777216"
+    "memorysetup-thread-allocator-block-size=16777216"
+    "memorysetup-main-allocator-mimalloc-enabled=1"
+    "memorysetup-gfx-main-allocator-block-size=16777216"
+    "memorysetup-gfx-thread-allocator-block-size=16777216"
+    "memorysetup-cache-allocator-block-size=4194304"
+    "memorysetup-typetree-allocator-block-size=2097152"
+    "memorysetup-profiler-bucket-allocator-granularity=16"
+    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+    "memorysetup-profiler-bucket-allocator-block-size=33554432"
+    "memorysetup-profiler-bucket-allocator-block-count=8"
+    "memorysetup-profiler-allocator-block-size=16777216"
+    "memorysetup-profiler-editor-allocator-block-size=1048576"
+    "memorysetup-temp-allocator-size-main=16777216"
+    "memorysetup-job-temp-allocator-block-size=2097152"
+    "memorysetup-job-temp-allocator-block-size-background=1048576"
+    "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
+Logging is directed to a specific file, skipping project log.
+Player connection [3516]  Target information:
+
+Player connection [3516]  * "[IP] 100.87.181.57 [Port] 55504 [Flags] 2 [Guid] 3355676108 [EditorId] 3355676108 [Version] 1048832 [Id] WindowsEditor(7,OMEN-16) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
+
+Player connection [3516]  * "[IP] 10.177.76.129 [Port] 55504 [Flags] 2 [Guid] 3355676108 [EditorId] 3355676108 [Version] 1048832 [Id] WindowsEditor(7,OMEN-16) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
+
+Player connection [3516] Host joined multi-casting on [225.0.0.222:54997]...
+Player connection [3516] Host joined alternative multi-casting on [225.0.0.222:34997]...
+Input System module state changed to: Initialized.
+[Physics::Module] Initialized fallback backend.
+[Physics::Module] Id: 0xdecafbad
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-31089" at "2026-11-20T16:49:33.9250574Z"
+[Licensing::Client] Code 10 while verifying Licensing Client signature (process Id: 10264, path: "C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/Resources/Licensing/Client/Unity.Licensing.Client.exe")
+[Licensing::Module] LicensingClient has failed validation; ignoring
+[Licensing::Client] Handshaking with LicensingClient:
+  Version:                 1.18.3+d7ffd15
+  Session Id:              028297d4fd0849718b093bc88461edce
+  Correlation Id:          51636b44098b6bbc35a83e4d37035ce4
+  External correlation Id: 4153193924459218840
+  Machine Id:              I6r+LKnYxQAf8aUD0lBzMbJjlxo=
+[Licensing::Module] Successfully connected to LicensingClient on channel: "LicenseClient-31089" (connect: 0.57s, validation: 0.20s, handshake: 0.07s)
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-31089-notifications" at "2026-11-20T16:49:34.1979643Z"
+[Licensing::Module] Connected to LicensingClient (PId: 10264, launch time: 0.03, total connection time: 0.84s)
+[Licensing::Module] Error: Access token is unavailable; failed to update
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: ewogICJzdWJzR3JvdXAiIDogInVuaXR5IGVkaXRvciIsCiAgIm5hbWVzcGFjZSIgOiAidW5pdHlfZWRpdG9yIiwKICAidHlwZSIgOiAiRURJVE9SIiwKICAidGFnIiA6ICJVbml0eVBlcnNvbmFsXXXX
+  Product: Unity Personal Version
+  Type: Assigned
+  Expiration: Unlimited
+[Licensing::Client] Successfully updated license, isAsync: True, time: 0.01
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] Licensing Background thread has ended after 0.94s
+[Package Manager] Connected to IPC stream "Upm-29160" after 0.4 seconds.
+[Licensing::Client] Successfully resolved entitlement details
+Library Redirect Path: Library/
+Launching Unity Data Store - C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/Tools/Unity.DataStore.exe 
+Unity Data Store artifact dir = Library/DataStore, working dir = E:/DeepseekHarness/OpenSekaiUnity Data Store running and initialised
+[Licensing::Client] Successfully resolved entitlement details
+[Physics::Module] Selected backend (deferred post-plugins).
+[Physics::Module] Name: PhysX
+[Physics::Module] Id: 0xf2b8ea05
+[Physics::Module] SDK Version: 4.1.2
+[Physics::Module] Integration Version: 1.0.0
+[Physics::Module] Threading Mode: Multi-Threaded
+Initialize engine version: 6000.6.7f1 (b22767f04f04)
+[EntityIdStore] init: VM path (explicit commit), pageSize=4096, blockCount=262144, entitiesPerBlock=1024, blocksPerSlotPage=0, slots reserved=4294967296 bytes
+[Subsystems] Discovering subsystems at path C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/Resources/UnitySubsystems
+[Subsystems] Discovering subsystems at path E:/DeepseekHarness/OpenSekai/Assets
+GfxDevice: creating device client; kGfxThreadingModeNonThreaded
+Direct3D:
+    Version:  Direct3D 11.0 [level 11.1]
+    Renderer: NVIDIA GeForce RTX 3070 Ti Laptop GPU (ID=0x24e0)
+    Vendor:   NVIDIA
+    VRAM:     8017 MB
+    Driver:   32.0.16.1091
+Initialize mono
+Mono path[0] = 'C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/Managed'
+Mono path[1] = 'C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/BCLExtensions/runtime/netstandard2.1'
+Mono path[2] = 'C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/MonoBleedingEdge/lib/mono/unityjit-win32'
+Mono config path = 'C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/MonoBleedingEdge/etc'
+Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=127.0.0.1:56160
+CodeReloadManager initialized
+ImportWorker Server TCP listen port: 0
+AcceleratorClientConnectionCallback - disconnected - :0
+Begin MonoManager ReloadAssembly
+Registering precompiled unity dll's ...
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/PlaybackEngines/WebGLSupport/UnityEditor.WebGL.Extensions.dll
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport/UnityEditor.WindowsStandalone.Extensions.dll
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/PlaybackEngines/AndroidPlayer/UnityEditor.Android.Extensions.dll
+Registered in 0.006984 seconds.
+Native extension for Android target not found
+Native extension for WindowsStandalone target not found
+Native extension for WebGL target not found
+Package Manager log level set to [2]
+ScheduleIndexationOnStartup MainProcess:False IndexOnStartup:True
+Scripting: successfully reloaded assembly
+- Finished resetting the current domain, in  1.005 seconds
+Domain Reload Profiling: 1783ms
+	BeginReloadAssembly (177ms)
+		CreateAndSetChildDomain (6ms)
+	RebuildCommonClasses (6ms)
+	RebuildNativeTypeToScriptingClass (21ms)
+	initialDomainReloadingComplete (125ms)
+	LoadAllAssembliesAndSetupDomain (446ms)
+		LoadAssemblies (160ms)
+		TypeCache.Refresh (311ms)
+			TypeCache.ScanAssembly (294ms)
+		AnalyzeDomain (1ms)
+	FinalizeReload (1007ms)
+		SetupLoadedEditorAssemblies (0ms)
+			InitializePlatformSupportModulesInManaged (15ms)
+			BeforeProcessingInitializeOnLoad (132ms)
+			ProcessInitializeOnLoadAttributes (182ms)
+			ProcessInitializeOnLoadMethodAttributes (383ms)
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Client] Successfully resolved entitlement details
+Application.AssetDatabase Initial Refresh Start
+[Package Manager] Restoring resolved packages state from cache
+[Licensing::Client] Successfully resolved entitlement details
+[Package Manager] Registered 61 packages:
+  Packages from [https://packages.unity.com]:
+    com.unity.ide.rider@3.1.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.ide.rider@570989d4a882)
+    com.unity.ide.visualstudio@2.0.26 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.ide.visualstudio@a99d56dec63f)
+    com.unity.inputsystem@1.20.1 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.inputsystem@2436e68c60c4)
+    com.unity.nuget.newtonsoft-json@3.2.2 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.nuget.newtonsoft-json@4dfd81071c64)
+    com.unity.pipeline@0.9.1-exp.1 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.pipeline@363b8bb9e91d)
+    com.unity.testtools.codecoverage@1.3.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.testtools.codecoverage@19a841221620)
+    com.unity.settings-manager@2.1.1 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.settings-manager@0b8638c5ce86)
+    com.unity.nuget.mono-cecil@1.11.6 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.nuget.mono-cecil@ecb9724e46ff)
+    com.unity.searcher@4.9.5 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.searcher@a463122f2c00)
+    com.unity.profiling.core@1.0.3 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.profiling.core@8a49f7027d06)
+  Built-in packages:
+    com.unity.multiplayer.center@2.1.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.multiplayer.center@95d2d3515ad6)
+    com.unity.render-pipelines.universal@17.6.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.render-pipelines.universal@ffe395a3a1d1)
+    com.unity.test-framework@1.8.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.test-framework@ee3fe9477490)
+    com.unity.ugui@2.6.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.ugui@eb824e41fbc7)
+    com.unity.modules.accessibility@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.accessibility)
+    com.unity.modules.adaptiveperformance@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.adaptiveperformance)
+    com.unity.modules.ai@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.ai)
+    com.unity.modules.androidjni@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.androidjni)
+    com.unity.modules.animation@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.animation)
+    com.unity.modules.assetbundle@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.assetbundle)
+    com.unity.modules.audio@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.audio)
+    com.unity.modules.director@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.director)
+    com.unity.modules.imageconversion@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.imageconversion)
+    com.unity.modules.imgui@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.imgui)
+    com.unity.modules.jsonserialize@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.jsonserialize)
+    com.unity.modules.particlesystem@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.particlesystem)
+    com.unity.modules.physics@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.physics)
+    com.unity.modules.physics2d@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.physics2d)
+    com.unity.modules.physicscore2d@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.physicscore2d)
+    com.unity.modules.screencapture@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.screencapture)
+    com.unity.modules.terrain@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.terrain)
+    com.unity.modules.terrainphysics@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.terrainphysics)
+    com.unity.modules.tetgen@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.tetgen)
+    com.unity.modules.tilemap@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.tilemap)
+    com.unity.modules.timelinefoundation@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.timelinefoundation)
+    com.unity.modules.ui@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.ui)
+    com.unity.modules.uielements@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.uielements)
+    com.unity.modules.umbra@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.umbra)
+    com.unity.modules.unityanalytics@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.unityanalytics)
+    com.unity.modules.unitywebrequest@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.unitywebrequest)
+    com.unity.modules.unitywebrequestassetbundle@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.unitywebrequestassetbundle)
+    com.unity.modules.unitywebrequestaudio@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.unitywebrequestaudio)
+    com.unity.modules.unitywebrequesttexture@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.unitywebrequesttexture)
+    com.unity.modules.unitywebrequestwww@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.unitywebrequestwww)
+    com.unity.modules.vectorgraphics@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.vectorgraphics)
+    com.unity.modules.video@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.video)
+    com.unity.modules.xr@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.xr)
+    com.unity.modules.subsystems@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.subsystems)
+    com.unity.modules.hierarchycore@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.modules.hierarchycore)
+    com.unity.ext.nunit@2.1.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.ext.nunit@0198eae3b53e)
+    com.unity.render-pipelines.core@17.6.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.render-pipelines.core@13460d8ea9e5)
+    com.unity.shadergraph@17.6.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.shadergraph@8b7e693cdbfe)
+    com.unity.render-pipelines.universal-config@17.6.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.render-pipelines.universal-config@561422b74439)
+    com.unity.burst@2.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.burst@626e66ab421b)
+    com.unity.collections@6.6.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.collections@4920e8897b5a)
+    com.unity.mathematics@1.4.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.mathematics@8306a64d0cd6)
+    com.unity.graph-authoring@1.0.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.graph-authoring@cfd2588851ee)
+    com.unity.test-framework.performance@6.6.0 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.test-framework.performance@e8b39e3ef3d9)
+  Git packages:
+    com.annulusgames.lit-motion@https://github.com/annulusgames/LitMotion.git?path=src/LitMotion/Assets/LitMotion#v2.0.2 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.annulusgames.lit-motion@e1db5183ffc0)
+    com.cysharp.unitask@https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.cysharp.unitask@bf35135da627)
+    com.yasirkula.nativefilepicker@https://github.com/yasirkula/UnityNativeFilePicker.git (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.yasirkula.nativefilepicker@e32b48b3bab7)
+[Subsystems] No new subsystems found in resolved package list.
+[Package Manager] Done registering packages in 0.04 seconds
+[ScriptCompilation] Requested script compilation because: AssetDatabase observed changes in script compilation related files
+Starting: C:\Program Files\Unity\Hub\Editor\6000.6.7f1\Editor\Data\Tools\BuildPipeline\bee_backend.exe --ipc --defer-dag-verification --dagfile="Library/Bee/1300b0aE.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssemblies
+WorkingDir: E:/DeepseekHarness/OpenSekai
+DisplayProgressbar: Compiling Scripts
+ExitCode: 0 Duration: 5s526ms
+[ 436/1068  0s] WriteResponseFile Library/Bee/artifacts/rsp/4747638433968585886.rsp
+[ 816/1068  0s] ILPP-Configuration Library/ilpp-configuration.nevergeneratedoutput
+[1048/1068  2s] Csc Library/Bee/artifacts/1300b0aE.dag/OpenSekai.Game.dll (+2 others)
+[1052/1068  0s] ILPostProcess Library/Bee/artifacts/1300b0aE.dag/post-processed/OpenSekai.Tests.PlayMode.dll (+pdb)
+Processing assembly Library/Bee/artifacts/1300b0aE.dag/OpenSekai.Tests.PlayMode.dll, with 153 defines and 299 references
+
+processors: Unity.Jobs.CodeGen.JobsILPostProcessor, Unity.Pipeline.CodeGen.MethodReloadInPlaceILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+1 processor(s) skipped this assembly
+
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+
+running Unity.Pipeline.CodeGen.MethodReloadInPlaceILPostProcessor
+[1053/1068  0s] ILPostProcess Library/Bee/artifacts/1300b0aE.dag/post-processed/OpenSekai.Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/1300b0aE.dag/OpenSekai.Editor.dll, with 154 defines and 324 references
+
+processors: Unity.Jobs.CodeGen.JobsILPostProcessor, Unity.Pipeline.CodeGen.MethodReloadInPlaceILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+1 processor(s) skipped this assembly
+
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+
+running Unity.Pipeline.CodeGen.MethodReloadInPlaceILPostProcessor
+[1054/1068  0s] ILPostProcess Library/Bee/artifacts/1300b0aE.dag/post-processed/OpenSekai.App.dll (+pdb)
+Processing assembly Library/Bee/artifacts/1300b0aE.dag/OpenSekai.App.dll, with 153 defines and 310 references
+
+processors: Unity.Jobs.CodeGen.JobsILPostProcessor, Unity.Pipeline.CodeGen.MethodReloadInPlaceILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+1 processor(s) skipped this assembly
+
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+
+running Unity.Pipeline.CodeGen.MethodReloadInPlaceILPostProcessor
+[1061/1068  0s] ILPostProcess Library/Bee/artifacts/1300b0aE.dag/post-processed/OpenSekai.Game.dll (+pdb)
+Processing assembly Library/Bee/artifacts/1300b0aE.dag/OpenSekai.Game.dll, with 153 defines and 312 references
+
+processors: Unity.Jobs.CodeGen.JobsILPostProcessor, Unity.Pipeline.CodeGen.MethodReloadInPlaceILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+1 processor(s) skipped this assembly
+
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+
+running Unity.Pipeline.CodeGen.MethodReloadInPlaceILPostProcessor
+[1062/1068  0s] CopyFiles Library/ScriptAssemblies/OpenSekai.Game.pdb
+[1063/1068  0s] CopyFiles Library/ScriptAssemblies/OpenSekai.Game.dll
+[1064/1068  2s] Csc Library/Bee/artifacts/1300b0aE.dag/OpenSekai.Tests.EditMode.dll (+2 others)
+[1065/1068  0s] ILPostProcess Library/Bee/artifacts/1300b0aE.dag/post-processed/OpenSekai.Tests.EditMode.dll (+pdb)
+Processing assembly Library/Bee/artifacts/1300b0aE.dag/OpenSekai.Tests.EditMode.dll, with 154 defines and 312 references
+
+processors: Unity.Jobs.CodeGen.JobsILPostProcessor, Unity.Pipeline.CodeGen.MethodReloadInPlaceILPostProcessor, zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+1 processor(s) skipped this assembly
+
+running Unity.Jobs.CodeGen.JobsILPostProcessor
+
+running Unity.Pipeline.CodeGen.MethodReloadInPlaceILPostProcessor
+[1066/1068  0s] CopyFiles Library/ScriptAssemblies/OpenSekai.Tests.EditMode.pdb
+[1067/1068  0s] CopyFiles Library/ScriptAssemblies/OpenSekai.Tests.EditMode.dll
+*** Tundra build success (5.46 seconds), 13 items updated, 1068 evaluated
+AssetDatabase: script compilation time: 6.366389s
+Begin MonoManager ReloadAssembly
+'Packages/com.unity.render-pipelines.core/Editor/Deprecated.cs' contains partial class of Unity.Object, exactly 1 of the partial classes needs to be in a file with the same filename. This is to know the one that can be referenced from ie. GameObjects
+'Packages/com.unity.render-pipelines.core/Editor/Deprecated.cs' contains partial class of Unity.Object, exactly 1 of the partial classes needs to be in a file with the same filename. This is to know the one that can be referenced from ie. GameObjects
+Native extension for WindowsStandalone target not found
+Native extension for WebGL target not found
+Native extension for Android target not found
+Start HTTP server: port:7800
+Pipeline: Descriptor written to E:\DeepseekHarness\OpenSekai\Library\Pipeline\.unity-pipeline-port
+ScheduleIndexationOnStartup MainProcess:True IndexOnStartup:True
+Scripting: successfully reloaded assembly
+- Finished resetting the current domain, in  1.770 seconds
+Domain Reload Profiling: 4012ms
+	BeginReloadAssembly (464ms)
+		DisableScriptedObjects (35ms)
+		CreateAndSetChildDomain (149ms)
+	RebuildCommonClasses (15ms)
+	RebuildNativeTypeToScriptingClass (24ms)
+	initialDomainReloadingComplete (199ms)
+	LoadAllAssembliesAndSetupDomain (1540ms)
+		LoadAssemblies (741ms)
+		TypeCache.Refresh (467ms)
+			TypeCache.ScanAssembly (440ms)
+		AnalyzeDomain (123ms)
+			BuildScriptInfoCaches (106ms)
+			ResolveRequiredComponents (13ms)
+	FinalizeReload (1771ms)
+		SetupLoadedEditorAssemblies (0ms)
+			LogAssemblyErrors (3ms)
+			InitializePlatformSupportModulesInManaged (11ms)
+			BeforeProcessingInitializeOnLoad (143ms)
+			ProcessInitializeOnLoadAttributes (630ms)
+			ProcessInitializeOnLoadMethodAttributes (204ms)
+			AfterProcessingInitializeOnLoad (31ms)
+		AwakeInstancesAfterBackupRestoration (41ms)
+Starting new worker id: 0 with log in E:/DeepseekHarness/OpenSekai/Logs/AssetImportWorkerHW0.log
+Refreshing native plugins compatible for Editor in 2.09 ms, found 0 plugins.
+
+Asset Pipeline Refresh (id=bff6d670358214749b47bc40e0836638): Total: 11.843 seconds - Initiated by InitialRefreshV2(ForceSynchronousImport)
+	(Values over 0.05ms)
+	Summary:
+		Imports: total=0 (actual=0, local cache=0, cache server=0)
+		Asset DB Process Time: managed=0 ms, native=2663 ms
+		Asset DB Callback time: managed=240 ms, native=51 ms
+		Scripting: domain reloads=1, domain reload time=2383 ms, compile time=6371 ms, other=133 ms
+		Project Asset Count: scripts=1355, non-scripts=2690
+		Asset File Changes: new=0, changed=4, moved=0, deleted=0
+		Scan Filter Count: 0
+	InvokePackagesCallback: 47.613ms
+	ApplyChangesToAssetFolders: 1.077ms
+	Scan: 247.927ms
+	Collect global state as custom dependencies: 32.853ms
+	OnSourceAssetsModified: 1.947ms
+	CategorizeScriptCompilationAssets: 52.959ms
+	ProcessAssetsWithTransientArtifactChanges: 93.605ms
+	CategorizeAssets: 90.708ms
+	CompileScripts: 6371.128ms
+	ImportOutOfDateAssets: 1857.797ms (1777.714ms without children)
+		ReloadNativeAssets: 0.071ms
+		UnloadImportedAssets: 2.881ms
+		EnsureUptoDateAssetsAreRegisteredWithGuidPM: 1.093ms
+		ImportSchedulerStart: 76.032ms
+	PostProcessAllAssets: 241.728ms
+		VCAutoAddAssetPostprocess 1.164ms
+		XRBuildSystem.XRAssetImported 0.546ms
+		PostProcessCallbackCreateDeferredMaterials 0.152ms
+		MonoPostProcessAllAssets: 239.130ms
+			AssetPostprocessor.OnPostprocessAllAssets 133.838ms
+			UniversalRenderPipelineGlobalSettingsPostprocessor.OnPostprocessAllAssets 24.653ms
+			StyleCatalogPostProcessor.OnPostprocessAllAssets 21.731ms
+			BuilderAssetPostprocessor.OnPostprocessAllAssets 9.240ms
+			SyncVS.PostprocessSyncProject 8.446ms
+			WindowAssetPostprocessingWatcher.OnPostprocessAllAssets 3.422ms
+			AssetChangedListener.OnPostprocessAllAssets 3.027ms
+			SpeedTree9Postprocessor.OnPostprocessAllAssets 2.582ms
+			ShaderGraphAssetPostProcessor.OnPostprocessAllAssets 2.537ms
+			EditModeScopePostprocessor.OnPostprocessAllAssets 1.978ms
+			RetainedModeAssetPostprocessor.OnPostprocessAllAssets 1.884ms
+			MaterialPostprocessor.OnPostprocessAllAssets 1.208ms
+			ShaderReflectionAssetPostProcessor.OnPostprocessAllAssets 1.162ms
+			RenderPipelineGlobalSettingsPostprocessor.OnPostprocessAllAssets 1.086ms
+			ArtifactBrowserPostProcessor.OnPostprocessAllAssets 0.810ms
+			TextAssetPostProcessor.OnPostprocessAllAssets 0.562ms
+			TMPro_TexturePostProcessor.OnPostprocessAllAssets 0.558ms
+			InputActionAssetPostprocessor.OnPostprocessAllAssets 0.547ms
+			PostProcessor.OnPostprocessAllAssets 0.482ms
+			AudioMixerPostprocessor.OnPostprocessAllAssets 0.462ms
+			InputActionJsonNameModifierAssetProcessor.OnPostprocessAllAssets 0.407ms
+			ReferencedClipsPostProcessor.OnPostprocessAllAssets 0.403ms
+			AssetEvents.OnPostprocessAllAssets 0.333ms
+			TerrainToolbarOverlayPostProcessor.OnPostprocessAllAssets 0.312ms
+			SpeedTreePostProcessor.OnPostprocessAllAssets 0.279ms
+			AssetDatabaseCallbacks.OnPostprocessAllAssets 0.269ms
+			ProjectSettingsPostprocessor.OnPostprocessAllAssets 0.264ms
+			ThemePostprocessor.OnPostprocessAllAssets 0.204ms
+			ConfigAssetsTracker.OnPostprocessAllAssets 0.203ms
+			ScenarioDriftAssetsTracker.OnPostprocessAllAssets 0.189ms
+			AudioContainerPostProcessor.OnPostprocessAllAssets 0.141ms
+	PostAssetChangesProfiler: 4.078ms
+	UnloadStreamsBegin: 2.549ms
+	PersistCurrentRevisions: 0.251ms
+	GenerateScriptTypeHashes: 6.246ms
+	GenerateScriptTypeSerializationHashes: 9.897ms
+	Untracked: 2787.424ms
+
+Application.AssetDatabase Initial Refresh End
+Launched and connected shader compiler UnityShaderCompiler.exe after 0.02 seconds
+Scanning for USB devices : 3.775ms
+Initializing Unity extensions:
+[MODES] ModeService[none].Initialize
+[MODES] ModeService[none].LoadModes
+[MODES] Loading mode Default (0) for mode-current-id-OpenSekai
+Unloading 31 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 5158 unused Assets / (7.5 MB). Loaded Objects now: 6230.
+Memory consumption went from 410.6 MB to 403.1 MB.
+Total: 14.730400 ms (FindLiveObjects: 0.654600 ms CreateObjectMapping: 0.410400 ms MarkObjects: 11.074600 ms  DeleteObjects: 2.241200 ms)
+
+[PaintKit] preflight failed before writing:
+line 18 (LocalPacks/paint-kit/hud/lane_skill.png): missing texture Assets/Graphics/Textures/lane_skill.png
+line 20 (LocalPacks/paint-kit/hud/label_grd_h40_dbl.png): missing texture Assets/Graphics/Textures/label_grd_h40_dbl.png
+line 23 (LocalPacks/paint-kit/hud/bg_hiLight_mask.png): missing texture Assets/Graphics/Textures/bg_hiLight_mask.png
+line 26 (LocalPacks/paint-kit/hud/bg_base_wh.png): missing texture Assets/Graphics/Textures/bg_base_wh.png
+line 27 (LocalPacks/paint-kit/hud/skillEffect_text.png): missing texture Assets/Graphics/Textures/skillEffect_text.png
+line 28 (LocalPacks/paint-kit/hud/bg_base_ingame_wh.png): missing texture Assets/Graphics/Textures/bg_base_ingame_wh.png
+line 29 (LocalPacks/paint-kit/hud/number_48px_4_wh.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 30 (LocalPacks/paint-kit/hud/number_48px_8_wh.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 31 (LocalPacks/paint-kit/hud/eff_0_150.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 32 (LocalPacks/paint-kit/hud/judge_perfect.png): missing texture Assets/Graphics/Textures/sactx-0-512x512-ASTC 6x6-JudgeAtlas-7d24d8f5.png
+line 33 (LocalPacks/paint-kit/hud/number_combo_154px_9_pr.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 34 (LocalPacks/paint-kit/hud/number_48px_shadow_3.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 35 (LocalPacks/paint-kit/hud/B.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 36 (LocalPacks/paint-kit/hud/number_combo_154px_6_pr.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 37 (LocalPacks/paint-kit/hud/number_combo_ap_154px_1_rbw.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 38 (LocalPacks/paint-kit/hud/effect_lifeGauge.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 39 (LocalPacks/paint-kit/hud/number_48px_1_wh.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 40 (LocalPacks/paint-kit/hud/number_48px_shadow_1.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 41 (LocalPacks/paint-kit/hud/eff_7_150.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 42 (LocalPacks/paint-kit/hud/number_combo_154px_0_pr.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 43 (LocalPacks/paint-kit/hud/number_combo_154px_1_pr.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 44 (LocalPacks/paint-kit/hud/number_combo_154px_7_pr.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 45 (LocalPacks/paint-kit/hud/gauge_base_h16_dbl.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 46 (LocalPacks/paint-kit/hud/bar_lifeGauge_rd.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 47 (LocalPacks/paint-kit/hud/number_48px_shadow_9.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 48 (LocalPacks/paint-kit/hud/gauge_base_h16_dbl_2.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 49 (LocalPacks/paint-kit/hud/number_48px_shadow_6.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 50 (LocalPacks/paint-kit/hud/number_48px_9_wh.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 51 (LocalPacks/paint-kit/hud/eff_1_150.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 52 (LocalPacks/paint-kit/hud/eff_combo.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 53 (LocalPacks/paint-kit/hud/number_combo_ap_154px_6_rbw.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 54 (LocalPacks/paint-kit/hud/judge_great.png): missing texture Assets/Graphics/Textures/sactx-0-512x512-ASTC 6x6-JudgeAtlas-7d24d8f5.png
+line 55 (LocalPacks/paint-kit/hud/bar_lifeGauge_gn.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 56 (LocalPacks/paint-kit/hud/number_combo_154px_5_pr.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 57 (LocalPacks/paint-kit/hud/eff_8_150.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 58 (LocalPacks/paint-kit/hud/judge_bad.png): missing texture Assets/Graphics/Textures/sactx-0-512x512-ASTC 6x6-JudgeAtlas-7d24d8f5.png
+line 59 (LocalPacks/paint-kit/hud/eff_6_150.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 60 (LocalPacks/paint-kit/hud/effect_scoreGauge.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 61 (LocalPacks/paint-kit/hud/btn_stop_disable.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 62 (LocalPacks/paint-kit/hud/judge_miss.png): missing texture Assets/Graphics/Textures/sactx-0-512x512-ASTC 6x6-JudgeAtlas-7d24d8f5.png
+line 63 (LocalPacks/paint-kit/hud/judge_timing_late.png): missing texture Assets/Graphics/Textures/sactx-0-512x512-ASTC 6x6-JudgeAtlas-7d24d8f5.png
+line 64 (LocalPacks/paint-kit/hud/number_combo_154px_8_pr.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 65 (LocalPacks/paint-kit/hud/txt_combo_ap_rbw.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 66 (LocalPacks/paint-kit/hud/meter_mark.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 67 (LocalPacks/paint-kit/hud/number_48px_0_wh.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 68 (LocalPacks/paint-kit/hud/bg_base_ingame_wh_2.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 69 (LocalPacks/paint-kit/hud/number_combo_ap_154px_8_rbw.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 70 (LocalPacks/paint-kit/hud/number_48px_6_wh.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 71 (LocalPacks/paint-kit/hud/number_combo_154px_4_pr.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 72 (LocalPacks/paint-kit/hud/btn_stop.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 73 (LocalPacks/paint-kit/hud/eff_4_150.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 74 (LocalPacks/paint-kit/hud/number_48px_shadow_8.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 75 (LocalPacks/paint-kit/hud/judge_timing_flick.png): missing texture Assets/Graphics/Textures/sactx-0-512x512-ASTC 6x6-JudgeAtlas-7d24d8f5.png
+line 76 (LocalPacks/paint-kit/hud/number_combo_ap_154px_4_rbw.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 77 (LocalPacks/paint-kit/hud/number_48px_5_wh.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 78 (LocalPacks/paint-kit/hud/btn_skip.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 79 (LocalPacks/paint-kit/hud/number_combo_ap_154px_7_rbw.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 80 (LocalPacks/paint-kit/hud/number_48px_shadow_7.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 81 (LocalPacks/paint-kit/hud/eff_3_150.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 82 (LocalPacks/paint-kit/hud/number_combo_154px_2_pr.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 83 (LocalPacks/paint-kit/hud/score_S.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 84 (LocalPacks/paint-kit/hud/bg_scoreGauge.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 85 (LocalPacks/paint-kit/hud/text_outline_plus_36wh.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 86 (LocalPacks/paint-kit/hud/bg_lifeGauge.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 87 (LocalPacks/paint-kit/hud/icon_heart_gn.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 88 (LocalPacks/paint-kit/hud/judge_good.png): missing texture Assets/Graphics/Textures/sactx-0-512x512-ASTC 6x6-JudgeAtlas-7d24d8f5.png
+line 89 (LocalPacks/paint-kit/hud/C.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 90 (LocalPacks/paint-kit/hud/number_48px_shadow_0.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 91 (LocalPacks/paint-kit/hud/number_48px_shadow_5.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 92 (LocalPacks/paint-kit/hud/number_combo_154px_3_pr.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 93 (LocalPacks/paint-kit/hud/txt_scoreRank_ingame_wh.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 94 (LocalPacks/paint-kit/hud/number_48px_2_wh.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 95 (LocalPacks/paint-kit/hud/number_48px_7_wh.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 96 (LocalPacks/paint-kit/hud/number_combo_ap_154px_5_rbw.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 97 (LocalPacks/paint-kit/hud/white6x6.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 98 (LocalPacks/paint-kit/hud/txt_combo_pr.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 99 (LocalPacks/paint-kit/hud/eff_2_150.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 100 (LocalPacks/paint-kit/hud/number_48px_3_wh.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 101 (LocalPacks/paint-kit/hud/judge_timing_fast.png): missing texture Assets/Graphics/Textures/sactx-0-512x512-ASTC 6x6-JudgeAtlas-7d24d8f5.png
+line 102 (LocalPacks/paint-kit/hud/number_48px_shadow_4.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 103 (LocalPacks/paint-kit/hud/judge_auto.png): missing texture Assets/Graphics/Textures/sactx-0-512x512-ASTC 6x6-JudgeAtlas-7d24d8f5.png
+line 104 (LocalPacks/paint-kit/hud/number_combo_ap_154px_2_rbw.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 105 (LocalPacks/paint-kit/hud/number_48px_shadow_2.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 106 (LocalPacks/paint-kit/hud/number_combo_ap_154px_0_rbw.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 107 (LocalPacks/paint-kit/hud/text_plus_36wh.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 108 (LocalPacks/paint-kit/hud/number_combo_ap_154px_9_rbw.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 109 (LocalPacks/paint-kit/hud/number_combo_ap_154px_3_rbw.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 110 (LocalPacks/paint-kit/hud/eff_5_150.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 111 (LocalPacks/paint-kit/hud/S.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 112 (LocalPacks/paint-kit/hud/eff_9_150.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 113 (LocalPacks/paint-kit/hud/A.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 114 (LocalPacks/paint-kit/hud/skillEffect_text_1.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 115 (LocalPacks/paint-kit/hud/cardFrame_S_2.png): missing texture Assets/Graphics/Textures/sactx-2-1024x1024-ASTC 4x4-FrameAtlas-ceade363.png
+line 116 (LocalPacks/paint-kit/hud/skillLv_40px_1_wh.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 117 (LocalPacks/paint-kit/hud/txt_skill_judge.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 118 (LocalPacks/paint-kit/hud/score_A.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 119 (LocalPacks/paint-kit/hud/skillEffect_text_12.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 120 (LocalPacks/paint-kit/hud/skillEffect_text_6.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 121 (LocalPacks/paint-kit/hud/cardFrame_S_1.png): missing texture Assets/Graphics/Textures/sactx-2-1024x1024-ASTC 4x4-FrameAtlas-ceade363.png
+line 122 (LocalPacks/paint-kit/hud/txt_skill_life.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 123 (LocalPacks/paint-kit/hud/skillLv_40px_shadow_3.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 124 (LocalPacks/paint-kit/hud/label_autolive.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 125 (LocalPacks/paint-kit/hud/skillLv_40px_shadow_1.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 126 (LocalPacks/paint-kit/hud/icon_skill_scoreUp.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 127 (LocalPacks/paint-kit/hud/skillLv_40px_shadow_2.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 129 (LocalPacks/paint-kit/hud/skillEffect_text_0.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 130 (LocalPacks/paint-kit/hud/skillEffect_text_9.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 131 (LocalPacks/paint-kit/hud/txt_skill_scoreUp.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 132 (LocalPacks/paint-kit/hud/skillEffect_text_5.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 133 (LocalPacks/paint-kit/hud/icon_skill_scoreSupport.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 134 (LocalPacks/paint-kit/hud/skillEffect_text_7.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 135 (LocalPacks/paint-kit/hud/skillEffect_text_8.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 136 (LocalPacks/paint-kit/hud/skillLv_40px_Lv_wh.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 137 (LocalPacks/paint-kit/hud/score_D.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 138 (LocalPacks/paint-kit/hud/skillLv_40px_shadow_Lv.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 139 (LocalPacks/paint-kit/hud/skillEffect_text_10.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 140 (LocalPacks/paint-kit/hud/icon_skill_life.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 141 (LocalPacks/paint-kit/hud/icon_skill_judge.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 142 (LocalPacks/paint-kit/hud/bg_cutin_skill_judge.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 143 (LocalPacks/paint-kit/hud/skillEffect_text_2.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 144 (LocalPacks/paint-kit/hud/score_C.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 145 (LocalPacks/paint-kit/hud/skillEffect_text_11.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 146 (LocalPacks/paint-kit/hud/skillEffect_text_4.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 147 (LocalPacks/paint-kit/hud/cardFrame_S_3.png): missing texture Assets/Graphics/Textures/sactx-2-1024x1024-ASTC 4x4-FrameAtlas-ceade363.png
+line 148 (LocalPacks/paint-kit/hud/gauge_bar_ingame_freeLive_s.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 149 (LocalPacks/paint-kit/hud/cardFrame_S_4.png): missing texture Assets/Graphics/Textures/sactx-2-1024x1024-ASTC 4x4-FrameAtlas-ceade363.png
+line 150 (LocalPacks/paint-kit/hud/cardFrame_S_bd.png): missing texture Assets/Graphics/Textures/sactx-2-1024x1024-ASTC 4x4-FrameAtlas-ceade363.png
+line 151 (LocalPacks/paint-kit/hud/skillEffect_text_3.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 152 (LocalPacks/paint-kit/hud/skillLv_40px_shadow_4.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 153 (LocalPacks/paint-kit/hud/score_B.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+line 156 (LocalPacks/paint-kit/hud/txt_cutin_skill_wh.png): missing texture Assets/Graphics/Textures/sactx-0-2048x2048-ASTC 6x6-LiveAtlas-ff0d1eac.png
+UnityEngine.Debug:ExtractStackTraceNoAlloc (byte*,int,string)
+UnityEngine.StackTraceUtility:ExtractStackTrace ()
+UnityEngine.DebugLogHandler:Internal_Log (UnityEngine.LogType,UnityEngine.LogOption,string,UnityEngine.Object)
+UnityEngine.DebugLogHandler:LogFormat (UnityEngine.LogType,UnityEngine.Object,string,object[])
+UnityEngine.Logger:Log (UnityEngine.LogType,object)
+UnityEngine.Debug:LogError (object)
+OpenSekai.EditorTools.PaintKit:ApplyPainted () (at Assets/Game/Editor/PaintKit.cs:174)
+
+(Filename: Assets/Game/Editor/PaintKit.cs Line: 174)
+
+Batchmode quit successfully invoked - shutting down!
+Pipeline Server stopped
+Worker ready: AssetImportWorkerHW0 0
+Killing ADB server in 2.1628366 seconds.
+[Physics::Module] Cleanup current backend.
+[Physics::Module] Id: 0xf2b8ea05
+Input System module state changed to: ShutdownInProgress.
+Input Polling Thread exited.
+Input System module state changed to: Shutdown.
+[Licensing::IpcConnector] LicenseClient-31089-notifications channel disconnected successfully.
+[Licensing::IpcConnector] LicenseClient-31089 channel disconnected successfully.
+Lingering sessions upon destruction of worker manager
+Unity Data Store service was successfully shut down
+UDS shutting down local client system
+AcceleratorClientConnectionCallback - disconnected - :0
+Cleanup mono
+CodeReloadManager destroyed
+Exiting batchmode successfully now!
+[ExitDontLaunchBugReporter] Exiting without the bug reporter. Application will exit with return code 0

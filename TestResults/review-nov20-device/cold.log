@@ -1,0 +1,51 @@
+11-20 16:34:41.084 15614 15659 E Unity   : java.lang.ClassNotFoundException: Didn't find class "com.google.android.play.core.assetpacks.AssetPackManager" on path: DexPathList[[zip file "/data/app/~~IZaDfPHzIIPz4WDNQMrrzw==/io.github.opensekai.reviewnov20-lQrjceRjE5b4X6x1rapJbg==/base.apk"],nativeLibraryDirectories=[/data/app/~~IZaDfPHzIIPz4WDNQMrrzw==/io.github.opensekai.reviewnov20-lQrjceRjE5b4X6x1rapJbg==/lib/arm64, /data/app/~~IZaDfPHzIIPz4WDNQMrrzw==/io.github.opensekai.reviewnov20-lQrjceRjE5b4X6x1rapJbg==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
+11-20 16:34:42.813 15614 15659 I Unity   : [Library] Player library started (home page with splash).
+11-20 16:34:42.863 15614 15659 I Unity   : [Review] loudness codexp23tail76ad6c33 elapsedMs=178.3 maxFrameMs=1349.5
+11-20 16:34:44.816 15614 15659 I Unity   : [Review] thumb server-43 elapsedMs=1982.2 frames=1 lastFrameMs=2854.4
+11-20 16:34:44.962 15614 15659 I Unity   : [Review] thumb restructure-p2-3-device-tai elapsedMs=194.7 frames=1 lastFrameMs=199.2
+11-20 16:34:44.969 15614 15659 I Unity   : [Review] thumb Breach_of_Faith_gbgtml3y0mxo elapsedMs=152.3 frames=1 lastFrameMs=199.2
+11-20 16:34:44.978 15614 15659 I Unity   : [Review] thumb DEINOS_PHAINEIN_27ow4qgb6hqo elapsedMs=150.6 frames=1 lastFrameMs=199.2
+11-20 16:34:44.986 15614 15659 I Unity   : [Review] thumb Kamisama_8c1788a7f4634e69989b979cb23c8c04 elapsedMs=137.7 frames=1 lastFrameMs=199.2
+11-20 16:34:44.995 15614 15659 I Unity   : [Review] thumb LatencyTest_9g1s31yz2tp2 elapsedMs=136.9 frames=1 lastFrameMs=199.2
+11-20 16:34:45.001 15614 15659 I Unity   : [Review] thumb server-45 elapsedMs=135.3 frames=1 lastFrameMs=199.2
+11-20 16:34:45.010 15614 15659 I Unity   : [Review] thumb MARENYX_6kfhd9x2pryk elapsedMs=137.1 frames=1 lastFrameMs=199.2
+11-20 16:34:45.013 15614 15659 I Unity   : [Review] thumb restructure-p2-3-device-tai elapsedMs=126.6 frames=1 lastFrameMs=199.2
+11-20 16:34:45.020 15614 15659 I Unity   : [Review] thumb raputa_l1sk2edi27uu elapsedMs=128.7 frames=1 lastFrameMs=199.2
+11-20 16:34:45.029 15614 15659 I Unity   : [Review] thumb server-42 elapsedMs=127.0 frames=1 lastFrameMs=199.2
+11-20 16:34:45.037 15614 15659 I Unity   : [Review] thumb Redshift_2nd_Ignition_p1i19fw3hrxf_2 elapsedMs=112.7 frames=1 lastFrameMs=199.2
+11-20 16:34:45.057 15614 15659 I Unity   : [Review] thumb baseline_ta elapsedMs=13.7 frames=1 lastFrameMs=12.1
+11-20 16:34:45.059 15614 15659 I Unity   : [Review] loudness codexbaseline20261101tap elapsedMs=2194.5 maxFrameMs=2081.5
+11-20 16:34:45.340 15614 15659 I Unity   : [Review] thumb server-46 elapsedMs=272.1 frames=1 lastFrameMs=259.6
+11-20 16:34:45.383 15614 15659 I Unity   : [Review] thumb 輪廻玲々_3zka7aj2dr3i elapsedMs=25.9 frames=1 lastFrameMs=12.1
+11-20 16:34:45.410 15614 15659 I Unity   : [Review] thumb 人生リセットボタン_Life_Reset_Button_u3r2zt97irqx elapsedMs=21.4 frames=1 lastFrameMs=12.1
+11-20 16:34:45.447 15614 15659 I Unity   : [Review] thumb 月葬_【APPEND_35】_8uj2pn68o5el elapsedMs=25.9 frames=1 lastFrameMs=18.1
+11-20 16:34:45.482 15614 15659 I Unity   : [Review] thumb ULTIM@TE☆BE∀M!!_xdvgwx0rjliy elapsedMs=29.4 frames=1 lastFrameMs=24.1
+11-20 16:34:45.618 15614 15659 I Unity   : [Review] loudness 3zka7aj2dr3i elapsedMs=557.9 maxFrameMs=266.9
+11-20 16:34:46.089 15614 15659 I Unity   : [Review] loudness xn220h1yh2d9 elapsedMs=470.6 maxFrameMs=316.2
+11-20 16:34:46.407 15614 15659 I Unity   : [Review] introDone frame=61
+11-20 16:34:46.567 15614 15659 I Unity   : [Review] loudness 8uj2pn68o5el elapsedMs=477.3 maxFrameMs=308.0
+11-20 16:34:46.980 15614 15659 I Unity   : [Review] loudness u3r2zt97irqx elapsedMs=413.5 maxFrameMs=266.5
+11-20 16:34:47.260 15614 15659 I Unity   : [Review] loudness amx9ivmfq9qy elapsedMs=279.0 maxFrameMs=176.5
+11-20 16:34:48.039 15614 15659 I Unity   : [Review] loudness r8yxmywwyzk3 elapsedMs=779.1 maxFrameMs=583.0
+11-20 16:34:48.629 15614 15659 I Unity   : [Review] loudness ol3s9va6e8i9 elapsedMs=588.0 maxFrameMs=388.1
+11-20 16:34:49.011 15614 15659 I Unity   : [Review] home enter frame=203
+11-20 16:34:49.410 15614 15659 I Unity   : [Review] loudness qvfd1634upu4 elapsedMs=779.9 maxFrameMs=374.9
+11-20 16:34:49.876 15614 15659 I Unity   : [Review] loudness 3zqjqhxj3uks elapsedMs=466.0 maxFrameMs=274.3
+11-20 16:34:50.471 15614 15659 I Unity   : [Review] library presented=True
+11-20 16:34:50.542 15614 15659 I Unity   : [Review] thumb server-43 elapsedMs=46.2 frames=3 lastFrameMs=6.0
+11-20 16:34:51.018 15614 15659 I Unity   : [Review] thumb コネクト_amx9ivmfq9qy elapsedMs=31.9 frames=2 lastFrameMs=6.0
+11-20 16:34:51.133 15614 15659 I Unity   : [Review] loudness fzzmizsha6lo elapsedMs=1256.3 maxFrameMs=573.7
+11-20 16:34:51.588 15614 15659 I Unity   : [Review] thumb server-44 elapsedMs=28.7 frames=3 lastFrameMs=6.2
+11-20 16:34:51.859 15614 15659 I Unity   : [Review] thumb 神威_(Kamui)_xn220h1yh2d9 elapsedMs=19.5 frames=1 lastFrameMs=12.1
+11-20 16:34:51.973 15614 15659 I Unity   : [Review] loudness l1sk2edi27uu elapsedMs=839.6 maxFrameMs=402.7
+11-20 16:34:52.376 15614 15659 I Unity   : [Review] loudness xdvgwx0rjliy elapsedMs=402.5 maxFrameMs=270.9
+11-20 16:34:52.827 15614 15659 I Unity   : [Review] loudness p1i19fw3hrxf elapsedMs=451.4 maxFrameMs=291.6
+11-20 16:34:53.371 15614 15659 I Unity   : [Review] loudness 6kfhd9x2pryk elapsedMs=543.1 maxFrameMs=324.2
+11-20 16:34:53.985 15614 15659 I Unity   : [Review] loudness 9g1s31yz2tp2 elapsedMs=611.5 maxFrameMs=354.5
+11-20 16:34:54.403 15614 15659 I Unity   : [Review] loudness 8c1788a7f4634e69989b979cb23c8c04 elapsedMs=417.3 maxFrameMs=281.6
+11-20 16:34:55.043 15614 15659 I Unity   : [Review] loudness 27ow4qgb6hqo elapsedMs=640.0 maxFrameMs=388.0
+11-20 16:34:55.715 15614 15659 I Unity   : [Review] loudness gbgtml3y0mxo elapsedMs=670.8 maxFrameMs=399.8
+11-20 16:34:55.745 15614 15659 I Unity   : [Review] jar bundle=Done
+11-20 16:34:55.899 15614 15659 I Unity   : [Review] syncStartMs=114.6689
+11-20 16:34:56.285 15614 15659 I Unity   : [Review] playback=Started
+11-20 16:34:56.528 15614 15659 I Unity   : [Review] MusicReady frame=655
