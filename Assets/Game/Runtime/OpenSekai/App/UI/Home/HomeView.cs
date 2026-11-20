@@ -42,7 +42,7 @@ namespace OpenSekai.App.UI
         /// <param name="openLibrary">The library card was tapped.</param>
         /// <param name="openAbout">The header's about button was tapped.</param>
         /// <param name="comingSoon">A card for an unbuilt part was tapped; gets the part's name.</param>
-        internal HomeView(RectTransform parent, Action openLibrary, Action openAbout, Action<string> comingSoon, Action openServer = null)
+        internal HomeView(RectTransform parent, Action openLibrary, Action openAbout, Action openSettings, Action<string> comingSoon, Action openServer = null)
         {
             _root = LibraryUi.CreateRect("Home", parent);
             LibraryUi.Stretch(_root);
@@ -55,7 +55,7 @@ namespace OpenSekai.App.UI
             _headerRect = LibraryUi.CreateRect("Header", _root);
             LibraryWidgets.TopStrip(_headerRect, margin, margin, 0f, HomeTheme.Layout.HEADER_HEIGHT);
             _header = _headerRect.gameObject.AddComponent<CanvasGroup>();
-            BuildHeader(_headerRect, openAbout);
+            BuildHeader(_headerRect, openAbout, openSettings);
 
             RectTransform footer = LibraryUi.CreateRect("Footer", _root);
             LibraryWidgets.BottomStrip(footer, margin, margin, 30f, 30f);
@@ -65,7 +65,7 @@ namespace OpenSekai.App.UI
                 "Tagline", footer, "Open Sekai Atlas  ·  开源下落式音游播放器", LibraryTheme.FontSize.CAPTION, LibraryTheme.Colors.TextMuted);
             LibraryUi.Stretch(tagline.rectTransform);
             TextMeshProUGUI licenses = LibraryWidgets.Label(
-                "Licenses", footer, "MIT  ·  OFL  ·  CC0", LibraryTheme.FontSize.CAPTION, LibraryTheme.Colors.TextMuted,
+                "PlayFeatures", footer, "社区谱面  ·  离线打歌", LibraryTheme.FontSize.CAPTION, LibraryTheme.Colors.TextMuted,
                 FontStyles.Normal, TextAlignmentOptions.Right);
             LibraryUi.Stretch(licenses.rectTransform);
 
@@ -320,7 +320,7 @@ namespace OpenSekai.App.UI
             return slot;
         }
 
-        private void BuildHeader(RectTransform header, Action openAbout)
+        private void BuildHeader(RectTransform header, Action openAbout, Action openSettings)
         {
             Vector2 leftCenter = new Vector2(0f, 0.5f);
             float emblem = HomeTheme.Layout.BRAND_EMBLEM_SIZE;
@@ -349,11 +349,12 @@ namespace OpenSekai.App.UI
                 new Vector2(chipWidth, chipHeight));
 
             float size = LibraryTheme.Layout.CONTROL_HEIGHT;
+            float right = LibraryView.AddSettingsButton(header, () => openSettings());
             Button about = LibraryWidgets.PillButton("About", header, string.Empty, () => openAbout?.Invoke(), size, size,
                 LibraryTheme.Colors.Control, LibraryTheme.Colors.TextSecondary, sound: UiCue.None);
             LibraryWidgets.Outline((Image)about.targetGraphic, size * 0.5f);
             LibraryWidgets.Icon(about.transform, LibraryIcon.Info, LibraryTheme.Colors.TextSecondary, 30f);
-            LibraryWidgets.Place((RectTransform)about.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero,
+            LibraryWidgets.Place((RectTransform)about.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-right, 0f),
                 new Vector2(size, size));
         }
 

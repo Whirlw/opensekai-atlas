@@ -142,6 +142,24 @@ namespace OpenSekai.Infrastructure.Sonolus
             }
         }
 
+        internal async UniTask<(AudioClip Clip, byte[] Data)> DownloadAudioAsync(
+            SonolusSrl resource, long maxBytes, Action<float> progress, CancellationToken cancellationToken)
+        {
+            string url = resource != null ? Address.Resolve(resource.Url) : null;
+            if (url == null) throw new SonolusException("服务器没有提供有效的 HTTPS 音频地址。");
+
+            using var request = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.UNKNOWN);
+            request.timeout = DOWNLOAD_TIMEOUT_SECONDS;
+            await SendAsync(request, maxBytes, progress, cancellationToken);
+            byte[] data = request.downloadHandler.data;
+            if (data == null || SonolusLevelInstaller.AudioExtension(data) == null)
+                throw new SonolusException("音乐格式无法识别（仅支持 MP3 / OGG / WAV）。");
+
+            AudioClip clip = DownloadHandlerAudioClip.GetContent(request);
+            if (clip == null) throw new SonolusException("无法解码服务器音频。");
+            return (clip, data);
+        }
+
         private async UniTask<JToken> GetJsonAsync(
             string path, List<KeyValuePair<string, string>> query, CancellationToken cancellationToken)
         {
@@ -225,7 +243,7 @@ namespace OpenSekai.Infrastructure.Sonolus
                 throw new SonolusException("请求失败：" + request.error);
             }
 
-            if (request.downloadHandler.data != null && request.downloadHandler.data.LongLength > maxBytes)
+            if (request.downloadedBytes > (ulong)maxBytes || request.downloadHandler.nativeData.Length > maxBytes)
             {
                 throw new SonolusException("资源超过大小限制（" + FormatBytes(maxBytes) + "）。");
             }

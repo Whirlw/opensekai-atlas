@@ -58,13 +58,13 @@ namespace OpenSekai.App.UI
         private Image _retryIcon;
         private MotionHandle _scoreMotion;
 
-        public static LibraryResultPanel Create(Transform parent, Action<PlayResult> onRetry)
+        public static LibraryResultPanel Create(Transform parent, Action<PlayResult> onRetry, string backLabel = "返回曲库")
         {
             RectTransform root = LibraryUi.CreateRect("ResultPanel", parent);
             LibraryUi.Stretch(root);
             LibraryResultPanel panel = root.gameObject.AddComponent<LibraryResultPanel>();
             panel._onRetry = onRetry;
-            panel.Build();
+            panel.Build(backLabel);
             panel.Hide();
             return panel;
         }
@@ -147,7 +147,7 @@ namespace OpenSekai.App.UI
             _modal?.Dispose();
         }
 
-        private void Build()
+        private void Build(string backLabel)
         {
             var root = (RectTransform)transform;
             // No close button and an inert scrim: the session ends on one of the two actions.
@@ -268,7 +268,7 @@ namespace OpenSekai.App.UI
             const float backWidth = 220f;
             const float retryWidth = 280f;
             Button back = LibraryWidgets.PillButton(
-                "Back", actions, "返回曲库", Close, backWidth, BUTTON_HEIGHT,
+                "Back", actions, backLabel, Close, backWidth, BUTTON_HEIGHT,
                 LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, 24f, sound: UiCue.Back);
             LibraryWidgets.Outline((Image)back.targetGraphic, BUTTON_HEIGHT * 0.5f);
             LibraryWidgets.Place((RectTransform)back.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),

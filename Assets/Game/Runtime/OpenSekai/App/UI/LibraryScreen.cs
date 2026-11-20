@@ -63,8 +63,6 @@ namespace OpenSekai.App.UI
 
         public void Refresh() => _presenter?.Refresh();
 
-        /// <summary>Selects the package in this folder and starts it, as its 开始 button would.</summary>
-        internal void PlayPackage(string packageDirectory) => _presenter?.PlayPackage(packageDirectory);
         public void ShowResult(PlayResult result) => _presenter?.ShowResult(result);
 
         private void Awake() => LibraryPageRegistry.Register(this);

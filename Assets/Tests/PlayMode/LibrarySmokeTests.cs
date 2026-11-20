@@ -2,6 +2,8 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Collections;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using OpenSekai.App;
@@ -20,6 +22,7 @@ using SceneLoader = UnityEngine.SceneManagement.SceneManager;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using UnityEngine.UI;
+using UnityEngine.Networking;
 using TMPro;
 
 namespace OpenSekai.Tests.PlayMode
@@ -265,6 +268,49 @@ namespace OpenSekai.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator ServerPlaybackRestoresTheSamePagesAndCaches()
+        {
+            yield return LibrarySceneBootsAndShowsThePage();
+            var originalHome = HomeScreen.Current;
+            originalHome.ShowServerImmediately();
+            var server = Object.FindFirstObjectByType<ServerScreen>();
+            var page = server.Top;
+            var covers = server.Covers;
+            var installer = server.Installer;
+            string fixture = Path.GetFullPath(Path.Combine(Application.dataPath, "../Tools/fixtures/baseline_tap"));
+
+            server.RequestPlay(fixture, "Server return test");
+            yield return WaitFor(
+                () =>
+                {
+                    if (originalHome != null)
+                        Assert.That(Object.FindFirstObjectByType<LibraryScreen>().IsPresented, Is.False);
+                    return SceneLoader.GetActiveScene().name == "Core" && Object.FindFirstObjectByType<SoloLiveController>() != null;
+                },
+                BootTimeoutSeconds, "starting the server chart");
+            Assert.That(server.IsPresented, Is.False);
+            Assert.That(originalHome == null, Is.True);
+
+            LibraryResultPanel panel = null;
+            yield return WaitFor(() =>
+            {
+                panel = Object.FindFirstObjectByType<LibraryResultPanel>();
+                return SceneLoader.GetActiveScene().name == "Library" && panel != null && panel.IsOpen;
+            }, 90f, "showing the server result");
+
+            Assert.That(Object.FindFirstObjectByType<ServerScreen>(), Is.SameAs(server));
+            Assert.That(server.gameObject.scene, Is.EqualTo(SceneLoader.GetActiveScene()));
+            Assert.That(server.Top, Is.SameAs(page));
+            Assert.That(server.Covers, Is.SameAs(covers));
+            Assert.That(server.Installer, Is.SameAs(installer));
+            Assert.That(Object.FindFirstObjectByType<LibraryScreen>().IsPresented, Is.False);
+            Assert.That(panel.GetComponentsInChildren<TextMeshProUGUI>().Any(label => label.text == "返回服务器"), Is.True);
+            Assert.That(server.TryHandleBack(), Is.True);
+            Assert.That(panel.IsOpen, Is.False);
+            Assert.That(server.IsPresented, Is.True);
+        }
+
+        [UnityTest]
         public IEnumerator InterruptedSonolusUpdateLeavesTheOldPackagePlayableFromTheLibrary()
         {
             yield return LibrarySceneBootsAndShowsThePage();
@@ -344,6 +390,82 @@ namespace OpenSekai.Tests.PlayMode
                 manifest["id"] = "sonolus-recovery-" + revision;
                 File.WriteAllText(manifestPath, manifest.ToString());
                 return destination;
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator TemporaryServerChartPlaysThenInstallsFromMemoryAndReleasesCache()
+        {
+            yield return LibrarySceneBootsAndShowsThePage();
+            string root = Path.Combine(Path.GetTempPath(), "OpenSekai-TemporarySonolus-" + System.Guid.NewGuid().ToString("N"));
+            string source = Directory.CreateDirectory(Path.Combine(root, "source")).FullName;
+            try
+            {
+                WriteNextRushTimingPackage(source);
+                string chartPath = Path.Combine(source, "level-data.json");
+                string audioPath = Path.Combine(source, "audio.wav");
+                byte[] chartData = File.ReadAllBytes(chartPath);
+                byte[] audioData = File.ReadAllBytes(audioPath);
+                AudioClip clip;
+                using (var request = UnityWebRequestMultimedia.GetAudioClip(new System.Uri(audioPath).AbsoluteUri, AudioType.UNKNOWN))
+                {
+                    yield return request.SendWebRequest();
+                    Assert.That(request.result, Is.EqualTo(UnityWebRequest.Result.Success), request.error);
+                    Assert.That(request.downloadHandler.data, Is.EqualTo(audioData));
+                    clip = DownloadHandlerAudioClip.GetContent(request);
+                    Assert.That(clip, Is.Not.Null);
+                }
+
+                var address = SonolusServerAddress.Parse("https://example.invalid");
+                var details = SonolusLevelDetails.From(new JObject
+                {
+                    ["item"] = new JObject
+                    {
+                        ["name"] = "cached-" + System.Guid.NewGuid().ToString("N"),
+                        ["engine"] = new JObject { ["name"] = SonolusLevelInstaller.SUPPORTED_ENGINE },
+                        ["data"] = new JObject { ["url"] = "/chart" },
+                        ["bgm"] = new JObject { ["url"] = "/music" }
+                    }
+                });
+                var installer = new SonolusLevelInstaller(new SongPackageManager(Path.Combine(root, "library")),
+                    Path.Combine(root, "index"), Path.Combine(root, "staging"));
+                var metadata = Newtonsoft.Json.JsonConvert.DeserializeObject<OpenSekai.Shared.Packages.SongPackageManifest>(
+                    SonolusLevelInstaller.BuildManifest(details, ".wav", null));
+                var entry = new OpenSekai.Shared.Packages.SongPackage(null, metadata);
+                var chart = OpenSekai.Infrastructure.Charts.NextRushChartLoader.ReadFile(chartPath);
+                var cached = new TemporarySongPackage(entry, chart, SongPackageHash.Compute(chartPath), clip, chartData, audioData, null);
+                SonolusLevelInstaller.RememberTemporary(address, details.Level, cached);
+                Directory.Delete(source, recursive: true);
+                Assert.That(installer.FindInstalled(address, details.Level.Name), Is.Null);
+
+                HomeScreen.Current.ShowServerImmediately();
+                var screen = Object.FindFirstObjectByType<ServerScreen>();
+                screen.RequestPlay(null, "Temporary server test", cached);
+                yield return WaitFor(
+                    () => SceneLoader.GetActiveScene().name == "Core" && Object.FindFirstObjectByType<SoloLiveController>() != null,
+                    BootTimeoutSeconds, "playing the temporary chart without a package folder");
+                yield return WaitFor(
+                    () => SceneLoader.GetActiveScene().name == "Library" && screen.IsPresented,
+                    90f, "returning to the server after temporary play");
+                Assert.That(clip != null, Is.True, "releasing live audio must leave the cache usable");
+                Assert.That(installer.FindInstalled(address, details.Level.Name), Is.Null);
+
+                Assert.That(screen.TryHandleBack(), Is.True);
+                var install = installer.InstallAsync(new SonolusClient(address), details, null, CancellationToken.None).ToCoroutine(
+                    installed =>
+                    {
+                        Assert.That(File.ReadAllBytes(installed.ScorePath), Is.EqualTo(chartData));
+                        Assert.That(File.ReadAllBytes(installed.AudioPath), Is.EqualTo(audioData));
+                    });
+                yield return install;
+                Assert.That(installer.FindInstalled(address, details.Level.Name), Is.Not.Null);
+                Assert.That(SonolusLevelInstaller.FindTemporary(address, details.Level), Is.Null);
+                yield return null;
+                Assert.That(clip == null, Is.True, "the promoted clip should be released");
+            }
+            finally
+            {
+                Directory.Delete(root, recursive: true);
             }
         }
 

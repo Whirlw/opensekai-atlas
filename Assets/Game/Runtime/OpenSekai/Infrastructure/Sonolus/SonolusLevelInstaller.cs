@@ -7,6 +7,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using OpenSekai.App.Playback;
 using OpenSekai.Infrastructure.Charts;
 using OpenSekai.Infrastructure.Packages;
 using OpenSekai.Shared.Packages;
@@ -52,6 +53,10 @@ namespace OpenSekai.Infrastructure.Sonolus
 
         private static readonly string[] DifficultyNames = { "easy", "normal", "hard", "expert", "master", "append" };
         private static SonolusLevelInstaller _shared;
+        private const long TemporaryPackageBudget = 128L * 1024 * 1024;
+        private const int TemporaryPackageLimit = 3;
+        private static readonly LinkedList<(string Key, SonolusLevel Level, TemporarySongPackage Package)> TemporaryPackages =
+            new LinkedList<(string, SonolusLevel, TemporarySongPackage)>();
 
         private readonly SongPackageManager _packages;
         private readonly string _indexPath;
@@ -64,6 +69,14 @@ namespace OpenSekai.Infrastructure.Sonolus
             _indexPath = Path.Combine(indexDirectory, INDEX_FILE_NAME);
             _stagingRoot = stagingRoot;
             TryRecoverPublication();
+        }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ClearTemporaryPackages()
+        {
+            foreach (var entry in TemporaryPackages)
+                if (entry.Package.Audio != null) UnityEngine.Object.Destroy(entry.Package.Audio);
+            TemporaryPackages.Clear();
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -149,6 +162,15 @@ namespace OpenSekai.Infrastructure.Sonolus
                 return current;
             }
 
+            var cached = FindTemporary(server, level);
+            if (cached != null)
+            {
+                SongPackage installed = await SaveDownloadedAsync(server, details, cached.ChartData, cached.AudioData,
+                    cached.CoverData, progress, cancellationToken, chartValidated: true);
+                ForgetTemporary(cached);
+                return installed;
+            }
+
             // Weights roughly follow typical sizes: the music dominates.
             progress?.Invoke(0f, "正在下载谱面…");
             byte[] data = await client.DownloadAsync(level.Data, MAX_DATA_BYTES,
@@ -159,46 +181,142 @@ namespace OpenSekai.Infrastructure.Sonolus
             byte[] audio = await client.DownloadAsync(level.Bgm, MAX_AUDIO_BYTES,
                 value => progress?.Invoke(0.1f + 0.75f * Known(value), "正在下载音乐…"), cancellationToken);
             await VerifyAsync(audio, level.Bgm.Hash, "音乐", cancellationToken);
-            string audioExtension = AudioExtension(audio) ?? throw new SonolusException("音乐格式无法识别（仅支持 MP3 / OGG / WAV）。");
+            if (AudioExtension(audio) == null) throw new SonolusException("音乐格式无法识别（仅支持 MP3 / OGG / WAV）。");
 
-            byte[] cover = null;
-            string coverExtension = null;
-            if (level.Cover != null)
+            byte[] cover = await DownloadCoverAsync(client, level, progress, cancellationToken);
+            return await SaveDownloadedAsync(server, details, data, audio, cover, progress, cancellationToken);
+        }
+
+        private static async UniTask<byte[]> DownloadCoverAsync(
+            SonolusClient client, SonolusLevel level, Action<float, string> progress, CancellationToken token)
+        {
+            if (level.Cover == null) return null;
+            try
             {
-                progress?.Invoke(0.85f, "正在下载封面…");
-                try
-                {
-                    cover = await client.DownloadAsync(level.Cover, MAX_COVER_BYTES,
-                        value => progress?.Invoke(0.85f + 0.1f * Known(value), "正在下载封面…"), cancellationToken);
-                    await VerifyAsync(cover, level.Cover.Hash, "封面", cancellationToken);
-                    coverExtension = ImageExtension(cover);
-                }
-                catch (SonolusException exception)
-                {
-                    // A chart without its cover still plays; the library shows a placeholder.
-                    Debug.LogWarning("[Sonolus] Cover skipped: " + exception.Message);
-                    cover = null;
-                }
-
-                if (coverExtension == null)
-                {
-                    cover = null;
-                }
+                byte[] cover = await client.DownloadAsync(level.Cover, MAX_COVER_BYTES,
+                    value => progress?.Invoke(0.85f + 0.1f * Known(value), "正在下载封面…"), token);
+                await VerifyAsync(cover, level.Cover.Hash, "封面", token);
+                return ImageExtension(cover) != null ? cover : null;
             }
+            catch (SonolusException exception)
+            {
+                Debug.LogWarning("[Sonolus] Cover skipped: " + exception.Message);
+                return null;
+            }
+        }
 
-            progress?.Invoke(0.95f, "正在检查谱面…");
+        private async UniTask<SongPackage> SaveDownloadedAsync(SonolusServerAddress server, SonolusLevelDetails details,
+            byte[] data, byte[] audio, byte[] cover, Action<float, string> progress, CancellationToken token,
+            bool chartValidated = false)
+        {
+            string audioExtension = AudioExtension(audio);
+            string coverExtension = cover == null ? null : ImageExtension(cover);
+            progress?.Invoke(0.95f, chartValidated ? "正在保存已缓存的谱面…" : "正在检查谱面…");
             string manifestJson = BuildManifest(details, audioExtension, coverExtension);
             string sourceJson = BuildSource(server, details);
-            return await StageAndPublishAsync(server, level, staging =>
+            return await StageAndPublishAsync(server, details.Level, staging =>
             {
-                File.WriteAllBytes(Path.Combine(staging, DATA_FILE_NAME), data);
-                NextRushChartLoader.ReadFile(Path.Combine(staging, DATA_FILE_NAME));
+                string chartPath = Path.Combine(staging, DATA_FILE_NAME);
+                File.WriteAllBytes(chartPath, data);
+                if (!chartValidated) NextRushChartLoader.ReadFile(chartPath);
                 File.WriteAllBytes(Path.Combine(staging, "audio" + audioExtension), audio);
-                if (cover != null)
+                if (coverExtension != null)
                     File.WriteAllBytes(Path.Combine(staging, "jacket" + coverExtension), cover);
                 File.WriteAllText(Path.Combine(staging, SongPackageStorage.MANIFEST_FILE_NAME), manifestJson, new UTF8Encoding(false));
                 File.WriteAllText(Path.Combine(staging, SOURCE_FILE_NAME), sourceJson, new UTF8Encoding(false));
-            }, progress, cancellationToken);
+            }, progress, token);
+        }
+
+        private static void ForgetTemporary(TemporarySongPackage package)
+        {
+            for (var node = TemporaryPackages.First; node != null; node = node.Next)
+            {
+                if (node.Value.Package != package) continue;
+                TemporaryPackages.Remove(node);
+                if (package.Audio != null) UnityEngine.Object.Destroy(package.Audio);
+                return;
+            }
+        }
+
+        internal static TemporarySongPackage FindTemporary(SonolusServerAddress server, SonolusLevel level)
+        {
+            string key = KeyOf(server, level.Name);
+            for (var node = TemporaryPackages.Last; node != null; node = node.Previous)
+            {
+                var cached = node.Value;
+                if (cached.Key != key || cached.Package.Audio == null) continue;
+                bool sameVersion = cached.Level.Version == level.Version;
+                if (!MatchesResource(cached.Level.Data, level.Data, sameVersion)
+                    || !MatchesResource(cached.Level.Bgm, level.Bgm, sameVersion)
+                    || !MatchesResource(cached.Level.Cover, level.Cover, sameVersion)) continue;
+
+                TemporaryPackages.Remove(node);
+                TemporaryPackages.AddLast(node);
+                return cached.Package;
+            }
+
+            return null;
+        }
+
+        internal async UniTask<TemporarySongPackage> LoadTemporaryAsync(
+            SonolusClient client, SonolusLevelDetails details, Action<float, string> progress, CancellationToken token)
+        {
+            SonolusLevel level = details?.Level;
+            if (!IsSupported(level, out string reason)) throw new SonolusException(reason);
+            token.ThrowIfCancellationRequested();
+
+            var cached = FindTemporary(client.Address, level);
+            if (cached != null) return cached;
+
+            progress?.Invoke(0f, "正在读取临时谱面…");
+            byte[] data = await client.DownloadAsync(level.Data, MAX_DATA_BYTES,
+                value => progress?.Invoke(0.2f * Known(value), "正在读取临时谱面…"), token);
+            await VerifyAsync(data, level.Data.Hash, "谱面", token);
+            var chart = await UniTask.RunOnThreadPool(() =>
+            {
+                using var stream = new MemoryStream(data, writable: false);
+                return NextRushChartLoader.Read(stream);
+            }, cancellationToken: token);
+
+            progress?.Invoke(0.2f, "正在读取临时音乐…");
+            var audio = await client.DownloadAudioAsync(level.Bgm, MAX_AUDIO_BYTES,
+                value => progress?.Invoke(0.2f + 0.65f * Known(value), "正在读取临时音乐…"), token);
+            try
+            {
+                await VerifyAsync(audio.Data, level.Bgm.Hash, "音乐", token);
+                byte[] cover = await DownloadCoverAsync(client, level, progress, token);
+                token.ThrowIfCancellationRequested();
+                string extension = AudioExtension(audio.Data);
+                var metadata = new SongPackage(null, CreateManifest(details, extension, null));
+                using var sha = SHA256.Create();
+                string chartHash = BitConverter.ToString(sha.ComputeHash(data)).Replace("-", "").ToLowerInvariant();
+                var package = new TemporarySongPackage(metadata, chart, chartHash, audio.Clip, data, audio.Data, cover);
+                RememberTemporary(client.Address, level, package);
+                return package;
+            }
+            catch
+            {
+                UnityEngine.Object.Destroy(audio.Clip);
+                throw;
+            }
+        }
+
+        internal static void RememberTemporary(SonolusServerAddress server, SonolusLevel level, TemporarySongPackage package)
+        {
+            TemporaryPackages.AddLast((KeyOf(server, level.Name), level, package));
+
+            long retainedBytes = 0;
+            foreach (var entry in TemporaryPackages)
+                retainedBytes += entry.Package.RetainedBytes;
+
+            while (TemporaryPackages.Count > TemporaryPackageLimit
+                || (TemporaryPackages.Count > 1 && retainedBytes > TemporaryPackageBudget))
+            {
+                var oldest = TemporaryPackages.First.Value.Package;
+                TemporaryPackages.RemoveFirst();
+                retainedBytes -= oldest.RetainedBytes;
+                if (oldest.Audio != null) UnityEngine.Object.Destroy(oldest.Audio);
+            }
         }
 
         internal async UniTask<SongPackage> StageAndPublishAsync(SonolusServerAddress server, SonolusLevel level,
@@ -376,7 +494,10 @@ namespace OpenSekai.Infrastructure.Sonolus
         }
 
         /// <summary>The manifest of the package, mapped from the level's fields.</summary>
-        internal static string BuildManifest(SonolusLevelDetails details, string audioExtension, string coverExtension)
+        internal static string BuildManifest(SonolusLevelDetails details, string audioExtension, string coverExtension) =>
+            JsonConvert.SerializeObject(CreateManifest(details, audioExtension, coverExtension), Formatting.Indented);
+
+        private static SongPackageManifest CreateManifest(SonolusLevelDetails details, string audioExtension, string coverExtension)
         {
             SonolusLevel level = details.Level;
             var manifest = new SongPackageManifest
@@ -404,7 +525,7 @@ namespace OpenSekai.Infrastructure.Sonolus
                 manifest.jacketFileName = string.Empty;
             }
 
-            return JsonConvert.SerializeObject(manifest, Formatting.Indented);
+            return manifest;
         }
 
         /// <summary>

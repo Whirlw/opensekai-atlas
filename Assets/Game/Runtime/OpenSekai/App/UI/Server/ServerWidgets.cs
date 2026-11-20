@@ -19,10 +19,11 @@ namespace OpenSekai.App.UI
 
         /// <summary>
         /// The page's top bar: back button, title and a muted subtitle on the left. Returns the
-        /// bar; the caller lays its own controls out from the right edge.
+        /// bar and the offset at which the caller can place its other right-aligned controls.
         /// </summary>
         internal static RectTransform TopBar(
-            RectTransform root, string title, Action back, out TextMeshProUGUI titleText, out TextMeshProUGUI subtitleText)
+            RectTransform root, string title, Action back, UnityAction openSettings,
+            out TextMeshProUGUI titleText, out TextMeshProUGUI subtitleText, out float rightInset)
         {
             float margin = LibraryTheme.Spacing.PAGE_MARGIN;
             float height = LibraryTheme.Layout.CONTROL_HEIGHT;
@@ -45,6 +46,7 @@ namespace OpenSekai.App.UI
             subtitleText.rectTransform.pivot = new Vector2(0f, 0.5f);
             subtitleText.rectTransform.offsetMin = new Vector2(height + 22f, -36f);
             subtitleText.rectTransform.offsetMax = new Vector2(0f, -8f);
+            rightInset = LibraryView.AddSettingsButton(bar, openSettings);
             return bar;
         }
 

@@ -10,6 +10,7 @@ using OpenSekai.Infrastructure.Packages;
 using UnityEngine;
 using OpenSekai.Shared.Packages;
 using OpenSekai.Shared.Settings;
+using OpenSekai.Shared.Audio;
 using OpenSekai.Live.Conversion;
 using Sekai.Core;
 using Sekai.Core.Live;
@@ -73,7 +74,8 @@ namespace OpenSekai.App.Playback
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (request == null || string.IsNullOrWhiteSpace(request.PackageDirectory))
+                var temporary = request?.TemporaryPackage;
+                if (temporary == null && string.IsNullOrWhiteSpace(request?.PackageDirectory))
                 {
                     return Result(PlayStartStatus.Failed, "请选择一个谱面。");
                 }
@@ -96,24 +98,27 @@ namespace OpenSekai.App.Playback
 
                 progress?.Invoke("正在读取谱面...");
                 // The cached package when the library holds it; a folder outside the library is read directly.
-                SongPackage entry = SongPackageManager.Shared.FindCachedItem(request.PackageDirectory)?.Entry
+                SongPackage entry = temporary?.Metadata
+                    ?? SongPackageManager.Shared.FindCachedItem(request.PackageDirectory)?.Entry
                     ?? SongPackageStorage.LoadEntry(request.PackageDirectory);
                 if (entry == null)
                 {
                     return Result(PlayStartStatus.Failed, "无法加载曲包信息。");
                 }
-                if (!File.Exists(entry.ScorePath))
+                if (temporary == null && !File.Exists(entry.ScorePath))
                 {
                     return Result(PlayStartStatus.Failed, "找不到谱面文件。");
                 }
-                if (!File.Exists(entry.AudioPath))
+                if (temporary == null && !File.Exists(entry.AudioPath))
                 {
                     return Result(PlayStartStatus.Failed, "找不到音频文件。");
                 }
                 PlaybackSettingsSnapshot settings = LiveSettingsStore.Shared.CaptureSnapshot();
                 LiveBundleBuildData config = ResourceCatalog.LiveBundleConfig.Load();
                 if(config == null) throw new InvalidOperationException("Live bundle configuration is missing.");
-                var chart = RuntimeChartLoader.Load(entry, config, settings.ShowSimultaneousLine, settings.IsMirror);
+                var chart = temporary == null
+                    ? RuntimeChartLoader.Load(entry, config, settings.ShowSimultaneousLine, settings.IsMirror)
+                    : NextRushChartLoader.Load(temporary.Chart, config, settings.ShowSimultaneousLine, settings.IsMirror);
                 if (chart == null || !chart.HasPlayableNotes)
                 {
                     if (chart?.NextRush == null || chart.Score?.HasVisualNotes != true)
@@ -121,18 +126,22 @@ namespace OpenSekai.App.Playback
                     if (!request.IsAuto)
                         return Result(PlayStartStatus.Failed, "此谱面仅含装饰，请选择自动游玩。");
                 }
-                _surface.BeginSession(SongPackageHash.Compute(entry.ScorePath));
+                _surface.BeginSession(temporary?.ChartHash ?? SongPackageHash.Compute(entry.ScorePath));
                 cancellationToken.ThrowIfCancellationRequested();
                 progress?.Invoke("正在加载音频...");
                 audioRegistrationStarted = true;
-                if (!await _audio.RegisterAsync(entry, cancellationToken))
+                if (temporary != null)
+                {
+                    await RegisterTemporaryAudio(temporary, cancellationToken);
+                }
+                else if (!await _audio.RegisterAsync(entry, cancellationToken))
                 {
                     return Result(PlayStartStatus.Failed, "无法加载音频文件。");
                 }
                 cancellationToken.ThrowIfCancellationRequested();
                 PlaySession session = PlaySession.FromChart(request, entry, chart, config, settings);
                 FreeLiveBootData boot = LegacyLiveBootAdapter.Create(session, _deckSelection.SelectedDeckId);
-                boot.CustomMusicScoreKey = SongPackageManager.Shared.ScoreKeyOf(entry);
+                if (temporary == null) boot.CustomMusicScoreKey = SongPackageManager.Shared.ScoreKeyOf(entry);
                 cancellationToken.ThrowIfCancellationRequested();
                 string message = request.IsAuto ? "正在开始自动游玩..." : "正在开始游玩...";
                 progress?.Invoke(message);
@@ -191,6 +200,21 @@ namespace OpenSekai.App.Playback
                     ReleaseStartLock();
                 }
             }
+        }
+
+        private static async UniTask RegisterTemporaryAudio(TemporarySongPackage package, CancellationToken token)
+        {
+            if (package.Audio == null) throw new InvalidDataException("临时音频已释放，请返回服务器重新游玩。");
+            var sound = SoundManager.Instance;
+            sound.IngameBgmGain = 1f;
+            PackageAudio.RegisterClip(package.Metadata, package.Audio, ownsClip: false);
+            if (!package.LoudnessMeasured)
+            {
+                package.Loudness = await LoudnessMeter.MeasureAsync(package.Audio, token);
+                package.LoudnessMeasured = true;
+            }
+
+            sound.IngameBgmGain = LoudnessNormalization.GainFor(package.Loudness);
         }
 
         private void ReleaseStartLock()

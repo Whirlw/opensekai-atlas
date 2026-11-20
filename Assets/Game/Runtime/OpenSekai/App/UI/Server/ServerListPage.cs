@@ -31,13 +31,13 @@ namespace OpenSekai.App.UI
 
         internal ServerListPage(ServerScreen screen) : base(screen, "ServerList")
         {
-            RectTransform bar = ServerWidgets.TopBar(Root, "服务器", screen.Back, out _, out _count);
+            RectTransform bar = ServerWidgets.TopBar(Root, "服务器", screen.Back, screen.OpenSettings, out _, out _count, out float rightInset);
             float height = LibraryTheme.Layout.CONTROL_HEIGHT;
 
             const float addWidth = 220f;
             Button add = ServerWidgets.LabelledButton(bar, "Add", "添加服务器", LibraryIcon.Add, OpenAdd, addWidth, height,
                 LibraryTheme.Colors.TextPrimary, LibraryTheme.Colors.TextOnAccent, UiCue.None);
-            LibraryWidgets.Place((RectTransform)add.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, new Vector2(addWidth, height));
+            LibraryWidgets.Place((RectTransform)add.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-rightInset, 0f), new Vector2(addWidth, height));
 
             float margin = LibraryTheme.Spacing.PAGE_MARGIN;
             RectTransform body = LibraryUi.CreateRect("Body", Root);

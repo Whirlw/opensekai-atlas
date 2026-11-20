@@ -800,24 +800,22 @@ namespace Sekai.Live
 
 		private static Texture2D LoadCustomJacketTexture(FreeLiveBootData bootData)
 		{
-			if (bootData == null || string.IsNullOrEmpty(bootData.CustomMusicScorePath))
-			{
-				return null;
-			}
+			if (bootData == null) return null;
 
 			try
 			{
-				// The jacket path alone is all this needs; the App-side entry wrapper also allocates
-				// an audio object, which a view has no use for.
-				SongPackage package = SongPackageStorage.LoadEntry(bootData.CustomMusicScorePath);
-				string jacketPath = package?.JacketPath;
-				if (string.IsNullOrEmpty(jacketPath) || !File.Exists(jacketPath))
+				byte[] jacket = bootData.TemporaryJacketData;
+				if (jacket == null && !string.IsNullOrEmpty(bootData.CustomMusicScorePath))
 				{
-					return null;
+					string path = SongPackageStorage.LoadEntry(bootData.CustomMusicScorePath)?.JacketPath;
+					if (File.Exists(path)) jacket = File.ReadAllBytes(path);
 				}
+				if (jacket == null) return null;
 
 				Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-				return ImageConversion.LoadImage(texture, File.ReadAllBytes(jacketPath)) ? texture : null;
+				if (ImageConversion.LoadImage(texture, jacket)) return texture;
+				Destroy(texture);
+				return null;
 			}
 			catch
 			{

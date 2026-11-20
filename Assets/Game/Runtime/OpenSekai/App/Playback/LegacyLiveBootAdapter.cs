@@ -36,6 +36,7 @@ namespace OpenSekai.App.Playback
                 ReleaseTransitionBeforeMusicStart = true,
                 CustomMusicScoreId = entry.Manifest.id,
                 CustomMusicScorePath = entry.RootDirectory,
+                TemporaryJacketData = request.TemporaryPackage?.CoverData,
                 CustomMusicScoreTitle = entry.Manifest.scoreTitle,
                 CustomMusicScoreAuthorName = entry.Manifest.userName,
                 CustomMusicScoreCollaborationLabel = entry.Manifest.collaborationLabel

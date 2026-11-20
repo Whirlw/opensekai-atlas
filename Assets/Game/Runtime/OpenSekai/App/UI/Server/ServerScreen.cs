@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using LitMotion;
 using LitMotion.Extensions;
 using OpenSekai.App.Server;
+using OpenSekai.App.Playback;
 using OpenSekai.Infrastructure.Sonolus;
+using OpenSekai.Shared.Playback;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -26,6 +28,9 @@ namespace OpenSekai.App.UI
         private GameObject _canvasRoot;
         private GraphicRaycaster _raycaster;
         private CanvasGroup _pagesGroup;
+        private LibrarySettingsPanel _settings;
+        private LibraryResultPanel _result;
+        private TemporarySongPackage _temporaryPlay;
         private Image _glowMain;
         private Image _glowSecondary;
         private Image _curtain;
@@ -40,8 +45,8 @@ namespace OpenSekai.App.UI
         /// <summary>The list page's back button (and back from it): leave the server part.</summary>
         internal event Action BackRequested;
 
-        /// <summary>A level is in the library and should start; the argument is its package folder.</summary>
-        internal event Action<string> PlayRequested;
+        /// <summary>Starts an installed package by directory, title and play mode.</summary>
+        internal event Action<string, string, bool, TemporarySongPackage> PlayRequested;
 
         /// <summary>A download added or replaced a package in the library.</summary>
         internal event Action LibraryChanged;
@@ -64,6 +69,8 @@ namespace OpenSekai.App.UI
         /// <summary>Accent of the current cover, for buttons and selection.</summary>
         internal Color32 Accent => (Color32)_accent;
 
+        internal Sprite CurrentCover => (Top as SonolusLevelPage)?.Cover;
+
         internal static ServerScreen Create()
         {
             var host = new GameObject("ServerScreen");
@@ -84,6 +91,11 @@ namespace OpenSekai.App.UI
             _curtain.gameObject.SetActive(false);
             _camera.enabled = presented;
             _raycaster.enabled = presented;
+            if (!presented)
+            {
+                _settings?.Hide();
+                _result?.Hide();
+            }
             _canvasRoot.SetActive(presented);
             if (!presented)
             {
@@ -153,6 +165,18 @@ namespace OpenSekai.App.UI
                 return true;
             }
 
+            if (_result != null && _result.IsOpen)
+            {
+                _result.Dismiss();
+                return true;
+            }
+
+            if (_settings != null && _settings.IsOpen)
+            {
+                _settings.Back();
+                return true;
+            }
+
             ServerPage top = Top;
             if (top != null && top.TryHandleBack())
             {
@@ -193,6 +217,13 @@ namespace OpenSekai.App.UI
             }
 
             Slide(previous, page, true);
+        }
+
+        internal void OpenSettings()
+        {
+            if (_settings == null) _settings = LibrarySettingsPanel.Create(ModalLayer, null);
+            _settings.transform.SetAsLastSibling();
+            _settings.Show();
         }
 
         /// <summary>Goes back one page; from the list page, leaves the server part.</summary>
@@ -260,7 +291,25 @@ namespace OpenSekai.App.UI
             Push(new SonolusLevelPage(this, session, level));
         }
 
-        internal void RequestPlay(string packageDirectory) => PlayRequested?.Invoke(packageDirectory);
+        internal void RequestPlay(string packageDirectory, string title, TemporarySongPackage temporary = null)
+        {
+            _temporaryPlay = temporary;
+            PlayRequested?.Invoke(packageDirectory, title, false, temporary);
+        }
+
+        internal void ShowResult(PlayResult result)
+        {
+            if (result == null) return;
+            if (_result == null)
+            {
+                _result = LibraryResultPanel.Create(ModalLayer,
+                    retry => PlayRequested?.Invoke(retry.PackageDirectory, retry.Title, retry.IsAuto, _temporaryPlay), "返回服务器");
+                _result.OnClose = () => _temporaryPlay = null;
+            }
+
+            _result.transform.SetAsLastSibling();
+            _result.Show(result, CurrentCover, Accent);
+        }
 
         internal void NotifyLibraryChanged() => LibraryChanged?.Invoke();
 
@@ -293,6 +342,7 @@ namespace OpenSekai.App.UI
             Preview = gameObject.AddComponent<SonolusPreviewPlayer>();
 
             _camera = CreateCamera();
+            _camera.transform.SetParent(transform, false);
             _canvasRoot = new GameObject("ServerCanvas", typeof(RectTransform));
             _canvasRoot.transform.SetParent(transform, false);
             Canvas canvas = _canvasRoot.AddComponent<Canvas>();

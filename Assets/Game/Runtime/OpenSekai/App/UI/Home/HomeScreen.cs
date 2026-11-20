@@ -5,6 +5,8 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using LitMotion;
 using OpenSekai.App.Library;
+using OpenSekai.App.Playback;
+using OpenSekai.Shared.Playback;
 using OpenSekai.Infrastructure.Packages;
 using Sekai;
 using UnityEngine;
@@ -31,9 +33,14 @@ namespace OpenSekai.App.UI
         /// <summary>Longest the splash waits for its emblem to be drawn before starting anyway.</summary>
         private const float BRAND_WAIT_SECONDS = 2f;
 
+        // The hidden server page stack is carried only for a server-started live.
+        private static ServerScreen _serverReturningFromLive;
+
         private AppContext _context;
         private LibraryScreen _library;
         private ServerScreen _server;
+        private CancellationTokenSource _serverPlayCancellation;
+        private LibraryLoadingOverlay _serverLoading;
         private Camera _camera;
         private GameObject _canvasRoot;
         private HomeBackdrop _backdrop;
@@ -41,6 +48,7 @@ namespace OpenSekai.App.UI
         private HomeSplash _splash;
         private BrandEmblem _emblem;
         private HomeAboutPanel _about;
+        private LibrarySettingsPanel _settings;
         private JacketThumbnails _thumbnails;
         private CancellationTokenSource _jacketLoad;
         private MotionHandle _idle;
@@ -79,7 +87,7 @@ namespace OpenSekai.App.UI
             else
             {
                 screen.HideHome();
-                library?.SetPresented(true, false);
+                if (!screen.RestoreServerAfterLive()) library?.SetPresented(true, false);
             }
 
             return screen;
@@ -208,7 +216,7 @@ namespace OpenSekai.App.UI
 
             var root = (RectTransform)_canvasRoot.transform;
             _backdrop = new HomeBackdrop(root);
-            _view = new HomeView(root, OpenLibrary, OpenAbout, ShowComingSoon, OpenServer);
+            _view = new HomeView(root, OpenLibrary, OpenAbout, OpenSettings, ShowComingSoon, OpenServer);
             if (ServerChartDownloads.Current != null)
             {
                 ServerChartDownloads.Current.StatusChanged += ShowServerStatus;
@@ -346,23 +354,99 @@ namespace OpenSekai.App.UI
             });
         }
 
-        /// <summary>A level downloaded from a server should start: the library takes over and starts it.</summary>
-        private void PlayFromServer(string packageDirectory)
+        private void PlayFromServer(string packageDirectory, string title, bool isAuto, TemporarySongPackage temporary)
         {
-            if (_navigating || _server == null || _library == null)
-            {
-                return;
-            }
-
-            _navigating = true;
-            _server.PlayExit(() =>
-            {
-                _server.SetPresented(false, false);
-                _library.SetPresented(true, false);
-                _navigating = false;
-                _library.PlayPackage(packageDirectory);
-            });
+            if (_navigating || _server == null || (temporary == null && string.IsNullOrEmpty(packageDirectory))) return;
+            StartServerLive(packageDirectory, title, isAuto, temporary).Forget();
         }
+
+        private async UniTaskVoid StartServerLive(string packageDirectory, string title, bool isAuto, TemporarySongPackage temporary)
+        {
+            _navigating = true;
+            var cancellation = new CancellationTokenSource();
+            _serverPlayCancellation = cancellation;
+            ServerScreen server = _server;
+            bool started = false;
+            try
+            {
+                server.Preview.Stop(false);
+                if (_serverLoading == null)
+                    _serverLoading = LibraryLoadingOverlay.Create(transform, () => _serverPlayCancellation?.Cancel());
+                _serverLoading.Show(title, "正在准备…", server.CurrentCover, server.Accent);
+
+                // Keep the page objects, including the search query, virtual list and cover cache.
+                // Detach before starting because playback can begin unloading the menu scene.
+                server.transform.SetParent(null, false);
+                DontDestroyOnLoad(server.gameObject);
+                _serverReturningFromLive = server;
+
+                PlayStartResult result = await _context.Playback.StartAsync(
+                    new PlayRequest(packageDirectory, isAuto, Sekai.SceneManager.Scene.Library, temporary),
+                    cancellation.Token, _serverLoading.SetMessage);
+                started = result.Started;
+                if (started)
+                {
+                    server.SetPresented(false, false);
+                    _serverLoading.SetMessage("正在进入…");
+                }
+                else if (result.Status == PlayStartStatus.Failed)
+                {
+                    server.ShowResult(PlayResult.FromLoadError(title, isAuto, packageDirectory, result.Message));
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception exception)
+            {
+                Debug.LogException(exception);
+                if (this != null)
+                    server.ShowResult(PlayResult.FromLoadError(title, isAuto, packageDirectory, "开局失败，请检查运行日志。"));
+            }
+            finally
+            {
+                _serverPlayCancellation = null;
+                cancellation.Dispose();
+                if (!started)
+                {
+                    if (_serverReturningFromLive == server)
+                    {
+                        _serverReturningFromLive = null;
+                        if (this != null) AttachServerToScene();
+                        else if (server != null) Destroy(server.gameObject);
+                    }
+
+                    if (this != null)
+                    {
+                        _serverLoading?.Hide();
+                        _navigating = false;
+                    }
+                }
+            }
+        }
+
+        private bool RestoreServerAfterLive()
+        {
+            if (_serverReturningFromLive == null) return false;
+
+            _server = _serverReturningFromLive;
+            _serverReturningFromLive = null;
+            AttachServerToScene();
+            BindServer();
+            _library?.SetPresented(false, false);
+            _server.SetPresented(true, false);
+            _server.ShowResult(PlayResultHandoff.Take());
+            return true;
+        }
+
+        private void AttachServerToScene()
+        {
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(_server.gameObject, gameObject.scene);
+            _server.transform.SetParent(transform, false);
+        }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetServerReturn() => _serverReturningFromLive = null;
 
         private ServerScreen EnsureServer()
         {
@@ -373,10 +457,15 @@ namespace OpenSekai.App.UI
 
             _server = ServerScreen.Create();
             _server.transform.SetParent(transform, false);
+            BindServer();
+            return _server;
+        }
+
+        private void BindServer()
+        {
             _server.BackRequested += ReturnFromServer;
             _server.PlayRequested += PlayFromServer;
             _server.LibraryChanged += OnServerImported;
-            return _server;
         }
 
         private void HideServer()
@@ -385,6 +474,13 @@ namespace OpenSekai.App.UI
             {
                 _server.SetPresented(false, false);
             }
+        }
+
+        private void OpenSettings()
+        {
+            if (_navigating || _splash.IsPlaying) return;
+            if (_settings == null) _settings = LibrarySettingsPanel.Create(_canvasRoot.transform, null);
+            _settings.Show();
         }
 
         private void OpenAbout()
@@ -425,16 +521,21 @@ namespace OpenSekai.App.UI
             _idle.TryCancel();
             _idle = default;
             _about.Hide();
+            _settings?.Hide();
             _canvasRoot.SetActive(false);
             _camera.enabled = false;
         }
 
         private void Update()
         {
-            if (!NativeInput.BackPressedThisFrame || _navigating)
+            if (!NativeInput.BackPressedThisFrame) return;
+            if (_serverPlayCancellation != null)
             {
+                _serverPlayCancellation.Cancel();
                 return;
             }
+
+            if (_navigating) return;
 
             if (_homeShown)
             {
@@ -465,6 +566,12 @@ namespace OpenSekai.App.UI
             if (_splash.IsPlaying)
             {
                 _splash.Skip();
+                return;
+            }
+
+            if (_settings != null && _settings.IsOpen)
+            {
+                _settings.Back();
                 return;
             }
 
@@ -715,6 +822,7 @@ namespace OpenSekai.App.UI
                 _server.LibraryChanged -= OnServerImported;
             }
 
+            _serverPlayCancellation?.Cancel();
             _idle.TryCancel();
             CancelJacketLoad();
             _splash?.Dispose();

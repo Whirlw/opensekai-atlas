@@ -30,6 +30,11 @@ namespace OpenSekai.Infrastructure.Charts
         public static NextRushChart ReadFile(string path)
         {
             using var file = File.OpenRead(path);
+            return Read(file);
+        }
+
+        internal static NextRushChart Read(Stream file)
+        {
             if (file.Length > MaxFileBytes) throw new InvalidDataException("NextRUSH+ 谱面文件超过大小限制。");
             int first = file.ReadByte(), second = file.ReadByte();
             file.Position = 0;

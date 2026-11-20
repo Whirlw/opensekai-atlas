@@ -24,7 +24,6 @@ namespace OpenSekai.App.UI
         private const float SECTION_GAP = 26f;
         private const float SECTION_HEADER = 66f;
         private const float MODE_HEIGHT = 48f;
-        private const float SEARCH_WIDTH = 520f;
 
         private readonly SonolusSession _session;
         private readonly Func<IEnumerable<KeyValuePair<string, string>>, int, string, CancellationToken, UniTask<SonolusPage<SonolusLevel>>> _listLevels;
@@ -76,19 +75,19 @@ namespace OpenSekai.App.UI
         {
             _session = session;
             _listLevels = listLevels ?? session.Client.ListLevelsAsync;
-            RectTransform bar = ServerWidgets.TopBar(Root, session.Title, screen.Back, out _title, out _subtitle);
+            RectTransform bar = ServerWidgets.TopBar(Root, session.Title, screen.Back, screen.OpenSettings, out _title, out _subtitle, out float rightInset);
             _subtitle.text = session.Address.Host + session.Address.Prefix;
             float height = LibraryTheme.Layout.CONTROL_HEIGHT;
             Vector2 right = new Vector2(1f, 0.5f);
 
             Button refresh = ServerWidgets.IconButton(bar, "Refresh", LibraryIcon.Refresh, Reload);
-            LibraryWidgets.Place((RectTransform)refresh.transform, right, right, Vector2.zero, new Vector2(height, height));
+            LibraryWidgets.Place((RectTransform)refresh.transform, right, right, new Vector2(-rightInset, 0f), new Vector2(height, height));
 
             const float filterWidth = 150f;
             _filter = ServerWidgets.LabelledButton(bar, "Filter", "筛选", LibraryIcon.Settings, OpenAdvanced, filterWidth, height,
                 LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, UiCue.None);
             LibraryWidgets.Outline((Image)_filter.targetGraphic, height * 0.5f);
-            LibraryWidgets.Place((RectTransform)_filter.transform, right, right, new Vector2(-(height + 16f), 0f), new Vector2(filterWidth, height));
+            LibraryWidgets.Place((RectTransform)_filter.transform, right, right, new Vector2(-(rightInset + height + 16f), 0f), new Vector2(filterWidth, height));
             _filterDot = LibraryUi.CreateImage("Dot", _filter.transform, LibraryTheme.Colors.DefaultAccent);
             _filterDot.sprite = LibraryShapes.RoundedRect(6f);
             _filterDot.type = Image.Type.Sliced;
@@ -98,8 +97,11 @@ namespace OpenSekai.App.UI
 
             _search = LibraryWidgets.TextField("Search", bar, height, "搜索谱面", LibraryIcon.Search);
             _search.characterLimit = 100;
-            LibraryWidgets.Place((RectTransform)_search.transform, right, right,
-                new Vector2(-(height + 16f + filterWidth + 16f), 0f), new Vector2(SEARCH_WIDTH, height));
+            var searchRect = (RectTransform)_search.transform;
+            searchRect.anchorMin = new Vector2(0.5f, 0.5f);
+            searchRect.anchorMax = right;
+            searchRect.offsetMin = new Vector2(16f, -height * 0.5f);
+            searchRect.offsetMax = new Vector2(-(rightInset + height + 16f + filterWidth + 16f), height * 0.5f);
             _search.onSubmit.AddListener(RunQuickSearch);
             _search.onEndEdit.AddListener(text =>
             {

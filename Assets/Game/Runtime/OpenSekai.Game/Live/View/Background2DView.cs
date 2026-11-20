@@ -773,21 +773,18 @@ namespace Sekai.Live
 
 		private Texture2D LoadCustomJacketTexture(FreeLiveBootData bootData)
 		{
-			if (bootData == null || string.IsNullOrEmpty(bootData.CustomMusicScorePath))
+			if (bootData == null) return null;
+			byte[] jacket = bootData.TemporaryJacketData;
+			if (jacket == null && !string.IsNullOrEmpty(bootData.CustomMusicScorePath))
 			{
-				return null;
+				string path = SongPackageStorage.LoadEntry(bootData.CustomMusicScorePath)?.JacketPath;
+				if (File.Exists(path)) jacket = File.ReadAllBytes(path);
 			}
-
-			SongPackage package = SongPackageStorage.LoadEntry(bootData.CustomMusicScorePath);
-			string jacketPath = package?.JacketPath;
-			if (string.IsNullOrEmpty(jacketPath) || !File.Exists(jacketPath))
-			{
-				return null;
-			}
+			if (jacket == null) return null;
 
 			ClearExternalJacketAssets();
 			Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-			if (ImageConversion.LoadImage(texture, File.ReadAllBytes(jacketPath)))
+			if (ImageConversion.LoadImage(texture, jacket))
 			{
 				_externalJacketTexture = texture;
 				return texture;

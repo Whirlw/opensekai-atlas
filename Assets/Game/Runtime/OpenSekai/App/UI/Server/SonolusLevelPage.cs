@@ -64,7 +64,7 @@ namespace OpenSekai.App.UI
         private CancellationTokenSource _install;
         private CancellationTokenSource _commentLoad;
         private CancellationTokenSource _recordLoad;
-        private bool _playAfterInstall;
+        private bool _preparingPlay;
         private Color32 _accent = LibraryTheme.Colors.DefaultAccent;
         private int _tab;
         private bool _commentsStarted;
@@ -83,11 +83,11 @@ namespace OpenSekai.App.UI
         {
             _session = session;
             _level = level;
-            RectTransform bar = ServerWidgets.TopBar(Root, "谱面详情", screen.Back, out _, out TextMeshProUGUI subtitle);
+            RectTransform bar = ServerWidgets.TopBar(Root, "谱面详情", screen.Back, screen.OpenSettings, out _, out TextMeshProUGUI subtitle, out float rightInset);
             subtitle.text = session.Title;
             float height = LibraryTheme.Layout.CONTROL_HEIGHT;
             Button refresh = ServerWidgets.IconButton(bar, "Refresh", LibraryIcon.Refresh, LoadDetails);
-            LibraryWidgets.Place((RectTransform)refresh.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, new Vector2(height, height));
+            LibraryWidgets.Place((RectTransform)refresh.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-rightInset, 0f), new Vector2(height, height));
 
             float margin = LibraryTheme.Spacing.PAGE_MARGIN;
             RectTransform main = LibraryUi.CreateRect("Main", Root);
@@ -213,6 +213,8 @@ namespace OpenSekai.App.UI
         }
 
         // ---------------------------------------------------------------- tools (screenshots)
+
+        internal Sprite Cover => _cover.sprite;
 
         internal bool HasDetails => _details != null;
 
@@ -474,9 +476,9 @@ namespace OpenSekai.App.UI
             SonolusInstallState state = InstallState;
 
             Color32 accent = _accent;
-            ServerWidgets.SetLabelledButton(_play, installing && _playAfterInstall ? "下载后开始…" : "游玩", LibraryIcon.Play,
+            ServerWidgets.SetLabelledButton(_play, installing && _preparingPlay ? "准备游玩…" : "游玩", LibraryIcon.Play,
                 supported ? accent : LibraryTheme.Colors.ControlActive, supported ? LibraryTheme.Colors.TextOnAccent : LibraryTheme.Colors.TextMuted);
-            _play.interactable = supported && _details != null || state != SonolusInstallState.Missing;
+            _play.interactable = !installing && (supported && _details != null || state != SonolusInstallState.Missing);
 
             if (installing)
             {
@@ -520,7 +522,7 @@ namespace OpenSekai.App.UI
             }
             else
             {
-                SetState(_details == null ? "正在读取谱面信息…" : "下载后加入曲库，可离线游玩。", LibraryTheme.Colors.TextMuted);
+                SetState(_details == null ? "正在读取谱面信息…" : "直接游玩仅暂存；点击下载可加入曲库。", LibraryTheme.Colors.TextMuted);
             }
         }
 
@@ -541,7 +543,7 @@ namespace OpenSekai.App.UI
             if (installed != null)
             {
                 UiSound.Play(UiCue.Start);
-                Screen.RequestPlay(installed);
+                Screen.RequestPlay(installed, _level.Title);
                 return;
             }
 
@@ -568,9 +570,9 @@ namespace OpenSekai.App.UI
             {
                 UiSound.Play(UiCue.Cancel);
                 Cancel(ref _install);
-                _playAfterInstall = false;
+                _preparingPlay = false;
                 UpdateActions();
-                SetState("已取消下载。", LibraryTheme.Colors.TextMuted);
+                SetState("已取消。", LibraryTheme.Colors.TextMuted);
                 return;
             }
 
@@ -599,34 +601,35 @@ namespace OpenSekai.App.UI
             StartInstall(false);
         }
 
-        private void StartInstall(bool thenPlay)
+        private void StartInstall(bool temporary)
         {
-            _playAfterInstall = thenPlay;
+            _preparingPlay = temporary;
             _install = new CancellationTokenSource();
             UpdateActions();
             _progressTrack.gameObject.SetActive(true);
             SetProgress(0f, "准备下载…");
-            InstallAsync(_install.Token).Forget();
+            InstallAsync(temporary, _install.Token).Forget();
         }
 
-        private async UniTaskVoid InstallAsync(CancellationToken cancellationToken)
+        private async UniTaskVoid InstallAsync(bool temporary, CancellationToken cancellationToken)
         {
             try
             {
-                SongPackage package = await Screen.Installer.InstallAsync(_session.Client, _details, SetProgress, cancellationToken);
-                _install?.Dispose();
-                _install = null;
-                Screen.NotifyLibraryChanged();
-                UiSound.Play(UiCue.Success);
-                bool play = _playAfterInstall;
-                _playAfterInstall = false;
-                UpdateActions();
-                if (play)
+                if (temporary)
                 {
-                    Screen.RequestPlay(package.RootDirectory);
+                    var package = await Screen.Installer.LoadTemporaryAsync(_session.Client, _details, SetProgress, cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    FinishInstall();
+                    if (Screen.IsPresented && Screen.Top == this)
+                        Screen.RequestPlay(null, _level.Title, package);
                 }
                 else
                 {
+                    await Screen.Installer.InstallAsync(_session.Client, _details, SetProgress, cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    FinishInstall();
+                    Screen.NotifyLibraryChanged();
+                    UiSound.Play(UiCue.Success);
                     Screen.ShowToast("“" + _level.Title + "”已加入曲库");
                 }
             }
@@ -644,12 +647,17 @@ namespace OpenSekai.App.UI
             }
         }
 
-        private void Fail(string message)
+        private void FinishInstall()
         {
             _install?.Dispose();
             _install = null;
-            _playAfterInstall = false;
+            _preparingPlay = false;
             UpdateActions();
+        }
+
+        private void Fail(string message)
+        {
+            FinishInstall();
             UiSound.Play(UiCue.Error);
             SetState(message, LibraryTheme.Colors.Danger);
         }

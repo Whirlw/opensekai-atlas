@@ -722,9 +722,7 @@ namespace OpenSekai.App.UI
             BuildBrowseControls(bar, overlay);
 
             // Right-aligned actions, laid out from the edge inward.
-            float right = 0f;
-            // Settings opens a modal, which plays its own open sound.
-            right = AddBarButton(bar, "Settings", LibraryIcon.Settings, _presenter.OpenSettings, right, UiCue.None);
+            float right = AddSettingsButton(bar, _presenter.OpenSettings);
             right = AddBarButton(bar, "Refresh", LibraryIcon.Refresh, _presenter.Resync, right);
 
             const float importWidth = 140f;
@@ -762,6 +760,9 @@ namespace OpenSekai.App.UI
             searchRect.offsetMax = new Vector2(-right, height * 0.5f);
             search.onValueChanged.AddListener(_presenter.SetSearch);
         }
+
+        internal static float AddSettingsButton(RectTransform bar, UnityEngine.Events.UnityAction openSettings) =>
+            AddBarButton(bar, "Settings", LibraryIcon.Settings, openSettings, 0f, UiCue.None);
 
         private static float AddBarButton(
             RectTransform bar, string name, LibraryIcon icon, UnityEngine.Events.UnityAction onClick, float right,
