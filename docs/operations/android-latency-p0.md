@@ -58,7 +58,7 @@ adb pull "/sdcard/Android/data/io.github.opensekai/files/logs/latency-实际文�
 
 ## 3. P1 音频缓冲对照记录
 
-OnePlus PLQ110 曾用 48 kHz、144 × 4 和 288 × 4 两种配置完成同机测量。现行版本使用启动时的自动音频配置。 [P1 声学测量报告](../../TestResults/latency-p1-buffer-ab/p1-buffer-ab-report.md) · [延迟优化计划](../plans/android-latency-optimization-plan.md#p1--打击音分段和真机-ab)
+OnePlus PLQ110 曾用 48 kHz、144 × 4 和 288 × 4 两种配置完成同机测量。现行版本使用启动时的自动音频配置。 [延迟优化计划](../plans/android-latency-optimization-plan.md#p1--打击音分段和真机-ab)
 
 ## 4. P1 混音侧复测
 
