@@ -1,0 +1,5 @@
+11-20 18:24:02.157 16890 16932 E Unity   : java.lang.ClassNotFoundException: Didn't find class "com.google.android.play.core.assetpacks.AssetPackManager" on path: DexPathList[[zip file "/data/app/~~f5xMZpCyLqSJCxdOCBV1Zw==/io.github.opensekai.reviewfollowup-jekUMZinzpBHI8onub4SaQ==/base.apk"],nativeLibraryDirectories=[/data/app/~~f5xMZpCyLqSJCxdOCBV1Zw==/io.github.opensekai.reviewfollowup-jekUMZinzpBHI8onub4SaQ==/lib/arm64, /data/app/~~f5xMZpCyLqSJCxdOCBV1Zw==/io.github.opensekai.reviewfollowup-jekUMZinzpBHI8onub4SaQ==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
+11-20 18:24:11.160 16890 16932 I Unity   : [Followup] jar ordinary bundle=Done
+11-20 18:24:11.664 16890 16932 I Unity   : [Followup] readingNoticeMs=0.22 firstYieldMs=0.75 pending=Pending
+11-20 18:24:11.938 16890 16932 I Unity   : [Followup] audioStageMs=277.12 framesBeforeAudio=45 maxIntervalMs=15.19
+11-20 18:24:12.348 16890 16932 I Unity   : [Followup] playback=Started 正在开始自动游玩...

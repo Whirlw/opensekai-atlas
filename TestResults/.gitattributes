@@ -1,3 +1,5 @@
 # Keep the November 20 review captures byte-for-byte as recorded.
 review-nov20-* -text
 review-nov20-*/** -text
+review-followup-*.log -text
+review-followup-*.xml -text

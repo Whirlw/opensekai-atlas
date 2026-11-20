@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="31" result="Passed" total="31" passed="31" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-11-20 18:30:13Z" end-time="2026-11-20 18:33:57Z" duration="224.3128117">
+  <test-suite type="TestSuite" id="1047" name="OpenSekai" fullname="OpenSekai" runstate="Runnable" testcasecount="31" result="Passed" start-time="2026-11-20 18:30:13Z" end-time="2026-11-20 18:33:57Z" duration="224.312812" total="31" passed="31" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="PlayMode" />
+    </properties>
+    <test-suite type="Assembly" id="1040" name="OpenSekai.Tests.PlayMode.dll" fullname="E:/DeepseekHarness/OpenSekai/Library/ScriptAssemblies/OpenSekai.Tests.PlayMode.dll" runstate="Runnable" testcasecount="31" result="Passed" start-time="2026-11-20 18:30:13Z" end-time="2026-11-20 18:33:57Z" duration="224.300989" total="31" passed="31" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="30832" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="PlayMode" />
+        <property name="EditorOnly" value="False" />
+      </properties>
+      <test-suite type="TestSuite" id="1041" name="OpenSekai" fullname="OpenSekai" runstate="Runnable" testcasecount="31" result="Passed" start-time="2026-11-20 18:30:13Z" end-time="2026-11-20 18:33:57Z" duration="224.299505" total="31" passed="31" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-suite type="TestSuite" id="1042" name="Tests" fullname="OpenSekai.Tests" runstate="Runnable" testcasecount="31" result="Passed" start-time="2026-11-20 18:30:13Z" end-time="2026-11-20 18:33:57Z" duration="224.298720" total="31" passed="31" failed="0" inconclusive="0" skipped="0" asserts="0">
+          <properties />
+          <test-suite type="TestSuite" id="1043" name="PlayMode" fullname="OpenSekai.Tests.PlayMode" runstate="Runnable" testcasecount="31" result="Passed" start-time="2026-11-20 18:30:13Z" end-time="2026-11-20 18:33:57Z" duration="224.297680" total="31" passed="31" failed="0" inconclusive="0" skipped="0" asserts="0">
+            <properties />
+            <test-suite type="TestFixture" id="1027" name="DialogBackInputTests" fullname="OpenSekai.Tests.PlayMode.DialogBackInputTests" classname="OpenSekai.Tests.PlayMode.DialogBackInputTests" runstate="Runnable" testcasecount="1" result="Passed" start-time="2026-11-20 18:30:13Z" end-time="2026-11-20 18:30:15Z" duration="2.649207" total="1" passed="1" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1028" name="EscapeClosesDialogAndKeepsTheUnderlyingPage" fullname="OpenSekai.Tests.PlayMode.DialogBackInputTests.EscapeClosesDialogAndKeepsTheUnderlyingPage" methodname="EscapeClosesDialogAndKeepsTheUnderlyingPage" classname="OpenSekai.Tests.PlayMode.DialogBackInputTests" runstate="Runnable" seed="1869555486" result="Passed" start-time="2026-11-20 18:30:13Z" end-time="2026-11-20 18:30:15Z" duration="2.633159" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[[FramerateUtility] targetFrameRate=120 limit=follow display=120Hz appliedMode=0Hz vSync=0
+[LibraryScreen] CJK font: SourceHanSansSC-Medium SDF_Dynamic / os fonts: 352 / first: Agency FB | Agency FB Bold | Algerian | Arial | Arial Bold | Arial Italic | Arial Bold Italic | Arial Rounded MT Bold | Bahnschrift | Baskerville Old Face | Bauhaus 93 | Bell MT
+[Library] Player library started (home page with splash).
+]]></output>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1001" name="HoldLoopPlaybackTests" fullname="OpenSekai.Tests.PlayMode.HoldLoopPlaybackTests" classname="OpenSekai.Tests.PlayMode.HoldLoopPlaybackTests" runstate="Runnable" testcasecount="2" result="Passed" start-time="2026-11-20 18:30:15Z" end-time="2026-11-20 18:30:16Z" duration="0.682644" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1002" name="HoldRepeatsPastClipEndAndTheNextOneShotEndsNormally" fullname="OpenSekai.Tests.PlayMode.HoldLoopPlaybackTests.HoldRepeatsPastClipEndAndTheNextOneShotEndsNormally" methodname="HoldRepeatsPastClipEndAndTheNextOneShotEndsNormally" classname="OpenSekai.Tests.PlayMode.HoldLoopPlaybackTests" runstate="Runnable" seed="832135474" result="Passed" start-time="2026-11-20 18:30:15Z" end-time="2026-11-20 18:30:16Z" duration="0.634006" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[[SoundManager] external pack: 13 cues for live/tap_se/custom01
+[SoundManager] external pack: 13 cues for live/tap_se/custom02
+[SoundManager] external pack: 12 cues for live/sound/live_se/default
+[SoundManager] external pack: 5 cues for live/sound/live_se/common
+]]></output>
+              </test-case>
+              <test-case id="1003" name="PackageAudioSurvivesRetryAndReleasesBothAliasesWhenChangingSongs" fullname="OpenSekai.Tests.PlayMode.HoldLoopPlaybackTests.PackageAudioSurvivesRetryAndReleasesBothAliasesWhenChangingSongs" methodname="PackageAudioSurvivesRetryAndReleasesBothAliasesWhenChangingSongs" classname="OpenSekai.Tests.PlayMode.HoldLoopPlaybackTests" runstate="Runnable" seed="1987514027" result="Passed" start-time="2026-11-20 18:30:16Z" end-time="2026-11-20 18:30:16Z" duration="0.046213" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1004" name="LibrarySmokeTests" fullname="OpenSekai.Tests.PlayMode.LibrarySmokeTests" classname="OpenSekai.Tests.PlayMode.LibrarySmokeTests" runstate="Runnable" testcasecount="13" result="Passed" start-time="2026-11-20 18:30:16Z" end-time="2026-11-20 18:33:56Z" duration="220.266879" total="13" passed="13" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1010" name="BaselineTapAutoplaysAndReturnsToTheLibrary" fullname="OpenSekai.Tests.PlayMode.LibrarySmokeTests.BaselineTapAutoplaysAndReturnsToTheLibrary" methodname="BaselineTapAutoplaysAndReturnsToTheLibrary" classname="OpenSekai.Tests.PlayMode.LibrarySmokeTests" runstate="Runnable" seed="1655154356" result="Passed" start-time="2026-11-20 18:30:16Z" end-time="2026-11-20 18:31:09Z" duration="52.762762" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[[FramerateUtility] targetFrameRate=120 limit=follow display=120Hz appliedMode=0Hz vSync=0
+[FramerateUtility] targetFrameRate=120 limit=follow display=120Hz appliedMode=0Hz vSync=0
+[Library] Player library started (library after a live).
+]]></output>
+              </test-case>
+              <test-case id="1013" name="InterruptedSonolusUpdateLeavesTheOldPackagePlayableFromTheLibrary" fullname="OpenSekai.Tests.PlayMode.LibrarySmokeTests.InterruptedSonolusUpdateLeavesTheOldPackagePlayableFromTheLibrary" methodname="InterruptedSonolusUpdateLeavesTheOldPackagePlayableFromTheLibrary" classname="OpenSekai.Tests.PlayMode.LibrarySmokeTests" runstate="Runnable" seed="619888383" result="Passed" start-time="2026-11-20 18:31:09Z" end-time="2026-11-20 18:32:01Z" duration="52.508664" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[[FramerateUtility] targetFrameRate=120 limit=follow display=120Hz appliedMode=0Hz vSync=0
+[FramerateUtility] targetFrameRate=120 limit=follow display=120Hz appliedMode=0Hz vSync=0
+[Library] Player library started (library after a live).
+]]></output>
+              </test-case>
+              <test-case id="1016" name="IntroAndOutroSkipBoundariesMatchInBothModes" fullname="OpenSekai.Tests.PlayMode.LibrarySmokeTests.IntroAndOutroSkipBoundariesMatchInBothModes" methodname="IntroAndOutroSkipBoundariesMatchInBothModes" classname="OpenSekai.Tests.PlayMode.LibrarySmokeTests" runstate="Runnable" seed="134115621" result="Passed" start-time="2026-11-20 18:32:01Z" end-time="2026-11-20 18:32:23Z" duration="21.736891" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[[FramerateUtility] targetFrameRate=120 limit=follow display=120Hz appliedMode=0Hz vSync=0
+[FramerateUtility] targetFrameRate=120 limit=follow display=120Hz appliedMode=0Hz vSync=0
+[Library] Player library started (library after a live).
+[FramerateUtility] targetFrameRate=120 limit=follow display=120Hz appliedMode=0Hz vSync=0
+[FramerateUtility] targetFrameRate=120 limit=follow display=120Hz appliedMode=0Hz vSync=0
+[Library] Player library started (library after a live).
+]]></output>
+              </test-case>
+              <test-case id="1008" name="LibrarySceneBootsAndShowsThePage" fullname="OpenSekai.Tests.PlayMode.LibrarySmokeTests.LibrarySceneBootsAndShowsThePage" methodname="LibrarySceneBootsAndShowsThePage" classname="OpenSekai.Tests.PlayMode.LibrarySmokeTests" runstate="Runnable" seed="1731569056" result="Passed" start-time="2026-11-20 18:32:23Z" end-time="2026-11-20 18:32:23Z" duration="0.070596" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1011" name="LibraryUiRendererCapturesTheBlurLayer" fullname="OpenSekai.Tests.PlayMode.LibrarySmokeTests.LibraryUiRendererCapturesTheBlurLayer" methodname="LibraryUiRendererCapturesTheBlurLayer" classname="OpenSekai.Tests.PlayMode.LibrarySmokeTests" runstate="Runnable" seed="704894073" result="Passed" start-time="2026-11-20 18:32:23Z" end-time="2026-11-20 18:32:23Z" duration="0.051394" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1005" name="LiveBackgroundCoverFillsTheMasksAtAnySourceResolution" fullname="OpenSekai.Tests.PlayMode.LibrarySmokeTests.LiveBackgroundCoverFillsTheMasksAtAnySourceResolution" methodname="LiveBackgroundCoverFillsTheMasksAtAnySourceResolution" classname="OpenSekai.Tests.PlayMode.LibrarySmokeTests" runstate="Runnable" seed="615219306" result="Passed" start-time="2026-11-20 18:32:23Z" end-time="2026-11-20 18:32:23Z" duration="0.037717" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1007" name="NextRushHoldParticlesFollowTheActiveSegmentAndOnlyFakeHoldsWait" fullname="OpenSekai.Tests.PlayMode.LibrarySmokeTests.NextRushHoldParticlesFollowTheActiveSegmentAndOnlyFakeHoldsWait" methodname="NextRushHoldParticlesFollowTheActiveSegmentAndOnlyFakeHoldsWait" classname="OpenSekai.Tests.PlayMode.LibrarySmokeTests" runstate="Runnable" seed="334292423" result="Passed" start-time="2026-11-20 18:32:23Z" end-time="2026-11-20 18:32:23Z" duration="0.066041" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1015" name="NextRushOffsetKeepsThePlaybackClockThroughPauseRetryAndResult" fullname="OpenSekai.Tests.PlayMode.LibrarySmokeTests.NextRushOffsetKeepsThePlaybackClockThroughPauseRetryAndResult" methodname="NextRushOffsetKeepsThePlaybackClockThroughPauseRetryAndResult" classname="OpenSekai.Tests.PlayMode.LibrarySmokeTests" runstate="Runnable" seed="740262723" result="Passed" start-time="2026-11-20 18:32:23Z" end-time="2026-11-20 18:32:45Z" duration="21.586829" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[[FramerateUtility] targetFrameRate=120 limit=follow display=120Hz appliedMode=0Hz vSync=0
+[FramerateUtility] targetFrameRate=120 limit=follow display=120Hz appliedMode=0Hz vSync=0
+[Library] Player library started (library after a live).
+]]></output>
+              </test-case>
+              <test-case id="1009" name="PlayingPreviewSurvivesViewSwitchAndStopsWhenTheSelectionBecomesUnplayable" fullname="OpenSekai.Tests.PlayMode.LibrarySmokeTests.PlayingPreviewSurvivesViewSwitchAndStopsWhenTheSelectionBecomesUnplayable" methodname="PlayingPreviewSurvivesViewSwitchAndStopsWhenTheSelectionBecomesUnplayable" classname="OpenSekai.Tests.PlayMode.LibrarySmokeTests" runstate="Runnable" seed="734287413" result="Passed" start-time="2026-11-20 18:32:45Z" end-time="2026-11-20 18:32:45Z" duration="0.461904" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1012" name="ServerPlaybackRestoresTheSamePagesAndCaches" fullname="OpenSekai.Tests.PlayMode.LibrarySmokeTests.ServerPlaybackRestoresTheSamePagesAndCaches" methodname="ServerPlaybackRestoresTheSamePagesAndCaches" classname="OpenSekai.Tests.PlayMode.LibrarySmokeTests" runstate="Runnable" seed="1299563760" result="Passed" start-time="2026-11-20 18:32:45Z" end-time="2026-11-20 18:33:37Z" duration="51.658671" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[[FramerateUtility] targetFrameRate=120 limit=follow display=120Hz appliedMode=0Hz vSync=0
+se_live_finish is not registered.
+[FramerateUtility] targetFrameRate=120 limit=follow display=120Hz appliedMode=0Hz vSync=0
+[Library] Player library started (library after a live).
+]]></output>
+              </test-case>
+              <test-case id="1006" name="SharedKeysMatchParticlesInBothEffectPacks" fullname="OpenSekai.Tests.PlayMode.LibrarySmokeTests.SharedKeysMatchParticlesInBothEffectPacks" methodname="SharedKeysMatchParticlesInBothEffectPacks" classname="OpenSekai.Tests.PlayMode.LibrarySmokeTests" runstate="Runnable" seed="118833711" result="Passed" start-time="2026-11-20 18:33:37Z" end-time="2026-11-20 18:33:38Z" duration="0.493730" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1017" name="ShippedWavePackRegistersEveryManifestCue" fullname="OpenSekai.Tests.PlayMode.LibrarySmokeTests.ShippedWavePackRegistersEveryManifestCue" methodname="ShippedWavePackRegistersEveryManifestCue" classname="OpenSekai.Tests.PlayMode.LibrarySmokeTests" runstate="Runnable" seed="517531199" result="Passed" start-time="2026-11-20 18:33:38Z" end-time="2026-11-20 18:33:38Z" duration="0.398929" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[[SoundManager] external pack: 13 cues for live/tap_se/custom01
+[SoundManager] external pack: 13 cues for live/tap_se/custom02
+[SoundManager] external pack: 12 cues for live/sound/live_se/default
+[SoundManager] external pack: 5 cues for live/sound/live_se/common
+__opensekai_missing_sound_fixture__ is not registered.
+]]></output>
+              </test-case>
+              <test-case id="1014" name="TemporaryServerChartPlaysThenInstallsFromMemoryAndReleasesCache" fullname="OpenSekai.Tests.PlayMode.LibrarySmokeTests.TemporaryServerChartPlaysThenInstallsFromMemoryAndReleasesCache" methodname="TemporaryServerChartPlaysThenInstallsFromMemoryAndReleasesCache" classname="OpenSekai.Tests.PlayMode.LibrarySmokeTests" runstate="Runnable" seed="2072143963" result="Passed" start-time="2026-11-20 18:33:38Z" end-time="2026-11-20 18:33:56Z" duration="18.422589" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[[FramerateUtility] targetFrameRate=120 limit=follow display=120Hz appliedMode=0Hz vSync=0
+[FramerateUtility] targetFrameRate=120 limit=follow display=120Hz appliedMode=0Hz vSync=0
+[Library] Player library started (library after a live).
+]]></output>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1018" name="LiveMotionTests" fullname="OpenSekai.Tests.PlayMode.LiveMotionTests" classname="OpenSekai.Tests.PlayMode.LiveMotionTests" runstate="Runnable" testcasecount="7" result="Passed" start-time="2026-11-20 18:33:56Z" end-time="2026-11-20 18:33:56Z" duration="0.020546" total="7" passed="7" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1026" name="AddScoreRestartsImmediatelyAndHidesAfterTheNewHold" fullname="OpenSekai.Tests.PlayMode.LiveMotionTests.AddScoreRestartsImmediatelyAndHidesAfterTheNewHold" methodname="AddScoreRestartsImmediatelyAndHidesAfterTheNewHold" classname="OpenSekai.Tests.PlayMode.LiveMotionTests" runstate="Runnable" seed="2106828278" result="Passed" start-time="2026-11-20 18:33:56Z" end-time="2026-11-20 18:33:56Z" duration="0.003744" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1025" name="DisabledIntroCancelsItsPendingCallbacks" fullname="OpenSekai.Tests.PlayMode.LiveMotionTests.DisabledIntroCancelsItsPendingCallbacks" methodname="DisabledIntroCancelsItsPendingCallbacks" classname="OpenSekai.Tests.PlayMode.LiveMotionTests" runstate="Runnable" seed="1442135231" result="Passed" start-time="2026-11-20 18:33:56Z" end-time="2026-11-20 18:33:56Z" duration="0.000580" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1019" name="DisablingAFaderCancelsThePendingCallbackAndAllowsReplay" fullname="OpenSekai.Tests.PlayMode.LiveMotionTests.DisablingAFaderCancelsThePendingCallbackAndAllowsReplay" methodname="DisablingAFaderCancelsThePendingCallbackAndAllowsReplay" classname="OpenSekai.Tests.PlayMode.LiveMotionTests" runstate="Runnable" seed="163202953" result="Passed" start-time="2026-11-20 18:33:56Z" end-time="2026-11-20 18:33:56Z" duration="0.001507" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1024" name="IntroContentOnlyExitStartsFromItsCurrentAlphaAndKeepsPageActive" fullname="OpenSekai.Tests.PlayMode.LiveMotionTests.IntroContentOnlyExitStartsFromItsCurrentAlphaAndKeepsPageActive" methodname="IntroContentOnlyExitStartsFromItsCurrentAlphaAndKeepsPageActive" classname="OpenSekai.Tests.PlayMode.LiveMotionTests" runstate="Runnable" seed="539420665" result="Passed" start-time="2026-11-20 18:33:56Z" end-time="2026-11-20 18:33:56Z" duration="0.000865" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-suite type="ParameterizedMethod" id="1023" name="IntroRunsVisibleThenHiddenCallbacksOnOneLargeStep" fullname="OpenSekai.Tests.PlayMode.LiveMotionTests.IntroRunsVisibleThenHiddenCallbacksOnOneLargeStep" classname="OpenSekai.Tests.PlayMode.LiveMotionTests" runstate="Runnable" testcasecount="2" result="Passed" start-time="2026-11-20 18:33:56Z" end-time="2026-11-20 18:33:56Z" duration="0.003343" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+                <properties />
+                <test-case id="1021" name="IntroRunsVisibleThenHiddenCallbacksOnOneLargeStep(False,1.0f)" fullname="OpenSekai.Tests.PlayMode.LiveMotionTests.IntroRunsVisibleThenHiddenCallbacksOnOneLargeStep(False,1.0f)" methodname="IntroRunsVisibleThenHiddenCallbacksOnOneLargeStep" classname="OpenSekai.Tests.PlayMode.LiveMotionTests" runstate="Runnable" seed="143809355" result="Passed" start-time="2026-11-20 18:33:56Z" end-time="2026-11-20 18:33:56Z" duration="0.001257" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+                <test-case id="1022" name="IntroRunsVisibleThenHiddenCallbacksOnOneLargeStep(True,0.0f)" fullname="OpenSekai.Tests.PlayMode.LiveMotionTests.IntroRunsVisibleThenHiddenCallbacksOnOneLargeStep(True,0.0f)" methodname="IntroRunsVisibleThenHiddenCallbacksOnOneLargeStep" classname="OpenSekai.Tests.PlayMode.LiveMotionTests" runstate="Runnable" seed="1724347833" result="Passed" start-time="2026-11-20 18:33:56Z" end-time="2026-11-20 18:33:56Z" duration="0.000372" asserts="0">
+                  <properties>
+                    <property name="retryIteration" value="0" />
+                    <property name="repeatIteration" value="0" />
+                  </properties>
+                </test-case>
+              </test-suite>
+              <test-case id="1020" name="RepeatedTabSetupKeepsOneSelectionSubscription" fullname="OpenSekai.Tests.PlayMode.LiveMotionTests.RepeatedTabSetupKeepsOneSelectionSubscription" methodname="RepeatedTabSetupKeepsOneSelectionSubscription" classname="OpenSekai.Tests.PlayMode.LiveMotionTests" runstate="Runnable" seed="1496808279" result="Passed" start-time="2026-11-20 18:33:56Z" end-time="2026-11-20 18:33:56Z" duration="0.008176" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1029" name="ReviewInteractionTests" fullname="OpenSekai.Tests.PlayMode.ReviewInteractionTests" classname="OpenSekai.Tests.PlayMode.ReviewInteractionTests" runstate="Runnable" testcasecount="2" result="Passed" start-time="2026-11-20 18:33:56Z" end-time="2026-11-20 18:33:57Z" duration="0.145535" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1031" name="ExternalListenerTogglesReleaseAndReclaimFallback" fullname="OpenSekai.Tests.PlayMode.ReviewInteractionTests.ExternalListenerTogglesReleaseAndReclaimFallback" methodname="ExternalListenerTogglesReleaseAndReclaimFallback" classname="OpenSekai.Tests.PlayMode.ReviewInteractionTests" runstate="Runnable" seed="1647802648" result="Passed" start-time="2026-11-20 18:33:56Z" end-time="2026-11-20 18:33:56Z" duration="0.101962" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1030" name="SecondPushAndBackDuringPushLeaveOneTransition" fullname="OpenSekai.Tests.PlayMode.ReviewInteractionTests.SecondPushAndBackDuringPushLeaveOneTransition" methodname="SecondPushAndBackDuringPushLeaveOneTransition" classname="OpenSekai.Tests.PlayMode.ReviewInteractionTests" runstate="Runnable" seed="1795590996" result="Passed" start-time="2026-11-20 18:33:56Z" end-time="2026-11-20 18:33:57Z" duration="0.041521" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1032" name="SonolusBrowseTests" fullname="OpenSekai.Tests.PlayMode.SonolusBrowseTests" classname="OpenSekai.Tests.PlayMode.SonolusBrowseTests" runstate="Runnable" testcasecount="2" result="Passed" start-time="2026-11-20 18:33:57Z" end-time="2026-11-20 18:33:57Z" duration="0.464268" total="2" passed="2" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1033" name="DetailErrorFollowsTheSelectedTabAndRetryLoadsIt" fullname="OpenSekai.Tests.PlayMode.SonolusBrowseTests.DetailErrorFollowsTheSelectedTabAndRetryLoadsIt" methodname="DetailErrorFollowsTheSelectedTabAndRetryLoadsIt" classname="OpenSekai.Tests.PlayMode.SonolusBrowseTests" runstate="Runnable" seed="1663957960" result="Passed" start-time="2026-11-20 18:33:57Z" end-time="2026-11-20 18:33:57Z" duration="0.192747" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1034" name="ReturningFromHomeRestartsTheInterruptedFirstSearchPage" fullname="OpenSekai.Tests.PlayMode.SonolusBrowseTests.ReturningFromHomeRestartsTheInterruptedFirstSearchPage" methodname="ReturningFromHomeRestartsTheInterruptedFirstSearchPage" classname="OpenSekai.Tests.PlayMode.SonolusBrowseTests" runstate="Runnable" seed="1881702643" result="Passed" start-time="2026-11-20 18:33:57Z" end-time="2026-11-20 18:33:57Z" duration="0.263578" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+            </test-suite>
+            <test-suite type="TestFixture" id="1035" name="TweenComponentTests" fullname="OpenSekai.Tests.PlayMode.TweenComponentTests" classname="OpenSekai.Tests.PlayMode.TweenComponentTests" runstate="Runnable" testcasecount="4" result="Passed" start-time="2026-11-20 18:33:57Z" end-time="2026-11-20 18:33:57Z" duration="0.066034" total="4" passed="4" failed="0" inconclusive="0" skipped="0" asserts="0">
+              <properties />
+              <test-case id="1036" name="AlphaCanPauseRestartWithDelayAndForceFinishBackwards" fullname="OpenSekai.Tests.PlayMode.TweenComponentTests.AlphaCanPauseRestartWithDelayAndForceFinishBackwards" methodname="AlphaCanPauseRestartWithDelayAndForceFinishBackwards" classname="OpenSekai.Tests.PlayMode.TweenComponentTests" runstate="Runnable" seed="1221143191" result="Passed" start-time="2026-11-20 18:33:57Z" end-time="2026-11-20 18:33:57Z" duration="0.004151" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1039" name="CancelingAnOldSlideLeavesItsReplacementRunning" fullname="OpenSekai.Tests.PlayMode.TweenComponentTests.CancelingAnOldSlideLeavesItsReplacementRunning" methodname="CancelingAnOldSlideLeavesItsReplacementRunning" classname="OpenSekai.Tests.PlayMode.TweenComponentTests" runstate="Runnable" seed="2132282381" result="Passed" start-time="2026-11-20 18:33:57Z" end-time="2026-11-20 18:33:57Z" duration="0.021262" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1037" name="PingPongReversesTheEasingAndCompletesEvenLoopAtStart" fullname="OpenSekai.Tests.PlayMode.TweenComponentTests.PingPongReversesTheEasingAndCompletesEvenLoopAtStart" methodname="PingPongReversesTheEasingAndCompletesEvenLoopAtStart" classname="OpenSekai.Tests.PlayMode.TweenComponentTests" runstate="Runnable" seed="545517983" result="Passed" start-time="2026-11-20 18:33:57Z" end-time="2026-11-20 18:33:57Z" duration="0.000908" asserts="0">
+                <properties>
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+              </test-case>
+              <test-case id="1038" name="ReferenceWaitsForMasterAndDisableHonorsThePrefabFlag" fullname="OpenSekai.Tests.PlayMode.TweenComponentTests.ReferenceWaitsForMasterAndDisableHonorsThePrefabFlag" methodname="ReferenceWaitsForMasterAndDisableHonorsThePrefabFlag" classname="OpenSekai.Tests.PlayMode.TweenComponentTests" runstate="Runnable" seed="1924807048" result="Passed" start-time="2026-11-20 18:33:57Z" end-time="2026-11-20 18:33:57Z" duration="0.031738" asserts="0">
+                <properties>
+                  <property name="_JOINTYPE" value="UnityCombinatorial" />
+                  <property name="retryIteration" value="0" />
+                  <property name="repeatIteration" value="0" />
+                </properties>
+                <output><![CDATA[Saving results to: C:/Users/31089/AppData/LocalLow/OpenSekai/OpenSekai\TestResults.xml
+]]></output>
+              </test-case>
+            </test-suite>
+          </test-suite>
+        </test-suite>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>
