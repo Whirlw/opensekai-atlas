@@ -530,7 +530,7 @@ namespace AcbDecoder
             }
 
             for (int i = 0; i < extraCount; i++)
-                ch.ScaleFactors[SAMPLES_PER_SUBFRAME - 1 - i] = ch.ScaleFactors[csCount - i];
+                ch.ScaleFactors[SAMPLES_PER_SUBFRAME - 1 - i] = ch.ScaleFactors[csCount - i - 1];
         }
 
         private void UnpackIntensity(HcaChannel ch, ref BitReader br)

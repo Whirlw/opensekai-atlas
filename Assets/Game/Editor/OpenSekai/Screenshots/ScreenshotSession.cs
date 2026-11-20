@@ -50,8 +50,8 @@ namespace OpenSekai.EditorTools.Screenshots
                     if (!string.IsNullOrEmpty(requestPath) && !EditorApplication.isPlayingOrWillChangePlaymode)
                     {
                         ShotRequest request = TryLoad(requestPath);
-                        Finish(requestPath, "failed", request?.outDir, "Play Mode ended (script reload?) before the run finished.", 1);
-                        Cleanup();
+                        try { Finish(requestPath, "failed", request?.outDir, "Play Mode ended (script reload?) before the run finished.", 1); }
+                        finally { Cleanup(); }
                     }
                 };
             }
@@ -82,43 +82,54 @@ namespace OpenSekai.EditorTools.Screenshots
                 throw new InvalidOperationException("Play Mode is running outside the Library scene; stop it first.");
             }
 
-            WriteStatus(requestPath, "running", request.outDir, null);
-            SessionState.SetString(KEY_REQUEST, requestPath);
-            SessionState.SetBool(KEY_QUIT, request.quitWhenDone);
-            SessionState.SetInt(KEY_GAME_VIEW_INDEX, GameViewResolution.Apply(request.width, request.height));
-            SessionState.SetBool(KEY_RUN_IN_BACKGROUND, Application.runInBackground);
-            Application.runInBackground = true;
-            EditorApplication.update -= Tick;
-            EditorApplication.update += Tick;
-
-            if (EditorApplication.isPlaying)
+            bool needsLibrary = !EditorApplication.isPlaying && EditorSceneManager.GetActiveScene().path != LIBRARY_SCENE;
+            if (needsLibrary && Enumerable.Range(0, EditorSceneManager.sceneCount).Any(i => EditorSceneManager.GetSceneAt(i).isDirty))
             {
-                SessionState.SetBool(KEY_STARTED_PLAY, false);
-                BeginDriver();
-                return "running in the current Play Mode session; output " + request.outDir;
+                const string message = "An open scene has unsaved changes; save it before starting a screenshot run.";
+                WriteStatus(requestPath, "failed", request.outDir, message);
+                throw new InvalidOperationException(message);
             }
+            try
+            {
+                WriteStatus(requestPath, "running", request.outDir, null);
+                SessionState.SetString(KEY_REQUEST, requestPath);
+                SessionState.SetBool(KEY_QUIT, request.quitWhenDone);
+                SessionState.SetBool(KEY_RUN_IN_BACKGROUND, Application.runInBackground);
+                SessionState.SetInt(KEY_GAME_VIEW_INDEX, GameViewResolution.Apply(request.width, request.height));
+                Application.runInBackground = true;
+                EditorApplication.update -= Tick;
+                EditorApplication.update += Tick;
 
-            if (EditorSceneManager.GetSceneManagerSetup().All(s => s.path != LIBRARY_SCENE) || EditorSceneManager.GetActiveScene().path != LIBRARY_SCENE)
-            {
-                if (Enumerable.Range(0, EditorSceneManager.sceneCount).Any(i => EditorSceneManager.GetSceneAt(i).isDirty))
+                if (EditorApplication.isPlaying)
                 {
-                    Finish(requestPath, "failed", request.outDir, "An open scene has unsaved changes; save it or open Library.unity first.", 1);
-                    throw new InvalidOperationException("An open scene has unsaved changes.");
+                    SessionState.SetBool(KEY_STARTED_PLAY, false);
+                    BeginDriver();
+                    return "running in the current Play Mode session; output " + request.outDir;
                 }
-                EditorSceneManager.OpenScene(LIBRARY_SCENE, OpenSceneMode.Single);
+
+                if (needsLibrary)
+                {
+                    EditorSceneManager.OpenScene(LIBRARY_SCENE, OpenSceneMode.Single);
+                }
+                SessionState.SetBool(KEY_STARTED_PLAY, true);
+                EditorApplication.isPlaying = true;
+                EditorApplication.delayCall += () =>
+                {
+                    // The editor can refuse Play Mode (a modal dialog, a failed import); don't stay busy.
+                    if (IsBusy && !EditorApplication.isPlayingOrWillChangePlaymode)
+                    {
+                        try { Finish(requestPath, "failed", request.outDir, "The editor did not enter Play Mode.", 1); }
+                        finally { Cleanup(); }
+                    }
+                };
+                return "entering Play Mode; output " + request.outDir;
             }
-            SessionState.SetBool(KEY_STARTED_PLAY, true);
-            EditorApplication.isPlaying = true;
-            EditorApplication.delayCall += () =>
+            catch (Exception exception)
             {
-                // The editor can refuse Play Mode (a modal dialog, a failed import); don't stay busy.
-                if (IsBusy && !EditorApplication.isPlayingOrWillChangePlaymode)
-                {
-                    Finish(requestPath, "failed", request.outDir, "The editor did not enter Play Mode.", 1);
-                    Cleanup();
-                }
-            };
-            return "entering Play Mode; output " + request.outDir;
+                try { Finish(requestPath, "failed", request.outDir, exception.Message, 1); }
+                finally { Cleanup(); }
+                throw;
+            }
         }
 
         /// <summary>For <c>-executeMethod</c>: <c>-shotRequest &lt;file&gt;</c>, then quits with 0 when every shot worked.</summary>
@@ -208,13 +219,15 @@ namespace OpenSekai.EditorTools.Screenshots
             }
             else if (change == PlayModeStateChange.EnteredEditMode)
             {
-                if (SessionState.GetBool(KEY_RUNNING, false))
+                try
                 {
-                    // Play Mode was stopped under the run.
-                    ShotRequest request = TryLoad(requestPath);
-                    Finish(requestPath, "failed", request?.outDir, "Play Mode stopped before the run finished.", 1);
+                    if (SessionState.GetBool(KEY_RUNNING, false))
+                    {
+                        ShotRequest request = TryLoad(requestPath);
+                        Finish(requestPath, "failed", request?.outDir, "Play Mode stopped before the run finished.", 1);
+                    }
                 }
-                Cleanup();
+                finally { Cleanup(); }
             }
         }
 
@@ -228,8 +241,8 @@ namespace OpenSekai.EditorTools.Screenshots
             }
             catch (Exception exception)
             {
-                Finish(requestPath, "failed", null, exception.Message, 1);
-                EndPlay();
+                try { Finish(requestPath, "failed", null, exception.Message, 1); }
+                finally { EndPlay(); }
                 return;
             }
 
@@ -240,17 +253,20 @@ namespace OpenSekai.EditorTools.Screenshots
                 {
                     int failed = report.shots.Count(s => !s.ok);
                     SessionState.SetBool(KEY_RUNNING, false);
-                    Finish(requestPath, failed == 0 ? "done" : "failed", request.outDir,
-                        failed == 0 ? null : failed + " shot(s) failed; see report.json", failed == 0 ? 0 : 1);
-                    EndPlay();
+                    try
+                    {
+                        Finish(requestPath, failed == 0 ? "done" : "failed", request.outDir,
+                            failed == 0 ? null : failed + " shot(s) failed; see report.json", failed == 0 ? 0 : 1);
+                    }
+                    finally { EndPlay(); }
                 });
             }
             catch (Exception exception)
             {
                 Debug.LogException(exception);
                 SessionState.SetBool(KEY_RUNNING, false);
-                Finish(requestPath, "failed", request.outDir, exception.Message, 1);
-                EndPlay();
+                try { Finish(requestPath, "failed", request.outDir, exception.Message, 1); }
+                finally { EndPlay(); }
             }
         }
 
@@ -270,7 +286,8 @@ namespace OpenSekai.EditorTools.Screenshots
         {
             bool quit = SessionState.GetBool(KEY_QUIT, false);
             int exitCode = SessionState.GetInt(KEY_EXIT_CODE, 0);
-            GameViewResolution.Restore(SessionState.GetInt(KEY_GAME_VIEW_INDEX, -1));
+            try { GameViewResolution.Restore(SessionState.GetInt(KEY_GAME_VIEW_INDEX, -1)); }
+            catch (Exception error) { Debug.LogException(error); }
             Application.runInBackground = SessionState.GetBool(KEY_RUN_IN_BACKGROUND, Application.runInBackground);
             EditorApplication.update -= Tick;
             foreach (string key in new[] { KEY_REQUEST, KEY_RUNNING, KEY_STARTED_PLAY, KEY_GAME_VIEW_INDEX, KEY_RUN_IN_BACKGROUND, KEY_QUIT, KEY_EXIT_CODE })

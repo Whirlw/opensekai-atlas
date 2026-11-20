@@ -274,7 +274,7 @@ namespace OpenSekai.Tests.PlayMode
                 missing.Manifest.title = "ZZZ 缺少音频";
                 packages.SaveManifest(missing, missing.Manifest);
 
-                screen = LibraryScreen.Create(new AppContext(packages, PlayService.Instance));
+                screen = LibraryScreen.Create(new AppContext(packages, OpenSekai.Shared.Settings.LiveSettingsStore.Shared));
                 AudioSource audio = null;
                 var preview = screen.transform.Find("Main/DetailColumn/Detail/Info/Preview");
                 yield return WaitFor(() =>
@@ -372,18 +372,37 @@ namespace OpenSekai.Tests.PlayMode
                 new ScreenCameraStack().SetBaseCamera(camera);
                 marker.layer = 6;
                 marker.transform.position = new Vector3(10000, 0, 0);
-                marker.GetComponent<SpriteRenderer>().sprite = sprite;
+                var renderer = marker.GetComponent<SpriteRenderer>();
+                renderer.sprite = sprite;
+                renderer.color = Color.magenta;
                 blur.IsActive = true;
                 camera.Render();
+                var captured = Sekai.Rendering.SekaiUIBuffer.CaptureColorTexHandle?.rt;
+                Assert.That(captured, Is.Not.Null);
+                RenderTexture.active = captured;
+                pixels.ReadPixels(new Rect(captured.width / 2, captured.height / 2, 1, 1), 0, 0);
+                var inputCenter = pixels.GetPixel(0, 0);
+                Assert.That(inputCenter.r, Is.GreaterThan(0.7f));
+                Assert.That(inputCenter.g, Is.LessThan(0.2f));
+                Assert.That(inputCenter.b, Is.GreaterThan(0.7f));
                 var texture = Sekai.Rendering.SekaiUIBuffer.UIBlurTexHandle?.rt;
                 Assert.That(texture, Is.Not.Null);
                 RenderTexture.active = texture;
                 pixels.ReadPixels(new Rect(texture.width / 2, texture.height / 2, 1, 1), 0, 0);
-                Assert.That(pixels.GetPixel(0, 0).r, Is.GreaterThan(0.7f));
+                var blurredCenter = pixels.GetPixel(0, 0);
+                Assert.That(blurredCenter.r, Is.GreaterThan(0.7f));
+                Assert.That(blurredCenter.g, Is.LessThan(0.2f));
+                Assert.That(blurredCenter.b, Is.GreaterThan(0.7f));
                 pixels.ReadPixels(new Rect(texture.width * 3 / 4, texture.height / 2, 1, 1), 0, 0);
                 Assert.That(pixels.GetPixel(0, 0).r, Is.InRange(0.02f, 0.98f));
                 pixels.ReadPixels(new Rect(1, 1, 1, 1), 0, 0);
                 Assert.That(pixels.GetPixel(0, 0).r, Is.LessThan(0.2f));
+                RenderTexture.active = output;
+                pixels.ReadPixels(new Rect(output.width / 2, output.height / 2, 1, 1), 0, 0);
+                var finalCenter = pixels.GetPixel(0, 0);
+                Assert.That(finalCenter.r, Is.GreaterThan(0.7f));
+                Assert.That(finalCenter.g, Is.LessThan(0.2f));
+                Assert.That(finalCenter.b, Is.GreaterThan(0.7f));
             }
             finally
             {
@@ -474,7 +493,7 @@ namespace OpenSekai.Tests.PlayMode
                 Assert.That(recoveredPackages.LoadItems().Select(item => item.Entry.RootDirectory),
                     Is.EqualTo(new[] { recoveredDirectory }));
 
-                recoveredLibrary = LibraryScreen.Create(new AppContext(recoveredPackages, PlayService.Instance));
+                recoveredLibrary = LibraryScreen.Create(new AppContext(recoveredPackages, OpenSekai.Shared.Settings.LiveSettingsStore.Shared));
                 Transform actions = recoveredLibrary.transform.Find("Main/DetailColumn/Detail/Actions");
                 Assert.That(actions, Is.Not.Null);
                 var auto = actions.Find("Auto").GetComponent<Button>();

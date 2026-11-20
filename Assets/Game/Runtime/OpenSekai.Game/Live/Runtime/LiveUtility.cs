@@ -38,7 +38,7 @@ namespace Sekai
 
 		public static float ScreenDpiToInch(float distance)
 		{
-			return Screen.dpi / 2.54f * distance;
+			return OpenSekai.Shared.Scoring.JudgeTuning.InchesToPixels(distance, Screen.dpi);
 		}
 
 		public static void OpenNotPublishMusicErrorDialog(Action onNotPublish)

@@ -3307,6 +3307,31 @@ namespace OpenSekai.Tests.EditMode.Charts
         }
 
         [Test]
+        public void AttachedHiddenTickAtTheReleaseBeatKeepsTheAuthoredTailJudgeable()
+        {
+            var head = N("NormalHeadTapNote", "head", 2);
+            Add(head, R("next", "tail"));
+            var tail = N("NormalTailReleaseNote", "tail", 4);
+            Add(tail, R("prev", "head"), R("activeHead", "head"));
+            var tick = E("TransientHiddenTickNote", null, V("#BEAT", 4), V("isAttached", 1),
+                R("attachHead", "head"), R("attachTail", "tail"), R("activeHead", "head"));
+            var score = Load(Chart(head, tail, tick, Segment("head", "tail", "head", "tail", "head", "tail"))).Score;
+            var bar = score.NoteArray.OfType<LongNote>().Single();
+            Assert.That(bar.NoteList.OfType<LongHoldCombo>().Single().MusicScoreInfo.time,
+                Is.EqualTo(bar.TailNote.MusicScoreInfo.time));
+            Assert.That(bar.TryGetTail(out var selected), Is.True);
+            Assert.That(selected, Is.SameAs(bar.TailNote));
+
+            using var harness = new LiveHarness();
+            harness.Arrange(score);
+            var lane = LiveConfig.NativeLanePosition(5.5f);
+            harness.Step(1f, 11, LiveHarness.Touch(1, lane, 11));
+            harness.Step(1.98f, 11.98, LiveHarness.Touch(1, lane, 11.98, InputTouchPhase.Stationary));
+            harness.Step(2f, 12, LiveHarness.Touch(1, lane, 12, InputTouchPhase.Ended));
+            Assert.That(bar.TailNote.Result, Is.EqualTo(NoteResult.Perfect));
+        }
+
+        [Test]
         public void AHiddenTickCanUseItsAuthoredTapTailAfterTheBodyEnds()
         {
             var head = N("NormalHeadTapNote", "head", 2, -3);
@@ -3538,8 +3563,17 @@ namespace OpenSekai.Tests.EditMode.Charts
             harness.Step(1.45f, 11.45, LiveHarness.Touch(1, lane, 11.45, InputTouchPhase.Moved));
             bool release = key is NormalNote;
             if (key is FrictionFlickNote)
-                harness.Step(1.5f, 11.5, new LiveTouchSample(1, new Vector2(800, 660), lane, 11.5,
-                    InputTouchPhase.Moved, new Vector2(0, 60)));
+            {
+                float previous = LiveUtility.FrameDeltaTimeOverride;
+                try
+                {
+                    LiveUtility.FrameDeltaTimeOverride = 0.05f; // 1.45s to 1.50s in this replay
+                    float distance = 6f * LiveUtility.ScreenDpiToInch(_config.FlickDistance) + 1f;
+                    harness.Step(1.5f, 11.5, new LiveTouchSample(1, new Vector2(800, 600 + distance), lane, 11.5,
+                        InputTouchPhase.Moved, new Vector2(0, distance)));
+                }
+                finally { LiveUtility.FrameDeltaTimeOverride = previous; }
+            }
             else
                 harness.Step(1.5f, 11.5, LiveHarness.Touch(1, lane, 11.5,
                     release ? InputTouchPhase.Ended : InputTouchPhase.Stationary));

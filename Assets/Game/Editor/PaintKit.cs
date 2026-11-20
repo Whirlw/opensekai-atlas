@@ -135,139 +135,124 @@ namespace OpenSekai.EditorTools
             }
 
             string[] lines = File.ReadAllLines(Manifest);
-            Dictionary<string, string> dirty = new Dictionary<string, string>();
-            int painted = 0, wrongSize = 0, missing = 0, failed = 0;
-
+            var rows = new List<(int line, string source, string target, RectInt rect)>();
+            var errors = new List<string>();
+            int missing = 0;
             for (int i = 1; i < lines.Length; i++)
             {
                 if (string.IsNullOrWhiteSpace(lines[i])) continue;
                 string[] f = lines[i].Split('\t');
-                if (f.Length < 8) continue;
-
-                string file = f[0];
-                string texturePath = f[1];
-                int rx = int.Parse(f[2], CultureInfo.InvariantCulture);
-                int ry = int.Parse(f[3], CultureInfo.InvariantCulture);
-                int rw = int.Parse(f[4], CultureInfo.InvariantCulture);
-                int rh = int.Parse(f[5], CultureInfo.InvariantCulture);
-                bool whole = f[11] == "whole";
-
-                if (!File.Exists(file)) { missing++; continue; }
-
-                var painted2D = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-                if (!painted2D.LoadImage(File.ReadAllBytes(file)))
+                try
                 {
-                    Object.DestroyImmediate(painted2D);
-                    continue;
-                }
-
-                if (whole)
-                {
-                    if (painted2D.width != rw || painted2D.height != rh)
-                    {
-                        wrongSize++;
-                        Debug.LogWarning($"[PaintKit] {Path.GetFileName(file)} is {painted2D.width}x{painted2D.height}, expected {rw}x{rh}");
-                        Object.DestroyImmediate(painted2D);
-                        continue;
-                    }
-                    // A whole-file row used to be recorded in `dirty` and then never written, so
-                    // repainted backgrounds and effect sheets silently kept the old pixels. Paste it
-                    // at the origin, which is the same import-safe path the cropped rows take.
+                    if (f.Length < 12 || (f[11] != "whole" && f[11] != "rect"))
+                        throw new InvalidDataException("invalid manifest row");
+                    if (!File.Exists(f[0])) { missing++; continue; }
+                    var rect = new RectInt(int.Parse(f[2], CultureInfo.InvariantCulture),
+                        int.Parse(f[3], CultureInfo.InvariantCulture), int.Parse(f[4], CultureInfo.InvariantCulture),
+                        int.Parse(f[5], CultureInfo.InvariantCulture));
+                    var importer = AssetImporter.GetAtPath(f[1]) as TextureImporter;
+                    if (importer == null) throw new InvalidDataException("missing texture " + f[1]);
+                    importer.GetSourceTextureWidthAndHeight(out int width, out int height);
+                    if (rect.x < 0 || rect.y < 0 || rect.width <= 0 || rect.height <= 0 ||
+                        rect.x > width - rect.width || rect.y > height - rect.height)
+                        throw new InvalidDataException("rectangle outside " + f[1]);
+                    var piece = ReadPaintedTexture(f[0]);
                     try
                     {
-                        Paste(texturePath, 0, 0, rw, rh, painted2D);
-                        painted++;
+                        int tolerance = f[11] == "whole" ? 0 : 2;
+                        if (Mathf.Abs(rect.width - piece.width) > tolerance || Mathf.Abs(rect.height - piece.height) > tolerance)
+                            throw new InvalidDataException($"painted {piece.width}x{piece.height}, expected {rect.width}x{rect.height}");
+                        rows.Add((i + 1, f[0], f[1], rect));
                     }
-                    catch (System.Exception e)
-                    {
-                        failed++;
-                        Debug.LogWarning($"[PaintKit] {Path.GetFileName(file)} -> {texturePath}: {e.GetType().Name} {e.Message}");
-                    }
-                    Object.DestroyImmediate(painted2D);
-                    continue;
+                    finally { Object.DestroyImmediate(piece); }
                 }
-
-                // A hand-drawn file is routinely a pixel or two off its rect. Refusing it leaves the old
-                // art on screen with only a console warning, which is how a shaved glyph survives a
-                // "successful" apply. Small differences go through Paste, which resamples; big ones are
-                // still refused because they mean the wrong file.
-                if (System.Math.Abs(painted2D.width - rw) > 2 || System.Math.Abs(painted2D.height - rh) > 2)
-                {
-                    wrongSize++;
-                    Debug.LogWarning($"[PaintKit] {Path.GetFileName(file)} is {painted2D.width}x{painted2D.height}, expected {rw}x{rh}");
-                    Object.DestroyImmediate(painted2D);
-                    continue;
-                }
-
-                if (!dirty.ContainsKey(texturePath)) dirty[texturePath] = null;
-                Paste(texturePath, rx, ry, rw, rh, painted2D);
-                painted++;
-                Object.DestroyImmediate(painted2D);
+                catch (System.Exception e) { errors.Add($"line {i + 1} ({f[0]}): {e.Message}"); }
             }
 
-            AssetDatabase.Refresh();
-            Debug.Log($"[PaintKit] applied {painted}, wrong size {wrongSize}, not painted {missing}, failed {failed}");
+            if (errors.Count > 0)
+            {
+                Debug.LogError("[PaintKit] preflight failed before writing:\n" + string.Join("\n", errors));
+                return;
+            }
+
+            int painted = 0;
+            var changed = new HashSet<string>();
+            foreach (var row in rows)
+            {
+                Texture2D piece = null;
+                try
+                {
+                    piece = ReadPaintedTexture(row.source);
+                    Paste(row.target, row.rect.x, row.rect.y, row.rect.width, row.rect.height, piece);
+                    changed.Add(row.target);
+                    painted++;
+                }
+                catch (System.Exception e) { errors.Add($"line {row.line} ({row.source} -> {row.target}): {e.Message}"); }
+                finally { if (piece != null) Object.DestroyImmediate(piece); }
+            }
+            foreach (string target in changed)
+            {
+                try { AssetDatabase.ImportAsset(target, ImportAssetOptions.ForceSynchronousImport); }
+                catch (System.Exception error) { errors.Add($"import {target}: {error.Message}"); }
+            }
+            Debug.Log($"[PaintKit] applied {painted}, not painted {missing}, failed {errors.Count}");
+            if (errors.Count > 0) Debug.LogError("[PaintKit] write failures:\n" + string.Join("\n", errors));
+        }
+
+        private static Texture2D ReadPaintedTexture(string file)
+        {
+            byte[] bytes = File.ReadAllBytes(file);
+            var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            if (texture.LoadImage(bytes)) return texture;
+            Object.DestroyImmediate(texture);
+            throw new InvalidDataException("invalid image " + file);
         }
 
         private static void Paste(string texturePath, int rx, int ry, int rw, int rh, Texture2D piece)
         {
-            var importer = AssetImporter.GetAtPath(texturePath) as TextureImporter;
-            if (importer == null)
-            {
-                // Comes back null when the path is not a texture asset at all; name it instead of
-                // dying on a null reference halfway through the batch.
-                throw new System.InvalidOperationException("no TextureImporter at " + texturePath);
-            }
-            bool wasReadable = importer.isReadable;
-            if (!wasReadable)
-            {
-                importer.isReadable = true;
-                importer.SaveAndReimport();
-            }
-
-            var atlas = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-            atlas.LoadImage(File.ReadAllBytes(texturePath));
+            var atlas = ReadPaintedTexture(texturePath);
             // A hand-drawn file is usually a pixel or two off the rect it has to fill. Writing it at its
             // own size spills the extra column into the neighbouring sprite and still leaves this one
             // short - the glyph comes out shaved. Resample to the rect instead of trusting the file.
             Texture2D fitted = piece;
-            if (piece.width != rw || piece.height != rh)
+            try
             {
-                fitted = new Texture2D(rw, rh, TextureFormat.RGBA32, false);
-                var src = piece.GetPixels();
-                var dst = new Color[rw * rh];
-                for (int y = 0; y < rh; y++)
+                if (piece.width != rw || piece.height != rh)
                 {
-                    float sy = (y + 0.5f) * piece.height / rh - 0.5f;
-                    int y0 = Mathf.Clamp(Mathf.FloorToInt(sy), 0, piece.height - 1);
-                    int y1 = Mathf.Clamp(y0 + 1, 0, piece.height - 1);
-                    float ty = Mathf.Clamp01(sy - y0);
-                    for (int x = 0; x < rw; x++)
+                    fitted = new Texture2D(rw, rh, TextureFormat.RGBA32, false);
+                    var src = piece.GetPixels();
+                    var dst = new Color[rw * rh];
+                    for (int y = 0; y < rh; y++)
                     {
-                        float sx = (x + 0.5f) * piece.width / rw - 0.5f;
-                        int x0 = Mathf.Clamp(Mathf.FloorToInt(sx), 0, piece.width - 1);
-                        int x1 = Mathf.Clamp(x0 + 1, 0, piece.width - 1);
-                        float tx = Mathf.Clamp01(sx - x0);
-                        Color c0 = Color.Lerp(src[y0 * piece.width + x0], src[y0 * piece.width + x1], tx);
-                        Color c1 = Color.Lerp(src[y1 * piece.width + x0], src[y1 * piece.width + x1], tx);
-                        dst[y * rw + x] = Color.Lerp(c0, c1, ty);
+                        float sy = (y + 0.5f) * piece.height / rh - 0.5f;
+                        int y0 = Mathf.Clamp(Mathf.FloorToInt(sy), 0, piece.height - 1);
+                        int y1 = Mathf.Clamp(y0 + 1, 0, piece.height - 1);
+                        float ty = Mathf.Clamp01(sy - y0);
+                        for (int x = 0; x < rw; x++)
+                        {
+                            float sx = (x + 0.5f) * piece.width / rw - 0.5f;
+                            int x0 = Mathf.Clamp(Mathf.FloorToInt(sx), 0, piece.width - 1);
+                            int x1 = Mathf.Clamp(x0 + 1, 0, piece.width - 1);
+                            float tx = Mathf.Clamp01(sx - x0);
+                            Color c0 = Color.Lerp(src[y0 * piece.width + x0], src[y0 * piece.width + x1], tx);
+                            Color c1 = Color.Lerp(src[y1 * piece.width + x0], src[y1 * piece.width + x1], tx);
+                            dst[y * rw + x] = Color.Lerp(c0, c1, ty);
+                        }
                     }
+                    fitted.SetPixels(dst);
+                    Debug.LogWarning($"[PaintKit] {Path.GetFileName(texturePath)}: painted {piece.width}x{piece.height}, rect {rw}x{rh} - resampled");
                 }
-                fitted.SetPixels(dst);
-                Debug.LogWarning($"[PaintKit] {Path.GetFileName(texturePath)}: painted {piece.width}x{piece.height}, rect {rw}x{rh} - resampled");
+                // Unity's sprite rect origin is bottom-left; Texture2D rows start at the bottom too, so the
+                // rect can be used as-is.
+                atlas.SetPixels(rx, ry, fitted.width, fitted.height, fitted.GetPixels());
+                OpenSekai.Shared.Storage.AtomicFile.Write(texturePath, temp => File.WriteAllBytes(temp, atlas.EncodeToPNG()));
             }
-            // Unity's sprite rect origin is bottom-left; Texture2D rows start at the bottom too, so the
-            // rect can be used as-is.
-            atlas.SetPixels(rx, ry, fitted.width, fitted.height, fitted.GetPixels());
-            if (fitted != piece) Object.DestroyImmediate(fitted);
-            File.WriteAllBytes(texturePath, atlas.EncodeToPNG());
-            Object.DestroyImmediate(atlas);
-
-            if (!wasReadable)
+            finally
             {
-                importer.isReadable = false;
+                if (fitted != piece) Object.DestroyImmediate(fitted);
+                Object.DestroyImmediate(atlas);
             }
-            AssetDatabase.ImportAsset(texturePath, ImportAssetOptions.ForceSynchronousImport);
+
         }
 
         // Two sprites can share a name (one per atlas). The painter needs one file per picture, so the
@@ -391,31 +376,16 @@ namespace OpenSekai.EditorTools
 
         private static Color[] ReadRegion(string texturePath, int rx, int ry, int rw, int rh)
         {
-            var importer = AssetImporter.GetAtPath(texturePath) as TextureImporter;
-            bool wasReadable = importer != null && importer.isReadable;
-            if (importer != null && !wasReadable)
-            {
-                importer.isReadable = true;
-                importer.SaveAndReimport();
-            }
-
             var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
             if (!tex.LoadImage(File.ReadAllBytes(texturePath)))
             {
                 Object.DestroyImmediate(tex);
-                if (importer != null && !wasReadable) importer.isReadable = false;
                 return null;
             }
 
             bool fits = rx + rw <= tex.width && ry + rh <= tex.height;
             Color[] pixels = fits ? tex.GetPixels(rx, ry, rw, rh) : null;
             Object.DestroyImmediate(tex);
-
-            if (importer != null && !wasReadable)
-            {
-                importer.isReadable = false;
-                importer.SaveAndReimport();
-            }
 
             return pixels;
         }

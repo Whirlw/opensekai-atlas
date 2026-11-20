@@ -20,6 +20,8 @@ namespace OpenSekai.App.Playback
     /// <summary>Shared main-thread entry for manual and automatic package playback.</summary>
     public sealed class PlayService
     {
+        private readonly SongPackageManager _packages;
+        private readonly LiveSettingsStore _settings;
         private readonly IPlayBootPublisher _boot;
         private readonly IPlaySurface _surface;
         private readonly IPackageAudioRegistrar _audio;
@@ -28,10 +30,12 @@ namespace OpenSekai.App.Playback
         private bool _releaseOnSceneExit;
 
         /// <summary>The process-wide service, wired to the retained singletons.</summary>
-        public static PlayService Instance { get; } = new PlayService(
-            new LegacyPlayBootPublisher(),
+        public static PlayService Instance { get; } = CreateDefault(SongPackageManager.Shared, LiveSettingsStore.Shared);
+
+        internal static PlayService CreateDefault(SongPackageManager packages, LiveSettingsStore settings) => new PlayService(
+            packages, settings, new LegacyPlayBootPublisher(),
             new LegacyPlaySurface(),
-            new LegacyPackageAudioRegistrar(),
+            new LegacyPackageAudioRegistrar(packages),
             new LegacyLiveDeckSelection(),
             new Library.CustomScorePlayHistoryRecorder());
 
@@ -39,12 +43,14 @@ namespace OpenSekai.App.Playback
 
         /// <summary>Used by tests and by the composition root to supply substitutes.</summary>
         internal PlayService(
-            IPlayBootPublisher boot,
+            SongPackageManager packages, LiveSettingsStore settings, IPlayBootPublisher boot,
             IPlaySurface surface,
             IPackageAudioRegistrar audio,
             ILiveDeckSelection deckSelection,
             IPlayHistoryRecorder playHistory)
         {
+            _packages = packages ?? throw new ArgumentNullException(nameof(packages));
+            _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _boot = boot ?? throw new ArgumentNullException(nameof(boot));
             _surface = surface ?? throw new ArgumentNullException(nameof(surface));
             _audio = audio ?? throw new ArgumentNullException(nameof(audio));
@@ -99,7 +105,7 @@ namespace OpenSekai.App.Playback
                 progress?.Invoke("正在读取谱面...");
                 // The cached package when the library holds it; a folder outside the library is read directly.
                 SongPackage entry = temporary?.Metadata
-                    ?? SongPackageManager.Shared.FindCachedItem(request.PackageDirectory)?.Entry
+                    ?? _packages.FindCachedItem(request.PackageDirectory)?.Entry
                     ?? SongPackageStorage.LoadEntry(request.PackageDirectory);
                 if (entry == null)
                 {
@@ -113,7 +119,7 @@ namespace OpenSekai.App.Playback
                 {
                     return Result(PlayStartStatus.Failed, "找不到音频文件。");
                 }
-                PlaybackSettingsSnapshot settings = LiveSettingsStore.Shared.CaptureSnapshot();
+                PlaybackSettingsSnapshot settings = _settings.CaptureSnapshot();
                 LiveBundleBuildData config = ResourceCatalog.LiveBundleConfig.Load();
                 if(config == null) throw new InvalidOperationException("Live bundle configuration is missing.");
                 var chart = temporary == null
@@ -126,7 +132,8 @@ namespace OpenSekai.App.Playback
                     if (!request.IsAuto)
                         return Result(PlayStartStatus.Failed, "此谱面仅含装饰，请选择自动游玩。");
                 }
-                _surface.BeginSession(temporary?.ChartHash ?? SongPackageHash.Compute(entry.ScorePath));
+                string chartHash = temporary?.ChartHash ?? SongPackageHash.Compute(entry.ScorePath);
+                _surface.BeginSession(chartHash);
                 cancellationToken.ThrowIfCancellationRequested();
                 progress?.Invoke("正在加载音频...");
                 audioRegistrationStarted = true;
@@ -141,7 +148,7 @@ namespace OpenSekai.App.Playback
                 cancellationToken.ThrowIfCancellationRequested();
                 PlaySession session = PlaySession.FromChart(request, entry, chart, config, settings);
                 FreeLiveBootData boot = LegacyLiveBootAdapter.Create(session, _deckSelection.SelectedDeckId);
-                if (temporary == null) boot.CustomMusicScoreKey = SongPackageManager.Shared.ScoreKeyOf(entry);
+                if (temporary == null) boot.CustomMusicScoreKey = _packages.FindCachedItem(entry.RootDirectory)?.ScoreKey ?? chartHash;
                 cancellationToken.ThrowIfCancellationRequested();
                 string message = request.IsAuto ? "正在开始自动游玩..." : "正在开始游玩...";
                 progress?.Invoke(message);

@@ -29,15 +29,23 @@ namespace OpenSekai.App.Bootstrap
             GarbageCollector.GCMode = GarbageCollector.Mode.Enabled;
 
             AssetBundleMetaManager.Instance.Initialize();
-            AssetBundleManager.Instance.Initialize();
             SoundUtility.SetupGlobalSeSettings(GlobalSeSettings.Normal);
 
             LiveSettingData settings = LiveSettingsStore.Shared.Load();
             FramerateUtility.ApplyFrameRateLimit(settings.FrameRateLimit);
         }
 
-        protected override void Start()
+        protected override async void Start()
         {
+            try
+            {
+                await AssetBundleManager.Instance.PrepareStreamingAssetsAsync();
+            }
+            catch (System.Exception error)
+            {
+                Debug.LogWarning("[Library] Packaged bundles unavailable: " + error.Message);
+            }
+            if (this == null) return;
             ApplicationLocalSettings settings = ApplicationLocalSettings.LoadFromStorage();
             SoundManager.Instance.SetupVolume(
                 1f, settings.SystemVolume.Bgm, settings.SystemVolume.Se, settings.SystemVolume.Voice);

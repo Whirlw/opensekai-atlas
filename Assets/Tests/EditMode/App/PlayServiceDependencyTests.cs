@@ -28,6 +28,8 @@ namespace OpenSekai.Tests.EditMode
         private FakePlayHistoryRecorder _playHistory;
         private IPlayHistoryRecorder _previousRecorder;
         private PlayService _service;
+        private LiveSettingsStore _settings;
+        private string _root;
 
         [SetUp]
         public void SetUp()
@@ -38,13 +40,17 @@ namespace OpenSekai.Tests.EditMode
             _deck = new FakeDeckSelection { SelectedDeckId = 7 };
             _playHistory = new FakePlayHistoryRecorder();
             _previousRecorder = PlayHistoryRecorder.Current;
-            _service = new PlayService(_boot, _surface, _audio, _deck, _playHistory);
+            _root = Path.Combine(Path.GetTempPath(), "OpenSekai-play-" + Guid.NewGuid().ToString("N"));
+            _settings = new LiveSettingsStore(Path.Combine(_root, "settings.json"));
+            var packages = new OpenSekai.Infrastructure.Packages.SongPackageManager(_root);
+            _service = new PlayService(packages, _settings, _boot, _surface, _audio, _deck, _playHistory);
         }
 
         [TearDown]
         public void TearDown()
         {
             PlayHistoryRecorder.Current = _previousRecorder;
+            if (Directory.Exists(_root)) Directory.Delete(_root, true);
         }
 
         [Test]
@@ -173,7 +179,7 @@ namespace OpenSekai.Tests.EditMode
         [TestCase(true, 11f)]
         public async System.Threading.Tasks.Task AStartedLiveUsesTheMirrorSettingWhenConvertingTheChart(bool mirrored, float lane)
         {
-            LiveSettingData settings = LiveSettingsStore.Shared.Load();
+            LiveSettingData settings = _settings.Load();
             bool previous = settings.IsMirror;
             try
             {

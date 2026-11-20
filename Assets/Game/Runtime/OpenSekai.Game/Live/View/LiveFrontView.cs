@@ -138,7 +138,7 @@ namespace Sekai.Live
 			_life = LiveConfig.Life;
 			_isAuto = controller?.BootData?.IsAuto == true;
 			SetupCameras();
-			CriWare.CriAtomAudioRuntime.ReleaseFallbackAudioListenerIfExternalExists();
+			SoundManager.NotifySceneAudioListenersChanged();
 			SetupBackgroundMaterial(controller);
 			SetupDeadMask();
 			ResolveChildViews();

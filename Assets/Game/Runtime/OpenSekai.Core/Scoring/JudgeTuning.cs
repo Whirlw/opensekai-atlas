@@ -71,7 +71,12 @@ namespace OpenSekai.Shared.Scoring
         /// <summary>Inches per 1/60 s frame converted to pixels for the given screen DPI.</summary>
         public float FlickDistanceInPixels(float screenDpi)
         {
-            return MathF.Max(0f, screenDpi / 2.54f * FlickDistanceInches);
+            return InchesToPixels(FlickDistanceInches, screenDpi);
+        }
+
+        public static float InchesToPixels(float inches, float screenDpi)
+        {
+            return MathF.Max(0f, screenDpi) * MathF.Max(0f, inches);
         }
     }
 }

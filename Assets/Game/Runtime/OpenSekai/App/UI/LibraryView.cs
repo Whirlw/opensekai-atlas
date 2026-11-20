@@ -112,6 +112,7 @@ namespace OpenSekai.App.UI
             // and makes the UI capturable through camera-based screenshots.
             _uiCamera = CreateUiCamera();
             _page.AddComponent<AudioListener>();
+            Sekai.SoundManager.NotifySceneAudioListenersChanged();
             Canvas canvas = _page.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceCamera;
             canvas.worldCamera = _uiCamera;

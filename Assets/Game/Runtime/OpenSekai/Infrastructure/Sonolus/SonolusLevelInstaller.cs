@@ -1,3 +1,4 @@
+using OpenSekai.Shared.Storage;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -380,7 +381,7 @@ namespace OpenSekai.Infrastructure.Sonolus
         internal SongPackage PreparePublish(string staging, SonolusServerAddress server, SonolusLevel level, bool ownsDownloadStage = false)
         {
             RecoverPublication();
-            if (File.Exists(_indexPath)) _index = ReadIndexFile();
+            if (File.Exists(_indexPath)) _index = ReadIndexFile(repair: true);
             string previous = FindInstalled(server, level.Name);
             if (previous != null) previous = _packages.RequirePackageDirectory(previous);
             string key = KeyOf(server, level.Name);
@@ -667,7 +668,7 @@ namespace OpenSekai.Infrastructure.Sonolus
 
         internal void CommitPublication(SonolusServerAddress server, SonolusLevel level, SongPackage installed)
         {
-            var updated = new Dictionary<string, IndexEntry>(LoadIndex(), StringComparer.Ordinal)
+            var updated = new Dictionary<string, IndexEntry>(ReadIndexFile(), StringComparer.Ordinal)
             {
                 [KeyOf(server, level.Name)] = new IndexEntry
                 {
@@ -702,17 +703,29 @@ namespace OpenSekai.Infrastructure.Sonolus
             return _index;
         }
 
-        private Dictionary<string, IndexEntry> ReadIndexFile()
+        private Dictionary<string, IndexEntry> ReadIndexFile(bool repair = false)
         {
             var entries = new Dictionary<string, IndexEntry>(StringComparer.Ordinal);
             string json;
             try { json = File.ReadAllText(_indexPath); }
             catch (FileNotFoundException) { return entries; }
             catch (DirectoryNotFoundException) { return entries; }
-            foreach (var pair in JObject.Parse(json).Properties())
+            JObject root;
+            bool damaged = false;
+            try { root = JObject.Parse(json); }
+            catch (JsonReaderException) when (repair)
+            {
+                root = new JObject();
+                damaged = true;
+            }
+            foreach (var pair in root.Properties())
             {
                 if (pair.Value is not JObject value || string.IsNullOrEmpty(Json.String(value, "directory")))
-                    throw new InvalidDataException("下载索引包含无效的曲包记录。");
+                {
+                    if (!repair) throw new InvalidDataException("下载索引包含无效的曲包记录。");
+                    damaged = true;
+                    continue;
+                }
                 entries[pair.Name] = new IndexEntry
                 {
                     Directory = Json.String(value, "directory"),
@@ -721,6 +734,13 @@ namespace OpenSekai.Infrastructure.Sonolus
                     Cover = SonolusSrl.From(value["cover"]),
                     Version = (int)Json.Number(value, "version")
                 };
+            }
+            if (damaged)
+            {
+                string backup = _indexPath + "." + Guid.NewGuid().ToString("N") + ".bak";
+                File.Copy(_indexPath, backup);
+                SaveIndex(entries);
+                Debug.LogWarning("[Sonolus] 已保留受损下载索引 " + backup + "，已恢复有效记录 " + entries.Count);
             }
             return entries;
         }

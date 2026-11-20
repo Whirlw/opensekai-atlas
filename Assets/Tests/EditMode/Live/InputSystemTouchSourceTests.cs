@@ -56,6 +56,45 @@ namespace OpenSekai.Tests.EditMode.Live
             }
         }
 
+        [Test]
+        public void CanceledPauseTouchReleasesTheButtonForAnotherFinger()
+        {
+            var screen = InputSystem.AddDevice<Touchscreen>();
+            EnhancedTouchSupport.Enable();
+            var obj = new GameObject("pause button", typeof(SpriteRenderer), typeof(Sekai.LiveSpriteButton));
+            var camera = new GameObject("button camera").AddComponent<Camera>();
+            try
+            {
+                camera.transform.position = new Vector3(0, 0, -10);
+                camera.orthographic = true;
+                var button = obj.GetComponent<Sekai.LiveSpriteButton>();
+                button.enabled = false; // Drive the input updates explicitly without running a scale animation.
+                int clicks = 0;
+                button.Setup(() => clicks++);
+                button.CalculateBounds(camera);
+                Vector2 center = camera.WorldToScreenPoint(Vector3.zero);
+                void Send(int id, TouchPhase phase)
+                {
+                    InputSystem.QueueStateEvent(screen, new TouchState { touchId = id, phase = phase, position = center });
+                    InputSystem.Update();
+                    button.UpdateTouches();
+                }
+                Send(60, TouchPhase.Began);
+                Send(60, TouchPhase.Canceled);
+                Assert.That(clicks, Is.Zero);
+                Send(61, TouchPhase.Began);
+                Send(61, TouchPhase.Ended);
+                Assert.That(clicks, Is.EqualTo(1));
+            }
+            finally
+            {
+                Object.DestroyImmediate(obj);
+                Object.DestroyImmediate(camera.gameObject);
+                InputSystem.RemoveDevice(screen);
+                EnhancedTouchSupport.Disable();
+            }
+        }
+
         private static int FindTouch(InputSystemTouchSource source, int touchId)
         {
             for (int i = 0; i < source.Count; i++)

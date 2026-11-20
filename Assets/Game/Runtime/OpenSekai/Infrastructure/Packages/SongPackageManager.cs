@@ -1,3 +1,4 @@
+using OpenSekai.Shared.Storage;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -262,7 +263,8 @@ namespace OpenSekai.Infrastructure.Packages
 			}
 		}
 
-        /// <summary>Extract and validate off-thread; publish and update the shared cache on the caller's Unity context.</summary>
+        /// <summary>Call on Unity's main thread. Extraction reports progress on a worker thread;
+        /// callbacks that access Unity objects must dispatch to the main thread. Publication resumes on Unity's context.</summary>
         public async Task<SongPackage> ImportDownloadedZipAsync(string zipPath, string downloadId, Action<float> progress = null)
         {
             // A deterministic receipt allows a completed download to be acknowledged after a process restart.
@@ -419,69 +421,36 @@ namespace OpenSekai.Infrastructure.Packages
 			SongPackageManifest manifest = CloneManifest(entry.Manifest);
 			string destinationPath = Path.Combine(entry.RootDirectory, "score.json");
 			SongPackageStorage.RejectReparsePoint(destinationPath);
-			string tempCopyPath = null;
-			string readSourcePath = sourcePath;
-			if (IsPathInsideDirectory(entry.RootDirectory, sourcePath))
+			var data = ChartFileReader.ReadFile(sourcePath, entry.MusicId);
+			if (data == null) throw new InvalidDataException("无法读取谱面文件。");
+			string previous = manifest.scoreFileName;
+			manifest.scoreFileName = "score.json";
+			manifest.chartFormat = null;
+			PublishEntryFile(entry, destinationPath, manifest, temporary =>
 			{
-				tempCopyPath = CreateTemporaryPath("OpenSekaiCustomScoreFile_", extension);
-				File.Copy(sourcePath, tempCopyPath, true);
-				readSourcePath = tempCopyPath;
-			}
-
-			try
-			{
-				// Validate/convert before removing the existing score. Keep JSON bytes unchanged.
-				var data = ChartFileReader.ReadFile(readSourcePath, entry.MusicId);
-				if (data == null) throw new InvalidDataException("无法读取谱面文件。");
-				string convertedJson = extension.Equals(".json", StringComparison.OrdinalIgnoreCase) ? null : ChartJson.Write(data);
-				DeleteExistingScoreFiles(entry.RootDirectory, manifest.scoreFileName);
 				if (extension.Equals(".json", StringComparison.OrdinalIgnoreCase))
-				{
-					File.Copy(readSourcePath, destinationPath, true);
-				}
+					File.Copy(sourcePath, temporary);
 				else
-				{
-					File.WriteAllText(destinationPath, convertedJson);
-				}
-
-				manifest.scoreFileName = "score.json";
-                manifest.chartFormat = null;
-				manifest.Normalize();
-				WriteManifest(entry.RootDirectory, manifest);
-				return Track(SongPackageStorage.LoadEntry(entry.RootDirectory));
-			}
-			finally
-			{
-				if (!string.IsNullOrEmpty(tempCopyPath) && File.Exists(tempCopyPath))
-				{
-					File.Delete(tempCopyPath);
-				}
-			}
+					File.WriteAllText(temporary, ChartJson.Write(data));
+			});
+			DeleteExistingScoreFiles(entry.RootDirectory, previous, destinationPath);
+			return Track(SongPackageStorage.LoadEntry(entry.RootDirectory));
 		}
 
-        private SongPackage ReplaceNativeScoreFile(SongPackage entry, string sourcePath)
-        {
-            // Validate before touching the installed chart, then preserve the original bytes.
-            NextRushChartLoader.ReadFile(sourcePath);
-            string name = sourcePath.EndsWith(".gz", StringComparison.OrdinalIgnoreCase)
-                ? "score.next-rush.json.gz" : "score.next-rush.json";
-            string destinationPath = Path.Combine(entry.RootDirectory, name);
-            SongPackageStorage.RejectReparsePoint(destinationPath);
-            string temporary = CreateTemporaryPath("OpenSekaiNextRush_", ".tmp");
-            try
-            {
-                File.Copy(sourcePath, temporary);
-                Directory.CreateDirectory(entry.RootDirectory);
-                var manifest = CloneManifest(entry.Manifest);
-                DeleteExistingScoreFiles(entry.RootDirectory, manifest.scoreFileName);
-                File.Copy(temporary, destinationPath, true);
-                manifest.scoreFileName = name;
-                manifest.chartFormat = NextRushChartLoader.FORMAT;
-                WriteManifest(entry.RootDirectory, manifest);
-                return Track(SongPackageStorage.LoadEntry(entry.RootDirectory));
-            }
-            finally { if (File.Exists(temporary)) File.Delete(temporary); }
-        }
+		private SongPackage ReplaceNativeScoreFile(SongPackage entry, string sourcePath)
+		{
+			NextRushChartLoader.ReadFile(sourcePath);
+			string name = sourcePath.EndsWith(".gz", StringComparison.OrdinalIgnoreCase)
+				? "score.next-rush.json.gz" : "score.next-rush.json";
+			string destination = Path.Combine(entry.RootDirectory, name);
+			var manifest = CloneManifest(entry.Manifest);
+			string previous = manifest.scoreFileName;
+			manifest.scoreFileName = name;
+			manifest.chartFormat = NextRushChartLoader.FORMAT;
+			PublishEntryFile(entry, destination, manifest, temporary => File.Copy(sourcePath, temporary));
+			DeleteExistingScoreFiles(entry.RootDirectory, previous, destination);
+			return Track(SongPackageStorage.LoadEntry(entry.RootDirectory));
+		}
 
 		public SongPackage ReplaceVideoFile(SongPackage entry, string sourcePath)
 		{
@@ -562,37 +531,44 @@ namespace OpenSekai.Infrastructure.Packages
 			string fileName = fixedBaseName + extension.ToLowerInvariant();
 			string destinationPath = Path.Combine(entry.RootDirectory, fileName);
 			SongPackageStorage.RejectReparsePoint(destinationPath);
-			string copySourcePath = sourcePath;
-			string tempCopyPath = null;
-			if (IsPathInsideDirectory(entry.RootDirectory, sourcePath))
+			string previous = getCurrentFileName(manifest);
+			setFileName(manifest, fileName);
+			manifest.Normalize();
+			PublishEntryFile(entry, destinationPath, manifest, temporary =>
 			{
-				tempCopyPath = CreateTemporaryPath("OpenSekaiCustomScoreFile_", extension);
-				File.Copy(sourcePath, tempCopyPath, true);
-				copySourcePath = tempCopyPath;
-			}
+				if (writeFile != null) writeFile(sourcePath, temporary, extension);
+				else File.Copy(sourcePath, temporary);
+			});
+			DeleteExistingEntrySlotFiles(entry.RootDirectory, fixedBaseName, allowedExtensions, previous, destinationPath);
+			return Track(SongPackageStorage.LoadEntry(entry.RootDirectory));
+		}
 
+		private void PublishEntryFile(SongPackage entry, string destination, SongPackageManifest manifest, Action<string> stage)
+		{
+			SongPackageStorage.RejectReparsePoint(destination);
+			string temporary = destination + "." + Guid.NewGuid().ToString("N") + ".tmp";
+			string backup = temporary + ".bak";
 			try
 			{
-				DeleteExistingEntrySlotFiles(entry.RootDirectory, fixedBaseName, allowedExtensions, getCurrentFileName?.Invoke(manifest));
-				if (writeFile != null)
+				stage(temporary);
+				bool replacing = File.Exists(destination);
+				if (replacing) File.Replace(temporary, destination, backup);
+				else File.Move(temporary, destination);
+				try
 				{
-					writeFile(copySourcePath, destinationPath, extension);
+					WriteManifest(entry.RootDirectory, manifest);
 				}
-				else
+				catch
 				{
-					File.Copy(copySourcePath, destinationPath, true);
+					if (replacing) File.Replace(backup, destination, null);
+					else File.Delete(destination);
+					throw;
 				}
-				setFileName(manifest, Path.GetFileName(destinationPath));
-				manifest.Normalize();
-				WriteManifest(entry.RootDirectory, manifest);
-				return Track(SongPackageStorage.LoadEntry(entry.RootDirectory));
+				if (replacing) File.Delete(backup);
 			}
 			finally
 			{
-				if (!string.IsNullOrEmpty(tempCopyPath) && File.Exists(tempCopyPath))
-				{
-					File.Delete(tempCopyPath);
-				}
+				File.Delete(temporary);
 			}
 		}
 
@@ -709,7 +685,7 @@ namespace OpenSekai.Infrastructure.Packages
 			string rootDirectory,
 			string fixedBaseName,
 			HashSet<string> allowedExtensions,
-			string currentFileName)
+			string currentFileName, string keepPath)
 		{
 			HashSet<string> deletePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 			if (!string.IsNullOrWhiteSpace(currentFileName))
@@ -738,6 +714,7 @@ namespace OpenSekai.Infrastructure.Packages
 				}
 			}
 
+			deletePaths.Remove(keepPath);
 			foreach (string path in deletePaths)
 			{
 				if (File.Exists(path))
@@ -747,7 +724,7 @@ namespace OpenSekai.Infrastructure.Packages
 			}
 		}
 
-		private void DeleteExistingScoreFiles(string rootDirectory, string currentFileName)
+		private void DeleteExistingScoreFiles(string rootDirectory, string currentFileName, string keepPath)
 		{
 			HashSet<string> deletePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 			{
@@ -777,6 +754,7 @@ namespace OpenSekai.Infrastructure.Packages
 				}
 			}
 
+			deletePaths.Remove(keepPath);
 			foreach (string path in deletePaths)
 			{
 				if (File.Exists(path))

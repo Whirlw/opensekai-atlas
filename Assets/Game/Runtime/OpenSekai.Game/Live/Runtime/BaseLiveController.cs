@@ -464,7 +464,7 @@ namespace Sekai.Core.Live
 			currentGameTime = Time.realtimeSinceStartupAsDouble;
 			base.OnUpdate();
 
-			if (NativeInput.BackPressedThisFrame)
+			if (NativeInput.BackPressedThisFrame && !DialogBase.OwnsHardwareBack)
 			{
 				OnBackKey();
 			}

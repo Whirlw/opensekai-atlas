@@ -538,6 +538,9 @@ namespace Sekai
 
 		private void OnBackKey(List<RaycastResult> results)
 		{
+			// A hardware press is routed once. A dialog owns it through its close animation.
+			if (DialogBase.TryHandleModalBack()) return;
+
 			if (EnableMysekaiBackKeyProcess)
 			{
 				OnExecuteMysekaiBackKeyProcess?.Invoke();

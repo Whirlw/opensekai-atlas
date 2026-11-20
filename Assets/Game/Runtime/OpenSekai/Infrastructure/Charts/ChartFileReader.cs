@@ -31,6 +31,8 @@ namespace OpenSekai.Infrastructure.Charts
             // Match the old import: never bake mirror or generated hold-combo notes into source JSON.
             var config = ResourceCatalog.LiveBundleConfig.Load();
             var score = new SusRuntimeConverter().Convert(text, config, isNeedCombo: false, _isMirror: false);
+            if (score == null || LiveUtility.CalculateTotalComboCount(score) == 0)
+                throw new InvalidDataException("SUS 谱面没有可游玩的音符。");
             var document = RuntimeChartImporter.FromMusicScore(score);
             document.MusicId = musicId;
             return document;

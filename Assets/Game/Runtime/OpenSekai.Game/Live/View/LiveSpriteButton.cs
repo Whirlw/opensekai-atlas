@@ -98,7 +98,7 @@ namespace Sekai
 			}
 		}
 
-		private void UpdateTouches()
+		internal void UpdateTouches()
 		{
 			if (!_isEnable)
 			{
@@ -118,11 +118,11 @@ namespace Sekai
 						return;
 					}
 				}
-				else if (touch.phase == TouchPhase.Ended)
+				else if (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled)
 				{
 					if (_touchId == touch.fingerId)
 					{
-						if (Contains(position))
+						if (touch.phase == TouchPhase.Ended && Contains(position))
 						{
 							OnClick();
 						}

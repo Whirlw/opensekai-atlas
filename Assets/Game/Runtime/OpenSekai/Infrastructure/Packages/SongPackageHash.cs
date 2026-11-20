@@ -69,38 +69,4 @@ namespace OpenSekai.Infrastructure.Packages
 
 		public override int GetHashCode() => (length.GetHashCode() * 397) ^ writeTicksUtc.GetHashCode();
 	}
-
-	/// <summary>Writes a file through a temporary sibling, so a crash mid-write never leaves half a file.</summary>
-	internal static class AtomicFile
-	{
-		internal static void WriteAllText(string path, string text)
-		{
-			string directory = Path.GetDirectoryName(path);
-			if (!string.IsNullOrEmpty(directory))
-			{
-				Directory.CreateDirectory(directory);
-			}
-
-			string tempPath = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-			try
-			{
-				File.WriteAllText(tempPath, text);
-				if (File.Exists(path))
-				{
-					File.Replace(tempPath, path, null);
-				}
-				else
-				{
-					File.Move(tempPath, path);
-				}
-			}
-			finally
-			{
-				if (File.Exists(tempPath))
-				{
-					File.Delete(tempPath);
-				}
-			}
-		}
-	}
 }

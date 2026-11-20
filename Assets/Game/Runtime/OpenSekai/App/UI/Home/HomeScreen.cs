@@ -529,7 +529,7 @@ namespace OpenSekai.App.UI
 
         private void Update()
         {
-            if (!NativeInput.BackPressedThisFrame) return;
+            if (!NativeInput.BackPressedThisFrame || DialogBase.OwnsHardwareBack) return;
             if (_serverPlayCancellation != null)
             {
                 _serverPlayCancellation.Cancel();

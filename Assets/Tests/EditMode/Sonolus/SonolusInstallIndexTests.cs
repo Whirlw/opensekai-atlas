@@ -46,6 +46,24 @@ namespace OpenSekai.Tests.EditMode.Sonolus
         }
 
         [Test]
+        public void PublishingWithADamagedIndexRowPreservesGoodRowsAndTheOriginalIndex()
+        {
+            var installer = CreateInstaller();
+            var first = Level(name: "previous");
+            var previous = installer.PublishPackage(StagePackage(withCover: true), _server, first);
+            string index = Path.Combine(_indexDirectory, "sonolus-downloads.json");
+            var rows = JObject.Parse(File.ReadAllText(index));
+            rows["broken"] = new JObject();
+            File.WriteAllText(index, rows.ToString());
+            byte[] before = File.ReadAllBytes(index);
+            var next = installer.PublishPackage(StagePackage(withCover: true), _server, Level());
+            var fresh = CreateInstaller();
+            Assert.That(fresh.FindInstalled(_server, first.Name), Is.EqualTo(previous.RootDirectory));
+            Assert.That(fresh.FindInstalled(_server, Level().Name), Is.EqualTo(next.RootDirectory));
+            Assert.That(File.ReadAllBytes(Directory.GetFiles(_indexDirectory, "*.bak").Single()), Is.EqualTo(before));
+        }
+
+        [Test]
         public void MissingOptionalCoverLeavesThePackageAvailableAndCanBeRetried()
         {
             SongPackage package = CreateInstaller().PublishPackage(StagePackage(withCover: false), _server, Level());

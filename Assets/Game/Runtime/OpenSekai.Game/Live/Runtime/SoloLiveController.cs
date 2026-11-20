@@ -570,10 +570,9 @@ namespace Sekai.Core.Live
 				return;
 			}
 
-			PlayResultKind kind = result == 3
-				? PlayResultKind.Completed
-				: _retiredByPlayer ? PlayResultKind.Retired : PlayResultKind.Failed;
 			LiveScore score = _liveLogic != null ? _liveLogic.Score : default;
+			PlayResultKind kind = _retiredByPlayer ? PlayResultKind.Retired
+				: result == 3 && score.life > 0 ? PlayResultKind.Completed : PlayResultKind.Failed;
 			PlayResultHandoff.Publish(PlayResult.FromBootData(free, kind, score));
 		}
 

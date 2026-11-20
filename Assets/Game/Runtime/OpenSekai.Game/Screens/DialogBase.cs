@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using CP;
 using LitMotion;
 using LitMotion.Extensions;
@@ -56,6 +57,11 @@ namespace Sekai
 		protected DialogState currentState;
 		protected string[] seArray;
 
+		private static readonly List<DialogBase> OpenDialogs = new List<DialogBase>();
+
+		private static double _modalBackTime = -1;
+		public static bool OwnsHardwareBack => OpenDialogs.Count != 0 || _modalBackTime == Time.unscaledTimeAsDouble;
+
 		private bool _allowCloseExternal = true;
 		private bool _externalCloseAttached;
 		private MotionHandle _animationMotion;
@@ -80,7 +86,8 @@ namespace Sekai
 
 		protected virtual void Update()
 		{
-			ExecuteBackKeyProcess();
+			if (!ScreenManager.ExistsInstance || !ScreenManager.Instance.isActiveAndEnabled || ScreenManager.Instance.BackKeyChecker == null)
+				ExecuteBackKeyProcess();
 		}
 
 		protected virtual void AwakeProcess()
@@ -113,8 +120,8 @@ namespace Sekai
 			}
 
 			OpenPreprocess();
-			OpenAnimation();
 			currentState = DialogState.PlayOpenAnimation;
+			OpenAnimation();
 			PlayOpenSE();
 		}
 
@@ -252,14 +259,22 @@ namespace Sekai
 			Close();
 		}
 
+		protected virtual void OnEnable()
+		{
+			if (currentState == DialogState.Show && !OpenDialogs.Contains(this)) OpenDialogs.Add(this);
+		}
+
 		protected virtual void OnDisable()
 		{
+			OpenDialogs.Remove(this);
 			KillAnimationTween();
 			DetachCloseExternalListener();
 		}
 
 		protected void OpenPreprocess()
 		{
+			OpenDialogs.Remove(this);
+			OpenDialogs.Add(this);
 			SyncLayerParentObject();
 			ToFront();
 			SetActiveBackground(true);
@@ -411,6 +426,7 @@ namespace Sekai
 
 		private void FinishCloseWithoutDestroy()
 		{
+			OpenDialogs.Remove(this);
 			DisableAllColliders();
 			OnFinishCloseAnimationCallback();
 			OnClose?.Invoke();
@@ -438,6 +454,27 @@ namespace Sekai
 			{
 				fillCover.EnableClick = false;
 			}
+		}
+
+		internal static bool TryHandleModalBack()
+		{
+			for (int i = OpenDialogs.Count - 1; i >= 0; i--)
+			{
+				var dialog = OpenDialogs[i];
+				if (dialog != null && dialog.isActiveAndEnabled && dialog.HandleBackKey()) return true;
+			}
+			return false;
+		}
+
+		private bool HandleBackKey()
+		{
+			if (currentState == DialogState.Show)
+			{
+				_modalBackTime = Time.unscaledTimeAsDouble;
+				OnHardwareBackKeyProcess();
+				return true;
+			}
+			return currentState == DialogState.PlayOpenAnimation || currentState == DialogState.PlayCloseAnimation;
 		}
 
 		private void ExecuteBackKeyProcess()

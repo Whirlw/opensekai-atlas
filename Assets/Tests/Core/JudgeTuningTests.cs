@@ -39,8 +39,8 @@ namespace OpenSekai.Tests.EditMode.Live
             var tuning = JudgeTuning.Shipped;
 
             // 5 cm/s = 5/2.54 in/s, per 1/60 s frame that is 5/2.54/60 in; at 100 dpi it is
-            // (5/2.54/60) * 100 / 2.54 = 1.29 px.
-            Assert.That(tuning.FlickDistanceInPixels(100f), Is.EqualTo(1.2919f).Within(1e-3f));
+            // (5/2.54/60) * 100 = 3.28 px.
+            Assert.That(tuning.FlickDistanceInPixels(100f), Is.EqualTo(3.2808f).Within(1e-3f));
             // A zero or negative DPI must not produce a negative threshold.
             Assert.That(tuning.FlickDistanceInPixels(0f), Is.EqualTo(0f));
         }

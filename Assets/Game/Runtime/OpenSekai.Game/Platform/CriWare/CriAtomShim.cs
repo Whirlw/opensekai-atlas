@@ -708,6 +708,8 @@ namespace CriWare
 		private static readonly double _stopwatchSecondsPerTick = 1d / Stopwatch.Frequency;
 		private static GameObject _root;
 		private static AudioListener _fallbackAudioListener;
+		private static AudioListener[] _sceneListeners = Array.Empty<AudioListener>();
+		private static double _nextListenerDiscovery;
 		private static uint _nextPlaybackId = 1;
 
 		public static void EnsureInitialized()
@@ -716,6 +718,8 @@ namespace CriWare
 			{
 				_root = new GameObject("CriAtomAudioRuntime");
 				UnityEngine.Object.DontDestroyOnLoad(_root);
+				_root.AddComponent<CriAtomAudioListenerGuard>();
+				_nextListenerDiscovery = 0;
 			}
 			if (_freeStates.Count == 0)
 			{
@@ -723,15 +727,7 @@ namespace CriWare
 				ReleasePlaybackState(RentPlaybackState(2, 0), 0);
 			}
 
-			EnsureAudioListenerGuard();
-			CacheFallbackAudioListener();
-			if (HasEnabledExternalAudioListener())
-			{
-				ReleaseFallbackAudioListener();
-				return;
-			}
-
-			EnsureFallbackAudioListener();
+			UpdateAudioListener();
 		}
 
 		public static CriAtomExPlayback Play(AudioClip clip, float _volume, float startTimeSeconds)
@@ -809,7 +805,6 @@ namespace CriWare
 			ResetDriftWindow(state);
 			_playbacks[id] = state;
 
-			EnsureAudioListener();
 			state.BaseStopwatchTicks = Stopwatch.GetTimestamp();
 			if (requestSequence != 0)
 				LatencyCapture.Record("note_se_play", value: id, requestSequence: requestSequence);
@@ -1392,88 +1387,32 @@ namespace CriWare
 			return _nextPlaybackId++;
 		}
 
-		private static void EnsureAudioListener()
+		internal static void RefreshSceneListeners()
 		{
-			EnsureInitialized();
-			if (HasEnabledExternalAudioListener())
-			{
-				ReleaseFallbackAudioListener();
-				return;
-			}
-
-			EnsureFallbackAudioListener();
-		}
-
-		private static void EnsureFallbackAudioListener()
-		{
-			CacheFallbackAudioListener();
-
-			if (_fallbackAudioListener == null && _root != null)
-			{
-				_fallbackAudioListener = _root.AddComponent<AudioListener>();
-			}
-
-			if (_fallbackAudioListener != null)
-			{
-				_fallbackAudioListener.enabled = true;
-			}
-			EnsureAudioListenerGuard();
-		}
-
-		private static void CacheFallbackAudioListener()
-		{
-			if (_fallbackAudioListener == null && _root != null)
-			{
-				_fallbackAudioListener = _root.GetComponent<AudioListener>();
-			}
-		}
-
-		private static void EnsureAudioListenerGuard()
-		{
-			if (_root != null && _root.GetComponent<CriAtomAudioListenerGuard>() == null)
-			{
-				_root.AddComponent<CriAtomAudioListenerGuard>();
-			}
+			_sceneListeners = UnityEngine.Object.FindObjectsByType<AudioListener>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+			_nextListenerDiscovery = Time.realtimeSinceStartupAsDouble + 0.5;
 		}
 
 		internal static void ReleaseFallbackAudioListenerIfExternalExists()
 		{
-			if (HasEnabledExternalAudioListener())
-			{
-				ReleaseFallbackAudioListener();
-				return;
-			}
-
-			EnsureAudioListener();
+			RefreshSceneListeners();
+			if (_root != null) UpdateAudioListener();
 		}
 
-		private static bool HasEnabledExternalAudioListener()
+		internal static void UpdateAudioListener()
 		{
-			AudioListener[] listeners = UnityEngine.Object.FindObjectsByType<AudioListener>(FindObjectsSortMode.None);
-			for (int i = 0; i < listeners.Length; i++)
+			// Scene events discover scene components. Periodic discovery covers listeners added at runtime.
+			if (Time.realtimeSinceStartupAsDouble >= _nextListenerDiscovery) RefreshSceneListeners();
+			foreach (var listener in _sceneListeners)
 			{
-				AudioListener listener = listeners[i];
-				if (listener != null && listener != _fallbackAudioListener && listener.enabled && listener.gameObject.activeInHierarchy)
+				if (listener != null && listener != _fallbackAudioListener && listener.isActiveAndEnabled)
 				{
-					return true;
+					if (_fallbackAudioListener != null) _fallbackAudioListener.enabled = false;
+					return;
 				}
 			}
-
-			return false;
-		}
-
-		private static void ReleaseFallbackAudioListener()
-		{
-			if (_fallbackAudioListener == null && _root != null)
-			{
-				_fallbackAudioListener = _root.GetComponent<AudioListener>();
-			}
-
-			if (_fallbackAudioListener != null)
-			{
-				UnityEngine.Object.Destroy(_fallbackAudioListener);
-				_fallbackAudioListener = null;
-			}
+			if (_fallbackAudioListener == null) _fallbackAudioListener = _root.AddComponent<AudioListener>();
+			if (!_fallbackAudioListener.enabled) _fallbackAudioListener.enabled = true;
 		}
 
 		internal static void Forget(uint id)
@@ -1528,9 +1467,14 @@ namespace CriWare
 
 	internal sealed class CriAtomAudioListenerGuard : MonoBehaviour
 	{
+		private void OnEnable() => UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+		private void OnDisable() => UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+		private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+			=> CriAtomAudioRuntime.RefreshSceneListeners();
+
 		private void LateUpdate()
 		{
-			CriAtomAudioRuntime.ReleaseFallbackAudioListenerIfExternalExists();
+			CriAtomAudioRuntime.UpdateAudioListener();
 		}
 
 		private void OnApplicationPause(bool pauseStatus)

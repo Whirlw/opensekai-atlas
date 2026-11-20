@@ -98,6 +98,7 @@ namespace Sekai
 		private List<string> _downloadBundleNames;
 		private Dictionary<string, Dictionary<string, BundleElement>> _cacheMap;
 		private Dictionary<string, int> _referenceCountTable;
+		private readonly Dictionary<string, List<string>> _ownedDependencies = new Dictionary<string, List<string>>();
 		private Dictionary<string, List<bool>> _callDisposseHistoryTable;
 		private HashSet<string> _loadedAtlasAssetBundleNames;
 		private HashSet<string> _protectedAssetBundleNames;
@@ -149,35 +150,40 @@ namespace Sekai
 				return null;
 			}
 
-			SafeIncrementReferenceCountOf(bundleName);
 			if (_loadAssets.TryGetValue(bundleName, out AssetLoader cachedLoader))
 			{
+				SafeIncrementReferenceCountOf(bundleName);
 				return cachedLoader as AssetBundleLoader;
 			}
 
-			if (loadDependencies && AssetBundleManager.Instance.ExistsDependencies(bundleName))
+			var acquired = new List<string>();
+			var loader = new AssetBundleLoader();
+			try
 			{
-				CheckCircularReferenceAssetBundleDependencies(bundleName);
-				string[] dependencies = AssetBundleManager.Instance.GetDependencies(bundleName);
-				if (dependencies != null)
+				if (loadDependencies && AssetBundleManager.Instance.ExistsDependencies(bundleName))
 				{
-					foreach (string dependency in dependencies)
+					CheckCircularReferenceAssetBundleDependencies(bundleName);
+					foreach (string dependency in AssetBundleManager.Instance.GetDependencies(bundleName))
 					{
-						LoadAssetBundle(dependency, true);
+						if (LoadAssetBundle(dependency)?.AssetBundleLoadState != AssetLoader.LoadState.Done)
+							return null;
+						acquired.Add(dependency);
 					}
 				}
-			}
-
-			AssetBundleLoader loader = new AssetBundleLoader();
-			loader.LoadAssetBundle(bundleName);
-			if (loader.AssetBundleLoadState == AssetLoader.LoadState.Done)
-			{
-				_loadAssets[bundleName] = loader;
+				loader.LoadAssetBundle(bundleName);
+				if (loader.AssetBundleLoadState == AssetLoader.LoadState.Done)
+				{
+					_loadAssets.Add(bundleName, loader);
+					SafeIncrementReferenceCountOf(bundleName);
+					_ownedDependencies.Add(bundleName, acquired);
+				}
 				return loader;
 			}
-
-			SafeDecrementReferenceCountOf(bundleName);
-			return loader;
+			finally
+			{
+				if (!_loadAssets.ContainsKey(bundleName))
+					foreach (string dependency in acquired) DisposeImmediate(dependency);
+			}
 		}
 
 		public T LoadAssetBundle<T>(string bundleName, string fileName) where T : UnityEngine.Object
@@ -485,6 +491,12 @@ namespace Sekai
 
 			SafeClearReferenceCountOf(assetName);
 			ClearBundleElementCache(assetName);
+			if (_ownedDependencies.TryGetValue(assetName, out var acquired))
+			{
+				_ownedDependencies.Remove(assetName);
+				foreach (string dependency in acquired)
+					DisposeCore(dependency, unloadLoadedAssets, immediate, false);
+			}
 		}
 
 		private void CheckCircularReferenceAssetBundleDependencies(string bundleName, string[] parents = null)

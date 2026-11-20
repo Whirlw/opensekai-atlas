@@ -51,9 +51,7 @@ namespace Sekai.EditorTools
 
 		public static bool BuildForTarget(BuildTarget target, bool failWhenNoBundles)
 		{
-			// Building rewrites Assets/StreamingAssets/data in place. Unity refuses to build while
-			// playing, but only after the output folder has already been cleared, which leaves the
-			// project without a catalog. Bail out before touching anything.
+			// Unity cannot build bundles while in play mode.
 			if (EditorApplication.isPlaying || EditorApplication.isPlayingOrWillChangePlaymode)
 			{
 				const string PLAYING_MESSAGE = "AssetBundles cannot be rebuilt while in play mode. Exit play mode first; Assets/StreamingAssets/data was left untouched.";
@@ -90,7 +88,9 @@ namespace Sekai.EditorTools
 			string tempOutputPath = GetAbsoluteProjectPath(Path.Combine(TEMP_OUTPUT_RELATIVE_PATH, target.ToString()));
 			string streamingDataPath = GetAbsoluteProjectPath(STREAMING_DATA_RELATIVE_PATH);
 			RecreateOwnedDirectory(tempOutputPath, GetAbsoluteProjectPath(TEMP_OUTPUT_RELATIVE_PATH));
-			RecreateOwnedDirectory(streamingDataPath, GetAbsoluteProjectPath(STREAMING_DATA_RELATIVE_PATH));
+			string backup = GetAbsoluteProjectPath(TEMP_OUTPUT_RELATIVE_PATH + "/previous-data");
+			if (Directory.Exists(backup) && !Directory.Exists(streamingDataPath))
+				Directory.Move(backup, streamingDataPath);
 
 			AssetBundleManifest manifest = BuildPipeline.BuildAssetBundles(
 				tempOutputPath,
@@ -103,13 +103,41 @@ namespace Sekai.EditorTools
 				throw new BuildFailedException("BuildPipeline.BuildAssetBundles did not return a manifest.");
 			}
 
-			AssetBundleInfo info = CreateAssetBundleInfo(manifest, tempOutputPath, streamingDataPath);
-			byte[] bytes = SerializeAssetBundleInfo(info);
-			WriteAssetBundleInfo(bytes, streamingDataPath);
-
-			AssetDatabase.Refresh();
+			string staged = Path.Combine(tempOutputPath, "packaged-data");
+			Directory.CreateDirectory(staged);
+			AssetBundleInfo info = CreateAssetBundleInfo(manifest, tempOutputPath, staged);
+			WriteAssetBundleInfo(SerializeAssetBundleInfo(info), staged);
+			if (info.bundles.Count != builds.Length) throw new BuildFailedException("Incomplete bundle catalog.");
+			PublishPackagedData(staged, streamingDataPath, backup, AssetDatabase.Refresh);
 			Debug.Log($"OpenSekai AssetBundles built. target={target}, bundles={info.bundles.Count}, output={STREAMING_DATA_RELATIVE_PATH}");
 			return true;
+		}
+
+		private static void PublishPackagedData(string staged, string streamingDataPath, string backup, Action refresh)
+		{
+			if (Directory.Exists(streamingDataPath))
+			{
+				foreach (string meta in Directory.GetFiles(streamingDataPath, "*.meta", SearchOption.AllDirectories))
+				{
+					string next = Path.Combine(staged, Path.GetRelativePath(streamingDataPath, meta));
+					string asset = next.Substring(0, next.Length - 5);
+					if (File.Exists(asset) || Directory.Exists(asset)) File.Copy(meta, next);
+				}
+				if (Directory.Exists(backup)) Directory.Delete(backup, true);
+				Directory.Move(streamingDataPath, backup);
+			}
+			try
+			{
+				Directory.Move(staged, streamingDataPath);
+				refresh();
+			}
+			catch
+			{
+				if (Directory.Exists(streamingDataPath)) Directory.Move(streamingDataPath, staged);
+				if (Directory.Exists(backup)) Directory.Move(backup, streamingDataPath);
+				throw;
+			}
+			if (Directory.Exists(backup)) Directory.Delete(backup, true);
 		}
 
 		private static AssetBundleBuild[] CreateLightweightBuilds(string[] configuredBundleNames, out int skippedBundleCount)
@@ -296,7 +324,7 @@ namespace Sekai.EditorTools
 		{
 			string fullPath = Path.GetFullPath(path);
 			string fullRoot = Path.GetFullPath(expectedRoot);
-			if (!fullPath.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase))
+			if (!fullPath.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
 			{
 				throw new InvalidOperationException($"Refusing to clear unexpected directory: {fullPath}");
 			}

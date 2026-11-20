@@ -26,9 +26,17 @@ namespace OpenSekai.EditorTools.Screenshots
             int index = FindOrAdd(group, width, height);
             PropertyInfo selected = gameViewType.GetProperty("selectedSizeIndex", ANY);
             int previous = (int)selected.GetValue(gameView);
-            selected.SetValue(gameView, index);
-            gameView.Repaint();
-            return previous;
+            try
+            {
+                selected.SetValue(gameView, index);
+                gameView.Repaint();
+                return previous;
+            }
+            catch
+            {
+                selected.SetValue(gameView, previous);
+                throw;
+            }
         }
 
         internal static void Restore(int index)

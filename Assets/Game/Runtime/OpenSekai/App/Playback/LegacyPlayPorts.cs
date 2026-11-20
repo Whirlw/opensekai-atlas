@@ -135,6 +135,9 @@ namespace OpenSekai.App.Playback
     /// </summary>
     internal sealed class LegacyPackageAudioRegistrar : IPackageAudioRegistrar
     {
+        private readonly SongPackageManager packages;
+        internal LegacyPackageAudioRegistrar(SongPackageManager packages) => this.packages = packages;
+
         public async UniTask<bool> RegisterAsync(SongPackage package, CancellationToken cancellationToken)
         {
             SoundManager.Instance.IngameBgmGain = 1f;
@@ -144,7 +147,6 @@ namespace OpenSekai.App.Playback
                 return false;
             }
 
-            SongPackageManager packages = SongPackageManager.Shared;
             SongPackageItem item = packages.FindCachedItem(package.RootDirectory);
             float? lufs = item?.LoudnessLufs;
             if (item == null || !item.LoudnessMeasured)

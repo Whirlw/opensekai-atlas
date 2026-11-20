@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading;
+using Cysharp.Threading.Tasks;
+using OpenSekai.Shared.Storage;
 using CP;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -82,6 +83,52 @@ namespace Sekai
 		private Dictionary<string, List<string>> _categoryResourceMap;
 		private Dictionary<string, AssetBundleElement> _serverAssetBundleCacheFileNameMap;
 		private bool _initialized;
+		private string _preparedCache;
+		private AsyncLazy<bool> _preparation;
+
+		public async UniTask<bool> PrepareStreamingAssetsAsync()
+		{
+			if (_initialized) return true;
+			if (IsDirectFilePath(Application.streamingAssetsPath)) return Initialize();
+			var preparation = _preparation ??= new AsyncLazy<bool>(PrepareUriCacheAsync);
+			try { return await preparation.Task; }
+			finally
+			{
+				if (ReferenceEquals(_preparation, preparation)) _preparation = null;
+			}
+		}
+
+		private async UniTask<bool> PrepareUriCacheAsync()
+		{
+			string catalogUri = CombineStreamingAssetsPath(CACHE_DIRECTORY_NAME, ASSET_BUNDLE_INFO_FILE_NAME);
+			byte[] catalog = await ReadUriAsync(catalogUri);
+			var info = BinarySerializer.Deserialize<AssetBundleInfo>(catalog);
+			if (info?.bundles == null || info.bundles.Count == 0) return false;
+			string cache = Path.Combine(Application.temporaryCachePath, "OpenSekaiBundles");
+			foreach (var element in info.bundles.Values)
+			{
+				string destination = CachedBundlePath(cache, element);
+				if (File.Exists(destination) && new FileInfo(destination).Length == element.fileSize) continue;
+				string uri = CombineStreamingAssetsPath(CACHE_DIRECTORY_NAME, element.cacheDirectoryName, element.cacheFileName);
+				byte[] bytes = await ReadUriAsync(uri);
+				if (bytes.LongLength != element.fileSize) throw new IOException("Incomplete AssetBundle: " + element.bundleName);
+				AtomicFile.Write(destination, temp => File.WriteAllBytes(temp, bytes));
+			}
+			_preparedCache = cache;
+			_clientAssetBundleInfo = _serverAssetBundleInfo = info;
+			ParseServerAssetBundleInfo();
+			return _initialized = true;
+		}
+
+		private static string CachedBundlePath(string cache, AssetBundleElement element) =>
+			Path.Combine(cache, element.cacheFileName + "-" + element.hash);
+
+		private static async UniTask<byte[]> ReadUriAsync(string uri)
+		{
+			using var request = UnityWebRequest.Get(uri);
+			await request.SendWebRequest();
+			return request.downloadHandler.data;
+		}
 
 		public static AssetBundleManager Instance => _instance;
 
@@ -95,6 +142,7 @@ namespace Sekai
 
 		public bool Initialize()
 		{
+			if (!IsDirectFilePath(Application.streamingAssetsPath)) return _initialized;
 			InitLocalPaths();
 			LoadClientAssetBundleInfo();
 			_serverAssetBundleInfo = _clientAssetBundleInfo;
@@ -119,6 +167,7 @@ namespace Sekai
 		{
 			ClearServerBundleInfo();
 			_clientAssetBundleInfo = null;
+			_preparedCache = null;
 			_initialized = false;
 		}
 
@@ -153,7 +202,9 @@ namespace Sekai
 				return null;
 			}
 
-			return CombineStreamingAssetsPath(CACHE_DIRECTORY_NAME, element.cacheDirectoryName, element.cacheFileName);
+			return _preparedCache == null
+				? CombineStreamingAssetsPath(CACHE_DIRECTORY_NAME, element.cacheDirectoryName, element.cacheFileName)
+				: CachedBundlePath(_preparedCache, element);
 		}
 
 		public AssetBundleResource LoadAssetBundle(string bundleName, uint readBufferSize = 65536u)
@@ -176,14 +227,7 @@ namespace Sekai
 			AssetBundle bundle = null;
 			try
 			{
-				if (IsDirectFilePath(path))
-				{
-					bundle = AssetBundle.LoadFromFile(path);
-				}
-				else
-				{
-					bundle = LoadAssetBundleFromStreamingAssetsUri(path);
-				}
+				bundle = AssetBundle.LoadFromFile(path);
 
 				if (bundle == null)
 				{
@@ -440,46 +484,6 @@ namespace Sekai
 			return !IsDirectFilePath(streamingPath) || File.Exists(streamingPath);
 		}
 
-		private static AssetBundle LoadAssetBundleFromStreamingAssetsUri(string uri)
-		{
-			using (UnityWebRequest request = UnityWebRequestAssetBundle.GetAssetBundle(uri))
-			{
-				UnityWebRequestAsyncOperation operation = request.SendWebRequest();
-				while (!operation.isDone)
-				{
-					Thread.Sleep(1);
-				}
-
-				if (request.result != UnityWebRequest.Result.Success)
-				{
-					LogUtility.LogError("Failed to load StreamingAssets AssetBundle. uri:{0} error:{1}", uri, request.error);
-					return null;
-				}
-
-				return DownloadHandlerAssetBundle.GetContent(request);
-			}
-		}
-
-		private static byte[] ReadStreamingAssetBytes(string uri)
-		{
-			using (UnityWebRequest request = UnityWebRequest.Get(uri))
-			{
-				UnityWebRequestAsyncOperation operation = request.SendWebRequest();
-				while (!operation.isDone)
-				{
-					Thread.Sleep(1);
-				}
-
-				if (request.result != UnityWebRequest.Result.Success)
-				{
-					LogUtility.LogError("Failed to read StreamingAssets file. uri:{0} error:{1}", uri, request.error);
-					return null;
-				}
-
-				return request.downloadHandler?.data;
-			}
-		}
-
 		private static string CombineStreamingAssetsPath(params string[] parts)
 		{
 			string path = Application.streamingAssetsPath.TrimEnd('/', '\\');
@@ -544,14 +548,6 @@ namespace Sekai
 				if (File.Exists(streamingPath))
 				{
 					return File.ReadAllBytes(streamingPath);
-				}
-			}
-			else
-			{
-				byte[] streamingBytes = ReadStreamingAssetBytes(streamingPath);
-				if (streamingBytes != null && streamingBytes.Length > 0)
-				{
-					return streamingBytes;
 				}
 			}
 

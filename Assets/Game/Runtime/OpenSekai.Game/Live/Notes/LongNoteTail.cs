@@ -59,7 +59,8 @@ namespace Sekai.Live
 					continue;
 				}
 
-				if (tail == null || candidate.MusicScoreInfo.time >= tail.MusicScoreInfo.time)
+				if (tail == null || candidate.MusicScoreInfo.time > tail.MusicScoreInfo.time
+					|| (candidate.MusicScoreInfo.time == tail.MusicScoreInfo.time && ReferenceEquals(candidate, EndNote)))
 				{
 					tail = candidate;
 				}

@@ -38,6 +38,10 @@ namespace Sekai
 
 		public static SoundManager Instance => _instance;
 
+		/// <summary>Refresh fallback ownership when a scene creates its own listener after loading.</summary>
+		public static void NotifySceneAudioListenersChanged() =>
+			CriAtomAudioRuntime.ReleaseFallbackAudioListenerIfExternalExists();
+
 		/// <summary>
 		/// Extra factor on the in-game music, set per song before the live starts: the 响度平均 gain,
 		/// 1 when that setting is off.
