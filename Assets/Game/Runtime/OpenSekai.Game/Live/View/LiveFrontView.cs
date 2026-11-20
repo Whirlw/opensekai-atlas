@@ -254,6 +254,7 @@ namespace Sekai.Live
 			_isPlayedHaptic = false;
 			float viewTime = (float)(_baseController?.BootData?.MusicData?.AudioToChartTime(musicTime) ?? musicTime);
 			_notesViewManager?.OnUpdate(viewTime);
+			_tapEffect?.UpdateNativeSlots(viewTime);
 			_longTapEffectView?.Excute(viewTime);
 			UpdateLaneMask();
 		}
@@ -737,6 +738,7 @@ namespace Sekai.Live
 				_longTapEffectView = longTapObject.GetComponent<LongTapEffectView>();
 			}
 			_longTapEffectView.Setup();
+			_longTapEffectView.NativeSlots = _tapEffect.SetupNativeSlots(_liveRoot != null ? _liveRoot : transform);
 
 			parent.position = transform.position;
 			if (_effectCamera != null)

@@ -44,15 +44,7 @@ namespace Sekai
 			}
 
 			float progress = CalcProgress(musicTime);
-			if (note is LongNote { NativeConnector: not null } bar)
-			{
-				int style = bar.NativeStyle;
-				if (bar.TryNativeEdge((double)musicTime + LiveConfig.ViewLeadSeconds, out var start, out _, visualTime: true))
-					style = start.NativeConnector.HeadStyle(style);
-				ApplyStyle(style);
-			}
-			else if (note is NormalNote { NativeScroll: not null, IsDecoration: true } marker)
-				ApplyStyle(marker.NativeStyle);
+			if (note is NoteBase native) ApplyStyle(native.NativeStyle);
 			if (LiveTrace.IsOn(LiveTraceCategory.Frame))
 			{
 				LiveTrace.Write(LiveTraceCategory.Frame, "view barT=" + note.MusicScoreInfo.time.ToString("F3") + " state=" + note.State + " raw=" + note.Progress.ToString("F3") + " view=" + progress.ToString("F3"));
@@ -64,7 +56,9 @@ namespace Sekai
 
 			if (note.Category == Sekai.Live.NoteCategory.Long && spriteRenderer != null)
 			{
-				spriteRenderer.size = LiveUtility.CalcSpriteRendererSize(note.LaneEndF - note.LaneStartF);
+				float width = note is LongNote { IsNextRushHeadKey: true } key
+					? key.NativeRight - key.NativeLeft : note.LaneEndF - note.LaneStartF;
+				spriteRenderer.size = LiveUtility.CalcSpriteRendererSize(width);
 			}
 		}
 
@@ -108,7 +102,9 @@ namespace Sekai
 				return Vector3.zero;
 			}
 
-			Vector2 center = GetLaneCenter(note.LaneStartF, note.LaneEndF);
+			Vector2 center = note is LongNote { IsNextRushHeadKey: true } key
+				? GetLaneCenter(key.NativeLeft, key.NativeRight)
+				: GetLaneCenter(note.LaneStartF, note.LaneEndF);
 			Vector2 effectiveSpawnPos = spawnPosition;
 			if (note is NoteBase noteBase && noteBase.IsNegativeSpeed)
 			{

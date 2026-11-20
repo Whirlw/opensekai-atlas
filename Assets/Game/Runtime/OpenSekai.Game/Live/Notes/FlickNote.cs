@@ -20,7 +20,6 @@ namespace Sekai.Live
 		/// <summary>The swipe length this note asks for, in the same units as a touch delta.</summary>
 		internal float FlickDistance => _flickDistance;
 		internal bool IsNextRushHead { get; }
-		internal bool IsConnectorHeadView { get; }
 		internal bool CanStartNextRushHold => State is NoteState.Input or NoteState.Done;
 
 		private FlickTailJudge _tailJudge;
@@ -70,15 +69,13 @@ namespace Sekai.Live
 		}
 
 		public FlickNote(MusicScoreInfo info, int id, int laneStart, int laneEnd, NoteCategory category, float speedRatio,
-			NoteType type, NoteDirection direction, float laneOffset, float screenDpiToInch, bool isNextRushHead = false,
-			bool isConnectorHeadView = false)
+			NoteType type, NoteDirection direction, float laneOffset, float screenDpiToInch, bool isNextRushHead = false)
 			: base(info, id, laneStart, laneEnd, category, speedRatio, laneOffset, type)
 		{
 			inputResults = new (int id, bool distance, bool trueDirection)[8];
 			_flickDistance = screenDpiToInch;
 			Direction = direction;
 			IsNextRushHead = isNextRushHead;
-			IsConnectorHeadView = isConnectorHeadView;
 		}
 
 		public override void Excute(MusicScoreInfo currentFrameInfo, float offsetTime)
@@ -172,6 +169,7 @@ namespace Sekai.Live
 			var judgeInfo = singleFlick
 			  ? LiveConfig.CalculateFlickNoteResult(this, musicTime, isDirection)
 			  : LiveConfig.CalculateLongEndFlickNoteResult(this, musicTime, isDirection);
+			HasNextRushHit = IsNextRush;
 			JudgeInfo = onUpdateResult != null ? onUpdateResult(judgeInfo) : judgeInfo;
 			State = NoteState.Done;
 			return true;

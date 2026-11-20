@@ -92,6 +92,7 @@ namespace Sekai
 			}
 
 			float z = note.MusicScoreInfo.time * 0.001f + note.LaneStart * 0.0000001f;
+			if (note is NoteBase { IsNextRush: true, Category: NoteCategory.Connection }) z -= 0.0001f;
 			noteView.Spawn(note, z);
 			return noteView;
 		}

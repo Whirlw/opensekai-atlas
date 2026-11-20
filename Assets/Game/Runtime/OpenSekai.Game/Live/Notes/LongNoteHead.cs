@@ -71,6 +71,7 @@ namespace Sekai.Live
 			Identity.SetJudgeInfoForDecoration(_result.result);
 			Identity.NativeStyle = _bar.NativeStyle;
 			Identity.NativeEffectKind = _bar.NativeEffectKind;
+			Identity.HasNextRushHit = _bar.HasNextRushHit = _bar.IsNextRush && updateScore;
 			// A carrier's head has nothing to say, but it is closed all the same.
 			if (!_bar.HasJudgment)
 			{

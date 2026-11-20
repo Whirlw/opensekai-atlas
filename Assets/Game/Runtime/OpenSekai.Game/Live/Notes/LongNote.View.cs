@@ -13,11 +13,33 @@ namespace Sekai.Live
 		protected string _guideColor = null;
 
 		internal NoteBase ConnectorHeadViewNote { get; private set; }
+		private int _connectorHeadStyle;
+		private NoteType _connectorHeadType;
 
-		public void SetNextRushConnectorHeadViewNote(NoteBase note) => ConnectorHeadViewNote = note;
+		public void SetNextRushConnectorHeadViewNote(NoteBase note)
+		{
+			note.IsNextRushConnectorHeadVisual = true;
+			ConnectorHeadViewNote = note;
+			_connectorHeadStyle = note.NativeStyle;
+			_connectorHeadType = note.Type;
+		}
 
 		internal bool UpdateConnectorHeadView(double now)
 		{
+			if (ConnectorHeadViewNote == null || !TryConnectorPresentation(now, out var segment, out float left, out float right))
+				return false;
+			ConnectorHeadViewNote.PlaceVisualHead(left, right);
+			ConnectorHeadViewNote.NativeStyle = segment.HeadStyle(_connectorHeadStyle);
+			ConnectorHeadViewNote.Type = segment.IsDamage || ConnectorHeadViewNote is NextRushDamageNote
+				? _connectorHeadType
+				: segment.IsCritical ? NoteType.Critical : NoteType.Default;
+			return true;
+		}
+
+		internal bool TryConnectorPresentation(double now, out NextRushConnectorSegment segment, out float left, out float right)
+		{
+			segment = null;
+			left = right = 0f;
 			if (!TryNativeEdge(now, out var start, out var end, visualTime: true))
 			{
 				// A legacy fake damage head sits at the first endpoint during its lead-in.
@@ -27,19 +49,14 @@ namespace Sekai.Live
 				end = (NoteBase)LineNoteList[1];
 				if (now >= end.NativeTarget.Time) return false;
 			}
-			var segment = start.NativeConnector;
+			segment = start.NativeConnector;
 			if (segment.IsGuide || segment.FullScreen || segment.IsHidden(now, start.NativeScroll.SampleFrame(now).Hidden)) return false;
 			double duration = end.NativeTarget.Time - start.NativeTarget.Time;
 			float progress = now <= start.NativeTarget.Time ? 0f :
 				segment.Interpolate((float)((now - start.NativeTarget.Time) / duration));
-			float left = Mathf.LerpUnclamped(start.NativeLeft, end.NativeLeft, progress);
-			float right = Mathf.LerpUnclamped(start.NativeRight, end.NativeRight, progress);
-			if (right - left <= -1f) return false;
-			ConnectorHeadViewNote.PlaceVisualHead(left, Mathf.Max(left, right));
-			ConnectorHeadViewNote.NativeStyle = segment.HeadStyle(start.NativeStyle);
-			if (this is FrictionHideLongNote && ConnectorHeadViewNote is not NextRushDamageNote)
-				ConnectorHeadViewNote.Type = segment.IsCritical ? NoteType.Critical : NoteType.Default;
-			return true;
+			left = Mathf.LerpUnclamped(start.NativeLeft, end.NativeLeft, progress);
+			right = Mathf.LerpUnclamped(start.NativeRight, end.NativeRight, progress);
+			return right - left > -1f;
 		}
 
 		internal bool TryNativeEdge(double time, out NoteBase start, out NoteBase end, bool visualTime = false)

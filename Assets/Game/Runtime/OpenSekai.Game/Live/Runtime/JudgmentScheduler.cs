@@ -616,9 +616,10 @@ namespace Sekai.Core.Live
 
 			_session.ScoreLogic?.UpdateNoteResult(note);
 			// A missed deadline is silent. Touching a hazard is an actual damage hit.
-			bool playSound = (note.Result != NoteResult.Miss || note is NextRushDamageNote)
+			bool playSound = (note.Result != NoteResult.Miss || note.HasNextRushHit || note is NextRushDamageNote)
 				&& (note is not (LongHoldCombo or NextRushHiddenTickNote) || _session.IsAuto);
-			var cue = playSound ? LiveSoundDefine.NextRushCue(note.NativeEffectKind, note.Result) : null;
+			var cue = playSound ? LiveSoundDefine.NextRushCue(note.NativeEffectKind,
+				_session.IsAuto ? NoteResult.Auto : note.Result) : null;
 			if (cue != null && _session.Views != null)
 				foreach (var view in _session.Views) view?.NativeHitSound(note, cue);
 

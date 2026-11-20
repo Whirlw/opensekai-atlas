@@ -256,6 +256,7 @@ namespace Sekai.Live
 				return false;
 			}
 
+			_note.HasNextRushHit = _note.IsNextRush;
 			_note.FinishAsTail(best);
 			ClearFingers();
 			return true;

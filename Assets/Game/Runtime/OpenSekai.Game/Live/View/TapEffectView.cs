@@ -20,6 +20,7 @@ namespace Sekai
 
 			public NoteDirection direction;
 			public int style;
+			public bool native;
 
 			public float laneStart;
 
@@ -59,6 +60,7 @@ namespace Sekai
 		private Dictionary<int, string> _tapSEDict;
 
 		private Dictionary<int, string> _pairNoteSeMap;
+		private readonly Dictionary<string, double> _nativeCueTimes = new Dictionary<string, double>();
 
 		private NoteInfo _noteInfo;
 
@@ -69,6 +71,11 @@ namespace Sekai
 		private bool _isEnableVibration;
 
 		private Action _playSeAction;
+		private NextRushSlotEffects _nativeSlots;
+
+		internal NextRushSlotEffects SetupNativeSlots(Transform root) => _nativeSlots ??= new NextRushSlotEffects(root);
+
+		internal void UpdateNativeSlots(float time) => _nativeSlots?.Update(time);
 
 		public void Setup(BaseLiveController liveBaseController)
 		{
@@ -123,11 +130,15 @@ namespace Sekai
 		{
 			_lastFrame = 0;
 			_pairNoteSeMap?.Clear();
+			_nativeCueTimes.Clear();
+			_nativeSlots?.Clear();
 		}
 
 		public void Dispose()
 		{
 			Clear();
+			_nativeSlots?.Dispose();
+			_nativeSlots = null;
 		}
 
 		private void SetupSEDict(bool isCollaborationMode)
@@ -194,7 +205,7 @@ namespace Sekai
 			}
 
 			float width = _noteInfo.laneEnd - _noteInfo.laneStart + 1f;
-			int count = Mathf.Min(Mathf.CeilToInt(width), LiveConfig.JudgmentPositions.Length);
+			int count = _noteInfo.native ? 1 : Mathf.Min(Mathf.CeilToInt(width), LiveConfig.JudgmentPositions.Length);
 			for (int i = 0; i < count; i++)
 			{
 				ParticleSystemController controller = pool.Spawn();
@@ -236,8 +247,13 @@ namespace Sekai
 			}
 
 			controller.transform.localPosition = new Vector3(LiveUtility.CalcLaneTransformX(GetLaneCenter()), 0f, 0f);
-			controller.transform.localScale = new Vector3(_noteInfo.laneEnd - _noteInfo.laneStart + 1f, 1f, 1f);
-			float z = _noteInfo.direction switch
+			controller.transform.localScale = new Vector3(_noteInfo.native ? 1f : _noteInfo.laneEnd - _noteInfo.laneStart + 1f, 1f, 1f);
+			float z = _noteInfo.native ? _noteInfo.direction switch
+			{
+				NoteDirection.Left or NoteDirection.DownRight => 22.5f,
+				NoteDirection.Right or NoteDirection.DownLeft => -22.5f,
+				_ => 0f
+			} : _noteInfo.direction switch
 			{
 				NoteDirection.Left => 15f,
 				NoteDirection.Right => -15f,
@@ -305,13 +321,17 @@ namespace Sekai
 			}
 
 			NoteResult result = note.Result;
+			bool native = note is NoteBase { IsNextRush: true };
+			bool missed = result is NoteResult.Miss or NoteResult.Bad;
 
-			// Nothing has been played yet when the result is still None: a note that merely left the
-			// line, or a tail the bar is still carrying, must never fire a tap effect or a hit sound.
-			if (result == NoteResult.None || result == NoteResult.Miss || result == NoteResult.Pass || result == NoteResult.Bad)
+			if (result is NoteResult.None or NoteResult.Pass
+				|| missed && (!native || result == NoteResult.Miss && note is not NoteBase { HasNextRushHit: true }))
 			{
 				return;
 			}
+
+			// The default Next SEKAI particle pack has no hazard hit particles.
+			if (note is NextRushDamageNote) return;
 
 			if (OpenSekai.Shared.Diagnostics.LiveTrace.IsOn(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Tail))
 			{
@@ -320,16 +340,19 @@ namespace Sekai
 					"tapFx cat=" + note.Category + " type=" + note.Type + " res=" + result + " id=" + note.Id);
 			}
 
-			bool native = note is NoteBase { NativeScroll: not null };
+			var visual = note is LongNote { IsNextRush: true } bar
+				? (bar.NativeLeft, bar.NativeRight) : (note.LaneStartF, note.LaneEndF);
 			_noteInfo = new NoteInfo
 			{
-				result = result,
+				// The default Next SEKAI particle pack falls back to the same tap particles for every grade.
+				result = native ? NoteResult.Perfect : result,
 				category = note.Category,
 				type = note.Type,
 				direction = note.Direction,
 				style = note is NoteBase styled ? styled.NativeStyle : 0,
-				laneStart = native ? note.LaneStartF : note.LaneStart,
-				laneEnd = native ? note.LaneEndF : note.LaneEnd,
+				native = native,
+				laneStart = native ? visual.Item1 : note.LaneStart,
+				laneEnd = native ? visual.Item2 : note.LaneEnd,
 				pairNote = note.PairNote,
 				noteId = note.Id
 			};
@@ -352,9 +375,14 @@ namespace Sekai
 					break;
 				case NoteCategory.Flick:
 				case NoteCategory.FrictionFlick:
-					PlayLaneEffect();
-					TapAura();
-					TapGen();
+					// Trace flicks share the directional flash. Only critical flicks have a lane
+					// particle in the default pack, and TraceFlick has no tap aura or generator.
+					if (!native || note.Type == NoteType.Critical) PlayLaneEffect();
+					if (!native || note.Category == NoteCategory.Flick)
+					{
+						TapAura();
+						TapGen();
+					}
 					FlickSlash();
 					break;
 				case NoteCategory.Friction:
@@ -368,8 +396,11 @@ namespace Sekai
 					break;
 			}
 
+			if (native)
+				_nativeSlots?.Play(note.Category, note.Type, _noteInfo.style, _noteInfo.laneStart - 0.5f,
+					_noteInfo.laneEnd + 0.5f, MusicScore.CurrentFrameInfo.time);
 			LatencyCapture.Record("note_effect", noteId: note.Id, result: result);
-			if (note is not NoteBase { NativeEffectKind: not NextRushEffectKind.Default })
+			if (!native)
 				_playSeAction?.Invoke();
 			if (checkPlayedHaptic == null || !checkPlayedHaptic())
 			{
@@ -379,8 +410,10 @@ namespace Sekai
 
 		private void PlayLaneEffect()
 		{
-			int first = Mathf.Max(0, Mathf.FloorToInt(_noteInfo.laneStart));
-			int last = Mathf.Min(LiveConfig.JudgmentPositions.Length - 1, Mathf.CeilToInt(_noteInfo.laneEnd));
+			int first = Mathf.Max(0, _noteInfo.native ? Mathf.CeilToInt(_noteInfo.laneStart - 0.999999f)
+				: Mathf.FloorToInt(_noteInfo.laneStart));
+			int last = Mathf.Min(LiveConfig.JudgmentPositions.Length - 1, _noteInfo.native
+				? Mathf.FloorToInt(_noteInfo.laneEnd + 0.999999f) : Mathf.CeilToInt(_noteInfo.laneEnd));
 			for (int lane = first; lane <= last; lane++)
 			{
 				TapLane(lane);
@@ -421,7 +454,14 @@ namespace Sekai
 			controller.Play(_noteInfo.style);
 		}
 
-		internal void PlayNativeCue(NoteBase note, string cue) => PlaySE(cue, cue, note.Id, note.PairNote);
+		internal void PlayNativeCue(NoteBase note, string cue)
+		{
+			if (!SoundManager.Instance.ExistsCueName(cue)) cue = LiveSoundDefine.NextRushFallbackCue(cue);
+			double now = Time.unscaledTimeAsDouble;
+			if (_nativeCueTimes.TryGetValue(cue, out double previous) && now - previous < 0.0167) return;
+			_nativeCueTimes[cue] = now;
+			SubmitSe(cue, note.Id);
+		}
 
 		private void PlaySe()
 		{

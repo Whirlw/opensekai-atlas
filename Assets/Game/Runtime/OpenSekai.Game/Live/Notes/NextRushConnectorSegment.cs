@@ -21,6 +21,7 @@ namespace Sekai.Live
         public bool ThroughJudgeLine { get; }
         public NextRushConnectorLayer Layer { get; }
         public bool FullScreen { get; }
+        internal bool HasActiveInterval { get; }
         internal bool TracksDamageContact { get; }
         internal const double ThroughJudgeLineDespawnDelay = 5;
         internal bool IsGuide => Kind >= 101 && Kind <= 108;
@@ -30,7 +31,6 @@ namespace Sekai.Live
         public bool IsCritical => VisualKind == 2 || VisualKind >= 21 && VisualKind <= 28;
         internal bool HasColor => VisualKind >= 11 && VisualKind <= 28 || IsDamage;
         private readonly NoteBase _styleHead;
-        private readonly int? _activeHeadStyle;
         internal bool LegacyHiddenPop { get; }
         internal bool HasLegacyFakeDamageLeadIn { get; }
         internal double LegacySpawnTime { get; private set; } = double.PositiveInfinity;
@@ -41,17 +41,16 @@ namespace Sekai.Live
 
         public NextRushConnectorSegment(int kind, int ease, float startAlpha, float endAlpha, NoteBase styleHead = null,
             bool throughJudgeLine = false, NextRushConnectorLayer layer = NextRushConnectorLayer.Top, bool fullScreen = false,
-            float easeFrom = 0f, float easeTo = 1f, bool hasActiveInterval = false, bool legacyHiddenPop = false,
-            int? activeHeadStyle = null)
+            float easeFrom = 0f, float easeTo = 1f, bool hasActiveInterval = false, bool legacyHiddenPop = false)
         {
             Kind = kind;
+            HasActiveInterval = hasActiveInterval;
             TracksDamageContact = IsDamage && !IsFake && hasActiveInterval;
             Ease = ease;
             // The upstream renderer forces authored alpha to 1 for playable connectors.
             StartAlpha = IsGuide ? startAlpha : 1f;
             EndAlpha = IsGuide ? endAlpha : 1f;
             _styleHead = styleHead;
-            _activeHeadStyle = activeHeadStyle;
             LegacyHiddenPop = legacyHiddenPop;
             HasLegacyFakeDamageLeadIn = legacyHiddenPop && IsFake && IsDamage && !hasActiveInterval;
             ThroughJudgeLine = throughJudgeLine;
@@ -131,8 +130,7 @@ namespace Sekai.Live
             return PaletteColor(Kind % 10);
         }
 
-        internal int HeadStyle(int fallback) => VisualKind >= 11 && VisualKind <= 38 ? VisualKind % 10
-            : TracksDamageContact ? _activeHeadStyle ?? fallback : _styleHead?.NativeStyle ?? fallback;
+        internal int HeadStyle(int fallback) => VisualKind >= 11 && VisualKind <= 38 ? VisualKind % 10 : fallback;
 
         internal static Color PaletteColor(int style)
         {

@@ -420,8 +420,13 @@ namespace OpenSekai.Infrastructure.Charts
                 float flick = LiveUtility.ScreenDpiToInch(_config.FlickDistance);
                 switch (kind)
                 {
-                    case "TapNote": case "TailTapNote": case "TailReleaseNote" when !activeHead && !connectorHeadView || fake:
+                    case "TapNote":
                         note = new NormalNote(info, id, a, b, NoteCategory.Normal, 1, type, Offset(NoteCategory.Normal)); break;
+                    case "TailTapNote":
+                        note = new NormalNote(info, id, a, b, NoteCategory.Long, 1, type, Offset(NoteCategory.Normal),
+                            isNextRushTap: true); break;
+                    case "TailReleaseNote" when !activeHead && !connectorHeadView || fake:
+                        note = new NormalNote(info, id, a, b, NoteCategory.Long, 1, type, Offset(NoteCategory.Normal)); break;
                     case "ReleaseNote": case "HeadReleaseNote": case "TailReleaseNote":
                         var release = new NormalNote(info, id, a, b, NoteCategory.Long, 1, type, Offset(NoteCategory.Long),
                             isTailReleaseOwner: kind == "TailReleaseNote" && activeHead);
@@ -433,8 +438,8 @@ namespace OpenSekai.Infrastructure.Charts
                             flick, Offset(NoteCategory.Flick), isTraceFlickOwner: true); break;
                     case "FlickNote": case "TailFlickNote": case "HeadFlickNote":
                         note = new FlickNote(info, id, a, b, NoteCategory.Flick, 1, type, direction,
-                            Offset(NoteCategory.Flick), flick, isNextRushHead: kind == "HeadFlickNote" || activeHead && !fake && kind == "FlickNote",
-                            isConnectorHeadView: connectorHeadView); break;
+                            Offset(NoteCategory.Flick), flick,
+                            isNextRushHead: kind == "HeadFlickNote" || activeHead && !fake && kind == "FlickNote"); break;
                     case "DamageNote":
                         note = new NextRushDamageNote(info, id, a, b); break;
                     case "TransientHiddenDamageTickNote":
@@ -446,7 +451,6 @@ namespace OpenSekai.Infrastructure.Charts
                         note = new FrictionFlickNote(info, id, a, b, NoteCategory.FrictionFlick, 1, type, direction,
                             flick, Offset(NoteCategory.FrictionFlick),
                             isTraceFlickOwner: activeHead && !fake && kind == "TraceFlickNote",
-                            isConnectorHeadView: connectorHeadView,
                             isTailTraceFlickOwner: activeHead && !fake && kind == "TailTraceFlickNote",
                             isTraceTail: kind == "TailTraceFlickNote"); break;
                     case "HeadTapNote":
@@ -469,6 +473,7 @@ namespace OpenSekai.Infrastructure.Charts
                     default: throw Unsupported(entity.Archetype);
                 }
                 if (fake) note.SetDecoration(true);
+                note.IsNextRushHeadKey = IsHoldHead(kind);
                 SetPresentation(entity, note);
                 SetGeometry(note, left, right);
                 SetNativeScroll(entity, note, group);
@@ -649,7 +654,11 @@ namespace OpenSekai.Infrastructure.Charts
                 }
                 if (activeHead != null)
                 {
-                    if (source is LongNote scoredHead) return scoredHead;
+                    if (source is LongNote scoredHead)
+                    {
+                        SetConnectorHeadView(scoredHead, start);
+                        return scoredHead;
+                    }
                     if (!source.IsDecoration && !IsIndependentHoldHead(kind) && !HasStandaloneConnectorHead(kind)
                         && kind is not ("AnchorNote" or "TickNote" or "TransientHiddenTickNote" or "TransientHiddenDamageTickNote"))
                         throw Unsupported("长条判定起点 " + start.Archetype);
@@ -674,13 +683,9 @@ namespace OpenSekai.Infrastructure.Charts
                     carrier.SetNextRushTraceFlickHead(traceFlick);
                 if (owner is NextRushDamageNote && !owner.IsDecoration)
                     carrier.SetNextRushReleaseOwner(owner);
-                if (!owner.IsDecoration && HasStandaloneConnectorHead(kind))
-                {
-                    if (owner is NormalNote) carrier.SetNextRushReleaseOwner(owner);
-                    var marker = CreateNote(activeHead, connectorHeadView: true);
-                    marker.SetDecoration(true);
-                    carrier.SetNextRushConnectorHeadViewNote(marker);
-                }
+                if (!owner.IsDecoration && owner is NormalNote && HasStandaloneConnectorHead(kind))
+                    carrier.SetNextRushReleaseOwner(owner);
+                SetConnectorHeadView(carrier, activeHead);
                 return CopyGeometry(start, carrier);
             }
 
@@ -688,7 +693,8 @@ namespace OpenSekai.Infrastructure.Charts
             {
                 var source = _notes[entity];
                 return new NormalNote(source.MusicScoreInfo, ++_nextId, source.LaneStart, source.LaneEnd,
-                    NoteCategory.Long, 1, source.Type, Offset(NoteCategory.Long), isNextRushHeadTap: true);
+                    NoteCategory.Long, 1, source.Type, Offset(NoteCategory.Long), isNextRushTap: true)
+                { IsNextRushHeadKey = true };
             }
 
             private NoteBase RegisterStandaloneHead(NextRushEntity entity)
@@ -704,27 +710,21 @@ namespace OpenSekai.Infrastructure.Charts
                 var source = _notes[start];
                 var guide = CopyGeometry(start, new GuideNote(source.MusicScoreInfo, ++_nextId, source.LaneStart,
                     source.LaneEnd, NoteCategory.Guide, source.Type, _config, 1));
-                if (segment?.IsFake == true)
-                {
-                    var info = source.MusicScoreInfo;
-                    var marker = segment.IsDamage
-                        ? (NoteBase)new NextRushDamageNote(info, ++_nextId, source.LaneStart, source.LaneEnd)
-                        : new NormalNote(info, ++_nextId, source.LaneStart, source.LaneEnd, NoteCategory.Long, 1,
-                            segment.IsCritical ? NoteType.Critical : NoteType.Default, Offset(NoteCategory.Long));
-                    marker.SetDecoration(true);
-                    marker.NativeStyle = source.NativeStyle;
-                    guide.SetNextRushConnectorHeadViewNote(marker);
-                }
-                else if (segment?.IsDamage == true && activeHead != null &&
-                    (IsHoldHead(Kind(activeHead)) || HasStandaloneConnectorHead(Kind(activeHead))))
-                {
-                    var marker = Kind(activeHead) == "HeadTapNote" ? CreateTapHeadKey(activeHead)
-                        : CreateNote(activeHead, connectorHeadView: true);
-                    marker.NativeStyle = _notes[activeHead].NativeStyle;
-                    marker.SetDecoration(true);
-                    guide.SetNextRushConnectorHeadViewNote(marker);
-                }
+                if (activeHead != null)
+                    SetConnectorHeadView(guide, activeHead);
+                else if (segment is { IsFake: true, IsDamage: true })
+                    SetConnectorHeadView(guide, start);
                 return guide;
+            }
+
+            private void SetConnectorHeadView(LongNote bar, NextRushEntity entity)
+            {
+                var source = _notes[entity];
+                if (!source.IsVisible) return;
+                var marker = Kind(entity) == "HeadTapNote" ? CreateTapHeadKey(entity)
+                    : CreateNote(entity, connectorHeadView: true);
+                marker.SetDecoration(true);
+                bar.SetNextRushConnectorHeadViewNote(CopyGeometry(entity, marker));
             }
 
             private void BindCrossChainGuides(List<NoteBase> roots)
@@ -1415,8 +1415,7 @@ namespace OpenSekai.Infrastructure.Charts
                         AlphaAt(head, a, b), AlphaAt(tail, a, b), styleHead, a.Number("segmentThroughJudgeLine") == 1,
                         (NextRushConnectorLayer)(int)a.Number("segmentLayer"), a.Number("segmentPresentation") == 1,
                         headAttached && !sameBeat ? headAttachment.fraction : 0f,
-                        tailAttached && !sameBeat ? tailAttachment.fraction : 1f, activeHead != null, legacyPop == 1,
-                        activeHead != null ? _notes[activeHead].NativeStyle : (int?)null);
+                        tailAttached && !sameBeat ? tailAttachment.fraction : 1f, activeHead != null, legacyPop == 1);
                     if (activeHead == null && !headAttached && !tailAttached && Resolve(head, "next", false) != tail)
                     {
                         if (_graphEdges.ContainsKey((head, tail)) || !_crossChainGuides.TryAdd((head, tail), segment))

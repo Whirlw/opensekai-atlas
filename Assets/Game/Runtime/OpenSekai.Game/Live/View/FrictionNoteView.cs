@@ -8,11 +8,7 @@ namespace Sekai
 		[SerializeField]
 		private Sprite _damageBody;
 
-		[SerializeField]
-		private Sprite _damageIcon;
-
 		private Sprite _frictionBody;
-		private Sprite _frictionIcon;
 		private bool _showingDamage;
 
 		[SerializeField]
@@ -20,21 +16,20 @@ namespace Sekai
 
 		public override void Spawn(INote note, float posZ)
 		{
-			if (note is NextRushDamageNote && _damageBody != null && _damageIcon != null)
+			if (note is NextRushDamageNote && _damageBody != null)
 			{
 				if (!_showingDamage)
 				{
 					_frictionBody = spriteRenderer.sprite;
-					_frictionIcon = centerIconRenderer.sprite;
 					spriteRenderer.sprite = _damageBody;
-					centerIconRenderer.sprite = _damageIcon;
+					if (centerIconRenderer != null) centerIconRenderer.enabled = false;
 					_showingDamage = true;
 				}
 			}
 			else if (_showingDamage)
 			{
 				spriteRenderer.sprite = _frictionBody;
-				centerIconRenderer.sprite = _frictionIcon;
+				if (centerIconRenderer != null) centerIconRenderer.enabled = true;
 				_showingDamage = false;
 			}
 			base.Spawn(note, posZ);
@@ -54,7 +49,12 @@ namespace Sekai
 			}
 
 			float progress = CalcProgress(musicTime);
-			if (note is NoteBase native) ApplyStyle(native.NativeStyle);
+			if (note is NoteBase native)
+			{
+				ApplyStyle(native.NativeStyle);
+				if (native.IsNextRushConnectorHeadVisual && spriteRenderer != null)
+					spriteRenderer.size = LiveUtility.CalcSpriteRendererSize(note.LaneEndF - note.LaneStartF);
+			}
 			transform.localScale = Vector3.one * progress;
 			transform.localPosition = CalcNotePosition(ref progress);
 			UpdateSpritePayload(progress);

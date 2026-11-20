@@ -27,6 +27,15 @@ namespace Sekai.Live
 			};
 		}
 
+		internal static string NextRushFallbackCue(string cue) => cue switch
+		{
+			SE_LIVE_TRACE or SE_LIVE_CONNECT or SE_LIVE_CRITICAL or SE_LIVE_FRICTION_CRITICAL
+				or SE_LIVE_CONNECT_CRITICAL => SE_LIVE_PERFECT,
+			SE_LIVE_FLICK_CRITICAL => SE_LIVE_FLICK,
+			SE_LIVE_LONG_CRITICAL => SE_LIVE_LONG,
+			_ => cue
+		};
+
 		public const string SE_LIVE_CUTIN_COMBO = "SE_LIVE_CUTIN_COMBO";
 		public const string SE_LIVE_PRAISE_CUTIN = "SE_LIVE_PRAISE_CUTIN";
 		public const string SE_LIVE_SKILL = "SE_LIVE_SKILL";

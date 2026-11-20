@@ -56,7 +56,12 @@ namespace Sekai
 			}
 
 			float progress = LiveConfig.GetNoteViewProgress(LiveConfig.ViewProgressOf(note, musicTime));
-			if (note is NoteBase native) ApplyStyle(native.NativeStyle);
+			if (note is NoteBase native)
+			{
+				ApplyStyle(native.NativeStyle);
+				if (native.IsNextRushConnectorHeadVisual && spriteRenderer != null)
+					spriteRenderer.size = LiveUtility.CalcSpriteRendererSize(note.LaneEndF - note.LaneStartF);
+			}
 			transform.localPosition = CalcNotePosition(ref progress);
 			transform.localScale = Vector3.one * progress;
 			UpdateSpritePayload(progress);
@@ -143,8 +148,10 @@ namespace Sekai
 			}
 
 			Color color = spriteRenderer.color;
-			color.r = (((float)note.LaneStart + note.LaneEnd) * 0.5f + 0.5f) / judgmentPositions.Length;
-			color.g = ((float)(note.LaneEnd - note.LaneStart) + 0.5f) / judgmentPositions.Length;
+			bool native = note is NoteBase { NativeScroll: not null };
+			float left = native ? note.LaneStartF : note.LaneStart, right = native ? note.LaneEndF : note.LaneEnd;
+			color.r = ((left + right) * 0.5f + 0.5f) / judgmentPositions.Length;
+			color.g = (right - left + 0.5f) / judgmentPositions.Length;
 			color.b = progress;
 			spriteRenderer.color = color;
 		}

@@ -44,10 +44,12 @@ namespace Sekai
 		{
 			base.Spawn(note, posZ);
 
-			int widthIndex = Mathf.Clamp(note.LaneEnd - note.LaneStart, 0, Mathf.Max(0, (_defaultArrowSprites?.Length ?? 1) - 1));
+			int widthIndex = note is NoteBase { IsNextRush: true }
+				? Mathf.RoundToInt(note.LaneEndF - note.LaneStartF + 1f) - 1
+				: note.LaneEnd - note.LaneStart;
 			_downOmni = note.Direction == NoteDirection.Down;
 			bool useSlan = note.Direction is not (NoteDirection.Default or NoteDirection.Down);
-			bool showArrow = note is not (FlickNote { IsConnectorHeadView: true } or FrictionFlickNote { IsConnectorHeadView: true });
+			bool showArrow = note is not NoteBase { IsNextRushConnectorHeadVisual: true };
 			SetArrow(_defaultArrow, _defaultArrowSprites, widthIndex, showArrow && !useSlan);
 			SetArrow(_slanArrow, _slanArrowSprites, widthIndex, showArrow && useSlan);
 			if (_defaultArrow != null)
@@ -83,6 +85,24 @@ namespace Sekai
 			}
 
 			float t = Mathf.Repeat(musicTime * ScrollCount, 1f);
+			if (note is NoteBase { IsNextRush: true })
+			{
+				bool down = note.Direction >= NoteDirection.Down;
+				float distance = down ? 1f - t : t;
+				float horizontal = note.Direction switch
+				{
+					NoteDirection.Left or NoteDirection.DownRight => -1f,
+					NoteDirection.Right or NoteDirection.DownLeft => 1f,
+					_ => 0f
+				};
+				var offset = new Vector3(horizontal, 2f, 0f) * distance;
+				currentMoveRoot.localPosition = currentMoveRoot == _slanMoveRoot && _slanRoot != null
+					? Vector3.Scale(Quaternion.Inverse(_slanRoot.localRotation) * offset, _slanRoot.localScale)
+					: offset;
+				currentArrow.color = new Color(1f, 1f, 1f, 1f - t * t * t);
+				return;
+			}
+
 			float y = t * 2f;
 			currentMoveRoot.localPosition = Vector3.up * (_downOmni ? -y : y);
 			float alphaT = Mathf.Clamp01(y - 1f);

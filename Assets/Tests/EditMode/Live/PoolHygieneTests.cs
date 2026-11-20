@@ -39,6 +39,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			"LaneOffset", "_flickDistance",
 			// Native geometry and the session's display lead survive a retry of the same chart.
 			"NativeLeft", "NativeRight", "NativeTarget", "NativePreempt", "NativeStyle", "NativeEffectKind",
+			"IsNextRushHeadKey", "IsNextRushConnectorHeadVisual", "_connectorHeadStyle", "_connectorHeadType",
 			"NativeConnectorDisplayEnd", "_nativeHoldLayers", "_nativeGuideLayers",
 			"IsIndependentRelease", "UsesNextRushContactWindow", "UsesNextRushJudgment",
 		};

@@ -161,6 +161,8 @@ namespace Sekai.Live
 			if (note is NoteBase native && native.NativeScroll != null)
 			{
 				double now = (double)time + ViewLeadSeconds;
+				if (native.IsNextRushConnectorHeadVisual) return 1f;
+				if (native.IsNextRushHeadKey && now >= native.NativeTarget.Time) return 0f;
 				if (native.IsDecoration && native is not LongNote && now >= native.NativeTarget.Time)
 					return 0f;
 				if (native is LongNote bar && bar.KeepsHeadOnTheLine && now >= native.NativeTarget.Time)

@@ -482,11 +482,13 @@ namespace OpenSekai.Tests.EditMode.Charts
             Assert.That(score.NoteArray.Single().Result, Is.EqualTo(expected));
         }
 
-        [TestCase("FlickNote", "NormalFlickNote")]
-        [TestCase("FrictionFlickCrtNote", "CriticalTraceFlickNote")]
-        public void DownFlickArrowsAnimateInTheirDirectionAndResetWhenReused(string prefab, string archetype)
+        [TestCase("custom01", "FlickNote", "NormalFlickNote")]
+        [TestCase("custom01", "FrictionFlickCrtNote", "CriticalTraceFlickNote")]
+        [TestCase("custom02", "FlickCrtNote", "CriticalFlickNote")]
+        [TestCase("custom02", "FrictionFlickNote", "NormalTraceFlickNote")]
+        public void DownFlickArrowsApproachTheKeyFromAboveAndResetWhenReused(string skin, string prefab, string archetype)
         {
-            var view = UnityEngine.Object.Instantiate(Resources.Load<FlickNoteView>("live/note/custom01/" + prefab));
+            var view = UnityEngine.Object.Instantiate(Resources.Load<FlickNoteView>("live/note/" + skin + "/" + prefab));
             try
             {
                 using var harness = new LiveHarness();
@@ -504,18 +506,18 @@ namespace OpenSekai.Tests.EditMode.Charts
                     view.Move(1.8f);
                     bool down = direction >= NoteDirection.Down;
                     bool isOmni = direction is NoteDirection.Default or NoteDirection.Down;
-                    if (isOmni)
+                    Vector3 Offset() => isOmni ? omni.transform.localPosition
+                        : slanted.parent.localRotation * Vector3.Scale(slanted.localPosition, slanted.parent.localScale);
+                    if (isOmni) Assert.That(omni.flipY, Is.EqualTo(down));
+                    var first = Offset();
+                    Assert.That(first.y, Is.GreaterThan(0f));
+                    if (!isOmni)
                     {
-                        Assert.That(omni.flipY, Is.EqualTo(down));
-                        Assert.That(Mathf.Sign(omni.transform.localPosition.y), Is.EqualTo(down ? -1f : 1f));
-                    }
-                    else
-                    {
-                        var translation = slanted.parent.localRotation * slanted.localPosition;
-                        Assert.That(Mathf.Sign(translation.y), Is.EqualTo(down ? -1f : 1f));
                         bool left = direction is NoteDirection.Left or NoteDirection.DownLeft;
-                        Assert.That(Mathf.Sign(translation.x), Is.EqualTo(left ? -1f : 1f));
+                        Assert.That(Mathf.Sign(first.x), Is.EqualTo(left != down ? -1f : 1f));
                     }
+                    view.Move(1.9f);
+                    Assert.That(Offset().y, down ? Is.LessThan(first.y) : Is.GreaterThan(first.y));
                     view.Unspawn();
                 }
             }
@@ -1159,8 +1161,8 @@ namespace OpenSekai.Tests.EditMode.Charts
             {
                 Assert.That(bar.UpdateConnectorHeadView(1.5), Is.True);
                 Assert.That(bar.ConnectorHeadViewNote, Is.TypeOf<FlickNote>());
-                Assert.That(((FlickNote)bar.ConnectorHeadViewNote).IsConnectorHeadView, Is.True);
-                Assert.That(((FlickNote)key).IsConnectorHeadView, Is.False);
+                Assert.That(bar.ConnectorHeadViewNote.IsNextRushConnectorHeadVisual, Is.True);
+                Assert.That(key.IsNextRushConnectorHeadVisual, Is.False);
                 Assert.That(bar.ConnectorHeadViewNote.LaneStartF, Is.EqualTo(5f));
                 Assert.That(bar.UpdateConnectorHeadView(2), Is.False);
             }
@@ -1168,7 +1170,7 @@ namespace OpenSekai.Tests.EditMode.Charts
             {
                 Assert.That(bar.UpdateConnectorHeadView(1.5), Is.True);
                 var marker = (FrictionFlickNote)bar.ConnectorHeadViewNote;
-                Assert.That(marker.IsConnectorHeadView, Is.True);
+                Assert.That(marker.IsNextRushConnectorHeadVisual, Is.True);
                 Assert.That(marker.LaneStartF, Is.EqualTo(5f));
                 Assert.That(bar.UpdateConnectorHeadView(2), Is.False);
             }
@@ -1337,8 +1339,8 @@ namespace OpenSekai.Tests.EditMode.Charts
             bool trace = archetype.EndsWith("TailTraceFlickNote", StringComparison.Ordinal);
             Assert.That(key.Category, Is.EqualTo(trace ? NoteCategory.FrictionFlick : NoteCategory.Flick));
             Assert.That(bar.UpdateConnectorHeadView(1.5), Is.True);
-            if (trace) Assert.That(((FrictionFlickNote)bar.ConnectorHeadViewNote).IsConnectorHeadView, Is.True);
-            else Assert.That(((FlickNote)bar.ConnectorHeadViewNote).IsConnectorHeadView, Is.True);
+            Assert.That(bar.ConnectorHeadViewNote, trace ? Is.TypeOf<FrictionFlickNote>() : Is.TypeOf<FlickNote>());
+            Assert.That(bar.ConnectorHeadViewNote.IsNextRushConnectorHeadVisual, Is.True);
             Assert.That(bar.ConnectorHeadViewNote.LaneStartF, Is.EqualTo(5f));
             Assert.That(bar.ConnectorHeadViewNote.NativeStyle, Is.EqualTo(4));
             using (var harness = new LiveHarness())
@@ -1692,8 +1694,7 @@ namespace OpenSekai.Tests.EditMode.Charts
             Assert.That(marker.LaneStartF, Is.EqualTo(5f).Within(1e-5f));
             Assert.That(marker.NativeStyle, Is.EqualTo(segmentKind == 3 ? 7 : 4));
             Assert.That(marker.Type, Is.EqualTo(key.Type));
-            if (marker is FlickNote flick) Assert.That(flick.IsConnectorHeadView, Is.True);
-            if (marker is FrictionFlickNote traceFlick) Assert.That(traceFlick.IsConnectorHeadView, Is.True);
+            Assert.That(marker.IsNextRushConnectorHeadVisual, Is.True);
             Assert.That(bar.UpdateConnectorHeadView(3), Is.False);
         }
 
@@ -1876,7 +1877,7 @@ namespace OpenSekai.Tests.EditMode.Charts
 
         [TestCase("custom01")]
         [TestCase("custom02")]
-        public void DamageUsesGeneratedSpritesAndRestoresTheFrictionArtWhenReused(string skin)
+        public void DamageHasAPlumBodyWithoutTraceDiamondAndRestoresTraceArtWhenReused(string skin)
         {
             var view = UnityEngine.Object.Instantiate(Resources.Load<FrictionNoteView>("live/note/" + skin + "/FrictionNote"));
             try
@@ -1886,16 +1887,13 @@ namespace OpenSekai.Tests.EditMode.Charts
                 Assert.That(renderers.Length, Is.EqualTo(2));
                 var frictionSprites = renderers.Select(r => r.sprite).ToArray();
                 view.Spawn(score.NoteArray[0], 0);
-                Assert.That(renderers.Select(r => r.sprite.texture.name),
-                    Is.EquivalentTo(new[] { "notes_damage", "notes_damage_friction" }));
-                for (int i = 0; i < renderers.Length; i++)
-                {
-                    Assert.That(renderers[i].sprite.rect, Is.EqualTo(frictionSprites[i].rect));
-                    Assert.That(renderers[i].sprite.border, Is.EqualTo(frictionSprites[i].border));
-                }
+                var body = renderers.Single(r => r.enabled);
+                Assert.That(body.sprite.texture.name, Is.EqualTo("notes_damage"));
+                Assert.That(body.sprite.border, Is.EqualTo(frictionSprites[Array.IndexOf(renderers, body)].border));
                 view.Unspawn();
                 view.Spawn(score.NoteArray[1], 0);
                 Assert.That(renderers.Select(r => r.sprite), Is.EqualTo(frictionSprites));
+                Assert.That(renderers.All(r => r.enabled), Is.True);
             }
             finally { UnityEngine.Object.DestroyImmediate(view.gameObject); }
         }
@@ -2075,6 +2073,84 @@ namespace OpenSekai.Tests.EditMode.Charts
         {
             internal readonly System.Collections.Generic.List<string> Cues = new();
             public override void NativeHitSound(NoteBase note, string cue) => Cues.Add(cue);
+        }
+
+        [Test]
+        public void RealAndFakeKeyFamiliesUseTheirAuthoredSkinAndSoundFamilies()
+        {
+            var families = new[]
+            {
+                ("Tap", NoteCategory.Normal, NextRushEffectKind.Basic, NextRushEffectKind.CriticalBasic),
+                ("Flick", NoteCategory.Flick, NextRushEffectKind.Flick, NextRushEffectKind.CriticalFlick),
+                ("Trace", NoteCategory.Friction, NextRushEffectKind.Trace, NextRushEffectKind.CriticalTrace),
+                ("TraceFlick", NoteCategory.FrictionFlick, NextRushEffectKind.Flick, NextRushEffectKind.CriticalFlick),
+                ("Release", NoteCategory.Long, NextRushEffectKind.Basic, NextRushEffectKind.Basic),
+                ("Tick", NoteCategory.Connection, NextRushEffectKind.Tick, NextRushEffectKind.CriticalTick)
+            };
+            foreach (var (name, family, normal, critical) in families)
+            foreach (string position in name == "Tick" ? new[] { "" } : new[] { "", "Head", "Tail" })
+            foreach (bool isCritical in new[] { false, true })
+            foreach (bool fake in new[] { false, true })
+            {
+                string archetype = (fake ? "Fake" : "") + (isCritical ? "Critical" : "Normal") + position + name + "Note";
+                var key = N(archetype, "key", 4);
+                NoteCategory category = name == "Tap" && position.Length != 0 ? NoteCategory.Long : family;
+                NextRushEffectKind effect = name == "Tap" && position.Length != 0 ? NextRushEffectKind.Basic
+                    : isCritical ? critical : normal;
+                var entities = new List<JObject> { key };
+                if (!fake && position == "Head")
+                {
+                    Add(key, R("next", "end"));
+                    entities.Add(N("AnchorNote", "end", 6));
+                    entities.Add(Segment("key", "end", "key", "end", "key", "end"));
+                }
+                else if (!fake && position == "Tail")
+                {
+                    var head = N("NormalHeadTapNote", "start", 2);
+                    Add(head, R("next", "key"));
+                    Add(key, R("activeHead", "start"));
+                    entities.Add(head);
+                    entities.Add(Segment("start", "key", "start", "key", "start", "key"));
+                }
+
+                var score = Load(Chart(entities.ToArray())).Score;
+                var authoredKey = score.NoteArray.SelectMany(note => note.NoteList).Distinct().Single(note =>
+                    note.MusicScoreInfo.time == 2 && note.Category != NoteCategory.FrictionHideLong
+                    && note.Category != NoteCategory.Hidden);
+                Assert.That(authoredKey.IsVisible, Is.True, archetype);
+                Assert.That(authoredKey.IsDecoration, Is.EqualTo(fake), archetype);
+                Assert.That(authoredKey.Category, Is.EqualTo(category), archetype);
+                Assert.That(authoredKey.Type, Is.EqualTo(isCritical ? NoteType.Critical : NoteType.Default), archetype);
+                Assert.That(authoredKey.NativeEffectKind, Is.EqualTo(effect), archetype);
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void DamageSoundUsesTheJudgmentAndTheAuthoredOverride(bool overrideCue)
+        {
+            var hit = N("DamageNote", "hit", 2);
+            var avoid = N("DamageNote", "avoid", 4);
+            if (overrideCue)
+            {
+                Add(hit, V("effectKind", 3));
+                Add(avoid, V("effectKind", 3));
+            }
+            var score = Load(Chart(hit, avoid)).Score;
+            var recorder = new GameObject("Sound recorder").AddComponent<SoundRecorder>();
+            try
+            {
+                using var harness = new LiveHarness();
+                harness.Arrange(score);
+                harness.BindViews(recorder);
+                harness.Step(1f, 11d, LiveHarness.Touch(1, LiveConfig.NativeLanePosition(5.5f), 11d));
+                harness.Step(2f, 12d);
+                Assert.That(score.NoteArray.Select(n => n.Result), Is.EqualTo(new[] { NoteResult.Miss, NoteResult.Perfect }));
+                Assert.That(recorder.Cues, Is.EqualTo(overrideCue
+                    ? new[] { LiveSoundDefine.SE_LIVE_FLICK, LiveSoundDefine.SE_LIVE_FLICK }
+                    : new[] { LiveSoundDefine.SE_LIVE_GOOD }));
+            }
+            finally { UnityEngine.Object.DestroyImmediate(recorder.gameObject); }
         }
 
         [TestCase(false)]
@@ -3350,7 +3426,8 @@ namespace OpenSekai.Tests.EditMode.Charts
             var key = chart.Score.NoteArray.OfType<NormalNote>().Single();
             var bar = chart.Score.NoteArray.OfType<FrictionHideLongNote>().Single();
             Assert.That(chart.TotalNoteCount, Is.EqualTo(joinsSections ? 4 : 3));
-            Assert.That(key.Category, Is.EqualTo(NoteCategory.Normal));
+            Assert.That(key.Category, Is.EqualTo(joinsSections ? NoteCategory.Long : NoteCategory.Normal));
+            Assert.That(key.TakesPress, Is.True);
             Assert.That(bar.UpdateConnectorHeadView(0.99), Is.False);
             Assert.That(bar.UpdateConnectorHeadView(1.5), Is.True);
             Assert.That(bar.ConnectorHeadViewNote.LaneStartF, Is.EqualTo(5f));
@@ -4655,12 +4732,15 @@ namespace OpenSekai.Tests.EditMode.Charts
             harness.Arrange(chart.Score, displayTimeOffset: 0.5f, auto: true);
             harness.Logic.Notes.BindNativeVisuals(0.5);
             var host = new GameObject("native long head retry view");
+            var markerHost = new GameObject("moving connector head");
             float originalViewLead = LiveConfig.ViewLeadSeconds;
             try
             {
                 LiveConfig.ViewLeadSeconds = 0f;
                 var view = host.AddComponent<LongNoteView>();
                 view.Setup(LiveConfig.SpawnPosition, LiveConfig.JudgmentPositions, 1);
+                var moving = markerHost.AddComponent<LongNoteView>();
+                moving.Setup(LiveConfig.SpawnPosition, LiveConfig.JudgmentPositions, 1);
                 const float firstVisible = 0.8f;
                 harness.OnUpdate(firstVisible, 10d + firstVisible);
                 view.Spawn(bar, 0);
@@ -4673,7 +4753,11 @@ namespace OpenSekai.Tests.EditMode.Charts
                 harness.OnUpdate(2f, 12);
                 harness.OnUpdate(2.5f, 12.5);
                 view.Move(2.5f);
-                Assert.That(host.transform.localPosition.x, Is.GreaterThan(firstPosition.x + 1));
+                Assert.That(host.transform.localScale.x, Is.Zero);
+                Assert.That(bar.UpdateConnectorHeadView(2.5), Is.True);
+                moving.Spawn(bar.ConnectorHeadViewNote, 0);
+                moving.Move(2.5f);
+                Assert.That(markerHost.transform.localPosition.x, Is.GreaterThan(firstPosition.x + 1));
 
                 view.Unspawn();
                 harness.Logic.Session.Reset(new LivePresentationBridge());
@@ -4689,17 +4773,18 @@ namespace OpenSekai.Tests.EditMode.Charts
             {
                 LiveConfig.ViewLeadSeconds = originalViewLead;
                 UnityEngine.Object.DestroyImmediate(host);
+                UnityEngine.Object.DestroyImmediate(markerHost);
             }
         }
 
         [Test]
-        public void OrdinaryHeadStaysOnTheLineAfterPassingAnAnchor()
+        public void MovingHeadUsesTheCurrentSegmentWhenItsVisibilityChanges()
         {
             var head = N("NormalHeadTapNote", "head", 1);
             var anchor = N("AnchorNote", "anchor", 2);
             var tail = N("NormalTailReleaseNote", "tail", 4);
-            Add(head, R("next", "anchor"));
-            Add(anchor, R("next", "tail"), R("#TIMESCALE_GROUP", "anchorGroup"));
+            Add(head, R("next", "anchor"), V("style", 4));
+            Add(anchor, R("next", "tail"), R("#TIMESCALE_GROUP", "anchorGroup"), V("style", 2), V("segmentKind", 2));
             Add(tail, R("activeHead", "head"));
             var chart = Load(Chart(head, anchor, tail,
                 Segment("head", "anchor", "head", "tail", "head", "tail"),
@@ -4722,15 +4807,22 @@ namespace OpenSekai.Tests.EditMode.Charts
                 view.Spawn(bar, 0);
 
                 view.Move(0.8f);
-                Assert.That(host.transform.localScale.x, Is.EqualTo(1f));
+                Assert.That(host.transform.localScale.x, Is.Zero);
+                Assert.That(bar.UpdateConnectorHeadView(0.8), Is.True);
+                Assert.That(bar.ConnectorHeadViewNote.Type, Is.EqualTo(NoteType.Default));
+                view.Move(1.1f);
+                Assert.That(host.transform.localScale.x, Is.Zero);
+                Assert.That(bar.UpdateConnectorHeadView(1.1), Is.True);
+                Assert.That(bar.ConnectorHeadViewNote.Type, Is.EqualTo(NoteType.Critical));
+                Assert.That(bar.ConnectorHeadViewNote.NativeStyle, Is.EqualTo(4));
+                view.Spawn(bar.ConnectorHeadViewNote, 0);
                 view.Move(1.1f);
                 Assert.That(host.transform.localScale.x, Is.EqualTo(1f));
-                view.Move(1.3f);
-                Assert.That(host.transform.localScale.x, Is.Zero);
+                Assert.That(bar.UpdateConnectorHeadView(1.3), Is.False);
+                Assert.That(bar.UpdateConnectorHeadView(1.6), Is.True);
                 view.Move(1.6f);
                 Assert.That(host.transform.localScale.x, Is.EqualTo(1f));
-                view.Move(2f);
-                Assert.That(host.transform.localScale.x, Is.Zero);
+                Assert.That(bar.UpdateConnectorHeadView(2), Is.False);
             }
             finally
             {

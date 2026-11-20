@@ -29,7 +29,6 @@ namespace Sekai.Live
 		public bool IsTailTraceFlickOwner { get; }
 		public bool IsTailFlickOwner => IsTraceFlickOwner && Category == NoteCategory.Flick;
 		internal bool CanStartNextRushHold => HasCapturedPress || State == NoteState.Done;
-		internal bool IsConnectorHeadView { get; }
 		internal bool HasCapturedPress { get; private set; }
 
 		public override NoteState State
@@ -57,7 +56,7 @@ namespace Sekai.Live
 
 		public FrictionFlickNote(MusicScoreInfo info, int id, int laneStart, int laneEnd, NoteCategory category, float speedRatio,
 			NoteType type, NoteDirection direction, float screenDpiToInch, float laneOffset,
-			bool isTraceFlickOwner = false, bool isConnectorHeadView = false, bool isTailTraceFlickOwner = false, bool isTraceTail = false)
+			bool isTraceFlickOwner = false, bool isTailTraceFlickOwner = false, bool isTraceTail = false)
 			: base(info, id, laneStart, laneEnd, category, speedRatio, laneOffset, type)
 		{
 			inputResults = new (int id, bool distance, bool trueDirection)[8];
@@ -66,7 +65,6 @@ namespace Sekai.Live
 			IsTraceFlickOwner = isTraceFlickOwner;
 			IsTraceTail = isTraceTail;
 			IsTailTraceFlickOwner = isTailTraceFlickOwner;
-			IsConnectorHeadView = isConnectorHeadView;
 		}
 
 		public override void Excute(MusicScoreInfo currentFrameInfo, float offsetTime)
@@ -131,6 +129,7 @@ namespace Sekai.Live
 				correct && _nextRushCorrectTime >= target + LiveConfig.JustPerfectJudgeTimeHalf))
 			{
 				float time = contactRecently ? _nextRushCorrectTime : now;
+				HasNextRushHit = IsNextRush;
 				FinishNextRushHead(LiveConfig.CalculateLongEndFlickNoteResult(this, time, correct));
 			}
 			else if (!IsTailFlickOwner && hasMotion && (!contactRecently || Category == NoteCategory.Flick && correct))
@@ -141,6 +140,7 @@ namespace Sekai.Live
 
 		private void FinishTraceFlick(float time, bool correct)
 		{
+			HasNextRushHit = IsNextRush;
 			var result = CalcNoteResult(time);
 			if (!correct && result == NoteResult.Perfect)
 				FinishNextRushHead((NoteResult.Great, NoteResultDescription.FlickMiss));

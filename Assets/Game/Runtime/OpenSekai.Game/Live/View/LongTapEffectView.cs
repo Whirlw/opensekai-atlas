@@ -23,6 +23,7 @@ namespace Sekai
 			}
 
 			internal bool SoundRequested;
+			internal SpriteRenderer SlotGlow;
 			private uint _PlaybackId;
 			public uint PlaybackId
 			{
@@ -69,6 +70,16 @@ namespace Sekai
 
 		private Dictionary<INote, EffectPair> _longNotes;
 
+		private sealed class NativeHold
+		{
+			internal EffectPair Pair;
+			internal bool Critical;
+			internal float HeldSince = float.PositiveInfinity;
+		}
+
+		private readonly Dictionary<LongNote, NativeHold> _nativeHolds = new Dictionary<LongNote, NativeHold>();
+		internal NextRushSlotEffects NativeSlots { get; set; }
+
 		public void Setup()
 		{
 			_tapKeeps = new EffectPair[10];
@@ -85,17 +96,26 @@ namespace Sekai
 
 		public void Add(INote note)
 		{
+			if (note is LongNote { NativeConnector: not null } native)
+			{
+				if (native.NativeConnector.HasActiveInterval && !_nativeHolds.ContainsKey(native))
+					_nativeHolds.Add(native, new NativeHold());
+				return;
+			}
+
 			if (note == null || note.IsSkip || _longNotes.ContainsKey(note))
 			{
 				return;
 			}
 
-			EffectPair[] pairs = note.Type == NoteType.Critical ? _criticalTapKeeps : _tapKeeps;
-			if (pairs == null)
-			{
-				return;
-			}
+			var pair = Reserve(note.Type == NoteType.Critical);
+			if (pair != null) _longNotes.Add(note, pair);
+		}
 
+		private EffectPair Reserve(bool critical)
+		{
+			var pairs = critical ? _criticalTapKeeps : _tapKeeps;
+			if (pairs == null) return null;
 			for (int i = 0; i < pairs.Length; i++)
 			{
 				EffectPair pair = pairs[i];
@@ -104,14 +124,16 @@ namespace Sekai
 					continue;
 				}
 
-				_longNotes.Add(note, pair);
 				pair.IsUsed = true;
-				return;
+				return pair;
 			}
+			return null;
 		}
 
 		public void Remove(INote note)
 		{
+			if (note is LongNote native && _nativeHolds.Remove(native, out var hold))
+				ReleaseNativePair(hold);
 			if (note == null || !_longNotes.TryGetValue(note, out EffectPair pair))
 			{
 				return;
@@ -140,6 +162,8 @@ namespace Sekai
 			}
 
 			_longNotes.Clear();
+			foreach (var hold in _nativeHolds.Values) ReleaseNativePair(hold);
+			_nativeHolds.Clear();
 		}
 
 		internal void Silence()
@@ -154,6 +178,8 @@ namespace Sekai
 
 		public void Excute(float time)
 		{
+			foreach (var entry in _nativeHolds)
+				UpdateNativeHold(entry.Key, entry.Value, time);
 			foreach (var entry in _longNotes)
 			{
 				INote note = entry.Key;
@@ -167,30 +193,7 @@ namespace Sekai
 				// The rule lives in LiveUtility so a plain note can be tested for it without the prefabs.
 				if (LiveUtility.IsBeingHeldForEffect(note, time))
 				{
-					int style = note is NoteBase styled ? styled.NativeStyle : 0;
-					if (note is LongNote { NativeConnector: not null } bar
-						&& bar.TryNativeEdge(time, out var start, out _))
-						style = start.NativeConnector.HeadStyle(style);
-					pair.Gen?.SetStyle(style);
-					pair.Aura?.SetStyle(style);
-					float x = LiveUtility.CalcLaneTransformX((note.LaneStartF + note.LaneEndF) * 0.5f);
-					float width = note.LaneEndF + 1f - note.LaneStartF;
-					if (pair.Gen != null)
-					{
-						pair.Gen.transform.localPosition = new Vector3(x, 0f, 0f);
-					}
-
-					if (pair.Aura != null)
-					{
-						pair.Aura.transform.localPosition = new Vector3(x, 0f, 0f);
-						pair.Aura.transform.localScale = new Vector3(width, 1f, 1f);
-					}
-
-					if (pair.Gen != null && pair.Aura != null && (!pair.Gen.IsPlaying || !pair.Aura.IsPlaying))
-					{
-						pair.Gen.Play(style);
-						pair.Aura.Play(style);
-					}
+					RenderPair(pair, note.LaneStartF, note.LaneEndF, note is NoteBase styled ? styled.NativeStyle : 0);
 
 					if (!pair.SoundRequested)
 					{
@@ -219,6 +222,64 @@ namespace Sekai
 			}
 		}
 
+		private void UpdateNativeHold(LongNote note, NativeHold hold, float time)
+		{
+			double viewTime = (double)time + LiveConfig.ViewLeadSeconds;
+			if (note.State == NoteState.Done
+				|| !note.TryConnectorPresentation(viewTime, out var segment, out float left, out float right)
+				|| segment.IsDamage || !segment.HasActiveInterval
+				|| !segment.IsFake && !LiveUtility.IsBeingHeldForEffect(note, time))
+			{
+				ReleaseNativePair(hold);
+				hold.HeldSince = float.PositiveInfinity;
+				return;
+			}
+
+			if (time < note.MusicScoreInfo.time) return;
+			if (float.IsPositiveInfinity(hold.HeldSince)) hold.HeldSince = time;
+			if (time < hold.HeldSince + 0.05f) return;
+			if (hold.Pair == null || hold.Critical != segment.IsCritical)
+			{
+				ReleaseNativePair(hold);
+				hold.Critical = segment.IsCritical;
+				hold.Pair = Reserve(hold.Critical);
+			}
+			if (hold.Pair == null) return;
+			int style = segment.HeadStyle(0);
+			RenderPair(hold.Pair, left, right, style);
+			hold.Pair.SlotGlow ??= NativeSlots?.CreateHoldGlow();
+			if (hold.Pair.SlotGlow != null)
+				NextRushSlotEffects.DrawHoldGlow(hold.Pair.SlotGlow, left, right, hold.Critical, style, time - hold.HeldSince);
+		}
+
+		private static void ReleaseNativePair(NativeHold hold)
+		{
+			if (hold.Pair == null) return;
+			hold.Pair.Gen?.Stop();
+			hold.Pair.Aura?.Stop();
+			if (hold.Pair.SlotGlow != null) hold.Pair.SlotGlow.enabled = false;
+			hold.Pair.IsUsed = false;
+			hold.Pair = null;
+		}
+
+		private static void RenderPair(EffectPair pair, float left, float right, int style)
+		{
+			float x = LiveUtility.CalcLaneTransformX((left + right) * 0.5f);
+			if (pair.Gen != null)
+			{
+				pair.Gen.transform.localPosition = new Vector3(x, 0f, 0f);
+				if (pair.Gen.IsPlaying) pair.Gen.SetStyle(style);
+				else pair.Gen.Play(style);
+			}
+			if (pair.Aura != null)
+			{
+				pair.Aura.transform.localPosition = new Vector3(x, 0f, 0f);
+				pair.Aura.transform.localScale = new Vector3(right - left + 1f, 1f, 1f);
+				if (pair.Aura.IsPlaying) pair.Aura.SetStyle(style);
+				else pair.Aura.Play(style);
+			}
+		}
+
 		public LongTapEffectView()
 		{
 			_longNotes = new Dictionary<INote, EffectPair>();
@@ -226,7 +287,6 @@ namespace Sekai
 
 		private static string HoldCueName(INote note)
 		{
-			if (note is LongNote { NativeConnector: not null }) return null;
 			// A friction bar is rubbed, not pressed, so it keeps the trace loop while the finger is on
 			// it. The hide variant is the opposite by design: it is a silent carrier for hidden
 			// checkpoints, so it starts no sound at all.

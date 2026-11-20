@@ -20,6 +20,10 @@ namespace Sekai.Live
 		public NextRushConnectorSegment NativeConnector { get; set; }
 		public int NativeStyle { get; set; }
 		public NextRushEffectKind NativeEffectKind { get; set; }
+		public bool IsNextRushHeadKey { get; set; }
+		internal bool IsNextRushConnectorHeadVisual { get; set; }
+		internal bool IsNextRush => NativeEffectKind != NextRushEffectKind.Default;
+		internal bool HasNextRushHit { get; set; }
 		internal List<NoteBase> NativeSimLineTargets { get; private set; }
 		internal List<NoteBase> NativeSimLineSources { get; private set; }
 		private NoteBase _nativeAttachHead;
@@ -829,6 +833,7 @@ namespace Sekai.Live
 
 		public virtual void ResetNote()
 		{
+			HasNextRushHit = false;
 			State = NoteState.Wait;
 			OffsetJudgeTime = 0f;
 			Progress = 0f;

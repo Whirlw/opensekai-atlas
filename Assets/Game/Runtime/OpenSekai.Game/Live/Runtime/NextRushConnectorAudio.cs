@@ -24,7 +24,11 @@ namespace Sekai.Core.Live
 		private int _cursor;
 		private (double spawn, NextRushConnectorSound sound)[] _manualOrder;
 		private readonly int[] _reserved = new int[2];
-		internal Func<string, uint> Play = cue => SoundManager.Instance.PlayHoldLoop(cue);
+		internal Func<string, uint> Play = cue =>
+		{
+			var sound = SoundManager.Instance;
+			return sound.PlayHoldLoop(sound.ExistsCueName(cue) ? cue : LiveSoundDefine.NextRushFallbackCue(cue));
+		};
 		internal Action<uint> Stop = handle => SoundManager.Instance.StopSE(handle);
 
 		internal void Update(MusicScore score, float now, bool auto, List<LiveLogic.InputTmp> inputs, double displayLead = 0)

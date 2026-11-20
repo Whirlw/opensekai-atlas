@@ -4,8 +4,8 @@ namespace Sekai.Live
 {
 	public class NormalNote : NoteBase
 	{
-		private readonly bool _isNextRushHeadTap;
-		internal bool TakesPress => Category == NoteCategory.Normal || _isNextRushHeadTap;
+		private readonly bool _isNextRushTap;
+		internal bool TakesPress => Category == NoteCategory.Normal || _isNextRushTap;
 		internal bool IsIndependentRelease { get; private set; }
 		public bool IsTailReleaseOwner { get; }
 		private NoteBase _releaseOwner;
@@ -41,10 +41,10 @@ namespace Sekai.Live
 		}
 
 		public NormalNote(MusicScoreInfo info, int id, int laneStart, int laneEnd, NoteCategory category, float speedRatio, NoteType type, float laneOffset,
-			bool isNextRushHeadTap = false, bool isTailReleaseOwner = false)
+			bool isNextRushTap = false, bool isTailReleaseOwner = false)
 			: base(info, id, laneStart, laneEnd, category, speedRatio, laneOffset, type)
 		{
-			_isNextRushHeadTap = isNextRushHeadTap;
+			_isNextRushTap = isNextRushTap;
 			IsTailReleaseOwner = isTailReleaseOwner;
 		}
 
@@ -108,6 +108,7 @@ namespace Sekai.Live
 			if (IsIndependentRelease)
 			{
 				if (!IsJudgment(ref touch, lane)) return false;
+				HasNextRushHit = IsNextRush;
 				FinishWith(CalcNoteResult(touch.musicTime));
 				return true;
 			}
@@ -121,6 +122,7 @@ namespace Sekai.Live
 			var judgeInfo = GradesAsBarPart
 				? LiveConfig.CalculateLongEndNoteResult(this, touch.musicTime)
 				: LiveConfig.CalculateDefaultNoteResult(this, touch.musicTime);
+			HasNextRushHit = IsNextRush;
 
 			JudgeInfo = onUpdateResult != null ? onUpdateResult(judgeInfo) : judgeInfo;
 			State = NoteState.Done;
