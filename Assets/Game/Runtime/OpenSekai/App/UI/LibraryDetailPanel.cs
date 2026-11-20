@@ -78,21 +78,23 @@ namespace OpenSekai.App.UI
         private bool _playable;
 
         /// <param name="root">Rect the panel fills.</param>
+        /// <param name="coverTop">Top inset of the first song when grouping is off.</param>
         /// <param name="play">Starts the selected package; the argument is the 自动演奏 switch.</param>
         /// <param name="more">Opens export and delete for the selected package.</param>
-        internal LibraryDetailPanel(RectTransform root, Action<bool> play, Action more)
+        internal LibraryDetailPanel(RectTransform root, float coverTop, Action<bool> play, Action more)
         {
             _play = play;
             _content = LibraryUi.CreateRect("Detail", root);
             LibraryUi.Stretch(_content);
             _contentGroup = _content.gameObject.AddComponent<CanvasGroup>();
-            float coverSize = LibraryTheme.Layout.DETAIL_COVER_SIZE;
+            float coverBottom = LibraryTheme.Layout.DETAIL_COVER_SIZE;
+            float coverSize = coverBottom - coverTop;
 
             // Jacket.
             _coverFrame = LibraryUi.CreateRect("Cover", _content);
             LibraryWidgets.Place(
                 _coverFrame, new Vector2(0f, 1f), new Vector2(0.5f, 0.5f),
-                new Vector2(coverSize * 0.5f, -coverSize * 0.5f), new Vector2(coverSize, coverSize));
+                new Vector2(coverSize * 0.5f, -coverTop - coverSize * 0.5f), new Vector2(coverSize, coverSize));
             LibraryWidgets.Shadow(
                 _coverFrame, LibraryTheme.Radius.PANEL, LibraryTheme.CoverShadow.BLUR,
                 LibraryTheme.CoverShadow.DROP, LibraryTheme.CoverShadow.OPACITY);
@@ -118,7 +120,7 @@ namespace OpenSekai.App.UI
             // Title and credits, to the right of the jacket.
             RectTransform info = LibraryUi.CreateRect("Info", _content);
             _info = info;
-            LibraryWidgets.TopStrip(info, coverSize + INFO_LEFT, 0f, 8f, coverSize - 8f);
+            LibraryWidgets.TopStrip(info, coverSize + INFO_LEFT, 0f, coverTop + 8f, coverSize - 8f);
 
             Image chip = LibraryWidgets.Panel("Difficulty", info, LibraryTheme.Radius.CHIP, LibraryTheme.Colors.Hairline);
             _difficultyChip = chip.rectTransform;
@@ -178,7 +180,7 @@ namespace OpenSekai.App.UI
 
             // Best record, filling the space between the jacket and the action row.
             Image card = LibraryWidgets.Panel("Record", _content, LibraryTheme.Radius.PANEL, CardColor);
-            LibraryWidgets.Inset(card.rectTransform, 0f, ACTION_HEIGHT + GAP, 0f, coverSize + GAP);
+            LibraryWidgets.Inset(card.rectTransform, 0f, ACTION_HEIGHT + GAP, 0f, coverBottom + GAP);
             Image outline = LibraryWidgets.Shape(
                 "Outline", card.transform, LibraryShapes.Ring(LibraryTheme.Radius.PANEL, 1f), LibraryTheme.Colors.Hairline);
             LibraryUi.Stretch(outline.rectTransform);

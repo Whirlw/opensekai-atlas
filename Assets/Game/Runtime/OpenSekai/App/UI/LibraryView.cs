@@ -34,7 +34,7 @@ namespace OpenSekai.App.UI
         private const float VIEWPORT_BLEED_LEFT = 8f;
         private const float VIEWPORT_BLEED_RIGHT = 24f;
         private const float LIST_PADDING_TOP = 8f;
-        private const float LIST_PADDING_BOTTOM = 24f;
+        private const float LIST_PADDING_BOTTOM = 0f;
         private const int MAX_STAGGERED_CELLS = 16;
 
         private readonly GameObject _page;
@@ -136,7 +136,8 @@ namespace OpenSekai.App.UI
 
             float margin = LibraryTheme.Spacing.PAGE_MARGIN;
             RectTransform main = LibraryUi.CreateRect("Main", root);
-            LibraryWidgets.Inset(main, margin, margin, margin, LibraryTheme.Layout.TOP_BAR_HEIGHT);
+            const float columnBottom = 40f;
+            LibraryWidgets.Inset(main, margin, columnBottom, margin, LibraryTheme.Layout.TOP_BAR_HEIGHT);
 
             // The overlay hosts dropdown lists; it is moved above everything else once the page is built.
             RectTransform overlay = LibraryUi.CreateRect("Overlay", root);
@@ -150,7 +151,7 @@ namespace OpenSekai.App.UI
             detailRoot.anchorMax = new Vector2(1f, 1f);
             detailRoot.offsetMin = Vector2.zero;
             detailRoot.offsetMax = Vector2.zero;
-            _detail = new LibraryDetailPanel(detailRoot, PlaySelected, presenter.OpenActionsForSelected);
+            _detail = new LibraryDetailPanel(detailRoot, LIST_PADDING_TOP, PlaySelected, presenter.OpenActionsForSelected);
             _preview = _page.AddComponent<LibraryPreview>();
             _preview.Initialize(_detail);
 
@@ -851,7 +852,7 @@ namespace OpenSekai.App.UI
             RectTransform column = LibraryUi.CreateRect("ListColumn", main);
             column.anchorMin = new Vector2(0f, 0f);
             column.anchorMax = new Vector2(LIST_COLUMN, 1f);
-            column.offsetMin = new Vector2(0f, 16f - LibraryTheme.Spacing.PAGE_MARGIN);
+            column.offsetMin = Vector2.zero;
             column.offsetMax = Vector2.zero;
 
             _groupBar = LibraryGroupBar.Create(column);
@@ -903,8 +904,7 @@ namespace OpenSekai.App.UI
             scroll.content = content;
             scroll.horizontal = false;
             scroll.vertical = true;
-            scroll.movementType = ScrollRect.MovementType.Elastic;
-            scroll.elasticity = 0.12f;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
             scroll.decelerationRate = 0.135f;
             scroll.scrollSensitivity = 40f;
             return VirtualListView.Attach(scroll, layoutForWidth, createCell, BindCell, ReleaseCell);
