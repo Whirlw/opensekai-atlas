@@ -2,7 +2,12 @@ namespace Sekai.Live
 {
 	public class FrictionNote : ConnectionNote
 	{
-		protected bool isTouched;
+		internal override bool UsesContactWindow => true;
+		public bool IsTailTraceOwner { get; }
+		private readonly bool _isTraceTail;
+		private bool UsesTailWindow => _isTraceTail || IsTailTraceOwner || GradesAsBarPart && ParentRole == OpenSekai.Shared.Live.NoteParentRole.Tail;
+		internal override float EarlyContactSeconds => UsesTailWindow ? 6.5f / 60f : base.EarlyContactSeconds;
+		internal override float LateContactSeconds => UsesTailWindow ? 8f / 60f : base.LateContactSeconds;
 
 		public override NoteState State
 		{
@@ -26,91 +31,11 @@ namespace Sekai.Live
 			Category = NoteCategory.Friction;
 		}
 
-		public FrictionNote(MusicScoreInfo info, int id, int laneStart, int laneEnd, NoteCategory category, LiveBundleBuildData bundleBuildData, NoteType type, float speedRatio, NoteLineType lineType = NoteLineType.Linear)
+		public FrictionNote(MusicScoreInfo info, int id, int laneStart, int laneEnd, NoteCategory category, LiveBundleBuildData bundleBuildData, NoteType type, float speedRatio, NoteLineType lineType = NoteLineType.Linear, bool isTailTraceOwner = false, bool isTraceTail = false)
 			: base(info, id, laneStart, laneEnd, category, type, speedRatio, LiveUtility.GetLaneOffset(category, bundleBuildData), lineType)
 		{
-			isTouched = false;
-		}
-
-		public override void Excute(MusicScoreInfo currentFrameInfo, float offsetTime)
-		{
-			this.offsetTime = offsetTime;
-			if (State == NoteState.Done)
-			{
-				return;
-			}
-
-			if (State == NoteState.Last)
-			{
-
-				JudgeInfo = (NoteResult.Miss, NoteResultDescription.None);
-				State = NoteState.Done;
-				return;
-			}
-
-			OffsetJudgeTime = currentFrameInfo.time - MusicScoreInfo.time;
-			if (State == NoteState.Wait)
-			{
-				State = NoteState.Scrolling;
-			}
-
-			var progress = CalcProgress(currentFrameInfo, offsetTime);
-			if (progress < 0f && state != NoteState.Scrolling)
-			{
-				return;
-			}
-
-			Progress = progress;
-
-			if ((State == NoteState.Input || isTouched) && Progress >= 1f)
-			{
-				OffsetJudgeTime = 0f;
-				Progress = 1f;
-				JudgeInfo = (NoteResult.JustPerfect, NoteResultDescription.None);
-				State = NoteState.Done;
-				return;
-			}
-
-			if (LiveConfig.IsPastJudgeWindow(LiveUtility.GetINoteToJudgeFrameType(this), -OffsetJudgeTime))
-			{
-				State = NoteState.Last;
-			}
-		}
-
-		public override bool IsJudgment(ref LiveTouch touch, float lane)
-		{
-			return State != NoteState.Done
-				&& JudgeLaneStart <= lane
-				&& JudgeLaneEnd >= lane
-				&& LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(this), -OffsetJudgeTime);
-		}
-
-		public override bool Judgment(ref LiveTouch touch, float lane)
-		{
-			if (State == NoteState.Last)
-			{
-				OffsetJudgeTime = 0f;
-				Progress = 1f;
-			}
-			else if (Progress < 1f)
-			{
-				// Two-stage completion: the touch arms the rub, and Excute finishes it when the
-				// progress reaches the line. The press must not spend the finger's frame, or the notes
-				// queued behind this rub never get judged.
-				isTouched = true;
-				State = NoteState.Input;
-				return false;
-			}
-
-			JudgeInfo = (NoteResult.JustPerfect, NoteResultDescription.None);
-			State = NoteState.Done;
-			return true;
-		}
-
-		public override void ResetNote()
-		{
-			base.ResetNote();
-			isTouched = false;
+			_isTraceTail = isTraceTail;
+			IsTailTraceOwner = isTailTraceOwner;
 		}
 	}
 }

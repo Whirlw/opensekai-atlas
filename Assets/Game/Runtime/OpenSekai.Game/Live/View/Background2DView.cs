@@ -116,7 +116,7 @@ namespace Sekai.Live
 			Texture2D jacketTexture = LoadJacketTexture();
 			if (jacketTexture != null)
 			{
-				ApplyJacketTexture(jacketTexture, destroyWhenReplaced: IsExternalJacketTexture(jacketTexture));
+				ApplyJacketTexture(jacketTexture);
 			}
 
 			RenderJacketBackground();
@@ -475,10 +475,6 @@ namespace Sekai.Live
 			Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
 			if (shader == null)
 			{
-				shader = Shader.Find("Unlit/Texture");
-			}
-			if (shader == null)
-			{
 				shader = Shader.Find("Sprites/Default");
 			}
 
@@ -505,13 +501,15 @@ namespace Sekai.Live
 			{
 				_movieMaterial.SetTexture("_BaseMap", _movieTexture);
 			}
+			float brightness = Mathf.Clamp01(_baseController?.Settings?.MovieBrightness ?? 1f);
+			var tint = new Color(brightness, brightness, brightness, 1f);
 			if (_movieMaterial.HasProperty("_Color"))
 			{
-				_movieMaterial.SetColor("_Color", Color.white);
+				_movieMaterial.SetColor("_Color", tint);
 			}
 			if (_movieMaterial.HasProperty("_BaseColor"))
 			{
-				_movieMaterial.SetColor("_BaseColor", Color.white);
+				_movieMaterial.SetColor("_BaseColor", tint);
 			}
 		}
 
@@ -775,21 +773,18 @@ namespace Sekai.Live
 
 		private Texture2D LoadCustomJacketTexture(FreeLiveBootData bootData)
 		{
-			if (bootData == null || string.IsNullOrEmpty(bootData.CustomMusicScorePath))
+			if (bootData == null) return null;
+			byte[] jacket = bootData.TemporaryJacketData;
+			if (jacket == null && !string.IsNullOrEmpty(bootData.CustomMusicScorePath))
 			{
-				return null;
+				string path = SongPackageStorage.LoadEntry(bootData.CustomMusicScorePath)?.JacketPath;
+				if (File.Exists(path)) jacket = File.ReadAllBytes(path);
 			}
-
-			SongPackage package = SongPackageStorage.LoadEntry(bootData.CustomMusicScorePath);
-			string jacketPath = package?.JacketPath;
-			if (string.IsNullOrEmpty(jacketPath) || !File.Exists(jacketPath))
-			{
-				return null;
-			}
+			if (jacket == null) return null;
 
 			ClearExternalJacketAssets();
 			Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-			if (ImageConversion.LoadImage(texture, File.ReadAllBytes(jacketPath)))
+			if (ImageConversion.LoadImage(texture, jacket))
 			{
 				_externalJacketTexture = texture;
 				return texture;
@@ -799,42 +794,63 @@ namespace Sekai.Live
 			return null;
 		}
 
-		private bool IsExternalJacketTexture(Texture2D texture)
-		{
-			return texture != null && texture == _externalJacketTexture;
-		}
-
-		private void ApplyJacketTexture(Texture2D texture, bool destroyWhenReplaced)
+		private void ApplyJacketTexture(Texture2D texture)
 		{
 			if (_jackets == null)
 			{
 				return;
 			}
 
-			if (destroyWhenReplaced && _externalJacketSprite != null)
+			if (_externalJacketSprite != null)
 			{
 				Destroy(_externalJacketSprite);
 				_externalJacketSprite = null;
 			}
 
-			Sprite sprite = Sprite.Create(
-				texture,
-				new Rect(0f, 0f, texture.width, texture.height),
-				new Vector2(0.5f, 0.5f),
-				100f);
-			if (destroyWhenReplaced)
-			{
-				_externalJacketSprite = sprite;
-			}
+			int side = Mathf.Min(texture.width, texture.height);
+			var region = new Rect((texture.width - side) * 0.5f, (texture.height - side) * 0.5f, side, side);
+			_externalJacketSprite = Sprite.Create(texture, region, new Vector2(0.5f, 0.5f),
+				100f, 0, SpriteMeshType.FullRect);
 
 			foreach (SpriteRenderer jacket in _jackets)
 			{
 				if (jacket != null)
 				{
-					jacket.sprite = sprite;
+					Vector2 size = SizeToCoverMask(jacket);
+					jacket.sprite = _externalJacketSprite;
+					jacket.drawMode = SpriteDrawMode.Sliced;
+					jacket.size = size;
 					jacket.gameObject.SetActive(true);
 				}
 			}
+		}
+
+		private Vector2 SizeToCoverMask(SpriteRenderer jacket)
+		{
+			Vector2 size = jacket.size;
+			Transform surface = jacket.transform;
+			SpriteMask mask = surface.parent != null ? surface.parent.GetComponentInChildren<SpriteMask>(true) : null;
+			if (_jacketCamera == null || mask == null || mask.sprite == null || size.x <= 0f || size.y <= 0f)
+				return size;
+
+			// The mask and the art are on differently tilted planes. Project the mask's
+			// corners onto the art plane so the image fills the visible frame from the camera.
+			Bounds bounds = mask.sprite.bounds;
+			var plane = new Plane(surface.forward, surface.position);
+			float scale = 1f;
+			for (int corner = 0; corner < 4; corner++)
+			{
+				var edge = new Vector3((corner & 1) == 0 ? bounds.min.x : bounds.max.x,
+					(corner & 2) == 0 ? bounds.min.y : bounds.max.y, bounds.center.z);
+				Vector3 viewport = _jacketCamera.WorldToViewportPoint(mask.transform.TransformPoint(edge));
+				Ray ray = _jacketCamera.ViewportPointToRay(viewport);
+				if (!plane.Raycast(ray, out float distance)) continue;
+
+				Vector3 point = surface.InverseTransformPoint(ray.GetPoint(distance));
+				scale = Mathf.Max(scale, Mathf.Max(2f * Mathf.Abs(point.x) / size.x, 2f * Mathf.Abs(point.y) / size.y));
+			}
+
+			return size * scale;
 		}
 
 		private void SetJacketsActive(bool active)

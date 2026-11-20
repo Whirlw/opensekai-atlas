@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using Newtonsoft.Json;
+using OpenSekai.Infrastructure.Packages;
 using UnityEngine;
 
 namespace OpenSekai.App.Library
@@ -15,10 +17,11 @@ namespace OpenSekai.App.Library
 	/// </summary>
 	internal sealed class PlayHistorySummaryCache
 	{
-		private const int SNAPSHOT_VERSION = 1;
+		private const int SNAPSHOT_VERSION = 2;
 
 		private Dictionary<string, CustomMusicScorePlayHistorySummary> _summaries;
 		private string _path;
+		private long _historyBytes;
 
 		/// <summary>Where the snapshot for a history file lives: PlayHistory.jsonl → PlayHistory.summary.json.</summary>
 		internal static string SnapshotPathOf(string historyPath)
@@ -33,7 +36,8 @@ namespace OpenSekai.App.Library
 				return _summaries;
 			}
 
-			_summaries = ReadSnapshot(historyPath) ?? Rebuild(historyPath);
+			_historyBytes = HistoryBytes(historyPath);
+			_summaries = ReadSnapshot(historyPath, _historyBytes) ?? Rebuild(historyPath, _historyBytes);
 			_path = historyPath;
 			return _summaries;
 		}
@@ -41,7 +45,8 @@ namespace OpenSekai.App.Library
 		/// <summary>Folds the whole history file again and replaces the snapshot: the refresh button's resync.</summary>
 		internal Dictionary<string, CustomMusicScorePlayHistorySummary> Reload(string historyPath)
 		{
-			_summaries = Rebuild(historyPath);
+			_historyBytes = HistoryBytes(historyPath);
+			_summaries = Rebuild(historyPath, _historyBytes);
 			_path = historyPath;
 			return _summaries;
 		}
@@ -53,9 +58,26 @@ namespace OpenSekai.App.Library
 		internal CustomMusicScorePlayHistorySummary Append(string historyPath, CustomMusicScorePlayHistoryRecord record)
 		{
 			Dictionary<string, CustomMusicScorePlayHistorySummary> summaries = Load(historyPath);
-			File.AppendAllText(historyPath, JsonConvert.SerializeObject(record) + Environment.NewLine);
+			if (_historyBytes != HistoryBytes(historyPath)) summaries = Reload(historyPath);
+			using (var stream = new FileStream(historyPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read))
+			{
+				// An interrupted append can leave an incomplete JSON object without a final newline.
+				// Keep the next completed record on a line the history reader can recover independently.
+				bool needsSeparator = false;
+				if (stream.Length > 0)
+				{
+					stream.Seek(-1, SeekOrigin.End);
+					needsSeparator = stream.ReadByte() != '\n';
+				}
+				using (var writer = new StreamWriter(stream, new UTF8Encoding(false), 1024, leaveOpen: true))
+				{
+					if (needsSeparator) writer.WriteLine();
+					writer.WriteLine(JsonConvert.SerializeObject(record));
+				}
+				_historyBytes = stream.Length;
+			}
 			CustomMusicScorePlayHistorySummary summary = CustomMusicScorePlayHistoryStorage.Fold(summaries, record);
-			WriteSnapshot(historyPath, summaries);
+			WriteSnapshot(historyPath, summaries, _historyBytes);
 			return summary;
 		}
 
@@ -64,16 +86,18 @@ namespace OpenSekai.App.Library
 			return string.Equals(_path, path, StringComparison.OrdinalIgnoreCase);
 		}
 
-		private static Dictionary<string, CustomMusicScorePlayHistorySummary> Rebuild(string historyPath)
+		private static long HistoryBytes(string path) => File.Exists(path) ? new FileInfo(path).Length : 0L;
+
+		private static Dictionary<string, CustomMusicScorePlayHistorySummary> Rebuild(string historyPath, long historyBytes)
 		{
 			Dictionary<string, CustomMusicScorePlayHistorySummary> summaries = File.Exists(historyPath)
 				? CustomMusicScorePlayHistoryStorage.Summarize(File.ReadLines(historyPath))
 				: new Dictionary<string, CustomMusicScorePlayHistorySummary>(StringComparer.Ordinal);
-			WriteSnapshot(historyPath, summaries);
+			WriteSnapshot(historyPath, summaries, historyBytes);
 			return summaries;
 		}
 
-		private static Dictionary<string, CustomMusicScorePlayHistorySummary> ReadSnapshot(string historyPath)
+		private static Dictionary<string, CustomMusicScorePlayHistorySummary> ReadSnapshot(string historyPath, long historyBytes)
 		{
 			string path = SnapshotPathOf(historyPath);
 			if (!File.Exists(path))
@@ -84,7 +108,7 @@ namespace OpenSekai.App.Library
 			try
 			{
 				Snapshot snapshot = JsonConvert.DeserializeObject<Snapshot>(File.ReadAllText(path));
-				if (snapshot?.summaries == null || snapshot.version != SNAPSHOT_VERSION)
+				if (snapshot?.summaries == null || snapshot.version != SNAPSHOT_VERSION || snapshot.historyBytes != historyBytes)
 				{
 					return null;
 				}
@@ -115,9 +139,9 @@ namespace OpenSekai.App.Library
 			}
 		}
 
-		private static void WriteSnapshot(string historyPath, Dictionary<string, CustomMusicScorePlayHistorySummary> summaries)
+		private static void WriteSnapshot(string historyPath, Dictionary<string, CustomMusicScorePlayHistorySummary> summaries, long historyBytes)
 		{
-			var snapshot = new Snapshot { version = SNAPSHOT_VERSION };
+			var snapshot = new Snapshot { version = SNAPSHOT_VERSION, historyBytes = historyBytes };
 			foreach (KeyValuePair<string, CustomMusicScorePlayHistorySummary> pair in summaries)
 			{
 				snapshot.summaries[pair.Key] = new Entry
@@ -128,42 +152,21 @@ namespace OpenSekai.App.Library
 				};
 			}
 
-			string path = SnapshotPathOf(historyPath);
-			string tempPath = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
 			try
 			{
-				string directory = Path.GetDirectoryName(path);
-				if (!string.IsNullOrEmpty(directory))
-				{
-					Directory.CreateDirectory(directory);
-				}
-				File.WriteAllText(tempPath, JsonConvert.SerializeObject(snapshot));
-				if (File.Exists(path))
-				{
-					File.Replace(tempPath, path, null);
-				}
-				else
-				{
-					File.Move(tempPath, path);
-				}
+				AtomicFile.WriteAllText(SnapshotPathOf(historyPath), JsonConvert.SerializeObject(snapshot));
 			}
 			catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException)
 			{
 				// The history itself is already written; a rebuild recovers the snapshot.
 				Debug.LogWarning("[Library] Could not save the play history summary: " + exception.Message);
 			}
-			finally
-			{
-				if (File.Exists(tempPath))
-				{
-					File.Delete(tempPath);
-				}
-			}
 		}
 
 		private sealed class Snapshot
 		{
 			public int version;
+			public long historyBytes;
 			public Dictionary<string, Entry> summaries = new Dictionary<string, Entry>(StringComparer.Ordinal);
 		}
 

@@ -156,6 +156,7 @@ Assets/_Recovery.meta
 /ProjectSettings/ProjectAuditorSettings.asset
 /ProjectSettings/Packages/com.unity.testtools.codecoverage/Settings.json
 /ProjectSettings/Packages/com.unity.ai.assistant/Settings.json
+/ProjectSettings/Packages/com.unity.pipeline/EditorPipelineConfig.json
 
 # Local-only archive of superseded docs (early changelogs, full process logs).
 /LocalPacks/archive/

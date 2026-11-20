@@ -57,6 +57,7 @@ namespace Sekai
 		public float JudgeOffsetMs { get; set; }
 
 		public float Brightness { get; set; }
+		public float MovieBrightness { get; set; }
 
 		public float LaneTransparent { get; set; }
 
@@ -92,8 +93,6 @@ namespace Sekai
 
 		public bool IsFastLateFlick { get; set; }
 
-		public bool Use120FPS { get; set; }
-
 		/// <summary>
 		/// Frame rate cap for live play, in Hz. 0 follows the display refresh rate.
 		/// The runtime limits this to supported refresh rates.
@@ -106,6 +105,13 @@ namespace Sekai
 		/// it is kept for players who prefer that feel.
 		/// </summary>
 		public bool UseLegacyJudgeTiming { get; set; }
+
+		/// <summary>
+		/// Hand out a frame's presses the old way: presses read in one frame (closer than 1/60 s) compete for
+		/// their notes as one chord. Off, every press is judged on its own in timestamp order, which does not
+		/// depend on the frame rate. Legacy judge timing always uses the old way, since it flattens timestamps.
+		/// </summary>
+		public bool UseFramePressMatching { get; set; }
 
 		public bool? UseVSync { get; set; }
 
@@ -216,9 +222,9 @@ namespace Sekai
 			LiveMode = LiveModeType.Default3D;
 			UseAllPerfectEffect = true;
 			QualityType = MVQualityType.Default;
-			Use120FPS = false;
 			FrameRateLimit = 0;
 			UseLegacyJudgeTiming = false;
+			UseFramePressMatching = false;
 			NoteEffect = 0;
 			_noteShowRate = 0f;
 			FeverEffectTypeIndex = 0;
@@ -230,6 +236,7 @@ namespace Sekai
 			VisualLatencyMs = 0f;
 			JudgeOffsetMs = 0f;
 			Brightness = 1f;
+			MovieBrightness = 1f;
 			LaneTransparent = 1f;
 			CustomMusicScoreMusicInfoDisplayMode = MUSIC_INFO_DISPLAY_MODE_CUSTOM_SCORE;
 			CustomMusicScoreLiveBackgroundMode = CUSTOM_MUSIC_SCORE_BACKGROUND_MODE2_DMV;

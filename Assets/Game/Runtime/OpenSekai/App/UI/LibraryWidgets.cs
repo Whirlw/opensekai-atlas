@@ -89,6 +89,56 @@ namespace OpenSekai.App.UI
             return button;
         }
 
+        /// <summary>
+        /// Rounded single-line text field with a hairline, an optional icon on the left and a
+        /// muted placeholder; the caller places it.
+        /// </summary>
+        internal static TMP_InputField TextField(
+            string name, Transform parent, float height, string placeholderText, LibraryIcon? icon = null,
+            float fontSize = LibraryTheme.FontSize.BODY)
+        {
+            Image background = Panel(name, parent, height * 0.5f, LibraryTheme.Colors.Control);
+            background.raycastTarget = true;
+            Outline(background, height * 0.5f);
+            float left = 22f;
+            if (icon.HasValue)
+            {
+                Image glyph = Icon(background.transform, icon.Value, LibraryTheme.Colors.TextMuted, 26f);
+                Place(glyph.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(22f, 0f), new Vector2(26f, 26f));
+                left = 60f;
+            }
+
+            // Configured while inactive: TMP_InputField builds its caret on enable and needs the
+            // text component by then.
+            background.gameObject.SetActive(false);
+            RectTransform area = LibraryUi.CreateRect("TextArea", background.transform);
+            Inset(area, left, 6f, 22f, 6f);
+            area.gameObject.AddComponent<RectMask2D>();
+
+            TextMeshProUGUI placeholder = Label("Placeholder", area, placeholderText, fontSize, LibraryTheme.Colors.TextMuted);
+            LibraryUi.Stretch(placeholder.rectTransform);
+            TextMeshProUGUI text = Label("Text", area, string.Empty, fontSize, LibraryTheme.Colors.TextPrimary);
+            text.overflowMode = TextOverflowModes.Overflow;
+            LibraryUi.Stretch(text.rectTransform);
+
+            TMP_InputField input = background.gameObject.AddComponent<TMP_InputField>();
+            input.targetGraphic = background;
+            input.transition = Selectable.Transition.None;
+            input.textViewport = area;
+            input.textComponent = text;
+            input.placeholder = placeholder;
+            input.fontAsset = text.font;
+            input.pointSize = fontSize;
+            input.lineType = TMP_InputField.LineType.SingleLine;
+            input.caretColor = LibraryTheme.Colors.TextPrimary;
+            input.customCaretColor = true;
+            input.selectionColor = new Color32(157, 184, 255, 96);
+            input.onSelect.AddListener(_ => background.color = LibraryTheme.Colors.ControlActive);
+            input.onDeselect.AddListener(_ => background.color = LibraryTheme.Colors.Control);
+            background.gameObject.SetActive(true);
+            return input;
+        }
+
         /// <summary>Anchors a rect to one point of its parent.</summary>
         internal static void Place(RectTransform rect, Vector2 anchor, Vector2 pivot, Vector2 position, Vector2 size)
         {
@@ -137,14 +187,17 @@ namespace OpenSekai.App.UI
         private Transform _target;
         private Selectable _selectable;
         private MotionHandle _pressMotion;
+        private float _pressScale = LibraryTheme.Motion.PRESS_SCALE;
 
         /// <param name="host">Object that receives the pointer events.</param>
         /// <param name="target">Transform to scale; defaults to the host itself.</param>
-        internal static LibraryPressFeedback Attach(GameObject host, Transform target = null)
+        /// <param name="pressScale">Scale while pressed; large cards want a smaller dip than buttons.</param>
+        internal static LibraryPressFeedback Attach(GameObject host, Transform target = null, float pressScale = LibraryTheme.Motion.PRESS_SCALE)
         {
             LibraryPressFeedback feedback = host.AddComponent<LibraryPressFeedback>();
             feedback._target = target != null ? target : host.transform;
             feedback._selectable = host.GetComponent<Selectable>();
+            feedback._pressScale = pressScale;
             return feedback;
         }
 
@@ -155,7 +208,7 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            Play(LibraryTheme.Motion.PRESS_SCALE, LibraryTheme.Motion.FAST, LibraryTheme.Motion.ENTER_EASE);
+            Play(_pressScale, LibraryTheme.Motion.FAST, LibraryTheme.Motion.ENTER_EASE);
         }
 
         public void OnPointerUp(PointerEventData eventData)

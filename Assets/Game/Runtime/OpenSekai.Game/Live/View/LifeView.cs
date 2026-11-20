@@ -6,6 +6,8 @@ namespace Sekai
 {
 	public class LifeView : MonoBehaviour
 	{
+		private const int MaxLifeDigits = 10;
+
 		[SerializeField]
 		private Transform _lifeDefault;
 
@@ -63,11 +65,11 @@ namespace Sekai
 			_lifeDamageGaugeSize = _lifeDamageGauge != null ? _lifeDamageGauge.size : Vector2.one;
 			if (_number != null)
 			{
-				_number.Setup("#ffffff", "#ffffff00");
+				_number.Setup("#ffffff", minimumDigits: MaxLifeDigits);
 			}
 			if (_outlineNumber != null)
 			{
-				_outlineNumber.Setup("#ffffff", "#ffffff00");
+				_outlineNumber.Setup("#ffffff", minimumDigits: MaxLifeDigits);
 			}
 			SetupButton(callback);
 			Clear();

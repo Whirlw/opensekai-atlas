@@ -1,0 +1,96 @@
+#if UNITY_ANDROID && !UNITY_EDITOR
+using System;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Threading;
+using Cysharp.Threading.Tasks;
+using Newtonsoft.Json.Linq;
+using OpenSekai.App.Playback;
+using OpenSekai.App.UI;
+using OpenSekai.Infrastructure.Packages;
+using OpenSekai.Shared.Playback;
+using OpenSekai.Shared.Settings;
+using Sekai.Core.Live;
+using Sekai.MusicScoreMaker.Common;
+using UnityEngine;
+using GameScenes = Sekai.SceneManager;
+using UnityScenes = UnityEngine.SceneManagement.SceneManager;
+
+internal static class PhaseOneAndroidSmoke
+{
+    private const string Tag = "[PhaseOneAndroidSmoke]";
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void StartIfRequested()
+    {
+        using var player = new AndroidJavaClass("com.unity3d.player.UnityPlayer");
+        using var activity = player.GetStatic<AndroidJavaObject>("currentActivity");
+        using var intent = activity.Call<AndroidJavaObject>("getIntent");
+        if (intent.Call<bool>("getBooleanExtra", "opensekaiPhaseOneSmoke", false))
+            Run().Forget();
+    }
+
+    private static async UniTaskVoid Run()
+    {
+        try
+        {
+            await WaitFor(() => UnityScenes.GetActiveScene().name == "Library"
+                && UnityEngine.Object.FindFirstObjectByType<LibraryScreen>() != null, 30f);
+            string settingsPath = Path.Combine(Application.persistentDataPath, "LiveSettingData.json");
+            string settingsBefore = File.ReadAllText(settingsPath);
+            var expected = JObject.Parse(settingsBefore)["NoteSpeed"];
+            var loaded = LiveSettingsStore.Shared.Load();
+            if (expected == null || !Mathf.Approximately((float)expected, loaded.NoteSpeed))
+                throw new InvalidOperationException("Existing settings did not load.");
+
+            var packages = SongPackageManager.Shared.LoadItems()
+                .Where(item => item.HasManifest && item.HasScore && item.HasAudio)
+                .OrderBy(item => item.Entry.Manifest.id != "codexbaseline20261101tap")
+                .ThenBy(item => item.Entry.MusicDurationSec).ToArray();
+            if (packages.Length == 0)
+                throw new InvalidOperationException("The existing library has no playable packages.");
+            bool history = packages.Any(item => CustomMusicScorePlayHistoryStorage.TryLoadBestResult(
+                item.Entry.Manifest.id, out _));
+            Debug.Log($"{Tag} Read existing settings; playable packages={packages.Length}; existing history readable={history}");
+
+            var entry = packages[0].Entry;
+            var start = await PlayService.Instance.StartAsync(
+                new PlayRequest(entry.RootDirectory, true, GameScenes.Scene.Library), CancellationToken.None);
+            if (!start.Started)
+                throw new InvalidOperationException("The existing package did not start: " + start.Status);
+
+            await WaitFor(() => UnityScenes.GetActiveScene().name == "Core"
+                && UnityEngine.Object.FindFirstObjectByType<SoloLiveController>() != null, 60f);
+            Debug.Log($"{Tag} Entered Core; baseline fixture={entry.Manifest.id == "codexbaseline20261101tap"}");
+            await WaitFor(() => UnityScenes.GetActiveScene().name == "Library"
+                && UnityEngine.Object.FindFirstObjectByType<LibraryResultPanel>() != null, 300f);
+            var panel = UnityEngine.Object.FindFirstObjectByType<LibraryResultPanel>();
+            var result = (PlayResult)typeof(LibraryResultPanel)
+                .GetField("_current", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(panel);
+            if (result == null || result.Kind != PlayResultKind.Completed || !result.IsAuto
+                || result.TotalCombo <= 0 || !string.Equals(result.PackageDirectory, entry.RootDirectory, StringComparison.Ordinal))
+                throw new InvalidOperationException("The existing package did not produce a completed result.");
+
+            if (File.ReadAllText(settingsPath) != settingsBefore)
+                throw new InvalidOperationException("The compatibility smoke changed the existing settings.");
+            Debug.Log($"{Tag} PASS: returned to Library; score={result.Score}; rank={result.Rank}; auto={result.AutoCount}/{result.TotalCombo}");
+        }
+        catch (Exception error)
+        {
+            Debug.LogError($"{Tag} FAIL: {error.GetType().Name}: {error.Message}");
+        }
+    }
+
+    private static async UniTask WaitFor(Func<bool> condition, float timeout)
+    {
+        float deadline = Time.realtimeSinceStartup + timeout;
+        while (!condition())
+        {
+            if (Time.realtimeSinceStartup >= deadline)
+                throw new TimeoutException("Active scene: " + UnityScenes.GetActiveScene().name);
+            await UniTask.Yield();
+        }
+    }
+}
+#endif

@@ -11,7 +11,10 @@ namespace Sekai.Core.Live
 		public class InputTmp
 		{
 			public LiveTouch Touch;
-			internal float PreviousLane { get; set; } = -1f;
+			internal bool IsResidentSample { get; set; }
+			internal float PreviousLane { get; set; } = OpenSekai.Shared.Live.TouchLane.Outside;
+			/// <summary>Which press pass of the frame may judge this Began; see <see cref="JudgmentScheduler"/>.</summary>
+			internal int PressWave { get; set; }
 			private float _Lane;
 			public float Lane
 			{
@@ -39,16 +42,20 @@ namespace Sekai.Core.Live
 				}
 
 				Touch = source.Touch;
+				IsResidentSample = source.IsResidentSample;
 				Lane = source.Lane;
 				PreviousLane = source.PreviousLane;
+				PressWave = source.PressWave;
 				CandidateNotes.AddRange(source.CandidateNotes);
 			}
 
 			public void Reset(ref LiveTouch touch, float lane)
 			{
 				Touch = touch;
+				IsResidentSample = false;
 				Lane = lane;
-				PreviousLane = -1f;
+				PreviousLane = OpenSekai.Shared.Live.TouchLane.Outside;
+				PressWave = 0;
 				CandidateNotes.Clear();
 			}
 		}
@@ -76,6 +83,7 @@ namespace Sekai.Core.Live
 		internal LiveInputRouter Input { get; }
 		internal LiveNoteFrame NoteFrame { get; }
 		internal JudgmentScheduler Scheduler { get; }
+		internal NextRushConnectorAudio ConnectorAudio { get; } = new();
 
 		public LiveLogic(LiveBundleBuildData data)
 		{
@@ -129,7 +137,8 @@ namespace Sekai.Core.Live
 		public MusicScoreInfo currentFrameInfo;
 
 		public LiveScore Score => Session.Score;
-		public bool IsNotesAllFinished => Session.AreNotesFinished;
+		public bool IsNotesAllFinished => Session.AreNotesFinished
+			&& (Session.MusicScore == null || currentFrameInfo.time >= Session.MusicScore.LastHiddenLineTime);
 
 		/// <summary>What is still holding the live open, for the trace of a live that had to be ended by force.</summary>
 		internal string DescribeUnfinishedNotes()
@@ -163,6 +172,7 @@ namespace Sekai.Core.Live
 
 		public void Setup(LiveBootDataBase _bootData, LiveViewBase[] _liveViews)
 		{
+			ConnectorAudio.Reset();
 			Session.Bind(_bootData, _liveViews);
 			Scheduler.BindNoteCallbacks(Notes.Notes);
 			_presentation.CreatePool(Session.Views, LiveUtility.CalculateMaxSimultaneousNotes(Session.MusicScore, Session.NoteDisplayTimeOffset));
@@ -190,7 +200,12 @@ namespace Sekai.Core.Live
 			_presentation.SetupScore(Session.Views, Score);
 		}
 
-		public void RefreshInput() => Input.Reset();
+		public void RefreshInput()
+		{
+			Input.Reset();
+			Scheduler.ResetDamageInputs();
+			Clock.ResetFrameHistory();
+		}
 
 		/// <summary>
 		/// The state block of the frame. It lives in <see cref="LiveNoteFrame"/> because that is what
@@ -222,7 +237,12 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>Autoplay has no touch block: the automatic answer stands in for it.</summary>
-		public void OnAutoInput() => NoteFrame.AutoUpdate();
+		public void OnAutoInput()
+		{
+			NoteFrame.AutoUpdate();
+			if (result < 3) ConnectorAudio.Update(Session.MusicScore, currentFrameInfo.time, true, null);
+			else ConnectorAudio.Silence();
+		}
 
 		/// <summary>
 		/// The view block, the last one of the frame: what the two blocks above decided is drawn now,

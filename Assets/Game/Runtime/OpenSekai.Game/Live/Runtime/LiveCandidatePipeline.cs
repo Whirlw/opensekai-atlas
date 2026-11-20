@@ -53,8 +53,10 @@ namespace Sekai.Core.Live
 			{
 				return note.State == NoteState.Scrolling;
 			}
+			if (note is FrictionFlickNote { IsTraceFlickOwner: true } traceFlick)
+				return !traceFlick.HasCapturedPress;
 
-			return note is NormalNote && note.Category == NoteCategory.Normal;
+			return note is NormalNote { TakesPress: true };
 		}
 
 		/// <summary>
@@ -65,7 +67,7 @@ namespace Sekai.Core.Live
 		/// </summary>
 		internal static bool AdmitsPress(NoteBase note, float touchTime, float lane)
 		{
-			if (!IsPressStep(note) || lane < 0f)
+			if (!IsPressStep(note) || float.IsNegativeInfinity(lane))
 			{
 				return false;
 			}
@@ -99,9 +101,33 @@ namespace Sekai.Core.Live
 		/// worse and a later one would grade Great or better (<see cref="PickForOneFinger"/>).</item>
 		/// </list>
 		/// </summary>
-		internal void SortPressCandidates(List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame)
+		/// <param name="deduplicate">
+		/// False when every press is judged in a pass of its own: there is no other finger to share a note
+		/// with, so the chord steps (<see cref="DeduplicateCandidates"/>) are skipped.
+		/// </param>
+		internal void SortPressCandidates(List<LiveLogic.InputTmp> inputs, MusicScoreInfo frame, bool deduplicate = true)
 		{
-			DeduplicateCandidates(inputs, ref frame);
+			// An overlapping tap has priority over optional TraceFlick capture on the same beat.
+			foreach (var input in inputs)
+			{
+				var candidates = input.CandidateNotes;
+				if (candidates.Count < 2) continue;
+				for (int i = candidates.Count - 1; i >= 0; i--)
+				{
+					if (candidates[i] is not FrictionFlickNote { IsTraceFlickOwner: true } traceFlick) continue;
+					for (int j = 0; j < candidates.Count; j++)
+					{
+						var other = candidates[j];
+						if (other is FrictionFlickNote || other.MusicScoreInfo.time != traceFlick.MusicScoreInfo.time) continue;
+						candidates.RemoveAt(i);
+						break;
+					}
+				}
+			}
+			if (deduplicate)
+			{
+				DeduplicateCandidates(inputs, ref frame);
+			}
 
 			foreach (var input in inputs)
 			{
@@ -398,6 +424,12 @@ namespace Sekai.Core.Live
 			if (barAnswersInput)
 			{
 				judgmentNotes.Add(note);
+				if (note is LongNote tickBar)
+				{
+					foreach (var part in tickBar.JudgedPoints)
+						if (part is ConnectionNote { IsConnectedVisibleTick: true, State: NoteState.Last }
+							&& !judgmentNotes.Contains(part)) judgmentNotes.Add(part);
+				}
 
 				// A bar answers input for its own head and hold, but it does not grade a tail that judges
 				// itself: a rub, a rub flick or a hidden carrier is played exactly like a note that hangs
@@ -437,7 +469,7 @@ namespace Sekai.Core.Live
 		/// cannot keep a later candidate out.
 		/// </summary>
 		public void Collect(List<NoteBase> judgmentNotes, List<LiveLogic.InputTmp> inputs,
-			LiveHoldCoordinator holds, IReadOnlyDictionary<int, double> pressed)
+			LiveHoldCoordinator holds, IReadOnlyDictionary<int, double> pressed, int pressWave = 0)
 		{
 			if (judgmentNotes == null || inputs == null)
 			{
@@ -458,6 +490,7 @@ namespace Sekai.Core.Live
 				{
 					LiveLogic.InputTmp activeInput = inputs[inputIndex];
 					if (activeInput.Touch.phase != UnityEngine.InputSystem.TouchPhase.Began) continue;
+					if (activeInput.PressWave != pressWave) continue;
 
 					// A finger that owns a hold is still free to judge other notes in its lane: charts
 					// overlay a separate contact-only note on top of a bar. Only hold-vs-hold contention

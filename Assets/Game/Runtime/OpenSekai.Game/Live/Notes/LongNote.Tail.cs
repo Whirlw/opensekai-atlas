@@ -33,6 +33,7 @@ namespace Sekai.Live
 			&& IsTailCandidate(TailNote);
 
 		internal bool HasPendingManagedTail => HasManagedTail && TailNote.State != NoteState.Done;
+		internal virtual bool IsReleaseTailReady => true;
 
 		/// <summary>
 		/// How this bar is meant to end, derived from the note that ends it. Deliberately not cached:
@@ -44,7 +45,9 @@ namespace Sekai.Live
 			: TailNote == null ? ReleaseTail.Instance : TailBehaviours.For(TailNote);
 
 		/// <summary>Whether the final chart point ends the bar without its own judgement.</summary>
-		internal bool EndsWithoutJudgement => SkipsTailJudgement || (_lastBoundNote != null && !IsTailCandidate(_lastBoundNote));
+		internal bool EndsWithoutJudgement => SkipsTailJudgement || (BoundEnd != null && !IsTailCandidate(BoundEnd));
+
+		private NoteBase BoundEnd => NativeConnector != null ? TailNote : _lastBoundNote;
 
 		internal bool CanFinishSilently(float currentTime)
 		{
@@ -54,8 +57,8 @@ namespace Sekai.Live
 				return false;
 			}
 
-			return EndsWithoutJudgement && _lastBoundNote != null
-				&& currentTime > _lastBoundNote.MusicScoreInfo.time;
+			var end = BoundEnd;
+			return end != null && EndsWithoutJudgement && currentTime > end.MusicScoreInfo.time;
 		}
 
 		internal void FinishSilently()

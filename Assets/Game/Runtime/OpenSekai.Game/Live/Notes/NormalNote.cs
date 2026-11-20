@@ -1,7 +1,22 @@
+using OpenSekai.Shared.Live;
+
 namespace Sekai.Live
 {
 	public class NormalNote : NoteBase
 	{
+		private readonly bool _isNextRushTap;
+		internal bool TakesPress => Category == NoteCategory.Normal || _isNextRushTap;
+		internal bool IsIndependentRelease { get; private set; }
+		public bool IsTailReleaseOwner { get; }
+		private NoteBase _releaseOwner;
+
+		public void SetNextRushIndependentRelease(NoteBase releaseOwner = null)
+		{
+			_releaseOwner = releaseOwner;
+			IsIndependentRelease = true;
+			Category = NoteCategory.Long;
+		}
+
 		public override NoteState State
 		{
 			get => state;
@@ -25,9 +40,12 @@ namespace Sekai.Live
 			Category = NoteCategory.Normal;
 		}
 
-		public NormalNote(MusicScoreInfo info, int id, int laneStart, int laneEnd, NoteCategory category, float speedRatio, NoteType type, float laneOffset)
+		public NormalNote(MusicScoreInfo info, int id, int laneStart, int laneEnd, NoteCategory category, float speedRatio, NoteType type, float laneOffset,
+			bool isNextRushTap = false, bool isTailReleaseOwner = false)
 			: base(info, id, laneStart, laneEnd, category, speedRatio, laneOffset, type)
 		{
+			_isNextRushTap = isNextRushTap;
+			IsTailReleaseOwner = isTailReleaseOwner;
 		}
 
 		public override void SetParentNote(LongNote note)
@@ -47,18 +65,34 @@ namespace Sekai.Live
 			}
 
 			var offset = MusicScoreInfo.time - touch.musicTime;
+			if (IsIndependentRelease)
+			{
+				return (_releaseOwner == null || _releaseOwner.Result != NoteResult.None
+					|| _releaseOwner is FrictionFlickNote { HasCapturedPress: true } or FlickNote { CanStartNextRushHold: true }
+					|| _releaseOwner is LongNote hold && hold.Head.IsSettled)
+					&& touch.phase == UnityEngine.InputSystem.TouchPhase.Ended && LongEndJudgement.Accepts(-offset);
+			}
+
 			if (!LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(this), offset))
 			{
 				return false;
 			}
 
-			return (Category == NoteCategory.Normal && touch.phase == UnityEngine.InputSystem.TouchPhase.Began)
-				|| (Category == NoteCategory.Long && UnityEngine.InputSystem.InputExtensions.IsEndedOrCanceled(touch.phase));
+			return TakesPress ? touch.phase == UnityEngine.InputSystem.TouchPhase.Began
+				: Category == NoteCategory.Long && touch.phase == UnityEngine.InputSystem.TouchPhase.Ended;
 		}
 
 		internal void SettleExpiredPress(float now)
 		{
 			if (LiveConfig.IsPastJudgeWindow(LiveUtility.GetINoteToJudgeFrameType(this), MusicScoreInfo.time - now))
+			{
+				FinishWith(NoteResult.Miss);
+			}
+		}
+
+		internal void SettleExpiredRelease(float now)
+		{
+			if (LongEndJudgement.IsPast(now - MusicScoreInfo.time))
 			{
 				FinishWith(NoteResult.Miss);
 			}
@@ -71,8 +105,16 @@ namespace Sekai.Live
 				return false;
 			}
 
-			if ((Category == NoteCategory.Normal && touch.phase != UnityEngine.InputSystem.TouchPhase.Began)
-				|| (Category == NoteCategory.Long && !UnityEngine.InputSystem.InputExtensions.IsEndedOrCanceled(touch.phase)))
+			if (IsIndependentRelease)
+			{
+				if (!IsJudgment(ref touch, lane)) return false;
+				HasNextRushHit = IsNextRush;
+				FinishWith(CalcNoteResult(touch.musicTime));
+				return true;
+			}
+
+			if ((TakesPress && touch.phase != UnityEngine.InputSystem.TouchPhase.Began)
+				|| (!TakesPress && Category == NoteCategory.Long && touch.phase != UnityEngine.InputSystem.TouchPhase.Ended))
 			{
 				return false;
 			}
@@ -80,6 +122,7 @@ namespace Sekai.Live
 			var judgeInfo = GradesAsBarPart
 				? LiveConfig.CalculateLongEndNoteResult(this, touch.musicTime)
 				: LiveConfig.CalculateDefaultNoteResult(this, touch.musicTime);
+			HasNextRushHit = IsNextRush;
 
 			JudgeInfo = onUpdateResult != null ? onUpdateResult(judgeInfo) : judgeInfo;
 			State = NoteState.Done;
@@ -88,6 +131,8 @@ namespace Sekai.Live
 
 		public override NoteResult CalcNoteResult(float musicTime)
 		{
+			if (IsIndependentRelease) return LongEndJudgement.Evaluate(musicTime - MusicScoreInfo.time);
+
 			return (GradesAsBarPart
 				? LiveConfig.CalculateLongEndNoteResult(this, musicTime)
 				: LiveConfig.CalculateDefaultNoteResult(this, musicTime)).Item1;

@@ -63,11 +63,11 @@ namespace Sekai
 			return path.Contains("://") ? path : "file://" + path;
 		}
 
-		internal void RegisterClip(string bundleName, string cueName, AudioClip clip)
+		internal CriAtomExAcb RegisterClip(string bundleName, string cueName, AudioClip clip)
 		{
 			if (clip == null || string.IsNullOrEmpty(cueName))
 			{
-				return;
+				return null;
 			}
 
 			if (string.IsNullOrEmpty(bundleName))
@@ -79,7 +79,7 @@ namespace Sekai
 			CriAtomExAcb acb = CriAtomExAcb.CreateFromAudioClip(cueName, clip);
 			if (acb == null || !acb.isAvailable)
 			{
-				return;
+				return null;
 			}
 
 			_catalog.Register(bundleName, acb);
@@ -88,6 +88,7 @@ namespace Sekai
 			{
 				_catalog.Register(liveMusicBundleName, acb);
 			}
+			return acb;
 		}
 	}
 }

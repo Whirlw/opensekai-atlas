@@ -74,6 +74,17 @@ namespace OpenSekai.App.UI
             internal const float PANEL = 24f;
         }
 
+        /// <summary>
+        /// The soft drop shadow under a jacket. Home cards use the same values so a card and a
+        /// cover cast the same shadow, with the same thickness on every side.
+        /// </summary>
+        internal static class CoverShadow
+        {
+            internal const float BLUR = 28f;
+            internal const float DROP = 4f;
+            internal const byte OPACITY = 65;
+        }
+
         internal static class FontSize
         {
             internal const float CAPTION = 18f;

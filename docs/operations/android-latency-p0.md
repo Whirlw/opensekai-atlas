@@ -1,0 +1,67 @@
+# Android 延迟基线采集
+
+首轮用一台现有设备和一张固定谱。用补光后的 60 fps 侧拍观察画面，用同一支麦克风录敲屏和手机扬声器。声音采集卡可另外检查有线耳机输出。记录帧率和 L/V/J 设置，做对照时固定它们。
+
+## 1. 开启应用内采样
+
+1. 安装含本次改动的构建。打开「设置 → 追踪选项 → 延迟采样」，关闭「测试模式」和「性能 HUD」，减少其他诊断的影响。
+2. 用固定测试曲 `Test`（仓库的 `Tools/fixtures/baseline_tap`）或一首熟悉且有普通单键的曲子。先固定设备、曲目、难度、音量、刷新率设置和输出路由。打三局，每局都完成或通过暂停菜单退出。再做一局暂停、恢复、退出来检查分段。
+3. 每个连续打歌片段结束后会保存一个 `latency-*.tsv`。暂停、重试和后台切换会结束当前片段，恢复打歌会创建下一个片段。在其他条件相同的情况下，关掉「延迟采样」再打同谱三局，供外录和手感对照。保留录制文件原件，避免在外录阶段同时投屏或录制手机屏幕。
+
+Android 的文件位于 `Android/data/io.github.opensekai/files/logs`。从已连接的电脑取文件并汇总，保留 TSV 头部的设备、构建、设置和输出信息。不同片段单独出统计，首轮优先比较连续、无跳转、无路由切换的片段。
+
+停止采样后在后台生成文件，完整写入后才显示为 `*.tsv`。退出打歌后等文件出现再采集。结算附近的 `finish_history.value` 是成绩历史保存耗时（ms），`play_stopped_frame.value` 是离开打歌状态后的首帧时间（ms）。
+
+```powershell
+adb shell ls /sdcard/Android/data/io.github.opensekai/files/logs
+adb pull "/sdcard/Android/data/io.github.opensekai/files/logs/latency-实际文件名.tsv" TestResults/
+./Tools/measure-latency-capture.ps1 "TestResults/latency-实际文件名.tsv" | Format-Table -AutoSize
+```
+
+| 记录 | 如何用 |
+| --- | --- |
+| `received` → `consumed` | 用手指编号、触点 ID、阶段和事件时间配对。前者是 EnhancedTouch 回调时间，后者是 Gameplay 将样本映射后准备交给路由器的时间。首尾边界、同一事件的阶段变化、重复和快照行为都可能留下未匹配条目，逐条复查后才能归因。 |
+| `filtered` / `router_overflow` | 前者是具体的过滤记录，可能只是重复快照。后者表示现有判定缓冲已满。`overflow` 是诊断记录本身的容量上限，出现时单独保留该片段。 |
+| `press_spent` / `release_settled` / `judged` | 普通单键用 `press_spent.value` 看有符号误差，正为晚；`judged` 是公开判定结果。长键头、划键与自动推进可能在不同事件或时间结算。手动有符号误差同时包含玩家打点、校准和时钟因素。 |
+| `note_effect` / `note_se` / `empty_tap_feedback` | 打击特效触发路径、调用 `SoundManager` 前的 SE 请求点和空打反馈路径。按帧与音符 ID 核对普通单键。出声、模型渲染和显示合成用外部录制观察。 |
+| `note_se_play` | 在同一打击音第一次调用 `AudioSource.Play()` 前记录。`request_seq` 对应 `note_se.seq`，`value` 为播放 ID。汇总脚本会给出请求到第一次 Play 的时间和未配对数。 |
+| `note_se_mix` | 单音源打击音所用滤波器收到首个非静音块时采样。`request_seq` 与播放记录配对，`value` 是从调用播放前到滤波器回调的单调时钟差值，单位 ms。该行在片段结束时汇总，`unity_s` 是汇总时间。`no_signal` 表示汇总时尚无有效回调。 |
+| `frame` / `audio_sample` / `audio_correction` | `frame.value` 为 Unity 帧间隔秒数，`frame.source_s` 为判定锚点，`song_s` 为控制器音乐位置，`note_s` 为同帧读取的 DSP 秒数。`audio_sample` 和 `audio_correction` 的 `note_id` 为播放 ID，`value` 为内部位置偏差毫秒。用 `segment_start` / `bgm_start` 的 `value` 识别 BGM。 |
+| `android_edge` / `clock_anchor` / `android_probe` | Android 构建自动记录。`android_edge` 是 Activity 收到的 DOWN / UP / CANCEL，`touch_id` 为指针 ID、`finger` 为指针数，`x` / `y` 为视图坐标，`android_event_s` 和 `android_receive_s` 为 `CLOCK_MONOTONIC` 秒数的事件时间和 Activity 收到时间。`clock_anchor` 的 `unity_s` 是两次 Unity 时钟读数的中点，`value` 为夹取宽度 ms，`android_receive_s` 为同次 Android 时钟。汇总脚本据此拟合时钟、配对边沿并拆出事件 → Activity → 回调 → 消费三段。探针行有独立缓冲，头部 `probe_overflow` 非零时配对不完整。 |
+| `audio_route` 和文件头 | 当前音频配置和最近观测到的输出设备列表。有效路由以实际接线和系统音频输出选择为准。报告的刷新率是 Unity 看到的模式值，自适应面板的瞬时刷新率可能不同。 |
+
+`unity_s`、触控行的 `source_s` 使用 Unity 实时时间域，`seq` 是片段内记录顺序。应用内汇总报告样本数、p50、p95，累计 100 以上才显示 p99。诊断采样在内存中累积并在段尾写文件，文件写入延时不计入打歌帧统计。
+
+## 2. 用手头的设备做外录
+
+### 有线音频输出
+
+- 用采集卡录手机实际的有线耳机输出，确保输入增益稳定、波形未削顶。把游戏的音乐音量调低或静音，保留打击音。选固定谱中的稀疏普通键，或在没有音符的时段单指点固定轨道；每次留出足够间隔，区分判定打击音和空打音。两类读数分别留存。
+- **采集卡单独录耳机输出。** 用这条录音观察打击音起点形状、爆音和中断。耳机录音与摄像头音轨各自有时间基准，无法仅凭文件起点算出敲击到耳机输出的绝对延迟。
+- **要估算敲击到出声，用同一支麦克风录下两种声音。** 先用手机扬声器做对照，让麦克风同时听见敲屏与游戏声。若耳机放到麦克风旁也能清楚录到两种声音，可以保留一组耳机声学对照。用音轨内两种瞬态的样本差除以采样率得到间隔。敲击声是接触代理。
+
+### 60 Hz 画面
+
+- 手机平放，从判定线那一侧斜拍。先试录几秒，确认能看到指尖与玻璃之间的缝隙、接触时指腹的变化，以及目标轨道的反馈。可用一根手指点固定轨道，手从画面侧边进入。首轮复测留约 20 次接触和反馈都清晰的普通单键。
+- 在同一画面里记录首次明确接触和同一轨道首次有击中特效的帧。用 `(反馈帧 − 接触帧) × 16.67 ms` 给出帧级估计，遮挡或接触帧无法确定的样本排除。两者同帧记「同帧」。仅测画面时用视频帧即可。若要比较声音与画面的先后，在开头和结尾各做几次入镜拍手，检查摄像头和麦克风之间的偏移。
+
+### 首轮记录和结论
+
+每条实际可用路由做三小段，每段约 20 次清晰的手动点击。先做自己最常用的一条。保持机位、音量、谱面和输出配置，标记热机、多指、密谱等附加场景。保存每段的有效次数、丢弃理由、中位数和范围。样本够多且标注一致时再看 p95。这组外录用于建立基线，精度不足时留待更好的测量设备。
+
+| 批次 | 路由 / 帧率 | 采样开关 | 录制方式 | 有效样本 / 排除原因 | 实测 / 手感 |
+| --- | --- | --- | --- | --- | --- |
+| A1–A3 | 常用路由 / 实际档位 | 开 | 60 Hz 侧拍；单麦声学对照 |  |  |
+| B1–B3 | 与 A 相同 | 关 | 同 A |  |  |
+
+手感单独记「反馈跟手程度」「是否稳定偏早或偏晚」「密集段是否有漏键感」。退出后马上记录。跨设备比较和亚帧级外部验收留待相应设备。
+
+## 3. P1 音频缓冲对照记录
+
+OnePlus PLQ110 曾用 48 kHz、144 × 4 和 288 × 4 两种配置完成同机测量。现行版本使用启动时的自动音频配置。 [P1 声学测量报告](../../TestResults/latency-p1-buffer-ab/p1-buffer-ab-report.md) · [延迟优化计划](../plans/android-latency-optimization-plan.md#p1--打击音分段和真机-ab)
+
+## 4. P1 混音侧复测
+
+打开「延迟采样」和「打击音混音采样」。后一个开关从下一段打歌起生效。使用 `LatencyTest` Master，结束前留一秒给最后一次打击音。核对日志头的 `sample_rate`、`dsp_buffer`、`requested`、`reset` 和 `mix_probe=True`，并检查 `SE mix probe` 有配对结果。每段最多跟踪 2048 个单音源打击音。超出限额或多音源 cue 照常播放，汇总时会计为无采样行。
+
+这项读数来自打击音 **音源滤波器** 的首个有效块。混音总线、系统缓冲和扬声器实际出声仍需外部录音验证。采样器走独立的音源池。正式外录时增加同一缓冲下关闭混音采样的一局，比较声学耗时、帧时和请求到 `Play()` 的耗时，检查探针对测量的影响。[Unity 音频滤波器回调](https://docs.unity3d.com/6000.6/Documentation/ScriptReference/MonoBehaviour.OnAudioFilterRead.html)

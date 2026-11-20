@@ -7,11 +7,7 @@ using TouchPhase = UnityEngine.InputSystem.TouchPhase;
 namespace OpenSekai.Tests.EditMode.Live
 {
 	/// <summary>
-	/// A friction flick is caught by holding into the line and settled by the flick. When the catch happens at
-	/// the edge of the late window, the frame that reaches the line is the same frame the base class closes
-	/// the window - and the deferred settle used to run after that, so a caught note with a recorded swipe
-	/// still missed. Device log live-20261113-152906.log: childState=Input at now=19.824, Last at 19.830 and
-	/// res=Miss at 19.836 for t=19.688, a single combo break in an otherwise perfect run.
+	/// Trace flicks have distinct hand registration and grading windows.
 	/// </summary>
 	public sealed class FrictionFlickTailArmingTests
 	{
@@ -27,32 +23,24 @@ namespace OpenSekai.Tests.EditMode.Live
 			delta = delta
 		};
 
-		[Test]
-		public void ACatchAtTheEdgeOfTheLateWindowStillSettlesItsRecordedFlick()
+		[TestCase(false, -0.110f, false)]
+		[TestCase(true, -0.120f, true)]
+		[TestCase(false, 0.124f, true)]
+		[TestCase(false, 0.126f, false)]
+		[TestCase(true, 0.138f, true)]
+		[TestCase(true, 0.142f, false)]
+		public void TraceFlickRegistersWithinItsOwnWindow(bool tail, float offset, bool accepts)
 		{
-			// Left is asked for; the player swipes right, so the distance is recorded but the direction is not -
-			// the note has to settle from its recorded input when it reaches the line, not fall through to the
-			// base class's Miss.
 			var note = new FrictionFlickNote(Info(1f), 1, 4, 5, NoteCategory.FrictionFlick, 1f,
 				NoteType.Default, NoteDirection.Left, 0.0833f, 0f);
-
-			// The catch: a finger already in the lane, no travel, 138 ms after the note's own time.
-			// A note only answers input once it is on screen: the state machine starts at Wait.
+			if (tail) new LongNote().AddNoteListAndSetupChildNote(note);
 			note.Excute(Info(0.9f), 0.5f);
-			LiveTouch hold = Touch(1.138f, Vector2.zero, TouchPhase.Stationary);
-			Assert.That(note.Judgment(ref hold, 5f), Is.False, "a still finger catches the note, it does not grade it");
-			Assert.That(note.State, Is.EqualTo(NoteState.Input));
-
-			// The recorded swipe: travel in the opposite direction for this note (dot < 0, so not the asked way).
-			LiveTouch swipe = Touch(1.140f, new Vector2(240f, 0f), TouchPhase.Moved);
-			note.Judgment(ref swipe, 5f);
-			Assert.That(note.Result, Is.EqualTo(NoteResult.None), "the deferred settle has not run yet");
-
-			// The frame that reaches the line is also the frame where the late window closes.
-			note.Excute(Info(1.145f), 0.5f);
-
-			Assert.That(note.State, Is.EqualTo(NoteState.Done), "a caught note with a recorded flick settles");
-			Assert.That(note.Result, Is.Not.EqualTo(NoteResult.None), "and it is graded, not missed");
+			var swipe = Touch(1f + offset, new Vector2(-240f, 0f), TouchPhase.Moved);
+			Assert.That(note.ReadNextRushHeadSample(ref swipe, 5f, swipe.musicTime), Is.EqualTo(accepts));
+			if (!accepts) return;
+			note.SettleNextRushHead(swipe.musicTime, true);
+			note.Excute(Info(System.Math.Max(1f, swipe.musicTime)), 0.5f);
+			Assert.That(note.Result, Is.EqualTo(offset > 0.125f ? NoteResult.Miss : NoteResult.Perfect));
 		}
 
 		[Test]
@@ -63,7 +51,7 @@ namespace OpenSekai.Tests.EditMode.Live
 				NoteType.Default, NoteDirection.Left, 0.0833f, 0f);
 			// A note only answers input once it is on screen: the state machine starts at Wait.
 			note.Excute(Info(0.9f), 0.5f);
-			LiveTouch hold = Touch(1.138f, Vector2.zero, TouchPhase.Stationary);
+			LiveTouch hold = Touch(1.118f, Vector2.zero, TouchPhase.Stationary);
 			note.Judgment(ref hold, 5f);
 
 			note.Excute(Info(1.145f), 0.5f);

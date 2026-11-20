@@ -14,6 +14,21 @@ namespace Sekai.Core.Live
 		private readonly LiveNoteFrame _noteFrame;
 		private readonly LivePresentationBridge _presentation;
 		private readonly List<int> _usedFingerList = new List<int>(10);
+		private readonly List<int> _frameUsedFingers = new List<int>(10);
+		private readonly LiveNoteSession.NoteVisitor _judgeDamage;
+		private readonly Dictionary<int, (LiveTouch Touch, float Lane)> _previousDamageInputs = new(10);
+		private readonly Dictionary<int, (LiveTouch Touch, float Lane)> _damageContacts = new(10);
+		private float _previousDamageFrameTime = float.NegativeInfinity;
+
+		/// <summary>
+		/// One 60 fps frame. Under frame matching (<see cref="LiveConfig.UseFramePressMatching"/>, or legacy
+		/// judge timing) presses closer than this are one moment and compete for their notes as a chord;
+		/// presses further apart, which only a late frame carries together, are judged in time order.
+		/// In either mode two Began samples of one finger closer than this are one contact reported twice
+		/// and share one press credit: no finger lifts and presses again inside a 60 fps frame.
+		/// </summary>
+		internal const float PressPassSeconds = 1f / 60f;
+		private readonly HashSet<int> _canceledTouches = new HashSet<int>(10);
 
 		internal JudgmentScheduler(LiveLogic logic, LiveSessionState session, LiveInputRouter input,
 			LiveNoteFrame noteFrame, LivePresentationBridge presentation)
@@ -23,6 +38,7 @@ namespace Sekai.Core.Live
 			_input = input;
 			_noteFrame = noteFrame;
 			_presentation = presentation;
+			_judgeDamage = JudgeDamageNote;
 		}
 
 		private ref MusicScoreInfo Frame => ref _logic.currentFrameInfo;
@@ -37,6 +53,14 @@ namespace Sekai.Core.Live
 			_noteFrame.SettleExpiredPresses();
 			JudgeReleaseChannel();
 			JudgeResidentChannel();
+			_session.Notes.SettleTailLinkedComboPoints(Frame);
+			foreach (var note in _input.JudgmentNotes)
+			{
+				if (note is ConnectionNote { UsesNextRushContactWindow: true, ParentNote: null } tick)
+					tick.SettleFromCompletedTail();
+			}
+			if (!_session.IsAuto && _logic.result < 3)
+				_logic.ConnectorAudio.Update(_session.MusicScore, Frame.time, false, _input.ActiveInputs, _session.NoteDisplayTimeOffset);
 
 			// Returns the frame's inputs and forgets the touches that ended. It runs after every channel
 			// has read them, including the release that a lift feeds.
@@ -50,11 +74,229 @@ namespace Sekai.Core.Live
 		/// </summary>
 		private void JudgePressChannel()
 		{
-			_input.CollectCandidates();
-			TracePressCandidates("pressCandidates");
-			_input.SortPressCandidates();
-			TracePressCandidates("pressSelected");
-			EvaluateJudgment();
+			// The frame's presses are judged in passes, in time order. By default every press is its own
+			// pass - a tie goes in input order - so who gets a note never depends on how presses fell into
+			// frames, and no chord matching runs: a later press collects again after the earlier one took
+			// its note. Frame matching groups presses closer than a 60 fps frame into one pass, where they
+			// compete as a chord; a late frame's presses further apart are still judged in order.
+			bool frameMatching = LiveConfig.UseFramePressMatching || LiveConfig.UseLegacyJudgeTiming;
+			int waves = AssignPressWaves(_input.ActiveInputs, frameMatching ? PressPassSeconds : 0f);
+			_frameUsedFingers.Clear();
+			for (int wave = 0; wave < waves; wave++)
+			{
+				if (wave > 0)
+				{
+					foreach (InputTmp input in _input.ActiveInputs)
+						input.CandidateNotes.Clear();
+				}
+
+				_input.CollectCandidates(wave);
+				TracePressCandidates("pressCandidates");
+				_input.SortPressCandidates(deduplicate: frameMatching);
+				TracePressCandidates("pressSelected");
+				EvaluateJudgment();
+			}
+
+			JudgeNextRushFlickInputs();
+			JudgeDamageConnectors();
+			if (_previousDamageInputs.Count > 0)
+			{
+				foreach (InputTmp input in _input.ActiveInputs)
+					if (input.Touch.phase == UnityEngine.InputSystem.TouchPhase.Began)
+						_previousDamageInputs.Remove(input.Touch.touchId);
+			}
+			_session.Notes.WalkDamageNotes(_judgeDamage);
+			_previousDamageInputs.Clear();
+			if (_session.Notes.HasPendingDamageNotes)
+			{
+				foreach (InputTmp input in _input.ActiveInputs)
+					_previousDamageInputs[input.Touch.touchId] = (input.Touch, input.Lane);
+				_previousDamageFrameTime = Frame.time;
+			}
+			ReportUnpickedLanes();
+		}
+
+		private void JudgeNextRushFlickInputs()
+		{
+			foreach (NoteBase note in _input.JudgmentNotes)
+			{
+				switch (note)
+				{
+					case FlickNote { IsNextRushHead: true } flick:
+						foreach (InputTmp input in _input.ActiveInputs)
+						{
+							if (!flick.AcceptsNextRushHeadSample(ref input.Touch, input.Lane)) continue;
+							_input.SilencedTouches.Add(input.Touch.touchId);
+							if (flick.Judgment(ref input.Touch, input.Lane)) break;
+						}
+						flick.SettleNextRushHead(Frame.time);
+						break;
+					case FrictionFlickNote traceFlick:
+						bool hasContact = false;
+						foreach (InputTmp input in _input.ActiveInputs)
+						{
+							float sampleTime = input.IsResidentSample ? Frame.time : input.Touch.musicTime;
+							if (!traceFlick.ReadNextRushHeadSample(ref input.Touch, input.Lane, sampleTime)) continue;
+							_input.SilencedTouches.Add(input.Touch.touchId);
+							hasContact = true;
+						}
+						traceFlick.SettleNextRushHead(Frame.time, hasContact);
+						break;
+				}
+			}
+		}
+
+		private void JudgeDamageConnectors()
+		{
+			foreach (var bar in _input.DamageConnectors)
+			{
+				bool touched = false;
+				if (bar.TryDamageBounds(Frame.time, out float left, out float right))
+				{
+					foreach (InputTmp input in _input.ActiveInputs)
+					{
+						var touch = input.Touch;
+						float x = touch.worldPosition.x;
+						if (float.IsNegativeInfinity(input.Lane) || LiveInputRouter.IsEndedOrCanceled(touch.phase) || x < left || x > right)
+							continue;
+						touched = true;
+						if (bar.DamageContact || _input.SilencedTouches.Add(touch.touchId)) break;
+					}
+				}
+				bar.SetDamageContact(touched);
+			}
+		}
+
+		private LiveNoteSession.Scan JudgeDamageNote(NoteBase note)
+		{
+			var damage = (NextRushDamageNote)note;
+			if (Frame.time < damage.InputStart) return LiveNoteSession.Scan.Stop;
+			if (damage.IsVisible)
+			{
+				damage.Resolve(HasVisibleDamageContact(damage));
+				return LiveNoteSession.Scan.Handle;
+			}
+
+			bool touched = false;
+			foreach (InputTmp input in _input.ActiveInputs)
+			{
+				var touch = input.Touch;
+				if (float.IsNegativeInfinity(input.Lane)) continue;
+				float sampleTime = input.IsResidentSample ? Frame.time : touch.musicTime;
+				if (sampleTime < damage.InputStart || sampleTime > damage.MusicScoreInfo.time) continue;
+				if (!damage.Contains(touch.worldPosition.x, sampleTime)) continue;
+				_input.SilencedTouches.Add(touch.touchId);
+				touched = true;
+			}
+
+			if (touched || Frame.time >= damage.MusicScoreInfo.time) damage.Resolve(touched);
+			return LiveNoteSession.Scan.Handle;
+		}
+
+		private bool HasVisibleDamageContact(NextRushDamageNote damage)
+		{
+			float target = damage.MusicScoreInfo.time;
+			_damageContacts.Clear();
+			// A late frame can carry a movement or release after the note. Its touch ID establishes
+			// continuity with the preceding frame, whose position still applied at the note time.
+			foreach (InputTmp input in _input.ActiveInputs)
+			{
+				int touchId = input.Touch.touchId;
+				if (_previousDamageFrameTime < target && !_damageContacts.ContainsKey(touchId)
+					&& _previousDamageInputs.TryGetValue(touchId, out var sample))
+					RecordDamageContact(sample.Touch, sample.Lane, target);
+				RecordDamageContact(input.Touch, input.Lane, target);
+			}
+
+			bool touched = false;
+			foreach (var sample in _damageContacts.Values)
+			{
+				var touch = sample.Touch;
+				if (float.IsNegativeInfinity(sample.Lane) || LiveInputRouter.IsEndedOrCanceled(touch.phase)
+					|| !damage.Contains(touch.worldPosition.x, target)) continue;
+				_input.SilencedTouches.Add(touch.touchId);
+				touched = true;
+			}
+			return touched;
+		}
+
+		private void RecordDamageContact(LiveTouch touch, float lane, float target)
+		{
+			if (touch.musicTime <= target && (!_damageContacts.TryGetValue(touch.touchId, out var previous)
+				|| touch.musicTime >= previous.Touch.musicTime))
+				_damageContacts[touch.touchId] = (touch, lane);
+		}
+
+		internal void ResetDamageInputs()
+		{
+			_previousDamageInputs.Clear();
+			_damageContacts.Clear();
+			_previousDamageFrameTime = float.NegativeInfinity;
+		}
+
+		/// <summary>
+		/// Numbers each Began by pass, walking the frame's presses in time order. A press starts the next
+		/// pass when it is later than the previous press by at least <paramref name="passSeconds"/>; when
+		/// that is zero every press starts one, ties included. A sample of a finger that pressed less than
+		/// <see cref="PressPassSeconds"/> before joins that press's pass and shares its credit. Returns the
+		/// number of passes, at least one. Allocation free; a frame has a handful of Began.
+		/// </summary>
+		internal static int AssignPressWaves(List<InputTmp> inputs, float passSeconds)
+		{
+			for (int i = 0; i < inputs.Count; i++)
+				inputs[i].PressWave = inputs[i].Touch.phase == UnityEngine.InputSystem.TouchPhase.Began ? -1 : 0;
+
+			int wave = 0;
+			int previous = -1;
+			while (true)
+			{
+				int next = -1;
+				for (int j = 0; j < inputs.Count; j++)
+				{
+					if (inputs[j].PressWave != -1 || (next >= 0 && !PressPrecedes(inputs, j, next)))
+						continue;
+					next = j;
+				}
+
+				if (next < 0) break;
+				float time = inputs[next].Touch.musicTime;
+				int joined = -1;
+				for (int j = 0; j < inputs.Count; j++)
+				{
+					InputTmp earlier = inputs[j];
+					if (j == next || earlier.PressWave < 0 || earlier.Touch.phase != UnityEngine.InputSystem.TouchPhase.Began
+						|| earlier.Touch.fingerId != inputs[next].Touch.fingerId
+						|| time - earlier.Touch.musicTime >= PressPassSeconds)
+					{
+						continue;
+					}
+
+					joined = j;
+				}
+
+				if (joined >= 0)
+				{
+					inputs[next].PressWave = inputs[joined].PressWave;
+				}
+				else
+				{
+					float gap = previous >= 0 ? time - inputs[previous].Touch.musicTime : 0f;
+					if (previous >= 0 && (passSeconds <= 0f || gap >= passSeconds))
+						wave++;
+					inputs[next].PressWave = wave;
+				}
+
+				previous = next;
+			}
+
+			return wave + 1;
+		}
+
+		private static bool PressPrecedes(List<InputTmp> inputs, int a, int b)
+		{
+			float ta = inputs[a].Touch.musicTime;
+			float tb = inputs[b].Touch.musicTime;
+			return ta < tb || (ta == tb && a < b);
 		}
 
 		private void TracePressCandidates(string stage)
@@ -95,9 +337,15 @@ namespace Sekai.Core.Live
 		/// </summary>
 		private void JudgeResidentChannel()
 		{
+			_canceledTouches.Clear();
+			foreach (InputTmp input in _input.ActiveInputs)
+			{
+				if (input.Touch.phase == UnityEngine.InputSystem.TouchPhase.Canceled)
+					_canceledTouches.Add(input.Touch.touchId);
+			}
+
 			if (LiveTrace.IsOn(LiveTraceCategory.Resident) && _input.ActiveInputs.Count > 0)
 				LiveTrace.Write(LiveTraceCategory.Resident, $"resident now={Frame.time:F3} inputs={_input.ActiveInputs.Count} notes={_input.JudgmentNotes.Count}");
-			JudgeDueComboPoints();
 			DriveIndependentNotes();
 			RefreshSustainedHolds();
 		}
@@ -120,53 +368,14 @@ namespace Sekai.Core.Live
 			_input.ActiveInputs.Clear();
 		}
 
-		// An interior point is not a press-slot note: it belongs to no finger. Every frame it is due,
-		// any finger sitting in its lane settles it, and two overlapping points settle independently.
-		private void JudgeDueComboPoints()
-		{
-			for (int noteIndex = 0; noteIndex < _input.JudgmentNotes.Count; noteIndex++)
-			{
-				NoteBase note = _input.JudgmentNotes[noteIndex];
-				if (note == null || note.State != NoteState.Last || !(note is Sekai.Live.LongHoldCombo))
-				{
-					continue;
-				}
-
-				for (int inputIndex = 0; inputIndex < _input.ActiveInputs.Count; inputIndex++)
-				{
-					LiveLogic.InputTmp input = _input.ActiveInputs[inputIndex];
-					// The bar counts as in play while a finger holds it (InputBegan/Input) or during the
-					// release grace (Last). Once it was in play anywhere inside this point's window, the
-					// point stays judicable for the rest of that window.
-					Sekai.Live.LongHoldCombo combo = (Sekai.Live.LongHoldCombo)note;
-					LongNote bar = combo.ParentNote as LongNote;
-					if (bar != null && (bar.HasFinger || bar.State == NoteState.Last || bar.State == NoteState.Release))
-					{
-						combo.MarkBarInPlay();
-					}
-
-					if (!combo.WasBarInPlay)
-					{
-						continue;
-					}
-
-					if (!note.IsJudgment(ref input.Touch, input.Lane))
-					{
-						continue;
-					}
-
-					note.Judgment(ref input.Touch, input.Lane);
-					break;
-				}
-			}
-		}
-
 		internal void DriveIndependentNotes()
 		{
 			for (int n = _input.JudgmentNotes.Count - 1; n >= 0; n--)
 			{
 				NoteBase note = _input.JudgmentNotes[n];
-				if (note == null || note.State == NoteState.Done || note is LongHoldCombo
+				if (note == null || note.State == NoteState.Done || note is LongHoldCombo or NextRushDamageNote
+					|| note is FlickNote { IsNextRushHead: true } or FrictionFlickNote
+					|| note is NormalNote { IsIndependentRelease: true }
 					|| LiveCandidatePipeline.IsPressStep(note)) continue;
 				if (note is FlickNote flickTail && flickTail.JudgesAsBarTail)
 				{
@@ -179,7 +388,7 @@ namespace Sekai.Core.Live
 				{
 					InputTmp input = _input.ActiveInputs[i];
 					float lane = input.Lane;
-					if (lane < 0f) continue;
+					if (float.IsNegativeInfinity(lane)) continue;
 					if (note is LongNote bar)
 					{
 						if (i != barInput) continue;
@@ -190,7 +399,7 @@ namespace Sekai.Core.Live
 					{
 						if (!note.IsJudgment(ref input.Touch, lane)) continue;
 						note.Judgment(ref input.Touch, lane);
-						SilenceIfFriction(note, input);
+						SilenceIfContactNote(note, input);
 					}
 					// An armed flick takes a swipe from any finger, so every finger of the frame is offered
 					// to it until one completes it; a resting finger listed first must not shut out the one
@@ -212,11 +421,15 @@ namespace Sekai.Core.Live
 		private void DriveFlickTail(FlickNote tail)
 		{
 			FlickTailJudge judge = tail.TailJudge;
+			// Remove canceled contacts before any other swipe can settle the armed candidates.
+			foreach (int touchId in _canceledTouches)
+				judge.Cancel(touchId);
+
 			float deltaTime = judge.FrameDeltaTime(Frame.time);
 			for (int i = 0; i < _input.ActiveInputs.Count && tail.State != NoteState.Done; i++)
 			{
 				InputTmp input = _input.ActiveInputs[i];
-				if (input == null) continue;
+				if (input == null || _canceledTouches.Contains(input.Touch.touchId)) continue;
 				judge.Offer(ref input.Touch, input.Lane, input.PreviousLane, deltaTime);
 			}
 
@@ -232,7 +445,7 @@ namespace Sekai.Core.Live
 				InputTmp input = _input.ActiveInputs[i];
 				if (LiveInputRouter.IsEndedOrCanceled(input.Touch.phase)) continue;
 				float lane = input.Lane;
-				if (lane < 0f || !bar.ContainsLane(lane)) continue;
+				if (float.IsNegativeInfinity(lane) || !bar.ContainsLane(lane)) continue;
 				if (!bar.IsOrdinaryHead && !bar.IsJudgment(ref input.Touch, lane)) continue;
 				float distance = bar.LaneDistance(ref Frame, lane);
 				if (selected < 0 || distance < nearest || (distance == nearest
@@ -246,12 +459,12 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>
-		/// A finger that a friction or friction-flick key judged may not light the empty lanes again
+		/// A finger used by a contact key may not light the empty lanes again
 		/// until it leaves the screen.
 		/// </summary>
-		private void SilenceIfFriction(NoteBase note, InputTmp input)
+		private void SilenceIfContactNote(NoteBase note, InputTmp input)
 		{
-			if (note is FrictionNote || note is FrictionFlickNote)
+			if (note is FrictionFlickNote or ConnectionNote { UsesContactWindow: true })
 			{
 				_input.SilencedTouches.Add(input.Touch.touchId);
 			}
@@ -264,6 +477,7 @@ namespace Sekai.Core.Live
 
 		internal void EvaluateJudgment()
 		{
+			// The credit belongs to one press pass; the lanes are lit once for the whole frame.
 			_usedFingerList.Clear();
 			for (int inputIndex = 0; inputIndex < _input.ActiveInputs.Count; inputIndex++)
 			{
@@ -283,17 +497,20 @@ namespace Sekai.Core.Live
 				pass.Input = input;
 				JudgmentSchedule.Run(input.CandidateNotes.Count, ref pass);
 			}
+		}
 
+		private void ReportUnpickedLanes()
+		{
 			for (int inputIndex = 0; inputIndex < _input.ActiveInputs.Count; inputIndex++)
 			{
 				InputTmp input = _input.ActiveInputs[inputIndex];
 				bool used = false;
-				for (int i = _usedFingerList.Count - 1; i >= 0; i--)
+				for (int i = _frameUsedFingers.Count - 1; i >= 0; i--)
 				{
-					used |= _usedFingerList[i] == input.Touch.fingerId;
+					used |= _frameUsedFingers[i] == input.Touch.fingerId;
 				}
 
-				if (!used && input.Lane >= 0f && !_input.SilencedTouches.Contains(input.Touch.touchId))
+				if (!used && input.Lane >= 0f && input.Lane <= LiveConfig.JudgmentPositions.Length - 1 && !_input.SilencedTouches.Contains(input.Touch.touchId))
 				{
 					_presentation.Unpicked(_session.Views, Mathf.RoundToInt(input.Lane), ref input.Touch);
 				}
@@ -318,6 +535,8 @@ namespace Sekai.Core.Live
 				{
 					return default(JudgmentSchedule.Outcome);
 				}
+				if (note is FrictionFlickNote { IsTraceFlickOwner: true })
+					return new JudgmentSchedule.Outcome(note.Judgment(ref Input.Touch, lane));
 
 				// One line per press delivery, so "a press happened but the note it should answer missed" can
 				// be answered from the log instead of guessed: it says which note the press was handed to, the
@@ -353,6 +572,12 @@ namespace Sekai.Core.Live
 				// swipe, and the press is spent on it like on any other key.
 				bool noteFinished = note.State == NoteState.Done || note.Result != NoteResult.None
 					|| (note is FlickNote flick && flick.IsArmedBy(Input.Touch.touchId));
+				if (noteFinished && LatencyCapture.Active)
+				{
+					LatencyCapture.Record("press_spent", Input.Touch.touchId, Input.Touch.fingerId, Input.Touch.phase,
+						note.Id, song: Input.Touch.musicTime, note: note.MusicScoreInfo.time,
+						value: (Input.Touch.musicTime - note.MusicScoreInfo.time) * 1000d, result: note.Result);
+				}
 				return new JudgmentSchedule.Outcome(noteFinished);
 			}
 
@@ -370,6 +595,7 @@ namespace Sekai.Core.Live
 				Input.CandidateNotes.Clear();
 				Scheduler._input.RecordJudgedTouch(Input.Touch);
 				Scheduler._usedFingerList.Add(Input.Touch.fingerId);
+				Scheduler._frameUsedFingers.Add(Input.Touch.fingerId);
 				// A finger whose press went into a key may not light the empty lanes again until it lifts.
 				Scheduler._input.SilencedTouches.Add(Input.Touch.touchId);
 			}
@@ -377,6 +603,8 @@ namespace Sekai.Core.Live
 
 		private void OnJudgmentNote(NoteBase note)
 		{
+			LatencyCapture.Record("judged", noteId: note.Id, song: Frame.time,
+				note: note.MusicScoreInfo.time, detail: note.IsSkip ? "skip" : null, result: note.Result);
 			if (OpenSekai.Shared.Diagnostics.LiveTrace.IsOn(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Judge))
 			{
 				OpenSekai.Shared.Diagnostics.LiveTrace.Write(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Judge, string.Concat(
@@ -387,6 +615,16 @@ namespace Sekai.Core.Live
 			}
 
 			_session.ScoreLogic?.UpdateNoteResult(note);
+			// A missed deadline is silent. Touching a hazard is an actual damage hit.
+			bool playSound = (note.Result != NoteResult.Miss || note.HasNextRushHit || note is NextRushDamageNote)
+				&& (note is not (LongHoldCombo or NextRushHiddenTickNote) || _session.IsAuto);
+			var cue = playSound ? LiveSoundDefine.NextRushCue(note.NativeEffectKind,
+				_session.IsAuto ? NoteResult.Auto : note.Result) : null;
+			if (cue != null && _session.Views != null)
+				foreach (var view in _session.Views) view?.NativeHitSound(note, cue);
+
+			// Avoidance and autoplay count towards the result without playing a Friction hit effect.
+			if (note is NextRushHiddenTickNote || note is NextRushDamageNote && note.Result != NoteResult.Miss) return;
 
 			// A marker that is not drawn is silent by construction: the half beat points inside a bar
 			// must never talk for the player. Everything else still shows its judgement, a Miss

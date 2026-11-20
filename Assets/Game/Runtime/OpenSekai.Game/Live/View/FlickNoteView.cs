@@ -5,7 +5,7 @@ namespace Sekai
 {
 	public class FlickNoteView : BaseNoteView
 	{
-		protected static readonly float ScrollCount;
+		private const float ScrollCount = 2f;
 
 		[SerializeField]
 		[UnityEngine.Serialization.FormerlySerializedAs("defaultArrowSprites")]
@@ -35,60 +35,82 @@ namespace Sekai
 		[UnityEngine.Serialization.FormerlySerializedAs("slanRoot")]
 		private Transform _slanRoot;
 
-		protected SpriteRenderer currentArrow;
+		private SpriteRenderer currentArrow;
 
-		protected Transform currentMoveRoot;
+		private Transform currentMoveRoot;
+		private bool _downOmni;
 
 		public override void Spawn(INote note, float posZ)
 		{
 			base.Spawn(note, posZ);
 
-			int widthIndex = Mathf.Clamp(note.LaneEnd - note.LaneStart, 0, Mathf.Max(0, (_defaultArrowSprites?.Length ?? 1) - 1));
-			bool useSlan = note.Direction != NoteDirection.Default;
-			SetArrow(_defaultArrow, _defaultArrowSprites, widthIndex, !useSlan);
-			SetArrow(_slanArrow, _slanArrowSprites, widthIndex, useSlan);
+			int widthIndex = note is NoteBase { IsNextRush: true }
+				? Mathf.RoundToInt(note.LaneEndF - note.LaneStartF + 1f) - 1
+				: note.LaneEnd - note.LaneStart;
+			_downOmni = note.Direction == NoteDirection.Down;
+			bool useSlan = note.Direction is not (NoteDirection.Default or NoteDirection.Down);
+			bool showArrow = note is not NoteBase { IsNextRushConnectorHeadVisual: true };
+			SetArrow(_defaultArrow, _defaultArrowSprites, widthIndex, showArrow && !useSlan);
+			SetArrow(_slanArrow, _slanArrowSprites, widthIndex, showArrow && useSlan);
+			if (_defaultArrow != null)
+			{
+				_defaultArrow.flipY = _downOmni;
+			}
 
 			currentArrow = useSlan ? _slanArrow : _defaultArrow;
 			currentMoveRoot = useSlan ? _slanMoveRoot : _defaultMoveRoot;
 
-			Transform directionRoot = _slanRoot;
-			if (directionRoot != null)
+			if (_slanRoot != null && useSlan)
 			{
-				if (note.Direction == NoteDirection.Left)
-				{
-					directionRoot.localScale = LiveUtility.Vector3One;
-					directionRoot.localEulerAngles = LiveUtility.FlickLeftEulerAngles;
-				}
-				else
-				{
-					directionRoot.localScale = LiveUtility.Vector3OneMinusX;
-					directionRoot.localEulerAngles = LiveUtility.FlickRightEulerAngles;
-				}
+				bool down = note.Direction is NoteDirection.DownLeft or NoteDirection.DownRight;
+				bool rotateFromLeft = note.Direction is NoteDirection.Left or NoteDirection.DownRight;
+				_slanRoot.localScale = rotateFromLeft ? LiveUtility.Vector3One : LiveUtility.Vector3OneMinusX;
+				Vector3 angles = rotateFromLeft ? LiveUtility.FlickLeftEulerAngles : LiveUtility.FlickRightEulerAngles;
+				if (down) angles.z += 180f;
+				_slanRoot.localEulerAngles = angles;
 			}
 		}
 
 		public override void Move(float musicTime)
 		{
 			base.Move(musicTime);
+			UpdateFlickArrow(musicTime);
+		}
+
+		protected void UpdateFlickArrow(float musicTime)
+		{
 			if (currentMoveRoot == null || currentArrow == null)
 			{
 				return;
 			}
 
 			float t = Mathf.Repeat(musicTime * ScrollCount, 1f);
+			if (note is NoteBase { IsNextRush: true })
+			{
+				bool down = note.Direction >= NoteDirection.Down;
+				float distance = down ? 1f - t : t;
+				float horizontal = note.Direction switch
+				{
+					NoteDirection.Left or NoteDirection.DownRight => -1f,
+					NoteDirection.Right or NoteDirection.DownLeft => 1f,
+					_ => 0f
+				};
+				var offset = new Vector3(horizontal, 2f, 0f) * distance;
+				currentMoveRoot.localPosition = currentMoveRoot == _slanMoveRoot && _slanRoot != null
+					? Vector3.Scale(Quaternion.Inverse(_slanRoot.localRotation) * offset, _slanRoot.localScale)
+					: offset;
+				currentArrow.color = new Color(1f, 1f, 1f, 1f - t * t * t);
+				return;
+			}
+
 			float y = t * 2f;
-			currentMoveRoot.localPosition = Vector3.up * y;
+			currentMoveRoot.localPosition = Vector3.up * (_downOmni ? -y : y);
 			float alphaT = Mathf.Clamp01(y - 1f);
 			currentArrow.color = Color.Lerp(ColorUtility.WHITE_ALPHA_1, ColorUtility.WHITE_ALPHA_0, alphaT);
 		}
 
 		public FlickNoteView()
 		{
-		}
-
-		static FlickNoteView()
-		{
-			ScrollCount = 2f;
 		}
 
 		private static void SetArrow(SpriteRenderer renderer, Sprite[] sprites, int index, bool visible)

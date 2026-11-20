@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using OpenSekai.Shared.Diagnostics;
 using Sekai.Live;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Sekai
 {
@@ -17,6 +19,7 @@ namespace Sekai
 		private struct Setting
 		{
 			public float CurrentViewProgress;
+			public float Alpha;
 
 			public TwoPoint LanePosition;
 
@@ -28,6 +31,12 @@ namespace Sekai
 			public TwoPoint Top;
 
 			public TwoPoint Bottom;
+		}
+
+		private sealed class LayerBatch
+		{
+			public Mesh Mesh;
+			public MeshRenderer Renderer;
 		}
 
 		private const int T_COUNT = 3;
@@ -46,10 +55,12 @@ namespace Sekai
 		};
 
 		private int SplitMeshCount;
-		private int POOL_COUNT;
-		private Renderer _renderer;
-		private MeshFilter _filter;
-		private Mesh _mesh;
+		private int _meshCapacity;
+		private readonly LayerBatch[] _batches = new LayerBatch[4];
+		private Camera _viewCamera;
+		private bool _guideView;
+		private bool _hasViewport;
+		private Vector3 _viewportBottomLeft, _viewportTopLeft, _viewportBottomRight, _viewportTopRight;
 		private Vector3[] _vertices;
 		private Vector2[] _uv;
 		private int[] _triangles;
@@ -66,7 +77,6 @@ namespace Sekai
 		private Setting[] _meshSettingBuffer;
 		private int _meshCount;
 		private Trapezoid[] _trapezoidVertexInfo;
-		private LiveBundleBuildData _bundleBuildData;
 
 		public Material Material { get; private set; }
 
@@ -80,14 +90,12 @@ namespace Sekai
 			return DEFAULT_POOL_MULTIPLIER;
 		}
 
-		public void Setup(LiveBundleBuildData _bundleBuildData, string textureName, float alpha, bool isCustomMusicScore = false)
+		public void Setup(LiveBundleBuildData _bundleBuildData, string textureName, float alpha, bool isCustomMusicScore = false,
+			Camera viewCamera = null, bool guide = false)
 		{
 			SplitMeshCount = Mathf.Max(1, GetSplitMeshCount(isCustomMusicScore));
-			POOL_COUNT = Mathf.Max(1, SplitMeshCount * GetPoolMultiplier(isCustomMusicScore));
-			this._bundleBuildData = _bundleBuildData;
-
-			_filter = gameObject.AddComponent<MeshFilter>();
-			_renderer = gameObject.AddComponent<MeshRenderer>();
+			_viewCamera = viewCamera;
+			_guideView = guide;
 
 			Material source = ResourceCatalog.LongNoteLineMaterial.Load();
 			Material = source != null ? new Material(source) : new Material(Shader.Find("Sprites/Default"));
@@ -98,46 +106,46 @@ namespace Sekai
 			}
 
 			Material.color = new Color(1f, 1f, 1f, alpha);
-			_renderer.material = Material;
-			Material = _renderer.material;
 
 			_longNotes = new List<NoteBase>(DEFAULT_LIST_CAPACITY);
-			SetupVertexArray();
+			EnsureMeshCapacity(SplitMeshCount * GetPoolMultiplier(isCustomMusicScore));
 
-			_mesh = new Mesh { name = name + "Mesh" };
-			_mesh.vertices = _vertices;
-			_mesh.colors = _colors;
-			_mesh.uv = _uv;
-			_mesh.triangles = _triangles;
-			_mesh.MarkDynamic();
-			_filter.mesh = _mesh;
+			_batches[(int)NextRushConnectorLayer.Top] = CreateBatch(gameObject);
 			_meshSettingBuffer = new Setting[SplitMeshCount + 10];
 			_trapezoidVertexInfo = new Trapezoid[2];
 			_meshCount = 0;
 		}
 
-		private void SetupVertexArray()
+		private LayerBatch CreateBatch(GameObject host)
 		{
-			int vertexCount = POOL_COUNT * TRAPEZOID_VERTEX_COUNT;
-			_vertices = new Vector3[vertexCount];
-			_leftPoint = new Vector2[vertexCount];
-			_rightPoint = new Vector2[vertexCount];
-			_uvOffsetLeft = new Vector2[vertexCount];
-			_uvOffsetRight = new Vector2[vertexCount];
-			_uv = new Vector2[vertexCount];
-			_colors = new Color[vertexCount];
-			_triangles = new int[POOL_COUNT * TRAPEZOID_INDEX_COUNT];
+			var mesh = new Mesh { name = host.name + "Mesh" };
+			mesh.MarkDynamic();
+			host.AddComponent<MeshFilter>().sharedMesh = mesh;
+			var renderer = host.AddComponent<MeshRenderer>();
+			renderer.sharedMaterial = Material;
+			renderer.enabled = false;
+			return new LayerBatch { Mesh = mesh, Renderer = renderer };
+		}
 
-			ClearVertex(0, POOL_COUNT);
-			for (int meshIndex = 0; meshIndex < POOL_COUNT; meshIndex++)
+		private void EnsureMeshCapacity(int required)
+		{
+			if (required <= _meshCapacity) return;
+
+			// Dense Guide layers can exceed the initial capacity. Reuse the grown buffers next frame.
+			int capacity = Mathf.Max(required, _meshCapacity * 2);
+			int vertexCount = capacity * TRAPEZOID_VERTEX_COUNT;
+			Array.Resize(ref _vertices, vertexCount);
+			Array.Resize(ref _leftPoint, vertexCount);
+			Array.Resize(ref _rightPoint, vertexCount);
+			Array.Resize(ref _uvOffsetLeft, vertexCount);
+			Array.Resize(ref _uvOffsetRight, vertexCount);
+			Array.Resize(ref _uv, vertexCount);
+			Array.Resize(ref _colors, vertexCount);
+			Array.Resize(ref _triangles, capacity * TRAPEZOID_INDEX_COUNT);
+
+			for (int meshIndex = _meshCapacity; meshIndex < capacity; meshIndex++)
 			{
 				int vertexBase = TRAPEZOID_VERTEX_COUNT * meshIndex;
-				for (int i = 0; i < TRAPEZOID_VERTEX_COUNT; i++)
-				{
-					_uv[vertexBase + i] = new Vector2(0f, i & 1);
-					_colors[vertexBase + i] = Color.white;
-				}
-
 				int triangleBase = TRAPEZOID_INDEX_COUNT * meshIndex;
 				for (int t = 0; t < T_COUNT; t++)
 				{
@@ -151,6 +159,7 @@ namespace Sekai
 					_triangles[quadIndex + 5] = quadVertex + 2;
 				}
 			}
+			_meshCapacity = capacity;
 		}
 
 		/// <summary>
@@ -170,6 +179,7 @@ namespace Sekai
 
 		public void Remove(LongNote note)
 		{
+			if (note != null && note.NativeConnectorDisplayEnd > double.NegativeInfinity) return;
 			if (note != null && _longNotes != null && _longNotes.Remove(note))
 			{
 				if (LiveTrace.IsOn(LiveTraceCategory.Pool))
@@ -189,19 +199,23 @@ namespace Sekai
 
 		public void Remove(GuideNote note)
 		{
-			_longNotes?.Remove(note);
+			Remove((LongNote)note);
 		}
 
 		public void Clear()
 		{
 			_longNotes?.Clear();
-			ClearVertex(0, POOL_COUNT);
-			ApplyMesh();
+			foreach (var batch in _batches)
+			{
+				if (batch == null) continue;
+				batch.Renderer.enabled = false;
+				batch.Mesh.Clear();
+			}
 		}
 
 		public void Excute(float time)
 		{
-			if (_mesh == null || _longNotes == null)
+			if (_batches[(int)NextRushConnectorLayer.Top] == null || _longNotes == null)
 			{
 				return;
 			}
@@ -209,6 +223,8 @@ namespace Sekai
 			// A restarted chart replays the same note objects through the pools. Anything that was
 			// finished before the restart must not stay in this list: a stale bar at the front makes
 			// every mesh of the new run collapse, so the bodies simply do not draw.
+			int layers = 0;
+			bool native = false;
 			for (int i = _longNotes.Count - 1; i >= 0; i--)
 			{
 				NoteBase note = _longNotes[i];
@@ -218,8 +234,11 @@ namespace Sekai
 					continue;
 				}
 
-				if (note.State != NoteState.Done)
+				if (note.State != NoteState.Done
+					|| note is LongNote bar && (double)time + LiveConfig.ViewLeadSeconds < bar.NativeConnectorDisplayEnd)
 				{
+					native |= note.NativeScroll != null;
+					layers |= LayerMaskFor(note);
 					continue;
 				}
 
@@ -231,22 +250,25 @@ namespace Sekai
 				_longNotes.RemoveAt(i);
 			}
 
-			int previousMeshCount = _meshCount;
-			_meshCount = 0;
-			for (int i = 0; i < _longNotes.Count; i++)
+			_hasViewport = false;
+			for (int layer = 0; layer < _batches.Length; layer++)
 			{
-				NextExecute(_longNotes[i], time, ref _meshCount);
+				int layerBit = 1 << layer;
+				_meshCount = 0;
+				if ((layers & layerBit) != 0)
+				{
+					foreach (var note in _longNotes)
+						if ((LayerMaskFor(note) & layerBit) != 0)
+							NextExecute(note, time, (NextRushConnectorLayer)layer);
+				}
+				ApplyMesh((NextRushConnectorLayer)layer, native);
 			}
-
-			if (previousMeshCount > _meshCount)
-			{
-				ClearVertex(_meshCount, previousMeshCount - _meshCount);
-			}
-
-			ApplyMesh();
 		}
 
-		private void NextExecute(INote baseNote, float time, ref int _meshCount)
+		private int LayerMaskFor(NoteBase note) => note.NativeScroll == null ? 1
+			: (note as LongNote)?.NativeConnectorLayers(_guideView) ?? 0;
+
+		private void NextExecute(INote baseNote, float time, NextRushConnectorLayer layer)
 		{
 			LongNote bar = baseNote as LongNote;
 			List<INote> viewNotes = bar != null ? bar.LineNoteList : baseNote?.ViewNoteList;
@@ -271,21 +293,21 @@ namespace Sekai
 					continue;
 				}
 
-				int centerPosition = GetCenterPosition(time, startNote, endNote, isTail);
-				if (centerPosition < 2 && LiveTrace.IsOn(LiveTraceCategory.View))
+				var segment = (startNote as NoteBase)?.NativeConnector;
+				if (segment == null || (segment.Layer == layer && segment.IsGuide == _guideView))
 				{
-					LiveTrace.Write(LiveTraceCategory.View, "mesh time=" + time.ToString("F3") + " startT=" + startNote.MusicScoreInfo.time.ToString("F3") + " endT=" + endNote.MusicScoreInfo.time.ToString("F3") + " centerPos=" + centerPosition + " meshCount=" + _meshCount);
-				}
-				int nextMeshCount = _meshCount + centerPosition;
-				if (POOL_COUNT < nextMeshCount)
-				{
-					_meshCount = nextMeshCount;
-					return;
-				}
-
-				if (centerPosition >= 2)
-				{
-					MeshCreate(ref _meshCount, time, baseNote, centerPosition);
+					if (segment?.FullScreen == true)
+					{
+						DrawFullScreen(time, bar, (NoteBase)startNote, (NoteBase)endNote, segment);
+					}
+					else
+					{
+						int centerPosition = GetCenterPosition(time, startNote, endNote, isTail);
+						if (centerPosition < 2 && LiveTrace.IsOn(LiveTraceCategory.View))
+							LiveTrace.Write(LiveTraceCategory.View, "mesh time=" + time.ToString("F3") + " startT=" + startNote.MusicScoreInfo.time.ToString("F3") + " endT=" + endNote.MusicScoreInfo.time.ToString("F3") + " centerPos=" + centerPosition + " meshCount=" + _meshCount);
+						if (centerPosition >= 2)
+							MeshCreate(time, baseNote, centerPosition, segment);
+					}
 				}
 
 				startNote = endNote;
@@ -296,24 +318,80 @@ namespace Sekai
 			}
 		}
 
-		private void MeshCreate(ref int _meshCount, float time, INote baseNote, int meshDataCount)
+		private Color SetSegmentStyle(float time, INote baseNote, NextRushConnectorSegment segment)
 		{
-			if (meshDataCount < 2)
-			{
-				return;
-			}
-
 			SetStatusValue(time, baseNote);
 			Color color = GetNoteColor(baseNote);
-			for (int i = 0; i < meshDataCount - 1 && _meshCount < POOL_COUNT; i++)
+			if (segment != null)
+			{
+				_statusValue.y = segment.IsCritical ? 0.025f : 0.525f;
+				if (segment.IsGuide) color = segment.GuideColor();
+				else if (segment.HasColor) color *= segment.StyleColor();
+				if (segment.TracksDamageContact && baseNote is GuideNote damage
+					&& (!damage.DamageContact || damage.State == NoteState.Done))
+					color *= ReleaseColor;
+			}
+			return color;
+		}
+
+		private void MeshCreate(float time, INote baseNote, int meshDataCount, NextRushConnectorSegment segment)
+		{
+			EnsureMeshCapacity(_meshCount + meshDataCount - 1);
+			Color color = SetSegmentStyle(time, baseNote, segment);
+			bool solidGuide = segment?.IsGuide == true;
+			float textureMode = solidGuide ? -1f : 0f;
+			for (int i = 0; i < meshDataCount - 1; i++)
 			{
 				int vertexIndex = _meshCount * TRAPEZOID_VERTEX_COUNT;
-				CalculateTrapezoidVertex(_meshSettingBuffer[i], _meshSettingBuffer[i + 1]);
-				UpdateVertex(vertexIndex, color);
-				UpdateUV(vertexIndex, i);
+				CalculateTrapezoidVertex(_meshSettingBuffer[i], _meshSettingBuffer[i + 1], solidGuide);
+				float startAlpha = segment == null ? 1 : _meshSettingBuffer[i].Alpha;
+				float endAlpha = segment == null ? 1 : _meshSettingBuffer[i + 1].Alpha;
+				UpdateVertex(vertexIndex, color, startAlpha, endAlpha);
+				UpdateUV(vertexIndex, i, textureMode);
 				_meshCount++;
 			}
 		}
+
+		private void DrawFullScreen(float time, LongNote bar, NoteBase start, NoteBase end, NextRushConnectorSegment segment)
+		{
+			double now = (double)time + LiveConfig.ViewLeadSeconds;
+			if (_viewCamera == null
+				|| bar?.TailNote is { HasJudgment: true, State: NoteState.Done }
+				|| !segment.TryFullScreenAlpha(now, start.NativeTarget.Time, end.NativeTarget.Time, out float alpha)
+				|| segment.IsHidden(now, start.NativeScroll.SampleFrame(now).Hidden)) return;
+			if (!_hasViewport)
+			{
+				float depth = _viewCamera.WorldToViewportPoint(transform.position).z;
+				depth = Mathf.Clamp(depth, _viewCamera.nearClipPlane + 0.01f, _viewCamera.farClipPlane - 0.01f);
+				_viewportBottomLeft = ViewportPoint(0, 0, depth);
+				_viewportTopLeft = ViewportPoint(0, 1, depth);
+				_viewportBottomRight = ViewportPoint(1, 0, depth);
+				_viewportTopRight = ViewportPoint(1, 1, depth);
+				_hasViewport = true;
+			}
+
+			Color color = SetSegmentStyle(time, bar, segment);
+			color.a *= alpha;
+			float textureMode = segment.IsGuide ? 2f : 1f;
+			EnsureMeshCapacity(_meshCount + 1);
+			int vertexIndex = _meshCount++ * TRAPEZOID_VERTEX_COUNT;
+			for (int i = 0; i < TRAPEZOID_VERTEX_COUNT; i++)
+			{
+				bool top = (i & 1) != 0;
+				int index = vertexIndex + i;
+				_vertices[index] = i < 4
+					? (top ? _viewportTopLeft : _viewportBottomLeft)
+					: (top ? _viewportTopRight : _viewportBottomRight);
+				_colors[index] = color;
+				_uv[index] = new Vector2(textureMode, 0);
+				_leftPoint[index] = _rightPoint[index] = Vector2.zero;
+				_uvOffsetLeft[index] = new Vector2(_statusValue.x, 0);
+				_uvOffsetRight[index] = new Vector2(_statusValue.y, 0);
+			}
+		}
+
+		private Vector3 ViewportPoint(float x, float y, float depth) =>
+			transform.InverseTransformPoint(_viewCamera.ViewportToWorldPoint(new Vector3(x, y, depth)));
 
 		/// <summary>
 		/// 获取note的实际渲染颜色
@@ -359,32 +437,16 @@ namespace Sekai
 			return defaultColor;
 		}
 
-		private void UpdateUV(int vertexIndex, int meshDataIndex)
+		private void UpdateUV(int vertexIndex, int meshDataIndex, float textureMode)
 		{
 			float startLineProgress = _meshSettingBuffer[meshDataIndex].LineProgress;
 			float endLineProgress = _meshSettingBuffer[meshDataIndex + 1].LineProgress;
 			for (int offset = 0; offset <= 4; offset += 4)
 			{
-				_uv[vertexIndex + offset + 3].y = endLineProgress;
-				_uv[vertexIndex + offset + 1].y = endLineProgress;
-				_uv[vertexIndex + offset + 2].y = startLineProgress;
-				_uv[vertexIndex + offset].y = startLineProgress;
-			}
-		}
-
-		private void ClearVertex(int startIndex, int length)
-		{
-			if (_vertices == null)
-			{
-				return;
-			}
-
-			int start = Mathf.Max(0, startIndex * TRAPEZOID_VERTEX_COUNT);
-			int end = Mathf.Min(_vertices.Length, start + Mathf.Max(0, length) * TRAPEZOID_VERTEX_COUNT);
-			for (int i = start; i < end; i++)
-			{
-				_vertices[i] = Vector3.zero;
-				_colors[i] = Color.clear;
+				_uv[vertexIndex + offset + 3] = new Vector2(textureMode, endLineProgress);
+				_uv[vertexIndex + offset + 1] = new Vector2(textureMode, endLineProgress);
+				_uv[vertexIndex + offset + 2] = new Vector2(textureMode, startLineProgress);
+				_uv[vertexIndex + offset] = new Vector2(textureMode, startLineProgress);
 			}
 		}
 
@@ -401,8 +463,22 @@ namespace Sekai
 			_statusValue.y = baseNote != null && baseNote.Type == NoteType.Critical ? 0.025f : 0.525f;
 		}
 
-		private void CalculateTrapezoidVertex(Setting startSetting, Setting endSetting)
+		private void CalculateTrapezoidVertex(Setting startSetting, Setting endSetting, bool solidGuide)
 		{
+			if (solidGuide)
+			{
+				// Fill the space between the endpoints with two quads sharing a center edge.
+				var top = endSetting.LanePosition;
+				var bottom = startSetting.LanePosition;
+				Vector2 topCenter = (top.Left + top.Right) * 0.5f;
+				Vector2 bottomCenter = (bottom.Left + bottom.Right) * 0.5f;
+				_trapezoidVertexInfo[0].Top = new TwoPoint { Left = top.Left, Right = topCenter };
+				_trapezoidVertexInfo[0].Bottom = new TwoPoint { Left = bottom.Left, Right = bottomCenter };
+				_trapezoidVertexInfo[1].Top = new TwoPoint { Left = topCenter, Right = top.Right };
+				_trapezoidVertexInfo[1].Bottom = new TwoPoint { Left = bottomCenter, Right = bottom.Right };
+				return;
+			}
+
 			_trapezoidVertexInfo[0].Top.Right = endSetting.LanePosition.Left;
 			_trapezoidVertexInfo[0].Top.Left = endSetting.LanePosition.Left;
 			_trapezoidVertexInfo[0].Bottom.Right = startSetting.LanePosition.Left;
@@ -418,7 +494,7 @@ namespace Sekai
 			_trapezoidVertexInfo[1].Bottom.Right.x += startSetting.CurrentViewProgress * 0.4f;
 		}
 
-		private void UpdateVertex(int vertexIndex, Color color)
+		private void UpdateVertex(int vertexIndex, Color color, float startAlpha, float endAlpha)
 		{
 			for (int t = 0; t < 2; t++)
 			{
@@ -445,7 +521,7 @@ namespace Sekai
 					int index = offset + i;
 					_uvOffsetLeft[index] = new Vector2(_statusValue.x, offsetRange.x);
 					_uvOffsetRight[index] = new Vector2(_statusValue.y, offsetRange.y);
-					_colors[index] = color;
+					_colors[index] = new Color(color.r, color.g, color.b, color.a * ((i & 1) == 0 ? startAlpha : endAlpha));
 				}
 			}
 		}
@@ -456,6 +532,8 @@ namespace Sekai
 			{
 				return 0;
 			}
+			if (startNoteBase.NativeScroll != null && endNoteBase.NativeScroll != null)
+				return SampleNativeSegment(time, startNoteBase, endNoteBase);
 
 			float startOffset = startNoteBase.CalcTimeOffset(startNoteBase);
 			// The final segment follows the chart's scroll timing even after its key stops ticking.
@@ -532,6 +610,86 @@ namespace Sekai
 			return Mathf.Min(sampleCount, _meshSettingBuffer.Length);
 		}
 
+		private int SampleNativeSegment(float time, NoteBase start, NoteBase end)
+		{
+			var segment = start.NativeConnector;
+			if (segment != null && segment.StartAlpha == 0 && segment.EndAlpha == 0) return 0;
+			var owner = start as LongNote ?? start.ParentNote as LongNote;
+			if (segment?.ThroughJudgeLine == true
+				&& owner?.TailNote is { HasJudgment: true, State: NoteState.Done }) return 0;
+			double now = (double)time + LiveConfig.ViewLeadSeconds;
+			double a = start.NativeViewProgress(now, out bool hidden);
+			double b = end.NativeViewProgress(now, out _);
+			if ((segment?.IsHidden(now, hidden) ?? hidden)
+				|| !NextRushConnectorSegment.TryClip(segment, now, start.NativeTarget.Time, end.NativeTarget.Time,
+					ref a, ref b, out double first, out double last)) return 0;
+			// The mesh's winding expects the first cross section closest to the judge line.
+			if (a < b)
+			{
+				(a, b) = (b, a);
+				(first, last) = (last, first);
+			}
+			int minSplits = 1;
+			if (segment != null && a != b)
+			{
+				// Keep sampling over the curve even when endpoint motion compresses its screen height.
+				int samples = segment.Ease >= 30 && segment.Ease <= 37
+					? Mathf.Max(4, Mathf.CeilToInt(32 * (float)Math.Abs(last - first))) : segment.Ease != 1 ? 4 : 1;
+				minSplits = Mathf.Min(samples, SplitMeshCount);
+			}
+			int splits = Mathf.Clamp(Mathf.CeilToInt((float)(a - b) * SplitMeshCount), minSplits, SplitMeshCount);
+			List<INote> viewNotes = start.ParentNote is LongNote bar ? bar.LineNoteList : start.ViewNoteList;
+			int index = viewNotes != null ? Mathf.Max(0, viewNotes.IndexOf(start)) : 0;
+			int segmentCount = Mathf.Max(1, (viewNotes?.Count ?? 2) - 1);
+			float stepBoundary = segment?.StepBoundary ?? float.NaN;
+			bool step = stepBoundary >= 0f && stepBoundary <= 1f;
+			int written = 0;
+			for (int i = 0; i <= splits; i++)
+			{
+				float fraction = (float)i / splits;
+				float along = Mathf.Lerp((float)first, (float)last, fraction);
+				if (step && i > 0)
+				{
+					float previous = Mathf.Lerp((float)first, (float)last, (float)(i - 1) / splits);
+					bool forward = first < last;
+					if (forward ? previous < stepBoundary && along >= stepBoundary
+						: previous > stepBoundary && along <= stepBoundary)
+					{
+						float jump = (float)((stepBoundary - first) / (last - first));
+						// Equal heights leave no mesh between the two sides of the jump.
+						Write(jump, stepBoundary, forward ? 0f : 1f);
+						Write(jump, stepBoundary, forward ? 1f : 0f);
+						if (along == stepBoundary) continue;
+					}
+				}
+				float eased = step && along == stepBoundary ? (last < stepBoundary ? 0f : 1f)
+					: segment?.Interpolate(along) ?? along;
+				Write(fraction, along, eased);
+			}
+			return written;
+
+			void Write(float fraction, float along, float eased)
+			{
+				float progress = OpenSekai.Shared.Live.NoteLineProgress.View(Mathf.Lerp((float)a, (float)b, fraction));
+				float left = Mathf.LerpUnclamped(start.NativeLeft, end.NativeLeft, eased);
+				float right = Mathf.LerpUnclamped(start.NativeRight, end.NativeRight, eased);
+				Vector2 center = LiveUtility.EarlyVec2Lerp(LiveConfig.SpawnPosition, LiveConfig.NativeLanePosition((left + right) / 2), progress);
+				float inset = segment?.IsGuide == true ? 0f : 0.1f;
+				float halfWidth = progress * Mathf.Max(0, (right - left + 1) * LiveConfig.widthX - inset) / 2;
+				_meshSettingBuffer[written++] = new Setting
+				{
+					CurrentViewProgress = progress,
+					Alpha = segment == null ? 1 : Mathf.Lerp(segment.StartAlpha, segment.EndAlpha, along),
+					LanePosition = new TwoPoint
+					{
+						Left = new Vector2(center.x - halfWidth, center.y),
+						Right = new Vector2(center.x + halfWidth, center.y)
+					},
+					LineProgress = (index + along) / segmentCount
+				};
+			}
+		}
+
 		private static Vector2 GetLanePosition(float lane)
 		{
 			Vector2[] positions = LiveConfig.JudgmentPositions;
@@ -551,21 +709,65 @@ namespace Sekai
 			return new Vector3(value.x, value.y, 0f);
 		}
 
-		private void ApplyMesh()
+		private void ApplyMesh(NextRushConnectorLayer layer, bool native)
 		{
-			if (_mesh == null)
+			int index = (int)layer;
+			var batch = _batches[index];
+			if (_meshCount == 0)
 			{
+				if (batch != null && batch.Renderer.enabled)
+				{
+					batch.Renderer.enabled = false;
+					batch.Mesh.Clear();
+				}
 				return;
 			}
 
-			_mesh.vertices = _vertices;
-			_mesh.colors = _colors;
-			_mesh.uv = _uv;
-			_mesh.uv2 = _leftPoint;
-			_mesh.uv3 = _rightPoint;
-			_mesh.uv4 = _uvOffsetLeft;
-			_mesh.uv5 = _uvOffsetRight;
-			_filter.mesh = _mesh;
+			if (batch == null)
+			{
+				var host = new GameObject(layer.ToString()) { layer = gameObject.layer };
+				host.transform.SetParent(transform, false);
+				_batches[index] = batch = CreateBatch(host);
+			}
+			batch.Renderer.sortingOrder = native ? ConnectorSortingOrder(layer) + (_guideView ? 1 : 0) : 0;
+			Mesh mesh = batch.Mesh;
+			int vertices = _meshCount * TRAPEZOID_VERTEX_COUNT;
+			if (mesh.vertexCount > vertices) mesh.Clear();
+			if (vertices > ushort.MaxValue && mesh.indexFormat == IndexFormat.UInt16)
+				mesh.indexFormat = IndexFormat.UInt32;
+			mesh.SetVertices(_vertices, 0, vertices);
+			mesh.SetColors(_colors, 0, vertices);
+			mesh.SetUVs(0, _uv, 0, vertices);
+			mesh.SetUVs(1, _leftPoint, 0, vertices);
+			mesh.SetUVs(2, _rightPoint, 0, vertices);
+			mesh.SetUVs(3, _uvOffsetLeft, 0, vertices);
+			mesh.SetUVs(4, _uvOffsetRight, 0, vertices);
+			mesh.SetIndices(_triangles, 0, _meshCount * TRAPEZOID_INDEX_COUNT, MeshTopology.Triangles, 0);
+			batch.Renderer.enabled = true;
+		}
+
+		// The live stage lanes are sorted at -101 to -99, simultaneous lines at 0, and keys at 30/31.
+		private static int ConnectorSortingOrder(NextRushConnectorLayer layer) => layer switch
+		{
+			NextRushConnectorLayer.Under => -104,
+			NextRushConnectorLayer.Bottom => -10,
+			NextRushConnectorLayer.Top => -8,
+			NextRushConnectorLayer.Over => 40,
+			_ => throw new ArgumentOutOfRangeException(nameof(layer))
+		};
+
+		private void OnDestroy()
+		{
+			foreach (var batch in _batches)
+				if (batch != null) DisposeRenderObject(batch.Mesh);
+			DisposeRenderObject(Material);
+		}
+
+		private static void DisposeRenderObject(UnityEngine.Object value)
+		{
+			if (value == null) return;
+			if (Application.isPlaying) Destroy(value);
+			else DestroyImmediate(value);
 		}
 	}
 }

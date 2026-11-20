@@ -19,6 +19,9 @@ namespace Sekai.Live
 
 		public override void Excute(MusicScoreInfo currentFrameInfo, float offsetTime)
 		{
+			if (State != NoteState.Done && HasJudgment && isTouched && !Head.IsSettled && currentFrameInfo.time >= MusicScoreInfo.time)
+				SettleRubHead();
+
 			base.Excute(currentFrameInfo, offsetTime);
 			if (State == NoteState.Done)
 			{
@@ -33,16 +36,21 @@ namespace Sekai.Live
 				Progress = 1f;
 			}
 
-			if (!Head.IsSettled && State <= NoteState.Last && isTouched)
+			if (!Head.IsSettled && isTouched)
 			{
 				if (Progress < 1f)
 				{
 					return;
 				}
 
-				Head.Settle((CompletedTouchResult, NoteResultDescription.None));
-				State = NoteState.InputBegan;
+				SettleRubHead();
 			}
+		}
+
+		private void SettleRubHead()
+		{
+			Head.Settle((CompletedTouchResult, NoteResultDescription.None));
+			State = NoteState.InputBegan;
 		}
 
 		public override void ResetNote()
@@ -59,7 +67,9 @@ namespace Sekai.Live
 			return State != NoteState.Done
 				&& left <= lane
 				&& right >= lane
-				&& LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(this), OffsetJudgeTime);
+				&& (HasJudgment
+					? Head.IsSettled || ConnectionNote.InContactWindow(MusicScore.CurrentFrameInfo.time, MusicScoreInfo.time)
+					: LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(this), OffsetJudgeTime));
 		}
 
 		// A rubbed bar's head is decided by contact, not by a press, so the resident pass drives it whole.
@@ -79,7 +89,13 @@ namespace Sekai.Live
 				State = NoteState.Input;
 			}
 
-			isTouched = true;
+			float now = MusicScore.CurrentFrameInfo.time;
+			if (!HasJudgment || ConnectionNote.InContactWindow(now, MusicScoreInfo.time))
+			{
+				isTouched = true;
+				if (HasJudgment && !Head.IsSettled && now >= MusicScoreInfo.time)
+					SettleRubHead();
+			}
 			RecordHoldingInput(touch.musicTime);
 			// The body's freshness check reads "a finger was recorded but this frame was not marked" as the
 			// finger leaving. An ordinary bar marks it in DriveJudgmentFrame; without the mark here every

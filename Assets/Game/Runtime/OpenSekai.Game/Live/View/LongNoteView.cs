@@ -13,7 +13,7 @@ namespace Sekai
 				return;
 			}
 
-			if (note.Progress <= 0f)
+			if (!LiveConfig.IsKeyVisible(note, musicTime))
 			{
 				if (LiveTrace.IsOn(LiveTraceCategory.Frame))
 				{
@@ -31,7 +31,8 @@ namespace Sekai
 			// A rub head's key goes the moment the head is judged, like a standalone friction note.
 			if (note.State == NoteState.Done
 				|| (note is LongNote endedBar && (endedBar.HeadKeyLeftWithItsVerdict
-					|| (endedBar.ChildNote != null && musicTime >= endedBar.ChildNote.MusicScoreInfo.time))))
+					|| (endedBar.NativeScroll == null && endedBar.ChildNote != null
+						&& musicTime >= endedBar.ChildNote.MusicScoreInfo.time))))
 			{
 				if (LiveTrace.IsOn(LiveTraceCategory.Frame))
 				{
@@ -42,7 +43,8 @@ namespace Sekai
 				return;
 			}
 
-			float progress = CalcProgress();
+			float progress = CalcProgress(musicTime);
+			if (note is NoteBase native) ApplyStyle(native.NativeStyle);
 			if (LiveTrace.IsOn(LiveTraceCategory.Frame))
 			{
 				LiveTrace.Write(LiveTraceCategory.Frame, "view barT=" + note.MusicScoreInfo.time.ToString("F3") + " state=" + note.State + " raw=" + note.Progress.ToString("F3") + " view=" + progress.ToString("F3"));
@@ -54,18 +56,20 @@ namespace Sekai
 
 			if (note.Category == Sekai.Live.NoteCategory.Long && spriteRenderer != null)
 			{
-				spriteRenderer.size = LiveUtility.CalcSpriteRendererSize(note.LaneEndF - note.LaneStartF);
+				float width = note is LongNote { IsNextRushHeadKey: true } key
+					? key.NativeRight - key.NativeLeft : note.LaneEndF - note.LaneStartF;
+				spriteRenderer.size = LiveUtility.CalcSpriteRendererSize(width);
 			}
 		}
 
-		protected float CalcProgress()
+		protected float CalcProgress(float musicTime)
 		{
 			if (note == null)
 			{
 				return 0f;
 			}
 
-			float progress = LiveConfig.ViewProgressOf(note);
+			float progress = LiveConfig.ViewProgressOf(note, musicTime);
 			if (note.State == NoteState.Done)
 			{
 				return LiveConfig.GetNoteViewProgress(progress);
@@ -98,7 +102,9 @@ namespace Sekai
 				return Vector3.zero;
 			}
 
-			Vector2 center = GetLaneCenter(note.LaneStartF, note.LaneEndF);
+			Vector2 center = note is LongNote { IsNextRushHeadKey: true } key
+				? GetLaneCenter(key.NativeLeft, key.NativeRight)
+				: GetLaneCenter(note.LaneStartF, note.LaneEndF);
 			Vector2 effectiveSpawnPos = spawnPosition;
 			if (note is NoteBase noteBase && noteBase.IsNegativeSpeed)
 			{

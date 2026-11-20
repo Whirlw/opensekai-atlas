@@ -10,6 +10,14 @@ namespace Sekai
 	{
 		public const float NOTE_END_IGNORE_FRAME_TIME = 1f / 6f;
 
+		/// <summary>
+		/// Engine frame time for the swipe tests, which measure a touch delta per frame. An EditMode replay
+		/// sets it to the frame interval it is replaying; the game leaves it unset and reads the engine.
+		/// </summary>
+		internal static float FrameDeltaTimeOverride = float.NaN;
+
+		internal static float FrameDeltaTime => float.IsNaN(FrameDeltaTimeOverride) ? Time.deltaTime : FrameDeltaTimeOverride;
+
 		public const int LANE_COUNT = 11;
 
 		public static readonly Vector2 Vector2Zero;
@@ -117,7 +125,7 @@ namespace Sekai
 						return isCritical ? JudgeFrameType.Friction_Long_End_Critical : JudgeFrameType.Friction_Long_End;
 					}
 
-					return isCritical ? JudgeFrameType.Friction_Critical : JudgeFrameType.Friction;
+				return isCritical ? JudgeFrameType.Flick_Critical : JudgeFrameType.Flick;
 				case NoteCategory.FrictionLong:
 				case NoteCategory.FrictionHideLong:
 					if (hasParent)
@@ -360,8 +368,17 @@ namespace Sekai
 			}
 
 			var progress = Mathf.Clamp01(LiveConfig.GetNoteLineParentProgress(currentFrameInfo.time, currentNote, nextNote));
-			noteBase.LaneStartF = Mathf.Lerp(currentNote.DefaultLeftLane, nextNote.DefaultLeftLane, progress);
-			noteBase.LaneEndF = Mathf.Lerp(currentNote.DefaultRightLane, nextNote.DefaultRightLane, progress);
+			if (currentNote is NoteBase from && from.NativeScroll != null && nextNote is NoteBase to && to.NativeScroll != null)
+			{
+				if (from.NativeConnector != null) progress = from.NativeConnector.Interpolate(progress);
+				noteBase.LaneStartF = Mathf.LerpUnclamped(from.NativeLeft, to.NativeLeft, progress);
+				noteBase.LaneEndF = Mathf.LerpUnclamped(from.NativeRight, to.NativeRight, progress);
+			}
+			else
+			{
+				noteBase.LaneStartF = Mathf.Lerp(currentNote.DefaultLeftLane, nextNote.DefaultLeftLane, progress);
+				noteBase.LaneEndF = Mathf.Lerp(currentNote.DefaultRightLane, nextNote.DefaultRightLane, progress);
+			}
 
 			if (childNote == null)
 			{

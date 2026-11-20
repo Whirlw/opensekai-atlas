@@ -119,6 +119,7 @@ MonoBehaviour:
   noteRenderers:
   - {fileID: 212618682377417806}
   - {fileID: 212099118695303065}
+  _damageBody: {fileID: 21300000, guid: 250521d42e1d4513917d3871e1326a04, type: 2}
   centerIconRenderer: {fileID: 212099118695303065}
 --- !u!4 &4884547391421755
 Transform:

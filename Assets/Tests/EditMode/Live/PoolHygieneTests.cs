@@ -37,6 +37,11 @@ namespace OpenSekai.Tests.EditMode.Live
 			"IsHighSpeedNote",
 			"speedRatio", "IsNegativeSpeed",
 			"LaneOffset", "_flickDistance",
+			// Native geometry and the session's display lead survive a retry of the same chart.
+			"NativeLeft", "NativeRight", "NativeTarget", "NativePreempt", "NativeStyle", "NativeEffectKind",
+			"IsNextRushHeadKey", "IsNextRushConnectorHeadVisual", "_connectorHeadStyle", "_connectorHeadType",
+			"NativeConnectorDisplayEnd", "_nativeHoldLayers", "_nativeGuideLayers",
+			"IsIndependentRelease", "UsesNextRushContactWindow", "UsesNextRushJudgment",
 		};
 
 		private static MusicScoreInfo Info(float time) => new MusicScoreInfo(0, time / 2, time, 120, 4, 1, 1);

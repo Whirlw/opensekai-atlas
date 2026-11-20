@@ -36,6 +36,7 @@ namespace OpenSekai.App.Playback
                 ReleaseTransitionBeforeMusicStart = true,
                 CustomMusicScoreId = entry.Manifest.id,
                 CustomMusicScorePath = entry.RootDirectory,
+                TemporaryJacketData = request.TemporaryPackage?.CoverData,
                 CustomMusicScoreTitle = entry.Manifest.scoreTitle,
                 CustomMusicScoreAuthorName = entry.Manifest.userName,
                 CustomMusicScoreCollaborationLabel = entry.Manifest.collaborationLabel
@@ -53,6 +54,7 @@ namespace OpenSekai.App.Playback
             boot.MusicData.CustomPlayLevel = entry.Manifest.playLevel;
             boot.MusicData.MusicScore = score;
             boot.MusicData.StartMusicTimeMs = 0L;
+            boot.MusicData.NativeBgmOffsetSeconds = session.Chart.NextRush?.BgmOffset;
             boot.MusicData.PlayStartEffectEnabled = !settings.SkipsCustomMusicScoreMusicInfo;
             return boot;
         }

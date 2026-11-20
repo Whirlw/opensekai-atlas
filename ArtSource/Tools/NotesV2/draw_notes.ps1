@@ -1,3 +1,4 @@
+param([switch]$DamageOnly)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 $source = @'
@@ -123,13 +124,14 @@ public static class AstralNotes {
         }
         g.Restore(state);
     }
-    public static void Render(string filename,string preview) {
+    public static void Render(string filename,string preview,bool damageOnly) {
         const int scale=4;
         using(var hi=new Bitmap(354*scale,1316*scale,PixelFormat.Format32bppArgb)) {
             g=Graphics.FromImage(hi); g.Clear(Color.Transparent);
             g.SmoothingMode=SmoothingMode.AntiAlias; g.ScaleTransform(scale,scale);
             Color[] colors={C("#ffcc46"),C("#2bf2c5"),C("#848fff"),C("#ff73b3"),C("#2bf2c5"),C("#ffcc46"),C("#ff73b3")};
-            for(int i=0;i<7;i++) DrawRow(i,colors[i],i>=4);
+            if(damageOnly) DrawRow(4,C("#b263ff"),true);
+            else for(int i=0;i<7;i++) DrawRow(i,colors[i],i>=4);
             g.Dispose();
             using(var output=new Bitmap(354,1316,PixelFormat.Format32bppArgb)) {
                 using(var down=Graphics.FromImage(output)) { down.CompositingMode=CompositingMode.SourceCopy; down.InterpolationMode=InterpolationMode.HighQualityBicubic; down.PixelOffsetMode=PixelOffsetMode.HighQuality; down.DrawImage(hi,new Rectangle(0,0,354,1316),0,0,hi.Width,hi.Height,GraphicsUnit.Pixel); }
@@ -144,6 +146,7 @@ public static class AstralNotes {
                     output.SetPixel(x,y,Color.FromArgb(pixel.A,(int)Math.Round(pixel.R*.92),(int)Math.Round(pixel.G*.92),(int)Math.Round(pixel.B*.92)));
                 }
                 output.Save(filename,ImageFormat.Png);
+                if(damageOnly) return;
                 // A separate viewing card never enters the game's texture folder.
                 using(var card=new Bitmap(1160,720,PixelFormat.Format32bppArgb)) using(var cg=Graphics.FromImage(card)) {
                     cg.Clear(C("#080e1d")); cg.SmoothingMode=SmoothingMode.AntiAlias;
@@ -159,5 +162,10 @@ public static class AstralNotes {
 '@
 Add-Type -TypeDefinition $source -ReferencedAssemblies System.Drawing
 $root = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'NotesV2'
-[AstralNotes]::Render((Join-Path $root 'notes.png'), (Join-Path $PSScriptRoot 'notes-preview.png'))
-Write-Output 'Created notes.png (354 x 1316, RGBA PNG) and notes-preview.png'
+if($DamageOnly) {
+    [AstralNotes]::Render((Join-Path $root 'notes_damage.png'), $null, $true)
+    Write-Output 'Created notes_damage.png (354 x 1316, RGBA PNG)'
+} else {
+    [AstralNotes]::Render((Join-Path $root 'notes.png'), (Join-Path $PSScriptRoot 'notes-preview.png'), $false)
+    Write-Output 'Created notes.png (354 x 1316, RGBA PNG) and notes-preview.png'
+}

@@ -3,6 +3,7 @@ Shader "Sekai/Live/Note/Arrow"
     Properties
     {
         [PerRendererData] _MainTex ("Sprite Texture", 2D) = "white" {}
+        [PerRendererData] _NextRushPalette ("NextRUSH Palette", Color) = (0,0,0,0)
         _Color ("Tint", Color) = (1,1,1,1)
         _NoteShowRate ("NoteShowRate", Range(0, 1)) = 1
     }
@@ -33,6 +34,7 @@ Shader "Sekai/Live/Note/Arrow"
             #pragma target 2.0
 
             #include "UnityCG.cginc"
+            #include "NextRushPalette.cginc"
 
             struct appdata
             {
@@ -70,6 +72,7 @@ Shader "Sekai/Live/Note/Arrow"
                 clip(_NoteShowRate - screenUv.y);
 
                 fixed4 color = tex2D(_MainTex, i.uv) * i.color;
+                color.rgb = nextRushColor(color.rgb);
                 return fixed4(color.rgb * color.a, color.a);
             }
             ENDCG

@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using Sekai.Live;
 using OpenSekai.Shared.Live.Simulation;
+using OpenSekai.Shared.Diagnostics;
 using InputTouchPhase = UnityEngine.InputSystem.TouchPhase;
 
 namespace Sekai.Core.Live
@@ -35,7 +36,7 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>Hands one finished touch to the judging side. It owns what the touch means.</summary>
-		public delegate void TouchSink(in SimTouch touch, ref int activeInputCount);
+		public delegate void TouchSink(in SimTouch touch, bool residentSample, ref int activeInputCount);
 
 		/// <summary>
 		/// Turns this frame's raw samples into touches: drops the ones that repeat or arrive out of
@@ -55,8 +56,11 @@ namespace Sekai.Core.Live
 			for (int i = 0; i < touchCount; i++)
 			{
 				LiveTouchSample touch = source[i];
-				// Raw sample trace: the one place that proves whether a press reached the process at all. A press
-				// that never appears here was dropped by the platform, not by the judge.
+				bool process = ShouldProcess(in touch);
+				if (!process && (touch.phase == InputTouchPhase.Began || IsEndedOrCanceled(touch.phase)))
+					LatencyCapture.Record("filtered", touch.touchId, touch.fingerId, touch.phase,
+						source: touch.time, detail: "dedup");
+				// Trace the samples exposed by the touch source, before gameplay filters them.
 				if (OpenSekai.Shared.Diagnostics.LiveTrace.IsOn(OpenSekai.Shared.Diagnostics.LiveTraceCategory.RawTouch))
 				{
 					OpenSekai.Shared.Diagnostics.LiveTrace.Write(OpenSekai.Shared.Diagnostics.LiveTraceCategory.RawTouch,
@@ -64,10 +68,10 @@ namespace Sekai.Core.Live
 							" phase=", touch.phase, " x=", touch.worldPosition.x.ToString("F1"),
 							" y=", touch.worldPosition.y.ToString("F1"),
 							" t=", touch.time.ToString("F3"),
-							" process=", ShouldProcess(in touch)));
+							" process=", process));
 				}
 
-				if (ShouldProcess(in touch))
+				if (process)
 				{
 					TouchExecution(in touch, resolveMusicTime, sink, ref activeInputCount);
 					Commit(in touch);
@@ -94,10 +98,15 @@ namespace Sekai.Core.Live
 			int touchId = touch.touchId;
 			InputTouchPhase phase = touch.phase;
 			double time = touch.time;
+			// The device can report a contact that is still down with its previous event timestamp.
+			bool residentSample = phase == InputTouchPhase.Stationary
+				|| !IsEndedOrCanceled(phase) && _positions.TryGetValue(touchId, out var last) && last.time == time;
 			if (IsRepeat(touchId, time))
 			{
-				if (IsEndedOrCanceled(phase) || phase == InputTouchPhase.None)
+				if (phase == InputTouchPhase.None)
 				{
+					LatencyCapture.Record("filtered", touchId, touch.fingerId, phase,
+						source: time, detail: "repeated_timestamp");
 					return;
 				}
 
@@ -110,7 +119,8 @@ namespace Sekai.Core.Live
 			float musicTime = resolveMusicTime(time);
 			Vector2 delta = TakeDelta(in touch);
 			var simTouch = new SimTouch(touch.fingerId, touchId, delta, touch.worldPosition, phase, musicTime);
-			sink(in simTouch, ref activeInputCount);
+			LatencyCapture.Record("consumed", touchId, touch.fingerId, phase, source: time, song: musicTime);
+			sink(in simTouch, residentSample, ref activeInputCount);
 		}
 
 #if UNITY_EDITOR
@@ -167,7 +177,9 @@ namespace Sekai.Core.Live
 				: new Vector3(screenPosition.x, screenPosition.y, 0f);
 			float musicTime = resolveMusicTime(time);
 			var simTouch = new SimTouch(MouseFallbackFingerId, MouseFallbackTouchId, delta, worldPosition, phase, musicTime);
-			sink(in simTouch, ref activeInputCount);
+			LatencyCapture.Record("consumed", MouseFallbackTouchId, MouseFallbackFingerId, phase,
+				source: time, song: musicTime, detail: "editor_mouse");
+			sink(in simTouch, phase == InputTouchPhase.Stationary, ref activeInputCount);
 
 			if (IsEndedOrCanceled(phase))
 			{
@@ -248,23 +260,14 @@ namespace Sekai.Core.Live
 		public void CachePosition(in LiveTouchSample touch)
 		{
 			int touchId = touch.touchId;
-			if (_positions.ContainsKey(touchId))
+			if (IsEndedOrCanceled(touch.phase))
 			{
-				if (IsEndedOrCanceled(touch.phase))
-				{
+				if (_positions.TryGetValue(touchId, out var position) && touch.time >= position.time)
 					_positions.Remove(touchId);
-					return;
-				}
-
-				if (touch.time > _positions[touchId].time)
-				{
-					_positions[touchId] = (touch.time, touch.screenPosition);
-				}
-
 				return;
 			}
-
-			_positions.Add(touchId, (touch.time, touch.screenPosition));
+			if (!_positions.TryGetValue(touchId, out var cachedPosition) || touch.time > cachedPosition.time)
+				_positions[touchId] = (touch.time, touch.screenPosition);
 		}
 
 		private static bool IsEndedOrCanceled(InputTouchPhase phase)

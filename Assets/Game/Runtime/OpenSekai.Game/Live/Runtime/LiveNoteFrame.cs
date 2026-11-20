@@ -9,6 +9,8 @@ namespace Sekai.Core.Live
 		private readonly LiveSessionState _session;
 		private readonly LiveInputRouter _input;
 		private readonly LivePresentationBridge _presentation;
+		private readonly System.Action<NoteBase> _visitNativeVisual;
+		private double _nativeViewTime;
 
 		internal LiveNoteFrame(LiveLogic logic, LiveSessionState session, LiveInputRouter input, LivePresentationBridge presentation)
 		{
@@ -16,6 +18,7 @@ namespace Sekai.Core.Live
 			_session = session;
 			_input = input;
 			_presentation = presentation;
+			_visitNativeVisual = PreloadNativeVisual;
 		}
 
 		private MusicScoreInfo Frame => _logic.currentFrameInfo;
@@ -58,6 +61,8 @@ namespace Sekai.Core.Live
 			}
 
 			UpdateNotes();
+			_nativeViewTime = (double)Frame.time + LiveConfig.ViewLeadSeconds;
+			_session.Notes.WalkNativeVisuals(_nativeViewTime, _visitNativeVisual);
 			if (_session.IsAuto)
 			{
 				_logic.ApplyFrameOutcome();
@@ -128,11 +133,16 @@ namespace Sekai.Core.Live
 
 		private void AdvanceNote(NoteBase note, float offsetTime)
 		{
-			if (!_session.IsAuto && note is LongNote bar && bar.PublishesHeadMiss)
+			if (note.IsDecoration && note.NativeScroll != null && note is not LongNote)
+			{
+				note.AdvanceNote(Frame, offsetTime, settleTimeout: false);
+			}
+			else if (!_session.IsAuto && note is LongNote bar && bar.PublishesHeadMiss)
 			{
 				bar.AdvanceBeforeInput(Frame, offsetTime);
 			}
-			else if (!_session.IsAuto && note is NormalNote && LiveCandidatePipeline.IsPressStep(note))
+			else if (!_session.IsAuto && note is NormalNote normal
+				&& (normal.IsIndependentRelease || LiveCandidatePipeline.IsPressStep(normal)))
 			{
 				note.AdvanceNote(Frame, offsetTime, settleTimeout: false);
 			}
@@ -171,6 +181,8 @@ namespace Sekai.Core.Live
 			if (note.State != NoteState.Done && (!note.IsDecoration || PlayableTailOf(note)))
 			{
 				_input.Register(note);
+				if (note is GuideNote { TracksDamageContact: true } damage)
+					_input.DamageConnectors.Add(damage);
 			}
 
 			return LiveNoteSession.Scan.Handle;
@@ -183,6 +195,9 @@ namespace Sekai.Core.Live
 		/// </summary>
 		private void RegisterOpenHead(NoteBase note)
 		{
+			if (!_session.IsAuto && note is LongNote comboBar)
+				_session.Notes.RegisterTailLinkedComboBar(comboBar);
+
 			if (note is LongNote bar && bar.PublishesHeadMiss)
 			{
 				_session.Notes.RegisterHead(bar.Head);
@@ -231,7 +246,15 @@ namespace Sekai.Core.Live
 			if (!tooFarAhead)
 			{
 				PreloadView(tail, offset);
-				tail.Excute(Frame, offset);
+				if (!_session.IsAuto && tail is FlickNote flick && flick.JudgesAsBarTail)
+				{
+					// The input pass sees terminal edges before settling swipes or expiring the tail.
+					flick.AdvanceNote(Frame, offset, settleTimeout: false);
+				}
+				else
+				{
+					tail.Excute(Frame, offset);
+				}
 			}
 		}
 
@@ -260,6 +283,11 @@ namespace Sekai.Core.Live
 		/// </summary>
 		private void PreloadView(NoteBase note, float offsetTime)
 		{
+			if (note.NativeScroll != null || note is NextRushHiddenTickNote)
+			{
+				return;
+			}
+
 			if (note.State == NoteState.Done || offsetTime <= 0f)
 			{
 				return;
@@ -274,6 +302,69 @@ namespace Sekai.Core.Live
 			// Idempotent on the view side (the note pool keys off the note), so it can simply be asked every
 			// frame of the margin instead of remembering that it was asked.
 			_presentation.Spawn(_session.Views, note, Frame.time);
+		}
+
+		private void PreloadNativeVisual(NoteBase note)
+		{
+			double progress = note.NativeViewProgress(_nativeViewTime, out bool hidden);
+			bool visible = note.State != NoteState.Done && !hidden && progress > 0 && progress <= LiveConfig.NativeKeyProgressEnd
+				&& (note is LongNote || note.IsVisible && (!note.IsDecoration || _nativeViewTime < note.NativeTarget.Time));
+			if (note is LongNote bar)
+			{
+				if (bar.ConnectorHeadViewNote is NoteBase marker)
+				{
+					var previousType = marker.Type;
+					if (bar.UpdateConnectorHeadView(_nativeViewTime))
+					{
+						if (previousType != marker.Type) _presentation.Unspawn(_session.Views, marker);
+						_presentation.Spawn(_session.Views, marker, Frame.time);
+					}
+					else
+						_presentation.Unspawn(_session.Views, marker);
+				}
+				double previous = progress;
+				bool hideSegment = hidden;
+				double previousTime = note.NativeTarget.Time;
+				var previousNode = note;
+				foreach (var child in bar.LineNoteList)
+				{
+					if (child is not NoteBase node || node == note || node.NativeScroll == null)
+						continue;
+					double next = node.NativeViewProgress(_nativeViewTime, out bool childHidden);
+					var segment = previousNode.NativeConnector;
+					bool edgeHidden = segment?.IsHidden(_nativeViewTime, hideSegment) ?? hideSegment;
+					if (!edgeHidden)
+					{
+						if (segment?.FullScreen == true)
+							visible |= segment.TryFullScreenAlpha(_nativeViewTime, previousTime, node.NativeTarget.Time, out _);
+						else
+						{
+							double a = previous, b = next;
+							visible |= NextRushConnectorSegment.TryClip(segment, _nativeViewTime, previousTime,
+								node.NativeTarget.Time, ref a, ref b, out _, out _);
+						}
+					}
+					if (!node.HasNativeAttachment && node.IsVisible && node.State != NoteState.Done && !childHidden
+						&& next > 0 && next <= LiveConfig.NativeKeyProgressEnd
+						&& _nativeViewTime < node.NativeTarget.Time && bar.ViewNoteList.Contains(node))
+						_presentation.Spawn(_session.Views, node, Frame.time);
+					previous = next;
+					previousTime = node.NativeTarget.Time;
+					previousNode = node;
+					hideSegment = childHidden;
+				}
+				foreach (var child in bar.ViewNoteList)
+				{
+					if (child is not NoteBase { HasNativeAttachment: true, IsVisible: true } attached
+						|| attached.State == NoteState.Done || _nativeViewTime >= attached.NativeTarget.Time)
+						continue;
+					double next = attached.NativeViewProgress(_nativeViewTime, out bool childHidden);
+					if (!childHidden && next > 0 && next <= LiveConfig.NativeKeyProgressEnd)
+						_presentation.Spawn(_session.Views, attached, Frame.time);
+				}
+			}
+			if (visible)
+				_presentation.Spawn(_session.Views, note, Frame.time);
 		}
 
 		/// <summary>One high speed note: same shape, its own display lead.</summary>
@@ -477,6 +568,8 @@ namespace Sekai.Core.Live
 			{
 				return 0f;
 			}
+			if (note.NativeScroll != null)
+				return OpenSekai.Shared.Live.JudgeListLead.Seconds;
 
 			float currentProgress = Frame.bar + Frame.barProgress;
 			float noteProgress = note.MusicScoreInfo.bar + note.MusicScoreInfo.barProgress;

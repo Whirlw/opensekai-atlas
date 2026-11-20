@@ -7,6 +7,12 @@ namespace Sekai.Live
 {
 	public partial class LongNote
 	{
+		internal double NativeConnectorDisplayEnd { get; private set; } = double.NegativeInfinity;
+		private int _nativeHoldLayers;
+		private int _nativeGuideLayers;
+
+		internal int NativeConnectorLayers(bool guide) => guide ? _nativeGuideLayers : _nativeHoldLayers;
+
 		public override Action<NoteBase> OnUpdateScore
 		{
 			set
@@ -87,7 +93,7 @@ namespace Sekai.Live
 			LineNoteList.Add(this);
 		}
 
-		public void AddConnectionNote(NoteBase connectionNote)
+		public void AddConnectionNote(NoteBase connectionNote, bool shapesLine = true)
 		{
 			if (connectionNote == null)
 			{
@@ -101,7 +107,7 @@ namespace Sekai.Live
 			connectionNote.SetDecoration(IsDecoration);
 			NoteList.Add(connectionNote);
 			ViewNoteList.Add(connectionNote);
-			LineNoteList.Add(connectionNote);
+			if (shapesLine) LineNoteList.Add(connectionNote);
 			connectionNote.SetParentNote(this);
 		}
 
@@ -153,7 +159,7 @@ namespace Sekai.Live
 			NoteList ??= new List<NoteBase> { this };
 			ViewNoteList ??= new List<INote> { this };
 			// The draw list holds every note the bar owns. Whether a note shows anything is the note's own
-			// business; settlement is decided separately, in SettleLeftoverAsPerfect, where only the points
+			// business; settlement is decided separately, in SettleComboPointsAtEnd, where only the points
 			// the bar itself ends are graded.
 			if (independentTail)
 			{
@@ -178,10 +184,31 @@ namespace Sekai.Live
 		{
 			if (NoteList != null)
 			{
-				NoteList.Sort((a, b) => a.MusicScoreInfo.time.CompareTo(b.MusicScoreInfo.time));
+				if (NativeScroll != null)
+					NoteList = NoteList.OrderBy(note => note.MusicScoreInfo.time).ToList();
+				else
+					NoteList.Sort((a, b) => a.MusicScoreInfo.time.CompareTo(b.MusicScoreInfo.time));
 			}
 
 			LineNoteList = LineNoteList.OrderBy(note => note.MusicScoreInfo.time).ToList();
+			NativeConnectorDisplayEnd = double.NegativeInfinity;
+			_nativeHoldLayers = 0;
+			_nativeGuideLayers = 0;
+			if (NativeScroll != null)
+			{
+				bool canDisplayAfterTail = TailNote is { HasJudgment: false };
+				for (int i = 1; i < LineNoteList.Count; i++)
+				{
+					if (LineNoteList[i - 1] is not NoteBase { NativeConnector: { } segment }) continue;
+					int bit = 1 << (int)segment.Layer;
+					if (segment.IsGuide) _nativeGuideLayers |= bit;
+					else _nativeHoldLayers |= bit;
+
+					if (canDisplayAfterTail && segment.ThroughJudgeLine && !segment.FullScreen && LineNoteList[i] is NoteBase end)
+						NativeConnectorDisplayEnd = Math.Max(NativeConnectorDisplayEnd,
+							end.NativeTarget.Time + NextRushConnectorSegment.ThroughJudgeLineDespawnDelay);
+				}
+			}
 
 			if (ViewNoteList != null)
 			{

@@ -3,6 +3,7 @@ Shader "Sekai/Live/Note/Slide"
     Properties
     {
         [PerRendererData] _MainTex ("Sprite Texture", 2D) = "white" {}
+        [PerRendererData] _NextRushPalette ("NextRUSH Palette", Color) = (0,0,0,0)
         _Color ("Tint", Color) = (1,1,1,1)
         _NoteShowRate ("NoteShowRate", Range(0, 1)) = 1
     }
@@ -33,6 +34,7 @@ Shader "Sekai/Live/Note/Slide"
             #pragma target 2.0
 
             #include "UnityCG.cginc"
+            #include "NextRushPalette.cginc"
 
             struct appdata
             {
@@ -93,6 +95,7 @@ Shader "Sekai/Live/Note/Slide"
                 clip(_NoteShowRate - screenUv.y);
 
                 fixed4 tex = tex2D(_MainTex, float2(i.uvq.x / i.uvq.z, i.uvq.y));
+                tex.rgb = nextRushColor(tex.rgb);
                 fixed alpha = tex.a * i.color.a;
                 return fixed4(tex.rgb * alpha, tex.a);
             }

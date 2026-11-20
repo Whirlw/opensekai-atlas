@@ -1,4 +1,4 @@
-﻿using Sekai.Live;
+using Sekai.Live;
 using UnityEngine;
 
 namespace Sekai
@@ -6,7 +6,34 @@ namespace Sekai
 	public class FrictionNoteView : BaseNoteView
 	{
 		[SerializeField]
+		private Sprite _damageBody;
+
+		private Sprite _frictionBody;
+		private bool _showingDamage;
+
+		[SerializeField]
 		protected SpriteRenderer centerIconRenderer;
+
+		public override void Spawn(INote note, float posZ)
+		{
+			if (note is NextRushDamageNote && _damageBody != null)
+			{
+				if (!_showingDamage)
+				{
+					_frictionBody = spriteRenderer.sprite;
+					spriteRenderer.sprite = _damageBody;
+					if (centerIconRenderer != null) centerIconRenderer.enabled = false;
+					_showingDamage = true;
+				}
+			}
+			else if (_showingDamage)
+			{
+				spriteRenderer.sprite = _frictionBody;
+				if (centerIconRenderer != null) centerIconRenderer.enabled = true;
+				_showingDamage = false;
+			}
+			base.Spawn(note, posZ);
+		}
 
 		public override void Move(float musicTime)
 		{
@@ -15,13 +42,19 @@ namespace Sekai
 				return;
 			}
 
-			if (note.Progress <= 0f)
+			if (!LiveConfig.IsKeyVisible(note, musicTime))
 			{
 				transform.localScale = Vector3.zero;
 				return;
 			}
 
-			float progress = CalcProgress();
+			float progress = CalcProgress(musicTime);
+			if (note is NoteBase native)
+			{
+				ApplyStyle(native.NativeStyle);
+				if (native.IsNextRushConnectorHeadVisual && spriteRenderer != null)
+					spriteRenderer.size = LiveUtility.CalcSpriteRendererSize(note.LaneEndF - note.LaneStartF);
+			}
 			transform.localScale = Vector3.one * progress;
 			transform.localPosition = CalcNotePosition(ref progress);
 			UpdateSpritePayload(progress);
@@ -50,14 +83,14 @@ namespace Sekai
 			return new Vector3(position.x, position.y, posZ);
 		}
 
-		private float CalcProgress()
+		private float CalcProgress(float musicTime)
 		{
 			if (note == null)
 			{
 				return 0f;
 			}
 
-			return LiveConfig.GetNoteViewProgress(LiveConfig.ViewProgressOf(note));
+			return LiveConfig.GetNoteViewProgress(LiveConfig.ViewProgressOf(note, musicTime));
 		}
 
 		public FrictionNoteView()

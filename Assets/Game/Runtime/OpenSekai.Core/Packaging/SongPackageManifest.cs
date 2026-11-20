@@ -6,6 +6,10 @@ namespace OpenSekai.Shared.Packages
 {
 	public class SongPackageManifest
 	{
+        /// <summary>Null/empty: existing JSON or SUS. next-rush: native NextRUSH+ LevelData.</summary>
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public string chartFormat { get; set; }
+
 		[JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
 		public DateTimeOffset? importedAtUtc { get; set; }
 

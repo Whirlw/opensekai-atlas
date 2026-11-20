@@ -1,7 +1,34 @@
+using UnityEngine;
+
 namespace Sekai.Live
 {
 	public class GuideNote : LongNote
 	{
+		internal bool TracksDamageContact => NativeConnector?.TracksDamageContact == true;
+		public bool IsFakeHold => NativeConnector is { IsFake: true, IsDamage: false };
+		internal bool DamageContact { get; private set; }
+		internal bool TryDamageBounds(float time, out float left, out float right)
+		{
+			left = right = 0;
+			if (!TryNativeEdge(time, out var start, out var end)) return false;
+			float progress = start.NativeConnector.Interpolate(
+				Mathf.InverseLerp(start.MusicScoreInfo.time, end.MusicScoreInfo.time, time));
+			float laneLeft = Mathf.LerpUnclamped(start.NativeLeft, end.NativeLeft, progress) - 0.5f;
+			float laneRight = Mathf.LerpUnclamped(start.NativeRight, end.NativeRight, progress) + 0.5f;
+			if (laneRight < laneLeft) laneLeft = laneRight = (laneLeft + laneRight) * 0.5f;
+			left = LiveConfig.NativeLanePosition(laneLeft).x;
+			right = LiveConfig.NativeLanePosition(laneRight).x;
+			return true;
+		}
+
+		internal void SetDamageContact(bool touched) => DamageContact = touched;
+
+		public override void ResetNote()
+		{
+			base.ResetNote();
+			DamageContact = false;
+		}
+
 		/// <summary>
 		/// A decorative bar never grades the note at its end: that note belongs to the player.
 		/// </summary>

@@ -8,7 +8,7 @@ namespace OpenSekai.Tests.EditMode.Settings
 {
     /// <summary>
     /// LiveSettingsStore takes its path in the constructor, so it can be exercised against a
-    /// temporary file: defaults, persistence, migration of the old 120 FPS flag, and corrupt files.
+    /// temporary file: defaults, persistence, and corrupt files.
     /// </summary>
     public class LiveSettingsStoreTests
     {
@@ -72,13 +72,14 @@ namespace OpenSekai.Tests.EditMode.Settings
         }
 
         [Test]
-        public void Legacy120FpsFlagUpgradesToALimit()
+        public void FollowDisplayPersistsAfterChangingFrom120Hz()
         {
-            File.WriteAllText(_path, "{ \"Use120FPS\": true }");
-
-            LiveSettingData loaded = new LiveSettingsStore(_path).Load();
-
-            Assert.That(loaded.FrameRateLimit, Is.EqualTo(120), "the old boolean must become a limit");
+            File.WriteAllText(_path, "{ \"FrameRateLimit\": 120, \"Use120FPS\": true }");
+            var store = new LiveSettingsStore(_path);
+            var settings = store.Load();
+            settings.FrameRateLimit = 0;
+            Assert.That(store.Save(settings), Is.True);
+            Assert.That(new LiveSettingsStore(_path).Load().FrameRateLimit, Is.Zero);
         }
 
         [Test]

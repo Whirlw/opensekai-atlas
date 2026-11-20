@@ -55,7 +55,7 @@ namespace OpenSekai.EditorTools.Screenshots
     [Serializable]
     public sealed class Shot
     {
-        /// <summary>live | info | finish | library | settings | settings-trace | result</summary>
+        /// <summary>live | info | finish | library | settings | settings-trace | result | actions | loading | return | home | intro | handoff | about</summary>
         public string kind;
 
         /// <summary>File name stem; defaults to the kind (plus the time for live/info).</summary>
@@ -74,6 +74,7 @@ namespace OpenSekai.EditorTools.Screenshots
         /// live: seconds on the music clock (the audio file's own time, filler included).
         /// info: seconds since the info page was asked to start (it fades out at about 2.9 s).
         /// finish: seconds since the last note was done (the result animation starts 1 s later).
+        /// intro: seconds into the splash (it hands over to the settled home page at about 4.4 s).
         /// </summary>
         public List<float> times = new List<float>();
 

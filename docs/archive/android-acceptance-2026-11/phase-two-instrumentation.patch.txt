@@ -1,0 +1,38 @@
+diff --git a/Assets/Game/Runtime/Sekai/SoundManager.cs b/Assets/Game/Runtime/Sekai/SoundManager.cs
+index 916c9b6f..11251134 100644
+--- a/Assets/Game/Runtime/Sekai/SoundManager.cs
++++ b/Assets/Game/Runtime/Sekai/SoundManager.cs
+@@ -255,6 +255,11 @@ private uint PlaySEInternal(string cueName, float volume, float startTime)
+ 					player.SetStartTime((long)(startTime * 1000f));
+ 				}
+ 				CriAtomExPlayback _playback = player.Start();
++				if (resolvedCueName == "SE_LIVE_COUNT_DOWN" || resolvedCueName == "se_live_clear")
++				{
++					Debug.Log($"[PhaseTwoAudioSmoke] cue={resolvedCueName} id={_playback.id} status={_playback.GetStatus()}");
++				}
++
+ 				return _playback.id;
+ 			}
+ 			catch (Exception exception)
+diff --git a/ProjectSettings/ProjectSettings.asset b/ProjectSettings/ProjectSettings.asset
+index a3cb547e..ebf39cdb 100644
+--- a/ProjectSettings/ProjectSettings.asset
++++ b/ProjectSettings/ProjectSettings.asset
+@@ -13,7 +13,7 @@ PlayerSettings:
+   useOnDemandResources: 0
+   accelerometerFrequency: 60
+   companyName: OpenSekai
+-  productName: Open Sekai Atlas
++  productName: OpenSekai P2-5
+   defaultCursor: {fileID: 0}
+   cursorHotspot: {x: 0, y: 0}
+   m_SplashScreenBackgroundColor: {r: 0.13725491, g: 0.12156863, b: 0.1254902, a: 1}
+@@ -170,7 +170,7 @@ PlayerSettings:
+   androidMaxAspectRatio: 2.1
+   androidMinAspectRatio: 1
+   applicationIdentifier:
+-    Android: io.github.opensekai
++    Android: io.github.opensekai.p25check
+     Standalone: com.cube.opensekai
+   buildNumber:
+     Standalone: 0

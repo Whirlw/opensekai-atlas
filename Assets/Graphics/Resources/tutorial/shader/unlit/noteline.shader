@@ -78,17 +78,30 @@ Shader "Sekai/Unlit/NoteLine"
 
             fixed4 frag(v2f i) : SV_Target
             {
+                // Full-screen Guides cover the viewport, including the area above the note mask.
+                if (i.texcoord.x > 1.5)
+                    return fixed4(i.color.rgb, saturate(i.color.a));
+
                 float2 screenUv = i.screenPosition.xy / i.screenPosition.w;
-                clip(_NoteShowRate - screenUv.y);
+                float2 textureUv;
+                if (i.texcoord.x > 0.5)
+                {
+                    textureUv = float2(screenUv.x, screenUv.y * 0.2 + i.offsetRight.x);
+                }
+                else
+                {
+                    clip(_NoteShowRate - screenUv.y);
+                    if (i.texcoord.x < -0.5)
+                        return fixed4(i.color.rgb, saturate(i.color.a));
 
-                float left = i.leftPoint.y;
-                float right = i.rightPoint.y;
-                float lineRate = saturate((i.localPosition.x - left) / max(right - left, 0.0001));
-                float textureX = lerp(i.offsetLeft.y, i.offsetRight.y, lineRate);
-                float textureY = i.texcoord.y * 0.2 + i.offsetRight.x;
+                    float left = i.leftPoint.y;
+                    float right = i.rightPoint.y;
+                    float lineRate = saturate((i.localPosition.x - left) / max(right - left, 0.0001));
+                    textureUv = float2(lerp(i.offsetLeft.y, i.offsetRight.y, lineRate), i.texcoord.y * 0.2 + i.offsetRight.x);
+                }
 
-                fixed4 baseColor = tex2D(_MainTex, float2(textureX, textureY));
-                fixed3 pressedColor = tex2D(_MainTex, float2(textureX, textureY + 0.25)).rgb;
+                fixed4 baseColor = tex2D(_MainTex, textureUv);
+                fixed3 pressedColor = tex2D(_MainTex, textureUv + float2(0, 0.25)).rgb;
                 baseColor.rgb = lerp(baseColor.rgb, pressedColor, i.offsetLeft.x);
                 return baseColor * i.color;
             }

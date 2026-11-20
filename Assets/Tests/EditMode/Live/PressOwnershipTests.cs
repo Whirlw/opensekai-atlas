@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using Sekai.Core.Live;
 using Sekai.Live;
@@ -83,6 +84,12 @@ namespace OpenSekai.Tests.EditMode.Live
         private static LiveTouchSample Press(int touchId, float lane, int? fingerId = null)
         {
             return new LiveTouchSample(touchId, new Vector2(800f, 600f), At(lane), InputTime,
+                InputTouchPhase.Began, Vector2.zero, fingerId);
+        }
+
+        private static LiveTouchSample PressAt(int touchId, float lane, double inputTime, int fingerId)
+        {
+            return new LiveTouchSample(touchId, new Vector2(800f, 600f), At(lane), inputTime,
                 InputTouchPhase.Began, Vector2.zero, fingerId);
         }
 
@@ -174,6 +181,121 @@ namespace OpenSekai.Tests.EditMode.Live
             source.Add(Press(3, 6f, fingerId: 7));
             logic.OnInput();
             Assert.That(right.Result, Is.EqualTo(NoteResult.JustPerfect), "The next frame has a credit of its own.");
+        }
+
+        [Test]
+        public void AFingerThatPressesAgainInsideALateFrameJudgesBothNotesInOrder([Values(false, true)] bool laterPressNearer)
+        {
+            // A 100 ms hitch: the finger pressed at 0.00 s, lifted, and pressed again at 0.08 s; both Began
+            // samples arrive in the frame at 0.10 s. Each is its own press and takes its own note, the
+            // earlier press the earlier note, whichever sample sits nearer the lane centre.
+            var first = new CountingNote(1, 0f, 3, 2.5f, 4.5f);
+            var second = new CountingNote(2, 0.08f, 3, 2.5f, 4.5f);
+            Arrange(first, second);
+            logic.OnUpdate(0.1f, InputTime + 0.1);
+
+            source.Add(PressAt(1, laterPressNearer ? 4.2f : 3.5f, InputTime, fingerId: 7));
+            source.Add(PressAt(2, laterPressNearer ? 3.5f : 4.2f, InputTime + 0.08, fingerId: 7));
+            logic.OnInput();
+
+            Assert.That(first.Result, Is.EqualTo(NoteResult.JustPerfect), "The first press takes the first note on time.");
+            Assert.That(second.Result, Is.EqualTo(NoteResult.JustPerfect), "The second press takes the second note on time.");
+            Assert.That(first.JudgmentCalls + second.JudgmentCalls, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void TwoFingersPressingFramesApartInsideALateFrameAreNotAChord()
+        {
+            // 42 ms apart, as in the DEINOS replay at 160.2 s: a running game judges them seven frames
+            // apart. The later finger sits nearer the earlier note's centre; as a chord it would take that
+            // note late and leave the earlier finger the later note early.
+            var early = new CountingNote(1, 0f, 5, 2.5f, 6.5f);
+            var late = new CountingNote(2, 0.042f, 3, 2.5f, 6.5f);
+            Arrange(early, late);
+            logic.OnUpdate(0.06f, InputTime + 0.06);
+
+            source.Add(PressAt(1, 3.2f, InputTime, fingerId: 0));
+            source.Add(PressAt(2, 5f, InputTime + 0.042, fingerId: 1));
+            logic.OnInput();
+
+            Assert.That(early.Result, Is.EqualTo(NoteResult.JustPerfect), "The earlier press takes the earlier note.");
+            Assert.That(late.Result, Is.EqualTo(NoteResult.JustPerfect), "The later press takes the later note.");
+        }
+
+        [Test]
+        public void ANearChordIsMatchedOnlyUnderFrameMatching([Values(false, true)] bool frameMatching)
+        {
+            // Two fingers 3 ms apart on a chord. The first finger reaches both notes, the second only the
+            // left one. Frame matching treats them as one moment and gives each finger a note it reaches;
+            // serial judging lets the first press choose alone, as a running game does for presses a frame
+            // apart, and the chart order hands it the left note.
+            var left = new CountingNote(1, 0f, 3, 2.5f, 4.5f);
+            var right = new CountingNote(2, 0f, 5, 3.5f, 6.5f);
+            Arrange(left, right);
+            bool previous = LiveConfig.UseFramePressMatching;
+            try
+            {
+                LiveConfig.UseFramePressMatching = frameMatching;
+                logic.OnUpdate(0.01f, InputTime + 0.01);
+                source.Add(PressAt(1, 4f, InputTime, fingerId: 0));
+                source.Add(PressAt(2, 3f, InputTime + 0.003, fingerId: 1));
+                logic.OnInput();
+            }
+            finally
+            {
+                LiveConfig.UseFramePressMatching = previous;
+            }
+
+            Assert.That(left.Result, Is.Not.EqualTo(NoteResult.None));
+            if (frameMatching)
+                Assert.That(right.Result, Is.Not.EqualTo(NoteResult.None), "Matched as a chord, each finger plays a note.");
+            else
+                Assert.That(right.Result, Is.EqualTo(NoteResult.None), "Judged in order, the first press took the left note.");
+        }
+
+        [Test]
+        public void PressPassesSplitEveryPressWhenSerialAndOnlyFrameGapsUnderFrameMatching()
+        {
+            LiveLogic.InputTmp At(int finger, float time, InputTouchPhase phase = InputTouchPhase.Began) => new LiveLogic.InputTmp
+            {
+                Touch = new LiveTouch { fingerId = finger, touchId = finger * 10 + (int)(time * 1000f), phase = phase, musicTime = time },
+            };
+
+            var inputs = new List<LiveLogic.InputTmp>
+            {
+                At(1, 0.000f),                        // chord with finger 2
+                At(2, 0.000f),
+                At(3, 0.005f),                        // 5 ms later
+                At(1, 0.008f),                        // finger 1 again within 1/60 s: the same contact
+                At(4, 0.040f),                        // a late frame's later press
+                At(5, 0.020f, InputTouchPhase.Moved), // not a press
+            };
+
+            int serialPasses = JudgmentScheduler.AssignPressWaves(inputs, 0f);
+            Assert.That(inputs.Select(i => i.PressWave), Is.EqualTo(new[] { 0, 1, 2, 0, 3, 0 }), "serial: one press per pass, ties in input order");
+            Assert.That(serialPasses, Is.EqualTo(4));
+
+            int framePasses = JudgmentScheduler.AssignPressWaves(inputs, JudgmentScheduler.PressPassSeconds);
+            Assert.That(inputs.Select(i => i.PressWave), Is.EqualTo(new[] { 0, 0, 0, 0, 1, 0 }), "frame matching: one pass per 60 fps frame");
+            Assert.That(framePasses, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void TwoBeganSamplesOfOneFingerInsideOneFrameTimeStillShareOnePress()
+        {
+            // Closer than a 60 fps frame is one moment: one contact reported twice, not a lift and a press again.
+            var left = new CountingNote(1, 0f, 3, 2.5f, 3.5f);
+            var right = new CountingNote(2, 0.01f, 6, 5.5f, 6.5f);
+            Arrange(left, right);
+            logic.OnUpdate(0.02f, InputTime + 0.02);
+
+            source.Add(PressAt(1, 3f, InputTime, fingerId: 7));
+            source.Add(PressAt(2, 6f, InputTime + 0.01, fingerId: 7));
+            logic.OnInput();
+
+            Assert.That(left.JudgmentCalls + right.JudgmentCalls, Is.EqualTo(1));
+            Assert.That(left.Result, Is.EqualTo(NoteResult.JustPerfect), "The first sample spends the credit.");
+            Assert.That(right.Result, Is.EqualTo(NoteResult.None));
         }
 
         [Test]

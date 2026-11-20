@@ -38,11 +38,13 @@
 
 面板底部有一行提示：「皮肤、打击音与打击特效在下一次开局时生效。」
 
+设置中的「画面 → 2D MV 亮度」独立调节视频亮度，范围 0%–100%，每步 10%，默认 100%，下次开局生效。
+
 ### 其余常用字段（无界面入口）
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `Brightness` | float | 画面亮度 |
+| `Brightness` | float | 背景亮度 |
 | `LaneTransparent` | float | 轨道透明度 |
 | `NoteAlpha` / `GuideAlpha` / `JudgeLineAlpha` | float | 各类元素透明度 |
 | `UseCutIn` | bool | 是否播放 cut-in |

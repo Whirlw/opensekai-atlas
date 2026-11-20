@@ -17,11 +17,14 @@ namespace Sekai.Core.Live
             get
             {
                 EnhancedTouch touch = NativeInput.ActiveTouches[index];
-                Vector2 position = touch.screenPosition;
+                // EnhancedTouch may surface Began on a newer record when several events arrive together.
+                bool began = touch.began;
+                Vector2 position = began ? touch.startScreenPosition : touch.screenPosition;
+                double time = began ? touch.startTime : touch.time;
                 var screenPoint = new Vector3(position.x, position.y, 0f);
                 Vector3 worldPosition = Camera != null ? Camera.ScreenToWorldPoint(screenPoint) : screenPoint;
                 return new LiveTouchSample(touch.touchId, position, worldPosition,
-                    touch.time, touch.phase, touch.delta, touch.finger != null ? touch.finger.index : touch.touchId);
+                    time, touch.phase, touch.delta, touch.finger != null ? touch.finger.index : touch.touchId);
             }
         }
     }

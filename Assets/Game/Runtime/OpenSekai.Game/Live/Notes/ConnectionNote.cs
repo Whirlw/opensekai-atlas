@@ -2,14 +2,45 @@ namespace Sekai.Live
 {
 	public class ConnectionNote : NoteBase
 	{
-		/// <summary>
-		/// How long a slide stays judgeable after its time passes: one reference frame.
-		/// </summary>
-		/// <remarks>
-		/// Long enough to cover the frame the time passes on (a 165 Hz device only has ~6 ms per
-		/// frame) and far below the 125 ms between sixteenths at 120 BPM, so a parked finger cannot
-		/// catch two slides at once.
-		/// </remarks>
+		internal const float ContactWindowFrames = 5f;
+		internal const float ContactWindowSeconds = ContactWindowFrames / 60f;
+		private LongNote _endpointSection;
+		private NextRushTickPathPoint _connectorInputHead;
+		private NextRushTickPathPoint _connectorInputTail;
+
+		internal bool UsesNextRushContactWindow { get; private set; }
+		private float _crossingFrame;
+		private LongNote TickOwner => _endpointSection ?? parentNote;
+		private bool IsVisibleTick => Category == NoteCategory.Connection && IsVisible && !IsSkip && HasJudgment;
+		internal bool IsConnectedVisibleTick => IsVisibleTick && !UsesContactWindow && TickOwner != null;
+		internal virtual bool UsesContactWindow => UsesNextRushContactWindow
+			|| !UsesNextRushJudgment && Category == NoteCategory.Connection && TickOwner == null && !IsDecoration;
+		internal virtual float EarlyContactSeconds => ContactWindowSeconds;
+		internal virtual float LateContactSeconds => ContactWindowSeconds;
+		internal bool AcceptsContactAt(float now, float target) =>
+			now > target - EarlyContactSeconds && now < target + LateContactSeconds;
+		internal bool HasRecordedContact { get; private set; }
+
+		public void SetNextRushContactWindow() => UsesNextRushContactWindow = true;
+
+		public void SetConnectorInputPath(NextRushTickPathPoint head, NextRushTickPathPoint tail)
+		{
+			_connectorInputHead = head;
+			_connectorInputTail = tail;
+		}
+
+		protected bool ContainsConnectorInput(ref LiveTouch touch, float lane, float now) =>
+			_connectorInputHead != null
+				? _connectorInputHead.Contains(_connectorInputTail,
+					touch.PreviousFrameMusicTime ?? (now - OpenSekai.Shared.Live.ReferenceFrame.Seconds), now, lane)
+				: JudgeLaneStart <= lane && lane <= JudgeLaneEnd;
+
+		public void SetNextRushEndpointSection(LongNote section)
+		{
+			_endpointSection = section;
+		}
+
+		// Hidden geometry markers retain a reference frame before retiring.
 		public const float SlideLateWindowSeconds = OpenSekai.Shared.Live.ReferenceFrame.Seconds;
 
 		public ConnectionNote()
@@ -31,6 +62,27 @@ namespace Sekai.Live
 				return;
 			}
 
+			if (SettleFromCompletedTail()) return;
+
+			if (TickOwner is GuideNote { IsFakeHold: true })
+			{
+				AdvanceNote(currentFrameInfo, offsetTime, settleTimeout: false);
+				if (currentFrameInfo.time >= MusicScoreInfo.time) FinishContact(NoteResult.JustPerfect);
+				return;
+			}
+
+			if (UsesContactWindow)
+			{
+				OffsetJudgeTime = currentFrameInfo.time - MusicScoreInfo.time;
+				if (State == NoteState.Wait) State = NoteState.Scrolling;
+				Progress = CalcProgress(currentFrameInfo, offsetTime);
+				if (HasRecordedContact && currentFrameInfo.time >= MusicScoreInfo.time)
+					FinishContact(NoteResult.JustPerfect);
+				else if (currentFrameInfo.time >= MusicScoreInfo.time + LateContactSeconds)
+					FinishContact(NoteResult.Miss);
+				return;
+			}
+
 			// Decoration connection notes should not be marked as Last/Miss
 			// Check parent note's decoration status
 			bool isDecorationConnection = IsDecoration || (parentNote != null && parentNote.IsDecoration);
@@ -39,13 +91,8 @@ namespace Sekai.Live
 			{
 				if (!isDecorationConnection)
 				{
-					// A slide is judged by the frame its time passes, but the finger arrives a few
-					// milliseconds later (and at 165 Hz one frame is only ~6 ms). Keep the note
-					// judgeable for a short late window instead of failing it on the next Excute;
-					// the window stays shorter than a 16th note at 120 BPM (125 ms) so a parked
-					// finger cannot catch two slides at once.
 					OffsetJudgeTime = currentFrameInfo.time - MusicScoreInfo.time;
-					if (OffsetJudgeTime > SlideLateWindowSeconds)
+					if (currentFrameInfo.time > _crossingFrame)
 					{
 						// A skipped connection is the hidden kind of interior point: it shapes the bar and
 						// is never judged, so it ends as Pass instead of failing. It still has to end, or
@@ -68,18 +115,40 @@ namespace Sekai.Live
 			// Decoration connection notes should not be marked as Last
 			if (MusicScoreInfo.time <= currentFrameInfo.time && !isDecorationConnection)
 			{
+				_crossingFrame = currentFrameInfo.time;
 				State = NoteState.Last;
 			}
 		}
 
 		public override bool IsJudgment(ref LiveTouch touch, float lane)
 		{
-			return State == NoteState.Last && JudgeLaneStart <= lane && JudgeLaneEnd >= lane;
+			if (UsesContactWindow)
+				return State is NoteState.Scrolling or NoteState.Input && JudgeLaneStart <= lane && JudgeLaneEnd >= lane
+					&& AcceptsContactAt(MusicScoreInfo.time + OffsetJudgeTime, MusicScoreInfo.time)
+					&& touch.phase != UnityEngine.InputSystem.TouchPhase.Canceled;
+
+			return State == NoteState.Last
+				&& touch.phase != UnityEngine.InputSystem.TouchPhase.Canceled
+				&& (TickOwner == null || !TickOwner.PublishesHeadMiss || TickOwner.Head.IsSettled)
+				&& ContainsConnectorInput(ref touch, lane, _crossingFrame);
 		}
 
 		public override bool Judgment(ref LiveTouch touch, float lane)
 		{
-			if (State == NoteState.Last)
+			if (UsesContactWindow)
+			{
+				if (!IsJudgment(ref touch, lane)) return false;
+				HasRecordedContact = true;
+				if (OffsetJudgeTime < 0f)
+				{
+					State = NoteState.Input;
+					return false;
+				}
+				FinishContact(NoteResult.JustPerfect);
+				return true;
+			}
+
+			if (IsJudgment(ref touch, lane))
 			{
 				OffsetJudgeTime = 0f;
 				Progress = 1f;
@@ -90,6 +159,31 @@ namespace Sekai.Live
 
 			// Not in its late window yet: the press is not for this slide.
 			return true;
+		}
+
+		internal static bool InContactWindow(float now, float target) =>
+			now > target - ContactWindowSeconds && now < target + ContactWindowSeconds;
+
+		internal bool SettleFromCompletedTail()
+		{
+			if (State == NoteState.Done || !IsVisibleTick || TickOwner?.LinkedPointTail is not { State: NoteState.Done })
+				return false;
+			FinishContact(NoteResult.JustPerfect);
+			return true;
+		}
+
+		public override void ResetNote()
+		{
+			base.ResetNote();
+			_crossingFrame = 0f;
+			HasRecordedContact = false;
+		}
+
+		protected void FinishContact(NoteResult result)
+		{
+			if (result == NoteResult.JustPerfect) Progress = 1f;
+			JudgeInfo = (result, NoteResultDescription.None);
+			State = NoteState.Done;
 		}
 
 		public override void Terminate()

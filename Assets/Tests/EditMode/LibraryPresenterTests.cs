@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -12,6 +13,7 @@ using OpenSekai.App.UI;
 using OpenSekai.Infrastructure.Packages;
 using OpenSekai.Shared.Packages;
 using OpenSekai.Shared.Playback;
+using UnityEngine;
 
 namespace OpenSekai.Tests.EditMode
 {
@@ -41,6 +43,43 @@ namespace OpenSekai.Tests.EditMode
             if (Directory.Exists(_root))
             {
                 Directory.Delete(_root, recursive: true);
+            }
+        }
+
+        [Test]
+        public void BrowsePreferencesDefaultAndSurviveReopening()
+        {
+            string[] keys = { "library.group", "library.sort", "library.view" };
+            var saved = keys.Where(PlayerPrefs.HasKey).ToDictionary(key => key, key => PlayerPrefs.GetString(key));
+            try
+            {
+                foreach (string key in keys) PlayerPrefs.DeleteKey(key);
+                using (var first = new LibraryPresenter(_view, _packages, StartPlayback, persistBrowsePreferences: true))
+                {
+                    first.Refresh();
+                    Assert.That(_view.State.GroupKey, Is.EqualTo(LibraryGroupKey.None));
+                    Assert.That(_view.State.SortKey, Is.EqualTo(LibrarySortKey.Title));
+                    Assert.That(_view.State.ViewMode, Is.EqualTo(LibraryViewMode.List));
+                    first.SetGroupMode(LibraryGroupKey.Difficulty);
+                    first.SetSort(LibrarySortKey.Level);
+                    first.SetViewMode(LibraryViewMode.Grid);
+                }
+
+                using var reopened = new LibraryPresenter(_view, _packages, StartPlayback, persistBrowsePreferences: true);
+                reopened.Refresh();
+                Assert.That(_view.State.GroupKey, Is.EqualTo(LibraryGroupKey.Difficulty));
+                Assert.That(_view.State.SortKey, Is.EqualTo(LibrarySortKey.Level));
+                Assert.That(_view.State.ViewMode, Is.EqualTo(LibraryViewMode.Grid));
+            }
+            finally
+            {
+                foreach (string key in keys)
+                {
+                    if (saved.TryGetValue(key, out string value)) PlayerPrefs.SetString(key, value);
+                    else PlayerPrefs.DeleteKey(key);
+                }
+
+                PlayerPrefs.Save();
             }
         }
 
@@ -144,6 +183,29 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(_view.Items.Single().Entry.Manifest.id, Is.EqualTo("codexbaseline20261101tap"));
             Assert.That(_view.Items.Single().HasScore, Is.True);
             Assert.That(_view.Items.Single().HasAudio, Is.True);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ImportWithoutAManifestReportsFailureAndKeepsTheLibrary(bool isFolder)
+        {
+            AddPackage("track", "Track", 1);
+            _presenter.Refresh();
+            string folder = Path.Combine(_root, "no-manifest");
+            Directory.CreateDirectory(folder);
+            File.WriteAllText(Path.Combine(folder, "readme.txt"), "No chart package here.");
+            string path = folder;
+            if (!isFolder)
+            {
+                path = Path.Combine(_root, "no-manifest.zip");
+                ZipFile.CreateFromDirectory(folder, path);
+            }
+
+            _presenter.StartImport(path, isFolder);
+
+            Assert.That(_view.Status, Does.StartWith("导入失败").And.Contain("manifest.json"));
+            Assert.That(_view.Items.Single().Entry.Manifest.id, Is.EqualTo("track"));
+            Assert.That(_packages.LoadItems().Count, Is.EqualTo(1));
         }
 
         [Test]

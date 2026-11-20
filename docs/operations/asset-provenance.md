@@ -31,6 +31,7 @@
 | live UI 预制 | `Assets/Graphics/Resources/live` | 10 | 3.82 MB | 自制（画包 `new_effects`） | 现行 |
 | HUD sprite | `Assets/Graphics/Sprites` | 176 | 1.04 MB | 自制（画包 `new_hud` + 程序化替身） | 现行 |
 | 图集精灵 | `Assets/Graphics/Textures/sactx-*.png` | 153 | 5.2 MB | 自制 / CC0 | 现行 |
+| 应用图标 | `Assets/Graphics/Icons` | 3 | 0.95 MB | 程序生成（`BrandArt`，菜单 `OpenSekai/Brand/Export App Icons`；原 398 B 占位图已删） | 现行 |
 | 字体 | `Assets/Game/Resources/Fonts` | 5 | 32.07 MB | OFL（思源黑体 SC；Barlow Condensed SemiBold，许可见 `BarlowCondensed-OFL.txt`） | 保留 |
 | 代码 | `Assets/Game/Runtime` | 796 | 2.12 MB | MIT | 保留 |
 

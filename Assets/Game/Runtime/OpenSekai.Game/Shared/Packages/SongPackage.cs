@@ -55,8 +55,11 @@ namespace OpenSekai.Shared.Packages
 
 		private string ResolveEntryPath(string fileName)
 		{
-			string safeFileName = Path.GetFileName(string.IsNullOrEmpty(fileName) ? string.Empty : fileName);
-			return string.IsNullOrEmpty(safeFileName) ? RootDirectory : Path.Combine(RootDirectory, safeFileName);
+			if (string.IsNullOrEmpty(fileName)) return RootDirectory;
+			SongPackageStorage.ValidatePathComponent(fileName, nameof(fileName));
+			string path = Path.Combine(RootDirectory, fileName);
+			SongPackageStorage.RejectReparsePoint(path);
+			return path;
 		}
 		private static int CreateStableMusicId(string id)
 		{

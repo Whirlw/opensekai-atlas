@@ -1,4 +1,3 @@
-using OpenSekai.Shared.Settings;
 using System.Collections;
 using Sekai.Live;
 using UnityEngine;
@@ -6,6 +5,7 @@ using OpenSekai.Shared.Playback;
 using OpenSekai.Shared.UI;
 using CriWare;
 using Sekai;
+using OpenSekai.Shared.Diagnostics;
 
 namespace Sekai.Core.Live
 {
@@ -87,6 +87,8 @@ namespace Sekai.Core.Live
 
 		protected override void OnMusicPlaybackStarted(float musicTime)
 		{
+			if (LatencyCapture.Active)
+				LatencyCapture.Record("bgm_start", song: musicTime, value: SoundManager.Instance.GetCurrentIngamePlaybackId());
 			LiveViewExt.MusicPlaybackStart(_liveViews, musicTime);
 		}
 
@@ -95,8 +97,9 @@ namespace Sekai.Core.Live
 			LiveViewExt.RhythmGameStart(_liveViews);
 			base.OnRhythmGameStart();
 			_liveLogic?.RefreshInput();
+			BeginLatencyCapture();
 			_forcedFinish = false;
-			if (timelineSpan.HasIntroSkip)
+			if (timelineSpan.HasIntroSkip && currentMusicTimeMs < IntroSkipTargetMs)
 			{
 				ShowSkip(SkipIntro);
 			}
@@ -105,17 +108,15 @@ namespace Sekai.Core.Live
 		/// <summary>How long past the end of the timeline a live may stay open before it is ended by force.</summary>
 		private const long StalledFinishGraceMs = 3000L;
 
-		private const float LiveTimelineSpanMargin = OpenSekai.Shared.Live.Simulation.LiveTimelineSpan.SkipMarginSeconds;
-
-		/// <summary>An outro skip that would bring the result effect forward by less than this is not offered.</summary>
-		private const long MinimumOutroSkipMs = (long)(OpenSekai.Shared.Live.Simulation.LiveTimelineSpan.MinimumSkipSeconds * 1000f);
+		private long IntroSkipTargetMs => (long)System.Math.Floor(timelineSpan.IntroSkipTargetSeconds * 1000d);
 
 		private bool _skipShown;
 		private bool _forcedFinish;
-		private long _outroSkipAtMs = -1L;
+		private long? _outroSkipAtMs;
 
 		// The finish sequence waiting to run, kept so the outro skip can start it early.
 		private bool _resultEffectPending;
+		private long? _resultEffectAtMs;
 		private float _pendingResultWait;
 		private float _pendingFinishWait;
 
@@ -141,7 +142,7 @@ namespace Sekai.Core.Live
 		private void SkipIntro()
 		{
 			HideSkip();
-			long targetMs = (long)(timelineSpan.IntroSkipTargetSeconds * 1000f);
+			long targetMs = IntroSkipTargetMs;
 			// The run-in counts too: the clock now starts a few seconds before the music.
 			bool clockRunning = musicPhase == MusicPhase.Playing || musicPhase == MusicPhase.RunIn;
 			if (state != LiveControllerState.Playing || !clockRunning || currentMusicTimeMs >= targetMs)
@@ -151,6 +152,7 @@ namespace Sekai.Core.Live
 
 			TraceTimeline("intro skip from=" + currentMusicTimeMs + " to=" + targetMs);
 			SeekTimeline(targetMs);
+			LatencyCapture.Record("seek", song: targetMs / 1000d);
 			LiveViewExt.MusicSeek(_liveViews, targetMs / 1000f);
 		}
 
@@ -166,25 +168,26 @@ namespace Sekai.Core.Live
 			TraceTimeline("outro skip at=" + currentMusicTimeMs);
 			// The music stops here; nothing after this point plays it again.
 			SoundManager.Instance.StopIngame();
+			_resultEffectAtMs = null;
+			_outroSkipAtMs = null;
 			if (_finishCoroutine != null)
 			{
 				StopCoroutine(_finishCoroutine);
 			}
-			_finishCoroutine = StartCoroutine(SetFinishCoroutine(0f, _pendingResultWait, _pendingFinishWait));
+			_finishCoroutine = StartCoroutine(ResultAnim(_pendingResultWait, _pendingFinishWait));
 		}
 
 		protected override void OnUpdate()
 		{
 			base.OnUpdate();
-			if (state == LiveControllerState.Finish && _outroSkipAtMs >= 0L)
+			if (state == LiveControllerState.Finish && _resultEffectAtMs.HasValue)
 			{
-				// Nothing else reads the clock once the live is finished; it is kept moving only to
-				// know when the outro skip is due.
+				// The result effect and outro skip both use the same clock as the music and chart.
 				UpdateMusicTime();
-				if (currentMusicTimeMs >= _outroSkipAtMs)
+				if (_outroSkipAtMs is long skipAtMs && currentMusicTimeMs >= skipAtMs)
 				{
-					_outroSkipAtMs = -1L;
-					if (_resultEffectPending && currentMusicTimeMs + MinimumOutroSkipMs < ResultEffectMs)
+					_outroSkipAtMs = null;
+					if (_resultEffectPending && currentMusicTimeMs < ResultEffectMs)
 					{
 						ShowSkip(SkipOutro);
 					}
@@ -193,16 +196,19 @@ namespace Sekai.Core.Live
 
 			if (state != LiveControllerState.Playing)
 			{
+				if (LatencyCapture.Active)
+					LatencyCapture.Record("play_stopped_frame", value: Time.unscaledDeltaTime * 1000d, detail: state.ToString());
+				LatencyCapture.End("play_stopped");
 				return;
 			}
 
 			UpdateMusicTime();
-			if (_skipShown && currentMusicTimeMs >= (long)(timelineSpan.IntroSkipTargetSeconds * 1000f))
+			if (_skipShown && currentMusicTimeMs >= IntroSkipTargetMs)
 			{
 				HideSkip();
 			}
-			float fillerSec = BootData?.MusicData?.Music?.fillerSec ?? 0f;
-			_liveLogic?.OnUpdate(currentLogicMusicTime - fillerSec, currentGameTime);
+			LatencyCapture.RecordFrame(currentGameTime, currentMusicTimeMs / 1000d, musicPhase == MusicPhase.Playing);
+			_liveLogic?.OnUpdate(CurrentLogicChartTime, currentGameTime);
 			if (BootData?.IsAuto == true)
 			{
 				_liveLogic?.OnAutoInput();
@@ -239,6 +245,7 @@ namespace Sekai.Core.Live
 			if (pauseStatus)
 			{
 				OnPause();
+				LatencyCapture.End("background");
 			}
 		}
 
@@ -267,6 +274,7 @@ namespace Sekai.Core.Live
 					_resumeCoroutine = null;
 				}
 				state = LiveControllerState.Pause;
+				_liveLogic?.ConnectorAudio.Silence();
 				SoundManager.Instance.Pause();
 				LiveViewExt.Pause(_liveViews);
 				ShowPauseDialog();
@@ -340,6 +348,7 @@ namespace Sekai.Core.Live
 			}
 
 			state = LiveControllerState.Pause;
+			_liveLogic?.ConnectorAudio.Silence();
 			SoundManager.Instance.Pause();
 			LiveViewExt.Pause(_liveViews);
 		}
@@ -375,6 +384,7 @@ namespace Sekai.Core.Live
 			state = LiveControllerState.Playing;
 			LiveViewExt.Resume(_liveViews, currentAudioLatencyMusicTimeMs);
 			_liveLogic?.RefreshInput();
+			BeginLatencyCapture();
 		}
 
 		public void ShowConsecutiveAutoLiveRetireDialog()
@@ -384,23 +394,26 @@ namespace Sekai.Core.Live
 
 		protected override void OnRetry()
 		{
+			LatencyCapture.End("retry");
 			_pauseOverlay?.Hide();
 			HideSkip();
-			_outroSkipAtMs = -1L;
+			_outroSkipAtMs = null;
 			_resultEffectPending = false;
+			_resultEffectAtMs = null;
 			liveOutUIController?.Destroy();
 			SoundManager.Instance.StopIngame();
 			_playHistoryRecorded = false;
 			result = 0;
 			state = LiveControllerState.None;
 			currentMusicTimeMs = System.Math.Max(0L, BootData?.MusicData?.StartMusicTimeMs ?? 0L);
-			RetryProcess();
 			LiveViewExt.Retry(_liveViews);
+			RetryProcess();
 			StartCoroutine(LiveStart(6f));
 		}
 
 		private void RetryProcess()
 		{
+			_liveLogic?.ConnectorAudio.Reset();
 			if (_liveLogic != null)
 			{
 				_liveLogic.OnFinished -= OnFinished;
@@ -454,7 +467,25 @@ namespace Sekai.Core.Live
 			state = LiveControllerState.Playing;
 			LiveViewExt.Resume(_liveViews, currentAudioLatencyMusicTimeMs);
 			SoundManager.Instance.SetAudioSyncedUnityTimer(cueId);
+			BeginLatencyCapture();
 			_resumeCoroutine = null;
+		}
+
+		private void BeginLatencyCapture()
+		{
+			LatencyCapture.Begin(_context?.ChartHash, BootData?.MusicData?.DifficultyString,
+				BootData?.IsAuto == true, timingCompensation.AudioLatencyMs,
+				timingCompensation.VisualLatencyMs, timingCompensation.JudgeOffsetMs, LiveConfig.UseLegacyJudgeTiming);
+			if (LatencyCapture.Active)
+				LatencyCapture.Record("segment_start", song: currentMusicTimeMs / 1000d,
+					value: SoundManager.Instance.GetCurrentIngamePlaybackId());
+		}
+
+		protected override void OnDestroy()
+		{
+			_liveLogic?.ConnectorAudio.Reset();
+			LatencyCapture.End("destroy");
+			base.OnDestroy();
 		}
 
 		private void OnFailure()
@@ -473,8 +504,9 @@ namespace Sekai.Core.Live
 			base.OnFinished();
 		}
 
-		protected override void PreExit(float delay, float waitTime)
+		protected override void PreExit(float delay, float waitTime, long? resultEffectAtMs = null)
 		{
+			_liveLogic?.ConnectorAudio.Silence();
 			if (state == LiveControllerState.Finish)
 			{
 				return;
@@ -485,18 +517,21 @@ namespace Sekai.Core.Live
 				result = 3;
 			}
 
+			double historyStart = LatencyCapture.Active ? Time.realtimeSinceStartupAsDouble : 0d;
 			TryAppendPlayHistory();
+			if (LatencyCapture.Active)
+				LatencyCapture.Record("finish_history", value: (Time.realtimeSinceStartupAsDouble - historyStart) * 1000d);
 			PublishPlayResultForLibrary();
 			state = LiveControllerState.Finish;
-			SetFinish(delay, waitTime, 2f);
+			SetFinish(delay, waitTime, 2f, resultEffectAtMs);
 
 			// The chart is done but the music runs on: the result effect waits for it unless the player
 			// skips. The button only comes up the margin after the last note, so the end of the chart is
 			// seen, and not at all when the effect is due within that margin.
 			HideSkip();
-			_outroSkipAtMs = result == 3 && timelineSpan.HasOutroSkip && musicPhase == MusicPhase.Playing
-				? (long)System.Math.Ceiling((timelineSpan.LastNoteSeconds + LiveTimelineSpanMargin) * 1000d)
-				: -1L;
+			_outroSkipAtMs = result == 3 && resultEffectAtMs.HasValue && timelineSpan.HasOutroSkip
+				? (long)System.Math.Ceiling(timelineSpan.OutroSkipAvailableSeconds * 1000d)
+				: null;
 		}
 
 		private void TryAppendPlayHistory()
@@ -551,7 +586,7 @@ namespace Sekai.Core.Live
 			SceneManager.Instance.RequestScene(returnScene);
 		}
 
-		private void SetFinish(float delay, float waitTime, float finishWaitSeconds)
+		private void SetFinish(float delay, float waitTime, float finishWaitSeconds, long? resultEffectAtMs)
 		{
 			if (_finishCoroutine != null)
 			{
@@ -563,6 +598,7 @@ namespace Sekai.Core.Live
 				_liveLogic.OnFailure -= OnFailure;
 			}
 			_resultEffectPending = true;
+			_resultEffectAtMs = resultEffectAtMs;
 			_pendingResultWait = waitTime;
 			_pendingFinishWait = finishWaitSeconds;
 			_finishCoroutine = StartCoroutine(SetFinishCoroutine(delay, waitTime, finishWaitSeconds));
@@ -570,6 +606,10 @@ namespace Sekai.Core.Live
 
 		private System.Collections.IEnumerator SetFinishCoroutine(float delay, float waitTime, float finishWaitSeconds)
 		{
+			while (_resultEffectAtMs is long dueMs && currentMusicTimeMs < dueMs)
+			{
+				yield return null;
+			}
 			if (delay > 0f)
 			{
 				yield return new WaitForSeconds(delay);
@@ -581,10 +621,12 @@ namespace Sekai.Core.Live
 		{
 			// The effect is starting, so there is nothing left to skip to.
 			_resultEffectPending = false;
-			_outroSkipAtMs = -1L;
+			_resultEffectAtMs = null;
+			_outroSkipAtMs = null;
 			HideSkip();
-			LiveViewExt.Result(_liveViews, (int)GetLiveResultAnimationType());
-			if (waitTime > 0f)
+			LiveResultAnimationType animation = GetLiveResultAnimationType();
+			LiveViewExt.Result(_liveViews, (int)animation);
+			if (animation != LiveResultAnimationType.None && waitTime > 0f)
 			{
 				yield return new WaitForSeconds(waitTime);
 			}
@@ -616,17 +658,14 @@ namespace Sekai.Core.Live
 			}
 
 			LiveScore score = _liveLogic?.Score ?? default;
-			// Check if this is an Auto play
-			bool isAutoPlay = BootData?.IsAuto == true;
-			int autoResultAnimation = LiveSettingsStore.Shared.Load()?.AutoResultAnimationMode ?? LiveSettingData.AUTO_RESULT_ANIMATION_NONE;
-
-			// If all notes were Auto, handle based on settings
-			if (score.totalComboCount > 0 && score.autoCount == score.totalComboCount)
+			if (score.totalComboCount == 0) return LiveResultAnimationType.None;
+			if (score.autoCount == score.totalComboCount)
 			{
-				if (isAutoPlay)
+#if UNITY_EDITOR
+				// The screenshot tool can explicitly preview alternate result animations.
+				if (BootData is FreeLiveBootData { IsAuto: true, ResultAnimationPreviewOverride: int animation })
 				{
-					// Auto play with all Auto notes - use custom result animation setting
-					switch (autoResultAnimation)
+					switch (animation)
 					{
 						case LiveSettingData.AUTO_RESULT_ANIMATION_NONE:
 							return LiveResultAnimationType.None;
@@ -640,6 +679,7 @@ namespace Sekai.Core.Live
 							return LiveResultAnimationType.LifeZero;
 					}
 				}
+#endif
 				return LiveResultAnimationType.Clear;
 			}
 

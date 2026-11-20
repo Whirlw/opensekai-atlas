@@ -30,6 +30,7 @@ namespace Sekai
 		private const int GetDevicesOutputs = 2;
 
 		public static string Report { get; private set; } = "audio output not tuned";
+		internal static volatile string LatestRouteReport;
 
 		/// <summary>True when an output that adds its own large latency (Bluetooth) is connected.</summary>
 		public static bool HasBluetoothOutput { get; private set; }
@@ -52,8 +53,9 @@ namespace Sekai
 			}
 
 			AudioOutputDecision decision = AudioOutputPlan.Choose(config.sampleRate, config.dspBufferSize, nativeRate, nativeBurst);
+			bool resetRequested = decision.Changed;
 			bool applied = false;
-			if (decision.Changed)
+			if (resetRequested)
 			{
 				config.sampleRate = decision.SampleRate;
 				config.dspBufferSize = decision.DspBufferSize;
@@ -67,9 +69,11 @@ namespace Sekai
 				.Append(" native=").Append(nativeRate).Append('/').Append(nativeBurst)
 				.Append(" lowLatencyFeature=").Append(lowLatencyFeature)
 				.Append(" outputs=").Append(outputs)
-				.Append(" plan=").Append(decision.Reason)
-				.Append(decision.Changed ? (applied ? " (applied)" : " (reset refused)") : "");
+				.Append(" requested=").Append(decision.SampleRate).Append('/').Append(decision.DspBufferSize)
+				.Append(" reset=").Append(!resetRequested ? "not_needed" : applied ? "accepted" : "refused")
+				.Append(" plan=").Append(decision.Reason);
 			Report = builder.ToString();
+			LatestRouteReport = Report;
 			Debug.Log(Report);
 
 			AudioSettings.OnAudioConfigurationChanged -= OnConfigurationChanged;
@@ -93,7 +97,10 @@ namespace Sekai
 				Debug.LogWarning("[AudioOut] device query failed: " + exception.Message);
 			}
 
-			Debug.Log("[AudioOut] route changed: rate=" + AudioSettings.outputSampleRate + " outputs=" + outputs);
+			AudioSettings.GetDSPBufferSize(out int bufferLength, out int bufferCount);
+			string report = $"[AudioOut] route changed: rate={AudioSettings.outputSampleRate} dsp={bufferLength}x{bufferCount} outputs={outputs}";
+			LatestRouteReport = report;
+			Debug.Log(report);
 		}
 
 		private static void QueryDevice(out int nativeRate, out int nativeBurst, out bool lowLatencyFeature, out string outputs)

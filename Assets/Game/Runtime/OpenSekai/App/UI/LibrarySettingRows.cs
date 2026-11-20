@@ -272,13 +272,16 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>A pill of equal segments, one per choice; the chosen one is filled.</summary>
-        internal void AddSegmented(Section section, string label, string[] options, Func<int> get, Action<int> set, float segmentWidth = 132f)
+        /// <param name="locked">When it answers true the control shows <paramref name="get"/> dimmed and ignores taps.</param>
+        internal void AddSegmented(Section section, string label, string[] options, Func<int> get, Action<int> set,
+            float segmentWidth = 132f, Func<bool> locked = null)
         {
             RectTransform row = section.AddRow(label, out TextMeshProUGUI labelText);
             float width = segmentWidth * options.Length + 8f;
             labelText.rectTransform.offsetMax = new Vector2(-(width + CONTROL_INSET * 2f), 0f);
 
             RectTransform group = ControlGroup(row, width);
+            CanvasGroup lockFade = locked != null ? group.gameObject.AddComponent<CanvasGroup>() : null;
             Image track = LibraryWidgets.Panel("Track", group, CONTROL_HEIGHT * 0.5f, LibraryTheme.Colors.Control);
             LibraryUi.Stretch(track.rectTransform);
             LibraryWidgets.Outline(track, CONTROL_HEIGHT * 0.5f);
@@ -301,6 +304,11 @@ namespace OpenSekai.App.UI
                 button.targetGraphic = hit;
                 button.onClick.AddListener(() =>
                 {
+                    if (locked?.Invoke() == true)
+                    {
+                        return;
+                    }
+
                     if (get() != index)
                     {
                         set(index);
@@ -318,6 +326,11 @@ namespace OpenSekai.App.UI
             _motions.Add(motion);
             _refreshers.Add(() =>
             {
+                if (lockFade != null)
+                {
+                    lockFade.alpha = locked() ? 0.45f : 1f;
+                }
+
                 int selected = Mathf.Clamp(get(), 0, options.Length - 1);
                 for (int i = 0; i < labels.Length; i++)
                 {
@@ -363,6 +376,173 @@ namespace OpenSekai.App.UI
 
             _refreshers.Add(Bind);
             _accentListeners.Add(dropdown.SetAccent);
+        }
+
+        /// <summary>A free text field on the right of the line.</summary>
+        internal void AddText(
+            Section section, string label, string placeholder, int limit, Func<string> get, Action<string> set, float width = 420f)
+        {
+            RectTransform row = section.AddRow(label, out TextMeshProUGUI labelText);
+            labelText.rectTransform.offsetMax = new Vector2(-(width + CONTROL_INSET * 2f), 0f);
+            RectTransform group = ControlGroup(row, width);
+            TMP_InputField input = LibraryWidgets.TextField("Field", group, CONTROL_HEIGHT, placeholder ?? string.Empty);
+            LibraryUi.Stretch((RectTransform)input.transform);
+            if (limit > 0)
+            {
+                input.characterLimit = limit;
+            }
+
+            input.onValueChanged.AddListener(value => set(value));
+            _refreshers.Add(() =>
+            {
+                if (!input.isFocused && input.text != (get() ?? string.Empty))
+                {
+                    input.SetTextWithoutNotify(get() ?? string.Empty);
+                }
+            });
+        }
+
+        /// <summary>A − field + group for a number in [min, max] on a step grid: tap to type, or nudge by one step.</summary>
+        internal void AddNumber(
+            Section section, string label, Func<double> get, Action<double> set, double min, double max, double step, string unit = null)
+        {
+            RectTransform row = section.AddRow(label, out TextMeshProUGUI labelText);
+            const float fieldWidth = 156f;
+            float width = STEP_BUTTON * 2f + fieldWidth + 16f;
+            labelText.rectTransform.offsetMax = new Vector2(-(width + CONTROL_INSET * 2f), 0f);
+            if (step <= 0d)
+            {
+                step = 1d;
+            }
+
+            bool whole = Math.Abs(step - Math.Round(step)) < 1e-9;
+            RectTransform group = ControlGroup(row, width);
+            StepButton(group, LibraryIcon.Minus, new Vector2(0f, 0.5f), () => Nudge(-step));
+            StepButton(group, LibraryIcon.Add, new Vector2(1f, 0.5f), () => Nudge(step));
+
+            Image background = LibraryWidgets.Panel("Field", group, CONTROL_HEIGHT * 0.5f, LibraryTheme.Colors.Control);
+            background.raycastTarget = true;
+            LibraryWidgets.Place(background.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, new Vector2(fieldWidth, CONTROL_HEIGHT));
+            LibraryWidgets.Outline(background, CONTROL_HEIGHT * 0.5f);
+            float unitWidth = 0f;
+            if (!string.IsNullOrEmpty(unit))
+            {
+                TextMeshProUGUI unitText = LibraryWidgets.Label(
+                    "Unit", background.transform, unit, LibraryTheme.FontSize.CAPTION, LibraryTheme.Colors.TextMuted,
+                    FontStyles.Normal, TextAlignmentOptions.Right);
+                LibraryWidgets.Inset(unitText.rectTransform, 0f, 0f, 18f, 0f);
+                unitWidth = 30f;
+            }
+
+            background.gameObject.SetActive(false);
+            RectTransform area = LibraryUi.CreateRect("TextArea", background.transform);
+            LibraryWidgets.Inset(area, 14f, 4f, 18f + unitWidth, 4f);
+            area.gameObject.AddComponent<RectMask2D>();
+            TextMeshProUGUI text = LibraryWidgets.Label(
+                "Text", area, string.Empty, 30f, LibraryTheme.Colors.TextPrimary, FontStyles.Normal, TextAlignmentOptions.Center);
+            LibraryUi.UseCondensedFont(text);
+            text.overflowMode = TextOverflowModes.Overflow;
+            LibraryUi.Stretch(text.rectTransform);
+
+            TMP_InputField input = background.gameObject.AddComponent<TMP_InputField>();
+            input.textViewport = area;
+            input.textComponent = text;
+            input.targetGraphic = background;
+            input.transition = Selectable.Transition.None;
+            input.contentType = whole ? TMP_InputField.ContentType.IntegerNumber : TMP_InputField.ContentType.DecimalNumber;
+            input.characterLimit = 10;
+            input.fontAsset = text.font;
+            input.pointSize = 30f;
+            input.caretColor = LibraryTheme.Colors.TextPrimary;
+            input.customCaretColor = true;
+            input.selectionColor = new Color32(157, 184, 255, 96);
+            input.onSelect.AddListener(_ => background.color = LibraryTheme.Colors.ControlActive);
+            input.onEndEdit.AddListener(raw =>
+            {
+                background.color = LibraryTheme.Colors.Control;
+                if (double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out double value))
+                {
+                    set(Snap(value));
+                }
+
+                Refresh();
+            });
+            background.gameObject.SetActive(true);
+
+            double Snap(double value)
+            {
+                double snapped = min + Math.Round((value - min) / step) * step;
+                return Math.Max(min, Math.Min(max, snapped));
+            }
+
+            void Nudge(double delta)
+            {
+                double before = get();
+                set(Snap(before + delta));
+                Refresh(true);
+                UiSound.Play(Math.Abs(before - get()) < 1e-9 ? UiCue.Blocked : UiCue.Press);
+            }
+
+            _refreshers.Add(() =>
+            {
+                if (!input.isFocused)
+                {
+                    double value = get();
+                    input.SetTextWithoutNotify(whole
+                        ? Math.Round(value).ToString(CultureInfo.InvariantCulture)
+                        : value.ToString("0.###", CultureInfo.InvariantCulture));
+                }
+            });
+        }
+
+        /// <summary>Chips that switch on and off independently, for a choice of several at once.</summary>
+        internal void AddChips(Section section, string label, IReadOnlyList<string> options, Func<int, bool> get, Action<int, bool> set)
+        {
+            RectTransform row = section.AddRow(label, out TextMeshProUGUI labelText);
+            RectTransform group = LibraryUi.CreateRect("Chips", row);
+            group.anchorMin = new Vector2(0.38f, 0f);
+            group.anchorMax = new Vector2(1f, 1f);
+            group.offsetMin = Vector2.zero;
+            group.offsetMax = new Vector2(-CONTROL_INSET, 0f);
+            labelText.rectTransform.anchorMax = new Vector2(0.38f, 1f);
+            var layout = group.gameObject.AddComponent<HorizontalLayoutGroup>();
+            layout.childAlignment = TextAnchor.MiddleRight;
+            layout.spacing = 8f;
+            layout.childControlWidth = false;
+            layout.childControlHeight = false;
+            layout.childForceExpandWidth = false;
+            layout.childForceExpandHeight = false;
+
+            var chips = new List<(Image Background, TextMeshProUGUI Text)>();
+            const float chipHeight = 44f;
+            for (int i = 0; i < options.Count; i++)
+            {
+                int index = i;
+                Button chip = LibraryWidgets.PillButton("Chip" + i, group, options[i], null, 10f, chipHeight,
+                    LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, LibraryTheme.FontSize.CAPTION, sound: UiCue.None);
+                TextMeshProUGUI text = chip.GetComponentInChildren<TextMeshProUGUI>();
+                float width = Mathf.Ceil(text.GetPreferredValues(options[i]).x) + 36f;
+                ((RectTransform)chip.transform).sizeDelta = new Vector2(width, chipHeight);
+                chip.onClick.AddListener(() =>
+                {
+                    bool on = !get(index);
+                    set(index, on);
+                    Refresh(true);
+                    UiSound.Play(on ? UiCue.ToggleOn : UiCue.ToggleOff);
+                });
+                chips.Add(((Image)chip.targetGraphic, text));
+            }
+
+            _refreshers.Add(() =>
+            {
+                for (int i = 0; i < chips.Count; i++)
+                {
+                    bool on = get(i);
+                    chips[i].Background.color = on ? LibraryTheme.Colors.TextPrimary : LibraryTheme.Colors.Control;
+                    chips[i].Text.color = on ? LibraryTheme.Colors.TextOnAccent : LibraryTheme.Colors.TextPrimary;
+                }
+            });
         }
 
         /// <summary>A line that opens a sub-page: a muted summary and a chevron.</summary>

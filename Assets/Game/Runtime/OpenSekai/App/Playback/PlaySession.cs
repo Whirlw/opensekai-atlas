@@ -41,6 +41,17 @@ namespace OpenSekai.App.Playback
         /// <summary>Playback copy of the live settings, already detached from the store.</summary>
         public LiveSettingData Settings { get; }
 
+        public static PlaySession FromChart(PlayRequest request, SongPackage package, RuntimeChartDefinition chart,
+            LiveBundleBuildData bundleConfig, PlaybackSettingsSnapshot settings)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            if (package == null) throw new ArgumentNullException(nameof(package));
+            if (chart == null) throw new ArgumentNullException(nameof(chart));
+            if (bundleConfig == null) throw new ArgumentNullException(nameof(bundleConfig));
+            if (settings == null) throw new ArgumentNullException(nameof(settings));
+            return new PlaySession(request, package, chart, bundleConfig, settings.ToLegacyData());
+        }
+
         public static PlaySession Create(
             PlayRequest request,
             SongPackage package,
@@ -71,7 +82,7 @@ namespace OpenSekai.App.Playback
 
             MusicScore score = RuntimeChartConverter.Convert(document, bundleConfig, settings.ShowSimultaneousLine);
             var chart = RuntimeChartDefinition.Create(document, score);
-            return new PlaySession(request, package, chart, bundleConfig, settings.ToLegacyData());
+            return FromChart(request, package, chart, bundleConfig, settings);
         }
     }
 }

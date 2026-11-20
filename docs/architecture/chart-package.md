@@ -11,6 +11,10 @@
 封面可选。读取分四步：`SongPackageStorage` 发现目录 → `SongPackage` 解析路径 →
 `ChartFileReader` 读 `score.json` 成 `ChartDocument` → `RuntimeChartConverter` 转成运行时音符与事件。
 
+NextRUSH+ 是独立原生格式：manifest 指定 `chartFormat: "next-rush"`，`scoreFileName` 指向原始 LevelData（可为 GZip）。
+播放入口 `RuntimeChartLoader` 分派到专用加载器，直接构建运行时谱面，不生成 ChartDocument 或 score.json。
+下文描述现有 JSON/SUS 路径；原生格式及支持范围见 [NextRUSH+ 原生加载](native-next-rush.md)。
+
 ## 核心内容
 
 ### 目录与文件

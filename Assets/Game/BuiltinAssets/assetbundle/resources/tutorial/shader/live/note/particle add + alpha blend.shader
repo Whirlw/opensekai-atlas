@@ -3,6 +3,7 @@ Shader "Sekai/Note/Particles/Additive+AlphaBlend"
     Properties
     {
         _MainTex ("Particle Texture", 2D) = "white" {}
+        [PerRendererData] _NextRushPalette ("NextRUSH Palette", Color) = (0,0,0,0)
         [Toggle] _UseFlipMatrix ("UseFlipMatrix", Float) = 0
     }
 
@@ -31,6 +32,7 @@ Shader "Sekai/Note/Particles/Additive+AlphaBlend"
             #pragma target 2.0
 
             #include "UnityCG.cginc"
+            #include "NextRushPalette.cginc"
 
             struct appdata_t
             {
@@ -78,6 +80,7 @@ Shader "Sekai/Note/Particles/Additive+AlphaBlend"
             fixed4 frag(v2f i) : SV_Target
             {
                 fixed4 color = tex2D(_MainTex, i.texcoord) * i.color;
+                color.rgb = nextRushColor(color.rgb);
                 fixed originalAlpha = color.a;
                 color.rgb *= originalAlpha;
                 color.a = originalAlpha * step(i.blendGate, 0.5);

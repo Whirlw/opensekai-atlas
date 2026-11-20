@@ -34,7 +34,7 @@ namespace OpenSekai.App.UI
         private const float VIEWPORT_BLEED_LEFT = 8f;
         private const float VIEWPORT_BLEED_RIGHT = 24f;
         private const float LIST_PADDING_TOP = 8f;
-        private const float LIST_PADDING_BOTTOM = 24f;
+        private const float LIST_PADDING_BOTTOM = 0f;
         private const int MAX_STAGGERED_CELLS = 16;
 
         private readonly GameObject _page;
@@ -76,18 +76,30 @@ namespace OpenSekai.App.UI
         private LibraryPreview _preview;
         private bool _startingPlayback;
         private bool _applicationPaused;
+        private bool _visible = true;
+        private bool _presented;
+        private GraphicRaycaster _raycaster;
+        private Image _curtain;
+        private MotionHandle _curtainMotion;
 
         private LibrarySettingsPanel _settingsPanel;
         private LibraryResultPanel _resultPanel;
         private LibraryLoadingOverlay _loadingOverlay;
         private LibraryActionsPanel _actionsPanel;
 
-        internal LibraryView(GameObject page)
+        /// <param name="presented">Whether the page starts on screen; see <see cref="SetPresented"/>.</param>
+        internal LibraryView(GameObject page, bool presented = true)
         {
             _page = page;
+            _presented = presented;
         }
 
         public bool HasList => _rowList != null;
+
+        internal bool IsPresented => _presented;
+
+        /// <summary>The top bar's back button.</summary>
+        internal Action BackRequested { get; set; }
 
         private VirtualListView ActiveList =>
             _state != null && _state.ViewMode == LibraryViewMode.Grid ? _tileList : _rowList;
@@ -105,7 +117,7 @@ namespace OpenSekai.App.UI
             canvas.worldCamera = _uiCamera;
             canvas.planeDistance = 1f;
             canvas.sortingOrder = 10;
-            _page.AddComponent<GraphicRaycaster>();
+            _raycaster = _page.AddComponent<GraphicRaycaster>();
 
             CanvasScaler scaler = _page.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -124,7 +136,8 @@ namespace OpenSekai.App.UI
 
             float margin = LibraryTheme.Spacing.PAGE_MARGIN;
             RectTransform main = LibraryUi.CreateRect("Main", root);
-            LibraryWidgets.Inset(main, margin, margin, margin, LibraryTheme.Layout.TOP_BAR_HEIGHT);
+            const float columnBottom = 40f;
+            LibraryWidgets.Inset(main, margin, columnBottom, margin, LibraryTheme.Layout.TOP_BAR_HEIGHT);
 
             // The overlay hosts dropdown lists; it is moved above everything else once the page is built.
             RectTransform overlay = LibraryUi.CreateRect("Overlay", root);
@@ -138,7 +151,7 @@ namespace OpenSekai.App.UI
             detailRoot.anchorMax = new Vector2(1f, 1f);
             detailRoot.offsetMin = Vector2.zero;
             detailRoot.offsetMax = Vector2.zero;
-            _detail = new LibraryDetailPanel(detailRoot, PlaySelected, presenter.OpenActionsForSelected);
+            _detail = new LibraryDetailPanel(detailRoot, LIST_PADDING_TOP, PlaySelected, presenter.OpenActionsForSelected);
             _preview = _page.AddComponent<LibraryPreview>();
             _preview.Initialize(_detail);
 
@@ -147,6 +160,14 @@ namespace OpenSekai.App.UI
             LibraryWidgets.BottomStrip(_statusText.rectTransform, margin, margin, 14f, 28f);
 
             overlay.SetAsLastSibling();
+
+            // The curtain the page rises from and falls back into when it hands over to the home
+            // page. It is the ground color, so the two pages meet on the same plain screen.
+            _curtain = LibraryUi.CreateImage("Curtain", root, LibraryTheme.Colors.Ground);
+            LibraryUi.Stretch(_curtain.rectTransform);
+            _curtain.raycastTarget = true;
+            _curtain.gameObject.SetActive(false);
+            ApplyVisibility();
         }
 
         internal void BuildPanels(LibraryPresenter presenter)
@@ -432,7 +453,7 @@ namespace OpenSekai.App.UI
 
         internal void ResumePreview()
         {
-            if (!_startingPlayback && !_applicationPaused && _preview != null
+            if (_visible && _presented && !_startingPlayback && !_applicationPaused && _preview != null
                 && (_resultPanel == null || !_resultPanel.isActiveAndEnabled))
             {
                 _preview.Select(_selected);
@@ -454,11 +475,129 @@ namespace OpenSekai.App.UI
 
         internal void SetVisible(bool visible)
         {
+            _visible = visible;
+            ApplyVisibility();
+        }
+
+        /// <summary>
+        /// Takes the page off screen while another page shows in its place: its camera stops
+        /// drawing, taps stop reaching it and the song preview stops. Coming back with <paramref name="animate"/>,
+        /// the page rises out of the ground-colored curtain while its list cascades in.
+        /// </summary>
+        internal void SetPresented(bool presented, bool animate)
+        {
+            _presented = presented;
+            _curtainMotion.TryCancel();
+            _curtainMotion = default;
+            if (_curtain != null)
+            {
+                _curtain.gameObject.SetActive(false);
+            }
+
+            ApplyVisibility();
+            if (!presented || !animate || _curtain == null)
+            {
+                return;
+            }
+
+            _curtain.gameObject.SetActive(true);
+            _curtain.transform.SetAsLastSibling();
+            _curtainMotion = LMotion.Create(1f, 0f, LibraryTheme.Motion.SLOW)
+                .WithEase(LibraryTheme.Motion.FADE_EASE)
+                .WithOnComplete(() => _curtain.gameObject.SetActive(false))
+                .Bind(alpha => _curtain.color = WithAlpha(LibraryTheme.Colors.Ground, alpha));
+            if (_rowList != null)
+            {
+                PlayEnter(ActiveList);
+            }
+        }
+
+        /// <summary>Lowers the curtain over the page, then runs <paramref name="onCovered"/>.</summary>
+        internal void PlayExit(Action onCovered)
+        {
+            if (_curtain == null || !_presented)
+            {
+                onCovered?.Invoke();
+                return;
+            }
+
+            _preview?.StopPreview();
+            _curtainMotion.TryCancel();
+            _curtain.gameObject.SetActive(true);
+            _curtain.transform.SetAsLastSibling();
+            _curtainMotion = LMotion.Create(0f, 1f, LibraryTheme.Motion.STANDARD)
+                .WithEase(LibraryTheme.Motion.EXIT_EASE)
+                .WithOnComplete(() =>
+                {
+                    _curtainMotion = default;
+                    onCovered?.Invoke();
+                })
+                .Bind(alpha => _curtain.color = WithAlpha(LibraryTheme.Colors.Ground, alpha));
+        }
+
+        /// <summary>
+        /// Closes whatever sits on top of the page for the Android back key. True when something
+        /// took the key; while playback is starting the key is swallowed.
+        /// </summary>
+        internal bool TryHandleBack()
+        {
+            if (_startingPlayback || (_loadingOverlay != null && _loadingOverlay.isActiveAndEnabled))
+            {
+                return true;
+            }
+
+            if (_groupDropdown != null && _groupDropdown.IsOpen)
+            {
+                _groupDropdown.Close();
+                UiSound.Play(UiCue.Collapse);
+                return true;
+            }
+
+            if (_sortDropdown != null && _sortDropdown.IsOpen)
+            {
+                _sortDropdown.Close();
+                UiSound.Play(UiCue.Collapse);
+                return true;
+            }
+
+            if (_actionsPanel != null && _actionsPanel.IsOpen)
+            {
+                _actionsPanel.Hide();
+                UiSound.Play(UiCue.Close);
+                return true;
+            }
+
+            if (_settingsPanel != null && _settingsPanel.IsOpen)
+            {
+                _settingsPanel.Back();
+                return true;
+            }
+
+            if (_resultPanel != null && _resultPanel.IsOpen)
+            {
+                _resultPanel.Dismiss();
+                return true;
+            }
+
+            return false;
+        }
+
+        private void ApplyVisibility()
+        {
+            bool shown = _visible && _presented;
             if (_uiCamera != null)
             {
-                _uiCamera.enabled = visible;
+                _uiCamera.enabled = shown;
             }
-            if (visible)
+
+            // The canvas itself stays enabled so its layout keeps the screen's size while hidden;
+            // without its camera nothing draws it, and without its raycaster no tap reaches it.
+            if (_raycaster != null)
+            {
+                _raycaster.enabled = shown;
+            }
+
+            if (shown)
             {
                 ResumePreview();
             }
@@ -466,6 +605,13 @@ namespace OpenSekai.App.UI
             {
                 _preview?.StopPreview();
             }
+        }
+
+        private static Color WithAlpha(Color32 color, float alpha)
+        {
+            Color value = color;
+            value.a = alpha;
+            return value;
         }
         public void SetLoadingMessage(string message) => _loadingOverlay?.SetMessage(message);
 
@@ -511,6 +657,7 @@ namespace OpenSekai.App.UI
             _preview?.StopPreview();
             CancelDetailLoad();
             CancelPanelArtworkLoad();
+            _curtainMotion.TryCancel();
             _glowMotion.TryCancel();
             _glowMotion = default;
             foreach (LibraryCell cell in _cells.Values)
@@ -561,9 +708,9 @@ namespace OpenSekai.App.UI
             float height = LibraryTheme.Layout.CONTROL_HEIGHT;
             Vector2 leftCenter = new Vector2(0f, 0.5f);
 
-            Button back = CreateBarIconButton(bar, "Back", LibraryIcon.Back, null, LibraryTheme.Colors.TextMuted);
+            Button back = CreateBarIconButton(bar, "Back", LibraryIcon.Back, () => BackRequested?.Invoke(),
+                LibraryTheme.Colors.TextSecondary, UiCue.Back);
             LibraryWidgets.Place((RectTransform)back.transform, leftCenter, leftCenter, Vector2.zero, new Vector2(height, height));
-            back.interactable = false;
 
             TextMeshProUGUI title = LibraryWidgets.Label(
                 "Title", bar, "曲库", LibraryTheme.FontSize.PAGE_TITLE, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
@@ -576,9 +723,7 @@ namespace OpenSekai.App.UI
             BuildBrowseControls(bar, overlay);
 
             // Right-aligned actions, laid out from the edge inward.
-            float right = 0f;
-            // Settings opens a modal, which plays its own open sound.
-            right = AddBarButton(bar, "Settings", LibraryIcon.Settings, _presenter.OpenSettings, right, UiCue.None);
+            float right = AddSettingsButton(bar, _presenter.OpenSettings);
             right = AddBarButton(bar, "Refresh", LibraryIcon.Refresh, _presenter.Resync, right);
 
             const float importWidth = 140f;
@@ -617,6 +762,9 @@ namespace OpenSekai.App.UI
             search.onValueChanged.AddListener(_presenter.SetSearch);
         }
 
+        internal static float AddSettingsButton(RectTransform bar, UnityEngine.Events.UnityAction openSettings) =>
+            AddBarButton(bar, "Settings", LibraryIcon.Settings, openSettings, 0f, UiCue.None);
+
         private static float AddBarButton(
             RectTransform bar, string name, LibraryIcon icon, UnityEngine.Events.UnityAction onClick, float right,
             UiCue sound = UiCue.Press)
@@ -640,41 +788,8 @@ namespace OpenSekai.App.UI
             return button;
         }
 
-        private static TMP_InputField CreateSearchField(Transform parent, float height)
-        {
-            Image background = LibraryWidgets.Panel("Search", parent, height * 0.5f, LibraryTheme.Colors.Control);
-            background.raycastTarget = true;
-            LibraryWidgets.Outline(background, height * 0.5f);
-            Image icon = LibraryWidgets.Icon(background.transform, LibraryIcon.Search, LibraryTheme.Colors.TextMuted, 26f);
-            LibraryWidgets.Place(icon.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-                new Vector2(22f, 0f), new Vector2(26f, 26f));
-
-            RectTransform area = LibraryUi.CreateRect("TextArea", background.transform);
-            LibraryWidgets.Inset(area, 60f, 6f, 22f, 6f);
-            area.gameObject.AddComponent<RectMask2D>();
-
-            TextMeshProUGUI placeholder = LibraryWidgets.Label(
-                "Placeholder", area, "搜索曲名、作者", LibraryTheme.FontSize.BODY, LibraryTheme.Colors.TextMuted);
-            LibraryUi.Stretch(placeholder.rectTransform);
-            TextMeshProUGUI text = LibraryWidgets.Label(
-                "Text", area, string.Empty, LibraryTheme.FontSize.BODY, LibraryTheme.Colors.TextPrimary);
-            text.overflowMode = TextOverflowModes.Overflow;
-            LibraryUi.Stretch(text.rectTransform);
-
-            TMP_InputField input = background.gameObject.AddComponent<TMP_InputField>();
-            input.targetGraphic = background;
-            input.transition = Selectable.Transition.None;
-            input.textViewport = area;
-            input.textComponent = text;
-            input.placeholder = placeholder;
-            input.fontAsset = text.font;
-            input.pointSize = LibraryTheme.FontSize.BODY;
-            input.lineType = TMP_InputField.LineType.SingleLine;
-            input.caretColor = LibraryTheme.Colors.TextPrimary;
-            input.customCaretColor = true;
-            input.selectionColor = new Color32(157, 184, 255, 96);
-            return input;
-        }
+        private static TMP_InputField CreateSearchField(Transform parent, float height) =>
+            LibraryWidgets.TextField("Search", parent, height, "搜索曲名、作者", LibraryIcon.Search);
 
         private void BuildBrowseControls(RectTransform bar, RectTransform overlay)
         {
@@ -737,7 +852,7 @@ namespace OpenSekai.App.UI
             RectTransform column = LibraryUi.CreateRect("ListColumn", main);
             column.anchorMin = new Vector2(0f, 0f);
             column.anchorMax = new Vector2(LIST_COLUMN, 1f);
-            column.offsetMin = new Vector2(0f, 16f - LibraryTheme.Spacing.PAGE_MARGIN);
+            column.offsetMin = Vector2.zero;
             column.offsetMax = Vector2.zero;
 
             _groupBar = LibraryGroupBar.Create(column);
@@ -789,8 +904,7 @@ namespace OpenSekai.App.UI
             scroll.content = content;
             scroll.horizontal = false;
             scroll.vertical = true;
-            scroll.movementType = ScrollRect.MovementType.Elastic;
-            scroll.elasticity = 0.12f;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
             scroll.decelerationRate = 0.135f;
             scroll.scrollSensitivity = 40f;
             return VirtualListView.Attach(scroll, layoutForWidth, createCell, BindCell, ReleaseCell);

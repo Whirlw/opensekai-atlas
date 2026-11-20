@@ -19,6 +19,12 @@ namespace Sekai.Core.Live
 		private readonly List<NoteBase> _highSpeedScratch = new List<NoteBase>();
 		private int _noteIndex;
 		private int _highSpeedIndex;
+		private int _damageIndex;
+		private NoteBase[] _damageNotes = Empty;
+		internal bool HasPendingDamageNotes => _damageIndex < _damageNotes.Length;
+		private (double start, NoteBase note)[] _nativeVisuals = Array.Empty<(double, NoteBase)>();
+		private readonly List<NoteBase> _activeNativeVisuals = new List<NoteBase>();
+		private int _nativeVisualIndex;
 
 		public NoteBase[] Notes { get; private set; } = Empty;
 
@@ -47,6 +53,7 @@ namespace Sekai.Core.Live
 			Notes = notes ?? Empty;
 
 			_highSpeedScratch.Clear();
+			List<NoteBase> damageNotes = null;
 			for (int i = 0; i < Notes.Length; i++)
 			{
 				NoteBase note = Notes[i];
@@ -54,6 +61,8 @@ namespace Sekai.Core.Live
 				{
 					note.ChartOrder = i;
 				}
+				if (note is NextRushDamageNote { HasJudgment: true })
+					(damageNotes ??= new List<NoteBase>()).Add(note);
 
 				if (note != null && !UnityEngine.Mathf.Approximately(note.speedRatio, 1f))
 				{
@@ -67,17 +76,69 @@ namespace Sekai.Core.Live
 			}
 
 			HighSpeedNotes = _highSpeedScratch.Count == 0 ? Empty : _highSpeedScratch.ToArray();
+			_damageNotes = damageNotes?.ToArray() ?? Empty;
+			if (_damageNotes.Length > 1) Array.Sort(_damageNotes, CompareDamageNotes);
 			Reset();
+		}
+
+		private static int CompareDamageNotes(NoteBase a, NoteBase b)
+		{
+			int start = ((NextRushDamageNote)a).InputStart.CompareTo(((NextRushDamageNote)b).InputStart);
+			return start != 0 ? start : a.ChartOrder.CompareTo(b.ChartOrder);
 		}
 
 		public void Reset()
 		{
 			NoteIndex = 0;
 			HighSpeedIndex = 0;
+			_damageIndex = 0;
+			_nativeVisualIndex = 0;
+			_activeNativeVisuals.Clear();
 			_heads.Clear();
 			// A new take starts with no open notes: carrying the previous take's lists over meant a retry
 			// ticked notes it had never scanned, before their own bar was on screen at all.
 			_tails.Clear();
+			_tailLinkedComboBars.Clear();
+		}
+
+		internal void BindNativeVisuals(double displayLead)
+		{
+			var entries = new List<(double start, NoteBase note)>();
+			foreach (var note in Notes)
+			{
+				if (note?.NativeScroll == null) continue;
+				double start = note.PrepareNativeVisual(displayLead);
+				if (note is LongNote bar)
+				{
+					foreach (var child in bar.NoteList)
+						if (child != note && child.NativeScroll != null)
+							start = Math.Min(start, child.PrepareNativeVisual(displayLead));
+				}
+				entries.Add((start, note));
+			}
+			_nativeVisuals = entries.ToArray();
+			Array.Sort(_nativeVisuals, (a, b) => a.start.CompareTo(b.start));
+			_nativeVisualIndex = 0;
+			_activeNativeVisuals.Clear();
+		}
+
+		internal void WalkNativeVisuals(double now, Action<NoteBase> visit)
+		{
+			while (_nativeVisualIndex < _nativeVisuals.Length && _nativeVisuals[_nativeVisualIndex].start <= now)
+				_activeNativeVisuals.Add(_nativeVisuals[_nativeVisualIndex++].note);
+			for (int i = _activeNativeVisuals.Count - 1; i >= 0; i--)
+			{
+				var note = _activeNativeVisuals[i];
+				if (note.State == NoteState.Done
+					&& !(note is LongNote bar && now < bar.NativeConnectorDisplayEnd))
+				{
+					int last = _activeNativeVisuals.Count - 1;
+					_activeNativeVisuals[i] = _activeNativeVisuals[last];
+					_activeNativeVisuals.RemoveAt(last);
+				}
+				else
+					visit(note);
+			}
 		}
 
 		/// <summary>
@@ -132,6 +193,23 @@ namespace Sekai.Core.Live
 		/// </summary>
 		private readonly List<NoteBase> _tails = new List<NoteBase>();
 		internal IReadOnlyList<NoteBase> PendingTails => _tails;
+
+		private readonly List<LongNote> _tailLinkedComboBars = new List<LongNote>();
+
+		internal void RegisterTailLinkedComboBar(LongNote bar)
+		{
+			if (!_tailLinkedComboBars.Contains(bar) && bar.HasTailLinkedComboPoints)
+				_tailLinkedComboBars.Add(bar);
+		}
+
+		internal void SettleTailLinkedComboPoints(MusicScoreInfo frame)
+		{
+			for (int i = _tailLinkedComboBars.Count - 1; i >= 0; i--)
+			{
+				if (!_tailLinkedComboBars[i].AdvanceTailLinkedComboPoints(frame))
+					_tailLinkedComboBars.RemoveAt(i);
+			}
+		}
 
 		/// <summary>Tails still waiting for their own clock, for tests and invariants.</summary>
 		public int PendingTailCount => _tails.Count;
@@ -194,6 +272,8 @@ namespace Sekai.Core.Live
 		{
 			Walk(HighSpeedNotes, ref _highSpeedIndex, visit);
 		}
+
+		internal void WalkDamageNotes(NoteVisitor visit) => Walk(_damageNotes, ref _damageIndex, visit);
 
 		private static void Walk(NoteBase[] notes, ref int cursor, NoteVisitor visit)
 		{

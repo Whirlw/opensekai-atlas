@@ -1,4 +1,5 @@
 using System;
+using OpenSekai.Charts;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Newtonsoft.Json;
@@ -11,6 +12,102 @@ namespace Sekai.Live
 {
 	public class NoteBase : INote
 	{
+		internal NextRushScrollTimeline NativeScroll { get; private set; }
+		internal NextRushScrollTimeline.Position NativeTarget { get; private set; }
+		internal double NativePreempt { get; set; }
+		internal float NativeLeft { get; private set; }
+		internal float NativeRight { get; private set; }
+		public NextRushConnectorSegment NativeConnector { get; set; }
+		public int NativeStyle { get; set; }
+		public NextRushEffectKind NativeEffectKind { get; set; }
+		public bool IsNextRushHeadKey { get; set; }
+		internal bool IsNextRushConnectorHeadVisual { get; set; }
+		internal bool IsNextRush => NativeEffectKind != NextRushEffectKind.Default;
+		internal bool HasNextRushHit { get; set; }
+		internal List<NoteBase> NativeSimLineTargets { get; private set; }
+		internal List<NoteBase> NativeSimLineSources { get; private set; }
+		private NoteBase _nativeAttachHead;
+		private NoteBase _nativeAttachTail;
+		internal bool HasNativeAttachment => _nativeAttachHead != null;
+
+		public void SetNextRushScroll(NextRushScrollTimeline timeline, double targetTime)
+		{
+			NativeScroll = timeline;
+			NativeTarget = timeline.Sample(targetTime);
+			NativeLeft = LaneStartF;
+			NativeRight = LaneEndF;
+		}
+
+		public void SetNextRushAttachment(NoteBase head, NoteBase tail)
+		{
+			_nativeAttachHead = head;
+			_nativeAttachTail = tail;
+		}
+
+		public void AddNextRushSimLine(NoteBase end)
+		{
+			(NativeSimLineTargets ??= new List<NoteBase>()).Add(end);
+			if (UsesIndependentSimLineTrajectories(end))
+				(end.NativeSimLineSources ??= new List<NoteBase>()).Add(this);
+		}
+
+		internal bool UsesIndependentSimLineTrajectories(NoteBase end) =>
+			NativeScroll != null && end.NativeScroll != null
+			&& (NativeScroll != end.NativeScroll || NativeTarget.Time != end.NativeTarget.Time
+				|| HasNativeAttachment || end.HasNativeAttachment || !IsVisible || !end.IsVisible);
+
+		internal void PlaceVisualHead(float left, float right)
+		{
+			LaneStartF = left;
+			LaneEndF = right;
+			Progress = 1f;
+		}
+
+		internal double PrepareNativeVisual(double displayLead)
+		{
+			double activation = PrepareBasicVisual(displayLead);
+			if (NativeConnector?.LegacyHiddenPop == true)
+				activation = Math.Min(activation, NativeConnector.PrepareLegacySpawn(displayLead));
+			if (!HasNativeAttachment) return activation;
+
+			// A blend can first enter view as soon as either source does.
+			double first = _nativeAttachHead.PrepareBasicVisual(displayLead);
+			double last = _nativeAttachTail.PrepareBasicVisual(displayLead);
+			return Math.Min(activation, Math.Min(first, last));
+		}
+
+		private double PrepareBasicVisual(double displayLead)
+		{
+			NativePreempt = NativeScroll.Preempt(displayLead);
+			return NativeScroll.ActivationTime(NativeTarget, NativePreempt);
+		}
+
+		private double BasicViewProgress(double now) =>
+			1 - NativeScroll.Distance(NativeScroll.SampleFrame(now), NativeTarget) / NativePreempt;
+
+		internal double NativeViewProgress(double now, out bool hidden)
+		{
+			var sample = NativeScroll.SampleFrame(now);
+			hidden = sample.Hidden;
+			if (HasNativeAttachment)
+			{
+				double start = _nativeAttachHead.NativeTarget.Time;
+				double end = _nativeAttachTail.NativeTarget.Time;
+				double tail = _nativeAttachTail.BasicViewProgress(now);
+				if (start == end)
+				{
+					if (now >= start) return 1;
+					return (_nativeAttachHead.BasicViewProgress(now) + tail) / 2;
+				}
+
+				double head = now < start ? _nativeAttachHead.BasicViewProgress(now) : 1;
+				double remainingStart = Math.Max(start, now);
+				double fraction = remainingStart >= end ? 0.5
+					: Math.Clamp((NativeTarget.Time - remainingStart) / (end - remainingStart), 0, 1);
+				return head + (tail - head) * fraction;
+			}
+			return 1 - NativeScroll.Distance(sample, NativeTarget) / NativePreempt;
+		}
 		protected Action<NoteBase> onUpdateScore;
 
 		protected Action<NoteBase> onUpdateCombo;
@@ -225,12 +322,23 @@ namespace Sekai.Live
 		}
 
 		[JsonIgnore]
+		public bool UsesNextRushJudgment { get; set; }
+
+		private float _slideEndInputUntil = float.NegativeInfinity;
+
+		internal void RecordSlideEndInput(float lateWindow) => _slideEndInputUntil = MusicScoreInfo.time + lateWindow;
+
+		internal bool HasSlideEndInputAt(float now) =>
+			(Result >= NoteResult.Bad && Result != NoteResult.Auto) || now <= _slideEndInputUntil;
+
+		private (NoteResult result, NoteResultDescription description) _judgeInfo;
+
+		[JsonIgnore]
 		public (NoteResult result, NoteResultDescription description) JudgeInfo
 		{
-			[CompilerGenerated]
-			get;
-			[CompilerGenerated]
-			protected set;
+			get => _judgeInfo;
+			protected set => _judgeInfo = UsesNextRushJudgment && value.result == NoteResult.JustPerfect
+				? (NoteResult.Perfect, value.description) : value;
 		}
 
 		[JsonIgnore]
@@ -725,11 +833,13 @@ namespace Sekai.Live
 
 		public virtual void ResetNote()
 		{
+			HasNextRushHit = false;
 			State = NoteState.Wait;
 			OffsetJudgeTime = 0f;
 			Progress = 0f;
 			viewReleased = false;
 			resultPublished = false;
+			_slideEndInputUntil = float.NegativeInfinity;
 			JudgeInfo = (NoteResult.None, NoteResultDescription.None);
 			offsetTime = 0f;
 			// IsHighSpeedNote is not play state: it says which walk the bound chart filed this note in, and

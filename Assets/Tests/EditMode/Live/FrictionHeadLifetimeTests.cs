@@ -150,6 +150,21 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(bar.HeadKeyLeftWithItsVerdict, Is.True, "a missed key leaves too, like a missed friction note");
 		}
 
+		[TestCase(-0.09f, NoteResult.Miss)]
+		[TestCase(-0.08f, NoteResult.JustPerfect)]
+		[TestCase(0.08f, NoteResult.JustPerfect)]
+		[TestCase(0.09f, NoteResult.Miss)]
+		public void RubHeadUsesTheTraceContactWindow(float offset, NoteResult expected)
+		{
+			var bar = Arrange(RubBar());
+			Step(0.75f, false);
+			float contact = 1f + offset;
+			Step(contact, false, Rest(contact, TouchPhase.Began));
+			Step(contact + 0.001f, false, Rest(contact + 0.001f, TouchPhase.Ended));
+			Step(1.2f, false);
+			Assert.That(bar.Head.Result, Is.EqualTo(expected));
+		}
+
 		[Test]
 		public void AnOrdinaryHeadKeepsItsKeyOnTheLine()
 		{

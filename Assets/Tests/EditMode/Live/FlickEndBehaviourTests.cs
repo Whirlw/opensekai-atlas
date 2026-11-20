@@ -992,15 +992,11 @@ namespace OpenSekai.Tests.EditMode.Live
 
         [Test]
 
-        public void AComboPointTheBarsEndNeverReachedIsSettledPerfect()
+        public void APlayedTailGrantsAnUncontactedComboPointThatIsStillPending()
 
         {
 
-            // The bar shares its fate with its interior points and nothing else: whichever way it ends,
-
-            // a point it never reached is settled Perfect right there, and a point that already has a
-
-            // verdict keeps it.
+            // A finished point keeps its verdict when the tail supplies input to an open point.
 
             var bar = new LongNote(Info(0f), 401, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
 
@@ -1028,7 +1024,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             Assert.That(bar.State, Is.EqualTo(NoteState.Done));
 
-            Assert.That(late.Result, Is.EqualTo(NoteResult.Perfect), "the bar's end settles what it made unreachable");
+            Assert.That(late.Result, Is.EqualTo(NoteResult.Perfect), "the accepted lift settles the pending point");
 
             Assert.That(earned.Result, Is.EqualTo(NoteResult.Great), "and leaves an earned verdict alone");
 

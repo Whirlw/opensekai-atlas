@@ -46,6 +46,7 @@ namespace Sekai.Core.Live
 
 			MusicScore.InjectSkillFeverForCreatorScore(bootData?.MusicData?.Vocal?.musicId ?? bootData?.MusicData?.Music?.id ?? 0);
 			Notes.Bind(SortNotes(MusicScore.NoteArray));
+			Notes.BindNativeVisuals(NoteDisplayTimeOffset);
 			_events = SortEvents(MusicScore.EventArray);
 		}
 

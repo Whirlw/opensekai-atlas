@@ -80,7 +80,7 @@ namespace Sekai.Core.Live
 
 					LiveLogic.InputTmp candidate = inputs[i];
 					float lane = candidate.Lane;
-					if (lane < 0f || !held.IsJudgment(ref candidate.Touch, lane))
+					if (float.IsNegativeInfinity(lane) || !held.IsJudgment(ref candidate.Touch, lane))
 					{
 						continue;
 					}
@@ -160,9 +160,9 @@ namespace Sekai.Core.Live
 			foreach (LiveLogic.InputTmp input in inputs)
 			{
 				input.CandidateNotes.Clear();
-				if (IsEndedOrCanceled(input.Touch.phase) && input.Lane >= 0f)
+				if (input.Touch.phase == UnityEngine.InputSystem.TouchPhase.Ended && !float.IsNegativeInfinity(input.Lane))
 				{
-					CollectLiftCandidates(judgmentNotes, input, frame.time);
+					CollectLiftCandidates(judgmentNotes, input);
 				}
 			}
 
@@ -174,7 +174,7 @@ namespace Sekai.Core.Live
 			for (int i = 0; i < inputs.Count; i++)
 			{
 				LiveLogic.InputTmp input = inputs[i];
-				if (input == null || !IsEndedOrCanceled(input.Touch.phase)
+				if (input == null || input.Touch.phase != UnityEngine.InputSystem.TouchPhase.Ended
 					|| _usedLiftFingers.Contains(input.Touch.fingerId))
 				{
 					continue;
@@ -190,13 +190,25 @@ namespace Sekai.Core.Live
 						$"liftSelected finger={input.Touch.fingerId} touch={input.Touch.touchId} lane={input.Lane:F2} phase={input.Touch.phase} barT={barTime:F3} tailId={(tail == null ? -1 : tail.Id)} tailT={(tail == null ? -1f : tail.MusicScoreInfo.time):F3}");
 				}
 
-				bool settled = target != null && target.JudgeTailAsRelease(frame.time);
+				bool settled = tail is NormalNote { IsIndependentRelease: true }
+					? tail.Judgment(ref input.Touch, input.Lane)
+					: target != null && target.JudgeTailAsRelease(input.Touch.musicTime);
 				if (LiveTrace.IsOn(LiveTraceCategory.Release))
-					LiveTrace.Write(LiveTraceCategory.Release, $"liftResult finger={input.Touch.fingerId} touch={input.Touch.touchId} settled={settled} result={(target?.ChildNote as NoteBase)?.Result}");
+					LiveTrace.Write(LiveTraceCategory.Release, $"liftResult finger={input.Touch.fingerId} touch={input.Touch.touchId} settled={settled} result={tail?.Result}");
 				if (settled)
 				{
+					if (LatencyCapture.Active)
+						LatencyCapture.Record("release_settled", input.Touch.touchId, input.Touch.fingerId, input.Touch.phase,
+							tail.Id, song: input.Touch.musicTime, note: tail.MusicScoreInfo.time, result: tail.Result);
 					_usedLiftFingers.Add(input.Touch.fingerId);
 				}
+			}
+
+			// Input timestamps can still land inside the window on a frame that overshoots it.
+			foreach (NoteBase note in judgmentNotes)
+			{
+				if (note is NormalNote { IsIndependentRelease: true } release)
+					release.SettleExpiredRelease(frame.time);
 			}
 		}
 
@@ -277,7 +289,7 @@ namespace Sekai.Core.Live
 		// Where the bar is now: a bending body leaves its head's lanes, and the finger that follows it
 		// must keep covering it.
 		private static bool TouchesBar(float lane, LongNote bar) =>
-			lane >= 0f && HoldSweep.TouchesLane(lane, bar.BodyLaneStart, bar.BodyLaneEnd);
+			!float.IsNegativeInfinity(lane) && HoldSweep.TouchesLane(lane, bar.BodyLaneStart, bar.BodyLaneEnd);
 
 		private static bool RefreshFromAnyFinger(LongNote held, int count, List<LiveLogic.InputTmp> inputs)
 		{
@@ -291,7 +303,7 @@ namespace Sekai.Core.Live
 				}
 
 				float lane = input.Lane;
-				if (lane < 0f || !held.ContainsLane(lane))
+				if (float.IsNegativeInfinity(lane) || !held.ContainsLane(lane))
 				{
 					continue;
 				}
@@ -306,9 +318,9 @@ namespace Sekai.Core.Live
 
 		/// <summary>
 		/// How soon after a consumed tap or flick press a lift of the same contact counts as the end of
-		/// that tap rather than a deliberate release: 100 ms.
+		/// that tap rather than a deliberate release: one sixth of a second.
 		/// </summary>
-		internal const float QuickTapSeconds = 0.1f;
+		internal const float QuickTapSeconds = 1f / 6f;
 
 		/// <summary>
 		/// Collects ordinary tails in reach. A contact whose press was consumed by a tap or by a flick's
@@ -316,16 +328,27 @@ namespace Sekai.Core.Live
 		/// may only release a tail inside that tail's Perfect band, whichever tail it is. Whether a tail's
 		/// window was open at the press does not matter.
 		/// </summary>
-		private void CollectLiftCandidates(List<NoteBase> judgmentNotes, LiveLogic.InputTmp lift, float time)
+		private void CollectLiftCandidates(List<NoteBase> judgmentNotes, LiveLogic.InputTmp lift)
 		{
 			float lane = lift.Lane;
-			bool quickTap = _keyPressTimes.TryGetValue(lift.Touch.touchId, out float pressTime)
-				&& time - pressTime <= QuickTapSeconds;
+			float time = lift.Touch.musicTime;
+			bool followsKeyPress = _keyPressTimes.TryGetValue(lift.Touch.touchId, out float pressTime);
 			bool tracing = LiveTrace.IsOn(LiveTraceCategory.Release);
 			System.Text.StringBuilder candidates = tracing ? new System.Text.StringBuilder() : null;
 
 			foreach (NoteBase note in judgmentNotes)
 			{
+				if (note is NormalNote { IsIndependentRelease: true } release)
+				{
+					if (release.IsJudgment(ref lift.Touch, lane)
+						&& (!followsKeyPress || time > pressTime + QuickTapSeconds
+							|| LongEndJudgement.IsPerfect(time - release.MusicScoreInfo.time)))
+					{
+						lift.CandidateNotes.Add(release);
+					}
+					continue;
+				}
+
 				if (note is not LongNote candidate)
 				{
 					continue;
@@ -342,6 +365,7 @@ namespace Sekai.Core.Live
 				}
 
 				float tailTime = tail.MusicScoreInfo.time;
+				bool quickTap = followsKeyPress && time <= pressTime + QuickTapSeconds;
 				if (quickTap && !LongEndJudgement.IsPerfect(time - tailTime))
 				{
 					if (tracing)

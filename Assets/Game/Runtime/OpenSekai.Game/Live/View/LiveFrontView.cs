@@ -151,6 +151,7 @@ namespace Sekai.Live
 
 		public override void OnUnload()
 		{
+			_longTapEffectView?.Clear();
 			CancelMotions();
 			_liveResultView?.Unload();
 			_cutinManager?.Dispose();
@@ -251,7 +252,7 @@ namespace Sekai.Live
 		public override void OnUpdate(float musicTime)
 		{
 			_isPlayedHaptic = false;
-			float viewTime = musicTime - (_baseController?.BootData?.MusicData?.Music?.fillerSec ?? 0f);
+			float viewTime = (float)(_baseController?.BootData?.MusicData?.AudioToChartTime(musicTime) ?? musicTime);
 			_notesViewManager?.OnUpdate(viewTime);
 			_longTapEffectView?.Excute(viewTime);
 			UpdateLaneMask();
@@ -275,7 +276,7 @@ namespace Sekai.Live
 			}
 
 			_notesViewManager?.SpawnNote(note);
-			if (note is LongNote)
+			if (note is LongNote && note.State != NoteState.Done)
 			{
 				_longTapEffectView?.Add(note);
 			}
@@ -294,6 +295,8 @@ namespace Sekai.Live
 				_longTapEffectView?.Remove(note);
 			}
 		}
+
+		public override void NativeHitSound(NoteBase note, string cue) => _tapEffect?.PlayNativeCue(note, cue);
 
 		public override void JudgmentNote(NoteBase note)
 		{
@@ -352,6 +355,7 @@ namespace Sekai.Live
 		public override void SetupScore(LiveScore score)
 		{
 			_scoreView?.SetupScore(score);
+			UpdateLife(score);
 		}
 
 		public override void UpdateScore(LiveScore score)
@@ -377,6 +381,7 @@ namespace Sekai.Live
 
 		public override void Pause()
 		{
+			_longTapEffectView?.Silence();
 			_countdownView?.StopCountdown();
 		}
 

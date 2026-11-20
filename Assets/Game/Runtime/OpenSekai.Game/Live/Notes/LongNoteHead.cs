@@ -63,12 +63,15 @@ namespace Sekai.Live
 
 				return;
 			}
-			_result = result;
 			// The bar keeps the same number for the picture; the verdict itself is the head's.
 			_bar.SetHeadJudgeInfo(result);
+			_result = _bar.JudgeInfo;
 			// NoteBase's JudgeInfo setter is protected, so this uses its one public write. It is the same
 			// assignment: the head's own object carries the head's own verdict.
-			Identity.SetJudgeInfoForDecoration(result.result);
+			Identity.SetJudgeInfoForDecoration(_result.result);
+			Identity.NativeStyle = _bar.NativeStyle;
+			Identity.NativeEffectKind = _bar.NativeEffectKind;
+			Identity.HasNextRushHit = _bar.HasNextRushHit = _bar.IsNextRush && updateScore;
 			// A carrier's head has nothing to say, but it is closed all the same.
 			if (!_bar.HasJudgment)
 			{
@@ -177,7 +180,8 @@ namespace Sekai.Live
 					&& now - note.MusicScoreInfo.time >= -OpenSekai.Shared.Live.LongEndJudgement.EarlyGoodMs / 1000f
 					&& now - note.MusicScoreInfo.time <= OpenSekai.Shared.Live.LongEndJudgement.LateGoodMs / 1000f)
 				{
-					note.Judgment(ref touch, lane);
+					if (note is LongHoldCombo combo) combo.ObserveBarContact(now);
+					else note.Judgment(ref touch, lane);
 				}
 			}
 		}

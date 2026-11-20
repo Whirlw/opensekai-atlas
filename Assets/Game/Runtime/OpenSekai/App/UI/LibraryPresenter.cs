@@ -16,6 +16,9 @@ namespace OpenSekai.App.UI
     internal sealed class LibraryPresenter : IDisposable
     {
         private const string PackageExtension = ".oskp";
+        private const string SortPreference = "library.sort";
+        private const string GroupPreference = "library.group";
+        private const string ViewPreference = "library.view";
 
         private readonly ILibraryView _view;
         private readonly SongPackageManager _packages;
@@ -23,6 +26,7 @@ namespace OpenSekai.App.UI
         private readonly Func<IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary>> _loadHistory;
         private readonly Action _reloadHistory;
         private readonly LibraryLoudnessScanner _loudness;
+        private readonly bool _persistBrowsePreferences;
         private readonly LibraryModel _model = new LibraryModel();
         private IReadOnlyList<SongPackageItem> _items = Array.Empty<SongPackageItem>();
         // The page's own copy, so a recorded run can update one package without touching the loader's.
@@ -40,13 +44,15 @@ namespace OpenSekai.App.UI
         /// <param name="loadHistory">Play history per score key, as cached; defaults to the history store.</param>
         /// <param name="reloadHistory">Rebuilds the cached history from the history file; defaults to the history store.</param>
         /// <param name="loudness">Measures songs left without a loudness after each reload; none when null.</param>
+        /// <param name="persistBrowsePreferences">Whether to read and write this device's library preferences.</param>
         internal LibraryPresenter(
             ILibraryView view,
             SongPackageManager packages,
             Func<PlayRequest, CancellationToken, Action<string>, UniTask<PlayStartResult>> startPlay,
             Func<IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary>> loadHistory = null,
             Action reloadHistory = null,
-            LibraryLoudnessScanner loudness = null)
+            LibraryLoudnessScanner loudness = null,
+            bool persistBrowsePreferences = false)
         {
             _view = view;
             _packages = packages;
@@ -54,6 +60,13 @@ namespace OpenSekai.App.UI
             _loadHistory = loadHistory ?? CustomMusicScorePlayHistoryStorage.LoadSummaries;
             _reloadHistory = reloadHistory ?? (() => CustomMusicScorePlayHistoryStorage.ReloadSummaries());
             _loudness = loudness;
+            _persistBrowsePreferences = persistBrowsePreferences;
+            if (_persistBrowsePreferences)
+            {
+                _model.SortKey = ReadPreference(SortPreference, _model.SortKey);
+                _model.SetGroupKey(ReadPreference(GroupPreference, _model.GroupKey));
+                _viewMode = ReadPreference(ViewPreference, _viewMode);
+            }
             CustomMusicScorePlayHistoryStorage.Recorded += OnScoreRecorded;
         }
 
@@ -76,12 +89,14 @@ namespace OpenSekai.App.UI
         internal void SetSort(LibrarySortKey key)
         {
             _model.SortKey = key;
+            SavePreference(SortPreference, key);
             Render();
         }
 
         internal void SetGroupMode(LibraryGroupKey key)
         {
             _model.SetGroupKey(key);
+            SavePreference(GroupPreference, key);
             Render();
         }
 
@@ -106,8 +121,22 @@ namespace OpenSekai.App.UI
             }
 
             _viewMode = mode;
+            SavePreference(ViewPreference, mode);
             Render();
             UiSound.Play(UiCue.Select);
+        }
+
+        private static T ReadPreference<T>(string key, T fallback) where T : struct, Enum
+        {
+            string saved = PlayerPrefs.GetString(key, string.Empty);
+            return Enum.TryParse(saved, out T value) && Enum.IsDefined(typeof(T), value) ? value : fallback;
+        }
+
+        private void SavePreference<T>(string key, T value) where T : struct, Enum
+        {
+            if (!_persistBrowsePreferences) return;
+            PlayerPrefs.SetString(key, value.ToString());
+            PlayerPrefs.Save();
         }
 
         /// <summary>
@@ -282,21 +311,19 @@ namespace OpenSekai.App.UI
             // filter extension itself, and passing "Test.oskp" produced "Test.oskp.oskp".
             string baseName = SafeFileName(LibraryModel.BuildTitle(item));
             string destination = LibraryImport.PickExportDestination(baseName);
-            if (string.IsNullOrEmpty(destination))
-            {
-                // Mobile has no save dialog: write next to the library so the file is still reachable.
-                string exportDirectory = Path.Combine(_packages.RootDirectory, "Exports");
-                destination = Path.Combine(exportDirectory, baseName + PackageExtension);
-                _view.SetStatus("正在导出到 " + destination + " …");
-            }
-            else if (!destination.EndsWith(PackageExtension, StringComparison.OrdinalIgnoreCase))
-            {
-                // Some dialogs do not append the filter extension when the user typed one.
-                destination += PackageExtension;
-            }
-
             try
             {
+                if (string.IsNullOrEmpty(destination))
+                {
+                    destination = _packages.GetDefaultExportPath(baseName + PackageExtension);
+                    _view.SetStatus("正在导出到 " + destination + " …");
+                }
+                else if (!destination.EndsWith(PackageExtension, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Some dialogs do not append the filter extension when the user typed one.
+                    destination += PackageExtension;
+                }
+
                 string written = _packages.ExportZip(item.Entry, destination);
                 _view.SetStatus("已导出：" + written);
                 UiSound.Play(UiCue.Success);
@@ -338,11 +365,11 @@ namespace OpenSekai.App.UI
                 return "package";
             }
 
-            char[] invalid = Path.GetInvalidFileNameChars();
+            const string invalid = "<>:\"/\\|?*";
             char[] buffer = value.ToCharArray();
             for (int i = 0; i < buffer.Length; i++)
             {
-                if (Array.IndexOf(invalid, buffer[i]) >= 0 || buffer[i] == '/' || buffer[i] == '\\')
+                if (invalid.IndexOf(buffer[i]) >= 0 || char.IsControl(buffer[i]))
                 {
                     buffer[i] = '_';
                 }
@@ -399,7 +426,14 @@ namespace OpenSekai.App.UI
                 SongPackage package = isFolder
                     ? _packages.ImportFolder(path)
                     : _packages.ImportZip(path);
-                string name = package?.Manifest != null && !string.IsNullOrWhiteSpace(package.Manifest.title)
+                if (package == null)
+                {
+                    _view.SetStatus("导入失败：无法读取曲包，请检查文件以及是否包含有效的 manifest.json。");
+                    UiSound.Play(UiCue.Error);
+                    return;
+                }
+
+                string name = package.Manifest != null && !string.IsNullOrWhiteSpace(package.Manifest.title)
                     ? package.Manifest.title
                     : "曲包";
                 _view.SetStatus("导入成功：" + name);

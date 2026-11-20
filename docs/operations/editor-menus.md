@@ -3,7 +3,7 @@
 > 目的：把工程里可用的编辑器菜单列全，说明每个菜单做什么、什么时候该用。
 > 适用读者：开发者、测试人员。
 > 前置条件：工程能在编辑器里正常编译（见 [环境与运行](../getting-started/build-and-run.md)）。
-> 最后更新：2026-11-14
+> 最后更新：2026-11-17
 
 ## 概述
 
@@ -33,6 +33,7 @@
 | `libraryEntries` | `1`（一个 `LibraryEntryPoint`） |
 | `editorEntries` | `0`（不再有 `MusicScoreMakerEntryPoint`） |
 | `lightweightLibraryScreens` | `1` |
+| `homeScreens` | `1`（冷启动时 `page` 为 `home`，从打歌回来为 `library`） |
 | `eventSystems` | `1` |
 | `isStartingPlayback` | `false` |
 
@@ -41,6 +42,12 @@
 | 菜单 | 什么情况下用 | 输出 |
 | --- | --- | --- |
 | `Rebuild Music Info Page` | 改了曲目信息页的素材（`ArtSource/Tools/render_musicinfo.ps1` 重画后）或布局（`MusicInfoPageBuilder.cs`） | 设置 `Assets/Graphics/Textures/MusicInfo/*.png` 的导入参数（不压缩），重建 `FrontUIView.prefab` 里 `MusicInfo` 画布的全部子节点并重新连好 `MusicInfoView` 的字段；命令行用 `-batchmode -executeMethod OpenSekai.EditorTools.MusicInfoPageBuilder.RebuildFromCommandLine` |
+
+### `OpenSekai/Brand/*`
+
+| 菜单 | 什么情况下用 | 输出 |
+| --- | --- | --- |
+| `Export App Icons` | 改了品牌标的几何或配色（`App/UI/Home/BrandArt.cs`）之后 | 重画 `Assets/Graphics/Icons/AppIcon*.png` 与 `docs/images/app-icon.png`，设为不压缩，并在 Player Settings 里指定桌面图标和 Android 自适应图标两层；命令行用 `-batchmode -executeMethod OpenSekai.EditorTools.BrandIconExporter.ExportFromCommandLine` |
 
 ### `OpenSekai/Dev/*`
 

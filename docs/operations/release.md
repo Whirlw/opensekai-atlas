@@ -119,4 +119,4 @@ $apk = "Builds/Release-2026-11-03/OpenSekaiAtlas-release.apk"
 
 - [Android 构建](android-build.md)
 - [编辑器菜单](editor-menus.md)
-- [Unity 6 升级清单](unity6-upgrade.md)
+- [Unity 6 升级清单](../archive/unity6-upgrade/unity6-upgrade.md)

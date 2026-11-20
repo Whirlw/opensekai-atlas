@@ -25,6 +25,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
 		private LiveHarness _harness;
 		private LongNote _bar;
+		private float _chartStart;
 		private FlickNote Tail => (FlickNote)_bar.ChildNote;
 
 		// Screen x of each finger: the harness turns position changes into deltas, so a finger that
@@ -43,10 +44,11 @@ namespace OpenSekai.Tests.EditMode.Live
 			_harness.Dispose();
 		}
 
-		private void Arrange(NoteDirection direction = NoteDirection.Default)
+		private void Arrange(NoteDirection direction = NoteDirection.Default, float chartStart = 0f)
 		{
-			var head = new MusicScoreInfo(0, 0f, 0f, 120, 4, 1, 1);
-			var end = new MusicScoreInfo(0, 0.5f, 1f, 120, 4, 1, 1);
+			_chartStart = chartStart;
+			var head = new MusicScoreInfo(0, 0f, chartStart, 120, 4, 1, 1);
+			var end = new MusicScoreInfo(0, 0.5f, chartStart + 1f, 120, 4, 1, 1);
 			_bar = new LongNote(head, 301, Lane, Lane, NoteCategory.Long, NoteType.Default, 1f, 0f);
 			_bar.AddNoteListAndSetupChildNote(new FlickNote(end, 302, Lane, Lane,
 				NoteCategory.Flick, 1f, NoteType.Default, direction, 0f, 10f));
@@ -69,7 +71,7 @@ namespace OpenSekai.Tests.EditMode.Live
 				phase, Vector2.zero);
 		}
 
-		private void StepTo(float time, params LiveTouchSample[] touches) => _harness.Step(time, 10d + time, touches);
+		private void StepTo(float time, params LiveTouchSample[] touches) => _harness.Step(time + _chartStart, 10d + time, touches);
 
 		/// <summary>Presses the bar at 0 and holds it with finger 1 until <paramref name="until"/> (exclusive).</summary>
 		private void HoldUntil(float until)
@@ -93,10 +95,11 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(Tail.JudgesAsBarTail, Is.True);
 		}
 
-		[Test]
-		public void AnEarlySwipeIsGradedFiftyMillisecondsAfterTheLift()
+		[TestCase(0f)]
+		[TestCase(-2f)]
+		public void AnEarlySwipeIsGradedFiftyMillisecondsAfterTheLift(float chartStart)
 		{
-			Arrange();
+			Arrange(chartStart: chartStart);
 			HoldUntil(0.88f);
 			StepTo(0.88f, At(1, 0.88f, TouchPhase.Moved, moveX: -100f));
 			Assert.That(Tail.Result, Is.EqualTo(NoteResult.None), "an early swipe is only recorded");
@@ -109,6 +112,20 @@ namespace OpenSekai.Tests.EditMode.Live
 			// Graded at 0.94 (lift + 50 ms), not at the frame that noticed it: 60 ms early is Great on the
 			// end table, where 50 ms would already be the Perfect band.
 			Assert.That(Tail.Result, Is.EqualTo(NoteResult.Great));
+		}
+
+		[Test]
+		public void CancelDiscardsAnArmedSwipeAndItsFinalDisplacement()
+		{
+			Arrange();
+			HoldUntil(0.93f);
+			StepTo(0.93f, At(1, 0.93f, TouchPhase.Moved, moveX: -100f));
+			Assert.That(Tail.Result, Is.EqualTo(NoteResult.None));
+
+			StepTo(1f, At(1, 1f, TouchPhase.Canceled, moveX: -100f));
+			StepTo(1.06f);
+
+			Assert.That(Tail.Result, Is.EqualTo(NoteResult.None));
 		}
 
 		[Test]
@@ -201,10 +218,11 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(Tail.Result, Is.EqualTo(NoteResult.JustPerfect));
 		}
 
-		[Test]
-		public void ASwipeAfterTheTailTimeGradesAtOnce()
+		[TestCase(0f)]
+		[TestCase(-2f)]
+		public void ASwipeAfterTheTailTimeGradesAtOnce(float chartStart)
 		{
-			Arrange();
+			Arrange(chartStart: chartStart);
 			HoldUntil(1.03f);
 			StepTo(1.03f, At(1, 1.03f, TouchPhase.Moved, moveX: -100f));
 			Assert.That(Tail.Result, Is.EqualTo(NoteResult.JustPerfect));

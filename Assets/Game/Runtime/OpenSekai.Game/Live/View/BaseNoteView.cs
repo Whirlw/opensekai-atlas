@@ -1,4 +1,4 @@
-﻿using Sekai.Live;
+using Sekai.Live;
 using UnityEngine;
 
 namespace Sekai
@@ -20,6 +20,10 @@ namespace Sekai
 		protected INote note;
 
 		protected float posZ;
+		private MaterialPropertyBlock _palette;
+		private int _style;
+
+		protected void ApplyStyle(int style) => NextRushPalette.Apply(noteRenderers, style, ref _style, ref _palette);
 
 		public virtual void Setup(Vector2 spawnPosition, Vector2[] judgmentPositions, float noteShowRate)
 		{
@@ -45,13 +49,19 @@ namespace Sekai
 				return;
 			}
 
-			if (note.Progress <= 0f)
+			if (!LiveConfig.IsKeyVisible(note, musicTime))
 			{
 				transform.localScale = Vector3.zero;
 				return;
 			}
 
-			float progress = LiveConfig.GetNoteViewProgress(LiveConfig.ViewProgressOf(note));
+			float progress = LiveConfig.GetNoteViewProgress(LiveConfig.ViewProgressOf(note, musicTime));
+			if (note is NoteBase native)
+			{
+				ApplyStyle(native.NativeStyle);
+				if (native.IsNextRushConnectorHeadVisual && spriteRenderer != null)
+					spriteRenderer.size = LiveUtility.CalcSpriteRendererSize(note.LaneEndF - note.LaneStartF);
+			}
 			transform.localPosition = CalcNotePosition(ref progress);
 			transform.localScale = Vector3.one * progress;
 			UpdateSpritePayload(progress);
@@ -61,10 +71,13 @@ namespace Sekai
 		{
 			this.note = note;
 			this.posZ = posZ;
+			ApplyStyle(note is NoteBase native ? native.NativeStyle : 0);
 			gameObject.SetActive(true);
 			if (spriteRenderer != null)
 			{
-				spriteRenderer.size = LiveUtility.CalcSpriteRendererSize(note.LaneEnd - note.LaneStart);
+				float width = note is NoteBase { NativeScroll: not null }
+					? note.LaneEndF - note.LaneStartF : note.LaneEnd - note.LaneStart;
+				spriteRenderer.size = LiveUtility.CalcSpriteRendererSize(width);
 			}
 			UpdateSpritePayload(0f);
 		}
@@ -87,7 +100,8 @@ namespace Sekai
 				return Vector3.zero;
 			}
 
-			Vector2 center = GetLaneCenter(note.LaneStart, note.LaneEnd);
+			Vector2 center = note is NoteBase { NativeScroll: not null }
+				? GetLaneCenter(note.LaneStartF, note.LaneEndF) : GetLaneCenter(note.LaneStart, note.LaneEnd);
 			Vector2 effectiveSpawnPos = spawnPosition;
 			if (note is NoteBase noteBase && noteBase.IsNegativeSpeed)
 			{
@@ -107,7 +121,9 @@ namespace Sekai
 
 		protected Vector2 GetLaneCenter(float laneStart, float laneEnd)
 		{
-			return (GetLanePosition(laneStart) + GetLanePosition(laneEnd)) * 0.5f;
+			return note is NoteBase { NativeScroll: not null }
+				? LiveConfig.NativeLanePosition((laneStart + laneEnd) * 0.5f)
+				: (GetLanePosition(laneStart) + GetLanePosition(laneEnd)) * 0.5f;
 		}
 
 		protected Vector2 GetLanePosition(float lane)
@@ -132,8 +148,10 @@ namespace Sekai
 			}
 
 			Color color = spriteRenderer.color;
-			color.r = (((float)note.LaneStart + note.LaneEnd) * 0.5f + 0.5f) / judgmentPositions.Length;
-			color.g = ((float)(note.LaneEnd - note.LaneStart) + 0.5f) / judgmentPositions.Length;
+			bool native = note is NoteBase { NativeScroll: not null };
+			float left = native ? note.LaneStartF : note.LaneStart, right = native ? note.LaneEndF : note.LaneEnd;
+			color.r = ((left + right) * 0.5f + 0.5f) / judgmentPositions.Length;
+			color.g = (right - left + 0.5f) / judgmentPositions.Length;
 			color.b = progress;
 			spriteRenderer.color = color;
 		}

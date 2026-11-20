@@ -1,4 +1,4 @@
-﻿# 架构
+# 架构
 
 > 目的：说明这套代码为什么这样分层、数据从曲包流到画面经过哪些环节，供改代码的人定位。
 > 适用读者：开发者。
@@ -20,6 +20,10 @@
 | --- | --- |
 | [模块划分](modules.md) | 目录职责、依赖方向、`Assets` 下剩余代码的归属 |
 | [曲包与谱面数据](chart-package.md) | `.oskp` 结构、`ChartDocument`、兼容旧类型名的 binder |
+| [服务器页面](server-screen.md) | 服务器列表、网页服务器、Sonolus 原生浏览 / 搜索 / 详情 / 下载 / 游玩 |
+| [Sonolus 下载接入调研](sonolus-download.md) | 公开接口实测、NextRUSH+ 转换边界与分阶段接入方案 |
+| [NextRUSH+ 原生加载](native-next-rush.md) | 并行加载入口、原始曲包、基础兼容范围与下载验证工具 |
+| [NextRUSH+ 完整支持计划](../plans/next-rush-support-plan.md) | 固定兼容基线、音乐偏移/分组变速/锚点、完整玩法与分阶段验收；忽略技能和 Fever |
 | [打歌运行时](live-runtime.md) | 场景切换、时钟、输入回填、判定、计分、结算 |
 | [判定规则设计](judging-design.md) | 判定权归属、三条通道、时间与轨道规则、长条四段结构、不变量清单 |
 | [开局数据契约](play-session.md) | `PlaySession` / `RuntimeChartDefinition`，以及它们与 `FreeLiveBootData` 的关系 |
@@ -27,9 +31,15 @@
 | [AssetBundle 与清单](asset-bundles.md) | 11 个白名单条目、0.3.0 的 10 个实际 bundle 与 JSON 清单 |
 | [音频](audio.md) | 曲包音频、外部 WAV、`CriAtomShim` 和播放时钟 |
 | [轻量化方案（历史设计稿）](../history/player-lite-plan.md) | 第一轮播放器精简的设计与阶段划分 |
-| [结构重整计划（2026-11）](restructure-plan-2026-11.md) | 结构基线、程序集与目录迁移、测试和发布验收 |
+| [结构重整计划（2026-11）](../archive/restructuring-2026-11/restructure-plan-2026-11.md) | 结构基线、程序集与目录迁移、测试和发布验收 |
+
+| [长条中间点类型](interior-point-kinds.md) | 中间点类型与判定规则 |
+| [长条中间点与判定归属](long-note-interior-spec.md) | 中间点生成与归属规则 |
 
 ## 相关文档
+
+- [开发计划](../plans/README.md)
+- [历史归档](../archive/README.md)
 
 - [ADR 索引](../decisions/README.md)
 - [参考手册](../reference/README.md)

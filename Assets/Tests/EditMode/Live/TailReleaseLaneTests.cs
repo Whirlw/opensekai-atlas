@@ -83,6 +83,44 @@ namespace OpenSekai.Tests.EditMode.Live
 		}
 
 		[Test]
+		public void ABufferedReleaseIsGradedAtItsTouchTime()
+		{
+			HoldUntilTailTime();
+			var position = LanePosition(_bar.JudgeLaneStart);
+
+			StepTo(TailTime + 0.06f, LiveHarness.Touch(1, position, 10d + TailTime, TouchPhase.Ended));
+
+			Assert.That(Tail.Result, Is.EqualTo(NoteResult.JustPerfect));
+		}
+
+		[TestCase(TouchPhase.Ended, NoteResult.JustPerfect)]
+		[TestCase(TouchPhase.Canceled, NoteResult.None)]
+		public void AContactCanEndAtTheSameTimestampAsItsLastSample(TouchPhase phase, NoteResult expected)
+		{
+			HoldUntilTailTime();
+			var position = LanePosition(_bar.JudgeLaneStart);
+			double timestamp = 10d + TailTime;
+
+			StepTo(TailTime, LiveHarness.Touch(1, position, timestamp, TouchPhase.Stationary),
+				LiveHarness.Touch(1, position, timestamp, phase));
+
+			Assert.That(Tail.Result, Is.EqualTo(expected));
+		}
+
+		[Test]
+		public void ASystemCancelLeavesAnOrdinaryTailToExpire()
+		{
+			HoldUntilTailTime();
+			var position = LanePosition(_bar.JudgeLaneStart);
+
+			StepTo(TailTime, LiveHarness.Touch(1, position, 10d + TailTime, TouchPhase.Canceled));
+			Assert.That(Tail.Result, Is.EqualTo(NoteResult.None));
+
+			StepTo(TailTime + 0.25f);
+			Assert.That(Tail.Result, Is.EqualTo(NoteResult.Miss));
+		}
+
+		[Test]
 		public void AReleaseAfterTheWindowKeepsTheExpiredTailAtMiss()
 		{
 			HoldUntilTailTime();
@@ -184,7 +222,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			return bar;
 		}
 
-		// The tail is at 1.0. A lift within 100 ms of the key press is the end of that tap and may only
+		// The tail is at 1.0. A lift within one sixth of a second of the key press is the end of that tap and may only
 		// release the tail inside its Perfect band; a later lift is an ordinary release.
 		[TestCase(false, 0.95f, 1.03f, NoteResult.JustPerfect)]
 		[TestCase(true, 0.95f, 1.03f, NoteResult.JustPerfect)]
@@ -193,8 +231,10 @@ namespace OpenSekai.Tests.EditMode.Live
 		// Pressed before the tail's window opened, lifted 35 ms later inside it (device log, tail 3813):
 		// still a quick tap, so it does not take the tail at Good.
 		[TestCase(false, 0.85f, 0.885f, NoteResult.None)]
-		// Held 150 ms, then 200 ms: no longer a quick tap, whatever the window did at the press.
-		[TestCase(false, 0.95f, 1.10f, NoteResult.Great)]
+		// At 150 and 166 ms the protection applies. At 167 ms a Great can be earned.
+		[TestCase(false, 0.95f, 1.10f, NoteResult.None)]
+		[TestCase(false, 0.934f, 1.10f, NoteResult.None)]
+		[TestCase(false, 0.933f, 1.10f, NoteResult.Great)]
 		[TestCase(false, 0.90f, 1.10f, NoteResult.Great)]
 		public void AQuickTapRestrictsItsLiftToPerfect(bool flick, float pressTime,
 			float liftTime, NoteResult expected)

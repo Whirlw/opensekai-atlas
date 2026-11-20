@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using UnityEngine;
 
 namespace Sekai.Live
 {
@@ -10,6 +11,73 @@ namespace Sekai.Live
 		internal List<INote> LineNoteList { get; private set; } = new List<INote>();
 
 		protected string _guideColor = null;
+
+		internal NoteBase ConnectorHeadViewNote { get; private set; }
+		private int _connectorHeadStyle;
+		private NoteType _connectorHeadType;
+
+		public void SetNextRushConnectorHeadViewNote(NoteBase note)
+		{
+			note.IsNextRushConnectorHeadVisual = true;
+			ConnectorHeadViewNote = note;
+			_connectorHeadStyle = note.NativeStyle;
+			_connectorHeadType = note.Type;
+		}
+
+		internal bool UpdateConnectorHeadView(double now)
+		{
+			if (ConnectorHeadViewNote == null || !TryConnectorPresentation(now, out var segment, out float left, out float right))
+				return false;
+			ConnectorHeadViewNote.PlaceVisualHead(left, right);
+			ConnectorHeadViewNote.NativeStyle = segment.HeadStyle(_connectorHeadStyle);
+			ConnectorHeadViewNote.Type = segment.IsDamage || ConnectorHeadViewNote is NextRushDamageNote
+				? _connectorHeadType
+				: segment.IsCritical ? NoteType.Critical : NoteType.Default;
+			return true;
+		}
+
+		internal bool TryConnectorPresentation(double now, out NextRushConnectorSegment segment, out float left, out float right)
+		{
+			segment = null;
+			left = right = 0f;
+			if (!TryNativeEdge(now, out var start, out var end, visualTime: true))
+			{
+				// A legacy fake damage head sits at the first endpoint during its lead-in.
+				if (NativeConnector?.HasLegacyFakeDamageLeadIn != true
+					|| now >= NativeTarget.Time || LineNoteList.Count < 2) return false;
+				start = this;
+				end = (NoteBase)LineNoteList[1];
+				if (now >= end.NativeTarget.Time) return false;
+			}
+			segment = start.NativeConnector;
+			if (segment.IsGuide || segment.FullScreen || segment.IsHidden(now, start.NativeScroll.SampleFrame(now).Hidden)) return false;
+			double duration = end.NativeTarget.Time - start.NativeTarget.Time;
+			float progress = now <= start.NativeTarget.Time ? 0f :
+				segment.Interpolate((float)((now - start.NativeTarget.Time) / duration));
+			left = Mathf.LerpUnclamped(start.NativeLeft, end.NativeLeft, progress);
+			right = Mathf.LerpUnclamped(start.NativeRight, end.NativeRight, progress);
+			return right - left > -1f;
+		}
+
+		internal bool TryNativeEdge(double time, out NoteBase start, out NoteBase end, bool visualTime = false)
+		{
+			start = end = null;
+			int last = LineNoteList.Count - 1;
+			if (last < 1 || time < TimeOf(this) || time >= TimeOf(LineNoteList[last])) return false;
+
+			int low = 1, high = last;
+			while (low < high)
+			{
+				int middle = (low + high) / 2;
+				if (TimeOf(LineNoteList[middle]) <= time) low = middle + 1;
+				else high = middle;
+			}
+			start = (NoteBase)LineNoteList[low - 1];
+			end = (NoteBase)LineNoteList[low];
+			return true;
+
+			double TimeOf(INote point) => visualTime ? ((NoteBase)point).NativeTarget.Time : point.MusicScoreInfo.time;
+		}
 
 		public string guideColor
 		{
@@ -98,6 +166,18 @@ namespace Sekai.Live
 
 			internal static void UpdateLane(LongNote bar, ref MusicScoreInfo currentFrameInfo)
 			{
+				if (bar.NativeConnector != null)
+				{
+					INote from = bar, to = bar.childNote;
+					for (int i = 1; i < bar.LineNoteList.Count; i++)
+					{
+						to = bar.LineNoteList[i];
+						if (currentFrameInfo.time < to.MusicScoreInfo.time || i == bar.LineNoteList.Count - 1) break;
+						from = to;
+					}
+					LiveUtility.CalcExcuteNoteLane(bar, ref from, ref to, ref currentFrameInfo, bar.MusicScoreInfo, bar.childNote);
+					return;
+				}
 				INote currentNote = bar;
 				INote nextNote = bar.childNote;
 				if (bar.ViewNoteList != null)

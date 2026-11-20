@@ -2,14 +2,14 @@
 
 > 目的：记录真实升级的提交、证据、门禁与续接位置。
 > 适用读者：升级执行者与接手者。
-> 前置条件：按 [升级清单](../operations/unity6-upgrade.md) 执行。
+> 前置条件：按 [升级清单](../archive/unity6-upgrade/unity6-upgrade.md) 执行。
 > 最后更新：2026-11-02
 
 ## 1. 结论
 
 **已合并入主线并通过真实设备门禁。** 工程已迁到 Unity 6000.6.7f1；API、URP Render Graph、TMP、Android 输入修复已提交，AB 已重建。合并后修复了启动即 `SIGSEGV` 的 TMP 字体清理缺陷（见 §9.2），移除 `com.coplaydev.unity-mcp`（见 §11），清掉 5 条 `shader is not supported on this GPU` 警告（见 §10）。当前状态：编辑器与 Android 真机（Xiaomi 22041216C，120 Hz）门禁均通过，测试谱 221 音符结算 `1,000,000 / S`，`Unity:E` 仅剩一条良性的 AssetPackManager 探测日志。
 
-原始门禁脚本当时按「123.9 MiB ±5%」判定体积失败；事后核对发现该基准取自 C2 之前的旧包，同树最后一次构建是 109.42 MiB，据此 Unity 6 包的实际增幅为 +4.08%，属于通过。基准已在 [升级清单](../operations/unity6-upgrade.md) 改为「升级前最后一次构建」。
+原始门禁脚本当时按「123.9 MiB ±5%」判定体积失败；事后核对发现该基准取自 C2 之前的旧包，同树最后一次构建是 109.42 MiB，据此 Unity 6 包的实际增幅为 +4.08%，属于通过。基准已在 [升级清单](../archive/unity6-upgrade/unity6-upgrade.md) 改为「升级前最后一次构建」。
 
 本机完整证据目录：`E:\DeepseekHarness\OpenSekai\Builds\Unity6Upgrade-2026-11-02\evidence`（Git 忽略）。关键证据另存本仓库 `docs/images/unity6-*`。
 
@@ -190,7 +190,7 @@ passed=false
 
 ## 7. 文档改动
 
-已改：本记录、docs/operations/unity6-upgrade.md 勾选、docs/README.md 本机工具表、docs/operations/android-build.md 工具链/输入方法、docs/INDEX.md、docs/changelog/README.md、docs/images/README.md。INDEX 与证据表已同步，Android 完整门禁与性能仍不勾选。原始引擎升级指南保留为历史依据。
+已改：本记录、docs/archive/unity6-upgrade/unity6-upgrade.md 勾选、docs/README.md 本机工具表、docs/operations/android-build.md 工具链/输入方法、docs/INDEX.md、docs/changelog/README.md、docs/images/README.md。INDEX 与证据表已同步，Android 完整门禁与性能仍不勾选。原始引擎升级指南保留为历史依据。
 
 ## 8. 回滚
 

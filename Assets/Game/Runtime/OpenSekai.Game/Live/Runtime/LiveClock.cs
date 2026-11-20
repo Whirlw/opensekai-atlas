@@ -9,6 +9,8 @@ namespace Sekai.Core.Live
 
 		internal double GameTime { get; set; }
 		internal MusicScoreInfo Frame { get; private set; }
+		internal float PreviousFrameTime { get; private set; }
+		private bool _hasFrame;
 
 		// The controller controls pause and resume by deciding when to request a frame.
 		// Ended sessions advance visual frames without moving the input clock.
@@ -19,9 +21,14 @@ namespace Sekai.Core.Live
 			{
 				GameTime = gameTime;
 			}
-			Frame = MusicScore.CurrentFrameInfo;
+			var sampled = MusicScore.CurrentFrameInfo;
+			PreviousFrameTime = _hasFrame && Frame.time <= sampled.time ? Frame.time : sampled.time - ReferenceFrameSeconds;
+			Frame = sampled;
+			_hasFrame = true;
 			return Frame;
 		}
+
+		internal void ResetFrameHistory() => _hasFrame = false;
 
 		internal float ResolveInputMusicTime(MusicScoreInfo frame, double inputTime)
 		{

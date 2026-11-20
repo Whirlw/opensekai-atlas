@@ -5,6 +5,7 @@ using Sekai;
 
 using OpenSekai.Shared.Diagnostics;
 using OpenSekai.Shared.Live;
+using InputTouchPhase = UnityEngine.InputSystem.TouchPhase;
 
 namespace Sekai.Live
 {
@@ -18,6 +19,8 @@ namespace Sekai.Live
 
 		/// <summary>The swipe length this note asks for, in the same units as a touch delta.</summary>
 		internal float FlickDistance => _flickDistance;
+		internal bool IsNextRushHead { get; }
+		internal bool CanStartNextRushHold => State is NoteState.Input or NoteState.Done;
 
 		private FlickTailJudge _tailJudge;
 
@@ -65,28 +68,27 @@ namespace Sekai.Live
 			Category = NoteCategory.Flick;
 		}
 
-		public FlickNote(MusicScoreInfo info, int id, int laneStart, int laneEnd, NoteCategory category, float speedRatio, NoteType type, NoteDirection direction, float laneOffset, float screenDpiToInch)
+		public FlickNote(MusicScoreInfo info, int id, int laneStart, int laneEnd, NoteCategory category, float speedRatio,
+			NoteType type, NoteDirection direction, float laneOffset, float screenDpiToInch, bool isNextRushHead = false)
 			: base(info, id, laneStart, laneEnd, category, speedRatio, laneOffset, type)
 		{
 			inputResults = new (int id, bool distance, bool trueDirection)[8];
 			_flickDistance = screenDpiToInch;
 			Direction = direction;
+			IsNextRushHead = isNextRushHead;
 		}
 
 		public override void Excute(MusicScoreInfo currentFrameInfo, float offsetTime)
 		{
-			// A bar's end flick settles its recorded swipes before the window can close on it: the
-			// finger still in the lanes at the tail time is graded right then.
-			if (JudgesAsBarTail && State != NoteState.Done)
+			if (IsNextRushHead)
 			{
-				TailJudge.Settle(currentFrameInfo.time);
+				AdvanceNote(currentFrameInfo, offsetTime, settleTimeout: false);
+				return;
+			}
 
-				// Past the end table's late edge nothing can grade it any more: a Miss, on this frame.
-				if (State != NoteState.Done && LongEndJudgement.IsPast(currentFrameInfo.time - MusicScoreInfo.time))
-				{
-					FinishAsTail((NoteResult.Miss, NoteResultDescription.None));
-					return;
-				}
+			if (JudgesAsBarTail)
+			{
+				TailJudge.SettleFrame(currentFrameInfo.time);
 			}
 
 			base.Excute(currentFrameInfo, offsetTime);
@@ -100,6 +102,28 @@ namespace Sekai.Live
 				{
 					JudgmentFlick(currentFrameInfo.time);
 				}
+			}
+		}
+
+		internal bool AcceptsNextRushHeadSample(ref LiveTouch touch, float lane)
+		{
+			if (State != NoteState.Input || touch.phase == InputTouchPhase.Canceled
+				|| !LiveUtility.IsJudgmentTiming(LiveUtility.GetINoteToJudgeFrameType(this),
+					MusicScoreInfo.time - touch.musicTime)) return false;
+
+			// A registered finger may swipe out of the head's lane into the moving hold.
+			return touch.phase == InputTouchPhase.Began
+				? !float.IsNegativeInfinity(lane) && JudgeLaneStart <= lane && lane <= JudgeLaneEnd
+				: HasInputResult(touch.touchId);
+		}
+
+		internal void SettleNextRushHead(float now)
+		{
+			if (State != NoteState.Done && LiveConfig.IsPastJudgeWindow(
+				LiveUtility.GetINoteToJudgeFrameType(this), MusicScoreInfo.time - now))
+			{
+				JudgeInfo = (NoteResult.Miss, NoteResultDescription.None);
+				State = NoteState.Done;
 			}
 		}
 
@@ -145,6 +169,7 @@ namespace Sekai.Live
 			var judgeInfo = singleFlick
 			  ? LiveConfig.CalculateFlickNoteResult(this, musicTime, isDirection)
 			  : LiveConfig.CalculateLongEndFlickNoteResult(this, musicTime, isDirection);
+			HasNextRushHit = IsNextRush;
 			JudgeInfo = onUpdateResult != null ? onUpdateResult(judgeInfo) : judgeInfo;
 			State = NoteState.Done;
 			return true;
@@ -290,7 +315,7 @@ namespace Sekai.Live
 		private void UpdateDelta(Vector2 touchDelta, ref bool isUpdatedDelta, ref bool isTrueDirection)
 		{
 			if (!OpenSekai.Shared.Live.FlickGesture.TryUpdate(
-				touchDelta, Time.deltaTime, Direction, _flickDistance, out bool trueDirection))
+				touchDelta, LiveUtility.FrameDeltaTime, Direction, _flickDistance, out bool trueDirection))
 			{
 				isUpdatedDelta = false;
 				isTrueDirection = false;

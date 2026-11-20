@@ -23,6 +23,9 @@ namespace OpenSekai.Shared.Live
             {
                 NoteDirection.Left => new Vector2(-1f, 1f),
                 NoteDirection.Right => new Vector2(1f, 1f),
+                NoteDirection.DownLeft => new Vector2(-1f, -1f),
+                NoteDirection.DownRight => new Vector2(1f, -1f),
+                NoteDirection.Down => Vector2.down,
                 _ => Vector2.up
             };
         }
@@ -61,7 +64,7 @@ namespace OpenSekai.Shared.Live
                 return false;
             }
 
-            if (direction == NoteDirection.Default)
+            if (direction is NoteDirection.Default or NoteDirection.Down)
             {
                 trueDirection = true;
                 return true;

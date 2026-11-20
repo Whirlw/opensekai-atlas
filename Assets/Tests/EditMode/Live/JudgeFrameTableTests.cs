@@ -64,6 +64,14 @@ namespace OpenSekai.Tests.EditMode.Live
         {
             var data = new Sekai.LiveSettingData();
             Assert.That(data.UseLegacyJudgeTiming, Is.False, "new installs judge at the touch timestamp");
+            Assert.That(data.UseFramePressMatching, Is.False, "new installs judge presses one by one in time order");
+        }
+
+        [Test]
+        public void ASettingsFileWithoutTheMatchingFieldLoadsTheSerialMode()
+        {
+            var data = Newtonsoft.Json.JsonConvert.DeserializeObject<Sekai.LiveSettingData>("{\"UseLegacyJudgeTiming\":false}");
+            Assert.That(data.UseFramePressMatching, Is.False, "an existing install moves to the time-ordered mode");
         }
     }
 }

@@ -120,5 +120,5 @@ powershell -NoProfile -ExecutionPolicy Bypass -File Tools/verify-structure.ps1 -
 
 - [界面与页面系统](../architecture/screen-system.md)
 - [打歌运行时](../architecture/live-runtime.md)
-- [Unity 6 升级清单](../operations/unity6-upgrade.md)
+- [Unity 6 升级清单](../archive/unity6-upgrade/unity6-upgrade.md)
 - [2026-11 重构日志](../changelog/2026-11-refactor-log.md)

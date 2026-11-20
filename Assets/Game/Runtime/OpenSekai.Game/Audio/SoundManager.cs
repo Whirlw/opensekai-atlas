@@ -25,6 +25,9 @@ namespace Sekai
 
 		private CriAtomExPlayer _soundEffectPlayer;
 		private CriAtomExPlayer _ingameBgmPlayer;
+		private CriAtomExAcb _packageAudio;
+		private AudioClip _packageClip;
+		private bool _ownsPackageClip;
 		private CriAtomExPlayback _currentIngamePlayback = CriAtomExPlayback.Invalid;
 		private uint _currentIngamePlaybackRequestId;
 		private AudioSyncedUnityTimer _audioSyncedUnityTimer;
@@ -58,6 +61,26 @@ namespace Sekai
 
 		public void RegisterExternalAudioClip(string bundleName, string cueName, AudioClip clip) =>
 			_externalSoundPack.RegisterClip(bundleName, cueName, clip);
+
+		internal void RegisterPackageAudioClip(string cueName, AudioClip clip, bool ownsClip = true)
+		{
+			if (ReferenceEquals(_packageClip, clip)) return;
+			ReleasePackageAudio();
+			_packageClip = clip;
+			_ownsPackageClip = ownsClip;
+			_packageAudio = _externalSoundPack.RegisterClip(cueName, cueName, clip);
+		}
+
+		/// <summary>Ends the package's lifetime. Stopping playback alone keeps it ready for a retry.</summary>
+		public void ReleasePackageAudio()
+		{
+			StopIngame();
+			if (_packageAudio != null) _catalog.Unregister(_packageAudio);
+			if (_ownsPackageClip && _packageClip != null) UnityEngine.Object.Destroy(_packageClip);
+			_packageAudio = null;
+			_packageClip = null;
+			_ownsPackageClip = false;
+		}
 
 		public bool ExistsCueName(string cueName) => _catalog.ExistsCueName(cueName);
 
@@ -219,9 +242,16 @@ namespace Sekai
 			return PlaySEInternal(cueName, 1f, 0f);
 		}
 
+		internal uint PlayHoldLoop(string cueName) => PlaySEInternal(cueName, 1f, 0f, loop: true);
+
 		public void PlayIngameSEOneShot(string cueName)
 		{
 			PlaySEInternal(cueName, 1f, 0f);
+		}
+
+		internal void PlayIngameSEOneShot(string cueName, int requestSequence)
+		{
+			PlaySEInternal(cueName, 1f, 0f, requestSequence);
 		}
 
 		public void PlayIngameVoiceOneShot(string cueName)
@@ -242,7 +272,7 @@ namespace Sekai
 		{
 		}
 
-		private uint PlaySEInternal(string cueName, float volume, float startTime)
+		private uint PlaySEInternal(string cueName, float volume, float startTime, int requestSequence = 0, bool loop = false)
 		{
 			string resolvedCueName = _catalog.ResolveCueName(cueName, out CriAtomExAcb acb);
 			if (string.IsNullOrEmpty(resolvedCueName) || acb == null)
@@ -260,7 +290,7 @@ namespace Sekai
 				{
 					player.SetStartTime((long)(startTime * 1000f));
 				}
-				CriAtomExPlayback _playback = player.Start();
+				CriAtomExPlayback _playback = player.Start(requestSequence, loop);
 				return _playback.id;
 			}
 			catch (Exception exception)

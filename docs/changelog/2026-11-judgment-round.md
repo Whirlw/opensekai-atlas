@@ -2,7 +2,7 @@
 
 > 目的：记录 11 月这一轮判定与长条改动的顺序、每步为什么做、怎么验证的，方便回溯「当时为什么这么改」。
 > 适用读者：要改判定/长条/尾键的开发者。
-> 前置条件：读过 [判定核心任务书](../operations/judgment-core-brief.md) 与 [判定参考](../reference/judging.md)。
+> 前置条件：读过 [判定核心任务书](../archive/judging-2026-11/judgment-core-brief.md) 与 [判定参考](../reference/judging.md)。
 > 最后更新：2026-11-07
 
 ## 概述
@@ -30,7 +30,7 @@
 
 ### 2. 四件事拆开（任务书 A/C/D）
 
-`docs/operations/judgment-core-brief.md` 把链路切成四块，逐个改：
+`docs/archive/judging-2026-11/judgment-core-brief.md` 把链路切成四块，逐个改：
 
 | 代号 | 问题 | 落点 |
 | --- | --- | --- |
@@ -165,7 +165,7 @@ return TailKeyLifetime.Of(childNote.MusicScoreInfo.time, visibleFrom, currentTim
 
 ## 相关文档
 
-- [判定核心任务书](../operations/judgment-core-brief.md)
+- [判定核心任务书](../archive/judging-2026-11/judgment-core-brief.md)
 - [判定链路](../architecture/README.md)
 - [判定参考](../reference/judging.md)
 - [测试](../operations/testing.md)

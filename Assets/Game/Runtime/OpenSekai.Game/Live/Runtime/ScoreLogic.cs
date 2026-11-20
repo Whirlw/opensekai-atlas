@@ -77,7 +77,8 @@ namespace Sekai.Core.Live
 				totalCombo = bootData?.MusicData?.TotalNoteCount ?? 0;
 			}
 			_score.totalComboCount = totalCombo;
-			_score.life = _liveBundleBuildData != null && _liveBundleBuildData.Life > 0 ? _liveBundleBuildData.Life : 1000;
+			_score.life = musicScore?.InitialLife
+				?? (_liveBundleBuildData != null && _liveBundleBuildData.Life > 0 ? _liveBundleBuildData.Life : 1000);
 			_score.rank = ScoreRank.D;
 			_score.totalScore = 0;
 			_scoredNoteCount = 0;
@@ -223,7 +224,12 @@ namespace Sekai.Core.Live
 				return;
 			}
 
-			if (LiveConfig.Damages.TryGetValue(note.Result, out int damage))
+			if (note is NextRushDamageNote)
+			{
+				if (note.Result == NoteResult.Miss)
+					_score.life = UnityEngine.Mathf.Max(0, _score.life - NextRushDamageNote.LifePenalty);
+			}
+			else if (LiveConfig.Damages.TryGetValue(note.Result, out int damage))
 			{
 				_score.life = UnityEngine.Mathf.Max(0, _score.life - damage);
 			}

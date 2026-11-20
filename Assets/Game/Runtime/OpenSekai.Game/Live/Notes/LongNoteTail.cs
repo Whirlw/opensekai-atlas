@@ -76,7 +76,7 @@ namespace Sekai.Live
 			//
 			// The tail is the note with the latest time, not the last one in the list: hidden points and
 			// preset points are appended in chart order and can come after the end.
-			if (!CanSettle() || _bar.NoteList == null || _bar.NoteList.Count == 0)
+			if (!CanSettle() || !_bar.IsReleaseTailReady || _bar.NoteList == null || _bar.NoteList.Count == 0)
 			{
 				return false;
 			}

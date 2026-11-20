@@ -1,4 +1,4 @@
-param([switch]$NodesOnly)
+param([switch]$NodesOnly, [switch]$DamageOnly)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 $code = @'
@@ -470,6 +470,11 @@ public static class AstralRemaining {
             bmp.Save(output,ImageFormat.Png);
         }
     }
+    public static void RenderDamageNode(string reference,string target) {
+        using(var im=new Bitmap(reference)) {
+            Node(target,im.Width,im.Height,C("#b263ff"),true);
+        }
+    }
     public static void Run(string reference,string target,bool nodesOnly) {
         Directory.CreateDirectory(target);int count=0;
         foreach(string path in Directory.GetFiles(reference,"*.png",SearchOption.AllDirectories)) {
@@ -496,4 +501,9 @@ Add-Type -TypeDefinition $code -ReferencedAssemblies System.Drawing
 $root=Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'NotesV2'
 $reference=Join-Path (Split-Path $root -Parent) '..\Assets\Game\Resources\live\note\custom01\textures'
 if(-not(Test-Path -LiteralPath $reference)){$reference=Join-Path (Split-Path (Split-Path $root -Parent) -Parent) 'custom01\textures'}
-[AstralRemaining]::Run($reference,(Join-Path $root '.'),$NodesOnly.IsPresent)
+if($DamageOnly) {
+    [AstralRemaining]::RenderDamageNode((Join-Path $root 'notes_friction_among_long.png'), (Join-Path $root 'notes_damage_friction.png'))
+    & (Join-Path $PSScriptRoot 'draw_notes.ps1') -DamageOnly
+} else {
+    [AstralRemaining]::Run($reference,(Join-Path $root '.'),$NodesOnly.IsPresent)
+}

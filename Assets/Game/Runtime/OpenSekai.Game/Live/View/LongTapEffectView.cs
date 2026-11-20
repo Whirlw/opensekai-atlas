@@ -22,7 +22,8 @@ namespace Sekai
 			    set => _Gen = value;
 			}
 
-						private uint _PlaybackId;
+			internal bool SoundRequested;
+			private uint _PlaybackId;
 			public uint PlaybackId
 			{
 			    get => _PlaybackId;
@@ -34,6 +35,13 @@ namespace Sekai
 			{
 			    get => _IsUsed;
 			    set => _IsUsed = value;
+			}
+
+			internal void StopSound()
+			{
+				SoundManager.Instance.StopSE(PlaybackId);
+				PlaybackId = 0;
+				SoundRequested = false;
 			}
 
 			public EffectPair(string bundleName, string genPath, string auraPath, Transform parent)
@@ -61,6 +69,15 @@ namespace Sekai
 
 		private Dictionary<INote, EffectPair> _longNotes;
 
+		private sealed class NativeHold
+		{
+			internal EffectPair Pair;
+			internal bool Critical;
+			internal float HeldSince = float.PositiveInfinity;
+		}
+
+		private readonly Dictionary<LongNote, NativeHold> _nativeHolds = new Dictionary<LongNote, NativeHold>();
+
 		public void Setup()
 		{
 			_tapKeeps = new EffectPair[10];
@@ -77,17 +94,26 @@ namespace Sekai
 
 		public void Add(INote note)
 		{
+			if (note is LongNote { NativeConnector: not null } native)
+			{
+				if (native.NativeConnector.HasActiveInterval && !_nativeHolds.ContainsKey(native))
+					_nativeHolds.Add(native, new NativeHold());
+				return;
+			}
+
 			if (note == null || note.IsSkip || _longNotes.ContainsKey(note))
 			{
 				return;
 			}
 
-			EffectPair[] pairs = note.Type == NoteType.Critical ? _criticalTapKeeps : _tapKeeps;
-			if (pairs == null)
-			{
-				return;
-			}
+			var pair = Reserve(note.Type == NoteType.Critical);
+			if (pair != null) _longNotes.Add(note, pair);
+		}
 
+		private EffectPair Reserve(bool critical)
+		{
+			var pairs = critical ? _criticalTapKeeps : _tapKeeps;
+			if (pairs == null) return null;
 			for (int i = 0; i < pairs.Length; i++)
 			{
 				EffectPair pair = pairs[i];
@@ -96,14 +122,16 @@ namespace Sekai
 					continue;
 				}
 
-				_longNotes.Add(note, pair);
 				pair.IsUsed = true;
-				return;
+				return pair;
 			}
+			return null;
 		}
 
 		public void Remove(INote note)
 		{
+			if (note is LongNote native && _nativeHolds.Remove(native, out var hold))
+				ReleaseNativePair(hold);
 			if (note == null || !_longNotes.TryGetValue(note, out EffectPair pair))
 			{
 				return;
@@ -113,8 +141,7 @@ namespace Sekai
 			pair.Gen?.Stop();
 			pair.Aura?.Stop();
 			pair.IsUsed = false;
-			SoundManager.Instance.StopSE(pair.PlaybackId);
-			pair.PlaybackId = 0;
+			pair.StopSound();
 		}
 
 		public void Clear()
@@ -129,15 +156,28 @@ namespace Sekai
 				pair.Gen?.Stop();
 				pair.Aura?.Stop();
 				pair.IsUsed = false;
-				SoundManager.Instance.StopSE(pair.PlaybackId);
-				pair.PlaybackId = 0;
+				pair.StopSound();
 			}
 
 			_longNotes.Clear();
+			foreach (var hold in _nativeHolds.Values) ReleaseNativePair(hold);
+			_nativeHolds.Clear();
 		}
+
+		internal void Silence()
+		{
+			foreach (var pair in _longNotes.Values)
+			{
+				pair.StopSound();
+			}
+		}
+
+		private void OnDisable() => Silence();
 
 		public void Excute(float time)
 		{
+			foreach (var entry in _nativeHolds)
+				UpdateNativeHold(entry.Key, entry.Value, time);
 			foreach (var entry in _longNotes)
 			{
 				INote note = entry.Key;
@@ -151,41 +191,17 @@ namespace Sekai
 				// The rule lives in LiveUtility so a plain note can be tested for it without the prefabs.
 				if (LiveUtility.IsBeingHeldForEffect(note, time))
 				{
-					float x = LiveUtility.CalcLaneTransformX((note.LaneStartF + note.LaneEndF) * 0.5f);
-					float width = note.LaneEndF + 1f - note.LaneStartF;
-					if (pair.Gen != null)
-					{
-						pair.Gen.transform.localPosition = new Vector3(x, 0f, 0f);
-					}
+					RenderPair(pair, note.LaneStartF, note.LaneEndF, note is NoteBase styled ? styled.NativeStyle : 0);
 
-					if (pair.Aura != null)
+					if (!pair.SoundRequested)
 					{
-						pair.Aura.transform.localPosition = new Vector3(x, 0f, 0f);
-						pair.Aura.transform.localScale = new Vector3(width, 1f, 1f);
-					}
-
-					if (pair.Gen != null && pair.Aura != null && (!pair.Gen.IsPlaying || !pair.Aura.IsPlaying))
-					{
-						pair.Gen.Play();
-						pair.Aura.Play();
+						pair.SoundRequested = true;
 						string cue = HoldCueName(note);
-						// The particles stop on every grey frame, but the loop only stops at Release, so a
-						// finger coming back inside the grace keeps the loop already playing. Starting another
-						// here stacked a new se_live_long on every return and lost the old one's handle, so it
-						// could never be stopped (device trace 2026-11-15, bar 65.407: 16 starts in 2.6 s).
-						bool startsSound = !string.IsNullOrEmpty(cue) && pair.PlaybackId == 0;
+						if (cue != null) pair.PlaybackId = SoundManager.Instance.PlayHoldLoop(cue);
 						if (OpenSekai.Shared.Diagnostics.LiveTrace.IsOn(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Hold))
-						{
-							OpenSekai.Shared.Diagnostics.LiveTrace.Write(
-								OpenSekai.Shared.Diagnostics.LiveTraceCategory.Hold,
+							OpenSekai.Shared.Diagnostics.LiveTrace.Write(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Hold,
 								"holdLoop cat=" + note.Category + " type=" + note.Type + " cue=" + (cue ?? "-") + " id=" + note.Id
-								+ " sound=" + (startsSound ? "start" : string.IsNullOrEmpty(cue) ? "none" : "keep"));
-						}
-						// A hidden carrier is silent by design: the effect still plays, the sound does not.
-						if (startsSound)
-						{
-							pair.PlaybackId = SoundManager.Instance.PlayIngameSE(cue);
-						}
+								+ " sound=" + (cue == null ? "none" : "start"));
 					}
 				}
 
@@ -199,9 +215,63 @@ namespace Sekai
 				// and a finger coming back inside it should not restart the hold from silence.
 				if (note.State == NoteState.Release)
 				{
-					SoundManager.Instance.StopSE(pair.PlaybackId);
-					pair.PlaybackId = 0;
+					pair.StopSound();
 				}
+			}
+		}
+
+		private void UpdateNativeHold(LongNote note, NativeHold hold, float time)
+		{
+			double viewTime = (double)time + LiveConfig.ViewLeadSeconds;
+			if (note.State == NoteState.Done
+				|| !note.TryConnectorPresentation(viewTime, out var segment, out float left, out float right)
+				|| segment.IsDamage || !segment.HasActiveInterval
+				|| !segment.IsFake && !LiveUtility.IsBeingHeldForEffect(note, time))
+			{
+				ReleaseNativePair(hold);
+				hold.HeldSince = float.PositiveInfinity;
+				return;
+			}
+
+			if (segment.IsFake && time < note.MusicScoreInfo.time) return;
+			if (float.IsPositiveInfinity(hold.HeldSince))
+				hold.HeldSince = Mathf.Max(time, note.MusicScoreInfo.time);
+			if (segment.IsFake && time < hold.HeldSince + 0.05f) return;
+			if (hold.Pair == null || hold.Critical != segment.IsCritical)
+			{
+				ReleaseNativePair(hold);
+				hold.Critical = segment.IsCritical;
+				hold.Pair = Reserve(hold.Critical);
+			}
+			if (hold.Pair == null) return;
+			int style = segment.HeadStyle(0);
+			RenderPair(hold.Pair, left, right, style);
+		}
+
+		private static void ReleaseNativePair(NativeHold hold)
+		{
+			if (hold.Pair == null) return;
+			hold.Pair.Gen?.Stop();
+			hold.Pair.Aura?.Stop();
+			hold.Pair.IsUsed = false;
+			hold.Pair = null;
+		}
+
+		private static void RenderPair(EffectPair pair, float left, float right, int style)
+		{
+			float x = LiveUtility.CalcLaneTransformX((left + right) * 0.5f);
+			if (pair.Gen != null)
+			{
+				pair.Gen.transform.localPosition = new Vector3(x, 0f, 0f);
+				if (pair.Gen.IsPlaying) pair.Gen.SetStyle(style);
+				else pair.Gen.Play(style);
+			}
+			if (pair.Aura != null)
+			{
+				pair.Aura.transform.localPosition = new Vector3(x, 0f, 0f);
+				pair.Aura.transform.localScale = new Vector3(right - left + 1f, 1f, 1f);
+				if (pair.Aura.IsPlaying) pair.Aura.SetStyle(style);
+				else pair.Aura.Play(style);
 			}
 		}
 

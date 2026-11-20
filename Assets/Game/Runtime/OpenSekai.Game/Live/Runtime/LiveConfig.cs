@@ -67,6 +67,12 @@ namespace Sekai.Live
 		/// </summary>
 		public static bool UseLegacyJudgeTiming;
 
+		/// <summary>
+		/// When true, presses closer than one 60 fps frame compete for their notes as a chord; otherwise each
+		/// press is judged alone in timestamp order. Loaded from <see cref="LiveSettingData.UseFramePressMatching"/>.
+		/// </summary>
+		public static bool UseFramePressMatching;
+
 		public static readonly int LotteryPraiseCount;
 
 		public static readonly float PraiseComboRate;
@@ -133,6 +139,10 @@ namespace Sekai.Live
 		/// <see cref="OpenSekai.Shared.Live.Simulation.TimingCompensation"/>). Set by the live controller.
 		/// </summary>
 		public static float ViewLeadSeconds { get; set; }
+		internal const double NativeKeyProgressEnd = 1.35;
+
+		internal static Vector2 NativeLanePosition(float lane) =>
+			JudgmentPositions[0] + Vector2.right * (lane * widthX);
 
 		/// <summary>The progress a key is drawn at: its logic progress moved by <see cref="ViewLeadSeconds"/>.</summary>
 		public static float ViewProgressOf(INote note)
@@ -145,6 +155,43 @@ namespace Sekai.Live
 			float offsetTime = note is NoteBase noteBase ? noteBase.offsetTime : 0f;
 			return OpenSekai.Shared.Live.Simulation.TimingCompensation.ViewProgress(note.Progress, offsetTime, ViewLeadSeconds);
 		}
+
+		internal static float ViewProgressOf(INote note, float time)
+		{
+			if (note is NoteBase native && native.NativeScroll != null)
+			{
+				double now = (double)time + ViewLeadSeconds;
+				if (native.IsNextRushConnectorHeadVisual) return 1f;
+				if (native.IsNextRushHeadKey && now >= native.NativeTarget.Time) return 0f;
+				if (native.IsDecoration && native is not LongNote && now >= native.NativeTarget.Time)
+					return 0f;
+				if (native is LongNote bar && bar.KeepsHeadOnTheLine && now >= native.NativeTarget.Time)
+				{
+					// Once the head reaches the line, its key belongs to the remaining body.
+					// Use the current edge's visibility, like the body mesh, rather than the old head's travel.
+					var start = native;
+					for (int i = 1; i < bar.LineNoteList.Count; i++)
+					{
+						if (bar.LineNoteList[i] is not NoteBase end || end.NativeScroll == null) break;
+						if (now < end.NativeTarget.Time)
+						{
+							bool edgeHidden = start.NativeScroll.SampleFrame(now).Hidden;
+							return (start.NativeConnector?.IsHidden(now, edgeHidden) ?? edgeHidden) ? 0f : 1f;
+						}
+						start = end;
+					}
+					return 0f;
+				}
+				double progress = native.NativeViewProgress(now, out bool hidden);
+				return hidden || progress > NativeKeyProgressEnd ? 0f : (float)progress;
+			}
+			return ViewProgressOf(note);
+		}
+
+		internal static bool IsKeyVisible(INote note, float time) =>
+			note is NoteBase native && native.NativeScroll != null
+				? note.LaneEndF - note.LaneStartF + 1f > 0f && ViewProgressOf(note, time) > 0f
+				: note.Progress > 0f;
 
 		public static float CacheTimingTime { get; set; }
 
@@ -212,13 +259,13 @@ namespace Sekai.Live
 			AddJudgeFrame(JudgeFrameType.Long_End_Critical, 3.5f, 4f, 6.5f, 8f, 7.5f, 8.5f, 7.5f, 8.5f);
 			AddJudgeFrame(JudgeFrameType.Long_End_Flick_Critical, 3.5f, 4f, 6.5f, 8f, 7.5f, 8.5f, 7.5f, 8.5f);
 
-			// TODO: confirm the friction-specific judge frames.
-			CopyJudgeFrame(JudgeFrameType.Friction, JudgeFrameType.Flick);
-			CopyJudgeFrame(JudgeFrameType.Friction_Critical, JudgeFrameType.Flick_Critical);
-			CopyJudgeFrame(JudgeFrameType.Friction_Flick, JudgeFrameType.Flick);
-			CopyJudgeFrame(JudgeFrameType.Friction_Flick_Critical, JudgeFrameType.Flick_Critical);
-			CopyJudgeFrame(JudgeFrameType.Friction_Long, JudgeFrameType.Long);
-			CopyJudgeFrame(JudgeFrameType.Friction_Long_Critical, JudgeFrameType.Long_Critical);
+			const float contact = ConnectionNote.ContactWindowFrames;
+			AddJudgeFrame(JudgeFrameType.Friction, contact, contact, contact, contact, contact, contact, contact, contact);
+			CopyJudgeFrame(JudgeFrameType.Friction_Critical, JudgeFrameType.Friction);
+			AddJudgeFrame(JudgeFrameType.Friction_Flick, 6.5f, 7.5f, 6.5f, 7.5f, 6.5f, 7.5f, 6.5f, 7.5f);
+			CopyJudgeFrame(JudgeFrameType.Friction_Flick_Critical, JudgeFrameType.Friction_Flick);
+			CopyJudgeFrame(JudgeFrameType.Friction_Long, JudgeFrameType.Friction);
+			CopyJudgeFrame(JudgeFrameType.Friction_Long_Critical, JudgeFrameType.Friction);
 			CopyJudgeFrame(JudgeFrameType.Friction_Long_End, JudgeFrameType.Long_End);
 			CopyJudgeFrame(JudgeFrameType.Friction_Long_End_Critical, JudgeFrameType.Long_End_Critical);
 		}
@@ -283,6 +330,7 @@ namespace Sekai.Live
 			SetFeverEffectName(liveSettingData.FeverEffectTypeIndex);
 			ScoreMakerPreviewModeIndex = liveSettingData.ScoreMakerPreviewModeIndex;
 			UseLegacyJudgeTiming = liveSettingData.UseLegacyJudgeTiming;
+			UseFramePressMatching = liveSettingData.UseFramePressMatching;
 			CacheSpeedTime = 0f;
 			CacheTimingTime = 0f;
 			NoteSpeedOffset = 0.04f;

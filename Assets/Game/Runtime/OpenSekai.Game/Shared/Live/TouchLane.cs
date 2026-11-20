@@ -6,23 +6,19 @@ namespace OpenSekai.Shared.Live
     /// Maps a touch position onto the lane axis.
     ///
     /// The result is fractional on purpose: a touch between lane 2 and lane 3 reports 2.5, and the judge
-    /// range check in <see cref="JudgeLaneRange"/> then decides whether that lands on a note. A negative
+    /// range check in <see cref="JudgeLaneRange"/> then decides whether that lands on a note. The Outside
     /// result means the touch is outside the playable area (past the outer lanes by more than the
     /// configured tolerance).
     ///
-    /// The vertical half of that question is not asked here any more. It is asked once, when the touch is
-    /// born (<see cref="IsAboveTheLine"/>), and the answer is remembered for the life of that touch: a
-    /// finger that lands above the judgement line never becomes an input, and a finger that landed on the
-    /// line keeps its lane when it drifts above it during a swipe.
+    /// The router checks the vertical extent for each native sample, or at touch start for legacy charts.
     /// </summary>
     public static class TouchLane
     {
         /// <summary>Returned when the touch is outside the playable area.</summary>
-        public const float Outside = -1f;
+        public const float Outside = float.NegativeInfinity;
 
         /// <summary>
-        /// True when a touch position is above the judgement line, which is the one place the vertical
-        /// gate exists: such a touch is not an input at all, whatever it does afterwards.
+        /// True when the sample exceeds the upper edge of the judgement area.
         /// </summary>
         public static bool IsAboveTheLine(Vector2[] lanePositions, Vector3 touchPosition, float toleranceY)
         {

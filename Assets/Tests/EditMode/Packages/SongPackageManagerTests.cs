@@ -128,6 +128,49 @@ namespace OpenSekai.Tests.EditMode.Packages
         }
 
         [Test]
+        public void DefaultExportWritesToTheLibraryExportsDirectory()
+        {
+            SongPackage entry = _manager.CreateNewEntry();
+
+            string exported = _manager.ExportZip(entry);
+
+            Assert.That(Path.GetDirectoryName(exported), Is.EqualTo(Path.Combine(_root, "Exports")));
+            Assert.That(File.Exists(exported), Is.True);
+        }
+
+        [Test]
+        public void DefaultExportRejectsAnInvalidManifestIdBeforeCreatingTheExportDirectory()
+        {
+            SongPackage entry = _manager.CreateNewEntry();
+            entry.Manifest.id = "bad:name";
+
+            Assert.Throws<InvalidDataException>(() => _manager.ExportZip(entry));
+            Assert.That(Directory.Exists(Path.Combine(_root, "Exports")), Is.False);
+        }
+
+        [TestCase(@"{""id"":""bad:name""}")]
+        [TestCase(@"{""id"":""fixture"",""audioFileName"":""bad:name.ogg""}")]
+        public void FolderImportRejectsInvalidManifestFileNames(string manifest)
+        {
+            string source = Path.Combine(_root, "source");
+            Directory.CreateDirectory(source);
+            File.WriteAllText(Path.Combine(source, SongPackageStorage.MANIFEST_FILE_NAME), manifest);
+
+            Assert.Throws<InvalidDataException>(() => _manager.ImportFolder(source));
+            Assert.That(Directory.GetDirectories(_root), Is.EqualTo(new[] { source }));
+        }
+
+        [Test]
+        public void SavingAPackageRequiresItToBelongToThatLibrary()
+        {
+            SongPackage entry = _manager.CreateNewEntry();
+            var otherLibrary = new SongPackageManager(Path.Combine(_root, "other-library"));
+
+            Assert.Throws<InvalidOperationException>(() => otherLibrary.SaveManifest(entry, entry.Manifest));
+            Assert.That(File.Exists(entry.ManifestPath), Is.True);
+        }
+
+        [Test]
         public void ExportThenImportKeepsTheNotesAndTitle()
         {
             SongPackage entry = _manager.CreateNewEntry();

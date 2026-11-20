@@ -1,7 +1,41 @@
 namespace Sekai.Live
 {
+	public enum NextRushEffectKind
+	{
+		Default, None, Basic, Flick, Trace, Tick, CriticalBasic, CriticalFlick, CriticalTrace, CriticalTick, Damage
+	}
+
 	public static class LiveSoundDefine
 	{
+		internal static string NextRushCue(NextRushEffectKind kind, NoteResult result)
+		{
+			if (result is NoteResult.None or NoteResult.Pass) return null;
+			bool miss = result is NoteResult.Miss or NoteResult.Bad;
+			return kind switch
+			{
+				NextRushEffectKind.Basic => miss || result == NoteResult.Good ? SE_LIVE_GOOD
+					: result == NoteResult.Great ? SE_LIVE_GREAT : SE_LIVE_PERFECT,
+				NextRushEffectKind.Flick => SE_LIVE_FLICK,
+				NextRushEffectKind.Trace when !miss => SE_LIVE_TRACE,
+				NextRushEffectKind.Tick when !miss => SE_LIVE_CONNECT,
+				NextRushEffectKind.CriticalBasic => SE_LIVE_CRITICAL,
+				NextRushEffectKind.CriticalFlick => SE_LIVE_FLICK_CRITICAL,
+				NextRushEffectKind.CriticalTrace when !miss => SE_LIVE_FRICTION_CRITICAL,
+				NextRushEffectKind.CriticalTick when !miss => SE_LIVE_CONNECT_CRITICAL,
+				NextRushEffectKind.Damage when miss => SE_LIVE_GOOD,
+				_ => null
+			};
+		}
+
+		internal static string NextRushFallbackCue(string cue) => cue switch
+		{
+			SE_LIVE_TRACE or SE_LIVE_CONNECT or SE_LIVE_CRITICAL or SE_LIVE_FRICTION_CRITICAL
+				or SE_LIVE_CONNECT_CRITICAL => SE_LIVE_PERFECT,
+			SE_LIVE_FLICK_CRITICAL => SE_LIVE_FLICK,
+			SE_LIVE_LONG_CRITICAL => SE_LIVE_LONG,
+			_ => cue
+		};
+
 		public const string SE_LIVE_CUTIN_COMBO = "SE_LIVE_CUTIN_COMBO";
 		public const string SE_LIVE_PRAISE_CUTIN = "SE_LIVE_PRAISE_CUTIN";
 		public const string SE_LIVE_SKILL = "SE_LIVE_SKILL";

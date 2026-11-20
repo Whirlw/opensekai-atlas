@@ -23,6 +23,7 @@ $groups = @(
     @{ Name = '通用背景 commonbg';    Path = 'Assets/Graphics/Resources/commonbg';       Judgement = '已删除' }
     @{ Name = 'live UI 预制';         Path = 'Assets/Graphics/Resources/live';           Judgement = '自制（画包）' }
     @{ Name = 'HUD sprite';           Path = 'Assets/Graphics/Sprites';                  Judgement = '自制（画包 + 程序化替身）' }
+    @{ Name = '应用图标';             Path = 'Assets/Graphics/Icons';                    Judgement = '程序生成（BrandArt）' }
     @{ Name = '字体';                 Path = 'Assets/Game/Resources/Fonts';              Judgement = 'OFL' }
     @{ Name = '音频 wav 包';          Path = 'Assets/StreamingAssets/sound';             Judgement = '自制 CC0' }
     @{ Name = '代码';                 Path = 'Assets/Game/Runtime';                      Judgement = 'MIT' }
