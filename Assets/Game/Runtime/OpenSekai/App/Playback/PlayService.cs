@@ -121,6 +121,10 @@ namespace OpenSekai.App.Playback
                         materialDiagnostics.Add("资源包索引：" + e.Message);
                     }
                 }
+                // The resource pack page owns the three built-in sets; the live reads them from this
+                // snapshot. Without a readable index the old settings' values stay.
+                if (material != null)
+                    settings = settings.WithBuiltinSets(material.Builtin.Notes - 1, material.Builtin.HitFx - 1, material.Builtin.Audio - 1);
                 LiveBundleBuildData config = ResourceCatalog.LiveBundleConfig.Load();
                 if (config == null) throw new InvalidOperationException("Live bundle configuration is missing.");
                 var conversion = new ChartConversionSettings(config);

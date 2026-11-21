@@ -31,6 +31,8 @@ namespace OpenSekai.Tests.EditMode.Live
 			"TapEffectView.cs",
 			// The capture exports the frame as a correlation key. Durations use realtime seconds.
 			"LatencyCapture.cs",
+			// The home page waits for a rendered frame before building the hidden library.
+			"HomeScreen.cs",
 		};
 
 		private static IEnumerable<FileInfo> RuntimeSources()

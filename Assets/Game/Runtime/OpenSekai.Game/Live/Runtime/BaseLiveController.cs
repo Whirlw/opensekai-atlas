@@ -132,6 +132,7 @@ namespace Sekai.Core.Live
 		protected virtual void Setup()
 		{
 			FramerateUtility.ApplyFrameRateLimit(Settings?.FrameRateLimit ?? FramerateUtility.FOLLOW_DISPLAY);
+			ApplyBuiltinSets();
 			Screen.sleepTimeout = SleepTimeout.NeverSleep;
 
 			LiveBootDataBase bootData = BootData;
@@ -211,9 +212,26 @@ namespace Sekai.Core.Live
 			}
 		}
 
+		/// <summary>
+		/// The note skin, hit effect and hit sound sets come from this live's own settings snapshot
+		/// (the resource pack page's choice, fixed when the live started), not from the stored
+		/// settings that <see cref="LiveConfig.LoadOptionData"/> read. Retries reuse the same boot.
+		/// </summary>
+		protected void ApplyBuiltinSets()
+		{
+			LiveSettingData snapshot = BootData?.LiveSettingData;
+			if (snapshot == null)
+			{
+				return;
+			}
+
+			LiveConfig.SetNoteSkinAssetBundleName(Mathf.Clamp(snapshot.NoteSkinIndex, 0, 1));
+			LiveConfig.SetNoteEffectName(Mathf.Clamp(snapshot.NoteEffect, 0, 1));
+		}
+
 		private void LoadTapSeSoundBundle()
 		{
-			int noteSeIndex = Settings?.NoteSeIndex ?? 0;
+			int noteSeIndex = Mathf.Clamp(BootData?.LiveSettingData?.NoteSeIndex ?? Settings?.NoteSeIndex ?? 0, 0, 1);
 			LiveConfig.SetNoteSeName(noteSeIndex);
 			SoundManager.Instance.LoadSoundBundle("live/tap_se/" + LiveConfig.NoteSeName, true);
 			SoundManager.Instance.ResumeIngameSe();

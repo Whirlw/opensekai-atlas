@@ -68,7 +68,7 @@ namespace Sekai
 					return null;
 				}
 
-				return ParticleSystemController.Create(prefab, parent, skin);
+				return ParticleSystemController.Create(prefab, parent, skin, varyBurst: true);
 			}
 		}
 

@@ -75,10 +75,34 @@ namespace OpenSekai.Tests.EditMode
             try
             {
                 Assert.That(boot.MaterialAudio, Is.Not.Null);
-                Assert.Throws<InvalidOperationException>(() => store.SaveSelection(selection, revision));
+                Assert.Throws<OpenSekai.Infrastructure.Packages.MaterialPackBusyException>(() => store.SaveSelection(selection, revision));
             }
             finally { boot.ReleaseMaterialAudio(); }
             Assert.That(store.SaveSelection(selection, revision), Is.GreaterThan(revision));
+        }
+
+        [Test]
+        public async System.Threading.Tasks.Task TheResourcePackBuiltinSetsReachTheLiveSnapshotOnly()
+        {
+            var store = new OpenSekai.Infrastructure.Packages.MaterialPackStore(Path.Combine(_root, "material-packs"));
+            var configuration = store.List().MixConfiguration();
+            configuration.Builtin = new MaterialBuiltinSelection { Notes = 2, HitFx = 2, Audio = 2 };
+            store.SaveConfiguration(configuration, store.List().Revision);
+            _service = new PlayService(new OpenSekai.Infrastructure.Packages.SongPackageManager(_root),
+                _settings, _boot, _surface, _audio, _deck, _playHistory, () => store);
+
+            var started = await _service.StartAsync(Request(), CancellationToken.None);
+
+            Assert.That(started.Started, Is.True, started.Message);
+            var boot = (FreeLiveBootData)_boot.State.Boot;
+            try
+            {
+                Assert.That(boot.LiveSettingData.NoteSkinIndex, Is.EqualTo(1));
+                Assert.That(boot.LiveSettingData.NoteEffect, Is.EqualTo(1));
+                Assert.That(boot.LiveSettingData.NoteSeIndex, Is.EqualTo(1));
+                Assert.That(_settings.Load().NoteSkinIndex, Is.Zero, "旧设置不被改写");
+            }
+            finally { boot.ReleaseMaterialAudio(); }
         }
 
         [Test]

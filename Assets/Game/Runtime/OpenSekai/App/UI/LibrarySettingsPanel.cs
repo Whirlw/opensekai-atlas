@@ -27,10 +27,6 @@ namespace OpenSekai.App.UI
         private const float COLUMN_GAP = 40f;
         private const float FOOTER_HEIGHT = 44f;
 
-        // LiveConfig clamps the note skin to 0..1 and both skins ship as custom01/custom02.
-        private static readonly string[] _skinLabels = { "样式 1", "样式 2" };
-        private static readonly string[] _noteSeLabels = { "音效 1", "音效 2" };
-        private static readonly string[] _noteEffectLabels = { "特效 1", "特效 2" };
         private static readonly string[] _judgeTimingLabels = { "触摸时刻", "下一帧(旧式)" };
         private static readonly string[] _pressMatchingLabels = { "按时间顺序", "同帧候选(旧式)" };
 
@@ -218,14 +214,10 @@ namespace OpenSekai.App.UI
                 value => { _localSettings.LoudnessNormalization = value; SaveLocal(); });
             top += LibrarySettingRows.SectionHeight(4) + gap;
 
-            LibrarySettingRows.Section look = _rows.AddSection(content, "外观（下一次开局生效）", 3, rightStart, 0f, top);
-            _rows.AddSegmented(look, "音符皮肤", _skinLabels,
-                () => _settings.NoteSkinIndex, value => { _settings.NoteSkinIndex = value; SaveSettings(); });
-            _rows.AddSegmented(look, "打击音", _noteSeLabels,
-                () => _settings.NoteSeIndex, value => { _settings.NoteSeIndex = value; SaveSettings(); });
-            _rows.AddSegmented(look, "打击特效", _noteEffectLabels,
-                () => _settings.NoteEffect, value => { _settings.NoteEffect = value; SaveSettings(); });
-            top += LibrarySettingRows.SectionHeight(3) + gap;
+            // Note skin, hit sound and hit effect sets belong to the resource pack page now.
+            LibrarySettingRows.Section look = _rows.AddSection(content, "外观（下一次开局生效）", 1, rightStart, 0f, top);
+            _rows.AddLink(look, "音符皮肤、打击音与特效", DescribeResourcePacks, OpenResourcePacks);
+            top += LibrarySettingRows.SectionHeight(1) + gap;
 
             LibrarySettingRows.Section developer = _rows.AddSection(content, "开发", 2, rightStart, 0f, top);
             _rows.AddSwitch(developer, "测试模式",
@@ -379,6 +371,29 @@ namespace OpenSekai.App.UI
             foreach (LiveTraceCategory category in _inputCategories) if ((LiveTrace.Categories & category) != 0) count++;
             foreach (LiveTraceCategory category in _viewCategories) if ((LiveTrace.Categories & category) != 0) count++;
             return count + " 项已开启";
+        }
+
+        /// <summary>What the next live uses, as the link to the resource pack page shows it.</summary>
+        private static string DescribeResourcePacks()
+        {
+            try
+            {
+                var state = OpenSekai.Infrastructure.Packages.MaterialPackStore.Shared.List();
+                if (!state.IsPresetMode) return "资源包 · 混搭";
+                var pack = state.PresetPack;
+                string name = state.Preset.IsBuiltin ? PackScreen.BuiltinPresetName(state.Preset.BuiltinSet) : pack?.Preset?.Name ?? state.Preset.PackId;
+                return "资源包 · 预设「" + name + "」";
+            }
+            catch (Exception)
+            {
+                return "在资源包页设置";
+            }
+        }
+
+        private void OpenResourcePacks()
+        {
+            Hide();
+            HomeScreen.Current?.OpenResourcePacks();
         }
 
         private static string Percent(float value)

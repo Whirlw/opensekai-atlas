@@ -80,7 +80,7 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(bindings.Single(x => x.Slot == "audio.perfect").Source, Is.EqualTo(second));
             Assert.That(bindings.Single(x => x.Slot == "audio.long").Source, Is.EqualTo(b.GroupReference("holds")));
             Assert.That(bindings.Single(x => x.Slot == "audio.flick").Source, Is.Null);
-            Assert.Throws<InvalidOperationException>(() => _store.SaveSelection(selection, revision - 1));
+            Assert.Throws<MaterialPackConflictException>(() => _store.SaveSelection(selection, revision - 1));
             _store.Uninstall(b.PackId, b.Digest, revision);
             bindings = _store.Resolve(_store.List().Audio);
             Assert.That(bindings.Single(x => x.Slot == "audio.perfect").Source, Is.EqualTo(first));
@@ -160,8 +160,8 @@ namespace OpenSekai.Tests.EditMode
             var captured = _store.Capture(out _, out _, out _, out _, out _, out _, out _, out _, out _);
             try
             {
-                Assert.Throws<InvalidOperationException>(() => _store.SaveSelection(new MaterialAudioSelection(), 2));
-                Assert.Throws<InvalidOperationException>(() => _store.Uninstall(pack.PackId, pack.Digest, 2));
+                Assert.Throws<MaterialPackBusyException>(() => _store.SaveSelection(new MaterialAudioSelection(), 2));
+                Assert.Throws<MaterialPackBusyException>(() => _store.Uninstall(pack.PackId, pack.Digest, 2));
                 Assert.That(captured.Single(x => x.Slot == "audio.long").Source, Is.EqualTo(selection.Groups[0]));
             }
             finally { _store.Release(); }

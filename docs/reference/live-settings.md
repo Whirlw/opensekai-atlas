@@ -38,11 +38,15 @@
 | 界面音量 | `ApplicationLocalSettings.UiVolume` | 0–100% | 立即 |
 | 响度平均 | `ApplicationLocalSettings.LoudnessNormalization` | 用于试听和演奏 | 正在播放的试听立即生效 |
 | 2D MV 亮度 | `MovieBrightness` | 0–100%，每步 10%，默认 100% | 下次开局 |
-| 音符皮肤 | `NoteSkinIndex` | 0 / 1 → `live/note/custom01|02` | 下次开局 |
-| 打击音 | `NoteSeIndex` | 0 / 1 → `custom01|02` | 下次开局 |
-| 打击特效 | `NoteEffect` | 0 / 1 → `effect_asset/live/tap_effect/0|1` | 下次开局 |
+| 音符皮肤、打击音与特效 | 跳转行 | 打开资源包页面 | — |
 
-面板底部有一行提示：「皮肤、打击音与打击特效在下一次开局时生效。」
+音符皮肤、打击音和打击特效的两套内置资源已移至资源包页面，由 `MaterialPackState.Builtin` 保存（套装编号 1 / 2）。首次读取缺少该字段的资源包索引时，会从下面三个旧字段导入一次。之后设置面板不再写入这三个字段，见 [资源包页面](../architecture/resource-pack-screen.md)。
+
+| 旧字段 | 取值 | 对应资源 |
+| --- | --- | --- |
+| `NoteSkinIndex` | 0 / 1 | `live/note/custom01|02` |
+| `NoteSeIndex` | 0 / 1 | `live/tap_se/custom01|02` |
+| `NoteEffect` | 0 / 1 | `effect_asset/live/tap_effect/0|1` |
 
 ### 其余常用字段（无界面入口）
 
@@ -67,7 +71,7 @@
 
 ### 读取时机
 
-`LiveConfig` 的 `LoadOptionData()`**每次开局**读盘：
+`LiveConfig` 的 `LoadOptionData()`**每次开局**读盘。之后 `BaseLiveController.Setup` 用本局快照 `BootData.LiveSettingData` 中的三个索引（开局时由资源包页的内置套装写入）覆盖音符和打击特效的资源包名；打击音加载也读取这份快照：
 
 ```csharp
 SetNoteSkinAssetBundleName(Mathf.Clamp(liveSettingData.NoteSkinIndex, 0, 1));

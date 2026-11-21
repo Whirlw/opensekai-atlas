@@ -11,7 +11,7 @@ namespace OpenSekai.App.UI
         private static Dictionary<BrandArt.Part, Sprite> Load()
         {
             var layers = new Dictionary<BrandArt.Part, Sprite>();
-            foreach (Sprite sprite in Resources.LoadAll<Sprite>("HomeEmblem"))
+            foreach (Sprite sprite in Sekai.ResourceCatalog.LoadHomeEmblemLayers())
             {
                 layers.Add((BrandArt.Part)Enum.Parse(typeof(BrandArt.Part), sprite.name), sprite);
             }

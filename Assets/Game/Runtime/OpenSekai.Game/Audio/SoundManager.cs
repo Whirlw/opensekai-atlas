@@ -88,7 +88,18 @@ namespace Sekai
 
 		public bool ExistsCueName(string cueName) => _catalog.ExistsCueName(cueName);
 
-		private static LiveMaterialAudio CurrentMaterialAudio => UserDataManager.Instance.FreeLiveBootData?.MaterialAudio;
+		/// <summary>
+		/// The live cues' pack sounds: the resource pack page's demo while one runs (no live runs then),
+		/// otherwise the current live's.
+		/// </summary>
+		private static LiveMaterialAudio CurrentMaterialAudio
+		{
+			get
+			{
+				Sekai.Core.Live.LiveDemoController demo = Sekai.Core.Live.LiveDemoController.Current;
+				return demo != null ? demo.MaterialAudio : UserDataManager.Instance.FreeLiveBootData?.MaterialAudio;
+			}
+		}
 
 		internal bool ExistsLiveCue(string cueName) => CurrentMaterialAudio?.Contains(cueName) == true || ExistsCueName(cueName);
 
@@ -255,6 +266,9 @@ namespace Sekai
 
 		private uint PlayLiveCue(string cueName, int sequence = 0, bool loop = false)
 		{
+			// The demo is quiet until its sound is switched on.
+			Sekai.Core.Live.LiveDemoController demo = Sekai.Core.Live.LiveDemoController.Current;
+			if (demo != null && !demo.Audible) return 0;
 			var audio = CurrentMaterialAudio;
 			if (audio != null && audio.TryPlay(cueName, loop, _volume.SoundEffect, sequence, out uint playback))
 				return playback;

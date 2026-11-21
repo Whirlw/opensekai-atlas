@@ -24,6 +24,50 @@ namespace OpenSekai.Tests.PlayMode
 {
     public sealed class MaterialPackHitFxTests
     {
+        [TestCase(0)]
+        [TestCase(1)]
+        public void ReusedFlickEffectVariesParticlesAndKeepsItsTrailPaired(int set)
+        {
+            var prefab = AssetBundleUtility.LoadAsset<GameObject>(LiveConfig.GetEffectBundleName(set),
+                LivePrefabDefine.FX_CRITICAL_FLICK_AURA);
+            var host = new GameObject("Flick effect pool");
+            try
+            {
+                var pool = host.AddComponent<EffectPool>();
+                pool.Setup(prefab, 1);
+                var effect = pool.Spawn();
+                var systems = effect.GetComponentsInChildren<ParticleSystem>(true);
+                var star = systems.Single(p => p.name == "Particle_star");
+                var trail = systems.Single(p => p.name == "Particle_tlail");
+                var particles = new ParticleSystem.Particle[star.main.maxParticles];
+
+                Vector3[] PlayBurst()
+                {
+                    effect.Play();
+                    Assert.That(star.randomSeed, Is.EqualTo(trail.randomSeed));
+                    star.Simulate(0.1f, false, false, false);
+                    int count = star.GetParticles(particles);
+                    Assert.That(count, Is.Positive);
+                    return particles.Take(count).Select(p => p.position).ToArray();
+                }
+
+                var first = PlayBurst();
+                Assert.That(pool.Spawn(), Is.SameAs(effect));
+                Assert.That(PlayBurst(), Is.Not.EqualTo(first));
+#if UNITY_EDITOR
+                var previousScheduler = LiveMotion.CaptureScheduler;
+                try
+                {
+                    LiveMotion.CaptureScheduler = LitMotion.MotionScheduler.Update;
+                    var capture = PlayBurst();
+                    Assert.That(PlayBurst(), Is.EqualTo(capture));
+                }
+                finally { LiveMotion.CaptureScheduler = previousScheduler; }
+#endif
+            }
+            finally { Object.DestroyImmediate(host); }
+        }
+
         [UnityTest]
         public IEnumerator BindsParticleTemplatesAndKeepsLayoutThroughPoolReuse() => UniTask.ToCoroutine(async () =>
         {

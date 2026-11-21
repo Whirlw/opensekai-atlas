@@ -18,7 +18,7 @@ namespace Sekai
 					continue;
 				}
 
-				_pool[i] = ParticleSystemController.Create(prefab, transform, skin);
+				_pool[i] = ParticleSystemController.Create(prefab, transform, skin, varyBurst: true);
 			}
 
 			if (_pool.Length > 0 && _pool[0] != null)

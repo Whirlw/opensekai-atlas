@@ -113,7 +113,7 @@ foreach ($file in $markdown) {
             }
             elseif ($parts.Count -eq 2 -and $parts[1] -and $target.EndsWith('.md', [StringComparison]::OrdinalIgnoreCase)) {
                 $id = [uri]::UnescapeDataString($parts[1])
-                if (!(Get-HeadingAnchors $target).Contains($id)) {
+                if ($id -notmatch '^L[1-9][0-9]*(?:-L[1-9][0-9]*)?$' -and !(Get-HeadingAnchors $target).Contains($id)) {
                     $issues.Add("${relative}:${lineNumber}: missing heading $destination")
                 }
             }

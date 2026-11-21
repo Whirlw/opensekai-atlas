@@ -7,8 +7,8 @@ using UnityEngine.UI;
 namespace OpenSekai.App.UI
 {
     /// <summary>
-    /// The home page: the brand in the header, the library card beside two cards for what comes
-    /// next (服务器, 资源包), and a footer. Its entrance, its hand-over to the library (the library
+    /// The home page: the brand in the header, the library card beside the 服务器 and 资源包
+    /// cards, and a footer. Its entrance, its hand-over to the library (the library
     /// card grows over the page) and its return (the card shrinks back) are pure functions of
     /// time, so the splash can drive the entrance from its own timeline and a screenshot can stop
     /// at any frame.
@@ -17,7 +17,8 @@ namespace OpenSekai.App.UI
     internal enum HomeDestination
     {
         Library,
-        Server
+        Server,
+        Packs
     }
 
     internal sealed class HomeView : IDisposable
@@ -29,6 +30,7 @@ namespace OpenSekai.App.UI
         private readonly CanvasGroup _footer;
         private readonly RectTransform _librarySlot;
         private readonly RectTransform _serverSlot;
+        private readonly RectTransform _packsSlot;
         private readonly HomeLibraryCard _library;
         private readonly HomeFeatureCard _server;
         private readonly HomeFeatureCard _packs;
@@ -42,7 +44,8 @@ namespace OpenSekai.App.UI
         /// <param name="openLibrary">The library card was tapped.</param>
         /// <param name="openAbout">The header's about button was tapped.</param>
         /// <param name="comingSoon">A card for an unbuilt part was tapped; gets the part's name.</param>
-        internal HomeView(RectTransform parent, Action openLibrary, Action openAbout, Action openSettings, Action<string> comingSoon, Action openServer = null)
+        internal HomeView(RectTransform parent, Action openLibrary, Action openAbout, Action openSettings, Action<string> comingSoon,
+            Action openServer = null, Action openPacks = null)
         {
             _root = LibraryUi.CreateRect("Home", parent);
             LibraryUi.Stretch(_root);
@@ -80,10 +83,16 @@ namespace OpenSekai.App.UI
                 HomeTheme.Colors.Periwinkle, root => new HomeGlobeArt(root), () => openServer?.Invoke(), available: openServer != null);
             LibraryUi.Stretch(_server.Root);
 
-            RectTransform packsSlot = Slot(grid, "PacksSlot", new Vector2(share, 0f), new Vector2(1f, 0.5f),
+            RectTransform packsSlot = _packsSlot = Slot(grid, "PacksSlot", new Vector2(share, 0f), new Vector2(1f, 0.5f),
                 new Vector2(halfGap, 0f), new Vector2(0f, -halfGap));
-            _packs = new HomeFeatureCard(packsSlot, "PacksCard", "RESOURCE PACKS", "资源包", "音符皮肤 · 打击音效 · 界面主题",
-                HomeTheme.Colors.Rose, root => new HomeStackArt(root), () => comingSoon?.Invoke("资源包"));
+            _packs = new HomeFeatureCard(packsSlot, "PacksCard", "RESOURCE PACKS", "资源包", "音符皮肤 · 打击音效 · 判定与界面",
+                HomeTheme.Colors.Rose, root => new HomeStackArt(root),
+                () =>
+                {
+                    if (openPacks != null) openPacks();
+                    else comingSoon?.Invoke("资源包");
+                },
+                available: openPacks != null, status: openPacks != null ? "管理资源" : null);
             LibraryUi.Stretch(_packs.Root);
 
             _librarySlot = Slot(grid, "LibrarySlot", Vector2.zero, new Vector2(share, 1f), Vector2.zero, new Vector2(-halfGap, 0f));
@@ -183,6 +192,7 @@ namespace OpenSekai.App.UI
             var bleedMax = new Vector2(margin + bleed, HomeTheme.Layout.HEADER_HEIGHT + bleed);
             float library = target == HomeDestination.Library ? amount : 0f;
             float server = target == HomeDestination.Server ? amount : 0f;
+            float packs = target == HomeDestination.Packs ? amount : 0f;
 
             _librarySlot.anchorMin = Vector2.zero;
             _librarySlot.anchorMax = Vector2.Lerp(new Vector2(share, 1f), Vector2.one, library);
@@ -192,11 +202,19 @@ namespace OpenSekai.App.UI
             _serverSlot.anchorMax = Vector2.one;
             _serverSlot.offsetMin = Vector2.Lerp(new Vector2(halfGap, halfGap), bleedMin, server);
             _serverSlot.offsetMax = Vector2.Lerp(Vector2.zero, bleedMax, server);
+            _packsSlot.anchorMin = Vector2.Lerp(new Vector2(share, 0f), Vector2.zero, packs);
+            _packsSlot.anchorMax = Vector2.Lerp(new Vector2(1f, 0.5f), Vector2.one, packs);
+            _packsSlot.offsetMin = Vector2.Lerp(new Vector2(halfGap, 0f), bleedMin, packs);
+            _packsSlot.offsetMax = Vector2.Lerp(new Vector2(0f, -halfGap), bleedMax, packs);
 
             // The growing card draws over the others; at rest the library card is on top again.
             if (server > 0f)
             {
                 _serverSlot.SetAsLastSibling();
+            }
+            else if (packs > 0f)
+            {
+                _packsSlot.SetAsLastSibling();
             }
             else
             {
@@ -205,38 +223,32 @@ namespace OpenSekai.App.UI
 
             _library.SetCovering(HomeMotion.Span(library, 0.25f, 0.75f, Ease.InOutQuad));
             _server.SetCovering(HomeMotion.Span(server, 0.25f, 0.75f, Ease.InOutQuad));
+            _packs.SetCovering(HomeMotion.Span(packs, 0.25f, 0.75f, Ease.InOutQuad));
 
             float content = 1f - HomeMotion.Span(amount, 0f, 0.4f, Ease.OutQuad);
             float others = 1f - HomeMotion.Span(amount, 0f, 0.45f, Ease.OutQuad);
             float shrink = 1f - 0.05f * HomeMotion.Span(amount, 0f, 0.6f, Ease.OutCubic);
             var shrunk = new Vector3(shrink, shrink, 1f);
-            if (target == HomeDestination.Server)
-            {
-                _server.SetInnerAlpha(content);
-                _server.Group.alpha = 1f;
-                _server.Root.localScale = Vector3.one;
-                _library.SetInnerAlpha(1f, 1f);
-                _library.Group.alpha = others;
-                _library.Root.localScale = shrunk;
-            }
-            else
-            {
-                _library.SetInnerAlpha(content, content);
-                _library.Group.alpha = 1f;
-                _library.Root.localScale = Vector3.one;
-                _server.SetInnerAlpha(1f);
-                _server.Group.alpha = others;
-                _server.Root.localScale = shrunk;
-            }
-
-            _packs.Group.alpha = others;
-            _packs.Root.localScale = shrunk;
+            bool toLibrary = target == HomeDestination.Library;
+            bool toServer = target == HomeDestination.Server;
+            bool toPacks = target == HomeDestination.Packs;
+            _library.SetInnerAlpha(toLibrary ? content : 1f, toLibrary ? content : 1f);
+            _library.Group.alpha = toLibrary ? 1f : others;
+            _library.Root.localScale = toLibrary ? Vector3.one : shrunk;
+            _server.SetInnerAlpha(toServer ? content : 1f);
+            _server.Group.alpha = toServer ? 1f : others;
+            _server.Root.localScale = toServer ? Vector3.one : shrunk;
+            _packs.SetInnerAlpha(toPacks ? content : 1f);
+            _packs.Group.alpha = toPacks ? 1f : others;
+            _packs.Root.localScale = toPacks ? Vector3.one : shrunk;
             _header.alpha = others;
             _footer.alpha = others;
             _library.Root.anchoredPosition = Vector2.zero;
             _server.Root.anchoredPosition = Vector2.zero;
+            _packs.Root.anchoredPosition = Vector2.zero;
             _library.Interactable = amount <= 0f;
             _server.Interactable = amount <= 0f;
+            _packs.Interactable = amount <= 0f;
         }
 
         /// <summary>Plays the entrance from the start.</summary>

@@ -768,8 +768,10 @@ namespace OpenSekai.Tests.PlayMode
                 var digits = (NumberView)typeof(LifeView).GetField("number", FIELDS).GetValue(lifeView);
                 var renderers = (SpriteRenderer[])typeof(NumberView).GetField("_numberSpriteRenderers", FIELDS).GetValue(digits);
                 var digitSprites = (Sprite[])typeof(NumberView).GetField("numberSprites", FIELDS).GetValue(digits);
+                var hudSkin = (LiveHudSkin)typeof(NumberView).GetField("_hudSkin", FIELDS).GetValue(digits);
                 Assert.That(renderers.Take(10).Select(renderer => renderer.sprite),
-                    Is.EqualTo("7463847412".Select(digit => digitSprites[digit - '0'])));
+                    Is.EqualTo("7463847412".Select(digit =>
+                        hudSkin?.Resolve("hud.life.digit." + digit, digitSprites[digit - '0'])?.Sprite ?? digitSprites[digit - '0'])));
 
                 controller.Retry();
                 yield return WaitFor(() => controller.JustPlayingState, BOOT_TIMEOUT_SECONDS, "restarting the signed run-in");

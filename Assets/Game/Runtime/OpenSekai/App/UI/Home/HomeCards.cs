@@ -424,9 +424,9 @@ namespace OpenSekai.App.UI
     }
 
     /// <summary>
-    /// A card for a part of the app that is not built yet (服务器, 资源包): a title block, a
-    /// "即将推出" chip with a breathing status light, and an animated drawing on the right. A tap
-    /// shakes it and lets the page explain.
+    /// A card for one of the home page's smaller parts (服务器, 资源包): a title block, a status
+    /// chip with a breathing light, and an animated drawing on the right. A card for a part that
+    /// is not available shakes when tapped and lets the page explain.
     /// </summary>
     internal sealed class HomeFeatureCard
     {
@@ -440,7 +440,7 @@ namespace OpenSekai.App.UI
 
         internal HomeFeatureCard(
             Transform parent, string name, string eyebrow, string title, string description, Color32 tint,
-            Func<RectTransform, IHomeCardArt> createArt, Action onClick, bool available = false)
+            Func<RectTransform, IHomeCardArt> createArt, Action onClick, bool available = false, string status = null)
         {
             _frame = new HomeCardFrame(parent, name, HomeTheme.Layout.CARD_RADIUS, null, 0.975f);
             _frame.Button.onClick.AddListener(() =>
@@ -492,7 +492,7 @@ namespace OpenSekai.App.UI
             _statusDot.raycastTarget = false;
             LibraryWidgets.Place(_statusDot.rectTransform, new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(26f, 0f), new Vector2(10f, 10f));
             TextMeshProUGUI chipLabel = LibraryWidgets.Label(
-                "Label", chip.transform, available ? "进入社区" : "即将推出", 19f, LibraryTheme.Colors.TextSecondary, FontStyles.Normal, TextAlignmentOptions.Left);
+                "Label", chip.transform, status ?? (available ? "进入社区" : "即将推出"), 19f, LibraryTheme.Colors.TextSecondary, FontStyles.Normal, TextAlignmentOptions.Left);
             LibraryWidgets.Inset(chipLabel.rectTransform, 44f, 0f, 12f, 0f);
 
             void Stretch(RectTransform rect, float left, float top, float height)

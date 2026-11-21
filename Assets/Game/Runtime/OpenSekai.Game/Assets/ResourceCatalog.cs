@@ -85,6 +85,9 @@ namespace Sekai
 		public static readonly ResourceEntry<Font> CondensedTtfFont =
 			new ResourceEntry<Font>("Fonts/BarlowCondensed-SemiBold");
 
+		/// <summary>The individual layers of the home page emblem.</summary>
+		public static Sprite[] LoadHomeEmblemLayers() => Resources.LoadAll<Sprite>("HomeEmblem");
+
 		// ---- fixed configuration -----------------------------------------------------------------
 
 		/// <summary>The live bundle config that lane offsets, note speeds and SE volume read from.</summary>

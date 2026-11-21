@@ -1,3 +1,4 @@
+using System.Linq;
 using OpenSekai.MaterialPacks;
 using UnityEngine;
 
@@ -8,6 +9,8 @@ namespace Sekai
 		private ParticleSystem _particleSystem;
 
 		private ParticleSystem[] _particleSystems;
+		private (ParticleSystem particles, uint seed)[] _fixedSeedLayers;
+		private static readonly System.Random _burstRandom = new System.Random();
 
 		private ParticleSystemRenderer[] _renderers;
 		private MaterialPropertyBlock _palette;
@@ -17,11 +20,18 @@ namespace Sekai
 		private Vector3 _offset;
 		private Vector3? _lastPivot;
 
-		internal static ParticleSystemController Create(GameObject prefab, Transform parent, LiveHitEffectSkin skin)
+		internal static ParticleSystemController Create(GameObject prefab, Transform parent, LiveHitEffectSkin skin,
+			bool varyBurst = false)
 		{
 			if (prefab == null) return null;
 			var controller = Instantiate(prefab, parent, false).AddComponent<ParticleSystemController>();
 			skin?.Apply(controller, prefab.name);
+			if (varyBurst && controller.Sequence == null)
+			{
+				var layers = controller._particleSystems ?? controller.GetComponentsInChildren<ParticleSystem>(true);
+				controller._fixedSeedLayers = layers.Where(p => !p.useAutoRandomSeed)
+					.Select(p => (p, p.randomSeed)).ToArray();
+			}
 			return controller;
 		}
 
@@ -140,6 +150,17 @@ namespace Sekai
 						_particleSystems[i]?.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
 					}
 				}
+			}
+
+			if (_fixedSeedLayers is { Length: > 0 })
+			{
+				// A star and its trail share a seed in the prefab. Vary them together on each hit.
+				uint variation = (uint)_burstRandom.Next(1, int.MaxValue);
+#if UNITY_EDITOR
+				if (Live.LiveMotion.CaptureScheduler != null) variation = 0;
+#endif
+				foreach (var layer in _fixedSeedLayers)
+					layer.particles.randomSeed = layer.seed ^ variation;
 			}
 
 			if (_particleSystems != null)

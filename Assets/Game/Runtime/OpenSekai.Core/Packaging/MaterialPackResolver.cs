@@ -10,6 +10,45 @@ namespace OpenSekai.MaterialPacks
         public List<string> Groups { get; set; } = new();
         // A null value explicitly selects the built-in resource for this slot.
         public Dictionary<string, string> Overrides { get; set; } = new();
+
+        /// <summary>A deep copy as <typeparamref name="T"/> (the audio selection is its own type).</summary>
+        public static T CopyAs<T>(MaterialGroupSelection source) where T : MaterialGroupSelection, new() => new()
+        {
+            Groups = new List<string>(source?.Groups ?? new List<string>()),
+            Overrides = new Dictionary<string, string>(source?.Overrides ?? new Dictionary<string, string>(), StringComparer.Ordinal)
+        };
+
+        /// <summary>Same groups in the same order and the same per-slot choices.</summary>
+        public bool SameAs(MaterialGroupSelection other) =>
+            other != null && Groups.SequenceEqual(other.Groups, StringComparer.Ordinal)
+            && Overrides.Count == other.Overrides.Count
+            && Overrides.All(item => other.Overrides.TryGetValue(item.Key, out string value) && value == item.Value);
+    }
+
+    /// <summary>
+    /// What one slot resolves to under a selection, for the resource pack page: the source group
+    /// (null for the category's built-in), why (<c>override</c>, <c>priority</c>, <c>builtin</c>),
+    /// which enabled groups could provide it, and whether the bound media is a sequence or layout.
+    /// </summary>
+    public sealed class MaterialSlotState
+    {
+        public string Slot { get; internal set; }
+        public string Source { get; internal set; }
+        public string Reason { get; internal set; }
+        public string[] Candidates { get; internal set; }
+        public bool IsSequence { get; internal set; }
+        public bool IsLayout { get; internal set; }
+        internal string Path { get; set; }
+        internal string PackRoot { get; set; }
+        internal MaterialMediaSlot Media { get; set; }
+        internal MaterialBackgroundScene Background { get; set; }
+
+        /// <summary>Explicitly set to the built-in, as opposed to falling through to it.</summary>
+        public bool IsExplicitBuiltin => Reason == REASON_OVERRIDE && Source == null;
+
+        public const string REASON_OVERRIDE = "override";
+        public const string REASON_PRIORITY = "priority";
+        public const string REASON_BUILTIN = "builtin";
     }
 
     public sealed class MaterialAudioSelection : MaterialGroupSelection { }
@@ -179,6 +218,70 @@ namespace OpenSekai.MaterialPacks
                 bindings.Add(binding);
             }
             return bindings;
+        }
+
+        /// <summary>Resolves every category of <paramref name="configuration"/>; throws on the first invalid choice or exceeded budget.</summary>
+        public static void Validate(IReadOnlyCollection<InstalledMaterialPack> packs, MaterialPackConfiguration configuration, string installedRoot)
+        {
+            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
+            if (configuration.Builtin?.IsValid() != true) throw new InvalidDataException("内置套装选择无效。");
+            foreach (string category in MaterialCategories.All)
+            {
+                try { Describe(packs, category, configuration.Get(category), installedRoot); }
+                catch (InvalidDataException e) { throw new InvalidDataException(category + "：" + e.Message, e); }
+            }
+        }
+
+        /// <summary>Every slot of <paramref name="category"/> under <paramref name="selection"/>, in registry order.</summary>
+        public static List<MaterialSlotState> Describe(IEnumerable<InstalledMaterialPack> packs, string category,
+            MaterialGroupSelection selection, string installedRoot)
+        {
+            var list = packs as IReadOnlyCollection<InstalledMaterialPack> ?? packs.ToArray();
+            switch (category)
+            {
+                case MaterialCategories.AUDIO:
+                    return Resolve(list, MaterialGroupSelection.CopyAs<MaterialAudioSelection>(selection), installedRoot)
+                        .Select(b => new MaterialSlotState { Slot = b.Slot, Source = b.Source, Reason = b.Reason,
+                            Candidates = b.Candidates, Path = b.Path, PackRoot = b.PackRoot, Media = b.Media }).ToList();
+                case MaterialCategories.BACKGROUND:
+                    var background = ResolveBackground(list, selection, installedRoot);
+                    return new List<MaterialSlotState> { new() { Slot = background.Slot, Source = background.Source,
+                        Reason = background.Reason, Candidates = background.Candidates, PackRoot = background.PackRoot,
+                        Background = background.Media } };
+                default:
+                    if (!MaterialCategories.IsKnown(category)) throw new InvalidDataException("未知资源类别 " + category);
+                    return ResolveSprites(list, selection, installedRoot, category, MaterialCategories.Slots(category))
+                        .Select(b => new MaterialSlotState { Slot = b.Slot, Source = b.Source, Reason = b.Reason,
+                            Candidates = b.Candidates, Path = b.Path, PackRoot = b.PackRoot, Media = b.Media,
+                            IsSequence = b.Media?.Layers != null, IsLayout = MaterialSpriteSlot.IsLayout(b.Slot) }).ToList();
+            }
+        }
+
+        /// <summary>
+        /// Slots whose own choice does not show under these states because a whole-sequence
+        /// override takes over their template: a result event drawn as a sequence hides every
+        /// part of that event (and its layout); a hit effect drawn as a sequence hides its trail.
+        /// </summary>
+        public static HashSet<string> HiddenSlots(string category, IEnumerable<MaterialSlotState> states)
+        {
+            var hidden = new HashSet<string>(StringComparer.Ordinal);
+            var list = states.ToList();
+            foreach (var state in list.Where(s => s.Source != null && s.IsSequence))
+            {
+                if (category == MaterialCategories.RESULT_FX && MaterialResultFxSlots.IsEvent(state.Slot))
+                    foreach (var part in list) { if (part.Slot.StartsWith(state.Slot + ".", StringComparison.Ordinal)) hidden.Add(part.Slot); }
+                else if (category == MaterialCategories.HIT_FX && !MaterialHitFxSlots.IsTrail(state.Slot))
+                    hidden.Add(state.Slot + ".trail");
+            }
+            return hidden;
+        }
+
+        /// <summary>The enabled group whose COMBO layout applies: the first one in order that has a layout, or null.</summary>
+        public static string ComboLayoutSource(IEnumerable<InstalledMaterialPack> packs, MaterialGroupSelection selection)
+        {
+            var layouts = new HashSet<string>(packs.SelectMany(p => p.Groups.Where(g => g.Category == MaterialCategories.COMBO && g.Layout != null)
+                .Select(g => p.GroupReference(g.Id))), StringComparer.Ordinal);
+            return selection?.Groups?.FirstOrDefault(layouts.Contains);
         }
 
         internal static string VersionPath(string installedRoot, InstalledMaterialPack pack)

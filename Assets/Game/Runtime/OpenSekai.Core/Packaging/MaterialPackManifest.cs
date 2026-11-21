@@ -31,19 +31,58 @@ namespace OpenSekai.MaterialPacks
         public MaterialComboLayout Layout { get; set; }
         public Dictionary<string, MaterialAudioSlot> Slots { get; set; } = new();
         public Dictionary<string, MaterialSpriteSlot> Sprites { get; set; } = new();
+
+        /// <summary>True when the group has media (or a layout) for <paramref name="slot"/>.</summary>
+        public bool Provides(string slot) => Category switch
+        {
+            MaterialCategories.AUDIO => Slots?.ContainsKey(slot) == true,
+            MaterialCategories.BACKGROUND => slot == MaterialBackgroundScene.SLOT && Background != null,
+            _ => Sprites?.ContainsKey(slot) == true
+        };
     }
 
     public sealed class InstalledMaterialPack
     {
+        /// <summary>Index entries written before pack names, icons and presets were read have version 0.</summary>
+        public const int CURRENT_METADATA_VERSION = 1;
+
         public string PackId { get; set; }
         public string Digest { get; set; }
         public string Version { get; set; }
         public List<MaterialPackGroup> Groups { get; set; } = new();
+
+        /// <summary>Display name from <c>extensions["opensekai.metadata"]</c>; null falls back to <see cref="PackId"/>.</summary>
+        public string DisplayName { get; set; }
+        public MaterialPackIcon Icon { get; set; }
+        public MaterialPackPreset Preset { get; set; }
+        public int MetadataVersion { get; set; }
+
         public string GroupReference(string groupId) => PackId + "/" + Digest + "/" + groupId;
+
+        /// <summary>First characters of the digest, enough to tell two revisions apart on screen.</summary>
+        [JsonIgnore]
+        public string ShortDigest => Digest != null && Digest.Length >= 8 ? Digest.Substring(0, 8) : Digest;
+
+        /// <summary>Splits a group reference (<c>packId/digest/groupId</c>); false for anything else.</summary>
+        public static bool TryParseReference(string reference, out string packId, out string digest, out string groupId)
+        {
+            packId = digest = groupId = null;
+            if (string.IsNullOrEmpty(reference)) return false;
+            int first = reference.IndexOf('/');
+            int second = first < 0 ? -1 : reference.IndexOf('/', first + 1);
+            if (first <= 0 || second <= first + 1 || second == reference.Length - 1) return false;
+            packId = reference.Substring(0, first);
+            digest = reference.Substring(first + 1, second - first - 1);
+            groupId = reference.Substring(second + 1);
+            return groupId.IndexOf('/') < 0;
+        }
     }
 
     public static class MaterialPackManifest
     {
+        public const string METADATA_EXTENSION = "opensekai.metadata";
+        public const string PRESET_EXTENSION = "opensekai.preset";
+
         private static readonly Regex _id = new(@"\A[a-z][a-z0-9.-]*\z");
         private static readonly Regex _reserved = new(@"^(con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(\.|$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
@@ -131,7 +170,60 @@ namespace OpenSekai.MaterialPacks
                 }
                 pack.Groups.Add(result);
             }
+            ParseExtensions(root, pack, images);
+            pack.MetadataVersion = InstalledMaterialPack.CURRENT_METADATA_VERSION;
             return pack;
+        }
+
+        /// <summary>
+        /// Reads the pack's display name, icon and preset from the root <c>extensions</c> object.
+        /// Other namespaces there stay free for other tools; the two of this game are checked as
+        /// strictly as the rest of the manifest, so a typo is reported instead of ignored.
+        /// </summary>
+        private static void ParseExtensions(JObject root, InstalledMaterialPack pack,
+            IReadOnlyDictionary<string, (string hash, int width, int height)> images)
+        {
+            if (root["extensions"] is not JObject extensions) return;
+            if (extensions.TryGetValue(METADATA_EXTENSION, out var metadataToken))
+            {
+                if (metadataToken is not JObject metadata) throw Error(metadataToken, "需要元数据对象");
+                Fields(metadata, "displayName", "icon", "extensions");
+                if (metadata["displayName"] != null) pack.DisplayName = Required(metadata, "displayName").Trim();
+                if (metadata["icon"] != null)
+                {
+                    string file = Required(metadata, "icon");
+                    CheckPath(file);
+                    if (images == null || !images.TryGetValue(file, out var image)) throw Error(metadata["icon"], "找不到图标 PNG " + file);
+                    pack.Icon = new MaterialPackIcon { File = file, Hash = image.hash, Width = image.width, Height = image.height };
+                }
+            }
+            if (extensions.TryGetValue(PRESET_EXTENSION, out var presetToken))
+            {
+                if (presetToken is not JObject presetObject) throw Error(presetToken, "需要预设对象");
+                Fields(presetObject, "name", "categories", "extensions");
+                var preset = new MaterialPackPreset { Name = Required(presetObject, "name").Trim() };
+                if (presetObject["categories"] is not JObject categories) throw Error(presetObject, "预设需要 categories 对象");
+                foreach (var property in categories.Properties())
+                {
+                    if (property.Value is not JObject category) throw Error(property, "需要类别对象");
+                    Fields(category, "groups", "builtinSet", "extensions");
+                    var value = new MaterialPresetCategory();
+                    if (category["groups"] != null)
+                    {
+                        if (category["groups"] is not JArray groups) throw Error(category["groups"], "groups 需要数组");
+                        foreach (var group in groups)
+                        {
+                            if (group.Type != JTokenType.String) throw Error(group, "需要组 ID");
+                            value.Groups.Add((string)group);
+                        }
+                    }
+                    if (category["builtinSet"] != null) value.BuiltinSet = Integer(category["builtinSet"]);
+                    preset.Categories.Add(property.Name, value);
+                }
+                pack.Preset = preset;
+                try { MaterialPresets.Validate(pack); }
+                catch (InvalidDataException e) { throw Error(presetObject, e.Message); }
+            }
         }
 
         internal static bool HasSpriteSlot(string category, string slot) => category switch

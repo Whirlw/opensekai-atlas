@@ -211,8 +211,12 @@ namespace Sekai
 				return 1f;
 			}
 
-			float screenY = frontCamera.WorldToScreenPoint(new Vector3(position.x, position.y, 0f)).y;
-			return screenY / Screen.height;
+			// The position is in the live's own space and the answer a share of what the camera draws:
+			// the same as the screen in a live, and right too for the resource pack page's demo, which
+			// sits away from the origin and draws into a texture.
+			Transform root = frontCamera.transform.parent;
+			Vector3 point = new Vector3(position.x, position.y, 0f);
+			return frontCamera.WorldToViewportPoint(root != null ? root.TransformPoint(point) : point).y;
 		}
 
 		public static Vector2 CalcNoteShowRatePosition(float settingsNoteShowRate)

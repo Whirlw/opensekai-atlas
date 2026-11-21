@@ -708,7 +708,7 @@ namespace Sekai.Live
 		{
 			if (autoLabel != null)
 			{
-				bool useFakePerfect = LiveSettingsStore.Shared.Load()?.UsesAutoFakePerfectMode ?? false;
+				bool useFakePerfect = _baseController?.Settings?.UsesAutoFakePerfectMode ?? false;
 				autoLabel.SetActive(_isAuto && !useFakePerfect);
 			}
 		}

@@ -89,6 +89,7 @@ namespace OpenSekai.EditorTools.Screenshots
                     case "handoff": body = HandoffShot(shot); break;
                     case "about": body = AboutShot(shot); break;
                     case "server": body = ServerShot(shot); break;
+                    case "packs": body = PacksShot(shot); break;
                     default:
                         Fail(shot, "unknown kind '" + shot.kind + "'");
                         continue;
@@ -465,6 +466,91 @@ namespace OpenSekai.EditorTools.Screenshots
             yield return WaitUntil(() => home.IsHomeShown && !home.IsServerShown, "the home page after back");
             yield return new WaitForSecondsRealtime(1f);
             yield return Capture(shot, stem + "-home", "after the server list's back button", null);
+            home.ShowLibraryImmediately();
+        }
+
+        /// <summary>
+        /// The resource pack part, read-only: the 资源包 card growing over the home page, the
+        /// overview, the first installed pack and a preview of its first group, three category
+        /// pages, the main group choices and the built-in note skin, then back to the home page. It
+        /// never saves: whatever packs the editor's data folder holds are what the frames show.
+        /// </summary>
+        private IEnumerator PacksShot(Shot shot)
+        {
+            yield return WaitForLibrary();
+            HomeScreen home = HomeScreen.Current;
+            if (home == null)
+            {
+                throw new InvalidOperationException("The Library scene has no home page.");
+            }
+
+            string stem = FileStem(shot, null);
+            home.SeekIntro(HomeScreen.IntroLength);
+            yield return WaitUntil(() => home.IsBrandReady, "the brand emblem");
+            yield return new WaitForSecondsRealtime(1.2f);
+            foreach (float amount in new[] { 0.35f, 0.7f })
+            {
+                home.SeekPacksHandoff(amount);
+                yield return null;
+                yield return null;
+                yield return Capture(shot, FileStem(shot, amount), "packs card grown " + amount.ToString("0.00"), null, amount);
+            }
+
+            home.ShowHomeImmediately();
+            yield return null;
+            home.EnterPacks();
+            yield return WaitUntil(() => home.IsPacksShown, "the resource pack overview after the hand-over");
+            yield return new WaitForSecondsRealtime(1.4f);
+            yield return Capture(shot, stem + "-overview", "resource pack overview", null);
+
+            PackScreen screen = UnityEngine.Object.FindFirstObjectByType<PackScreen>();
+            if (screen == null || !(screen.Top is PackOverviewPage))
+            {
+                throw new InvalidOperationException("The resource pack part did not open on its overview.");
+            }
+
+            var installed = screen.State?.Installed ?? new List<OpenSekai.MaterialPacks.InstalledMaterialPack>();
+            OpenSekai.MaterialPacks.InstalledMaterialPack pack = installed
+                .OrderByDescending(p => p.Groups.Count).ThenBy(p => p.PackId).FirstOrDefault(p => p.Groups.Any(g => g.Category != "audio"))
+                ?? installed.FirstOrDefault();
+            if (pack != null)
+            {
+                screen.OpenPack(pack);
+                yield return new WaitForSecondsRealtime(1f);
+                yield return Capture(shot, stem + "-detail", "pack " + pack.PackId, null);
+                screen.Preview.OpenGroup(pack, pack.Groups[0]);
+                yield return new WaitForSecondsRealtime(2f);
+                yield return Capture(shot, stem + "-preview", "preview of " + pack.Groups[0].Id, null);
+                screen.Preview.Close();
+                screen.Back();
+                yield return new WaitForSecondsRealtime(0.8f);
+            }
+
+            foreach (string category in new[] { "audio", "notes", "hud", "resultFx" })
+            {
+                screen.OpenCategory(category);
+                yield return new WaitForSecondsRealtime(1f);
+                yield return Capture(shot, stem + "-category-" + category, category + " category", null);
+                if (category == "notes" && screen.Top is PackCategoryPage page)
+                {
+                    page.OpenMainChoices();
+                    yield return new WaitForSecondsRealtime(0.6f);
+                    yield return Capture(shot, stem + "-group", "main note group choices", null);
+                    screen.Choices.Close();
+                    screen.Preview.OpenBuiltin("notes", 2);
+                    yield return new WaitForSecondsRealtime(1f);
+                    yield return Capture(shot, stem + "-builtin", "built-in note skin 2", null);
+                    screen.Preview.Close();
+                }
+
+                screen.Back();
+                yield return new WaitForSecondsRealtime(0.8f);
+            }
+
+            screen.Back();
+            yield return WaitUntil(() => home.IsHomeShown && !home.IsPacksShown, "the home page after back");
+            yield return new WaitForSecondsRealtime(1f);
+            yield return Capture(shot, stem + "-home", "after the overview's back button", null);
             home.ShowLibraryImmediately();
         }
 

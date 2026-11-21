@@ -32,9 +32,32 @@ namespace OpenSekai.App.Playback
         internal LiveSpriteSkin Judgment { get; }
         internal LiveComboSkin Combo { get; }
 
-        internal MaterialAudioPreparation(MaterialPackStore store)
+        /// <summary>The built-in fallback sets fixed for this live, merged into its settings snapshot.</summary>
+        internal MaterialBuiltinSelection Builtin { get; }
+
+        /// <summary>A live's preparation: holds the store until the live's audio is released.</summary>
+        internal MaterialAudioPreparation(MaterialPackStore store) : this(store.Capture(), store.Release)
         {
-            _bindings = store.Capture(out _sprites, out var layout, out _judgmentSprites, out _hitSprites, out _noteSprites, out _laneSprites, out _background, out _hudSprites, out _resultSprites);
+        }
+
+        /// <summary>
+        /// Prepares <paramref name="bindings"/>; <paramref name="release"/> runs when the audio is
+        /// disposed (null for the resource pack page's demo, which holds nothing).
+        /// </summary>
+        internal MaterialAudioPreparation(MaterialPackBindings bindings, Action release)
+        {
+            _bindings = bindings.Audio;
+            _sprites = bindings.Combo;
+            var layout = bindings.ComboLayout;
+            _judgmentSprites = bindings.Judgment;
+            _hitSprites = bindings.HitFx;
+            _noteSprites = bindings.Notes;
+            _laneSprites = bindings.Lane;
+            _background = bindings.Background;
+            _hudSprites = bindings.Hud;
+            _resultSprites = bindings.ResultFx;
+            // The bindings were taken under one lock, so the sets match the groups.
+            Builtin = bindings.Builtin.Copy();
             if (_resultSprites.Any(x => x.Source != null)) ResultFx = new LiveResultEffectSkin();
             if (_hudSprites.Any(x => x.Source != null)) Hud = new LiveHudSkin();
             if (_background?.Source != null) Background = new LiveBackgroundSkin(_background.Media);
@@ -43,7 +66,7 @@ namespace OpenSekai.App.Playback
             if (_hitSprites.Any(x => x.Source != null)) HitFx = new LiveHitEffectSkin();
             if (_judgmentSprites.Any(x => x.Source != null)) Judgment = new LiveSpriteSkin();
             if (layout != null || _sprites.Any(x => x.Source != null)) Combo = new LiveComboSkin(layout);
-            Audio = new LiveMaterialAudio(store.Release);
+            Audio = new LiveMaterialAudio(release);
         }
 
         internal async Task PrepareAsync(List<string> diagnostics, CancellationToken token)
@@ -147,15 +170,6 @@ namespace OpenSekai.App.Playback
             }
         }
 
-        private static byte[] Read(string path, MaterialMediaSlot expected)
-        {
-            using var stream = File.OpenRead(path);
-            if (stream.Length > MaterialPackArchive.MAX_FILE_BYTES) throw new InvalidDataException("文件大小已改变。");
-            using var reader = new BinaryReader(stream);
-            var bytes = reader.ReadBytes((int)stream.Length);
-            if (MaterialPackArchive.Hex(MaterialPackArchive.Hash(bytes)) != expected.Hash)
-                throw new InvalidDataException("文件内容与安装修订不符。");
-            return bytes;
-        }
+        private static byte[] Read(string path, MaterialMediaSlot expected) => MaterialPackArchive.ReadVerified(path, expected.Hash);
     }
 }
