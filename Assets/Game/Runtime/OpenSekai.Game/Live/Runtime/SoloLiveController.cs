@@ -78,7 +78,7 @@ namespace Sekai.Core.Live
 		{
 			LiveTransitioner.SafeFinish(null, null);
 			base.OnMusicStart();
-			LiveViewExt.MusicStart(_liveViews, currentAudioLatencyMusicTimeMs);
+			LiveViewExt.MusicStart(_liveViews, CurrentViewTimeSeconds);
 		}
 
 		protected override bool IsIntroFinished() => LiveViewExt.IsIntroFinished(_liveViews);
@@ -89,7 +89,11 @@ namespace Sekai.Core.Live
 		{
 			if (LatencyCapture.Active)
 				LatencyCapture.Record("bgm_start", song: musicTime, value: SoundManager.Instance.GetCurrentIngamePlaybackId());
-			LiveViewExt.MusicPlaybackStart(_liveViews, musicTime);
+		}
+
+		protected override void OnViewPlaybackStarted(float viewTime)
+		{
+			LiveViewExt.MusicPlaybackStart(_liveViews, viewTime);
 		}
 
 		protected override void OnRhythmGameStart()
@@ -153,7 +157,7 @@ namespace Sekai.Core.Live
 			TraceTimeline("intro skip from=" + currentMusicTimeMs + " to=" + targetMs);
 			SeekTimeline(targetMs);
 			LatencyCapture.Record("seek", song: targetMs / 1000d);
-			LiveViewExt.MusicSeek(_liveViews, targetMs / 1000f);
+			LiveViewExt.MusicSeek(_liveViews, CurrentViewTimeSeconds);
 		}
 
 		/// <summary>Cuts the rest of the music and plays the result effect now, then the usual fade to the result.</summary>
@@ -236,7 +240,7 @@ namespace Sekai.Core.Live
 
 			// The view block, last: it draws what the two blocks above decided.
 			_liveLogic?.OnView();
-			LiveViewExt.OnUpdate(_liveViews, currentAudioLatencyMusicTimeMs);
+			LiveViewExt.OnUpdate(_liveViews, CurrentViewTimeSeconds);
 		}
 
 		private new void OnApplicationPause(bool pauseStatus)
@@ -382,7 +386,7 @@ namespace Sekai.Core.Live
 			liveOutUIController?.Destroy();
 			ResumeMusicPlayback();
 			state = LiveControllerState.Playing;
-			LiveViewExt.Resume(_liveViews, currentAudioLatencyMusicTimeMs);
+			LiveViewExt.Resume(_liveViews, CurrentViewTimeSeconds);
 			_liveLogic?.RefreshInput();
 			BeginLatencyCapture();
 		}
@@ -465,7 +469,7 @@ namespace Sekai.Core.Live
 			yield return new WaitForSeconds(3f);
 			ResumeMusicPlayback();
 			state = LiveControllerState.Playing;
-			LiveViewExt.Resume(_liveViews, currentAudioLatencyMusicTimeMs);
+			LiveViewExt.Resume(_liveViews, CurrentViewTimeSeconds);
 			SoundManager.Instance.SetAudioSyncedUnityTimer(cueId);
 			BeginLatencyCapture();
 			_resumeCoroutine = null;
@@ -495,7 +499,7 @@ namespace Sekai.Core.Live
 			long audioTime = musicPhase == MusicPhase.Playing ? SoundManager.Instance.GetAudioSyncedUnityTimer() : -1L;
 			if (audioTime > 0L)
 			{
-				currentMusicTimeMs = audioTime;
+				currentMusicTimeMs = timingCompensation.TimelineAtPlayback(audioTime);
 			}
 		}
 

@@ -185,13 +185,20 @@ namespace Sekai.Live
 				double progress = native.NativeViewProgress(now, out bool hidden);
 				return hidden || progress > NATIVE_KEY_PROGRESS_END ? 0f : (float)progress;
 			}
+			// A scrolling legacy key can cross the line on either clock first. Sample its
+			// trajectory at display time even after the logic position has crossed it.
+			if (ViewLeadSeconds != 0f && note is NoteBase scrolling && scrolling.State == NoteState.Scrolling
+				&& scrolling.offsetTime > 0f)
+			{
+				return 1f + (time - scrolling.MusicScoreInfo.time + ViewLeadSeconds) / scrolling.offsetTime;
+			}
 			return ViewProgressOf(note);
 		}
 
 		internal static bool IsKeyVisible(INote note, float time) =>
 			note is NoteBase native && native.NativeScroll != null
 				? note.LaneEndF - note.LaneStartF + 1f > 0f && ViewProgressOf(note, time) > 0f
-				: note.Progress > 0f;
+				: ViewProgressOf(note, time) > 0f;
 
 		public static float CacheTimingTime { get; set; }
 

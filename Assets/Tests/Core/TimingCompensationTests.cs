@@ -7,12 +7,15 @@ namespace OpenSekai.Tests.Core
     {
         private const float AUDIO = 10f;
 
-        [Test]
-        public void AudioLatencyMovesJudgementAndPictureTogether()
+        [TestCase(30L)]
+        [TestCase(-30L)]
+        public void AudioLatencyMovesOnlyPlayback(long advanceMs)
         {
-            var compensation = new TimingCompensation(30f, 0f, 0f);
-            Assert.That(compensation.LogicTime(AUDIO), Is.EqualTo(9.97f).Within(1e-5f));
-            Assert.That(compensation.ViewTime(AUDIO), Is.EqualTo(9.97f).Within(1e-5f));
+            var compensation = new TimingCompensation(advanceMs, 0f, 0f);
+            Assert.That(compensation.PlaybackAt(10000), Is.EqualTo(10000 + advanceMs));
+            Assert.That(compensation.TimelineAtPlayback(10000 + advanceMs), Is.EqualTo(10000));
+            Assert.That(compensation.LogicTime(AUDIO), Is.EqualTo(AUDIO).Within(1e-5f));
+            Assert.That(compensation.ViewTime(AUDIO), Is.EqualTo(AUDIO).Within(1e-5f));
             Assert.That(compensation.ViewLeadSeconds, Is.Zero);
         }
 
@@ -41,8 +44,8 @@ namespace OpenSekai.Tests.Core
         public void AllThreeCombine()
         {
             var compensation = new TimingCompensation(30f, 20f, -10f);
-            Assert.That(compensation.LogicTime(AUDIO), Is.EqualTo(10f - 0.02f).Within(1e-5f));
-            Assert.That(compensation.ViewTime(AUDIO), Is.EqualTo(10f - 0.01f).Within(1e-5f));
+            Assert.That(compensation.LogicTime(AUDIO), Is.EqualTo(10.01f).Within(1e-5f));
+            Assert.That(compensation.ViewTime(AUDIO), Is.EqualTo(10.02f).Within(1e-5f));
             Assert.That(compensation.LogicTime(AUDIO) + compensation.ViewLeadSeconds,
                 Is.EqualTo(compensation.ViewTime(AUDIO)).Within(1e-5f));
         }
@@ -50,7 +53,7 @@ namespace OpenSekai.Tests.Core
         [Test]
         public void ClocksNeverGoBelowZero()
         {
-            var compensation = new TimingCompensation(500f, 0f, 200f);
+            var compensation = new TimingCompensation(500f, -200f, 200f);
             Assert.That(compensation.LogicTime(0.1f), Is.Zero);
             Assert.That(compensation.ViewTime(0.1f), Is.Zero);
         }

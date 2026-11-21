@@ -47,7 +47,7 @@ namespace Sekai
 		/// </summary>
 		public float TimingAdjustData { get; set; }
 
-		/// <summary>How late the music reaches the ear, in ms. Moves notes and judgement together.</summary>
+		/// <summary>How late the music reaches the ear, in ms. Positive advances BGM playback.</summary>
 		public float AudioLatencyMs { get; set; }
 
 		/// <summary>How late a drawn frame reaches the eye, in ms. Moves only the picture.</summary>

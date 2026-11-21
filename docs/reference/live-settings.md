@@ -26,9 +26,9 @@
 
 | 面板行 | 字段 | 取值 | 生效时机 |
 | --- | --- | --- | --- |
-| 音频延迟 | `AudioLatencyMs` | 毫秒，补偿音频输出延迟 | 下次开局 |
-| 画面延迟 | `VisualLatencyMs` | 毫秒，补偿画面显示延迟 | 下次开局 |
-| 判定偏移（正 = 打得晚） | `JudgeOffsetMs` | 毫秒，调整判定时机 | 下次开局 |
+| 音频延迟 | `AudioLatencyMs` | 毫秒，正值让背景音乐提前播放 | 下次开局 |
+| 画面延迟 | `VisualLatencyMs` | 毫秒，正值让音符提前到线 | 下次开局 |
+| 判定延迟 | `JudgeOffsetMs` | 毫秒，正值让手动判定窗口推迟 | 下次开局 |
 | 判定时机 / 多押分配 | `UseLegacyJudgeTiming` / `UseFramePressMatching` | 旧判定时机会锁定为逐帧分配 | 下次开局 |
 | 音符流速 | `NoteSpeed` | 步进 0.1 | 下次开局 |
 | 同时押线 | `UseSimultaneousPushingLine` | 开 / 关 | 下次开局（构建运行时谱面时读取） |

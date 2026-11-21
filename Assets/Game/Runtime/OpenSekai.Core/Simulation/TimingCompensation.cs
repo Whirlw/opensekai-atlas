@@ -2,24 +2,8 @@ using System;
 
 namespace OpenSekai.Shared.Live.Simulation
 {
-	/// <summary>
-	/// The three timing compensations a player can set, in milliseconds, and the two clocks they produce.
-	///
-	/// <list type="bullet">
-	/// <item><b>Audio latency</b> L: how long the music takes to reach the ear. The whole game is moved
-	/// back by it, so notes and judgement both line up with what is heard.</item>
-	/// <item><b>Visual latency</b> V: how long a drawn frame takes to reach the eye. Only the picture is
-	/// moved: notes are drawn V ahead, judgement is untouched.</item>
-	/// <item><b>Judge offset</b> J: a player's own habit. Positive means "I hit late": only judgement is
-	/// moved, a press J ms after the beat counts as on it, and the picture is untouched.</item>
-	/// </list>
-	///
-	/// Every judgement site - presses, lifts, miss windows, interior points - runs on one logic clock, so
-	/// moving judgement by J is done by moving that clock, and the picture is put back by drawing J ahead
-	/// as well. That keeps one clock for all of judgement instead of an offset at each site:
-	/// <c>logic = audio - (L + J)</c>, <c>view = logic + (V + J) = audio - L + V</c>.
-	/// The hit sound is not compensated: it can only start once the press is known.
-	/// </summary>
+	/// <summary>Independent offsets from the live timeline. Positive audio and visual latency
+	/// advance playback and drawing. Positive judge offset accepts a later input.</summary>
 	public readonly struct TimingCompensation
 	{
 		public const float MIN_AUDIO_LATENCY_MS = -200f;
@@ -40,11 +24,14 @@ namespace OpenSekai.Shared.Live.Simulation
 		}
 
 		public float AudioLatencyMs { get; }
+		public long AudioAdvanceMs => (long)Math.Round(AudioLatencyMs);
+		public long PlaybackAt(long timelineMs) => timelineMs + AudioAdvanceMs;
+		public long TimelineAtPlayback(long playbackMs) => playbackMs - AudioAdvanceMs;
 		public float VisualLatencyMs { get; }
 		public float JudgeOffsetMs { get; }
 
-		/// <summary>Seconds the logic clock runs behind the audio clock.</summary>
-		public float LogicDelaySeconds => (AudioLatencyMs + JudgeOffsetMs) / 1000f;
+		/// <summary>Seconds the logic clock runs behind the timeline.</summary>
+		public float LogicDelaySeconds => JudgeOffsetMs / 1000f;
 
 		/// <summary>Seconds the picture is drawn ahead of the logic clock.</summary>
 		public float ViewLeadSeconds => (VisualLatencyMs + JudgeOffsetMs) / 1000f;
@@ -53,7 +40,7 @@ namespace OpenSekai.Shared.Live.Simulation
 		public float LogicTime(float audioTime) => Math.Max(audioTime - LogicDelaySeconds, 0f);
 
 		/// <summary>The clock the views draw with.</summary>
-		public float ViewTime(float audioTime) => Math.Max(audioTime - (AudioLatencyMs - VisualLatencyMs) / 1000f, 0f);
+		public float ViewTime(float audioTime) => Math.Max(audioTime + VisualLatencyMs / 1000f, 0f);
 
 		public static float ClampAudioLatency(float ms) => Clamp(ms, MIN_AUDIO_LATENCY_MS, MAX_AUDIO_LATENCY_MS);
 		public static float ClampVisualLatency(float ms) => Clamp(ms, MIN_VISUAL_LATENCY_MS, MAX_VISUAL_LATENCY_MS);

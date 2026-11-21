@@ -52,6 +52,8 @@ namespace OpenSekai.App.UI
         private Action _onChanged;
 
         private LibraryModal _modal;
+        private LibraryModal _timingHelp;
+        private TextMeshProUGUI _timingDescription;
         private readonly LibrarySettingRows _rows = new LibrarySettingRows();
         private GameObject _tracePanel;
         private ScrollRect _mainScroll;
@@ -85,6 +87,7 @@ namespace OpenSekai.App.UI
         public void Hide()
         {
             if (_tracePanel != null) _tracePanel.SetActive(false);
+            _timingHelp.Close();
             _modal.Close();
         }
 
@@ -93,6 +96,13 @@ namespace OpenSekai.App.UI
         /// <summary>The Android back key: leaves the trace page first, then closes the panel.</summary>
         internal void Back()
         {
+            if (_timingHelp.IsOpen)
+            {
+                _timingHelp.Close();
+                UiSound.Play(UiCue.Back);
+                return;
+            }
+
             if (_tracePanel != null && _tracePanel.activeSelf)
             {
                 CloseTrace();
@@ -109,6 +119,7 @@ namespace OpenSekai.App.UI
 
         private void OnDestroy()
         {
+            _timingHelp?.Dispose();
             _modal?.Dispose();
             _rows.Dispose();
         }
@@ -131,13 +142,16 @@ namespace OpenSekai.App.UI
             float top = 0f;
             LibrarySettingRows.Section timing = _rows.AddSection(content, "判定与延迟", 5, 0f, rightStart, top);
             // See TimingCompensation for what each one moves.
-            _rows.AddMilliseconds(timing, "音频延迟",
+            AddTimingRow(timing, "音频延迟",
+                "调整打歌时背景音乐的播放时间。如果音符先到线、鼓点随后才响，可以增大这个值。\n\n+30 ms 会让音乐提前 30 毫秒，−30 ms 会让音乐推迟 30 毫秒。打击音仍在触发判定时播放。",
                 () => _settings.AudioLatencyMs,
                 value => { _settings.AudioLatencyMs = TimingCompensation.ClampAudioLatency(value); SaveSettings(); });
-            _rows.AddMilliseconds(timing, "画面延迟",
+            AddTimingRow(timing, "画面延迟",
+                "调整音符到达判定线的时间。如果听到鼓点时音符还在判定线上方，可以增大这个值。\n\n+30 ms 会让音符提前 30 毫秒到线，−30 ms 会让音符推迟 30 毫秒到线。",
                 () => _settings.VisualLatencyMs,
                 value => { _settings.VisualLatencyMs = TimingCompensation.ClampVisualLatency(value); SaveSettings(); });
-            _rows.AddMilliseconds(timing, "判定偏移（正 = 打得晚）",
+            AddTimingRow(timing, "判定延迟",
+                "调整手动游玩时的判定窗口。如果打在节拍上却经常显示 LATE，可以增大这个值；经常显示 FAST 则可以减小。\n\n+30 ms 会让判定中心推迟 30 毫秒，−30 ms 会让它提前 30 毫秒。自动游玩忽略此项。",
                 () => _settings.JudgeOffsetMs,
                 value => { _settings.JudgeOffsetMs = TimingCompensation.ClampJudgeOffset(value); SaveSettings(); });
             _rows.AddSegmented(timing, "判定时机", _judgeTimingLabels,
@@ -224,6 +238,26 @@ namespace OpenSekai.App.UI
 
             BuildTracePanel(_modal.Card);
             overlay.SetAsLastSibling();
+
+            RectTransform helpRoot = LibraryUi.CreateRect("TimingHelp", root);
+            LibraryUi.Stretch(helpRoot);
+            _timingHelp = new LibraryModal(helpRoot, new Vector2(760f, 420f), string.Empty, () => _timingHelp.Close());
+            _timingDescription = LibraryWidgets.Label("Description", _timingHelp.Body, string.Empty, 24f,
+                LibraryTheme.Colors.TextPrimary, alignment: TextAlignmentOptions.TopLeft);
+            _timingDescription.textWrappingMode = TextWrappingModes.Normal;
+            LibraryUi.Stretch(_timingDescription.rectTransform);
+            _timingHelp.Close();
+        }
+
+        private void AddTimingRow(LibrarySettingRows.Section section, string title, string description,
+            Func<float> get, Action<float> set)
+        {
+            _rows.AddMilliseconds(section, title, get, set, () =>
+            {
+                _timingHelp.Title.text = title;
+                _timingDescription.text = description + "\n\n设为 0 可取消此项调整。修改从下次开局生效。";
+                _timingHelp.Open();
+            });
         }
 
         private void BuildTracePanel(RectTransform card)

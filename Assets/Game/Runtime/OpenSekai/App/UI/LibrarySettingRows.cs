@@ -198,9 +198,15 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>A − field + group for whole milliseconds: tap to type, or nudge by one.</summary>
-        internal void AddMilliseconds(Section section, string label, Func<float> get, Action<float> set)
+        internal void AddMilliseconds(Section section, string label, Func<float> get, Action<float> set, Action showHelp)
         {
             RectTransform row = section.AddRow(label, out TextMeshProUGUI labelText);
+            const float INFO_SIZE = 44f;
+            Button info = LibraryWidgets.PillButton("Info", row, "i", () => showHelp(), INFO_SIZE, INFO_SIZE,
+                LibraryTheme.Colors.Control, LibraryTheme.Colors.TextSecondary, sound: UiCue.None);
+            LibraryWidgets.Place((RectTransform)info.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                new Vector2(LABEL_INSET + labelText.GetPreferredValues(label).x + 8f, 0f), Vector2.one * INFO_SIZE);
+
             const float FIELD_WIDTH = 136f;
             float width = STEP_BUTTON * 2f + FIELD_WIDTH + 16f;
             labelText.rectTransform.offsetMax = new Vector2(-(width + CONTROL_INSET * 2f), 0f);

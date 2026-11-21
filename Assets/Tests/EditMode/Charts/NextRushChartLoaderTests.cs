@@ -4930,8 +4930,8 @@ namespace OpenSekai.Tests.EditMode.Charts
                 controller.Arrange(boot, 2000L, new TimingCompensation(40f, 10f, 25f));
                 var score = boot.MusicData.MusicScore;
                 var note = score.NoteArray.Single();
-                Assert.That(controller.SampleViewAt(1530L), Is.EqualTo(note.MusicScoreInfo.time).Within(1e-6f));
-                float logicTime = controller.SampleLogicAt(1565L);
+                Assert.That(controller.SampleViewAt(1490L), Is.EqualTo(note.MusicScoreInfo.time).Within(1e-6f));
+                float logicTime = controller.SampleLogicAt(1525L);
                 Assert.That(logicTime, Is.EqualTo(note.MusicScoreInfo.time).Within(1e-6f));
 
                 using var harness = new LiveHarness();
@@ -5044,7 +5044,7 @@ namespace OpenSekai.Tests.EditMode.Charts
             internal double SampleViewAt(long audioMs)
             {
                 currentMusicTimeMs = audioMs;
-                return BootData.MusicData.AudioToChartTime(currentAudioLatencyMusicTimeMs);
+                return BootData.MusicData.AudioToChartTime(CurrentViewTimeSeconds);
             }
 
             protected override void PreExit(float delay, float waitTime, long? resultEffectAtMs = null)

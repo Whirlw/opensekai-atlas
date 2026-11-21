@@ -181,10 +181,10 @@ namespace Sekai
 					DrawNativePair(note, pair, musicTime, vertexIndex);
 					continue;
 				}
-				if (note.State == NoteState.Scrolling && note.Progress > 0f)
+				if (note.State == NoteState.Scrolling && LiveConfig.IsKeyVisible(note, musicTime))
 				{
-					float progress = LiveConfig.GetNoteViewProgress(LiveConfig.ViewProgressOf(note));
-					if (musicTime >= note.MusicScoreInfo.time && note is LongNote)
+					float progress = LiveConfig.GetNoteViewProgress(LiveConfig.ViewProgressOf(note, musicTime));
+					if (musicTime + LiveConfig.ViewLeadSeconds >= note.MusicScoreInfo.time && note is LongNote)
 					{
 						progress = 1f;
 					}
