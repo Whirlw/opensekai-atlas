@@ -20,7 +20,7 @@ namespace OpenSekai.App.Playback
             SongPackage package,
             RuntimeChartDefinition chart,
             LiveBundleBuildData bundleConfig,
-            LiveSettingData settings, LiveMaterialAudio materialAudio, LiveComboSkin comboSkin, LiveSpriteSkin judgmentSkin)
+            LiveSettingData settings, LiveMaterialAudio materialAudio, LiveComboSkin comboSkin, LiveSpriteSkin judgmentSkin, LiveHitEffectSkin hitFxSkin)
         {
             Request = request;
             Package = package;
@@ -30,6 +30,7 @@ namespace OpenSekai.App.Playback
             MaterialAudio = materialAudio;
             ComboSkin = comboSkin;
             JudgmentSkin = judgmentSkin;
+            HitFxSkin = hitFxSkin;
         }
 
         public PlayRequest Request { get; }
@@ -37,6 +38,7 @@ namespace OpenSekai.App.Playback
         public LiveMaterialAudio MaterialAudio { get; }
         public LiveComboSkin ComboSkin { get; }
         public LiveSpriteSkin JudgmentSkin { get; }
+        public LiveHitEffectSkin HitFxSkin { get; }
 
         public SongPackage Package { get; }
 
@@ -49,14 +51,14 @@ namespace OpenSekai.App.Playback
         public LiveSettingData Settings { get; }
 
         public static PlaySession FromChart(PlayRequest request, SongPackage package, RuntimeChartDefinition chart,
-            LiveBundleBuildData bundleConfig, PlaybackSettingsSnapshot settings, LiveMaterialAudio materialAudio = null, LiveComboSkin comboSkin = null, LiveSpriteSkin judgmentSkin = null)
+            LiveBundleBuildData bundleConfig, PlaybackSettingsSnapshot settings, LiveMaterialAudio materialAudio = null, LiveComboSkin comboSkin = null, LiveSpriteSkin judgmentSkin = null, LiveHitEffectSkin hitFxSkin = null)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
             if (package == null) throw new ArgumentNullException(nameof(package));
             if (chart == null) throw new ArgumentNullException(nameof(chart));
             if (bundleConfig == null) throw new ArgumentNullException(nameof(bundleConfig));
             if (settings == null) throw new ArgumentNullException(nameof(settings));
-            return new PlaySession(request, package, chart, bundleConfig, settings.ToLegacyData(), materialAudio, comboSkin, judgmentSkin);
+            return new PlaySession(request, package, chart, bundleConfig, settings.ToLegacyData(), materialAudio, comboSkin, judgmentSkin, hitFxSkin);
         }
 
         public static PlaySession Create(

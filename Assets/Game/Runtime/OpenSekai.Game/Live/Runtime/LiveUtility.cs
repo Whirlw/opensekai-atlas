@@ -19,6 +19,7 @@ namespace Sekai
 		internal static float FrameDeltaTime => float.IsNaN(FrameDeltaTimeOverride) ? Time.deltaTime : FrameDeltaTimeOverride;
 
 		public const int LANE_COUNT = 11;
+		internal const float EFFECT_LANE_WIDTH = 0.84f;
 
 		public static readonly Vector2 Vector2Zero;
 
@@ -335,7 +336,7 @@ namespace Sekai
 
 		public static float CalcLaneTransformX(int lane)
 		{
-			return lane * 0.84f - 4.62f;
+			return CalcLaneTransformX((float)lane);
 		}
 
 		/// <summary>
@@ -357,7 +358,7 @@ namespace Sekai
 
 		public static float CalcLaneTransformX(float lane)
 		{
-			return lane * 0.84f - 4.62f;
+			return lane * EFFECT_LANE_WIDTH - 4.62f;
 		}
 
 		public static void CalcExcuteNoteLane(NoteBase noteBase, ref INote currentNote, ref INote nextNote, ref MusicScoreInfo currentFrameInfo, MusicScoreInfo MusicScoreInfo, INote childNote)

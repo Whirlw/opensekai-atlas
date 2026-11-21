@@ -1,6 +1,6 @@
 # 打歌材质包后端实施方案（ZIP v1）
 
-2026-11-20 · 分发路线与 v1 目标契约。2026-11-21 已接入打歌音效、COMBO 标签和数字，以及[判定文字](../operations/material-pack-judgment.md)。当前支持的槽位、样包使用方法与其余消费点见[音效样包与首轮清册](../operations/material-pack-audio.md)和 [COMBO 制包说明](../operations/material-pack-combo.md)。
+2026-11-20 · 分发路线与 v1 目标契约。2026-11-21 已接入打歌音效、COMBO 标签和数字、[判定文字](../operations/material-pack-judgment.md)及[判定特效](../operations/material-pack-hit-fx.md)。当前支持的槽位、样包使用方法与其余消费点见[音效样包与首轮清册](../operations/material-pack-audio.md)和 [COMBO 制包说明](../operations/material-pack-combo.md)。
 
 **采用 ZIP 分发普通媒体，以 JSON 描述素材用途、布局和演出。** 一个 ZIP 可以包含两套 notes、一套判定字和多种音效；玩家按类或按单项组合，进打歌前生成一局专用的绑定表。制包只需要能输出 PNG、WAV 和 JSON 的工具。项目现有美术导入脚本继续制作内置素材和验收基准。
 

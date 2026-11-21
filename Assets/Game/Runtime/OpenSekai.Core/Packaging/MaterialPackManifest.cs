@@ -72,7 +72,7 @@ namespace OpenSekai.MaterialPacks
                 if (!ids.Add(result.Id)) throw Error(group, "重复组 ID " + result.Id);
                 if (group["displayName"] != null) result.DisplayName = Required(group, "displayName");
                 result.Category = Required(group, "category");
-                if (result.Category is not ("audio" or "combo" or "judgment")) throw Error(group, "不支持的类别 " + result.Category);
+                if (result.Category is not ("audio" or "combo" or "judgment" or "hitFx")) throw Error(group, "不支持的类别 " + result.Category);
                 if (group.TryGetValue("layout", out var layout))
                 {
                     if (result.Category != "combo" || layout is not JObject obj) throw Error(layout, "需要 COMBO 布局对象");
@@ -111,12 +111,27 @@ namespace OpenSekai.MaterialPacks
             return pack;
         }
 
+        internal static bool HasSpriteSlot(string category, string slot) => category switch
+        {
+            "combo" => MaterialComboSlots.HasSlot(slot),
+            "judgment" => MaterialJudgmentSlots.HasSlot(slot),
+            "hitFx" => MaterialHitFxSlots.HasSlot(slot),
+            _ => false
+        };
+
         private static MaterialSpriteSlot ParseSprite(string category, JProperty property, IReadOnlyDictionary<string, (string hash, int width, int height)> images)
         {
-            bool known = category == "combo" ? MaterialComboSlots.HasSlot(property.Name) : MaterialJudgmentSlots.HasSlot(property.Name);
+            bool known = HasSpriteSlot(category, property.Name);
             if (!known || property.Value is not JObject slot)
                 throw Error(property, category + " 槽位或槽位值无效");
-            Fields(slot, "file", "rect", "pivot", "scale", "size", "position", "offset", "advance", "opacity", "extensions");
+            if (category == "hitFx")
+            {
+                if (!MaterialHitFxSlots.IsTrail(property.Name) && slot["kind"]?.Type == JTokenType.String && (string)slot["kind"] == "sequence")
+                    return ParseSequence(property.Name, slot, images);
+                if (MaterialHitFxSlots.IsTrail(property.Name)) Fields(slot, "file", "extensions");
+                else Fields(slot, "file", "scale", "position", "extensions");
+            }
+            else Fields(slot, "file", "rect", "pivot", "scale", "size", "position", "offset", "advance", "opacity", "extensions");
             string file = Required(slot, "file");
             if (images == null || !images.TryGetValue(file, out var image)) throw Error(slot, "找不到 PNG " + file);
             var sprite = new MaterialSpriteSlot { File = file, Hash = image.hash, Width = image.width, Height = image.height,
@@ -136,6 +151,47 @@ namespace OpenSekai.MaterialPacks
             if (!sprite.IsValid(property.Name)) throw Error(slot, "切片或布局数值越界");
             return sprite;
 
+        }
+
+        private static MaterialSpriteSlot ParseSequence(string key, JObject slot,
+            IReadOnlyDictionary<string, (string hash, int width, int height)> images)
+        {
+            Fields(slot, "kind", "layers", "position", "scale", "extensions");
+            if (slot["layers"] is not JArray items || items.Count is < 1 or > 8) throw Error(slot, "序列需要 1–8 层");
+            var layers = new List<MaterialEffectLayer>();
+            foreach (var item in items)
+            {
+                if (item is not JObject layer) throw Error(item, "需要序列层对象");
+                Fields(layer, "file", "anchor", "size", "scale", "offset", "pivot", "frames", "loopFrameRange", "extensions");
+                string anchor = key == "hitFx.screen.damage" ? "center" : "hit";
+                if (layer["anchor"] != null && Required(layer, "anchor") != anchor) throw Error(layer, "此槽的锚点为 " + anchor);
+                string file = Required(layer, "file");
+                if (images == null || !images.TryGetValue(file, out var image)) throw Error(layer, "找不到 PNG " + file);
+                if (layer["frames"] is not JArray frames || frames.Count is < 1 or > 256) throw Error(layer, "需要 1–256 帧");
+                var parsed = new MaterialEffectLayer { File = file, Hash = image.hash, Width = image.width, Height = image.height,
+                    Pivot = Pair(layer, "pivot"), Offset = Pair(layer, "offset"), Size = Pair(layer, "size"), Scale = Pair(layer, "scale"),
+                    Frames = frames.Select(frame =>
+                    {
+                        if (frame is not JObject f) throw Error(frame, "需要帧对象");
+                        Fields(f, "rect", "durationMs");
+                        return new MaterialEffectFrame { Rect = Integers(f, "rect", 4), DurationMs = Integer(f["durationMs"]) };
+                    }).ToArray(),
+                    LoopFrameRange = layer["loopFrameRange"] == null ? null : Integers(layer, "loopFrameRange", 2) };
+                if (!parsed.IsValid(key)) throw Error(layer, "序列帧、循环或布局越界");
+                layers.Add(parsed);
+            }
+            var first = layers[0];
+            var result = new MaterialSpriteSlot { File = first.File, Hash = first.Hash, Width = first.Width, Height = first.Height,
+                Rect = new[] { 0, 0, first.Width, first.Height }, Layers = layers.ToArray(),
+                Position = Pair(slot, "position"), Scale = Pair(slot, "scale") };
+            if (!result.IsValid(key)) throw Error(slot, "序列布局越界");
+            return result;
+        }
+
+        private static int[] Integers(JObject obj, string field, int count)
+        {
+            if (obj[field] is not JArray array || array.Count != count) throw Error(obj, field + " 需要 " + count + " 个整数");
+            return array.Select(Integer).ToArray();
         }
 
         private static float[] Pair(JObject obj, string field)

@@ -157,7 +157,7 @@ namespace OpenSekai.Tests.EditMode
             var pack = await _store.ImportAsync(SAMPLE);
             var selection = new MaterialAudioSelection { Groups = { pack.GroupReference("holds") } };
             _store.SaveSelection(selection, 1);
-            var captured = _store.Capture(out _, out _, out _);
+            var captured = _store.Capture(out _, out _, out _, out _);
             try
             {
                 Assert.Throws<InvalidOperationException>(() => _store.SaveSelection(new MaterialAudioSelection(), 2));
@@ -182,6 +182,7 @@ namespace OpenSekai.Tests.EditMode
             var legacy = JObject.Parse(File.ReadAllText(index));
             legacy.Remove("Combo");
             legacy.Remove("Judgment");
+            legacy.Remove("HitFx");
             foreach (var group in legacy["Installed"][0]["Groups"].Cast<JObject>())
             {
                 group.Remove("Sprites");
@@ -201,12 +202,18 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(_store.ResolveJudgment(_store.List().Judgment).Single(x => x.Slot == "judgment.perfect").Source,
                 Is.EqualTo(judgment.Groups[0]));
             Assert.That(_store.List().Combo.Groups, Is.EqualTo(combo.Groups));
+            var effects = new MaterialGroupSelection { Groups = { mixed.GroupReference("effects") } };
+            _store.SaveHitFxSelection(effects, _store.List().Revision);
+            _store = new MaterialPackStore(_root);
+            Assert.That(_store.ResolveHitFx(_store.List().HitFx).Single(x => x.Slot == "hitFx.lane.tap").Source, Is.EqualTo(effects.Groups[0]));
+            Assert.That(_store.List().Judgment.Groups, Is.EqualTo(judgment.Groups));
             Assert.That(_store.ResolveCombo(combo).Single(x => x.Slot == "combo.digit.1").Source, Is.EqualTo(combo.Groups[0]));
             Assert.That(_store.List().Audio.Groups, Is.EqualTo(new[] { clicks }));
             _store.Uninstall(mixed.PackId, mixed.Digest, _store.List().Revision);
             var state = new MaterialPackStore(_root).List();
             Assert.That(state.Combo.Groups, Is.Empty);
             Assert.That(state.Judgment.Groups, Is.Empty);
+            Assert.That(state.HitFx.Groups, Is.Empty);
             Assert.That(state.Audio.Groups, Is.EqualTo(new[] { clicks }));
         }
 
@@ -220,6 +227,10 @@ namespace OpenSekai.Tests.EditMode
         [TestCase("size")]
         [TestCase("category")]
         [TestCase("removedJudgment")]
+        [TestCase("effectScale")]
+        [TestCase("trailLayout")]
+        [TestCase("sequenceFrame")]
+        [TestCase("sequenceLoop")]
         public async Task InvalidSpriteGroupCannotReplaceExistingPack(string fault)
         {
             var good = await _store.ImportAsync(SAMPLE);
@@ -246,6 +257,16 @@ namespace OpenSekai.Tests.EditMode
                 ((JArray)manifest["groups"]).Add(new JObject { ["id"] = "labels", ["category"] = "judgment",
                     ["slots"] = new JObject { [fault == "removedJudgment" ? "judgment.justPerfect" : "judgment.perfect"] =
                         new JObject { ["file"] = "glyph.png", ["position"] = new JArray(0, 0) } } });
+                ((JArray)manifest["groups"]).Add(new JObject { ["id"] = "effects", ["category"] = "hitFx",
+                    ["slots"] = new JObject { [fault == "trailLayout" ? "hitFx.critical.aura.trail" : "hitFx.lane.tap"] =
+                        new JObject { ["file"] = "glyph.png", ["scale"] = new JArray(fault == "effectScale" ? -1 : 2, 1) } } });
+                if (fault is "sequenceFrame" or "sequenceLoop")
+                {
+                    var layer = new JObject { ["file"] = "glyph.png", ["frames"] = new JArray(new JObject
+                        { ["rect"] = new JArray(0, 0, fault == "sequenceFrame" ? 3 : 2, 2), ["durationMs"] = 50 }) };
+                    if (fault == "sequenceLoop") layer["loopFrameRange"] = new JArray(0, 1);
+                    manifest["groups"].Last["slots"]["hitFx.lane.tap"] = new JObject { ["kind"] = "sequence", ["layers"] = new JArray(layer) };
+                }
                 return manifest.ToString();
             });
             var tex = new UnityEngine.Texture2D(2, 2, UnityEngine.TextureFormat.RGBA32, false);

@@ -18,6 +18,8 @@ namespace Sekai
             _slots.Add(key, (texture, slot));
         }
 
+        protected bool TryGetBinding(string key, out (Texture2D texture, MaterialSpriteSlot slot) binding) => _slots.TryGetValue(key, out binding);
+
         internal MaterialGlyph Resolve(string key, Sprite reference)
         {
             if (!_slots.TryGetValue(key, out var binding)) return null;
@@ -39,7 +41,7 @@ namespace Sekai
             return glyph;
         }
 
-        public void Dispose()
+        public virtual void Dispose()
         {
             foreach (var glyph in _glyphs.Values) UnityEngine.Object.Destroy(glyph.Sprite);
             foreach (var texture in _textures) UnityEngine.Object.Destroy(texture);

@@ -19,6 +19,7 @@ namespace OpenSekai.Infrastructure.Packages
         public List<InstalledMaterialPack> Installed { get; set; } = new();
         [JsonProperty(Required = Required.Always)]
         public MaterialAudioSelection Audio { get; set; } = new();
+        public MaterialGroupSelection HitFx { get; set; } = new();
         public MaterialGroupSelection Judgment { get; set; } = new();
         public MaterialGroupSelection Combo { get; set; } = new();
     }
@@ -71,14 +72,14 @@ namespace OpenSekai.Infrastructure.Packages
                 {
                     if (group?.Slots == null || string.IsNullOrEmpty(group.Id) || !ids.Add(group.Id))
                         throw new InvalidDataException("资源包组索引无效。");
-                    if (group.Category is not ("audio" or "combo" or "judgment") || group.Sprites == null
+                    if (group.Category is not ("audio" or "combo" or "judgment" or "hitFx") || group.Sprites == null
                         || group.Layout != null && (group.Category != "combo" || !group.Layout.IsValid())
                         || group.Category != "audio" && group.Slots.Count != 0 || group.Category == "audio" && group.Sprites.Count != 0)
                         throw new InvalidDataException("资源包类别无效：" + group.Id);
                     foreach (var item in group.Sprites)
                     {
                         var media = item.Value;
-                        bool known = group.Category == "combo" ? MaterialComboSlots.HasSlot(item.Key) : MaterialJudgmentSlots.HasSlot(item.Key);
+                        bool known = MaterialPackManifest.HasSpriteSlot(group.Category, item.Key);
                         if (!known || media?.Hash?.Length != 64 || !media.Hash.All(Uri.IsHexDigit)
                             || !media.IsValid(item.Key)) throw new InvalidDataException(group.Category + " 槽位索引无效：" + item.Key);
                         MaterialPackManifest.CheckPath(media.File);
@@ -96,6 +97,7 @@ namespace OpenSekai.Infrastructure.Packages
             Resolve(state, state.Audio);
             MaterialPackResolver.ResolveCombo(state.Installed, state.Combo, InstalledRoot);
             MaterialPackResolver.ResolveJudgment(state.Installed, state.Judgment, InstalledRoot);
+            MaterialPackResolver.ResolveHitFx(state.Installed, state.HitFx, InstalledRoot);
             return state;
         }
 
@@ -201,6 +203,23 @@ namespace OpenSekai.Infrastructure.Packages
             }
         }
 
+        public IReadOnlyList<MaterialSpriteBinding> ResolveHitFx(MaterialGroupSelection selection)
+        {
+            lock (_gate) return MaterialPackResolver.ResolveHitFx(_state.Installed, selection, InstalledRoot);
+        }
+
+        public long SaveHitFxSelection(MaterialGroupSelection selection, long expectedRevision)
+        {
+            lock (_gate)
+            {
+                CheckWritable(expectedRevision);
+                var next = Copy(_state);
+                next.HitFx = Copy(selection ?? throw new ArgumentNullException(nameof(selection)));
+                MaterialPackResolver.ResolveHitFx(next.Installed, next.HitFx, InstalledRoot);
+                return Commit(next);
+            }
+        }
+
         public long Uninstall(string packId, string digest, long expectedRevision)
         {
             lock (_gate)
@@ -210,7 +229,7 @@ namespace OpenSekai.Infrastructure.Packages
                 var pack = next.Installed.Find(p => p.PackId == packId && p.Digest == digest)
                     ?? throw new InvalidDataException("找不到已安装的资源包修订。");
                 var removed = new HashSet<string>(pack.Groups.Select(g => pack.GroupReference(g.Id)));
-                foreach (var selection in new MaterialGroupSelection[] { next.Audio, next.Combo, next.Judgment })
+                foreach (var selection in new MaterialGroupSelection[] { next.Audio, next.Combo, next.Judgment, next.HitFx })
                 {
                     selection.Groups.RemoveAll(removed.Contains);
                     foreach (var slot in selection.Overrides.Where(x => removed.Contains(x.Value)).ToArray())
@@ -220,12 +239,13 @@ namespace OpenSekai.Infrastructure.Packages
                 Resolve(next, next.Audio);
                 MaterialPackResolver.ResolveCombo(next.Installed, next.Combo, InstalledRoot);
                 MaterialPackResolver.ResolveJudgment(next.Installed, next.Judgment, InstalledRoot);
+                MaterialPackResolver.ResolveHitFx(next.Installed, next.HitFx, InstalledRoot);
                 return Commit(next);
             }
         }
 
         internal IReadOnlyList<MaterialAudioBinding> Capture(out IReadOnlyList<MaterialSpriteBinding> combo, out MaterialComboLayout layout,
-            out IReadOnlyList<MaterialSpriteBinding> judgment)
+            out IReadOnlyList<MaterialSpriteBinding> judgment, out IReadOnlyList<MaterialSpriteBinding> hitFx)
         {
             lock (_gate)
             {
@@ -235,6 +255,8 @@ namespace OpenSekai.Infrastructure.Packages
                     ? Array.Empty<MaterialSpriteBinding>() : MaterialPackResolver.ResolveCombo(_state.Installed, _state.Combo, InstalledRoot);
                 judgment = _state.Judgment.Groups.Count == 0 && _state.Judgment.Overrides.Count == 0
                     ? Array.Empty<MaterialSpriteBinding>() : MaterialPackResolver.ResolveJudgment(_state.Installed, _state.Judgment, InstalledRoot);
+                hitFx = _state.HitFx.Groups.Count == 0 && _state.HitFx.Overrides.Count == 0
+                    ? Array.Empty<MaterialSpriteBinding>() : MaterialPackResolver.ResolveHitFx(_state.Installed, _state.HitFx, InstalledRoot);
                 layout = null;
                 if (_state.Combo.Groups.Count > 0)
                 {

@@ -371,6 +371,26 @@ namespace OpenSekai.Tests.PlayMode
                 BOOT_TIMEOUT_SECONDS, "loading Core and creating the live controller");
             Assert.That(SoundManager.Instance.IsLoadedSoundBundle(songCue), Is.True);
 
+            yield return WaitFor(() => Object.FindFirstObjectByType<LongTapEffectView>() != null,
+                BOOT_TIMEOUT_SECONDS, "creating the hold effect view");
+            var holdEffects = Object.FindFirstObjectByType<LongTapEffectView>().GetComponentsInChildren<ParticleSystemController>(true);
+            yield return WaitFor(() => holdEffects.Any(effect => effect != null && effect.IsPlaying),
+                90f, "showing a hold body effect during chart autoplay");
+
+            var heads = Object.FindFirstObjectByType<TapEffectView>().GetComponentsInChildren<ParticleSystemController>(true)
+                .Where(effect => effect.name == LivePrefabDefine.FX_LONG_GEN + "(Clone)"
+                    || effect.name == LivePrefabDefine.FX_CRITICAL_LONG_GEN + "(Clone)").ToArray();
+            ParticleSystemController head = null;
+            yield return WaitFor(() => (head = heads.FirstOrDefault(effect => effect.IsPlaying)) != null,
+                30f, "showing a long head hit during autoplay");
+            var controller = Object.FindFirstObjectByType<SoloLiveController>();
+            controller.Pause();
+            controller.Resume();
+            yield return WaitFor(() => controller.JustPlayingState, 10f, "resuming after the countdown");
+            Assert.That(head.GetComponentsInChildren<ParticleSystem>(true).Any(p => p.isPaused), Is.False,
+                "resuming the chart must also resume the particle systems of the long head");
+            yield return WaitFor(() => !head.IsPlaying, 5f, "finishing the resumed long head hit");
+
             yield return WaitFor(
                 () => SceneLoader.GetActiveScene().name == "Library" && Object.FindFirstObjectByType<LibraryResultPanel>() != null,
                 90f, "returning to Library and showing the result");

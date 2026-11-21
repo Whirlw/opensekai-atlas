@@ -106,6 +106,7 @@ namespace Sekai.Live
 
 		private BaseLiveController _baseController;
 		private NotesViewManager _notesViewManager;
+		private LiveHitEffectSkin _hitFxSkin;
 		private TapEffectView _tapEffect;
 		private LongTapEffectView _longTapEffectView;
 		private MusicInfoView _resolvedMusicInfo;
@@ -149,7 +150,8 @@ namespace Sekai.Live
 			judgmentView?.Setup(boot?.JudgmentSkin, controller?.Settings?.UsesAutoFakePerfectMode ?? false);
 			judgmentDescriptionView?.Setup(boot?.JudgmentSkin, controller?.Settings?.IsFastLateFlick ?? true);
 			countdownView?.Setup();
-			screenEffectView?.Setup();
+			_hitFxSkin = boot?.HitFxSkin;
+			screenEffectView?.Setup(_hitFxSkin);
 			cutinManager?.Setup(controller?.BootData);
 			musicInfo?.Setup(controller?.BootData);
 			noteShowRateView?.Setup(controller?.Settings);
@@ -176,6 +178,7 @@ namespace Sekai.Live
 
 		public override void OnUnload()
 		{
+			_hitFxSkin?.ResetPlayback();
 			_longTapEffectView?.Clear();
 			CancelMotions();
 			liveResultView?.Unload();
@@ -406,17 +409,19 @@ namespace Sekai.Live
 
 		public override void Pause()
 		{
+			_hitFxSkin?.SetPaused(true);
 			_longTapEffectView?.Silence();
 			countdownView?.StopCountdown();
 		}
 
 		public override void Resume()
 		{
-			countdownView?.StartCountdown();
+			_hitFxSkin?.SetPaused(false);
 		}
 
 		public override void Retry()
 		{
+			_hitFxSkin?.ResetPlayback();
 			CancelMotions();
 			comboView?.Clear();
 			scoreView?.Clear();
@@ -633,6 +638,7 @@ namespace Sekai.Live
 
 		private void FadeOut(float duration)
 		{
+			_hitFxSkin?.ResetPlayback();
 			if (autoLabel != null)
 			{
 				autoLabel.SetActive(false);
@@ -753,7 +759,7 @@ namespace Sekai.Live
 					_tapEffect = parent.gameObject.AddComponent<TapEffectView>();
 				}
 			}
-			_tapEffect.Setup(_baseController);
+			_tapEffect.Setup(_baseController, _hitFxSkin);
 
 			if (_longTapEffectView == null)
 			{
@@ -761,7 +767,7 @@ namespace Sekai.Live
 				longTapObject.transform.SetParent(parent, false);
 				_longTapEffectView = longTapObject.GetComponent<LongTapEffectView>();
 			}
-			_longTapEffectView.Setup();
+			_longTapEffectView.Setup(_hitFxSkin, _isAuto);
 
 			parent.position = transform.position;
 			if (effectCamera != null)

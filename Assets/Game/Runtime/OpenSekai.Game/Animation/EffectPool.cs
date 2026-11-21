@@ -8,7 +8,7 @@ namespace Sekai
 
 		private int _spawnIndex;
 
-		public void Setup(GameObject prefab, int poolCount)
+		public void Setup(GameObject prefab, int poolCount, LiveHitEffectSkin skin = null)
 		{
 			_pool = new ParticleSystemController[Mathf.Max(poolCount, 0)];
 			for (int i = 0; i < _pool.Length; i++)
@@ -18,8 +18,7 @@ namespace Sekai
 					continue;
 				}
 
-				GameObject instance = Instantiate(prefab, transform);
-				_pool[i] = instance.AddComponent<ParticleSystemController>();
+				_pool[i] = ParticleSystemController.Create(prefab, transform, skin);
 			}
 
 			if (_pool.Length > 0 && _pool[0] != null)

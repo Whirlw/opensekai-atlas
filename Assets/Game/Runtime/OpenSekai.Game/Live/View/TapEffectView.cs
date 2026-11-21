@@ -68,12 +68,14 @@ namespace Sekai
 
 		private int[] _lastTapLanes;
 
+		private LiveHitEffectSkin _skin;
 		private bool _isEnableVibration;
 
 		private Action _playSeAction;
 
-		public void Setup(BaseLiveController liveBaseController)
+		public void Setup(BaseLiveController liveBaseController, LiveHitEffectSkin skin = null)
 		{
+			_skin = skin;
 			_isEnableVibration = liveBaseController?.Settings?.UseVibration ?? true;
 			_tapLaneEffectList = new ParticleSystemController[_laneCOUNT];
 			_defaultLaneEffectList = new ParticleSystemController[_laneCOUNT];
@@ -181,7 +183,7 @@ namespace Sekai
 				return;
 			}
 
-			list[lane].transform.localPosition = new Vector3(LiveUtility.CalcLaneTransformX(lane), 0f, 0f);
+			list[lane].Place(new Vector3(LiveUtility.CalcLaneTransformX(lane), 0f, 0f));
 			list[lane].Play(_noteInfo.style);
 		}
 
@@ -204,7 +206,7 @@ namespace Sekai
 				}
 
 				float lane = _noteInfo.laneStart - 0.5f + (i + 0.5f) * width / count;
-				controller.transform.localPosition = new Vector3(LiveUtility.CalcLaneTransformX(lane), 0f, 0f);
+				controller.Place(new Vector3(LiveUtility.CalcLaneTransformX(lane), 0f, 0f));
 				controller.Play(_noteInfo.style);
 			}
 		}
@@ -218,7 +220,7 @@ namespace Sekai
 				return;
 			}
 
-			controller.transform.localPosition = new Vector3(LiveUtility.CalcLaneTransformX(GetLaneCenter()), 0f, 0f);
+			controller.Place(new Vector3(LiveUtility.CalcLaneTransformX(GetLaneCenter()), 0f, 0f));
 			controller.Play(_noteInfo.style);
 		}
 
@@ -235,7 +237,7 @@ namespace Sekai
 				return;
 			}
 
-			controller.transform.localPosition = new Vector3(LiveUtility.CalcLaneTransformX(GetLaneCenter()), 0f, 0f);
+			controller.Place(new Vector3(LiveUtility.CalcLaneTransformX(GetLaneCenter()), 0f, 0f));
 			controller.transform.localScale = new Vector3(_noteInfo.laneEnd - _noteInfo.laneStart + 1f, 1f, 1f);
 			float z = _noteInfo.direction switch
 			{
@@ -257,7 +259,7 @@ namespace Sekai
 				ParticleSystemController controller = _tapLaneEffectList[lane];
 				if (controller != null)
 				{
-					controller.transform.localPosition = new Vector3(LiveUtility.CalcLaneTransformX(lane), 0f, 0f);
+					controller.Place(new Vector3(LiveUtility.CalcLaneTransformX(lane), 0f, 0f));
 					controller.Play();
 				}
 			}
@@ -408,7 +410,7 @@ namespace Sekai
 				return;
 			}
 
-			controller.transform.localPosition = new Vector3(LiveUtility.CalcLaneTransformX(GetLaneCenter()), 0f, 0f);
+			controller.Place(new Vector3(LiveUtility.CalcLaneTransformX(GetLaneCenter()), 0f, 0f));
 			controller.Play(_noteInfo.style);
 		}
 
@@ -425,7 +427,7 @@ namespace Sekai
 				return;
 			}
 
-			controller.transform.localPosition = new Vector3(LiveUtility.CalcLaneTransformX(GetLaneCenter()), 0f, 0f);
+			controller.Place(new Vector3(LiveUtility.CalcLaneTransformX(GetLaneCenter()), 0f, 0f));
 			controller.Play(_noteInfo.style);
 		}
 
@@ -565,8 +567,7 @@ namespace Sekai
 				return null;
 			}
 
-			GameObject instance = Instantiate(prefab, transform);
-			return instance.AddComponent<ParticleSystemController>();
+			return ParticleSystemController.Create(prefab, transform, _skin);
 		}
 
 		public TapEffectView()
@@ -603,7 +604,7 @@ namespace Sekai
 			EffectPool pool = holder.GetComponent<EffectPool>();
 			holder.transform.SetParent(transform, false);
 			GameObject prefab = AssetBundleUtility.LoadAsset<GameObject>(LiveConfig.EffectBundleName, effectName);
-			pool.Setup(prefab, poolCount);
+			pool.Setup(prefab, poolCount, _skin);
 			return pool;
 		}
 

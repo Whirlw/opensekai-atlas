@@ -11,9 +11,12 @@ namespace Sekai
 		public LiveMaterialAudio MaterialAudio { get; set; }
 		public LiveComboSkin ComboSkin { get; set; }
 		public LiveSpriteSkin JudgmentSkin { get; set; }
+		public LiveHitEffectSkin HitFxSkin { get; set; }
 
 		internal void ReleaseMaterialAudio()
 		{
+			HitFxSkin?.Dispose();
+			HitFxSkin = null;
 			JudgmentSkin?.Dispose();
 			JudgmentSkin = null;
 			ComboSkin?.Dispose();

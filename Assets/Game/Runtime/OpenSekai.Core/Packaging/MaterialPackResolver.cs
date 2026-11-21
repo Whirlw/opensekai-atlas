@@ -14,7 +14,20 @@ namespace OpenSekai.MaterialPacks
 
     public sealed class MaterialAudioSelection : MaterialGroupSelection { }
     public sealed class MaterialAudioBinding : MaterialBinding<MaterialAudioSlot> { }
-    public sealed class MaterialSpriteBinding : MaterialBinding<MaterialSpriteSlot> { }
+    public sealed class MaterialSpriteBinding : MaterialBinding<MaterialSpriteSlot>
+    {
+        internal IEnumerable<MaterialSpriteBinding> Images()
+        {
+            if (Media.Layers == null) { yield return this; yield break; }
+            for (int i = 0; i < Media.Layers.Length; i++)
+            {
+                var layer = Media.Layers[i];
+                yield return new MaterialSpriteBinding { Slot = Slot + "/" + i, Source = Source,
+                    Path = System.IO.Path.Combine(PackRoot, layer.File),
+                    Media = new MaterialSpriteSlot { File = layer.File, Hash = layer.Hash, Width = layer.Width, Height = layer.Height } };
+            }
+        }
+    }
 
     public class MaterialBinding<T> where T : MaterialMediaSlot
     {
@@ -22,6 +35,7 @@ namespace OpenSekai.MaterialPacks
         public string Source { get; internal set; }
         public string Reason { get; internal set; }
         public string[] Candidates { get; internal set; }
+        internal string PackRoot { get; set; }
         internal string Path { get; set; }
         internal T Media { get; set; }
     }
@@ -57,12 +71,17 @@ namespace OpenSekai.MaterialPacks
             return ResolveSprites(packs, selection, installedRoot, "judgment", MaterialJudgmentSlots.Slots);
         }
 
+        public static List<MaterialSpriteBinding> ResolveHitFx(IEnumerable<InstalledMaterialPack> packs, MaterialGroupSelection selection, string installedRoot)
+        {
+            return ResolveSprites(packs, selection, installedRoot, "hitFx", MaterialHitFxSlots.Slots);
+        }
+
         private static List<MaterialSpriteBinding> ResolveSprites(IEnumerable<InstalledMaterialPack> packs, MaterialGroupSelection selection,
             string installedRoot, string category, IEnumerable<string> slots)
         {
             var bindings = ResolveSlots<MaterialSpriteSlot, MaterialSpriteBinding>(packs, selection, installedRoot,
                 category, slots, group => group.Sprites);
-            long bytes = bindings.Where(b => b.Source != null).GroupBy(b => b.Media.Hash)
+            long bytes = bindings.Where(b => b.Source != null).SelectMany(b => b.Images()).GroupBy(b => b.Media.Hash)
                 .Sum(g => (long)g.First().Media.Width * g.First().Media.Height * 4);
             if (bytes > MAX_DECODED_BYTES) throw new InvalidDataException($"{category} 纹理需要 {bytes} 字节，预算 {MAX_DECODED_BYTES} 字节。");
             return bindings;
@@ -97,7 +116,8 @@ namespace OpenSekai.MaterialPacks
                     var media = entries(group)[slot];
                     binding.Media = media;
                     MaterialPackManifest.CheckPath(media.File);
-                    binding.Path = Path.Combine(VersionPath(installedRoot, pack), media.File);
+                    binding.PackRoot = VersionPath(installedRoot, pack);
+                    binding.Path = Path.Combine(binding.PackRoot, media.File);
                 }
                 bindings.Add(binding);
             }
