@@ -6,6 +6,12 @@
 
 样包的两段声音由正弦波合成。短音为 1.6 kHz 衰减音，长音为 300 Hz。长音文件含 5760 个单声道采样帧，循环区间为第 480 至 5280 帧，右端不含。摩擦音单次触发使用整段，持续触发使用 4800 帧循环。两组还可分别启用。[下载样包](../../Tools/fixtures/material-audio.zip)
 
+## 切换两套上游打击音
+
+在 **Enable audio ZIP...** 中打开本地目录 `LocalPacks/upstream-audio/32c91d9/hit-sounds/`。选择 `custom01.zip` 后，下一局使用上游第一套打击音；选择 `custom02.zip` 后，下一局使用第二套。旧设置里的打击音编号可以保持原值。两个包各含一个 `audio` 组，覆盖下表从 `tap` 到 `traceCritical` 的全部 13 个槽。倒数、结算和语音继续走各自的内置回退。
+
+清单依据上游 `LiveConfig.GetNoteSeName` 的套装编号、`TapEffectView` 和 `LongTapEffectView` 引用的 cue，以及 `LiveSoundDefine` 的实际字符串生成。每个 cue 对应一段 WAV，叠层音效按 ACB 的各层音量混合，两套共用同一导出增益。普通与 critical 长按的 `loopFrames` 取自各自音库，以采样帧计，右端不包含在循环内。生成脚本、ACB、WAV 和两个 ZIP 均位于本地 `LocalPacks`。[上游固定版本](https://github.com/cubeww/OpenSekai/tree/32c91d90c7e18135fef1a214144cce3fb756b3e5)
+
 ## 制包与调用
 
 ZIP 根目录放 UTF-8 的 `pack.json`。音效文件使用 16 位 PCM WAV、44.1 或 48 kHz、单声道或双声道。清单中的路径使用正斜杠，大小写与 ZIP 条目一致。同包可另放 PNG 和独立的 COMBO、判定文字、判定特效及音符皮肤组。以下是只替换普通长按音的完整清单，ZIP 中还需有 `sounds/hold.wav`。

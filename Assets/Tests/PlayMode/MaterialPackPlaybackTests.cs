@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using AcbDecoder;
 using CriWare;
 using Cysharp.Threading.Tasks;
 using NUnit.Framework;
@@ -20,6 +21,91 @@ namespace OpenSekai.Tests.PlayMode
 {
     public sealed class MaterialPackPlaybackTests
     {
+        [UnityTest]
+        public IEnumerator SelectedHitSoundPackPlaysItsOwnBankWithOppositeBuiltInSetting() => UniTask.ToCoroutine(async () =>
+        {
+            string folder = Path.GetFullPath("LocalPacks/upstream-audio/32c91d9");
+            var styles = new[] { "custom01", "custom02" };
+            if (!Application.isEditor || styles.Any(s => !File.Exists(Path.Combine(folder, "hit-sounds", s + ".zip"))))
+                Assert.Ignore("The upstream hit sound packs are local editor fixtures.");
+            string root = Path.Combine(Application.temporaryCachePath, "hit-sounds-" + Guid.NewGuid().ToString("N"));
+            var store = new MaterialPackStore(root);
+            var previous = UserDataManager.Instance.FreeLiveBootData;
+            string previousSe = LiveConfig.NoteSeName, previousView = LiveConfig.NoteSeViewName;
+            var sound = SoundManager.Instance;
+            try
+            {
+                for (int i = 0; i < styles.Length; i++)
+                {
+                    string style = styles[i];
+                    LiveConfig.SetNoteSeName(1 - i);
+                    sound.LoadSoundBundle("live/tap_se/" + LiveConfig.NoteSeName, true);
+                    var pack = await store.ImportAsync(Path.Combine(folder, "hit-sounds", style + ".zip"));
+                    var group = pack.Groups.Single();
+                    var bank = AcbFile.Load(Path.Combine(folder, "source", style + ".acb"));
+                    Assert.That(group.Slots.Keys.Select(MaterialPackAudio.Cue), Is.EquivalentTo(bank.CueWaveforms.Keys));
+                    Assert.That(group.Slots.Count, Is.EqualTo(13));
+                    store.SaveSelection(new MaterialAudioSelection { Groups = { pack.GroupReference(group.Id) } }, store.List().Revision);
+                    var prepared = new MaterialAudioPreparation(new MaterialPackStore(root));
+                    var boot = new FreeLiveBootData(1, "master", 0) { MaterialAudio = prepared.Audio };
+                    try
+                    {
+                        var diagnostics = new List<string>();
+                        await prepared.PrepareAsync(diagnostics, CancellationToken.None);
+                        Assert.That(diagnostics, Is.Empty);
+                        UserDataManager.Instance.FreeLiveBootData = boot;
+                        foreach (var slot in group.Slots)
+                        {
+                            string cue = MaterialPackAudio.Cue(slot.Key);
+                            bool loop = MaterialPackAudio.UsesLoop(slot.Key);
+                            uint playback = loop ? sound.PlayHoldLoop(cue) : sound.PlayIngameSE(cue);
+                            Assert.That(playback, Is.Not.Zero, cue);
+                            CheckUpstreamMix(bank, cue, Playing(slot.Value.File, loop).clip, loop);
+                            sound.StopSE(playback);
+                            if (MaterialPackAudio.AlsoUsesOneShot(slot.Key))
+                            {
+                                sound.PlayIngameSEOneShot(cue);
+                                CheckUpstreamMix(bank, cue, Playing(slot.Value.File, false).clip, false);
+                            }
+                        }
+                    }
+                    finally { boot.ReleaseMaterialAudio(); }
+                }
+            }
+            finally
+            {
+                UserDataManager.Instance.FreeLiveBootData = previous;
+                LiveConfig.NoteSeName = previousSe;
+                LiveConfig.NoteSeViewName = previousView;
+                if (Directory.Exists(root)) Directory.Delete(root, true);
+            }
+        });
+
+        private static void CheckUpstreamMix(AcbFile bank, string cue, AudioClip clip, bool loop)
+        {
+            // The local PCM16 exports share one gain so layering keeps the relative volume across both banks.
+            const float mixGain = .70483696f;
+            var layers = bank.CueWaveforms[cue].Select(layer =>
+                (wave: bank.Decode(bank.Entries.Single(e => e.WaveId == layer.WaveId)), gain: layer.VolumeScale)).ToArray();
+            var reference = layers[0].wave;
+            int start = loop && reference.HasLoop ? reference.LoopStartSample : 0;
+            int end = loop && reference.HasLoop ? reference.LoopEndSample : layers.Max(x => x.wave.SampleCount);
+            Assert.That(clip.channels, Is.EqualTo(reference.Channels), cue);
+            Assert.That(clip.frequency, Is.EqualTo(reference.SampleRate), cue);
+            Assert.That(clip.samples, Is.EqualTo(end - start), cue);
+            var actual = new float[clip.samples * clip.channels];
+            Assert.That(clip.GetData(actual, 0), Is.True, cue);
+            for (int i = 0; i < actual.Length; i++)
+            {
+                int index = start * clip.channels + i;
+                float mixed = 0f;
+                foreach (var layer in layers)
+                    if (index < layer.wave.Samples.Length) mixed += layer.wave.Samples[index] * layer.gain;
+                if (Math.Abs(actual[i] - mixed * mixGain) > 2f / 32768f)
+                    Assert.Fail($"{cue} differs from its ACB at PCM sample {index}.");
+            }
+        }
+
         [UnityTest]
         public IEnumerator SamplePlaysThroughLiveCuesAndReleasesOnExit() => UniTask.ToCoroutine(async () =>
         {
