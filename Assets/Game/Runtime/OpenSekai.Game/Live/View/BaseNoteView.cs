@@ -22,6 +22,27 @@ namespace Sekai
 		protected float posZ;
 		private MaterialPropertyBlock _palette;
 		private int _style;
+		private NoteSkinRenderer[] _skinRenderers;
+
+		internal void PrepareSkin()
+		{
+			var renderers = GetComponentsInChildren<SpriteRenderer>(true);
+			_skinRenderers = System.Array.ConvertAll(renderers, r => new NoteSkinRenderer(r, transform));
+		}
+
+		internal void BindSkin(LiveNoteSkin skin)
+		{
+			foreach (var renderer in _skinRenderers) renderer.Bind(skin);
+		}
+
+		internal void MoveWithSkin(float time)
+		{
+			if (_skinRenderers != null)
+				foreach (var renderer in _skinRenderers) renderer.RestorePose();
+			Move(time);
+			if (_skinRenderers != null)
+				foreach (var renderer in _skinRenderers) renderer.Place();
+		}
 
 		protected void ApplyStyle(int style) => NextRushPalette.Apply(noteRenderers, style, ref _style, ref _palette);
 
@@ -84,6 +105,8 @@ namespace Sekai
 
 		public virtual void Unspawn()
 		{
+			if (_skinRenderers != null)
+				foreach (var renderer in _skinRenderers) renderer.Unbind();
 			note = null;
 			transform.localScale = Vector3.zero;
 			gameObject.SetActive(false);

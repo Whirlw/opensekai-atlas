@@ -76,6 +76,11 @@ namespace OpenSekai.MaterialPacks
             return ResolveSprites(packs, selection, installedRoot, "hitFx", MaterialHitFxSlots.Slots);
         }
 
+        public static List<MaterialSpriteBinding> ResolveNotes(IEnumerable<InstalledMaterialPack> packs, MaterialGroupSelection selection, string installedRoot)
+        {
+            return ResolveSprites(packs, selection, installedRoot, "notes", MaterialNoteSlots.Slots);
+        }
+
         private static List<MaterialSpriteBinding> ResolveSprites(IEnumerable<InstalledMaterialPack> packs, MaterialGroupSelection selection,
             string installedRoot, string category, IEnumerable<string> slots)
         {

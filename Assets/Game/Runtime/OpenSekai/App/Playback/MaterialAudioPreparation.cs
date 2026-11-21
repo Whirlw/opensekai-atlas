@@ -18,13 +18,16 @@ namespace OpenSekai.App.Playback
         internal LiveMaterialAudio Audio { get; }
         private readonly IReadOnlyList<MaterialSpriteBinding> _judgmentSprites;
         private readonly IReadOnlyList<MaterialSpriteBinding> _hitSprites;
+        private readonly IReadOnlyList<MaterialSpriteBinding> _noteSprites;
+        internal LiveNoteSkin Notes { get; }
         internal LiveHitEffectSkin HitFx { get; }
         internal LiveSpriteSkin Judgment { get; }
         internal LiveComboSkin Combo { get; }
 
         internal MaterialAudioPreparation(MaterialPackStore store)
         {
-            _bindings = store.Capture(out _sprites, out var layout, out _judgmentSprites, out _hitSprites);
+            _bindings = store.Capture(out _sprites, out var layout, out _judgmentSprites, out _hitSprites, out _noteSprites);
+            if (_noteSprites.Any(x => x.Source != null)) Notes = new LiveNoteSkin();
             if (_hitSprites.Any(x => x.Source != null)) HitFx = new LiveHitEffectSkin();
             if (_judgmentSprites.Any(x => x.Source != null)) Judgment = new LiveSpriteSkin();
             if (layout != null || _sprites.Any(x => x.Source != null)) Combo = new LiveComboSkin(layout);
@@ -33,6 +36,7 @@ namespace OpenSekai.App.Playback
 
         internal async Task PrepareAsync(List<string> diagnostics, CancellationToken token)
         {
+            await PrepareSpritesAsync(_noteSprites, Notes, diagnostics, token);
             await PrepareSpritesAsync(_sprites, Combo, diagnostics, token);
             await PrepareSpritesAsync(_judgmentSprites, Judgment, diagnostics, token);
             if (HitFx != null)

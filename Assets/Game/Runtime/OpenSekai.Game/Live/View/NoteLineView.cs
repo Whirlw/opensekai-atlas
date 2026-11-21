@@ -59,6 +59,7 @@ namespace Sekai
 		private readonly LayerBatch[] _batches = new LayerBatch[4];
 		private Camera _viewCamera;
 		private bool _guideView;
+		private Vector2 _skinScale = Vector2.one, _skinOffset;
 		private bool _hasViewport;
 		private Vector3 _viewportBottomLeft, _viewportTopLeft, _viewportBottomRight, _viewportTopRight;
 		private Vector3[] _vertices;
@@ -91,7 +92,7 @@ namespace Sekai
 		}
 
 		public void Setup(LiveBundleBuildData _bundleBuildData, string textureName, float alpha, bool isCustomMusicScore = false,
-			Camera viewCamera = null, bool guide = false)
+			Camera viewCamera = null, bool guide = false, LiveNoteSkin skin = null)
 		{
 			_splitMeshCount = Mathf.Max(1, GetSplitMeshCount(isCustomMusicScore));
 			_viewCamera = viewCamera;
@@ -105,6 +106,7 @@ namespace Sekai
 				Material.mainTexture = texture;
 			}
 
+			skin?.BindLine(guide ? "notes.line.guide" : "notes.line.long", Material, out _skinScale, out _skinOffset);
 			Material.color = new Color(1f, 1f, 1f, alpha);
 
 			_longNotes = new List<NoteBase>(DEFAULT_LIST_CAPACITY);
@@ -347,6 +349,21 @@ namespace Sekai
 			Color color = SetSegmentStyle(time, baseNote, segment);
 			bool solidGuide = segment?.IsGuide == true;
 			float textureMode = solidGuide ? -1f : 0f;
+			if (_skinScale != Vector2.one || _skinOffset != Vector2.zero)
+			{
+				for (int i = 0; i < meshDataCount; i++)
+				{
+					ref var sample = ref _meshSettingBuffer[i];
+					var left = sample.LanePosition.Left;
+					var right = sample.LanePosition.Right;
+					var center = (left + right) * .5f;
+					var half = (right - left) * (.5f * _skinScale.x);
+					float judgeY = LiveConfig.JudgmentPositions[0].y;
+					center.y = judgeY + (center.y - judgeY) * _skinScale.y;
+					center += _skinOffset * sample.CurrentViewProgress;
+					sample.LanePosition = new TwoPoint { Left = center - half, Right = center + half };
+				}
+			}
 			for (int i = 0; i < meshDataCount - 1; i++)
 			{
 				int vertexIndex = _meshCount * TRAPEZOID_VERTEX_COUNT;
@@ -389,6 +406,11 @@ namespace Sekai
 				_vertices[index] = i < 4
 					? (top ? _viewportTopLeft : _viewportBottomLeft)
 					: (top ? _viewportTopRight : _viewportBottomRight);
+				if (_skinOffset != Vector2.zero || _skinScale != Vector2.one)
+				{
+					Vector3 center = (_viewportBottomLeft + _viewportTopRight) * .5f;
+					_vertices[index] = center + Vector3.Scale(_vertices[index] - center, new Vector3(_skinScale.x, _skinScale.y, 1)) + (Vector3)_skinOffset;
+				}
 				_colors[index] = color;
 				_uv[index] = new Vector2(textureMode, 0);
 				_leftPoint[index] = _rightPoint[index] = Vector2.zero;
@@ -490,15 +512,15 @@ namespace Sekai
 			_trapezoidVertexInfo[0].Top.Left = endSetting.LanePosition.Left;
 			_trapezoidVertexInfo[0].Bottom.Right = startSetting.LanePosition.Left;
 			_trapezoidVertexInfo[0].Bottom.Left = startSetting.LanePosition.Left;
-			_trapezoidVertexInfo[0].Top.Left.x -= endSetting.CurrentViewProgress * 0.4f;
-			_trapezoidVertexInfo[0].Bottom.Left.x -= startSetting.CurrentViewProgress * 0.4f;
+			_trapezoidVertexInfo[0].Top.Left.x -= endSetting.CurrentViewProgress * (0.4f * _skinScale.x);
+			_trapezoidVertexInfo[0].Bottom.Left.x -= startSetting.CurrentViewProgress * (0.4f * _skinScale.x);
 
 			_trapezoidVertexInfo[1].Top.Right = endSetting.LanePosition.Right;
 			_trapezoidVertexInfo[1].Top.Left = endSetting.LanePosition.Right;
 			_trapezoidVertexInfo[1].Bottom.Right = startSetting.LanePosition.Right;
 			_trapezoidVertexInfo[1].Bottom.Left = startSetting.LanePosition.Right;
-			_trapezoidVertexInfo[1].Top.Right.x += endSetting.CurrentViewProgress * 0.4f;
-			_trapezoidVertexInfo[1].Bottom.Right.x += startSetting.CurrentViewProgress * 0.4f;
+			_trapezoidVertexInfo[1].Top.Right.x += endSetting.CurrentViewProgress * (0.4f * _skinScale.x);
+			_trapezoidVertexInfo[1].Bottom.Right.x += startSetting.CurrentViewProgress * (0.4f * _skinScale.x);
 		}
 
 		private void UpdateVertex(int vertexIndex, Color color, float startAlpha, float endAlpha)

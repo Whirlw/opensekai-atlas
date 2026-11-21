@@ -2,6 +2,7 @@ Shader "Sekai/Live/Note/Slide"
 {
     Properties
     {
+        [PerRendererData] _NoteSkinSlice ("Packed slice pivot, height and offset", Vector) = (0,0,0,0)
         [PerRendererData] _MainTex ("Sprite Texture", 2D) = "white" {}
         [PerRendererData] _NextRushPalette ("NextRUSH Palette", Color) = (0,0,0,0)
         _Color ("Tint", Color) = (1,1,1,1)
@@ -54,6 +55,7 @@ Shader "Sekai/Live/Note/Slide"
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
+            float4 _NoteSkinSlice;
             fixed4 _Color;
             float _NoteShowRate;
 
@@ -74,6 +76,7 @@ Shader "Sekai/Live/Note/Slide"
                 // Sprites may be batched into world space; work in world space either way.
                 float4 world = mul(unity_ObjectToWorld, v.vertex);
                 float ly = (frac(v.uv.y * AtlasCells) - 0.5) * CellPixels / PixelsPerUnit;
+                if (_NoteSkinSlice.y > 0) ly = (v.uv.y - _NoteSkinSlice.x) * _NoteSkinSlice.y + _NoteSkinSlice.z;
                 float q = max(1.0 - ly / LaneDepth, 1e-4);
                 world.x *= q;
 

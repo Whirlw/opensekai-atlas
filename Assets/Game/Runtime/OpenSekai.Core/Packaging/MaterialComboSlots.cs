@@ -36,6 +36,7 @@ namespace OpenSekai.MaterialPacks
         public int Width { get; set; }
         public int Height { get; set; }
         public int[] Rect { get; set; }
+        public float[] NoteSlice { get; set; }
         public float[] Pivot { get; set; }
         public float[] Offset { get; set; }
         public float[] Scale { get; set; }
@@ -57,12 +58,20 @@ namespace OpenSekai.MaterialPacks
                     || Pivot != null || Offset != null || Size != null || Advance != null || Opacity != null
                     || MaterialHitFxSlots.IsTrail(slot) && (Scale != null || Position != null)) return false;
             }
+            if (NoteSlice != null && (!MaterialNoteSlots.HasSlot(slot) || MaterialNoteSlots.IsLine(slot)
+                || NoteSlice.Length != 4 || !(NoteSlice[0] >= 0 && NoteSlice[1] >= 0 && NoteSlice[2] > 0 && NoteSlice[3] > 0
+                    && NoteSlice[0] < Width && NoteSlice[1] < Height
+                    // Fractional source slices can touch the last pixel within one float rounding step.
+                    && NoteSlice[0] + NoteSlice[2] <= Width + Width * 1e-7
+                    && NoteSlice[1] + NoteSlice[3] <= Height + Height * 1e-7))) return false;
+            if (MaterialNoteSlots.HasSlot(slot) && (Offset != null || Size != null || MaterialNoteSlots.IsLine(slot)
+                && (Pivot != null || Rect?.Length != 4 || Rect[0] != 0 || Rect[1] != 0 || Rect[2] != Width || Rect[3] != Height))) return false;
             return Width is > 0 and <= MAX_DIMENSION && Height is > 0 and <= MAX_DIMENSION
                 && Rect?.Length == 4 && Rect[0] >= 0 && Rect[1] >= 0 && Rect[2] > 0 && Rect[3] > 0
                 && Rect[0] <= Width - Rect[2] && Rect[1] <= Height - Rect[3]
                 && PairInRange(Pivot, 0, 1) && PairInRange(Offset, -8192, 8192)
                 && PositivePair(Scale, 64) && PositivePair(Size, 8192)
-                && (Position == null || (slot.EndsWith(".label", StringComparison.Ordinal) || MaterialJudgmentSlots.HasSlot(slot) || MaterialHitFxSlots.HasSlot(slot)) && PairInRange(Position, -8192, 8192))
+                && (Position == null || (slot.EndsWith(".label", StringComparison.Ordinal) || MaterialJudgmentSlots.HasSlot(slot) || MaterialHitFxSlots.HasSlot(slot) || MaterialNoteSlots.HasSlot(slot)) && PairInRange(Position, -8192, 8192))
                 && (Opacity == null || slot.StartsWith("combo.glow.", StringComparison.Ordinal) && Opacity >= 0 && Opacity <= 1)
                 && (Advance == null || slot.Contains(".digit.") && !slot.StartsWith("combo.glow.", StringComparison.Ordinal)
                     && Advance > 0 && Advance <= 8192);

@@ -72,7 +72,7 @@ namespace OpenSekai.MaterialPacks
                 if (!ids.Add(result.Id)) throw Error(group, "重复组 ID " + result.Id);
                 if (group["displayName"] != null) result.DisplayName = Required(group, "displayName");
                 result.Category = Required(group, "category");
-                if (result.Category is not ("audio" or "combo" or "judgment" or "hitFx")) throw Error(group, "不支持的类别 " + result.Category);
+                if (result.Category is not ("audio" or "combo" or "judgment" or "hitFx" or "notes")) throw Error(group, "不支持的类别 " + result.Category);
                 if (group.TryGetValue("layout", out var layout))
                 {
                     if (result.Category != "combo" || layout is not JObject obj) throw Error(layout, "需要 COMBO 布局对象");
@@ -115,6 +115,7 @@ namespace OpenSekai.MaterialPacks
         {
             "combo" => MaterialComboSlots.HasSlot(slot),
             "judgment" => MaterialJudgmentSlots.HasSlot(slot),
+            "notes" => MaterialNoteSlots.HasSlot(slot),
             "hitFx" => MaterialHitFxSlots.HasSlot(slot),
             _ => false
         };
@@ -131,6 +132,11 @@ namespace OpenSekai.MaterialPacks
                 if (MaterialHitFxSlots.IsTrail(property.Name)) Fields(slot, "file", "extensions");
                 else Fields(slot, "file", "scale", "position", "extensions");
             }
+            else if (category == "notes")
+            {
+                if (MaterialNoteSlots.IsLine(property.Name)) Fields(slot, "file", "scale", "position", "extensions");
+                else Fields(slot, "file", "rect", "pivot", "scale", "position", "extensions");
+            }
             else Fields(slot, "file", "rect", "pivot", "scale", "size", "position", "offset", "advance", "opacity", "extensions");
             string file = Required(slot, "file");
             if (images == null || !images.TryGetValue(file, out var image)) throw Error(slot, "找不到 PNG " + file);
@@ -139,7 +145,8 @@ namespace OpenSekai.MaterialPacks
             if (slot["rect"] is JToken rect)
             {
                 if (rect is not JArray items || items.Count != 4) throw Error(rect, "需要 [x,y,w,h]");
-                sprite.Rect = items.Select(Integer).ToArray();
+                if (category == "notes") sprite.NoteSlice = items.Select(Number).ToArray();
+                else sprite.Rect = items.Select(Integer).ToArray();
             }
             sprite.Pivot = Pair(slot, "pivot");
             sprite.Scale = Pair(slot, "scale");

@@ -157,7 +157,7 @@ namespace OpenSekai.Tests.EditMode
             var pack = await _store.ImportAsync(SAMPLE);
             var selection = new MaterialAudioSelection { Groups = { pack.GroupReference("holds") } };
             _store.SaveSelection(selection, 1);
-            var captured = _store.Capture(out _, out _, out _, out _);
+            var captured = _store.Capture(out _, out _, out _, out _, out _);
             try
             {
                 Assert.Throws<InvalidOperationException>(() => _store.SaveSelection(new MaterialAudioSelection(), 2));
@@ -183,6 +183,7 @@ namespace OpenSekai.Tests.EditMode
             legacy.Remove("Combo");
             legacy.Remove("Judgment");
             legacy.Remove("HitFx");
+            legacy.Remove("Notes");
             foreach (var group in legacy["Installed"][0]["Groups"].Cast<JObject>())
             {
                 group.Remove("Sprites");
@@ -191,6 +192,7 @@ namespace OpenSekai.Tests.EditMode
             File.WriteAllText(index, legacy.ToString());
             _store = new MaterialPackStore(_root);
             Assert.That(_store.Resolve(_store.List().Audio).Single(x => x.Slot == "audio.tap").Source, Is.EqualTo(clicks));
+            Assert.That(_store.List().Notes.Groups, Is.Empty);
             var mixed = await _store.ImportAsync(MixedPack());
             var combo = new MaterialGroupSelection { Groups = { mixed.GroupReference("numbers") } };
             Assert.Throws<InvalidDataException>(() => _store.ResolveCombo(new MaterialGroupSelection { Groups = { clicks } }));
@@ -209,11 +211,17 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(_store.List().Judgment.Groups, Is.EqualTo(judgment.Groups));
             Assert.That(_store.ResolveCombo(combo).Single(x => x.Slot == "combo.digit.1").Source, Is.EqualTo(combo.Groups[0]));
             Assert.That(_store.List().Audio.Groups, Is.EqualTo(new[] { clicks }));
+            var notes = new MaterialGroupSelection { Groups = { mixed.GroupReference("keys") } };
+            Assert.Throws<InvalidDataException>(() => _store.ResolveNotes(effects));
+            _store.SaveNotesSelection(notes, _store.List().Revision);
+            _store = new MaterialPackStore(_root);
+            Assert.That(_store.ResolveNotes(_store.List().Notes).Single(x => x.Slot == "notes.notes_0").Source, Is.EqualTo(notes.Groups[0]));
             _store.Uninstall(mixed.PackId, mixed.Digest, _store.List().Revision);
             var state = new MaterialPackStore(_root).List();
             Assert.That(state.Combo.Groups, Is.Empty);
             Assert.That(state.Judgment.Groups, Is.Empty);
             Assert.That(state.HitFx.Groups, Is.Empty);
+            Assert.That(state.Notes.Groups, Is.Empty);
             Assert.That(state.Audio.Groups, Is.EqualTo(new[] { clicks }));
         }
 
@@ -229,6 +237,9 @@ namespace OpenSekai.Tests.EditMode
         [TestCase("removedJudgment")]
         [TestCase("effectScale")]
         [TestCase("trailLayout")]
+        [TestCase("noteBounds")]
+        [TestCase("lineRect")]
+        [TestCase("noteSlot")]
         [TestCase("sequenceFrame")]
         [TestCase("sequenceLoop")]
         public async Task InvalidSpriteGroupCannotReplaceExistingPack(string fault)
@@ -267,6 +278,9 @@ namespace OpenSekai.Tests.EditMode
                     if (fault == "sequenceLoop") layer["loopFrameRange"] = new JArray(0, 1);
                     manifest["groups"].Last["slots"]["hitFx.lane.tap"] = new JObject { ["kind"] = "sequence", ["layers"] = new JArray(layer) };
                 }
+                var key = new JObject { ["file"] = "glyph.png", ["rect"] = new JArray(.5, .25, fault == "noteBounds" ? 2 : 1, 1) };
+                string slot = fault switch { "lineRect" => "notes.line.long", "noteSlot" => "notes.notes_7", _ => "notes.notes_0" };
+                ((JArray)manifest["groups"]).Add(new JObject { ["id"] = "keys", ["category"] = "notes", ["slots"] = new JObject { [slot] = key } });
                 return manifest.ToString();
             });
             var tex = new UnityEngine.Texture2D(2, 2, UnityEngine.TextureFormat.RGBA32, false);
