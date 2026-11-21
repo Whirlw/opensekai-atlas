@@ -54,9 +54,9 @@ namespace Sekai
 		private SpriteRenderer[] _allPerfectEffectRenderers;
 
 		private const float DEFAULT_ADVANCE = 0.95f;
-		private ComboGlyph[] _normalGlyphs, _apGlyphs, _glowGlyphs;
-		private ComboGlyph _label, _apLabel, _glowLabel;
-		private LabelBaseline _textBaseline, _glowBaseline;
+		private MaterialGlyph[] _normalGlyphs, _apGlyphs, _glowGlyphs;
+		private MaterialGlyph _label, _apLabel, _glowLabel;
+		private SpriteRendererBaseline _textBaseline, _glowBaseline;
 		private LayoutNode _layoutRoot, _digitsRow, _burstRow, _glowRow;
 		private float[] _activeGlowOpacity;
 
@@ -74,43 +74,13 @@ namespace Sekai
 
 			internal void Place(float[] position)
 			{
-				var point = position == null ? (Vector2)_position : ComboGlyph.Point(position);
+				var point = position == null ? (Vector2)_position : MaterialGlyph.Point(position);
 				_node.localPosition = new Vector3(point.x, point.y, _position.z);
 			}
 
 			internal void Scale(float[] scale)
 			{
 				_node.localScale = scale == null ? _scale : new Vector3(_scale.x * scale[0], _scale.y * scale[1], _scale.z);
-			}
-		}
-
-		private sealed class LabelBaseline
-		{
-			private readonly Sprite _sprite;
-			private readonly Vector3 _position;
-			private readonly SpriteDrawMode _mode;
-			private readonly Vector2 _size;
-
-			internal LabelBaseline(SpriteRenderer renderer)
-			{
-				_sprite = renderer.sprite;
-				_position = renderer.transform.localPosition;
-				_mode = renderer.drawMode;
-				_size = renderer.size;
-			}
-
-			internal Sprite Sprite => _sprite;
-
-			internal void Draw(SpriteRenderer renderer, ComboGlyph glyph, Sprite fallback)
-			{
-				if (glyph != null) glyph.Draw(renderer, _position);
-				else
-				{
-					renderer.sprite = fallback;
-					renderer.drawMode = _mode;
-					if (_mode != SpriteDrawMode.Simple) renderer.size = _size;
-					renderer.transform.localPosition = _position;
-				}
 			}
 		}
 
@@ -165,10 +135,10 @@ namespace Sekai
 			_glowGlyphs = BindDigits("combo.glow.digit.", allPerfectEffectSprites);
 			_label = skin?.Resolve("combo.label", comboTextSprite);
 			_apLabel = skin?.Resolve("combo.ap.label", allPerfectComboTextSprite);
-			if (comboSpriteRenderer != null) _textBaseline ??= new LabelBaseline(comboSpriteRenderer);
+			if (comboSpriteRenderer != null) _textBaseline ??= new SpriteRendererBaseline(comboSpriteRenderer);
 			if (apEffectComboRenderer != null)
 			{
-				_glowBaseline ??= new LabelBaseline(apEffectComboRenderer);
+				_glowBaseline ??= new SpriteRendererBaseline(apEffectComboRenderer);
 				_glowLabel = skin?.Resolve("combo.glow.label", _glowBaseline.Sprite);
 				_glowBaseline.Draw(apEffectComboRenderer, _glowLabel, _glowBaseline.Sprite);
 			}
@@ -190,10 +160,10 @@ namespace Sekai
 			}
 			Clear();
 
-			ComboGlyph[] BindDigits(string prefix, Sprite[] sprites)
+			MaterialGlyph[] BindDigits(string prefix, Sprite[] sprites)
 			{
 				if (skin == null) return null;
-				var glyphs = new ComboGlyph[10];
+				var glyphs = new MaterialGlyph[10];
 				for (int i = 0; i < glyphs.Length; i++)
 					glyphs[i] = skin.Resolve(prefix + i, sprites != null && i < sprites.Length ? sprites[i] : null);
 				return glyphs;
@@ -346,7 +316,7 @@ namespace Sekai
 		{
 		}
 
-		private static void ApplyComboDigit(SpriteRenderer renderer, bool visible, float localX, Sprite[] sprites, int digit, ComboGlyph glyph)
+		private static void ApplyComboDigit(SpriteRenderer renderer, bool visible, float localX, Sprite[] sprites, int digit, MaterialGlyph glyph)
 		{
 			if (renderer == null)
 			{

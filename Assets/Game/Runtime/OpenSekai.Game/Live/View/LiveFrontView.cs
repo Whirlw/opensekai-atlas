@@ -144,7 +144,10 @@ namespace Sekai.Live
 			ResolveChildViews();
 			lifeView?.Setup(OnPause);
 			scoreView?.Setup(controller?.BootData?.MusicData);
-			comboView?.Setup(controller?.Settings?.UseAllPerfectEffect ?? false, (controller?.BootData as FreeLiveBootData)?.ComboSkin);
+			var boot = controller?.BootData as FreeLiveBootData;
+			comboView?.Setup(controller?.Settings?.UseAllPerfectEffect ?? false, boot?.ComboSkin);
+			judgmentView?.Setup(boot?.JudgmentSkin, controller?.Settings?.UsesAutoFakePerfectMode ?? false);
+			judgmentDescriptionView?.Setup(boot?.JudgmentSkin, controller?.Settings?.IsFastLateFlick ?? true);
 			countdownView?.Setup();
 			screenEffectView?.Setup();
 			cutinManager?.Setup(controller?.BootData);

@@ -51,7 +51,7 @@ namespace OpenSekai.MaterialPacks
                 && Rect[0] <= Width - Rect[2] && Rect[1] <= Height - Rect[3]
                 && PairInRange(Pivot, 0, 1) && PairInRange(Offset, -8192, 8192)
                 && PositivePair(Scale, 64) && PositivePair(Size, 8192)
-                && (Position == null || slot.EndsWith(".label", StringComparison.Ordinal) && PairInRange(Position, -8192, 8192))
+                && (Position == null || (slot.EndsWith(".label", StringComparison.Ordinal) || MaterialJudgmentSlots.HasSlot(slot)) && PairInRange(Position, -8192, 8192))
                 && (Opacity == null || slot.StartsWith("combo.glow.", StringComparison.Ordinal) && Opacity >= 0 && Opacity <= 1)
                 && (Advance == null || slot.Contains(".digit.") && !slot.StartsWith("combo.glow.", StringComparison.Ordinal)
                     && Advance > 0 && Advance <= 8192);

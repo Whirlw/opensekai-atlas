@@ -27,6 +27,7 @@ namespace OpenSekai.App.Playback
                 LiveSettingData = settings,
                 MaterialAudio = session.MaterialAudio,
                 ComboSkin = session.ComboSkin,
+                JudgmentSkin = session.JudgmentSkin,
                 MVQualityType = settings.QualityType,
                 MusicCategory = category,
                 IsAuto = request.IsAuto,

@@ -1,6 +1,6 @@
 # 打歌材质包后端实施方案（ZIP v1）
 
-2026-11-20 · 分发路线与 v1 目标契约。2026-11-21 已接入打歌音效及 COMBO 标签和数字。当前支持的槽位、样包使用方法与其余消费点见[音效样包与首轮清册](../operations/material-pack-audio.md)和 [COMBO 制包说明](../operations/material-pack-combo.md)。
+2026-11-20 · 分发路线与 v1 目标契约。2026-11-21 已接入打歌音效、COMBO 标签和数字，以及[判定文字](../operations/material-pack-judgment.md)。当前支持的槽位、样包使用方法与其余消费点见[音效样包与首轮清册](../operations/material-pack-audio.md)和 [COMBO 制包说明](../operations/material-pack-combo.md)。
 
 **采用 ZIP 分发普通媒体，以 JSON 描述素材用途、布局和演出。** 一个 ZIP 可以包含两套 notes、一套判定字和多种音效；玩家按类或按单项组合，进打歌前生成一局专用的绑定表。制包只需要能输出 PNG、WAV 和 JSON 的工具。项目现有美术导入脚本继续制作内置素材和验收基准。
 
@@ -17,7 +17,7 @@
 | 轨道 | 在 `LaneView` 映射底板、分道线、判定线和相关遮罩。偏移、轴心和缩放作用于视觉子节点，触摸投影仍由玩法坐标计算。 |
 | HUD | 盘点 `LiveFrontView`、`LifeView`、`ScoreView` 和打歌覆盖层，覆盖计分、血条、暂停、倒数、自动标识等实际用图和字形。对共享图集按使用处绑定，保留按钮交互区域和血条填充行为。 |
 | 音效 | 以实际播放的 cue 为槽位，覆盖敲击、滑动、长按循环、受伤、倒数和结束等声音。现有 `ExternalSoundPack` 会按 bundle 向 `AudioCatalog` 注册整组声音；新增当局逐 cue 查询，缺项走原播放路径，保留类别音量、循环停止及播放时机。 |
-| 判定字母／文字 | `JudgmentView` 在建立结果字典时绑定各档判定、Just Perfect、Auto 等字图，覆盖快慢提示的实际显示入口。验证 Auto 显示设置及同档连续刷新。 |
+| 判定字母／文字 | `JudgmentView` 在建立结果字典时绑定当前六档主文字（含 Auto），覆盖快慢提示的实际显示入口。验证 Auto 显示设置及同档连续刷新。 |
 | COMBO | `ComboView` 分别绑定标签、0–9 字形、普通／AP 样式与光圈。按字形记录步进和间距，验证首局、跨位数及掉连重置。 |
 | 判定特效 | 从 `TapEffectView`、`LongTapEffectView` 及 NextRUSH 触发路径登记瞬发、持续、释放和轨道反馈。既支持替换内置模板的纹理，也支持替换整个事件的可视演出。 |
 | 结算特效 | `LiveResultView.Execute` 区分 Failure、LifeZero、Clear、FC、AP，按结果绑定背景、横幅、粒子用图或整段演出。保持原触发点、跳过和退出清理；验收每条结果路径及独立的结算音。 |

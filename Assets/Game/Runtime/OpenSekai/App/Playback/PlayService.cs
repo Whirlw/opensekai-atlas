@@ -150,7 +150,7 @@ namespace OpenSekai.App.Playback
                 }
                 cancellationToken.ThrowIfCancellationRequested();
                 if (material != null) await material.PrepareAsync(materialDiagnostics, cancellationToken);
-                PlaySession session = PlaySession.FromChart(request, entry, chart, config, settings, material?.Audio, material?.Combo);
+                PlaySession session = PlaySession.FromChart(request, entry, chart, config, settings, material?.Audio, material?.Combo, material?.Judgment);
                 FreeLiveBootData boot = LegacyLiveBootAdapter.Create(session, _deckSelection.SelectedDeckId);
                 if (temporary == null) boot.CustomMusicScoreKey = _packages.FindCachedItem(entry.RootDirectory)?.ScoreKey ?? chartHash;
                 cancellationToken.ThrowIfCancellationRequested();
@@ -205,6 +205,7 @@ namespace OpenSekai.App.Playback
                 // Keep the lock until the scene transition actually starts.
                 if (!transitionAccepted)
                 {
+                    material?.Judgment?.Dispose();
                     material?.Combo?.Dispose();
                     material?.Audio.Dispose();
                     if (bootPublished && _surface.CurrentScene == request.ReturnScene)

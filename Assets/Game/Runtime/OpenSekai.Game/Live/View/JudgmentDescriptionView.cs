@@ -23,7 +23,9 @@ namespace Sekai
 		[SerializeField]
 		private SpriteRenderer spriteRenderer;
 
-		private Dictionary<NoteResultDescription, Sprite> _sprites;
+		private Dictionary<NoteResultDescription, (Sprite builtin, MaterialGlyph glyph)> _sprites;
+
+		private SpriteRendererBaseline _baseline;
 
 		private float _time;
 
@@ -36,33 +38,42 @@ namespace Sekai
 
 		private void Start()
 		{
-			_sprites = new Dictionary<NoteResultDescription, Sprite>
+			if (_sprites == null) Setup(null, LiveSettingsStore.Shared.Load()?.IsFastLateFlick ?? true);
+		}
+
+		public void Setup(LiveSpriteSkin skin, bool showTiming)
+		{
+			if (spriteRenderer != null) _baseline ??= new SpriteRendererBaseline(spriteRenderer);
+			_isFastLateFlick = showTiming;
+			_sprites = new Dictionary<NoteResultDescription, (Sprite, MaterialGlyph)>
 			{
-				{ NoteResultDescription.Fast, fast },
-				{ NoteResultDescription.Late, late },
-				{ NoteResultDescription.FlickMiss, flickMiss }
+				{ NoteResultDescription.Fast, Bind("judgment.fast", fast) },
+				{ NoteResultDescription.Late, Bind("judgment.late", late) },
+				{ NoteResultDescription.FlickMiss, Bind("judgment.flickMiss", flickMiss) },
 			};
-			LiveSettingData liveSetting = LiveSettingsStore.Shared.Load();
-			_isFastLateFlick = liveSetting == null || liveSetting.IsFastLateFlick;
 			Hide();
+
+			(Sprite, MaterialGlyph) Bind(string slot, Sprite builtin) => (builtin, skin?.Resolve(slot, builtin));
 		}
 
 		public void Excute((NoteResult result, NoteResultDescription description) judgeInfo)
 		{
-			if (!_isFastLateFlick || judgeInfo.result < NoteResult.Bad || judgeInfo.result > NoteResult.Great)
-			{
-				return;
-			}
 			if (_sprites == null)
 			{
 				Start();
+			}
+			if (!_isFastLateFlick || judgeInfo.result < NoteResult.Bad || judgeInfo.result > NoteResult.Great)
+			{
+				return;
 			}
 			if (spriteRenderer == null)
 			{
 				return;
 			}
-			_sprites.TryGetValue(judgeInfo.description, out Sprite sprite);
-			spriteRenderer.sprite = sprite;
+			_sprites.TryGetValue(judgeInfo.description, out var entry);
+			// Unity converts renderer dimensions when switching Simple/Sliced and needs a nonzero scale.
+			spriteRenderer.transform.localScale = Vector3.one;
+			_baseline.Draw(spriteRenderer, entry.glyph, entry.builtin);
 			_time = 0f;
 			spriteRenderer.transform.localScale = Vector3.zero;
 		}

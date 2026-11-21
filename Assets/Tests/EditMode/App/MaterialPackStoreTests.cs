@@ -157,7 +157,7 @@ namespace OpenSekai.Tests.EditMode
             var pack = await _store.ImportAsync(SAMPLE);
             var selection = new MaterialAudioSelection { Groups = { pack.GroupReference("holds") } };
             _store.SaveSelection(selection, 1);
-            var captured = _store.Capture(out _, out _);
+            var captured = _store.Capture(out _, out _, out _);
             try
             {
                 Assert.Throws<InvalidOperationException>(() => _store.SaveSelection(new MaterialAudioSelection(), 2));
@@ -181,6 +181,7 @@ namespace OpenSekai.Tests.EditMode
             string index = Path.Combine(_root, "state.json");
             var legacy = JObject.Parse(File.ReadAllText(index));
             legacy.Remove("Combo");
+            legacy.Remove("Judgment");
             foreach (var group in legacy["Installed"][0]["Groups"].Cast<JObject>())
             {
                 group.Remove("Sprites");
@@ -193,11 +194,19 @@ namespace OpenSekai.Tests.EditMode
             var combo = new MaterialGroupSelection { Groups = { mixed.GroupReference("numbers") } };
             Assert.Throws<InvalidDataException>(() => _store.ResolveCombo(new MaterialGroupSelection { Groups = { clicks } }));
             _store.SaveComboSelection(combo, _store.List().Revision);
+            var judgment = new MaterialGroupSelection { Groups = { mixed.GroupReference("labels") } };
+            Assert.Throws<InvalidDataException>(() => _store.ResolveJudgment(combo));
+            _store.SaveJudgmentSelection(judgment, _store.List().Revision);
+            _store = new MaterialPackStore(_root);
+            Assert.That(_store.ResolveJudgment(_store.List().Judgment).Single(x => x.Slot == "judgment.perfect").Source,
+                Is.EqualTo(judgment.Groups[0]));
+            Assert.That(_store.List().Combo.Groups, Is.EqualTo(combo.Groups));
             Assert.That(_store.ResolveCombo(combo).Single(x => x.Slot == "combo.digit.1").Source, Is.EqualTo(combo.Groups[0]));
             Assert.That(_store.List().Audio.Groups, Is.EqualTo(new[] { clicks }));
             _store.Uninstall(mixed.PackId, mixed.Digest, _store.List().Revision);
             var state = new MaterialPackStore(_root).List();
             Assert.That(state.Combo.Groups, Is.Empty);
+            Assert.That(state.Judgment.Groups, Is.Empty);
             Assert.That(state.Audio.Groups, Is.EqualTo(new[] { clicks }));
         }
 
@@ -210,7 +219,8 @@ namespace OpenSekai.Tests.EditMode
         [TestCase("opacity")]
         [TestCase("size")]
         [TestCase("category")]
-        public async Task InvalidComboCannotReplaceExistingPack(string fault)
+        [TestCase("removedJudgment")]
+        public async Task InvalidSpriteGroupCannotReplaceExistingPack(string fault)
         {
             var good = await _store.ImportAsync(SAMPLE);
             try { await _store.ImportAsync(MixedPack(fault)); Assert.Fail("应拒绝 " + fault); }
@@ -233,6 +243,9 @@ namespace OpenSekai.Tests.EditMode
                     ["layout"] = new JObject { ["scale"] = new JArray(1, fault == "layout" ? 0 : 1) },
                     ["category"] = fault == "category" ? "audio" : "combo",
                     ["slots"] = new JObject { ["combo.digit.1"] = sprite } });
+                ((JArray)manifest["groups"]).Add(new JObject { ["id"] = "labels", ["category"] = "judgment",
+                    ["slots"] = new JObject { [fault == "removedJudgment" ? "judgment.justPerfect" : "judgment.perfect"] =
+                        new JObject { ["file"] = "glyph.png", ["position"] = new JArray(0, 0) } } });
                 return manifest.ToString();
             });
             var tex = new UnityEngine.Texture2D(2, 2, UnityEngine.TextureFormat.RGBA32, false);

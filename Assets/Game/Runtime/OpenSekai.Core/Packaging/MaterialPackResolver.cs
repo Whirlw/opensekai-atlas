@@ -49,11 +49,22 @@ namespace OpenSekai.MaterialPacks
 
         public static List<MaterialSpriteBinding> ResolveCombo(IEnumerable<InstalledMaterialPack> packs, MaterialGroupSelection selection, string installedRoot)
         {
+            return ResolveSprites(packs, selection, installedRoot, "combo", MaterialComboSlots.Slots);
+        }
+
+        public static List<MaterialSpriteBinding> ResolveJudgment(IEnumerable<InstalledMaterialPack> packs, MaterialGroupSelection selection, string installedRoot)
+        {
+            return ResolveSprites(packs, selection, installedRoot, "judgment", MaterialJudgmentSlots.Slots);
+        }
+
+        private static List<MaterialSpriteBinding> ResolveSprites(IEnumerable<InstalledMaterialPack> packs, MaterialGroupSelection selection,
+            string installedRoot, string category, IEnumerable<string> slots)
+        {
             var bindings = ResolveSlots<MaterialSpriteSlot, MaterialSpriteBinding>(packs, selection, installedRoot,
-                "combo", MaterialComboSlots.Slots, group => group.Sprites);
+                category, slots, group => group.Sprites);
             long bytes = bindings.Where(b => b.Source != null).GroupBy(b => b.Media.Hash)
                 .Sum(g => (long)g.First().Media.Width * g.First().Media.Height * 4);
-            if (bytes > MAX_DECODED_BYTES) throw new InvalidDataException($"COMBO 纹理需要 {bytes} 字节，预算 {MAX_DECODED_BYTES} 字节。");
+            if (bytes > MAX_DECODED_BYTES) throw new InvalidDataException($"{category} 纹理需要 {bytes} 字节，预算 {MAX_DECODED_BYTES} 字节。");
             return bindings;
         }
 

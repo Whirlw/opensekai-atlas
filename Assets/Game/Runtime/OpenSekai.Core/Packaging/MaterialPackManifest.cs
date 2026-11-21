@@ -72,7 +72,7 @@ namespace OpenSekai.MaterialPacks
                 if (!ids.Add(result.Id)) throw Error(group, "重复组 ID " + result.Id);
                 if (group["displayName"] != null) result.DisplayName = Required(group, "displayName");
                 result.Category = Required(group, "category");
-                if (result.Category is not ("audio" or "combo")) throw Error(group, "不支持的类别 " + result.Category);
+                if (result.Category is not ("audio" or "combo" or "judgment")) throw Error(group, "不支持的类别 " + result.Category);
                 if (group.TryGetValue("layout", out var layout))
                 {
                     if (result.Category != "combo" || layout is not JObject obj) throw Error(layout, "需要 COMBO 布局对象");
@@ -84,9 +84,9 @@ namespace OpenSekai.MaterialPacks
                 if (group["slots"] is not JObject slots || !slots.HasValues && result.Layout == null) throw Error(group, "需要槽位或 COMBO 布局");
                 foreach (var property in slots.Properties())
                 {
-                    if (result.Category == "combo")
+                    if (result.Category != "audio")
                     {
-                        result.Sprites.Add(property.Name, ParseSprite(property, images));
+                        result.Sprites.Add(property.Name, ParseSprite(result.Category, property, images));
                         continue;
                     }
                     if (!MaterialPackAudio.HasSlot(property.Name) || property.Value is not JObject slot)
@@ -111,10 +111,11 @@ namespace OpenSekai.MaterialPacks
             return pack;
         }
 
-        private static MaterialSpriteSlot ParseSprite(JProperty property, IReadOnlyDictionary<string, (string hash, int width, int height)> images)
+        private static MaterialSpriteSlot ParseSprite(string category, JProperty property, IReadOnlyDictionary<string, (string hash, int width, int height)> images)
         {
-            if (!MaterialComboSlots.HasSlot(property.Name) || property.Value is not JObject slot)
-                throw Error(property, "未知 COMBO 槽位或槽位值无效");
+            bool known = category == "combo" ? MaterialComboSlots.HasSlot(property.Name) : MaterialJudgmentSlots.HasSlot(property.Name);
+            if (!known || property.Value is not JObject slot)
+                throw Error(property, category + " 槽位或槽位值无效");
             Fields(slot, "file", "rect", "pivot", "scale", "size", "position", "offset", "advance", "opacity", "extensions");
             string file = Required(slot, "file");
             if (images == null || !images.TryGetValue(file, out var image)) throw Error(slot, "找不到 PNG " + file);

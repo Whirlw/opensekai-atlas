@@ -16,18 +16,22 @@ namespace OpenSekai.App.Playback
         private readonly IReadOnlyList<MaterialAudioBinding> _bindings;
         private readonly IReadOnlyList<MaterialSpriteBinding> _sprites;
         internal LiveMaterialAudio Audio { get; }
+        private readonly IReadOnlyList<MaterialSpriteBinding> _judgmentSprites;
+        internal LiveSpriteSkin Judgment { get; }
         internal LiveComboSkin Combo { get; }
 
         internal MaterialAudioPreparation(MaterialPackStore store)
         {
-            _bindings = store.Capture(out _sprites, out var layout);
+            _bindings = store.Capture(out _sprites, out var layout, out _judgmentSprites);
+            if (_judgmentSprites.Any(x => x.Source != null)) Judgment = new LiveSpriteSkin();
             if (layout != null || _sprites.Any(x => x.Source != null)) Combo = new LiveComboSkin(layout);
             Audio = new LiveMaterialAudio(store.Release);
         }
 
         internal async Task PrepareAsync(List<string> diagnostics, CancellationToken token)
         {
-            await PrepareComboAsync(diagnostics, token);
+            await PrepareSpritesAsync(_sprites, Combo, diagnostics, token);
+            await PrepareSpritesAsync(_judgmentSprites, Judgment, diagnostics, token);
             var cache = new Dictionary<(string hash, int start, int end), AudioClip>();
             foreach (var file in _bindings.Where(x => x.Source != null).GroupBy(x => x.Path))
             {
@@ -74,10 +78,11 @@ namespace OpenSekai.App.Playback
             }
         }
 
-        private async Task PrepareComboAsync(List<string> diagnostics, CancellationToken token)
+        private static async Task PrepareSpritesAsync(IReadOnlyList<MaterialSpriteBinding> bindings, LiveSpriteSkin skin,
+            List<string> diagnostics, CancellationToken token)
         {
             var textures = new Dictionary<string, Texture2D>(StringComparer.Ordinal);
-            foreach (var file in _sprites.Where(x => x.Source != null).GroupBy(x => x.Path))
+            foreach (var file in bindings.Where(x => x.Source != null).GroupBy(x => x.Path))
             {
                 token.ThrowIfCancellationRequested();
                 var media = file.First().Media;
@@ -90,7 +95,7 @@ namespace OpenSekai.App.Playback
                         texture = MaterialPackTexture.Decode(bytes, media.File);
                         textures.Add(media.Hash, texture);
                     }
-                    foreach (var binding in file) Combo.Bind(binding.Slot, texture, binding.Media);
+                    foreach (var binding in file) skin.Bind(binding.Slot, texture, binding.Media);
                 }
                 catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException or UnityException)
                 {

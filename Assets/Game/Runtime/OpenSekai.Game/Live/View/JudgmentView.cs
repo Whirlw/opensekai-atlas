@@ -40,7 +40,9 @@ namespace Sekai
 		[SerializeField]
 		private SpriteRenderer spriteRenderer;
 
-		private Dictionary<NoteResult, Sprite> _sprites;
+		private Dictionary<NoteResult, (Sprite builtin, MaterialGlyph glyph)> _sprites;
+
+		private SpriteRendererBaseline _baseline;
 
 		private float _time;
 
@@ -55,24 +57,26 @@ namespace Sekai
 
 		private void Start()
 		{
-			InitSprites();
-			Hide();
+			if (_sprites == null) Setup(null, LiveSettingsStore.Shared.Load()?.UsesAutoFakePerfectMode ?? false);
 		}
 
-		private void InitSprites()
+		public void Setup(LiveSpriteSkin skin, bool useFakePerfect)
 		{
-			bool useFakePerfect = LiveSettingsStore.Shared.Load()?.UsesAutoFakePerfectMode ?? false;
-			Sprite autoSprite = useFakePerfect ? perfect : auto;
-			_sprites = new Dictionary<NoteResult, Sprite>
+			if (spriteRenderer != null) _baseline ??= new SpriteRendererBaseline(spriteRenderer);
+			_frame = -1;
+			_sprites = new Dictionary<NoteResult, (Sprite, MaterialGlyph)>
 			{
-				{ NoteResult.Miss, miss },
-				{ NoteResult.Bad, bad },
-				{ NoteResult.Good, good },
-				{ NoteResult.Great, great },
-				{ NoteResult.Perfect, perfect },
-				{ NoteResult.JustPerfect, perfect },
-				{ NoteResult.Auto, autoSprite }
+				{ NoteResult.Miss, Bind("judgment.miss", miss) },
+				{ NoteResult.Bad, Bind("judgment.bad", bad) },
+				{ NoteResult.Good, Bind("judgment.good", good) },
+				{ NoteResult.Great, Bind("judgment.great", great) },
+				{ NoteResult.Perfect, Bind("judgment.perfect", perfect) },
+				{ NoteResult.JustPerfect, Bind("judgment.perfect", perfect) },
+				{ NoteResult.Auto, useFakePerfect ? Bind("judgment.perfect", perfect) : Bind("judgment.auto", auto) },
 			};
+			Hide();
+
+			(Sprite, MaterialGlyph) Bind(string slot, Sprite builtin) => (builtin, skin?.Resolve(slot, builtin));
 		}
 
 		/// <summary>
@@ -83,7 +87,7 @@ namespace Sekai
 		{
 			if (_sprites == null)
 			{
-				InitSprites();
+				Start();
 			}
 			if (Time.frameCount != _frame)
 			{
@@ -102,12 +106,14 @@ namespace Sekai
 				_frameResult = worst;
 			}
 
-			if (_sprites == null || !_sprites.TryGetValue(_frameResult, out Sprite sprite) || spriteRenderer == null)
+			if (_sprites == null || !_sprites.TryGetValue(_frameResult, out var entry) || spriteRenderer == null)
 			{
 				return false;
 			}
 
-			spriteRenderer.sprite = sprite;
+			// Unity converts renderer dimensions when switching Simple/Sliced and needs a nonzero scale.
+			spriteRenderer.transform.localScale = Vector3.one;
+			_baseline.Draw(spriteRenderer, entry.glyph, entry.builtin);
 			_time = 0f;
 			spriteRenderer.transform.localScale = Vector3.zero;
 			return true;
