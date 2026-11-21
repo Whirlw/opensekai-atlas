@@ -37,7 +37,7 @@
 
 ## 常见问题与故障排查
 
-- 按 Play 后画面全白、看不到界面：确认打开的是 `Library.unity` 而不是空场景；曲库页自带 `LibraryScreenCamera`。
+- 从未改动的无标题空场景按 Play 会自动进入曲库。如果在其他场景只看到相机背景色，可以打开 `Assets/Game/Scenes/Library.unity` 后再按 Play。
 - 菜单点不动、Unity 卡住：见 [故障排查](../operations/troubleshooting.md)。
 
 ## 相关文档

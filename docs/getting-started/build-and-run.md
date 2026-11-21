@@ -28,7 +28,7 @@
 
 1. Unity Hub 添加本目录，选择 **6000.6.7f1** 打开。
 2. 等待包解析与脚本编译。控制台最后一条编译时间之后不应再出现 `error CS`。
-3. 打开 `Assets/Game/Scenes/Library.unity`，按 Play。
+3. 打开 `Assets/Game/Scenes/Library.unity`，按 Play。若编辑器当前只有一个未改动的无标题空场景，也可以直接按 Play，编辑器会在运行时打开曲库。停止后会回到原场景。
 
 ### 验证「跑通了」的三条判据
 
@@ -66,7 +66,7 @@
 
 - **控制台有 `error CS`**：先看行号是否在最后一次 `CompileScripts` 之后；`Editor.log` 里会残留历史错误行。
   完整日志在 `%LOCALAPPDATA%\Unity\Editor\Editor.log`。
-- **Play 后画面全白**：曲库页是 `ScreenSpaceCamera` 画布，用 `LibraryScreenCamera` 渲染；空场景或旧场景会白屏。
+- **Play 后只见相机背景色**：若当前场景已保存、有编辑改动，或配置了专用 Play 入口，Unity 会沿用该场景设置。要从首页运行，打开 `Assets/Game/Scenes/Library.unity` 后按 Play。
 - **资产库损坏 / 启动弹 `Opening file ... 系统找不到指定的路径`**：见 [故障排查](../operations/troubleshooting.md)。
 
 ## 相关文档
