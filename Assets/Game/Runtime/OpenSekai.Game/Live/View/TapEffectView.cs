@@ -561,7 +561,7 @@ namespace Sekai
 
 		private ParticleSystemController LoadTapEffect(string name)
 		{
-			GameObject prefab = AssetBundleUtility.LoadAsset<GameObject>(LiveConfig.EffectBundleName, name);
+			GameObject prefab = LiveHitEffectSkin.LoadPrefab(LiveConfig.EffectBundleName, name, _skin);
 			if (prefab == null)
 			{
 				return null;
@@ -603,7 +603,7 @@ namespace Sekai
 			GameObject holder = new GameObject(effectName, typeof(EffectPool));
 			EffectPool pool = holder.GetComponent<EffectPool>();
 			holder.transform.SetParent(transform, false);
-			GameObject prefab = AssetBundleUtility.LoadAsset<GameObject>(LiveConfig.EffectBundleName, effectName);
+			GameObject prefab = LiveHitEffectSkin.LoadPrefab(LiveConfig.EffectBundleName, effectName, _skin);
 			pool.Setup(prefab, poolCount, _skin);
 			return pool;
 		}

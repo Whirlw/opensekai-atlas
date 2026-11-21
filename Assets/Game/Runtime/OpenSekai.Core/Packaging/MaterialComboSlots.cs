@@ -45,10 +45,12 @@ namespace OpenSekai.MaterialPacks
         public float? Opacity { get; set; }
         public float? Advance { get; set; }
 
+        public int? TemplateSet { get; set; }
         public MaterialEffectLayer[] Layers { get; set; }
 
         internal bool IsValid(string slot)
         {
+            if (TemplateSet.HasValue && (TemplateSet is not (1 or 2) || !MaterialHitFxSlots.HasSlot(slot) || MaterialHitFxSlots.IsTrail(slot))) return false;
             if (Layers != null && (!MaterialHitFxSlots.HasSlot(slot) || MaterialHitFxSlots.IsTrail(slot)
                 || Layers.Length is < 1 or > 8 || Layers.Any(layer => layer == null || !layer.IsValid(slot))
                 || File != Layers[0].File || Hash != Layers[0].Hash || Width != Layers[0].Width || Height != Layers[0].Height)) return false;

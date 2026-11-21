@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using OpenSekai.MaterialPacks;
+using Sekai.Live;
 using UnityEngine;
 
 namespace Sekai
@@ -13,6 +14,19 @@ namespace Sekai
         private readonly List<Sprite> _frames = new();
         private readonly List<ParticleSystemController> _controllers = new();
         internal bool Paused { get; private set; }
+
+        internal static GameObject LoadPrefab(string fallbackBundle, string prefabName, LiveHitEffectSkin skin)
+        {
+            string bundle = fallbackBundle;
+            if (skin != null && MaterialHitFxSlots.TryGetTemplate(prefabName, out string slot))
+            {
+                int? templateSet = null;
+                if (skin._sequences.TryGetValue(slot, out var sequence)) templateSet = sequence.slot.TemplateSet;
+                else if (skin.TryGetBinding(slot, out var binding)) templateSet = binding.slot.TemplateSet;
+                if (templateSet.HasValue) bundle = LiveConfig.GetEffectBundleName(templateSet.Value - 1);
+            }
+            return AssetBundleUtility.LoadAsset<GameObject>(bundle, prefabName);
+        }
 
         internal void SetPaused(bool paused)
         {

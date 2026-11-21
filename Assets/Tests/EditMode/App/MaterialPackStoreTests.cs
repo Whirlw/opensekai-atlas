@@ -236,6 +236,9 @@ namespace OpenSekai.Tests.EditMode
         [TestCase("category")]
         [TestCase("removedJudgment")]
         [TestCase("effectScale")]
+        [TestCase("effectTemplateRange")]
+        [TestCase("effectTemplateCategory")]
+        [TestCase("effectTemplateType")]
         [TestCase("trailLayout")]
         [TestCase("noteBounds")]
         [TestCase("lineRect")]
@@ -271,6 +274,9 @@ namespace OpenSekai.Tests.EditMode
                 ((JArray)manifest["groups"]).Add(new JObject { ["id"] = "effects", ["category"] = "hitFx",
                     ["slots"] = new JObject { [fault == "trailLayout" ? "hitFx.critical.aura.trail" : "hitFx.lane.tap"] =
                         new JObject { ["file"] = "glyph.png", ["scale"] = new JArray(fault == "effectScale" ? -1 : 2, 1) } } });
+                if (fault == "effectTemplateRange") manifest["groups"].Last["templateSet"] = 3;
+                if (fault == "effectTemplateCategory") manifest["groups"].First["templateSet"] = 1;
+                if (fault == "effectTemplateType") manifest["groups"].Last["templateSet"] = "2";
                 if (fault is "sequenceFrame" or "sequenceLoop")
                 {
                     var layer = new JObject { ["file"] = "glyph.png", ["frames"] = new JArray(new JObject

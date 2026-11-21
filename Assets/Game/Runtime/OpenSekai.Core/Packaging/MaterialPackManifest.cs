@@ -67,12 +67,19 @@ namespace OpenSekai.MaterialPacks
             foreach (JToken element in groups)
             {
                 if (element is not JObject group) throw Error(element, "需要资源组对象");
-                Fields(group, "id", "category", "displayName", "slots", "layout", "extensions");
+                Fields(group, "id", "category", "displayName", "slots", "layout", "templateSet", "extensions");
                 var result = new MaterialPackGroup { Id = Id(group, "id") };
                 if (!ids.Add(result.Id)) throw Error(group, "重复组 ID " + result.Id);
                 if (group["displayName"] != null) result.DisplayName = Required(group, "displayName");
                 result.Category = Required(group, "category");
                 if (result.Category is not ("audio" or "combo" or "judgment" or "hitFx" or "notes")) throw Error(group, "不支持的类别 " + result.Category);
+                int? templateSet = null;
+                if (group.TryGetValue("templateSet", out var template))
+                {
+                    templateSet = Integer(template);
+                    if (result.Category != "hitFx" || templateSet is not (1 or 2))
+                        throw Error(template, "templateSet 仅适用于 hitFx 组，可选 1 或 2");
+                }
                 if (group.TryGetValue("layout", out var layout))
                 {
                     if (result.Category != "combo" || layout is not JObject obj) throw Error(layout, "需要 COMBO 布局对象");
@@ -86,7 +93,10 @@ namespace OpenSekai.MaterialPacks
                 {
                     if (result.Category != "audio")
                     {
-                        result.Sprites.Add(property.Name, ParseSprite(result.Category, property, images));
+                        var sprite = ParseSprite(result.Category, property, images);
+                        // Store the group default on each primary slot so per-slot overrides carry their template.
+                        if (templateSet.HasValue && !MaterialHitFxSlots.IsTrail(property.Name)) sprite.TemplateSet = templateSet;
+                        result.Sprites.Add(property.Name, sprite);
                         continue;
                     }
                     if (!MaterialPackAudio.HasSlot(property.Name) || property.Value is not JObject slot)

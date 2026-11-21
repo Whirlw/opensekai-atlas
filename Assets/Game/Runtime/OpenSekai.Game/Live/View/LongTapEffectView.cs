@@ -62,7 +62,7 @@ namespace Sekai
 
 			private ParticleSystemController LoadTapEffect(string bundleName, string name, Transform parent, LiveHitEffectSkin skin)
 			{
-				GameObject prefab = AssetBundleUtility.LoadAsset<GameObject>(bundleName, name);
+				GameObject prefab = LiveHitEffectSkin.LoadPrefab(bundleName, name, skin);
 				if (prefab == null)
 				{
 					return null;

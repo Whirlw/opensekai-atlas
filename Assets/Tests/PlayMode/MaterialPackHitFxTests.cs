@@ -32,13 +32,32 @@ namespace OpenSekai.Tests.PlayMode
             try
             {
                 await Verify(root, Generate(root));
+                await Verify(root, Generate(root, 2), expectedSet: 2);
                 string local = Application.isEditor ? Environment.GetEnvironmentVariable("OPENSEKAI_HITFX_TEST_ZIP") : null;
                 if (!string.IsNullOrEmpty(local)) await Verify(root, local);
             }
             finally { Directory.Delete(root, true); }
         });
 
-        private static async Task Verify(string root, string path)
+        [UnityTest]
+        public IEnumerator UpstreamPacksSelectTheirTemplateRegardlessOfLegacySetting() => UniTask.ToCoroutine(async () =>
+        {
+            string folder = Path.GetFullPath("LocalPacks/upstream-hit-fx/32c91d9");
+            string first = Path.Combine(folder, "upstream-hit-fx.zip");
+            string second = Path.Combine(folder, "set-1", "upstream-hit-fx-2.zip");
+            if (!Application.isEditor || !File.Exists(first) || !File.Exists(second))
+                Assert.Ignore("The two upstream effect packs are local editor fixtures.");
+            string root = Path.Combine(Application.temporaryCachePath, Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            try
+            {
+                await Verify(root, first, expectedSet: 1);
+                await Verify(root, second, expectedSet: 2);
+            }
+            finally { Directory.Delete(root, true); }
+        });
+
+        private static async Task Verify(string root, string path, int? expectedSet = null)
         {
             var store = new MaterialPackStore(root);
             var pack = await store.ImportAsync(path);
@@ -73,11 +92,31 @@ namespace OpenSekai.Tests.PlayMode
                         var controller = template.First();
                         string name = template.Key.Replace("(Clone)", "");
                         Assert.That(MaterialHitFxSlots.TryGetTemplate(name, out string key), Is.True, name);
-                        var prefab = AssetBundleUtility.LoadAsset<GameObject>(LiveConfig.EffectBundleName, name);
+                        int? chosen = group.Sprites[key].TemplateSet;
+                        if (expectedSet.HasValue) Assert.That(chosen, Is.EqualTo(expectedSet), key);
+                        var bundle = chosen.HasValue ? LiveConfig.GetEffectBundleName(chosen.Value - 1) : LiveConfig.EffectBundleName;
+                        var prefab = AssetBundleUtility.LoadAsset<GameObject>(bundle, name);
                         var original = prefab.GetComponentsInChildren<ParticleSystemRenderer>(true);
                         var rendered = controller.GetComponentsInChildren<ParticleSystemRenderer>(true);
+                        Assert.That(rendered.Length, Is.EqualTo(original.Length), key);
                         for (int r = 0; r < rendered.Length; r++)
                         {
+                            var baseline = original[r].GetComponent<ParticleSystem>();
+                            var activeSystem = rendered[r].GetComponent<ParticleSystem>();
+                            var tint = baseline.main.startColor;
+                            var activeTint = activeSystem.main.startColor;
+                            Assert.That(activeTint.mode, Is.EqualTo(tint.mode), key);
+                            if (tint.mode == ParticleSystemGradientMode.Color)
+                                Assert.That(activeTint.color, Is.EqualTo(tint.color), key);
+                            if (baseline.main.startSpeed.mode == ParticleSystemCurveMode.Constant)
+                                Assert.That(activeSystem.main.startSpeed.constant, Is.EqualTo(baseline.main.startSpeed.constant), key);
+                            Assert.That(activeSystem.emission.burstCount, Is.EqualTo(baseline.emission.burstCount), key);
+                            for (int burst = 0; burst < baseline.emission.burstCount; burst++)
+                            {
+                                var count = baseline.emission.GetBurst(burst).count;
+                                if (count.mode == ParticleSystemCurveMode.Constant)
+                                    Assert.That(activeSystem.emission.GetBurst(burst).count.constant, Is.EqualTo(count.constant), key);
+                            }
                             var before = original[r].sharedMaterials;
                             var after = rendered[r].sharedMaterials;
                             for (int m = 0; m < before.Length; m++)
@@ -228,7 +267,7 @@ namespace OpenSekai.Tests.PlayMode
                 byte[] png = tex.EncodeToPNG();
                 Object.Destroy(tex);
                 string path = Path.Combine(root, "hold.zip");
-                const string slot = "hitFx.long.hold.particles";
+                const string SLOT = "hitFx.long.hold.particles";
                 var frames = Enumerable.Range(0, 4).Select(i => new { rect = new[] { i * 2, 0, 2, 2 }, durationMs = 100 }).ToArray();
                 var sequence = new { kind = "sequence", scale = new[] { 2f, 1f }, position = new[] { 1f, 0f },
                     layers = new[] { "first.png", "second.png" }.Select(file => new { file, anchor = "hit", frames,
@@ -239,22 +278,23 @@ namespace OpenSekai.Tests.PlayMode
                         using (var entry = zip.CreateEntry(file).Open()) entry.Write(png, 0, png.Length);
                     using var writer = new StreamWriter(zip.CreateEntry("pack.json").Open());
                     writer.Write(JsonConvert.SerializeObject(new { schemaVersion = 1, packId = "test.hold", version = "1",
-                        groups = new[] { new { id = "hold", category = "hitFx", slots = new Dictionary<string, object> { [slot] = sequence } } } }));
+                        groups = new[] { new { id = "hold", category = "hitFx", templateSet = 2, slots = new Dictionary<string, object> { [SLOT] = sequence } } } }));
                 }
                 var store = new MaterialPackStore(root);
                 var installed = await store.ImportAsync(path);
                 store.SaveHitFxSelection(new MaterialGroupSelection { Groups = { installed.GroupReference("hold") } }, store.List().Revision);
-                var prefab = AssetBundleUtility.LoadAsset<GameObject>(LiveConfig.GetEffectBundleName(0), LivePrefabDefine.FX_LONG_HOLD_GEN);
                 var diagnostics = new List<string>();
-                async Task<ParticleSystemController> Prepare()
+                async Task<ParticleSystemController> Prepare(int expectedIndex)
                 {
                     var prep = new MaterialAudioPreparation(new MaterialPackStore(root));
                     boot.MaterialAudio = prep.Audio;
                     boot.HitFxSkin = prep.HitFx;
                     await prep.PrepareAsync(diagnostics, CancellationToken.None);
+                    var prefab = LiveHitEffectSkin.LoadPrefab(LiveConfig.GetEffectBundleName(0), LivePrefabDefine.FX_LONG_HOLD_GEN, prep.HitFx);
+                    Assert.That(prefab, Is.SameAs(AssetBundleUtility.LoadAsset<GameObject>(LiveConfig.GetEffectBundleName(expectedIndex), LivePrefabDefine.FX_LONG_HOLD_GEN)));
                     return ParticleSystemController.Create(prefab, host.transform, prep.HitFx);
                 }
-                var effect = await Prepare();
+                var effect = await Prepare(1);
                 Assert.That(diagnostics, Is.Empty);
                 var layers = effect.GetComponentsInChildren<SpriteRenderer>(true);
                 Assert.That(layers.Length, Is.EqualTo(2));
@@ -282,7 +322,7 @@ namespace OpenSekai.Tests.PlayMode
                 Object.Destroy(effect.gameObject);
                 boot.ReleaseMaterialAudio();
                 File.WriteAllBytes(Path.Combine(root, "installed", installed.PackId, installed.Digest, "second.png"), new byte[] { 0 });
-                var fallback = await Prepare();
+                var fallback = await Prepare(0);
                 Assert.That(diagnostics.Single(), Does.Contain("second.png"));
                 Assert.That(fallback.Sequence, Is.Null);
                 fallback.Play();
@@ -306,7 +346,7 @@ namespace OpenSekai.Tests.PlayMode
             }
         });
 
-        private static string Generate(string root)
+        private static string Generate(string root, int? templateSet = null)
         {
             var tex = new Texture2D(8, 8, TextureFormat.RGBA32, false);
             byte[] png = tex.EncodeToPNG();
@@ -321,12 +361,14 @@ namespace OpenSekai.Tests.PlayMode
                 }
                 return slot;
             });
-            string path = Path.Combine(root, "test.zip");
+            var group = new Dictionary<string, object> { ["id"] = "effects", ["category"] = "hitFx", ["slots"] = slots };
+            if (templateSet.HasValue) group.Add("templateSet", templateSet.Value);
+            string path = Path.Combine(root, "test" + templateSet + ".zip");
             using var zip = ZipFile.Open(path, ZipArchiveMode.Create);
             using (var output = zip.CreateEntry("particles.png").Open()) output.Write(png, 0, png.Length);
             using var writer = new StreamWriter(zip.CreateEntry("pack.json").Open());
             writer.Write(JsonConvert.SerializeObject(new { schemaVersion = 1, packId = "test.hitfx", version = "1",
-                groups = new[] { new { id = "effects", category = "hitFx", slots } } }));
+                groups = new[] { group } }));
             return path;
         }
     }

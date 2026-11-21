@@ -14,6 +14,7 @@ ZIP 根目录放 `pack.json`。下面的包只替换普通 Perfect 敲击的粒�
   "groups": [{
     "id": "notes",
     "category": "hitFx",
+    "templateSet": 2,
     "slots": {
       "hitFx.normal.perfect.particles": {
         "file": "textures/particles.png",
@@ -24,6 +25,8 @@ ZIP 根目录放 `pack.json`。下面的包只替换普通 Perfect 敲击的粒�
   }]
 }
 ```
+
+组字段 `templateSet` 选择粒子模板。`1` 为上游第一套，`2` 为第二套。两套上游图集相同，预制体的粒子透明度不同。带此字段的包在下一次开局时直接使用指定模板。混搭多个组时，每个特效采用其主槽所属组的模板，拖尾槽只提供贴图。未选主槽、主槽素材损坏或旧包省略此字段时，使用设置中的打击特效样式。
 
 | 模板字段 | 含义 |
 | --- | --- |

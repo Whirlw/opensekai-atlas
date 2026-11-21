@@ -39,7 +39,7 @@ namespace Sekai.Live
 		private ParticleSystemController CreateEffect(string effectName, LiveHitEffectSkin skin)
 		{
 			float aspect = Screen.height > 0 ? (float)Screen.width / Screen.height : 1.7778f;
-			GameObject prefab = AssetBundleUtility.LoadAsset<GameObject>(LiveConfig.EffectBundleName, effectName);
+			GameObject prefab = LiveHitEffectSkin.LoadPrefab(LiveConfig.EffectBundleName, effectName, skin);
 			if (prefab == null)
 			{
 				return null;
