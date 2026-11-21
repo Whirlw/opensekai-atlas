@@ -66,7 +66,11 @@ namespace Sekai
 			if (scene == Scene.MusicScoreMaker || scene == Scene.Library)
 			{
 				SoundManager.Instance.ReleasePackageAudio();
-				if (UserDataManager.Instance.FreeLiveBootData is { } boot) boot.TemporaryJacketData = null;
+				if (UserDataManager.Instance.FreeLiveBootData is { } boot)
+				{
+					boot.TemporaryJacketData = null;
+					boot.ReleaseMaterialAudio();
+				}
 			}
 
 			string sceneName = GetSceneName(loadScene);

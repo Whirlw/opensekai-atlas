@@ -987,6 +987,15 @@ namespace CriWare
 			}
 		}
 
+		internal static void StopUsingClips(HashSet<AudioClip> clips)
+		{
+			var ids = new List<uint>();
+			foreach (var item in _playbacks)
+				if (item.Value.PrimarySource != null && clips.Contains(item.Value.PrimarySource.clip))
+					ids.Add(item.Key);
+			foreach (uint id in ids) Stop(id);
+		}
+
 		public static void Stop(uint id)
 		{
 			if (id == 0 || !_playbacks.TryGetValue(id, out PlaybackState state))

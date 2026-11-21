@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using OpenSekai.Charts;
@@ -29,6 +30,7 @@ namespace OpenSekai.App.Playback
         private readonly IPackageAudioRegistrar _audio;
         private readonly ILiveDeckSelection _deckSelection;
         private readonly IPlayHistoryRecorder _playHistory;
+        private readonly Func<MaterialPackStore> _materialStore;
         private bool _releaseOnSceneExit;
 
         /// <summary>The process-wide service, wired to the retained singletons.</summary>
@@ -39,7 +41,7 @@ namespace OpenSekai.App.Playback
             new LegacyPlaySurface(),
             new LegacyPackageAudioRegistrar(packages),
             new LegacyLiveDeckSelection(),
-            new Library.CustomScorePlayHistoryRecorder());
+            new Library.CustomScorePlayHistoryRecorder(), () => MaterialPackStore.Shared);
 
         public bool IsStarting { get; private set; }
 
@@ -49,7 +51,7 @@ namespace OpenSekai.App.Playback
             IPlaySurface surface,
             IPackageAudioRegistrar audio,
             ILiveDeckSelection deckSelection,
-            IPlayHistoryRecorder playHistory)
+            IPlayHistoryRecorder playHistory, Func<MaterialPackStore> materialStore = null)
         {
             _packages = packages ?? throw new ArgumentNullException(nameof(packages));
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -58,6 +60,7 @@ namespace OpenSekai.App.Playback
             _audio = audio ?? throw new ArgumentNullException(nameof(audio));
             _deckSelection = deckSelection ?? throw new ArgumentNullException(nameof(deckSelection));
             _playHistory = playHistory ?? throw new ArgumentNullException(nameof(playHistory));
+            _materialStore = materialStore;
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -79,6 +82,8 @@ namespace OpenSekai.App.Playback
             bool audioRegistrationStarted = false;
             bool bootPublished = false;
             LiveBootState previousBoot = default;
+            MaterialAudioPreparation material = null;
+            var materialDiagnostics = new List<string>();
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -108,6 +113,14 @@ namespace OpenSekai.App.Playback
 
                 SongPackage cached = temporary?.Metadata ?? _packages.FindCachedItem(request.PackageDirectory)?.Entry;
                 PlaybackSettingsSnapshot settings = _settings.CaptureSnapshot();
+                if (_materialStore != null)
+                {
+                    try { material = new MaterialAudioPreparation(_materialStore()); }
+                    catch (Exception e) when (e is IOException or InvalidDataException or JsonException or UnauthorizedAccessException)
+                    {
+                        materialDiagnostics.Add("资源包索引：" + e.Message);
+                    }
+                }
                 LiveBundleBuildData config = ResourceCatalog.LiveBundleConfig.Load();
                 if (config == null) throw new InvalidOperationException("Live bundle configuration is missing.");
                 var conversion = new ChartConversionSettings(config);
@@ -136,7 +149,8 @@ namespace OpenSekai.App.Playback
                     return Result(PlayStartStatus.Failed, "无法加载音频文件。");
                 }
                 cancellationToken.ThrowIfCancellationRequested();
-                PlaySession session = PlaySession.FromChart(request, entry, chart, config, settings);
+                if (material != null) await material.PrepareAsync(materialDiagnostics, cancellationToken);
+                PlaySession session = PlaySession.FromChart(request, entry, chart, config, settings, material?.Audio);
                 FreeLiveBootData boot = LegacyLiveBootAdapter.Create(session, _deckSelection.SelectedDeckId);
                 if (temporary == null) boot.CustomMusicScoreKey = _packages.FindCachedItem(entry.RootDirectory)?.ScoreKey ?? chartHash;
                 cancellationToken.ThrowIfCancellationRequested();
@@ -160,7 +174,9 @@ namespace OpenSekai.App.Playback
                 _surface.ForceFinishTransition();
                 _surface.PushLiveLoading();
                 transitionAccepted = true;
-                return Result(PlayStartStatus.Started, message);
+                if (materialDiagnostics.Count > 0)
+                    Debug.LogWarning("[MaterialPack] 使用内置音效：" + string.Join(" / ", materialDiagnostics));
+                return new PlayStartResult(PlayStartStatus.Started, message, materialDiagnostics.ToArray());
             }
             catch (OperationCanceledException)
             {
@@ -189,6 +205,7 @@ namespace OpenSekai.App.Playback
                 // Keep the lock until the scene transition actually starts.
                 if (!transitionAccepted)
                 {
+                    material?.Audio.Dispose();
                     if (bootPublished && _surface.CurrentScene == request.ReturnScene)
                     {
                         _boot.Restore(previousBoot);

@@ -88,6 +88,10 @@ namespace Sekai
 
 		public bool ExistsCueName(string cueName) => _catalog.ExistsCueName(cueName);
 
+		private static LiveMaterialAudio CurrentMaterialAudio => UserDataManager.Instance.FreeLiveBootData?.MaterialAudio;
+
+		internal bool ExistsLiveCue(string cueName) => CurrentMaterialAudio?.Contains(cueName) == true || ExistsCueName(cueName);
+
 		public CriAtomEx.CueInfo[] GetCueInfos(string bundleName) => _catalog.GetCueInfos(bundleName);
 
 		public SoundBundleBuildData GetSoundBundleBuildData(string bundleName) => AcbAssetSource.GetSoundBundleBuildData(bundleName);
@@ -217,6 +221,7 @@ namespace Sekai
 
 		public void StopAll()
 		{
+			CurrentMaterialAudio?.Stop();
 			StopIngame();
 			_soundEffectPlayer?.Stop();
 		}
@@ -243,24 +248,32 @@ namespace Sekai
 
 		public uint PlayIngameSE(string cueName)
 		{
-			return PlaySEInternal(cueName, 1f, 0f);
+			return PlayLiveCue(cueName);
 		}
 
-		internal uint PlayHoldLoop(string cueName) => PlaySEInternal(cueName, 1f, 0f, loop: true);
+		internal uint PlayHoldLoop(string cueName) => PlayLiveCue(cueName, loop: true);
+
+		private uint PlayLiveCue(string cueName, int sequence = 0, bool loop = false)
+		{
+			var audio = CurrentMaterialAudio;
+			if (audio != null && audio.TryPlay(cueName, loop, _volume.SoundEffect, sequence, out uint playback))
+				return playback;
+			return PlaySEInternal(cueName, 1f, 0f, sequence, loop);
+		}
 
 		public void PlayIngameSEOneShot(string cueName)
 		{
-			PlaySEInternal(cueName, 1f, 0f);
+			PlayLiveCue(cueName);
 		}
 
 		internal void PlayIngameSEOneShot(string cueName, int requestSequence)
 		{
-			PlaySEInternal(cueName, 1f, 0f, requestSequence);
+			PlayLiveCue(cueName, requestSequence);
 		}
 
 		public void PlayIngameVoiceOneShot(string cueName)
 		{
-			PlaySEInternal(cueName, 1f, 0f);
+			PlayLiveCue(cueName);
 		}
 
 		public void StopSE(uint playbackId)

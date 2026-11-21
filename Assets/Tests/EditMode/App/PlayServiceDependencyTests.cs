@@ -1,3 +1,4 @@
+using OpenSekai.MaterialPacks;
 using System;
 using System.IO;
 using System.Threading;
@@ -51,6 +52,33 @@ namespace OpenSekai.Tests.EditMode
         {
             PlayHistoryRecorder.Current = _previousRecorder;
             if (Directory.Exists(_root)) Directory.Delete(_root, true);
+        }
+
+        [Test]
+        public async System.Threading.Tasks.Task MaterialSelectionFollowsTheBootAndReleasesOnFailedTransition()
+        {
+            var store = new OpenSekai.Infrastructure.Packages.MaterialPackStore(Path.Combine(_root, "material-packs"));
+            var pack = await store.ImportAsync("Tools/fixtures/material-audio.zip");
+            var selection = new MaterialAudioSelection { Groups = { pack.GroupReference("clicks") } };
+            long revision = store.SaveSelection(selection, store.List().Revision);
+            File.Delete(Path.Combine(_root, "material-packs", "installed", pack.PackId, pack.Digest, "sound/click.wav"));
+            _service = new PlayService(new OpenSekai.Infrastructure.Packages.SongPackageManager(_root),
+                _settings, _boot, _surface, _audio, _deck, _playHistory, () => store);
+            _surface.FailOnPush = true;
+            Assert.That((await _service.StartAsync(Request(), CancellationToken.None)).Started, Is.False);
+            revision = store.SaveSelection(selection, revision);
+            _surface.FailOnPush = false;
+            var started = await _service.StartAsync(Request(), CancellationToken.None);
+            Assert.That(started.Started, Is.True);
+            Assert.That(string.Join(" ", started.MaterialPackDiagnostics), Does.Contain("audio.perfect"));
+            var boot = (FreeLiveBootData)_boot.State.Boot;
+            try
+            {
+                Assert.That(boot.MaterialAudio, Is.Not.Null);
+                Assert.Throws<InvalidOperationException>(() => store.SaveSelection(selection, revision));
+            }
+            finally { boot.ReleaseMaterialAudio(); }
+            Assert.That(store.SaveSelection(selection, revision), Is.GreaterThan(revision));
         }
 
         [Test]

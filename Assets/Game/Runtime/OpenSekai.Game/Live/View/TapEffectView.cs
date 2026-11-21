@@ -431,7 +431,7 @@ namespace Sekai
 
 		internal void PlayNativeCue(NoteBase note, string cue)
 		{
-			if (!SoundManager.Instance.ExistsCueName(cue)) cue = LiveSoundDefine.NextRushFallbackCue(cue);
+			if (!SoundManager.Instance.ExistsLiveCue(cue)) cue = LiveSoundDefine.NextRushFallbackCue(cue);
 			double now = Time.unscaledTimeAsDouble;
 			if (_nativeCueTimes.TryGetValue(cue, out double previous) && now - previous < 0.0167) return;
 			_nativeCueTimes[cue] = now;

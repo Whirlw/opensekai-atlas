@@ -398,6 +398,7 @@ namespace Sekai.Core.Live
 
 		protected override void OnRetry()
 		{
+			(BootData as FreeLiveBootData)?.MaterialAudio?.Stop();
 			LatencyCapture.End("retry");
 			_pauseOverlay?.Hide();
 			HideSkip();
@@ -488,6 +489,7 @@ namespace Sekai.Core.Live
 		protected override void OnDestroy()
 		{
 			_liveLogic?.ConnectorAudio.Reset();
+			(BootData as FreeLiveBootData)?.ReleaseMaterialAudio();
 			LatencyCapture.End("destroy");
 			base.OnDestroy();
 		}

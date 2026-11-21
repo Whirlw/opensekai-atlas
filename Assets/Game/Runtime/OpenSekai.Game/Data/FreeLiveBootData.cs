@@ -8,6 +8,13 @@ namespace Sekai
 
 		public string CustomMusicScorePath { get; set; }
 		public byte[] TemporaryJacketData { get; set; }
+		public LiveMaterialAudio MaterialAudio { get; set; }
+
+		internal void ReleaseMaterialAudio()
+		{
+			MaterialAudio?.Dispose();
+			MaterialAudio = null;
+		}
 #if UNITY_EDITOR
 		internal int? ResultAnimationPreviewOverride { get; set; }
 #endif

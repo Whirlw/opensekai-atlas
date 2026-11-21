@@ -20,16 +20,19 @@ namespace OpenSekai.App.Playback
             SongPackage package,
             RuntimeChartDefinition chart,
             LiveBundleBuildData bundleConfig,
-            LiveSettingData settings)
+            LiveSettingData settings, LiveMaterialAudio materialAudio)
         {
             Request = request;
             Package = package;
             Chart = chart;
             BundleConfig = bundleConfig;
             Settings = settings;
+            MaterialAudio = materialAudio;
         }
 
         public PlayRequest Request { get; }
+
+        public LiveMaterialAudio MaterialAudio { get; }
 
         public SongPackage Package { get; }
 
@@ -42,14 +45,14 @@ namespace OpenSekai.App.Playback
         public LiveSettingData Settings { get; }
 
         public static PlaySession FromChart(PlayRequest request, SongPackage package, RuntimeChartDefinition chart,
-            LiveBundleBuildData bundleConfig, PlaybackSettingsSnapshot settings)
+            LiveBundleBuildData bundleConfig, PlaybackSettingsSnapshot settings, LiveMaterialAudio materialAudio = null)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
             if (package == null) throw new ArgumentNullException(nameof(package));
             if (chart == null) throw new ArgumentNullException(nameof(chart));
             if (bundleConfig == null) throw new ArgumentNullException(nameof(bundleConfig));
             if (settings == null) throw new ArgumentNullException(nameof(settings));
-            return new PlaySession(request, package, chart, bundleConfig, settings.ToLegacyData());
+            return new PlaySession(request, package, chart, bundleConfig, settings.ToLegacyData(), materialAudio);
         }
 
         public static PlaySession Create(

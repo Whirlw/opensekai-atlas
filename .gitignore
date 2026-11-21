@@ -84,6 +84,7 @@ mono_crash.*
 *.unitypackage.meta
 *.app
 *.zip
+!/Tools/fixtures/material-audio.zip
 
 # Crashlytics generated file
 crashlytics-build.properties

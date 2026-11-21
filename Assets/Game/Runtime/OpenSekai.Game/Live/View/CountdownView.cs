@@ -138,7 +138,7 @@ namespace Sekai
 				SoundManager soundManager = SoundManager.Instance;
 				if (soundManager != null)
 				{
-					soundManager.PlaySEOneShot(LiveSoundDefine.SE_LIVE_COUNT_DOWN, 0);
+					soundManager.PlayIngameSEOneShot(LiveSoundDefine.SE_LIVE_COUNT_DOWN);
 				}
 				if (_countDonwParticleArray[i] != null)
 				{

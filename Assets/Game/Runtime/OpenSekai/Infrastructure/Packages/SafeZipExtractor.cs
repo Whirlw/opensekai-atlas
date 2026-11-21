@@ -32,9 +32,14 @@ namespace OpenSekai.Infrastructure.Packages
 
         public static void Extract(string archivePath, string destination, Action<float> progress = null, long? availableBytes = null)
         {
+            using var archive = ZipFile.OpenRead(archivePath);
+            Extract(archive, destination, progress, availableBytes);
+        }
+
+        internal static void Extract(ZipArchive archive, string destination, Action<float> progress, long? availableBytes)
+        {
             string root = Path.GetFullPath(destination).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
             Directory.CreateDirectory(root);
-            using var archive = ZipFile.OpenRead(archivePath);
             if (archive.Entries.Count > MAX_FILES) throw new InvalidDataException("曲包文件数量超过限制。");
             long expected = 0;
             foreach (var entry in archive.Entries)
