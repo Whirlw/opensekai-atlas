@@ -72,7 +72,7 @@ namespace OpenSekai.MaterialPacks
                 if (!ids.Add(result.Id)) throw Error(group, "重复组 ID " + result.Id);
                 if (group["displayName"] != null) result.DisplayName = Required(group, "displayName");
                 result.Category = Required(group, "category");
-                if (result.Category is not ("audio" or "combo" or "judgment" or "hitFx" or "notes" or "lane" or "background")) throw Error(group, "不支持的类别 " + result.Category);
+                if (result.Category is not ("audio" or "combo" or "judgment" or "hitFx" or "notes" or "lane" or "hud" or "background")) throw Error(group, "不支持的类别 " + result.Category);
                 if (result.Category == "background")
                 {
                     Fields(group, "id", "category", "displayName", "layers", "preferVideo", "extensions");
@@ -139,6 +139,7 @@ namespace OpenSekai.MaterialPacks
             "combo" => MaterialComboSlots.HasSlot(slot),
             "judgment" => MaterialJudgmentSlots.HasSlot(slot),
             "notes" => MaterialNoteSlots.HasSlot(slot),
+            "hud" => MaterialHudSlots.HasSlot(slot),
             "lane" => MaterialLaneSlots.HasSlot(slot),
             "hitFx" => MaterialHitFxSlots.HasSlot(slot),
             _ => false
@@ -155,6 +156,18 @@ namespace OpenSekai.MaterialPacks
                     return ParseSequence(property.Name, slot, images);
                 if (MaterialHitFxSlots.IsTrail(property.Name)) Fields(slot, "file", "extensions");
                 else Fields(slot, "file", "scale", "position", "extensions");
+            }
+            else if (category == "hud")
+            {
+                if (MaterialHudSlots.IsLayout(property.Name))
+                {
+                    Fields(slot, "position", "scale", "extensions");
+                    var layout = new MaterialSpriteSlot { Position = Pair(slot, "position"), Scale = Pair(slot, "scale") };
+                    if (!layout.IsValid(property.Name)) throw Error(slot, "HUD 布局数值无效");
+                    return layout;
+                }
+                if (MaterialHudSlots.IsRing(property.Name)) Fields(slot, "file", "scale", "position", "extensions");
+                else Fields(slot, "file", "rect", "pivot", "size", "scale", "position", "border", "drawMode", "extensions");
             }
             else if (category == "lane") Fields(slot, "file", "rect", "pivot", "size", "scale", "position", "extensions");
             else if (category == "notes")
@@ -173,6 +186,8 @@ namespace OpenSekai.MaterialPacks
                 if (category == "notes") sprite.NoteSlice = items.Select(Number).ToArray();
                 else sprite.Rect = items.Select(Integer).ToArray();
             }
+            if (slot["drawMode"] != null) sprite.DrawMode = Required(slot, "drawMode");
+            sprite.Border = Numbers(slot, "border", 4);
             sprite.Pivot = Pair(slot, "pivot");
             sprite.Scale = Pair(slot, "scale");
             sprite.Size = Pair(slot, "size");

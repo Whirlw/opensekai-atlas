@@ -22,6 +22,8 @@ namespace OpenSekai.App.Playback
         private readonly IReadOnlyList<MaterialSpriteBinding> _laneSprites;
         private readonly MaterialBackgroundBinding _background;
         internal LiveBackgroundSkin Background { get; }
+        private readonly IReadOnlyList<MaterialSpriteBinding> _hudSprites;
+        internal LiveHudSkin Hud { get; }
         internal LiveSpriteSkin Lane { get; }
         internal LiveNoteSkin Notes { get; }
         internal LiveHitEffectSkin HitFx { get; }
@@ -30,7 +32,8 @@ namespace OpenSekai.App.Playback
 
         internal MaterialAudioPreparation(MaterialPackStore store)
         {
-            _bindings = store.Capture(out _sprites, out var layout, out _judgmentSprites, out _hitSprites, out _noteSprites, out _laneSprites, out _background);
+            _bindings = store.Capture(out _sprites, out var layout, out _judgmentSprites, out _hitSprites, out _noteSprites, out _laneSprites, out _background, out _hudSprites);
+            if (_hudSprites.Any(x => x.Source != null)) Hud = new LiveHudSkin();
             if (_background?.Source != null) Background = new LiveBackgroundSkin(_background.Media);
             if (_laneSprites.Any(x => x.Source != null)) Lane = new LiveSpriteSkin();
             if (_noteSprites.Any(x => x.Source != null)) Notes = new LiveNoteSkin();
@@ -42,6 +45,12 @@ namespace OpenSekai.App.Playback
 
         internal async Task PrepareAsync(List<string> diagnostics, CancellationToken token)
         {
+            if (Hud != null)
+            {
+                foreach (var binding in _hudSprites.Where(b => b.Source != null && MaterialHudSlots.IsLayout(b.Slot)))
+                    Hud.BindLayout(binding.Slot, binding.Media);
+                await PrepareSpritesAsync(_hudSprites.Where(b => !MaterialHudSlots.IsLayout(b.Slot)).ToArray(), Hud, diagnostics, token);
+            }
             if (Background != null) await PrepareSpritesAsync(_background.Images().ToArray(), Background, diagnostics, token);
             await PrepareSpritesAsync(_laneSprites, Lane, diagnostics, token);
             await PrepareSpritesAsync(_noteSprites, Notes, diagnostics, token);

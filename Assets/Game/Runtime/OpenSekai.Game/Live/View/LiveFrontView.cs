@@ -131,6 +131,15 @@ namespace Sekai.Live
 
 		public ScoreView ScoreView => scoreView;
 
+		private readonly HudViewBindings _hudBindings = new HudViewBindings();
+
+		internal void SetupHud(LiveHudSkin skin, LiveMusicData musicData)
+		{
+			_hudBindings.Setup(transform, skin);
+			lifeView?.Setup(OnPause);
+			scoreView?.Setup(musicData, skin);
+		}
+
 		public override void Setup(BaseLiveController controller)
 		{
 			base.Setup(controller);
@@ -143,9 +152,8 @@ namespace Sekai.Live
 			SetupBackgroundMaterial(controller);
 			SetupDeadMask();
 			ResolveChildViews();
-			lifeView?.Setup(OnPause);
-			scoreView?.Setup(controller?.BootData?.MusicData);
 			var boot = controller?.BootData as FreeLiveBootData;
+			SetupHud(boot?.HudSkin, controller?.BootData?.MusicData);
 			comboView?.Setup(controller?.Settings?.UseAllPerfectEffect ?? false, boot?.ComboSkin);
 			judgmentView?.Setup(boot?.JudgmentSkin, controller?.Settings?.UsesAutoFakePerfectMode ?? false);
 			judgmentDescriptionView?.Setup(boot?.JudgmentSkin, controller?.Settings?.IsFastLateFlick ?? true);

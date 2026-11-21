@@ -29,7 +29,9 @@ namespace Sekai
             var rect = new Rect(r[0], slot.Height - r[1] - r[3], r[2], r[3]);
             var pivot = reference != null ? reference.pivot / reference.rect.size : Vector2.one * .5f;
             if (slot.Pivot != null) pivot = new Vector2(slot.Pivot[0], slot.Pivot[1]);
-            var sprite = Sprite.Create(binding.texture, rect, pivot, MaterialGlyph.REFERENCE_PPU, 0, SpriteMeshType.FullRect);
+            var border = slot.Border;
+            var sprite = Sprite.Create(binding.texture, rect, pivot, MaterialGlyph.REFERENCE_PPU, 0, SpriteMeshType.FullRect,
+                border == null ? Vector4.zero : new Vector4(border[0], border[1], border[2], border[3]));
             sprite.name = key;
             var size = reference != null ? reference.rect.size / reference.pixelsPerUnit : rect.size / MaterialGlyph.REFERENCE_PPU;
             if (slot.Size != null) size = MaterialGlyph.Point(slot.Size);
@@ -73,12 +75,13 @@ namespace Sekai
             Opacity = opacity;
         }
 
-        internal void Draw(SpriteRenderer renderer, Vector3 anchor)
+        internal void Draw(SpriteRenderer renderer, Vector3 anchor, bool relativePosition = false)
         {
             renderer.sprite = Sprite;
             renderer.drawMode = SpriteDrawMode.Sliced;
             renderer.size = Size;
-            if (_position.HasValue) anchor = new Vector3(_position.Value.x, _position.Value.y, anchor.z);
+            if (_position.HasValue)
+                anchor = relativePosition ? anchor + (Vector3)_position.Value : new Vector3(_position.Value.x, _position.Value.y, anchor.z);
             renderer.transform.localPosition = anchor + (Vector3)Offset;
         }
     }
@@ -94,12 +97,18 @@ namespace Sekai
         {
             _sprite = renderer.sprite;
             _position = renderer.transform.localPosition;
+            Order = renderer.sortingOrder;
             _mode = renderer.drawMode;
             _size = renderer.size;
             _scale = renderer.transform.localScale;
         }
 
         internal Sprite Sprite => _sprite;
+        internal int Order { get; }
+        internal SpriteDrawMode Mode => _mode;
+        internal Vector2 Size => _size;
+        internal Vector3 Position => _position;
+        internal Vector3 Scale => _scale;
 
         internal void Draw(SpriteRenderer renderer, MaterialGlyph glyph, Sprite fallback, bool preservePrefabScale = false)
         {

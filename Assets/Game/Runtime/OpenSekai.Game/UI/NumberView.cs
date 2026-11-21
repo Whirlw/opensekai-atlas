@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
 using CP;
@@ -75,6 +76,32 @@ namespace Sekai
 		private int _digitsAtNormalScale;
 		private Vector3 _normalScale;
 
+		private LiveHudSkin _hudSkin;
+		private string[] _hudKeys;
+		private readonly Dictionary<SpriteRenderer, SpriteRendererBaseline> _hudCells = new();
+
+		internal void SetHudSkin(LiveHudSkin skin, string prefix)
+		{
+			_hudSkin = skin;
+			if (_digitsAtNormalScale > 0) _normalScale = transform.localScale;
+			if (skin == null || _hudKeys != null) return;
+			_hudKeys = new string[12];
+			for (int i = 0; i < 10; i++) _hudKeys[i] = prefix + "." + i;
+			_hudKeys[10] = prefix + ".plus";
+			_hudKeys[11] = prefix + ".minus";
+		}
+
+		private void SetGlyph(SpriteRenderer renderer, Sprite sprite, int index)
+		{
+			if (!_hudCells.TryGetValue(renderer, out var baseline))
+			{
+				if (_hudSkin == null) { renderer.sprite = sprite; return; }
+				_hudCells.Add(renderer, baseline = new SpriteRendererBaseline(renderer));
+			}
+			if (_hudSkin?.Draw(_hudKeys[index], renderer, baseline, sprite, true) != true)
+				baseline.Draw(renderer, null, sprite, true);
+		}
+
 		public void Setup(string color, string _surplusColor = "#ffffff00", int minimumDigits = 0)
 		{
 			Setup(ColorUtility.Create(color), ColorUtility.Create(_surplusColor), minimumDigits);
@@ -111,7 +138,7 @@ namespace Sekai
 				rendererTransform.localPosition = Vector3.right * (numberSpacing * alignIndex);
 				if (numberSprites != null && numberSprites.Length > 0)
 				{
-					_numberSpriteRenderers[i].sprite = numberSprites[0];
+					SetGlyph(_numberSpriteRenderers[i], numberSprites[0], 0);
 				}
 				_spriteStatus[i].id = 0;
 				_spriteStatus[i].isSurplus = true;
@@ -141,12 +168,12 @@ namespace Sekai
 				SpriteRenderer renderer = _numberSpriteRenderers[iconIndex];
 				if (number > 0)
 				{
-					renderer.sprite = plusIconSprite;
+					SetGlyph(renderer, plusIconSprite, 10);
 					_spriteStatus[iconIndex].id = SpriteStatus.IconSpriteId;
 				}
 				else if (number < 0)
 				{
-					renderer.sprite = minusiconSprite;
+					SetGlyph(renderer, minusiconSprite, 11);
 					_spriteStatus[iconIndex].id = SpriteStatus.IconSpriteId;
 				}
 				else
@@ -174,7 +201,7 @@ namespace Sekai
 				int digit = Mathf.Clamp(_digitValues[digitIndex], 0, numberSprites.Length - 1);
 				if (_spriteStatus[rendererIndex].id != digit)
 				{
-					_numberSpriteRenderers[rendererIndex].sprite = numberSprites[digit];
+					SetGlyph(_numberSpriteRenderers[rendererIndex], numberSprites[digit], digit);
 					_spriteStatus[rendererIndex].id = digit;
 				}
 				_numberSpriteRenderers[rendererIndex].enabled = true;
@@ -190,7 +217,7 @@ namespace Sekai
 			{
 				if (numberSprites.Length > 0 && _spriteStatus[i].id != 0)
 				{
-					_numberSpriteRenderers[i].sprite = numberSprites[0];
+					SetGlyph(_numberSpriteRenderers[i], numberSprites[0], 0);
 					_spriteStatus[i].id = 0;
 				}
 				// Always refresh surplus digits: a renderer can be marked surplus in an earlier

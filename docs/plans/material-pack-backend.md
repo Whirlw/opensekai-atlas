@@ -15,7 +15,7 @@
 | 背景 | 在 `Background2DView` 按组内 `layers` 从后往前合成普通 PNG 层和当前歌曲封面层。各层独立设置位置、大小及遮罩；`preferVideo` 决定有可用 2DMV 时是否优先播放视频。合成图沿用背景亮度和开场淡入。[背景皮肤制包说明](../operations/material-pack-background.md) |
 | Notes | 从 `NotesViewManager`、各 NoteView 和 `PairNoteLineView` 对齐两套内置皮肤的音头、方向箭头、长条、尾部、中继、同时线，以及 NextRUSH 的实际绘制分支。为网格提供纹理矩形和 UV 映射，验证变宽、转向、拉伸时的接缝。 |
 | 轨道 | 在 `LaneView` 映射底板、分道线、判定线和相关遮罩。偏移、轴心和缩放作用于视觉子节点，触摸投影仍由玩法坐标计算。 |
-| HUD | 盘点 `LiveFrontView`、`LifeView`、`ScoreView` 和打歌覆盖层，覆盖计分、血条、暂停、倒数、自动标识等实际用图和字形。对共享图集按使用处绑定，保留按钮交互区域和血条填充行为。 |
+| HUD | 分数、评级、生命、暂停／跳过、两种 AUTO 标识和倒计时按槽选用图片及布局。进度条仍按实时数值填充，按钮随显示位置计算点击范围。[HUD 皮肤制包说明](../operations/material-pack-hud.md) |
 | 音效 | 以实际播放的 cue 为槽位，覆盖敲击、滑动、长按循环、受伤、倒数和结束等声音。现有 `ExternalSoundPack` 会按 bundle 向 `AudioCatalog` 注册整组声音；新增当局逐 cue 查询，缺项走原播放路径，保留类别音量、循环停止及播放时机。 |
 | 判定字母／文字 | `JudgmentView` 在建立结果字典时绑定当前六档主文字（含 Auto），覆盖快慢提示的实际显示入口。验证 Auto 显示设置及同档连续刷新。 |
 | COMBO | `ComboView` 分别绑定标签、0–9 字形、普通／AP 样式与光圈。按字形记录步进和间距，验证首局、跨位数及掉连重置。 |

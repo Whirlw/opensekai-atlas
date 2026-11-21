@@ -75,16 +75,29 @@ namespace Sekai
 
 		private bool _inverseScale;
 
-		public void Setup(LiveMusicData musicData)
+		private LiveHudSkin _hudSkin;
+		private SpriteRendererBaseline _rankBaseline;
+		private SpriteRendererBaseline _rankTextBaseline;
+		private static readonly string[] _rankKeys = { "hud.score.rank.S", "hud.score.rank.A", "hud.score.rank.B", "hud.score.rank.C", "hud.score.rank.D" };
+		private static readonly string[] _rankLabelKeys = { "hud.score.rankLabel.S", "hud.score.rankLabel.A", "hud.score.rankLabel.B", "hud.score.rankLabel.C", "hud.score.rankLabel.D" };
+
+		public void Setup(LiveMusicData musicData, LiveHudSkin skin = null)
 		{
+			_hudSkin = skin;
+			if (rankSpriteRenderer != null) _rankBaseline ??= new SpriteRendererBaseline(rankSpriteRenderer);
+			if (rankTextSpriteRenderer != null)
+			{
+				_rankTextBaseline ??= new SpriteRendererBaseline(rankTextSpriteRenderer);
+				_rankTextBaseline.Draw(rankTextSpriteRenderer, null, _rankTextBaseline.Sprite, true);
+			}
 			if (scoreGauge != null)
 			{
 				_scoreGaugeSizeCache = scoreGauge.size;
 			}
-			SetupGaugeRankPosition(gaugeRankS, ScoreGauge.RANK_RATE_S);
-			SetupGaugeRankPosition(gaugeRankA, ScoreGauge.RANK_RATE_A);
-			SetupGaugeRankPosition(gaugeRankB, ScoreGauge.RANK_RATE_B);
-			SetupGaugeRankPosition(gaugeRankC, ScoreGauge.RANK_RATE_C);
+			SetupGaugeRankPosition(gaugeRankS, ScoreGauge.RANK_RATE_S, "hud.score.marker.S.base");
+			SetupGaugeRankPosition(gaugeRankA, ScoreGauge.RANK_RATE_A, "hud.score.marker.A.base");
+			SetupGaugeRankPosition(gaugeRankB, ScoreGauge.RANK_RATE_B, "hud.score.marker.B.base");
+			SetupGaugeRankPosition(gaugeRankC, ScoreGauge.RANK_RATE_C, "hud.score.marker.C.base");
 			_scoreGaugeCalculator = ScoreGauge.Create(musicData?.Score);
 			_inverseScale = addScoreRoot != null && addScoreRoot.localScale.y < 0f;
 			Clear();
@@ -169,18 +182,15 @@ namespace Sekai
 			if (rankSpriteRenderer != null && _lastScoreRank != (int)score.rank)
 			{
 				int rankIndex = (int)score.rank;
-				rankSpriteRenderer.sprite = rankSprites != null && rankIndex >= 0 && rankIndex < rankSprites.Length ? rankSprites[rankIndex] : null;
+				Sprite rank = rankSprites != null && rankIndex >= 0 && rankIndex < rankSprites.Length ? rankSprites[rankIndex] : null;
+				_rankBaseline ??= new SpriteRendererBaseline(rankSpriteRenderer);
+				DrawRank(rankSpriteRenderer, _rankBaseline, rank, _rankKeys, rankIndex);
 				if (rankTextSpriteRenderer != null)
 				{
-					if (rankTextSprites != null && rankIndex >= 0 && rankIndex < rankTextSprites.Length && rankTextSprites[rankIndex] != null)
-					{
-						rankTextSpriteRenderer.sprite = rankTextSprites[rankIndex];
-						rankTextSpriteRenderer.color = Color.white;
-					}
-					else
-					{
-						rankTextSpriteRenderer.color = ColorUtility.GetScoreRankColor(score.rank);
-					}
+					_rankTextBaseline ??= new SpriteRendererBaseline(rankTextSpriteRenderer);
+					Sprite label = rankTextSprites != null && rankIndex >= 0 && rankIndex < rankTextSprites.Length ? rankTextSprites[rankIndex] : null;
+					bool custom = DrawRank(rankTextSpriteRenderer, _rankTextBaseline, label ?? _rankTextBaseline.Sprite, _rankLabelKeys, rankIndex);
+					rankTextSpriteRenderer.color = custom || label != null ? Color.white : ColorUtility.GetScoreRankColor(score.rank);
 				}
 				_lastScoreRank = rankIndex;
 			}
@@ -199,7 +209,14 @@ namespace Sekai
 			}
 		}
 
-		private void SetupGaugeRankPosition(Transform t, float value)
+		private bool DrawRank(SpriteRenderer renderer, SpriteRendererBaseline baseline, Sprite fallback, string[] keys, int index)
+		{
+			if (index >= 0 && index < keys.Length && _hudSkin?.Draw(keys[index], renderer, baseline, fallback) == true) return true;
+			baseline.Draw(renderer, null, fallback, true);
+			return false;
+		}
+
+		private void SetupGaugeRankPosition(Transform t, float value, string key)
 		{
 			if (t == null || scoreGauge == null)
 			{
@@ -208,7 +225,7 @@ namespace Sekai
 			Vector3 gaugePosition = scoreGauge.transform.localPosition;
 			Vector3 position = t.localPosition;
 			position.x = gaugePosition.x + Mathf.Clamp01(value) * _scoreGaugeSizeCache.x;
-			t.localPosition = position;
+			t.localPosition = _hudSkin?.Position(key, position) ?? position;
 		}
 
 		private void PlayAddScoreAnimation()

@@ -157,7 +157,7 @@ namespace OpenSekai.Tests.EditMode
             var pack = await _store.ImportAsync(SAMPLE);
             var selection = new MaterialAudioSelection { Groups = { pack.GroupReference("holds") } };
             _store.SaveSelection(selection, 1);
-            var captured = _store.Capture(out _, out _, out _, out _, out _, out _, out _);
+            var captured = _store.Capture(out _, out _, out _, out _, out _, out _, out _, out _);
             try
             {
                 Assert.Throws<InvalidOperationException>(() => _store.SaveSelection(new MaterialAudioSelection(), 2));
@@ -186,6 +186,7 @@ namespace OpenSekai.Tests.EditMode
             legacy.Remove("Notes");
             legacy.Remove("Lane");
             legacy.Remove("Background");
+            legacy.Remove("Hud");
             foreach (var group in legacy["Installed"][0]["Groups"].Cast<JObject>())
             {
                 group.Remove("Sprites");
@@ -197,7 +198,13 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(_store.List().Notes.Groups, Is.Empty);
             Assert.That(_store.List().Lane.Groups, Is.Empty);
             Assert.That(_store.List().Background.Groups, Is.Empty);
+            Assert.That(_store.List().Hud.Groups, Is.Empty);
             var mixed = await _store.ImportAsync(MixedPack());
+            var hud = new MaterialGroupSelection { Groups = { mixed.GroupReference("overlay") } };
+            _store.SaveHudSelection(hud, _store.List().Revision);
+            _store = new MaterialPackStore(_root);
+            Assert.That(_store.ResolveHud(_store.List().Hud).Single(x => x.Slot == "hud.score.layout").Source, Is.EqualTo(hud.Groups[0]));
+            Assert.Throws<InvalidDataException>(() => _store.ResolveLane(hud));
             var combo = new MaterialGroupSelection { Groups = { mixed.GroupReference("numbers") } };
             Assert.Throws<InvalidDataException>(() => _store.ResolveCombo(new MaterialGroupSelection { Groups = { clicks } }));
             _store.SaveComboSelection(combo, _store.List().Revision);
@@ -237,6 +244,7 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(state.HitFx.Groups, Is.Empty);
             Assert.That(state.Notes.Groups, Is.Empty);
             Assert.That(state.Lane.Groups, Is.Empty);
+            Assert.That(state.Hud.Groups, Is.Empty);
             Assert.That(state.Background.Groups, Is.Empty);
             Assert.That(state.Audio.Groups, Is.EqualTo(new[] { clicks }));
         }
@@ -264,6 +272,10 @@ namespace OpenSekai.Tests.EditMode
         [TestCase("backgroundJacketFile")]
         [TestCase("backgroundSize")]
         [TestCase("laneSize")]
+        [TestCase("hudSlot")]
+        [TestCase("hudBorder")]
+        [TestCase("hudLayout")]
+        [TestCase("hudRingRect")]
         [TestCase("lanePosition")]
         [TestCase("sequenceFrame")]
         [TestCase("sequenceLoop")]
@@ -313,6 +325,11 @@ namespace OpenSekai.Tests.EditMode
                     ["position"] = new JArray(0, fault == "lanePosition" ? 8193 : -200) };
                 ((JArray)manifest["groups"]).Add(new JObject { ["id"] = "track", ["category"] = "lane",
                     ["slots"] = new JObject { [fault == "laneSlot" ? "lane.mask" : "lane.base"] = lane } });
+                var hud = new JObject { ["hud.score.layout"] = new JObject { ["scale"] = new JArray(1, fault == "hudLayout" ? 0 : 1) },
+                    [fault == "hudSlot" ? "hud.life.unknown" : "hud.life.pause"] = new JObject { ["file"] = "glyph.png",
+                        ["border"] = new JArray(1, 0, fault == "hudBorder" ? 2 : 0, 0) } };
+                if (fault == "hudRingRect") hud["hud.countdown.1.ring"] = new JObject { ["file"] = "glyph.png", ["rect"] = new JArray(0, 0, 1, 1) };
+                ((JArray)manifest["groups"]).Add(new JObject { ["id"] = "overlay", ["category"] = "hud", ["slots"] = hud });
                 var bg = new JObject { ["type"] = fault == "backgroundJacketFile" ? "jacket" : "image",
                     ["file"] = "glyph.png", ["fit"] = fault == "backgroundFit" ? "invalid" : "contain",
                     ["size"] = new JArray(1080, fault == "backgroundSize" ? 0 : 720) };

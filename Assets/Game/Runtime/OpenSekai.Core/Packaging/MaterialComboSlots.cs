@@ -36,6 +36,8 @@ namespace OpenSekai.MaterialPacks
         public int Width { get; set; }
         public int Height { get; set; }
         public int[] Rect { get; set; }
+        public string DrawMode { get; set; }
+        public float[] Border { get; set; }
         public float[] NoteSlice { get; set; }
         public float[] Pivot { get; set; }
         public float[] Offset { get; set; }
@@ -50,6 +52,16 @@ namespace OpenSekai.MaterialPacks
 
         internal bool IsValid(string slot)
         {
+            if (DrawMode != null && (!MaterialHudSlots.HasSlot(slot) || MaterialHudSlots.IsLayout(slot) || MaterialHudSlots.IsRing(slot) || DrawMode is not ("stretch" or "tile"))) return false;
+            if (MaterialHudSlots.IsLayout(slot))
+                return (Position != null || Scale != null) && PairInRange(Position, -8192, 8192) && PositivePair(Scale, 64)
+                    && File == null && Hash == null && Rect == null && Width == 0 && Height == 0 && Pivot == null && Offset == null
+                    && Size == null && Border == null && NoteSlice == null && Advance == null && Opacity == null && Layers == null && TemplateSet == null;
+            if (Border != null && (!MaterialHudSlots.HasSlot(slot) || Border.Length != 4 || Rect?.Length != 4
+                || !Border.All(v => v >= 0) || Border[0] + Border[2] > Rect[2] || Border[1] + Border[3] > Rect[3])) return false;
+            if (MaterialHudSlots.HasSlot(slot) && (Advance != null || Opacity != null || Offset != null
+                || MaterialHudSlots.IsRing(slot) && (Size != null || Pivot != null || Border != null || Rect?.Length != 4
+                    || Rect[0] != 0 || Rect[1] != 0 || Rect[2] != Width || Rect[3] != Height))) return false;
             if (TemplateSet.HasValue && (TemplateSet is not (1 or 2) || !MaterialHitFxSlots.HasSlot(slot) || MaterialHitFxSlots.IsTrail(slot))) return false;
             if (Layers != null && (!MaterialHitFxSlots.HasSlot(slot) || MaterialHitFxSlots.IsTrail(slot)
                 || Layers.Length is < 1 or > 8 || Layers.Any(layer => layer == null || !layer.IsValid(slot))
@@ -74,7 +86,7 @@ namespace OpenSekai.MaterialPacks
                 && Rect[0] <= Width - Rect[2] && Rect[1] <= Height - Rect[3]
                 && PairInRange(Pivot, 0, 1) && PairInRange(Offset, -8192, 8192)
                 && PositivePair(Scale, 64) && PositivePair(Size, 8192)
-                && (Position == null || (slot.EndsWith(".label", StringComparison.Ordinal) || MaterialJudgmentSlots.HasSlot(slot) || MaterialHitFxSlots.HasSlot(slot) || MaterialNoteSlots.HasSlot(slot) || MaterialLaneSlots.HasSlot(slot)) && PairInRange(Position, -8192, 8192))
+                && (Position == null || (slot.EndsWith(".label", StringComparison.Ordinal) || MaterialJudgmentSlots.HasSlot(slot) || MaterialHitFxSlots.HasSlot(slot) || MaterialNoteSlots.HasSlot(slot) || MaterialLaneSlots.HasSlot(slot) || MaterialHudSlots.HasSlot(slot)) && PairInRange(Position, -8192, 8192))
                 && (Opacity == null || slot.StartsWith("combo.glow.", StringComparison.Ordinal) && Opacity >= 0 && Opacity <= 1)
                 && (Advance == null || slot.Contains(".digit.") && !slot.StartsWith("combo.glow.", StringComparison.Ordinal)
                     && Advance > 0 && Advance <= 8192);

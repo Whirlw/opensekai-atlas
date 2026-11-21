@@ -38,6 +38,7 @@ namespace OpenSekai.MaterialPacks
     {
         internal IEnumerable<MaterialSpriteBinding> Images()
         {
+            if (MaterialHudSlots.IsLayout(Slot)) yield break;
             if (Media.Layers == null) { yield return this; yield break; }
             for (int i = 0; i < Media.Layers.Length; i++)
             {
@@ -106,6 +107,11 @@ namespace OpenSekai.MaterialPacks
             return ResolveSprites(packs, selection, installedRoot, "lane", MaterialLaneSlots.Slots);
         }
 
+        public static List<MaterialSpriteBinding> ResolveHud(IEnumerable<InstalledMaterialPack> packs, MaterialGroupSelection selection, string installedRoot)
+        {
+            return ResolveSprites(packs, selection, installedRoot, "hud", MaterialHudSlots.Slots);
+        }
+
         public static MaterialBackgroundBinding ResolveBackground(IEnumerable<InstalledMaterialPack> packs, MaterialGroupSelection selection, string installedRoot)
         {
             var binding = ResolveSlots<MaterialBackgroundScene, MaterialBackgroundBinding>(packs, selection, installedRoot, "background",
@@ -159,7 +165,7 @@ namespace OpenSekai.MaterialPacks
                     var media = entries(group)[slot];
                     binding.Media = media;
                     binding.PackRoot = VersionPath(installedRoot, pack);
-                    if (media is MaterialMediaSlot file)
+                    if (media is MaterialMediaSlot file && !MaterialHudSlots.IsLayout(slot))
                     {
                         MaterialPackManifest.CheckPath(file.File);
                         binding.Path = Path.Combine(binding.PackRoot, file.File);
