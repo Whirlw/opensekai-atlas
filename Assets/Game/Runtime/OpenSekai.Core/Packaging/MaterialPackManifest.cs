@@ -72,7 +72,7 @@ namespace OpenSekai.MaterialPacks
                 if (!ids.Add(result.Id)) throw Error(group, "重复组 ID " + result.Id);
                 if (group["displayName"] != null) result.DisplayName = Required(group, "displayName");
                 result.Category = Required(group, "category");
-                if (result.Category is not ("audio" or "combo" or "judgment" or "hitFx" or "notes")) throw Error(group, "不支持的类别 " + result.Category);
+                if (result.Category is not ("audio" or "combo" or "judgment" or "hitFx" or "notes" or "lane")) throw Error(group, "不支持的类别 " + result.Category);
                 int? templateSet = null;
                 if (group.TryGetValue("templateSet", out var template))
                 {
@@ -126,6 +126,7 @@ namespace OpenSekai.MaterialPacks
             "combo" => MaterialComboSlots.HasSlot(slot),
             "judgment" => MaterialJudgmentSlots.HasSlot(slot),
             "notes" => MaterialNoteSlots.HasSlot(slot),
+            "lane" => MaterialLaneSlots.HasSlot(slot),
             "hitFx" => MaterialHitFxSlots.HasSlot(slot),
             _ => false
         };
@@ -142,6 +143,7 @@ namespace OpenSekai.MaterialPacks
                 if (MaterialHitFxSlots.IsTrail(property.Name)) Fields(slot, "file", "extensions");
                 else Fields(slot, "file", "scale", "position", "extensions");
             }
+            else if (category == "lane") Fields(slot, "file", "rect", "pivot", "size", "scale", "position", "extensions");
             else if (category == "notes")
             {
                 if (MaterialNoteSlots.IsLine(property.Name)) Fields(slot, "file", "scale", "position", "extensions");

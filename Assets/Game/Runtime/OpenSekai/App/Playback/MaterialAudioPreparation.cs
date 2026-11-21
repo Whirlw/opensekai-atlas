@@ -19,6 +19,8 @@ namespace OpenSekai.App.Playback
         private readonly IReadOnlyList<MaterialSpriteBinding> _judgmentSprites;
         private readonly IReadOnlyList<MaterialSpriteBinding> _hitSprites;
         private readonly IReadOnlyList<MaterialSpriteBinding> _noteSprites;
+        private readonly IReadOnlyList<MaterialSpriteBinding> _laneSprites;
+        internal LiveSpriteSkin Lane { get; }
         internal LiveNoteSkin Notes { get; }
         internal LiveHitEffectSkin HitFx { get; }
         internal LiveSpriteSkin Judgment { get; }
@@ -26,7 +28,8 @@ namespace OpenSekai.App.Playback
 
         internal MaterialAudioPreparation(MaterialPackStore store)
         {
-            _bindings = store.Capture(out _sprites, out var layout, out _judgmentSprites, out _hitSprites, out _noteSprites);
+            _bindings = store.Capture(out _sprites, out var layout, out _judgmentSprites, out _hitSprites, out _noteSprites, out _laneSprites);
+            if (_laneSprites.Any(x => x.Source != null)) Lane = new LiveSpriteSkin();
             if (_noteSprites.Any(x => x.Source != null)) Notes = new LiveNoteSkin();
             if (_hitSprites.Any(x => x.Source != null)) HitFx = new LiveHitEffectSkin();
             if (_judgmentSprites.Any(x => x.Source != null)) Judgment = new LiveSpriteSkin();
@@ -36,6 +39,7 @@ namespace OpenSekai.App.Playback
 
         internal async Task PrepareAsync(List<string> diagnostics, CancellationToken token)
         {
+            await PrepareSpritesAsync(_laneSprites, Lane, diagnostics, token);
             await PrepareSpritesAsync(_noteSprites, Notes, diagnostics, token);
             await PrepareSpritesAsync(_sprites, Combo, diagnostics, token);
             await PrepareSpritesAsync(_judgmentSprites, Judgment, diagnostics, token);

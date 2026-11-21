@@ -1,3 +1,4 @@
+using OpenSekai.MaterialPacks;
 using UnityEngine;
 using Sekai.Live;
 
@@ -17,33 +18,29 @@ namespace Sekai
 		[SerializeField]
 		private SpriteRenderer defaultJudgeLine;
 
-		public void Setup(LiveSettingData liveSetting)
+		private SpriteRendererBaseline _baseBaseline;
+		private SpriteRendererBaseline _dividerBaseline;
+		private SpriteRendererBaseline _judgeBaseline;
+
+		public void Setup(LiveSettingData liveSetting, LiveSpriteSkin skin = null)
 		{
-			if (liveSetting == null)
-			{
-				return;
-			}
-			float laneAlpha = liveSetting.LaneTransparent;
-			float judgeLineAlpha = LiveConfig.JudgeLineAlpha;
-			if (defaultLaneBase != null)
-			{
-				defaultLaneBase.color = new Color(1f, 1f, 1f, laneAlpha);
-				defaultLaneBase.enabled = laneAlpha > 0f;
-			}
-			if (defaultLaneLine != null)
-			{
-				defaultLaneLine.color = new Color(1f, 1f, 1f, judgeLineAlpha);
-				defaultLaneLine.enabled = judgeLineAlpha > 0f;
-			}
-			if (defaultJudgeLine != null)
-			{
-				defaultJudgeLine.color = new Color(1f, 1f, 1f, judgeLineAlpha);
-				defaultJudgeLine.enabled = judgeLineAlpha > 0f;
-			}
+			if (liveSetting == null) return;
+			Apply(defaultLaneBase, ref _baseBaseline, MaterialLaneSlots.BASE, liveSetting.LaneTransparent, skin);
+			Apply(defaultLaneLine, ref _dividerBaseline, MaterialLaneSlots.DIVIDERS, LiveConfig.JudgeLineAlpha, skin);
+			Apply(defaultJudgeLine, ref _judgeBaseline, MaterialLaneSlots.JUDGE_LINE, LiveConfig.JudgeLineAlpha, skin);
 		}
 
-		public LaneView()
+		private static void Apply(SpriteRenderer renderer, ref SpriteRendererBaseline baseline, string slot,
+			float alpha, LiveSpriteSkin skin)
 		{
+			if (renderer == null) return;
+			if (skin != null || baseline != null)
+			{
+				baseline ??= new SpriteRendererBaseline(renderer);
+				baseline.Draw(renderer, skin?.Resolve(slot, baseline.Sprite), baseline.Sprite, preservePrefabScale: true);
+			}
+			renderer.color = new Color(1f, 1f, 1f, alpha);
+			renderer.enabled = alpha > 0f;
 		}
 	}
 }

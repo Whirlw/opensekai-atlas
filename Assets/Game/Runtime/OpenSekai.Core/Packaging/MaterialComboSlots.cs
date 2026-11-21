@@ -60,6 +60,7 @@ namespace OpenSekai.MaterialPacks
                     || Pivot != null || Offset != null || Size != null || Advance != null || Opacity != null
                     || MaterialHitFxSlots.IsTrail(slot) && (Scale != null || Position != null)) return false;
             }
+            if (MaterialLaneSlots.HasSlot(slot) && Offset != null) return false;
             if (NoteSlice != null && (!MaterialNoteSlots.HasSlot(slot) || MaterialNoteSlots.IsLine(slot)
                 || NoteSlice.Length != 4 || !(NoteSlice[0] >= 0 && NoteSlice[1] >= 0 && NoteSlice[2] > 0 && NoteSlice[3] > 0
                     && NoteSlice[0] < Width && NoteSlice[1] < Height
@@ -73,7 +74,7 @@ namespace OpenSekai.MaterialPacks
                 && Rect[0] <= Width - Rect[2] && Rect[1] <= Height - Rect[3]
                 && PairInRange(Pivot, 0, 1) && PairInRange(Offset, -8192, 8192)
                 && PositivePair(Scale, 64) && PositivePair(Size, 8192)
-                && (Position == null || (slot.EndsWith(".label", StringComparison.Ordinal) || MaterialJudgmentSlots.HasSlot(slot) || MaterialHitFxSlots.HasSlot(slot) || MaterialNoteSlots.HasSlot(slot)) && PairInRange(Position, -8192, 8192))
+                && (Position == null || (slot.EndsWith(".label", StringComparison.Ordinal) || MaterialJudgmentSlots.HasSlot(slot) || MaterialHitFxSlots.HasSlot(slot) || MaterialNoteSlots.HasSlot(slot) || MaterialLaneSlots.HasSlot(slot)) && PairInRange(Position, -8192, 8192))
                 && (Opacity == null || slot.StartsWith("combo.glow.", StringComparison.Ordinal) && Opacity >= 0 && Opacity <= 1)
                 && (Advance == null || slot.Contains(".digit.") && !slot.StartsWith("combo.glow.", StringComparison.Ordinal)
                     && Advance > 0 && Advance <= 8192);

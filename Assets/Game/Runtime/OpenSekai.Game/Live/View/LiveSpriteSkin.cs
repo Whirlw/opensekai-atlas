@@ -88,6 +88,7 @@ namespace Sekai
         private readonly Vector3 _position;
         private readonly SpriteDrawMode _mode;
         private readonly Vector2 _size;
+        private readonly Vector3 _scale;
 
         internal SpriteRendererBaseline(SpriteRenderer renderer)
         {
@@ -95,11 +96,12 @@ namespace Sekai
             _position = renderer.transform.localPosition;
             _mode = renderer.drawMode;
             _size = renderer.size;
+            _scale = renderer.transform.localScale;
         }
 
         internal Sprite Sprite => _sprite;
 
-        internal void Draw(SpriteRenderer renderer, MaterialGlyph glyph, Sprite fallback)
+        internal void Draw(SpriteRenderer renderer, MaterialGlyph glyph, Sprite fallback, bool preservePrefabScale = false)
         {
             if (glyph != null) glyph.Draw(renderer, _position);
             else
@@ -109,6 +111,8 @@ namespace Sekai
                 if (_mode != SpriteDrawMode.Simple) renderer.size = _size;
                 renderer.transform.localPosition = _position;
             }
+            // Switching Simple/Sliced can rescale the transform using the prefab's inactive size.
+            if (preservePrefabScale) renderer.transform.localScale = _scale;
         }
     }
 

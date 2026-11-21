@@ -156,7 +156,7 @@ namespace Sekai.Live
 			musicInfo?.Setup(controller?.BootData);
 			noteShowRateView?.Setup(controller?.Settings);
 			consecutiveAutoLiveView?.Setup(OnConsecutiveAutoLivePause, OnConsecutiveAutoLiveResume, OnConsecutiveAutoLiveFinish, frontViewCamera);
-			laneView?.Setup(controller?.Settings);
+			laneView?.Setup(controller?.Settings, boot?.LaneSkin);
 			SetupNotesView();
 			SetupTapEffect();
 			RefreshScreenDependentLayout(force: true);

@@ -81,6 +81,11 @@ namespace OpenSekai.MaterialPacks
             return ResolveSprites(packs, selection, installedRoot, "notes", MaterialNoteSlots.Slots);
         }
 
+        public static List<MaterialSpriteBinding> ResolveLane(IEnumerable<InstalledMaterialPack> packs, MaterialGroupSelection selection, string installedRoot)
+        {
+            return ResolveSprites(packs, selection, installedRoot, "lane", MaterialLaneSlots.Slots);
+        }
+
         private static List<MaterialSpriteBinding> ResolveSprites(IEnumerable<InstalledMaterialPack> packs, MaterialGroupSelection selection,
             string installedRoot, string category, IEnumerable<string> slots)
         {
