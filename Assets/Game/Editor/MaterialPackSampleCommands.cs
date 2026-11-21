@@ -12,30 +12,44 @@ namespace OpenSekai.EditorTools
     internal static class MaterialPackSampleCommands
     {
         [MenuItem("OpenSekai/Dev/Material Packs/Enable audio ZIP...")]
-        private static async void EnableAudioZip()
+        private static void EnableAudioZip() => EnableZip("audio");
+
+        [MenuItem("OpenSekai/Dev/Material Packs/Enable COMBO ZIP...")]
+        private static void EnableComboZip() => EnableZip("combo");
+
+        private static async void EnableZip(string category)
         {
-            string path = EditorUtility.OpenFilePanel("选择要试听的打歌音效包", Path.GetFullPath("Tools/fixtures"), "zip");
+            string directory = category == "audio" ? "Tools/fixtures" : "LocalPacks";
+            string path = EditorUtility.OpenFilePanel("选择 " + category + " 资源包", Path.GetFullPath(directory), "zip");
             if (string.IsNullOrEmpty(path)) return;
             try
             {
                 var store = MaterialPackStore.Shared;
                 var pack = await store.ImportAsync(path);
                 var state = store.List();
-                var selection = new MaterialAudioSelection { Groups = pack.Groups.Select(g => pack.GroupReference(g.Id)).ToList() };
-                store.SaveSelection(selection, state.Revision);
-                Debug.Log("[MaterialPack] 下一局将使用 " + pack.PackId + " 的音效。");
+                var groups = pack.Groups.Where(g => g.Category == category).Select(g => pack.GroupReference(g.Id)).ToList();
+                if (groups.Count == 0) throw new InvalidDataException("包内没有 " + category + " 组。");
+                if (category == "audio") store.SaveSelection(new MaterialAudioSelection { Groups = groups }, state.Revision);
+                else store.SaveComboSelection(new MaterialGroupSelection { Groups = groups }, state.Revision);
+                Debug.Log("[MaterialPack] 下一局将使用 " + pack.PackId + " 的 " + category + " 组。");
             }
             catch (Exception e) { Debug.LogWarning("[MaterialPack] " + e.Message); }
         }
 
         [MenuItem("OpenSekai/Dev/Material Packs/Restore built-in audio")]
-        private static void Restore()
+        private static void Restore() => Restore("audio");
+
+        [MenuItem("OpenSekai/Dev/Material Packs/Restore built-in COMBO")]
+        private static void RestoreCombo() => Restore("combo");
+
+        private static void Restore(string category)
         {
             try
             {
                 var store = MaterialPackStore.Shared;
-                store.SaveSelection(new MaterialAudioSelection(), store.List().Revision);
-                Debug.Log("[MaterialPack] 下一局将使用内置音效。");
+                if (category == "audio") store.SaveSelection(new MaterialAudioSelection(), store.List().Revision);
+                else store.SaveComboSelection(new MaterialGroupSelection(), store.List().Revision);
+                Debug.Log("[MaterialPack] 下一局将使用内置 " + category + "。");
             }
             catch (Exception e) { Debug.LogWarning("[MaterialPack] " + e.Message); }
         }

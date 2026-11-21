@@ -26,6 +26,7 @@ namespace OpenSekai.App.Playback
                 LiveEventData = new LiveEventData(Array.Empty<IngameLotterySkill>(), Array.Empty<IngameComboCutin>(), deckId, request.IsAuto),
                 LiveSettingData = settings,
                 MaterialAudio = session.MaterialAudio,
+                ComboSkin = session.ComboSkin,
                 MVQualityType = settings.QualityType,
                 MusicCategory = category,
                 IsAuto = request.IsAuto,

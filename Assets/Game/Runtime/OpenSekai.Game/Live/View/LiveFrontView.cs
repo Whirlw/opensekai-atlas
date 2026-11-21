@@ -144,7 +144,7 @@ namespace Sekai.Live
 			ResolveChildViews();
 			lifeView?.Setup(OnPause);
 			scoreView?.Setup(controller?.BootData?.MusicData);
-			comboView?.Setup(controller?.Settings?.UseAllPerfectEffect ?? false);
+			comboView?.Setup(controller?.Settings?.UseAllPerfectEffect ?? false, (controller?.BootData as FreeLiveBootData)?.ComboSkin);
 			countdownView?.Setup();
 			screenEffectView?.Setup();
 			cutinManager?.Setup(controller?.BootData);

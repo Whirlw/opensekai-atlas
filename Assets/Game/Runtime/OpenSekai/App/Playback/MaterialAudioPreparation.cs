@@ -14,16 +14,20 @@ namespace OpenSekai.App.Playback
     internal sealed class MaterialAudioPreparation
     {
         private readonly IReadOnlyList<MaterialAudioBinding> _bindings;
+        private readonly IReadOnlyList<MaterialSpriteBinding> _sprites;
         internal LiveMaterialAudio Audio { get; }
+        internal LiveComboSkin Combo { get; }
 
         internal MaterialAudioPreparation(MaterialPackStore store)
         {
-            _bindings = store.Capture();
+            _bindings = store.Capture(out _sprites, out var layout);
+            if (layout != null || _sprites.Any(x => x.Source != null)) Combo = new LiveComboSkin(layout);
             Audio = new LiveMaterialAudio(store.Release);
         }
 
         internal async Task PrepareAsync(List<string> diagnostics, CancellationToken token)
         {
+            await PrepareComboAsync(diagnostics, token);
             var cache = new Dictionary<(string hash, int start, int end), AudioClip>();
             foreach (var file in _bindings.Where(x => x.Source != null).GroupBy(x => x.Path))
             {
@@ -32,7 +36,8 @@ namespace OpenSekai.App.Playback
                 MaterialPackWave wave;
                 try
                 {
-                    (bytes, wave) = await Task.Run(() => Read(file.Key, file.First().Media), token);
+                    bytes = await Task.Run(() => Read(file.Key, file.First().Media), token);
+                    wave = MaterialPackWave.Read(bytes);
                 }
                 catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException)
                 {
@@ -69,7 +74,32 @@ namespace OpenSekai.App.Playback
             }
         }
 
-        private static (byte[] bytes, MaterialPackWave wave) Read(string path, MaterialAudioSlot expected)
+        private async Task PrepareComboAsync(List<string> diagnostics, CancellationToken token)
+        {
+            var textures = new Dictionary<string, Texture2D>(StringComparer.Ordinal);
+            foreach (var file in _sprites.Where(x => x.Source != null).GroupBy(x => x.Path))
+            {
+                token.ThrowIfCancellationRequested();
+                var media = file.First().Media;
+                try
+                {
+                    byte[] bytes = await Task.Run(() => Read(file.Key, media), token);
+                    token.ThrowIfCancellationRequested();
+                    if (!textures.TryGetValue(media.Hash, out var texture))
+                    {
+                        texture = MaterialPackTexture.Decode(bytes, media.File);
+                        textures.Add(media.Hash, texture);
+                    }
+                    foreach (var binding in file) Combo.Bind(binding.Slot, texture, binding.Media);
+                }
+                catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException or UnityException)
+                {
+                    diagnostics.Add(string.Join(", ", file.Select(x => x.Slot)) + " (" + media.File + ")：" + e.Message);
+                }
+            }
+        }
+
+        private static byte[] Read(string path, MaterialMediaSlot expected)
         {
             using var stream = File.OpenRead(path);
             if (stream.Length > MaterialPackArchive.MAX_FILE_BYTES) throw new InvalidDataException("文件大小已改变。");
@@ -77,7 +107,7 @@ namespace OpenSekai.App.Playback
             var bytes = reader.ReadBytes((int)stream.Length);
             if (MaterialPackArchive.Hex(MaterialPackArchive.Hash(bytes)) != expected.Hash)
                 throw new InvalidDataException("文件内容与安装修订不符。");
-            return (bytes, MaterialPackWave.Read(bytes));
+            return bytes;
         }
     }
 }

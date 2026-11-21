@@ -150,7 +150,7 @@ namespace OpenSekai.App.Playback
                 }
                 cancellationToken.ThrowIfCancellationRequested();
                 if (material != null) await material.PrepareAsync(materialDiagnostics, cancellationToken);
-                PlaySession session = PlaySession.FromChart(request, entry, chart, config, settings, material?.Audio);
+                PlaySession session = PlaySession.FromChart(request, entry, chart, config, settings, material?.Audio, material?.Combo);
                 FreeLiveBootData boot = LegacyLiveBootAdapter.Create(session, _deckSelection.SelectedDeckId);
                 if (temporary == null) boot.CustomMusicScoreKey = _packages.FindCachedItem(entry.RootDirectory)?.ScoreKey ?? chartHash;
                 cancellationToken.ThrowIfCancellationRequested();
@@ -175,7 +175,7 @@ namespace OpenSekai.App.Playback
                 _surface.PushLiveLoading();
                 transitionAccepted = true;
                 if (materialDiagnostics.Count > 0)
-                    Debug.LogWarning("[MaterialPack] 使用内置音效：" + string.Join(" / ", materialDiagnostics));
+                    Debug.LogWarning("[MaterialPack] 使用内置资源：" + string.Join(" / ", materialDiagnostics));
                 return new PlayStartResult(PlayStartStatus.Started, message, materialDiagnostics.ToArray());
             }
             catch (OperationCanceledException)
@@ -205,6 +205,7 @@ namespace OpenSekai.App.Playback
                 // Keep the lock until the scene transition actually starts.
                 if (!transitionAccepted)
                 {
+                    material?.Combo?.Dispose();
                     material?.Audio.Dispose();
                     if (bootPublished && _surface.CurrentScene == request.ReturnScene)
                     {

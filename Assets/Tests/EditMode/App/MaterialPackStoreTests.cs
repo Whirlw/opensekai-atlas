@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Newtonsoft.Json.Linq;
 using OpenSekai.Infrastructure.Packages;
 
 namespace OpenSekai.Tests.EditMode
@@ -156,7 +157,7 @@ namespace OpenSekai.Tests.EditMode
             var pack = await _store.ImportAsync(SAMPLE);
             var selection = new MaterialAudioSelection { Groups = { pack.GroupReference("holds") } };
             _store.SaveSelection(selection, 1);
-            var captured = _store.Capture();
+            var captured = _store.Capture(out _, out _);
             try
             {
                 Assert.Throws<InvalidOperationException>(() => _store.SaveSelection(new MaterialAudioSelection(), 2));
@@ -169,6 +170,81 @@ namespace OpenSekai.Tests.EditMode
             var recovered = new MaterialPackStore(_root).List();
             Assert.That(recovered.Revision, Is.EqualTo(2));
             Assert.That(recovered.Audio.Groups, Is.EqualTo(selection.Groups));
+        }
+
+        [Test]
+        public async Task OldAudioStateAndMixedPackSelectionsSurviveIndependentChanges()
+        {
+            var audio = await _store.ImportAsync(SAMPLE);
+            string clicks = audio.GroupReference("clicks");
+            _store.SaveSelection(new MaterialAudioSelection { Groups = { clicks } }, 1);
+            string index = Path.Combine(_root, "state.json");
+            var legacy = JObject.Parse(File.ReadAllText(index));
+            legacy.Remove("Combo");
+            foreach (var group in legacy["Installed"][0]["Groups"].Cast<JObject>())
+            {
+                group.Remove("Sprites");
+                group.Remove("Category");
+            }
+            File.WriteAllText(index, legacy.ToString());
+            _store = new MaterialPackStore(_root);
+            Assert.That(_store.Resolve(_store.List().Audio).Single(x => x.Slot == "audio.tap").Source, Is.EqualTo(clicks));
+            var mixed = await _store.ImportAsync(MixedPack());
+            var combo = new MaterialGroupSelection { Groups = { mixed.GroupReference("numbers") } };
+            Assert.Throws<InvalidDataException>(() => _store.ResolveCombo(new MaterialGroupSelection { Groups = { clicks } }));
+            _store.SaveComboSelection(combo, _store.List().Revision);
+            Assert.That(_store.ResolveCombo(combo).Single(x => x.Slot == "combo.digit.1").Source, Is.EqualTo(combo.Groups[0]));
+            Assert.That(_store.List().Audio.Groups, Is.EqualTo(new[] { clicks }));
+            _store.Uninstall(mixed.PackId, mixed.Digest, _store.List().Revision);
+            var state = new MaterialPackStore(_root).List();
+            Assert.That(state.Combo.Groups, Is.Empty);
+            Assert.That(state.Audio.Groups, Is.EqualTo(new[] { clicks }));
+        }
+
+        [TestCase("rect")]
+        [TestCase("pivot")]
+        [TestCase("scale")]
+        [TestCase("oversized")]
+        [TestCase("truncated")]
+        [TestCase("layout")]
+        [TestCase("opacity")]
+        [TestCase("size")]
+        [TestCase("category")]
+        public async Task InvalidComboCannotReplaceExistingPack(string fault)
+        {
+            var good = await _store.ImportAsync(SAMPLE);
+            try { await _store.ImportAsync(MixedPack(fault)); Assert.Fail("应拒绝 " + fault); }
+            catch (InvalidDataException) { }
+            Assert.That(_store.List().Installed.Single().Digest, Is.EqualTo(good.Digest));
+        }
+
+        private string MixedPack(string fault = null)
+        {
+            string path = Repack(json =>
+            {
+                var manifest = JObject.Parse(json);
+                var sprite = new JObject { ["file"] = "glyph.png" };
+                if (fault == "rect") sprite["rect"] = new JArray(0, 1, int.MaxValue, 1);
+                if (fault == "pivot") sprite["pivot"] = new JArray(-1, 0);
+                if (fault == "scale") sprite["scale"] = new JArray(1, 0);
+                if (fault == "opacity") sprite["opacity"] = .5f;
+                if (fault == "size") sprite["size"] = new JArray(100, -1);
+                ((JArray)manifest["groups"]).Add(new JObject { ["id"] = "numbers",
+                    ["layout"] = new JObject { ["scale"] = new JArray(1, fault == "layout" ? 0 : 1) },
+                    ["category"] = fault == "category" ? "audio" : "combo",
+                    ["slots"] = new JObject { ["combo.digit.1"] = sprite } });
+                return manifest.ToString();
+            });
+            var tex = new UnityEngine.Texture2D(2, 2, UnityEngine.TextureFormat.RGBA32, false);
+            byte[] bytes;
+            try { bytes = UnityEngine.ImageConversion.EncodeToPNG(tex); }
+            finally { UnityEngine.Object.DestroyImmediate(tex); }
+            if (fault == "oversized") bytes[16] = 127;
+            if (fault == "truncated") Array.Resize(ref bytes, 33);
+            using var zip = ZipFile.Open(path, ZipArchiveMode.Update);
+            using var output = zip.CreateEntry("glyph.png").Open();
+            output.Write(bytes, 0, bytes.Length);
+            return path;
         }
 
         private string Repack(Func<string, string> edit = null, string fault = null)

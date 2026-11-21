@@ -11,7 +11,7 @@ namespace OpenSekai.Infrastructure.Packages
 {
     internal static class MaterialPackArchive
     {
-        // Provisional limits for the audio milestone. Decoded, combined selection is bounded separately.
+        // Archive limits apply before decoding. Each selected category also has a decoded budget.
         internal const int MAX_FILE_BYTES = 8 * 1024 * 1024;
         private const int MAX_ARCHIVE_BYTES = 32 * 1024 * 1024;
         private static readonly UTF8Encoding _utf8 = new(false, true);
@@ -53,6 +53,7 @@ namespace OpenSekai.Infrastructure.Packages
             using var digestBytes = new MemoryStream();
             using var digest = new BinaryWriter(digestBytes, _utf8, true);
             var media = new Dictionary<string, (string hash, MaterialPackWave wave)>(StringComparer.Ordinal);
+            var images = new Dictionary<string, (string hash, int width, int height)>(StringComparer.Ordinal);
             foreach (string name in files)
             {
                 token.ThrowIfCancellationRequested();
@@ -64,13 +65,19 @@ namespace OpenSekai.Infrastructure.Packages
                 digest.Write(hash.Length);
                 digest.Write(hash);
                 if (name == "pack.json") continue;
+                if (name.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                {
+                    var (width, height) = MaterialPackTexture.Dimensions(bytes, name);
+                    images.Add(name, (Hex(hash), width, height));
+                    continue;
+                }
                 if (!name.EndsWith(".wav", StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidDataException("当前音效包仅支持 WAV：" + name);
+                    throw new InvalidDataException("需要 WAV 或 PNG：" + name);
                 try { media.Add(name, (Hex(hash), MaterialPackWave.Read(bytes))); }
                 catch (InvalidDataException e) { throw new InvalidDataException(name + "：" + e.Message, e); }
             }
             string json = _utf8.GetString(File.ReadAllBytes(Path.Combine(stage, "pack.json"))).TrimStart('\uFEFF');
-            return MaterialPackManifest.Parse(json, Hex(Hash(digestBytes.ToArray())), media);
+            return MaterialPackManifest.Parse(json, Hex(Hash(digestBytes.ToArray())), media, images);
         }
 
         internal static byte[] Hash(byte[] bytes)

@@ -20,7 +20,7 @@ namespace OpenSekai.App.Playback
             SongPackage package,
             RuntimeChartDefinition chart,
             LiveBundleBuildData bundleConfig,
-            LiveSettingData settings, LiveMaterialAudio materialAudio)
+            LiveSettingData settings, LiveMaterialAudio materialAudio, LiveComboSkin comboSkin)
         {
             Request = request;
             Package = package;
@@ -28,11 +28,13 @@ namespace OpenSekai.App.Playback
             BundleConfig = bundleConfig;
             Settings = settings;
             MaterialAudio = materialAudio;
+            ComboSkin = comboSkin;
         }
 
         public PlayRequest Request { get; }
 
         public LiveMaterialAudio MaterialAudio { get; }
+        public LiveComboSkin ComboSkin { get; }
 
         public SongPackage Package { get; }
 
@@ -45,14 +47,14 @@ namespace OpenSekai.App.Playback
         public LiveSettingData Settings { get; }
 
         public static PlaySession FromChart(PlayRequest request, SongPackage package, RuntimeChartDefinition chart,
-            LiveBundleBuildData bundleConfig, PlaybackSettingsSnapshot settings, LiveMaterialAudio materialAudio = null)
+            LiveBundleBuildData bundleConfig, PlaybackSettingsSnapshot settings, LiveMaterialAudio materialAudio = null, LiveComboSkin comboSkin = null)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
             if (package == null) throw new ArgumentNullException(nameof(package));
             if (chart == null) throw new ArgumentNullException(nameof(chart));
             if (bundleConfig == null) throw new ArgumentNullException(nameof(bundleConfig));
             if (settings == null) throw new ArgumentNullException(nameof(settings));
-            return new PlaySession(request, package, chart, bundleConfig, settings.ToLegacyData(), materialAudio);
+            return new PlaySession(request, package, chart, bundleConfig, settings.ToLegacyData(), materialAudio, comboSkin);
         }
 
         public static PlaySession Create(

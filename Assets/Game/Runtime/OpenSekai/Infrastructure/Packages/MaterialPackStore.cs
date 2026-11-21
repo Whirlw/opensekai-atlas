@@ -19,6 +19,7 @@ namespace OpenSekai.Infrastructure.Packages
         public List<InstalledMaterialPack> Installed { get; set; } = new();
         [JsonProperty(Required = Required.Always)]
         public MaterialAudioSelection Audio { get; set; } = new();
+        public MaterialGroupSelection Combo { get; set; } = new();
     }
 
     public sealed class MaterialPackStore
@@ -69,6 +70,17 @@ namespace OpenSekai.Infrastructure.Packages
                 {
                     if (group?.Slots == null || string.IsNullOrEmpty(group.Id) || !ids.Add(group.Id))
                         throw new InvalidDataException("资源包组索引无效。");
+                    if (group.Category is not ("audio" or "combo") || group.Sprites == null
+                        || group.Layout != null && (group.Category != "combo" || !group.Layout.IsValid())
+                        || group.Category == "combo" && group.Slots.Count != 0 || group.Category == "audio" && group.Sprites.Count != 0)
+                        throw new InvalidDataException("资源包类别无效：" + group.Id);
+                    foreach (var item in group.Sprites)
+                    {
+                        var media = item.Value;
+                        if (!MaterialComboSlots.HasSlot(item.Key) || media?.Hash?.Length != 64 || !media.Hash.All(Uri.IsHexDigit)
+                            || !media.IsValid(item.Key)) throw new InvalidDataException("COMBO 槽位索引无效：" + item.Key);
+                        MaterialPackManifest.CheckPath(media.File);
+                    }
                     foreach (var item in group.Slots)
                     {
                         var media = item.Value;
@@ -80,6 +92,7 @@ namespace OpenSekai.Infrastructure.Packages
                 }
             }
             Resolve(state, state.Audio);
+            MaterialPackResolver.ResolveCombo(state.Installed, state.Combo, InstalledRoot);
             return state;
         }
 
@@ -95,16 +108,23 @@ namespace OpenSekai.Infrastructure.Packages
         public Task<InstalledMaterialPack> ValidateAsync(string zipPath, CancellationToken token = default) =>
             InspectAsync(zipPath, false, token);
 
-        private Task<InstalledMaterialPack> InspectAsync(string zipPath, bool install, CancellationToken token)
+        private async Task<InstalledMaterialPack> InspectAsync(string zipPath, bool install, CancellationToken token)
         {
             if (install) lock (_gate) CheckWritable();
             long? available = SafeZipExtractor.GetAvailableBytes(_root);
-            return Task.Run(() =>
+            string stage = Path.Combine(_root, "staging", Guid.NewGuid().ToString("N"));
+            try
             {
-                string stage = Path.Combine(_root, "staging", Guid.NewGuid().ToString("N"));
-                try
+                var pack = await Task.Run(() => MaterialPackArchive.Unpack(zipPath, stage, available, token), token);
+                foreach (string path in Directory.EnumerateFiles(stage, "*", SearchOption.AllDirectories))
                 {
-                    var pack = MaterialPackArchive.Unpack(zipPath, stage, available, token);
+                    if (!path.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) continue;
+                    byte[] bytes = await Task.Run(() => File.ReadAllBytes(path), token);
+                    token.ThrowIfCancellationRequested();
+                    MaterialPackTexture.Release(MaterialPackTexture.Decode(bytes, Path.GetFileName(path)));
+                }
+                return await Task.Run(() =>
+                {
                     token.ThrowIfCancellationRequested();
                     if (!install) return pack;
                     lock (_gate)
@@ -122,9 +142,9 @@ namespace OpenSekai.Infrastructure.Packages
                         Commit(next);
                     }
                     return pack;
-                }
-                finally { if (Directory.Exists(stage)) Directory.Delete(stage, true); }
-            }, token);
+                }, token);
+            }
+            finally { if (Directory.Exists(stage)) Directory.Delete(stage, true); }
         }
 
         public IReadOnlyList<MaterialAudioBinding> Resolve(MaterialAudioSelection selection)
@@ -144,6 +164,23 @@ namespace OpenSekai.Infrastructure.Packages
             }
         }
 
+        public IReadOnlyList<MaterialSpriteBinding> ResolveCombo(MaterialGroupSelection selection)
+        {
+            lock (_gate) return MaterialPackResolver.ResolveCombo(_state.Installed, selection, InstalledRoot);
+        }
+
+        public long SaveComboSelection(MaterialGroupSelection selection, long expectedRevision)
+        {
+            lock (_gate)
+            {
+                CheckWritable(expectedRevision);
+                var next = Copy(_state);
+                next.Combo = Copy(selection ?? throw new ArgumentNullException(nameof(selection)));
+                MaterialPackResolver.ResolveCombo(next.Installed, next.Combo, InstalledRoot);
+                return Commit(next);
+            }
+        }
+
         public long Uninstall(string packId, string digest, long expectedRevision)
         {
             lock (_gate)
@@ -153,21 +190,35 @@ namespace OpenSekai.Infrastructure.Packages
                 var pack = next.Installed.Find(p => p.PackId == packId && p.Digest == digest)
                     ?? throw new InvalidDataException("找不到已安装的资源包修订。");
                 var removed = new HashSet<string>(pack.Groups.Select(g => pack.GroupReference(g.Id)));
-                next.Audio.Groups.RemoveAll(removed.Contains);
-                foreach (var slot in next.Audio.Overrides.Where(x => removed.Contains(x.Value)).ToArray())
-                    next.Audio.Overrides.Remove(slot.Key);
+                foreach (var selection in new MaterialGroupSelection[] { next.Audio, next.Combo })
+                {
+                    selection.Groups.RemoveAll(removed.Contains);
+                    foreach (var slot in selection.Overrides.Where(x => removed.Contains(x.Value)).ToArray())
+                        selection.Overrides.Remove(slot.Key);
+                }
                 next.Installed.Remove(pack);
                 Resolve(next, next.Audio);
+                MaterialPackResolver.ResolveCombo(next.Installed, next.Combo, InstalledRoot);
                 return Commit(next);
             }
         }
 
-        internal IReadOnlyList<MaterialAudioBinding> Capture()
+        internal IReadOnlyList<MaterialAudioBinding> Capture(out IReadOnlyList<MaterialSpriteBinding> combo, out MaterialComboLayout layout)
         {
             lock (_gate)
             {
                 IReadOnlyList<MaterialAudioBinding> bindings = _state.Audio.Groups.Count == 0 && _state.Audio.Overrides.Count == 0
                     ? Array.Empty<MaterialAudioBinding>() : Resolve(_state, _state.Audio);
+                combo = _state.Combo.Groups.Count == 0 && _state.Combo.Overrides.Count == 0
+                    ? Array.Empty<MaterialSpriteBinding>() : MaterialPackResolver.ResolveCombo(_state.Installed, _state.Combo, InstalledRoot);
+                layout = null;
+                if (_state.Combo.Groups.Count > 0)
+                {
+                    var layouts = _state.Installed.SelectMany(p => p.Groups.Where(g => g.Layout != null)
+                        .Select(g => (id: p.GroupReference(g.Id), g.Layout))).ToDictionary(x => x.id, x => x.Layout);
+                    foreach (string id in _state.Combo.Groups)
+                        if (layouts.TryGetValue(id, out layout)) break;
+                }
                 _sessions++;
                 return bindings;
             }

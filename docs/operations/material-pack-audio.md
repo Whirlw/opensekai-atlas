@@ -8,7 +8,7 @@
 
 ## 制包与调用
 
-ZIP 根目录放 UTF-8 的 `pack.json`，其余文件使用 16 位 PCM WAV、44.1 或 48 kHz、单声道或双声道。清单中的路径使用正斜杠，大小写与 ZIP 条目一致。当前导入器只接受下表音效槽。以下是只替换普通长按音的完整清单，ZIP 中还需有 `sounds/hold.wav`。
+ZIP 根目录放 UTF-8 的 `pack.json`。音效文件使用 16 位 PCM WAV、44.1 或 48 kHz、单声道或双声道。清单中的路径使用正斜杠，大小写与 ZIP 条目一致。同包可另放 PNG 和独立的 COMBO 组。以下是只替换普通长按音的完整清单，ZIP 中还需有 `sounds/hold.wav`。
 
 ```json
 {
@@ -60,7 +60,7 @@ long revision = store.SaveSelection(state.Audio, state.Revision);
 
 ## 已核对的图像入口
 
-以下入口仍消费内置资源。图像侧的公开槽位、模板部件和性能预算，须在对应样包实际运行后确定。
+COMBO 已接入打歌资源包，其余图像入口仍消费内置资源。
 
 | 类别 | 当前素材与消费点 | 首轮验证位置 |
 | --- | --- | --- |
@@ -69,7 +69,7 @@ long revision = store.SaveSelection(state.Audio, state.Revision);
 | 轨道 | `LaneView` 的 `defaultLaneBase`、`defaultLaneLine`、`defaultJudgeLine` 分别持有底板、分道线、判定线 | 轨道视觉子节点、透明度和触摸投影 |
 | HUD | `ScoreView` 绑定分数槽与段位字，`LifeView` 绑定普通／受伤血条和暂停／跳过按钮，`LiveFrontView` 管理 Auto 标识 | 分数跨档、血条填充、暂停点击区 |
 | 判定文字 | `JudgmentView` 依判定档取图，目前 Just Perfect 的内置回退取 PERFECT。快慢提示由 `JudgmentDescriptionView` 在同帧最差判定确定后显示 | 连续同档、Auto 显示设置、同帧多个音符 |
-| COMBO | `ComboView` 分别持有标签、普通／AP／光圈三组 0–9 字形，并复用数字渲染器 | 首局、9 → 10、AP 转普通、断连重置 |
+| COMBO | `ComboView` 为普通、AP、光圈各提供一个标签及 0–9 字形，共 33 个槽。[制包与试用说明](material-pack-combo.md) | 跨位数、AP 转普通、断连、重试 |
 | 判定特效 | `TapEffectView` 为普通、critical、摩擦、划键、长条和连接点建立效果池，`LongTapEffectView` 持有持续模板，NextRUSH 另有轨道反馈 | 轨道局部空间，开始、持续、释放、暂停重开 |
 | 结算特效 | `LiveResultView` 先淡入背景，再选择 `fx_result_failed_v2`、`fx_result_finish`、`fx_result_clear_v2`、`fx_result_full_combo_v2` 或 `fx_result_all_perfect_v2` | 全屏，五种结果的触发与跳过 |
 

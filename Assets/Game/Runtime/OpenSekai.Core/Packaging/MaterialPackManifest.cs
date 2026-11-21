@@ -8,10 +8,14 @@ using Newtonsoft.Json.Linq;
 
 namespace OpenSekai.MaterialPacks
 {
-    public sealed class MaterialAudioSlot
+    public abstract class MaterialMediaSlot
     {
         public string File { get; set; }
         public string Hash { get; set; }
+    }
+
+    public sealed class MaterialAudioSlot : MaterialMediaSlot
+    {
         public int Channels { get; set; }
         public int Frames { get; set; }
         public int Start { get; set; }
@@ -22,7 +26,10 @@ namespace OpenSekai.MaterialPacks
     {
         public string Id { get; set; }
         public string DisplayName { get; set; }
+        public string Category { get; set; } = "audio";
+        public MaterialComboLayout Layout { get; set; }
         public Dictionary<string, MaterialAudioSlot> Slots { get; set; } = new();
+        public Dictionary<string, MaterialSpriteSlot> Sprites { get; set; } = new();
     }
 
     public sealed class InstalledMaterialPack
@@ -40,7 +47,8 @@ namespace OpenSekai.MaterialPacks
         private static readonly Regex _reserved = new(@"^(con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(\.|$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
         public static InstalledMaterialPack Parse(string json, string digest,
-            IReadOnlyDictionary<string, (string hash, MaterialPackWave wave)> media)
+            IReadOnlyDictionary<string, (string hash, MaterialPackWave wave)> media,
+            IReadOnlyDictionary<string, (string hash, int width, int height)> images = null)
         {
             JObject root;
             try
@@ -59,14 +67,28 @@ namespace OpenSekai.MaterialPacks
             foreach (JToken element in groups)
             {
                 if (element is not JObject group) throw Error(element, "需要资源组对象");
-                Fields(group, "id", "category", "displayName", "slots", "extensions");
+                Fields(group, "id", "category", "displayName", "slots", "layout", "extensions");
                 var result = new MaterialPackGroup { Id = Id(group, "id") };
                 if (!ids.Add(result.Id)) throw Error(group, "重复组 ID " + result.Id);
                 if (group["displayName"] != null) result.DisplayName = Required(group, "displayName");
-                if (Required(group, "category") != "audio") throw Error(group, "当前只支持 audio 类别");
-                if (group["slots"] is not JObject slots || !slots.HasValues) throw Error(group, "需要非空 slots 对象");
+                result.Category = Required(group, "category");
+                if (result.Category is not ("audio" or "combo")) throw Error(group, "不支持的类别 " + result.Category);
+                if (group.TryGetValue("layout", out var layout))
+                {
+                    if (result.Category != "combo" || layout is not JObject obj) throw Error(layout, "需要 COMBO 布局对象");
+                    Fields(obj, "position", "scale", "digitsPosition", "burstPosition", "glowPosition");
+                    result.Layout = new MaterialComboLayout { Position = Pair(obj, "position"), Scale = Pair(obj, "scale"),
+                        DigitsPosition = Pair(obj, "digitsPosition"), BurstPosition = Pair(obj, "burstPosition"), GlowPosition = Pair(obj, "glowPosition") };
+                    if (!result.Layout.IsValid()) throw Error(layout, "COMBO 布局数值越界");
+                }
+                if (group["slots"] is not JObject slots || !slots.HasValues && result.Layout == null) throw Error(group, "需要槽位或 COMBO 布局");
                 foreach (var property in slots.Properties())
                 {
+                    if (result.Category == "combo")
+                    {
+                        result.Sprites.Add(property.Name, ParseSprite(property, images));
+                        continue;
+                    }
                     if (!MaterialPackAudio.HasSlot(property.Name) || property.Value is not JObject slot)
                         throw Error(property, "未知槽位或槽位值无效");
                     Fields(slot, "file", "loopFrames", "extensions");
@@ -87,6 +109,47 @@ namespace OpenSekai.MaterialPacks
                 pack.Groups.Add(result);
             }
             return pack;
+        }
+
+        private static MaterialSpriteSlot ParseSprite(JProperty property, IReadOnlyDictionary<string, (string hash, int width, int height)> images)
+        {
+            if (!MaterialComboSlots.HasSlot(property.Name) || property.Value is not JObject slot)
+                throw Error(property, "未知 COMBO 槽位或槽位值无效");
+            Fields(slot, "file", "rect", "pivot", "scale", "size", "position", "offset", "advance", "opacity", "extensions");
+            string file = Required(slot, "file");
+            if (images == null || !images.TryGetValue(file, out var image)) throw Error(slot, "找不到 PNG " + file);
+            var sprite = new MaterialSpriteSlot { File = file, Hash = image.hash, Width = image.width, Height = image.height,
+                Rect = new[] { 0, 0, image.width, image.height } };
+            if (slot["rect"] is JToken rect)
+            {
+                if (rect is not JArray items || items.Count != 4) throw Error(rect, "需要 [x,y,w,h]");
+                sprite.Rect = items.Select(Integer).ToArray();
+            }
+            sprite.Pivot = Pair(slot, "pivot");
+            sprite.Scale = Pair(slot, "scale");
+            sprite.Size = Pair(slot, "size");
+            sprite.Position = Pair(slot, "position");
+            sprite.Offset = Pair(slot, "offset");
+            if (slot["opacity"] != null) sprite.Opacity = Number(slot["opacity"]);
+            if (slot["advance"] != null) sprite.Advance = Number(slot["advance"]);
+            if (!sprite.IsValid(property.Name)) throw Error(slot, "切片或布局数值越界");
+            return sprite;
+
+        }
+
+        private static float[] Pair(JObject obj, string field)
+        {
+            if (obj[field] == null) return null;
+            if (obj[field] is not JArray values || values.Count != 2) throw Error(obj[field], "需要两个数值");
+            return values.Select(Number).ToArray();
+        }
+
+        private static float Number(JToken token)
+        {
+            if (token.Type is not (JTokenType.Float or JTokenType.Integer)) throw Error(token, "需要有限数值");
+            double value = (double)token;
+            if (double.IsNaN(value) || Math.Abs(value) > float.MaxValue) throw Error(token, "需要有限数值");
+            return (float)value;
         }
 
         internal static void CheckPath(string path)

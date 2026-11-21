@@ -9,9 +9,12 @@ namespace Sekai
 		public string CustomMusicScorePath { get; set; }
 		public byte[] TemporaryJacketData { get; set; }
 		public LiveMaterialAudio MaterialAudio { get; set; }
+		public LiveComboSkin ComboSkin { get; set; }
 
 		internal void ReleaseMaterialAudio()
 		{
+			ComboSkin?.Dispose();
+			ComboSkin = null;
 			MaterialAudio?.Dispose();
 			MaterialAudio = null;
 		}
