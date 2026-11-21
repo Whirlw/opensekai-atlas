@@ -12,6 +12,7 @@ namespace Sekai
 		public LiveComboSkin ComboSkin { get; set; }
 		public LiveSpriteSkin JudgmentSkin { get; set; }
 		public LiveBackgroundSkin BackgroundSkin { get; set; }
+		public LiveResultEffectSkin ResultFxSkin { get; set; }
 		public LiveHudSkin HudSkin { get; set; }
 		public LiveSpriteSkin LaneSkin { get; set; }
 		public LiveNoteSkin NoteSkin { get; set; }
@@ -21,6 +22,8 @@ namespace Sekai
 		{
 			BackgroundSkin?.Dispose();
 			BackgroundSkin = null;
+			ResultFxSkin?.Dispose();
+			ResultFxSkin = null;
 			HudSkin?.Dispose();
 			HudSkin = null;
 			LaneSkin?.Dispose();

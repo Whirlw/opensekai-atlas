@@ -37,6 +37,10 @@ namespace Sekai
 
         internal HitEffectSequence(LiveHitEffectSkin skin, Transform parent, Layer[] layers, Material[] materials,
             ParticleSystemRenderer reference, bool hold)
+            : this(skin, parent, layers, materials, reference.gameObject.layer, reference.sortingLayerID, reference.sortingOrder, hold) { }
+
+        internal HitEffectSequence(LiveHitEffectSkin skin, Transform parent, Layer[] layers, Material[] materials,
+            int layer, int sortingLayer, int order, bool hold)
         {
             _skin = skin;
             _hold = hold;
@@ -44,14 +48,14 @@ namespace Sekai
             _renderers = new Renderer[layers.Length];
             for (int i = 0; i < layers.Length; i++)
             {
-                var go = new GameObject("Hit effect layer " + i) { layer = reference.gameObject.layer };
+                var go = new GameObject((skin == null ? "Result effect layer " : "Hit effect layer ") + i) { layer = layer };
                 go.transform.SetParent(parent, false);
                 go.transform.localPosition = layers[i].Offset;
                 var renderer = go.AddComponent<SpriteRenderer>();
                 renderer.enabled = false;
-                renderer.sharedMaterial = materials[i];
-                renderer.sortingLayerID = reference.sortingLayerID;
-                renderer.sortingOrder = reference.sortingOrder + i;
+                if (materials != null) renderer.sharedMaterial = materials[i];
+                renderer.sortingLayerID = sortingLayer;
+                renderer.sortingOrder = order + i;
                 _players[i] = new Player { Layer = layers[i], Renderer = renderer };
                 _renderers[i] = renderer;
             }
@@ -83,7 +87,7 @@ namespace Sekai
 
         internal void Advance(float dt)
         {
-            if (!Active || _skin.Paused) return;
+            if (!Active || _skin?.Paused == true) return;
             bool visible = false;
             foreach (var p in _players)
             {

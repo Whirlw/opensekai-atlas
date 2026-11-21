@@ -23,6 +23,8 @@ namespace OpenSekai.App.Playback
         private readonly MaterialBackgroundBinding _background;
         internal LiveBackgroundSkin Background { get; }
         private readonly IReadOnlyList<MaterialSpriteBinding> _hudSprites;
+        private readonly IReadOnlyList<MaterialSpriteBinding> _resultSprites;
+        internal LiveResultEffectSkin ResultFx { get; }
         internal LiveHudSkin Hud { get; }
         internal LiveSpriteSkin Lane { get; }
         internal LiveNoteSkin Notes { get; }
@@ -32,7 +34,8 @@ namespace OpenSekai.App.Playback
 
         internal MaterialAudioPreparation(MaterialPackStore store)
         {
-            _bindings = store.Capture(out _sprites, out var layout, out _judgmentSprites, out _hitSprites, out _noteSprites, out _laneSprites, out _background, out _hudSprites);
+            _bindings = store.Capture(out _sprites, out var layout, out _judgmentSprites, out _hitSprites, out _noteSprites, out _laneSprites, out _background, out _hudSprites, out _resultSprites);
+            if (_resultSprites.Any(x => x.Source != null)) ResultFx = new LiveResultEffectSkin();
             if (_hudSprites.Any(x => x.Source != null)) Hud = new LiveHudSkin();
             if (_background?.Source != null) Background = new LiveBackgroundSkin(_background.Media);
             if (_laneSprites.Any(x => x.Source != null)) Lane = new LiveSpriteSkin();
@@ -56,12 +59,12 @@ namespace OpenSekai.App.Playback
             await PrepareSpritesAsync(_noteSprites, Notes, diagnostics, token);
             await PrepareSpritesAsync(_sprites, Combo, diagnostics, token);
             await PrepareSpritesAsync(_judgmentSprites, Judgment, diagnostics, token);
-            if (HitFx != null)
+            if (HitFx != null) await PrepareEffectsAsync(_hitSprites, HitFx, diagnostics, token);
+            if (ResultFx != null)
             {
-                var selected = _hitSprites.Where(binding => binding.Source != null).ToArray();
-                await PrepareSpritesAsync(selected.SelectMany(binding => binding.Images()).ToArray(), HitFx, diagnostics, token);
-                foreach (var binding in selected)
-                    if (binding.Media.Layers != null) HitFx.BindSequence(binding.Slot, binding.Media);
+                foreach (var binding in _resultSprites.Where(b => b.Source != null && MaterialResultFxSlots.IsLayout(b.Slot)))
+                    ResultFx.BindLayout(binding.Slot, binding.Media);
+                await PrepareEffectsAsync(_resultSprites, ResultFx, diagnostics, token);
             }
             var cache = new Dictionary<(string hash, int start, int end), AudioClip>();
             foreach (var file in _bindings.Where(x => x.Source != null).GroupBy(x => x.Path))
@@ -107,6 +110,15 @@ namespace OpenSekai.App.Playback
                     return clip;
                 }
             }
+        }
+
+        private static async Task PrepareEffectsAsync(IReadOnlyList<MaterialSpriteBinding> bindings, LiveEffectSkin skin,
+            List<string> diagnostics, CancellationToken token)
+        {
+            var selected = bindings.Where(b => b.Source != null).ToArray();
+            await PrepareSpritesAsync(selected.SelectMany(b => b.Images()).ToArray(), skin, diagnostics, token);
+            foreach (var binding in selected)
+                if (binding.Media.Layers != null) skin.BindSequence(binding.Slot, binding.Media);
         }
 
         private static async Task PrepareSpritesAsync(IReadOnlyList<MaterialSpriteBinding> bindings, LiveSpriteSkin skin,

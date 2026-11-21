@@ -50,10 +50,12 @@ namespace OpenSekai.MaterialPacks
         public int? TemplateSet { get; set; }
         public MaterialEffectLayer[] Layers { get; set; }
 
+        internal static bool IsLayout(string slot) => MaterialHudSlots.IsLayout(slot) || MaterialResultFxSlots.IsLayout(slot);
+
         internal bool IsValid(string slot)
         {
             if (DrawMode != null && (!MaterialHudSlots.HasSlot(slot) || MaterialHudSlots.IsLayout(slot) || MaterialHudSlots.IsRing(slot) || DrawMode is not ("stretch" or "tile"))) return false;
-            if (MaterialHudSlots.IsLayout(slot))
+            if (IsLayout(slot))
                 return (Position != null || Scale != null) && PairInRange(Position, -8192, 8192) && PositivePair(Scale, 64)
                     && File == null && Hash == null && Rect == null && Width == 0 && Height == 0 && Pivot == null && Offset == null
                     && Size == null && Border == null && NoteSlice == null && Advance == null && Opacity == null && Layers == null && TemplateSet == null;
@@ -63,7 +65,7 @@ namespace OpenSekai.MaterialPacks
                 || MaterialHudSlots.IsRing(slot) && (Size != null || Pivot != null || Border != null || Rect?.Length != 4
                     || Rect[0] != 0 || Rect[1] != 0 || Rect[2] != Width || Rect[3] != Height))) return false;
             if (TemplateSet.HasValue && (TemplateSet is not (1 or 2) || !MaterialHitFxSlots.HasSlot(slot) || MaterialHitFxSlots.IsTrail(slot))) return false;
-            if (Layers != null && (!MaterialHitFxSlots.HasSlot(slot) || MaterialHitFxSlots.IsTrail(slot)
+            if (Layers != null && (!MaterialHitFxSlots.HasSlot(slot) && !MaterialResultFxSlots.IsEvent(slot) || MaterialHitFxSlots.IsTrail(slot)
                 || Layers.Length is < 1 or > 8 || Layers.Any(layer => layer == null || !layer.IsValid(slot))
                 || File != Layers[0].File || Hash != Layers[0].Hash || Width != Layers[0].Width || Height != Layers[0].Height)) return false;
             if (MaterialHitFxSlots.HasSlot(slot))
@@ -71,6 +73,15 @@ namespace OpenSekai.MaterialPacks
                 if (Rect?.Length != 4 || Rect[0] != 0 || Rect[1] != 0 || Rect[2] != Width || Rect[3] != Height
                     || Pivot != null || Offset != null || Size != null || Advance != null || Opacity != null
                     || MaterialHitFxSlots.IsTrail(slot) && (Scale != null || Position != null)) return false;
+            }
+            if (MaterialResultFxSlots.HasSlot(slot))
+            {
+                if (MaterialResultFxSlots.IsEvent(slot) != (Layers != null) || Advance != null || Offset != null || Opacity != null) return false;
+                if (MaterialResultFxSlots.IsEvent(slot) || MaterialResultFxSlots.IsTexture(slot))
+                {
+                    if (Pivot != null || Size != null || Rect?.Length != 4 || Rect[0] != 0 || Rect[1] != 0 || Rect[2] != Width || Rect[3] != Height) return false;
+                    if (MaterialResultFxSlots.IsTexture(slot) && (Position != null || Scale != null)) return false;
+                }
             }
             if (MaterialLaneSlots.HasSlot(slot) && Offset != null) return false;
             if (NoteSlice != null && (!MaterialNoteSlots.HasSlot(slot) || MaterialNoteSlots.IsLine(slot)
@@ -86,7 +97,7 @@ namespace OpenSekai.MaterialPacks
                 && Rect[0] <= Width - Rect[2] && Rect[1] <= Height - Rect[3]
                 && PairInRange(Pivot, 0, 1) && PairInRange(Offset, -8192, 8192)
                 && PositivePair(Scale, 64) && PositivePair(Size, 8192)
-                && (Position == null || (slot.EndsWith(".label", StringComparison.Ordinal) || MaterialJudgmentSlots.HasSlot(slot) || MaterialHitFxSlots.HasSlot(slot) || MaterialNoteSlots.HasSlot(slot) || MaterialLaneSlots.HasSlot(slot) || MaterialHudSlots.HasSlot(slot)) && PairInRange(Position, -8192, 8192))
+                && (Position == null || (slot.EndsWith(".label", StringComparison.Ordinal) || MaterialJudgmentSlots.HasSlot(slot) || MaterialHitFxSlots.HasSlot(slot) || MaterialNoteSlots.HasSlot(slot) || MaterialLaneSlots.HasSlot(slot) || MaterialHudSlots.HasSlot(slot) || MaterialResultFxSlots.IsEvent(slot) || slot == MaterialResultFxSlots.BACKGROUND) && PairInRange(Position, -8192, 8192))
                 && (Opacity == null || slot.StartsWith("combo.glow.", StringComparison.Ordinal) && Opacity >= 0 && Opacity <= 1)
                 && (Advance == null || slot.Contains(".digit.") && !slot.StartsWith("combo.glow.", StringComparison.Ordinal)
                     && Advance > 0 && Advance <= 8192);

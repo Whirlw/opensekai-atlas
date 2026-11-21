@@ -72,7 +72,7 @@ namespace OpenSekai.MaterialPacks
                 if (!ids.Add(result.Id)) throw Error(group, "重复组 ID " + result.Id);
                 if (group["displayName"] != null) result.DisplayName = Required(group, "displayName");
                 result.Category = Required(group, "category");
-                if (result.Category is not ("audio" or "combo" or "judgment" or "hitFx" or "notes" or "lane" or "hud" or "background")) throw Error(group, "不支持的类别 " + result.Category);
+                if (result.Category is not ("audio" or "combo" or "judgment" or "hitFx" or "notes" or "lane" or "hud" or "resultFx" or "background")) throw Error(group, "不支持的类别 " + result.Category);
                 if (result.Category == "background")
                 {
                     Fields(group, "id", "category", "displayName", "layers", "preferVideo", "extensions");
@@ -139,6 +139,7 @@ namespace OpenSekai.MaterialPacks
             "combo" => MaterialComboSlots.HasSlot(slot),
             "judgment" => MaterialJudgmentSlots.HasSlot(slot),
             "notes" => MaterialNoteSlots.HasSlot(slot),
+            "resultFx" => MaterialResultFxSlots.HasSlot(slot),
             "hud" => MaterialHudSlots.HasSlot(slot),
             "lane" => MaterialLaneSlots.HasSlot(slot),
             "hitFx" => MaterialHitFxSlots.HasSlot(slot),
@@ -150,6 +151,13 @@ namespace OpenSekai.MaterialPacks
             bool known = HasSpriteSlot(category, property.Name);
             if (!known || property.Value is not JObject slot)
                 throw Error(property, category + " 槽位或槽位值无效");
+            if (MaterialSpriteSlot.IsLayout(property.Name))
+            {
+                Fields(slot, "position", "scale", "extensions");
+                var layout = new MaterialSpriteSlot { Position = Pair(slot, "position"), Scale = Pair(slot, "scale") };
+                if (!layout.IsValid(property.Name)) throw Error(slot, "布局数值无效");
+                return layout;
+            }
             if (category == "hitFx")
             {
                 if (!MaterialHitFxSlots.IsTrail(property.Name) && slot["kind"]?.Type == JTokenType.String && (string)slot["kind"] == "sequence")
@@ -157,15 +165,19 @@ namespace OpenSekai.MaterialPacks
                 if (MaterialHitFxSlots.IsTrail(property.Name)) Fields(slot, "file", "extensions");
                 else Fields(slot, "file", "scale", "position", "extensions");
             }
+            else if (category == "resultFx")
+            {
+                if (MaterialResultFxSlots.IsEvent(property.Name))
+                {
+                    if (Required(slot, "kind") != "sequence") throw Error(slot, "结算演出需要 sequence");
+                    return ParseSequence(property.Name, slot, images);
+                }
+                if (MaterialResultFxSlots.IsTexture(property.Name)) Fields(slot, "file", "extensions");
+                else if (property.Name == MaterialResultFxSlots.BACKGROUND) Fields(slot, "file", "rect", "pivot", "size", "scale", "position", "extensions");
+                else Fields(slot, "file", "rect", "pivot", "size", "scale", "extensions");
+            }
             else if (category == "hud")
             {
-                if (MaterialHudSlots.IsLayout(property.Name))
-                {
-                    Fields(slot, "position", "scale", "extensions");
-                    var layout = new MaterialSpriteSlot { Position = Pair(slot, "position"), Scale = Pair(slot, "scale") };
-                    if (!layout.IsValid(property.Name)) throw Error(slot, "HUD 布局数值无效");
-                    return layout;
-                }
                 if (MaterialHudSlots.IsRing(property.Name)) Fields(slot, "file", "scale", "position", "extensions");
                 else Fields(slot, "file", "rect", "pivot", "size", "scale", "position", "border", "drawMode", "extensions");
             }
@@ -249,7 +261,7 @@ namespace OpenSekai.MaterialPacks
             {
                 if (item is not JObject layer) throw Error(item, "需要序列层对象");
                 Fields(layer, "file", "anchor", "size", "scale", "offset", "pivot", "frames", "loopFrameRange", "extensions");
-                string anchor = key == "hitFx.screen.damage" ? "center" : "hit";
+                string anchor = MaterialResultFxSlots.IsEvent(key) || key == "hitFx.screen.damage" ? "center" : "hit";
                 if (layer["anchor"] != null && Required(layer, "anchor") != anchor) throw Error(layer, "此槽的锚点为 " + anchor);
                 string file = Required(layer, "file");
                 if (images == null || !images.TryGetValue(file, out var image)) throw Error(layer, "找不到 PNG " + file);

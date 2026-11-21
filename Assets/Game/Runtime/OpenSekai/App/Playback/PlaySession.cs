@@ -20,7 +20,7 @@ namespace OpenSekai.App.Playback
             SongPackage package,
             RuntimeChartDefinition chart,
             LiveBundleBuildData bundleConfig,
-            LiveSettingData settings, LiveMaterialAudio materialAudio, LiveComboSkin comboSkin, LiveSpriteSkin judgmentSkin, LiveHitEffectSkin hitFxSkin, LiveNoteSkin noteSkin, LiveSpriteSkin laneSkin, LiveBackgroundSkin backgroundSkin, LiveHudSkin hudSkin)
+            LiveSettingData settings, LiveMaterialAudio materialAudio, LiveComboSkin comboSkin, LiveSpriteSkin judgmentSkin, LiveHitEffectSkin hitFxSkin, LiveNoteSkin noteSkin, LiveSpriteSkin laneSkin, LiveBackgroundSkin backgroundSkin, LiveHudSkin hudSkin, LiveResultEffectSkin resultFxSkin)
         {
             Request = request;
             Package = package;
@@ -32,6 +32,7 @@ namespace OpenSekai.App.Playback
             JudgmentSkin = judgmentSkin;
             HitFxSkin = hitFxSkin;
             BackgroundSkin = backgroundSkin;
+            ResultFxSkin = resultFxSkin;
             HudSkin = hudSkin;
             LaneSkin = laneSkin;
             NoteSkin = noteSkin;
@@ -43,6 +44,7 @@ namespace OpenSekai.App.Playback
         public LiveComboSkin ComboSkin { get; }
         public LiveSpriteSkin JudgmentSkin { get; }
         public LiveBackgroundSkin BackgroundSkin { get; }
+        public LiveResultEffectSkin ResultFxSkin { get; }
         public LiveHudSkin HudSkin { get; }
         public LiveSpriteSkin LaneSkin { get; }
         public LiveNoteSkin NoteSkin { get; }
@@ -59,14 +61,14 @@ namespace OpenSekai.App.Playback
         public LiveSettingData Settings { get; }
 
         public static PlaySession FromChart(PlayRequest request, SongPackage package, RuntimeChartDefinition chart,
-            LiveBundleBuildData bundleConfig, PlaybackSettingsSnapshot settings, LiveMaterialAudio materialAudio = null, LiveComboSkin comboSkin = null, LiveSpriteSkin judgmentSkin = null, LiveHitEffectSkin hitFxSkin = null, LiveNoteSkin noteSkin = null, LiveSpriteSkin laneSkin = null, LiveBackgroundSkin backgroundSkin = null, LiveHudSkin hudSkin = null)
+            LiveBundleBuildData bundleConfig, PlaybackSettingsSnapshot settings, LiveMaterialAudio materialAudio = null, LiveComboSkin comboSkin = null, LiveSpriteSkin judgmentSkin = null, LiveHitEffectSkin hitFxSkin = null, LiveNoteSkin noteSkin = null, LiveSpriteSkin laneSkin = null, LiveBackgroundSkin backgroundSkin = null, LiveHudSkin hudSkin = null, LiveResultEffectSkin resultFxSkin = null)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
             if (package == null) throw new ArgumentNullException(nameof(package));
             if (chart == null) throw new ArgumentNullException(nameof(chart));
             if (bundleConfig == null) throw new ArgumentNullException(nameof(bundleConfig));
             if (settings == null) throw new ArgumentNullException(nameof(settings));
-            return new PlaySession(request, package, chart, bundleConfig, settings.ToLegacyData(), materialAudio, comboSkin, judgmentSkin, hitFxSkin, noteSkin, laneSkin, backgroundSkin, hudSkin);
+            return new PlaySession(request, package, chart, bundleConfig, settings.ToLegacyData(), materialAudio, comboSkin, judgmentSkin, hitFxSkin, noteSkin, laneSkin, backgroundSkin, hudSkin, resultFxSkin);
         }
 
         public static PlaySession Create(

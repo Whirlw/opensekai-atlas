@@ -150,7 +150,7 @@ namespace OpenSekai.App.Playback
                 }
                 cancellationToken.ThrowIfCancellationRequested();
                 if (material != null) await material.PrepareAsync(materialDiagnostics, cancellationToken);
-                PlaySession session = PlaySession.FromChart(request, entry, chart, config, settings, material?.Audio, material?.Combo, material?.Judgment, material?.HitFx, material?.Notes, material?.Lane, material?.Background, material?.Hud);
+                PlaySession session = PlaySession.FromChart(request, entry, chart, config, settings, material?.Audio, material?.Combo, material?.Judgment, material?.HitFx, material?.Notes, material?.Lane, material?.Background, material?.Hud, material?.ResultFx);
                 FreeLiveBootData boot = LegacyLiveBootAdapter.Create(session, _deckSelection.SelectedDeckId);
                 if (temporary == null) boot.CustomMusicScoreKey = _packages.FindCachedItem(entry.RootDirectory)?.ScoreKey ?? chartHash;
                 cancellationToken.ThrowIfCancellationRequested();
@@ -206,6 +206,7 @@ namespace OpenSekai.App.Playback
                 if (!transitionAccepted)
                 {
                     material?.Background?.Dispose();
+                    material?.ResultFx?.Dispose();
                     material?.Hud?.Dispose();
                     material?.Lane?.Dispose();
                     material?.Notes?.Dispose();

@@ -174,7 +174,7 @@ namespace Sekai.Live
 			{
 				autoLabel.SetActive(false);
 			}
-			liveResultView?.Setup(ShouldPlayVoiceSE());
+			liveResultView?.Setup(ShouldPlayVoiceSE(), boot?.ResultFxSkin);
 		}
 
 		public override void OnLoad()

@@ -32,6 +32,9 @@ namespace OpenSekai.EditorTools
         [MenuItem("OpenSekai/Dev/Material Packs/Enable hud ZIP...")]
         private static void EnableHudZip() => EnableZip("hud");
 
+        [MenuItem("OpenSekai/Dev/Material Packs/Enable resultFx ZIP...")]
+        private static void EnableResultFxZip() => EnableZip("resultFx");
+
         [MenuItem("OpenSekai/Dev/Material Packs/Enable background ZIP...")]
         private static void EnableBackgroundZip() => EnableZip("background");
 
@@ -53,6 +56,7 @@ namespace OpenSekai.EditorTools
                 else if (category == "notes") store.SaveNotesSelection(new MaterialGroupSelection { Groups = groups }, state.Revision);
                 else if (category == "lane") store.SaveLaneSelection(new MaterialGroupSelection { Groups = groups }, state.Revision);
                 else if (category == "hud") store.SaveHudSelection(new MaterialGroupSelection { Groups = groups }, state.Revision);
+                else if (category == "resultFx") store.SaveResultFxSelection(new MaterialGroupSelection { Groups = groups }, state.Revision);
                 else if (category == "background") store.SaveBackgroundSelection(new MaterialGroupSelection { Groups = groups }, state.Revision);
                 else store.SaveComboSelection(new MaterialGroupSelection { Groups = groups }, state.Revision);
                 Debug.Log("[MaterialPack] 下一局将使用 " + pack.PackId + " 的 " + category + " 组。");
@@ -81,6 +85,9 @@ namespace OpenSekai.EditorTools
         [MenuItem("OpenSekai/Dev/Material Packs/Restore built-in hud")]
         private static void RestoreHud() => Restore("hud");
 
+        [MenuItem("OpenSekai/Dev/Material Packs/Restore built-in resultFx")]
+        private static void RestoreResultFx() => Restore("resultFx");
+
         [MenuItem("OpenSekai/Dev/Material Packs/Restore built-in background")]
         private static void RestoreBackground() => Restore("background");
 
@@ -95,6 +102,7 @@ namespace OpenSekai.EditorTools
                 else if (category == "notes") store.SaveNotesSelection(new MaterialGroupSelection(), store.List().Revision);
                 else if (category == "lane") store.SaveLaneSelection(new MaterialGroupSelection(), store.List().Revision);
                 else if (category == "hud") store.SaveHudSelection(new MaterialGroupSelection(), store.List().Revision);
+                else if (category == "resultFx") store.SaveResultFxSelection(new MaterialGroupSelection(), store.List().Revision);
                 else if (category == "background") store.SaveBackgroundSelection(new MaterialGroupSelection(), store.List().Revision);
                 else store.SaveComboSelection(new MaterialGroupSelection(), store.List().Revision);
                 Debug.Log("[MaterialPack] 下一局将使用内置 " + category + "。");
