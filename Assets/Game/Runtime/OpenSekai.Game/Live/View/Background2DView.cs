@@ -47,6 +47,8 @@ namespace Sekai.Live
 		private SpriteRenderer[] jackets;
 
 		private BaseLiveController _baseController;
+		private LiveBackgroundSkin _skin;
+		private LiveBackgroundComposition _composition;
 		private Texture2D _externalJacketTexture;
 		private Sprite _externalJacketSprite;
 		private int _lastRenderedScreenWidth;
@@ -74,6 +76,9 @@ namespace Sekai.Live
 
 		public override void Setup(BaseLiveController controller)
 		{
+			_composition?.Dispose();
+			_composition = null;
+			_skin = (controller?.BootData as FreeLiveBootData)?.BackgroundSkin;
 			_baseController = controller;
 			DisableMovieMode();
 			SetupRenderTarget();
@@ -82,12 +87,41 @@ namespace Sekai.Live
 
 		public override void OnLoad()
 		{
-			if (TrySetupMovie())
+			if ((_skin == null || _skin.PreferVideo) && TrySetupMovie())
 			{
 				return;
 			}
 
+			SetupStaticBackground();
+		}
+
+		private void SetupStaticBackground()
+		{
+			if (_skin != null && jacketCamera != null)
+			{
+				DisableMovieMode();
+				_composition?.Dispose();
+				_composition = _skin.Create(jacketCamera, transform, backgroundRenderer.sharedMaterial, _skin.UsesJacket ? LoadJacketTexture() : null);
+				if (_composition.HasVisibleLayers)
+				{
+					jacketModeRoot.SetActive(false);
+					RenderComposition();
+					return;
+				}
+				_composition.Dispose();
+				_composition = null;
+			}
 			SetupJacket();
+		}
+
+		private void RenderComposition()
+		{
+			gameObject.SetActive(true);
+			_baseController.EnsureBackgroundTextureSizeForCurrentScreen();
+			_composition.Render(_baseController.BackgroundTexture);
+			_lastRenderedScreenWidth = Screen.width;
+			_lastRenderedScreenHeight = Screen.height;
+			gameObject.SetActive(false);
 		}
 
 		private void SetupRenderTarget()
@@ -159,7 +193,8 @@ namespace Sekai.Live
 				return;
 			}
 
-			RenderJacketBackground();
+			if (_composition != null) RenderComposition();
+			else RenderJacketBackground();
 		}
 
 		public override void MusicStart(float musicTime)
@@ -313,6 +348,7 @@ namespace Sekai.Live
 				return false;
 			}
 
+			gameObject.SetActive(true);
 			_movieModeActive = true;
 			_pendingMoviePlay = false;
 			_pendingMovieStartTime = 0f;
@@ -399,7 +435,7 @@ namespace Sekai.Live
 
 		private void OnMovieError(VideoPlayer source, string message)
 		{
-			if (source != _videoPlayer)
+			if (!_movieModeActive || source != _videoPlayer)
 			{
 				return;
 			}
@@ -407,7 +443,7 @@ namespace Sekai.Live
 			Debug.LogWarningFormat("2DMV playback failed. url:{0} error:{1}", source != null ? source.url : string.Empty, message);
 			_movieModeActive = false;
 			StopMovie();
-			SetupJacket();
+			SetupStaticBackground();
 		}
 
 		private RenderTexture EnsureMovieTexture(int width, int height)
@@ -770,6 +806,7 @@ namespace Sekai.Live
 
 		private void OnDestroy()
 		{
+			_composition?.Dispose();
 			if (_videoPlayer != null)
 			{
 				_videoPlayer.prepareCompleted -= OnMoviePrepared;

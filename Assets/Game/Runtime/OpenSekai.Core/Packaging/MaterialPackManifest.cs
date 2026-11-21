@@ -27,6 +27,7 @@ namespace OpenSekai.MaterialPacks
         public string Id { get; set; }
         public string DisplayName { get; set; }
         public string Category { get; set; } = "audio";
+        public MaterialBackgroundScene Background { get; set; }
         public MaterialComboLayout Layout { get; set; }
         public Dictionary<string, MaterialAudioSlot> Slots { get; set; } = new();
         public Dictionary<string, MaterialSpriteSlot> Sprites { get; set; } = new();
@@ -67,12 +68,24 @@ namespace OpenSekai.MaterialPacks
             foreach (JToken element in groups)
             {
                 if (element is not JObject group) throw Error(element, "需要资源组对象");
-                Fields(group, "id", "category", "displayName", "slots", "layout", "templateSet", "extensions");
                 var result = new MaterialPackGroup { Id = Id(group, "id") };
                 if (!ids.Add(result.Id)) throw Error(group, "重复组 ID " + result.Id);
                 if (group["displayName"] != null) result.DisplayName = Required(group, "displayName");
                 result.Category = Required(group, "category");
-                if (result.Category is not ("audio" or "combo" or "judgment" or "hitFx" or "notes" or "lane")) throw Error(group, "不支持的类别 " + result.Category);
+                if (result.Category is not ("audio" or "combo" or "judgment" or "hitFx" or "notes" or "lane" or "background")) throw Error(group, "不支持的类别 " + result.Category);
+                if (result.Category == "background")
+                {
+                    Fields(group, "id", "category", "displayName", "layers", "preferVideo", "extensions");
+                    if (group["layers"] is not JArray layers || layers.Count is < 1 or > MaterialBackgroundScene.MAX_LAYERS)
+                        throw Error(group, "背景需要 1–256 个图层");
+                    if (group["preferVideo"] != null && group["preferVideo"].Type != JTokenType.Boolean)
+                        throw Error(group, "preferVideo 需要布尔值");
+                    result.Background = new MaterialBackgroundScene { PreferVideo = (bool?)group["preferVideo"] ?? true,
+                        Layers = layers.Select(layer => ParseBackgroundLayer(layer, images, false)).ToArray() };
+                    pack.Groups.Add(result);
+                    continue;
+                }
+                Fields(group, "id", "category", "displayName", "slots", "layout", "templateSet", "extensions");
                 int? templateSet = null;
                 if (group.TryGetValue("templateSet", out var template))
                 {
@@ -170,6 +183,45 @@ namespace OpenSekai.MaterialPacks
             if (!sprite.IsValid(property.Name)) throw Error(slot, "切片或布局数值越界");
             return sprite;
 
+        }
+
+        private static MaterialBackgroundLayer ParseBackgroundLayer(JToken token, IReadOnlyDictionary<string, (string hash, int width, int height)> images, bool mask)
+        {
+            if (token is not JObject obj) throw Error(token, "需要背景图层对象");
+            string type = mask ? "image" : Required(obj, "type");
+            if (mask) Fields(obj, "file", "rect", "size", "scale", "position", "pivot", "rotation", "depth", "cutoff", "extensions");
+            else if (type == "image") Fields(obj, "type", "file", "rect", "size", "scale", "position", "pivot", "rotation", "depth", "fit", "color", "mask", "flipX", "flipY", "extensions");
+            else if (type == "jacket") Fields(obj, "type", "size", "scale", "position", "pivot", "rotation", "depth", "fit", "color", "mask", "flipX", "flipY", "extensions");
+            else throw Error(obj, "图层类型需要 image 或 jacket");
+            var layer = new MaterialBackgroundLayer { Type = type, Size = Pair(obj, "size"), Scale = Pair(obj, "scale"),
+                Position = Pair(obj, "position"), Pivot = Pair(obj, "pivot"), Fit = obj["fit"] == null ? null : Required(obj, "fit"),
+                Depth = obj["depth"] == null ? 0 : Number(obj["depth"]), Rotation = Numbers(obj, "rotation", 3),
+                FlipX = Flag(obj, "flipX"), FlipY = Flag(obj, "flipY"), Color = Numbers(obj, "color", 4), Cutoff = obj["cutoff"] == null ? .5f : Number(obj["cutoff"]) };
+            if (type == "image")
+            {
+                string path = Required(obj, "file");
+                if (images == null || !images.TryGetValue(path, out var image)) throw Error(obj, "找不到 PNG " + path);
+                layer.Image = new MaterialSpriteSlot { File = path, Hash = image.hash, Width = image.width, Height = image.height,
+                    Rect = obj["rect"] == null ? new[] { 0, 0, image.width, image.height } : Integers(obj, "rect", 4), Pivot = layer.Pivot };
+            }
+            if (obj["mask"] is JArray masks)
+            {
+                if (masks.Count is < 1 or > 16) throw Error(masks, "一层可使用 1–16 个遮罩");
+                layer.Masks = masks.Select(m => ParseBackgroundLayer(m, images, true)).ToArray();
+            }
+            else if (obj["mask"] != null) layer.Masks = new[] { ParseBackgroundLayer(obj["mask"], images, true) };
+            if (!layer.IsValid(mask)) throw Error(obj, "背景图层切片或布局数值越界");
+            return layer;
+        }
+
+        private static bool Flag(JObject obj, string field) => obj[field] == null ? false :
+            obj[field].Type == JTokenType.Boolean ? (bool)obj[field] : throw Error(obj[field], "需要布尔值");
+
+        private static float[] Numbers(JObject obj, string field, int count)
+        {
+            if (obj[field] == null) return null;
+            if (obj[field] is not JArray array || array.Count != count) throw Error(obj[field], "需要 " + count + " 个数值");
+            return array.Select(Number).ToArray();
         }
 
         private static MaterialSpriteSlot ParseSequence(string key, JObject slot,

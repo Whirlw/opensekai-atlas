@@ -29,6 +29,7 @@ namespace OpenSekai.App.Playback
                 ComboSkin = session.ComboSkin,
                 JudgmentSkin = session.JudgmentSkin,
                 HitFxSkin = session.HitFxSkin,
+                BackgroundSkin = session.BackgroundSkin,
                 LaneSkin = session.LaneSkin,
                 NoteSkin = session.NoteSkin,
                 MVQualityType = settings.QualityType,

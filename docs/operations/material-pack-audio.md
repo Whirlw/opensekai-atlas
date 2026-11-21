@@ -14,7 +14,7 @@
 
 ## 制包与调用
 
-ZIP 根目录放 UTF-8 的 `pack.json`。音效文件使用 16 位 PCM WAV、44.1 或 48 kHz、单声道或双声道。清单中的路径使用正斜杠，大小写与 ZIP 条目一致。同包可另放 PNG 和独立的 COMBO、判定文字、判定特效、音符皮肤及轨道组。以下是只替换普通长按音的完整清单，ZIP 中还需有 `sounds/hold.wav`。
+ZIP 根目录放 UTF-8 的 `pack.json`。音效文件使用 16 位 PCM WAV、44.1 或 48 kHz、单声道或双声道。清单中的路径使用正斜杠，大小写与 ZIP 条目一致。同包可另放 PNG 和独立的 COMBO、判定文字、判定特效、音符皮肤、轨道和背景组。以下是只替换普通长按音的完整清单，ZIP 中还需有 `sounds/hold.wav`。
 
 ```json
 {
@@ -66,11 +66,11 @@ long revision = store.SaveSelection(state.Audio, state.Revision);
 
 ## 已核对的图像入口
 
-COMBO、判定文字、判定特效、音符皮肤和轨道皮肤已接入打歌资源包，其余图像入口仍消费内置资源。
+COMBO、判定文字、判定特效、音符皮肤、轨道皮肤和背景皮肤已接入打歌资源包，其余图像入口仍消费内置资源。
 
 | 类别 | 当前素材与消费点 | 首轮验证位置 |
 | --- | --- | --- |
-| 背景 | `Background2DView` 的 `backgroundRenderer` 使用 `live/2dmode/background/default`，封面由 `jackets` 显示，视频另有渲染表面 | 全屏、封面遮罩、MV 与亮度 |
+| 背景 | `Background2DView` 按清单顺序合成普通 PNG 与歌曲封面，视频使用独立表面。[背景皮肤制包说明](material-pack-background.md) | 全屏、封面遮罩、MV 与亮度 |
 | Notes | `NotesViewManager` 建立普通／critical 各类音头池。`NoteLineView` 消费 `longNoteLine.png` 与 `traceLine_eff.png`，`PairNoteLineView` 消费 `simultaneousLine.png`。[音符皮肤制包说明](material-pack-notes.md) | 局部轨道，重点检查弯曲、变宽和 NextRUSH 四层网格的 UV |
 | 轨道 | `LaneView` 的 `defaultLaneBase`、`defaultLaneLine`、`defaultJudgeLine` 分别持有底板、分道线、判定线。[轨道皮肤制包说明](material-pack-lane.md) | 轨道视觉子节点、透明度和触摸投影 |
 | HUD | `ScoreView` 绑定分数槽与段位字，`LifeView` 绑定普通／受伤血条和暂停／跳过按钮，`LiveFrontView` 管理 Auto 标识 | 分数跨档、血条填充、暂停点击区 |

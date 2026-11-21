@@ -13,6 +13,26 @@ namespace OpenSekai.MaterialPacks
     }
 
     public sealed class MaterialAudioSelection : MaterialGroupSelection { }
+    public sealed class MaterialBackgroundBinding : MaterialBinding<MaterialBackgroundScene>
+    {
+        internal IEnumerable<MaterialSpriteBinding> Images()
+        {
+            for (int i = 0; i < Media.Layers.Length; i++)
+            {
+                var layer = Media.Layers[i];
+                string key = MaterialBackgroundScene.LayerKey(i);
+                if (layer.Image != null) yield return Bind(key, layer.Image);
+                if (layer.Masks == null) continue;
+                for (int j = 0; j < layer.Masks.Length; j++) yield return Bind(MaterialBackgroundScene.MaskKey(i, j), layer.Masks[j].Image);
+            }
+        }
+
+        private MaterialSpriteBinding Bind(string key, MaterialSpriteSlot image) => new()
+        {
+            Slot = key, Source = Source, Media = image, Path = System.IO.Path.Combine(PackRoot, image.File)
+        };
+    }
+
     public sealed class MaterialAudioBinding : MaterialBinding<MaterialAudioSlot> { }
     public sealed class MaterialSpriteBinding : MaterialBinding<MaterialSpriteSlot>
     {
@@ -29,7 +49,7 @@ namespace OpenSekai.MaterialPacks
         }
     }
 
-    public class MaterialBinding<T> where T : MaterialMediaSlot
+    public class MaterialBinding<T> where T : class
     {
         public string Slot { get; internal set; }
         public string Source { get; internal set; }
@@ -86,21 +106,34 @@ namespace OpenSekai.MaterialPacks
             return ResolveSprites(packs, selection, installedRoot, "lane", MaterialLaneSlots.Slots);
         }
 
+        public static MaterialBackgroundBinding ResolveBackground(IEnumerable<InstalledMaterialPack> packs, MaterialGroupSelection selection, string installedRoot)
+        {
+            var binding = ResolveSlots<MaterialBackgroundScene, MaterialBackgroundBinding>(packs, selection, installedRoot, "background",
+                new[] { MaterialBackgroundScene.SLOT }, group => new Dictionary<string, MaterialBackgroundScene> { [MaterialBackgroundScene.SLOT] = group.Background }).Single();
+            if (binding.Source != null) CheckTextureBudget("background", binding.Images());
+            return binding;
+        }
+
         private static List<MaterialSpriteBinding> ResolveSprites(IEnumerable<InstalledMaterialPack> packs, MaterialGroupSelection selection,
             string installedRoot, string category, IEnumerable<string> slots)
         {
             var bindings = ResolveSlots<MaterialSpriteSlot, MaterialSpriteBinding>(packs, selection, installedRoot,
                 category, slots, group => group.Sprites);
-            long bytes = bindings.Where(b => b.Source != null).SelectMany(b => b.Images()).GroupBy(b => b.Media.Hash)
+            CheckTextureBudget(category, bindings.Where(b => b.Source != null).SelectMany(b => b.Images()));
+            return bindings;
+        }
+
+        private static void CheckTextureBudget(string category, IEnumerable<MaterialSpriteBinding> images)
+        {
+            long bytes = images.GroupBy(b => b.Media.Hash)
                 .Sum(g => (long)g.First().Media.Width * g.First().Media.Height * 4);
             if (bytes > MAX_DECODED_BYTES) throw new InvalidDataException($"{category} 纹理需要 {bytes} 字节，预算 {MAX_DECODED_BYTES} 字节。");
-            return bindings;
         }
 
         private static List<TBinding> ResolveSlots<TMedia, TBinding>(IEnumerable<InstalledMaterialPack> packs,
             MaterialGroupSelection selection, string installedRoot, string category, IEnumerable<string> slots,
             Func<MaterialPackGroup, Dictionary<string, TMedia>> entries)
-            where TMedia : MaterialMediaSlot where TBinding : MaterialBinding<TMedia>, new()
+            where TMedia : class where TBinding : MaterialBinding<TMedia>, new()
         {
             if (selection?.Groups == null || selection.Overrides == null)
                 throw new InvalidDataException(category + " 选择无效。");
@@ -125,9 +158,12 @@ namespace OpenSekai.MaterialPacks
                     var (pack, group) = groups[source];
                     var media = entries(group)[slot];
                     binding.Media = media;
-                    MaterialPackManifest.CheckPath(media.File);
                     binding.PackRoot = VersionPath(installedRoot, pack);
-                    binding.Path = Path.Combine(binding.PackRoot, media.File);
+                    if (media is MaterialMediaSlot file)
+                    {
+                        MaterialPackManifest.CheckPath(file.File);
+                        binding.Path = Path.Combine(binding.PackRoot, file.File);
+                    }
                 }
                 bindings.Add(binding);
             }

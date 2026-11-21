@@ -29,6 +29,9 @@ namespace OpenSekai.EditorTools
         [MenuItem("OpenSekai/Dev/Material Packs/Enable lane ZIP...")]
         private static void EnableLaneZip() => EnableZip("lane");
 
+        [MenuItem("OpenSekai/Dev/Material Packs/Enable background ZIP...")]
+        private static void EnableBackgroundZip() => EnableZip("background");
+
         private static async void EnableZip(string category)
         {
             string directory = category == "audio" ? "Tools/fixtures" : "LocalPacks";
@@ -46,6 +49,7 @@ namespace OpenSekai.EditorTools
                 else if (category == "hitFx") store.SaveHitFxSelection(new MaterialGroupSelection { Groups = groups }, state.Revision);
                 else if (category == "notes") store.SaveNotesSelection(new MaterialGroupSelection { Groups = groups }, state.Revision);
                 else if (category == "lane") store.SaveLaneSelection(new MaterialGroupSelection { Groups = groups }, state.Revision);
+                else if (category == "background") store.SaveBackgroundSelection(new MaterialGroupSelection { Groups = groups }, state.Revision);
                 else store.SaveComboSelection(new MaterialGroupSelection { Groups = groups }, state.Revision);
                 Debug.Log("[MaterialPack] 下一局将使用 " + pack.PackId + " 的 " + category + " 组。");
             }
@@ -70,6 +74,9 @@ namespace OpenSekai.EditorTools
         [MenuItem("OpenSekai/Dev/Material Packs/Restore built-in lane")]
         private static void RestoreLane() => Restore("lane");
 
+        [MenuItem("OpenSekai/Dev/Material Packs/Restore built-in background")]
+        private static void RestoreBackground() => Restore("background");
+
         private static void Restore(string category)
         {
             try
@@ -80,6 +87,7 @@ namespace OpenSekai.EditorTools
                 else if (category == "hitFx") store.SaveHitFxSelection(new MaterialGroupSelection(), store.List().Revision);
                 else if (category == "notes") store.SaveNotesSelection(new MaterialGroupSelection(), store.List().Revision);
                 else if (category == "lane") store.SaveLaneSelection(new MaterialGroupSelection(), store.List().Revision);
+                else if (category == "background") store.SaveBackgroundSelection(new MaterialGroupSelection(), store.List().Revision);
                 else store.SaveComboSelection(new MaterialGroupSelection(), store.List().Revision);
                 Debug.Log("[MaterialPack] 下一局将使用内置 " + category + "。");
             }

@@ -157,7 +157,7 @@ namespace OpenSekai.Tests.EditMode
             var pack = await _store.ImportAsync(SAMPLE);
             var selection = new MaterialAudioSelection { Groups = { pack.GroupReference("holds") } };
             _store.SaveSelection(selection, 1);
-            var captured = _store.Capture(out _, out _, out _, out _, out _, out _);
+            var captured = _store.Capture(out _, out _, out _, out _, out _, out _, out _);
             try
             {
                 Assert.Throws<InvalidOperationException>(() => _store.SaveSelection(new MaterialAudioSelection(), 2));
@@ -185,6 +185,7 @@ namespace OpenSekai.Tests.EditMode
             legacy.Remove("HitFx");
             legacy.Remove("Notes");
             legacy.Remove("Lane");
+            legacy.Remove("Background");
             foreach (var group in legacy["Installed"][0]["Groups"].Cast<JObject>())
             {
                 group.Remove("Sprites");
@@ -195,6 +196,7 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(_store.Resolve(_store.List().Audio).Single(x => x.Slot == "audio.tap").Source, Is.EqualTo(clicks));
             Assert.That(_store.List().Notes.Groups, Is.Empty);
             Assert.That(_store.List().Lane.Groups, Is.Empty);
+            Assert.That(_store.List().Background.Groups, Is.Empty);
             var mixed = await _store.ImportAsync(MixedPack());
             var combo = new MaterialGroupSelection { Groups = { mixed.GroupReference("numbers") } };
             Assert.Throws<InvalidDataException>(() => _store.ResolveCombo(new MaterialGroupSelection { Groups = { clicks } }));
@@ -223,6 +225,11 @@ namespace OpenSekai.Tests.EditMode
             _store.SaveLaneSelection(lane, _store.List().Revision);
             _store = new MaterialPackStore(_root);
             Assert.That(_store.ResolveLane(_store.List().Lane).Single(x => x.Slot == "lane.base").Source, Is.EqualTo(lane.Groups[0]));
+            var background = new MaterialGroupSelection { Groups = { mixed.GroupReference("backdrop") } };
+            Assert.Throws<InvalidDataException>(() => _store.ResolveBackground(lane));
+            _store.SaveBackgroundSelection(background, _store.List().Revision);
+            _store = new MaterialPackStore(_root);
+            Assert.That(_store.ResolveBackground(_store.List().Background).Source, Is.EqualTo(background.Groups[0]));
             _store.Uninstall(mixed.PackId, mixed.Digest, _store.List().Revision);
             var state = new MaterialPackStore(_root).List();
             Assert.That(state.Combo.Groups, Is.Empty);
@@ -230,6 +237,7 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(state.HitFx.Groups, Is.Empty);
             Assert.That(state.Notes.Groups, Is.Empty);
             Assert.That(state.Lane.Groups, Is.Empty);
+            Assert.That(state.Background.Groups, Is.Empty);
             Assert.That(state.Audio.Groups, Is.EqualTo(new[] { clicks }));
         }
 
@@ -252,6 +260,9 @@ namespace OpenSekai.Tests.EditMode
         [TestCase("lineRect")]
         [TestCase("noteSlot")]
         [TestCase("laneSlot")]
+        [TestCase("backgroundFit")]
+        [TestCase("backgroundJacketFile")]
+        [TestCase("backgroundSize")]
         [TestCase("laneSize")]
         [TestCase("lanePosition")]
         [TestCase("sequenceFrame")]
@@ -302,6 +313,11 @@ namespace OpenSekai.Tests.EditMode
                     ["position"] = new JArray(0, fault == "lanePosition" ? 8193 : -200) };
                 ((JArray)manifest["groups"]).Add(new JObject { ["id"] = "track", ["category"] = "lane",
                     ["slots"] = new JObject { [fault == "laneSlot" ? "lane.mask" : "lane.base"] = lane } });
+                var bg = new JObject { ["type"] = fault == "backgroundJacketFile" ? "jacket" : "image",
+                    ["file"] = "glyph.png", ["fit"] = fault == "backgroundFit" ? "invalid" : "contain",
+                    ["size"] = new JArray(1080, fault == "backgroundSize" ? 0 : 720) };
+                ((JArray)manifest["groups"]).Add(new JObject { ["id"] = "backdrop", ["category"] = "background",
+                    ["layers"] = new JArray(bg, new JObject { ["type"] = "jacket" }) });
                 return manifest.ToString();
             });
             var tex = new UnityEngine.Texture2D(2, 2, UnityEngine.TextureFormat.RGBA32, false);
