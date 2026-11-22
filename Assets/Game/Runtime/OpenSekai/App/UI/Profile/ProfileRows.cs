@@ -32,23 +32,27 @@ namespace OpenSekai.App.UI
 
         internal ProfileRow(Transform parent)
         {
+            // The list pins cells by their top-left corner, so the press dip scales a centered body
+            // while the hit area stays on the unscaled root and a press near the edge keeps hitting.
             Root = LibraryUi.CreateRect("Row", parent);
-            _surface = LibraryWidgets.Panel("Surface", Root, LibraryTheme.Radius.ROW, LibraryTheme.Colors.Control);
+            Root.gameObject.AddComponent<Image>().color = Color.clear;
+            RectTransform body = LibraryUi.CreateRect("Body", Root);
+            LibraryUi.Stretch(body);
+            _surface = LibraryWidgets.Panel("Surface", body, LibraryTheme.Radius.ROW, LibraryTheme.Colors.Control);
             LibraryUi.Stretch(_surface.rectTransform);
-            _surface.raycastTarget = true;
-            Hold = Root.gameObject.AddComponent<ProfileHistoryHold>();
+            Hold = ProfileHistoryHold.Attach(Root.gameObject, body);
 
             Vector2 left = new Vector2(0f, 0.5f);
-            _lead = LibraryWidgets.Label("Lead", Root, string.Empty, 36f, LibraryTheme.Colors.TextSecondary, FontStyles.Normal,
+            _lead = LibraryWidgets.Label("Lead", body, string.Empty, 36f, LibraryTheme.Colors.TextSecondary, FontStyles.Normal,
                 TextAlignmentOptions.Center);
             LibraryUi.UseCondensedFont(_lead);
             _lead.overflowMode = TextOverflowModes.Overflow;
             LibraryWidgets.Place(_lead.rectTransform, left, left, new Vector2(4f, 0f), new Vector2(LEAD_WIDTH - 8f, 44f));
-            _leadSub = LibraryWidgets.Label("LeadSub", Root, string.Empty, 17f, LibraryTheme.Colors.TextMuted, FontStyles.Normal,
+            _leadSub = LibraryWidgets.Label("LeadSub", body, string.Empty, 17f, LibraryTheme.Colors.TextMuted, FontStyles.Normal,
                 TextAlignmentOptions.Center);
             LibraryWidgets.Place(_leadSub.rectTransform, left, left, new Vector2(4f, -22f), new Vector2(LEAD_WIDTH - 8f, 24f));
 
-            Image frame = LibraryWidgets.Panel("Jacket", Root, LibraryTheme.Radius.COVER_SMALL, LibraryTheme.Colors.CoverPlaceholder);
+            Image frame = LibraryWidgets.Panel("Jacket", body, LibraryTheme.Radius.COVER_SMALL, LibraryTheme.Colors.CoverPlaceholder);
             LibraryWidgets.Place(frame.rectTransform, left, left, new Vector2(LEAD_WIDTH, 0f), new Vector2(JACKET_SIZE, JACKET_SIZE));
             frame.gameObject.AddComponent<Mask>().showMaskGraphic = true;
             _placeholder = LibraryWidgets.Icon(frame.transform, LibraryIcon.Wave, LibraryTheme.Colors.TextMuted, 28f).gameObject;
@@ -57,9 +61,9 @@ namespace OpenSekai.App.UI
             _jacket.enabled = false;
             LibraryUi.Stretch(_jacket.rectTransform);
 
-            _title = PackWidgets.UserLabel("Title", Root, string.Empty, 25f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
+            _title = PackWidgets.UserLabel("Title", body, string.Empty, 25f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
             Strip(_title.rectTransform, TEXT_LEFT, VALUE_WIDTH + 150f, 16f, 34f);
-            _difficulty = LibraryWidgets.Label("Difficulty", Root, string.Empty, 18f, LibraryTheme.Colors.TextSecondary, FontStyles.Bold);
+            _difficulty = LibraryWidgets.Label("Difficulty", body, string.Empty, 18f, LibraryTheme.Colors.TextSecondary, FontStyles.Bold);
             LibraryUi.UseSpacedCondensedFont(_difficulty, 4f);
             _difficulty.richText = false;
             _difficulty.overflowMode = TextOverflowModes.Overflow;
@@ -68,21 +72,21 @@ namespace OpenSekai.App.UI
             _difficulty.rectTransform.pivot = new Vector2(0f, 1f);
             _difficulty.rectTransform.anchoredPosition = new Vector2(TEXT_LEFT, -54f);
             _difficulty.rectTransform.sizeDelta = new Vector2(120f, 26f);
-            _meta = PackWidgets.UserLabel("Meta", Root, string.Empty, 18f, LibraryTheme.Colors.TextMuted);
+            _meta = PackWidgets.UserLabel("Meta", body, string.Empty, 18f, LibraryTheme.Colors.TextMuted);
             Strip(_meta.rectTransform, TEXT_LEFT + 120f, VALUE_WIDTH + 150f, 54f, 26f);
 
-            _tag = PackWidgets.Tag(Root, "AP", LibraryTheme.Colors.TextSecondary, out _, TAG_HEIGHT);
+            _tag = PackWidgets.Tag(body, "AP", LibraryTheme.Colors.TextSecondary, out _, TAG_HEIGHT);
             _tag.GetComponentInChildren<TextMeshProUGUI>().characterSpacing = 2f;
             LibraryWidgets.Place(_tag, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-(VALUE_WIDTH + 24f), 0f),
                 _tag.sizeDelta);
 
-            _value = LibraryWidgets.Label("Value", Root, string.Empty, 42f, LibraryTheme.Colors.TextPrimary, FontStyles.Normal,
+            _value = LibraryWidgets.Label("Value", body, string.Empty, 42f, LibraryTheme.Colors.TextPrimary, FontStyles.Normal,
                 TextAlignmentOptions.BottomRight);
             LibraryUi.UseCondensedFont(_value);
             _value.overflowMode = TextOverflowModes.Overflow;
             LibraryWidgets.Place(_value.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-28f, -4f),
                 new Vector2(VALUE_WIDTH, 54f));
-            _caption = PackWidgets.UserLabel("Caption", Root, string.Empty, 16f, LibraryTheme.Colors.TextMuted, FontStyles.Normal,
+            _caption = PackWidgets.UserLabel("Caption", body, string.Empty, 16f, LibraryTheme.Colors.TextMuted, FontStyles.Normal,
                 TextAlignmentOptions.TopRight);
             LibraryWidgets.Place(_caption.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-28f, -60f),
                 new Vector2(VALUE_WIDTH + 120f, 24f));

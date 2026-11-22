@@ -8,15 +8,31 @@ namespace OpenSekai.App.UI
 {
     internal sealed class ProfileHistoryHold : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerExitHandler
     {
+        /// <summary>The dip list rows use, as on the package rows.</summary>
+        private const float PRESS_SCALE = 0.985f;
+
         private CustomMusicScorePlayHistoryRecord _play;
+        private LibraryPressFeedback _press;
         private Coroutine _hold;
         private int _pointer;
         internal Action<CustomMusicScorePlayHistoryRecord> LongPressed;
 
+        /// <param name="host">Object that receives the pointer events.</param>
+        /// <param name="body">What shrinks while a run is pressed.</param>
+        internal static ProfileHistoryHold Attach(GameObject host, Transform body)
+        {
+            ProfileHistoryHold hold = host.AddComponent<ProfileHistoryHold>();
+            hold._press = LibraryPressFeedback.Attach(host, body, PRESS_SCALE);
+            hold._press.enabled = false;
+            return hold;
+        }
+
+        /// <summary>A run to delete on a long press, or null for a row that does not respond (Best 30, pooled).</summary>
         internal void Bind(CustomMusicScorePlayHistoryRecord play)
         {
             Cancel();
             _play = play;
+            if (_press != null) _press.enabled = play != null;
         }
 
         public void OnPointerDown(PointerEventData data)
