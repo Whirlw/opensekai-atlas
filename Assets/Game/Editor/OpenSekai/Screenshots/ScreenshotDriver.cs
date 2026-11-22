@@ -30,7 +30,7 @@ namespace OpenSekai.EditorTools.Screenshots
     /// <c>lead</c> seconds before each time, played at <c>fps</c> from there, and the last step is
     /// trimmed so the captured frame lands on the requested millisecond.
     /// </summary>
-    internal sealed class ScreenshotDriver : IPlayerLoopItem
+    internal sealed partial class ScreenshotDriver : IPlayerLoopItem
     {
         private const BindingFlags ANY = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
         private const float FAST_FORWARD_STEP = 0.1f;
@@ -90,6 +90,7 @@ namespace OpenSekai.EditorTools.Screenshots
                     case "about": body = AboutShot(shot); break;
                     case "server": body = ServerShot(shot); break;
                     case "packs": body = PacksShot(shot); break;
+                    case "profile": body = ProfileShot(shot); break;
                     default:
                         Fail(shot, "unknown kind '" + shot.kind + "'");
                         continue;

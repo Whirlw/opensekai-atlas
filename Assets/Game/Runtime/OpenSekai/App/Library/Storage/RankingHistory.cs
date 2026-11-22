@@ -17,6 +17,21 @@ namespace OpenSekai.App.Library
         private readonly Dictionary<string, CustomMusicScorePlayHistoryRecord> _pending = new(StringComparer.Ordinal);
         private long _bytes = -1;
         private RankingSettlement _last;
+        private List<CustomMusicScorePlayHistoryRecord> _timeline = new();
+
+        internal HistoryPage ReadPage(int offset, int limit)
+        {
+            if (offset < 0 || limit <= 0) throw new ArgumentOutOfRangeException();
+            EnsureLoaded();
+            int start = Math.Min(offset, _timeline.Count);
+            return new HistoryPage(_timeline.Count,
+                _timeline.GetRange(start, Math.Min(limit, _timeline.Count - start)).AsReadOnly());
+        }
+
+        internal void TransferPendingTo(RankingHistory next)
+        {
+            foreach (var pair in _pending) next._pending[pair.Key] = pair.Value;
+        }
 
         internal RankingHistory(string path, PlayHistorySummaryCache library)
         {
@@ -50,6 +65,8 @@ namespace OpenSekai.App.Library
                 summary = _library.Append(_path, play);
                 _bytes = new FileInfo(_path).Length;
                 _ids.Add(play.RecordId);
+                int index = _timeline.BinarySearch(play, Comparer<CustomMusicScorePlayHistoryRecord>.Create(CompareTime));
+                _timeline.Insert(index < 0 ? ~index : index, play);
                 _pending.Remove(play.RecordId);
                 _last = _board.Evaluate(play, HistorySaveState.Saved);
                 return _last;
@@ -79,8 +96,15 @@ namespace OpenSekai.App.Library
             var board = new Best30Index();
             var ids = new HashSet<string>(StringComparer.Ordinal);
             RankingSettlement last = null;
+            var timeline = new List<CustomMusicScorePlayHistoryRecord>();
             foreach (var record in Records())
-                if (ids.Add(record.RecordId)) last = board.Evaluate(record, HistorySaveState.Saved);
+            {
+                if (!string.IsNullOrWhiteSpace(record.RecordId) && !ids.Add(record.RecordId)) continue;
+                timeline.Add(record);
+                if (CanRank(record)) last = board.Evaluate(record, HistorySaveState.Saved);
+            }
+            timeline.Sort(CompareTime);
+            _timeline = timeline;
             _board = board;
             _ids.Clear();
             _ids.UnionWith(ids);
@@ -96,6 +120,7 @@ namespace OpenSekai.App.Library
             foreach (var record in Records())
             {
                 if (!ids.Add(record.RecordId)) continue;
+                if (!CanRank(record) && record.RecordId != playId) continue;
                 var receipt = board.Evaluate(record, HistorySaveState.Saved);
                 if (record.RecordId == playId) return receipt;
             }
@@ -110,8 +135,17 @@ namespace OpenSekai.App.Library
                 CustomMusicScorePlayHistoryRecord record;
                 try { record = JsonConvert.DeserializeObject<CustomMusicScorePlayHistoryRecord>(line); }
                 catch (JsonException) { continue; } // A truncated final line cannot invalidate earlier plays.
-                if (record?.SchemaVersion == 3 && !string.IsNullOrEmpty(record.RecordId)) yield return record;
+                if (record != null) yield return record;
             }
+        }
+
+        private static bool CanRank(CustomMusicScorePlayHistoryRecord record) =>
+            record.SchemaVersion == 3 && !string.IsNullOrWhiteSpace(record.RecordId);
+
+        private static int CompareTime(CustomMusicScorePlayHistoryRecord a, CustomMusicScorePlayHistoryRecord b)
+        {
+            int order = string.CompareOrdinal(b.PlayedAtUtc, a.PlayedAtUtc);
+            return order != 0 ? order : string.CompareOrdinal(a.RecordId, b.RecordId);
         }
     }
 }

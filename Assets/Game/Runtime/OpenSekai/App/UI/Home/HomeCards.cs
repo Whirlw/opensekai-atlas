@@ -80,13 +80,33 @@ namespace OpenSekai.App.UI
         }
     }
 
+    /// <summary>What the home page needs of each of its cards to lay them out and hand over through them.</summary>
+    internal interface IHomeCard
+    {
+        RectTransform Root { get; }
+        CanvasGroup Group { get; }
+
+        /// <summary>The surface that takes taps; swipes that start on it turn the page.</summary>
+        GameObject Surface { get; }
+
+        bool Interactable { set; }
+
+        /// <summary>Fades what is drawn on the card without fading the card itself.</summary>
+        void SetInnerAlpha(float alpha);
+
+        /// <inheritdoc cref="HomeCardFrame.SetCovering"/>
+        void SetCovering(float amount);
+
+        void Tick(double time);
+    }
+
     /// <summary>
     /// The way into the library, the page's biggest card: a slow two-way marquee of the player's
     /// jackets behind the copy, how many packages and plays there are, the last song played, and a
     /// call to action in the accent of that song's jacket. The card grows over the whole page when
     /// tapped, which is how the page hands over to the library.
     /// </summary>
-    internal sealed class HomeLibraryCard
+    internal sealed class HomeLibraryCard : IHomeCard
     {
         private const int COLUMNS = 3;
         private const int ROWS = 6;
@@ -250,8 +270,11 @@ namespace OpenSekai.App.UI
             SetSummary(HomeLibrarySummary.Empty);
         }
 
-        internal RectTransform Root => _frame.Root;
-        internal CanvasGroup Group => _frame.Group;
+        public RectTransform Root => _frame.Root;
+        public CanvasGroup Group => _frame.Group;
+        public GameObject Surface => _frame.Surface.gameObject;
+
+        public void SetInnerAlpha(float alpha) => SetInnerAlpha(alpha, alpha);
 
         internal void SetSummary(HomeLibrarySummary summary)
         {
@@ -340,7 +363,7 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>0 leaves the card in its slot's colors; 1 is the page ground it grows into.</summary>
-        internal void SetCovering(float amount)
+        public void SetCovering(float amount)
         {
             Color card = HomeTheme.Colors.Card;
             Color ground = LibraryTheme.Colors.Ground;
@@ -356,12 +379,12 @@ namespace OpenSekai.App.UI
             _frame.Outline.color = outline;
         }
 
-        internal bool Interactable
+        public bool Interactable
         {
             set => _frame.Button.interactable = value;
         }
 
-        internal void Tick(double time)
+        public void Tick(double time)
         {
             float pitch = HomeTheme.Layout.MARQUEE_TILE + HomeTheme.Layout.MARQUEE_GAP;
             float span = pitch * ROWS;
@@ -428,7 +451,7 @@ namespace OpenSekai.App.UI
     /// chip with a breathing light, and an animated drawing on the right. A card for a part that
     /// is not available shakes when tapped and lets the page explain.
     /// </summary>
-    internal sealed class HomeFeatureCard
+    internal sealed class HomeFeatureCard : IHomeCard
     {
         internal const float ART_SIZE = 280f;
 
@@ -506,21 +529,22 @@ namespace OpenSekai.App.UI
             }
         }
 
-        internal RectTransform Root => _frame.Root;
-        internal CanvasGroup Group => _frame.Group;
+        public RectTransform Root => _frame.Root;
+        public CanvasGroup Group => _frame.Group;
+        public GameObject Surface => _frame.Surface.gameObject;
 
-        internal bool Interactable
+        public bool Interactable
         {
             set => _frame.Button.interactable = value;
         }
 
         /// <summary>Fades what is drawn on the card (copy, art, chip) without fading the card itself.</summary>
-        internal void SetInnerAlpha(float alpha) => _copy.alpha = alpha;
+        public void SetInnerAlpha(float alpha) => _copy.alpha = alpha;
 
         /// <inheritdoc cref="HomeCardFrame.SetCovering"/>
-        internal void SetCovering(float amount) => _frame.SetCovering(amount);
+        public void SetCovering(float amount) => _frame.SetCovering(amount);
 
-        internal void Tick(double time)
+        public void Tick(double time)
         {
             float phase = (float)(time % 2.4d / 2.4d) * Mathf.PI * 2f;
             Color dot = _statusDot.color;

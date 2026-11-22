@@ -40,6 +40,8 @@ namespace OpenSekai.App.UI
         private ServerScreen _server;
         private PackScreen _packs;
         private PackOrigin _packsOrigin;
+        private ProfileScreen _profile;
+        private PlayerProfileStore _profileStore;
         private CancellationTokenSource _serverPlayCancellation;
         private LibraryLoadingOverlay _serverLoading;
         private Camera _camera;
@@ -73,12 +75,33 @@ namespace OpenSekai.App.UI
         /// <summary>True while the resource pack part is on screen.</summary>
         public bool IsPacksShown => _packs != null && _packs.IsPresented;
 
+        /// <summary>True while the 个人信息 part is on screen.</summary>
+        public bool IsProfileShown => _profile != null && _profile.IsPresented;
+
+        /// <summary>The home page that is on screen once it settles: 0 the first, 1 the second.</summary>
+        public int HomePage => _view.Page;
+
+        /// <summary>
+        /// The profile the 个人信息 card and part read; the local one unless a tool swapped in another
+        /// (screenshots use a sample so they never show or change the player's own).
+        /// </summary>
+        internal PlayerProfileStore ProfileStore
+        {
+            get => _profileStore ?? PlayerProfileStore.Local;
+            set
+            {
+                _profileStore = value;
+                if (_profile != null) _profile.Store = value;
+            }
+        }
+
         /// <summary>Where back from the resource pack part leads: the page it was opened from.</summary>
         private enum PackOrigin
         {
             Home,
             Library,
-            Server
+            Server,
+            Profile
         }
 
         /// <summary>True once the emblem has its bundled layers.</summary>
@@ -115,7 +138,9 @@ namespace OpenSekai.App.UI
             _navigating = false;
             HideServer();
             HidePacks();
+            HideProfile();
             HideHome();
+            _view.TurnTo(0, false);
             ShowReadyLibrary(false);
         }
 
@@ -130,6 +155,7 @@ namespace OpenSekai.App.UI
             _library?.SetPresented(false, false);
             HideServer();
             HidePacks();
+            HideProfile();
             ShowHome(refreshSummary);
             _about.Hide();
             _splash.Evaluate(HomeSplash.Length);
@@ -143,6 +169,7 @@ namespace OpenSekai.App.UI
         /// </summary>
         public void SeekIntro(float seconds)
         {
+            _view.TurnTo(0, false);
             if (!_homeShown)
             {
                 _library?.SetPresented(false, false);
@@ -165,6 +192,7 @@ namespace OpenSekai.App.UI
             _idle.TryCancel();
             _idle = default;
             TickIdle(IntroLength);
+            _view.TurnTo(0, false);
             _view.ApplyExpansion(Mathf.Clamp01(amount));
         }
 
@@ -177,6 +205,7 @@ namespace OpenSekai.App.UI
             _navigating = false;
             _library?.SetPresented(false, false);
             HidePacks();
+            HideProfile();
             HideHome();
             EnsureServer().SetPresented(true, false);
         }
@@ -191,6 +220,7 @@ namespace OpenSekai.App.UI
             _idle.TryCancel();
             _idle = default;
             TickIdle(IntroLength);
+            _view.TurnTo(0, false);
             _view.ApplyExpansion(HomeDestination.Server, Mathf.Clamp01(amount));
         }
 
@@ -203,6 +233,7 @@ namespace OpenSekai.App.UI
             _navigating = false;
             _library?.SetPresented(false, false);
             HideServer();
+            HideProfile();
             HideHome();
             _packsOrigin = PackOrigin.Home;
             EnsurePacks().SetPresented(true, false);
@@ -218,8 +249,59 @@ namespace OpenSekai.App.UI
             _idle.TryCancel();
             _idle = default;
             TickIdle(IntroLength);
+            _view.TurnTo(0, false);
             _view.ApplyExpansion(HomeDestination.Packs, Mathf.Clamp01(amount));
         }
+
+        /// <summary>Shows the 个人信息 part at once, as if the player had gone in.</summary>
+        public void ShowProfileImmediately()
+        {
+            _view.StopTransition();
+            _splash.Stop();
+            _splash.Evaluate(HomeSplash.Length);
+            _navigating = false;
+            _library?.SetPresented(false, false);
+            HideServer();
+            HidePacks();
+            HideHome();
+            _view.TurnTo(1, false);
+            EnsureProfile().SetPresented(true, false);
+        }
+
+        /// <summary>
+        /// Holds the hand-over to the 个人信息 part at <paramref name="amount"/> (0 the second page at
+        /// rest, 1 the 个人信息 card covering the screen), for screenshots of the transition.
+        /// </summary>
+        public void SeekProfileHandoff(float amount)
+        {
+            ShowHomeImmediately();
+            _idle.TryCancel();
+            _idle = default;
+            TickIdle(IntroLength);
+            _view.TurnTo(1, false);
+            _view.ApplyExpansion(HomeDestination.Profile, Mathf.Clamp01(amount));
+        }
+
+        /// <summary>
+        /// Holds the home page between its two pages: 0 the first, 1 the second, in between part of
+        /// each, as a swipe leaves them. Whole numbers settle on that page.
+        /// </summary>
+        public void SeekHomePage(float progress)
+        {
+            if (Mathf.Approximately(progress, Mathf.Round(progress)))
+            {
+                _view.TurnTo(Mathf.RoundToInt(progress), false);
+                return;
+            }
+
+            _view.SeekPage(progress);
+        }
+
+        /// <summary>What a swipe or the footer's tabs do: turn the home page to <paramref name="page"/>.</summary>
+        public void TurnHomePage(int page) => _view.TurnTo(page, true);
+
+        /// <summary>What tapping the 个人信息 card does.</summary>
+        public void EnterProfile() => OpenProfile();
 
         /// <summary>What tapping the 资源包 card does.</summary>
         public void EnterPacks() => OpenPacks();
@@ -257,7 +339,7 @@ namespace OpenSekai.App.UI
 
             var root = (RectTransform)_canvasRoot.transform;
             _backdrop = new HomeBackdrop(root);
-            _view = new HomeView(root, OpenLibrary, OpenAbout, OpenSettings, ShowComingSoon, OpenServer, OpenPacks);
+            _view = new HomeView(root, OpenLibrary, OpenAbout, OpenSettings, ShowComingSoon, OpenServer, OpenPacks, OpenProfile);
             if (ServerChartDownloads.Current != null)
             {
                 ServerChartDownloads.Current.StatusChanged += ShowServerStatus;
@@ -274,6 +356,7 @@ namespace OpenSekai.App.UI
         private void StartIntro()
         {
             _library?.SetPresented(false, false);
+            _view.TurnTo(0, false);
             ShowHome(refreshSummary: false);
             _introSummaryPending = true;
             _view.Interactable = false;
@@ -425,7 +508,15 @@ namespace OpenSekai.App.UI
                     _splash.Evaluate(HomeSplash.Length);
                 }
 
+                // The 资源包 card is on the first page.
+                _view.TurnTo(0, false);
                 OpenPacks();
+                return;
+            }
+
+            if (_profile != null && _profile.IsPresented)
+            {
+                CoverThenShowPacks(PackOrigin.Profile, _profile.PlayExit, () => _profile.SetPresented(false, false));
                 return;
             }
 
@@ -483,6 +574,13 @@ namespace OpenSekai.App.UI
                     return;
                 }
 
+                if (origin == PackOrigin.Profile && _profile != null)
+                {
+                    _profile.SetPresented(true, true);
+                    _navigating = false;
+                    return;
+                }
+
                 ShowHome();
                 _splash.Evaluate(HomeSplash.Length);
                 _view.PlayCollapse(HomeDestination.Packs, () => _navigating = false);
@@ -510,6 +608,75 @@ namespace OpenSekai.App.UI
             }
 
             _packsOrigin = PackOrigin.Home;
+        }
+
+        /// <summary>The 个人信息 card grows over the second page, then the part rises out of it.</summary>
+        private void OpenProfile()
+        {
+            if (_navigating || !_homeShown)
+            {
+                return;
+            }
+
+            _navigating = true;
+            UiSound.Play(UiCue.Forward);
+            ProfileScreen profile = EnsureProfile();
+            _view.PlayExpand(HomeDestination.Profile, () =>
+            {
+                HideHome();
+                profile.SetPresented(true, true);
+                _navigating = false;
+            });
+        }
+
+        /// <summary>The 个人信息 part falls into the ground, then its card shrinks back into the second page.</summary>
+        private void ReturnFromProfile()
+        {
+            if (_navigating || _profile == null || !_profile.IsPresented)
+            {
+                return;
+            }
+
+            _navigating = true;
+            _profile.PlayExit(() =>
+            {
+                _profile.SetPresented(false, false);
+                ShowHome();
+                _splash.Evaluate(HomeSplash.Length);
+                _view.PlayCollapse(HomeDestination.Profile, () => _navigating = false);
+            });
+        }
+
+        private ProfileScreen EnsureProfile()
+        {
+            if (_profile != null)
+            {
+                return _profile;
+            }
+
+            _profile = ProfileScreen.Create(() => _context.Packages.LoadItems());
+            _profile.transform.SetParent(transform, false);
+            _profile.Store = _profileStore;
+            _profile.BackRequested += ReturnFromProfile;
+            _profile.DataChanged += OnProfileChanged;
+            return _profile;
+        }
+
+        private void HideProfile()
+        {
+            if (_profile != null && _profile.IsPresented)
+            {
+                _profile.SetPresented(false, false);
+            }
+        }
+
+        /// <summary>An import changed the history under the library's play counts; the cards refresh on the way back.</summary>
+        private void OnProfileChanged(bool history)
+        {
+            if (history)
+            {
+                _library?.Refresh();
+            }
         }
 
         private void OnServerPlayRequested(ServerScreen.PlayRequest request)
@@ -753,6 +920,17 @@ namespace OpenSekai.App.UI
                 return;
             }
 
+            if (_profile != null && _profile.IsPresented)
+            {
+                if (!_profile.TryHandleBack())
+                {
+                    UiSound.Play(UiCue.Back);
+                    ReturnFromProfile();
+                }
+
+                return;
+            }
+
             if (_server != null && _server.IsPresented)
             {
                 if (!_server.TryHandleBack())
@@ -848,6 +1026,7 @@ namespace OpenSekai.App.UI
         /// </summary>
         private void RefreshLibrarySummary()
         {
+            RefreshProfileSummary();
             _homeJacketsReady = false;
             CancelJacketLoad();
             IReadOnlyList<SongPackageItem> items;
@@ -905,6 +1084,24 @@ namespace OpenSekai.App.UI
 
             _jacketLoad = new CancellationTokenSource();
             LoadJacketsAsync(jackets, recent, _jacketLoad.Token).Forget();
+        }
+
+        /// <summary>Reads the profile for the 个人信息 card; a profile that cannot be read says so on the card.</summary>
+        private void RefreshProfileSummary()
+        {
+            try
+            {
+                PlayerProfileStore store = ProfileStore;
+                PlayerProfileSnapshot snapshot = store.Read();
+                int plays = store.ReadHistory(0, 1).TotalCount;
+                _view.SetProfile(new HomeProfileSummary(snapshot.Appearance.Nickname, snapshot.Appearance.AvatarId,
+                    snapshot.Best30.Total, snapshot.Best30.TierId, snapshot.Best30.Entries.Count, plays, ProfileCopy.DanLabel(snapshot), false));
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("[Home] Could not read the player profile: " + exception.Message);
+                _view.SetProfile(new HomeProfileSummary(HomeProfileSummary.Empty.Nickname, ProfileAvatars.DEFAULT_ID, 0L, 0, 0, 0, null, true));
+            }
         }
 
         private static void AddJacket(List<SongPackageItem> jackets, SongPackageItem item)
@@ -1029,6 +1226,12 @@ namespace OpenSekai.App.UI
             if (_packs != null)
             {
                 _packs.BackRequested -= ReturnFromPacks;
+            }
+
+            if (_profile != null)
+            {
+                _profile.BackRequested -= ReturnFromProfile;
+                _profile.DataChanged -= OnProfileChanged;
             }
 
             if (_server != null)

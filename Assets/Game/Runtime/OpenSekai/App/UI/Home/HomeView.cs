@@ -2,40 +2,75 @@ using System;
 using LitMotion;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace OpenSekai.App.UI
 {
     /// <summary>
-    /// The home page: the brand in the header, the library card beside the 服务器 and 资源包
-    /// cards, and a footer. Its entrance, its hand-over to the library (the library
-    /// card grows over the page) and its return (the card shrinks back) are pure functions of
-    /// time, so the splash can drive the entrance from its own timeline and a screenshot can stop
-    /// at any frame.
+    /// Which card grows over the page when the home page hands over. The first three are on the
+    /// first page, the other three on the second; the order is each page's hero card, then the
+    /// top and the bottom card on its right.
     /// </summary>
-    /// <summary>Which card grows over the page when the home page hands over.</summary>
     internal enum HomeDestination
     {
         Library,
         Server,
-        Packs
+        Packs,
+        Profile,
+        Dan,
+        Achievements
     }
 
-    internal sealed class HomeView : IDisposable
+    /// <summary>
+    /// The home page: the brand in the header, two pages of three cards side by side, and a
+    /// footer. The first page is the library card beside the 服务器 and 资源包 cards; swiping left
+    /// (or the footer's tabs, or the arrow on the screen's edge) brings in the second page with 个人信息
+    /// beside 段位 and 成就. A finger has to move <see cref="HomeTheme.Motion.SWIPE_SLOP"/> sideways
+    /// before the touch stops being a tap on the card under it. The entrance, the hand-over to a
+    /// part (its card grows over the page) and the return (the card shrinks back) are pure
+    /// functions of time, so the splash can drive the entrance from its own timeline and a
+    /// screenshot can stop at any frame.
+    /// </summary>
+    internal sealed class HomeView : IDisposable, IHomeSwipeTarget
     {
+        internal const int PAGE_COUNT = 2;
+        private const int CARDS_PER_PAGE = 3;
+        private const int NO_POINTER = int.MinValue;
+        private const float RUBBER = 0.3f;
+        private static readonly string[] _pageNames = { "游玩", "个人" };
+
         private readonly RectTransform _root;
         private readonly CanvasGroup _group;
         private readonly CanvasGroup _header;
         private readonly RectTransform _headerRect;
         private readonly CanvasGroup _footer;
-        private readonly RectTransform _librarySlot;
-        private readonly RectTransform _serverSlot;
-        private readonly RectTransform _packsSlot;
+        private readonly CanvasGroup _chrome;
+        private readonly RectTransform[] _pages = new RectTransform[PAGE_COUNT];
+        private readonly HomeSlot[] _slots = new HomeSlot[PAGE_COUNT * CARDS_PER_PAGE];
         private readonly HomeLibraryCard _library;
         private readonly HomeFeatureCard _server;
         private readonly HomeFeatureCard _packs;
+        private readonly HomeProfileCard _profile;
+        private readonly HomeFeatureCard _dan;
+        private readonly HomeFeatureCard _achievements;
+        private readonly HomePageTabs _tabs;
+        private readonly HomeEdgeHandle _next;
+        private readonly HomeEdgeHandle _previous;
         private readonly UiToast _toast;
         private MotionHandle _transition;
+        private HomePageMotion _pageMotion;
+        private float _pageProgress;
+        private int _page;
+        private double _time;
+
+        private int _swipePointer = NO_POINTER;
+        private bool _swiping;
+        private float _swipeOrigin;
+        private float _swipeStartX;
+        private float _swipeLastX;
+        private float _swipeLastTime;
+        private float _swipeVelocity;
 
         /// <summary>Last value <see cref="ApplyExpansion"/> applied; NaN before the first.</summary>
         private float _expansion = float.NaN;
@@ -44,8 +79,9 @@ namespace OpenSekai.App.UI
         /// <param name="openLibrary">The library card was tapped.</param>
         /// <param name="openAbout">The header's about button was tapped.</param>
         /// <param name="comingSoon">A card for an unbuilt part was tapped; gets the part's name.</param>
+        /// <param name="openProfile">The 个人信息 card was tapped.</param>
         internal HomeView(RectTransform parent, Action openLibrary, Action openAbout, Action openSettings, Action<string> comingSoon,
-            Action openServer = null, Action openPacks = null)
+            Action openServer = null, Action openPacks = null, Action openProfile = null)
         {
             _root = LibraryUi.CreateRect("Home", parent);
             LibraryUi.Stretch(_root);
@@ -53,17 +89,16 @@ namespace OpenSekai.App.UI
 
             float margin = LibraryTheme.Spacing.PAGE_MARGIN;
 
-            // Built back to front: header and footer first, then the two small cards, and the
-            // library card last, so it covers all of them as it grows over the page.
+            // Built back to front: header and footer first, then the pages, so a growing card
+            // covers them; the edge handles and the toast go on top.
             _headerRect = LibraryUi.CreateRect("Header", _root);
             LibraryWidgets.TopStrip(_headerRect, margin, margin, 0f, HomeTheme.Layout.HEADER_HEIGHT);
             _header = _headerRect.gameObject.AddComponent<CanvasGroup>();
             BuildHeader(_headerRect, openAbout, openSettings);
 
             RectTransform footer = LibraryUi.CreateRect("Footer", _root);
-            LibraryWidgets.BottomStrip(footer, margin, margin, 30f, 30f);
+            LibraryWidgets.BottomStrip(footer, margin, margin, 22f, 48f);
             _footer = footer.gameObject.AddComponent<CanvasGroup>();
-            _footer.blocksRaycasts = false;
             TextMeshProUGUI tagline = LibraryWidgets.Label(
                 "Tagline", footer, "Open Sekai Atlas  ·  开源下落式音游播放器", LibraryTheme.FontSize.CAPTION, LibraryTheme.Colors.TextMuted);
             LibraryUi.Stretch(tagline.rectTransform);
@@ -71,21 +106,24 @@ namespace OpenSekai.App.UI
                 "PlayFeatures", footer, "社区谱面  ·  离线打歌", LibraryTheme.FontSize.CAPTION, LibraryTheme.Colors.TextMuted,
                 FontStyles.Normal, TextAlignmentOptions.Right);
             LibraryUi.Stretch(licenses.rectTransform);
+            _tabs = new HomePageTabs(footer, _pageNames, page => TurnTo(page, true));
 
-            RectTransform grid = LibraryUi.CreateRect("Grid", _root);
-            LibraryWidgets.Inset(grid, margin, HomeTheme.Layout.FOOTER_HEIGHT, margin, HomeTheme.Layout.HEADER_HEIGHT);
-            float halfGap = HomeTheme.Layout.GRID_GAP * 0.5f;
-            float share = HomeTheme.Layout.HERO_SHARE;
+            // A swipe that starts between the cards turns the page too.
+            Image swipeArea = LibraryUi.CreateImage("SwipeArea", _root, Color.clear);
+            swipeArea.raycastTarget = true;
+            LibraryWidgets.Inset(swipeArea.rectTransform, 0f, HomeTheme.Layout.FOOTER_HEIGHT, 0f, HomeTheme.Layout.HEADER_HEIGHT);
+            HomeSwipe.Attach(swipeArea.gameObject, this);
 
-            RectTransform serverSlot = _serverSlot = Slot(grid, "ServerSlot", new Vector2(share, 0.5f), Vector2.one,
-                new Vector2(halfGap, halfGap), Vector2.zero);
-            _server = new HomeFeatureCard(serverSlot, "ServerCard", "SERVER", "服务器", "浏览社区谱面 · 下载后自动导入",
+            RectTransform track = LibraryUi.CreateRect("Pages", _root);
+            LibraryUi.Stretch(track);
+            for (int i = 0; i < PAGE_COUNT; i++)
+            {
+                _pages[i] = LibraryUi.CreateRect("Page" + i, track);
+            }
+
+            _server = new HomeFeatureCard(Slot(0, 1).Rect, "ServerCard", "SERVER", "服务器", "浏览社区谱面 · 下载后自动导入",
                 HomeTheme.Colors.Periwinkle, root => new HomeGlobeArt(root), () => openServer?.Invoke(), available: openServer != null);
-            LibraryUi.Stretch(_server.Root);
-
-            RectTransform packsSlot = _packsSlot = Slot(grid, "PacksSlot", new Vector2(share, 0f), new Vector2(1f, 0.5f),
-                new Vector2(halfGap, 0f), new Vector2(0f, -halfGap));
-            _packs = new HomeFeatureCard(packsSlot, "PacksCard", "RESOURCE PACKS", "资源包", "音符皮肤 · 打击音效 · 判定与界面",
+            _packs = new HomeFeatureCard(Slot(0, 2).Rect, "PacksCard", "RESOURCE PACKS", "资源包", "音符皮肤 · 打击音效 · 判定与界面",
                 HomeTheme.Colors.Rose, root => new HomeStackArt(root),
                 () =>
                 {
@@ -93,14 +131,30 @@ namespace OpenSekai.App.UI
                     else comingSoon?.Invoke("资源包");
                 },
                 available: openPacks != null, status: openPacks != null ? "管理资源" : null);
-            LibraryUi.Stretch(_packs.Root);
+            _library = new HomeLibraryCard(Slot(0, 0).Rect, openLibrary);
 
-            _librarySlot = Slot(grid, "LibrarySlot", Vector2.zero, new Vector2(share, 1f), Vector2.zero, new Vector2(-halfGap, 0f));
-            _library = new HomeLibraryCard(_librarySlot, openLibrary);
-            LibraryUi.Stretch(_library.Root);
+            _dan = new HomeFeatureCard(Slot(1, 1).Rect, "DanCard", "DAN", "段位", "多曲连打 · 生命延续 · 段位牌",
+                HomeTheme.Colors.Violet, root => new HomePlateArt(root), () => comingSoon?.Invoke("段位"));
+            _achievements = new HomeFeatureCard(Slot(1, 2).Rect, "AchievementsCard", "ACHIEVEMENTS", "成就", "累计击打 · 谱面达成 · 段位通关",
+                HomeTheme.Colors.Gold, root => new HomeMedalArt(root), () => comingSoon?.Invoke("成就"));
+            _profile = new HomeProfileCard(Slot(1, 0).Rect, () => openProfile?.Invoke());
+
+            Bind(0, 0, _library);
+            Bind(0, 1, _server);
+            Bind(0, 2, _packs);
+            Bind(1, 0, _profile);
+            Bind(1, 1, _dan);
+            Bind(1, 2, _achievements);
+
+            RectTransform chrome = LibraryUi.CreateRect("Chrome", _root);
+            LibraryWidgets.Inset(chrome, 0f, HomeTheme.Layout.FOOTER_HEIGHT, 0f, HomeTheme.Layout.HEADER_HEIGHT);
+            _chrome = chrome.gameObject.AddComponent<CanvasGroup>();
+            _next = new HomeEdgeHandle(chrome, true, () => TurnTo(1, true));
+            _previous = new HomeEdgeHandle(chrome, false, () => TurnTo(0, true));
 
             _toast = new UiToast(_root, HomeTheme.Layout.FOOTER_HEIGHT, HomeTheme.Colors.Violet);
 
+            ApplyPage(0f);
             ApplyEnter(EnterDuration);
         }
 
@@ -108,6 +162,9 @@ namespace OpenSekai.App.UI
         internal RectTransform BrandSlot { get; private set; }
 
         internal RectTransform Root => _root;
+
+        /// <summary>The page on screen once it settles: 0 the first, 1 the second.</summary>
+        internal int Page => _page;
 
         /// <summary>Seconds from the start of the entrance until everything has settled.</summary>
         internal static float EnterDuration =>
@@ -133,12 +190,21 @@ namespace OpenSekai.App.UI
 
         internal void SetAccent(Color32 accent, Color32 glow) => _library.SetAccent(accent, glow);
 
-        /// <summary>Idle animation: marquee, globe, card fan, status lights.</summary>
+        internal void SetProfile(HomeProfileSummary summary) => _profile.SetSummary(summary);
+
+        /// <summary>Idle animation: marquee, globe, card fan, badge, status lights; only for a page in view.</summary>
         internal void Tick(double time)
         {
-            _library.Tick(time);
-            _server.Tick(time);
-            _packs.Tick(time);
+            _time = time;
+            for (int i = 0; i < _slots.Length; i++)
+            {
+                if (Mathf.Abs(i / CARDS_PER_PAGE - _pageProgress) < 1f)
+                {
+                    _slots[i].Card.Tick(time);
+                }
+            }
+
+            ApplyHandles();
         }
 
         /// <summary>
@@ -158,6 +224,7 @@ namespace OpenSekai.App.UI
             _header.alpha = header;
             _headerRect.anchoredPosition = new Vector2(0f, 18f * (1f - header));
             _footer.alpha = HomeMotion.Span(elapsed, 0.35f, 0.5f, Ease.OutQuad);
+            _chrome.alpha = _footer.alpha;
 
             Rise(_library.Root, _library.Group, HomeMotion.Span(elapsed, ENTER_DELAY, HomeTheme.Motion.ENTER, Ease.OutCubic));
             Rise(_server.Root, _server.Group,
@@ -179,76 +246,51 @@ namespace OpenSekai.App.UI
         /// <summary>
         /// The hand-over to <paramref name="target"/>: 0 is the page at rest, 1 is that card grown
         /// past every edge of the screen in the ground color with everything else faded. Any call
-        /// with 0 settles every card back into its slot.
+        /// with 0 settles every card back into its slot. The target's page has to be the one on screen.
         /// </summary>
         internal void ApplyExpansion(HomeDestination target, float amount)
         {
             _expansion = amount;
+            int targetIndex = (int)target;
             float margin = LibraryTheme.Spacing.PAGE_MARGIN;
             float bleed = HomeTheme.Layout.HERO_RADIUS + 8f;
-            float halfGap = HomeTheme.Layout.GRID_GAP * 0.5f;
-            float share = HomeTheme.Layout.HERO_SHARE;
             var bleedMin = new Vector2(-margin - bleed, -HomeTheme.Layout.FOOTER_HEIGHT - bleed);
             var bleedMax = new Vector2(margin + bleed, HomeTheme.Layout.HEADER_HEIGHT + bleed);
-            float library = target == HomeDestination.Library ? amount : 0f;
-            float server = target == HomeDestination.Server ? amount : 0f;
-            float packs = target == HomeDestination.Packs ? amount : 0f;
-
-            _librarySlot.anchorMin = Vector2.zero;
-            _librarySlot.anchorMax = Vector2.Lerp(new Vector2(share, 1f), Vector2.one, library);
-            _librarySlot.offsetMin = Vector2.Lerp(Vector2.zero, bleedMin, library);
-            _librarySlot.offsetMax = Vector2.Lerp(new Vector2(-halfGap, 0f), bleedMax, library);
-            _serverSlot.anchorMin = Vector2.Lerp(new Vector2(share, 0.5f), Vector2.zero, server);
-            _serverSlot.anchorMax = Vector2.one;
-            _serverSlot.offsetMin = Vector2.Lerp(new Vector2(halfGap, halfGap), bleedMin, server);
-            _serverSlot.offsetMax = Vector2.Lerp(Vector2.zero, bleedMax, server);
-            _packsSlot.anchorMin = Vector2.Lerp(new Vector2(share, 0f), Vector2.zero, packs);
-            _packsSlot.anchorMax = Vector2.Lerp(new Vector2(1f, 0.5f), Vector2.one, packs);
-            _packsSlot.offsetMin = Vector2.Lerp(new Vector2(halfGap, 0f), bleedMin, packs);
-            _packsSlot.offsetMax = Vector2.Lerp(new Vector2(0f, -halfGap), bleedMax, packs);
-
-            // The growing card draws over the others; at rest the library card is on top again.
-            if (server > 0f)
-            {
-                _serverSlot.SetAsLastSibling();
-            }
-            else if (packs > 0f)
-            {
-                _packsSlot.SetAsLastSibling();
-            }
-            else
-            {
-                _librarySlot.SetAsLastSibling();
-            }
-
-            _library.SetCovering(HomeMotion.Span(library, 0.25f, 0.75f, Ease.InOutQuad));
-            _server.SetCovering(HomeMotion.Span(server, 0.25f, 0.75f, Ease.InOutQuad));
-            _packs.SetCovering(HomeMotion.Span(packs, 0.25f, 0.75f, Ease.InOutQuad));
 
             float content = 1f - HomeMotion.Span(amount, 0f, 0.4f, Ease.OutQuad);
             float others = 1f - HomeMotion.Span(amount, 0f, 0.45f, Ease.OutQuad);
             float shrink = 1f - 0.05f * HomeMotion.Span(amount, 0f, 0.6f, Ease.OutCubic);
             var shrunk = new Vector3(shrink, shrink, 1f);
-            bool toLibrary = target == HomeDestination.Library;
-            bool toServer = target == HomeDestination.Server;
-            bool toPacks = target == HomeDestination.Packs;
-            _library.SetInnerAlpha(toLibrary ? content : 1f, toLibrary ? content : 1f);
-            _library.Group.alpha = toLibrary ? 1f : others;
-            _library.Root.localScale = toLibrary ? Vector3.one : shrunk;
-            _server.SetInnerAlpha(toServer ? content : 1f);
-            _server.Group.alpha = toServer ? 1f : others;
-            _server.Root.localScale = toServer ? Vector3.one : shrunk;
-            _packs.SetInnerAlpha(toPacks ? content : 1f);
-            _packs.Group.alpha = toPacks ? 1f : others;
-            _packs.Root.localScale = toPacks ? Vector3.one : shrunk;
+            for (int i = 0; i < _slots.Length; i++)
+            {
+                HomeSlot slot = _slots[i];
+                bool isTarget = i == targetIndex;
+                slot.Apply(isTarget ? amount : 0f, bleedMin, bleedMax);
+                IHomeCard card = slot.Card;
+                card.SetCovering(isTarget ? HomeMotion.Span(amount, 0.25f, 0.75f, Ease.InOutQuad) : 0f);
+                card.SetInnerAlpha(isTarget ? content : 1f);
+                card.Group.alpha = isTarget ? 1f : others;
+                card.Root.localScale = isTarget ? Vector3.one : shrunk;
+                card.Root.anchoredPosition = Vector2.zero;
+            }
+
+            // The growing card draws over the others; at rest each page's hero card is on top again.
+            if (amount > 0f)
+            {
+                _slots[targetIndex].Rect.SetAsLastSibling();
+            }
+            else
+            {
+                for (int page = 0; page < PAGE_COUNT; page++)
+                {
+                    _slots[page * CARDS_PER_PAGE].Rect.SetAsLastSibling();
+                }
+            }
+
             _header.alpha = others;
             _footer.alpha = others;
-            _library.Root.anchoredPosition = Vector2.zero;
-            _server.Root.anchoredPosition = Vector2.zero;
-            _packs.Root.anchoredPosition = Vector2.zero;
-            _library.Interactable = amount <= 0f;
-            _server.Interactable = amount <= 0f;
-            _packs.Interactable = amount <= 0f;
+            _chrome.alpha = others;
+            ApplyInteractable();
         }
 
         /// <summary>Plays the entrance from the start.</summary>
@@ -265,16 +307,18 @@ namespace OpenSekai.App.UI
         internal void PlayExpand(HomeDestination target, Action onCovered)
         {
             Interactable = false;
+            SettleOn(PageOf(target));
             Run(0f, 1f, HomeTheme.Motion.EXPAND, amount => ApplyExpansion(target, amount), onCovered, Ease.InOutCubic);
         }
 
-        /// <summary>Starts from the covered page and shrinks the library card back into place.</summary>
+        /// <summary>Starts from the page covered by the library card and shrinks it back into place.</summary>
         internal void PlayCollapse(Action onDone = null) => PlayCollapse(HomeDestination.Library, onDone);
 
         /// <summary>Starts from the page covered by <paramref name="target"/>'s card and shrinks it back into place.</summary>
         internal void PlayCollapse(HomeDestination target, Action onDone)
         {
             Interactable = false;
+            SettleOn(PageOf(target));
             Run(1f, 0f, HomeTheme.Motion.COLLAPSE, amount => ApplyExpansion(target, amount), () =>
             {
                 Interactable = true;
@@ -291,12 +335,203 @@ namespace OpenSekai.App.UI
 
         internal void ShowToast(string message) => _toast.Show(message);
 
+        // ---------------------------------------------------------------- pages
+
+        internal static int PageOf(HomeDestination destination) => (int)destination / CARDS_PER_PAGE;
+
+        /// <summary>Turns to <paramref name="page"/>, sliding when <paramref name="animate"/>.</summary>
+        internal void TurnTo(int page, bool animate)
+        {
+            page = Mathf.Clamp(page, 0, PAGE_COUNT - 1);
+            if (!animate)
+            {
+                SettleOn(page);
+                return;
+            }
+
+            if (page != _page)
+            {
+                UiSound.Play(UiCue.Select);
+            }
+
+            _page = page;
+            _pageMotion.Run(_pageProgress, page, ApplyPage, ApplyInteractable);
+            ApplyInteractable();
+        }
+
+        /// <summary>
+        /// Holds the pages mid-turn: 0 the first page, 1 the second, in between part of each (for
+        /// screenshots of a swipe). Nothing settles until <see cref="TurnTo"/>.
+        /// </summary>
+        internal void SeekPage(float progress)
+        {
+            _pageMotion.Stop();
+            ApplyPage(progress);
+            ApplyInteractable();
+        }
+
+        private void SettleOn(int page)
+        {
+            _pageMotion.Stop();
+            _swipePointer = NO_POINTER;
+            _swiping = false;
+            _page = Mathf.Clamp(page, 0, PAGE_COUNT - 1);
+            ApplyPage(_page);
+            ApplyInteractable();
+        }
+
+        private void ApplyPage(float progress)
+        {
+            _pageProgress = progress;
+            for (int i = 0; i < PAGE_COUNT; i++)
+            {
+                RectTransform page = _pages[i];
+                page.anchorMin = new Vector2(i - progress, 0f);
+                page.anchorMax = new Vector2(i - progress + 1f, 1f);
+                page.offsetMin = Vector2.zero;
+                page.offsetMax = Vector2.zero;
+            }
+
+            _tabs.Apply(progress);
+            ApplyHandles();
+        }
+
+        private void ApplyHandles()
+        {
+            float progress = Mathf.Clamp01(_pageProgress);
+            _next.Apply(1f - progress, _time);
+            _previous.Apply(progress, _time);
+        }
+
+        private void ApplyInteractable()
+        {
+            bool settled = !_swiping && !_pageMotion.IsActive && Mathf.Approximately(_pageProgress, _page);
+            bool usable = settled && !(_expansion > 0f);
+            for (int i = 0; i < _slots.Length; i++)
+            {
+                _slots[i].Card.Interactable = usable && i / CARDS_PER_PAGE == _page;
+            }
+        }
+
+        // ---------------------------------------------------------------- swiping
+
+        public void BeginSwipe(PointerEventData eventData)
+        {
+            if (_swipePointer != NO_POINTER || !_group.blocksRaycasts || _transition.IsActive())
+            {
+                return;
+            }
+
+            _swipePointer = eventData.pointerId;
+            _swiping = false;
+            _swipeStartX = Local(eventData.pressPosition, eventData).x;
+            _swipeLastX = Local(eventData.position, eventData).x;
+            _swipeLastTime = Time.unscaledTime;
+            _swipeVelocity = 0f;
+            Swipe(eventData);
+        }
+
+        public void Swipe(PointerEventData eventData)
+        {
+            if (eventData.pointerId != _swipePointer)
+            {
+                return;
+            }
+
+            Vector2 position = Local(eventData.position, eventData);
+            Vector2 press = Local(eventData.pressPosition, eventData);
+            float dx = position.x - _swipeStartX;
+            if (!_swiping)
+            {
+                float dy = position.y - press.y;
+                if (Mathf.Abs(dx) < HomeTheme.Motion.SWIPE_SLOP || Mathf.Abs(dx) < Mathf.Abs(dy))
+                {
+                    // Still a tap, or going up and down: a long vertical drag is no tap either.
+                    if (Mathf.Abs(dy) > HomeTheme.Motion.SWIPE_SLOP * 2f)
+                    {
+                        HomeSwipe.CancelPress(eventData);
+                    }
+
+                    return;
+                }
+
+                // From here the finger has the pages: grab a turn in flight where it is.
+                _swiping = true;
+                HomeSwipe.CancelPress(eventData);
+                _pageMotion.Stop();
+                _swipeOrigin = _pageProgress;
+                _swipeStartX = position.x;
+                dx = 0f;
+                ApplyInteractable();
+            }
+
+            float width = Mathf.Max(1f, _root.rect.width);
+            ApplyPage(Rubber(_swipeOrigin - dx / width));
+            float now = Time.unscaledTime;
+            float elapsed = now - _swipeLastTime;
+            if (elapsed > 0.0001f)
+            {
+                _swipeVelocity = Mathf.Lerp(_swipeVelocity, (position.x - _swipeLastX) / elapsed, 0.6f);
+            }
+
+            _swipeLastX = position.x;
+            _swipeLastTime = now;
+        }
+
+        public void EndSwipe(PointerEventData eventData)
+        {
+            if (eventData.pointerId != _swipePointer)
+            {
+                return;
+            }
+
+            _swipePointer = NO_POINTER;
+            if (!_swiping)
+            {
+                return;
+            }
+
+            _swiping = false;
+            // A finger that stopped before lifting is not a flick.
+            float velocity = Time.unscaledTime - _swipeLastTime > 0.1f ? 0f : _swipeVelocity;
+            int from = Mathf.Clamp(Mathf.RoundToInt(_swipeOrigin), 0, PAGE_COUNT - 1);
+            float moved = _pageProgress - from;
+            int target = from;
+            bool far = Mathf.Abs(moved) > HomeTheme.Motion.PAGE_TURN_DISTANCE;
+            bool flicked = Mathf.Abs(velocity) > HomeTheme.Motion.PAGE_FLICK_SPEED && Mathf.Sign(-velocity) == Mathf.Sign(moved);
+            if (far || flicked)
+            {
+                target = from + (moved > 0f ? 1 : -1);
+            }
+
+            TurnTo(target, true);
+        }
+
+        private static float Rubber(float progress)
+        {
+            float last = PAGE_COUNT - 1;
+            if (progress < 0f) return progress * RUBBER;
+            if (progress > last) return last + (progress - last) * RUBBER;
+            return progress;
+        }
+
+        private Vector2 Local(Vector2 screen, PointerEventData eventData)
+        {
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(_root, screen, eventData.pressEventCamera, out Vector2 local);
+            return local;
+        }
+
+        // ---------------------------------------------------------------- building
+
         public void Dispose()
         {
             StopTransition();
+            _pageMotion.Stop();
             _toast.Dispose();
             _server.Dispose();
             _packs.Dispose();
+            _dan.Dispose();
+            _achievements.Dispose();
         }
 
         private void Run(float from, float to, float duration, Action<float> apply, Action onDone, Ease ease)
@@ -322,14 +557,45 @@ namespace OpenSekai.App.UI
             card.localScale = new Vector3(scale, scale, 1f);
         }
 
-        private static RectTransform Slot(RectTransform grid, string name, Vector2 anchorMin, Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax)
+        /// <summary>Creates the slot for <paramref name="role"/> (0 hero, 1 top right, 2 bottom right) on a page.</summary>
+        private HomeSlot Slot(int page, int role)
         {
-            RectTransform slot = LibraryUi.CreateRect(name, grid);
-            slot.anchorMin = anchorMin;
-            slot.anchorMax = anchorMax;
-            slot.offsetMin = offsetMin;
-            slot.offsetMax = offsetMax;
+            RectTransform grid = _pages[page].childCount > 0 ? (RectTransform)_pages[page].GetChild(0) : CreateGrid(_pages[page]);
+            float halfGap = HomeTheme.Layout.GRID_GAP * 0.5f;
+            float share = HomeTheme.Layout.HERO_SHARE;
+            HomeSlot slot;
+            switch (role)
+            {
+                case 0:
+                    slot = new HomeSlot(grid, "HeroSlot", Vector2.zero, new Vector2(share, 1f), Vector2.zero, new Vector2(-halfGap, 0f));
+                    break;
+                case 1:
+                    slot = new HomeSlot(grid, "TopSlot", new Vector2(share, 0.5f), Vector2.one, new Vector2(halfGap, halfGap), Vector2.zero);
+                    break;
+                default:
+                    slot = new HomeSlot(grid, "BottomSlot", new Vector2(share, 0f), new Vector2(1f, 0.5f), new Vector2(halfGap, 0f),
+                        new Vector2(0f, -halfGap));
+                    break;
+            }
+
+            _slots[page * CARDS_PER_PAGE + role] = slot;
             return slot;
+        }
+
+        private void Bind(int page, int role, IHomeCard card)
+        {
+            HomeSlot slot = _slots[page * CARDS_PER_PAGE + role];
+            slot.Card = card;
+            LibraryUi.Stretch(card.Root);
+            HomeSwipe.Attach(card.Surface, this);
+        }
+
+        private static RectTransform CreateGrid(RectTransform page)
+        {
+            float margin = LibraryTheme.Spacing.PAGE_MARGIN;
+            RectTransform grid = LibraryUi.CreateRect("Grid", page);
+            LibraryWidgets.Inset(grid, margin, HomeTheme.Layout.FOOTER_HEIGHT, margin, HomeTheme.Layout.HEADER_HEIGHT);
+            return grid;
         }
 
         private void BuildHeader(RectTransform header, Action openAbout, Action openSettings)
@@ -372,5 +638,36 @@ namespace OpenSekai.App.UI
 
         /// <summary>The wordmark's text, with "ATLAS" in the brand's light violet.</summary>
         internal static string Wordmark => "OPEN SEKAI <color=" + HomeTheme.Colors.WORDMARK_ACCENT_HEX + ">ATLAS</color>";
+
+        /// <summary>One card's place on a page, at rest and grown over the screen.</summary>
+        private sealed class HomeSlot
+        {
+            private readonly Vector2 _anchorMin;
+            private readonly Vector2 _anchorMax;
+            private readonly Vector2 _offsetMin;
+            private readonly Vector2 _offsetMax;
+
+            internal HomeSlot(RectTransform grid, string name, Vector2 anchorMin, Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax)
+            {
+                Rect = LibraryUi.CreateRect(name, grid);
+                _anchorMin = anchorMin;
+                _anchorMax = anchorMax;
+                _offsetMin = offsetMin;
+                _offsetMax = offsetMax;
+                Apply(0f, Vector2.zero, Vector2.zero);
+            }
+
+            internal RectTransform Rect { get; }
+            internal IHomeCard Card { get; set; }
+
+            /// <param name="grow">0 in its slot, 1 over the whole screen.</param>
+            internal void Apply(float grow, Vector2 bleedMin, Vector2 bleedMax)
+            {
+                Rect.anchorMin = Vector2.Lerp(_anchorMin, Vector2.zero, grow);
+                Rect.anchorMax = Vector2.Lerp(_anchorMax, Vector2.one, grow);
+                Rect.offsetMin = Vector2.Lerp(_offsetMin, bleedMin, grow);
+                Rect.offsetMax = Vector2.Lerp(_offsetMax, bleedMax, grow);
+            }
+        }
     }
 }

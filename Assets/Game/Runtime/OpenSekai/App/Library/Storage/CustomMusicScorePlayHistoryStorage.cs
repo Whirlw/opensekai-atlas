@@ -14,7 +14,7 @@ namespace OpenSekai.App.Library
 {
 	public static class CustomMusicScorePlayHistoryStorage
 	{
-		private static readonly PlayHistorySummaryCache _cache = new PlayHistorySummaryCache();
+		private static PlayHistorySummaryCache Cache => PlayerProfileStore.Local.Summaries;
 
 		/// <summary>
 		/// Raised after a run was appended, with its score key and that package's updated summary, so
@@ -25,8 +25,8 @@ namespace OpenSekai.App.Library
 		private static RankingHistory _ranking;
 		internal static RankingHistory Ranking
 		{
-			get => _ranking ??= new RankingHistory(CustomMusicScoreStorage.PlayHistoryPath, _cache);
-			set => _ranking = value;
+			get => _ranking ?? PlayerProfileStore.Local.History;
+			set => _ranking = ReferenceEquals(value, PlayerProfileStore.Local.History) ? null : value;
 		}
 
 		public static Best30Snapshot ReadBest30() => Ranking.Read();
@@ -73,7 +73,7 @@ namespace OpenSekai.App.Library
 		{
 			try
 			{
-				return _cache.Load(CustomMusicScoreStorage.PlayHistoryPath);
+				return Cache.Load(CustomMusicScoreStorage.PlayHistoryPath);
 			}
 			catch (Exception exception)
 			{
@@ -88,7 +88,7 @@ namespace OpenSekai.App.Library
 		{
 			try
 			{
-				return _cache.Reload(CustomMusicScoreStorage.PlayHistoryPath);
+				return Cache.Reload(CustomMusicScoreStorage.PlayHistoryPath);
 			}
 			catch (Exception exception)
 			{

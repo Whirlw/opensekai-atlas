@@ -67,6 +67,46 @@ RankingSettlement ranking = CustomMusicScorePlayHistoryStorage.ForDisplay(play);
 - **预览。** `Tools/capture-screens.ps1 -Result default,fc,ap,outside,auto,failed,retired,savefailed,loaderror` 逐个拍下样例的定格画面，`-ResultAt` 可以拍动画中间的帧。
 - **未完成。** 成就提示等 `UnlockedAchievementIds` 有内容后再接，排在升级动画之后。验收表中「从两个入口打完同一谱只占一个榜位」还要在真机上用真实游玩核对。
 
+### 第二阶段后端联调入口
+
+个人页从 `OpenSekai.App.Library.PlayerProfileStore.Local` 读写本机档案。页面在 Unity 主线程发起操作。
+
+| 页面操作 | C# 接口与返回值 |
+| --- | --- |
+| 打开个人页 | `Read()` 返回 `Appearance.Nickname`、`Appearance.AvatarId` 和 `Best30`（含总分、评级 ID 和榜单行）。初始昵称为 `Player`，默认头像 ID 为 `default`。段位数据随第三阶段接入，当前 `EarnedDanIds` 为空，`EquippedDanId` 为 null。 |
+| 编辑昵称与头像 | `SetAppearance(nickname, avatarId)` 同时保存两个字段。头像由前端将稳定 ID 映射到内置资源。 |
+| 查看游玩历史 | `ReadHistory(offset, limit)` 从零起算，返回 `Records` 和 `TotalCount`。按游玩 UTC 时间倒序，同时间按局 ID 排列。旧版记录可查看；Best 30 从 v3 起算。 |
+| 导出 ZIP | `await ProfileBackupPicker.ExportAsync()`。系统选择器保存成功返回 true，取消返回 false。 |
+| 选择并预览 ZIP | `await ProfileBackupPicker.PickImportAsync()`。取消返回 null。预览提供 `Id`、新增数 `Added`、重复数 `Duplicates`、冲突局 ID 列表 `ConflictingIds`、缺 ID 的历史行号 `MissingIdLines`（从 1 起算），以及合并后档案 `Result`。 |
+| 确认或取消合并 | `ConfirmImport(preview.Id)` 返回已生效的档案，`CancelImport(preview.Id)` 丢弃预览。打开下一份备份、修改资料或在确认前新增游玩，均需重新预览。 |
+
+两个选择器接口均可传入 `CancellationToken`，系统选择器由系统返回键取消。页面可在等待期间显示处理中。格式或 I/O 失败通过异常返回。已持有文件路径的调用方可直接使用 `ExportBackupAsync(path)` 或 `PreviewBackupAsync(path)`。
+
+备份 v1 包含格式清单、头像昵称和完整可读的 JSONL 历史，以 SHA-256 校验内容，支持最多 64 MiB 的未压缩历史。已有游玩记录或已保存资料的档案保留本机头像昵称；空档恢复备份资料。缺少 ID 的导入行跳过，同 ID 冲突保留本地记录。只有确认才切换生效目录，重新启动后继续使用已确认的历史。段位定义、挑战记录和授牌将在第三阶段扩展备份格式。
+
+### 第二阶段前端进度（Claude，2026-11-22）
+
+首页第二页和个人页已接入。首页代码在 `App/UI/Home/`（`HomePager.cs`、`HomeView.cs`、`HomePlayerCards.cs`），个人页在 `App/UI/Profile/`。
+
+- **两页首页。** 第一页是曲库、服务器、资源包，第二页是个人信息、段位、成就。翻页有三种方式：左右滑动、点底部「游玩 / 个人」标签、点屏幕边缘的箭头。手指横向移动超过 28 画布单位（手机上约 2 mm）后才算滑动，并取消卡片点击，在此之前仍算轻触。松手时拖过页宽的 18% 或快速甩动才翻页，否则回弹。竖向拖动不翻页，也不算点击。从个人信息返回时停在第二页；从设置打开资源包时先切回第一页。
+- **段位与成就卡。** 两张卡都标「即将推出」，点击时卡片轻摇并提示，第三、四阶段接入。
+- **个人信息卡。** 显示头像、昵称、段位牌（目前固定为「未取得段位」）、Ranking Score 和评级徽章，以及 Best 30 谱面数和游玩次数。每次回到首页都从 `Read()` 和 `ReadHistory(0, 1).TotalCount` 刷新。读取失败时卡片显示「档案暂时无法读取」，首页不会卡住。
+- **个人页。** 左侧是玩家卡，右侧切换 Best 30 和全部历史，两个列表都按需加载，历史每 50 条调用一次 `ReadHistory`。封面按 `ScoreKey` 匹配已安装的曲包，未安装的显示占位图。
+  - Best 30 每行显示名次、曲名、难度等级、原始分、AP/FC/CLEAR 和成绩分。列表头写「N 张谱面合计 X」，它与左侧总分不一致时记一条警告日志。
+  - 历史每行显示本地日期时间、手动或自动、连击、结束标签和原始分。正好是某谱贡献局的那一行标「Best 30 · 第 n 名 · x 分」，不计入的写明原因（旧版、自动、未完成、中途退出）。
+  - 前端不计算成绩分，也不判断入榜资格，只按 `RecordId` 对照 Best 30 的条目。
+- **头像与昵称。** 「编辑资料」卡提供 12 个内置头像，稳定 ID 为 `default`、`note`、`flick`、`hexagon`、`diamond`、`halo`、`wave`、`heart`、`globe`、`trophy`、`orbit`、`play`（`ProfileAvatars`）。头像全部用现有形状绘制，不附带图片。遇到不认识的 ID 时按默认头像显示，但保留原 ID，除非玩家另选。昵称在前端限制为 24 个字符，去掉首尾空格，过滤控制字符，空昵称不能保存。
+- **备份。**
+  - 导出调用 `ExportAsync`，成功、取消和失败分别提示。
+  - 导入调用 `PickImportAsync`，等待期间显示处理中卡片，并可以取消。
+  - 预览卡显示新增、重复和冲突局数，是否恢复头像与昵称，Ranking Score 前后值和评级变化，前三个冲突局 ID，以及缺少 ID 的行号。没有新增、也不恢复资料时，只给「知道了」按钮。
+  - 「确认合并」调用 `ConfirmImport(preview.Id)`。抛出 `InvalidOperationException` 时视为预览过期，提示重新选择备份；I/O 失败时保留预览，可以再试。合并后个人页、首页卡片和曲库的游玩统计一起刷新。
+  - 取消、按返回键或离开个人页时都会调用 `CancelImport`。
+- **返回键。** 依次处理：备份进行中则取消，预览打开则取消合并，编辑卡打开则关闭，设置打开则返回上一层；都没有时回到首页第二页。
+- **预览。** `Tools/capture-screens.ps1 -ProfilePage` 在临时目录生成样例档案和一份待合并的备份，不读也不改本机档案。它依次拍下第二页、滑动中途、卡片放大、Best 30、历史、编辑卡、合并预览、返回后的第二页和新档案。
+- **验证。** 在 Play Mode 中用脚本注入指针事件，确认了以下滑动行为：抖动 14 单位仍是点击；拖动 30% 翻页并取消点击；拖动 10% 回弹；从第二页拖回 25% 翻回第一页；竖向拖动 90 单位取消点击但不翻页；越过最后一页时有回弹阻力。甩动速度阈值和真实手指下的点击与滑动区分，还要在手机上确认。EditMode 共 1665 项，1643 项通过，21 项跳过。唯一的失败 `NextRushChartLoaderTests.ActiveConnectorCanJoinTwoRawChainsIntoOneContinuousHold` 与本阶段改动无关：NextRush 连接音在编辑模式下调用了 `DontDestroyOnLoad`。
+- **未完成。** 以下几项需要真机验证：手机横屏翻页不误触，导出、空档恢复、重复合并、取消和损坏文件。段位牌的选择和佩戴要等 `EarnedDanIds` 有内容后再接。`ProfileCopy.DanLabel` 现在直接显示段位 ID，第三阶段改为段位定义中的牌面文字。
+
 ## 一、从首页到个人页
 
 首页分为两页。第一页保留现有曲库、服务器和资源包入口；向左滑动，露出右侧第二页的「个人信息」「段位」「成就」。每页保留三个入口，并让玩家能发现另一页。拖动越过翻页阈值后取消卡片点击，轻触仍打开卡片。从三个新页面返回时停在第二页。
