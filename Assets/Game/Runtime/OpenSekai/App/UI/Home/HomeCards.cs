@@ -214,8 +214,7 @@ namespace OpenSekai.App.UI
             Vector2 bottomLeft = Vector2.zero;
 
             _eyebrow = LibraryWidgets.Label("Eyebrow", copyRoot, "LIBRARY", 24f, LibraryTheme.Colors.DefaultAccent);
-            LibraryUi.UseCondensedFont(_eyebrow);
-            _eyebrow.characterSpacing = 30f;
+            LibraryUi.UseSpacedCondensedFont(_eyebrow, 30f);
             LibraryWidgets.Place(_eyebrow.rectTransform, topLeft, topLeft, new Vector2(pad, -pad + 4f), new Vector2(TEXT_WIDTH - pad, 30f));
 
             TextMeshProUGUI title = LibraryWidgets.Label(
@@ -491,8 +490,7 @@ namespace OpenSekai.App.UI
             float pad = HomeTheme.Layout.CARD_PADDING;
             Vector2 topLeft = new Vector2(0f, 1f);
             TextMeshProUGUI eyebrowLabel = LibraryWidgets.Label("Eyebrow", content, eyebrow, 22f, tint);
-            LibraryUi.UseCondensedFont(eyebrowLabel);
-            eyebrowLabel.characterSpacing = 28f;
+            LibraryUi.UseSpacedCondensedFont(eyebrowLabel, 28f);
             Stretch(eyebrowLabel.rectTransform, pad, pad - 2f, 28f);
 
             TextMeshProUGUI titleLabel = LibraryWidgets.Label(

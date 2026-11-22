@@ -253,8 +253,7 @@ namespace OpenSekai.App.UI
             _difficulty = LibraryWidgets.Label(
                 "Label", chip.transform, string.Empty, LibraryTheme.FontSize.CAPTION, LibraryTheme.Colors.TextSecondary,
                 FontStyles.Bold, TextAlignmentOptions.Center);
-            LibraryUi.UseCondensedFont(_difficulty);
-            _difficulty.characterSpacing = LABEL_SPACING * 100f / _difficulty.fontSize;
+            LibraryUi.UseSpacedCondensedFont(_difficulty, LABEL_SPACING * 100f / _difficulty.fontSize);
             LibraryWidgets.Inset(_difficulty.rectTransform, CHIP_PADDING, 0f, CHIP_PADDING, 0f);
 
             _badge = LibraryWidgets.Label(
@@ -378,7 +377,7 @@ namespace OpenSekai.App.UI
             _difficulty = LibraryWidgets.Label(
                 "Label", corner.transform, string.Empty, LibraryTheme.FontSize.CAPTION, LibraryTheme.Colors.TextSecondary,
                 FontStyles.Bold);
-            LibraryUi.UseCondensedFont(_difficulty);
+            LibraryUi.UseSpacedCondensedFont(_difficulty, 0f);
             LibraryWidgets.Inset(_difficulty.rectTransform, 10f, 0f, 40f, 0f);
             _level = LibraryWidgets.Label(
                 "Level", corner.transform, string.Empty, 21f, LibraryTheme.Colors.TextPrimary,

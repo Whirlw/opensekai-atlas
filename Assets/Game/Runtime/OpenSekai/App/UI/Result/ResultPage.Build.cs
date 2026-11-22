@@ -169,8 +169,7 @@ namespace OpenSekai.App.UI
             LibraryUi.Stretch(_cover.rectTransform);
 
             _difficulty = LibraryWidgets.Label("Difficulty", column, string.Empty, 24f, LibraryTheme.Colors.TextSecondary);
-            LibraryUi.UseCondensedFont(_difficulty);
-            _difficulty.characterSpacing = 3f;
+            LibraryUi.UseSpacedCondensedFont(_difficulty, 3f);
             TopLeft(_difficulty.rectTransform, 0f, infoTop, COVER_SIZE, CHIP_HEIGHT);
             _level = LibraryWidgets.Label("Level", column, string.Empty, 24f, LibraryTheme.Colors.TextSecondary);
             LibraryUi.UseCondensedFont(_level);

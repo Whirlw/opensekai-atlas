@@ -135,8 +135,7 @@ namespace OpenSekai.App.UI
             TextMeshProUGUI label = LibraryWidgets.Label("Label", chip.transform, text, fontSize, foreground, FontStyles.Bold);
             if (condensed)
             {
-                LibraryUi.UseCondensedFont(label);
-                label.characterSpacing = 4f;
+                LibraryUi.UseSpacedCondensedFont(label, 4f);
             }
 
             label.overflowMode = TextOverflowModes.Overflow;

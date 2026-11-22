@@ -194,8 +194,7 @@ namespace OpenSekai.App.UI
             Vector2 bottomLeft = Vector2.zero;
 
             _eyebrow = LibraryWidgets.Label("Eyebrow", copyRoot, "PLAYER", 24f, LibraryTheme.Colors.DefaultAccent);
-            LibraryUi.UseCondensedFont(_eyebrow);
-            _eyebrow.characterSpacing = 30f;
+            LibraryUi.UseSpacedCondensedFont(_eyebrow, 30f);
             LibraryWidgets.Place(_eyebrow.rectTransform, topLeft, topLeft, new Vector2(pad, -pad + 4f), new Vector2(TEXT_WIDTH - pad, 30f));
 
             // Who: avatar, nickname and the worn plate.
@@ -248,8 +247,7 @@ namespace OpenSekai.App.UI
             LibraryWidgets.Place(_score.rectTransform, bottomLeft, bottomLeft, new Vector2(pad - 4f, rankBottom + 26f),
                 new Vector2(TEXT_WIDTH - pad, 124f));
             TextMeshProUGUI caption = LibraryWidgets.Label("ScoreCaption", copyRoot, "RANKING SCORE", 22f, LibraryTheme.Colors.TextMuted);
-            LibraryUi.UseCondensedFont(caption);
-            caption.characterSpacing = 18f;
+            LibraryUi.UseSpacedCondensedFont(caption, 18f);
             LibraryWidgets.Place(caption.rectTransform, bottomLeft, bottomLeft, new Vector2(pad, rankBottom + 156f),
                 new Vector2(TEXT_WIDTH - pad, 28f));
 

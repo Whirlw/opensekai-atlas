@@ -60,8 +60,7 @@ namespace OpenSekai.App.UI
             _title = PackWidgets.UserLabel("Title", Root, string.Empty, 25f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
             Strip(_title.rectTransform, TEXT_LEFT, VALUE_WIDTH + 150f, 16f, 34f);
             _difficulty = LibraryWidgets.Label("Difficulty", Root, string.Empty, 18f, LibraryTheme.Colors.TextSecondary, FontStyles.Bold);
-            LibraryUi.UseCondensedFont(_difficulty);
-            _difficulty.characterSpacing = 4f;
+            LibraryUi.UseSpacedCondensedFont(_difficulty, 4f);
             _difficulty.richText = false;
             _difficulty.overflowMode = TextOverflowModes.Overflow;
             _difficulty.rectTransform.anchorMin = new Vector2(0f, 1f);

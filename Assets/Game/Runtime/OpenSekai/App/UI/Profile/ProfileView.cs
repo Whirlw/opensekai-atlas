@@ -136,10 +136,11 @@ namespace OpenSekai.App.UI
 
             float rankTop = PAD + AVATAR_SIZE + 34f;
             Divider(card, rankTop - 16f, true);
-            TextMeshProUGUI rankCaption = LibraryWidgets.Label("RankingCaption", card, "RANKING SCORE", 20f, LibraryTheme.Colors.TextMuted);
-            LibraryUi.UseCondensedFont(rankCaption);
-            rankCaption.characterSpacing = 18f;
-            Strip(rankCaption.rectTransform, PAD, PAD, rankTop + 8f, 26f);
+            TextMeshProUGUI rankCaption = LibraryWidgets.Label("RankingCaption", card, "RANKING SCORE", 20f,
+                LibraryTheme.Colors.TextMuted, alignment: TextAlignmentOptions.CenterGeoAligned);
+            LibraryUi.UseSpacedCondensedFont(rankCaption, -4f);
+            LibraryWidgets.Place(rankCaption.rectTransform, topLeft, topLeft, new Vector2(PAD, -(rankTop + 8f)),
+                new Vector2(BADGE_SIZE, 26f));
             float badgeTop = rankTop + 46f;
             _badge = new RankingBadge(card, BADGE_SIZE);
             LibraryWidgets.Place(_badge.Root, topLeft, new Vector2(0.5f, 0.5f),

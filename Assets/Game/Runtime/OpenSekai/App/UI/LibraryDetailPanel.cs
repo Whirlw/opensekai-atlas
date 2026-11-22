@@ -130,8 +130,7 @@ namespace OpenSekai.App.UI
             _difficulty = LibraryWidgets.Label(
                 "Label", chip.transform, string.Empty, 22f, LibraryTheme.Colors.TextSecondary,
                 FontStyles.Bold, TextAlignmentOptions.Center);
-            LibraryUi.UseCondensedFont(_difficulty);
-            _difficulty.characterSpacing = 2f * 100f / _difficulty.fontSize;
+            LibraryUi.UseSpacedCondensedFont(_difficulty, 2f * 100f / _difficulty.fontSize);
             LibraryWidgets.Inset(_difficulty.rectTransform, DIFFICULTY_PADDING, 0f, DIFFICULTY_PADDING, 0f);
             _level = LibraryWidgets.Label("Level", info, string.Empty, 22f, LibraryTheme.Colors.TextSecondary, FontStyles.Bold);
             LibraryUi.UseCondensedFont(_level);

@@ -45,6 +45,67 @@ namespace OpenSekai.App.UI
             }
         }
 
+        internal static void UseSpacedCondensedFont(TextMeshProUGUI label, float spacing)
+        {
+            UseCondensedFont(label);
+            label.characterSpacing = spacing;
+            label.OnPreRenderText += EvenLetterGaps;
+        }
+
+        private static void EvenLetterGaps(TMP_TextInfo textInfo)
+        {
+            if (textInfo.lineCount != 1)
+            {
+                return;
+            }
+
+            TMP_CharacterInfo[] characters = textInfo.characterInfo;
+            float totalGap = 0f;
+            int gapCount = 0;
+            for (int i = 1; i < textInfo.characterCount; i++)
+            {
+                if (IsUppercaseLetterPair(characters[i - 1], characters[i]))
+                {
+                    totalGap += characters[i].bottomLeft.x - characters[i - 1].topRight.x;
+                    gapCount++;
+                }
+            }
+
+            if (gapCount == 0)
+            {
+                return;
+            }
+
+            // Redistribute the space between uppercase letters, keeping other gaps and the total width.
+            float gap = totalGap / gapCount;
+            float offset = 0f;
+            for (int i = 1; i < textInfo.characterCount; i++)
+            {
+                TMP_CharacterInfo character = characters[i];
+                if (!character.isVisible)
+                {
+                    continue;
+                }
+
+                TMP_CharacterInfo previous = characters[i - 1];
+                if (IsUppercaseLetterPair(previous, character))
+                {
+                    offset += gap - (character.bottomLeft.x - previous.topRight.x);
+                }
+
+                Vector3[] vertices = textInfo.meshInfo[character.materialReferenceIndex].vertices;
+                for (int corner = 0; corner < 4; corner++)
+                {
+                    vertices[character.vertexIndex + corner].x += offset;
+                }
+            }
+        }
+
+        private static bool IsUppercaseLetterPair(TMP_CharacterInfo left, TMP_CharacterInfo right)
+        {
+            return left.isVisible && right.isVisible && left.character is >= 'A' and <= 'Z' && right.character is >= 'A' and <= 'Z';
+        }
+
         internal static RectTransform CreateRect(string name, Transform parent)
         {
             GameObject go = new GameObject(name, typeof(RectTransform));
