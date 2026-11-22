@@ -128,7 +128,10 @@ namespace OpenSekai.Tests.PlayMode
                     tap.Setup(null, boot.HitFxSkin);
                     var holds = set.AddComponent<LongTapEffectView>();
                     holds.Setup(boot.HitFxSkin, autoplay: true);
-                    set.AddComponent<ScreenEffectView>().Setup(boot.HitFxSkin);
+                    // ScreenEffectView scales its own transform to fit the display, as it does in FrontUIView.
+                    var screen = new GameObject("Screen effects");
+                    screen.transform.SetParent(set.transform, false);
+                    screen.AddComponent<ScreenEffectView>().Setup(boot.HitFxSkin);
                     var instances = set.GetComponentsInChildren<ParticleSystemController>(true);
                     var seen = new HashSet<string>();
                     foreach (var template in instances.GroupBy(c => c.name))
