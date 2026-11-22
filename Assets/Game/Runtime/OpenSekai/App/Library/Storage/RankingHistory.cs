@@ -18,7 +18,31 @@ namespace OpenSekai.App.Library
         private long _bytes = -1;
         private RankingSettlement _last;
         private List<CustomMusicScorePlayHistoryRecord> _timeline = new();
+        internal Func<DanArchive> DanSource { private get; set; }
+        private AchievementIndex _achievements;
         internal event Action Appended;
+
+        private AchievementIndex Achievements => _achievements ??= AchievementIndex.Build(_timeline, DanSource?.Invoke());
+
+        internal IReadOnlyList<AchievementProgress> ReadAchievements()
+        {
+            EnsureLoaded();
+            return Achievements.Snapshot();
+        }
+
+        internal void InvalidateAchievements() => _achievements = null;
+
+        internal void AppendAchievement(AchievementEvent contribution)
+        {
+            if (_achievements != null && !_achievements.TryAppend(contribution)) InvalidateAchievements();
+        }
+
+        private RankingSettlement WithUnlocks(RankingSettlement receipt)
+        {
+            var ids = Achievements.ForPlay(receipt.PlayId);
+            return ids.Count == 0 ? receipt : new RankingSettlement(receipt.PlayId, receipt.ScoreKey, receipt.Eligibility,
+                receipt.SaveState, receipt.Award, receipt.BasePoints, receipt.Before, receipt.After, ids);
+        }
 
         internal bool Contains(CustomMusicScorePlayHistoryRecord record)
         {
@@ -66,9 +90,11 @@ namespace OpenSekai.App.Library
                 {
                     var existing = _last?.PlayId == play.RecordId ? _last : Replay(play.RecordId);
                     _pending.Remove(play.RecordId);
-                    return existing;
+                    return WithUnlocks(existing);
                 }
 
+                // Load existing progress before the write; a failed append cannot award anything.
+                _ = Achievements;
                 Directory.CreateDirectory(Path.GetDirectoryName(_path));
                 summary = _library.Append(_path, play);
                 _bytes = new FileInfo(_path).Length;
@@ -77,6 +103,7 @@ namespace OpenSekai.App.Library
                 _timeline.Insert(index < 0 ? ~index : index, play);
                 _pending.Remove(play.RecordId);
                 _last = _board.Evaluate(play, HistorySaveState.Saved);
+                AppendAchievement(AchievementEvent.FromPlay(play));
             }
             catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
             {
@@ -86,7 +113,7 @@ namespace OpenSekai.App.Library
                 _pending[play.RecordId] = play;
                 return _board.Evaluate(play, HistorySaveState.SaveFailed);
             }
-            var saved = _last;
+            var saved = WithUnlocks(_last);
             Appended?.Invoke();
             return saved;
         }
@@ -96,7 +123,8 @@ namespace OpenSekai.App.Library
             summary = null;
             if (_pending.TryGetValue(playId, out var play)) return Submit(play, null, out summary);
             EnsureLoaded();
-            return _last?.PlayId == playId ? _last : _ids.Contains(playId) ? Replay(playId) : null;
+            var receipt = _last?.PlayId == playId ? _last : _ids.Contains(playId) ? Replay(playId) : null;
+            return receipt == null ? null : WithUnlocks(receipt);
         }
 
         private void EnsureLoaded()
@@ -115,6 +143,7 @@ namespace OpenSekai.App.Library
             }
             timeline.Sort(CompareTime);
             _timeline = timeline;
+            InvalidateAchievements();
             _board = board;
             _ids.Clear();
             _ids.UnionWith(ids);

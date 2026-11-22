@@ -43,7 +43,7 @@ RankingSettlement ranking = CustomMusicScorePlayHistoryStorage.ForDisplay(play);
 
 - 从 `play` 读取曲名、难度、原始分、连击和五档判定；`play.Award` 区分普通通关、FC 和 AP。真实加载失败也可交给 `ForDisplay`。
 - 从 `ranking` 读取 `BasePoints`、`Bonus`、`Points` 和 `Eligibility`。前后状态 `Before` / `After` 均含总分、评级 ID（0 至 4）、该谱最佳和榜内名次（1 至 30，榜外为空）。`ChartImproved` 控制新纪录文字，`Delta` 控制涨分，`TierUp` 控制升级。
-- 写入失败显示 `SaveFailed`，总分维持原值。真实结果可调用 `CustomMusicScorePlayHistoryStorage.RetrySave(ranking.PlayId)`，绑定返回的新快照。失败样例用于预览。成就接入前 `UnlockedAchievementIds` 为空。
+- 写入失败显示 `SaveFailed`，总分维持原值。真实结果可调用 `CustomMusicScorePlayHistoryStorage.RetrySave(ranking.PlayId)`，绑定返回的新快照。失败样例用于预览。成功保存后，从 `UnlockedAchievementIds` 读取本局首次解锁的成就。
 - 榜单调用 `CustomMusicScorePlayHistoryStorage.ReadBest30()`，返回按贡献排序的只读快照。第一个条目为第 1 名，每项包含成绩分和对应的最佳历史记录。上述存储接口均在 Unity 主线程调用。
 
 | SettlementExample | 成绩分 | 个人总分变化 |
@@ -124,6 +124,25 @@ RankingSettlement ranking = CustomMusicScorePlayHistoryStorage.ForDisplay(play);
 运行中的页面以 `Phase` 驱动显示。首曲交接前会写入场次，随后在每首结束时更新；存档中的未完成场次统一标为 `Interrupted`。这样进程被杀后，历史仍能指出中断曲序。准备阶段取消可能没有场次，调用方先检查 `PlayStartResult.Status`。
 
 2026-11-22 已在独立 Unity 工程副本跑通两曲实播。两首各漏一键，初始生命 2 时末键归零失败，初始生命 3 时剩 1 点授牌。第二首预检失败可修复重试，开打后移除源谱仍能切歌。从第二首暂停重试会另开场次，主动退出保留两次未完成记录。Android 真机联调仍待验收。
+
+### 第四阶段后端联调入口
+
+成就页在主线程调用 `PlayerProfileStore.Local.ReadAchievements()`，得到五项只读快照。每项包含稳定的 `Id`、指标 `Metric`、最低谱面等级 `MinimumLevel`、实际进度 `Current`、目标 `Target` 和可空的首次解锁时间 `UnlockedAtUtc`。最近解锁按该时间降序展示。累计击打和不同谱面数可以超过目标。
+
+| ID | 指标 | 目标 |
+| --- | --- | --- |
+| `manual_hits_10000` | `ManualHits` | 普通手动局及段位各曲累计 10,000 个 Perfect、Great、Good、Bad，含失败和退出前的有效击打 |
+| `fc_lv25` | `FullComboCharts` | 1 张 Lv.25 及以上普通谱面 FC，AP 同样计入 |
+| `fc_lv28_10` | `FullComboCharts` | 10 张 Lv.28 及以上普通谱面 FC，按谱面键去重 |
+| `first_ap` | `AllPerfect` | 首次普通手动通关并取得 AP |
+| `first_dan_pass` | `DanPass` | 首次通过段位 |
+
+- 普通结算绑定 `RankingSettlement.UnlockedAchievementIds`，保存重试绑定返回的新快照。同局可解锁多项，重复打开时前端按 `PlayId` 控制提示。内存样例 `SettlementExample.SameChartFullCombo` 可预览首次等级 FC，`SaveFailed` 可预览保存失败。
+- 段位结算读取 `DanChallengeService.UnlockedAchievementIds`，它汇总本场各首已保存的解锁，重开从新场次开始。
+- 备份确认成功后可用同一份 `ProfileImportPreview.UnlockedAchievementIds` 显示合并摘要，再读取最新进度。取消预览不会改动成就。重复导入同一份备份时该列表为空。
+- 普通游玩采用有稳定局 ID 和结束时间的 v3 记录。段位以已保存的逐曲结果为准。新段位记录保存每首结束的 UTC 时间，旧备份只有场次开始时间，回算时使用该时间。按时间、稳定 ID 及曲序确定首次达标记录。删除普通历史或段位后，按剩余记录重算进度和解锁时间。
+
+2026-11-22 在 Unity 6000.6.7f1 验证。EditMode 全套 1,675 项通过、21 项跳过。三条双曲 PlayMode 用例均通过，覆盖末键归零、剩 1 点授牌并解锁成就、暂停重开后退出。Android 真机全流程仍待第四阶段前端接入后验收。
 
 ## 一、从首页到个人页
 

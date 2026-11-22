@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.IO;
 using OpenSekai.Infrastructure.Sonolus;
@@ -26,6 +28,7 @@ namespace OpenSekai.App.Playback
         public int SongNumber { get; private set; }
         public int RemainingLife { get; private set; }
         public bool NewlyAwarded { get; private set; }
+        public IReadOnlyList<string> UnlockedAchievementIds { get; private set; } = Array.Empty<string>();
         public string Error { get; private set; }
 
         /// <summary>Seconds left of the rest while <see cref="DanPhase.BetweenSongs"/>; counts unscaled time, paused in the background.</summary>
@@ -68,6 +71,7 @@ namespace OpenSekai.App.Playback
             Attempt = null;
             SongNumber = 1;
             Error = null;
+            UnlockedAchievementIds = Array.Empty<string>();
             NewlyAwarded = false;
             _quit = false;
             RemainingLife = definition.InitialLife;
@@ -111,6 +115,7 @@ namespace OpenSekai.App.Playback
 
         private void BeginAttempt()
         {
+            UnlockedAchievementIds = Array.Empty<string>();
             Attempt = DanAttempt.Begin(Definition);
             Profile.SaveDanAttempt(Definition, Attempt);
             SongNumber = 1;
@@ -130,11 +135,14 @@ namespace OpenSekai.App.Playback
                     if (_finishedSong) return;
                     _finishedSong = true;
                     RemainingLife = score.life;
-                    var row = new DanSongResult(song.ScoreKey, song.Title, kind, Math.Max(0L, time), startLife, score);
+                    var row = new DanSongResult(song.ScoreKey, song.Title, kind, Math.Max(0L, time), startLife, score,
+                        DateTimeOffset.UtcNow);
                     var updated = Attempt.Append(Definition, row);
                     try
                     {
-                        NewlyAwarded = Profile.SaveDanAttempt(Definition, updated);
+                        NewlyAwarded = Profile.SaveDanAttempt(Definition, updated, out var unlocks);
+                        if (unlocks.Count > 0)
+                            UnlockedAchievementIds = Array.AsReadOnly(UnlockedAchievementIds.Union(unlocks).ToArray());
                         Attempt = updated;
                     }
                     catch (Exception e) { Error = e.Message; }

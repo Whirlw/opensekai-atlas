@@ -72,10 +72,11 @@ namespace OpenSekai.Shared.Playback
         public bool TierUp => After.TierId > Before.TierId;
         public bool ChartImproved => After.ChartBest.HasValue &&
             (!Before.ChartBest.HasValue || After.ChartBest.Value > Before.ChartBest.Value);
-        public IReadOnlyList<string> UnlockedAchievementIds => Array.Empty<string>();
+        public IReadOnlyList<string> UnlockedAchievementIds { get; }
 
         public RankingSettlement(string playId, string scoreKey, RankingEligibility eligibility,
-            HistorySaveState saveState, ClearAward award, long basePoints, RankingStanding before, RankingStanding after)
+            HistorySaveState saveState, ClearAward award, long basePoints, RankingStanding before, RankingStanding after,
+            IReadOnlyList<string> unlockedAchievementIds = null)
         {
             PlayId = playId;
             ScoreKey = scoreKey;
@@ -85,6 +86,8 @@ namespace OpenSekai.Shared.Playback
             BasePoints = basePoints;
             Before = before;
             After = after;
+            UnlockedAchievementIds = unlockedAchievementIds == null || unlockedAchievementIds.Count == 0
+                ? Array.Empty<string>() : new List<string>(unlockedAchievementIds).AsReadOnly();
         }
     }
 }

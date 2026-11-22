@@ -841,6 +841,7 @@ namespace OpenSekai.Tests.PlayMode
                 Assert.That(attempt.Songs.Select(s => s.Score.life), Is.EqualTo(new[] { life - 1, life - 2 }));
                 Assert.That(attempt.Outcome, Is.EqualTo(expected));
                 Assert.That(service.NewlyAwarded, Is.EqualTo(expected == DanOutcome.Passed));
+                Assert.That(service.UnlockedAchievementIds.Contains("first_dan_pass"), Is.EqualTo(expected == DanOutcome.Passed));
                 Assert.That(PlayResultHandoff.Pending, Is.Null);
             }
             finally { Directory.Delete(root, true); }

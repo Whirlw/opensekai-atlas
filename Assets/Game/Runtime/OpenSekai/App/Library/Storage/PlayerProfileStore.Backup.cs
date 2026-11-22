@@ -26,6 +26,7 @@ namespace OpenSekai.App.Library
         public bool HasChanges => Added > 0 || RestoresAppearance || DanDefinitionsAdded > 0 || DanAttemptsAdded > 0;
         public bool RestoresAppearance { get; internal set; }
         public PlayerProfileSnapshot Result { get; internal set; }
+        public IReadOnlyList<string> UnlockedAchievementIds { get; internal set; }
     }
 
     public sealed partial class PlayerProfileStore
@@ -70,8 +71,13 @@ namespace OpenSekai.App.Library
             }, cancel);
         }
 
-        public Task<ProfileImportPreview> PreviewBackupAsync(string zipPath, CancellationToken cancel = default) =>
-            RunBackupAsync(() => Prepare(zipPath, cancel), cancel);
+        public Task<ProfileImportPreview> PreviewBackupAsync(string zipPath, CancellationToken cancel = default)
+        {
+            RequireIdle();
+            long bytes = HistoryLength();
+            var before = ReadAchievements();
+            return RunBackupAsync(() => Prepare(zipPath, bytes, before, cancel), cancel);
+        }
 
         private async Task<T> RunBackupAsync<T>(Func<T> operation, CancellationToken cancel)
         {
@@ -84,10 +90,10 @@ namespace OpenSekai.App.Library
         public ProfileImportPreview PreviewBackup(string zipPath)
         {
             RequireIdle();
-            return Prepare(zipPath, default);
+            return Prepare(zipPath, HistoryLength(), ReadAchievements(), default);
         }
 
-        private ProfileImportPreview Prepare(string zipPath, CancellationToken cancel)
+        private ProfileImportPreview Prepare(string zipPath, long bytes, IReadOnlyList<AchievementProgress> before, CancellationToken cancel)
         {
             if (SongPackageStorage.ActivePlayerDirectory(_root) != _directory)
                 throw new InvalidOperationException("The active archive changed.");
@@ -106,7 +112,6 @@ namespace OpenSekai.App.Library
                 string incoming = Path.Combine(stage, "incoming.jsonl");
                 var (appearance, incomingDan) = ProfileBackupArchive.Unpack(zipPath, incoming);
                 string merged = Path.Combine(stage, ProfileBackupArchive.HISTORY);
-                _previewHistoryLength = HistoryLength();
                 var preview = Merge(incoming, merged, cancel);
                 File.Delete(incoming);
                 var dan = LoadDanArchive();
@@ -116,9 +121,12 @@ namespace OpenSekai.App.Library
                 if (!preview.RestoresAppearance) appearance = ReadAppearance();
                 File.WriteAllText(Path.Combine(stage, PROFILE_FILE), JsonConvert.SerializeObject(appearance));
                 var (history, summaries) = IndexHistory(merged);
+                history.DanSource = () => dan;
+                preview.UnlockedAchievementIds = AchievementIndex.NewUnlocks(before, history.ReadAchievements());
                 preview.Result = new PlayerProfileSnapshot(appearance, history.Read(), dan);
                 cancel.ThrowIfCancellationRequested();
                 preview.Id = id;
+                _previewHistoryLength = bytes;
                 _preparedHistory = history;
                 _preparedSummaries = summaries;
                 _preview = preview;

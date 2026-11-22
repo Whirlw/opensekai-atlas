@@ -20,9 +20,13 @@ namespace OpenSekai.App.Library
         public long PositionMs { get; }
         public int StartingLife { get; }
         public LiveScore Score { get; }
+        // Older v2 backups only recorded the start of the attempt.
+        [JsonProperty(Required = Required.Default, NullValueHandling = NullValueHandling.Ignore)]
+        public DateTimeOffset? FinishedUtc { get; }
 
         [JsonConstructor]
-        internal DanSongResult(string scoreKey, string title, PlayResultKind kind, long positionMs, int startingLife, LiveScore score)
+        internal DanSongResult(string scoreKey, string title, PlayResultKind kind, long positionMs, int startingLife,
+            LiveScore score, DateTimeOffset? finishedUtc = null)
         {
             ScoreKey = scoreKey;
             Title = title;
@@ -30,6 +34,7 @@ namespace OpenSekai.App.Library
             PositionMs = positionMs;
             StartingLife = startingLife;
             Score = score;
+            FinishedUtc = finishedUtc;
         }
     }
 

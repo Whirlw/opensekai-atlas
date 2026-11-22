@@ -123,9 +123,13 @@ namespace OpenSekai.App.Library
             next.Attempts.RemoveAll(a => a.DefinitionId == id);
             if (next.Equipped == id) next.Equipped = null;
             WriteDan(next);
+            History.InvalidateAchievements();
         }
 
-        internal bool SaveDanAttempt(DanDefinition definition, DanAttempt attempt)
+        internal bool SaveDanAttempt(DanDefinition definition, DanAttempt attempt) =>
+            SaveDanAttempt(definition, attempt, out _);
+
+        internal bool SaveDanAttempt(DanDefinition definition, DanAttempt attempt, out IReadOnlyList<string> unlocks)
         {
             RequireIdle();
             attempt.Validate(definition);
@@ -133,9 +137,21 @@ namespace OpenSekai.App.Library
             bool firstAward = attempt.Outcome == DanOutcome.Passed && !archive.Earned().Contains(definition.Id);
             if (!archive.Definitions.Contains(definition.ShareText)) archive.Definitions.Add(definition.ShareText);
             int index = archive.Attempts.FindIndex(a => a.Id == attempt.Id);
+            var previous = index >= 0 ? archive.Attempts[index] : null;
             if (index < 0) archive.Attempts.Add(attempt);
             else archive.Attempts[index] = attempt;
+            var before = ReadAchievements();
             WriteDan(archive);
+            // Append() retains the immutable previous song objects. Replacements (including old
+            // checkpoints) can remove contributions and require replay from the committed archive.
+            int prefix = previous?.Songs.Count ?? 0;
+            if (previous != null && (previous.StartedUtc != attempt.StartedUtc ||
+                previous.DefinitionId != attempt.DefinitionId || !attempt.Songs.Take(prefix).SequenceEqual(previous.Songs)))
+                History.InvalidateAchievements();
+            else
+                for (int i = prefix; i < attempt.Songs.Count; i++)
+                    History.AppendAchievement(AchievementEvent.FromSong(attempt, i));
+            unlocks = AchievementIndex.NewUnlocks(before, ReadAchievements());
             return firstAward;
         }
 

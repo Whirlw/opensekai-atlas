@@ -108,6 +108,7 @@ namespace OpenSekai.App.Library
             _directory = next;
             _cachedDan = null;
             History = history;
+            History.DanSource = ReadDanArchive;
             Summaries = summaries;
             if (previous != _root) DiscardDirectory(previous);
             else

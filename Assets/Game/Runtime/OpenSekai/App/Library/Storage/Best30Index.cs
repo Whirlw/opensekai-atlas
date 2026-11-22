@@ -43,7 +43,7 @@ namespace OpenSekai.App.Library
         internal Best30Snapshot Snapshot() => new(_total, _top.ToArray());
 
         internal RankingSettlement Evaluate(CustomMusicScorePlayHistoryRecord play, HistorySaveState state,
-            RankingEligibility? exclusion = null)
+            RankingEligibility? exclusion = null, IReadOnlyList<string> unlocks = null)
         {
             var before = Standing(play.ScoreKey);
             var eligibility = exclusion ?? Eligibility(play);
@@ -56,7 +56,7 @@ namespace OpenSekai.App.Library
                     Consider(new Best30Entry(play, points + RankingRules.Bonus(award), award));
             }
             return new RankingSettlement(play.RecordId, play.ScoreKey, eligibility, state, award, points,
-                before, Standing(play.ScoreKey));
+                before, Standing(play.ScoreKey), unlocks);
         }
 
         private static RankingEligibility Eligibility(CustomMusicScorePlayHistoryRecord play)

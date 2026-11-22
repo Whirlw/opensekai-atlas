@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using OpenSekai.App.Library;
 using OpenSekai.Shared.Playback;
 using Sekai.Core.Live;
@@ -17,6 +18,13 @@ namespace OpenSekai.App.Playback
         public static PlayResult Create(SettlementExample example)
         {
             var board = new Best30Index();
+            var prior = new List<CustomMusicScorePlayHistoryRecord>();
+            void Seed(string id, string chart, int chartLevel, LiveScore live)
+            {
+                var saved = Record(id, chart, chart, chartLevel, live, PlayResultKind.Completed);
+                prior.Add(saved);
+                board.Evaluate(saved, HistorySaveState.Saved);
+            }
             var kind = PlayResultKind.Completed;
             var state = HistorySaveState.Saved;
             var mode = (RankingEligibility?)null;
@@ -28,17 +36,17 @@ namespace OpenSekai.App.Playback
                 case SettlementExample.FirstClear:
                     break;
                 case SettlementExample.SameChartFullCombo:
-                    Seed(board, "prior", key, level, NormalClear());
+                    Seed("prior", key, level, NormalClear());
                     score = FullCombo();
                     break;
                 case SettlementExample.NewChartAllPerfectTierUp:
                 case SettlementExample.OutsideBest30:
                     for (int i = 1; i <= 30; i++)
-                        Seed(board, "seed-" + i, "chart-" + i, i == 30 ? 26 : 27, AllPerfect());
+                        Seed("seed-" + i, "chart-" + i, i == 30 ? 26 : 27, AllPerfect());
                     if (example == SettlementExample.OutsideBest30)
                     {
                         level = 20;
-                        Seed(board, "off-board", key, level, NormalClear());
+                        Seed("off-board", key, level, NormalClear());
                         score = FullCombo();
                     }
                     else score = AllPerfect();
@@ -55,7 +63,7 @@ namespace OpenSekai.App.Playback
                         totalScore = 300000, maxCombo = 90, rank = Sekai.ScoreRank.D, life = kind == PlayResultKind.Failed ? 0 : 500 };
                     break;
                 case SettlementExample.SaveFailed:
-                    Seed(board, "prior", key, level, NormalClear());
+                    Seed("prior", key, level, NormalClear());
                     score = FullCombo();
                     state = HistorySaveState.SaveFailed;
                     break;
@@ -64,14 +72,16 @@ namespace OpenSekai.App.Playback
 
             string title = "联调谱面 · " + level;
             var record = Record("preview-" + example, key, title, level, score, kind);
-            var receipt = board.Evaluate(record, state, mode);
+            IReadOnlyList<string> unlocks = Array.Empty<string>();
+            if (state == HistorySaveState.Saved)
+            {
+                var before = AchievementIndex.Build(prior, null).Snapshot();
+                prior.Add(record);
+                unlocks = AchievementIndex.NewUnlocks(before, AchievementIndex.Build(prior, null).Snapshot());
+            }
+            var receipt = board.Evaluate(record, state, mode, unlocks);
             return new PlayResult(kind, mode == RankingEligibility.Auto, string.Empty, title, level,
                 score, settlement: receipt, difficulty: "master");
-        }
-
-        private static void Seed(Best30Index board, string id, string key, int level, LiveScore score)
-        {
-            board.Evaluate(Record(id, key, key, level, score, PlayResultKind.Completed), HistorySaveState.Saved);
         }
 
         private static CustomMusicScorePlayHistoryRecord Record(string id, string key, string title, int level,

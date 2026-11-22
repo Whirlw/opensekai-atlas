@@ -82,11 +82,12 @@ namespace OpenSekai.App.Library
             _root = root;
             _directory = SongPackageStorage.ActivePlayerDirectory(root);
             Summaries = new PlayHistorySummaryCache();
-            History = new RankingHistory(HistoryPath, Summaries);
+            History = new RankingHistory(HistoryPath, Summaries) { DanSource = ReadDanArchive };
         }
 
         public PlayerProfileSnapshot Read() => new(ReadAppearance(), History.Read(), ReadDanArchive());
         public HistoryPage ReadHistory(int offset, int limit) => History.ReadPage(offset, limit);
+        public IReadOnlyList<AchievementProgress> ReadAchievements() => History.ReadAchievements();
 
         public void SetAppearance(string nickname, string avatarId)
         {
