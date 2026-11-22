@@ -84,7 +84,7 @@ namespace OpenSekai.Tests.PlayMode
         private static void CheckUpstreamMix(AcbFile bank, string cue, AudioClip clip, bool loop)
         {
             // The local PCM16 exports share one gain so layering keeps the relative volume across both banks.
-            const float mixGain = .70483696f;
+            const float MIX_GAIN = .70483696f;
             var layers = bank.CueWaveforms[cue].Select(layer =>
                 (wave: bank.Decode(bank.Entries.Single(e => e.WaveId == layer.WaveId)), gain: layer.VolumeScale)).ToArray();
             var reference = layers[0].wave;
@@ -101,7 +101,7 @@ namespace OpenSekai.Tests.PlayMode
                 float mixed = 0f;
                 foreach (var layer in layers)
                     if (index < layer.wave.Samples.Length) mixed += layer.wave.Samples[index] * layer.gain;
-                if (Math.Abs(actual[i] - mixed * mixGain) > 2f / 32768f)
+                if (Math.Abs(actual[i] - mixed * MIX_GAIN) > 2f / 32768f)
                     Assert.Fail($"{cue} differs from its ACB at PCM sample {index}.");
             }
         }

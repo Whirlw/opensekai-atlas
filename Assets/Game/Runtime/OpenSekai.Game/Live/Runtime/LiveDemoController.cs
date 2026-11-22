@@ -20,7 +20,7 @@ namespace Sekai.Core.Live
 	public sealed class LiveDemoController : BaseLiveController
 	{
 		/// <summary>The order the result effects play in after each round.</summary>
-		private static readonly LiveResultAnimationType[] RESULTS =
+		private static readonly LiveResultAnimationType[] _results =
 		{
 			LiveResultAnimationType.AllPerfect,
 			LiveResultAnimationType.FullCombo,
@@ -206,7 +206,7 @@ namespace Sekai.Core.Live
 		{
 			_logic.ConnectorAudio.Silence();
 			yield return new WaitForSecondsRealtime(AFTER_NOTES_SECONDS);
-			foreach (LiveResultAnimationType result in RESULTS)
+			foreach (LiveResultAnimationType result in _results)
 			{
 				LiveViewExt.Result(_views, (int)result);
 				yield return new WaitForSecondsRealtime(RESULT_SECONDS);

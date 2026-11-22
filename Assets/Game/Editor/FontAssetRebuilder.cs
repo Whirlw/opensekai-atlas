@@ -40,13 +40,13 @@ namespace OpenSekai.EditorTools
         public static void BakeLibraryGlyphs()
         {
             // Fixed labels and common title characters. Imported song metadata can still grow the atlas.
-            const string labels = "…·、，。：（）「」ー☆★♪×–—♥" +
+            const string LABELS = "…·、，。：（）「」ー☆★♪×–—♥" +
                 "曲库首页服务器资源包导入设置返回刷新搜索曲名作者歌手封面占位演唱作曲谱面试听中" +
                 "最佳成绩最大连击自动演奏开始缺少音频文件无法上次游玩还没有记录不完整" +
                 "完成一次后这里会显示判定分布和重新的即可首按标题等级最近制谱人难度分组排序" +
                 "综合评价达成情况未通关全连完美游玩时间新到旧低高中止失败成绩暂无分类未知" +
                 "音量预览详情操作删除取消收藏只看已全部更多精选单人模式";
-            var glyphs = new System.Text.StringBuilder(labels);
+            var glyphs = new System.Text.StringBuilder(LABELS);
             for (char c = ' '; c <= '~'; c++) glyphs.Append(c);
             for (char c = 'ぁ'; c <= 'ゖ'; c++) glyphs.Append(c);
             for (char c = 'ァ'; c <= 'ヺ'; c++) glyphs.Append(c);

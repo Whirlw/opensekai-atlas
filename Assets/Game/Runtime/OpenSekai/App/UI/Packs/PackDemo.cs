@@ -24,7 +24,7 @@ namespace OpenSekai.App.UI
     internal sealed class PackDemo : IDisposable
     {
         /// <summary>Far from the page cameras, which draw every layer around the origin.</summary>
-        private static readonly Vector3 STAGE_POSITION = new Vector3(0f, -4000f, 0f);
+        private static readonly Vector3 _stagePosition = new Vector3(0f, -4000f, 0f);
 
         /// <summary>The texture's height; its width follows the screen's shape, as the live lays out for it.</summary>
         private const int TEXTURE_HEIGHT = 720;
@@ -146,7 +146,7 @@ namespace OpenSekai.App.UI
                 FreeLiveBootData owned = boot;
                 // The demo owns the boot from here on, and releases it even when it fails to start.
                 boot = null;
-                LiveDemoController next = LiveDemoController.Create(_parent, STAGE_POSITION, owned, _texture);
+                LiveDemoController next = LiveDemoController.Create(_parent, _stagePosition, owned, _texture);
                 next.Audible = _audible;
                 if (_current != null) UnityEngine.Object.Destroy(_current.gameObject);
                 _current = next;
