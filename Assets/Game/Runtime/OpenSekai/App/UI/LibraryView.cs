@@ -83,7 +83,7 @@ namespace OpenSekai.App.UI
         private MotionHandle _curtainMotion;
 
         private LibrarySettingsPanel _settingsPanel;
-        private LibraryResultPanel _resultPanel;
+        private ResultPage _resultPage;
         private LibraryLoadingOverlay _loadingOverlay;
         private LibraryActionsPanel _actionsPanel;
 
@@ -259,10 +259,15 @@ namespace OpenSekai.App.UI
             }
         }
 
-        public void SetSelection(SongPackageItem selected)
+        public void SetSelection(SongPackageItem selected, bool reveal = false)
         {
             SongPackageItem previous = _selected;
             _selected = selected;
+            if (reveal && selected != null && _indexByItem.TryGetValue(selected, out int index))
+            {
+                ActiveList.ScrollTo(index);
+            }
+
             CellOf(previous)?.SetSelected(false, true);
             CellOf(selected)?.SetSelected(true, true);
             ShowDetail();
@@ -285,13 +290,13 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            if (_resultPanel == null)
+            if (_resultPage == null)
             {
-                _resultPanel = LibraryResultPanel.Create(_page.transform, _presenter.OnResultRetry);
-                _resultPanel.OnClose = ResumePreview;
+                _resultPage = ResultPage.Create(_page.transform, _presenter.OnResultRetry, "返回曲库");
+                _resultPage.OnClose = ResumePreview;
             }
-            _resultPanel.Show(result, null, Accent);
-            LoadPanelArtwork(result.PackageDirectory, _resultPanel.SetArtwork);
+            _resultPage.Show(result, null, Accent);
+            LoadPanelArtwork(result.PackageDirectory, _resultPage.SetArtwork);
         }
 
         public void ShowLoading(string title, string packageDirectory)
@@ -426,7 +431,7 @@ namespace OpenSekai.App.UI
         internal void ResumePreview()
         {
             if (_visible && _presented && !_startingPlayback && !_applicationPaused && _preview != null
-                && (_resultPanel == null || !_resultPanel.isActiveAndEnabled))
+                && (_resultPage == null || !_resultPage.isActiveAndEnabled))
             {
                 _preview.Select(_selected);
             }
@@ -545,9 +550,9 @@ namespace OpenSekai.App.UI
                 return true;
             }
 
-            if (_resultPanel != null && _resultPanel.IsOpen)
+            if (_resultPage != null && _resultPage.IsOpen)
             {
-                _resultPanel.Dismiss();
+                _resultPage.Dismiss();
                 return true;
             }
 

@@ -156,7 +156,7 @@ namespace OpenSekai.App.Playback
                 if (material != null) await material.PrepareAsync(materialDiagnostics, cancellationToken);
                 PlaySession session = PlaySession.FromChart(request, entry, chart, config, settings, material?.Audio, material?.Combo, material?.Judgment, material?.HitFx, material?.Notes, material?.Lane, material?.Background, material?.Hud, material?.ResultFx);
                 FreeLiveBootData boot = LegacyLiveBootAdapter.Create(session, _deckSelection.SelectedDeckId);
-                if (temporary == null) boot.CustomMusicScoreKey = _packages.FindCachedItem(entry.RootDirectory)?.ScoreKey ?? chartHash;
+                boot.CustomMusicScoreKey = chartHash;
                 cancellationToken.ThrowIfCancellationRequested();
                 string message = request.IsAuto ? "正在开始自动游玩..." : "正在开始游玩...";
                 progress?.Invoke(message);

@@ -268,6 +268,21 @@ namespace OpenSekai.Tests.EditMode
             }
         }
 
+        [Test]
+        public void AResultSelectsAndRevealsThePackageThatWasPlayed()
+        {
+            AddPackage("alpha", "Alpha", 1);
+            string zeta = AddPackage("zeta", "Zeta", 9);
+            _presenter.Refresh();
+            Assert.That(_view.Selected.Entry.Manifest.id, Is.EqualTo("alpha"), "a rebuilt page starts on the first row");
+
+            _presenter.ShowResult(PlayResult.FromLoadError("Zeta", false, zeta, "test"));
+
+            Assert.That(_view.Selected.Entry.Manifest.id, Is.EqualTo("zeta"));
+            Assert.That(_view.Revealed, Is.SameAs(_view.Selected));
+            Assert.That(_view.Result, Is.Not.Null);
+        }
+
         private string AddPackage(string id, string title, int level, DateTimeOffset? importedAt = null)
         {
             string folder = Path.Combine(_packages.RootDirectory, id);
@@ -295,7 +310,14 @@ namespace OpenSekai.Tests.EditMode
             internal string LoadingMessage { get; private set; }
             internal bool Loading { get; private set; }
 
-            public void SetSelection(SongPackageItem selected) => Selected = selected;
+            internal SongPackageItem Revealed { get; private set; }
+
+            public void SetSelection(SongPackageItem selected, bool reveal = false)
+            {
+                Selected = selected;
+                if (reveal) Revealed = selected;
+            }
+
             public void SetStatus(string message) => Status = message;
             public void ShowSettings() { }
             public void ShowResult(PlayResult result) => Result = result;

@@ -29,7 +29,7 @@ namespace OpenSekai.App.UI
         private GraphicRaycaster _raycaster;
         private CanvasGroup _pagesGroup;
         private LibrarySettingsPanel _settings;
-        private LibraryResultPanel _result;
+        private ResultPage _result;
         private TemporarySongPackage _temporaryPlay;
         private Image _glowMain;
         private Image _glowSecondary;
@@ -320,7 +320,7 @@ namespace OpenSekai.App.UI
             if (result == null) return;
             if (_result == null)
             {
-                _result = LibraryResultPanel.Create(ModalLayer,
+                _result = ResultPage.Create(ModalLayer,
                     retry => RaisePlayRequested(new PlayRequest(retry.PackageDirectory, retry.Title, retry.IsAuto, _temporaryPlay)), "返回服务器");
                 _result.OnClose = () => _temporaryPlay = null;
             }

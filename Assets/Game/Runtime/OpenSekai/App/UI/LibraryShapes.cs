@@ -21,8 +21,10 @@ namespace OpenSekai.App.UI
         private const int SCALE = 2;
         private const float PIXELS_PER_UNIT = 100f * SCALE;
         private const int GLOW_SIZE = 256;
+        private const int HEXAGON_SIZE = 320;
 
         private static readonly Dictionary<int, Sprite> _roundedRects = new Dictionary<int, Sprite>();
+        private static readonly Dictionary<int, Sprite> _hexagons = new Dictionary<int, Sprite>();
         private static readonly Dictionary<long, Sprite> _rings = new Dictionary<long, Sprite>();
         private static readonly Dictionary<long, Sprite> _shadows = new Dictionary<long, Sprite>();
         private static readonly Dictionary<LibraryIcon, Sprite> _icons = new Dictionary<LibraryIcon, Sprite>();
@@ -98,6 +100,63 @@ namespace OpenSekai.App.UI
             }
 
             return _glow;
+        }
+
+        /// <summary>
+        /// Pointy-top hexagon with softened corners, filling a square sprite top to bottom. A
+        /// <paramref name="stroke"/> above zero draws only its outline, that fraction of the height thick.
+        /// </summary>
+        internal static Sprite Hexagon(float stroke = 0f)
+        {
+            int key = Mathf.RoundToInt(stroke * 1000f);
+            if (_hexagons.TryGetValue(key, out Sprite sprite) && sprite != null)
+            {
+                return sprite;
+            }
+
+            const int SIZE = HEXAGON_SIZE;
+            const float ROUNDING = SIZE * 0.035f;
+            float center = SIZE * 0.5f;
+            // Circumradius just inside the square, so the top and bottom corners keep their antialiasing.
+            float inradius = (center - 1.5f) * 0.8660254f - ROUNDING;
+            float strokePixels = stroke * SIZE;
+            var pixels = new Color32[SIZE * SIZE];
+            for (int y = 0; y < SIZE; y++)
+            {
+                for (int x = 0; x < SIZE; x++)
+                {
+                    float distance = HexagonDistance(x + 0.5f - center, y + 0.5f - center, inradius) - ROUNDING;
+                    float alpha = Mathf.Clamp01(0.5f - distance);
+                    if (strokePixels > 0f)
+                    {
+                        alpha -= Mathf.Clamp01(0.5f - (distance + strokePixels));
+                    }
+
+                    pixels[y * SIZE + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(Mathf.Clamp01(alpha) * 255f));
+                }
+            }
+
+            Texture2D texture = CreateTexture("Hexagon" + key, SIZE, SIZE, pixels);
+            sprite = Sprite.Create(texture, new Rect(0f, 0f, SIZE, SIZE), new Vector2(0.5f, 0.5f), PIXELS_PER_UNIT);
+            _hexagons[key] = sprite;
+            return sprite;
+        }
+
+        /// <summary>Signed distance to a pointy-top hexagon centred on the origin.</summary>
+        private static float HexagonDistance(float x, float y, float inradius)
+        {
+            // The flat-top fold, run on swapped axes so the corners point up and down.
+            const float KX = -0.8660254f;
+            const float KY = 0.5f;
+            const float KZ = 0.57735027f;
+            float px = Mathf.Abs(y);
+            float py = Mathf.Abs(x);
+            float fold = 2f * Mathf.Min(KX * px + KY * py, 0f);
+            px -= fold * KX;
+            py -= fold * KY;
+            px -= Mathf.Clamp(px, -KZ * inradius, KZ * inradius);
+            py -= inradius;
+            return Mathf.Sqrt(px * px + py * py) * Mathf.Sign(py);
         }
 
         /// <summary>Small downward chevron for dropdown buttons.</summary>

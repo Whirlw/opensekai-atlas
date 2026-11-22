@@ -13,7 +13,8 @@ namespace Sekai.Core.Live
 	{
 		private Coroutine _finishCoroutine;
 		private Coroutine _resumeCoroutine;
-		private bool _playHistoryRecorded;
+		private string _playId;
+		private RankingSettlement _settlement;
 		private bool _retiredByPlayer;
 		private ILivePauseMenu _pauseOverlay;
 		private MusicInfoView _musicInfoView;
@@ -49,6 +50,7 @@ namespace Sekai.Core.Live
 			}
 
 			_context = context;
+			_playId = string.IsNullOrEmpty(context.SessionId) ? System.Guid.NewGuid().ToString("N") : context.SessionId;
 			BootData = context.BootData;
 			if (BootData != null)
 			{
@@ -407,7 +409,10 @@ namespace Sekai.Core.Live
 			_resultEffectAtMs = null;
 			liveOutUIController?.Destroy();
 			SoundManager.Instance.StopIngame();
-			_playHistoryRecorded = false;
+			FinishAttempt(PlayResultKind.Retired);
+			_playId = System.Guid.NewGuid().ToString("N");
+			_settlement = null;
+			_retiredByPlayer = false;
 			result = 0;
 			state = LiveControllerState.None;
 			currentMusicTimeMs = System.Math.Max(0L, BootData?.MusicData?.StartMusicTimeMs ?? 0L);
@@ -524,10 +529,14 @@ namespace Sekai.Core.Live
 			}
 
 			double historyStart = LatencyCapture.Active ? Time.realtimeSinceStartupAsDouble : 0d;
-			TryAppendPlayHistory();
+			LiveScore score = _liveLogic?.Score ?? default;
+			var kind = _retiredByPlayer ? PlayResultKind.Retired
+				: result == 3 && score.life > 0 ? PlayResultKind.Completed : PlayResultKind.Failed;
+			FinishAttempt(kind);
 			if (LatencyCapture.Active)
 				LatencyCapture.Record("finish_history", value: (Time.realtimeSinceStartupAsDouble - historyStart) * 1000d);
-			PublishPlayResultForLibrary();
+			if (BootData is FreeLiveBootData free && free.ReturnScene == SceneManager.Scene.Library)
+				PlayResultHandoff.Publish(PlayResult.FromBootData(free, kind, score, _settlement));
 			state = LiveControllerState.Finish;
 			SetFinish(delay, waitTime, 2f, resultEffectAtMs);
 
@@ -540,46 +549,11 @@ namespace Sekai.Core.Live
 				: null;
 		}
 
-		private void TryAppendPlayHistory()
+		private void FinishAttempt(PlayResultKind kind)
 		{
-			// The recorder is the App layer's; without one the run simply is not written down. Both
-			// halves of the guard are checked before _playHistoryRecorded is set, so a recorder that
-			// arrives later still gets the run.
-			if (_playHistoryRecorded || result != 3 || BootData?.IsAuto == true || _context?.PlayHistory == null)
-			{
-				return;
-			}
-
-			_playHistoryRecorded = true;
-			if (BootData is FreeLiveBootData freeLiveBootData)
-			{
-				_context.PlayHistory.AppendLiveResult(
-					freeLiveBootData,
-					_liveLogic?.Score ?? default,
-					currentMusicTimeMs,
-					musicLength,
-					_context.SessionId,
-					_context.ChartHash,
-					_context.RulesVersion);
-			}
-		}
-
-		/// <summary>
-		/// Hand the finished session to the lightweight library scene. Only the Library return
-		/// path is covered: the editor's test-play flow keeps its own dialogs.
-		/// result: 1 = retired by the player, 2 = failed (life zero / forced retire), 3 = completed.
-		/// </summary>
-		private void PublishPlayResultForLibrary()
-		{
-			if (!(BootData is FreeLiveBootData free) || free.ReturnScene != SceneManager.Scene.Library)
-			{
-				return;
-			}
-
-			LiveScore score = _liveLogic != null ? _liveLogic.Score : default;
-			PlayResultKind kind = _retiredByPlayer ? PlayResultKind.Retired
-				: result == 3 && score.life > 0 ? PlayResultKind.Completed : PlayResultKind.Failed;
-			PlayResultHandoff.Publish(PlayResult.FromBootData(free, kind, score));
+			if (_settlement == null && BootData is FreeLiveBootData free && _context?.PlayHistory != null)
+				_settlement = _context.PlayHistory.Finish(free, _liveLogic?.Score ?? default, kind,
+					currentMusicTimeMs, musicLength, _playId, _context.ChartHash, _context.RulesVersion);
 		}
 
 		protected override void OnExit()

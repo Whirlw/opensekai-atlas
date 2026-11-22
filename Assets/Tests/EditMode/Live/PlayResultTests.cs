@@ -12,14 +12,13 @@ namespace OpenSekai.Tests.EditMode.Live
     /// </summary>
     public class PlayResultTests
     {
-        private static LiveScore Score(int totalCombo, int jp = 0, int perfect = 0, int great = 0,
+        private static LiveScore Score(int totalCombo, int perfect = 0, int great = 0,
             int good = 0, int bad = 0, int miss = 0, int auto = 0, int totalScore = 0,
             ScoreRank rank = ScoreRank.D, int maxCombo = 0, int life = 0)
         {
             return new LiveScore
             {
                 totalComboCount = totalCombo,
-                justPerfectCount = jp,
                 perfectCount = perfect,
                 greatCount = great,
                 goodCount = good,
@@ -39,7 +38,7 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void AllPerfectRequiresACompletedManualRun()
         {
-            LiveScore perfect = Score(totalCombo: 100, jp: 100, totalScore: 1000000, rank: ScoreRank.S);
+            LiveScore perfect = Score(totalCombo: 100, perfect: 100, totalScore: 1000000, rank: ScoreRank.S);
 
             Assert.That(Completed(perfect).IsAllPerfectClear, Is.True);
             Assert.That(new PlayResult(PlayResultKind.Retired, false, "dir", "Song", 30, perfect).IsAllPerfectClear,
@@ -47,20 +46,19 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         [Test]
-        public void AllPerfectAcceptsPerfectSplitsAcrossBothWindows()
+        public void PartialPerfectCountCannotEarnAllPerfect()
         {
-            LiveScore score = Score(totalCombo: 100, jp: 40, perfect: 60);
-
-            Assert.That(Completed(score).IsAllPerfectClear, Is.True);
+            LiveScore score = Score(totalCombo: 100, perfect: 60);
+            Assert.That(Completed(score).IsAllPerfectClear, Is.False);
         }
 
         [Test]
         public void AnyLowerJudgementBreaksAllPerfect()
         {
-            Assert.That(Completed(Score(totalCombo: 10, jp: 9, great: 1)).IsAllPerfectClear, Is.False);
-            Assert.That(Completed(Score(totalCombo: 10, jp: 9, good: 1)).IsAllPerfectClear, Is.False);
-            Assert.That(Completed(Score(totalCombo: 10, jp: 9, bad: 1)).IsAllPerfectClear, Is.False);
-            Assert.That(Completed(Score(totalCombo: 10, jp: 9, miss: 1)).IsAllPerfectClear, Is.False);
+            Assert.That(Completed(Score(totalCombo: 10, perfect: 9, great: 1)).IsAllPerfectClear, Is.False);
+            Assert.That(Completed(Score(totalCombo: 10, perfect: 9, good: 1)).IsAllPerfectClear, Is.False);
+            Assert.That(Completed(Score(totalCombo: 10, perfect: 9, bad: 1)).IsAllPerfectClear, Is.False);
+            Assert.That(Completed(Score(totalCombo: 10, perfect: 9, miss: 1)).IsAllPerfectClear, Is.False);
         }
 
         [Test]
@@ -111,7 +109,7 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void ScoreFieldsAreCopiedFromTheLiveScore()
         {
-            PlayResult result = Completed(Score(totalCombo: 221, jp: 200, perfect: 21, totalScore: 1000000,
+            PlayResult result = Completed(Score(totalCombo: 221, perfect: 221, totalScore: 1000000,
                 rank: ScoreRank.S, maxCombo: 221, life: 850));
 
             Assert.That(result.Score, Is.EqualTo(1000000));
@@ -119,7 +117,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(result.MaxCombo, Is.EqualTo(221));
             Assert.That(result.Rank, Is.EqualTo(ScoreRank.S));
             Assert.That(result.Life, Is.EqualTo(850));
-            Assert.That(result.JustPerfect + result.Perfect, Is.EqualTo(221));
+            Assert.That(result.Perfect, Is.EqualTo(221));
         }
 
         [Test]

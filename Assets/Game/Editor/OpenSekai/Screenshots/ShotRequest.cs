@@ -75,6 +75,7 @@ namespace OpenSekai.EditorTools.Screenshots
         /// info: seconds since the info page was asked to start (it fades out at about 2.9 s).
         /// finish: seconds since the last note was done (the result animation starts 1 s later).
         /// intro: seconds into the splash (it hands over to the settled home page at about 4.4 s).
+        /// result: seconds into the result page's opening, one frame each; none shows where it settles.
         /// </summary>
         public List<float> times = new List<float>();
 
@@ -94,14 +95,21 @@ namespace OpenSekai.EditorTools.Screenshots
         /// <summary>live/info/finish: the simulated frame rate the frames are stepped at.</summary>
         public int fps = 60;
 
-        /// <summary>result: the sample shown on the result panel.</summary>
+        /// <summary>result: the sample shown on the result page.</summary>
         public ResultSample result;
     }
 
-    /// <summary>Sample data for the library result panel. Every field has a plausible default.</summary>
+    /// <summary>
+    /// Sample data for the result page. With <see cref="settlement"/> set, the run and its ranking
+    /// are the backend's matching SettlementSamples case and the counts below are ignored; without
+    /// it the counts are shown with no ranking ("本局未记录成绩"). Every field has a plausible default.
+    /// </summary>
     [Serializable]
     public sealed class ResultSample
     {
+        /// <summary>A SettlementExample name: FirstClear | SameChartFullCombo | NewChartAllPerfectTierUp | OutsideBest30 | Auto | Failed | Retired | SaveFailed.</summary>
+        public string settlement;
+
         /// <summary>Completed | Failed | Retired | LoadError</summary>
         public string kind = "Completed";
         public bool auto;
@@ -120,36 +128,26 @@ namespace OpenSekai.EditorTools.Screenshots
         public int life = 820;
         public string message = "找不到音频文件。";
 
-        /// <summary>Fills the counts for a named preset: fc, ap, auto, failed, retired, loaderror.</summary>
+        /// <summary>
+        /// A named preset: default (first clear) | fc | ap (new chart, tier up) | outside | auto |
+        /// failed | retired | savefailed | loaderror.
+        /// </summary>
         public static ResultSample Preset(string preset)
         {
             var sample = new ResultSample();
             switch ((preset ?? string.Empty).ToLowerInvariant())
             {
-                case "ap":
-                    sample.score = 1135420; sample.maxCombo = 1250; sample.perfect = 1250;
-                    sample.great = sample.good = sample.bad = sample.miss = 0;
-                    break;
-                case "fc":
-                    sample.score = 1112806; sample.maxCombo = 1250; sample.perfect = 1206;
-                    sample.great = 44; sample.good = sample.bad = sample.miss = 0;
-                    break;
-                case "auto":
-                    sample.auto = true; sample.score = 1135420; sample.maxCombo = 1250;
-                    sample.perfect = sample.great = sample.good = sample.bad = sample.miss = 0;
-                    break;
-                case "failed":
-                    sample.kind = "Failed"; sample.score = 412803; sample.rank = "C"; sample.maxCombo = 96;
-                    sample.totalCombo = 1250; sample.perfect = 402; sample.great = 87; sample.good = 31;
-                    sample.bad = 22; sample.miss = 58; sample.life = 0;
-                    break;
-                case "retired":
-                    sample.kind = "Retired"; sample.score = 233118; sample.rank = "D"; sample.maxCombo = 207;
-                    sample.perfect = 220; sample.great = 12; sample.good = 1; sample.bad = 0; sample.miss = 1;
-                    break;
-                case "loaderror":
-                    sample.kind = "LoadError";
-                    break;
+                case "":
+                case "default": sample.settlement = "FirstClear"; break;
+                case "fc": sample.settlement = "SameChartFullCombo"; break;
+                case "ap": sample.settlement = "NewChartAllPerfectTierUp"; break;
+                case "outside": sample.settlement = "OutsideBest30"; break;
+                case "auto": sample.settlement = "Auto"; break;
+                case "failed": sample.settlement = "Failed"; break;
+                case "retired": sample.settlement = "Retired"; break;
+                case "savefailed": sample.settlement = "SaveFailed"; break;
+                case "loaderror": sample.kind = "LoadError"; break;
+                default: throw new ArgumentException("Unknown result preset: " + preset, nameof(preset));
             }
             return sample;
         }

@@ -159,11 +159,11 @@ namespace OpenSekai.EditorTools.Screenshots
             yield return WaitForLibrary();
             LibraryScreen screen = UnityEngine.Object.FindFirstObjectByType<LibraryScreen>();
             LibrarySettingsPanel settings = screen.GetComponentInChildren<LibrarySettingsPanel>(true);
-            LibraryResultPanel resultPanel = UnityEngine.Object.FindFirstObjectByType<LibraryResultPanel>(FindObjectsInactive.Include);
+            ResultPage resultPage = UnityEngine.Object.FindFirstObjectByType<ResultPage>(FindObjectsInactive.Include);
             LibraryActionsPanel actionsPanel = UnityEngine.Object.FindFirstObjectByType<LibraryActionsPanel>(FindObjectsInactive.Include);
             LibraryLoadingOverlay loading = UnityEngine.Object.FindFirstObjectByType<LibraryLoadingOverlay>(FindObjectsInactive.Include);
             settings?.Hide();
-            resultPanel?.Hide();
+            resultPage?.Hide();
             actionsPanel?.Hide();
             loading?.Hide();
             object view = screen.GetType().GetField("_view", ANY)?.GetValue(screen);
@@ -186,11 +186,13 @@ namespace OpenSekai.EditorTools.Screenshots
             }
             else if (panel == "result")
             {
-                ResultSample sample = shot.result ?? new ResultSample();
-                // Played from the selected package, so the card shows its jacket like a real run.
-                screen.ShowResult(ToResult(sample, selected?.Entry?.RootDirectory));
-                resultPanel = screen.GetComponentInChildren<LibraryResultPanel>(true);
-                detail = sample.kind + " " + sample.score + " " + sample.rank;
+                ResultSample sample = shot.result ?? ResultSample.Preset("default");
+                // Played from the selected package, so the page shows its jacket like a real run.
+                screen.ShowResult(ToResult(sample, selected?.Entry?.RootDirectory, selected?.Entry?.Manifest?.title));
+                resultPage = screen.GetComponentInChildren<ResultPage>(true);
+                detail = string.IsNullOrEmpty(sample.settlement)
+                    ? sample.kind + " " + sample.score + " " + sample.rank
+                    : sample.settlement;
             }
 
             else if (panel == "actions" || panel == "actions-armed")
@@ -215,14 +217,30 @@ namespace OpenSekai.EditorTools.Screenshots
             }
 
             // Two frames for layout and TextMeshPro to settle, then long enough for the panel's
-            // opening motion (and the result's score count) to finish.
+            // opening motion to finish and the jacket to decode.
             yield return null;
             yield return null;
             yield return new WaitForSecondsRealtime(1.1f);
-            yield return Capture(shot, FileStem(shot, null), detail, null);
+            if (panel == "result" && shot.times != null && shot.times.Count > 0)
+            {
+                // Frames of the result page's opening, each drawn at its time on the page's timeline.
+                foreach (float time in shot.times)
+                {
+                    resultPage.Seek(time);
+                    yield return null;
+                    yield return Capture(shot, FileStem(shot, time), detail, null);
+                }
+            }
+            else
+            {
+                // The result page's opening runs longer than the wait; show where it settles.
+                if (panel == "result") resultPage.Skip();
+                yield return null;
+                yield return Capture(shot, FileStem(shot, null), detail, null);
+            }
 
             settings?.Hide();
-            resultPanel?.Hide();
+            resultPage?.Hide();
             actionsPanel?.Hide();
             if (panel == "loading")
             {
@@ -230,13 +248,30 @@ namespace OpenSekai.EditorTools.Screenshots
             }
         }
 
-        private static PlayResult ToResult(ResultSample sample, string packageDirectory = null)
+        /// <param name="title">The selected package's title; the sample's own when there is none.</param>
+        private static PlayResult ToResult(ResultSample sample, string packageDirectory = null, string title = null)
         {
             packageDirectory = packageDirectory ?? string.Empty;
+            title = string.IsNullOrWhiteSpace(title) ? sample.title : title;
             Enum.TryParse(sample.kind, true, out PlayResultKind kind);
             if (kind == PlayResultKind.LoadError)
             {
-                return PlayResult.FromLoadError(sample.title, sample.auto, packageDirectory, sample.message);
+                return PlayResult.FromLoadError(title, sample.auto, packageDirectory, sample.message);
+            }
+
+            if (Enum.TryParse(sample.settlement, true, out SettlementExample example))
+            {
+                // The backend's sample run, moved onto the selected package so the page shows its jacket.
+                PlayResult played = SettlementSamples.Create(example);
+                var counts = new LiveScore
+                {
+                    totalScore = played.Score, rank = played.Rank, maxCombo = played.MaxCombo,
+                    totalComboCount = played.TotalCombo, perfectCount = played.Perfect, greatCount = played.Great,
+                    goodCount = played.Good, badCount = played.Bad, missCount = played.Miss,
+                    autoCount = played.AutoCount, life = played.Life
+                };
+                return new PlayResult(played.Kind, played.IsAuto, packageDirectory, title, played.PlayLevel, counts,
+                    settlement: played.Settlement, difficulty: played.Difficulty);
             }
             Enum.TryParse(sample.rank, true, out ScoreRank rank);
             var score = new LiveScore
@@ -253,7 +288,7 @@ namespace OpenSekai.EditorTools.Screenshots
                 autoCount = sample.auto ? sample.totalCombo : 0,
                 life = sample.life
             };
-            return new PlayResult(kind, sample.auto, packageDirectory, sample.title, sample.playLevel, score);
+            return new PlayResult(kind, sample.auto, packageDirectory, title, sample.playLevel, score);
         }
 
         /// <summary>
@@ -870,7 +905,7 @@ namespace OpenSekai.EditorTools.Screenshots
             }
             yield return WaitForLibrary();
             Time.captureDeltaTime = 0f;
-            UnityEngine.Object.FindFirstObjectByType<LibraryResultPanel>(FindObjectsInactive.Include)?.Hide();
+            UnityEngine.Object.FindFirstObjectByType<ResultPage>(FindObjectsInactive.Include)?.Hide();
             if (_settingsChanged)
             {
                 LiveSettingData shared = OpenSekai.Shared.Settings.LiveSettingsStore.Shared.Load();

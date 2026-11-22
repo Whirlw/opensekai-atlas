@@ -8,6 +8,7 @@ using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using OpenSekai.App;
 using OpenSekai.App.Playback;
+using OpenSekai.App.Library;
 using OpenSekai.App.UI;
 using OpenSekai.Charts;
 using OpenSekai.Infrastructure.Packages;
@@ -32,6 +33,24 @@ namespace OpenSekai.Tests.PlayMode
     {
         private const string LIBRARY_SCENE_PATH = "Assets/Game/Scenes/Library.unity";
         private const float BOOT_TIMEOUT_SECONDS = 15f;
+        private RankingHistory _previousHistory;
+        private string _historyRoot;
+
+        [OneTimeSetUp]
+        public void UseScratchHistory()
+        {
+            _previousHistory = CustomMusicScorePlayHistoryStorage.Ranking;
+            _historyRoot = Path.Combine(Path.GetTempPath(), "OpenSekai-SmokeHistory-" + System.Guid.NewGuid().ToString("N"));
+            CustomMusicScorePlayHistoryStorage.Ranking = new RankingHistory(
+                Path.Combine(_historyRoot, "PlayHistory.jsonl"), new PlayHistorySummaryCache());
+        }
+
+        [OneTimeTearDown]
+        public void RestorePlayerHistory()
+        {
+            CustomMusicScorePlayHistoryStorage.Ranking = _previousHistory;
+            if (Directory.Exists(_historyRoot)) Directory.Delete(_historyRoot, true);
+        }
 
         [Test]
         public void LiveBackgroundCoverFillsTheMasksAtAnySourceResolution()
@@ -392,7 +411,7 @@ namespace OpenSekai.Tests.PlayMode
             yield return WaitFor(() => !head.IsPlaying, 5f, "finishing the resumed long head hit");
 
             yield return WaitFor(
-                () => SceneLoader.GetActiveScene().name == "Library" && Object.FindFirstObjectByType<LibraryResultPanel>() != null,
+                () => SceneLoader.GetActiveScene().name == "Library" && Object.FindFirstObjectByType<ResultPage>() != null,
                 90f, "returning to Library and showing the result");
             var returnedLibrary = Object.FindFirstObjectByType<LibraryScreen>();
             Assert.That(returnedLibrary, Is.Not.Null);
@@ -400,9 +419,8 @@ namespace OpenSekai.Tests.PlayMode
             Assert.That(SoundManager.Instance.IsLoadedSoundBundle(songCue), Is.False,
                 "returning to Library releases the completed song from the process-wide audio catalog");
 
-            var panel = Object.FindFirstObjectByType<LibraryResultPanel>();
-            var result = (PlayResult)typeof(LibraryResultPanel)
-                .GetField("_current", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(panel);
+            var panel = Object.FindFirstObjectByType<ResultPage>();
+            var result = panel.Current;
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Kind, Is.EqualTo(PlayResultKind.Completed));
             Assert.That(result.IsAuto, Is.True);
@@ -510,10 +528,10 @@ namespace OpenSekai.Tests.PlayMode
             Assert.That(server.IsPresented, Is.False);
             Assert.That(originalHome == null, Is.True);
 
-            LibraryResultPanel panel = null;
+            ResultPage panel = null;
             yield return WaitFor(() =>
             {
-                panel = Object.FindFirstObjectByType<LibraryResultPanel>();
+                panel = Object.FindFirstObjectByType<ResultPage>();
                 return SceneLoader.GetActiveScene().name == "Library" && panel != null && panel.IsOpen;
             }, 90f, "showing the server result");
 
@@ -579,11 +597,10 @@ namespace OpenSekai.Tests.PlayMode
                 Assert.That(SoundManager.Instance.IsLoadedSoundBundle(unpublished.AudioCueName), Is.False);
 
                 yield return WaitFor(() => SceneLoader.GetActiveScene().name == "Library"
-                    && Object.FindFirstObjectByType<LibraryResultPanel>() != null,
+                    && Object.FindFirstObjectByType<ResultPage>() != null,
                     90f, "showing the recovered package's autoplay result");
-                var panel = Object.FindFirstObjectByType<LibraryResultPanel>();
-                var result = (PlayResult)typeof(LibraryResultPanel)
-                    .GetField("_current", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(panel);
+                var panel = Object.FindFirstObjectByType<ResultPage>();
+                var result = panel.Current;
                 Assert.That(result, Is.Not.Null);
                 Assert.That(result.PackageDirectory, Is.EqualTo(recoveredDirectory));
                 Assert.That(result.Kind, Is.EqualTo(PlayResultKind.Completed));
@@ -669,9 +686,16 @@ namespace OpenSekai.Tests.PlayMode
                 yield return WaitFor(
                     () => SceneLoader.GetActiveScene().name == "Core" && Object.FindFirstObjectByType<SoloLiveController>() != null,
                     BOOT_TIMEOUT_SECONDS, "playing the temporary chart without a package folder");
+                var boot = (FreeLiveBootData)Object.FindFirstObjectByType<SoloLiveController>().BootData;
+                Assert.That(boot.CustomMusicScoreKey, Is.EqualTo(cached.ChartHash));
                 yield return WaitFor(
                     () => SceneLoader.GetActiveScene().name == "Library" && screen.IsPresented,
                     90f, "returning to the server after temporary play");
+                var panel = Object.FindFirstObjectByType<ResultPage>();
+                var played = panel.Current;
+                Assert.That(played.Settlement.ScoreKey, Is.EqualTo(cached.ChartHash));
+                Assert.That(played.Settlement.PlayId, Is.Not.Empty);
+                Assert.That(played.Settlement.SaveState, Is.EqualTo(HistorySaveState.Saved));
                 Assert.That(clip != null, Is.True, "releasing live audio must leave the cache usable");
                 Assert.That(installer.FindInstalled(address, details.Level.Name), Is.Null);
 
@@ -680,6 +704,7 @@ namespace OpenSekai.Tests.PlayMode
                     installed =>
                     {
                         Assert.That(File.ReadAllBytes(installed.ScorePath), Is.EqualTo(chartData));
+                        Assert.That(SongPackageHash.Compute(installed.ScorePath), Is.EqualTo(boot.CustomMusicScoreKey));
                         Assert.That(File.ReadAllBytes(installed.AudioPath), Is.EqualTo(audioData));
                     });
                 yield return install;
@@ -719,13 +744,12 @@ namespace OpenSekai.Tests.PlayMode
                 StartThroughLibraryRetry(directory);
 
                 const BindingFlags FIELDS = BindingFlags.Instance | BindingFlags.NonPublic;
-                var panelResultField = typeof(LibraryResultPanel).GetField("_current", FIELDS);
                 SoloLiveController controller = null;
                 yield return WaitFor(
                     () =>
                     {
-                        var activePanel = Object.FindFirstObjectByType<LibraryResultPanel>();
-                        var loadResult = activePanel == null ? null : (PlayResult)panelResultField.GetValue(activePanel);
+                        var activePanel = Object.FindFirstObjectByType<ResultPage>();
+                        var loadResult = activePanel == null ? null : activePanel.Current;
                         if (loadResult?.Kind == PlayResultKind.LoadError)
                             Assert.Fail(loadResult.Message);
                         controller = Object.FindFirstObjectByType<SoloLiveController>();
@@ -815,10 +839,10 @@ namespace OpenSekai.Tests.PlayMode
                 Assert.That(Time.timeAsDouble - resultStarted, Is.GreaterThanOrEqualTo(5.9d));
 
                 yield return WaitFor(
-                    () => SceneLoader.GetActiveScene().name == "Library" && Object.FindFirstObjectByType<LibraryResultPanel>() != null,
+                    () => SceneLoader.GetActiveScene().name == "Library" && Object.FindFirstObjectByType<ResultPage>() != null,
                     BOOT_TIMEOUT_SECONDS, "showing the NextRUSH+ result");
-                var panel = Object.FindFirstObjectByType<LibraryResultPanel>();
-                var result = (PlayResult)panelResultField.GetValue(panel);
+                var panel = Object.FindFirstObjectByType<ResultPage>();
+                var result = panel.Current;
                 Assert.That(result.Kind, Is.EqualTo(PlayResultKind.Completed));
                 Assert.That(result.AutoCount, Is.EqualTo(3));
             }
@@ -852,7 +876,6 @@ namespace OpenSekai.Tests.PlayMode
                 }");
 
                 const BindingFlags FIELDS = BindingFlags.Instance | BindingFlags.NonPublic;
-                var resultField = typeof(LibraryResultPanel).GetField("_current", FIELDS);
                 var clock = typeof(BaseLiveController).GetField("currentMusicTimeMs", FIELDS);
                 var spanField = typeof(BaseLiveController).GetField("timelineSpan", FIELDS);
                 var skipShown = typeof(SoloLiveController).GetField("_skipShown", FIELDS);
@@ -866,8 +889,8 @@ namespace OpenSekai.Tests.PlayMode
                     SoloLiveController controller = null;
                     yield return WaitFor(() =>
                     {
-                        var panel = Object.FindFirstObjectByType<LibraryResultPanel>();
-                        if (panel != null && resultField.GetValue(panel) is PlayResult { Kind: PlayResultKind.LoadError } error)
+                        var panel = Object.FindFirstObjectByType<ResultPage>();
+                        if (panel != null && panel.Current is PlayResult { Kind: PlayResultKind.LoadError } error)
                             Assert.Fail(error.Message);
                         controller = Object.FindFirstObjectByType<SoloLiveController>();
                         return controller != null && controller.JustPlayingState;
@@ -890,7 +913,7 @@ namespace OpenSekai.Tests.PlayMode
                     Assert.That((bool)skipShown.GetValue(controller), Is.False);
 
                     yield return WaitFor(() => SceneLoader.GetActiveScene().name == "Library"
-                        && Object.FindFirstObjectByType<LibraryResultPanel>() != null,
+                        && Object.FindFirstObjectByType<ResultPage>() != null,
                         BOOT_TIMEOUT_SECONDS, "opening the result panel");
                 }
             }
@@ -905,10 +928,10 @@ namespace OpenSekai.Tests.PlayMode
         {
             var library = Object.FindFirstObjectByType<LibraryScreen>();
             library.ShowResult(PlayResult.FromLoadError("Playback test", isAuto, directory, "Retry smoke setup"));
-            var panel = Object.FindFirstObjectByType<LibraryResultPanel>();
-            Assert.That(panel, Is.Not.Null, "the library should display the retry panel");
+            var panel = Object.FindFirstObjectByType<ResultPage>();
+            Assert.That(panel, Is.Not.Null, "the library should display the result page");
             var retry = panel.GetComponentsInChildren<Button>(true).SingleOrDefault(button => button.name == "Retry");
-            Assert.That(retry, Is.Not.Null, "the result panel should wire its retry button");
+            Assert.That(retry, Is.Not.Null, "the result page should wire its retry button");
             retry.onClick.Invoke();
         }
 

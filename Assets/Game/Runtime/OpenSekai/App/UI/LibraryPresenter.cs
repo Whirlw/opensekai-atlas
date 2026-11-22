@@ -176,8 +176,37 @@ namespace OpenSekai.App.UI
                 return;
             }
 
+            SelectPlayed(result.PackageDirectory);
             _view.SetStatus(result.Title + "  ·  " + result.KindText);
             _view.ShowResult(result);
+        }
+
+        /// <summary>
+        /// The page is rebuilt on the way back from a live and starts on its first row; put the
+        /// selection and the list back on the package that was played, ready for when the result closes.
+        /// </summary>
+        private void SelectPlayed(string packageDirectory)
+        {
+            if (string.IsNullOrEmpty(packageDirectory) || _listing == null)
+            {
+                return;
+            }
+
+            IReadOnlyList<SongPackageItem> items = _listing.Items;
+            for (int i = 0; i < items.Count; i++)
+            {
+                string directory = items[i].Entry?.RootDirectory;
+                if (!string.IsNullOrEmpty(directory) && _packages.PathsEqual(directory, packageDirectory))
+                {
+                    if (!ReferenceEquals(items[i], _selected))
+                    {
+                        _selected = items[i];
+                        _view.SetSelection(items[i], reveal: true);
+                    }
+
+                    return;
+                }
+            }
         }
 
         internal void OpenActions(SongPackageItem item)

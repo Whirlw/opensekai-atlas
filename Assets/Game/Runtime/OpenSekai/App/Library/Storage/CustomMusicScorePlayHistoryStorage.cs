@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
+using OpenSekai.Shared.Playback;
 using Sekai.Core.Live;
 using UnityEngine;
 using OpenSekai.Infrastructure.Packages;
@@ -21,55 +22,45 @@ namespace OpenSekai.App.Library
 		/// </summary>
 		public static event Action<string, CustomMusicScorePlayHistorySummary> Recorded;
 
-		public static void AppendLiveResult(FreeLiveBootData bootData, LiveScore score, long musicTimeMs, long musicLengthMs)
+		private static RankingHistory _ranking;
+		internal static RankingHistory Ranking
 		{
-			AppendLiveResult(bootData, score, musicTimeMs, musicLengthMs, null, null, 0);
+			get => _ranking ??= new RankingHistory(CustomMusicScoreStorage.PlayHistoryPath, _cache);
+			set => _ranking = value;
 		}
 
-		/// <summary>
-		/// Records one finished run. The extra arguments keep the same JSONL schema and only add
-		/// fields, so older readers keep working: chartHash identifies the source chart content,
-		/// rulesVersion marks the judgement/scoring rules, sessionId links to one live session.
-		/// </summary>
-		public static void AppendLiveResult(
-			FreeLiveBootData bootData, LiveScore score, long musicTimeMs, long musicLengthMs,
-			string sessionId, string chartHash, int rulesVersion)
+		public static Best30Snapshot ReadBest30() => Ranking.Read();
+
+		public static RankingSettlement RetrySave(string playId)
 		{
-			if (bootData == null || bootData.IsAuto || bootData.IsCustomMusicScore != true || bootData.MusicData?.IsTestPlay == true)
-			{
-				return;
-			}
+			var receipt = Ranking.Retry(playId, out var summary);
+			if (summary != null) Recorded?.Invoke(receipt.ScoreKey, summary);
+			return receipt;
+		}
 
-			if (string.IsNullOrEmpty(bootData.CustomMusicScoreKey))
-			{
-				// Without the content hash the run could not be shown for any package.
-				return;
-			}
+		/// <summary>Entry point for a result page, including a load error before the live scene started.</summary>
+		public static RankingSettlement ForDisplay(PlayResult result)
+		{
+			if (result.Settlement != null) return result.Settlement;
+			if (result.Kind != PlayResultKind.LoadError)
+				throw new InvalidOperationException("This result was produced without a history recorder.");
+			var standing = new RankingStanding(ReadBest30().Total, null, null);
+			return new RankingSettlement(string.Empty, string.Empty, RankingEligibility.LoadError,
+				HistorySaveState.NotRecorded, ClearAward.None, 0, standing, standing);
+		}
 
-			CustomMusicScorePlayHistorySummary summary;
-			string scoreKey;
-			try
-			{
-				Directory.CreateDirectory(CustomMusicScoreStorage.RootDirectory);
-				// The manifest as the library caches it; only a package outside the library is read from disk.
-				SongPackage package = SongPackageManager.Shared.FindCachedItem(bootData.CustomMusicScorePath)?.Entry
-					?? SongPackageStorage.LoadEntry(bootData.CustomMusicScorePath);
-				CustomMusicScoreManifest manifest = CustomMusicScoreEntry.FromPackage(package)?.Manifest;
-				CustomMusicScorePlayHistoryRecord record = CreateRecord(bootData, manifest, score, musicTimeMs, musicLengthMs,
-					sessionId, chartHash, rulesVersion);
-				scoreKey = record.ScoreKey;
-				summary = _cache.Append(CustomMusicScoreStorage.PlayHistoryPath, record);
-			}
-			catch (Exception exception)
-			{
-				Debug.LogWarningFormat("Failed to append custom music score play history. path:{0} error:{1}", CustomMusicScoreStorage.PlayHistoryPath, exception.Message);
-				return;
-			}
-
-			if (summary != null)
-			{
-				Recorded?.Invoke(scoreKey, summary);
-			}
+		internal static RankingSettlement Finish(FreeLiveBootData boot, LiveScore score, PlayResultKind kind,
+			long musicTimeMs, long musicLengthMs, string sessionId, string chartHash, int rulesVersion)
+		{
+			var manifest = string.IsNullOrEmpty(boot.CustomMusicScorePath) ? null
+				: CustomMusicScoreStorage.LoadEntry(boot.CustomMusicScorePath)?.Manifest;
+			var record = CreateRecord(boot, manifest, score, kind, musicTimeMs, musicLengthMs, sessionId, chartHash, rulesVersion);
+			RankingEligibility? exclusion = null;
+			if (!boot.IsCustomMusicScore || boot.MusicData?.IsTestPlay == true) exclusion = RankingEligibility.TestPlay;
+			else if (boot.IsAuto) exclusion = RankingEligibility.Auto;
+			var receipt = Ranking.Submit(record, exclusion, out var summary);
+			if (summary != null) Recorded?.Invoke(record.ScoreKey, summary);
+			return receipt;
 		}
 
 		/// <summary>
@@ -141,7 +132,8 @@ namespace OpenSekai.App.Library
 		internal static CustomMusicScorePlayHistorySummary Fold(
 			Dictionary<string, CustomMusicScorePlayHistorySummary> summaries, CustomMusicScorePlayHistoryRecord record)
 		{
-			if (record == null || string.IsNullOrEmpty(record.ScoreKey))
+			if (record == null || string.IsNullOrEmpty(record.ScoreKey) ||
+				(record.EndReason.HasValue && record.EndReason != PlayResultKind.Completed))
 			{
 				return null;
 			}
@@ -200,24 +192,24 @@ namespace OpenSekai.App.Library
 		}
 
 		private static CustomMusicScorePlayHistoryRecord CreateRecord(FreeLiveBootData bootData, CustomMusicScoreManifest manifest, LiveScore score,
-			long musicTimeMs, long musicLengthMs, string sessionId, string chartHash, int rulesVersion)
+			PlayResultKind kind, long musicTimeMs, long musicLengthMs, string sessionId, string chartHash, int rulesVersion)
 		{
-			bool isAllPerfect = score.totalComboCount > 0
-				&& score.totalComboCount == score.perfectCount
-				&& score.greatCount == 0
-				&& score.goodCount == 0
-				&& score.badCount == 0
-				&& score.missCount == 0;
-			bool isFullCombo = score.totalComboCount > 0 && score.maxCombo >= score.totalComboCount;
-			string clearType = isAllPerfect ? "all_perfect" : isFullCombo ? "full_combo" : score.life > 0 ? "clear" : "life_zero";
+			var award = RankingRules.Award(kind, bootData.IsAuto, score);
+			bool isAllPerfect = award == ClearAward.AllPerfect;
+			bool isFullCombo = isAllPerfect || award == ClearAward.FullCombo;
+			string clearType = isAllPerfect ? "all_perfect" : isFullCombo ? "full_combo"
+				: kind == PlayResultKind.Completed ? "clear" : kind == PlayResultKind.Retired ? "retired" : "life_zero";
 
 			return new CustomMusicScorePlayHistoryRecord
 			{
-				SchemaVersion = 2,
+				SchemaVersion = 3,
+				EndReason = kind,
+				MaximumScore = RankingRules.MaximumScore,
+				FormulaVersion = RankingRules.FormulaVersion,
 				SessionId = sessionId ?? string.Empty,
 				ChartHash = chartHash ?? string.Empty,
 				RulesVersion = rulesVersion,
-				RecordId = Guid.NewGuid().ToString("N"),
+				RecordId = sessionId,
 				PlayedAtUtc = DateTime.UtcNow.ToString("O"),
 				AppVersion = Application.version,
 				LivePlayMode = bootData.LivePlayMode.ToString(),
@@ -243,7 +235,6 @@ namespace OpenSekai.App.Library
 				IsAllPerfect = isAllPerfect,
 				MaxCombo = score.maxCombo,
 				TotalComboCount = score.totalComboCount,
-				JustPerfectCount = score.justPerfectCount,
 				PerfectCount = score.perfectCount,
 				GreatCount = score.greatCount,
 				GoodCount = score.goodCount,
@@ -377,8 +368,21 @@ namespace OpenSekai.App.Library
 		[JsonProperty("totalComboCount")]
 		public int TotalComboCount { get; init; }
 
-		[JsonProperty("justPerfectCount")]
-		public int JustPerfectCount { get; init; }
+		[JsonProperty("endReason")]
+		public PlayResultKind? EndReason { get; init; }
+
+		[JsonProperty("maximumScore")]
+		public int MaximumScore { get; init; }
+
+		[JsonProperty("formulaVersion")]
+		public int FormulaVersion { get; init; }
+
+		internal ClearAward Award()
+		{
+			if (EndReason != PlayResultKind.Completed || AutoCount != 0) return ClearAward.None;
+			if (IsAllPerfect) return ClearAward.AllPerfect;
+			return IsFullCombo ? ClearAward.FullCombo : ClearAward.Clear;
+		}
 
 		[JsonProperty("perfectCount")]
 		public int PerfectCount { get; init; }

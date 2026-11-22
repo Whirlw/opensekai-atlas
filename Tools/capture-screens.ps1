@@ -32,6 +32,10 @@
 #   # Library, settings (and its trace sub-page) and the result page with a full-combo sample
 #   powershell -File Tools/capture-screens.ps1 -Library -Settings -SettingsTrace -Result fc
 #
+#   # Every result sample, and the tier-up sample 2.4 s, 2.7 s and 3 s into its opening
+#   powershell -File Tools/capture-screens.ps1 -Result default,fc,ap,outside,auto,failed,retired,savefailed,loaderror
+#   powershell -File Tools/capture-screens.ps1 -Result ap -ResultAt 2.4,2.7,3
+#
 #   # The home page, and the splash at 0.95 s (note falling), 1.12 s (the hit) and 2.6 s (wordmark)
 #   powershell -File Tools/capture-screens.ps1 -HomePage -Intro 0.95,1.12,2.6
 #
@@ -47,7 +51,10 @@
 #                 (0.1 + 0.01 + JacketFadeOutDelaySec 2.35 + 0.45).
 #   -Finish       Seconds after the last note is done; the end-of-live animation starts at +1 s.
 #   -FinishAnimation  allperfect (default) | fullcombo | clear | finish | none.
-#   -Result       Result sample preset: default | fc | ap | auto | failed | retired | loaderror.
+#   -Result       Result page samples, comma-separated: default (first clear) | fc | ap (new chart,
+#                 tier up) | outside (record outside the Best 30) | auto | failed | retired |
+#                 savefailed | loaderror. Each shows where its opening settles.
+#   -ResultAt     Seconds into the result page's opening, one frame each, instead of the settled page.
 #   -HomePage     The home page at rest (the splash's last frame).
 #   -Packs        The resource pack part, read-only: hand-over frames, overview, a pack and its
 #                 preview, category pages, one slot's choices, the built-in note skin.
@@ -73,6 +80,7 @@ param(
     [switch]$Settings,
     [switch]$SettingsTrace,
     [string]$Result,
+    [string[]]$ResultAt,
     [switch]$HomePage,
     [switch]$Server,
     [switch]$Packs,
@@ -109,6 +117,7 @@ $env:UNITY_NO_AGENT_HINTS = '1'
 $liveTimes = ConvertTo-Seconds $Live
 $infoTimes = ConvertTo-Seconds $Info
 $finishTimes = ConvertTo-Seconds $Finish
+$resultTimes = ConvertTo-Seconds $ResultAt
 $introDefault = $Intro -and (($Intro -join ',') -eq 'default')
 $introTimes = if ($introDefault) { $null } else { ConvertTo-Seconds $Intro }
 $ProjectPath = (Resolve-Path $ProjectPath).Path
@@ -139,20 +148,25 @@ if ($Request) {
     if ($Settings) { [void]$shots.Add(@{ kind = 'settings' }) }
     if ($SettingsTrace) { [void]$shots.Add(@{ kind = 'settings-trace' }) }
     if ($Result) {
-        $sample = @{ kind = 'Completed' }
+        # Each preset is one of the backend's SettlementSamples cases (OpenSekai.App.Playback).
         $presets = @{
-            fc        = @{ score = 1112806; maxCombo = 1250; perfect = 1206; great = 44; good = 0; bad = 0; miss = 0 }
-            ap        = @{ score = 1135420; maxCombo = 1250; perfect = 1250; great = 0; good = 0; bad = 0; miss = 0 }
-            auto      = @{ auto = $true; score = 1135420; maxCombo = 1250 }
-            failed    = @{ kind = 'Failed'; score = 412803; rank = 'C'; maxCombo = 96; perfect = 402; great = 87; good = 31; bad = 22; miss = 58; life = 0 }
-            retired   = @{ kind = 'Retired'; score = 233118; rank = 'D'; maxCombo = 207; perfect = 220; great = 12; good = 1; bad = 0; miss = 1 }
-            loaderror = @{ kind = 'LoadError' }
+            default    = @{ settlement = 'FirstClear' }
+            fc         = @{ settlement = 'SameChartFullCombo' }
+            ap         = @{ settlement = 'NewChartAllPerfectTierUp' }
+            outside    = @{ settlement = 'OutsideBest30' }
+            auto       = @{ settlement = 'Auto' }
+            failed     = @{ settlement = 'Failed' }
+            retired    = @{ settlement = 'Retired' }
+            savefailed = @{ settlement = 'SaveFailed' }
+            loaderror  = @{ kind = 'LoadError' }
         }
-        if ($Result -ne 'default') {
-            if (-not $presets.ContainsKey($Result)) { throw "Unknown -Result preset '$Result'." }
-            foreach ($k in $presets[$Result].Keys) { $sample[$k] = $presets[$Result][$k] }
+        foreach ($name in ($Result -split '[,\s]+' | Where-Object { $_ })) {
+            $name = $name.ToLowerInvariant()
+            if (-not $presets.ContainsKey($name)) { throw "Unknown -Result preset '$name'." }
+            $shot = @{ kind = 'result'; name = "result-$name"; result = $presets[$name] }
+            if ($resultTimes) { $shot.times = @($resultTimes) }
+            [void]$shots.Add($shot)
         }
-        [void]$shots.Add(@{ kind = 'result'; name = "result-$Result"; result = $sample })
     }
     if ($infoTimes -or $liveTimes -or $finishTimes) {
         if (-not $Package) { throw '-Live, -Info and -Finish need -Package.' }
