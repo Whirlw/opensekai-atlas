@@ -1409,15 +1409,22 @@ namespace OpenSekai.Infrastructure.Charts
                     if (!_notes.TryGetValue(a, out var styleHead) || !_notes.ContainsKey(b)
                         || Beat(a) > Beat(head) || Beat(b) < Beat(tail))
                         throw Invalid("Connector 的样式区间没有覆盖连接");
+                    double defaultKind = activeHead == null ? 101 : TypeOf(a) == NoteType.Critical ? 2 : 1;
+                    int kind = (int)a.Number("segmentKind", defaultKind);
+                    // A guide ending at the next hold head can already reference that hold.
+                    bool guideLeadIn = kind is >= 101 and <= 108 && tail == activeHead && Beat(head) < Beat(tail);
                     if ((activeHead == null) != (activeTail == null)
                         || activeHead != null && (!_notes.ContainsKey(activeHead) || !_notes.ContainsKey(activeTail)
-                            || Beat(activeHead) > Beat(head) || Beat(activeTail) < Beat(tail)))
+                            || Beat(activeHead) > Beat(head) && !guideLeadIn || Beat(activeTail) < Beat(tail)))
                         throw Invalid("Connector 的判定区间没有覆盖连接");
-                    double defaultKind = activeHead == null ? 101 : TypeOf(a) == NoteType.Critical ? 2 : 1;
+                    if (guideLeadIn)
+                    {
+                        activeHead = null;
+                        activeTail = null;
+                    }
                     bool headAttached = _attachments.TryGetValue(head, out var headAttachment);
                     bool tailAttached = _attachments.TryGetValue(tail, out var tailAttachment);
                     bool sameBeat = Beat(head) == Beat(tail);
-                    int kind = (int)a.Number("segmentKind", defaultKind);
                     if (activeHead != null && Beat(activeHead) < Beat(activeTail))
                     {
                         _soundEdges.Add((head, tail, activeHead, activeTail));
@@ -1431,7 +1438,7 @@ namespace OpenSekai.Infrastructure.Charts
                         (NextRushConnectorLayer)(int)a.Number("segmentLayer"), a.Number("segmentPresentation") == 1,
                         headAttached && !sameBeat ? headAttachment.fraction : 0f,
                         tailAttached && !sameBeat ? tailAttachment.fraction : 1f, activeHead != null, legacyPop == 1);
-                    if (activeHead == null && !headAttached && !tailAttached && Resolve(head, "next", false) != tail)
+                    if (activeHead == null && !headAttached && !tailAttached && !FollowsNoteChain(head, tail))
                     {
                         if (_graphEdges.ContainsKey((head, tail)) || !_crossChainGuides.TryAdd((head, tail), segment))
                             throw Invalid("重复的跨链 Connector");
@@ -1440,6 +1447,20 @@ namespace OpenSekai.Infrastructure.Charts
                         || !_graphEdges.TryAdd((head, tail), new ConnectorEdge(tail, activeHead, activeTail, segment)))
                         throw Invalid("重复的长条连接片段");
                 }
+            }
+
+            private bool FollowsNoteChain(NextRushEntity head, NextRushEntity tail)
+            {
+                // The note chain may visit keys attached to this edge without splitting its geometry.
+                var next = Resolve(head, "next", false);
+                int visited = 0;
+                while (next != null && _attachments.TryGetValue(next, out var attachment)
+                    && attachment.head == head && attachment.tail == tail)
+                {
+                    if (++visited > _attachments.Count) throw Invalid("附着节点的 next 引用存在循环");
+                    next = Resolve(next, "next", false);
+                }
+                return next == tail;
             }
 
             private NextRushConnectorSound[] BuildConnectorSounds()

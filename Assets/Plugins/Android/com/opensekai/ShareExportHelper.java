@@ -16,6 +16,7 @@ import java.io.OutputStream;
 public class ShareExportHelper {
     private static final int REQUEST_CODE_SAVE = 2001;
     private static final int REQUEST_CODE_OPEN = 2002;
+    private static final int REQUEST_CODE_SONG_PACKAGE = 2003;
     public static void SaveAndShare(String sourcePath, String callbackObject, String callbackMethod) {
         pick(REQUEST_CODE_SAVE, sourcePath, callbackObject, callbackMethod, Long.MAX_VALUE);
     }
@@ -26,6 +27,10 @@ public class ShareExportHelper {
 
     public static void OpenPlayerBackup(String callbackObject, String callbackMethod) {
         pick(REQUEST_CODE_OPEN, null, callbackObject, callbackMethod, 65L * 1024 * 1024);
+    }
+
+    public static void OpenSongPackage(String callbackObject, String callbackMethod) {
+        pick(REQUEST_CODE_SONG_PACKAGE, null, callbackObject, callbackMethod, Long.MAX_VALUE);
     }
 
     private static Request pending;
@@ -60,7 +65,8 @@ public class ShareExportHelper {
             try {
                 Intent intent = new Intent(code == REQUEST_CODE_SAVE ? Intent.ACTION_CREATE_DOCUMENT : Intent.ACTION_OPEN_DOCUMENT);
                 intent.addCategory(Intent.CATEGORY_OPENABLE);
-                intent.setType("application/zip");
+                // Providers may assign an unknown MIME type to .oskp. The importer validates the archive contents.
+                intent.setType(code == REQUEST_CODE_SONG_PACKAGE ? "*/*" : "application/zip");
                 if (source != null) intent.putExtra(Intent.EXTRA_TITLE, new File(source).getName());
                 activity.startActivityForResult(intent, code);
             } catch (Exception e) {

@@ -11,8 +11,8 @@ using UnityEditor;
 namespace OpenSekai.App.UI
 {
     /// <summary>
-    /// The resource pack page's file picker and its error wording. Android uses the same
-    /// NativeFilePicker ZIP flow as the library (the picker hands back a readable local copy);
+    /// The resource pack page's file picker and its error wording. Android uses
+    /// NativeFilePicker to get a readable local copy;
     /// the editor opens a ZIP dialog for development. A cancelled pick reports null.
     /// </summary>
     internal static class PackImport

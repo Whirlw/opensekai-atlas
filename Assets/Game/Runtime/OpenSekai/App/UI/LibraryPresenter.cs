@@ -37,6 +37,7 @@ namespace OpenSekai.App.UI
         private LibraryViewMode _viewMode = LibraryViewMode.List;
         private CancellationTokenSource _playbackCts;
         private bool _isStartingPlayback;
+        private bool _disposed;
 
         /// <param name="view">The page to draw on.</param>
         /// <param name="packages">The package store the library lists.</param>
@@ -162,6 +163,7 @@ namespace OpenSekai.App.UI
 
         public void Dispose()
         {
+            _disposed = true;
             CustomMusicScorePlayHistoryStorage.Recorded -= OnScoreRecorded;
             _loudness?.Dispose();
             _playbackCts?.Cancel();
@@ -421,6 +423,7 @@ namespace OpenSekai.App.UI
             _view.SetStatus("请选择曲包文件（.zip / .oskp）…");
             LibraryImport.PickZip(path =>
             {
+                if (_disposed) return;
                 if (string.IsNullOrEmpty(path))
                 {
                     _view.SetStatus("已取消导入。");
@@ -428,6 +431,12 @@ namespace OpenSekai.App.UI
                 }
 
                 StartImport(path, false);
+            }, exception =>
+            {
+                if (_disposed) return;
+                Debug.LogWarning("[LibraryImport] " + exception);
+                _view.SetStatus("无法打开或读取曲包文件：" + exception.Message);
+                UiSound.Play(UiCue.Error);
             });
         }
 

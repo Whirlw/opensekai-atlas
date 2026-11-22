@@ -20,7 +20,7 @@ Open Sekai Atlas 是开源下落式音游，Android 应用显示为 OpenSekai。
 | 能力 | 位置 | 说明 |
 | --- | --- | --- |
 | 曲库首页 | `Assets/Game/Runtime/OpenSekai/App/UI/LibraryScreen.cs` | 代码构建的 UGUI 页面，含封面、手动/自动入口 |
-| 曲包导入 | `Assets/Game/Runtime/OpenSekai/App/UI/LibraryImport.cs` | ZIP / 文件夹（桌面用 StandaloneFileBrowser，移动端用 NativeFilePicker） |
+| 曲包导入 | `Assets/Game/Runtime/OpenSekai/App/UI/LibraryImport.cs` | Android 通过系统文档选择器导入 `.zip` / `.oskp`，Unity 编辑器也支持选择曲包文件夹 |
 | 设置面板 | `Assets/Game/Runtime/OpenSekai/App/UI/LibrarySettingsPanel.cs` | 流速、判定延迟、帧率、亮度、音量和打歌素材 |
 | 加载浮层 | `Assets/Game/Runtime/OpenSekai/App/UI/LibraryLoadingOverlay.cs` | 开局进度文案 + 取消 |
 | 打歌运行时 | `Assets/Game/Runtime/OpenSekai.Game/Live/Runtime/` | `SoloLiveController` / `LiveLogic` / `ScoreLogic` |

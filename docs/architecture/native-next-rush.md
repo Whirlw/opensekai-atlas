@@ -78,6 +78,7 @@ manifest 示例：
 - Normal/Critical Tap、Flick、Trace、TraceFlick、Release。已支持的 Flick 和 TraceFlick（含划尾）接受 `direction` 0–5，分别显示向上、左上、右上、向下、左下、右下的箭头。直上和直下接受任意划动方向，斜箭头以目标方向为中心接受 ±90° 内的划动。加载器的镜像选项翻转轨道并交换左右斜向。
 - HeadTap、HeadTrace、HeadRelease、HeadFlick、HeadTraceFlick 起点，Tick 中继，TailTap、TailRelease、TailFlick、TailTrace、TailTraceFlick 尾部。Anchor 可作隐藏中继、无判定尾和 Guide 端点，允许同拍几何连接。Guide 可以借用独立键或尾键的几何，自身无判定。
 - 按实体字符串名称建立引用关系，实体顺序无关。Connector 的 `head/tail` 表示实际边，`segmentHead/segmentTail` 提供覆盖该边的样式区间，`activeHead/activeTail` 对应当前长条判定区间。继续读取早期加载器接受的连接表示。
+- Guide 的终点可以是下一条长条的 `activeHead`，并提前引用该长条的 `activeHead/activeTail`。这段 Guide 沿用谱面指定的颜色和透明度，长条判定和持续音从后续长条头开始。
 - `legacyHiddenPop=1` 时，从谱面时间 −2 秒起，在 `segmentHead` 自己的变速组中查找它首次进入可见范围的时间，并计入上游的提前显示余量。预读时长使用玩家流速。到达该时刻后，条身仍按实际端点、画面裁切和当前的 `hideNotes` 绘制。字段省略或为 0 时，条身按普通连接段显示。
 - 同一条几何链可在连续可判定段和 Guide 段之间切换。HeadTap、HeadTrace、HeadRelease、Anchor 和 Tick 均可作为可判定段起点。HeadTrace 和自身无 `activeHead` 且未附着的 Tick 在前后各 5 个 60 Hz 参考帧（±83.3 ms）内接受接触。Tick 参与条身几何时也按自身字段选窗。HeadTrace、HeadRelease 作为单独的键结算，条身继续使用连接几何。相邻段共享交界的几何，头、尾和 Tick 各自只结算一次。
 - 独立 Release、HeadRelease 与 Guide 端点的 TailRelease 按抬手时间和松手窗口结算，同一抬手只分配给一个候选。TailTap 沿用现有 Tap 判定表，要求在尾键位置重新按下。即使原长条已结束或未按住，尾键仍可独立完成判定。
