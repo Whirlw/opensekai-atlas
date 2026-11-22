@@ -9,6 +9,15 @@ namespace OpenSekai.Tests.EditMode
         private const int SIZE = 256;
 
         [Test]
+        public void ImportedSplashContainsEveryNamedLayer()
+        {
+            foreach (BrandArt.Part part in Enum.GetValues(typeof(BrandArt.Part)))
+            {
+                Assert.That(BrandSprites.Layers[part].name, Is.EqualTo(part.ToString()));
+            }
+        }
+
+        [Test]
         public void EveryLayerHasOnePixelPerTexel()
         {
             foreach (BrandArt.Part part in Enum.GetValues(typeof(BrandArt.Part)))
@@ -55,14 +64,14 @@ namespace OpenSekai.Tests.EditMode
             byte[] foreground = BrandArt.Render(BrandArt.Icon.AdaptiveForeground, SIZE);
 
             // Launchers mask the 108 dp layer to a 72 dp shape; a circle is the tightest of them.
-            const float visibleRadius = 72f / 108f * 0.5f;
+            const float VISIBLE_RADIUS = 72f / 108f * 0.5f;
             for (int y = 0; y < SIZE; y++)
             {
                 for (int x = 0; x < SIZE; x++)
                 {
                     float dx = (x + 0.5f) / SIZE - 0.5f;
                     float dy = (y + 0.5f) / SIZE - 0.5f;
-                    if (Math.Sqrt(dx * dx + dy * dy) > visibleRadius)
+                    if (Math.Sqrt(dx * dx + dy * dy) > VISIBLE_RADIUS)
                     {
                         // Only the faint glow may reach past it, never the mark itself.
                         Assert.That(foreground[(y * SIZE + x) * 4 + 3], Is.LessThan(96), "pixel " + x + "," + y);

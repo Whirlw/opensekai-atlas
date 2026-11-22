@@ -7,8 +7,8 @@ namespace Sekai.Rendering
 {
 	public class SekaiUIBlurPass : ScriptableRenderPass
 	{
-		private static readonly int SamplingDistance = Shader.PropertyToID("_SamplingDistance");
-		private static readonly int BlurResolutionParams = Shader.PropertyToID("_BlurResolutionParams");
+		private static readonly int _samplingDistance = Shader.PropertyToID("_SamplingDistance");
+		private static readonly int _blurResolutionParams = Shader.PropertyToID("_BlurResolutionParams");
 
 		private readonly ProfilingSampler _profilingSampler;
 		private readonly Material _uIEffectMaterial;
@@ -72,8 +72,8 @@ namespace Sekai.Rendering
 				builder.SetRenderFunc(static (PassData data, UnsafeGraphContext context) =>
 				{
 					var cmd = CommandBufferHelpers.GetNativeCommandBuffer(context.cmd);
-					cmd.SetGlobalFloat(SamplingDistance, data.samplingDistance);
-					cmd.SetGlobalVector(BlurResolutionParams, data.resolution);
+					cmd.SetGlobalFloat(_samplingDistance, data.samplingDistance);
+					cmd.SetGlobalVector(_blurResolutionParams, data.resolution);
 					Blitter.BlitCameraTexture(cmd, data.source, data.temporary, data.material, 0);
 					Blitter.BlitCameraTexture(cmd, data.temporary, data.destination, data.material, 1);
 				});

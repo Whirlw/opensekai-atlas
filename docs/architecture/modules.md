@@ -3,7 +3,7 @@
 > 目的：给出目录与职责的对应表，说明新旧代码的边界在哪、依赖朝哪边指。
 > 适用读者：开发者。
 > 前置条件：读过 [架构总览](README.md)。
-> 最后更新：2026-11-17
+> 最后更新：2026-11-20
 
 ## 概述
 
@@ -16,6 +16,7 @@
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/Bootstrap/` | `LibraryEntryPoint` 装配曲库入口 |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/UI/` | `LibraryScreen` 和导入、设置、结算面板；曲库页的基础件：`LibraryTheme`（颜色、尺寸、动画时长的设计 token）、`VirtualListView`/`VirtualListLayout`（只实例化可见单元的回收列表，支持单列与多列）、`JacketThumbnails`（封面缩略图：256px 落盘缓存、后台线程读盘与缩放、`LruCache` 限制内存） |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/UI/Home/` | 开屏与首页：`HomeScreen`（首页与曲库之间的切换、返回键）、`HomeSplash`（开屏时间线）、`HomeView`/`HomeCards`（三张入口卡）、`BrandArt`（品牌标与应用图标的纯 C# 栅格化），见 [首页、开屏与品牌标](home-and-brand.md) |
+| OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/UI/Packs/` | 资源包页面：`PackScreen`（页面栈、保存与导入入口）、总览 / 修订详情 / 类别三种页面、预览与预设卡片，见 [资源包页面](resource-pack-screen.md) |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/Playback/` | `PlayService` 和 `LegacyLiveBootAdapter` 装配开局数据；`IPlayBootPublisher`/`IPlaySurface`/`IPackageAudioRegistrar`/`ILiveDeckSelection` 四个端口及其 `LegacyPlayPorts` 兼容实现（App 里唯一读 `UserDataManager` 的地方） |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/App/Library/` | 玩家曲库的存储与端口实现：`CustomMusicScoreEntry`/`CustomMusicScoreStorage`（`SongPackageStorage` 之上的入口包装）、`CustomMusicScorePlayHistoryStorage`（播放历史 JSONL 的读写与记录模型）、`CustomScorePlayHistoryRecorder`（实现 Game 的 `IPlayHistoryRecorder`） |
 | OpenSekai.App | `Assets/Game/Runtime/OpenSekai/Charts/` | `ChartTimeline` 和 `RuntimeChartDefinition` |
@@ -28,7 +29,7 @@
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Assets/` | `ResourceCatalog`（固定资源的类型化目录）、AssetBundle 下载、加载与管理、清单、`Resources` 回退与 LRU 缓存 |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Data/` | Master 数据模型、曲目与 Live 数据、设置与本地存储入口、玩法枚举 |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Live/Runtime/` | Live 帧循环与时钟、输入路由与候选、判定调度、会话状态与统计、控制器、技能逻辑、曲目配置与时间轴 DTO；`LiveContext` 是本局从开局边界拿到的唯一一份依赖（开局数据、模式、会话标识、播放历史记录端口）；`IPlayHistoryRecorder` 是 Game 侧定义、App 侧实现的结算写入口 |
-| OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Live/View/` | 前场与结算视图、背景、曲目信息、屏幕特效与遮罩、特写与技能文字、音符视图与 HUD、判定与计分反馈、Live 过场 |
+| OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Live/View/` | 前场与结算视图、背景、曲目信息、屏幕特效与遮罩、音符视图与 HUD、判定与计分反馈、Live 过场。`CutinManager` 与 `SkillTextView` 是特写和技能文字的占位组件。 |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Live/Notes/` | `NoteBase` 与各类音符、长条主体/接缝/尾判、`Tails/` 四种尾行为 |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Rendering/` | URP Renderer Feature 与 Pass、UI 模糊与特效参数、相机与背景组件、shader 预载 |
 | OpenSekai.Game | `Assets/Game/Runtime/OpenSekai.Game/Platform/` | 平台输入适配（`InputManager`、`NativeInput`）、ACB 解码器、CRI 音频 shim、`CP` 通用工具、序列化接口、`UiEffect`、`LetterSpacing` |
@@ -86,3 +87,15 @@
 - [曲包与谱面数据](chart-package.md)
 - [打歌运行时](live-runtime.md)
 - [ADR-0001 去掉谱面编辑器](../decisions/0001-drop-chart-editor.md)
+
+## 移植代码中的空实现
+
+2026-11-20 按 `Assets/Game/Runtime/OpenSekai.Game` 中逐文件的字面语句 `throw null;` 计数，共 322 处。下表可用 `rg --count "throw null;" Assets/Game/Runtime/OpenSekai.Game` 复核。次数表示空实现位置，不能据此推断玩家会触发多少次。
+
+| 目录 | 处数 | 文件与处数 |
+| --- | ---: | --- |
+| Assets | 82 | [AssetBundleDownloadHandler](../../Assets/Game/Runtime/OpenSekai.Game/Assets/AssetBundleDownloadHandler.cs) 16、[LruAssetCache](../../Assets/Game/Runtime/OpenSekai.Game/Assets/LruAssetCache.cs) 39、[LruAssetCacheGeneral](../../Assets/Game/Runtime/OpenSekai.Game/Assets/LruAssetCacheGeneral.cs) 1、[LruAssetCacheHandle](../../Assets/Game/Runtime/OpenSekai.Game/Assets/LruAssetCacheHandle.cs) 26 |
+| Data | 89 | [CutinCardData](../../Assets/Game/Runtime/OpenSekai.Game/Data/CutinCardData.cs) 8、[CutinData](../../Assets/Game/Runtime/OpenSekai.Game/Data/CutinData.cs) 18、[MasterIngameCutinCharacters](../../Assets/Game/Runtime/OpenSekai.Game/Data/MasterIngameCutinCharacters.cs) 2、[MasterInGameCutInCharactersModel](../../Assets/Game/Runtime/OpenSekai.Game/Data/MasterInGameCutInCharactersModel.cs) 13、[MasterMusic](../../Assets/Game/Runtime/OpenSekai.Game/Data/MasterMusic.cs) 3、[MasterMusicDifficulty](../../Assets/Game/Runtime/OpenSekai.Game/Data/MasterMusicDifficulty.cs) 3、[MasterMusicVocal](../../Assets/Game/Runtime/OpenSekai.Game/Data/MasterMusicVocal.cs) 5、[MasterSkill](../../Assets/Game/Runtime/OpenSekai.Game/Data/MasterSkill.cs) 2、[MasterSkillEffect](../../Assets/Game/Runtime/OpenSekai.Game/Data/MasterSkillEffect.cs) 3、[MasterSkillEffectDetail](../../Assets/Game/Runtime/OpenSekai.Game/Data/MasterSkillEffectDetail.cs) 1、[MasterSkillEnhance](../../Assets/Game/Runtime/OpenSekai.Game/Data/MasterSkillEnhance.cs) 5、[MasterSkillEnhanceCondition](../../Assets/Game/Runtime/OpenSekai.Game/Data/MasterSkillEnhanceCondition.cs) 1、[SkillData](../../Assets/Game/Runtime/OpenSekai.Game/Data/SkillData.cs) 25 |
+| Platform | 110 | [HttpResult](../../Assets/Game/Runtime/OpenSekai.Game/Platform/CP/HttpResult.cs) 12、[UnityWebRequestClient](../../Assets/Game/Runtime/OpenSekai.Game/Platform/CP/UnityWebRequestClient.cs) 41、[InputManager](../../Assets/Game/Runtime/OpenSekai.Game/Platform/InputManager.cs) 31、[BlendColor](../../Assets/Game/Runtime/OpenSekai.Game/Platform/UiEffect/BlendColor.cs) 8、[GradientColor](../../Assets/Game/Runtime/OpenSekai.Game/Platform/UiEffect/GradientColor.cs) 18 |
+| Screens | 15 | [DialogService](../../Assets/Game/Runtime/OpenSekai.Game/Screens/DialogService.cs) 3、[ScreenManager](../../Assets/Game/Runtime/OpenSekai.Game/Screens/ScreenManager.cs) 10、[TransitionService](../../Assets/Game/Runtime/OpenSekai.Game/Screens/TransitionService.cs) 2 |
+| UI | 26 | [UIPartsCharacterIcon](../../Assets/Game/Runtime/OpenSekai.Game/UI/UIPartsCharacterIcon.cs) 26 |

@@ -18,9 +18,9 @@ namespace OpenSekai.EditorTools
     /// </remarks>
     public sealed class ReleaseSigningBuildStep : IPreprocessBuildWithReport
     {
-        public const string KeystoreRelativePath = "Tools/signing/opensekai-atlas-release.keystore";
-        public const string KeystorePassword = "opensekai";
-        public const string KeyaliasName = "opensekai";
+        public const string KEYSTORE_RELATIVE_PATH = "Tools/signing/opensekai-atlas-release.keystore";
+        public const string KEYSTORE_PASSWORD = "opensekai";
+        public const string KEYALIAS_NAME = "opensekai";
 
         /// <summary>Runs before the default preprocessors so the keystore is in place early.</summary>
         public int callbackOrder => -1000;
@@ -39,7 +39,7 @@ namespace OpenSekai.EditorTools
         public static void Apply()
         {
             string projectRoot = Directory.GetParent(Application.dataPath).FullName;
-            string absolutePath = Path.Combine(projectRoot, KeystoreRelativePath);
+            string absolutePath = Path.Combine(projectRoot, KEYSTORE_RELATIVE_PATH);
             if (!File.Exists(absolutePath))
             {
                 Debug.LogWarning("[ReleaseSigning] keystore not found: " + absolutePath);
@@ -47,12 +47,12 @@ namespace OpenSekai.EditorTools
             }
 
             PlayerSettings.Android.useCustomKeystore = true;
-            PlayerSettings.Android.keystoreName = KeystoreRelativePath;
-            PlayerSettings.Android.keystorePass = KeystorePassword;
-            PlayerSettings.Android.keyaliasName = KeyaliasName;
-            PlayerSettings.Android.keyaliasPass = KeystorePassword;
+            PlayerSettings.Android.keystoreName = KEYSTORE_RELATIVE_PATH;
+            PlayerSettings.Android.keystorePass = KEYSTORE_PASSWORD;
+            PlayerSettings.Android.keyaliasName = KEYALIAS_NAME;
+            PlayerSettings.Android.keyaliasPass = KEYSTORE_PASSWORD;
 
-            Debug.Log("[ReleaseSigning] signing with " + KeystoreRelativePath + " (alias " + KeyaliasName + ").");
+            Debug.Log("[ReleaseSigning] signing with " + KEYSTORE_RELATIVE_PATH + " (alias " + KEYALIAS_NAME + ").");
         }
     }
 }

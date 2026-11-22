@@ -11,12 +11,14 @@ namespace OpenSekai.Tests.EditMode.Packages
     public sealed class ServerChartImportTests
     {
         private string _root;
-        [SetUp] public void SetUp()
+        [SetUp]
+        public void SetUp()
         {
             _root = Path.Combine(Path.GetTempPath(), "server-import-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_root);
         }
-        [TearDown] public void TearDown() { Directory.Delete(_root, true); }
+        [TearDown]
+        public void TearDown() { Directory.Delete(_root, true); }
 
         private string Archive(string name, string content = "test")
         {
@@ -38,7 +40,8 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(File.Exists(Path.Combine(_root, "escape.txt")), Is.False);
         }
 
-        [Test] public void ExtractsUtf8AndNestedFiles()
+        [Test]
+        public void ExtractsUtf8AndNestedFiles()
         {
             string stage = Path.Combine(_root, "stage");
             float progress = 0;
@@ -47,25 +50,28 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(progress, Is.EqualTo(1f));
         }
 
-        [Test] public void InsufficientSpaceRejectsBeforeWritingArchiveContents()
+        [Test]
+        public void InsufficientSpaceRejectsBeforeWritingArchiveContents()
         {
             string zip = Archive("score.json");
             string stage = Path.Combine(_root, "stage");
             var error = Assert.Throws<IOException>(() => SafeZipExtractor.Extract(zip, stage,
-                availableBytes: SafeZipExtractor.FreeSpaceReserveBytes));
+                availableBytes: SafeZipExtractor.FREE_SPACE_RESERVE_BYTES));
             Assert.That(error.Message, Does.Contain("存储空间不足"));
             Assert.That(Directory.GetFiles(stage), Is.Empty);
         }
 
-        [Test] public void ExtractsWithCapturedFreeSpaceWithoutQueryingTheWorkerFilesystem()
+        [Test]
+        public void ExtractsWithCapturedFreeSpaceWithoutQueryingTheWorkerFilesystem()
         {
             string zip = Archive("score.json");
             string stage = Path.Combine(_root, "stage");
-            SafeZipExtractor.Extract(zip, stage, availableBytes: SafeZipExtractor.FreeSpaceReserveBytes + 4);
+            SafeZipExtractor.Extract(zip, stage, availableBytes: SafeZipExtractor.FREE_SPACE_RESERVE_BYTES + 4);
             Assert.That(File.ReadAllText(Path.Combine(stage, "score.json")), Is.EqualTo("test"));
         }
 
-        [Test] public void RejectsSymbolicLinks()
+        [Test]
+        public void RejectsSymbolicLinks()
         {
             string zip = Path.Combine(_root, "link.zip");
             using (var archive = ZipFile.Open(zip, ZipArchiveMode.Create))
@@ -73,24 +79,26 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.Throws<InvalidDataException>(() => SafeZipExtractor.Extract(zip, Path.Combine(_root, "stage")));
         }
 
-        [Test] public void RejectsTooManyFilesBeforeExtracting()
+        [Test]
+        public void RejectsTooManyFilesBeforeExtracting()
         {
             string zip = Path.Combine(_root, "many.zip");
             using (var archive = ZipFile.Open(zip, ZipArchiveMode.Create))
-                for (int i = 0; i <= SafeZipExtractor.MaxFiles; i++) archive.CreateEntry(i + ".txt");
+                for (int i = 0; i <= SafeZipExtractor.MAX_FILES; i++) archive.CreateEntry(i + ".txt");
             string stage = Path.Combine(_root, "stage");
             Assert.Throws<InvalidDataException>(() => SafeZipExtractor.Extract(zip, stage));
             Assert.That(Directory.GetFiles(stage), Is.Empty);
         }
 
-        [Test] public void RejectsOversizedDeclaredFileBeforeExtracting()
+        [Test]
+        public void RejectsOversizedDeclaredFileBeforeExtracting()
         {
             string zip = Archive("large.bin");
             byte[] bytes = File.ReadAllBytes(zip);
             for (int i = 0; i < bytes.Length - 28; i++)
             {
                 if (BitConverter.ToUInt32(bytes, i) != 0x02014b50) continue;
-                BitConverter.GetBytes((uint)(SafeZipExtractor.MaxFileBytes + 1)).CopyTo(bytes, i + 24);
+                BitConverter.GetBytes((uint)(SafeZipExtractor.MAX_FILE_BYTES + 1)).CopyTo(bytes, i + 24);
                 break;
             }
             File.WriteAllBytes(zip, bytes);
@@ -99,7 +107,8 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(Directory.GetFiles(stage), Is.Empty);
         }
 
-        [UnityTest] public IEnumerator RejectsManifestReferencesOutsideThePackage()
+        [UnityTest]
+        public IEnumerator RejectsManifestReferencesOutsideThePackage()
         {
             var manager = new SongPackageManager(Path.Combine(_root, "library"));
             string zip = Archive("manifest.json", "{\"id\":\"bad\",\"scoreFileName\":\"../outside.json\"}");
@@ -111,7 +120,8 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(Directory.GetDirectories(_root, ".chart-import-*"), Is.Empty);
         }
 
-        [UnityTest] public IEnumerator CompletedDownloadCanBeRecoveredWithoutDuplicateImport()
+        [UnityTest]
+        public IEnumerator CompletedDownloadCanBeRecoveredWithoutDuplicateImport()
         {
             var manager = new SongPackageManager(Path.Combine(_root, "library"), Path.Combine(_root, "temp"));
             var original = manager.CreateNewEntry();
@@ -129,16 +139,17 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(Directory.GetDirectories(_root, ".chart-import-*"), Is.Empty);
         }
 
-        [UnityTest] public IEnumerator DownloadedNativeChartUsesTheFormatDeclaredInItsManifest()
+        [UnityTest]
+        public IEnumerator DownloadedNativeChartUsesTheFormatDeclaredInItsManifest()
         {
             var manager = new SongPackageManager(Path.Combine(_root, "library"));
             string zip = Path.Combine(_root, "native.zip");
-            const string scoreName = "level-data.json.gz";
+            const string SCORE_NAME = "level-data.json.gz";
             using (var archive = ZipFile.Open(zip, ZipArchiveMode.Create))
             {
                 using (var manifest = new StreamWriter(archive.CreateEntry("manifest.json").Open()))
                     manifest.Write(@"{""id"":""next-rush-demo"",""chartFormat"":""next-rush"",""scoreFileName"":""level-data.json.gz""}");
-                using (var compressed = new GZipStream(archive.CreateEntry(scoreName).Open(), CompressionMode.Compress))
+                using (var compressed = new GZipStream(archive.CreateEntry(SCORE_NAME).Open(), CompressionMode.Compress))
                 using (var score = new StreamWriter(compressed))
                     score.Write(@"{""bgmOffset"":0,""entities"":[]}");
             }
@@ -148,12 +159,13 @@ namespace OpenSekai.Tests.EditMode.Packages
             var installed = task.GetAwaiter().GetResult();
 
             Assert.That(installed.Manifest.chartFormat, Is.EqualTo("next-rush"));
-            Assert.That(Path.GetFileName(installed.ScorePath), Is.EqualTo(scoreName));
+            Assert.That(Path.GetFileName(installed.ScorePath), Is.EqualTo(SCORE_NAME));
             Assert.That(File.Exists(installed.ScorePath), Is.True);
             Assert.That(Directory.GetDirectories(_root, ".chart-import-*"), Is.Empty);
         }
 
-        [UnityTest] public IEnumerator InvalidDownloadLeavesExistingLibraryUntouched()
+        [UnityTest]
+        public IEnumerator InvalidDownloadLeavesExistingLibraryUntouched()
         {
             var manager = new SongPackageManager(Path.Combine(_root, "library"));
             var existing = manager.CreateNewEntry();
@@ -164,6 +176,39 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(task.Exception.GetBaseException(), Is.TypeOf<InvalidDataException>());
             Assert.That(File.Exists(existing.ManifestPath), Is.True);
             Assert.That(manager.LoadItems().Count, Is.EqualTo(1));
+            Assert.That(Directory.GetDirectories(_root, ".chart-import-*"), Is.Empty);
+        }
+
+        [TestCase("sus")]
+        [TestCase("txt")]
+        public async System.Threading.Tasks.Task DownloadWithNoPlayableSusNotesIsNotPublished(string extension)
+        {
+            var manager = new SongPackageManager(Path.Combine(_root, "library"));
+            var existing = manager.CreateNewEntry();
+            byte[] originalManifest = File.ReadAllBytes(existing.ManifestPath);
+            byte[] originalScore = File.ReadAllBytes(existing.ScorePath);
+            byte[] originalAudio = { 0x00, 0x7F, 0x80, 0xFF };
+            File.WriteAllBytes(existing.AudioPath, originalAudio);
+            string filename = "empty." + extension;
+            string zip = Archive("manifest.json", "{\"id\":\"empty\",\"scoreFileName\":\"" + filename + "\"}");
+            using (var archive = ZipFile.Open(zip, ZipArchiveMode.Update))
+            using (var score = new StreamWriter(archive.CreateEntry(filename).Open()))
+                score.Write("#TITLE \"Empty\"\n#BPM01:120\n#00008:01");
+
+            try
+            {
+                await manager.ImportDownloadedZipAsync(zip, "46");
+                Assert.Fail("Expected the downloaded score to be rejected.");
+            }
+            catch (InvalidDataException error) { Assert.That(error.Message, Does.Contain("没有可游玩的音符")); }
+            var items = manager.RescanItems();
+            Assert.That(items.Count, Is.EqualTo(1));
+            var retained = items[0].Entry;
+            Assert.That(retained.RootDirectory, Is.EqualTo(existing.RootDirectory));
+            Assert.That(File.ReadAllBytes(retained.ManifestPath), Is.EqualTo(originalManifest));
+            Assert.That(File.ReadAllBytes(retained.ScorePath), Is.EqualTo(originalScore));
+            Assert.That(File.ReadAllBytes(retained.AudioPath), Is.EqualTo(originalAudio));
+            Assert.That(Directory.Exists(Path.Combine(manager.RootDirectory, "server-46")), Is.False);
             Assert.That(Directory.GetDirectories(_root, ".chart-import-*"), Is.Empty);
         }
     }

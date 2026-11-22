@@ -175,9 +175,9 @@ namespace OpenSekai.Tests.EditMode.Packages
             var summaries = CustomMusicScorePlayHistoryStorage.Summarize(lines);
 
             Assert.That(summaries.Keys, Is.EquivalentTo(new[] { "a", "b" }));
-            Assert.That(summaries["a"].Best.totalScore, Is.EqualTo(300));
+            Assert.That(summaries["a"].Best.TotalScore, Is.EqualTo(300));
             Assert.That(summaries["a"].PlayCount, Is.EqualTo(2));
-            Assert.That(summaries["b"].Best.totalScore, Is.EqualTo(200));
+            Assert.That(summaries["b"].Best.TotalScore, Is.EqualTo(200));
         }
 
         private SongPackage EntryWithAudio(string bytes = "audio")

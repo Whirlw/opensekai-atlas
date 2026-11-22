@@ -12,8 +12,8 @@ namespace OpenSekai.Tests.EditMode.Live
 {
     public sealed class LongHoldPipelineTests
     {
-        private LiveConfig.NoteTypeJudgeData previous;
-        private MusicScoreInfo previousFrame;
+        private LiveConfig.NoteTypeJudgeData _previous;
+        private MusicScoreInfo _previousFrame;
         private static MusicScoreInfo Info(float time) => new MusicScoreInfo(0, time / 2, time, 120, 4, 1, 1);
 
         private sealed class HeldNote : LongNote
@@ -72,8 +72,10 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(bar.Calls, Is.EqualTo(2), "the next input frame drives the held bar exactly once");
         }
 
-        [SetUp] public void SetUp() { previous = LiveConfig.noteTypeJudgeData; previousFrame = MusicScore.CurrentFrameInfo; MusicScore.CurrentFrameInfo = Info(0); LiveConfig.LoadMasterConfig(); }
-        [TearDown] public void TearDown() { LiveConfig.noteTypeJudgeData = previous; MusicScore.CurrentFrameInfo = previousFrame; }
+        [SetUp]
+        public void SetUp() { _previous = LiveConfig.noteTypeJudgeData; _previousFrame = MusicScore.CurrentFrameInfo; MusicScore.CurrentFrameInfo = Info(0); LiveConfig.LoadMasterConfig(); }
+        [TearDown]
+        public void TearDown() { LiveConfig.noteTypeJudgeData = _previous; MusicScore.CurrentFrameInfo = _previousFrame; }
         private static LiveLogic.InputTmp Input(int finger, float lane) => new LiveLogic.InputTmp
         {
             Lane = lane,
@@ -192,14 +194,14 @@ namespace OpenSekai.Tests.EditMode.Live
 
             bar.ResetNote();
 
-            const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
+            const BindingFlags PRIVATE = BindingFlags.Instance | BindingFlags.NonPublic;
             Assert.That(bar.State, Is.EqualTo(NoteState.Wait));
             Assert.That(bar.Result, Is.EqualTo(NoteResult.None));
-            Assert.That((float)typeof(LongNote).GetField("lastInputTime", Private).GetValue(bar), Is.EqualTo(0f));
+            Assert.That((float)typeof(LongNote).GetField("lastInputTime", PRIVATE).GetValue(bar), Is.EqualTo(0f));
             Assert.That(bar.HasFinger, Is.False);
-            var body = typeof(LongNote).GetField("_body", Private).GetValue(bar);
-            Assert.That((bool)body.GetType().GetField("_pressedThisFrame", Private).GetValue(body), Is.False);
-            Assert.That((float)body.GetType().GetField("_lastFrameTime", Private).GetValue(body), Is.EqualTo(0f));
+            var body = typeof(LongNote).GetField("_body", PRIVATE).GetValue(bar);
+            Assert.That((bool)body.GetType().GetField("_pressedThisFrame", PRIVATE).GetValue(body), Is.False);
+            Assert.That((float)body.GetType().GetField("_lastFrameTime", PRIVATE).GetValue(body), Is.EqualTo(0f));
         }
 
         [TestCase(0f)]

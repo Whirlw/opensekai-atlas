@@ -18,10 +18,11 @@ namespace Sekai
 			public float top;
 		}
 
-		private static readonly int DisableId;
+		private static readonly int _disableId;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_spriteRenderer")]
 		[SerializeField]
-		private SpriteRenderer _spriteRenderer;
+		private SpriteRenderer spriteRenderer;
 
 		[SerializeField]
 		protected float pressScale;
@@ -46,23 +47,23 @@ namespace Sekai
 		public void Setup(Action _onClick)
 		{
 			this._onClick = _onClick;
-			_touchId = DisableId;
+			_touchId = _disableId;
 			_baseScale = transform.localScale;
 		}
 
 		public void CalculateBounds(Camera camera)
 		{
 			_isEnable = true;
-			if (_spriteRenderer == null)
+			if (spriteRenderer == null)
 			{
-				_spriteRenderer = GetComponent<SpriteRenderer>();
+				spriteRenderer = GetComponent<SpriteRenderer>();
 			}
-			if (_spriteRenderer == null || camera == null)
+			if (spriteRenderer == null || camera == null)
 			{
 				_isEnable = false;
 				return;
 			}
-			Bounds rendererBounds = _spriteRenderer.bounds;
+			Bounds rendererBounds = spriteRenderer.bounds;
 			Vector3 min = camera.WorldToScreenPoint(rendererBounds.min);
 			Vector3 max = camera.WorldToScreenPoint(rendererBounds.max);
 			_bounds.left = Mathf.Min(min.x, max.x) - raycastPadding;
@@ -77,7 +78,7 @@ namespace Sekai
 			{
 				return;
 			}
-			if (NativeInput.PointerPressedThisFrame && _touchId == DisableId && Contains(NativeInput.PointerPosition))
+			if (NativeInput.PointerPressedThisFrame && _touchId == _disableId && Contains(NativeInput.PointerPosition))
 			{
 				ScaleDown();
 				_touchId = 0;
@@ -93,11 +94,11 @@ namespace Sekai
 				{
 					ScaleUp();
 				}
-				_touchId = DisableId;
+				_touchId = _disableId;
 			}
 		}
 
-		private void UpdateTouches()
+		internal void UpdateTouches()
 		{
 			if (!_isEnable)
 			{
@@ -110,23 +111,23 @@ namespace Sekai
 				Vector2 position = touch.position;
 				if (touch.phase == TouchPhase.Began)
 				{
-					if (_touchId == DisableId && Contains(position))
+					if (_touchId == _disableId && Contains(position))
 					{
 						ScaleDown();
 						_touchId = touch.fingerId;
 						return;
 					}
 				}
-				else if (touch.phase == TouchPhase.Ended)
+				else if (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled)
 				{
 					if (_touchId == touch.fingerId)
 					{
-						if (Contains(position))
+						if (touch.phase == TouchPhase.Ended && Contains(position))
 						{
 							OnClick();
 						}
 						ScaleUp();
-						_touchId = DisableId;
+						_touchId = _disableId;
 						return;
 					}
 				}
@@ -152,17 +153,18 @@ namespace Sekai
 			_pressMotion.TryCancel();
 			_pressMotion = LMotion.Create(transform.localScale, scale, _scaleTime)
 				.WithEase(Ease.OutQuad)
+				.WithScheduler(Live.LiveMotion.Scheduler())
 				.BindToLocalScale(transform);
 		}
 
 		private void OnDisable()
 		{
-			if (_pressMotion.TryCancel() || _touchId != DisableId)
+			if (_pressMotion.TryCancel() || _touchId != _disableId)
 			{
 				transform.localScale = _baseScale;
 			}
 			_pressMotion = default;
-			_touchId = DisableId;
+			_touchId = _disableId;
 		}
 
 		private void LateUpdate()
@@ -184,12 +186,12 @@ namespace Sekai
 			_scaleTime = 0.125f;
 			pressScale = 0.95f;
 			raycastPadding = 24f;
-			_touchId = DisableId;
+			_touchId = _disableId;
 		}
 
 		static LiveSpriteButton()
 		{
-			DisableId = int.MinValue;
+			_disableId = int.MinValue;
 		}
 
 		private bool Contains(Vector2 position)

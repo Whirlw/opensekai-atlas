@@ -8,33 +8,34 @@ namespace Sekai
 	{
 		public class EffectPair
 		{
-						private ParticleSystemController _Aura;
+						private ParticleSystemController _aura;
 			public ParticleSystemController Aura
 			{
-			    get => _Aura;
-			    set => _Aura = value;
+			    get => _aura;
+			    set => _aura = value;
 			}
 
-						private ParticleSystemController _Gen;
+						private ParticleSystemController _gen;
 			public ParticleSystemController Gen
 			{
-			    get => _Gen;
-			    set => _Gen = value;
+			    get => _gen;
+			    set => _gen = value;
 			}
 
 			internal bool SoundRequested;
-			private uint _PlaybackId;
+			internal readonly bool UsesBuiltInBeam;
+			private uint _playbackId;
 			public uint PlaybackId
 			{
-			    get => _PlaybackId;
-			    set => _PlaybackId = value;
+			    get => _playbackId;
+			    set => _playbackId = value;
 			}
 
-						private bool _IsUsed;
+						private bool _isUsed;
 			public bool IsUsed
 			{
-			    get => _IsUsed;
-			    set => _IsUsed = value;
+			    get => _isUsed;
+			    set => _isUsed = value;
 			}
 
 			internal void StopSound()
@@ -44,22 +45,32 @@ namespace Sekai
 				SoundRequested = false;
 			}
 
-			public EffectPair(string bundleName, string genPath, string auraPath, Transform parent)
+			public EffectPair(string bundleName, string genPath, string auraPath, Transform parent, LiveHitEffectSkin skin = null)
 			{
-				Gen = LoadTapEffect(bundleName, genPath, parent);
-				Aura = LoadTapEffect(bundleName, auraPath, parent);
+				Gen = LoadTapEffect(bundleName, genPath, parent, skin);
+				Aura = LoadTapEffect(bundleName, auraPath, parent, skin);
+				if (Aura != null && Aura.Sequence == null)
+				{
+					UsesBuiltInBeam = skin?.HasTemplateTexture(auraPath) != true;
+					// RenderPair stretches this sheet by the live lane count. Its base width is one effect lane.
+					var sheet = Aura.GetComponentInChildren<ParticleSystem>(true);
+					if (sheet != null)
+					{
+						var main = sheet.main;
+						main.startSizeX = LiveUtility.EFFECT_LANE_WIDTH;
+					}
+				}
 			}
 
-			private ParticleSystemController LoadTapEffect(string bundleName, string name, Transform parent)
+			private ParticleSystemController LoadTapEffect(string bundleName, string name, Transform parent, LiveHitEffectSkin skin)
 			{
-				GameObject prefab = AssetBundleUtility.LoadAsset<GameObject>(bundleName, name);
+				GameObject prefab = LiveHitEffectSkin.LoadPrefab(bundleName, name, skin);
 				if (prefab == null)
 				{
 					return null;
 				}
 
-				GameObject instance = Object.Instantiate(prefab, parent);
-				return instance.AddComponent<ParticleSystemController>();
+				return ParticleSystemController.Create(prefab, parent, skin, varyBurst: true);
 			}
 		}
 
@@ -78,14 +89,26 @@ namespace Sekai
 
 		private readonly Dictionary<LongNote, NativeHold> _nativeHolds = new Dictionary<LongNote, NativeHold>();
 
-		public void Setup()
+		private bool _autoplay;
+		private Vector3 _beamOrigin;
+
+		internal void AlignBeamToLine(Camera front, Camera effect, Vector3 judgmentPoint)
 		{
+			// The note ribbon is orthographic. Preserve the beam's depth and width in the effect camera.
+			Vector3 point = effect.WorldToViewportPoint(transform.position);
+			point.y = front.WorldToViewportPoint(judgmentPoint).y;
+			_beamOrigin = transform.InverseTransformPoint(effect.ViewportToWorldPoint(point));
+		}
+
+		public void Setup(LiveHitEffectSkin skin = null, bool autoplay = false)
+		{
+			_autoplay = autoplay;
 			_tapKeeps = new EffectPair[10];
 			_criticalTapKeeps = new EffectPair[10];
 			for (int i = 0; i < _tapKeeps.Length; i++)
 			{
-				_tapKeeps[i] = new EffectPair(LiveConfig.EffectBundleName, LivePrefabDefine.FX_LONG_HOLD_GEN, LivePrefabDefine.FX_LONG_HOLD_AURA, transform);
-				_criticalTapKeeps[i] = new EffectPair(LiveConfig.EffectBundleName, LivePrefabDefine.FX_CRITICAL_LONG_HOLD_GEN, LivePrefabDefine.FX_CRITICAL_LONG_HOLD_AURA, transform);
+				_tapKeeps[i] = new EffectPair(LiveConfig.EffectBundleName, LivePrefabDefine.FX_LONG_HOLD_GEN, LivePrefabDefine.FX_LONG_HOLD_AURA, transform, skin);
+				_criticalTapKeeps[i] = new EffectPair(LiveConfig.EffectBundleName, LivePrefabDefine.FX_CRITICAL_LONG_HOLD_GEN, LivePrefabDefine.FX_CRITICAL_LONG_HOLD_AURA, transform, skin);
 			}
 
 			Warmup(_tapKeeps);
@@ -138,8 +161,8 @@ namespace Sekai
 			}
 
 			_longNotes.Remove(note);
-			pair.Gen?.Stop();
-			pair.Aura?.Stop();
+			pair.Gen?.ReleaseHold();
+			pair.Aura?.ReleaseHold();
 			pair.IsUsed = false;
 			pair.StopSound();
 		}
@@ -187,13 +210,12 @@ namespace Sekai
 					continue;
 				}
 
-				// A finger on the bar right now, asked of the hold itself; the state lags a refresh behind.
-				// The rule lives in LiveUtility so a plain note can be tested for it without the prefabs.
-				if (LiveUtility.IsBeingHeldForEffect(note, time))
+				bool held = IsHeldForVisuals(note, time);
+				if (held)
 				{
 					RenderPair(pair, note.LaneStartF, note.LaneEndF, note is NoteBase styled ? styled.NativeStyle : 0);
 
-					if (!pair.SoundRequested)
+					if (!_autoplay && !pair.SoundRequested)
 					{
 						pair.SoundRequested = true;
 						string cue = HoldCueName(note);
@@ -204,11 +226,10 @@ namespace Sekai
 								+ " sound=" + (cue == null ? "none" : "start"));
 					}
 				}
-
-				if (note.ShowsAsReleased)
+				else if (note.ShowsAsReleased || _autoplay && (pair.Gen?.IsPlaying == true || pair.Aura?.IsPlaying == true))
 				{
-					pair.Gen?.Stop();
-					pair.Aura?.Stop();
+					pair.Gen?.ReleaseHold();
+					pair.Aura?.ReleaseHold();
 				}
 
 				// The sound only stops once the bar is really let go: the grey window is grace,
@@ -220,13 +241,22 @@ namespace Sekai
 			}
 		}
 
+		private bool IsHeldForVisuals(INote note, float time)
+		{
+			if (!_autoplay) return LiveUtility.IsBeingHeldForEffect(note, time);
+			// Native guide carriers can contain playable segments. Their segment decides visibility.
+			return note is LongNote bar && bar.State != NoteState.Done
+				&& (bar.NativeConnector != null || !bar.IsDecorativeBar)
+				&& time >= bar.MusicScoreInfo.time && bar.TailNote is NoteBase tail && time < tail.MusicScoreInfo.time;
+		}
+
 		private void UpdateNativeHold(LongNote note, NativeHold hold, float time)
 		{
 			double viewTime = (double)time + LiveConfig.ViewLeadSeconds;
 			if (note.State == NoteState.Done
 				|| !note.TryConnectorPresentation(viewTime, out var segment, out float left, out float right)
 				|| segment.IsDamage || !segment.HasActiveInterval
-				|| !segment.IsFake && !LiveUtility.IsBeingHeldForEffect(note, time))
+				|| !segment.IsFake && !IsHeldForVisuals(note, time))
 			{
 				ReleaseNativePair(hold);
 				hold.HeldSince = float.PositiveInfinity;
@@ -251,24 +281,25 @@ namespace Sekai
 		private static void ReleaseNativePair(NativeHold hold)
 		{
 			if (hold.Pair == null) return;
-			hold.Pair.Gen?.Stop();
-			hold.Pair.Aura?.Stop();
+			hold.Pair.Gen?.ReleaseHold();
+			hold.Pair.Aura?.ReleaseHold();
 			hold.Pair.IsUsed = false;
 			hold.Pair = null;
 		}
 
-		private static void RenderPair(EffectPair pair, float left, float right, int style)
+		private void RenderPair(EffectPair pair, float left, float right, int style)
 		{
 			float x = LiveUtility.CalcLaneTransformX((left + right) * 0.5f);
 			if (pair.Gen != null)
 			{
-				pair.Gen.transform.localPosition = new Vector3(x, 0f, 0f);
+				pair.Gen.Place(new Vector3(x, 0f, 0f));
 				if (pair.Gen.IsPlaying) pair.Gen.SetStyle(style);
 				else pair.Gen.Play(style);
 			}
 			if (pair.Aura != null)
 			{
-				pair.Aura.transform.localPosition = new Vector3(x, 0f, 0f);
+				Vector3 origin = pair.UsesBuiltInBeam ? _beamOrigin : Vector3.zero;
+				pair.Aura.Place(origin + Vector3.right * x);
 				pair.Aura.transform.localScale = new Vector3(right - left + 1f, 1f, 1f);
 				if (pair.Aura.IsPlaying) pair.Aura.SetStyle(style);
 				else pair.Aura.Play(style);

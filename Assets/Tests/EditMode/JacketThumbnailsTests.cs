@@ -43,13 +43,13 @@ namespace OpenSekai.Tests.EditMode
         [Test]
         public void ThumbnailFileNameFollowsTheSourceFile()
         {
-            const int size = JacketThumbnails.LIST_SIZE;
-            string name = JacketThumbnails.ThumbnailFileName("a/jacket.png", 100, 5, size);
+            const int SIZE = JacketThumbnails.LIST_SIZE;
+            string name = JacketThumbnails.ThumbnailFileName("a/jacket.png", 100, 5, SIZE);
 
-            Assert.That(name, Is.EqualTo(JacketThumbnails.ThumbnailFileName("a/jacket.png", 100, 5, size)));
-            Assert.That(name, Is.Not.EqualTo(JacketThumbnails.ThumbnailFileName("a/jacket.png", 100, 6, size)), "rewritten");
-            Assert.That(name, Is.Not.EqualTo(JacketThumbnails.ThumbnailFileName("a/jacket.png", 101, 5, size)), "resized");
-            Assert.That(name, Is.Not.EqualTo(JacketThumbnails.ThumbnailFileName("b/jacket.png", 100, 5, size)), "other package");
+            Assert.That(name, Is.EqualTo(JacketThumbnails.ThumbnailFileName("a/jacket.png", 100, 5, SIZE)));
+            Assert.That(name, Is.Not.EqualTo(JacketThumbnails.ThumbnailFileName("a/jacket.png", 100, 6, SIZE)), "rewritten");
+            Assert.That(name, Is.Not.EqualTo(JacketThumbnails.ThumbnailFileName("a/jacket.png", 101, 5, SIZE)), "resized");
+            Assert.That(name, Is.Not.EqualTo(JacketThumbnails.ThumbnailFileName("b/jacket.png", 100, 5, SIZE)), "other package");
             Assert.That(name, Is.Not.EqualTo(JacketThumbnails.ThumbnailFileName("a/jacket.png", 100, 5, JacketThumbnails.DETAIL_SIZE)));
         }
 

@@ -1,0 +1,19 @@
+"GET /index.html HTTP/1.1" 200 -
+"GET /TemplateData/style.css HTTP/1.1" 200 -
+"GET /TemplateData/fullscreen-button.png HTTP/1.1" 200 -
+"GET /TemplateData/unity-logo-title-footer.png HTTP/1.1" 200 -
+"GET /Build/WebOut.loader.js HTTP/1.1" 200 -
+"GET /Build/WebOut.framework.js HTTP/1.1" 200 -
+"GET /TemplateData/unity-logo-dark.png HTTP/1.1" 200 -
+"GET /TemplateData/progress-bar-full-dark.png HTTP/1.1" 200 -
+"GET /TemplateData/progress-bar-empty-dark.png HTTP/1.1" 200 -
+"GET /Build/WebOut.wasm HTTP/1.1" 200 -
+"GET /TemplateData/favicon.ico HTTP/1.1" 200 -
+"GET /Build/WebOut.data HTTP/1.1" 200 -
+code 503, message Service Unavailable
+"GET /StreamingAssets/data/AssetBundleInfo.bytes HTTP/1.1" 503 -
+"GET /StreamingAssets/data/AssetBundleInfo.bytes HTTP/1.1" 200 -
+"GET /StreamingAssets/data/check HTTP/1.1" 200 -
+stall: response delayed for 5 seconds
+"GET /receipt?value=WEBGL_NORMAL_BUNDLE_OK%20HTTP503%3Dreported%20retry%3Dok%20cancelledWaiter%3Disolated%20stalledRequest%3Dbounded%20warm%3Dok%20path%3Dhttp:%2F%2F127.0.0.1:52595%2FStreamingAssets HTTP/1.1" 200 -
+result=WEBGL_NORMAL_BUNDLE_OK HTTP503=reported retry=ok cancelledWaiter=isolated stalledRequest=bounded warm=ok path=http://127.0.0.1:52595/StreamingAssets

@@ -27,7 +27,7 @@ namespace Sekai.Core.Live
 		internal Func<string, uint> Play = cue =>
 		{
 			var sound = SoundManager.Instance;
-			return sound.PlayHoldLoop(sound.ExistsCueName(cue) ? cue : LiveSoundDefine.NextRushFallbackCue(cue));
+			return sound.PlayHoldLoop(sound.ExistsLiveCue(cue) ? cue : LiveSoundDefine.NextRushFallbackCue(cue));
 		};
 		internal Action<uint> Stop = handle => SoundManager.Instance.StopSE(handle);
 

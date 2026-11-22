@@ -41,17 +41,17 @@ namespace OpenSekai.Tests.Core
         [Test]
         public void LegacyTimingShrinksLatencyByOneFrame()
         {
-            const double frameMusicTime = 12.5d;
-            const double frameGameTime = 100d;
-            const double inputTime = 99.9d; // a touch sampled 100 ms before this frame
+            const double SAMPLE_FRAME_MUSIC_TIME = 12.5d;
+            const double SAMPLE_FRAME_GAME_TIME = 100d;
+            const double INPUT_TIME = 99.9d; // a touch sampled 100 ms before this frame
 
             float legacy = InputTimeMapping.FromLegacyClock(
-                frameMusicTime, frameGameTime, inputTime);
+                SAMPLE_FRAME_MUSIC_TIME, SAMPLE_FRAME_GAME_TIME, INPUT_TIME);
             float sampled = InputTimeMapping.FromClock(
-                frameMusicTime, frameGameTime, inputTime);
+                SAMPLE_FRAME_MUSIC_TIME, SAMPLE_FRAME_GAME_TIME, INPUT_TIME);
 
             // Legacy: 100 ms of real latency becomes ~1.7 ms of music time (1/60 of the delta).
-            Assert.That((frameMusicTime - legacy) * 1000d, Is.EqualTo(100d / 60d).Within(0.05d));
+            Assert.That((SAMPLE_FRAME_MUSIC_TIME - legacy) * 1000d, Is.EqualTo(100d / 60d).Within(0.05d));
             // Sampled: the touch lands 100 ms earlier on the timeline.
             Assert.That(sampled, Is.EqualTo(12.4f).Within(1e-4f));
             Assert.That(sampled, Is.LessThan(legacy));

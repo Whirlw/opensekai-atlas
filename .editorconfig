@@ -1,0 +1,16 @@
+root = true
+
+[Assets/{Game,Tests}/**/*.cs]
+insert_final_newline = true
+trim_trailing_whitespace = true
+csharp_new_line_before_open_brace = all
+dotnet_naming_rule.constants.symbols = constants
+dotnet_naming_rule.constants.style = upper_snake
+dotnet_naming_rule.constants.severity = warning
+dotnet_naming_symbols.constants.applicable_kinds = field, local
+dotnet_naming_symbols.constants.required_modifiers = const
+dotnet_naming_style.upper_snake.capitalization = all_upper
+dotnet_naming_style.upper_snake.word_separator = _
+
+# Unity serialization attributes require a syntax-aware check.
+# Run pwsh -File Tools/verify-coding-standards.ps1 from the repository root.

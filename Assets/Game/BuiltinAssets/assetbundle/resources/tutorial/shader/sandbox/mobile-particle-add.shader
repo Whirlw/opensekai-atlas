@@ -3,6 +3,7 @@ Shader "Sandbox/Mobile/Particles/Additive"
     Properties
     {
         _MainTex ("Particle Texture", 2D) = "white" {}
+        [PerRendererData] _HitFxLayout ("Hit effect scale delta and pivot", Vector) = (0,0,0,0)
     }
 
     SubShader
@@ -48,6 +49,7 @@ Shader "Sandbox/Mobile/Particles/Additive"
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
+            float4 _HitFxLayout;
 
             v2f vert(appdata_t v)
             {
@@ -55,7 +57,9 @@ Shader "Sandbox/Mobile/Particles/Additive"
                 UNITY_SETUP_INSTANCE_ID(v);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
-                o.vertex = UnityObjectToClipPos(v.vertex);
+                float4 worldPos = mul(unity_ObjectToWorld, v.vertex);
+                worldPos.xy += (worldPos.xy - _HitFxLayout.zw) * _HitFxLayout.xy;
+                o.vertex = UnityWorldToClipPos(worldPos.xyz);
                 o.color = saturate(v.color);
                 o.texcoord = TRANSFORM_TEX(v.texcoord, _MainTex);
                 return o;

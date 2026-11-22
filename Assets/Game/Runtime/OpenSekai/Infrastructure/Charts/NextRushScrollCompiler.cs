@@ -7,8 +7,8 @@ namespace OpenSekai.Infrastructure.Charts
 {
     internal static class NextRushScrollCompiler
     {
-        private const string Group = "#TIMESCALE_GROUP";
-        private const string Marker = "#TIMESCALE_CHANGE";
+        private const string GROUP = "#TIMESCALE_GROUP";
+        private const string MARKER = "#TIMESCALE_CHANGE";
 
         internal static Dictionary<NextRushEntity, NextRushScrollTimeline> Compile(
             NextRushChart chart, Func<double, (double time, double bpm)> timingAt)
@@ -17,16 +17,16 @@ namespace OpenSekai.Infrastructure.Charts
             var visited = new HashSet<NextRushEntity>();
             foreach (var group in chart.Entities)
             {
-                if (group.Archetype != Group) continue;
+                if (group.Archetype != GROUP) continue;
                 CheckFields(group, "first", "forceNoteSpeed", "editorName", "editorHidden");
                 var changes = new List<NextRushScrollTimeline.Change>();
-                var marker = Resolve(chart, group, "first", Marker);
+                var marker = Resolve(chart, group, "first", MARKER);
                 while (marker != null)
                 {
                     if (!visited.Add(marker)) throw Invalid("变速事件链存在循环或共享节点", marker);
                     CheckFields(marker, "#BEAT", "#TIMESCALE", "#TIMESCALE_SKIP", "#TIMESCALE_EASE",
-                        Group, "transitionStyle", "hideNotes", "next", "editorLane");
-                    var owner = Resolve(chart, marker, Group, Group);
+                        GROUP, "transitionStyle", "hideNotes", "next", "editorLane");
+                    var owner = Resolve(chart, marker, GROUP, GROUP);
                     if (owner != null && owner != group) throw Invalid("变速事件所属组不一致", marker);
                     // Match the runtime's bounded chart time while retaining double precision.
                     double beat = marker.Number("#BEAT");
@@ -37,21 +37,21 @@ namespace OpenSekai.Infrastructure.Charts
                     double skip = marker.Number("#TIMESCALE_SKIP") * 60 / bpm;
                     double ease = marker.Number("#TIMESCALE_EASE");
                     double style = marker.Number("transitionStyle");
-                    if (Math.Abs(time) > NextRushChart.MaxAbsoluteTimeSeconds || Math.Abs(speed) > 1e9 || Math.Abs(skip) > 1e9)
+                    if (Math.Abs(time) > NextRushChart.MAX_ABSOLUTE_TIME_SECONDS || Math.Abs(speed) > 1e9 || Math.Abs(skip) > 1e9)
                         throw Invalid("变速时间、速度或跳距超出范围", marker);
                     if (ease < 0 || ease > 41 || ease % 1 != 0 || ease >= 30 && ease <= 37)
                         throw Invalid("变速缓动无效", marker);
                     if (style != 0 && style != 1) throw Invalid("变速模式无效", marker);
                     changes.Add(new NextRushScrollTimeline.Change(time, speed, skip, (int)ease, style == 1,
                         marker.Number("hideNotes") != 0));
-                    marker = Resolve(chart, marker, "next", Marker);
+                    marker = Resolve(chart, marker, "next", MARKER);
                 }
                 double forceSpeed = group.Number("forceNoteSpeed");
                 if (changes.Count > 0 || forceSpeed > 0)
                     groups.Add(group, new NextRushScrollTimeline(changes, forceSpeed));
             }
             foreach (var entity in chart.Entities)
-                if (entity.Archetype == Marker && !visited.Contains(entity))
+                if (entity.Archetype == MARKER && !visited.Contains(entity))
                     throw Invalid("变速事件未连接到变速组", entity);
             return groups;
         }

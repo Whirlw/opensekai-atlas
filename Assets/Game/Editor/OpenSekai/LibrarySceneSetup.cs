@@ -18,8 +18,37 @@ namespace OpenSekai.EditorTools
     public static class LibrarySceneSetup
     {
         public const string SCENE_PATH = "Assets/Game/Scenes/Library.unity";
+        private const string START_FROM_EMPTY_SCENE = "OpenSekai.Library.StartFromEmptyScene";
         private static bool _startupCheckActive;
         private static bool _previousRunInBackground;
+
+        [InitializeOnLoadMethod]
+        private static void RegisterEmptySceneFallback()
+        {
+            EditorApplication.playModeStateChanged += StartLibraryFromEmptyScene;
+        }
+
+        private static void StartLibraryFromEmptyScene(PlayModeStateChange state)
+        {
+            if (state == PlayModeStateChange.ExitingEditMode)
+            {
+                var scene = UnitySceneManager.GetActiveScene();
+                // Check before domain reload, while the edit scene still has its original dirty flag.
+                bool useLibrary = EditorSceneManager.playModeStartScene == null && UnitySceneManager.sceneCount == 1
+                    && scene.IsValid() && scene.isLoaded && string.IsNullOrEmpty(scene.path) && !scene.isDirty
+                    && scene.GetRootGameObjects().All(root => root.transform.childCount == 0 &&
+                        ((root.name == "Main Camera" && root.GetComponent<Camera>() != null) ||
+                         (root.name == "Directional Light" && root.GetComponent<Light>() != null)));
+                SessionState.SetBool(START_FROM_EMPTY_SCENE, useLibrary);
+            }
+            else if (state == PlayModeStateChange.EnteredPlayMode && SessionState.GetBool(START_FROM_EMPTY_SCENE, false))
+            {
+                SessionState.EraseBool(START_FROM_EMPTY_SCENE);
+                if (string.IsNullOrEmpty(UnitySceneManager.GetActiveScene().path))
+                    EditorSceneManager.LoadSceneInPlayMode(SCENE_PATH,
+                        new UnityEngine.SceneManagement.LoadSceneParameters(UnityEngine.SceneManagement.LoadSceneMode.Single));
+            }
+        }
 
         [MenuItem("OpenSekai/Library/Create or Update Scene")]
         public static void CreateOrUpdateScene()

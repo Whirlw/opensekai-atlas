@@ -40,12 +40,12 @@ namespace OpenSekai.Shared.Diagnostics
     /// </summary>
     public static class LiveTrace
     {
-        public const string EnabledPrefKey = "diagnostics.trace.enabled";
-        public const string CategoryPrefKey = "diagnostics.trace.categories";
-        public const string HighlightLastPrefKey = "diagnostics.highlight_last";
+        public const string ENABLED_PREF_KEY = "diagnostics.trace.enabled";
+        public const string CATEGORY_PREF_KEY = "diagnostics.trace.categories";
+        public const string HIGHLIGHT_LAST_PREF_KEY = "diagnostics.highlight_last";
 
-        private const int BufferSize = 4096;
-        private static readonly string[] _buffer = new string[BufferSize];
+        private const int BUFFER_SIZE = 4096;
+        private static readonly string[] _buffer = new string[BUFFER_SIZE];
         private static int _next;
         private static int _count;
 
@@ -63,7 +63,7 @@ namespace OpenSekai.Shared.Diagnostics
             {
                 EnsureLoaded();
                 _highlightLast = value;
-                PlayerPrefs.SetInt(HighlightLastPrefKey, value ? 1 : 0);
+                PlayerPrefs.SetInt(HIGHLIGHT_LAST_PREF_KEY, value ? 1 : 0);
                 PlayerPrefs.Save();
             }
         }
@@ -84,7 +84,7 @@ namespace OpenSekai.Shared.Diagnostics
                 }
 
                 _enabled = value;
-                PlayerPrefs.SetInt(EnabledPrefKey, value ? 1 : 0);
+                PlayerPrefs.SetInt(ENABLED_PREF_KEY, value ? 1 : 0);
                 PlayerPrefs.Save();
 
                 if (value)
@@ -118,7 +118,7 @@ namespace OpenSekai.Shared.Diagnostics
             {
                 EnsureLoaded();
                 _categories = value;
-                PlayerPrefs.SetInt(CategoryPrefKey, (int)value);
+                PlayerPrefs.SetInt(CATEGORY_PREF_KEY, (int)value);
                 PlayerPrefs.Save();
             }
         }
@@ -205,7 +205,7 @@ namespace OpenSekai.Shared.Diagnostics
             StringBuilder builder = new StringBuilder();
             for (int i = _count - take; i < _count; i++)
             {
-                int index = ((_next - _count + i) % BufferSize + BufferSize) % BufferSize;
+                int index = ((_next - _count + i) % BUFFER_SIZE + BUFFER_SIZE) % BUFFER_SIZE;
                 builder.AppendLine(_buffer[index]);
             }
 
@@ -220,9 +220,9 @@ namespace OpenSekai.Shared.Diagnostics
             }
 
             _loaded = true;
-            _enabled = PlayerPrefs.GetInt(EnabledPrefKey, 0) != 0;
-            _highlightLast = PlayerPrefs.GetInt(HighlightLastPrefKey, 0) != 0;
-            _categories = (LiveTraceCategory)PlayerPrefs.GetInt(CategoryPrefKey, (int)_categories);
+            _enabled = PlayerPrefs.GetInt(ENABLED_PREF_KEY, 0) != 0;
+            _highlightLast = PlayerPrefs.GetInt(HIGHLIGHT_LAST_PREF_KEY, 0) != 0;
+            _categories = (LiveTraceCategory)PlayerPrefs.GetInt(CATEGORY_PREF_KEY, (int)_categories);
             if (_enabled)
             {
                 OpenSink();
@@ -233,8 +233,8 @@ namespace OpenSekai.Shared.Diagnostics
         {
             string stamped = string.Concat(DateTime.Now.ToString("HH:mm:ss.fff"), " ", line);
             _buffer[_next] = stamped;
-            _next = (_next + 1) % BufferSize;
-            if (_count < BufferSize)
+            _next = (_next + 1) % BUFFER_SIZE;
+            if (_count < BUFFER_SIZE)
             {
                 _count++;
             }

@@ -56,41 +56,53 @@ namespace Sekai.UI
 			}
 		}
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_rectTransform")]
 		[SerializeField]
-		private RectTransform _rectTransform;
+		private RectTransform rectTransform;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_baseImage")]
 		[SerializeField]
-		private CustomImage _baseImage;
+		private CustomImage baseImage;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_coverImage")]
 		[SerializeField]
-		private CustomImage _coverImage;
+		private CustomImage coverImage;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_customButton")]
 		[SerializeField]
-		private CustomButton _customButton;
+		private CustomButton customButton;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_adjustButtonSetting")]
 		[SerializeField]
-		private bool _adjustButtonSetting;
+		private bool adjustButtonSetting;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_adjustTextSize")]
 		[SerializeField]
-		private bool _adjustTextSize;
+		private bool adjustTextSize;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_changeSprite")]
 		[SerializeField]
-		private bool _changeSprite;
+		private bool changeSprite;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_customTextMesh")]
 		[SerializeField]
-		private CustomTextMesh _customTextMesh;
+		private CustomTextMesh customTextMesh;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_buttonType")]
 		[SerializeField]
-		private ButtonTypeEnum _buttonType;
+		private ButtonTypeEnum buttonType;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_displayType")]
 		[SerializeField]
-		private DisplayTypeEnum _displayType;
+		private DisplayTypeEnum displayType;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_size")]
 		[SerializeField]
-		private SizeEnum _size;
+		private SizeEnum size;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_tapEffect")]
 		[SerializeField]
-		private CommonButtonTapEffect _tapEffect;
+		private CommonButtonTapEffect tapEffect;
 
 		private const float MAIN_S_WIDTH = 256f;
 
@@ -104,17 +116,17 @@ namespace Sekai.UI
 
 		private const float SUB_L_WIDTH = 296f;
 
-		private static readonly Dictionary<DisplayTypeEnum, Lazy<Color>> GlowImageColorDictionary;
+		private static readonly Dictionary<DisplayTypeEnum, Lazy<Color>> _glowImageColorDictionary;
 
-		private static readonly Dictionary<DisplayTypeEnum, Lazy<Color>> GlowTextColorDictionary;
+		private static readonly Dictionary<DisplayTypeEnum, Lazy<Color>> _glowTextColorDictionary;
 
-		private static readonly Dictionary<DisplayTypeEnum, string> DisplayTypeDictionary;
+		private static readonly Dictionary<DisplayTypeEnum, string> _displayTypeDictionary;
 
 		public CustomImage BaseImage
 		{
 			get
 			{
-				return _baseImage;
+				return baseImage;
 			}
 		}
 
@@ -122,7 +134,7 @@ namespace Sekai.UI
 		{
 			get
 			{
-				return _customButton;
+				return customButton;
 			}
 		}
 
@@ -130,27 +142,27 @@ namespace Sekai.UI
 		{
 			get
 			{
-				return ButtonTypeData.SpriteNameDictionary.TryGetValue(_buttonType, out string value) ? value : "80";
+				return ButtonTypeData.SpriteNameDictionary.TryGetValue(buttonType, out string value) ? value : "80";
 			}
 		}
 
 		private void Awake()
 		{
-			if (_rectTransform == null)
+			if (rectTransform == null)
 			{
-				_rectTransform = GetComponent<RectTransform>();
+				rectTransform = GetComponent<RectTransform>();
 			}
-			if (_customButton == null)
+			if (customButton == null)
 			{
-				_customButton = GetComponent<CustomButton>();
+				customButton = GetComponent<CustomButton>();
 			}
-			if (_tapEffect == null)
+			if (tapEffect == null)
 			{
-				_tapEffect = GetComponent<CommonButtonTapEffect>();
+				tapEffect = GetComponent<CommonButtonTapEffect>();
 			}
 			SetDisableCover();
 			SetGlowCoverColor();
-			if (_adjustButtonSetting)
+			if (adjustButtonSetting)
 			{
 				SetBaseImage();
 				SetSize();
@@ -159,61 +171,61 @@ namespace Sekai.UI
 
 		private string GetSpriteName()
 		{
-			string display = DisplayTypeDictionary.TryGetValue(_displayType, out string value) ? value : "wh";
+			string display = _displayTypeDictionary.TryGetValue(displayType, out string value) ? value : "wh";
 			return "btn_round_h" + ButtonTypeName + "_" + display;
 		}
 
 		private Vector2 GetSizeDelta()
 		{
-			float width = _rectTransform != null ? _rectTransform.sizeDelta.x : 0f;
-			switch (_buttonType)
+			float width = rectTransform != null ? rectTransform.sizeDelta.x : 0f;
+			switch (buttonType)
 			{
 				case ButtonTypeEnum.Main:
-					width = _size == SizeEnum.S ? MAIN_S_WIDTH : _size == SizeEnum.M ? MAIN_M_WIDTH : MAIN_L_WIDTH;
+					width = size == SizeEnum.S ? MAIN_S_WIDTH : size == SizeEnum.M ? MAIN_M_WIDTH : MAIN_L_WIDTH;
 					break;
 				case ButtonTypeEnum.Sub:
-					width = _size == SizeEnum.S ? SUB_S_WIDTH : _size == SizeEnum.M ? SUB_M_WIDTH : SUB_L_WIDTH;
+					width = size == SizeEnum.S ? SUB_S_WIDTH : size == SizeEnum.M ? SUB_M_WIDTH : SUB_L_WIDTH;
 					break;
 			}
-			float height = ButtonTypeData.HeightDictionary.TryGetValue(_buttonType, out float value) ? value : 96f;
+			float height = ButtonTypeData.HeightDictionary.TryGetValue(buttonType, out float value) ? value : 96f;
 			return new Vector2(width, height);
 		}
 
 		private float GetFontSize()
 		{
-			return ButtonTypeData.FontSizeDictionary.TryGetValue(_buttonType, out float value) ? value : 32f;
+			return ButtonTypeData.FontSizeDictionary.TryGetValue(buttonType, out float value) ? value : 32f;
 		}
 
 		private void SetBaseImage()
 		{
-			if (_changeSprite && _baseImage != null)
+			if (changeSprite && baseImage != null)
 			{
-				_baseImage.SpriteName = GetSpriteName();
+				baseImage.SpriteName = GetSpriteName();
 			}
 		}
 
 		private void SetDisableCover()
 		{
-			if (_coverImage != null)
+			if (coverImage != null)
 			{
-				_coverImage.SpriteName = "bg_base_round_h" + ButtonTypeName + "_wh";
+				coverImage.SpriteName = "bg_base_round_h" + ButtonTypeName + "_wh";
 			}
 		}
 
 		public void SetGlowCoverColor()
 		{
-			if (_tapEffect == null)
+			if (tapEffect == null)
 			{
 				return;
 			}
-			Color imageColor = GlowImageColorDictionary.TryGetValue(_displayType, out Lazy<Color> imageLazy) ? imageLazy.Value : Color.white;
-			Color textColor = GlowTextColorDictionary.TryGetValue(_displayType, out Lazy<Color> textLazy) ? textLazy.Value : Color.white;
-			_tapEffect.Setup(ButtonTypeName, imageColor, textColor);
+			Color imageColor = _glowImageColorDictionary.TryGetValue(displayType, out Lazy<Color> imageLazy) ? imageLazy.Value : Color.white;
+			Color textColor = _glowTextColorDictionary.TryGetValue(displayType, out Lazy<Color> textLazy) ? textLazy.Value : Color.white;
+			tapEffect.Setup(ButtonTypeName, imageColor, textColor);
 		}
 
 		public void SetImage(DisplayTypeEnum displayTypeEnum)
 		{
-			_displayType = displayTypeEnum;
+			displayType = displayTypeEnum;
 			SetBaseImage();
 			SetGlowCoverColor();
 		}
@@ -225,59 +237,59 @@ namespace Sekai.UI
 
 		private void SetSize()
 		{
-			if (_rectTransform != null)
+			if (rectTransform != null)
 			{
-				_rectTransform.sizeDelta = GetSizeDelta();
+				rectTransform.sizeDelta = GetSizeDelta();
 			}
-			if (_adjustTextSize && _customTextMesh != null)
+			if (adjustTextSize && customTextMesh != null)
 			{
-				_customTextMesh.fontSize = GetFontSize();
+				customTextMesh.fontSize = GetFontSize();
 			}
 		}
 
 		public void SetSize(SizeEnum _size)
 		{
-			this._size = _size;
+			this.size = _size;
 			SetSize();
 		}
 
 		public void SetText(string text)
 		{
-			if (_customTextMesh != null)
+			if (customTextMesh != null)
 			{
-				_customTextMesh.SetText(text);
+				customTextMesh.SetText(text);
 			}
 		}
 
 		public void SetDefaultFontDB()
 		{
-			_customTextMesh?.SetDefaultFontDB();
+			customTextMesh?.SetDefaultFontDB();
 		}
 
 		public void SetDefaultFontEB()
 		{
-			_customTextMesh?.SetDefaultFontEB();
+			customTextMesh?.SetDefaultFontEB();
 		}
 
 		public void SetWordingKey(string wordingKey)
 		{
-			_customTextMesh?.SetWordingKey(wordingKey);
+			customTextMesh?.SetWordingKey(wordingKey);
 		}
 
 		public void RemoveAllAndAddListener(Action action)
 		{
-			if (_customButton == null)
+			if (customButton == null)
 			{
-				_customButton = GetComponent<CustomButton>();
+				customButton = GetComponent<CustomButton>();
 			}
-			if (_customButton == null)
+			if (customButton == null)
 			{
 				return;
 			}
-			_customButton.onClick.RemoveAllListeners();
+			customButton.onClick.RemoveAllListeners();
 			if (action != null)
 			{
-				_customButton.onClick.AddListener(() => action());
+				customButton.onClick.AddListener(() => action());
 			}
 		}
 
@@ -293,35 +305,35 @@ namespace Sekai.UI
 
 		public void SetCustomButtonActive(bool isActive)
 		{
-			if (_customButton != null)
+			if (customButton != null)
 			{
-				_customButton.interactable = isActive;
+				customButton.interactable = isActive;
 			}
 		}
 
 		public void RemoveTapEffect()
 		{
-			if (_tapEffect != null)
+			if (tapEffect != null)
 			{
-				_tapEffect.enabled = false;
+				tapEffect.enabled = false;
 			}
 		}
 
 		public void Enable()
 		{
 			SetCustomButtonActive(true);
-			if (_coverImage != null)
+			if (coverImage != null)
 			{
-				_coverImage.Hide();
+				coverImage.Hide();
 			}
 		}
 
 		public void Disable()
 		{
 			SetCustomButtonActive(false);
-			if (_coverImage != null)
+			if (coverImage != null)
 			{
-				_coverImage.Show();
+				coverImage.Show();
 			}
 		}
 
@@ -331,19 +343,19 @@ namespace Sekai.UI
 
 		static UIPartsCommonButton()
 		{
-			GlowImageColorDictionary = new Dictionary<DisplayTypeEnum, Lazy<Color>>
+			_glowImageColorDictionary = new Dictionary<DisplayTypeEnum, Lazy<Color>>
 			{
 				{ DisplayTypeEnum.Normal, new Lazy<Color>(() => UnityEngine.ColorUtility.TryParseHtmlString("#A1F4EB", out Color color) ? color : Color.white) },
 				{ DisplayTypeEnum.Primary, new Lazy<Color>(() => UnityEngine.ColorUtility.TryParseHtmlString("#E4FCF8", out Color color) ? color : Color.white) },
 				{ DisplayTypeEnum.Special, new Lazy<Color>(() => UnityEngine.ColorUtility.TryParseHtmlString("#E4FCF8", out Color color) ? color : Color.white) }
 			};
-			GlowTextColorDictionary = new Dictionary<DisplayTypeEnum, Lazy<Color>>
+			_glowTextColorDictionary = new Dictionary<DisplayTypeEnum, Lazy<Color>>
 			{
 				{ DisplayTypeEnum.Normal, new Lazy<Color>(() => Color.white) },
 				{ DisplayTypeEnum.Primary, new Lazy<Color>(() => UnityEngine.ColorUtility.TryParseHtmlString("#77EEDD", out Color color) ? color : Color.white) },
 				{ DisplayTypeEnum.Special, new Lazy<Color>(() => UnityEngine.ColorUtility.TryParseHtmlString("#77EEDD", out Color color) ? color : Color.white) }
 			};
-			DisplayTypeDictionary = new Dictionary<DisplayTypeEnum, string>
+			_displayTypeDictionary = new Dictionary<DisplayTypeEnum, string>
 			{
 				{ DisplayTypeEnum.Normal, "wh" },
 				{ DisplayTypeEnum.Primary, "gn" },

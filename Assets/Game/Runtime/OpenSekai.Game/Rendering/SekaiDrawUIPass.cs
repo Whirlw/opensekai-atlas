@@ -8,9 +8,9 @@ namespace Sekai.Rendering
 {
 	public class SekaiDrawUIPass : ScriptableRenderPass
 	{
-		private static readonly int _s_DrawObjectPassDataPropID = Shader.PropertyToID("_DrawObjectPassData");
-		private static readonly int _s_ScaleBiasRtPropID = Shader.PropertyToID("_ScaleBiasRt");
-		private static readonly int _s_ScreenParamsPropID = Shader.PropertyToID("_ScreenParams");
+		private static readonly int _sDrawObjectPassDataPropID = Shader.PropertyToID("_DrawObjectPassData");
+		private static readonly int _sScaleBiasRtPropID = Shader.PropertyToID("_ScaleBiasRt");
+		private static readonly int _sScreenParamsPropID = Shader.PropertyToID("_ScreenParams");
 
 		private readonly ProfilingSampler _profilingSampler;
 		private ShaderTagId _shaderTagId = new ShaderTagId(SekaiShaderTag.GetTag(SekaiShaderTagType.Default));
@@ -97,11 +97,11 @@ namespace Sekai.Rendering
 					{
 						context.cmd.ClearRenderTarget(RTClearFlags.DepthStencil, Color.black, 1f, 0);
 					}
-					context.cmd.SetGlobalVector(_s_DrawObjectPassDataPropID, Vector4.zero);
+					context.cmd.SetGlobalVector(_sDrawObjectPassDataPropID, Vector4.zero);
 					var flipSign = data.cameraData.IsRenderTargetProjectionMatrixFlipped(data.color, data.depth) ? -1f : 1f;
 					var scaleBias = flipSign < 0f ? new Vector4(flipSign, 1f, -1f, 1f) : new Vector4(flipSign, 0f, 1f, 1f);
-					context.cmd.SetGlobalVector(_s_ScaleBiasRtPropID, scaleBias);
-					context.cmd.SetGlobalVector(_s_ScreenParamsPropID, data.screenParams);
+					context.cmd.SetGlobalVector(_sScaleBiasRtPropID, scaleBias);
+					context.cmd.SetGlobalVector(_sScreenParamsPropID, data.screenParams);
 					context.cmd.DrawRendererList(data.rendererList);
 				});
 			}

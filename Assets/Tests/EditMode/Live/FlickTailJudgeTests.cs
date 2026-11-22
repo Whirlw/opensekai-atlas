@@ -19,9 +19,9 @@ namespace OpenSekai.Tests.EditMode.Live
 	/// </summary>
 	public sealed class FlickTailJudgeTests
 	{
-		private const int Lane = 4;
-		private const int FarLane = 9;
-		private const float Frame = 1f / 60f;
+		private const int LANE = 4;
+		private const int FAR_LANE = 9;
+		private const float FRAME = 1f / 60f;
 
 		private LiveHarness _harness;
 		private LongNote _bar;
@@ -49,8 +49,8 @@ namespace OpenSekai.Tests.EditMode.Live
 			_chartStart = chartStart;
 			var head = new MusicScoreInfo(0, 0f, chartStart, 120, 4, 1, 1);
 			var end = new MusicScoreInfo(0, 0.5f, chartStart + 1f, 120, 4, 1, 1);
-			_bar = new LongNote(head, 301, Lane, Lane, NoteCategory.Long, NoteType.Default, 1f, 0f);
-			_bar.AddNoteListAndSetupChildNote(new FlickNote(end, 302, Lane, Lane,
+			_bar = new LongNote(head, 301, LANE, LANE, NoteCategory.Long, NoteType.Default, 1f, 0f);
+			_bar.AddNoteListAndSetupChildNote(new FlickNote(end, 302, LANE, LANE,
 				NoteCategory.Flick, 1f, NoteType.Default, direction, 0f, 10f));
 			var score = new MusicScore(new[] { _bar.MusicScoreInfo },
 				System.Array.Empty<EventBase>(), new NoteBase[] { _bar });
@@ -64,7 +64,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			return LiveConfig.JudgmentPositions[index];
 		}
 
-		private LiveTouchSample At(int id, float time, TouchPhase phase, int lane = Lane, float moveX = 0f)
+		private LiveTouchSample At(int id, float time, TouchPhase phase, int lane = LANE, float moveX = 0f)
 		{
 			_screenX[id] += moveX;
 			return new LiveTouchSample(id, new Vector2(_screenX[id], 600f), LanePosition(lane), 10d + time,
@@ -77,7 +77,7 @@ namespace OpenSekai.Tests.EditMode.Live
 		private void HoldUntil(float until)
 		{
 			StepTo(0f, At(1, 0f, TouchPhase.Began));
-			for (float now = Frame; now < until - Frame * 0.5f; now += Frame)
+			for (float now = FRAME; now < until - FRAME * 0.5f; now += FRAME)
 			{
 				StepTo(now, At(1, now, TouchPhase.Stationary));
 			}
@@ -134,11 +134,11 @@ namespace OpenSekai.Tests.EditMode.Live
 			Arrange();
 			HoldUntil(0.88f);
 			StepTo(0.88f, At(1, 0.88f, TouchPhase.Moved, moveX: -100f));
-			StepTo(0.90f, At(1, 0.90f, TouchPhase.Stationary, FarLane));
-			StepTo(0.94f, At(1, 0.94f, TouchPhase.Stationary, FarLane));
+			StepTo(0.90f, At(1, 0.90f, TouchPhase.Stationary, FAR_LANE));
+			StepTo(0.94f, At(1, 0.94f, TouchPhase.Stationary, FAR_LANE));
 			Assert.That(Tail.Result, Is.EqualTo(NoteResult.None));
 
-			StepTo(0.96f, At(1, 0.96f, TouchPhase.Stationary, FarLane));
+			StepTo(0.96f, At(1, 0.96f, TouchPhase.Stationary, FAR_LANE));
 			// Graded at 0.95: 50 ms early is still the Perfect band.
 			Assert.That(Tail.Result, Is.EqualTo(NoteResult.JustPerfect));
 		}
@@ -149,7 +149,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			Arrange();
 			HoldUntil(0.90f);
 			StepTo(0.90f, At(1, 0.90f, TouchPhase.Moved, moveX: -100f));
-			for (float now = 0.90f + Frame; now < 1f - 0.001f; now += Frame)
+			for (float now = 0.90f + FRAME; now < 1f - 0.001f; now += FRAME)
 			{
 				StepTo(now, At(1, now, TouchPhase.Stationary));
 				Assert.That(Tail.Result, Is.EqualTo(NoteResult.None), $"waiting at {now:F3}");
@@ -168,7 +168,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(Tail.TailJudge.HasArmedFinger, Is.False, "200 ms early is outside the 125 ms window");
 
 			StepTo(0.82f, At(1, 0.82f, TouchPhase.Ended));
-			for (float now = 0.84f; now < 1.3f; now += Frame)
+			for (float now = 0.84f; now < 1.3f; now += FRAME)
 			{
 				StepTo(now);
 			}
@@ -248,7 +248,7 @@ namespace OpenSekai.Tests.EditMode.Live
 		{
 			Arrange();
 			HoldUntil(1.0f);
-			for (float now = 1.0f; now < 1.3f; now += Frame)
+			for (float now = 1.0f; now < 1.3f; now += FRAME)
 			{
 				StepTo(now, At(1, now, TouchPhase.Stationary));
 			}

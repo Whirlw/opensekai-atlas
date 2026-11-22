@@ -26,6 +26,7 @@
 - [曲包与谱面数据](architecture/chart-package.md)
 - [首页、开屏与品牌标](architecture/home-and-brand.md)
 - [服务器页面](architecture/server-screen.md)
+- [资源包页面](architecture/resource-pack-screen.md)
 - [中间点的四种形态与判定（契约）](architecture/interior-point-kinds.md)
 - [判定规则设计](architecture/judging-design.md)
 - [打歌运行时](architecture/live-runtime.md)
@@ -63,6 +64,8 @@
 - [开发计划](plans/README.md)
 - [OpenSekai Android 延迟优化计划](plans/android-latency-optimization-plan.md)
 - [NextRUSH+ 完整谱面支持计划](plans/next-rush-support-plan.md)
+- [OpenSekai 代码规范审查与整改计划](plans/coding-standards-audit-2026-11-20.md)
+- [OpenSekai 代码审查最终方案](plans/code-review-2026-11-20-final.md)（过程文档归档在 [plans/archive-review-2026-11-20/](plans/archive-review-2026-11-20/README.md)）
 
 ## 参考（reference/）
 

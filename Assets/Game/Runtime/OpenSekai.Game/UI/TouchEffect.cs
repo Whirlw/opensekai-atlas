@@ -4,69 +4,72 @@ namespace Sekai.UI
 {
 	public class TouchEffect : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_tapEffect")]
 		[SerializeField]
-		private TouchTapEffect _tapEffect;
+		private TouchTapEffect tapEffect;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_longTapEffect")]
 		[SerializeField]
-		private TouchLongTapEffect _longTapEffect;
+		private TouchLongTapEffect longTapEffect;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_followEffect")]
 		[SerializeField]
-		private TouchFollowEffect _followEffect;
+		private TouchFollowEffect followEffect;
 
 		public void PlayTapEffect(Vector3 worldPos)
 		{
-			UpdatePosition(_tapEffect != null ? _tapEffect.Root : null, worldPos);
+			UpdatePosition(tapEffect != null ? tapEffect.Root : null, worldPos);
 			if (!gameObject.activeSelf)
 			{
 				gameObject.SetActive(true);
 			}
 
-			_tapEffect?.StartEffect();
-			_followEffect?.StopEffect();
-			_longTapEffect?.StopEffect();
+			tapEffect?.StartEffect();
+			followEffect?.StopEffect();
+			longTapEffect?.StopEffect();
 		}
 
 		public void StopTapEffect()
 		{
-			_tapEffect?.StopEffect();
+			tapEffect?.StopEffect();
 			gameObject.SetActive(false);
 		}
 
 		public void StartFollowEffect(Vector3 worldPos)
 		{
-			UpdatePosition(_followEffect != null ? _followEffect.Root : null, worldPos);
-			_followEffect?.StartEffect();
+			UpdatePosition(followEffect != null ? followEffect.Root : null, worldPos);
+			followEffect?.StartEffect();
 		}
 
 		public void EndFollowEffect()
 		{
-			_followEffect?.EndEffect();
+			followEffect?.EndEffect();
 		}
 
 		private void StopFollowEffect()
 		{
-			_followEffect?.StopEffect();
+			followEffect?.StopEffect();
 		}
 
 		public bool CountLongTap()
 		{
-			return _longTapEffect != null && _longTapEffect.CountLongTap();
+			return longTapEffect != null && longTapEffect.CountLongTap();
 		}
 
 		public void StartLongTapEffect(Vector3 worldPos)
 		{
-			UpdatePosition(_followEffect != null ? _followEffect.Root : null, worldPos);
-			_longTapEffect?.StartEffect();
+			UpdatePosition(followEffect != null ? followEffect.Root : null, worldPos);
+			longTapEffect?.StartEffect();
 		}
 
 		public void EndLongTapEffect()
 		{
-			_longTapEffect?.EndEffect();
+			longTapEffect?.EndEffect();
 		}
 
 		private void StopLongTapEffect()
 		{
-			_longTapEffect?.StopEffect();
+			longTapEffect?.StopEffect();
 		}
 
 		private void UpdatePosition(Transform root, Vector3 worldPos)

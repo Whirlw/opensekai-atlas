@@ -8,6 +8,37 @@ namespace Sekai
 
 		public string CustomMusicScorePath { get; set; }
 		public byte[] TemporaryJacketData { get; set; }
+		public LiveMaterialAudio MaterialAudio { get; set; }
+		public LiveComboSkin ComboSkin { get; set; }
+		public LiveSpriteSkin JudgmentSkin { get; set; }
+		public LiveBackgroundSkin BackgroundSkin { get; set; }
+		public LiveResultEffectSkin ResultFxSkin { get; set; }
+		public LiveHudSkin HudSkin { get; set; }
+		public LiveSpriteSkin LaneSkin { get; set; }
+		public LiveNoteSkin NoteSkin { get; set; }
+		public LiveHitEffectSkin HitFxSkin { get; set; }
+
+		internal void ReleaseMaterialAudio()
+		{
+			BackgroundSkin?.Dispose();
+			BackgroundSkin = null;
+			ResultFxSkin?.Dispose();
+			ResultFxSkin = null;
+			HudSkin?.Dispose();
+			HudSkin = null;
+			LaneSkin?.Dispose();
+			LaneSkin = null;
+			NoteSkin?.Dispose();
+			NoteSkin = null;
+			HitFxSkin?.Dispose();
+			HitFxSkin = null;
+			JudgmentSkin?.Dispose();
+			JudgmentSkin = null;
+			ComboSkin?.Dispose();
+			ComboSkin = null;
+			MaterialAudio?.Dispose();
+			MaterialAudio = null;
+		}
 #if UNITY_EDITOR
 		internal int? ResultAnimationPreviewOverride { get; set; }
 #endif

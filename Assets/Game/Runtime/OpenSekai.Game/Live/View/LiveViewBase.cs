@@ -145,6 +145,7 @@ namespace Sekai.Core.Live
 
 		public virtual void Resume(float time)
 		{
+			Resume();
 		}
 
 		public virtual void Retry()

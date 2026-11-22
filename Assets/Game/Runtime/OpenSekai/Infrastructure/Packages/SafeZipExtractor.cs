@@ -7,10 +7,10 @@ namespace OpenSekai.Infrastructure.Packages
     /// <summary>Extract only into a new, private staging directory. Never trust archive paths.</summary>
     public static class SafeZipExtractor
     {
-        public const long MaxTotalBytes = 2L * 1024 * 1024 * 1024;
-        public const long MaxFileBytes = 512L * 1024 * 1024;
-        public const int MaxFiles = 4096;
-        public const long FreeSpaceReserveBytes = 32L * 1024 * 1024;
+        public const long MAX_TOTAL_BYTES = 2L * 1024 * 1024 * 1024;
+        public const long MAX_FILE_BYTES = 512L * 1024 * 1024;
+        public const int MAX_FILES = 4096;
+        public const long FREE_SPACE_RESERVE_BYTES = 32L * 1024 * 1024;
 
         /// <summary>Call on Unity's thread before dispatching an Android import to a worker.</summary>
         public static long? GetAvailableBytes(string destination)
@@ -32,19 +32,24 @@ namespace OpenSekai.Infrastructure.Packages
 
         public static void Extract(string archivePath, string destination, Action<float> progress = null, long? availableBytes = null)
         {
+            using var archive = ZipFile.OpenRead(archivePath);
+            Extract(archive, destination, progress, availableBytes);
+        }
+
+        internal static void Extract(ZipArchive archive, string destination, Action<float> progress, long? availableBytes)
+        {
             string root = Path.GetFullPath(destination).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
             Directory.CreateDirectory(root);
-            using var archive = ZipFile.OpenRead(archivePath);
-            if (archive.Entries.Count > MaxFiles) throw new InvalidDataException("曲包文件数量超过限制。");
+            if (archive.Entries.Count > MAX_FILES) throw new InvalidDataException("曲包文件数量超过限制。");
             long expected = 0;
             foreach (var entry in archive.Entries)
             {
-                if (entry.Length > MaxFileBytes || entry.Length < 0 || entry.Length > MaxTotalBytes - expected)
+                if (entry.Length > MAX_FILE_BYTES || entry.Length < 0 || entry.Length > MAX_TOTAL_BYTES - expected)
                     throw new InvalidDataException("曲包解压大小超过限制。");
                 expected += entry.Length;
             }
             long? freeBytes = availableBytes ?? GetAvailableBytes(root);
-            if (freeBytes.HasValue && freeBytes.Value < expected + FreeSpaceReserveBytes)
+            if (freeBytes.HasValue && freeBytes.Value < expected + FREE_SPACE_RESERVE_BYTES)
                 throw new IOException("存储空间不足。");
             long total = 0;
             byte[] buffer = new byte[81920];
@@ -67,7 +72,7 @@ namespace OpenSekai.Infrastructure.Packages
                 {
                     written += count;
                     total += count;
-                    if (written > entry.Length || written > MaxFileBytes || total > MaxTotalBytes)
+                    if (written > entry.Length || written > MAX_FILE_BYTES || total > MAX_TOTAL_BYTES)
                         throw new InvalidDataException("曲包实际解压大小超过限制。");
                     output.Write(buffer, 0, count);
                     progress?.Invoke(expected == 0 ? 1f : (float)total / expected);

@@ -7,17 +7,20 @@ namespace Sekai
 	[Serializable]
 	public class CommonMultiButtonDialogObjects
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_key")]
 		[SerializeField]
-		private string _key;
+		private string key;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_dialogButton")]
 		[SerializeField]
-		private CustomButton _dialogButton;
+		private CustomButton dialogButton;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_dialogButtonLabelMesh")]
 		[SerializeField]
-		private CustomTextMesh _dialogButtonLabelMesh;
+		private CustomTextMesh dialogButtonLabelMesh;
 
-		public string Key => _key;
-		public CustomButton DialogButton => _dialogButton;
-		public CustomTextMesh DialogButtonLabelMesh => _dialogButtonLabelMesh;
+		public string Key => key;
+		public CustomButton DialogButton => dialogButton;
+		public CustomTextMesh DialogButtonLabelMesh => dialogButtonLabelMesh;
 	}
 }

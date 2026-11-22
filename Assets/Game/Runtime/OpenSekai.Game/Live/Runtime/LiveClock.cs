@@ -5,7 +5,7 @@ namespace Sekai.Core.Live
 {
 	internal sealed class LiveClock
 	{
-		internal const float ReferenceFrameSeconds = 1f / 60f;
+		internal const float REFERENCE_FRAME_SECONDS = 1f / 60f;
 
 		internal double GameTime { get; set; }
 		internal MusicScoreInfo Frame { get; private set; }
@@ -22,7 +22,7 @@ namespace Sekai.Core.Live
 				GameTime = gameTime;
 			}
 			var sampled = MusicScore.CurrentFrameInfo;
-			PreviousFrameTime = _hasFrame && Frame.time <= sampled.time ? Frame.time : sampled.time - ReferenceFrameSeconds;
+			PreviousFrameTime = _hasFrame && Frame.time <= sampled.time ? Frame.time : sampled.time - REFERENCE_FRAME_SECONDS;
 			Frame = sampled;
 			_hasFrame = true;
 			return Frame;

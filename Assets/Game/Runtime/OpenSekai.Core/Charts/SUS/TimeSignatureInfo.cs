@@ -2,18 +2,18 @@ namespace Sekai.SUS
 {
 	public class TimeSignatureInfo
 	{
-				private float _TimeSignature;
+				private float _timeSignature;
 		public float TimeSignature
 		{
-		    get => _TimeSignature;
-		    set => _TimeSignature = value;
+		    get => _timeSignature;
+		    set => _timeSignature = value;
 		}
 
-				private int _StartBarIndex;
+				private int _startBarIndex;
 		public int StartBarIndex
 		{
-		    get => _StartBarIndex;
-		    set => _StartBarIndex = value;
+		    get => _startBarIndex;
+		    set => _startBarIndex = value;
 		}
 
 		public TimeSignatureInfo(float timeSignature, int startBarIndex)

@@ -8,23 +8,25 @@ namespace UnityEngine.UI
 	{
 		private const string SUPPORTED_TAG_REGEX_PATTERSN = "<b>|</b>|<i>|</i>|<size=.*?>|</size>|<color=.*?>|</color>|<material=.*?>|</material>";
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_useRichText")]
 		[SerializeField]
-		private bool _useRichText;
+		private bool useRichText;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_spacing")]
 		[SerializeField]
-		private float _spacing;
+		private float spacingValue;
 
 		public float spacing
 		{
 			get
 			{
-				return _spacing;
+				return spacingValue;
 			}
 			set
 			{
-				if (!Mathf.Approximately(_spacing, value))
+				if (!Mathf.Approximately(spacingValue, value))
 				{
-					_spacing = value;
+					spacingValue = value;
 					if (graphic != null)
 					{
 						graphic.SetVerticesDirty();
@@ -52,11 +54,11 @@ namespace UnityEngine.UI
 
 		public void ModifyVertices(List<UIVertex> verts)
 		{
-			if (verts == null || verts.Count == 0 || Mathf.Approximately(_spacing, 0f))
+			if (verts == null || verts.Count == 0 || Mathf.Approximately(spacingValue, 0f))
 			{
 				return;
 			}
-			float offset = _spacing;
+			float offset = spacingValue;
 			for (int i = 0; i < verts.Count; i += 6)
 			{
 				float advance = offset * (i / 6);

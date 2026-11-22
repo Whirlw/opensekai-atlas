@@ -30,8 +30,8 @@ namespace OpenSekai.Tests.PlayMode
     /// <summary>Exercises Library scene assembly and baseline package playback.</summary>
     public class LibrarySmokeTests
     {
-        private const string LibraryScenePath = "Assets/Game/Scenes/Library.unity";
-        private const float BootTimeoutSeconds = 15f;
+        private const string LIBRARY_SCENE_PATH = "Assets/Game/Scenes/Library.unity";
+        private const float BOOT_TIMEOUT_SECONDS = 15f;
 
         [Test]
         public void LiveBackgroundCoverFillsTheMasksAtAnySourceResolution()
@@ -43,12 +43,12 @@ namespace OpenSekai.Tests.PlayMode
             var wide = new Texture2D(760, 600);
             try
             {
-                const BindingFlags fields = BindingFlags.Instance | BindingFlags.NonPublic;
-                var jackets = (SpriteRenderer[])typeof(Background2DView).GetField("_jackets", fields).GetValue(view);
+                const BindingFlags FIELDS = BindingFlags.Instance | BindingFlags.NonPublic;
+                var jackets = (SpriteRenderer[])typeof(Background2DView).GetField("jackets", FIELDS).GetValue(view);
                 var originalSizes = jackets.Select(jacket => jacket.size).ToArray();
-                var camera = (Camera)typeof(Background2DView).GetField("_jacketCamera", fields).GetValue(view);
+                var camera = (Camera)typeof(Background2DView).GetField("jacketCamera", FIELDS).GetValue(view);
                 Vector2[] firstSizes = null;
-                var apply = typeof(Background2DView).GetMethod("ApplyJacketTexture", fields);
+                var apply = typeof(Background2DView).GetMethod("ApplyJacketTexture", FIELDS);
                 foreach (Texture2D texture in new[] { small, wide })
                 {
                     apply.Invoke(view, new object[] { texture });
@@ -219,36 +219,79 @@ namespace OpenSekai.Tests.PlayMode
             yield return null;
         }
 
+        private static IEnumerator LoadColdHome()
+        {
+            // Live round-trip tests leave the persistent scene manager remembering TransitionBlank.
+            // Start the scene with the same fresh manager that an app launch gets.
+            if (ScreenManager.ExistsInstance) ScreenManager.Instance.ExitScene();
+            var manager = Object.FindFirstObjectByType<Sekai.SceneManager>();
+            if (manager != null) Object.Destroy(manager.gameObject);
+            yield return null;
+            yield return SceneLoader.LoadSceneAsync(LIBRARY_SCENE_PATH, LoadSceneMode.Single);
+            yield return WaitFor(() => HomeScreen.Current != null, BOOT_TIMEOUT_SECONDS, "building the home page");
+        }
+
+        [UnityTest]
+        public IEnumerator HomePreloadsOneHiddenLibraryAfterTheIntro()
+        {
+            yield return LoadColdHome();
+            var home = HomeScreen.Current;
+            home.SeekIntro(0.5f);
+            yield return null;
+            Assert.That(Object.FindFirstObjectByType<LibraryScreen>(), Is.Null);
+
+            const BindingFlags PRIVATE = BindingFlags.Instance | BindingFlags.NonPublic;
+            var splash = (HomeSplash)typeof(HomeScreen).GetField("_splash", PRIVATE).GetValue(home);
+            var time = typeof(HomeSplash).GetField("_time", PRIVATE);
+            splash.Play(null);
+            for (int i = 0; i < 120; i++) splash.Tick(0.05f, jacketsReady: false);
+            Assert.That((float)time.GetValue(splash), Is.EqualTo(HomeSplash.HANDOFF));
+            splash.Skip();
+            splash.Tick(0.05f, jacketsReady: false);
+            Assert.That((float)time.GetValue(splash), Is.EqualTo(HomeSplash.HANDOFF));
+            splash.Tick(0.05f, jacketsReady: true);
+            Assert.That((float)time.GetValue(splash), Is.GreaterThan(HomeSplash.HANDOFF));
+            Assert.That(Object.FindFirstObjectByType<LibraryScreen>(), Is.Null);
+
+            home.ShowHomeImmediately();
+            yield return WaitFor(() => Object.FindFirstObjectByType<LibraryScreen>()?.IsReady == true,
+                BOOT_TIMEOUT_SECONDS, "preloading the hidden library");
+            var library = Object.FindFirstObjectByType<LibraryScreen>();
+            Assert.That(library.IsPresented, Is.False);
+            home.EnterLibrary();
+            yield return WaitFor(() => library.IsPresented, BOOT_TIMEOUT_SECONDS, "revealing the preloaded library");
+            Assert.That(Object.FindObjectsByType<LibraryScreen>(FindObjectsSortMode.None), Has.Length.EqualTo(1));
+        }
+
         [UnityTest]
         public IEnumerator LibrarySceneBootsAndShowsThePage()
         {
-            if (SceneLoader.GetActiveScene().path != LibraryScenePath)
+            if (SceneLoader.GetActiveScene().path != LIBRARY_SCENE_PATH)
             {
-                AsyncOperation load = SceneLoader.LoadSceneAsync(LibraryScenePath, LoadSceneMode.Single);
-                Assert.That(load, Is.Not.Null, "the library scene must exist at " + LibraryScenePath);
+                AsyncOperation load = SceneLoader.LoadSceneAsync(LIBRARY_SCENE_PATH, LoadSceneMode.Single);
+                Assert.That(load, Is.Not.Null, "the library scene must exist at " + LIBRARY_SCENE_PATH);
                 yield return load;
             }
 
-            float deadline = Time.realtimeSinceStartup + BootTimeoutSeconds;
-            LibraryScreen screen = null;
-
-            while (Time.realtimeSinceStartup < deadline)
+            yield return WaitFor(() => HomeScreen.Current != null, BOOT_TIMEOUT_SECONDS, "building the home page");
+            var home = HomeScreen.Current;
+            var screen = Object.FindFirstObjectByType<LibraryScreen>();
+            if (screen == null)
             {
-                screen = Object.FindObjectOfType<LibraryScreen>();
-                if (screen != null)
-                {
-                    break;
-                }
-
-                yield return null;
+                home.ShowHomeImmediately();
+                Assert.That(Object.FindFirstObjectByType<LibraryScreen>(), Is.Null);
+                home.EnterLibrary();
+                yield return WaitFor(() => Object.FindFirstObjectByType<LibraryScreen>()?.IsPresented == true,
+                    BOOT_TIMEOUT_SECONDS, "opening the library for the first time");
+                screen = Object.FindFirstObjectByType<LibraryScreen>();
             }
-
-            Assert.That(screen, Is.Not.Null, "LibraryScreen was not created within " + BootTimeoutSeconds + " s");
-            Assert.That(screen.IsReady, Is.True, "the library view should be assembled");
-            Assert.That(HomeScreen.Current, Is.Not.Null, "the library scene provides the home page");
-            if (!screen.IsPresented)
-                HomeScreen.Current.ShowLibraryImmediately();
-            Assert.That(screen.IsPresented, Is.True);
+            else if (!screen.IsPresented)
+            {
+                home.ShowHomeImmediately();
+                home.EnterLibrary();
+                yield return WaitFor(() => screen.IsPresented, BOOT_TIMEOUT_SECONDS, "presenting the preloaded library");
+            }
+            Assert.That(screen.IsReady, Is.True);
             var back = screen.transform.Find("TopBar/Back")?.GetComponent<Button>();
             Assert.That(back, Is.Not.Null, "the library should reserve a back button in its top bar");
             Assert.That(back.interactable, Is.True, "the back button can return to the home page");
@@ -263,6 +306,9 @@ namespace OpenSekai.Tests.PlayMode
         public IEnumerator PlayingPreviewSurvivesViewSwitchAndStopsWhenTheSelectionBecomesUnplayable()
         {
             string root = Path.Combine(Path.GetTempPath(), "OpenSekai-LibraryPreview-" + System.Guid.NewGuid().ToString("N"));
+            var originalPage = LibraryPageRegistry.Current;
+            var originalScreen = originalPage as LibraryScreen;
+            bool restoreScreen = originalScreen != null && originalScreen.gameObject.activeSelf;
             LibraryScreen screen = null;
             try
             {
@@ -273,13 +319,15 @@ namespace OpenSekai.Tests.PlayMode
                 missing.Manifest.title = "ZZZ 缺少音频";
                 packages.SaveManifest(missing, missing.Manifest);
 
-                screen = LibraryScreen.Create(new AppContext(packages, PlayService.Instance));
+                // The fixture replaces the current page, including its camera and audio listener.
+                if (restoreScreen) originalScreen.gameObject.SetActive(false);
+                screen = LibraryScreen.Create(new AppContext(packages, OpenSekai.Shared.Settings.LiveSettingsStore.Shared));
                 AudioSource audio = null;
                 var preview = screen.transform.Find("Main/DetailColumn/Detail/Info/Preview");
                 yield return WaitFor(() =>
                         (audio = screen.GetComponents<AudioSource>().FirstOrDefault(source => source.isPlaying)) != null &&
                         preview.gameObject.activeInHierarchy,
-                    BootTimeoutSeconds, "playing the selected song preview");
+                    BOOT_TIMEOUT_SECONDS, "playing the selected song preview");
                 AudioClip initialClip = audio.clip;
                 var length = screen.transform.Find("Main/DetailColumn/Detail/Info/Length").GetComponent<TMP_Text>();
                 Assert.That(length.text, Is.Not.Empty);
@@ -290,7 +338,7 @@ namespace OpenSekai.Tests.PlayMode
                 Assert.That(audio.clip, Is.SameAs(initialClip), "changing the view keeps the selected preview");
 
                 screen.transform.Find("TopBar/Search").GetComponent<TMP_InputField>().text = "ZZZ";
-                yield return WaitFor(() => audio.clip == null, BootTimeoutSeconds, "ending the preview fade");
+                yield return WaitFor(() => audio.clip == null, BOOT_TIMEOUT_SECONDS, "ending the preview fade");
                 Assert.That(preview.gameObject.activeInHierarchy, Is.False);
                 Assert.That(screen.transform.Find("Main/DetailColumn/Detail/Actions/Start").GetComponent<Button>().interactable, Is.False);
             }
@@ -299,7 +347,9 @@ namespace OpenSekai.Tests.PlayMode
                 if (screen != null)
                 {
                     Object.DestroyImmediate(screen.gameObject);
+                    if (originalPage != null) LibraryPageRegistry.Register(originalPage);
                 }
+                if (restoreScreen && originalScreen != null) originalScreen.gameObject.SetActive(true);
                 if (Directory.Exists(root))
                 {
                     Directory.Delete(root, recursive: true);
@@ -318,8 +368,28 @@ namespace OpenSekai.Tests.PlayMode
 
             yield return WaitFor(
                 () => SceneLoader.GetActiveScene().name == "Core" && Object.FindFirstObjectByType<SoloLiveController>() != null,
-                BootTimeoutSeconds, "loading Core and creating the live controller");
+                BOOT_TIMEOUT_SECONDS, "loading Core and creating the live controller");
             Assert.That(SoundManager.Instance.IsLoadedSoundBundle(songCue), Is.True);
+
+            yield return WaitFor(() => Object.FindFirstObjectByType<LongTapEffectView>() != null,
+                BOOT_TIMEOUT_SECONDS, "creating the hold effect view");
+            var holdEffects = Object.FindFirstObjectByType<LongTapEffectView>().GetComponentsInChildren<ParticleSystemController>(true);
+            yield return WaitFor(() => holdEffects.Any(effect => effect != null && effect.IsPlaying),
+                90f, "showing a hold body effect during chart autoplay");
+
+            var heads = Object.FindFirstObjectByType<TapEffectView>().GetComponentsInChildren<ParticleSystemController>(true)
+                .Where(effect => effect.name == LivePrefabDefine.FX_LONG_GEN + "(Clone)"
+                    || effect.name == LivePrefabDefine.FX_CRITICAL_LONG_GEN + "(Clone)").ToArray();
+            ParticleSystemController head = null;
+            yield return WaitFor(() => (head = heads.FirstOrDefault(effect => effect.IsPlaying)) != null,
+                30f, "showing a long head hit during autoplay");
+            var controller = Object.FindFirstObjectByType<SoloLiveController>();
+            controller.Pause();
+            controller.Resume();
+            yield return WaitFor(() => controller.JustPlayingState, 10f, "resuming after the countdown");
+            Assert.That(head.GetComponentsInChildren<ParticleSystem>(true).Any(p => p.isPaused), Is.False,
+                "resuming the chart must also resume the particle systems of the long head");
+            yield return WaitFor(() => !head.IsPlaying, 5f, "finishing the resumed long head hit");
 
             yield return WaitFor(
                 () => SceneLoader.GetActiveScene().name == "Library" && Object.FindFirstObjectByType<LibraryResultPanel>() != null,
@@ -342,9 +412,84 @@ namespace OpenSekai.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator LibraryUiRendererCapturesTheBlurLayer()
+        {
+            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null)
+                Assert.Ignore("The blur pass needs a graphics device.");
+            yield return LibrarySceneBootsAndShowsThePage();
+
+            var source = GameObject.Find("UICamera").GetComponent<Camera>();
+            var camera = Object.Instantiate(source);
+            var output = new RenderTexture(128, 128, 24);
+            var marker = new GameObject("Blur layer sample", typeof(SpriteRenderer));
+            var sprite = Sprite.Create(Texture2D.whiteTexture, new Rect(0, 0, 1, 1), Vector2.one * 0.5f, 1);
+            var pixels = new Texture2D(1, 1);
+            var blur = Sekai.Rendering.SekaiUIEffectSettings.Blur;
+            bool previous = blur.IsActive;
+            var active = RenderTexture.active;
+            try
+            {
+                camera.transform.SetPositionAndRotation(new Vector3(10000, 0, -5), Quaternion.identity);
+                camera.orthographic = true;
+                camera.orthographicSize = 1;
+                camera.cullingMask = 1 << 6;
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = Color.black;
+                camera.targetTexture = output;
+                camera.enabled = true;
+                new ScreenCameraStack().SetBaseCamera(camera);
+                marker.layer = 6;
+                marker.transform.position = new Vector3(10000, 0, 0);
+                var renderer = marker.GetComponent<SpriteRenderer>();
+                renderer.sprite = sprite;
+                renderer.color = Color.magenta;
+                blur.IsActive = true;
+                camera.Render();
+                var captured = Sekai.Rendering.SekaiUIBuffer.CaptureColorTexHandle?.rt;
+                Assert.That(captured, Is.Not.Null);
+                RenderTexture.active = captured;
+                pixels.ReadPixels(new Rect(captured.width / 2, captured.height / 2, 1, 1), 0, 0);
+                var inputCenter = pixels.GetPixel(0, 0);
+                Assert.That(inputCenter.r, Is.GreaterThan(0.7f));
+                Assert.That(inputCenter.g, Is.LessThan(0.2f));
+                Assert.That(inputCenter.b, Is.GreaterThan(0.7f));
+                var texture = Sekai.Rendering.SekaiUIBuffer.UIBlurTexHandle?.rt;
+                Assert.That(texture, Is.Not.Null);
+                RenderTexture.active = texture;
+                pixels.ReadPixels(new Rect(texture.width / 2, texture.height / 2, 1, 1), 0, 0);
+                var blurredCenter = pixels.GetPixel(0, 0);
+                Assert.That(blurredCenter.r, Is.GreaterThan(0.7f));
+                Assert.That(blurredCenter.g, Is.LessThan(0.2f));
+                Assert.That(blurredCenter.b, Is.GreaterThan(0.7f));
+                pixels.ReadPixels(new Rect(texture.width * 3 / 4, texture.height / 2, 1, 1), 0, 0);
+                Assert.That(pixels.GetPixel(0, 0).r, Is.InRange(0.02f, 0.98f));
+                pixels.ReadPixels(new Rect(1, 1, 1, 1), 0, 0);
+                Assert.That(pixels.GetPixel(0, 0).r, Is.LessThan(0.2f));
+                RenderTexture.active = output;
+                pixels.ReadPixels(new Rect(output.width / 2, output.height / 2, 1, 1), 0, 0);
+                var finalCenter = pixels.GetPixel(0, 0);
+                Assert.That(finalCenter.r, Is.GreaterThan(0.7f));
+                Assert.That(finalCenter.g, Is.LessThan(0.2f));
+                Assert.That(finalCenter.b, Is.GreaterThan(0.7f));
+            }
+            finally
+            {
+                blur.IsActive = previous;
+                RenderTexture.active = active;
+                camera.targetTexture = null;
+                Object.DestroyImmediate(camera.gameObject);
+                Object.DestroyImmediate(marker);
+                Object.DestroyImmediate(sprite);
+                Object.DestroyImmediate(pixels);
+                Object.DestroyImmediate(output);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator ServerPlaybackRestoresTheSamePagesAndCaches()
         {
-            yield return LibrarySceneBootsAndShowsThePage();
+            yield return LoadColdHome();
+            Assert.That(Object.FindFirstObjectByType<LibraryScreen>(), Is.Null);
             var originalHome = HomeScreen.Current;
             originalHome.ShowServerImmediately();
             var server = Object.FindFirstObjectByType<ServerScreen>();
@@ -358,10 +503,10 @@ namespace OpenSekai.Tests.PlayMode
                 () =>
                 {
                     if (originalHome != null)
-                        Assert.That(Object.FindFirstObjectByType<LibraryScreen>().IsPresented, Is.False);
+                        Assert.That(Object.FindFirstObjectByType<LibraryScreen>(), Is.Null);
                     return SceneLoader.GetActiveScene().name == "Core" && Object.FindFirstObjectByType<SoloLiveController>() != null;
                 },
-                BootTimeoutSeconds, "starting the server chart");
+                BOOT_TIMEOUT_SECONDS, "starting the server chart");
             Assert.That(server.IsPresented, Is.False);
             Assert.That(originalHome == null, Is.True);
 
@@ -377,7 +522,7 @@ namespace OpenSekai.Tests.PlayMode
             Assert.That(server.Top, Is.SameAs(page));
             Assert.That(server.Covers, Is.SameAs(covers));
             Assert.That(server.Installer, Is.SameAs(installer));
-            Assert.That(Object.FindFirstObjectByType<LibraryScreen>().IsPresented, Is.False);
+            Assert.That(Object.FindFirstObjectByType<LibraryScreen>(), Is.Null);
             Assert.That(panel.GetComponentsInChildren<TextMeshProUGUI>().Any(label => label.text == "返回服务器"), Is.True);
             Assert.That(server.TryHandleBack(), Is.True);
             Assert.That(panel.IsOpen, Is.False);
@@ -417,7 +562,8 @@ namespace OpenSekai.Tests.PlayMode
                 Assert.That(recoveredPackages.LoadItems().Select(item => item.Entry.RootDirectory),
                     Is.EqualTo(new[] { recoveredDirectory }));
 
-                recoveredLibrary = LibraryScreen.Create(new AppContext(recoveredPackages, PlayService.Instance));
+                originalLibrary.gameObject.SetActive(false);
+                recoveredLibrary = LibraryScreen.Create(new AppContext(recoveredPackages, OpenSekai.Shared.Settings.LiveSettingsStore.Shared));
                 Transform actions = recoveredLibrary.transform.Find("Main/DetailColumn/Detail/Actions");
                 Assert.That(actions, Is.Not.Null);
                 var auto = actions.Find("Auto").GetComponent<Button>();
@@ -428,7 +574,7 @@ namespace OpenSekai.Tests.PlayMode
 
                 yield return WaitFor(() => SceneLoader.GetActiveScene().name == "Core"
                     && Object.FindFirstObjectByType<SoloLiveController>() != null,
-                    BootTimeoutSeconds, "starting the recovered package through the library");
+                    BOOT_TIMEOUT_SECONDS, "starting the recovered package through the library");
                 Assert.That(SoundManager.Instance.IsLoadedSoundBundle(oldPackage.AudioCueName), Is.True);
                 Assert.That(SoundManager.Instance.IsLoadedSoundBundle(unpublished.AudioCueName), Is.False);
 
@@ -451,6 +597,7 @@ namespace OpenSekai.Tests.PlayMode
                     Object.DestroyImmediate(recoveredLibrary.gameObject);
                     if (originalLibrary != null) LibraryPageRegistry.Register(originalLibrary);
                 }
+                if (originalLibrary != null) originalLibrary.gameObject.SetActive(true);
                 if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
             }
 
@@ -521,7 +668,7 @@ namespace OpenSekai.Tests.PlayMode
                 screen.RequestPlay(null, "Temporary server test", cached);
                 yield return WaitFor(
                     () => SceneLoader.GetActiveScene().name == "Core" && Object.FindFirstObjectByType<SoloLiveController>() != null,
-                    BootTimeoutSeconds, "playing the temporary chart without a package folder");
+                    BOOT_TIMEOUT_SECONDS, "playing the temporary chart without a package folder");
                 yield return WaitFor(
                     () => SceneLoader.GetActiveScene().name == "Library" && screen.IsPresented,
                     90f, "returning to the server after temporary play");
@@ -571,8 +718,8 @@ namespace OpenSekai.Tests.PlayMode
                 WriteNextRushTimingPackage(directory);
                 StartThroughLibraryRetry(directory);
 
-                const BindingFlags Fields = BindingFlags.Instance | BindingFlags.NonPublic;
-                var panelResultField = typeof(LibraryResultPanel).GetField("_current", Fields);
+                const BindingFlags FIELDS = BindingFlags.Instance | BindingFlags.NonPublic;
+                var panelResultField = typeof(LibraryResultPanel).GetField("_current", FIELDS);
                 SoloLiveController controller = null;
                 yield return WaitFor(
                     () =>
@@ -584,16 +731,16 @@ namespace OpenSekai.Tests.PlayMode
                         controller = Object.FindFirstObjectByType<SoloLiveController>();
                         return controller != null && controller.JustPlayingState;
                     },
-                    BootTimeoutSeconds, "reaching the signed run-in");
+                    BOOT_TIMEOUT_SECONDS, "reaching the signed run-in");
 
-                var clockField = typeof(BaseLiveController).GetField("currentMusicTimeMs", Fields);
-                var spanField = typeof(BaseLiveController).GetField("timelineSpan", Fields);
-                var resultPendingField = typeof(SoloLiveController).GetField("_resultEffectPending", Fields);
-                var logicField = typeof(SoloLiveController).GetField("_liveLogic", Fields);
+                var clockField = typeof(BaseLiveController).GetField("currentMusicTimeMs", FIELDS);
+                var spanField = typeof(BaseLiveController).GetField("timelineSpan", FIELDS);
+                var resultPendingField = typeof(SoloLiveController).GetField("_resultEffectPending", FIELDS);
+                var logicField = typeof(SoloLiveController).GetField("_liveLogic", FIELDS);
                 var front = Object.FindFirstObjectByType<LiveFrontView>();
-                var lifeView = (LifeView)typeof(LiveFrontView).GetField("_lifeView", Fields).GetValue(front);
-                var gauge = (SpriteRenderer)typeof(LifeView).GetField("_lifeDefaultGauge", Fields).GetValue(lifeView);
-                var fullGauge = (Vector2)typeof(LifeView).GetField("_lifeDefaultGaugeSize", Fields).GetValue(lifeView);
+                var lifeView = (LifeView)typeof(LiveFrontView).GetField("lifeView", FIELDS).GetValue(front);
+                var gauge = (SpriteRenderer)typeof(LifeView).GetField("lifeDefaultGauge", FIELDS).GetValue(lifeView);
+                var fullGauge = (Vector2)typeof(LifeView).GetField("_lifeDefaultGaugeSize", FIELDS).GetValue(lifeView);
                 void AssertStartingLife()
                 {
                     Assert.That(((LiveLogic)logicField.GetValue(controller)).Score.life, Is.EqualTo(325));
@@ -618,14 +765,16 @@ namespace OpenSekai.Tests.PlayMode
                 yield return WaitFor(() => ClockMs() > beforeMusic + 50, 2f, "resuming the silent run-in");
 
                 front.UpdateLife(new LiveScore { life = int.MaxValue });
-                var digits = (NumberView)typeof(LifeView).GetField("_number", Fields).GetValue(lifeView);
-                var renderers = (SpriteRenderer[])typeof(NumberView).GetField("_numberSpriteRenderers", Fields).GetValue(digits);
-                var digitSprites = (Sprite[])typeof(NumberView).GetField("_numberSprites", Fields).GetValue(digits);
+                var digits = (NumberView)typeof(LifeView).GetField("number", FIELDS).GetValue(lifeView);
+                var renderers = (SpriteRenderer[])typeof(NumberView).GetField("_numberSpriteRenderers", FIELDS).GetValue(digits);
+                var digitSprites = (Sprite[])typeof(NumberView).GetField("numberSprites", FIELDS).GetValue(digits);
+                var hudSkin = (LiveHudSkin)typeof(NumberView).GetField("_hudSkin", FIELDS).GetValue(digits);
                 Assert.That(renderers.Take(10).Select(renderer => renderer.sprite),
-                    Is.EqualTo("7463847412".Select(digit => digitSprites[digit - '0'])));
+                    Is.EqualTo("7463847412".Select(digit =>
+                        hudSkin?.Resolve("hud.life.digit." + digit, digitSprites[digit - '0'])?.Sprite ?? digitSprites[digit - '0'])));
 
                 controller.Retry();
-                yield return WaitFor(() => controller.JustPlayingState, BootTimeoutSeconds, "restarting the signed run-in");
+                yield return WaitFor(() => controller.JustPlayingState, BOOT_TIMEOUT_SECONDS, "restarting the signed run-in");
                 Assert.That(ClockMs() / 1000d, Is.EqualTo(span.StartSeconds).Within(0.20));
                 AssertStartingLife();
 
@@ -634,18 +783,18 @@ namespace OpenSekai.Tests.PlayMode
                     var line = GameObject.Find("NoteLineView");
                     return line != null && line.GetComponent<MeshRenderer>().enabled
                         && line.GetComponent<MeshFilter>().sharedMesh.vertexCount > 8;
-                }, BootTimeoutSeconds, "drawing the hold with its attached separator after retry");
+                }, BOOT_TIMEOUT_SECONDS, "drawing the hold with its attached separator after retry");
 
                 MeshRenderer overlay = null;
                 yield return WaitFor(() =>
                 {
                     overlay = GameObject.Find("GuideLineView/Over")?.GetComponent<MeshRenderer>();
                     return overlay != null && overlay.enabled;
-                }, BootTimeoutSeconds, "drawing the full-screen connector with independent geometry through the live camera");
+                }, BOOT_TIMEOUT_SECONDS, "drawing the full-screen connector with independent geometry through the live camera");
                 Assert.That(overlay.sortingOrder, Is.GreaterThan(31));
                 Assert.That(overlay.GetComponent<MeshFilter>().sharedMesh.vertexCount, Is.EqualTo(8));
 
-                yield return WaitFor(() => ClockMs() >= 850L, BootTimeoutSeconds, "reaching the playing audio");
+                yield return WaitFor(() => ClockMs() >= 850L, BOOT_TIMEOUT_SECONDS, "reaching the playing audio");
                 controller.PauseLive();
                 long duringMusic = ClockMs();
                 yield return new WaitForSecondsRealtime(0.20f);
@@ -655,19 +804,19 @@ namespace OpenSekai.Tests.PlayMode
                 Assert.That(ClockMs() - duringMusic, Is.LessThan(200L));
                 yield return WaitFor(() => !overlay.enabled, 2f, "removing the full-screen guide at the end of its chart interval");
 
-                yield return WaitFor(() => !controller.JustPlayingState, BootTimeoutSeconds, "judging the last note after the audio file");
+                yield return WaitFor(() => !controller.JustPlayingState, BOOT_TIMEOUT_SECONDS, "judging the last note after the audio file");
                 Assert.That(ClockMs() / 1000d, Is.EqualTo(span.LastNoteSeconds).Within(0.20));
                 Assert.That((bool)resultPendingField.GetValue(controller), Is.True);
                 yield return WaitFor(() => !(bool)resultPendingField.GetValue(controller), 6f, "starting the result effect");
                 Assert.That(ClockMs() / 1000d, Is.EqualTo(span.LastNoteSeconds + 1).Within(0.15));
                 double resultStarted = Time.timeAsDouble;
-                yield return WaitFor(() => SceneLoader.GetActiveScene().name != "Core", BootTimeoutSeconds,
+                yield return WaitFor(() => SceneLoader.GetActiveScene().name != "Core", BOOT_TIMEOUT_SECONDS,
                     "leaving gameplay after the common result animation and fade");
                 Assert.That(Time.timeAsDouble - resultStarted, Is.GreaterThanOrEqualTo(5.9d));
 
                 yield return WaitFor(
                     () => SceneLoader.GetActiveScene().name == "Library" && Object.FindFirstObjectByType<LibraryResultPanel>() != null,
-                    BootTimeoutSeconds, "showing the NextRUSH+ result");
+                    BOOT_TIMEOUT_SECONDS, "showing the NextRUSH+ result");
                 var panel = Object.FindFirstObjectByType<LibraryResultPanel>();
                 var result = (PlayResult)panelResultField.GetValue(panel);
                 Assert.That(result.Kind, Is.EqualTo(PlayResultKind.Completed));
@@ -702,15 +851,15 @@ namespace OpenSekai.Tests.PlayMode
                     ]
                 }");
 
-                const BindingFlags Fields = BindingFlags.Instance | BindingFlags.NonPublic;
-                var resultField = typeof(LibraryResultPanel).GetField("_current", Fields);
-                var clock = typeof(BaseLiveController).GetField("currentMusicTimeMs", Fields);
-                var spanField = typeof(BaseLiveController).GetField("timelineSpan", Fields);
-                var skipShown = typeof(SoloLiveController).GetField("_skipShown", Fields);
-                var pending = typeof(SoloLiveController).GetField("_resultEffectPending", Fields);
-                var introSkip = typeof(SoloLiveController).GetMethod("SkipIntro", Fields);
-                var outroSkip = typeof(SoloLiveController).GetMethod("SkipOutro", Fields);
-                var resultAnimation = typeof(SoloLiveController).GetMethod("GetLiveResultAnimationType", Fields);
+                const BindingFlags FIELDS = BindingFlags.Instance | BindingFlags.NonPublic;
+                var resultField = typeof(LibraryResultPanel).GetField("_current", FIELDS);
+                var clock = typeof(BaseLiveController).GetField("currentMusicTimeMs", FIELDS);
+                var spanField = typeof(BaseLiveController).GetField("timelineSpan", FIELDS);
+                var skipShown = typeof(SoloLiveController).GetField("_skipShown", FIELDS);
+                var pending = typeof(SoloLiveController).GetField("_resultEffectPending", FIELDS);
+                var introSkip = typeof(SoloLiveController).GetMethod("SkipIntro", FIELDS);
+                var outroSkip = typeof(SoloLiveController).GetMethod("SkipOutro", FIELDS);
+                var resultAnimation = typeof(SoloLiveController).GetMethod("GetLiveResultAnimationType", FIELDS);
                 foreach (bool isAuto in new[] { false, true })
                 {
                     StartThroughLibraryRetry(directory, isAuto);
@@ -722,7 +871,7 @@ namespace OpenSekai.Tests.PlayMode
                             Assert.Fail(error.Message);
                         controller = Object.FindFirstObjectByType<SoloLiveController>();
                         return controller != null && controller.JustPlayingState;
-                    }, BootTimeoutSeconds, "starting the chart with a skippable intro");
+                    }, BOOT_TIMEOUT_SECONDS, "starting the chart with a skippable intro");
 
                     ((FreeLiveBootData)controller.BootData).CustomMusicScoreKey = null;
                     double ClockSeconds() => (long)clock.GetValue(controller) / 1000d;
@@ -742,7 +891,7 @@ namespace OpenSekai.Tests.PlayMode
 
                     yield return WaitFor(() => SceneLoader.GetActiveScene().name == "Library"
                         && Object.FindFirstObjectByType<LibraryResultPanel>() != null,
-                        BootTimeoutSeconds, "opening the result panel");
+                        BOOT_TIMEOUT_SECONDS, "opening the result panel");
                 }
             }
             finally
@@ -786,27 +935,27 @@ namespace OpenSekai.Tests.PlayMode
                 ]
             }");
 
-            const int sampleRate = 16000;
-            const int samples = 4 * sampleRate;
+            const int SAMPLE_RATE = 16000;
+            const int SAMPLES = 4 * SAMPLE_RATE;
             using var wav = new BinaryWriter(File.Create(Path.Combine(directory, "audio.wav")));
             void Header(string value) => wav.Write(System.Text.Encoding.ASCII.GetBytes(value));
             Header("RIFF");
-            wav.Write(36 + 2 * samples);
+            wav.Write(36 + 2 * SAMPLES);
             Header("WAVEfmt ");
             wav.Write(16);
             wav.Write((short)1);
             wav.Write((short)1);
-            wav.Write(sampleRate);
-            wav.Write(2 * sampleRate);
+            wav.Write(SAMPLE_RATE);
+            wav.Write(2 * SAMPLE_RATE);
             wav.Write((short)2);
             wav.Write((short)16);
             Header("data");
-            wav.Write(2 * samples);
-            for (int n = 0; n < samples; n++)
+            wav.Write(2 * SAMPLES);
+            for (int n = 0; n < SAMPLES; n++)
             {
                 // Audible between 0.5 s and 3 s, with an impulse at 1.5 s.
-                short sample = n == 3 * sampleRate / 2 ? (short)12000
-                    : n >= sampleRate / 2 && n < 3 * sampleRate ? (short)(n % 16 < 8 ? 2000 : -2000)
+                short sample = n == 3 * SAMPLE_RATE / 2 ? (short)12000
+                    : n >= SAMPLE_RATE / 2 && n < 3 * SAMPLE_RATE ? (short)(n % 16 < 8 ? 2000 : -2000)
                     : (short)0;
                 wav.Write(sample);
             }
@@ -818,7 +967,7 @@ namespace OpenSekai.Tests.PlayMode
             var sound = new SoundManager();
             bool loaded = false;
             sound.LoadExternalSoundPack(() => loaded = true);
-            yield return WaitFor(() => loaded, BootTimeoutSeconds, "loading the built-in WAV manifest");
+            yield return WaitFor(() => loaded, BOOT_TIMEOUT_SECONDS, "loading the built-in WAV manifest");
 
             string manifest = Path.Combine(Application.streamingAssetsPath, "sound", "manifest.csv");
             var bundles = File.ReadLines(manifest).Skip(1)
@@ -844,9 +993,9 @@ namespace OpenSekai.Tests.PlayMode
             Assert.That(transition, Is.Not.Zero, "the live transition cue can start playback");
             sound.StopSE(transition);
 
-            const string missing = "__opensekai_missing_sound_fixture__";
-            Assert.That(sound.ExistsCueName(missing), Is.False);
-            string message = missing + " is not registered.";
+            const string MISSING = "__opensekai_missing_sound_fixture__";
+            Assert.That(sound.ExistsCueName(MISSING), Is.False);
+            string message = MISSING + " is not registered.";
             int warningCount = 0;
             void CountMissingCueWarning(string condition, string stackTrace, LogType type)
             {
@@ -858,8 +1007,8 @@ namespace OpenSekai.Tests.PlayMode
             try
             {
                 LogAssert.Expect(LogType.Warning, message);
-                Assert.That(sound.PlaySE(missing), Is.Zero);
-                Assert.That(sound.PlaySE(missing), Is.Zero);
+                Assert.That(sound.PlaySE(MISSING), Is.Zero);
+                Assert.That(sound.PlaySE(MISSING), Is.Zero);
                 Assert.That(warningCount, Is.EqualTo(1));
             }
             finally

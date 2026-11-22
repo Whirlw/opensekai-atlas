@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using OpenSekai.App;
 using OpenSekai.App.Playback;
 using OpenSekai.Shared.Playback;
@@ -6,13 +7,13 @@ using UnityEngine;
 
 namespace OpenSekai.App.UI
 {
-    public sealed class LibraryScreen : MonoBehaviour, ILibraryPage
+    public sealed partial class LibraryScreen : MonoBehaviour, ILibraryPage
     {
         private LibraryView _view;
         private LibraryPresenter _presenter;
-        private AppContext _context;
+        private IEnumerator<object> _build;
 
-        public bool IsReady => isActiveAndEnabled && _view?.HasList == true;
+        public bool IsReady => isActiveAndEnabled && _build == null && _view?.HasList == true;
 
         /// <summary>False while another page (the home page) is on screen in its place.</summary>
         public bool IsPresented => _view?.IsPresented == true;
@@ -28,6 +29,13 @@ namespace OpenSekai.App.UI
         /// until <see cref="SetPresented"/> brings it in.</param>
         public static LibraryScreen Create(AppContext context, Transform parent = null, bool presented = true)
         {
+            var screen = BeginBuild(context, parent, presented);
+            screen.FinishBuild();
+            return screen;
+        }
+
+        internal static LibraryScreen BeginBuild(AppContext context, Transform parent = null, bool presented = false)
+        {
             var root = new GameObject("LibraryScreen", typeof(RectTransform));
             if (parent != null)
             {
@@ -35,7 +43,7 @@ namespace OpenSekai.App.UI
             }
 
             var screen = root.AddComponent<LibraryScreen>();
-            screen.Build(context, presented);
+            screen._build = screen.Build(context, presented);
             return screen;
         }
 
@@ -61,25 +69,35 @@ namespace OpenSekai.App.UI
         /// </summary>
         internal bool TryHandleBack() => _view != null && _view.TryHandleBack();
 
-        public void Refresh() => _presenter?.Refresh();
+        public void Refresh()
+        {
+            // An in-progress build reads the current catalog in its final step.
+            if (_build == null) _presenter?.Refresh();
+        }
 
         public void ShowResult(PlayResult result) => _presenter?.ShowResult(result);
 
         private void Awake() => LibraryPageRegistry.Register(this);
 
-        private void Build(AppContext context, bool presented)
+        internal void AdvanceBuild()
         {
-            _context = context;
-            _view = new LibraryView(gameObject, presented) { BackRequested = () => BackRequested?.Invoke() };
-            var loudness = new LibraryLoudnessScanner(context.Packages, status => _view?.SetStatus(status));
-            _presenter = new LibraryPresenter(_view, context.Packages, context.Playback.StartAsync,
-                loudness: loudness, persistBrowsePreferences: true);
-            _view.BuildLayout(_presenter);
-            _presenter.Refresh();
-            _view.BuildPanels(_presenter);
+            if (_build == null || _build.MoveNext()) return;
+            _build.Dispose();
+            _build = null;
         }
 
-        private void Start() => ShowResult(PlayResultHandoff.Take());
+        internal void FinishBuild()
+        {
+            while (_build != null) AdvanceBuild();
+        }
+
+        private void Start()
+        {
+            var result = PlayResultHandoff.Take();
+            if (result == null) return;
+            FinishBuild();
+            ShowResult(result);
+        }
 
         private void OnEnable() => _view?.SetVisible(true);
 
@@ -92,7 +110,7 @@ namespace OpenSekai.App.UI
             LibraryPageRegistry.Unregister(this);
             _presenter?.Dispose();
             _view?.Dispose();
-            _context = null;
+            _build?.Dispose();
         }
     }
 }

@@ -75,22 +75,22 @@ namespace OpenSekai.Shared.Live.Simulation
 	public sealed class AudioClockDrift
 	{
 		/// <summary>Readings per decision.</summary>
-		public const int WindowSize = 9;
+		public const int WINDOW_SIZE = 9;
 
 		/// <summary>The narrowest dead band: errors under this are treated as noise however clean the readings.</summary>
-		public const float MinDeadBandSeconds = 0.015f;
+		public const float MIN_DEAD_BAND_SECONDS = 0.015f;
 
 		/// <summary>Errors this size or larger are corrected at once rather than slewed.</summary>
-		public const float HardResyncSeconds = 0.06f;
+		public const float HARD_RESYNC_SECONDS = 0.06f;
 
 		/// <summary>The most the clock is sped up or slowed down by while slewing (1%).</summary>
-		public const float MaxSlewRate = 0.01f;
+		public const float MAX_SLEW_RATE = 0.01f;
 
 		/// <summary>The time a slew aims to close its error in, before <see cref="MaxSlewRate"/> caps it.</summary>
-		public const float SlewTimeConstantSeconds = 2f;
+		public const float SLEW_TIME_CONSTANT_SECONDS = 2f;
 
-		private readonly float[] _window = new float[WindowSize];
-		private readonly float[] _sorted = new float[WindowSize];
+		private readonly float[] _window = new float[WINDOW_SIZE];
+		private readonly float[] _sorted = new float[WINDOW_SIZE];
 		private int _count;
 
 		/// <summary>Readings collected toward the next decision.</summary>
@@ -112,16 +112,16 @@ namespace OpenSekai.Shared.Live.Simulation
 			}
 
 			_window[_count++] = clockMinusAudioSeconds;
-			if (_count < WindowSize)
+			if (_count < WINDOW_SIZE)
 			{
 				return false;
 			}
 
 			_count = 0;
-			Array.Copy(_window, _sorted, WindowSize);
+			Array.Copy(_window, _sorted, WINDOW_SIZE);
 			Array.Sort(_sorted);
-			float lower = _sorted[WindowSize / 4];
-			float upper = _sorted[WindowSize - 1 - WindowSize / 4];
+			float lower = _sorted[WINDOW_SIZE / 4];
+			float upper = _sorted[WINDOW_SIZE - 1 - WINDOW_SIZE / 4];
 			correction = Decide(lower, upper - lower);
 			return true;
 		}
@@ -131,7 +131,7 @@ namespace OpenSekai.Shared.Live.Simulation
 		{
 			float spread = Math.Max(0f, spreadSeconds);
 			float magnitude = Math.Abs(errorSeconds);
-			if (magnitude >= HardResyncSeconds)
+			if (magnitude >= HARD_RESYNC_SECONDS)
 			{
 				AudioClockCorrectionKind kind = errorSeconds < 0f ? AudioClockCorrectionKind.JumpForward : AudioClockCorrectionKind.Wait;
 				return new AudioClockCorrection(kind, errorSeconds, spread, 1f);
@@ -143,8 +143,8 @@ namespace OpenSekai.Shared.Live.Simulation
 			}
 
 			// Ahead (positive error) runs slow, behind runs fast.
-			float rate = -errorSeconds / SlewTimeConstantSeconds;
-			rate = rate < -MaxSlewRate ? -MaxSlewRate : rate > MaxSlewRate ? MaxSlewRate : rate;
+			float rate = -errorSeconds / SLEW_TIME_CONSTANT_SECONDS;
+			rate = rate < -MAX_SLEW_RATE ? -MAX_SLEW_RATE : rate > MAX_SLEW_RATE ? MAX_SLEW_RATE : rate;
 			return new AudioClockCorrection(AudioClockCorrectionKind.Slew, errorSeconds, spread, 1f + rate);
 		}
 
@@ -154,8 +154,8 @@ namespace OpenSekai.Shared.Live.Simulation
 		/// </summary>
 		public static float DeadBand(float spreadSeconds)
 		{
-			float band = Math.Max(MinDeadBandSeconds, spreadSeconds);
-			return Math.Min(band, HardResyncSeconds * 0.5f);
+			float band = Math.Max(MIN_DEAD_BAND_SECONDS, spreadSeconds);
+			return Math.Min(band, HARD_RESYNC_SECONDS * 0.5f);
 		}
 	}
 }

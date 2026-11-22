@@ -206,7 +206,7 @@ namespace Sekai.Live
 
 					if (canDisplayAfterTail && segment.ThroughJudgeLine && !segment.FullScreen && LineNoteList[i] is NoteBase end)
 						NativeConnectorDisplayEnd = Math.Max(NativeConnectorDisplayEnd,
-							end.NativeTarget.Time + NextRushConnectorSegment.ThroughJudgeLineDespawnDelay);
+							end.NativeTarget.Time + NextRushConnectorSegment.THROUGH_JUDGE_LINE_DESPAWN_DELAY);
 				}
 			}
 

@@ -11,8 +11,8 @@ namespace OpenSekai.Tests.EditMode.Charts
     /// </summary>
     public class ChartJsonTests
     {
-        private const string LegacyDocumentType = "Sekai.MusicScoreMaker.Ingame.Models.MusicScoreMakerData";
-        private const string LegacyNoteType = "Sekai.MusicScoreMaker.Ingame.Models.MusicScoreNoteBase";
+        private const string LEGACY_DOCUMENT_TYPE = "Sekai.MusicScoreMaker.Ingame.Models.MusicScoreMakerData";
+        private const string LEGACY_NOTE_TYPE = "Sekai.MusicScoreMaker.Ingame.Models.MusicScoreNoteBase";
 
         private static ChartDocument SampleDocument()
         {
@@ -72,10 +72,10 @@ namespace OpenSekai.Tests.EditMode.Charts
         [Test]
         public void LegacyDocumentTypeNameIsAccepted()
         {
-            const string json = "{\"$type\":\"" + LegacyDocumentType + "\",\"VersionCode\":1,\"MusicId\":5," +
+            const string JSON = "{\"$type\":\"" + LEGACY_DOCUMENT_TYPE + "\",\"VersionCode\":1,\"MusicId\":5," +
                                 "\"NoteList\":[{\"id\":1,\"ticks\":480,\"laneStart\":0,\"laneEnd\":0}]}";
 
-            ChartDocument loaded = ChartJson.Read(json);
+            ChartDocument loaded = ChartJson.Read(JSON);
 
             Assert.That(loaded, Is.Not.Null);
             Assert.That(loaded.MusicId, Is.EqualTo(5));
@@ -86,10 +86,10 @@ namespace OpenSekai.Tests.EditMode.Charts
         [Test]
         public void LegacyNoteTypeNameIsAccepted()
         {
-            const string json = "{\"VersionCode\":1,\"NoteList\":[{\"$id\":\"note\",\"$type\":\"" + LegacyNoteType +
+            const string JSON = "{\"VersionCode\":1,\"NoteList\":[{\"$id\":\"note\",\"$type\":\"" + LEGACY_NOTE_TYPE +
                                 ", Assembly-CSharp\",\"id\":9,\"ticks\":960,\"laneStart\":1,\"laneEnd\":1,\"category\":3}," +
                                 "{\"$ref\":\"note\"}]}";
-            ChartDocument loaded = ChartJson.Read(json);
+            ChartDocument loaded = ChartJson.Read(JSON);
             Assert.That(loaded.NoteList.Count, Is.EqualTo(2));
             Assert.That(loaded.NoteList[0].id, Is.EqualTo(9));
             Assert.That(loaded.NoteList[0].category, Is.EqualTo(NoteCategory.Flick));

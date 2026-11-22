@@ -18,7 +18,7 @@ namespace Sekai
 		// bundle that silently lags behind the sources is far more expensive than the few
 		// megabytes they add to the player. They live in Assets/Game/Resources/note and are
 		// loaded through the same path in the editor and on device.
-		private const string ResourcesNoteBundlePrefix = "live/note/custom";
+		private const string RESOURCES_NOTE_BUNDLE_PREFIX = "live/note/custom";
 
 		private static T LoadFromResources<T>(string bundleName, string resourceName) where T : UnityEngine.Object
 		{
@@ -27,7 +27,7 @@ namespace Sekai
 				return null;
 			}
 
-			if (!bundleName.StartsWith(ResourcesNoteBundlePrefix, StringComparison.Ordinal))
+			if (!bundleName.StartsWith(RESOURCES_NOTE_BUNDLE_PREFIX, StringComparison.Ordinal))
 			{
 				return null;
 			}
@@ -36,9 +36,9 @@ namespace Sekai
 			// while a Resources folder keeps the on-disk layout, so strip the extension and try
 			// the sub folders the prefabs and textures actually live in.
 			string name = StripExtension(resourceName);
-			for (int i = 0; i < ResourcesSubFolderCandidates.Length; i++)
+			for (int i = 0; i < _resourcesSubFolderCandidates.Length; i++)
 			{
-				T asset = Resources.Load<T>(bundleName + "/" + ResourcesSubFolderCandidates[i] + name);
+				T asset = Resources.Load<T>(bundleName + "/" + _resourcesSubFolderCandidates[i] + name);
 				if (asset != null)
 				{
 					return asset;
@@ -48,7 +48,7 @@ namespace Sekai
 			return null;
 		}
 
-		private static readonly string[] ResourcesSubFolderCandidates =
+		private static readonly string[] _resourcesSubFolderCandidates =
 		{
 			string.Empty,
 			"textures/",

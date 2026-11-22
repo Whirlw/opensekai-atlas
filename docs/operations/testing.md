@@ -50,7 +50,7 @@ Unity 扫描将缺失脚本的资产路径、GUID、fileID 和数量写入 `Test
 
 EditMode：
 
-- `Core/TimingCompensationTests`：三个时机补偿各自移动哪条时钟（音频延迟两条一起、画面延迟只移画面、判定偏移只移判定）、组合后键与条身共用一条画面时钟、时钟不小于 0、取值钳制、旧帧数迁移的符号，以及 `ViewProgress` 的规则（在途键提前且不过线、在线/越线的键不动、负提前、无提前或无窗口不变）。`Live/ViewLeadTests` 在真实音符与 `LongNoteView` 上固定同一规则；`Settings/LiveSettingsStoreTests` 固定旧值迁移只发生一次、已有毫秒值优先、三个值往返保存。
+- `Core/TimingCompensationTests`：三个时机补偿各自移动哪条时钟（音频延迟只移背景音乐播放位置、画面延迟只移画面、判定偏移只移判定）、组合后键与条身共用一条画面时钟、时钟不小于 0、取值钳制、旧帧数迁移的符号，以及 `ViewProgress` 的规则（在途键提前且不过线、在线/越线的键不动、负提前、无提前或无窗口不变）。`Live/ViewLeadTests` 在真实音符与 `LongNoteView` 上固定同一规则；`Settings/LiveSettingsStoreTests` 固定旧值迁移只发生一次、已有毫秒值优先、三个值往返保存。
 - `Core/AudioOutputPlanTests`：音频输出配置的选择。改到设备原生采样率；混音块对齐到硬件 burst 的整数倍、不低于 128 帧、且永不变大；设备给不出有效值时保持原配置。真机上的实际结果看 `[AudioOut]` 日志（`AudioOutputTuning`）。
 - `Charts/ChartDocumentTests`：深拷贝、`Migrate` 的版本与事件过滤、空值容忍、`HasPlayableNotes`。
 - `Charts/ChartJsonTests`：JSON 往返、旧类型名映射（`MusicScoreMakerData` → `ChartDocument`）、`MusicId` 覆盖。

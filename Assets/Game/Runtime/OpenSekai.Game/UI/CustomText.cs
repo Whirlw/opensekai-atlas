@@ -7,8 +7,9 @@ namespace Sekai.UI
 	[AddComponentMenu("Custom UI/Custom Text")]
 	public class CustomText : Text, ICustomText
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_useWordingKey")]
 		[SerializeField]
-		private bool _useWordingKey;
+		private bool useWordingKey;
 
 		[SerializeField]
 		protected string wordingKey;
@@ -67,11 +68,11 @@ namespace Sekai.UI
 		{
 			get
 			{
-				return _useWordingKey;
+				return useWordingKey;
 			}
 			set
 			{
-				_useWordingKey = value;
+				useWordingKey = value;
 			}
 		}
 
@@ -83,7 +84,7 @@ namespace Sekai.UI
 
 		public void UpdateWordingText()
 		{
-			if (!_useWordingKey || string.IsNullOrEmpty(wordingKey))
+			if (!useWordingKey || string.IsNullOrEmpty(wordingKey))
 			{
 				return;
 			}

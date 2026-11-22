@@ -9,8 +9,8 @@ namespace Sekai.Rendering
 {
 	public class SekaiDrawObjectsPass : ScriptableRenderPass
 	{
-		private static readonly int _s_DrawObjectPassDataPropID = Shader.PropertyToID("_DrawObjectPassData");
-		private static readonly int _s_ScaleBiasRtPropID = Shader.PropertyToID("_ScaleBiasRt");
+		private static readonly int _sDrawObjectPassDataPropID = Shader.PropertyToID("_DrawObjectPassData");
+		private static readonly int _sScaleBiasRtPropID = Shader.PropertyToID("_ScaleBiasRt");
 
 		private readonly List<ShaderTagId> _shaderTagIdList = new List<ShaderTagId>();
 		private readonly ProfilingSampler _profilingSampler;
@@ -112,10 +112,10 @@ namespace Sekai.Rendering
 				builder.AllowGlobalStateModification(true);
 				builder.SetRenderFunc(static (PassData data, RasterGraphContext context) =>
 				{
-					context.cmd.SetGlobalVector(_s_DrawObjectPassDataPropID, new Vector4(0f, 0f, 0f, data.isOpaque ? 1f : 0f));
+					context.cmd.SetGlobalVector(_sDrawObjectPassDataPropID, new Vector4(0f, 0f, 0f, data.isOpaque ? 1f : 0f));
 					var flipSign = data.cameraData.IsRenderTargetProjectionMatrixFlipped(data.color, data.depth) ? -1f : 1f;
 					var scaleBias = flipSign < 0f ? new Vector4(flipSign, 1f, -1f, 1f) : new Vector4(flipSign, 0f, 1f, 1f);
-					context.cmd.SetGlobalVector(_s_ScaleBiasRtPropID, scaleBias);
+					context.cmd.SetGlobalVector(_sScaleBiasRtPropID, scaleBias);
 					context.cmd.DrawRendererList(data.rendererList);
 				});
 			}

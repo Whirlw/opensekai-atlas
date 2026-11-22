@@ -12,15 +12,15 @@ namespace OpenSekai.Tests.EditMode.Structure
     /// </summary>
     public sealed class MissingScriptAuditTests
     {
-        private const string ReportPath = "TestResults/missing-scripts.tsv";
+        private const string REPORT_PATH = "TestResults/missing-scripts.tsv";
 
         [Test]
         public void TheProjectHasNoMissingScriptReferences()
         {
             OpenSekai.EditorTools.MissingScriptAudit.Run();
 
-            Assert.That(File.Exists(ReportPath), Is.True, "the audit must write " + ReportPath);
-            string[] lines = File.ReadAllLines(ReportPath);
+            Assert.That(File.Exists(REPORT_PATH), Is.True, "the audit must write " + REPORT_PATH);
+            string[] lines = File.ReadAllLines(REPORT_PATH);
             Assert.That(lines.Length, Is.GreaterThan(0), "the audit report must at least hold its header");
 
             string[] offenders = lines.Skip(1).Where(line => line.Trim().Length > 0).ToArray();

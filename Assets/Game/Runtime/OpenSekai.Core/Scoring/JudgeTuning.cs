@@ -16,12 +16,12 @@ namespace OpenSekai.Shared.Scoring
     public readonly struct JudgeTuning
     {
         /// <summary>The shipped values, kept here so a test can fail when the asset drifts.</summary>
-        public const float ShippedNormalLaneOffset = 1.25f;
-        public const float ShippedLongLaneOffset = 1.5f;
-        public const float ShippedFlickLaneOffset = 1.5f;
+        public const float SHIPPED_NORMAL_LANE_OFFSET = 1.25f;
+        public const float SHIPPED_LONG_LANE_OFFSET = 1.5f;
+        public const float SHIPPED_FLICK_LANE_OFFSET = 1.5f;
         // 5 cm per second expressed per 1/60 s frame, which is what the judge compares against. The units
         // the asset stores are inches, so the centimetre figure is divided by 2.54 here and nowhere else.
-        public const float ShippedFlickDistanceInches = 5f / 2.54f / 60f;
+        public const float SHIPPED_FLICK_DISTANCE_INCHES = 5f / 2.54f / 60f;
 
         public JudgeTuning(float normalLaneOffset, float longLaneOffset, float flickLaneOffset, float flickDistanceInches)
         {
@@ -39,7 +39,7 @@ namespace OpenSekai.Shared.Scoring
         public float FlickDistanceInches { get; }
 
         public static JudgeTuning Shipped { get; } = new JudgeTuning(
-            ShippedNormalLaneOffset, ShippedLongLaneOffset, ShippedFlickLaneOffset, ShippedFlickDistanceInches);
+            SHIPPED_NORMAL_LANE_OFFSET, SHIPPED_LONG_LANE_OFFSET, SHIPPED_FLICK_LANE_OFFSET, SHIPPED_FLICK_DISTANCE_INCHES);
 
         /// <summary>Lane offset for a note category; unknown categories fall back to the normal one.</summary>
         public float LaneOffsetFor(NoteCategory category)
@@ -71,7 +71,12 @@ namespace OpenSekai.Shared.Scoring
         /// <summary>Inches per 1/60 s frame converted to pixels for the given screen DPI.</summary>
         public float FlickDistanceInPixels(float screenDpi)
         {
-            return MathF.Max(0f, screenDpi / 2.54f * FlickDistanceInches);
+            return InchesToPixels(FlickDistanceInches, screenDpi);
+        }
+
+        public static float InchesToPixels(float inches, float screenDpi)
+        {
+            return MathF.Max(0f, screenDpi) * MathF.Max(0f, inches);
         }
     }
 }

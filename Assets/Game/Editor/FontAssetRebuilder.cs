@@ -15,48 +15,79 @@ namespace OpenSekai.EditorTools
     /// </summary>
     public static class FontAssetRebuilder
     {
-        private const string FontFolder = "Assets/Game/Resources/Fonts";
-        private const string AssetFolder = "Assets/Graphics/Resources/font";
+        private const string FONT_FOLDER = "Assets/Game/Resources/Fonts";
+        private const string ASSET_FOLDER = "Assets/Graphics/Resources/font";
 
-        private const string MediumFontPath = FontFolder + "/SourceHanSansSC-Medium.otf";
-        private const string BoldFontPath = FontFolder + "/SourceHanSansSC-Bold.otf";
+        private const string MEDIUM_FONT_PATH = FONT_FOLDER + "/SourceHanSansSC-Medium.otf";
+        private const string BOLD_FONT_PATH = FONT_FOLDER + "/SourceHanSansSC-Bold.otf";
 
         // Old slots: DB (demi bold) and EB (extra bold), each with a shell asset and a dynamic asset.
-        private const string OldDbBase = AssetFolder + "/FOT-RodinNTLGPro-DB SDF_Base.asset";
-        private const string OldDbDynamic = AssetFolder + "/FOT-RodinNTLGPro-DB SDF_Dynamic.asset";
-        private const string OldEbBase = AssetFolder + "/FOT-RodinNTLGPro-EB SDF_Base.asset";
-        private const string OldEbDynamic = AssetFolder + "/FOT-RodinNTLGPro-EB SDF_Dynamic.asset";
-        private const string OldDbBuiltin = AssetFolder + "/FOT-RodinNTLGPro-DB-Builtin.asset";
-        private const string OldEbBuiltin = AssetFolder + "/FOT-RodinNTLGPro-EB-Builtin.asset";
-        private const string OldDbOtf = AssetFolder + "/FOT-RodinNTLGPro-DB.otf";
-        private const string OldEbOtf = AssetFolder + "/FOT-RodinNTLGPro-EB.otf";
+        private const string OLD_DB_BASE = ASSET_FOLDER + "/FOT-RodinNTLGPro-DB SDF_Base.asset";
+        private const string OLD_DB_DYNAMIC = ASSET_FOLDER + "/FOT-RodinNTLGPro-DB SDF_Dynamic.asset";
+        private const string OLD_EB_BASE = ASSET_FOLDER + "/FOT-RodinNTLGPro-EB SDF_Base.asset";
+        private const string OLD_EB_DYNAMIC = ASSET_FOLDER + "/FOT-RodinNTLGPro-EB SDF_Dynamic.asset";
+        private const string OLD_DB_BUILTIN = ASSET_FOLDER + "/FOT-RodinNTLGPro-DB-Builtin.asset";
+        private const string OLD_EB_BUILTIN = ASSET_FOLDER + "/FOT-RodinNTLGPro-EB-Builtin.asset";
+        private const string OLD_DB_OTF = ASSET_FOLDER + "/FOT-RodinNTLGPro-DB.otf";
+        private const string OLD_EB_OTF = ASSET_FOLDER + "/FOT-RodinNTLGPro-EB.otf";
 
-        private const string NewMediumBase = AssetFolder + "/SourceHanSansSC-Medium SDF_Base.asset";
-        private const string NewMediumDynamic = AssetFolder + "/SourceHanSansSC-Medium SDF_Dynamic.asset";
-        private const string NewBoldBase = AssetFolder + "/SourceHanSansSC-Bold SDF_Base.asset";
-        private const string NewBoldDynamic = AssetFolder + "/SourceHanSansSC-Bold SDF_Dynamic.asset";
+        private const string NEW_MEDIUM_BASE = ASSET_FOLDER + "/SourceHanSansSC-Medium SDF_Base.asset";
+        private const string NEW_MEDIUM_DYNAMIC = ASSET_FOLDER + "/SourceHanSansSC-Medium SDF_Dynamic.asset";
+        private const string NEW_BOLD_BASE = ASSET_FOLDER + "/SourceHanSansSC-Bold SDF_Base.asset";
+        private const string NEW_BOLD_DYNAMIC = ASSET_FOLDER + "/SourceHanSansSC-Bold SDF_Dynamic.asset";
+
+        [MenuItem("OpenSekai/Dev/Fonts/Bake Library Glyphs")]
+        public static void BakeLibraryGlyphs()
+        {
+            // Fixed labels and common title characters. Imported song metadata can still grow the atlas.
+            const string LABELS = "…·、，。：（）「」ー☆★♪×–—♥" +
+                "曲库首页服务器资源包导入设置返回刷新搜索曲名作者歌手封面占位演唱作曲谱面试听中" +
+                "最佳成绩最大连击自动演奏开始缺少音频文件无法上次游玩还没有记录不完整" +
+                "完成一次后这里会显示判定分布和重新的即可首按标题等级最近制谱人难度分组排序" +
+                "综合评价达成情况未通关全连完美游玩时间新到旧低高中止失败成绩暂无分类未知" +
+                "音量预览详情操作删除取消收藏只看已全部更多精选单人模式";
+            var glyphs = new System.Text.StringBuilder(LABELS);
+            for (char c = ' '; c <= '~'; c++) glyphs.Append(c);
+            for (char c = 'ぁ'; c <= 'ゖ'; c++) glyphs.Append(c);
+            for (char c = 'ァ'; c <= 'ヺ'; c++) glyphs.Append(c);
+            using (GeneratedAssetSaveGuard.AllowSaves())
+            {
+                foreach (string path in new[] { NEW_MEDIUM_DYNAMIC, NEW_BOLD_DYNAMIC })
+                {
+                    var asset = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(path);
+                    if (!asset.TryAddCharacters(glyphs.ToString(), out string missing))
+                        Debug.LogWarning("[FontRebuild] Missing library glyphs in " + path + ": " + missing);
+                    var serialized = new SerializedObject(asset);
+                    serialized.FindProperty("m_ClearDynamicDataOnBuild").boolValue = false;
+                    serialized.ApplyModifiedPropertiesWithoutUndo();
+                    foreach (var atlas in asset.atlasTextures) EditorUtility.SetDirty(atlas);
+                    EditorUtility.SetDirty(asset);
+                    AssetDatabase.SaveAssetIfDirty(asset);
+                }
+            }
+        }
 
         [MenuItem("OpenSekai/Dev/Fonts/Build Source Han Sans Assets")]
         public static void BuildAssets()
         {
-            Font medium = LoadFont(MediumFontPath);
-            Font bold = LoadFont(BoldFontPath);
+            Font medium = LoadFont(MEDIUM_FONT_PATH);
+            Font bold = LoadFont(BOLD_FONT_PATH);
 
             // These files are guarded against saves (GeneratedAssetSaveGuard); a re-bake is the one time
             // they are meant to change on disk.
             using (GeneratedAssetSaveGuard.AllowSaves())
             {
-                CreateFontAsset(medium, NewMediumBase, "SourceHanSansSC-Medium SDF_Base");
-                CreateFontAsset(medium, NewMediumDynamic, "SourceHanSansSC-Medium SDF_Dynamic");
-                CreateFontAsset(bold, NewBoldBase, "SourceHanSansSC-Bold SDF_Base");
-                CreateFontAsset(bold, NewBoldDynamic, "SourceHanSansSC-Bold SDF_Dynamic");
+                CreateFontAsset(medium, NEW_MEDIUM_BASE, "SourceHanSansSC-Medium SDF_Base");
+                CreateFontAsset(medium, NEW_MEDIUM_DYNAMIC, "SourceHanSansSC-Medium SDF_Dynamic");
+                CreateFontAsset(bold, NEW_BOLD_BASE, "SourceHanSansSC-Bold SDF_Base");
+                CreateFontAsset(bold, NEW_BOLD_DYNAMIC, "SourceHanSansSC-Bold SDF_Dynamic");
 
                 AssetDatabase.SaveAssets();
                 AssetDatabase.Refresh();
             }
 
-            Debug.Log("[FontRebuild] created fonts:\n" + Describe(NewMediumBase) + Describe(NewMediumDynamic) +
-                      Describe(NewBoldBase) + Describe(NewBoldDynamic));
+            Debug.Log("[FontRebuild] created fonts:\n" + Describe(NEW_MEDIUM_BASE) + Describe(NEW_MEDIUM_DYNAMIC) +
+                      Describe(NEW_BOLD_BASE) + Describe(NEW_BOLD_DYNAMIC));
         }
 
         [MenuItem("OpenSekai/Dev/Fonts/Remap References And Delete Rodin")]
@@ -64,10 +95,10 @@ namespace OpenSekai.EditorTools
         {
             var mapping = new Dictionary<string, string>
             {
-                { GuidOf(OldDbBase), GuidOf(NewMediumBase) },
-                { GuidOf(OldDbDynamic), GuidOf(NewMediumDynamic) },
-                { GuidOf(OldEbBase), GuidOf(NewBoldBase) },
-                { GuidOf(OldEbDynamic), GuidOf(NewBoldDynamic) },
+                { GuidOf(OLD_DB_BASE), GuidOf(NEW_MEDIUM_BASE) },
+                { GuidOf(OLD_DB_DYNAMIC), GuidOf(NEW_MEDIUM_DYNAMIC) },
+                { GuidOf(OLD_EB_BASE), GuidOf(NEW_BOLD_BASE) },
+                { GuidOf(OLD_EB_DYNAMIC), GuidOf(NEW_BOLD_DYNAMIC) },
             };
 
             foreach (var pair in mapping)
@@ -106,7 +137,7 @@ namespace OpenSekai.EditorTools
 
             Debug.Log("[FontRebuild] remapped " + replacements + " references in " + files + " files");
 
-            foreach (string stale in new[] { OldDbBase, OldDbDynamic, OldEbBase, OldEbDynamic, OldDbBuiltin, OldEbBuiltin, OldDbOtf, OldEbOtf })
+            foreach (string stale in new[] { OLD_DB_BASE, OLD_DB_DYNAMIC, OLD_EB_BASE, OLD_EB_DYNAMIC, OLD_DB_BUILTIN, OLD_EB_BUILTIN, OLD_DB_OTF, OLD_EB_OTF })
             {
                 if (File.Exists(stale))
                 {
@@ -122,8 +153,8 @@ namespace OpenSekai.EditorTools
         [MenuItem("OpenSekai/Dev/Fonts/Report")]
         public static void Report()
         {
-            Debug.Log("[FontRebuild] " + Describe(NewMediumBase) + Describe(NewMediumDynamic) +
-                      Describe(NewBoldBase) + Describe(NewBoldDynamic));
+            Debug.Log("[FontRebuild] " + Describe(NEW_MEDIUM_BASE) + Describe(NEW_MEDIUM_DYNAMIC) +
+                      Describe(NEW_BOLD_BASE) + Describe(NEW_BOLD_DYNAMIC));
         }
 
         private static Font LoadFont(string path)

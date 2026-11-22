@@ -1,0 +1,16 @@
+"GET /index.html HTTP/1.1" 200 -
+"GET /TemplateData/style.css HTTP/1.1" 200 -
+"GET /TemplateData/unity-logo-title-footer.png HTTP/1.1" 200 -
+"GET /TemplateData/fullscreen-button.png HTTP/1.1" 200 -
+"GET /Build/WebOut.loader.js HTTP/1.1" 200 -
+"GET /TemplateData/progress-bar-empty-dark.png HTTP/1.1" 200 -
+"GET /Build/WebOut.framework.js HTTP/1.1" 200 -
+"GET /TemplateData/unity-logo-dark.png HTTP/1.1" 200 -
+"GET /TemplateData/progress-bar-full-dark.png HTTP/1.1" 200 -
+"GET /Build/WebOut.wasm HTTP/1.1" 200 -
+"GET /TemplateData/favicon.ico HTTP/1.1" 200 -
+"GET /Build/WebOut.data HTTP/1.1" 200 -
+"GET /StreamingAssets/data/AssetBundleInfo.bytes HTTP/1.1" 200 -
+"GET /StreamingAssets/data/check HTTP/1.1" 200 -
+"GET /receipt?value=WEBGL_NORMAL_BUNDLE_OK%20concurrent%3D2%20warm%3Dok%20path%3Dhttp:%2F%2F127.0.0.1:64317%2FStreamingAssets HTTP/1.1" 200 -
+result=WEBGL_NORMAL_BUNDLE_OK concurrent=2 warm=ok path=http://127.0.0.1:64317/StreamingAssets

@@ -12,20 +12,20 @@ namespace OpenSekai.Tests.EditMode.Charts
     /// </summary>
     public class ChartTimelineTests
     {
-        private const float Bpm = 120f;
-        private const float TimeSignature = 4f;
+        private const float BPM = 120f;
+        private const float TIME_SIGNATURE = 4f;
 
         private static MusicScoreInfo[] ConstantBpmTimeline() => new[]
         {
-            new MusicScoreInfo(0, 0f, 0f, Bpm, TimeSignature, 1f, 1f)
+            new MusicScoreInfo(0, 0f, 0f, BPM, TIME_SIGNATURE, 1f, 1f)
         };
 
         private static MusicScoreInfo[] ConstantBpmTimelineWithIntroAt(float introTime)
         {
             return new[]
             {
-                new MusicScoreInfo(0, 0f, 0f, Bpm, TimeSignature, 1f, 1f),
-                new MusicScoreInfo(1, 0f, introTime, Bpm, TimeSignature, 1f, 1f)
+                new MusicScoreInfo(0, 0f, 0f, BPM, TIME_SIGNATURE, 1f, 1f),
+                new MusicScoreInfo(1, 0f, introTime, BPM, TIME_SIGNATURE, 1f, 1f)
             };
         }
 
@@ -108,13 +108,13 @@ namespace OpenSekai.Tests.EditMode.Charts
             var events = new List<ChartEvent>
             {
                 new ChartEvent { id = 2, ticks = 3840, eventType = ChartEventType.BPM, changeValue = 180f },
-                new ChartEvent { id = 1, ticks = 0, eventType = ChartEventType.BPM, changeValue = Bpm }
+                new ChartEvent { id = 1, ticks = 0, eventType = ChartEventType.BPM, changeValue = BPM }
             };
 
             MusicScoreInfo[] infos = ChartTimeline.ConvertMusicScoreInfo(events);
 
             Assert.That(infos, Is.Not.Null.And.Length.GreaterThanOrEqualTo(2));
-            Assert.That(infos[0].bpm, Is.EqualTo(Bpm).Within(0.001f));
+            Assert.That(infos[0].bpm, Is.EqualTo(BPM).Within(0.001f));
             for (int i = 1; i < infos.Length; i++)
             {
                 Assert.That(infos[i].time, Is.GreaterThanOrEqualTo(infos[i - 1].time));

@@ -13,8 +13,9 @@ namespace Sekai.Core.Live
 			AlphaBlend = 1
 		}
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_mode")]
 		[SerializeField]
-		private Mode _mode;
+		private Mode mode;
 
 		private List<ParticleSystemVertexStream> _streams;
 
@@ -47,7 +48,7 @@ namespace Sekai.Core.Live
 			customData.enabled = true;
 			customData.SetMode(ParticleSystemCustomData.Custom1, ParticleSystemCustomDataMode.Vector);
 			customData.SetVectorComponentCount(ParticleSystemCustomData.Custom1, 1);
-			customData.SetVector(ParticleSystemCustomData.Custom1, 0, new ParticleSystem.MinMaxCurve(_mode == Mode.Additive ? 1f : 0f));
+			customData.SetVector(ParticleSystemCustomData.Custom1, 0, new ParticleSystem.MinMaxCurve(mode == Mode.Additive ? 1f : 0f));
 		}
 
 		public ParticleShaderSettings()

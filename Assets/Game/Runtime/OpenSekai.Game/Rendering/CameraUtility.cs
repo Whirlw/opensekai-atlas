@@ -6,29 +6,29 @@ namespace Sekai.Core
 	{
 		private const string FRONT_CAMERA_TAG = "FrontCamera";
 
-		private static readonly string PVPath;
+		private static readonly string _pvPath;
 
-		private static readonly string RenderCanvasPath;
+		private static readonly string _renderCanvasPath;
 
-		private static readonly string MainCameraVLPath;
+		private static readonly string _mainCameraVLPath;
 
-		private static readonly string MainCameraMVPath;
+		private static readonly string _mainCameraMVPath;
 
-		private static readonly string SubCameraPath;
+		private static readonly string _subCameraPath;
 
 		public static GameObject CreateRenderCanvas(Transform parent, bool worldPoitionStays = false)
 		{
-			return LoadObject(RenderCanvasPath, parent, worldPoitionStays);
+			return LoadObject(_renderCanvasPath, parent, worldPoitionStays);
 		}
 
 		public static GameObject CreateMVMainCamera(Transform parent, bool worldPoitionStays = false)
 		{
-			return CreateMainCamera(MainCameraMVPath, parent, worldPoitionStays);
+			return CreateMainCamera(_mainCameraMVPath, parent, worldPoitionStays);
 		}
 
 		public static GameObject CreateVLMainCamera(Transform parent, bool worldPoitionStays = false)
 		{
-			return CreateMainCamera(MainCameraVLPath, parent, worldPoitionStays);
+			return CreateMainCamera(_mainCameraVLPath, parent, worldPoitionStays);
 		}
 
 		private static GameObject CreateMainCamera(string path, Transform parent, bool worldPoitionStays = false)
@@ -38,7 +38,7 @@ namespace Sekai.Core
 
 		public static GameObject CreateSubCamera(Transform parent, bool worldPoitionStays = false)
 		{
-			return LoadObject(SubCameraPath, parent, worldPoitionStays);
+			return LoadObject(_subCameraPath, parent, worldPoitionStays);
 		}
 
 		private static GameObject LoadObject(string path, Transform parent, bool worldPoitionStays = false)
@@ -64,11 +64,11 @@ namespace Sekai.Core
 
 		static CameraUtility()
 		{
-			PVPath = "live/camera/pv";
-			RenderCanvasPath = "live/camera/RenderCanvas";
-			MainCameraVLPath = "live/camera/MainCameraVL";
-			MainCameraMVPath = "live/camera/MainCameraMV";
-			SubCameraPath = "live/camera/SubCamera";
+			_pvPath = "live/camera/pv";
+			_renderCanvasPath = "live/camera/RenderCanvas";
+			_mainCameraVLPath = "live/camera/MainCameraVL";
+			_mainCameraMVPath = "live/camera/MainCameraMV";
+			_subCameraPath = "live/camera/SubCamera";
 		}
 	}
 }

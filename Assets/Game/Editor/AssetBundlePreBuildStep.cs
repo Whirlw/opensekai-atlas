@@ -22,9 +22,9 @@ namespace Sekai.EditorTools
     /// </summary>
     public sealed class AssetBundleFreshnessCheck : IPreprocessBuildWithReport
     {
-        private const string AssetBundleSourceRelativePath = "Assets/Game/AssetBundles";
-        private const string StreamingDataRelativePath = "Assets/StreamingAssets/data";
-        private const string AssetBundleInfoFileName = "AssetBundleInfo.bytes";
+        private const string ASSET_BUNDLE_SOURCE_RELATIVE_PATH = "Assets/Game/AssetBundles";
+        private const string STREAMING_DATA_RELATIVE_PATH = "Assets/StreamingAssets/data";
+        private const string ASSET_BUNDLE_INFO_FILE_NAME = "AssetBundleInfo.bytes";
 
         /// <summary>
         /// How many files <c>Assets/StreamingAssets/data</c> held when the build started. Captured
@@ -39,23 +39,23 @@ namespace Sekai.EditorTools
             ExpectedPackagedFileCount = 0;
 
             string projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
-            string streamingData = Path.Combine(projectRoot, StreamingDataRelativePath);
-            string infoPath = Path.Combine(streamingData, AssetBundleInfoFileName);
+            string streamingData = Path.Combine(projectRoot, STREAMING_DATA_RELATIVE_PATH);
+            string infoPath = Path.Combine(streamingData, ASSET_BUNDLE_INFO_FILE_NAME);
 
             if (!File.Exists(infoPath))
             {
                 throw new BuildFailedException(
-                    "AssetBundles are missing: " + StreamingDataRelativePath + " has no " + AssetBundleInfoFileName +
+                    "AssetBundles are missing: " + STREAMING_DATA_RELATIVE_PATH + " has no " + ASSET_BUNDLE_INFO_FILE_NAME +
                     ". Run OpenSekai/AssetBundles/Build Asset Bundles And Info before building the player.");
             }
 
             DateTime bundlesBuiltAt = File.GetLastWriteTimeUtc(infoPath);
-            DateTime newestSource = GetNewestSourceTimestamp(Path.Combine(projectRoot, AssetBundleSourceRelativePath));
+            DateTime newestSource = GetNewestSourceTimestamp(Path.Combine(projectRoot, ASSET_BUNDLE_SOURCE_RELATIVE_PATH));
             if (newestSource != DateTime.MinValue && newestSource > bundlesBuiltAt)
             {
-                string stale = FindFirstNewer(Path.Combine(projectRoot, AssetBundleSourceRelativePath), bundlesBuiltAt);
+                string stale = FindFirstNewer(Path.Combine(projectRoot, ASSET_BUNDLE_SOURCE_RELATIVE_PATH), bundlesBuiltAt);
                 throw new BuildFailedException(
-                    "AssetBundles are stale: " + stale + " is newer than " + AssetBundleInfoFileName +
+                    "AssetBundles are stale: " + stale + " is newer than " + ASSET_BUNDLE_INFO_FILE_NAME +
                     " (" + bundlesBuiltAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") + "). " +
                     "Run OpenSekai/AssetBundles/Build Asset Bundles And Info, then build the player again. " +
                     "Without that step the device keeps loading the previous prefabs while the editor looks correct.");
@@ -136,7 +136,7 @@ namespace Sekai.EditorTools
     /// </summary>
     public sealed class AssetBundlePackagingVerifier : IPostprocessBuildWithReport
     {
-        private const string AndroidStreamingAssetsPrefix = "assets/data/";
+        private const string ANDROID_STREAMING_ASSETS_PREFIX = "assets/data/";
 
         public int callbackOrder => 0;
 
@@ -179,7 +179,7 @@ namespace Sekai.EditorTools
             {
                 foreach (ZipArchiveEntry entry in archive.Entries)
                 {
-                    if (entry.FullName.StartsWith(AndroidStreamingAssetsPrefix, StringComparison.Ordinal))
+                    if (entry.FullName.StartsWith(ANDROID_STREAMING_ASSETS_PREFIX, StringComparison.Ordinal))
                     {
                         packaged++;
                     }
@@ -199,7 +199,7 @@ namespace Sekai.EditorTools
             }
 
             message =
-                "AssetBundle packaging is broken: " + expected + " files were expected under " + AndroidStreamingAssetsPrefix +
+                "AssetBundle packaging is broken: " + expected + " files were expected under " + ANDROID_STREAMING_ASSETS_PREFIX +
                 " but the package contains " + packaged + ". The player would start without sound effects and without the stage " +
                 "background, because both come from bundles. Rebuild the bundles (" +
                 "OpenSekai/AssetBundles/Build Asset Bundles And Info) and build the player again.";

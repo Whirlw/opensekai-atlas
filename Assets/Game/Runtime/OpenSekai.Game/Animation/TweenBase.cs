@@ -57,9 +57,9 @@ namespace Sekai
 		[CompilerGenerated]
 		private sealed class _003CPlayReferenceCore_003Ed__70 : IEnumerator<object>, IEnumerator, IDisposable
 		{
-			private int _003C_003E1__state;
+			private int _state;
 
-			private object _003C_003E2__current;
+			private object _current;
 
 			public TweenBase _003C_003E4__this;
 
@@ -68,7 +68,7 @@ namespace Sekai
 			[DebuggerHidden]
 			get
 			{
-					return _003C_003E2__current;
+					return _current;
 			}
 		}
 
@@ -77,14 +77,14 @@ namespace Sekai
 			[DebuggerHidden]
 			get
 			{
-					return _003C_003E2__current;
+					return _current;
 			}
 		}
 
 		[DebuggerHidden]
 		public _003CPlayReferenceCore_003Ed__70(int _003C_003E1__state)
 		{
-				this._003C_003E1__state = _003C_003E1__state;
+				this._state = _003C_003E1__state;
 		}
 
 		[DebuggerHidden]

@@ -11,8 +11,9 @@ namespace Sekai.UI
 		[SerializeField]
 		protected List<CustomToggle> indexToggles;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_selectedOnAwake")]
 		[SerializeField]
-		private bool _selectedOnAwake;
+		private bool selectedOnAwake;
 
 		protected int selectedIndex;
 
@@ -55,6 +56,13 @@ namespace Sekai.UI
 					return;
 				}
 
+				// Activate the new selection before clearing the old one. ToggleGroup
+				// otherwise reselects the last active toggle when switch-off is disabled.
+				if (indexToggles[value] != null)
+				{
+					indexToggles[value].isOn = true;
+				}
+
 				for (int i = 0; i < indexToggles.Count; i++)
 				{
 					if (indexToggles[i] != null)
@@ -73,7 +81,9 @@ namespace Sekai.UI
 			}
 		}
 
-		public Action<int> OnSelectedIndexChanged { get; set; }
+		public event Action<int> SelectedIndexChanged;
+
+		private void RaiseSelectedIndexChanged() => SelectedIndexChanged?.Invoke(selectedIndex);
 
 		public void SetSelectedIndexWithoutNotify(int value)
 		{
@@ -98,7 +108,7 @@ namespace Sekai.UI
 		protected override void Awake()
 		{
 			base.Awake();
-			CollectToggles(_selectedOnAwake);
+			CollectToggles(selectedOnAwake);
 		}
 
 		[Obsolete("Use SelectedIndex instead.")]
@@ -147,7 +157,7 @@ namespace Sekai.UI
 			selectToggle = IsValidIndex(selectedIndex) ? indexToggles[selectedIndex] : null;
 			if (!initializing)
 			{
-				OnSelectedIndexChanged?.Invoke(selectedIndex);
+				RaiseSelectedIndexChanged();
 			}
 		}
 

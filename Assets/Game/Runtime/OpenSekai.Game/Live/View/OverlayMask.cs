@@ -9,18 +9,22 @@ namespace Sekai.Live
 	{
 		private const string MASKED_SHADER_NAME = "Sekai/OverlayMask";
 
-				[SerializeField] private Texture2D _alphaTexture;
+				[UnityEngine.Serialization.FormerlySerializedAs("_alphaTexture")]
+				[SerializeField]
+				private Texture2D alphaTextureValue;
 		public Texture2D alphaTexture
 		{
-		    get => _alphaTexture;
-		    set => _alphaTexture = value;
+		    get => alphaTextureValue;
+		    set => alphaTextureValue = value;
 		}
 
-				[SerializeField] private GameObject[] _managedMaskingTarget;
+				[UnityEngine.Serialization.FormerlySerializedAs("_managedMaskingTarget")]
+				[SerializeField]
+				private GameObject[] managedMaskingTargetValue;
 		public GameObject[] managedMaskingTarget
 		{
-		    get => _managedMaskingTarget;
-		    set => _managedMaskingTarget = value;
+		    get => managedMaskingTargetValue;
+		    set => managedMaskingTargetValue = value;
 		}
 
 		private RectTransform _rectTransform;

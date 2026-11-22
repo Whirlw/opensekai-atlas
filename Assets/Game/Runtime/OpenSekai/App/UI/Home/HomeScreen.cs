@@ -16,29 +16,30 @@ namespace OpenSekai.App.UI
 {
     /// <summary>
     /// The app's front door: the splash on a cold start, then the home page with its way into the
-    /// library and its cards for what comes next. It shares the Library scene with
+    /// library and its cards for the server and resource pack parts. It shares the Library scene with
     /// <see cref="LibraryScreen"/> and moves between the two: the home page hands over by growing
     /// its library card over the screen into the library's ground, and takes back over when the
     /// library's back button (or the Android back key) is pressed. Only one of the two pages is
     /// drawn at a time; each has its own camera.
-    ///
-    /// The library is always built, even under the splash, so anything that waits for the library
-    /// page (the editor's checks and screenshot runs) still finds it ready.
     /// </summary>
     public sealed class HomeScreen : MonoBehaviour
     {
         private const string THUMBNAIL_DIRECTORY = "JacketThumbnails";
         private const int MARQUEE_JACKETS = 8;
 
-        /// <summary>Longest the splash waits for its emblem to be drawn before starting anyway.</summary>
-        private const float BRAND_WAIT_SECONDS = 2f;
-
         // The hidden server page stack is carried only for a server-started live.
         private static ServerScreen _serverReturningFromLive;
 
         private AppContext _context;
         private LibraryScreen _library;
+        private bool _libraryCovered;
+        private int _homeShownFrame;
+        private bool _introSummaryPending;
+        private bool _showHomeWhenReady;
+        private bool _homeJacketsReady;
         private ServerScreen _server;
+        private PackScreen _packs;
+        private PackOrigin _packsOrigin;
         private CancellationTokenSource _serverPlayCancellation;
         private LibraryLoadingOverlay _serverLoading;
         private Camera _camera;
@@ -52,7 +53,7 @@ namespace OpenSekai.App.UI
         private JacketThumbnails _thumbnails;
         private CancellationTokenSource _jacketLoad;
         private MotionHandle _idle;
-        private int _idleLoops;
+        private double _idleTime;
         private float _idleLast;
         private float _quitArmedUntil = -1f;
         private bool _homeShown;
@@ -69,25 +70,35 @@ namespace OpenSekai.App.UI
         /// <summary>True while the server part is on screen.</summary>
         public bool IsServerShown => _server != null && _server.IsPresented;
 
-        /// <summary>True once the emblem's layers are drawn (they are drawn off the main thread).</summary>
-        public bool IsBrandReady => BrandSprites.Loaded != null;
+        /// <summary>True while the resource pack part is on screen.</summary>
+        public bool IsPacksShown => _packs != null && _packs.IsPresented;
 
-        /// <param name="library">The library page this home page hands over to and takes back from.</param>
-        /// <param name="playIntro">True on a cold start: the splash plays, then the home page shows.
-        /// False when the scene comes back from a live: the library shows and the home page waits.</param>
-        public static HomeScreen Create(AppContext context, LibraryScreen library, bool playIntro)
+        /// <summary>Where back from the resource pack part leads: the page it was opened from.</summary>
+        private enum PackOrigin
+        {
+            Home,
+            Library,
+            Server
+        }
+
+        /// <summary>True once the emblem has its bundled layers.</summary>
+        public bool IsBrandReady => _emblem != null;
+
+        /// <param name="coldStart">Open the home page on launch, or restore the previous page after a live.</param>
+        public static HomeScreen Create(AppContext context, bool coldStart, bool playIntro)
         {
             var host = new GameObject("HomeScreen");
             HomeScreen screen = host.AddComponent<HomeScreen>();
-            screen.Build(context, library);
-            if (playIntro)
+            screen.Build(context);
+            if (coldStart)
             {
-                screen.StartIntroAsync().Forget();
+                if (playIntro) screen.StartIntro();
+                else screen.StartWithoutIntro();
             }
             else
             {
                 screen.HideHome();
-                if (!screen.RestoreServerAfterLive()) library?.SetPresented(true, false);
+                if (!screen.RestoreServerAfterLive()) screen.ShowReadyLibrary(false);
             }
 
             return screen;
@@ -103,19 +114,23 @@ namespace OpenSekai.App.UI
             _splash.Evaluate(HomeSplash.Length);
             _navigating = false;
             HideServer();
+            HidePacks();
             HideHome();
-            _library?.SetPresented(true, false);
+            ShowReadyLibrary(false);
         }
 
         /// <summary>Shows the settled home page at once.</summary>
-        public void ShowHomeImmediately()
+        public void ShowHomeImmediately() => ShowSettledHome(refreshSummary: true);
+
+        private void ShowSettledHome(bool refreshSummary)
         {
             _view.StopTransition();
             _splash.Stop();
             _navigating = false;
             _library?.SetPresented(false, false);
             HideServer();
-            ShowHome();
+            HidePacks();
+            ShowHome(refreshSummary);
             _about.Hide();
             _splash.Evaluate(HomeSplash.Length);
             _view.ApplyExpansion(0f);
@@ -161,6 +176,7 @@ namespace OpenSekai.App.UI
             _splash.Evaluate(HomeSplash.Length);
             _navigating = false;
             _library?.SetPresented(false, false);
+            HidePacks();
             HideHome();
             EnsureServer().SetPresented(true, false);
         }
@@ -178,6 +194,36 @@ namespace OpenSekai.App.UI
             _view.ApplyExpansion(HomeDestination.Server, Mathf.Clamp01(amount));
         }
 
+        /// <summary>Shows the resource pack part at once, as if the player had gone in.</summary>
+        public void ShowPacksImmediately()
+        {
+            _view.StopTransition();
+            _splash.Stop();
+            _splash.Evaluate(HomeSplash.Length);
+            _navigating = false;
+            _library?.SetPresented(false, false);
+            HideServer();
+            HideHome();
+            _packsOrigin = PackOrigin.Home;
+            EnsurePacks().SetPresented(true, false);
+        }
+
+        /// <summary>
+        /// Holds the hand-over to the resource pack part at <paramref name="amount"/> (0 the page at
+        /// rest, 1 the 资源包 card covering the screen), for screenshots of the transition.
+        /// </summary>
+        public void SeekPacksHandoff(float amount)
+        {
+            ShowHomeImmediately();
+            _idle.TryCancel();
+            _idle = default;
+            TickIdle(IntroLength);
+            _view.ApplyExpansion(HomeDestination.Packs, Mathf.Clamp01(amount));
+        }
+
+        /// <summary>What tapping the 资源包 card does.</summary>
+        public void EnterPacks() => OpenPacks();
+
         /// <summary>What tapping the server card does.</summary>
         public void EnterServer() => OpenServer();
 
@@ -189,15 +235,10 @@ namespace OpenSekai.App.UI
 
         // ---------------------------------------------------------------- building
 
-        private void Build(AppContext context, LibraryScreen library)
+        private void Build(AppContext context)
         {
             Current = this;
             _context = context;
-            _library = library;
-            if (_library != null)
-            {
-                _library.BackRequested += GoHome;
-            }
 
             _camera = CreateCamera();
             _canvasRoot = new GameObject("HomeCanvas", typeof(RectTransform));
@@ -216,7 +257,7 @@ namespace OpenSekai.App.UI
 
             var root = (RectTransform)_canvasRoot.transform;
             _backdrop = new HomeBackdrop(root);
-            _view = new HomeView(root, OpenLibrary, OpenAbout, OpenSettings, ShowComingSoon, OpenServer);
+            _view = new HomeView(root, OpenLibrary, OpenAbout, OpenSettings, ShowComingSoon, OpenServer, OpenPacks);
             if (ServerChartDownloads.Current != null)
             {
                 ServerChartDownloads.Current.StatusChanged += ShowServerStatus;
@@ -228,52 +269,22 @@ namespace OpenSekai.App.UI
             _about = new HomeAboutPanel(root);
 
             _thumbnails = new JacketThumbnails(Path.Combine(Application.temporaryCachePath, THUMBNAIL_DIRECTORY));
-            LoadBrandAsync().Forget();
         }
 
-        private async UniTaskVoid LoadBrandAsync()
-        {
-            BrandSprites sprites;
-            try
-            {
-                sprites = await BrandSprites.LoadAsync(this.GetCancellationTokenOnDestroy());
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-            catch (Exception exception)
-            {
-                Debug.LogWarning("[Home] Could not draw the emblem: " + exception.Message);
-                return;
-            }
-
-            _emblem.ApplySprites(sprites);
-            _about.ApplySprites(sprites);
-        }
-
-        private async UniTaskVoid StartIntroAsync()
+        private void StartIntro()
         {
             _library?.SetPresented(false, false);
-            ShowHome();
+            ShowHome(refreshSummary: false);
+            _introSummaryPending = true;
             _view.Interactable = false;
-            _splash.Evaluate(0f);
-
-            // The splash opens on the bare ground for a moment anyway; wait there for the emblem's
-            // layers so it never flies in empty. A slow device starts on time without them.
-            CancellationToken token = this.GetCancellationTokenOnDestroy();
-            float deadline = Time.realtimeSinceStartup + BRAND_WAIT_SECONDS;
-            while (BrandSprites.Loaded == null && Time.realtimeSinceStartup < deadline)
-            {
-                await UniTask.Yield(PlayerLoopTiming.Update, token);
-            }
-
-            if (this == null || !_homeShown || _splash.IsPlaying)
-            {
-                return;
-            }
-
             _splash.Play(OnIntroDone);
+        }
+
+        private void StartWithoutIntro()
+        {
+            _canvasRoot.SetActive(false);
+            _showHomeWhenReady = true;
+            RefreshLibrarySummary();
         }
 
         private void OnIntroDone()
@@ -283,21 +294,40 @@ namespace OpenSekai.App.UI
 
         // ---------------------------------------------------------------- navigation
 
+        private void ShowReadyLibrary(bool animate)
+        {
+            var library = EnsureLibrary();
+            library.FinishBuild();
+            library.SetPresented(true, animate);
+        }
+
+        private LibraryScreen EnsureLibrary()
+        {
+            if (_library == null)
+            {
+                _library = LibraryScreen.BeginBuild(_context);
+                _library.BackRequested += GoHome;
+            }
+
+            return _library;
+        }
+
         private void OpenLibrary()
         {
-            if (_navigating || _library == null)
+            if (_navigating || !_homeShown)
             {
                 return;
             }
 
             _navigating = true;
-            UiSound.Play(UiCue.Forward);
-            _view.PlayExpand(() =>
+            if (_splash.IsPlaying)
             {
-                HideHome();
-                _library.SetPresented(true, true);
-                _navigating = false;
-            });
+                // The card accepts taps during the last moments of the home entrance.
+                _splash.Stop();
+                _splash.Evaluate(HomeSplash.Length);
+            }
+            UiSound.Play(UiCue.Forward);
+            _view.PlayExpand(() => _libraryCovered = true);
         }
 
         private void GoHome()
@@ -354,10 +384,138 @@ namespace OpenSekai.App.UI
             });
         }
 
-        private void PlayFromServer(string packageDirectory, string title, bool isAuto, TemporarySongPackage temporary)
+        /// <summary>The 资源包 card grows over the page, then the resource pack part rises out of it.</summary>
+        private void OpenPacks()
         {
-            if (_navigating || _server == null || (temporary == null && string.IsNullOrEmpty(packageDirectory))) return;
-            StartServerLive(packageDirectory, title, isAuto, temporary).Forget();
+            if (_navigating || !_homeShown)
+            {
+                return;
+            }
+
+            _navigating = true;
+            UiSound.Play(UiCue.Forward);
+            PackScreen packs = EnsurePacks();
+            _packsOrigin = PackOrigin.Home;
+            _view.PlayExpand(HomeDestination.Packs, () =>
+            {
+                HideHome();
+                packs.SetPresented(true, true);
+                _navigating = false;
+            });
+        }
+
+        /// <summary>
+        /// Opens the resource pack part from wherever the player is: from the home page through its
+        /// card, from the library or the server part through the ground-colored curtain. Back then
+        /// returns to that page. The settings panel's 资源包 row uses this.
+        /// </summary>
+        internal void OpenResourcePacks()
+        {
+            if (_navigating || IsPacksShown)
+            {
+                return;
+            }
+
+            if (_homeShown)
+            {
+                _settings?.Hide();
+                if (_splash.IsPlaying)
+                {
+                    _splash.Stop();
+                    _splash.Evaluate(HomeSplash.Length);
+                }
+
+                OpenPacks();
+                return;
+            }
+
+            if (_server != null && _server.IsPresented)
+            {
+                CoverThenShowPacks(PackOrigin.Server, _server.PlayExit, () => _server.SetPresented(false, false));
+                return;
+            }
+
+            if (_library != null && _library.IsPresented)
+            {
+                CoverThenShowPacks(PackOrigin.Library, _library.PlayExit, () => _library.SetPresented(false, false));
+            }
+        }
+
+        private void CoverThenShowPacks(PackOrigin origin, Action<Action> playExit, Action hide)
+        {
+            _navigating = true;
+            UiSound.Play(UiCue.Forward);
+            PackScreen packs = EnsurePacks();
+            playExit(() =>
+            {
+                hide();
+                _packsOrigin = origin;
+                packs.SetPresented(true, true);
+                _navigating = false;
+            });
+        }
+
+        /// <summary>The resource pack part falls into the ground, then the page it came from returns.</summary>
+        private void ReturnFromPacks()
+        {
+            if (_navigating || _packs == null || !_packs.IsPresented)
+            {
+                return;
+            }
+
+            _navigating = true;
+            PackOrigin origin = _packsOrigin;
+            _packs.PlayExit(() =>
+            {
+                _packs.SetPresented(false, false);
+                _packsOrigin = PackOrigin.Home;
+                if (origin == PackOrigin.Library && _library != null)
+                {
+                    _library.SetPresented(true, true);
+                    _navigating = false;
+                    return;
+                }
+
+                if (origin == PackOrigin.Server && _server != null)
+                {
+                    _server.SetPresented(true, true);
+                    _navigating = false;
+                    return;
+                }
+
+                ShowHome();
+                _splash.Evaluate(HomeSplash.Length);
+                _view.PlayCollapse(HomeDestination.Packs, () => _navigating = false);
+            });
+        }
+
+        private PackScreen EnsurePacks()
+        {
+            if (_packs != null)
+            {
+                return _packs;
+            }
+
+            _packs = PackScreen.Create();
+            _packs.transform.SetParent(transform, false);
+            _packs.BackRequested += ReturnFromPacks;
+            return _packs;
+        }
+
+        private void HidePacks()
+        {
+            if (_packs != null && _packs.IsPresented)
+            {
+                _packs.SetPresented(false, false);
+            }
+
+            _packsOrigin = PackOrigin.Home;
+        }
+
+        private void OnServerPlayRequested(ServerScreen.PlayRequest request)
+        {
+            if (_navigating || _server == null || (request.Temporary == null && string.IsNullOrEmpty(request.PackageDirectory))) return;
+            StartServerLive(request.PackageDirectory, request.Title, request.IsAuto, request.Temporary).Forget();
         }
 
         private async UniTaskVoid StartServerLive(string packageDirectory, string title, bool isAuto, TemporarySongPackage temporary)
@@ -464,7 +622,7 @@ namespace OpenSekai.App.UI
         private void BindServer()
         {
             _server.BackRequested += ReturnFromServer;
-            _server.PlayRequested += PlayFromServer;
+            _server.PlayRequested += OnServerPlayRequested;
             _server.LibraryChanged += OnServerImported;
         }
 
@@ -503,21 +661,29 @@ namespace OpenSekai.App.UI
         {
             _library?.Refresh();
             RefreshLibrarySummary();
+            Debug.Log("[HomeScreen] Library refreshed after server import.");
         }
 
-        private void ShowHome()
+        private void ShowHome(bool refreshSummary = true)
         {
+            _showHomeWhenReady = false;
             _homeShown = true;
+            _homeShownFrame = Time.frameCount;
+            _introSummaryPending = false;
+            _libraryCovered = false;
             _canvasRoot.SetActive(true);
             _camera.enabled = true;
             _quitArmedUntil = -1f;
-            RefreshLibrarySummary();
+            if (refreshSummary) RefreshLibrarySummary();
             StartIdle();
         }
 
         private void HideHome()
         {
+            _showHomeWhenReady = false;
             _homeShown = false;
+            _libraryCovered = false;
+            _splash.Stop();
             _idle.TryCancel();
             _idle = default;
             _about.Hide();
@@ -528,7 +694,40 @@ namespace OpenSekai.App.UI
 
         private void Update()
         {
-            if (!NativeInput.BackPressedThisFrame) return;
+            if (_showHomeWhenReady)
+            {
+                if (_homeJacketsReady) ShowSettledHome(refreshSummary: false);
+                return;
+            }
+            if (_homeShown)
+            {
+                if (_introSummaryPending && Time.frameCount > _homeShownFrame)
+                {
+                    _introSummaryPending = false;
+                    RefreshLibrarySummary();
+                }
+                if (_splash.IsPlaying && !_libraryCovered)
+                {
+                    if (Application.isFocused)
+                    {
+                        _splash.Tick(Time.unscaledDeltaTime, _homeJacketsReady);
+                    }
+                }
+                else if (_homeShownFrame < Time.frameCount)
+                {
+                    // Let the settled home page render before spending frames on the hidden library.
+                    var library = EnsureLibrary();
+                    library.AdvanceBuild();
+                    if (_libraryCovered && library.IsReady)
+                    {
+                        HideHome();
+                        library.SetPresented(true, true);
+                        _navigating = false;
+                    }
+                }
+            }
+
+            if (!NativeInput.BackPressedThisFrame || DialogBase.OwnsHardwareBack) return;
             if (_serverPlayCancellation != null)
             {
                 _serverPlayCancellation.Cancel();
@@ -540,6 +739,17 @@ namespace OpenSekai.App.UI
             if (_homeShown)
             {
                 HandleHomeBack();
+                return;
+            }
+
+            if (_packs != null && _packs.IsPresented)
+            {
+                if (!_packs.TryHandleBack())
+                {
+                    UiSound.Play(UiCue.Back);
+                    ReturnFromPacks();
+                }
+
                 return;
             }
 
@@ -605,7 +815,7 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            _idleLoops = 0;
+            _idleTime = 0d;
             _idleLast = 0f;
             float period = HomeTheme.Motion.IDLE_PERIOD;
             _idle = LMotion.Create(0f, period, period)
@@ -616,13 +826,12 @@ namespace OpenSekai.App.UI
 
         private void OnIdle(float time)
         {
-            if (time < _idleLast)
-            {
-                _idleLoops++;
-            }
-
+            float elapsed = time - _idleLast;
+            if (elapsed < 0f) elapsed += HomeTheme.Motion.IDLE_PERIOD;
+            // A long frame or resuming the app should not fling the covers up the card.
+            _idleTime += Mathf.Min(elapsed, 0.05f);
             _idleLast = time;
-            TickIdle(_idleLoops * (double)HomeTheme.Motion.IDLE_PERIOD + time);
+            TickIdle(_idleTime);
         }
 
         private void TickIdle(double time)
@@ -635,11 +844,12 @@ namespace OpenSekai.App.UI
 
         /// <summary>
         /// Counts packages and plays, finds the last song played, and loads the jackets for the
-        /// library card. Packages and history both come from caches the library page already
-        /// filled, so nothing is read from disk here but thumbnails.
+        /// library card independently of the library page.
         /// </summary>
         private void RefreshLibrarySummary()
         {
+            _homeJacketsReady = false;
+            CancelJacketLoad();
             IReadOnlyList<SongPackageItem> items;
             IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary> history;
             try
@@ -651,6 +861,7 @@ namespace OpenSekai.App.UI
             {
                 Debug.LogWarning("[Home] Could not read the library: " + exception.Message);
                 _view.SetSummary(HomeLibrarySummary.Empty);
+                _homeJacketsReady = true;
                 return;
             }
 
@@ -692,7 +903,6 @@ namespace OpenSekai.App.UI
                 AddJacket(jackets, item);
             }
 
-            CancelJacketLoad();
             _jacketLoad = new CancellationTokenSource();
             LoadJacketsAsync(jackets, recent, _jacketLoad.Token).Forget();
         }
@@ -738,6 +948,7 @@ namespace OpenSekai.App.UI
             }
 
             _view.SetMarquee(sprites.ToArray());
+            _homeJacketsReady = true;
         }
 
         private void CancelJacketLoad()
@@ -815,10 +1026,15 @@ namespace OpenSekai.App.UI
                 _library.BackRequested -= GoHome;
             }
 
+            if (_packs != null)
+            {
+                _packs.BackRequested -= ReturnFromPacks;
+            }
+
             if (_server != null)
             {
                 _server.BackRequested -= ReturnFromServer;
-                _server.PlayRequested -= PlayFromServer;
+                _server.PlayRequested -= OnServerPlayRequested;
                 _server.LibraryChanged -= OnServerImported;
             }
 

@@ -5,68 +5,71 @@ namespace Sekai
 {
 	public class UIPartsFillCover : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_fader")]
 		[SerializeField]
-		private ColorFader _fader;
+		private ColorFader fader;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_fillImage")]
 		[SerializeField]
-		private CustomImage _fillImage;
+		private CustomImage fillImage;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_closeButton")]
 		[SerializeField]
-		private CustomButton _closeButton;
+		private CustomButton closeButton;
 
 		public Color FillColor
 		{
-			get => _fillImage != null ? _fillImage.color : Color.clear;
+			get => fillImage != null ? fillImage.color : Color.clear;
 			set
 			{
-				if (_fillImage != null)
+				if (fillImage != null)
 				{
-					_fillImage.color = value;
+					fillImage.color = value;
 				}
-				if (_fader != null)
+				if (fader != null)
 				{
-					_fader.Set(value);
+					fader.Set(value);
 				}
 			}
 		}
 
-		public ColorFader Fader => _fader;
-		public CustomButton CloseButton => _closeButton;
+		public ColorFader Fader => fader;
+		public CustomButton CloseButton => closeButton;
 
 		public bool EnableClick
 		{
-			get => _closeButton != null && _closeButton.interactable && _fillImage != null && _fillImage.raycastTarget;
+			get => closeButton != null && closeButton.interactable && fillImage != null && fillImage.raycastTarget;
 			set
 			{
-				if (_closeButton != null)
+				if (closeButton != null)
 				{
-					_closeButton.interactable = value;
+					closeButton.interactable = value;
 				}
-				if (_fillImage != null)
+				if (fillImage != null)
 				{
-					_fillImage.raycastTarget = value;
+					fillImage.raycastTarget = value;
 				}
 			}
 		}
 
 		private void Awake()
 		{
-			if (_fillImage == null)
+			if (fillImage == null)
 			{
-				_fillImage = GetComponent<CustomImage>();
+				fillImage = GetComponent<CustomImage>();
 			}
-			if (_closeButton == null)
+			if (closeButton == null)
 			{
-				_closeButton = GetComponent<CustomButton>();
+				closeButton = GetComponent<CustomButton>();
 			}
-			if (_fader == null)
+			if (fader == null)
 			{
-				_fader = GetComponent<ColorFader>();
+				fader = GetComponent<ColorFader>();
 			}
 
-			if (_fader != null && _fillImage != null)
+			if (fader != null && fillImage != null)
 			{
-				_fader.Set(_fillImage.color);
+				fader.Set(fillImage.color);
 			}
 		}
 	}

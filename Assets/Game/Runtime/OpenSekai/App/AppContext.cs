@@ -1,5 +1,6 @@
 using OpenSekai.App.Playback;
 using OpenSekai.Infrastructure.Packages;
+using OpenSekai.Shared.Settings;
 
 namespace OpenSekai.App
 {
@@ -10,6 +11,11 @@ namespace OpenSekai.App
     /// </summary>
     public sealed class AppContext
     {
+        public AppContext(SongPackageManager packages, LiveSettingsStore settings)
+            : this(packages, PlayService.CreateDefault(packages, settings))
+        {
+        }
+
         public AppContext(SongPackageManager packages, PlayService playback)
         {
             Packages = packages ?? throw new System.ArgumentNullException(nameof(packages));

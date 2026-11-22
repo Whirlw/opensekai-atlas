@@ -100,19 +100,20 @@ namespace Sekai
 				return;
 			}
 
-			_owner.StartCoroutine(PushUIScreenCore(screenType, bootArg, isWaitExitAnimation));
+			_changeUILayerCoroutine = PushUIScreenCore(screenType, bootArg, isWaitExitAnimation);
+			_owner.StartCoroutine(_changeUILayerCoroutine);
 		}
 
 		internal void BackUIScreen(bool isWaitExitAnimation = false)
 		{
-			if (_owner.OnBackUIScreenOverride != null)
+			if (_changeUILayerCoroutine != null)
 			{
-				ExecuteBackUIScreenOverride(isWaitExitAnimation);
 				return;
 			}
 
-			if (_changeUILayerCoroutine != null)
+			if (_owner.OnBackUIScreenOverride != null)
 			{
+				ExecuteBackUIScreenOverride(isWaitExitAnimation);
 				return;
 			}
 
@@ -122,15 +123,15 @@ namespace Sekai
 
 		internal void BackUIScreenAndDestroyExitedScreen(MenuScreenType screenType, bool isWaitExitAnimation = false)
 		{
+			if (_changeUILayerCoroutine != null)
+			{
+				return;
+			}
+
 			if (_owner.OnBackUIScreenOverride != null)
 			{
 				ExecuteBackUIScreenOverride(isWaitExitAnimation);
 				DestroyScreenInstance(screenType);
-				return;
-			}
-
-			if (_changeUILayerCoroutine != null)
-			{
 				return;
 			}
 
@@ -140,6 +141,7 @@ namespace Sekai
 
 		internal void ForceBackUIScreen(bool isWaitExitAnimation = false)
 		{
+			if (IsUILayerWorking) return;
 			_owner.OnBackUIScreenOverride = null;
 			BackUIScreen(isWaitExitAnimation);
 		}
@@ -246,9 +248,9 @@ namespace Sekai
 				return false;
 			}
 
-			if (layer.Data.hasLayerCamera && layer.ScreenLayer.LayerCamera != null && _owner.CameraStack != null)
+			if (layer.Data.HasLayerCamera && layer.ScreenLayer.LayerCamera != null && _owner.CameraStack != null)
 			{
-				_owner.CameraStack.AddToStack(layer.ScreenLayer.LayerCamera, layer.Data.layerCameraPriority);
+				_owner.CameraStack.AddToStack(layer.ScreenLayer.LayerCamera, layer.Data.LayerCameraPriority);
 			}
 
 			return true;
@@ -263,7 +265,7 @@ namespace Sekai
 
 			if (layer.ScreenLayer != null)
 			{
-				if (layer.Data != null && layer.Data.hasLayerCamera && layer.ScreenLayer.LayerCamera != null && _owner.CameraStack != null)
+				if (layer.Data != null && layer.Data.HasLayerCamera && layer.ScreenLayer.LayerCamera != null && _owner.CameraStack != null)
 				{
 					_owner.CameraStack.RemoveFromStack(layer.ScreenLayer.LayerCamera);
 				}
@@ -493,7 +495,7 @@ namespace Sekai
 				layer.ScreenLayer.ReverseStartAnimationType();
 			}
 
-			_layerBgmPlayer?.Play(layer.Data.bgmType);
+			_layerBgmPlayer?.Play(layer.Data.BgmType);
 			_layerBackgroundChanger?.Show(layer.Data.BackgroundType);
 			if (applyHeaderSetting)
 			{

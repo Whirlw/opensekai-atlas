@@ -119,15 +119,15 @@ namespace Sekai.Live
 		protected Action<NoteBase> onJudgment;
 
 		protected Action<NoteBase> onUnspawn;
-		private bool viewReleased;
+		private bool _viewReleased;
 
 		protected Func<(NoteResult result, NoteResultDescription description), (NoteResult result, NoteResultDescription description)> onUpdateResult;
 
-				private Func<NoteBase, float> _CalcTimeOffset;
+				private Func<NoteBase, float> _calcTimeOffset;
 		public Func<NoteBase, float> CalcTimeOffset
 		{
-		    get => _CalcTimeOffset;
-		    set => _CalcTimeOffset = value;
+		    get => _calcTimeOffset;
+		    set => _calcTimeOffset = value;
 		}
 
 		protected NoteState state;
@@ -488,6 +488,8 @@ namespace Sekai.Live
 		/// </summary>
 		internal virtual int ChartOrder { get; set; }
 
+		internal float ScrollApproachStart { get; set; } = float.NegativeInfinity;
+
 		/// <summary>
 		/// 标记音符是否使用负流速渲染（从屏幕下方飞入）
 		/// </summary>
@@ -744,8 +746,8 @@ namespace Sekai.Live
 		/// <summary>Removes only the view. Result publication belongs to the Done transition.</summary>
 		internal void RemoveView()
 		{
-			if (viewReleased) return;
-			viewReleased = true;
+			if (_viewReleased) return;
+			_viewReleased = true;
 			onUnspawn?.Invoke(this);
 		}
 
@@ -782,10 +784,10 @@ namespace Sekai.Live
 		/// <summary>This note's four result callbacks, for <see cref="ResultPublication"/>.</summary>
 		internal ResultCallbacks Callbacks => new ResultCallbacks(onJudgment, onUpdateCombo, onUpdateScore, onDamage);
 
-		private bool resultPublished;
+		private bool _resultPublished;
 
 		/// <summary>Whether this judge point already published its verdict in this take.</summary>
-		internal bool HasPublishedResult => resultPublished;
+		internal bool HasPublishedResult => _resultPublished;
 
 		/// <summary>
 		/// Marks this point published. Only <see cref="ResultPublication"/> and a point that has nothing to
@@ -793,12 +795,12 @@ namespace Sekai.Live
 		/// </summary>
 		internal bool ClaimPublication()
 		{
-			if (resultPublished)
+			if (_resultPublished)
 			{
 				return false;
 			}
 
-			resultPublished = true;
+			_resultPublished = true;
 			return true;
 		}
 
@@ -837,8 +839,8 @@ namespace Sekai.Live
 			State = NoteState.Wait;
 			OffsetJudgeTime = 0f;
 			Progress = 0f;
-			viewReleased = false;
-			resultPublished = false;
+			_viewReleased = false;
+			_resultPublished = false;
 			_slideEndInputUntil = float.NegativeInfinity;
 			JudgeInfo = (NoteResult.None, NoteResultDescription.None);
 			offsetTime = 0f;

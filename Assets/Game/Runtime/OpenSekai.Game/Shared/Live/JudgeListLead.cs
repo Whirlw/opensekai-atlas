@@ -23,7 +23,7 @@ namespace OpenSekai.Shared.Live
         /// Seconds a note must spend in the judgment list before its own time. Comfortably longer than
         /// the widest window (<c>LiveConfig.JudgeTimeAfter</c> is about 125-142 ms at 60 fps).
         /// </summary>
-        public const float Seconds = 0.35f;
+        public const float SECONDS = 0.35f;
 
         /// <summary>
         /// True while <paramref name="noteTime"/> is further away than the lead, meaning the scan can
@@ -31,7 +31,7 @@ namespace OpenSekai.Shared.Live
         /// </summary>
         public static bool IsStillTooFarAhead(float currentTime, float noteTime)
         {
-            return IsStillTooFarAhead(currentTime, noteTime, Seconds);
+            return IsStillTooFarAhead(currentTime, noteTime, SECONDS);
         }
 
         /// <summary>

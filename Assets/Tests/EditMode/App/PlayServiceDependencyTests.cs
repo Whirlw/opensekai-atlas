@@ -1,3 +1,4 @@
+using OpenSekai.MaterialPacks;
 using System;
 using System.IO;
 using System.Threading;
@@ -19,7 +20,7 @@ namespace OpenSekai.Tests.EditMode
     /// </summary>
     public sealed class PlayServiceDependencyTests
     {
-        private static readonly string FixtureDirectory = Path.GetFullPath("Tools/fixtures/baseline_tap");
+        private static readonly string _fixtureDirectory = Path.GetFullPath("Tools/fixtures/baseline_tap");
 
         private FakeSurface _surface;
         private FakeBootPublisher _boot;
@@ -28,6 +29,8 @@ namespace OpenSekai.Tests.EditMode
         private FakePlayHistoryRecorder _playHistory;
         private IPlayHistoryRecorder _previousRecorder;
         private PlayService _service;
+        private LiveSettingsStore _settings;
+        private string _root;
 
         [SetUp]
         public void SetUp()
@@ -38,13 +41,68 @@ namespace OpenSekai.Tests.EditMode
             _deck = new FakeDeckSelection { SelectedDeckId = 7 };
             _playHistory = new FakePlayHistoryRecorder();
             _previousRecorder = PlayHistoryRecorder.Current;
-            _service = new PlayService(_boot, _surface, _audio, _deck, _playHistory);
+            _root = Path.Combine(Path.GetTempPath(), "OpenSekai-play-" + Guid.NewGuid().ToString("N"));
+            _settings = new LiveSettingsStore(Path.Combine(_root, "settings.json"));
+            var packages = new OpenSekai.Infrastructure.Packages.SongPackageManager(_root);
+            _service = new PlayService(packages, _settings, _boot, _surface, _audio, _deck, _playHistory);
         }
 
         [TearDown]
         public void TearDown()
         {
             PlayHistoryRecorder.Current = _previousRecorder;
+            if (Directory.Exists(_root)) Directory.Delete(_root, true);
+        }
+
+        [Test]
+        public async System.Threading.Tasks.Task MaterialSelectionFollowsTheBootAndReleasesOnFailedTransition()
+        {
+            var store = new OpenSekai.Infrastructure.Packages.MaterialPackStore(Path.Combine(_root, "material-packs"));
+            var pack = await store.ImportAsync("Tools/fixtures/material-audio.zip");
+            var selection = new MaterialAudioSelection { Groups = { pack.GroupReference("clicks") } };
+            long revision = store.SaveSelection(selection, store.List().Revision);
+            File.Delete(Path.Combine(_root, "material-packs", "installed", pack.PackId, pack.Digest, "sound/click.wav"));
+            _service = new PlayService(new OpenSekai.Infrastructure.Packages.SongPackageManager(_root),
+                _settings, _boot, _surface, _audio, _deck, _playHistory, () => store);
+            _surface.FailOnPush = true;
+            Assert.That((await _service.StartAsync(Request(), CancellationToken.None)).Started, Is.False);
+            revision = store.SaveSelection(selection, revision);
+            _surface.FailOnPush = false;
+            var started = await _service.StartAsync(Request(), CancellationToken.None);
+            Assert.That(started.Started, Is.True);
+            Assert.That(string.Join(" ", started.MaterialPackDiagnostics), Does.Contain("audio.perfect"));
+            var boot = (FreeLiveBootData)_boot.State.Boot;
+            try
+            {
+                Assert.That(boot.MaterialAudio, Is.Not.Null);
+                Assert.Throws<OpenSekai.Infrastructure.Packages.MaterialPackBusyException>(() => store.SaveSelection(selection, revision));
+            }
+            finally { boot.ReleaseMaterialAudio(); }
+            Assert.That(store.SaveSelection(selection, revision), Is.GreaterThan(revision));
+        }
+
+        [Test]
+        public async System.Threading.Tasks.Task TheResourcePackBuiltinSetsReachTheLiveSnapshotOnly()
+        {
+            var store = new OpenSekai.Infrastructure.Packages.MaterialPackStore(Path.Combine(_root, "material-packs"));
+            var configuration = store.List().MixConfiguration();
+            configuration.Builtin = new MaterialBuiltinSelection { Notes = 2, HitFx = 2, Audio = 2 };
+            store.SaveConfiguration(configuration, store.List().Revision);
+            _service = new PlayService(new OpenSekai.Infrastructure.Packages.SongPackageManager(_root),
+                _settings, _boot, _surface, _audio, _deck, _playHistory, () => store);
+
+            var started = await _service.StartAsync(Request(), CancellationToken.None);
+
+            Assert.That(started.Started, Is.True, started.Message);
+            var boot = (FreeLiveBootData)_boot.State.Boot;
+            try
+            {
+                Assert.That(boot.LiveSettingData.NoteSkinIndex, Is.EqualTo(1));
+                Assert.That(boot.LiveSettingData.NoteEffect, Is.EqualTo(1));
+                Assert.That(boot.LiveSettingData.NoteSeIndex, Is.EqualTo(1));
+                Assert.That(_settings.Load().NoteSkinIndex, Is.Zero, "旧设置不被改写");
+            }
+            finally { boot.ReleaseMaterialAudio(); }
         }
 
         [Test]
@@ -82,7 +140,7 @@ namespace OpenSekai.Tests.EditMode
         public async System.Threading.Tasks.Task ARequestThatTargetsAnotherReturnSceneIsRefused()
         {
             PlayStartResult result = await _service.StartAsync(
-                new PlayRequest(FixtureDirectory, false, SceneManager.Scene.Core), CancellationToken.None);
+                new PlayRequest(_fixtureDirectory, false, SceneManager.Scene.Core), CancellationToken.None);
 
             Assert.That(result.Status, Is.EqualTo(PlayStartStatus.Failed));
             Assert.That(result.Message, Is.EqualTo("无法从当前场景开始游玩。"));
@@ -108,7 +166,7 @@ namespace OpenSekai.Tests.EditMode
             _boot.State = new LiveBootState(null, PlayMode.None);
             _surface.FailOnPush = true;
 
-            PlayStartResult result = await _service.StartAsync(Request(FixtureDirectory), CancellationToken.None);
+            PlayStartResult result = await _service.StartAsync(Request(_fixtureDirectory), CancellationToken.None);
 
             Assert.That(result.Status, Is.EqualTo(PlayStartStatus.Failed));
             Assert.That(_boot.PublishCount, Is.EqualTo(1));
@@ -137,9 +195,25 @@ namespace OpenSekai.Tests.EditMode
         }
 
         [Test]
+        public async System.Threading.Tasks.Task ReadingYieldsWithTheStartLockHeldAndCanBeCancelledBeforeAudio()
+        {
+            using var cancellation = new CancellationTokenSource();
+            string progress = null;
+            var start = _service.StartAsync(Request(), cancellation.Token, value => progress = value);
+            Assert.That(progress, Is.EqualTo("正在读取谱面..."));
+            Assert.That(start.Status, Is.EqualTo(UniTaskStatus.Pending));
+            Assert.That(_service.IsStarting, Is.True);
+            cancellation.Cancel();
+            Assert.That((await start).Status, Is.EqualTo(PlayStartStatus.Cancelled));
+            Assert.That(_audio.ReleaseCount, Is.Zero);
+            Assert.That(_boot.PublishCount, Is.Zero);
+            Assert.That(_service.IsStarting, Is.False);
+        }
+
+        [Test]
         public async System.Threading.Tasks.Task AStartedLiveKeepsTheLockUntilTheSceneExitsAndAllowsTheNextOne()
         {
-            PlayStartResult first = await _service.StartAsync(Request(FixtureDirectory), CancellationToken.None);
+            PlayStartResult first = await _service.StartAsync(Request(_fixtureDirectory), CancellationToken.None);
 
             Assert.That(first.Status, Is.EqualTo(PlayStartStatus.Started));
             Assert.That(_boot.PublishCount, Is.EqualTo(1));
@@ -153,7 +227,7 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(published, Is.Not.Null);
             Assert.That(published.DeckData.UserInfo.DeckId, Is.EqualTo(7));
 
-            PlayStartResult whileRunning = await _service.StartAsync(Request(FixtureDirectory), CancellationToken.None);
+            PlayStartResult whileRunning = await _service.StartAsync(Request(_fixtureDirectory), CancellationToken.None);
             Assert.That(whileRunning.Status, Is.EqualTo(PlayStartStatus.Busy));
 
             _surface.RaiseSceneExit();
@@ -162,7 +236,7 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(_surface.SceneExitHandlers, Is.Zero);
             Assert.That(_surface.UnsubscribeCount, Is.EqualTo(1));
 
-            PlayStartResult second = await _service.StartAsync(Request(FixtureDirectory), CancellationToken.None);
+            PlayStartResult second = await _service.StartAsync(Request(_fixtureDirectory), CancellationToken.None);
             Assert.That(second.Status, Is.EqualTo(PlayStartStatus.Started));
             Assert.That(_boot.PublishCount, Is.EqualTo(2));
             Assert.That(_surface.SubscribeCount, Is.EqualTo(2));
@@ -173,7 +247,7 @@ namespace OpenSekai.Tests.EditMode
         [TestCase(true, 11f)]
         public async System.Threading.Tasks.Task AStartedLiveUsesTheMirrorSettingWhenConvertingTheChart(bool mirrored, float lane)
         {
-            LiveSettingData settings = LiveSettingsStore.Shared.Load();
+            LiveSettingData settings = _settings.Load();
             bool previous = settings.IsMirror;
             try
             {
@@ -195,14 +269,55 @@ namespace OpenSekai.Tests.EditMode
         {
             PlayHistoryRecorder.Current = null;
 
-            PlayStartResult result = await _service.StartAsync(Request(FixtureDirectory), CancellationToken.None);
+            PlayStartResult result = await _service.StartAsync(Request(_fixtureDirectory), CancellationToken.None);
 
             Assert.That(result.Status, Is.EqualTo(PlayStartStatus.Started));
             Assert.That(PlayHistoryRecorder.Current, Is.SameAs(_playHistory));
         }
 
         private static PlayRequest Request()
-            => Request(FixtureDirectory);
+            => Request(_fixtureDirectory);
+
+        [Test]
+        public async System.Threading.Tasks.Task LeavingTheLibraryWhileReadingDoesNotRegisterAudio()
+        {
+            var start = _service.StartAsync(Request(), CancellationToken.None);
+            _surface.Scene = SceneManager.Scene.Core;
+            bool registered = false;
+            _audio.OnRegister = () => registered = true;
+
+            Assert.That((await start).Status, Is.EqualTo(PlayStartStatus.Failed));
+            Assert.That(registered, Is.False);
+            Assert.That(_boot.PublishCount, Is.Zero);
+            Assert.That(_service.IsStarting, Is.False);
+        }
+
+        [Test]
+        public async System.Threading.Tasks.Task LinkedSusChartCanStartFromAnUncachedFolder()
+        {
+            string directory = Directory.CreateDirectory(Path.Combine(_root, "sus")).FullName;
+            var manifest = JObject.Parse(File.ReadAllText(Path.Combine(_fixtureDirectory, "manifest.json")));
+            manifest["scoreFileName"] = "linked.sus";
+            File.WriteAllText(Path.Combine(directory, "manifest.json"), manifest.ToString());
+            File.Copy("Tools/fixtures/sus-p2-6/linked.sus", Path.Combine(directory, "linked.sus"));
+            File.Copy(Path.Combine(_fixtureDirectory, "audio.wav"), Path.Combine(directory, "audio.wav"));
+            int mainThread = Thread.CurrentThread.ManagedThreadId;
+            int audioThread = 0;
+            _audio.OnRegister = () => audioThread = Thread.CurrentThread.ManagedThreadId;
+
+            var previousFrame = Sekai.Live.MusicScore.CurrentFrameInfo;
+            try
+            {
+                Sekai.Live.MusicScore.CurrentFrameInfo.speedRatio = 2f;
+                var result = await _service.StartAsync(Request(directory), CancellationToken.None);
+
+                Assert.That(result.Status, Is.EqualTo(PlayStartStatus.Started), result.Message);
+                Assert.That(audioThread, Is.EqualTo(mainThread));
+                Assert.That(((FreeLiveBootData)_boot.State.Boot).MusicData.MusicScore.NoteArray, Is.Not.Empty);
+                Assert.That(Sekai.Live.MusicScore.CurrentFrameInfo.speedRatio, Is.EqualTo(2f));
+            }
+            finally { Sekai.Live.MusicScore.CurrentFrameInfo = previousFrame; }
+        }
 
         [TestCase(true, true, PlayStartStatus.Started)]
         [TestCase(false, true, PlayStartStatus.Failed)]
@@ -214,10 +329,10 @@ namespace OpenSekai.Tests.EditMode
                 "OpenSekai-visual-playback-" + Guid.NewGuid().ToString("N"))).FullName;
             try
             {
-                var manifest = JObject.Parse(File.ReadAllText(Path.Combine(FixtureDirectory, "manifest.json")));
+                var manifest = JObject.Parse(File.ReadAllText(Path.Combine(_fixtureDirectory, "manifest.json")));
                 manifest["chartFormat"] = "next-rush";
                 File.WriteAllText(Path.Combine(directory, "manifest.json"), manifest.ToString());
-                File.Copy(Path.Combine(FixtureDirectory, "audio.wav"), Path.Combine(directory, "audio.wav"));
+                File.Copy(Path.Combine(_fixtureDirectory, "audio.wav"), Path.Combine(directory, "audio.wav"));
                 var entities = JArray.Parse(@"[
                     {'archetype':'Initialization','data':[{'name':'revision','value':2}]},
                     {'archetype':'#BPM_CHANGE','data':[{'name':'#BEAT','value':0},{'name':'#BPM','value':120}]}
@@ -329,7 +444,7 @@ namespace OpenSekai.Tests.EditMode
 
             public bool IsLibraryReady => LibraryReady;
 
-            public bool IsLiveLoadingReady => LiveLoadingReady;
+            public UniTask<bool> PrepareLiveLoadingAsync(CancellationToken token) => UniTask.FromResult(LiveLoadingReady);
 
             public void BeginSession(string chartHash)
             {

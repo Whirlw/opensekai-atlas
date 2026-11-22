@@ -3,6 +3,7 @@ Shader "Sekai/Note/Particles/Additive+AlphaBlend"
     Properties
     {
         _MainTex ("Particle Texture", 2D) = "white" {}
+        [PerRendererData] _HitFxLayout ("Hit effect scale delta and pivot", Vector) = (0,0,0,0)
         [PerRendererData] _NextRushPalette ("NextRUSH Palette", Color) = (0,0,0,0)
         [Toggle] _UseFlipMatrix ("UseFlipMatrix", Float) = 0
     }
@@ -53,6 +54,7 @@ Shader "Sekai/Note/Particles/Additive+AlphaBlend"
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
+            float4 _HitFxLayout;
             float _UseFlipMatrix;
             float4x4 _TapEffectViewMatrix;
             float4x4 _TapEffectProjectionMatrix;
@@ -64,12 +66,13 @@ Shader "Sekai/Note/Particles/Additive+AlphaBlend"
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
 
                 float4 worldPos = mul(unity_ObjectToWorld, v.vertex);
+                worldPos.xy += (worldPos.xy - _HitFxLayout.zw) * _HitFxLayout.xy;
                 float4 viewPos = mul(_TapEffectViewMatrix, worldPos);
                 float projectionYSign = UNITY_MATRIX_P[1][1] < 0.0 ? -1.0 : 1.0;
                 float4x4 tapProjection = _TapEffectProjectionMatrix;
                 tapProjection._m11 *= projectionYSign;
                 float4 customClip = mul(tapProjection, viewPos);
-                float4 unityClip = UnityObjectToClipPos(v.vertex);
+                float4 unityClip = UnityWorldToClipPos(worldPos.xyz);
                 o.vertex = lerp(unityClip, customClip, step(0.5, _UseFlipMatrix));
                 o.color = v.color;
                 o.texcoord = TRANSFORM_TEX(v.texcoord.xy, _MainTex);

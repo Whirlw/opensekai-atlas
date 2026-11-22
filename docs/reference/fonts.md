@@ -21,7 +21,7 @@ TMP 侧有 4 个字体资产（`Assets/Graphics/Resources/font/`）：
 
 四个资产都是 **Dynamic** 图集（2048×2048，point size 35，padding 5）。第一次用到某个字时 TMP 才把字形烘进图集，所以新克隆仓库里它们的图集通常是 1×1 占位，这属于正常状态。
 
-一个例外：`SourceHanSansSC-Medium SDF_Dynamic` 现在**预烘了省略号 U+2026**（图集 2048×2048、文件约 8.4 MB）。原因见下面「省略号为什要预烘」。
+Medium 和 Bold 两份 SDF_Dynamic 随包提供曲库常用字形，包括省略号、菜单文字、可打印 ASCII 和常用假名。打开 Unity 菜单 `OpenSekai/Dev/Fonts/Bake Library Glyphs` 可更新这两份图集。曲名中的其他字仍可在运行时添加。
 
 ## 快速开始
 
@@ -79,9 +79,9 @@ TMP 会在运行时把 kerning、连字和字形按需烘进资产文件本身�
 TMP 的 `TextOverflowModes.Ellipsis` 只做 `HasCharacter('…')`，不会自己去加字形。曲库页的字体是运行时解析的，真机实测：给运行时 `CreateFontAsset` 出来的资产调 `TryAddCharacters("…")` **只写进了 character 行、没写进 glyph**（日志 `has=True chars=1`），0.8 秒后 TMP 仍把 20 个标签降级成截断。所以改成让资产自带这个字形：
 
 - `SourceHanSansSC-Medium SDF_Dynamic` 在编辑期烘入 U+2026，`LibraryUi.ResolveCjkFont()` 优先用它，不再依赖运行时光栅化。
-- 这条预烘是**有意为之**，因此 `Tools/generated-assets.txt` 里它的期望大小是 8,395,651 字节而不是 6,516。改动它只需重烘（`-UpdateGeneratedAssets`），不要"还原"回冷状态——还原会让省略号缺陷复现。
+- 这两份预烘资产的大小和哈希记录在 `Tools/generated-assets.txt`。改动它只需重烘（`-UpdateGeneratedAssets`），不要"还原"回冷状态——还原会让省略号缺陷复现。
 - `ResourceCatalogTests.TheShippedProjectFontCarriesTheEllipsisGlyph` 守住这一点：读资产、断言 `HasCharacter('…')` 且 `glyphTable` 非空（只读，不改资产）。
-- 这份资产的 **Clear Dynamic Data on Build 是关的**（`m_ClearDynamicDataOnBuild: 0`）。TMP 自带的 `TMP_PreBuildProcessor` 每次出包前都会清空勾了这一项的动态字体资产的字符表和字形表——以前每次装机都把预烘的省略号清掉、写回磁盘，打出来的包里也就没有它。其余三份是冷状态，保持勾选。
+- 两份预烘资产的 **Clear Dynamic Data on Build 都是关的**（`m_ClearDynamicDataOnBuild: 0`）。TMP 自带的 `TMP_PreBuildProcessor` 每次出包前都会清空勾了这一项的动态字体资产的字符表和字形表——以前每次装机都把预烘的省略号清掉、写回磁盘，打出来的包里也就没有它。两份 Base 资产保持勾选。
 
 ### 不再需要手动还原（2026-11-14 起）
 

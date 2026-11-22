@@ -77,7 +77,7 @@ namespace OpenSekai.Tests.EditMode.Sonolus
 
         // ---------------------------------------------------------------- responses
 
-        private const string LevelJson = @"{
+        private const string LEVEL_JSON = @"{
             ""name"": ""UnCh-0001"", ""source"": ""https://example.com"", ""version"": 2, ""rating"": 28,
             ""title"": ""Sample Song"", ""artists"": ""Sample Artist"", ""author"": ""Charter#1"",
             ""tags"": [ { ""icon"": ""trophy"" }, { ""title"": ""3d ago"", ""icon"": ""clock"" }, { ""title"": ""Expert"" }, { ""bogus"": 1 } ],
@@ -92,7 +92,7 @@ namespace OpenSekai.Tests.EditMode.Sonolus
         [Test]
         public void ParsesALevelLeniently()
         {
-            SonolusLevel level = SonolusLevel.From(JToken.Parse(LevelJson));
+            SonolusLevel level = SonolusLevel.From(JToken.Parse(LEVEL_JSON));
             Assert.That(level.Name, Is.EqualTo("UnCh-0001"));
             Assert.That(level.RatingText, Is.EqualTo("28"));
             Assert.That(level.EngineName, Is.EqualTo("NextRUSH_P"));
@@ -108,7 +108,7 @@ namespace OpenSekai.Tests.EditMode.Sonolus
         {
             string json = @"{
               ""sections"": [
-                { ""title"": ""#NEWEST"", ""icon"": ""level"", ""itemType"": ""level"", ""items"": [ " + LevelJson + @" ] },
+                { ""title"": ""#NEWEST"", ""icon"": ""level"", ""itemType"": ""level"", ""items"": [ " + LEVEL_JSON + @" ] },
                 { ""title"": ""Skins"", ""itemType"": ""skin"", ""items"": [ { ""name"": ""s"" } ] },
                 { ""title"": ""Empty"", ""itemType"": ""level"", ""items"": [] }
               ],
@@ -142,7 +142,7 @@ namespace OpenSekai.Tests.EditMode.Sonolus
         public void ParsesDetailsCommentsAndRecords()
         {
             SonolusLevelDetails details = SonolusLevelDetails.From(JToken.Parse(@"{
-                ""item"": " + LevelJson + @", ""description"": ""Line one\nLine two"", ""hasCommunity"": true,
+                ""item"": " + LEVEL_JSON + @", ""description"": ""Line one\nLine two"", ""hasCommunity"": true,
                 ""leaderboards"": [ { ""name"": ""arcade"", ""title"": ""Arcade Score"" }, { ""title"": ""nameless"" } ], ""sections"": [] }"));
             Assert.That(details.Description, Is.EqualTo("Line one\nLine two"));
             Assert.That(details.HasCommunity, Is.True);
@@ -181,9 +181,9 @@ namespace OpenSekai.Tests.EditMode.Sonolus
         [Test]
         public void OnlyNextRushLevelsAreSupported()
         {
-            SonolusLevel level = SonolusLevel.From(JToken.Parse(LevelJson));
+            SonolusLevel level = SonolusLevel.From(JToken.Parse(LEVEL_JSON));
             Assert.That(SonolusLevelInstaller.IsSupported(level, out _), Is.True);
-            JObject other = JObject.Parse(LevelJson);
+            JObject other = JObject.Parse(LEVEL_JSON);
             other["engine"]["name"] = "next-rush";
             other["engine"]["title"] = "Next RUSH";
             Assert.That(SonolusLevelInstaller.IsSupported(SonolusLevel.From(other), out _), Is.True);
@@ -196,7 +196,7 @@ namespace OpenSekai.Tests.EditMode.Sonolus
         [Test]
         public void MapsALevelToANativePackageManifest()
         {
-            SonolusLevelDetails details = SonolusLevelDetails.From(JToken.Parse(@"{ ""item"": " + LevelJson + @", ""description"": ""desc"" }"));
+            SonolusLevelDetails details = SonolusLevelDetails.From(JToken.Parse(@"{ ""item"": " + LEVEL_JSON + @", ""description"": ""desc"" }"));
             var manifest = JObject.Parse(SonolusLevelInstaller.BuildManifest(details, ".mp3", ".png"));
             Assert.That((string)manifest["chartFormat"], Is.EqualTo("next-rush"));
             Assert.That((string)manifest["title"], Is.EqualTo("Sample Song"));
@@ -236,7 +236,7 @@ namespace OpenSekai.Tests.EditMode.Sonolus
                     new OpenSekai.Infrastructure.Packages.SongPackageManager(Path.Combine(root, "library"), Path.Combine(root, "tmp")),
                     root, Path.Combine(root, "staging"));
                 SonolusServerAddress server = SonolusServerAddress.Parse("example.com");
-                SonolusLevel level = SonolusLevel.From(JToken.Parse(LevelJson));
+                SonolusLevel level = SonolusLevel.From(JToken.Parse(LEVEL_JSON));
                 Assert.That(installer.StateOf(server, level), Is.EqualTo(SonolusInstallState.Missing));
                 Assert.That(installer.FindInstalled(server, level.Name), Is.Null);
             }

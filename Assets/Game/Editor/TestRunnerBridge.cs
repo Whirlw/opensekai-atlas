@@ -13,21 +13,21 @@ namespace OpenSekai.EditorTools
     /// </summary>
     public static class TestRunnerBridge
     {
-        public const string EditModeReportPath = "TestResults/editmode.xml";
-        public const string PlayModeReportPath = "TestResults/playmode.xml";
+        public const string EDIT_MODE_REPORT_PATH = "TestResults/editmode.xml";
+        public const string PLAY_MODE_REPORT_PATH = "TestResults/playmode.xml";
 
         private static TestRunnerApi _api;
         private static Callbacks _callbacks;
 
         [MenuItem("OpenSekai/Dev/Run EditMode Tests", priority = 900)]
-        private static void RunEditModeFromMenu() => Run(TestMode.EditMode, EditModeReportPath);
+        private static void RunEditModeFromMenu() => Run(TestMode.EditMode, EDIT_MODE_REPORT_PATH);
 
         [MenuItem("OpenSekai/Dev/Run PlayMode Tests", priority = 901)]
-        private static void RunPlayModeFromMenu() => Run(TestMode.PlayMode, PlayModeReportPath);
+        private static void RunPlayModeFromMenu() => Run(TestMode.PlayMode, PLAY_MODE_REPORT_PATH);
 
-        public static void RunEditMode() => Run(TestMode.EditMode, EditModeReportPath);
+        public static void RunEditMode() => Run(TestMode.EditMode, EDIT_MODE_REPORT_PATH);
 
-        public static void RunPlayMode() => Run(TestMode.PlayMode, PlayModeReportPath);
+        public static void RunPlayMode() => Run(TestMode.PlayMode, PLAY_MODE_REPORT_PATH);
 
         public static bool Run(string mode, string reportPath)
         {

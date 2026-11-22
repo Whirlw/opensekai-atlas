@@ -38,6 +38,10 @@ namespace Sekai
 
 		public static SoundManager Instance => _instance;
 
+		/// <summary>Refresh fallback ownership when a scene creates its own listener after loading.</summary>
+		public static void NotifySceneAudioListenersChanged() =>
+			CriAtomAudioRuntime.ReleaseFallbackAudioListenerIfExternalExists();
+
 		/// <summary>
 		/// Extra factor on the in-game music, set per song before the live starts: the 响度平均 gain,
 		/// 1 when that setting is off.
@@ -83,6 +87,21 @@ namespace Sekai
 		}
 
 		public bool ExistsCueName(string cueName) => _catalog.ExistsCueName(cueName);
+
+		/// <summary>
+		/// The live cues' pack sounds: the resource pack page's demo while one runs (no live runs then),
+		/// otherwise the current live's.
+		/// </summary>
+		private static LiveMaterialAudio CurrentMaterialAudio
+		{
+			get
+			{
+				Sekai.Core.Live.LiveDemoController demo = Sekai.Core.Live.LiveDemoController.Current;
+				return demo != null ? demo.MaterialAudio : UserDataManager.Instance.FreeLiveBootData?.MaterialAudio;
+			}
+		}
+
+		internal bool ExistsLiveCue(string cueName) => CurrentMaterialAudio?.Contains(cueName) == true || ExistsCueName(cueName);
 
 		public CriAtomEx.CueInfo[] GetCueInfos(string bundleName) => _catalog.GetCueInfos(bundleName);
 
@@ -213,6 +232,7 @@ namespace Sekai
 
 		public void StopAll()
 		{
+			CurrentMaterialAudio?.Stop();
 			StopIngame();
 			_soundEffectPlayer?.Stop();
 		}
@@ -239,24 +259,35 @@ namespace Sekai
 
 		public uint PlayIngameSE(string cueName)
 		{
-			return PlaySEInternal(cueName, 1f, 0f);
+			return PlayLiveCue(cueName);
 		}
 
-		internal uint PlayHoldLoop(string cueName) => PlaySEInternal(cueName, 1f, 0f, loop: true);
+		internal uint PlayHoldLoop(string cueName) => PlayLiveCue(cueName, loop: true);
+
+		private uint PlayLiveCue(string cueName, int sequence = 0, bool loop = false)
+		{
+			// The demo is quiet until its sound is switched on.
+			Sekai.Core.Live.LiveDemoController demo = Sekai.Core.Live.LiveDemoController.Current;
+			if (demo != null && !demo.Audible) return 0;
+			var audio = CurrentMaterialAudio;
+			if (audio != null && audio.TryPlay(cueName, loop, _volume.SoundEffect, sequence, out uint playback))
+				return playback;
+			return PlaySEInternal(cueName, 1f, 0f, sequence, loop);
+		}
 
 		public void PlayIngameSEOneShot(string cueName)
 		{
-			PlaySEInternal(cueName, 1f, 0f);
+			PlayLiveCue(cueName);
 		}
 
 		internal void PlayIngameSEOneShot(string cueName, int requestSequence)
 		{
-			PlaySEInternal(cueName, 1f, 0f, requestSequence);
+			PlayLiveCue(cueName, requestSequence);
 		}
 
 		public void PlayIngameVoiceOneShot(string cueName)
 		{
-			PlaySEInternal(cueName, 1f, 0f);
+			PlayLiveCue(cueName);
 		}
 
 		public void StopSE(uint playbackId)

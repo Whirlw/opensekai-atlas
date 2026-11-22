@@ -7,7 +7,6 @@ namespace OpenSekai.App.UI
     /// The emblem built from its layers (see <see cref="BrandArt.Part"/>), so the splash can draw it
     /// in piece by piece and the header can show it whole. Every layer stretches over the square
     /// root, so resizing the root (the splash's flight into the header) carries all of it along.
-    /// The sprites arrive from a worker thread; until then the emblem is simply empty.
     /// </summary>
     internal sealed class BrandEmblem
     {
@@ -24,10 +23,10 @@ namespace OpenSekai.App.UI
         private readonly Image _moon;
         private readonly RectTransform _noteRect;
         private readonly RectTransform _moonRect;
-        private readonly float[] _reveal = { 1f, 1f, 1f, 1f, 1f, 1f };
 
         internal BrandEmblem(Transform parent, string name)
         {
+            var sprites = BrandSprites.Layers;
             Root = LibraryUi.CreateRect(name, parent);
             Vector2 center = new Vector2(0.5f, 0.5f);
             LibraryWidgets.Place(Root, center, center, Vector2.zero, new Vector2(HomeTheme.Layout.BRAND_EMBLEM_SIZE, HomeTheme.Layout.BRAND_EMBLEM_SIZE));
@@ -35,31 +34,31 @@ namespace OpenSekai.App.UI
             _halo = Layer("Halo", LibraryShapes.Glow(), HomeTheme.Colors.WithAlpha(HomeTheme.Colors.Violet, 0));
             SetAnchors(_halo.rectTransform, new Vector2(-0.35f, -0.3f), new Vector2(1.35f, 1.4f));
 
-            _orbitBack = Layer("OrbitBack", null, Color.white);
+            _orbitBack = Layer("OrbitBack", sprites[BrandArt.Part.OrbitBack], Color.white);
             SetOrbitBox(_orbitBack.rectTransform);
-            _railsWhole = Layer("RailsWhole", null, Color.white);
-            _rails = Layer("Rails", null, Color.white);
+            _railsWhole = Layer("RailsWhole", sprites[BrandArt.Part.RailsWhole], Color.white);
+            _rails = Layer("Rails", sprites[BrandArt.Part.Rails], Color.white);
 
             _barGlow = Layer("BarGlow", LibraryShapes.Glow(), new Color(0.82f, 0.78f, 1f, 0f));
             SetAnchors(_barGlow.rectTransform,
                 new Vector2(BrandArt.APEX_X - BrandArt.BAR_HALF_WIDTH * 1.9f, BrandArt.BAR_Y - 0.11f),
                 new Vector2(BrandArt.APEX_X + BrandArt.BAR_HALF_WIDTH * 1.9f, BrandArt.BAR_Y + 0.11f));
-            _crossbar = Layer("Crossbar", null, Color.white);
+            _crossbar = Layer("Crossbar", sprites[BrandArt.Part.Crossbar], Color.white);
 
             _noteGlow = Layer("NoteGlow", LibraryShapes.Glow(), HomeTheme.Colors.WithAlpha(HomeTheme.Colors.Rose, 0));
             SetAnchors(_noteGlow.rectTransform,
                 new Vector2(BrandArt.APEX_X - 0.2f, BrandArt.NOTE_Y - 0.09f),
                 new Vector2(BrandArt.APEX_X + 0.2f, BrandArt.NOTE_Y + 0.09f));
-            _note = Layer("Note", null, Color.white);
+            _note = Layer("Note", sprites[BrandArt.Part.Note], Color.white);
             _noteRect = _note.rectTransform;
 
-            _orbitFront = Layer("OrbitFront", null, Color.white);
+            _orbitFront = Layer("OrbitFront", sprites[BrandArt.Part.OrbitFront], Color.white);
             SetOrbitBox(_orbitFront.rectTransform);
 
             BrandArt.Vec moon = BrandArt.SatelliteCenter();
             _moonGlow = Layer("MoonGlow", LibraryShapes.Glow(), HomeTheme.Colors.WithAlpha(HomeTheme.Colors.Rose, 0));
             SetAnchors(_moonGlow.rectTransform, new Vector2(moon.X - 0.12f, moon.Y - 0.12f), new Vector2(moon.X + 0.12f, moon.Y + 0.12f));
-            _moon = Layer("Moon", null, Color.white);
+            _moon = Layer("Moon", sprites[BrandArt.Part.Satellite], Color.white);
             _moonRect = _moon.rectTransform;
             // Stretched with zero offsets, so moving the pivot only moves the point it scales around.
             _moonRect.pivot = new Vector2(moon.X, moon.Y);
@@ -69,32 +68,10 @@ namespace OpenSekai.App.UI
             ConfigureSweep(_orbitBack);
             ConfigureSweep(_orbitFront);
 
-            ApplySprites(BrandSprites.Loaded);
             ShowComplete();
         }
 
         internal RectTransform Root { get; }
-
-        internal bool HasSprites { get; private set; }
-
-        internal void ApplySprites(BrandSprites sprites)
-        {
-            if (sprites == null)
-            {
-                return;
-            }
-
-            HasSprites = true;
-            _orbitBack.sprite = sprites[BrandArt.Part.OrbitBack];
-            _railsWhole.sprite = sprites[BrandArt.Part.RailsWhole];
-            _rails.sprite = sprites[BrandArt.Part.Rails];
-            _crossbar.sprite = sprites[BrandArt.Part.Crossbar];
-            _note.sprite = sprites[BrandArt.Part.Note];
-            _orbitFront.sprite = sprites[BrandArt.Part.OrbitFront];
-            _moon.sprite = sprites[BrandArt.Part.Satellite];
-            SetEnabled(true);
-            Reveal(_reveal[0], _reveal[1], _reveal[2], _reveal[3], _reveal[4], _reveal[5]);
-        }
 
         /// <summary>The finished emblem, as the header shows it.</summary>
         internal void ShowComplete()
@@ -108,17 +85,10 @@ namespace OpenSekai.App.UI
         /// </summary>
         internal void Reveal(float rails, float crossbar, float note, float orbit, float moon, float glow)
         {
-            // Kept so sprites that arrive later pick up the current state.
-            _reveal[0] = rails;
-            _reveal[1] = crossbar;
-            _reveal[2] = note;
-            _reveal[3] = orbit;
-            _reveal[4] = moon;
-            _reveal[5] = glow;
             // The legs carry the cuts the front of the orbit passes through only once it is there.
             bool cut = orbit >= 1f;
-            _railsWhole.enabled = HasSprites && !cut;
-            _rails.enabled = HasSprites && cut;
+            _railsWhole.enabled = !cut;
+            _rails.enabled = cut;
             SetAlpha(_railsWhole, rails);
             SetAlpha(_rails, rails);
 
@@ -143,15 +113,6 @@ namespace OpenSekai.App.UI
             SetAlpha(_moonGlow, 0.7f * Mathf.Clamp01(moon) * glow);
 
             SetAlpha(_halo, 0.34f * glow);
-        }
-
-        private void SetEnabled(bool enabled)
-        {
-            _orbitBack.enabled = enabled;
-            _crossbar.enabled = enabled;
-            _note.enabled = enabled;
-            _orbitFront.enabled = enabled;
-            _moon.enabled = enabled;
         }
 
         private Image Layer(string name, Sprite sprite, Color color)

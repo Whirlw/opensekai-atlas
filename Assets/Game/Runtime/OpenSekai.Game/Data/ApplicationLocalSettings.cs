@@ -11,59 +11,61 @@ namespace Sekai
 
 		private static ApplicationLocalSettings _cachedStorage;
 
+		public bool PlayStartupAnimation { get; set; } = true;
+
 		public class VolumeSettings
 		{
-						private float _Bgm = 1f;
+						private float _bgm = 1f;
 			public float Bgm
 			{
-			    get => _Bgm;
-			    set => _Bgm = value;
+			    get => _bgm;
+			    set => _bgm = value;
 			}
-						private float _Se = 1f;
+						private float _se = 1f;
 			public float Se
 			{
-			    get => _Se;
-			    set => _Se = value;
+			    get => _se;
+			    set => _se = value;
 			}
-						private float _Voice = 1f;
+						private float _voice = 1f;
 			public float Voice
 			{
-			    get => _Voice;
-			    set => _Voice = value;
+			    get => _voice;
+			    set => _voice = value;
 			}
 		}
 
-				private VolumeSettings _SystemVolume = new VolumeSettings();
+				private VolumeSettings _systemVolume = new VolumeSettings();
 		public VolumeSettings SystemVolume
 		{
-		    get => _SystemVolume;
-		    set => _SystemVolume = value;
+		    get => _systemVolume;
+		    set => _systemVolume = value;
 		}
-				private VolumeSettings _LiveVolume;
+				private VolumeSettings _liveVolume;
 		public VolumeSettings LiveVolume
 		{
-		    get => _LiveVolume;
-		    set => _LiveVolume = value;
+		    get => _liveVolume;
+		    set => _liveVolume = value;
 		}
 		/// <summary>Volume of the menu pages' interface sounds, apart from music and hit sounds.</summary>
-		private float _UiVolume = 0.6f;
+		private float _uiVolume = 0.6f;
 		public float UiVolume
 		{
-		    get => _UiVolume;
-		    set => _UiVolume = value;
+		    get => _uiVolume;
+		    set => _uiVolume = value;
 		}
 		/// <summary>响度平均: scale every song's music, preview and live, by its measured loudness.</summary>
-		private bool _LoudnessNormalization;
+		private bool _loudnessNormalization;
 		public bool LoudnessNormalization
 		{
-		    get => _LoudnessNormalization;
-		    set => _LoudnessNormalization = value;
+		    get => _loudnessNormalization;
+		    set => _loudnessNormalization = value;
 		}
-				private bool? _FullscreenEnabled;
+				private bool? _fullscreenEnabled;
 		public bool? FullscreenEnabled
 		{
-		    get => _FullscreenEnabled;
-		    set => _FullscreenEnabled = value;
+		    get => _fullscreenEnabled;
+		    set => _fullscreenEnabled = value;
 		}
 
 		public static ApplicationLocalSettings LoadFromStorage()

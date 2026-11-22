@@ -4,8 +4,9 @@ namespace Sekai.UI
 {
 	public class MultiButtonTapEffect : ButtonViewInteractionBase
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_tapEffectList")]
 		[SerializeField]
-		private ButtonViewInteractionBase[] _tapEffectList;
+		private ButtonViewInteractionBase[] tapEffectList;
 
 		public override void OnButtonViewEnabled()
 		{
@@ -39,12 +40,12 @@ namespace Sekai.UI
 
 		private void ForEachEffect(System.Action<ButtonViewInteractionBase> action)
 		{
-			if (_tapEffectList == null)
+			if (tapEffectList == null)
 			{
 				return;
 			}
 
-			foreach (ButtonViewInteractionBase effect in _tapEffectList)
+			foreach (ButtonViewInteractionBase effect in tapEffectList)
 			{
 				if (effect != null)
 				{

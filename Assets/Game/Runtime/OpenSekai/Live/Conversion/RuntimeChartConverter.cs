@@ -22,6 +22,12 @@ namespace OpenSekai.Live.Conversion
         public static MusicScore Convert(ChartDocument _document, LiveBundleBuildData config,
             bool _showPair = true, bool isMirror = false, long? filterBeforeTicks = null)
         {
+            return Convert(_document, new ChartConversionSettings(config), _showPair, isMirror, filterBeforeTicks);
+        }
+
+        internal static MusicScore Convert(ChartDocument _document, ChartConversionSettings config,
+            bool _showPair, bool isMirror, long? filterBeforeTicks = null)
+        {
             if (_document == null) throw new ArgumentNullException(nameof(_document));
             ValidateConnections(_document.NoteList);
             return new RuntimeChartConverter(_document,_showPair).ConvertCore(config,filterBeforeTicks,isMirror);
@@ -51,7 +57,7 @@ namespace OpenSekai.Live.Conversion
                 }
             }
         }
-		private MusicScore ConvertCore(LiveBundleBuildData liveBundleBuildData, long? filterBeforeTicks, bool isMirror)
+		private MusicScore ConvertCore(ChartConversionSettings settings, long? filterBeforeTicks, bool isMirror)
 		{
 			ChartDocument conversionData = _document.Copy();
 			conversionData.MusicScoreEventDataList ??= new List<ChartEvent>();
@@ -66,7 +72,7 @@ namespace OpenSekai.Live.Conversion
 				changeValue = "4/4"
 			});
 			MusicScoreInfo[] musicScoreInfos = ChartTimeline.ConvertMusicScoreInfo(conversionData.MusicScoreEventDataList);
-			NoteBase[] noteArray = ConvertNoteArray(conversionData.NoteList, musicScoreInfos, liveBundleBuildData, conversionData, filterBeforeTicks);
+			NoteBase[] noteArray = ConvertNoteArray(conversionData.NoteList, musicScoreInfos, settings, conversionData, filterBeforeTicks);
 			EventBase[] eventArray = FilterEventArray(conversionData.EventArray, filterBeforeTicks, musicScoreInfos);
 			MusicScore musicScore = new MusicScore(musicScoreInfos, eventArray, noteArray);
 			if (filterBeforeTicks.HasValue && filterBeforeTicks.Value >= 1L)
@@ -124,7 +130,7 @@ namespace OpenSekai.Live.Conversion
 			note.Direction = note.Direction.Mirrored();
 		}
 
-		private NoteBase[] ConvertNoteArray(List<ChartNote> noteArray, MusicScoreInfo[] eventBaseArray, LiveBundleBuildData liveBundleBuildData, ChartDocument conversionData, long? filterBeforeTicks = null)
+		private NoteBase[] ConvertNoteArray(List<ChartNote> noteArray, MusicScoreInfo[] eventBaseArray, ChartConversionSettings settings, ChartDocument conversionData, long? filterBeforeTicks = null)
 		{
 			if (noteArray == null)
 			{
@@ -168,7 +174,7 @@ namespace OpenSekai.Live.Conversion
 			List<NoteBase> liveNotes = new List<NoteBase>(startNotes.Count);
 			foreach (ChartNote note in startNotes)
 			{
-				NoteBase liveNote = SetupNote(note, noteArray, eventBaseArray, liveBundleBuildData, conversionData);
+				NoteBase liveNote = SetupNote(note, noteArray, eventBaseArray, settings, conversionData);
 				if (liveNote != null)
 				{
 					liveNotes.Add(liveNote);
@@ -278,13 +284,13 @@ namespace OpenSekai.Live.Conversion
 			}
 		}
 
-		private NoteBase SetupNote(ChartNote note, List<ChartNote> noteArray, MusicScoreInfo[] musicScoreInfos, LiveBundleBuildData liveBundleBuildData, ChartDocument chart)
+		private NoteBase SetupNote(ChartNote note, List<ChartNote> noteArray, MusicScoreInfo[] musicScoreInfos, ChartConversionSettings settings, ChartDocument chart)
 		{
 			if (note == null)
 			{
 				return null;
 			}
-			NoteBase liveNote = ToNoteBase(note, liveBundleBuildData, noteArray, musicScoreInfos, chart);
+			NoteBase liveNote = ToNoteBase(note, settings, noteArray, musicScoreInfos, chart);
 			if (liveNote == null)
 			{
 				return null;
@@ -296,7 +302,7 @@ namespace OpenSekai.Live.Conversion
 					NoteBase childNote = liveNote.NoteList[i];
 					if (childNote != null && childNote.IsSkip)
 					{
-						CalcSkipNoteLane(liveBundleBuildData, childNote);
+						CalcSkipNoteLane(settings, childNote);
 					}
 				}
 			}
@@ -304,10 +310,10 @@ namespace OpenSekai.Live.Conversion
 			{
 				return liveNote;
 			}
-			if (liveNote is LongNote longNote && liveNote.NoteList != null && liveNote.NoteList.Count > 0 && liveBundleBuildData != null)
+			if (liveNote is LongNote longNote && liveNote.NoteList != null && liveNote.NoteList.Count > 0)
 			{
 				NoteBase lastNote = liveNote.NoteList[liveNote.NoteList.Count - 1];
-				AddComboNote(lastNote, longNote, noteArray, liveBundleBuildData.LongNoteComboBeat, liveBundleBuildData, musicScoreInfos, liveNote.speedRatio);
+				AddComboNote(lastNote, longNote, noteArray, settings, musicScoreInfos, liveNote.speedRatio);
 			}
 			return liveNote;
 		}
@@ -354,7 +360,7 @@ namespace OpenSekai.Live.Conversion
 			return indices;
 		}
 
-		private static void CalcSkipNoteLane(LiveBundleBuildData liveBundleBuildData, NoteBase childNote)
+		private static void CalcSkipNoteLane(ChartConversionSettings settings, NoteBase childNote)
 		{
 			if (childNote == null)
 			{
@@ -365,30 +371,30 @@ namespace OpenSekai.Live.Conversion
 			childNote.LaneEnd = (int)Math.Floor(laneEnd);
 			childNote.LaneStartF = laneStart;
 			childNote.LaneEndF = laneEnd;
-			float laneOffset = LiveUtility.GetLaneOffset(NoteCategory.Combo, liveBundleBuildData);
+			float laneOffset = settings.LaneOffsetFor(NoteCategory.Combo);
 			OpenSekai.Shared.Scoring.JudgeTuning.WidenLaneRange(laneStart, laneEnd, laneOffset, out float judgeStart, out float judgeEnd);
 			childNote.JudgeLaneStart = judgeStart;
 			childNote.JudgeLaneEnd = judgeEnd;
 		}
 
-		private static void AddComboNote(NoteBase note, LongNote longNote, List<ChartNote> noteArray, int longNoteComboBeat, LiveBundleBuildData liveBundleBuildData, MusicScoreInfo[] musicScoreInfoArray, float speedRatio)
+		private static void AddComboNote(NoteBase note, LongNote longNote, List<ChartNote> noteArray, ChartConversionSettings settings, MusicScoreInfo[] musicScoreInfoArray, float speedRatio)
 		{
-			if (note == null || longNote == null || longNoteComboBeat <= 0)
+			if (note == null || longNote == null || settings.LongNoteComboBeat <= 0)
 			{
 				return;
 			}
 
 			// One automatic point every 240 ticks - an eighth of a 4/4 bar, which is the same span
 			// whatever meter the chart is written in. Measured in ticks so a meter cannot move it.
-			const int comboStepTicks = 240;
-			int divisions = OpenSekai.Charts.ChartTimeline.TICKS_PER_BAR > 0 ? (int)(OpenSekai.Charts.ChartTimeline.TICKS_PER_BAR / comboStepTicks) : 8;
+			const int COMBO_STEP_TICKS = 240;
+			int divisions = OpenSekai.Charts.ChartTimeline.TICKS_PER_BAR > 0 ? (int)(OpenSekai.Charts.ChartTimeline.TICKS_PER_BAR / COMBO_STEP_TICKS) : 8;
 			int startIndex = (int)Math.Floor(longNote.MusicScoreInfo.barProgress * divisions) + 1 + longNote.MusicScoreInfo.bar * divisions;
 			int endIndex = (int)Math.Ceiling(note.MusicScoreInfo.barProgress * divisions) - 1 + note.MusicScoreInfo.bar * divisions;
 
 			// A grid point only counts as a middle of THIS bar. Every note of the bar's own chain - its
 			// head, its connection notes, its end - already owns its position, so no middle goes there;
 			// what other bars and other lanes do at the same moment is their own business.
-			HashSet<int> occupied = OccupiedGridIndices(longNote, comboStepTicks);
+			HashSet<int> occupied = OccupiedGridIndices(longNote, COMBO_STEP_TICKS);
 
 			for (int i = startIndex; i <= endIndex; i++)
 			{
@@ -398,7 +404,7 @@ namespace OpenSekai.Live.Conversion
 				}
 
 				MusicScoreInfo musicScoreInfo = MusicScore.GenerateNoteMusicScoreInfo(i / divisions, i % divisions / (float)divisions, musicScoreInfoArray);
-				LongHoldCombo combo = new LongHoldCombo(musicScoreInfo, longNote.Type, speedRatio, LiveUtility.GetLaneOffset(NoteCategory.Combo, liveBundleBuildData));
+				LongHoldCombo combo = new LongHoldCombo(musicScoreInfo, longNote.Type, speedRatio, settings.LaneOffsetFor(NoteCategory.Combo));
 				longNote.AddHoldCombo(combo);
 				combo.SetSkip(true);
 			}
@@ -485,14 +491,14 @@ namespace OpenSekai.Live.Conversion
 			return result != 0 ? result : a.id.CompareTo(b.id);
 		}
 
-		private static NoteBase ToNoteBase(ChartNote source, LiveBundleBuildData bundleBuildData, List<ChartNote> noteArray, MusicScoreInfo[] musicScoreInfos, ChartDocument chart)
+		private static NoteBase ToNoteBase(ChartNote source, ChartConversionSettings settings, List<ChartNote> noteArray, MusicScoreInfo[] musicScoreInfos, ChartDocument chart)
 		{
 			if (source.previousConnectionId != -1)
 			{
 				return null;
 			}
 			MusicScoreInfo musicScoreInfo = ChartTimeline.GenerateMusicScoreInfoFromTicks(source.ticks, musicScoreInfos);
-			NoteBase rootNote = GenerateNote(source, bundleBuildData, musicScoreInfo);
+			NoteBase rootNote = GenerateNote(source, settings, musicScoreInfo);
 			if (source.nextConnectionId == -1)
 			{
 				return rootNote;
@@ -510,35 +516,36 @@ namespace OpenSekai.Live.Conversion
 					return rootNote;
 				}
 				musicScoreInfo = ChartTimeline.GenerateMusicScoreInfoFromTicks(childNote.ticks, musicScoreInfos);
-				GenerateNote(childNote, bundleBuildData, musicScoreInfo, longNote);
+				GenerateNote(childNote, settings, musicScoreInfo, longNote);
 				targetConnectionId = childNote.nextConnectionId;
 			}
 			return rootNote;
 		}
 
-		private static NoteBase GenerateNote(ChartNote noteBase, LiveBundleBuildData bundleBuildData, MusicScoreInfo musicScoreInfo, LongNote longNote = null)
+		private static NoteBase GenerateNote(ChartNote noteBase, ChartConversionSettings settings, MusicScoreInfo musicScoreInfo, LongNote longNote = null)
 		{
 			if (noteBase == null)
 			{
 				throw new ArgumentNullException(nameof(noteBase));
 			}
+			float laneOffset = settings.LaneOffsetFor(noteBase.category);
 			NoteBase note;
 			switch (noteBase.noteBaseType)
 			{
 			case ChartNote.NoteBaseType.Normal:
-				note = new NormalNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, noteBase.speedRatio, noteBase.type, LiveUtility.GetLaneOffset(noteBase.category, bundleBuildData));
+				note = new NormalNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, noteBase.speedRatio, noteBase.type, laneOffset);
 				break;
 			case ChartNote.NoteBaseType.Long:
-				note = new LongNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, noteBase.type, noteBase.speedRatio, LiveUtility.GetLaneOffset(noteBase.category, bundleBuildData), noteBase.noteLineType);
+				note = new LongNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, noteBase.type, noteBase.speedRatio, laneOffset, noteBase.noteLineType);
 				break;
 			case ChartNote.NoteBaseType.Flick:
-				note = new FlickNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, noteBase.speedRatio, noteBase.type, noteBase.direction, LiveUtility.GetLaneOffset(noteBase.category, bundleBuildData), LiveUtility.ScreenDpiToInch(bundleBuildData == null ? 0f : bundleBuildData.FlickDistance));
+				note = new FlickNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, noteBase.speedRatio, noteBase.type, noteBase.direction, laneOffset, settings.FlickPixels);
 				break;
 			case ChartNote.NoteBaseType.FrictionFlick:
-				note = new FrictionFlickNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, noteBase.speedRatio, noteBase.type, noteBase.direction, LiveUtility.ScreenDpiToInch(bundleBuildData == null ? 0f : bundleBuildData.FlickDistance), LiveUtility.GetLaneOffset(noteBase.category, bundleBuildData));
+				note = new FrictionFlickNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, noteBase.speedRatio, noteBase.type, noteBase.direction, settings.FlickPixels, laneOffset);
 				break;
 			case ChartNote.NoteBaseType.Connection:
-				note = new ConnectionNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, noteBase.type, noteBase.speedRatio, LiveUtility.GetLaneOffset(noteBase.category, bundleBuildData), noteBase.noteLineType);
+				note = new ConnectionNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, noteBase.type, noteBase.speedRatio, laneOffset, noteBase.noteLineType);
 				note.SetSkip(noteBase.isSkip);
 				note.SetDecoration(noteBase.isDecoration);
 				if (note is LongNote connectionLongNote && !string.IsNullOrEmpty(noteBase.guideColor))
@@ -548,7 +555,7 @@ namespace OpenSekai.Live.Conversion
 				longNote?.AddConnectionNote(note);
 				return note;
 			case ChartNote.NoteBaseType.HiddenConnection:
-				note = new HiddenConnectionNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, noteBase.type, noteBase.speedRatio, LiveUtility.GetLaneOffset(noteBase.category, bundleBuildData), noteBase.noteLineType);
+				note = new HiddenConnectionNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, noteBase.type, noteBase.speedRatio, laneOffset, noteBase.noteLineType);
 				note.SetSkip(noteBase.isSkip);
 				note.SetDecoration(noteBase.isDecoration);
 				if (note is LongNote hiddenConnectionLongNote && !string.IsNullOrEmpty(noteBase.guideColor))
@@ -558,38 +565,38 @@ namespace OpenSekai.Live.Conversion
 				longNote?.AddConnectionNote(note);
 				return note;
 			case ChartNote.NoteBaseType.LongHoldCombo:
-				note = new LongHoldCombo(musicScoreInfo, noteBase.type, noteBase.speedRatio, LiveUtility.GetLaneOffset(noteBase.category, bundleBuildData));
+				note = new LongHoldCombo(musicScoreInfo, noteBase.type, noteBase.speedRatio, laneOffset);
 				note.SetSkip(noteBase.isSkip);
 				note.SetDecoration(noteBase.isDecoration);
 				longNote?.AddHoldCombo((LongHoldCombo)note);
 				return note;
 			case ChartNote.NoteBaseType.FrictionLong:
-				note = new FrictionLongNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, noteBase.type, bundleBuildData, noteBase.speedRatio, noteBase.noteLineType);
+				note = new FrictionLongNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, noteBase.type, laneOffset, noteBase.speedRatio, noteBase.noteLineType);
 				break;
 			case ChartNote.NoteBaseType.FrictionHideLong:
-				note = new FrictionHideLongNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, noteBase.type, bundleBuildData, noteBase.speedRatio, noteBase.noteLineType);
+				note = new FrictionHideLongNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, noteBase.type, laneOffset, noteBase.speedRatio, noteBase.noteLineType);
 				break;
 			case ChartNote.NoteBaseType.Guide:
 				if (noteBase.previousConnectionId != -1 && noteBase.nextConnectionId == -1)
 				{
-					note = new GuideEndNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, bundleBuildData, noteBase.type, noteBase.speedRatio, noteBase.noteLineType);
+					note = new GuideEndNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, laneOffset, noteBase.type, noteBase.speedRatio, noteBase.noteLineType);
 				}
 				else
 				{
-					note = new GuideNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, noteBase.type, bundleBuildData, noteBase.speedRatio, noteBase.noteLineType);
+					note = new GuideNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, noteBase.type, laneOffset, noteBase.speedRatio, noteBase.noteLineType);
 				}
 				break;
 			case ChartNote.NoteBaseType.Friction:
-				note = new FrictionNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, bundleBuildData, noteBase.type, noteBase.speedRatio, noteBase.noteLineType);
+				note = new FrictionNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, laneOffset, noteBase.type, noteBase.speedRatio, noteBase.noteLineType);
 				break;
 			case ChartNote.NoteBaseType.FrictionHide:
-				note = new FrictionHideNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, bundleBuildData, noteBase.type, noteBase.speedRatio, noteBase.noteLineType);
+				note = new FrictionHideNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, laneOffset, noteBase.type, noteBase.speedRatio, noteBase.noteLineType);
 				break;
 			case ChartNote.NoteBaseType.GuideEnd:
-				note = new GuideEndNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, bundleBuildData, noteBase.type, noteBase.speedRatio, noteBase.noteLineType);
+				note = new GuideEndNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, laneOffset, noteBase.type, noteBase.speedRatio, noteBase.noteLineType);
 				break;
 			case ChartNote.NoteBaseType.GuideHiddenConnection:
-				note = new GuideHiddenConnectionNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, bundleBuildData, noteBase.type, noteBase.speedRatio, noteBase.noteLineType);
+				note = new GuideHiddenConnectionNote(musicScoreInfo, 0, noteBase.laneStart, noteBase.laneEnd, noteBase.category, laneOffset, noteBase.type, noteBase.speedRatio, noteBase.noteLineType);
 				note.SetSkip(noteBase.isSkip);
 				note.SetDecoration(noteBase.isDecoration);
 				if (note is LongNote guideHiddenLongNote && !string.IsNullOrEmpty(noteBase.guideColor))

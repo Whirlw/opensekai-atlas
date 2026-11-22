@@ -299,6 +299,14 @@ namespace OpenSekai.App.UI
         private readonly CanvasGroup _group;
         private MotionHandle _breathe;
         private Action _onRetry;
+        private bool _loading;
+        private bool _presented = true;
+
+        internal void SetPresented(bool presented)
+        {
+            _presented = presented;
+            UpdateAnimation();
+        }
 
         internal ServerStatusView(RectTransform parent)
         {
@@ -321,6 +329,20 @@ namespace OpenSekai.App.UI
         internal void ShowLoading(string message = "正在加载…")
         {
             Show(message, null);
+            _loading = true;
+            UpdateAnimation();
+        }
+
+        private void UpdateAnimation()
+        {
+            _breathe.TryCancel();
+            _breathe = default;
+            _group.alpha = 1f;
+            if (!_loading || !_presented)
+            {
+                return;
+            }
+
             _breathe = LMotion.Create(0f, Mathf.PI * 2f, 1.6f)
                 .WithLoops(-1)
                 .WithScheduler(HomeMotion.Scheduler)
@@ -333,8 +355,8 @@ namespace OpenSekai.App.UI
 
         internal void Hide()
         {
-            _breathe.TryCancel();
-            _breathe = default;
+            _loading = false;
+            UpdateAnimation();
             _root.gameObject.SetActive(false);
         }
 
@@ -342,9 +364,8 @@ namespace OpenSekai.App.UI
 
         private void Show(string message, Action retry)
         {
-            _breathe.TryCancel();
-            _breathe = default;
-            _group.alpha = 1f;
+            _loading = false;
+            UpdateAnimation();
             _onRetry = retry;
             _text.text = message ?? string.Empty;
             _retry.gameObject.SetActive(retry != null);

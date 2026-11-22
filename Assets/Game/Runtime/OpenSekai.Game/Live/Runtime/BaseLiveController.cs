@@ -48,10 +48,10 @@ namespace Sekai.Core.Live
 
 		public bool HasActiveTimeline => IsPlayableState || state == LiveControllerState.Pause;
 
-		/// <summary>The clock the views draw with, in seconds: the audio clock moved by the audio and visual latency.</summary>
+		/// <summary>The clock the views draw with, in seconds: the timeline advanced by visual latency.</summary>
 		/// Not clamped at zero: a chart that starts before its music runs the clock from below zero.
-		protected float currentAudioLatencyMusicTimeMs =>
-			currentMusicTimeMs / 1000f - (timingCompensation.AudioLatencyMs - timingCompensation.VisualLatencyMs) / 1000f;
+		protected float CurrentViewTimeSeconds =>
+			currentMusicTimeMs / 1000f + timingCompensation.VisualLatencyMs / 1000f;
 
 		/// <summary>The signed chart clock used for note execution and judgment.</summary>
 		protected float CurrentLogicChartTime
@@ -64,7 +64,7 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>Where the audio is in its life, as the live clock sees it.</summary>
-		protected enum MusicPhase
+		protected internal enum MusicPhase
 		{
 			/// <summary>The clock has not started (loading, the info page).</summary>
 			NotStarted = 0,
@@ -77,20 +77,26 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>A clock step longer than this (a hitch) is cut short while the clock runs on its own.</summary>
-		private const float MaxFreeClockStepSeconds = 0.1f;
+		private const float MAX_FREE_CLOCK_STEP_SECONDS = 0.1f;
 
 		/// <summary>How long the result effect stays up before the fade to the result.</summary>
-		private const float ResultEffectHoldSeconds = 4f;
+		private const float RESULT_EFFECT_HOLD_SECONDS = 4f;
 
 		/// <summary>How much longer than the start wait the info page may take before the live goes on without it.</summary>
-		private const float IntroWaitSlackSeconds = 4f;
+		private const float INTRO_WAIT_SLACK_SECONDS = 4f;
 
 		protected MusicPhase musicPhase;
+
+#if UNITY_EDITOR
+		internal bool CaptureFinished => state == LiveControllerState.Finish;
+		internal long CaptureTimeMs { get => currentMusicTimeMs; set => currentMusicTimeMs = value; }
+		internal MusicPhase CapturePhase { get => musicPhase; set => musicPhase = value; }
+#endif
 
 		/// <summary>The music and chart spans read when the chart loaded. See <see cref="BuildTimelineSpan"/>.</summary>
 		protected OpenSekai.Shared.Live.Simulation.LiveTimelineSpan timelineSpan;
 
-		protected long TimelineStartMs => (long)Math.Floor(timelineSpan.StartSeconds * 1000d);
+		protected internal long TimelineStartMs => (long)Math.Floor(timelineSpan.StartSeconds * 1000d);
 
 		protected long TimelineEndMs => (long)Math.Ceiling(timelineSpan.EndSeconds * 1000d);
 
@@ -98,7 +104,7 @@ namespace Sekai.Core.Live
 		protected long ResultEffectMs => (long)Math.Ceiling(timelineSpan.ResultEffectSeconds * 1000d);
 
 		/// <summary>Where the audio file starts playing (its leading silence included).</summary>
-		protected long MusicStartMs => (long)Math.Round(timelineSpan.PlaybackStartSeconds * 1000d);
+		protected long MusicStartMs => timingCompensation.TimelineAtPlayback((long)Math.Round(timelineSpan.PlaybackStartSeconds * 1000d));
 
 		/// <summary>
 		/// Where the music's sound ends: the result waits for it, not for the silence after it. The
@@ -109,6 +115,7 @@ namespace Sekai.Core.Live
 			: musicLength;
 
 		private long _preparedMusicStartMs;
+		private bool _viewPlaybackStarted;
 		private double _freeClockRemainderMs;
 
 		protected override void OnAwake()
@@ -125,6 +132,7 @@ namespace Sekai.Core.Live
 		protected virtual void Setup()
 		{
 			FramerateUtility.ApplyFrameRateLimit(Settings?.FrameRateLimit ?? FramerateUtility.FOLLOW_DISPLAY);
+			ApplyBuiltinSets();
 			Screen.sleepTimeout = SleepTimeout.NeverSleep;
 
 			LiveBootDataBase bootData = BootData;
@@ -204,9 +212,26 @@ namespace Sekai.Core.Live
 			}
 		}
 
+		/// <summary>
+		/// The note skin, hit effect and hit sound sets come from this live's own settings snapshot
+		/// (the resource pack page's choice, fixed when the live started), not from the stored
+		/// settings that <see cref="LiveConfig.LoadOptionData"/> read. Retries reuse the same boot.
+		/// </summary>
+		protected void ApplyBuiltinSets()
+		{
+			LiveSettingData snapshot = BootData?.LiveSettingData;
+			if (snapshot == null)
+			{
+				return;
+			}
+
+			LiveConfig.SetNoteSkinAssetBundleName(Mathf.Clamp(snapshot.NoteSkinIndex, 0, 1));
+			LiveConfig.SetNoteEffectName(Mathf.Clamp(snapshot.NoteEffect, 0, 1));
+		}
+
 		private void LoadTapSeSoundBundle()
 		{
-			int noteSeIndex = Settings?.NoteSeIndex ?? 0;
+			int noteSeIndex = Mathf.Clamp(BootData?.LiveSettingData?.NoteSeIndex ?? Settings?.NoteSeIndex ?? 0, 0, 1);
 			LiveConfig.SetNoteSeName(noteSeIndex);
 			SoundManager.Instance.LoadSoundBundle("live/tap_se/" + LiveConfig.NoteSeName, true);
 			SoundManager.Instance.ResumeIngameSe();
@@ -241,7 +266,7 @@ namespace Sekai.Core.Live
 
 				// Let the file's silence play during the info page, but wait for the actual fade-out
 				// callback before letting the clock advance past the playable start.
-				float deadline = Time.realtimeSinceStartup + Mathf.Max(waitTime, introSeconds) + IntroWaitSlackSeconds;
+				float deadline = Time.realtimeSinceStartup + Mathf.Max(waitTime, introSeconds) + INTRO_WAIT_SLACK_SECONDS;
 				while (!IsIntroFinished() && Time.realtimeSinceStartup < deadline)
 				{
 					yield return null;
@@ -288,6 +313,7 @@ namespace Sekai.Core.Live
 
 			musicPhase = MusicPhase.NotStarted;
 			_preparedMusicStartMs = currentMusicTimeMs;
+			_viewPlaybackStarted = false;
 			yield return null;
 		}
 
@@ -314,7 +340,19 @@ namespace Sekai.Core.Live
 			{
 				StartMusicPlayback();
 			}
+			StartViewPlaybackIfDue();
 		}
+
+		private void StartViewPlaybackIfDue()
+		{
+			if (!_viewPlaybackStarted && CurrentViewTimeSeconds >= _preparedMusicStartMs / 1000f)
+			{
+				_viewPlaybackStarted = true;
+				OnViewPlaybackStarted(CurrentViewTimeSeconds);
+			}
+		}
+
+		protected virtual void OnViewPlaybackStarted(float viewTime) { }
 
 		/// <summary>The info page is gone: the clock is at the start point and the game takes input.</summary>
 		protected virtual void OnRhythmGameStart()
@@ -329,11 +367,12 @@ namespace Sekai.Core.Live
 		{
 			musicPhase = MusicPhase.Playing;
 			_freeClockRemainderMs = 0d;
-			if (currentMusicTimeMs != _preparedMusicStartMs)
+			long playbackMs = timingCompensation.PlaybackAt(currentMusicTimeMs);
+			if (playbackMs != _preparedMusicStartMs)
 			{
 				// The run-in overshot the start of the file by part of a frame; begin the audio where the
 				// clock is.
-				SoundManager.Instance.SeekIngame(Math.Max(0L, currentMusicTimeMs));
+				SoundManager.Instance.SeekIngame(Math.Max(0L, playbackMs));
 			}
 			SoundManager.Instance.ResumePreparedPlaybackIngame();
 			TraceTimeline("music start at=" + currentMusicTimeMs);
@@ -354,6 +393,7 @@ namespace Sekai.Core.Live
 			if (musicPhase == MusicPhase.RunIn)
 			{
 				currentMusicTimeMs = targetMs;
+				StartViewPlaybackIfDue();
 				if (currentMusicTimeMs >= MusicStartMs)
 				{
 					StartMusicPlayback();
@@ -361,8 +401,9 @@ namespace Sekai.Core.Live
 				return;
 			}
 
-			SoundManager.Instance.SeekIngame(targetMs);
+			SoundManager.Instance.SeekIngame(Math.Max(0L, timingCompensation.PlaybackAt(targetMs)));
 			currentMusicTimeMs = targetMs;
+			StartViewPlaybackIfDue();
 		}
 
 		/// <summary>Resumes the audio after a pause, unless the clock has not reached it yet or it is over.</summary>
@@ -370,14 +411,13 @@ namespace Sekai.Core.Live
 		{
 			if (musicPhase == MusicPhase.Playing)
 			{
-				SoundManager.Instance.ResumeIngame(currentMusicTimeMs);
+				SoundManager.Instance.ResumeIngame(timingCompensation.PlaybackAt(currentMusicTimeMs));
 			}
 		}
 
 		/// <summary>
 		/// Reads the four times the live runs over: the music's start and end, and the first and last
-		/// note, all on the audio clock. Map note time onto the file clock and add the logic delay
-		/// to place each target where it is actually judged.
+		/// note. Anchor the intro to the chart, and allow a delayed last judgement or BGM to finish.
 		/// </summary>
 		protected void BuildTimelineSpan(MusicScore musicScore)
 		{
@@ -386,10 +426,8 @@ namespace Sekai.Core.Live
 			float last = float.NaN;
 			if (musicScore?.HiddenSimLines?.Length > 0)
 			{
-				first = (float)((music?.ChartToAudioTime(musicScore.FirstHiddenLineTime) ?? musicScore.FirstHiddenLineTime)
-					+ timingCompensation.LogicDelaySeconds);
-				last = (float)((music?.ChartToAudioTime(musicScore.LastHiddenLineTime) ?? musicScore.LastHiddenLineTime)
-					+ timingCompensation.LogicDelaySeconds);
+				first = (float)(music?.ChartToAudioTime(musicScore.FirstHiddenLineTime) ?? musicScore.FirstHiddenLineTime);
+				last = (float)(music?.ChartToAudioTime(musicScore.LastHiddenLineTime) ?? musicScore.LastHiddenLineTime);
 			}
 			NoteBase[] roots = musicScore?.NoteArray;
 			if (roots != null)
@@ -408,8 +446,7 @@ namespace Sekai.Core.Live
 							continue;
 						}
 
-						double audioTime = music?.ChartToAudioTime(note.MusicScoreInfo.time) ?? note.MusicScoreInfo.time;
-						float time = (float)(audioTime + timingCompensation.LogicDelaySeconds);
+						float time = (float)(music?.ChartToAudioTime(note.MusicScoreInfo.time) ?? note.MusicScoreInfo.time);
 						if (float.IsNaN(first) || time < first)
 						{
 							first = time;
@@ -440,8 +477,10 @@ namespace Sekai.Core.Live
 			}
 
 			float leadIn = LiveConfig.GetNoteDisplayOffsetTime(BootData?.LiveSettingData?.NoteSpeed ?? 6f);
+			float audioAdvance = timingCompensation.AudioAdvanceMs / 1000f;
+			float lastJudgement = last + Math.Max(0f, timingCompensation.LogicDelaySeconds);
 			timelineSpan = new OpenSekai.Shared.Live.Simulation.LiveTimelineSpan(
-				musicStart, musicEnd, first, last, leadIn, playbackStart, playbackEnd);
+				musicStart, musicEnd - audioAdvance, first, lastJudgement, leadIn, playbackStart, playbackEnd);
 			TraceTimeline("span " + timelineSpan);
 		}
 
@@ -458,7 +497,7 @@ namespace Sekai.Core.Live
 			currentGameTime = Time.realtimeSinceStartupAsDouble;
 			base.OnUpdate();
 
-			if (NativeInput.BackPressedThisFrame)
+			if (NativeInput.BackPressedThisFrame && !DialogBase.OwnsHardwareBack)
 			{
 				OnBackKey();
 			}
@@ -479,6 +518,12 @@ namespace Sekai.Core.Live
 
 		private void UpdateMusicTime(long runInLimit)
 		{
+			AdvanceTimeline(runInLimit);
+			if (musicPhase != MusicPhase.NotStarted) StartViewPlaybackIfDue();
+		}
+
+		private void AdvanceTimeline(long runInLimit)
+		{
 			switch (musicPhase)
 			{
 				case MusicPhase.RunIn:
@@ -496,7 +541,7 @@ namespace Sekai.Core.Live
 						long audioTime = SoundManager.Instance.GetAudioSyncedUnityTimer();
 						if (audioTime >= 0L)
 						{
-							currentMusicTimeMs = audioTime;
+							currentMusicTimeMs = timingCompensation.TimelineAtPlayback(audioTime);
 						}
 						return;
 					}
@@ -514,7 +559,7 @@ namespace Sekai.Core.Live
 
 		private void AdvanceFreeClock()
 		{
-			double stepMs = Math.Min(Time.unscaledDeltaTime, MaxFreeClockStepSeconds) * 1000d + _freeClockRemainderMs;
+			double stepMs = Math.Min(Time.unscaledDeltaTime, MAX_FREE_CLOCK_STEP_SECONDS) * 1000d + _freeClockRemainderMs;
 			long wholeMs = (long)stepMs;
 			currentMusicTimeMs += wholeMs;
 			_freeClockRemainderMs = stepMs - wholeMs;
@@ -558,13 +603,13 @@ namespace Sekai.Core.Live
 			// last note, whichever ends last. The outro skip brings it forward.
 			if (state == LiveControllerState.Playing)
 			{
-				PreExit(0f, ResultEffectHoldSeconds, ResultEffectMs);
+				PreExit(0f, RESULT_EFFECT_HOLD_SECONDS, ResultEffectMs);
 			}
 			else
 			{
 				// Explicit exits can also arrive from a pause menu with the playback clock stopped.
 				float remainingSeconds = Math.Max(0L, ResultEffectMs - currentMusicTimeMs) / 1000f;
-				PreExit(remainingSeconds, ResultEffectHoldSeconds);
+				PreExit(remainingSeconds, RESULT_EFFECT_HOLD_SECONDS);
 			}
 		}
 

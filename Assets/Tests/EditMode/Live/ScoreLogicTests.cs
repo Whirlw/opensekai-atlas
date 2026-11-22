@@ -122,11 +122,11 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void AnAllPerfectPlayReachesTheFullScore()
         {
-            const int notes = 2019;
-            ScoreLogic logic = Setup(notes);
+            const int NOTES = 2019;
+            ScoreLogic logic = Setup(NOTES);
             int total = 0;
 
-            for (int i = 0; i < notes; i++)
+            for (int i = 0; i < NOTES; i++)
             {
                 total += logic.CalculateAddScore(new TestNote(NoteResult.Perfect));
             }

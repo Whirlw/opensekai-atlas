@@ -106,12 +106,12 @@ namespace OpenSekai.Tests.EditMode.Live
             float tailTime = leftTail.MusicScoreInfo.time;
             Assert.That(rightTail.MusicScoreInfo.time, Is.EqualTo(tailTime));
 
-            const float frame = 1f / 60f;
+            const float FRAME = 1f / 60f;
             var positions = LiveConfig.JudgmentPositions;
-            harness.Step(headTime - frame, 10d + headTime - frame);
-            for (int i = 0; headTime + i * frame < tailTime - frame * 0.5f; i++)
+            harness.Step(headTime - FRAME, 10d + headTime - FRAME);
+            for (int i = 0; headTime + i * FRAME < tailTime - FRAME * 0.5f; i++)
             {
-                float now = headTime + i * frame;
+                float now = headTime + i * FRAME;
                 TouchPhase phase = i == 0 ? TouchPhase.Began : TouchPhase.Stationary;
                 harness.Step(now, 10d + now,
                     LiveHarness.Touch(1, positions[3], 10d + now, phase),
@@ -127,7 +127,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(leftTail.Result, Is.EqualTo(NoteResult.JustPerfect));
             Assert.That(rightTail.Result, Is.EqualTo(NoteResult.None), "one lift cannot grade both overlapping tails");
 
-            float secondLift = tailTime + frame;
+            float secondLift = tailTime + FRAME;
             harness.Step(secondLift, 10d + secondLift, LiveHarness.Touch(2, positions[6], 10d + secondLift, TouchPhase.Ended));
             Assert.That(rightTail.Result, Is.Not.EqualTo(NoteResult.None).And.Not.EqualTo(NoteResult.Miss));
         }

@@ -342,7 +342,7 @@ namespace OpenSekai.App.UI
         private const float RING_WIDTH = 4f;
         private const float COVER_RADIUS = 18f;
 
-        private static readonly Color32 CornerBackground = new Color32(12, 15, 20, 220);
+        private static readonly Color32 _cornerBackground = new Color32(12, 15, 20, 220);
 
         private readonly RectTransform _holder;
         private readonly Image _shadow;
@@ -371,7 +371,7 @@ namespace OpenSekai.App.UI
             Image frame = CreateCover(_holder, COVER_RADIUS, out _cover);
             LibraryUi.Stretch(frame.rectTransform);
 
-            Image corner = LibraryWidgets.Panel("Difficulty", _holder, 9f, CornerBackground);
+            Image corner = LibraryWidgets.Panel("Difficulty", _holder, 9f, _cornerBackground);
             LibraryWidgets.Place(
                 corner.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
                 new Vector2(CORNER, -CORNER), new Vector2(126f, 32f));
@@ -386,7 +386,7 @@ namespace OpenSekai.App.UI
             LibraryUi.UseCondensedFont(_level);
             LibraryWidgets.Inset(_level.rectTransform, 70f, 0f, 10f, 0f);
 
-            Image badge = LibraryWidgets.Panel("Clear", _holder, 14f, CornerBackground);
+            Image badge = LibraryWidgets.Panel("Clear", _holder, 14f, _cornerBackground);
             LibraryWidgets.Place(
                 badge.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f),
                 new Vector2(-CORNER, CORNER), new Vector2(48f, 28f));
@@ -397,7 +397,7 @@ namespace OpenSekai.App.UI
             LibraryUi.UseCondensedFont(_badge);
             LibraryUi.Stretch(_badge.rectTransform);
 
-            Image missing = LibraryWidgets.Panel("Missing", _holder, 14f, CornerBackground);
+            Image missing = LibraryWidgets.Panel("Missing", _holder, 14f, _cornerBackground);
             LibraryWidgets.Place(
                 missing.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f),
                 new Vector2(CORNER, CORNER), new Vector2(96f, 28f));

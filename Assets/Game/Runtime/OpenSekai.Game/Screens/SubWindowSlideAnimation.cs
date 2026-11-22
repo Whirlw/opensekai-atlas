@@ -15,14 +15,17 @@ namespace Sekai
 			ContentOnly = 1
 		}
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_subWindowComponent")]
 		[SerializeField]
-		private SubWindowComponent _subWindowComponent;
+		private SubWindowComponent subWindowComponent;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_slideOffset")]
 		[SerializeField]
-		private Vector2 _slideOffset;
+		private Vector2 slideOffset;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_slideType")]
 		[SerializeField]
-		private SlideType _slideType;
+		private SlideType slideType;
 
 		private ScreenSlideInOut _slideInOut;
 
@@ -31,29 +34,29 @@ namespace Sekai
 			get
 			{
 				Vector2 size = Vector2.zero;
-				if (_subWindowComponent != null)
+				if (subWindowComponent != null)
 				{
-					size = _slideType == SlideType.ContentOnly ? _subWindowComponent.ContentSize : _subWindowComponent.WindowSize;
+					size = slideType == SlideType.ContentOnly ? subWindowComponent.ContentSize : subWindowComponent.WindowSize;
 				}
-				return size + _slideOffset;
+				return size + slideOffset;
 			}
 		}
 
 		public override void InitializeAnimation()
 		{
 			base.InitializeAnimation();
-			if (_subWindowComponent == null)
+			if (subWindowComponent == null)
 			{
 				return;
 			}
 
-			_slideInOut = _subWindowComponent.gameObject.AddComponent<ScreenSlideInOut>();
-			_slideInOut.Setup(_subWindowComponent.gameObject);
+			_slideInOut = subWindowComponent.gameObject.AddComponent<ScreenSlideInOut>();
+			_slideInOut.Setup(subWindowComponent.gameObject);
 		}
 
 		public override UniTask OpenAnimation(CancellationToken ct = default(CancellationToken))
 		{
-			if (_slideInOut == null || _subWindowComponent == null)
+			if (_slideInOut == null || subWindowComponent == null)
 			{
 				OpenImmediately();
 				return UniTask.CompletedTask;
@@ -66,7 +69,7 @@ namespace Sekai
 
 		public override UniTask CloseAnimation(CancellationToken ct = default(CancellationToken))
 		{
-			if (_slideInOut == null || _subWindowComponent == null)
+			if (_slideInOut == null || subWindowComponent == null)
 			{
 				CloseImmediately();
 				return UniTask.CompletedTask;
@@ -80,7 +83,7 @@ namespace Sekai
 		public override void CloseImmediately()
 		{
 			_slideInOut?.Destory();
-			RectTransform rectTransform = _subWindowComponent != null ? _subWindowComponent.transform as RectTransform : null;
+			RectTransform rectTransform = subWindowComponent != null ? subWindowComponent.transform as RectTransform : null;
 			if (rectTransform != null)
 			{
 				rectTransform.anchoredPosition = GetCloseTarget();
@@ -90,7 +93,7 @@ namespace Sekai
 		public override void OpenImmediately()
 		{
 			_slideInOut?.Destory();
-			RectTransform rectTransform = _subWindowComponent != null ? _subWindowComponent.transform as RectTransform : null;
+			RectTransform rectTransform = subWindowComponent != null ? subWindowComponent.transform as RectTransform : null;
 			if (rectTransform != null)
 			{
 				rectTransform.anchoredPosition = Vector2.zero;
@@ -99,12 +102,12 @@ namespace Sekai
 
 		private Vector2 GetOpenStart()
 		{
-			if (_subWindowComponent == null)
+			if (subWindowComponent == null)
 			{
 				return Vector2.zero;
 			}
 
-			switch (_subWindowComponent.GetWindowType)
+			switch (subWindowComponent.GetWindowType)
 			{
 				case WindowType.Left:
 					return new Vector2(-SlideSize.x, 0f);
@@ -119,12 +122,12 @@ namespace Sekai
 
 		private Vector2 GetCloseTarget()
 		{
-			if (_subWindowComponent == null)
+			if (subWindowComponent == null)
 			{
 				return Vector2.zero;
 			}
 
-			switch (_subWindowComponent.GetWindowType)
+			switch (subWindowComponent.GetWindowType)
 			{
 				case WindowType.Left:
 					return new Vector2(-SlideSize.x, 0f);

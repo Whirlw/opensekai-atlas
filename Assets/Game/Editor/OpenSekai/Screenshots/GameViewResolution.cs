@@ -12,8 +12,8 @@ namespace OpenSekai.EditorTools.Screenshots
     /// </summary>
     internal static class GameViewResolution
     {
-        private const BindingFlags Any = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
-        private const string SizePrefix = "OpenSekai Shot ";
+        private const BindingFlags ANY = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+        private const string SIZE_PREFIX = "OpenSekai Shot ";
 
         private static Assembly EditorAssembly => typeof(Editor).Assembly;
 
@@ -24,11 +24,19 @@ namespace OpenSekai.EditorTools.Screenshots
             EditorWindow gameView = EditorWindow.GetWindow(gameViewType, false, null, false);
             object group = CurrentGroup();
             int index = FindOrAdd(group, width, height);
-            PropertyInfo selected = gameViewType.GetProperty("selectedSizeIndex", Any);
+            PropertyInfo selected = gameViewType.GetProperty("selectedSizeIndex", ANY);
             int previous = (int)selected.GetValue(gameView);
-            selected.SetValue(gameView, index);
-            gameView.Repaint();
-            return previous;
+            try
+            {
+                selected.SetValue(gameView, index);
+                gameView.Repaint();
+                return previous;
+            }
+            catch
+            {
+                selected.SetValue(gameView, previous);
+                throw;
+            }
         }
 
         internal static void Restore(int index)
@@ -39,7 +47,7 @@ namespace OpenSekai.EditorTools.Screenshots
             }
             Type gameViewType = EditorAssembly.GetType("UnityEditor.GameView");
             EditorWindow gameView = EditorWindow.GetWindow(gameViewType, false, null, false);
-            gameViewType.GetProperty("selectedSizeIndex", Any).SetValue(gameView, index);
+            gameViewType.GetProperty("selectedSizeIndex", ANY).SetValue(gameView, index);
             gameView.Repaint();
         }
 
@@ -71,7 +79,7 @@ namespace OpenSekai.EditorTools.Screenshots
                 }
             }
 
-            object created = Activator.CreateInstance(sizeType, fixedKind, width, height, SizePrefix + width + "x" + height);
+            object created = Activator.CreateInstance(sizeType, fixedKind, width, height, SIZE_PREFIX + width + "x" + height);
             groupType.GetMethod("AddCustomSize").Invoke(group, new[] { created });
             return total;
         }

@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using Newtonsoft.Json;
-using OpenSekai.Shared.Settings;
+using OpenSekai.Shared.Storage;
 using Sekai;
 using UnityEngine;
 
@@ -47,7 +47,7 @@ namespace OpenSekai.Shared.Settings
             {
                 string directory = Path.GetDirectoryName(_path);
                 if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
-                File.WriteAllText(_path, JsonConvert.SerializeObject(_cached, Formatting.Indented));
+                AtomicFile.WriteAllText(_path, JsonConvert.SerializeObject(_cached, Formatting.Indented));
                 return true;
             }
             catch (Exception e)

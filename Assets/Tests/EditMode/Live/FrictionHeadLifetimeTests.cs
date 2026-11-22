@@ -16,8 +16,8 @@ namespace OpenSekai.Tests.EditMode.Live
 	/// </summary>
 	public sealed class FrictionHeadLifetimeTests
 	{
-		private const float Frame = 1f / 60f;
-		private const double InputBase = 10d;
+		private const float FRAME = 1f / 60f;
+		private const double INPUT_BASE = 10d;
 
 		private LiveHarness _harness;
 		private GameObject _viewObject;
@@ -69,23 +69,23 @@ namespace OpenSekai.Tests.EditMode.Live
 			_view.Now = now;
 			if (auto)
 			{
-				_harness.OnUpdate(now, InputBase + now);
+				_harness.OnUpdate(now, INPUT_BASE + now);
 				_harness.Logic.OnAutoInput();
 				_harness.OnView();
 				return;
 			}
 
-			_harness.Step(now, InputBase + now, touches);
+			_harness.Step(now, INPUT_BASE + now, touches);
 		}
 
 		private static LiveTouchSample Rest(float now, TouchPhase phase = TouchPhase.Stationary) =>
-			new LiveTouchSample(1, new Vector2(800f, 600f), Position, InputBase + now, phase, Vector2.zero);
+			new LiveTouchSample(1, new Vector2(800f, 600f), Position, INPUT_BASE + now, phase, Vector2.zero);
 
 		/// <summary>Steps until the head settles; returns the frame it did, or NaN.</summary>
 		private float RunUntilHeadSettles(LongNote bar, bool auto, bool touch, float until)
 		{
 			bool began = false;
-			for (float now = 0f; now < until; now += Frame)
+			for (float now = 0f; now < until; now += FRAME)
 			{
 				bool keyGoneBefore = bar.HeadKeyLeftWithItsVerdict;
 				Assert.That(keyGoneBefore, Is.False, $"the key is still there before the verdict (t={now:F3})");
@@ -170,13 +170,13 @@ namespace OpenSekai.Tests.EditMode.Live
 		{
 			var bar = new LongNote(Info(1f), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
 			Arrange(bar);
-			for (float now = 0f; now < 1f - Frame * 0.5f; now += Frame)
+			for (float now = 0f; now < 1f - FRAME * 0.5f; now += FRAME)
 			{
 				Step(now, false);
 			}
 
 			Step(1f, false, Rest(1f, TouchPhase.Began));
-			Step(1f + Frame, false, Rest(1f + Frame));
+			Step(1f + FRAME, false, Rest(1f + FRAME));
 			Assert.That(bar.Head.IsSettled, Is.True);
 			Assert.That(bar.HeadKeyLeftWithItsVerdict, Is.False, "an ordinary head parks on the line");
 		}

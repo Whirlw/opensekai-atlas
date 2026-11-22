@@ -4,21 +4,21 @@ namespace UiEffect
 {
 	public static class UiEffectListPool<T>
 	{
-		private static readonly UiEffectObjectPool<List<T>> _s_ListPool;
+		private static readonly UiEffectObjectPool<List<T>> _sListPool;
 
 		public static List<T> Get()
 		{
-			return _s_ListPool.Get();
+			return _sListPool.Get();
 		}
 
 		public static void Release(List<T> toRelease)
 		{
-			_s_ListPool.Release(toRelease);
+			_sListPool.Release(toRelease);
 		}
 
 		static UiEffectListPool()
 		{
-			_s_ListPool = new UiEffectObjectPool<List<T>>(null, list => list.Clear());
+			_sListPool = new UiEffectObjectPool<List<T>>(null, list => list.Clear());
 		}
 	}
 }

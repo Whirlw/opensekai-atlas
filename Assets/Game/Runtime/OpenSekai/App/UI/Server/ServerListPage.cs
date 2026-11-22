@@ -34,10 +34,10 @@ namespace OpenSekai.App.UI
             RectTransform bar = ServerWidgets.TopBar(Root, "服务器", screen.Back, screen.OpenSettings, out _, out _count, out float rightInset);
             float height = LibraryTheme.Layout.CONTROL_HEIGHT;
 
-            const float addWidth = 220f;
-            Button add = ServerWidgets.LabelledButton(bar, "Add", "添加服务器", LibraryIcon.Add, OpenAdd, addWidth, height,
+            const float ADD_WIDTH = 220f;
+            Button add = ServerWidgets.LabelledButton(bar, "Add", "添加服务器", LibraryIcon.Add, OpenAdd, ADD_WIDTH, height,
                 LibraryTheme.Colors.TextPrimary, LibraryTheme.Colors.TextOnAccent, UiCue.None);
-            LibraryWidgets.Place((RectTransform)add.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-rightInset, 0f), new Vector2(addWidth, height));
+            LibraryWidgets.Place((RectTransform)add.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-rightInset, 0f), new Vector2(ADD_WIDTH, height));
 
             float margin = LibraryTheme.Spacing.PAGE_MARGIN;
             RectTransform body = LibraryUi.CreateRect("Body", Root);
@@ -52,7 +52,7 @@ namespace OpenSekai.App.UI
             _empty = BuildEmptyState(body);
             _addPanel = new ServerAddPanel(screen, OnAdded);
             _actions = new ServerActionsPanel(screen);
-            screen.Registry.Changed += Rebuild;
+            screen.Registry.Changed += OnRegistryChanged;
             Rebuild();
         }
 
@@ -100,7 +100,7 @@ namespace OpenSekai.App.UI
         protected override void OnDispose()
         {
             _enter.TryCancel();
-            Screen.Registry.Changed -= Rebuild;
+            Screen.Registry.Changed -= OnRegistryChanged;
             _addPanel.Dispose();
             _actions.Dispose();
         }
@@ -136,14 +136,16 @@ namespace OpenSekai.App.UI
                 "添加一个 Sonolus 服务器在游戏内浏览和下载谱面，或添加一个谱面网站在内置浏览器中打开。",
                 LibraryTheme.FontSize.BODY, LibraryTheme.Colors.TextMuted, FontStyles.Normal, TextAlignmentOptions.Center);
             LibraryWidgets.Place(hint.rectTransform, center, center, new Vector2(0f, -8f), new Vector2(1300f, 34f));
-            const float width = 260f;
+            const float WIDTH = 260f;
             float height = LibraryTheme.Layout.PRIMARY_BUTTON_HEIGHT;
-            Button add = ServerWidgets.LabelledButton(empty, "Add", "添加服务器", LibraryIcon.Add, OpenAdd, width, height,
+            Button add = ServerWidgets.LabelledButton(empty, "Add", "添加服务器", LibraryIcon.Add, OpenAdd, WIDTH, height,
                 LibraryTheme.Colors.TextPrimary, LibraryTheme.Colors.TextOnAccent, UiCue.None, 24f);
-            LibraryWidgets.Place((RectTransform)add.transform, center, center, new Vector2(0f, -100f), new Vector2(width, height));
+            LibraryWidgets.Place((RectTransform)add.transform, center, center, new Vector2(0f, -100f), new Vector2(WIDTH, height));
             empty.gameObject.SetActive(false);
             return empty;
         }
+
+        private void OnRegistryChanged() => Rebuild();
 
         private void Rebuild()
         {
@@ -157,26 +159,26 @@ namespace OpenSekai.App.UI
 
             _cards.Clear();
             // Columns are fractions of the width, so the grid follows the screen without a relayout.
-            const float pad = 24f;
+            const float PAD = 24f;
             for (int i = 0; i < servers.Count; i++)
             {
                 var card = new Card(_content, servers[i], Screen.OpenServer, _actions.Open);
                 int row = i / COLUMNS;
                 int column = i % COLUMNS;
                 RectTransform rect = card.Root;
-                float top = -(pad + row * (CARD_HEIGHT + GAP));
+                float top = -(PAD + row * (CARD_HEIGHT + GAP));
                 rect.anchorMin = new Vector2((float)column / COLUMNS, 1f);
                 rect.anchorMax = new Vector2((float)(column + 1) / COLUMNS, 1f);
                 rect.pivot = new Vector2(0.5f, 1f);
-                float left = column == 0 ? pad : GAP * 0.5f;
-                float right = column == COLUMNS - 1 ? pad : GAP * 0.5f;
+                float left = column == 0 ? PAD : GAP * 0.5f;
+                float right = column == COLUMNS - 1 ? PAD : GAP * 0.5f;
                 rect.offsetMin = new Vector2(left, top - CARD_HEIGHT);
                 rect.offsetMax = new Vector2(-right, top);
                 _cards.Add(card);
             }
 
             int rows = (servers.Count + COLUMNS - 1) / COLUMNS;
-            _content.sizeDelta = new Vector2(0f, pad * 2f + rows * CARD_HEIGHT + Mathf.Max(0, rows - 1) * GAP);
+            _content.sizeDelta = new Vector2(0f, PAD * 2f + rows * CARD_HEIGHT + Mathf.Max(0, rows - 1) * GAP);
         }
 
         /// <summary>One server, as a card in the home page's look.</summary>

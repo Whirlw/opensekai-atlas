@@ -8,10 +8,10 @@ namespace Sekai
 {
 	internal sealed class ScreenBlurController
 	{
-		private const string _uiBlurLayerManagerPrefabPath = "UI/Blur/UIBlurLayerManager";
-		internal const string DefaultLayerName = "UI";
-		private const string BlurLayerName = "BlurUI";
-		private static readonly List<SceneManager.Scene> EnableBlurSceneList = new List<SceneManager.Scene>
+		private const string UI_BLUR_LAYER_MANAGER_PREFAB_PATH = "UI/Blur/UIBlurLayerManager";
+		internal const string DEFAULT_LAYER_NAME = "UI";
+		private const string BLUR_LAYER_NAME = "BlurUI";
+		private static readonly List<SceneManager.Scene> _enableBlurSceneList = new List<SceneManager.Scene>
 		{
 			SceneManager.Scene.Title,
 			SceneManager.Scene.MusicScoreMaker,
@@ -102,7 +102,7 @@ namespace Sekai
 				_target?.RemoveCanvasIfExists();
 				if (_target != null)
 				{
-					SetLayer(DefaultLayerName, _target);
+					SetLayer(DEFAULT_LAYER_NAME, _target);
 				}
 			}
 			_blurTargets.Clear();
@@ -118,8 +118,8 @@ namespace Sekai
 				return;
 			}
 
-			var prefab = Resources.Load<GameObject>(_uiBlurLayerManagerPrefabPath)
-				?? Resources.Load<GameObject>(_uiBlurLayerManagerPrefabPath.ToLowerInvariant());
+			var prefab = Resources.Load<GameObject>(UI_BLUR_LAYER_MANAGER_PREFAB_PATH)
+				?? Resources.Load<GameObject>(UI_BLUR_LAYER_MANAGER_PREFAB_PATH.ToLowerInvariant());
 			GameObject blurObject;
 			var parent = _owner.transform;
 			if (prefab != null)
@@ -202,7 +202,7 @@ namespace Sekai
 				{
 					blurTargetEntry?.RemoveCanvasIfExists();
 				}
-				SetLayer(DefaultLayerName, _target);
+				SetLayer(DEFAULT_LAYER_NAME, _target);
 				DisableBlur();
 				return;
 			}
@@ -214,7 +214,7 @@ namespace Sekai
 			}
 
 			_uiBlurLayerManager?.SetCanvas(blurLayerCanvas);
-			SetLayer(BlurLayerName, blurTarget);
+			SetLayer(BLUR_LAYER_NAME, blurTarget);
 			EnableBlur();
 
 			var dirTarget = dir == BlurStackDirection.Back ? blurTarget : _target;
@@ -249,7 +249,7 @@ namespace Sekai
 			}
 
 			dirTarget.AddCanvasCopyFrom(targetCanvas);
-			SetTargetLayer(DefaultLayerName, dirTarget.TargetObject);
+			SetTargetLayer(DEFAULT_LAYER_NAME, dirTarget.TargetObject);
 		}
 
 		private BlurLayerTarget GetLastEnabledBlurTarget()
@@ -348,7 +348,7 @@ namespace Sekai
 
 			RemoveTarget(_target);
 			_target.RemoveCanvasIfExists();
-			SetLayer(DefaultLayerName, _target);
+			SetLayer(DEFAULT_LAYER_NAME, _target);
 			if (_blurTargets.Count == 0)
 			{
 				_uiBlurLayerManager?.Disable();
@@ -374,8 +374,8 @@ namespace Sekai
 				return;
 			}
 
-			var uiLayer = LayerMask.NameToLayer(DefaultLayerName);
-			var blurLayer = LayerMask.NameToLayer(BlurLayerName);
+			var uiLayer = LayerMask.NameToLayer(DEFAULT_LAYER_NAME);
+			var blurLayer = LayerMask.NameToLayer(BLUR_LAYER_NAME);
 			if (uiLayer < 0 || blurLayer < 0)
 			{
 				return;
@@ -464,7 +464,7 @@ namespace Sekai
 				return true;
 			}
 
-			return EnableBlurSceneList == null || EnableBlurSceneList.Count == 0 || EnableBlurSceneList.Contains(SceneManager.Instance.CurrentScene);
+			return _enableBlurSceneList == null || _enableBlurSceneList.Count == 0 || _enableBlurSceneList.Contains(SceneManager.Instance.CurrentScene);
 		}
 
 		internal void EnableRenderArea(bool isRendering)

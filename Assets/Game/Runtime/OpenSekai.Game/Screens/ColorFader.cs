@@ -1,7 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
+using LitMotion;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.UI;
@@ -480,249 +480,45 @@ namespace Sekai
 			}
 		}
 
-		[CompilerGenerated]
-		private sealed class _003CPlayChainFade_003Ed__64 : IEnumerator<object>, IEnumerator, IDisposable
-		{
-			private int _003C_003E1__state;
-
-			private object _003C_003E2__current;
-
-			public ColorFader _003C_003E4__this;
-
-			public Action onFinish;
-
-			public Color[] targetColors;
-
-			public float delay;
-
-			public float oneFadeDuration;
-
-			private Color _003CbaseColor_003E5__2;
-
-			private Color _003CtargetColor_003E5__3;
-
-			private float _003Ctime_003E5__4;
-
-			private int _003CtableLength_003E5__5;
-
-			private int _003CindexVec_003E5__6;
-
-			private bool _003CisPlayable_003E5__7;
-
-			private int _003Ci_003E5__8;
-
-			object IEnumerator<object>.Current
-			{
-				[DebuggerHidden]
-				get
-				{
-					throw null;
-				}
-			}
-
-			object IEnumerator.Current
-			{
-				[DebuggerHidden]
-				get
-				{
-					throw null;
-				}
-			}
-
-			[DebuggerHidden]
-			public _003CPlayChainFade_003Ed__64(int _003C_003E1__state)
-			{
-				throw null;
-			}
-
-			[DebuggerHidden]
-			void IDisposable.Dispose()
-			{
-				throw null;
-			}
-
-			private bool MoveNext()
-			{
-				throw null;
-			}
-
-			bool IEnumerator.MoveNext()
-			{
-				return this.MoveNext();
-			}
-
-			[DebuggerHidden]
-			void IEnumerator.Reset()
-			{
-				throw null;
-			}
-		}
-
-		[CompilerGenerated]
-		private sealed class _003CPlaySimpleAlphaFade_003Ed__63 : IEnumerator<object>, IEnumerator, IDisposable
-		{
-			private int _003C_003E1__state;
-
-			private object _003C_003E2__current;
-
-			public ColorFader _003C_003E4__this;
-
-			public Action onFinish;
-
-			public float delay;
-
-			public float targetAlpha;
-
-			public float duration;
-
-			private Color _003CbaseColor_003E5__2;
-
-			private float _003Ctime_003E5__3;
-
-			object IEnumerator<object>.Current
-			{
-				[DebuggerHidden]
-				get
-				{
-					throw null;
-				}
-			}
-
-			object IEnumerator.Current
-			{
-				[DebuggerHidden]
-				get
-				{
-					throw null;
-				}
-			}
-
-			[DebuggerHidden]
-			public _003CPlaySimpleAlphaFade_003Ed__63(int _003C_003E1__state)
-			{
-				throw null;
-			}
-
-			[DebuggerHidden]
-			void IDisposable.Dispose()
-			{
-				throw null;
-			}
-
-			private bool MoveNext()
-			{
-				throw null;
-			}
-
-			bool IEnumerator.MoveNext()
-			{
-				return this.MoveNext();
-			}
-
-			[DebuggerHidden]
-			void IEnumerator.Reset()
-			{
-				throw null;
-			}
-		}
-
-		[CompilerGenerated]
-		private sealed class _003CPlaySimpleFade_003Ed__62 : IEnumerator<object>, IEnumerator, IDisposable
-		{
-			private int _003C_003E1__state;
-
-			private object _003C_003E2__current;
-
-			public ColorFader _003C_003E4__this;
-
-			public Action onFinish;
-
-			public float delay;
-
-			public Color targetColor;
-
-			public float duration;
-
-			private Color _003CbaseColor_003E5__2;
-
-			private float _003Ctime_003E5__3;
-
-			object IEnumerator<object>.Current
-			{
-				[DebuggerHidden]
-				get
-				{
-					throw null;
-				}
-			}
-
-			object IEnumerator.Current
-			{
-				[DebuggerHidden]
-				get
-				{
-					throw null;
-				}
-			}
-
-			[DebuggerHidden]
-			public _003CPlaySimpleFade_003Ed__62(int _003C_003E1__state)
-			{
-				throw null;
-			}
-
-			[DebuggerHidden]
-			void IDisposable.Dispose()
-			{
-				throw null;
-			}
-
-			private bool MoveNext()
-			{
-				throw null;
-			}
-
-			bool IEnumerator.MoveNext()
-			{
-				return this.MoveNext();
-			}
-
-			[DebuggerHidden]
-			void IEnumerator.Reset()
-			{
-				throw null;
-			}
-		}
-
+		[UnityEngine.Serialization.FormerlySerializedAs("_targetGameObject")]
 		[SerializeField]
-		private GameObject _targetGameObject;
+		private GameObject targetGameObject;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_blendType")]
 		[SerializeField]
-		private BlendType _blendType;
+		private BlendType blendType;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_defaultColor")]
 		[SerializeField]
-		private Color _defaultColor;
+		private Color defaultColor;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_defaultColorTable")]
 		[SerializeField]
-		private Color[] _defaultColorTable;
+		private Color[] defaultColorTable;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_defaultStyle")]
 		[SerializeField]
-		private Style _defaultStyle;
+		private Style defaultStyle;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_defaultDelay")]
 		[SerializeField]
-		private float _defaultDelay;
+		private float defaultDelay;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_defaultDuration")]
 		[SerializeField]
-		private float _defaultDuration;
+		private float defaultDuration;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_playOnAwake")]
 		[SerializeField]
-		private bool _playOnAwake;
+		private bool playOnAwake;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_playOnEnable")]
 		[SerializeField]
-		private bool _playOnEnable;
+		private bool playOnEnable;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_includeChildren")]
 		[SerializeField]
-		private bool _includeChildren;
+		private bool includeChildren;
 
 		private ITargetColorObj _targetSprite;
 
@@ -738,9 +534,8 @@ namespace Sekai
 
 		private State _state;
 
-		private MonoBehaviour _coroutineExecutor;
+		private MotionHandle _fadeMotion;
 
-		private Action _onFinishedNotExecuted;
 
 		public bool IsAlphaZeroDeactive
 		{
@@ -760,11 +555,11 @@ namespace Sekai
 		{
 			get
 			{
-				return _defaultColorTable;
+				return defaultColorTable;
 			}
 			set
 			{
-				_defaultColorTable = value;
+				defaultColorTable = value;
 			}
 		}
 
@@ -772,11 +567,11 @@ namespace Sekai
 		{
 			get
 			{
-				return _defaultDuration;
+				return defaultDuration;
 			}
 			set
 			{
-				_defaultDuration = value;
+				defaultDuration = value;
 			}
 		}
 
@@ -808,7 +603,7 @@ namespace Sekai
 		{
 			get
 			{
-				return _targetSprite != null ? _targetSprite.TargetColor : _defaultColor;
+				return _targetSprite != null ? _targetSprite.TargetColor : defaultColor;
 			}
 			set
 			{
@@ -823,11 +618,11 @@ namespace Sekai
 		{
 			get
 			{
-				return _defaultColor;
+				return defaultColor;
 			}
 			set
 			{
-				_defaultColor = value;
+				defaultColor = value;
 			}
 		}
 
@@ -835,11 +630,11 @@ namespace Sekai
 		{
 			get
 			{
-				return _includeChildren;
+				return includeChildren;
 			}
 			set
 			{
-				_includeChildren = value;
+				includeChildren = value;
 			}
 		}
 
@@ -853,7 +648,7 @@ namespace Sekai
 
 		private void Awake()
 		{
-			if (_playOnAwake)
+			if (playOnAwake)
 			{
 				Initialize();
 				PlayColorTable(null);
@@ -877,7 +672,7 @@ namespace Sekai
 
 		private void OnEnable()
 		{
-			if (_playOnEnable)
+			if (playOnEnable)
 			{
 				Initialize();
 				PlayColorTable(null);
@@ -892,13 +687,13 @@ namespace Sekai
 			}
 
 			_targetSprite = FindSpriteType();
-			_targetSprite?.Init(_targetGameObject != null ? _targetGameObject : gameObject, _includeChildren);
+			_targetSprite?.Init(targetGameObject != null ? targetGameObject : gameObject, includeChildren);
 			return _targetSprite != null;
 		}
 
 		private ITargetColorObj FindSpriteType()
 		{
-			var target = _targetGameObject != null ? _targetGameObject : gameObject;
+			var target = targetGameObject != null ? targetGameObject : gameObject;
 			if (target == null)
 			{
 				return null;
@@ -942,7 +737,7 @@ namespace Sekai
 			Stop();
 			_fadeTargetColor = targetColor;
 			_fadeCoroutine = PlaySimpleFade(targetColor, delay, duration, onFinish);
-			(_coroutineExecutor != null ? _coroutineExecutor : this).StartCoroutine(_fadeCoroutine);
+			StartCoroutine(_fadeCoroutine);
 		}
 
 		public void PlayAlpha(float targetAlpha, float delay, float duration, Action onFinish = null)
@@ -955,28 +750,31 @@ namespace Sekai
 
 		public void PlayColorTable(Color[] targetColors, float delay, float oneFadeDuration, Style _style, Action onFinish = null)
 		{
-			_defaultColorTable = targetColors;
-			_defaultDelay = delay;
-			_defaultDuration = oneFadeDuration;
+			defaultColorTable = targetColors;
+			defaultDelay = delay;
+			defaultDuration = oneFadeDuration;
 			this._style = _style;
 			Stop();
 			_fadeCoroutine = PlayChainFade(targetColors, delay, oneFadeDuration, onFinish);
-			(_coroutineExecutor != null ? _coroutineExecutor : this).StartCoroutine(_fadeCoroutine);
+			StartCoroutine(_fadeCoroutine);
 		}
 
 		public void PlayColorTable(Action onFinish = null)
 		{
-			PlayColorTable(_defaultColorTable, _defaultDelay, _defaultDuration, _defaultStyle, onFinish);
+			PlayColorTable(defaultColorTable, defaultDelay, defaultDuration, defaultStyle, onFinish);
 		}
+
+		private void OnDisable() => Stop();
 
 		public void Stop()
 		{
 			if (_fadeCoroutine != null)
 			{
-				(_coroutineExecutor != null ? _coroutineExecutor : this).StopCoroutine(_fadeCoroutine);
+				StopCoroutine(_fadeCoroutine);
 				_fadeCoroutine = null;
 			}
 
+			_fadeMotion.TryCancel();
 			_state = State.None;
 		}
 
@@ -988,27 +786,21 @@ namespace Sekai
 				yield return new WaitForSeconds(delay);
 			}
 
-			var startColor = CurrentColor;
-			var elapsed = 0f;
-			while (elapsed < duration)
+			if (duration > 0f)
 			{
-				elapsed += Time.deltaTime;
-				var rate = duration <= 0f ? 1f : Mathf.Clamp01(elapsed / duration);
-				CurrentColor = Color.Lerp(startColor, targetColor, rate);
-				yield return null;
+				Color start = CurrentColor;
+				_fadeMotion = LMotion.Create(0f, 1f, duration)
+					.Bind(progress => CurrentColor = Color.LerpUnclamped(start, targetColor, progress));
+				while (_fadeMotion.IsActive())
+				{
+					yield return null;
+				}
 			}
 
 			_fadeTargetColor = targetColor;
 			CurrentColor = targetColor;
 			_state = State.None;
 			onFinish?.Invoke();
-		}
-
-		private IEnumerator PlaySimpleAlphaFade(float targetAlpha, float delay, float duration, Action onFinish = null)
-		{
-			var color = CurrentColor;
-			color.a = targetAlpha;
-			yield return PlaySimpleFade(color, delay, duration, onFinish);
 		}
 
 		private IEnumerator PlayChainFade(Color[] targetColors, float delay, float oneFadeDuration, Action onFinish = null)
@@ -1050,7 +842,7 @@ namespace Sekai
 
 		private void DeactiveSprite()
 		{
-			var target = _targetGameObject != null ? _targetGameObject : gameObject;
+			var target = targetGameObject != null ? targetGameObject : gameObject;
 			if (target != null)
 			{
 				target.SetActive(false);
@@ -1059,7 +851,7 @@ namespace Sekai
 
 		private void ActiveSprite()
 		{
-			var target = _targetGameObject != null ? _targetGameObject : gameObject;
+			var target = targetGameObject != null ? targetGameObject : gameObject;
 			if (target != null)
 			{
 				target.SetActive(true);
@@ -1068,9 +860,9 @@ namespace Sekai
 
 		public ColorFader()
 		{
-			_defaultColor = Color.white;
-			_defaultDuration = 0.2f;
-			_defaultStyle = Style.Once;
+			defaultColor = Color.white;
+			defaultDuration = 0.2f;
+			defaultStyle = Style.Once;
 			_state = State.None;
 		}
 	}

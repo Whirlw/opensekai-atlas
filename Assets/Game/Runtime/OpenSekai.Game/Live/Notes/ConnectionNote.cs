@@ -2,8 +2,8 @@ namespace Sekai.Live
 {
 	public class ConnectionNote : NoteBase
 	{
-		internal const float ContactWindowFrames = 5f;
-		internal const float ContactWindowSeconds = ContactWindowFrames / 60f;
+		internal const float CONTACT_WINDOW_FRAMES = 5f;
+		internal const float CONTACT_WINDOW_SECONDS = CONTACT_WINDOW_FRAMES / 60f;
 		private LongNote _endpointSection;
 		private NextRushTickPathPoint _connectorInputHead;
 		private NextRushTickPathPoint _connectorInputTail;
@@ -15,8 +15,8 @@ namespace Sekai.Live
 		internal bool IsConnectedVisibleTick => IsVisibleTick && !UsesContactWindow && TickOwner != null;
 		internal virtual bool UsesContactWindow => UsesNextRushContactWindow
 			|| !UsesNextRushJudgment && Category == NoteCategory.Connection && TickOwner == null && !IsDecoration;
-		internal virtual float EarlyContactSeconds => ContactWindowSeconds;
-		internal virtual float LateContactSeconds => ContactWindowSeconds;
+		internal virtual float EarlyContactSeconds => CONTACT_WINDOW_SECONDS;
+		internal virtual float LateContactSeconds => CONTACT_WINDOW_SECONDS;
 		internal bool AcceptsContactAt(float now, float target) =>
 			now > target - EarlyContactSeconds && now < target + LateContactSeconds;
 		internal bool HasRecordedContact { get; private set; }
@@ -32,7 +32,7 @@ namespace Sekai.Live
 		protected bool ContainsConnectorInput(ref LiveTouch touch, float lane, float now) =>
 			_connectorInputHead != null
 				? _connectorInputHead.Contains(_connectorInputTail,
-					touch.PreviousFrameMusicTime ?? (now - OpenSekai.Shared.Live.ReferenceFrame.Seconds), now, lane)
+					touch.PreviousFrameMusicTime ?? (now - OpenSekai.Shared.Live.ReferenceFrame.SECONDS), now, lane)
 				: JudgeLaneStart <= lane && lane <= JudgeLaneEnd;
 
 		public void SetNextRushEndpointSection(LongNote section)
@@ -41,7 +41,7 @@ namespace Sekai.Live
 		}
 
 		// Hidden geometry markers retain a reference frame before retiring.
-		public const float SlideLateWindowSeconds = OpenSekai.Shared.Live.ReferenceFrame.Seconds;
+		public const float SLIDE_LATE_WINDOW_SECONDS = OpenSekai.Shared.Live.ReferenceFrame.SECONDS;
 
 		public ConnectionNote()
 		{
@@ -162,7 +162,7 @@ namespace Sekai.Live
 		}
 
 		internal static bool InContactWindow(float now, float target) =>
-			now > target - ContactWindowSeconds && now < target + ContactWindowSeconds;
+			now > target - CONTACT_WINDOW_SECONDS && now < target + CONTACT_WINDOW_SECONDS;
 
 		internal bool SettleFromCompletedTail()
 		{

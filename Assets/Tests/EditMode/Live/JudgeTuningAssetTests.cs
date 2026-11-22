@@ -27,10 +27,10 @@ namespace OpenSekai.Tests.EditMode.Live
 
             JudgeTuning tuning = LiveBundleBuildData.GetJudgeTuning(asset);
 
-            Assert.That(tuning.NormalLaneOffset, Is.EqualTo(JudgeTuning.ShippedNormalLaneOffset).Within(1e-5f));
-            Assert.That(tuning.LongLaneOffset, Is.EqualTo(JudgeTuning.ShippedLongLaneOffset).Within(1e-5f));
-            Assert.That(tuning.FlickLaneOffset, Is.EqualTo(JudgeTuning.ShippedFlickLaneOffset).Within(1e-5f));
-            Assert.That(tuning.FlickDistanceInches, Is.EqualTo(JudgeTuning.ShippedFlickDistanceInches).Within(1e-5f));
+            Assert.That(tuning.NormalLaneOffset, Is.EqualTo(JudgeTuning.SHIPPED_NORMAL_LANE_OFFSET).Within(1e-5f));
+            Assert.That(tuning.LongLaneOffset, Is.EqualTo(JudgeTuning.SHIPPED_LONG_LANE_OFFSET).Within(1e-5f));
+            Assert.That(tuning.FlickLaneOffset, Is.EqualTo(JudgeTuning.SHIPPED_FLICK_LANE_OFFSET).Within(1e-5f));
+            Assert.That(tuning.FlickDistanceInches, Is.EqualTo(JudgeTuning.SHIPPED_FLICK_DISTANCE_INCHES).Within(1e-5f));
         }
     }
 }

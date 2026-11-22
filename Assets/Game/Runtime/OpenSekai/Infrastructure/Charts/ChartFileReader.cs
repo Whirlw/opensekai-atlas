@@ -13,13 +13,17 @@ namespace OpenSekai.Infrastructure.Charts
 {
     public static class ChartFileReader
     {
-        public static ChartDocument Read(SongPackage package)
+        public static ChartDocument Read(SongPackage package) => Read(package, null);
+
+        internal static ChartDocument Read(SongPackage package, ChartConversionSettings? settings)
         {
             if (package == null || !File.Exists(package.ScorePath)) return null;
-            return ReadFile(package.ScorePath, package.MusicId);
+            return ReadFile(package.ScorePath, package.MusicId, settings);
         }
 
-        public static ChartDocument ReadFile(string path, int musicId)
+        public static ChartDocument ReadFile(string path, int musicId) => ReadFile(path, musicId, null);
+
+        private static ChartDocument ReadFile(string path, int musicId, ChartConversionSettings? settings)
         {
             string text = File.ReadAllText(path);
             string extension = Path.GetExtension(path);
@@ -29,8 +33,10 @@ namespace OpenSekai.Infrastructure.Charts
                 throw new InvalidDataException("不支持的谱面格式：" + extension);
 
             // Match the old import: never bake mirror or generated hold-combo notes into source JSON.
-            var config = ResourceCatalog.LiveBundleConfig.Load();
+            var config = settings ?? new ChartConversionSettings(ResourceCatalog.LiveBundleConfig.Load());
             var score = new SusRuntimeConverter().Convert(text, config, isNeedCombo: false, _isMirror: false);
+            if (score == null || LiveUtility.CalculateTotalComboCount(score) == 0)
+                throw new InvalidDataException("SUS 谱面没有可游玩的音符。");
             var document = RuntimeChartImporter.FromMusicScore(score);
             document.MusicId = musicId;
             return document;

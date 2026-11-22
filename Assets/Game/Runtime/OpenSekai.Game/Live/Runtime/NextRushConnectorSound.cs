@@ -64,9 +64,9 @@ namespace Sekai.Live
 			float min = left - .5f - leniency, max = right + .5f + leniency;
 			if (leniency > 0 && left >= 0 && right <= 11)
 			{
-				const float outerMargin = 1.8f / 1.19f;
-				if (min <= 0) min = -outerMargin;
-				if (max >= 11) max = 11 + outerMargin;
+				const float OUTER_MARGIN = 1.8f / 1.19f;
+				if (min <= 0) min = -OUTER_MARGIN;
+				if (max >= 11) max = 11 + OUTER_MARGIN;
 			}
 			float xMin = LiveConfig.NativeLanePosition(min).x;
 			float xMax = LiveConfig.NativeLanePosition(max).x;

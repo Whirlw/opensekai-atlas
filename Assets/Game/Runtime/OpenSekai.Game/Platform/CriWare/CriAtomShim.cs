@@ -630,55 +630,55 @@ namespace CriWare
 	{
 		private sealed class PlaybackState
 		{
-						private GameObject _GameObject;
+						private GameObject _gameObject;
 			public GameObject GameObject
 			{
-			    get => _GameObject;
-			    set => _GameObject = value;
+			    get => _gameObject;
+			    set => _gameObject = value;
 			}
-						private AudioSource _PrimarySource;
+						private AudioSource _primarySource;
 			public AudioSource PrimarySource
 			{
-			    get => _PrimarySource;
-			    set => _PrimarySource = value;
+			    get => _primarySource;
+			    set => _primarySource = value;
 			}
-						private AudioSource[] _Sources;
+						private AudioSource[] _sources;
 			public AudioSource[] Sources
 			{
-			    get => _Sources;
-			    set => _Sources = value;
+			    get => _sources;
+			    set => _sources = value;
 			}
-						private bool _Stopped;
+						private bool _stopped;
 			public bool Stopped
 			{
-			    get => _Stopped;
-			    set => _Stopped = value;
+			    get => _stopped;
+			    set => _stopped = value;
 			}
-						private float _BaseTimeSeconds;
+						private float _baseTimeSeconds;
 			public float BaseTimeSeconds
 			{
-			    get => _BaseTimeSeconds;
-			    set => _BaseTimeSeconds = value;
+			    get => _baseTimeSeconds;
+			    set => _baseTimeSeconds = value;
 			}
-						private long _BaseStopwatchTicks;
+						private long _baseStopwatchTicks;
 			public long BaseStopwatchTicks
 			{
-			    get => _BaseStopwatchTicks;
-			    set => _BaseStopwatchTicks = value;
+			    get => _baseStopwatchTicks;
+			    set => _baseStopwatchTicks = value;
 			}
-						private float _PausedTimeSeconds;
+						private float _pausedTimeSeconds;
 			public float PausedTimeSeconds
 			{
-			    get => _PausedTimeSeconds;
-			    set => _PausedTimeSeconds = value;
+			    get => _pausedTimeSeconds;
+			    set => _pausedTimeSeconds = value;
 			}
-						private bool _Paused;
-						private bool _InUse;
-						public bool InUse { get => _InUse; set => _InUse = value; }
+						private bool _paused;
+						private bool _inUse;
+						public bool InUse { get => _inUse; set => _inUse = value; }
 			public bool Paused
 			{
-			    get => _Paused;
-			    set => _Paused = value;
+			    get => _paused;
+			    set => _paused = value;
 			}
 
 			// Drift guard: the last timeSamples seen on the primary source, the clock-minus-audio
@@ -698,16 +698,17 @@ namespace CriWare
 		// On suspend, how far the clock has to be past the audio before the audio's own position is
 		// trusted as where the music stopped. AudioSource.time is reported in chunks on some Android
 		// devices, so this sits well above a chunk.
-		private const float SuspendFreezeThresholdSeconds = 0.15f;
+		private const float SUSPEND_FREEZE_THRESHOLD_SECONDS = 0.15f;
 
 		private static readonly Dictionary<uint, PlaybackState> _playbacks = new Dictionary<uint, PlaybackState>();
 		// Playing a sound used to build a GameObject and an AudioSource per hit, which costs setup time
 		// on the audio thread and a garbage spike every note. Finished playbacks are parked here instead.
 		private static readonly List<PlaybackState> _freeStates = new List<PlaybackState>();
 		private static readonly List<PlaybackState> _freeProbeStates = new List<PlaybackState>();
-		private static readonly double StopwatchSecondsPerTick = 1d / Stopwatch.Frequency;
+		private static readonly double _stopwatchSecondsPerTick = 1d / Stopwatch.Frequency;
 		private static GameObject _root;
 		private static AudioListener _fallbackAudioListener;
+		private static AudioListener[] _sceneListeners = Array.Empty<AudioListener>();
 		private static uint _nextPlaybackId = 1;
 
 		public static void EnsureInitialized()
@@ -716,6 +717,7 @@ namespace CriWare
 			{
 				_root = new GameObject("CriAtomAudioRuntime");
 				UnityEngine.Object.DontDestroyOnLoad(_root);
+				_root.AddComponent<CriAtomAudioListenerGuard>();
 			}
 			if (_freeStates.Count == 0)
 			{
@@ -723,15 +725,7 @@ namespace CriWare
 				ReleasePlaybackState(RentPlaybackState(2, 0), 0);
 			}
 
-			EnsureAudioListenerGuard();
-			CacheFallbackAudioListener();
-			if (HasEnabledExternalAudioListener())
-			{
-				ReleaseFallbackAudioListener();
-				return;
-			}
-
-			EnsureFallbackAudioListener();
+			UpdateAudioListener();
 		}
 
 		public static CriAtomExPlayback Play(AudioClip clip, float _volume, float startTimeSeconds)
@@ -809,7 +803,6 @@ namespace CriWare
 			ResetDriftWindow(state);
 			_playbacks[id] = state;
 
-			EnsureAudioListener();
 			state.BaseStopwatchTicks = Stopwatch.GetTimestamp();
 			if (requestSequence != 0)
 				LatencyCapture.Record("note_se_play", value: id, requestSequence: requestSequence);
@@ -994,6 +987,15 @@ namespace CriWare
 			}
 		}
 
+		internal static void StopUsingClips(HashSet<AudioClip> clips)
+		{
+			var ids = new List<uint>();
+			foreach (var item in _playbacks)
+				if (item.Value.PrimarySource != null && clips.Contains(item.Value.PrimarySource.clip))
+					ids.Add(item.Key);
+			foreach (uint id in ids) Stop(id);
+		}
+
 		public static void Stop(uint id)
 		{
 			if (id == 0 || !_playbacks.TryGetValue(id, out PlaybackState state))
@@ -1135,7 +1137,7 @@ namespace CriWare
 			}
 
 			// A base in the future holds the clock still until then (see ApplyDriftCorrection).
-			double elapsedSeconds = (Stopwatch.GetTimestamp() - state.BaseStopwatchTicks) * StopwatchSecondsPerTick * pitch * state.RateScale;
+			double elapsedSeconds = (Stopwatch.GetTimestamp() - state.BaseStopwatchTicks) * _stopwatchSecondsPerTick * pitch * state.RateScale;
 			float playbackTimeSeconds = state.BaseTimeSeconds + (float)Math.Max(0d, elapsedSeconds);
 			AudioClip clip = state.PrimarySource.clip;
 			if (clip != null && clip.length > 0f)
@@ -1267,7 +1269,7 @@ namespace CriWare
 				case AudioClockCorrectionKind.Wait:
 					// A base in the future: the clock reads BaseTimeSeconds until the stopwatch gets there.
 					state.BaseTimeSeconds = clockSeconds;
-					state.BaseStopwatchTicks = now + (long)(correction.WaitSeconds / pitch / StopwatchSecondsPerTick);
+					state.BaseStopwatchTicks = now + (long)(correction.WaitSeconds / pitch / _stopwatchSecondsPerTick);
 					state.RateScale = 1f;
 					break;
 			}
@@ -1312,7 +1314,7 @@ namespace CriWare
 						// much music on return; freeze where the audio actually stopped instead.
 						float clock = GetMonotonicPlaybackTimeSeconds(state);
 						float audio = state.PrimarySource.time;
-						state.SuspendedTimeSeconds = clock - audio > SuspendFreezeThresholdSeconds && audio > 0f
+						state.SuspendedTimeSeconds = clock - audio > SUSPEND_FREEZE_THRESHOLD_SECONDS && audio > 0f
 							? audio
 							: clock;
 						state.Suspended = true;
@@ -1392,88 +1394,29 @@ namespace CriWare
 			return _nextPlaybackId++;
 		}
 
-		private static void EnsureAudioListener()
+		internal static void RefreshSceneListeners()
 		{
-			EnsureInitialized();
-			if (HasEnabledExternalAudioListener())
-			{
-				ReleaseFallbackAudioListener();
-				return;
-			}
-
-			EnsureFallbackAudioListener();
-		}
-
-		private static void EnsureFallbackAudioListener()
-		{
-			CacheFallbackAudioListener();
-
-			if (_fallbackAudioListener == null && _root != null)
-			{
-				_fallbackAudioListener = _root.AddComponent<AudioListener>();
-			}
-
-			if (_fallbackAudioListener != null)
-			{
-				_fallbackAudioListener.enabled = true;
-			}
-			EnsureAudioListenerGuard();
-		}
-
-		private static void CacheFallbackAudioListener()
-		{
-			if (_fallbackAudioListener == null && _root != null)
-			{
-				_fallbackAudioListener = _root.GetComponent<AudioListener>();
-			}
-		}
-
-		private static void EnsureAudioListenerGuard()
-		{
-			if (_root != null && _root.GetComponent<CriAtomAudioListenerGuard>() == null)
-			{
-				_root.AddComponent<CriAtomAudioListenerGuard>();
-			}
+			_sceneListeners = UnityEngine.Object.FindObjectsByType<AudioListener>(FindObjectsInactive.Include, FindObjectsSortMode.None);
 		}
 
 		internal static void ReleaseFallbackAudioListenerIfExternalExists()
 		{
-			if (HasEnabledExternalAudioListener())
-			{
-				ReleaseFallbackAudioListener();
-				return;
-			}
-
-			EnsureAudioListener();
+			RefreshSceneListeners();
+			if (_root != null) UpdateAudioListener();
 		}
 
-		private static bool HasEnabledExternalAudioListener()
+		internal static void UpdateAudioListener()
 		{
-			AudioListener[] listeners = UnityEngine.Object.FindObjectsByType<AudioListener>(FindObjectsSortMode.None);
-			for (int i = 0; i < listeners.Length; i++)
+			foreach (var listener in _sceneListeners)
 			{
-				AudioListener listener = listeners[i];
-				if (listener != null && listener != _fallbackAudioListener && listener.enabled && listener.gameObject.activeInHierarchy)
+				if (listener != null && listener != _fallbackAudioListener && listener.isActiveAndEnabled)
 				{
-					return true;
+					if (_fallbackAudioListener != null) _fallbackAudioListener.enabled = false;
+					return;
 				}
 			}
-
-			return false;
-		}
-
-		private static void ReleaseFallbackAudioListener()
-		{
-			if (_fallbackAudioListener == null && _root != null)
-			{
-				_fallbackAudioListener = _root.GetComponent<AudioListener>();
-			}
-
-			if (_fallbackAudioListener != null)
-			{
-				UnityEngine.Object.Destroy(_fallbackAudioListener);
-				_fallbackAudioListener = null;
-			}
+			if (_fallbackAudioListener == null) _fallbackAudioListener = _root.AddComponent<AudioListener>();
+			if (!_fallbackAudioListener.enabled) _fallbackAudioListener.enabled = true;
 		}
 
 		internal static void Forget(uint id)
@@ -1528,9 +1471,18 @@ namespace CriWare
 
 	internal sealed class CriAtomAudioListenerGuard : MonoBehaviour
 	{
+		private void OnEnable()
+		{
+			UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+			CriAtomAudioRuntime.RefreshSceneListeners();
+		}
+		private void OnDisable() => UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+		private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+			=> CriAtomAudioRuntime.RefreshSceneListeners();
+
 		private void LateUpdate()
 		{
-			CriAtomAudioRuntime.ReleaseFallbackAudioListenerIfExternalExists();
+			CriAtomAudioRuntime.UpdateAudioListener();
 		}
 
 		private void OnApplicationPause(bool pauseStatus)

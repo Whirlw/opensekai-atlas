@@ -7,9 +7,9 @@ namespace Sekai.Live
 	{
 		private ParticleSystemController _damageEffectController;
 
-		public void Setup()
+		public void Setup(LiveHitEffectSkin skin = null)
 		{
-			_damageEffectController = CreateEffect(LivePrefabDefine.FX_SCREEN_DAMAGE);
+			_damageEffectController = CreateEffect(LivePrefabDefine.FX_SCREEN_DAMAGE, skin);
 			RefreshScreenSize();
 		}
 
@@ -36,17 +36,17 @@ namespace Sekai.Live
 			}
 		}
 
-		private ParticleSystemController CreateEffect(string effectName)
+		private ParticleSystemController CreateEffect(string effectName, LiveHitEffectSkin skin)
 		{
 			float aspect = Screen.height > 0 ? (float)Screen.width / Screen.height : 1.7778f;
-			GameObject prefab = AssetBundleUtility.LoadAsset<GameObject>(LiveConfig.EffectBundleName, effectName);
+			GameObject prefab = LiveHitEffectSkin.LoadPrefab(LiveConfig.EffectBundleName, effectName, skin);
 			if (prefab == null)
 			{
 				return null;
 			}
 
-			GameObject instance = Instantiate(prefab, transform, false);
-			ParticleSystemController controller = instance.AddComponent<ParticleSystemController>();
+			var controller = ParticleSystemController.Create(prefab, transform, skin);
+			controller.Place(prefab.transform.localPosition);
 			controller.transform.localScale = new Vector3(aspect * 10f, 10f, 1f);
 			return controller;
 		}

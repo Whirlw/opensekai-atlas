@@ -5,29 +5,35 @@ namespace Sekai
 {
 	public sealed class DialogSetting : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_sizeFitter")]
 		[SerializeField]
-		private DialogSizeFitter _sizeFitter;
+		private DialogSizeFitter sizeFitter;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_tabGroup")]
 		[SerializeField]
-		private UIPartsDialogTabGroup _tabGroup;
+		private UIPartsDialogTabGroup tabGroup;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_buttonGroup")]
 		[SerializeField]
-		private UIPartsDialogButtonGroup _buttonGroup;
+		private UIPartsDialogButtonGroup buttonGroup;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_dialogSize")]
 		[SerializeField]
-		private DialogSize _dialogSize;
+		private DialogSize dialogSize;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_tabCount")]
 		[SerializeField]
-		private int _tabCount;
+		private int tabCount;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_buttonCount")]
 		[SerializeField]
-		private int _buttonCount;
+		private int buttonCount;
 
 		public DialogSizeFitter SizeFitter
 		{
 			get
 			{
-				return _sizeFitter;
+				return sizeFitter;
 			}
 		}
 
@@ -35,53 +41,53 @@ namespace Sekai
 		{
 			get
 			{
-				return _tabGroup != null ? _tabGroup.ToggleGroup : null;
+				return tabGroup != null ? tabGroup.ToggleGroup : null;
 			}
 		}
 
 		public void Execute()
 		{
 			SetSize();
-			SetTab(_tabCount);
-			SetButton(_buttonCount);
+			SetTab(tabCount);
+			SetButton(buttonCount);
 		}
 
 		public void SetSize(DialogSize size)
 		{
-			_dialogSize = size;
+			dialogSize = size;
 			SetSize();
 		}
 
 		public void SetSize()
 		{
-			if (_sizeFitter != null)
+			if (sizeFitter != null)
 			{
-				_sizeFitter.Setup(_dialogSize, _tabGroup != null && _tabCount > 0 ? DialogSizeFitter.ViewType.HasTab : DialogSizeFitter.ViewType.Default);
+				sizeFitter.Setup(dialogSize, tabGroup != null && tabCount > 0 ? DialogSizeFitter.ViewType.HasTab : DialogSizeFitter.ViewType.Default);
 			}
 		}
 
 		public void SetTab(int count)
 		{
-			_tabCount = count;
-			if (_tabGroup != null)
+			tabCount = count;
+			if (tabGroup != null)
 			{
-				_tabGroup.Setup(_tabCount);
+				tabGroup.Setup(tabCount);
 			}
 			SetSize();
 		}
 
 		public void SetButton(int count)
 		{
-			_buttonCount = count;
-			if (_buttonGroup != null)
+			buttonCount = count;
+			if (buttonGroup != null)
 			{
-				_buttonGroup.Setup(_buttonCount);
+				buttonGroup.Setup(buttonCount);
 			}
 		}
 
 		public void SetButtonSize(UIPartsCommonButton.SizeEnum size)
 		{
-			_buttonGroup?.SetButtonSize(size);
+			buttonGroup?.SetButtonSize(size);
 		}
 
 		public DialogSetting()

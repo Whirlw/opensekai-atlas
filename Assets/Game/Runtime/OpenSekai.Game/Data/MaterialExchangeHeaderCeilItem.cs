@@ -8,32 +8,32 @@ namespace Sekai
 	{
 		public class ViewData
 		{
-						private string _AssetBundleName;
+						private string _assetBundleName;
 			public string AssetBundleName
 			{
-			    get => _AssetBundleName;
-			    set => _AssetBundleName = value;
+			    get => _assetBundleName;
+			    set => _assetBundleName = value;
 			}
 
-						private string _AssetBundleAtlasName;
+						private string _assetBundleAtlasName;
 			public string AssetBundleAtlasName
 			{
-			    get => _AssetBundleAtlasName;
-			    set => _AssetBundleAtlasName = value;
+			    get => _assetBundleAtlasName;
+			    set => _assetBundleAtlasName = value;
 			}
 
-						private string _IconName;
+						private string _iconName;
 			public string IconName
 			{
-			    get => _IconName;
-			    set => _IconName = value;
+			    get => _iconName;
+			    set => _iconName = value;
 			}
 
-						private int _Number;
+						private int _number;
 			public int Number
 			{
-			    get => _Number;
-			    set => _Number = value;
+			    get => _number;
+			    set => _number = value;
 			}
 
 			public ViewData()
@@ -41,57 +41,60 @@ namespace Sekai
 			}
 		}
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_recoveryIcon")]
 		[SerializeField]
-		private CustomImage _recoveryIcon;
+		private CustomImage recoveryIcon;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_atlasLoader")]
 		[SerializeField]
-		private UIAtlasImageLoader _atlasLoader;
+		private UIAtlasImageLoader atlasLoader;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_number")]
 		[SerializeField]
-		private CustomTextMesh _number;
+		private CustomTextMesh number;
 
 		private ViewData _viewData;
 
 		public void Setup(ViewData data, bool setNativeSize = false)
 		{
 			_viewData = data;
-			_atlasLoader.gameObject.SetActive(false);
-			_recoveryIcon.SetActive(false);
+			atlasLoader.gameObject.SetActive(false);
+			recoveryIcon.SetActive(false);
 
-			_atlasLoader.Load(data.AssetBundleName, data.AssetBundleAtlasName, data.IconName, delegate
+			atlasLoader.Load(data.AssetBundleName, data.AssetBundleAtlasName, data.IconName, delegate
 			{
 				OnSuccessLoadAtlas(setNativeSize);
 			}, delegate
 			{
 				OnErrorLoadAtlas(setNativeSize);
 			});
-			_number.SetText(data.Number.ToString());
+			number.SetText(data.Number.ToString());
 		}
 
 		private void OnSuccessLoadAtlas(bool setNativeSize)
 		{
-			_atlasLoader.gameObject.SetActive(true);
-			_recoveryIcon.SetActive(false);
+			atlasLoader.gameObject.SetActive(true);
+			recoveryIcon.SetActive(false);
 			if (setNativeSize)
 			{
-				_atlasLoader.AtlasImage.SetNativeSize();
+				atlasLoader.AtlasImage.SetNativeSize();
 			}
 		}
 
 		private void OnErrorLoadAtlas(bool setNativeSize)
 		{
-			_atlasLoader.gameObject.SetActive(false);
-			_recoveryIcon.SetActive(true);
-			_recoveryIcon.SpriteName = _viewData.IconName;
+			atlasLoader.gameObject.SetActive(false);
+			recoveryIcon.SetActive(true);
+			recoveryIcon.SpriteName = _viewData.IconName;
 
 			if (setNativeSize)
 			{
-				_recoveryIcon.SetNativeSize();
+				recoveryIcon.SetNativeSize();
 			}
 
-			if (_recoveryIcon.sprite == null)
+			if (recoveryIcon.sprite == null)
 			{
-				string atlasName = _recoveryIcon.Atlas != null ? _recoveryIcon.Atlas.name : "_recoveryIcon has no atlas assigned";
+				string atlasName = recoveryIcon.Atlas != null ? recoveryIcon.Atlas.name : "_recoveryIcon has no atlas assigned";
 				CP.LogUtility.LogError(
 					_viewData.IconName + " was not found. Reference [" +
 					_viewData.AssetBundleName + "/" + _viewData.AssetBundleAtlasName + "], [" + atlasName + "]");

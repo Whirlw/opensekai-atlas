@@ -60,6 +60,8 @@ namespace Sekai.Core.Live
 			}
 		}
 
+		private bool _fakePerfect;
+
 		public ScoreLogic(LiveBundleBuildData data)
 		{
 			_liveBundleBuildData = data;
@@ -71,6 +73,9 @@ namespace Sekai.Core.Live
 		{
 			_score = default;
 			_scoreInfo = bootData?.MusicData?.Score;
+			// The live's own settings snapshot decides; the stored settings only when there is none.
+			_fakePerfect = bootData?.LiveSettingData?.UsesAutoFakePerfectMode
+				?? LiveSettingsStore.Shared.Load()?.UsesAutoFakePerfectMode == true;
 			int totalCombo = LiveUtility.CalculateTotalComboCount(musicScore);
 			if (totalCombo <= 0)
 			{
@@ -99,7 +104,7 @@ namespace Sekai.Core.Live
 
 			NoteResult effectiveResult = note.Result;
 			// In Fake Perfect mode, treat Auto as Perfect for combo counting
-			if (effectiveResult == NoteResult.Auto && LiveSettingsStore.Shared.Load()?.UsesAutoFakePerfectMode == true)
+			if (effectiveResult == NoteResult.Auto && _fakePerfect)
 			{
 				effectiveResult = NoteResult.Perfect;
 			}
@@ -227,7 +232,7 @@ namespace Sekai.Core.Live
 			if (note is NextRushDamageNote)
 			{
 				if (note.Result == NoteResult.Miss)
-					_score.life = UnityEngine.Mathf.Max(0, _score.life - NextRushDamageNote.LifePenalty);
+					_score.life = UnityEngine.Mathf.Max(0, _score.life - NextRushDamageNote.LIFE_PENALTY);
 			}
 			else if (LiveConfig.Damages.TryGetValue(note.Result, out int damage))
 			{

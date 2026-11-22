@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using CP;
 using LitMotion;
 using LitMotion.Extensions;
@@ -41,8 +42,9 @@ namespace Sekai
 		[SerializeField]
 		protected GameObject windowObject;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_needBackgroundCover")]
 		[SerializeField]
-		private bool _needBackgroundCover;
+		private bool needBackgroundCover;
 
 		[SerializeField]
 		protected OpenSE openSE;
@@ -54,6 +56,11 @@ namespace Sekai
 		protected CanvasGroup canvasGroup;
 		protected DialogState currentState;
 		protected string[] seArray;
+
+		private static readonly List<DialogBase> _openDialogs = new List<DialogBase>();
+
+		private static double _modalBackTime = -1;
+		public static bool OwnsHardwareBack => _openDialogs.Count != 0 || _modalBackTime == Time.unscaledTimeAsDouble;
 
 		private bool _allowCloseExternal = true;
 		private bool _externalCloseAttached;
@@ -79,7 +86,8 @@ namespace Sekai
 
 		protected virtual void Update()
 		{
-			ExecuteBackKeyProcess();
+			if (!ScreenManager.ExistsInstance || !ScreenManager.Instance.isActiveAndEnabled || ScreenManager.Instance.BackKeyChecker == null)
+				ExecuteBackKeyProcess();
 		}
 
 		protected virtual void AwakeProcess()
@@ -112,8 +120,8 @@ namespace Sekai
 			}
 
 			OpenPreprocess();
-			OpenAnimation();
 			currentState = DialogState.PlayOpenAnimation;
+			OpenAnimation();
 			PlayOpenSE();
 		}
 
@@ -251,14 +259,22 @@ namespace Sekai
 			Close();
 		}
 
+		protected virtual void OnEnable()
+		{
+			if (currentState == DialogState.Show && !_openDialogs.Contains(this)) _openDialogs.Add(this);
+		}
+
 		protected virtual void OnDisable()
 		{
+			_openDialogs.Remove(this);
 			KillAnimationTween();
 			DetachCloseExternalListener();
 		}
 
 		protected void OpenPreprocess()
 		{
+			_openDialogs.Remove(this);
+			_openDialogs.Add(this);
 			SyncLayerParentObject();
 			ToFront();
 			SetActiveBackground(true);
@@ -268,7 +284,7 @@ namespace Sekai
 
 		protected void SetupBackgroundGrayoutCover()
 		{
-			if (!_needBackgroundCover || fillCover != null)
+			if (!needBackgroundCover || fillCover != null)
 			{
 				return;
 			}
@@ -398,26 +414,19 @@ namespace Sekai
 
 		private void DestroyMyself()
 		{
-			DisableAllColliders();
-			OnFinishCloseAnimationCallback();
-			OnClose?.Invoke();
-			OnClosed?.Invoke();
-			currentState = DialogState.Closed;
+			FinishCloseWithoutDestroy();
 			UnityEngine.Object.Destroy(gameObject);
 		}
 
 		private void SleepMyself()
 		{
-			DisableAllColliders();
-			OnFinishCloseAnimationCallback();
-			OnClose?.Invoke();
-			OnClosed?.Invoke();
-			currentState = DialogState.Closed;
+			FinishCloseWithoutDestroy();
 			gameObject.SetActive(false);
 		}
 
 		private void FinishCloseWithoutDestroy()
 		{
+			_openDialogs.Remove(this);
 			DisableAllColliders();
 			OnFinishCloseAnimationCallback();
 			OnClose?.Invoke();
@@ -445,6 +454,27 @@ namespace Sekai
 			{
 				fillCover.EnableClick = false;
 			}
+		}
+
+		internal static bool TryHandleModalBack()
+		{
+			for (int i = _openDialogs.Count - 1; i >= 0; i--)
+			{
+				var dialog = _openDialogs[i];
+				if (dialog != null && dialog.isActiveAndEnabled && dialog.HandleBackKey()) return true;
+			}
+			return false;
+		}
+
+		private bool HandleBackKey()
+		{
+			if (currentState == DialogState.Show)
+			{
+				_modalBackTime = Time.unscaledTimeAsDouble;
+				OnHardwareBackKeyProcess();
+				return true;
+			}
+			return currentState == DialogState.PlayOpenAnimation || currentState == DialogState.PlayCloseAnimation;
 		}
 
 		private void ExecuteBackKeyProcess()

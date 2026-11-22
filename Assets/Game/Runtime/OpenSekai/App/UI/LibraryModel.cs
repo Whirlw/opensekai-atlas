@@ -92,14 +92,14 @@ namespace OpenSekai.App.UI
         private const string CLEAR_FAILED = "未通关";
         private const string CLEAR_UNPLAYED = "未游玩";
 
-        private static readonly string[] DifficultyOrder = { "EASY", "NORMAL", "HARD", "EXPERT", "MASTER", "APPEND" };
-        private static readonly string[] LevelOrder = { LEVEL_LOW, LEVEL_MID, LEVEL_HIGH, LEVEL_NONE };
-        private static readonly string[] ClearOrder =
+        private static readonly string[] _difficultyOrder = { "EASY", "NORMAL", "HARD", "EXPERT", "MASTER", "APPEND" };
+        private static readonly string[] _levelOrder = { LEVEL_LOW, LEVEL_MID, LEVEL_HIGH, LEVEL_NONE };
+        private static readonly string[] _clearOrder =
         {
             CLEAR_ALL_PERFECT, CLEAR_FULL_COMBO, CLEAR_CLEARED, CLEAR_FAILED, CLEAR_UNPLAYED
         };
 
-        private static readonly IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary> NoHistory =
+        private static readonly IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary> _noHistory =
             new Dictionary<string, CustomMusicScorePlayHistorySummary>();
 
         internal static readonly IReadOnlyList<LibrarySortKey> SortKeys = new[]
@@ -160,7 +160,7 @@ namespace OpenSekai.App.UI
             IReadOnlyList<SongPackageItem> items,
             IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary> history = null)
         {
-            history = history ?? NoHistory;
+            history = history ?? _noHistory;
             var matches = new List<SongPackageItem>(items.Count);
             for (int i = 0; i < items.Count; i++)
             {
@@ -253,7 +253,7 @@ namespace OpenSekai.App.UI
             {
                 return string.Empty;
             }
-            return best.isAllPerfect ? "AP" : best.isFullCombo ? "FC" : string.Empty;
+            return best.IsAllPerfect ? "AP" : best.IsFullCombo ? "FC" : string.Empty;
         }
 
         internal static string ClearLabel(CustomMusicScorePlayHistorySummary summary)
@@ -263,15 +263,15 @@ namespace OpenSekai.App.UI
             {
                 return CLEAR_UNPLAYED;
             }
-            if (best.isAllPerfect)
+            if (best.IsAllPerfect)
             {
                 return CLEAR_ALL_PERFECT;
             }
-            if (best.isFullCombo)
+            if (best.IsFullCombo)
             {
                 return CLEAR_FULL_COMBO;
             }
-            return string.Equals(best.clearType, "life_zero", StringComparison.Ordinal) ? CLEAR_FAILED : CLEAR_CLEARED;
+            return string.Equals(best.ClearType, "life_zero", StringComparison.Ordinal) ? CLEAR_FAILED : CLEAR_CLEARED;
         }
 
         internal static CustomMusicScorePlayHistorySummary SummaryOf(
@@ -338,9 +338,9 @@ namespace OpenSekai.App.UI
         {
             switch (GroupKey)
             {
-                case LibraryGroupKey.Difficulty: return DifficultyOrder;
-                case LibraryGroupKey.Level: return LevelOrder;
-                case LibraryGroupKey.ClearStatus: return ClearOrder;
+                case LibraryGroupKey.Difficulty: return _difficultyOrder;
+                case LibraryGroupKey.Level: return _levelOrder;
+                case LibraryGroupKey.ClearStatus: return _clearOrder;
                 default: return Array.Empty<string>();
             }
         }
@@ -439,7 +439,7 @@ namespace OpenSekai.App.UI
             SongPackageItem item, IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary> history)
         {
             CustomMusicScorePlayHistoryRecord best = SummaryOf(item, history)?.Best;
-            return best != null ? best.totalScore : -1;
+            return best != null ? best.TotalScore : -1;
         }
     }
 }

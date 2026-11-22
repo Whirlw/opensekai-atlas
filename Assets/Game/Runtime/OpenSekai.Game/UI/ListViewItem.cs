@@ -4,11 +4,13 @@ namespace Sekai.UI
 {
 	public class ListViewItem : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_sizeX")]
 		[SerializeField]
-		private float _sizeX;
+		private float sizeX;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_sizeY")]
 		[SerializeField]
-		private float _sizeY;
+		private float sizeY;
 
 		protected int currentIndex;
 
@@ -18,7 +20,7 @@ namespace Sekai.UI
 		{
 			get
 			{
-				return _sizeX;
+				return sizeX;
 			}
 		}
 
@@ -26,7 +28,7 @@ namespace Sekai.UI
 		{
 			get
 			{
-				return _sizeY;
+				return sizeY;
 			}
 		}
 

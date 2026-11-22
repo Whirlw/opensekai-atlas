@@ -7,13 +7,14 @@ namespace Sekai.Live
 {
 	public class NotesViewManager
 	{
-		private static readonly int DefaultNoteDictCapacity;
+		private static readonly int _defaultNoteDictCapacity;
 
-		private static readonly int NoteShowRateId = Shader.PropertyToID("_NoteShowRate");
+		private static readonly int _noteShowRateId = Shader.PropertyToID("_NoteShowRate");
 
 		private Dictionary<INote, BaseNoteView> _spawnNoteDict;
 
 		private Transform _noteRoot;
+		private LiveNoteSkin _skin;
 
 		private Dictionary<NoteCategory, Dictionary<NoteType, NotePool>> _notePoolDict;
 
@@ -27,7 +28,7 @@ namespace Sekai.Live
 
 		public void Setup(Transform liveRoot)
 		{
-			_spawnNoteDict = new Dictionary<INote, BaseNoteView>(DefaultNoteDictCapacity);
+			_spawnNoteDict = new Dictionary<INote, BaseNoteView>(_defaultNoteDictCapacity);
 			GameObject root = new GameObject("NoteRoot");
 			_noteRoot = root.transform;
 			_noteRoot.SetParent(liveRoot, false);
@@ -40,6 +41,7 @@ namespace Sekai.Live
 				return;
 			}
 
+			_skin = (baseController.BootData as FreeLiveBootData)?.NoteSkin;
 			float noteShowRate = 1f;
 			if (baseController.Settings != null && !baseController.Settings.NoteShowRate.Equals(1f))
 			{
@@ -62,15 +64,15 @@ namespace Sekai.Live
 			LiveBundleBuildData bundleBuildData = baseController.BootData?.BundleBuildData;
 			_noteLineView = CreateLineView<NoteLineView>("NoteLineView");
 			_noteLineView.Setup(bundleBuildData, "longNoteLine.png", LiveConfig.LongNoteAlpha, isCustomMusicScore,
-				baseController.BaseCamera);
+				baseController.BaseCamera, skin: _skin);
 			_guideLineView = CreateLineView<NoteLineView>("GuideLineView");
 			_guideLineView.Setup(bundleBuildData, "traceLine_eff.png", LiveConfig.GuideAlpha, isCustomMusicScore,
-				baseController.BaseCamera, guide: true);
+				baseController.BaseCamera, guide: true, skin: _skin);
 			if (_isEnablePairNotesLine)
 			{
 				_pairNoteLineView = CreateLineView<PairNoteLineView>("PairNoteLineView");
 				_pairNoteLineView.Setup(baseController.BootData?.MusicData?.MusicScore,
-					LiveConfig.GetNoteDisplayOffsetTime(baseController.BootData?.LiveSettingData?.NoteSpeed ?? 6f));
+					LiveConfig.GetNoteDisplayOffsetTime(baseController.BootData?.LiveSettingData?.NoteSpeed ?? 6f), _skin);
 			}
 
 			SetupNoteMask(noteShowRate);
@@ -105,7 +107,7 @@ namespace Sekai.Live
 		{
 			if (material != null)
 			{
-				material.SetFloat(NoteShowRateId, NoteShowRate);
+				material.SetFloat(_noteShowRateId, NoteShowRate);
 			}
 		}
 
@@ -115,7 +117,7 @@ namespace Sekai.Live
 			{
 				foreach (BaseNoteView noteView in _spawnNoteDict.Values)
 				{
-					noteView?.Move(time);
+					noteView?.MoveWithSkin(time);
 				}
 			}
 			_noteLineView?.Excute(time);
@@ -223,7 +225,7 @@ namespace Sekai.Live
 			poolObject.transform.SetParent(_noteRoot, false);
 			NotePool pool = poolObject.AddComponent<NotePool>();
 			GameObject notePrefab = AssetBundleUtility.LoadAsset<GameObject>(LiveConfig.NoteBundleName, noteResourceName, false);
-			pool.Setup(Mathf.Max(poolCount, 1), notePrefab, noteShowRate);
+			pool.Setup(Mathf.Max(poolCount, 1), notePrefab, noteShowRate, _skin);
 			return pool;
 		}
 
@@ -233,7 +235,7 @@ namespace Sekai.Live
 
 		static NotesViewManager()
 		{
-			DefaultNoteDictCapacity = 100;
+			_defaultNoteDictCapacity = 100;
 		}
 
 		private Dictionary<NoteType, NotePool> CreateTypedPools(

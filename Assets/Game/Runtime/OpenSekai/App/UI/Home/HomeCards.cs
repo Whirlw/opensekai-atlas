@@ -99,6 +99,7 @@ namespace OpenSekai.App.UI
         private readonly CanvasGroup _art;
         private readonly RectTransform _marquee;
         private readonly RectTransform[] _columns = new RectTransform[COLUMNS];
+        private readonly int[] _columnSteps = new int[COLUMNS];
         private readonly Image[] _jackets = new Image[COLUMNS * ROWS];
         private readonly GameObject[] _placeholders = new GameObject[COLUMNS * ROWS];
         private readonly Image _cover;
@@ -149,6 +150,7 @@ namespace OpenSekai.App.UI
                 LibraryWidgets.Place(strip, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
                     new Vector2((column - (COLUMNS - 1) * 0.5f) * pitch, 0f), new Vector2(pitch, pitch * ROWS));
                 _columns[column] = strip;
+                _columnSteps[column] = int.MinValue;
                 for (int row = 0; row < ROWS; row++)
                 {
                     int index = column * ROWS + row;
@@ -369,12 +371,14 @@ namespace OpenSekai.App.UI
                 float speed = HomeTheme.Motion.MARQUEE_SPEED * (column == 1 ? 0.8f : 1f);
                 float offset = (float)((time * speed * direction + column * pitch * 0.5f) % span);
                 RectTransform strip = _columns[column];
+                int step = Mathf.FloorToInt(offset / pitch);
+                strip.anchoredPosition = new Vector2(strip.anchoredPosition.x, offset - step * pitch);
+                if (_columnSteps[column] == step) continue;
+                _columnSteps[column] = step;
                 for (int row = 0; row < ROWS; row++)
                 {
-                    float y = row * pitch + offset;
-                    // Wrap into [-span/2, span/2) so every tile stays inside its strip.
-                    y = Mathf.Repeat(y + span * 0.5f, span) - span * 0.5f;
-                    ((RectTransform)strip.GetChild(row)).anchoredPosition = new Vector2(0f, y);
+                    int slot = (row + step + ROWS + ROWS / 2) % ROWS - ROWS / 2;
+                    ((RectTransform)strip.GetChild(row)).anchoredPosition = new Vector2(0f, slot * pitch);
                 }
             }
         }
@@ -420,9 +424,9 @@ namespace OpenSekai.App.UI
     }
 
     /// <summary>
-    /// A card for a part of the app that is not built yet (服务器, 资源包): a title block, a
-    /// "即将推出" chip with a breathing status light, and an animated drawing on the right. A tap
-    /// shakes it and lets the page explain.
+    /// A card for one of the home page's smaller parts (服务器, 资源包): a title block, a status
+    /// chip with a breathing light, and an animated drawing on the right. A card for a part that
+    /// is not available shakes when tapped and lets the page explain.
     /// </summary>
     internal sealed class HomeFeatureCard
     {
@@ -436,7 +440,7 @@ namespace OpenSekai.App.UI
 
         internal HomeFeatureCard(
             Transform parent, string name, string eyebrow, string title, string description, Color32 tint,
-            Func<RectTransform, IHomeCardArt> createArt, Action onClick, bool available = false)
+            Func<RectTransform, IHomeCardArt> createArt, Action onClick, bool available = false, string status = null)
         {
             _frame = new HomeCardFrame(parent, name, HomeTheme.Layout.CARD_RADIUS, null, 0.975f);
             _frame.Button.onClick.AddListener(() =>
@@ -477,18 +481,18 @@ namespace OpenSekai.App.UI
             Stretch(descriptionLabel.rectTransform, pad, pad + 108f, 30f);
 
             // 即将推出 chip with a breathing light.
-            const float chipHeight = 46f;
-            const float chipWidth = 158f;
-            Image chip = LibraryWidgets.Panel("Soon", content, chipHeight * 0.5f, HomeTheme.Colors.Chip);
-            LibraryWidgets.Outline(chip, chipHeight * 0.5f);
-            LibraryWidgets.Place(chip.rectTransform, Vector2.zero, Vector2.zero, new Vector2(pad, pad - 4f), new Vector2(chipWidth, chipHeight));
+            const float CHIP_HEIGHT = 46f;
+            const float CHIP_WIDTH = 158f;
+            Image chip = LibraryWidgets.Panel("Soon", content, CHIP_HEIGHT * 0.5f, HomeTheme.Colors.Chip);
+            LibraryWidgets.Outline(chip, CHIP_HEIGHT * 0.5f);
+            LibraryWidgets.Place(chip.rectTransform, Vector2.zero, Vector2.zero, new Vector2(pad, pad - 4f), new Vector2(CHIP_WIDTH, CHIP_HEIGHT));
             _statusDot = LibraryUi.CreateImage("Dot", chip.transform, tint);
             _statusDot.sprite = LibraryShapes.RoundedRect(5f);
             _statusDot.type = Image.Type.Sliced;
             _statusDot.raycastTarget = false;
             LibraryWidgets.Place(_statusDot.rectTransform, new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(26f, 0f), new Vector2(10f, 10f));
             TextMeshProUGUI chipLabel = LibraryWidgets.Label(
-                "Label", chip.transform, available ? "进入社区" : "即将推出", 19f, LibraryTheme.Colors.TextSecondary, FontStyles.Normal, TextAlignmentOptions.Left);
+                "Label", chip.transform, status ?? (available ? "进入社区" : "即将推出"), 19f, LibraryTheme.Colors.TextSecondary, FontStyles.Normal, TextAlignmentOptions.Left);
             LibraryWidgets.Inset(chipLabel.rectTransform, 44f, 0f, 12f, 0f);
 
             void Stretch(RectTransform rect, float left, float top, float height)
@@ -565,7 +569,7 @@ namespace OpenSekai.App.UI
         private const int MERIDIANS = 3;
         private const float TURN_SECONDS = 14f;
         private const float PULSE_SECONDS = 3f;
-        private static readonly Vector2[] NodeCoordinates =
+        private static readonly Vector2[] _nodeCoordinates =
         {
             // longitude, latitude in radians
             new Vector2(0.3f, 0.5f), new Vector2(1.4f, -0.2f), new Vector2(2.5f, 0.75f),
@@ -574,7 +578,7 @@ namespace OpenSekai.App.UI
 
         private readonly RectTransform _globe;
         private readonly Image[] _meridians = new Image[MERIDIANS];
-        private readonly Image[] _nodes = new Image[NodeCoordinates.Length];
+        private readonly Image[] _nodes = new Image[_nodeCoordinates.Length];
         private readonly Image[] _pulses = new Image[2];
         private readonly RectTransform _orbit;
         private readonly Image _satellite;
@@ -661,7 +665,7 @@ namespace OpenSekai.App.UI
 
             for (int i = 0; i < _nodes.Length; i++)
             {
-                Vector2 coordinate = NodeCoordinates[i];
+                Vector2 coordinate = _nodeCoordinates[i];
                 float longitude = coordinate.x + turn;
                 float depth = Mathf.Cos(coordinate.y) * Mathf.Cos(longitude);
                 float x = Mathf.Cos(coordinate.y) * Mathf.Sin(longitude) * _radius;

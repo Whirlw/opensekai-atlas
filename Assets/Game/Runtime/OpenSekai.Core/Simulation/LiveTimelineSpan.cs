@@ -25,13 +25,13 @@ namespace OpenSekai.Shared.Live.Simulation
 	public readonly struct LiveTimelineSpan
 	{
 		/// <summary>Time after the last note before the outro skip is available.</summary>
-		public const float OutroSkipDelaySeconds = 1f;
+		public const float OUTRO_SKIP_DELAY_SECONDS = 1f;
 
 		/// <summary>From the info page going away to the first of the music and the first note.</summary>
-		public const float RunInSeconds = 2f;
+		public const float RUN_IN_SECONDS = 2f;
 
 		/// <summary>From the last of the music and the last note to the result effect.</summary>
-		public const float RunOutSeconds = 1f;
+		public const float RUN_OUT_SECONDS = 1f;
 
 		/// <summary>A span whose audio plays exactly over its audible part (no silence at either end).</summary>
 		public LiveTimelineSpan(float musicStartSeconds, float musicEndSeconds, float firstNoteSeconds, float lastNoteSeconds, float leadInSeconds)
@@ -83,14 +83,14 @@ namespace OpenSekai.Shared.Live.Simulation
 		/// lands where it should (see <see cref="ClockAtIntroStart"/>).
 		/// </summary>
 		public float StartSeconds => HasNotes
-			? Math.Min(Math.Min(MusicStartSeconds, FirstNoteSeconds) - RunInSeconds, ChartStartSeconds)
-			: MusicStartSeconds - RunInSeconds;
+			? Math.Min(Math.Min(MusicStartSeconds, FirstNoteSeconds) - RUN_IN_SECONDS, ChartStartSeconds)
+			: MusicStartSeconds - RUN_IN_SECONDS;
 
 		/// <summary>The end point: the audible music or the chart, whichever is last.</summary>
 		public float EndSeconds => HasNotes ? Math.Max(MusicEndSeconds, LastNoteSeconds) : MusicEndSeconds;
 
 		/// <summary>When the result effect plays, unless the outro skip brings it forward.</summary>
-		public float ResultEffectSeconds => EndSeconds + RunOutSeconds;
+		public float ResultEffectSeconds => EndSeconds + RUN_OUT_SECONDS;
 
 		/// <summary>
 		/// The clock when the info page goes up, given how long the page stays: the start point minus
@@ -102,9 +102,9 @@ namespace OpenSekai.Shared.Live.Simulation
 
 		/// <summary>Where the intro skip lands, <see cref="RunInSeconds"/> before the first note.</summary>
 		public float IntroSkipTargetSeconds =>
-			HasNotes ? FirstNoteSeconds - RunInSeconds : MusicStartSeconds;
+			HasNotes ? FirstNoteSeconds - RUN_IN_SECONDS : MusicStartSeconds;
 
-		public float OutroSkipAvailableSeconds => LastNoteSeconds + OutroSkipDelaySeconds;
+		public float OutroSkipAvailableSeconds => LastNoteSeconds + OUTRO_SKIP_DELAY_SECONDS;
 
 		public bool HasIntroSkip => HasNotes && StartSeconds < IntroSkipTargetSeconds;
 

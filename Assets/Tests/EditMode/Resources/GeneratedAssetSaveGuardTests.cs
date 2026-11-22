@@ -15,7 +15,7 @@ namespace OpenSekai.Tests.EditMode.ResourceLoading
     /// </summary>
     public sealed class GeneratedAssetSaveGuardTests
     {
-        private const string MediumDynamic = "Assets/Graphics/Resources/font/SourceHanSansSC-Medium SDF_Dynamic.asset";
+        private const string MEDIUM_DYNAMIC = "Assets/Graphics/Resources/font/SourceHanSansSC-Medium SDF_Dynamic.asset";
 
         private static string Sha(string path)
         {
@@ -30,15 +30,15 @@ namespace OpenSekai.Tests.EditMode.ResourceLoading
         public void TheManifestFilesAreGuarded()
         {
             Assert.That(GeneratedAssetSaveGuard.GuardedPaths.Count, Is.EqualTo(4));
-            Assert.That(GeneratedAssetSaveGuard.IsGuarded(MediumDynamic), Is.True);
-            Assert.That(GeneratedAssetSaveGuard.IsGuarded(MediumDynamic.Replace('/', '\\')), Is.True, "either separator");
+            Assert.That(GeneratedAssetSaveGuard.IsGuarded(MEDIUM_DYNAMIC), Is.True);
+            Assert.That(GeneratedAssetSaveGuard.IsGuarded(MEDIUM_DYNAMIC.Replace('/', '\\')), Is.True, "either separator");
             Assert.That(GeneratedAssetSaveGuard.IsGuarded("Assets/Scenes/Library.unity"), Is.False);
         }
 
         [Test]
         public void ASaveLeavesTheGuardedFilesOut()
         {
-            string[] request = { "Assets/Scenes/Library.unity", MediumDynamic };
+            string[] request = { "Assets/Scenes/Library.unity", MEDIUM_DYNAMIC };
             Assert.That(GeneratedAssetSaveGuard.FilterSave(request), Is.EqualTo(new[] { "Assets/Scenes/Library.unity" }));
 
             using (GeneratedAssetSaveGuard.AllowSaves())
@@ -54,7 +54,7 @@ namespace OpenSekai.Tests.EditMode.ResourceLoading
         {
             // TMP's pre-build step clears every dynamic asset that asks for it; this one carries a glyph
             // baked in on purpose, so it must not ask.
-            var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(MediumDynamic);
+            var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(MEDIUM_DYNAMIC);
             Assert.That(font, Is.Not.Null);
             Assert.That(new SerializedObject(font).FindProperty("m_ClearDynamicDataOnBuild").boolValue, Is.False);
         }
@@ -62,8 +62,8 @@ namespace OpenSekai.Tests.EditMode.ResourceLoading
         [Test]
         public void WhatASessionBakesNeverReachesTheFileAndIsDroppedAfterwards()
         {
-            string before = Sha(MediumDynamic);
-            var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(MediumDynamic);
+            string before = Sha(MEDIUM_DYNAMIC);
+            var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(MEDIUM_DYNAMIC);
             int characters = font.characterTable.Count;
             try
             {
@@ -73,17 +73,17 @@ namespace OpenSekai.Tests.EditMode.ResourceLoading
                 EditorUtility.SetDirty(font);
 
                 AssetDatabase.SaveAssets();
-                Assert.That(Sha(MediumDynamic), Is.EqualTo(before), "a save does not write the baked glyphs");
+                Assert.That(Sha(MEDIUM_DYNAMIC), Is.EqualTo(before), "a save does not write the baked glyphs");
             }
             finally
             {
                 GeneratedAssetSaveGuard.DiscardInMemoryChanges();
             }
 
-            var reloaded = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(MediumDynamic);
+            var reloaded = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(MEDIUM_DYNAMIC);
             Assert.That(reloaded.characterTable.Count, Is.EqualTo(characters), "the in-memory bake is dropped");
             Assert.That(reloaded.HasCharacter('…'), Is.True, "the committed ellipsis is still there");
-            Assert.That(Sha(MediumDynamic), Is.EqualTo(before));
+            Assert.That(Sha(MEDIUM_DYNAMIC), Is.EqualTo(before));
         }
     }
 }

@@ -25,10 +25,11 @@ namespace OpenSekai.App.UI
         private const float SMALL_HEIGHT = 72f;
         private const float TAB_WIDTH = 168f;
         private const float TAB_HEIGHT = 60f;
-        private static readonly Color32 CardColor = new Color32(16, 20, 27, 184);
-        private static readonly Color32 Gold = new Color32(245, 206, 110, 255);
+        private static readonly Color32 _cardColor = new Color32(16, 20, 27, 184);
+        private static readonly Color32 _gold = new Color32(245, 206, 110, 255);
 
         private readonly SonolusSession _session;
+        private readonly Func<string, CancellationToken, UniTask<SonolusLevelDetails>> _getDetails;
         private SonolusLevel _level;
         private SonolusLevelDetails _details;
 
@@ -59,6 +60,8 @@ namespace OpenSekai.App.UI
         private readonly TextMeshProUGUI _boardInfo;
         private readonly ServerStatusView _detailStatus;
 
+        private bool _presented;
+        private string _detailError;
         private CancellationTokenSource _detailLoad;
         private CancellationTokenSource _coverLoad;
         private CancellationTokenSource _install;
@@ -79,9 +82,11 @@ namespace OpenSekai.App.UI
         private Button _recordsMoreButton;
         private int _recordCount;
 
-        internal SonolusLevelPage(ServerScreen screen, SonolusSession session, SonolusLevel level) : base(screen, "SonolusLevel")
+        internal SonolusLevelPage(ServerScreen screen, SonolusSession session, SonolusLevel level,
+            Func<string, CancellationToken, UniTask<SonolusLevelDetails>> getDetails = null) : base(screen, "SonolusLevel")
         {
             _session = session;
+            _getDetails = getDetails ?? session.Client.GetLevelAsync;
             _level = level;
             RectTransform bar = ServerWidgets.TopBar(Root, "谱面详情", screen.Back, screen.OpenSettings, out _, out TextMeshProUGUI subtitle, out float rightInset);
             subtitle.text = session.Title;
@@ -176,7 +181,7 @@ namespace OpenSekai.App.UI
                 _tabs[i] = new Tab(track.transform, tabNames[i], i, () => SelectTab(index, true));
             }
 
-            Image panel = LibraryWidgets.Panel("Panel", right, LibraryTheme.Radius.PANEL, CardColor);
+            Image panel = LibraryWidgets.Panel("Panel", right, LibraryTheme.Radius.PANEL, _cardColor);
             LibraryWidgets.Inset(panel.rectTransform, 0f, 0f, 0f, 336f + TAB_HEIGHT + 20f);
             LibraryWidgets.Outline(panel, LibraryTheme.Radius.PANEL);
             RectTransform inner = LibraryUi.CreateRect("Inner", panel.transform);
@@ -224,11 +229,15 @@ namespace OpenSekai.App.UI
 
         internal override void OnShown()
         {
+            _presented = true;
+            UpdateStatusVisibility();
             UpdateActions();
         }
 
         internal override void OnHidden()
         {
+            _presented = false;
+            UpdateStatusVisibility();
             Screen.Preview.Stop();
         }
 
@@ -346,12 +355,14 @@ namespace OpenSekai.App.UI
         {
             if (_details == null)
             {
-                _detailStatus.ShowLoading();
+                _detailError = null;
+                ShowDetailStatus();
             }
 
             try
             {
-                SonolusLevelDetails details = await _session.Client.GetLevelAsync(_level.Name, cancellationToken);
+                SonolusLevelDetails details = await _getDetails(_level.Name, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
                 _details = details;
                 _detailStatus.Hide();
                 bool coverChanged = details.Level.Cover?.Url != _level.Cover?.Url;
@@ -379,7 +390,8 @@ namespace OpenSekai.App.UI
             {
                 if (_details == null)
                 {
-                    _detailStatus.ShowError(exception.Message, LoadDetails);
+                    _detailError = exception.Message;
+                    ShowDetailStatus();
                     UpdateActions();
                 }
                 else
@@ -628,7 +640,7 @@ namespace OpenSekai.App.UI
                     await Screen.Installer.InstallAsync(_session.Client, _details, SetProgress, cancellationToken);
                     cancellationToken.ThrowIfCancellationRequested();
                     FinishInstall();
-                    Screen.NotifyLibraryChanged();
+                    Screen.RaiseLibraryChanged();
                     UiSound.Play(UiCue.Success);
                     Screen.ShowToast("“" + _level.Title + "”已加入曲库");
                 }
@@ -711,6 +723,26 @@ namespace OpenSekai.App.UI
 
         // ---------------------------------------------------------------- tabs
 
+        private void UpdateStatusVisibility()
+        {
+            _detailStatus.SetPresented(_presented && _tab == 0);
+            _commentsStatus.SetPresented(_presented && _tab == 1);
+            _recordsStatus.SetPresented(_presented && _tab == 2);
+        }
+
+        private void ShowDetailStatus()
+        {
+            var status = _tab == 0 ? _detailStatus : _tab == 1 ? _commentsStatus : _recordsStatus;
+            if (_detailError == null)
+            {
+                status.ShowLoading();
+            }
+            else
+            {
+                status.ShowError(_detailError, LoadDetails);
+            }
+        }
+
         private void SelectTab(int index, bool sound)
         {
             if (sound && index != _tab)
@@ -719,10 +751,17 @@ namespace OpenSekai.App.UI
             }
 
             _tab = index;
+            UpdateStatusVisibility();
             for (int i = 0; i < 3; i++)
             {
                 _tabs[i].Set(i == index);
                 _panels[i].gameObject.SetActive(i == index);
+            }
+
+            if (_details == null)
+            {
+                ShowDetailStatus();
+                return;
             }
 
             if (index == 1)
@@ -737,13 +776,8 @@ namespace OpenSekai.App.UI
 
         private void StartComments()
         {
-            if (_commentsStarted || _details == null)
+            if (_commentsStarted)
             {
-                if (_details == null)
-                {
-                    _commentsStatus.ShowLoading();
-                }
-
                 return;
             }
 
@@ -890,12 +924,6 @@ namespace OpenSekai.App.UI
 
         private void StartRecords()
         {
-            if (_details == null)
-            {
-                _recordsStatus.ShowLoading();
-                return;
-            }
-
             if (_recordLoad != null || _recordCount > 0 || _recordPage > 0)
             {
                 return;
@@ -1004,7 +1032,7 @@ namespace OpenSekai.App.UI
             LibraryUi.Stretch(background.rectTransform);
 
             int position = _recordCount;
-            Color32 rankColor = position == 1 ? Gold : position <= 3 ? _accent : LibraryTheme.Colors.TextSecondary;
+            Color32 rankColor = position == 1 ? _gold : position <= 3 ? _accent : LibraryTheme.Colors.TextSecondary;
             TextMeshProUGUI rank = LibraryWidgets.Label("Rank", row, string.IsNullOrEmpty(record.Rank) ? "#" + position : record.Rank,
                 30f, rankColor, FontStyles.Bold, TextAlignmentOptions.Center);
             LibraryUi.UseCondensedFont(rank);

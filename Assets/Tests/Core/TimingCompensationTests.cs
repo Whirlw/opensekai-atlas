@@ -5,14 +5,17 @@ namespace OpenSekai.Tests.Core
 {
     public sealed class TimingCompensationTests
     {
-        private const float Audio = 10f;
+        private const float AUDIO = 10f;
 
-        [Test]
-        public void AudioLatencyMovesJudgementAndPictureTogether()
+        [TestCase(30L)]
+        [TestCase(-30L)]
+        public void AudioLatencyMovesOnlyPlayback(long advanceMs)
         {
-            var compensation = new TimingCompensation(30f, 0f, 0f);
-            Assert.That(compensation.LogicTime(Audio), Is.EqualTo(9.97f).Within(1e-5f));
-            Assert.That(compensation.ViewTime(Audio), Is.EqualTo(9.97f).Within(1e-5f));
+            var compensation = new TimingCompensation(advanceMs, 0f, 0f);
+            Assert.That(compensation.PlaybackAt(10000), Is.EqualTo(10000 + advanceMs));
+            Assert.That(compensation.TimelineAtPlayback(10000 + advanceMs), Is.EqualTo(10000));
+            Assert.That(compensation.LogicTime(AUDIO), Is.EqualTo(AUDIO).Within(1e-5f));
+            Assert.That(compensation.ViewTime(AUDIO), Is.EqualTo(AUDIO).Within(1e-5f));
             Assert.That(compensation.ViewLeadSeconds, Is.Zero);
         }
 
@@ -20,8 +23,8 @@ namespace OpenSekai.Tests.Core
         public void VisualLatencyMovesOnlyThePicture()
         {
             var compensation = new TimingCompensation(0f, 40f, 0f);
-            Assert.That(compensation.LogicTime(Audio), Is.EqualTo(Audio).Within(1e-5f), "judgement is untouched");
-            Assert.That(compensation.ViewTime(Audio), Is.EqualTo(10.04f).Within(1e-5f), "the picture is drawn ahead");
+            Assert.That(compensation.LogicTime(AUDIO), Is.EqualTo(AUDIO).Within(1e-5f), "judgement is untouched");
+            Assert.That(compensation.ViewTime(AUDIO), Is.EqualTo(10.04f).Within(1e-5f), "the picture is drawn ahead");
             Assert.That(compensation.ViewLeadSeconds, Is.EqualTo(0.04f).Within(1e-6f));
         }
 
@@ -31,26 +34,26 @@ namespace OpenSekai.Tests.Core
             // Positive: "I hit late". The logic clock runs behind, so a late press lands on the beat;
             // the picture is drawn ahead by the same amount and does not move.
             var compensation = new TimingCompensation(0f, 0f, 25f);
-            Assert.That(compensation.LogicTime(Audio), Is.EqualTo(9.975f).Within(1e-5f));
-            Assert.That(compensation.ViewTime(Audio), Is.EqualTo(Audio).Within(1e-5f), "the picture is untouched");
-            Assert.That(compensation.LogicTime(Audio) + compensation.ViewLeadSeconds,
-                Is.EqualTo(compensation.ViewTime(Audio)).Within(1e-5f), "keys and bodies share one picture clock");
+            Assert.That(compensation.LogicTime(AUDIO), Is.EqualTo(9.975f).Within(1e-5f));
+            Assert.That(compensation.ViewTime(AUDIO), Is.EqualTo(AUDIO).Within(1e-5f), "the picture is untouched");
+            Assert.That(compensation.LogicTime(AUDIO) + compensation.ViewLeadSeconds,
+                Is.EqualTo(compensation.ViewTime(AUDIO)).Within(1e-5f), "keys and bodies share one picture clock");
         }
 
         [Test]
         public void AllThreeCombine()
         {
             var compensation = new TimingCompensation(30f, 20f, -10f);
-            Assert.That(compensation.LogicTime(Audio), Is.EqualTo(10f - 0.02f).Within(1e-5f));
-            Assert.That(compensation.ViewTime(Audio), Is.EqualTo(10f - 0.01f).Within(1e-5f));
-            Assert.That(compensation.LogicTime(Audio) + compensation.ViewLeadSeconds,
-                Is.EqualTo(compensation.ViewTime(Audio)).Within(1e-5f));
+            Assert.That(compensation.LogicTime(AUDIO), Is.EqualTo(10.01f).Within(1e-5f));
+            Assert.That(compensation.ViewTime(AUDIO), Is.EqualTo(10.02f).Within(1e-5f));
+            Assert.That(compensation.LogicTime(AUDIO) + compensation.ViewLeadSeconds,
+                Is.EqualTo(compensation.ViewTime(AUDIO)).Within(1e-5f));
         }
 
         [Test]
         public void ClocksNeverGoBelowZero()
         {
-            var compensation = new TimingCompensation(500f, 0f, 200f);
+            var compensation = new TimingCompensation(500f, -200f, 200f);
             Assert.That(compensation.LogicTime(0.1f), Is.Zero);
             Assert.That(compensation.ViewTime(0.1f), Is.Zero);
         }
@@ -59,8 +62,8 @@ namespace OpenSekai.Tests.Core
         public void ValuesAreClampedToTheirRanges()
         {
             var compensation = new TimingCompensation(9999f, -9999f, float.NaN);
-            Assert.That(compensation.AudioLatencyMs, Is.EqualTo(TimingCompensation.MaxAudioLatencyMs));
-            Assert.That(compensation.VisualLatencyMs, Is.EqualTo(TimingCompensation.MinVisualLatencyMs));
+            Assert.That(compensation.AudioLatencyMs, Is.EqualTo(TimingCompensation.MAX_AUDIO_LATENCY_MS));
+            Assert.That(compensation.VisualLatencyMs, Is.EqualTo(TimingCompensation.MIN_VISUAL_LATENCY_MS));
             Assert.That(compensation.JudgeOffsetMs, Is.Zero);
         }
 

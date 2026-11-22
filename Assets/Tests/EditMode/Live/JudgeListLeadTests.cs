@@ -10,19 +10,19 @@ namespace OpenSekai.Tests.EditMode.Live
         public void TheLeadIsLongerThanTheWidestJudgeWindow()
         {
             // LiveConfig.JudgeTimeAfter is the widest bad window and sits around 125-142 ms at 60 fps.
-            Assert.That(JudgeListLead.Seconds, Is.GreaterThan(0.2f));
+            Assert.That(JudgeListLead.SECONDS, Is.GreaterThan(0.2f));
         }
 
         [Test]
         public void ANoteExactlyOneLeadAwayIsStillTooFar()
         {
-            Assert.That(JudgeListLead.IsStillTooFarAhead(0f, JudgeListLead.Seconds), Is.True);
+            Assert.That(JudgeListLead.IsStillTooFarAhead(0f, JudgeListLead.SECONDS), Is.True);
         }
 
         [Test]
         public void ANoteInsideTheLeadIsScannable()
         {
-            Assert.That(JudgeListLead.IsStillTooFarAhead(0f, JudgeListLead.Seconds - 0.01f), Is.False);
+            Assert.That(JudgeListLead.IsStillTooFarAhead(0f, JudgeListLead.SECONDS - 0.01f), Is.False);
         }
 
         [Test]
@@ -44,21 +44,21 @@ namespace OpenSekai.Tests.EditMode.Live
             // The regression this guards: the scanner used the display lead, which divides by the
             // speed ratio, so a note on a fast section entered the judgment list much later than an
             // identical note on a slow one. After the split, entry depends on time alone.
-            const float noteTime = 2f;
-            const float displayWindow = 0.5f;
+            const float NOTE_TIME = 2f;
+            const float DISPLAY_WINDOW = 0.5f;
 
             bool negativeSlow = false;
             bool negativeFast = false;
-            float slowDisplayLead = NoteDisplayOffset.Resolve(displayWindow, 0.5f, 1f, ref negativeSlow);
-            float fastDisplayLead = NoteDisplayOffset.Resolve(displayWindow, 4f, 1f, ref negativeFast);
+            float slowDisplayLead = NoteDisplayOffset.Resolve(DISPLAY_WINDOW, 0.5f, 1f, ref negativeSlow);
+            float fastDisplayLead = NoteDisplayOffset.Resolve(DISPLAY_WINDOW, 4f, 1f, ref negativeFast);
 
-            float slowEntryWithDisplayLead = EntryTime(noteTime, slowDisplayLead);
-            float fastEntryWithDisplayLead = EntryTime(noteTime, fastDisplayLead);
+            float slowEntryWithDisplayLead = EntryTime(NOTE_TIME, slowDisplayLead);
+            float fastEntryWithDisplayLead = EntryTime(NOTE_TIME, fastDisplayLead);
             Assert.That(fastEntryWithDisplayLead, Is.GreaterThan(slowEntryWithDisplayLead + 0.1f),
                 "the display lead really does shift entry by a lot at high speed");
 
-            float fastEntryWithJudgeableLead = EntryTime(noteTime, JudgeListLead.Seconds);
-            float slowEntryWithJudgeableLead = EntryTime(noteTime, JudgeListLead.Seconds);
+            float fastEntryWithJudgeableLead = EntryTime(NOTE_TIME, JudgeListLead.SECONDS);
+            float slowEntryWithJudgeableLead = EntryTime(NOTE_TIME, JudgeListLead.SECONDS);
             Assert.That(fastEntryWithJudgeableLead, Is.EqualTo(slowEntryWithJudgeableLead));
             Assert.That(fastEntryWithJudgeableLead, Is.LessThan(fastEntryWithDisplayLead),
                 "a fast note must enter the list earlier than its display lead would allow");

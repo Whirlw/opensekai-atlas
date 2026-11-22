@@ -13,12 +13,12 @@ namespace OpenSekai.Shared.Live
     public static class ReferenceFrame
     {
         /// <summary>Seconds in one frame of the judgement tables (60 fps).</summary>
-        public const float Seconds = 1f / 60f;
+        public const float SECONDS = 1f / 60f;
 
         /// <summary>Converts a frame count from the judgement tables into seconds.</summary>
         public static float FromFrames(float frames)
         {
-            return frames * Seconds;
+            return frames * SECONDS;
         }
 
         /// <summary>

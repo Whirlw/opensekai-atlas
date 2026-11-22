@@ -27,31 +27,29 @@ namespace OpenSekai.App.UI
         private const float COLUMN_GAP = 40f;
         private const float FOOTER_HEIGHT = 44f;
 
-        // LiveConfig clamps the note skin to 0..1 and both skins ship as custom01/custom02.
-        private static readonly string[] SkinLabels = { "样式 1", "样式 2" };
-        private static readonly string[] NoteSeLabels = { "音效 1", "音效 2" };
-        private static readonly string[] NoteEffectLabels = { "特效 1", "特效 2" };
-        private static readonly string[] JudgeTimingLabels = { "触摸时刻", "下一帧(旧式)" };
-        private static readonly string[] PressMatchingLabels = { "按时间顺序", "同帧候选(旧式)" };
+        private static readonly string[] _judgeTimingLabels = { "触摸时刻", "下一帧(旧式)" };
+        private static readonly string[] _pressMatchingLabels = { "按时间顺序", "同帧候选(旧式)" };
 
-        private static readonly LiveTraceCategory[] InputCategories =
+        private static readonly LiveTraceCategory[] _inputCategories =
         {
             LiveTraceCategory.RawTouch, LiveTraceCategory.Press, LiveTraceCategory.Resident,
             LiveTraceCategory.Release, LiveTraceCategory.Judge
         };
-        private static readonly string[] InputCategoryLabels = { "原始触摸（高频）", "按下事件", "常驻通道（高频）", "抬起事件", "判定结果" };
-        private static readonly LiveTraceCategory[] ViewCategories =
+        private static readonly string[] _inputCategoryLabels = { "原始触摸（高频）", "按下事件", "常驻通道（高频）", "抬起事件", "判定结果" };
+        private static readonly LiveTraceCategory[] _viewCategories =
         {
             LiveTraceCategory.Hold, LiveTraceCategory.Tail, LiveTraceCategory.Swipe, LiveTraceCategory.Pool,
             LiveTraceCategory.View, LiveTraceCategory.Frame, LiveTraceCategory.Audio
         };
-        private static readonly string[] ViewCategoryLabels = { "长条持握", "长条尾键", "划动", "对象回收", "画面表现", "画面逐帧（高频）", "音频同步" };
+        private static readonly string[] _viewCategoryLabels = { "长条持握", "长条尾键", "划动", "对象回收", "画面表现", "画面逐帧（高频）", "音频同步" };
 
         private LiveSettingData _settings;
         private ApplicationLocalSettings _localSettings;
         private Action _onChanged;
 
         private LibraryModal _modal;
+        private LibraryModal _timingHelp;
+        private TextMeshProUGUI _timingDescription;
         private readonly LibrarySettingRows _rows = new LibrarySettingRows();
         private GameObject _tracePanel;
         private ScrollRect _mainScroll;
@@ -85,6 +83,7 @@ namespace OpenSekai.App.UI
         public void Hide()
         {
             if (_tracePanel != null) _tracePanel.SetActive(false);
+            _timingHelp.Close();
             _modal.Close();
         }
 
@@ -93,6 +92,13 @@ namespace OpenSekai.App.UI
         /// <summary>The Android back key: leaves the trace page first, then closes the panel.</summary>
         internal void Back()
         {
+            if (_timingHelp.IsOpen)
+            {
+                _timingHelp.Close();
+                UiSound.Play(UiCue.Back);
+                return;
+            }
+
             if (_tracePanel != null && _tracePanel.activeSelf)
             {
                 CloseTrace();
@@ -109,6 +115,7 @@ namespace OpenSekai.App.UI
 
         private void OnDestroy()
         {
+            _timingHelp?.Dispose();
             _modal?.Dispose();
             _rows.Dispose();
         }
@@ -131,27 +138,33 @@ namespace OpenSekai.App.UI
             float top = 0f;
             LibrarySettingRows.Section timing = _rows.AddSection(content, "判定与延迟", 5, 0f, rightStart, top);
             // See TimingCompensation for what each one moves.
-            _rows.AddMilliseconds(timing, "音频延迟",
+            AddTimingRow(timing, "音频延迟",
+                "调整打歌时背景音乐的播放时间。如果音符先到线、鼓点随后才响，可以增大这个值。\n\n+30 ms 会让音乐提前 30 毫秒，−30 ms 会让音乐推迟 30 毫秒。打击音仍在触发判定时播放。",
                 () => _settings.AudioLatencyMs,
                 value => { _settings.AudioLatencyMs = TimingCompensation.ClampAudioLatency(value); SaveSettings(); });
-            _rows.AddMilliseconds(timing, "画面延迟",
+            AddTimingRow(timing, "画面延迟",
+                "调整音符到达判定线的时间。如果听到鼓点时音符还在判定线上方，可以增大这个值。\n\n+30 ms 会让音符提前 30 毫秒到线，−30 ms 会让音符推迟 30 毫秒到线。",
                 () => _settings.VisualLatencyMs,
                 value => { _settings.VisualLatencyMs = TimingCompensation.ClampVisualLatency(value); SaveSettings(); });
-            _rows.AddMilliseconds(timing, "判定偏移（正 = 打得晚）",
+            AddTimingRow(timing, "判定延迟",
+                "调整手动游玩时的判定窗口。如果打在节拍上却经常显示 LATE，可以增大这个值；经常显示 FAST 则可以减小。\n\n+30 ms 会让判定中心推迟 30 毫秒，−30 ms 会让它提前 30 毫秒。自动游玩忽略此项。",
                 () => _settings.JudgeOffsetMs,
                 value => { _settings.JudgeOffsetMs = TimingCompensation.ClampJudgeOffset(value); SaveSettings(); });
-            _rows.AddSegmented(timing, "判定时机", JudgeTimingLabels,
+            _rows.AddSegmented(timing, "判定时机", _judgeTimingLabels,
                 () => _settings.UseLegacyJudgeTiming ? 1 : 0,
                 index => { _settings.UseLegacyJudgeTiming = index == 1; SaveSettings(); }, 150f);
             // Legacy judge timing flattens timestamps, so it locks the old per-frame matching; the player's own
             // choice is kept and comes back when legacy timing is turned off.
-            _rows.AddSegmented(timing, "多押分配", PressMatchingLabels,
+            _rows.AddSegmented(timing, "多押分配", _pressMatchingLabels,
                 () => _settings.UseLegacyJudgeTiming || _settings.UseFramePressMatching ? 1 : 0,
                 index => { _settings.UseFramePressMatching = index == 1; SaveSettings(); }, 150f,
                 locked: () => _settings.UseLegacyJudgeTiming);
             top += LibrarySettingRows.SectionHeight(5) + gap;
 
-            LibrarySettingRows.Section display = _rows.AddSection(content, "画面", 4, 0f, rightStart, top);
+            LibrarySettingRows.Section display = _rows.AddSection(content, "画面", 5, 0f, rightStart, top);
+            _rows.AddSwitch(display, "播放开场动画",
+                () => _localSettings.PlayStartupAnimation,
+                value => { _localSettings.PlayStartupAnimation = value; SaveLocal(); });
             _rows.AddStepper(display, "音符流速",
                 () => _settings.NoteSpeed,
                 value => { _settings.NoteSpeed = value; SaveSettings(); },
@@ -177,7 +190,7 @@ namespace OpenSekai.App.UI
                 () => Mathf.Clamp01(_settings.MovieBrightness),
                 value => { _settings.MovieBrightness = value; SaveSettings(); },
                 0f, 1f, 0.1f, "0.0", Percent);
-            float leftHeight = top + LibrarySettingRows.SectionHeight(4);
+            float leftHeight = top + LibrarySettingRows.SectionHeight(5);
 
             // Right column: sound, appearance, developer.
             top = 0f;
@@ -201,14 +214,10 @@ namespace OpenSekai.App.UI
                 value => { _localSettings.LoudnessNormalization = value; SaveLocal(); });
             top += LibrarySettingRows.SectionHeight(4) + gap;
 
-            LibrarySettingRows.Section look = _rows.AddSection(content, "外观（下一次开局生效）", 3, rightStart, 0f, top);
-            _rows.AddSegmented(look, "音符皮肤", SkinLabels,
-                () => _settings.NoteSkinIndex, value => { _settings.NoteSkinIndex = value; SaveSettings(); });
-            _rows.AddSegmented(look, "打击音", NoteSeLabels,
-                () => _settings.NoteSeIndex, value => { _settings.NoteSeIndex = value; SaveSettings(); });
-            _rows.AddSegmented(look, "打击特效", NoteEffectLabels,
-                () => _settings.NoteEffect, value => { _settings.NoteEffect = value; SaveSettings(); });
-            top += LibrarySettingRows.SectionHeight(3) + gap;
+            // Note skin, hit sound and hit effect sets belong to the resource pack page now.
+            LibrarySettingRows.Section look = _rows.AddSection(content, "外观（下一次开局生效）", 1, rightStart, 0f, top);
+            _rows.AddLink(look, "音符皮肤、打击音与特效", DescribeResourcePacks, OpenResourcePacks);
+            top += LibrarySettingRows.SectionHeight(1) + gap;
 
             LibrarySettingRows.Section developer = _rows.AddSection(content, "开发", 2, rightStart, 0f, top);
             _rows.AddSwitch(developer, "测试模式",
@@ -221,6 +230,26 @@ namespace OpenSekai.App.UI
 
             BuildTracePanel(_modal.Card);
             overlay.SetAsLastSibling();
+
+            RectTransform helpRoot = LibraryUi.CreateRect("TimingHelp", root);
+            LibraryUi.Stretch(helpRoot);
+            _timingHelp = new LibraryModal(helpRoot, new Vector2(760f, 420f), string.Empty, () => _timingHelp.Close());
+            _timingDescription = LibraryWidgets.Label("Description", _timingHelp.Body, string.Empty, 24f,
+                LibraryTheme.Colors.TextPrimary, alignment: TextAlignmentOptions.TopLeft);
+            _timingDescription.textWrappingMode = TextWrappingModes.Normal;
+            LibraryUi.Stretch(_timingDescription.rectTransform);
+            _timingHelp.Close();
+        }
+
+        private void AddTimingRow(LibrarySettingRows.Section section, string title, string description,
+            Func<float> get, Action<float> set)
+        {
+            _rows.AddMilliseconds(section, title, get, set, () =>
+            {
+                _timingHelp.Title.text = title;
+                _timingDescription.text = description + "\n\n设为 0 可取消此项调整。修改从下次开局生效。";
+                _timingHelp.Open();
+            });
         }
 
         private void BuildTracePanel(RectTransform card)
@@ -235,21 +264,21 @@ namespace OpenSekai.App.UI
 
             float padding = LibraryTheme.Layout.MODAL_PADDING;
             float header = LibraryTheme.Layout.MODAL_HEADER_HEIGHT;
-            const float backSize = 64f;
+            const float BACK_SIZE = 64f;
             Button back = LibraryWidgets.PillButton(
-                "Back", pageRect, string.Empty, CloseTrace, backSize, backSize,
+                "Back", pageRect, string.Empty, CloseTrace, BACK_SIZE, BACK_SIZE,
                 LibraryTheme.Colors.Control, LibraryTheme.Colors.TextSecondary, sound: UiCue.Back);
             LibraryWidgets.Icon(back.transform, LibraryIcon.Back, LibraryTheme.Colors.TextSecondary, 26f);
             LibraryWidgets.Place((RectTransform)back.transform, new Vector2(0f, 1f), new Vector2(0f, 0.5f),
-                new Vector2(28f, -header * 0.5f), new Vector2(backSize, backSize));
+                new Vector2(28f, -header * 0.5f), new Vector2(BACK_SIZE, BACK_SIZE));
 
             TextMeshProUGUI title = LibraryWidgets.Label(
                 "Title", pageRect, "追踪选项", 34f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
-            LibraryWidgets.TopStrip(title.rectTransform, 28f + backSize + 20f, padding, 26f, 46f);
+            LibraryWidgets.TopStrip(title.rectTransform, 28f + BACK_SIZE + 20f, padding, 26f, 46f);
             TextMeshProUGUI hint = LibraryWidgets.Label(
                 "Hint", pageRect, "分类追踪需开启测试模式。延迟采样在退出打歌时保存。",
                 LibraryTheme.FontSize.BODY, LibraryTheme.Colors.TextMuted);
-            LibraryWidgets.TopStrip(hint.rectTransform, 28f + backSize + 20f, padding, 72f, 28f);
+            LibraryWidgets.TopStrip(hint.rectTransform, 28f + BACK_SIZE + 20f, padding, 72f, 28f);
 
             RectTransform body = LibraryUi.CreateRect("Body", pageRect);
             LibraryWidgets.Inset(body, padding, padding, padding, header);
@@ -266,13 +295,13 @@ namespace OpenSekai.App.UI
                 value => LatencyCapture.MixProbeEnabled = value);
 
             float top = LibrarySettingRows.SectionHeight(4) + gap;
-            LibrarySettingRows.Section input = _rows.AddSection(content, "输入与判定", InputCategories.Length, 0f, rightStart, top);
-            AddCategories(input, InputCategories, InputCategoryLabels);
-            float leftHeight = top + LibrarySettingRows.SectionHeight(InputCategories.Length);
+            LibrarySettingRows.Section input = _rows.AddSection(content, "输入与判定", _inputCategories.Length, 0f, rightStart, top);
+            AddCategories(input, _inputCategories, _inputCategoryLabels);
+            float leftHeight = top + LibrarySettingRows.SectionHeight(_inputCategories.Length);
 
-            LibrarySettingRows.Section view = _rows.AddSection(content, "长条与画面", ViewCategories.Length, rightStart, 0f, 0f);
-            AddCategories(view, ViewCategories, ViewCategoryLabels);
-            float rightHeight = LibrarySettingRows.SectionHeight(ViewCategories.Length);
+            LibrarySettingRows.Section view = _rows.AddSection(content, "长条与画面", _viewCategories.Length, rightStart, 0f, 0f);
+            AddCategories(view, _viewCategories, _viewCategoryLabels);
+            float rightHeight = LibrarySettingRows.SectionHeight(_viewCategories.Length);
 
             content.sizeDelta = new Vector2(0f, Mathf.Max(leftHeight, rightHeight) + 8f);
             _tracePanel.SetActive(false);
@@ -339,9 +368,32 @@ namespace OpenSekai.App.UI
             }
 
             int count = 0;
-            foreach (LiveTraceCategory category in InputCategories) if ((LiveTrace.Categories & category) != 0) count++;
-            foreach (LiveTraceCategory category in ViewCategories) if ((LiveTrace.Categories & category) != 0) count++;
+            foreach (LiveTraceCategory category in _inputCategories) if ((LiveTrace.Categories & category) != 0) count++;
+            foreach (LiveTraceCategory category in _viewCategories) if ((LiveTrace.Categories & category) != 0) count++;
             return count + " 项已开启";
+        }
+
+        /// <summary>What the next live uses, as the link to the resource pack page shows it.</summary>
+        private static string DescribeResourcePacks()
+        {
+            try
+            {
+                var state = OpenSekai.Infrastructure.Packages.MaterialPackStore.Shared.List();
+                if (!state.IsPresetMode) return "资源包 · 混搭";
+                var pack = state.PresetPack;
+                string name = state.Preset.IsBuiltin ? PackScreen.BUILTIN_BUNDLE_NAME : pack?.Preset?.Name ?? state.Preset.PackId;
+                return "资源包 · 预设「" + name + "」";
+            }
+            catch (Exception)
+            {
+                return "在资源包页设置";
+            }
+        }
+
+        private void OpenResourcePacks()
+        {
+            Hide();
+            HomeScreen.Current?.OpenResourcePacks();
         }
 
         private static string Percent(float value)

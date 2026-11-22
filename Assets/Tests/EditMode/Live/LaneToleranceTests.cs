@@ -14,14 +14,14 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void AnOrdinaryKeyForgivesOneAndAQuarterLanes()
         {
-            Assert.AreEqual(1.25f, JudgeTuning.ShippedNormalLaneOffset);
+            Assert.AreEqual(1.25f, JudgeTuning.SHIPPED_NORMAL_LANE_OFFSET);
         }
 
         [Test]
         public void ABarHeadAndAFlickForgiveOneAndAHalfLanes()
         {
-            Assert.AreEqual(1.5f, JudgeTuning.ShippedLongLaneOffset);
-            Assert.AreEqual(1.5f, JudgeTuning.ShippedFlickLaneOffset);
+            Assert.AreEqual(1.5f, JudgeTuning.SHIPPED_LONG_LANE_OFFSET);
+            Assert.AreEqual(1.5f, JudgeTuning.SHIPPED_FLICK_LANE_OFFSET);
         }
 
         [Test]

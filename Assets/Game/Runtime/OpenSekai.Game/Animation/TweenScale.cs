@@ -5,21 +5,23 @@ namespace Sekai
 {
 	public class TweenScale : TweenBase
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_from")]
 		[SerializeField]
-		private Vector3 _from;
+		private Vector3 from;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_to")]
 		[SerializeField]
-		private Vector3 _to;
+		private Vector3 to;
 
 		public Vector3 From
 		{
 			get
 			{
-				return _from;
+				return from;
 			}
 			set
 			{
-				_from = value;
+				from = value;
 			}
 		}
 
@@ -27,11 +29,11 @@ namespace Sekai
 		{
 			get
 			{
-				return _to;
+				return to;
 			}
 			set
 			{
-				_to = value;
+				to = value;
 			}
 		}
 
@@ -54,8 +56,8 @@ namespace Sekai
 			{
 				return;
 			}
-			Vector3 start = playDirection == PlayDirection.Forward ? _from : _to;
-			Vector3 end = playDirection == PlayDirection.Forward ? _to : _from;
+			Vector3 start = playDirection == PlayDirection.Forward ? from : to;
+			Vector3 end = playDirection == PlayDirection.Forward ? to : from;
 			tweenTarget.LocalScale = start;
 			PlayMotion(LMotion.Create(start, end, Mathf.Max(0f, duration)),
 				static (value, owner) => owner.TweenTarget.LocalScale = value);
@@ -73,7 +75,7 @@ namespace Sekai
 			{
 				t = curve.Evaluate(t);
 			}
-			tweenTarget.LocalScale = Vector3.LerpUnclamped(_from, _to, Mathf.Clamp01(t));
+			tweenTarget.LocalScale = Vector3.LerpUnclamped(from, to, Mathf.Clamp01(t));
 		}
 
 		protected override void OnReference()

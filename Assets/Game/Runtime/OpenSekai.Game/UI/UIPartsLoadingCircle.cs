@@ -13,28 +13,32 @@ namespace Sekai
 			LightGray = 3
 		}
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_circleTweens")]
 		[SerializeField]
-		private TweenScale[] _circleTweens;
+		private TweenScale[] circleTweens;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_circleImages")]
 		[SerializeField]
-		private CustomImage[] _circleImages;
+		private CustomImage[] circleImages;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_colorType")]
 		[SerializeField]
-		private ColorType _colorType;
+		private ColorType colorType;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_canvasGroup")]
 		[SerializeField]
-		private CanvasGroup _canvasGroup;
+		private CanvasGroup canvasGroup;
 
 		public TweenBase.BehaviourType TweenBehaviour
 		{
 			set
 			{
-				if (_circleTweens == null)
+				if (circleTweens == null)
 				{
 					return;
 				}
 
-				foreach (TweenScale circleTween in _circleTweens)
+				foreach (TweenScale circleTween in circleTweens)
 				{
 					if (circleTween != null)
 					{
@@ -48,9 +52,9 @@ namespace Sekai
 		{
 			set
 			{
-				if (_canvasGroup != null)
+				if (canvasGroup != null)
 				{
-					_canvasGroup.alpha = value ? 1f : 0f;
+					canvasGroup.alpha = value ? 1f : 0f;
 				}
 			}
 		}
@@ -66,12 +70,12 @@ namespace Sekai
 
 		private void UpdateView()
 		{
-			if (_circleImages == null)
+			if (circleImages == null)
 			{
 				return;
 			}
 
-			Color color = _colorType switch
+			Color color = colorType switch
 			{
 				ColorType.Gray => new Color(0.45f, 0.45f, 0.45f, 1f),
 				ColorType.White => Color.white,
@@ -79,7 +83,7 @@ namespace Sekai
 				_ => new Color(0f, 0.73f, 0.83f, 1f)
 			};
 
-			foreach (CustomImage image in _circleImages)
+			foreach (CustomImage image in circleImages)
 			{
 				if (image != null)
 				{
@@ -90,17 +94,17 @@ namespace Sekai
 
 		public void SetReferenceTween(UIPartsLoadingCircle masterTween)
 		{
-			if (masterTween == null || _circleTweens == null || masterTween._circleTweens == null)
+			if (masterTween == null || circleTweens == null || masterTween.circleTweens == null)
 			{
 				return;
 			}
 
-			for (int i = 0; i < _circleTweens.Length && i < masterTween._circleTweens.Length; i++)
+			for (int i = 0; i < circleTweens.Length && i < masterTween.circleTweens.Length; i++)
 			{
-				if (_circleTweens[i] != null)
+				if (circleTweens[i] != null)
 				{
-					_circleTweens[i].ReferenceTween = masterTween._circleTweens[i];
-					_circleTweens[i].Behaviour = TweenBase.BehaviourType.Reference;
+					circleTweens[i].ReferenceTween = masterTween.circleTweens[i];
+					circleTweens[i].Behaviour = TweenBase.BehaviourType.Reference;
 				}
 			}
 		}

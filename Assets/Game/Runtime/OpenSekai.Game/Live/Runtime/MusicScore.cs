@@ -6,7 +6,7 @@ namespace Sekai.Live
 {
 	public class MusicScore
 	{
-		public static MusicScoreInfo CurrentFrameInfo;
+		public static MusicScoreInfo CurrentFrameInfo = new MusicScoreInfo { speedRatio = 1f };
 
 		public int? InitialLife { get; }
 		internal bool UseExtendedLanes { get; }
@@ -51,7 +51,6 @@ namespace Sekai.Live
 
 		public MusicScore()
 		{
-			CurrentFrameInfo.speedRatio = 1f;
 		}
 
 		public MusicScore(MusicScoreInfo[] musicScoreInfoArray, EventBase[] eventArray, NoteBase[] noteArray,

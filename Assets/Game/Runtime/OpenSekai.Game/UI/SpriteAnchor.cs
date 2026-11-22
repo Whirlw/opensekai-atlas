@@ -22,11 +22,13 @@ namespace Sekai
 
 		public const float SAFEAREA_WIDTH = 60f;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_verticalAnchor")]
 		[SerializeField]
-		private VerticalAnchor _verticalAnchor;
+		private VerticalAnchor verticalAnchor;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_horaizontalAnchor")]
 		[SerializeField]
-		private HoraizontalAnchor _horaizontalAnchor;
+		private HoraizontalAnchor horaizontalAnchor;
 
 		private Camera _cachedCamera;
 
@@ -57,22 +59,22 @@ namespace Sekai
 
 			Vector3 localPosition = transform.localPosition;
 			float y = 0f;
-			if (_verticalAnchor == VerticalAnchor.Top)
+			if (verticalAnchor == VerticalAnchor.Top)
 			{
 				y = orthographicSize;
 			}
-			else if (_verticalAnchor == VerticalAnchor.Bottom)
+			else if (verticalAnchor == VerticalAnchor.Bottom)
 			{
 				y = -orthographicSize;
 			}
 
 			float x = 0f;
 			float aspect = safeWidth / safeHeight;
-			if (_horaizontalAnchor == HoraizontalAnchor.Left)
+			if (horaizontalAnchor == HoraizontalAnchor.Left)
 			{
 				x = -orthographicSize * aspect;
 			}
-			else if (_horaizontalAnchor == HoraizontalAnchor.Right)
+			else if (horaizontalAnchor == HoraizontalAnchor.Right)
 			{
 				x = orthographicSize * aspect;
 			}

@@ -14,76 +14,99 @@ namespace Sekai.Live
 {
 	public class LiveFrontView : LiveViewBase
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_liveRoot")]
 		[SerializeField]
-		private Transform _liveRoot;
+		private Transform liveRoot;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_fade")]
 		[SerializeField]
-		private SpriteRenderer _fade;
+		private SpriteRenderer fade;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_deadMask")]
 		[SerializeField]
-		private SpriteRenderer _deadMask;
+		private SpriteRenderer deadMask;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_laneView")]
 		[SerializeField]
-		private LaneView _laneView;
+		private LaneView laneView;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_musicInfo")]
 		[SerializeField]
-		private MusicInfoView _musicInfo;
+		private MusicInfoView musicInfo;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_backgroundRenderer")]
 		[SerializeField]
-		private Renderer _backgroundRenderer;
+		private Renderer backgroundRenderer;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_judgmentView")]
 		[SerializeField]
-		private JudgmentView _judgmentView;
+		private JudgmentView judgmentView;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_judgmentDescriptionView")]
 		[SerializeField]
-		private JudgmentDescriptionView _judgmentDescriptionView;
+		private JudgmentDescriptionView judgmentDescriptionView;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_comboView")]
 		[SerializeField]
-		private ComboView _comboView;
+		private ComboView comboView;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_scoreView")]
 		[SerializeField]
-		private ScoreView _scoreView;
+		private ScoreView scoreView;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_lifeView")]
 		[SerializeField]
-		private LifeView _lifeView;
+		private LifeView lifeView;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_liveResultView")]
 		[SerializeField]
-		private LiveResultView _liveResultView;
+		private LiveResultView liveResultView;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_cutinManager")]
 		[SerializeField]
-		private CutinManager _cutinManager;
+		private CutinManager cutinManager;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_countdownView")]
 		[SerializeField]
-		private CountdownView _countdownView;
+		private CountdownView countdownView;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_screenEffectView")]
 		[SerializeField]
-		private ScreenEffectView _screenEffectView;
+		private ScreenEffectView screenEffectView;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_effectRoot")]
 		[SerializeField]
-		private Transform _effectRoot;
+		private Transform effectRoot;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_effectCamera")]
 		[SerializeField]
-		private Camera _effectCamera;
+		private Camera effectCamera;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_cameraSizeUpdater")]
 		[SerializeField]
-		private CameraSizeUpdater _cameraSizeUpdater;
+		private CameraSizeUpdater cameraSizeUpdater;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_frontViewCamera")]
 		[SerializeField]
-		private Camera _frontViewCamera;
+		private Camera frontViewCamera;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_autoLabel")]
 		[SerializeField]
-		private GameObject _autoLabel;
+		private GameObject autoLabel;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_consecutiveAutoLiveView")]
 		[SerializeField]
-		private ConsecutiveAutoLiveView _consecutiveAutoLiveView;
+		private ConsecutiveAutoLiveView consecutiveAutoLiveView;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_noteShowRateView")]
 		[SerializeField]
-		private NoteShowRateView _noteShowRateView;
+		private NoteShowRateView noteShowRateView;
 
 		private Material _backgroundMaterial;
 
 		private BaseLiveController _baseController;
 		private NotesViewManager _notesViewManager;
+		private LiveHitEffectSkin _hitFxSkin;
 		private TapEffectView _tapEffect;
 		private LongTapEffectView _longTapEffectView;
 		private MusicInfoView _resolvedMusicInfo;
@@ -101,12 +124,21 @@ namespace Sekai.Live
 		private int _lastScreenHeight;
 		private float _effectCameraBaseFieldOfView = -1f;
 
-		private static readonly int TapEffectViewMatrixId = Shader.PropertyToID("_TapEffectViewMatrix");
-		private static readonly int TapEffectProjectionMatrixId = Shader.PropertyToID("_TapEffectProjectionMatrix");
+		private static readonly int _tapEffectViewMatrixId = Shader.PropertyToID("_TapEffectViewMatrix");
+		private static readonly int _tapEffectProjectionMatrixId = Shader.PropertyToID("_TapEffectProjectionMatrix");
 
-		public ConsecutiveAutoLiveView ConsecutiveAutoLiveView => _consecutiveAutoLiveView;
+		public ConsecutiveAutoLiveView ConsecutiveAutoLiveView => consecutiveAutoLiveView;
 
-		public ScoreView ScoreView => _scoreView;
+		public ScoreView ScoreView => scoreView;
+
+		private readonly HudViewBindings _hudBindings = new HudViewBindings();
+
+		internal void SetupHud(LiveHudSkin skin, LiveMusicData musicData)
+		{
+			_hudBindings.Setup(transform, skin);
+			lifeView?.Setup(OnPause);
+			scoreView?.Setup(musicData, skin);
+		}
 
 		public override void Setup(BaseLiveController controller)
 		{
@@ -116,45 +148,49 @@ namespace Sekai.Live
 			_life = LiveConfig.Life;
 			_isAuto = controller?.BootData?.IsAuto == true;
 			SetupCameras();
-			CriWare.CriAtomAudioRuntime.ReleaseFallbackAudioListenerIfExternalExists();
+			SoundManager.NotifySceneAudioListenersChanged();
 			SetupBackgroundMaterial(controller);
 			SetupDeadMask();
 			ResolveChildViews();
-			_lifeView?.Setup(OnPause);
-			_scoreView?.Setup(controller?.BootData?.MusicData);
-			_comboView?.Setup(controller?.Settings?.UseAllPerfectEffect ?? false);
-			_countdownView?.Setup();
-			_screenEffectView?.Setup();
-			_cutinManager?.Setup(controller?.BootData);
-			_musicInfo?.Setup(controller?.BootData);
-			_noteShowRateView?.Setup(controller?.Settings);
-			_consecutiveAutoLiveView?.Setup(OnConsecutiveAutoLivePause, OnConsecutiveAutoLiveResume, OnConsecutiveAutoLiveFinish, _frontViewCamera);
-			_laneView?.Setup(controller?.Settings);
+			var boot = controller?.BootData as FreeLiveBootData;
+			SetupHud(boot?.HudSkin, controller?.BootData?.MusicData);
+			comboView?.Setup(controller?.Settings?.UseAllPerfectEffect ?? false, boot?.ComboSkin);
+			judgmentView?.Setup(boot?.JudgmentSkin, controller?.Settings?.UsesAutoFakePerfectMode ?? false);
+			judgmentDescriptionView?.Setup(boot?.JudgmentSkin, controller?.Settings?.IsFastLateFlick ?? true);
+			countdownView?.Setup();
+			_hitFxSkin = boot?.HitFxSkin;
+			screenEffectView?.Setup(_hitFxSkin);
+			cutinManager?.Setup(controller?.BootData);
+			musicInfo?.Setup(controller?.BootData);
+			noteShowRateView?.Setup(controller?.Settings);
+			consecutiveAutoLiveView?.Setup(OnConsecutiveAutoLivePause, OnConsecutiveAutoLiveResume, OnConsecutiveAutoLiveFinish, frontViewCamera);
+			laneView?.Setup(controller?.Settings, boot?.LaneSkin);
 			SetupNotesView();
 			SetupTapEffect();
 			RefreshScreenDependentLayout(force: true);
 			CacheSpriteRendererAlpha();
 			UpdateSpriteAlpha(0f);
-			if (_autoLabel != null)
+			if (autoLabel != null)
 			{
-				_autoLabel.SetActive(false);
+				autoLabel.SetActive(false);
 			}
-			_liveResultView?.Setup(ShouldPlayVoiceSE());
+			liveResultView?.Setup(ShouldPlayVoiceSE(), boot?.ResultFxSkin);
 		}
 
 		public override void OnLoad()
 		{
 			SetupCameras();
 			UpdateSpriteAlpha(0f);
-			_cutinManager?.Load();
+			cutinManager?.Load();
 		}
 
 		public override void OnUnload()
 		{
+			_hitFxSkin?.ResetPlayback();
 			_longTapEffectView?.Clear();
 			CancelMotions();
-			_liveResultView?.Unload();
-			_cutinManager?.Dispose();
+			liveResultView?.Unload();
+			cutinManager?.Dispose();
 			_tapEffect?.Dispose();
 		}
 
@@ -182,7 +218,7 @@ namespace Sekai.Live
 			if (_baseController?.BootData?.MusicData?.PlayStartEffectEnabled == true)
 			{
 				UpdateSpriteAlpha(0f);
-				_musicStartMotion = LiveMotion.Delay(MusicInfoStartDelaySeconds, () =>
+				_musicStartMotion = LiveMotion.Delay(MUSIC_INFO_START_DELAY_SECONDS, () =>
 				{
 					MusicInfoView info = ResolveMusicInfo();
 					// The library's loading screen fades out as the page fades in over it.
@@ -213,7 +249,7 @@ namespace Sekai.Live
 		public override bool IsIntroFinished => _introFinished;
 
 		/// <summary>The 0.1 s before the page is asked to play, then the page itself.</summary>
-		private const float MusicInfoStartDelaySeconds = 0.1f;
+		private const float MUSIC_INFO_START_DELAY_SECONDS = 0.1f;
 
 		public override float IntroDurationSeconds
 		{
@@ -227,25 +263,25 @@ namespace Sekai.Live
 				}
 
 				MusicInfoView info = ResolveMusicInfo();
-				return info != null ? MusicInfoStartDelaySeconds + info.PlayDurationSeconds : 0f;
+				return info != null ? MUSIC_INFO_START_DELAY_SECONDS + info.PlayDurationSeconds : 0f;
 			}
 		}
 
 		/// <summary>The skip button takes the pause button's place until it is pressed or hidden.</summary>
 		public override void ShowSkip(Action onSkip)
 		{
-			_lifeView?.ShowSkip(onSkip);
+			lifeView?.ShowSkip(onSkip);
 		}
 
 		public override void HideSkip()
 		{
-			_lifeView?.HideSkip();
+			lifeView?.HideSkip();
 		}
 
 		public override void RhythmGameStart()
 		{
-			_lifeView?.CalculateButtonBounds(_frontViewCamera);
-			_consecutiveAutoLiveView?.CalculateButtonBounds(_frontViewCamera);
+			lifeView?.CalculateButtonBounds(frontViewCamera);
+			consecutiveAutoLiveView?.CalculateButtonBounds(frontViewCamera);
 			FadeIn();
 		}
 
@@ -335,9 +371,9 @@ namespace Sekai.Live
 
 		private void ShowJudgmentText(NoteBase note)
 		{
-			if (_judgmentView == null || _judgmentView.Excute(note.JudgeInfo))
+			if (judgmentView == null || judgmentView.Excute(note.JudgeInfo))
 			{
-				_judgmentDescriptionView?.Excute(note.JudgeInfo);
+				judgmentDescriptionView?.Excute(note.JudgeInfo);
 			}
 		}
 
@@ -348,13 +384,13 @@ namespace Sekai.Live
 
 		public override void UpdateCombo(LiveScore score)
 		{
-			_cutinManager?.UpdateCombo(score);
-			_comboView?.Excute(score);
+			cutinManager?.UpdateCombo(score);
+			comboView?.Excute(score);
 		}
 
 		public override void SetupScore(LiveScore score)
 		{
-			_scoreView?.SetupScore(score);
+			scoreView?.SetupScore(score);
 			UpdateLife(score);
 		}
 
@@ -365,45 +401,47 @@ namespace Sekai.Live
 
 		public override void UpdateScore(ref LiveScore score, int addScore)
 		{
-			_scoreView?.UpdateScore(ref score, addScore);
+			scoreView?.UpdateScore(ref score, addScore);
 		}
 
 		public override void UpdateLife(LiveScore score)
 		{
-			_lifeView?.Excute(score.life);
+			lifeView?.Excute(score.life);
 			_life = score.life;
 		}
 
 		public override void Result(int result)
 		{
-			_liveResultView?.Execute((LiveResultAnimationType)result);
+			liveResultView?.Execute((LiveResultAnimationType)result);
 		}
 
 		public override void Pause()
 		{
+			_hitFxSkin?.SetPaused(true);
 			_longTapEffectView?.Silence();
-			_countdownView?.StopCountdown();
+			countdownView?.StopCountdown();
 		}
 
 		public override void Resume()
 		{
-			_countdownView?.StartCountdown();
+			_hitFxSkin?.SetPaused(false);
 		}
 
 		public override void Retry()
 		{
+			_hitFxSkin?.ResetPlayback();
 			CancelMotions();
-			_comboView?.Clear();
-			_scoreView?.Clear();
-			_lifeView?.Clear();
-			_cutinManager?.Clear();
+			comboView?.Clear();
+			scoreView?.Clear();
+			lifeView?.Clear();
+			cutinManager?.Clear();
 			_notesViewManager?.Clear();
 			_tapEffect?.Clear();
 			_longTapEffectView?.Clear();
 			_life = LiveConfig.Life;
-			if (_autoLabel != null)
+			if (autoLabel != null)
 			{
-				_autoLabel.SetActive(false);
+				autoLabel.SetActive(false);
 			}
 			UpdateSpriteAlpha(0f);
 		}
@@ -420,19 +458,19 @@ namespace Sekai.Live
 
 		public override void Countdown()
 		{
-			_countdownView?.StartCountdown();
+			countdownView?.StartCountdown();
 		}
 
 		public void UpdateSkill(SkillData skillData, float time, LiveScore score, bool isEncore)
 		{
-			_cutinManager?.UpdateSkill(skillData, time, score, isEncore);
+			cutinManager?.UpdateSkill(skillData, time, score, isEncore);
 		}
 
 		private void SetupBackgroundMaterial(BaseLiveController controller)
 		{
 			_backgroundMotion.TryCancel();
 			ResolveBackgroundRenderer();
-			if (_backgroundRenderer == null)
+			if (backgroundRenderer == null)
 			{
 				return;
 			}
@@ -444,41 +482,41 @@ namespace Sekai.Live
 				Destroy(_backgroundMaterial);
 			}
 
-			Material sourceMaterial = _backgroundRenderer.sharedMaterial ?? _backgroundRenderer.material;
+			Material sourceMaterial = backgroundRenderer.sharedMaterial ?? backgroundRenderer.material;
 			if (sourceMaterial != null)
 			{
 				_backgroundMaterial = new Material(sourceMaterial);
-				_backgroundRenderer.material = _backgroundMaterial;
+				backgroundRenderer.material = _backgroundMaterial;
 				_backgroundMaterial.mainTexture = controller?.BackgroundTexture;
 				SetBackgroundBrightness(0f);
 			}
 
-			_backgroundRenderer.enabled = true;
+			backgroundRenderer.enabled = true;
 		}
 
 		private void UpdateBackgroundScale()
 		{
-			if (_backgroundRenderer == null || _cameraSizeUpdater == null)
+			if (backgroundRenderer == null || cameraSizeUpdater == null)
 			{
 				return;
 			}
 
-			float height = _cameraSizeUpdater.OrthographicSize * 2f;
+			float height = cameraSizeUpdater.OrthographicSize * 2f;
 			float aspect = Screen.height > 0 ? (float)Screen.width / Screen.height : ScreenConfig.Aspect;
-			_backgroundRenderer.transform.localScale = new Vector3(height * aspect, height, 1f);
+			backgroundRenderer.transform.localScale = new Vector3(height * aspect, height, 1f);
 		}
 
 		private void SetupDeadMask()
 		{
-			if (_deadMask == null || _cameraSizeUpdater == null)
+			if (deadMask == null || cameraSizeUpdater == null)
 			{
 				return;
 			}
 
-			float orthographicSize = _cameraSizeUpdater.OrthographicSize;
+			float orthographicSize = cameraSizeUpdater.OrthographicSize;
 			float height = orthographicSize * 2f;
 			float aspect = Screen.height > 0 ? (float)Screen.width / Screen.height : 16f / 9f;
-			_deadMask.size = new Vector2(height * aspect, height);
+			deadMask.size = new Vector2(height * aspect, height);
 		}
 
 		private void RefreshScreenDependentLayout(bool force)
@@ -498,37 +536,37 @@ namespace Sekai.Live
 			_lastScreenHeight = currentHeight;
 			// OpenSekai: desktop windows can be resized during live; keep camera/world-space effects aligned.
 			ResolveCameraReferences();
-			_cameraSizeUpdater?.ForceUpdate();
+			cameraSizeUpdater?.ForceUpdate();
 			UpdateBackgroundScale();
 			SetupDeadMask();
 			RefreshTapEffectProjection();
-			_screenEffectView?.RefreshScreenSize();
-			_lifeView?.CalculateButtonBounds(_frontViewCamera);
-			_consecutiveAutoLiveView?.CalculateButtonBounds(_frontViewCamera);
+			screenEffectView?.RefreshScreenSize();
+			lifeView?.CalculateButtonBounds(frontViewCamera);
+			consecutiveAutoLiveView?.CalculateButtonBounds(frontViewCamera);
 		}
 
 		private void UpdateLaneMask()
 		{
-			if (_deadMask == null)
+			if (deadMask == null)
 			{
 				return;
 			}
 
-			Color color = _deadMask.color;
+			Color color = deadMask.color;
 			float targetAlpha = _life == 0 ? 1f : 0f;
 			color.a += (targetAlpha - color.a) * 0.1f;
-			_deadMask.color = color;
+			deadMask.color = color;
 		}
 
 		private void ResolveBackgroundRenderer()
 		{
-			if (_backgroundRenderer != null)
+			if (backgroundRenderer != null)
 			{
 				return;
 			}
 
 			Transform backgroundTransform = transform.Find("Background");
-			_backgroundRenderer = backgroundTransform != null ? backgroundTransform.GetComponent<Renderer>() : null;
+			backgroundRenderer = backgroundTransform != null ? backgroundTransform.GetComponent<Renderer>() : null;
 		}
 
 		private void FadeInBackground(Action onComplete)
@@ -568,26 +606,26 @@ namespace Sekai.Live
 
 		private void SetFadeAlpha(float alpha)
 		{
-			if (_fade == null)
+			if (fade == null)
 			{
 				return;
 			}
 
-			Color color = _fade.color;
+			Color color = fade.color;
 			float clamped = Mathf.Clamp01(alpha);
 			color.r = 0f;
 			color.g = 0f;
 			color.b = 0f;
 			color.a = clamped;
-			_fade.color = color;
+			fade.color = color;
 		}
 
 		private void FadeIn()
 		{
 			_fadeMotion.TryCancel();
-			if (_fade != null)
+			if (fade != null)
 			{
-				_fade.enabled = false;
+				fade.enabled = false;
 				SetFadeAlpha(0f);
 			}
 
@@ -608,16 +646,17 @@ namespace Sekai.Live
 
 		private void FadeOut(float duration)
 		{
-			if (_autoLabel != null)
+			_hitFxSkin?.ResetPlayback();
+			if (autoLabel != null)
 			{
-				_autoLabel.SetActive(false);
+				autoLabel.SetActive(false);
 			}
-			if (_fade == null)
+			if (fade == null)
 			{
 				return;
 			}
 
-			_fade.enabled = true;
+			fade.enabled = true;
 			_fadeMotion.TryCancel();
 			_fadeMotion = LMotion.Create(0f, 1f, Mathf.Max(0f, duration))
 				.WithEase(Ease.OutQuad)
@@ -649,12 +688,12 @@ namespace Sekai.Live
 		private void CacheSpriteRendererAlpha()
 		{
 			_spriteRendererAlphaDict.Clear();
-			if (_liveRoot == null)
+			if (liveRoot == null)
 			{
 				return;
 			}
 
-			SpriteRenderer[] renderers = _liveRoot.GetComponentsInChildren<SpriteRenderer>(true);
+			SpriteRenderer[] renderers = liveRoot.GetComponentsInChildren<SpriteRenderer>(true);
 			for (int i = 0; i < renderers.Length; i++)
 			{
 				SpriteRenderer renderer = renderers[i];
@@ -667,23 +706,23 @@ namespace Sekai.Live
 
 		private void UpdateAutoLabel()
 		{
-			if (_autoLabel != null)
+			if (autoLabel != null)
 			{
-				bool useFakePerfect = LiveSettingsStore.Shared.Load()?.UsesAutoFakePerfectMode ?? false;
-				_autoLabel.SetActive(_isAuto && !useFakePerfect);
+				bool useFakePerfect = _baseController?.Settings?.UsesAutoFakePerfectMode ?? false;
+				autoLabel.SetActive(_isAuto && !useFakePerfect);
 			}
 		}
 
 		private void SetupCameras()
 		{
 			ResolveCameraReferences();
-			if (_frontViewCamera == null || _effectCamera == null)
+			if (frontViewCamera == null || effectCamera == null)
 			{
 				return;
 			}
 
-			var frontCameraData = GetOrAddCameraData(_frontViewCamera);
-			var effectCameraData = GetOrAddCameraData(_effectCamera);
+			var frontCameraData = GetOrAddCameraData(frontViewCamera);
+			var effectCameraData = GetOrAddCameraData(effectCamera);
 			if (frontCameraData == null || effectCameraData == null)
 			{
 				return;
@@ -696,30 +735,30 @@ namespace Sekai.Live
 			// leaving this camera as a standalone Base camera makes its transparent
 			// blue clear color overwrite the screen, so it has to render as an overlay
 			// stacked after FrontCamera.
-			_effectCamera.clearFlags = CameraClearFlags.Depth;
-			if (!frontCameraData.cameraStack.Contains(_effectCamera))
+			effectCamera.clearFlags = CameraClearFlags.Depth;
+			if (!frontCameraData.cameraStack.Contains(effectCamera))
 			{
-				frontCameraData.cameraStack.Add(_effectCamera);
+				frontCameraData.cameraStack.Add(effectCamera);
 			}
 
-			_frontViewCamera.GetSekaiAdditionalCameraData()?.Setup(0, 2);
-			_effectCamera.GetSekaiAdditionalCameraData()?.Setup(1, 2);
+			frontViewCamera.GetSekaiAdditionalCameraData()?.Setup(0, 2);
+			effectCamera.GetSekaiAdditionalCameraData()?.Setup(1, 2);
 			if (_baseController != null)
 			{
-				_baseController.BaseCamera = _frontViewCamera;
+				_baseController.BaseCamera = frontViewCamera;
 			}
 		}
 
 		private void SetupNotesView()
 		{
-			Transform parent = _liveRoot != null ? _liveRoot : transform;
+			Transform parent = liveRoot != null ? liveRoot : transform;
 			_notesViewManager = new NotesViewManager();
 			_notesViewManager.Setup(parent);
 		}
 
 		private void SetupTapEffect()
 		{
-			Transform parent = _effectRoot != null ? _effectRoot : transform;
+			Transform parent = effectRoot != null ? effectRoot : transform;
 			if (_tapEffect == null)
 			{
 				_tapEffect = parent.GetComponent<TapEffectView>();
@@ -728,7 +767,7 @@ namespace Sekai.Live
 					_tapEffect = parent.gameObject.AddComponent<TapEffectView>();
 				}
 			}
-			_tapEffect.Setup(_baseController);
+			_tapEffect.Setup(_baseController, _hitFxSkin);
 
 			if (_longTapEffectView == null)
 			{
@@ -736,13 +775,13 @@ namespace Sekai.Live
 				longTapObject.transform.SetParent(parent, false);
 				_longTapEffectView = longTapObject.GetComponent<LongTapEffectView>();
 			}
-			_longTapEffectView.Setup();
+			_longTapEffectView.Setup(_hitFxSkin, _isAuto);
 
 			parent.position = transform.position;
-			if (_effectCamera != null)
+			if (effectCamera != null)
 			{
 				RefreshTapEffectProjection();
-				_effectCamera.enabled = false;
+				effectCamera.enabled = false;
 			}
 		}
 
@@ -753,7 +792,7 @@ namespace Sekai.Live
 				return _resolvedMusicInfo;
 			}
 
-			_resolvedMusicInfo = _musicInfo as MusicInfoView;
+			_resolvedMusicInfo = musicInfo as MusicInfoView;
 			if (_resolvedMusicInfo == null)
 			{
 				_resolvedMusicInfo = GetComponentInChildren<MusicInfoView>(true);
@@ -763,20 +802,20 @@ namespace Sekai.Live
 
 		private void ResolveChildViews()
 		{
-			_laneView ??= GetComponentInChildren<LaneView>(true);
-			_resolvedMusicInfo = _musicInfo != null ? _musicInfo : GetComponentInChildren<MusicInfoView>(true);
-			_musicInfo = _resolvedMusicInfo;
-			_judgmentView ??= GetComponentInChildren<JudgmentView>(true);
-			_judgmentDescriptionView ??= GetComponentInChildren<JudgmentDescriptionView>(true);
-			_comboView ??= GetComponentInChildren<ComboView>(true);
-			_scoreView ??= GetComponentInChildren<ScoreView>(true);
-			_lifeView ??= GetComponentInChildren<LifeView>(true);
-			_liveResultView ??= GetComponentInChildren<LiveResultView>(true);
-			_cutinManager ??= GetComponentInChildren<CutinManager>(true);
-			_countdownView ??= GetComponentInChildren<CountdownView>(true);
-			_screenEffectView ??= GetComponentInChildren<ScreenEffectView>(true);
-			_consecutiveAutoLiveView ??= GetComponentInChildren<ConsecutiveAutoLiveView>(true);
-			_noteShowRateView ??= GetComponentInChildren<NoteShowRateView>(true);
+			laneView ??= GetComponentInChildren<LaneView>(true);
+			_resolvedMusicInfo = musicInfo != null ? musicInfo : GetComponentInChildren<MusicInfoView>(true);
+			musicInfo = _resolvedMusicInfo;
+			judgmentView ??= GetComponentInChildren<JudgmentView>(true);
+			judgmentDescriptionView ??= GetComponentInChildren<JudgmentDescriptionView>(true);
+			comboView ??= GetComponentInChildren<ComboView>(true);
+			scoreView ??= GetComponentInChildren<ScoreView>(true);
+			lifeView ??= GetComponentInChildren<LifeView>(true);
+			liveResultView ??= GetComponentInChildren<LiveResultView>(true);
+			cutinManager ??= GetComponentInChildren<CutinManager>(true);
+			countdownView ??= GetComponentInChildren<CountdownView>(true);
+			screenEffectView ??= GetComponentInChildren<ScreenEffectView>(true);
+			consecutiveAutoLiveView ??= GetComponentInChildren<ConsecutiveAutoLiveView>(true);
+			noteShowRateView ??= GetComponentInChildren<NoteShowRateView>(true);
 		}
 
 		private void PlayStartVoice(float durationScale)
@@ -795,37 +834,37 @@ namespace Sekai.Live
 
 		private void ResolveCameraReferences()
 		{
-			if (_frontViewCamera == null)
+			if (frontViewCamera == null)
 			{
 				var frontCameraTransform = transform.Find("FrontCamera");
-				_frontViewCamera = frontCameraTransform != null ? frontCameraTransform.GetComponent<Camera>() : null;
+				frontViewCamera = frontCameraTransform != null ? frontCameraTransform.GetComponent<Camera>() : null;
 			}
 
-			if (_effectCamera == null)
+			if (effectCamera == null)
 			{
 				var effectCameraTransform = transform.Find("EffectCameraRoot/Camera");
-				_effectCamera = effectCameraTransform != null ? effectCameraTransform.GetComponent<Camera>() : null;
+				effectCamera = effectCameraTransform != null ? effectCameraTransform.GetComponent<Camera>() : null;
 			}
 
-			if (_effectRoot == null)
+			if (effectRoot == null)
 			{
-				_effectRoot = transform.Find("EffectCameraRoot");
+				effectRoot = transform.Find("EffectCameraRoot");
 			}
 
-			if (_cameraSizeUpdater == null)
+			if (cameraSizeUpdater == null)
 			{
-				_cameraSizeUpdater = GetComponent<CameraSizeUpdater>();
+				cameraSizeUpdater = GetComponent<CameraSizeUpdater>();
 			}
 
-			if (_effectCamera != null && _effectCameraBaseFieldOfView < 0f)
+			if (effectCamera != null && _effectCameraBaseFieldOfView < 0f)
 			{
-				_effectCameraBaseFieldOfView = _effectCamera.fieldOfView;
+				_effectCameraBaseFieldOfView = effectCamera.fieldOfView;
 			}
 		}
 
 		private void RefreshTapEffectProjection()
 		{
-			if (_effectCamera == null)
+			if (effectCamera == null)
 			{
 				return;
 			}
@@ -834,15 +873,20 @@ namespace Sekai.Live
 			// projection in sync when desktop/mobile resolution changes at runtime.
 			if (Screen.height > 0)
 			{
-				_effectCamera.aspect = (float)Screen.width / Screen.height;
+				effectCamera.aspect = (float)Screen.width / Screen.height;
 			}
 			if (_effectCameraBaseFieldOfView > 0f)
 			{
-				_effectCamera.fieldOfView = SekaiCameraAspect.CalculateVerticalFov(_effectCameraBaseFieldOfView);
+				effectCamera.fieldOfView = SekaiCameraAspect.CalculateVerticalFov(_effectCameraBaseFieldOfView);
 			}
-			_effectCamera.ResetProjectionMatrix();
-			Shader.SetGlobalMatrix(TapEffectViewMatrixId, _effectCamera.worldToCameraMatrix);
-			Shader.SetGlobalMatrix(TapEffectProjectionMatrixId, GL.GetGPUProjectionMatrix(_effectCamera.projectionMatrix, false));
+			effectCamera.ResetProjectionMatrix();
+			if (_longTapEffectView != null && frontViewCamera != null)
+			{
+				Vector3 judgmentPoint = (liveRoot != null ? liveRoot : transform).TransformPoint(LiveConfig.JudgmentPositions[0]);
+				_longTapEffectView.AlignBeamToLine(frontViewCamera, effectCamera, judgmentPoint);
+			}
+			Shader.SetGlobalMatrix(_tapEffectViewMatrixId, effectCamera.worldToCameraMatrix);
+			Shader.SetGlobalMatrix(_tapEffectProjectionMatrixId, GL.GetGPUProjectionMatrix(effectCamera.projectionMatrix, false));
 		}
 
 		private static UniversalAdditionalCameraData GetOrAddCameraData(Camera camera)
@@ -863,7 +907,7 @@ namespace Sekai.Live
 
 		private void OnPause()
 		{
-			_countdownView?.StopCountdown();
+			countdownView?.StopCountdown();
 			_baseController?.Pause();
 		}
 
@@ -889,7 +933,7 @@ namespace Sekai.Live
 
 		private void OnConsecutiveAutoLiveFinish()
 		{
-			_consecutiveAutoLiveView?.Hide();
+			consecutiveAutoLiveView?.Hide();
 			if (_baseController is SoloLiveController soloLiveController)
 			{
 				soloLiveController.ShowConsecutiveAutoLiveRetireDialog();
@@ -903,7 +947,7 @@ namespace Sekai.Live
 		private void Effect(INote note)
 		{
 			_tapEffect?.Excute(note, CheckPlayedHaptic);
-			_screenEffectView?.Excute(note);
+			screenEffectView?.Excute(note);
 		}
 
 		private bool CheckPlayedHaptic()

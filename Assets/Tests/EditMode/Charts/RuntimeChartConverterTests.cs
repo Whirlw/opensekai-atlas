@@ -36,7 +36,7 @@ namespace OpenSekai.Tests.EditMode.Charts
         private void EnableComboGrid()
         {
             typeof(LiveBundleBuildData)
-                .GetField("_longNoteComboBeat", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                .GetField("longNoteComboBeat", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
                 ?.SetValue(_config, 8);
         }
 

@@ -15,11 +15,11 @@ namespace OpenSekai.Tests.EditMode.Graphics
     /// </summary>
     public class AtlasSpritesFolderTests
     {
-        private const string Root = "Assets/Graphics/AtlasSprites";
+        private const string ROOT = "Assets/Graphics/AtlasSprites";
 
         private static IEnumerable<string> AtlasFolders()
         {
-            return Directory.Exists(Root) ? Directory.GetDirectories(Root) : new string[0];
+            return Directory.Exists(ROOT) ? Directory.GetDirectories(ROOT) : new string[0];
         }
 
         [Test]

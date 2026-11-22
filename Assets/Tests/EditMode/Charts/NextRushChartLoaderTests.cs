@@ -927,7 +927,7 @@ namespace OpenSekai.Tests.EditMode.Charts
                 Assert.That(mesh.colors[0].a, Is.EqualTo(expectedAlpha).Within(.005f));
                 for (int i = 0; i < 2; i++)
                 {
-                    float clipped = Mathf.Clamp(i == 0 ? leftProgress : rightProgress, 0, (float)LiveConfig.NativeKeyProgressEnd);
+                    float clipped = Mathf.Clamp(i == 0 ? leftProgress : rightProgress, 0, (float)LiveConfig.NATIVE_KEY_PROGRESS_END);
                     float fraction = Mathf.InverseLerp(leftProgress, rightProgress, clipped);
                     Vector2 lane = Vector2.Lerp(LiveConfig.NativeLanePosition(1.5f), LiveConfig.NativeLanePosition(9.5f), fraction);
                     Vector2 expected = LiveUtility.EarlyVec2Lerp(LiveConfig.SpawnPosition, lane, LiveConfig.GetNoteViewProgress(clipped));
@@ -1007,9 +1007,9 @@ namespace OpenSekai.Tests.EditMode.Charts
             using var harness = new LiveHarness();
             harness.Arrange(definition.Score, auto: true);
             harness.Step(1.75f, 11.75);
-            Assert.That(harness.Logic.result, Is.Zero);
+            Assert.That(harness.Logic.Result, Is.Zero);
             harness.Step(2.01f, 12.01);
-            Assert.That(harness.Logic.result, Is.EqualTo(3));
+            Assert.That(harness.Logic.Result, Is.EqualTo(3));
         }
 
         [TestCase("AnchorNote", 1, true)]
@@ -3307,6 +3307,31 @@ namespace OpenSekai.Tests.EditMode.Charts
         }
 
         [Test]
+        public void AttachedHiddenTickAtTheReleaseBeatKeepsTheAuthoredTailJudgeable()
+        {
+            var head = N("NormalHeadTapNote", "head", 2);
+            Add(head, R("next", "tail"));
+            var tail = N("NormalTailReleaseNote", "tail", 4);
+            Add(tail, R("prev", "head"), R("activeHead", "head"));
+            var tick = E("TransientHiddenTickNote", null, V("#BEAT", 4), V("isAttached", 1),
+                R("attachHead", "head"), R("attachTail", "tail"), R("activeHead", "head"));
+            var score = Load(Chart(head, tail, tick, Segment("head", "tail", "head", "tail", "head", "tail"))).Score;
+            var bar = score.NoteArray.OfType<LongNote>().Single();
+            Assert.That(bar.NoteList.OfType<LongHoldCombo>().Single().MusicScoreInfo.time,
+                Is.EqualTo(bar.TailNote.MusicScoreInfo.time));
+            Assert.That(bar.TryGetTail(out var selected), Is.True);
+            Assert.That(selected, Is.SameAs(bar.TailNote));
+
+            using var harness = new LiveHarness();
+            harness.Arrange(score);
+            var lane = LiveConfig.NativeLanePosition(5.5f);
+            harness.Step(1f, 11, LiveHarness.Touch(1, lane, 11));
+            harness.Step(1.98f, 11.98, LiveHarness.Touch(1, lane, 11.98, InputTouchPhase.Stationary));
+            harness.Step(2f, 12, LiveHarness.Touch(1, lane, 12, InputTouchPhase.Ended));
+            Assert.That(bar.TailNote.Result, Is.EqualTo(NoteResult.Perfect));
+        }
+
+        [Test]
         public void AHiddenTickCanUseItsAuthoredTapTailAfterTheBodyEnds()
         {
             var head = N("NormalHeadTapNote", "head", 2, -3);
@@ -3538,8 +3563,17 @@ namespace OpenSekai.Tests.EditMode.Charts
             harness.Step(1.45f, 11.45, LiveHarness.Touch(1, lane, 11.45, InputTouchPhase.Moved));
             bool release = key is NormalNote;
             if (key is FrictionFlickNote)
-                harness.Step(1.5f, 11.5, new LiveTouchSample(1, new Vector2(800, 660), lane, 11.5,
-                    InputTouchPhase.Moved, new Vector2(0, 60)));
+            {
+                float previous = LiveUtility.FrameDeltaTimeOverride;
+                try
+                {
+                    LiveUtility.FrameDeltaTimeOverride = 0.05f; // 1.45s to 1.50s in this replay
+                    float distance = 6f * LiveUtility.ScreenDpiToInch(_config.FlickDistance) + 1f;
+                    harness.Step(1.5f, 11.5, new LiveTouchSample(1, new Vector2(800, 600 + distance), lane, 11.5,
+                        InputTouchPhase.Moved, new Vector2(0, distance)));
+                }
+                finally { LiveUtility.FrameDeltaTimeOverride = previous; }
+            }
             else
                 harness.Step(1.5f, 11.5, LiveHarness.Touch(1, lane, 11.5,
                     release ? InputTouchPhase.Ended : InputTouchPhase.Stationary));
@@ -3869,22 +3903,22 @@ namespace OpenSekai.Tests.EditMode.Charts
             double pressTime, NoteResult expectedTickResult)
         {
             // Android LiveTrace touch timestamps 2839.095 and 2839.102 map to 93.333 and 93.340.
-            const double clockOrigin = 2745.762;
-            const int flickTouch = 6413;
-            const int headTouch = 6414;
+            const double CLOCK_ORIGIN = 2745.762;
+            const int FLICK_TOUCH = 6413;
+            const int HEAD_TOUCH = 6414;
             var flickLane = LiveConfig.NativeLanePosition(9.70f);
             var headLane = LiveConfig.NativeLanePosition(2.40f);
             using var harness = new LiveHarness();
             harness.Arrange(score, score.NoteArray.Where(n => n.MusicScoreInfo.time >= 93.300f).ToArray());
-            harness.Step(92.790f, clockOrigin + 92.790);
-            harness.Step(93.300f, clockOrigin + 93.300);
-            harness.Step(93.317f, clockOrigin + 93.317);
-            harness.Step(93.335f, clockOrigin + 93.335,
-                LiveHarness.Touch(flickTouch, flickLane, 2839.095));
+            harness.Step(92.790f, CLOCK_ORIGIN + 92.790);
+            harness.Step(93.300f, CLOCK_ORIGIN + 93.300);
+            harness.Step(93.317f, CLOCK_ORIGIN + 93.317);
+            harness.Step(93.335f, CLOCK_ORIGIN + 93.335,
+                LiveHarness.Touch(FLICK_TOUCH, flickLane, 2839.095));
             double frame = pressTime + 0.007;
-            harness.Step((float)frame, clockOrigin + frame,
-                LiveHarness.Touch(flickTouch, flickLane, 2839.095, InputTouchPhase.Stationary),
-                LiveHarness.Touch(headTouch, headLane, clockOrigin + pressTime));
+            harness.Step((float)frame, CLOCK_ORIGIN + frame,
+                LiveHarness.Touch(FLICK_TOUCH, flickLane, 2839.095, InputTouchPhase.Stationary),
+                LiveHarness.Touch(HEAD_TOUCH, headLane, CLOCK_ORIGIN + pressTime));
             if (pressTime == 93.340) Assert.That(head.Result, Is.EqualTo(NoteResult.Perfect));
             Assert.That(tick.Result, Is.EqualTo(expectedTickResult));
         }
@@ -4677,24 +4711,24 @@ namespace OpenSekai.Tests.EditMode.Charts
 
         private static Color[] ReadGuidePixels(Camera camera, Renderer guide, params Vector3[] worldPositions)
         {
-            const int testLayer = 31;
-            const int size = 128;
-            guide.gameObject.layer = testLayer;
-            camera.cullingMask = 1 << testLayer;
+            const int TEST_LAYER = 31;
+            const int SIZE = 128;
+            guide.gameObject.layer = TEST_LAYER;
+            camera.cullingMask = 1 << TEST_LAYER;
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = Color.black;
-            var target = RenderTexture.GetTemporary(size, size, 24, RenderTextureFormat.ARGB32);
-            var pixels = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            var target = RenderTexture.GetTemporary(SIZE, SIZE, 24, RenderTextureFormat.ARGB32);
+            var pixels = new Texture2D(SIZE, SIZE, TextureFormat.RGBA32, false);
             var previous = RenderTexture.active;
             try
             {
                 RenderPipeline.SubmitRenderRequest(camera, new RenderPipeline.StandardRequest { destination = target });
                 RenderTexture.active = target;
-                pixels.ReadPixels(new Rect(0, 0, size, size), 0, 0, false);
+                pixels.ReadPixels(new Rect(0, 0, SIZE, SIZE), 0, 0, false);
                 return worldPositions.Select(position =>
                 {
                     var viewport = camera.WorldToViewportPoint(position);
-                    return pixels.GetPixel((int)(viewport.x * size), (int)(viewport.y * size));
+                    return pixels.GetPixel((int)(viewport.x * SIZE), (int)(viewport.y * SIZE));
                 }).ToArray();
             }
             finally
@@ -4741,10 +4775,10 @@ namespace OpenSekai.Tests.EditMode.Charts
                 view.Setup(LiveConfig.SpawnPosition, LiveConfig.JudgmentPositions, 1);
                 var moving = markerHost.AddComponent<LongNoteView>();
                 moving.Setup(LiveConfig.SpawnPosition, LiveConfig.JudgmentPositions, 1);
-                const float firstVisible = 0.8f;
-                harness.OnUpdate(firstVisible, 10d + firstVisible);
+                const float FIRST_VISIBLE = 0.8f;
+                harness.OnUpdate(FIRST_VISIBLE, 10d + FIRST_VISIBLE);
                 view.Spawn(bar, 0);
-                view.Move(firstVisible);
+                view.Move(FIRST_VISIBLE);
                 Assert.That(bar.State, Is.EqualTo(NoteState.Wait));
                 Assert.That(host.transform.localScale.x, Is.GreaterThan(0));
                 Vector3 firstPosition = host.transform.localPosition;
@@ -4761,9 +4795,9 @@ namespace OpenSekai.Tests.EditMode.Charts
 
                 view.Unspawn();
                 harness.Logic.Session.Reset(new LivePresentationBridge());
-                harness.OnUpdate(firstVisible, 20d + firstVisible);
+                harness.OnUpdate(FIRST_VISIBLE, 20d + FIRST_VISIBLE);
                 view.Spawn(bar, 0);
-                view.Move(firstVisible);
+                view.Move(FIRST_VISIBLE);
                 Assert.That(bar.State, Is.EqualTo(NoteState.Wait));
                 Assert.That(host.transform.localScale.x, Is.GreaterThan(0));
                 Assert.That(host.transform.localPosition, Is.EqualTo(firstPosition));
@@ -4884,11 +4918,11 @@ namespace OpenSekai.Tests.EditMode.Charts
             json["bgmOffset"] = offset;
             var boot = Boot(json);
             var root = new GameObject("NextRUSH click test");
-            const int sampleRate = 8000;
-            var click = AudioClip.Create("click", 2 * sampleRate, 1, sampleRate, false);
+            const int SAMPLE_RATE = 8000;
+            var click = AudioClip.Create("click", 2 * SAMPLE_RATE, 1, SAMPLE_RATE, false);
             try
             {
-                Assert.That(click.SetData(new[] { 0.8f }, sampleRate * 3 / 2), Is.True);
+                Assert.That(click.SetData(new[] { 0.8f }, SAMPLE_RATE * 3 / 2), Is.True);
                 Assert.That(AudibleRange.TryFind(click, out float audioSeconds, out _), Is.True);
                 Assert.That(audioSeconds, Is.EqualTo(1.5f));
 
@@ -4896,8 +4930,8 @@ namespace OpenSekai.Tests.EditMode.Charts
                 controller.Arrange(boot, 2000L, new TimingCompensation(40f, 10f, 25f));
                 var score = boot.MusicData.MusicScore;
                 var note = score.NoteArray.Single();
-                Assert.That(controller.SampleViewAt(1530L), Is.EqualTo(note.MusicScoreInfo.time).Within(1e-6f));
-                float logicTime = controller.SampleLogicAt(1565L);
+                Assert.That(controller.SampleViewAt(1490L), Is.EqualTo(note.MusicScoreInfo.time).Within(1e-6f));
+                float logicTime = controller.SampleLogicAt(1525L);
                 Assert.That(logicTime, Is.EqualTo(note.MusicScoreInfo.time).Within(1e-6f));
 
                 using var harness = new LiveHarness();
@@ -5010,7 +5044,7 @@ namespace OpenSekai.Tests.EditMode.Charts
             internal double SampleViewAt(long audioMs)
             {
                 currentMusicTimeMs = audioMs;
-                return BootData.MusicData.AudioToChartTime(currentAudioLatencyMusicTimeMs);
+                return BootData.MusicData.AudioToChartTime(CurrentViewTimeSeconds);
             }
 
             protected override void PreExit(float delay, float waitTime, long? resultEffectAtMs = null)

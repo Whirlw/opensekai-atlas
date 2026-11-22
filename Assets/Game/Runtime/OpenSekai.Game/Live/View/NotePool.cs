@@ -7,6 +7,7 @@ namespace Sekai
 	public class NotePool : MonoBehaviour
 	{
 		private GameObject _notePrefab;
+		private LiveNoteSkin _skin;
 
 		private List<BaseNoteView> _noteArray;
 
@@ -14,8 +15,9 @@ namespace Sekai
 
 		private float _noteShowRate;
 
-		public void Setup(int poolCount, GameObject _notePrefab, float _noteShowRate)
+		public void Setup(int poolCount, GameObject _notePrefab, float _noteShowRate, LiveNoteSkin skin = null)
 		{
+			_skin = skin;
 			this._notePrefab = _notePrefab;
 			this._noteShowRate = _noteShowRate;
 			_nextSpawinIndex = 0;
@@ -62,6 +64,7 @@ namespace Sekai
 			}
 
 			noteView.Setup(LiveConfig.SpawnPosition, LiveConfig.JudgmentPositions, _noteShowRate);
+			if (_skin != null) noteView.PrepareSkin();
 			noteView.Unspawn();
 			_noteArray.Add(noteView);
 			return noteView;
@@ -94,6 +97,7 @@ namespace Sekai
 			float z = note.MusicScoreInfo.time * 0.001f + note.LaneStart * 0.0000001f;
 			if (note is NoteBase { IsNextRush: true, Category: NoteCategory.Connection }) z -= 0.0001f;
 			noteView.Spawn(note, z);
+			if (_skin != null) noteView.BindSkin(_skin);
 			return noteView;
 		}
 

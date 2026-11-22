@@ -10,42 +10,49 @@ namespace UiEffect
 	{
 		private const int ONE_TEXT_VERTEX = 6;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_alphaTop")]
 		[SerializeField]
 		[Range(0f, 1f)]
-		private float _alphaTop;
+		private float alphaTopValue;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_alphaBottom")]
 		[SerializeField]
 		[Range(0f, 1f)]
-		private float _alphaBottom;
+		private float alphaBottomValue;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_alphaLeft")]
 		[SerializeField]
 		[Range(0f, 1f)]
-		private float _alphaLeft;
+		private float alphaLeftValue;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_alphaRight")]
 		[SerializeField]
 		[Range(0f, 1f)]
-		private float _alphaRight;
+		private float alphaRightValue;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_gradientOffsetVertical")]
 		[SerializeField]
 		[Range(-1f, 1f)]
-		private float _gradientOffsetVertical;
+		private float gradientOffsetVerticalValue;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_gradientOffsetHorizontal")]
 		[SerializeField]
 		[Range(-1f, 1f)]
-		private float _gradientOffsetHorizontal;
+		private float gradientOffsetHorizontalValue;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_splitTextGradient")]
 		[SerializeField]
-		private bool _splitTextGradient;
+		private bool splitTextGradientValue;
 
 		public float alphaTop
 		{
 			get
 			{
-				return _alphaTop;
+				return alphaTopValue;
 			}
 			set
 			{
-				SetAlpha(ref _alphaTop, value);
+				SetAlpha(ref alphaTopValue, value);
 			}
 		}
 
@@ -53,11 +60,11 @@ namespace UiEffect
 		{
 			get
 			{
-				return _alphaBottom;
+				return alphaBottomValue;
 			}
 			set
 			{
-				SetAlpha(ref _alphaBottom, value);
+				SetAlpha(ref alphaBottomValue, value);
 			}
 		}
 
@@ -65,11 +72,11 @@ namespace UiEffect
 		{
 			get
 			{
-				return _alphaLeft;
+				return alphaLeftValue;
 			}
 			set
 			{
-				SetAlpha(ref _alphaLeft, value);
+				SetAlpha(ref alphaLeftValue, value);
 			}
 		}
 
@@ -77,11 +84,11 @@ namespace UiEffect
 		{
 			get
 			{
-				return _alphaRight;
+				return alphaRightValue;
 			}
 			set
 			{
-				SetAlpha(ref _alphaRight, value);
+				SetAlpha(ref alphaRightValue, value);
 			}
 		}
 
@@ -89,11 +96,11 @@ namespace UiEffect
 		{
 			get
 			{
-				return _gradientOffsetVertical;
+				return gradientOffsetVerticalValue;
 			}
 			set
 			{
-				SetOffset(ref _gradientOffsetVertical, value);
+				SetOffset(ref gradientOffsetVerticalValue, value);
 			}
 		}
 
@@ -101,11 +108,11 @@ namespace UiEffect
 		{
 			get
 			{
-				return _gradientOffsetHorizontal;
+				return gradientOffsetHorizontalValue;
 			}
 			set
 			{
-				SetOffset(ref _gradientOffsetHorizontal, value);
+				SetOffset(ref gradientOffsetHorizontalValue, value);
 			}
 		}
 
@@ -113,16 +120,16 @@ namespace UiEffect
 		{
 			get
 			{
-				return _splitTextGradient;
+				return splitTextGradientValue;
 			}
 			set
 			{
-				if (_splitTextGradient == value)
+				if (splitTextGradientValue == value)
 				{
 					return;
 				}
 
-				_splitTextGradient = value;
+				splitTextGradientValue = value;
 				Refresh();
 			}
 		}
@@ -155,9 +162,9 @@ namespace UiEffect
 			float height = 0f;
 			for (int i = 0; i < vList.Count; i++)
 			{
-				if (i == 0 || (_splitTextGradient && i % ONE_TEXT_VERTEX == 0))
+				if (i == 0 || (splitTextGradientValue && i % ONE_TEXT_VERTEX == 0))
 				{
-					int endIndex = _splitTextGradient ? i + ONE_TEXT_VERTEX : vList.Count;
+					int endIndex = splitTextGradientValue ? i + ONE_TEXT_VERTEX : vList.Count;
 					UIVertex first = vList[i];
 					minX = first.position.x;
 					minY = first.position.y;
@@ -194,19 +201,19 @@ namespace UiEffect
 				{
 					verticalRate = (vertex.position.y - minY) / height;
 				}
-				verticalRate = Mathf.Clamp01(verticalRate + _gradientOffsetVertical);
+				verticalRate = Mathf.Clamp01(verticalRate + gradientOffsetVerticalValue);
 
 				float horizontalRate = 0f;
 				if (width > 0f)
 				{
 					horizontalRate = (vertex.position.x - minX) / width;
 				}
-				horizontalRate = Mathf.Clamp01(horizontalRate + _gradientOffsetHorizontal);
+				horizontalRate = Mathf.Clamp01(horizontalRate + gradientOffsetHorizontalValue);
 
 				Color32 color = vertex.color;
 				float sourceAlpha = color.a / 255f;
-				float verticalAlpha = _alphaBottom + (_alphaTop - _alphaBottom) * verticalRate;
-				float horizontalAlpha = _alphaLeft + (_alphaRight - _alphaLeft) * horizontalRate;
+				float verticalAlpha = alphaBottomValue + (alphaTopValue - alphaBottomValue) * verticalRate;
+				float horizontalAlpha = alphaLeftValue + (alphaRightValue - alphaLeftValue) * horizontalRate;
 				color.a = (byte)(Mathf.Clamp01(sourceAlpha * verticalAlpha * horizontalAlpha) * 255f);
 				vertex.color = color;
 				vList[i] = vertex;
@@ -223,10 +230,10 @@ namespace UiEffect
 
 		public GradientAlpha()
 		{
-			_alphaTop = 1f;
-			_alphaBottom = 1f;
-			_alphaLeft = 1f;
-			_alphaRight = 1f;
+			alphaTopValue = 1f;
+			alphaBottomValue = 1f;
+			alphaLeftValue = 1f;
+			alphaRightValue = 1f;
 		}
 
 		private void SetAlpha(ref float field, float value)

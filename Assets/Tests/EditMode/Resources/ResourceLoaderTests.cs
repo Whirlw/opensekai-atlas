@@ -13,20 +13,20 @@ namespace OpenSekai.Tests.EditMode.ResourceLoading
     /// </summary>
     public class ResourceLoaderTests
     {
-        private const string ExistingAsset = "Fonts/SourceHanSansSC-Medium";
-        private const string ExistingFolder = "Fonts";
-        private const string MissingAsset = "__no_such_resource__";
+        private const string EXISTING_ASSET = "Fonts/SourceHanSansSC-Medium";
+        private const string EXISTING_FOLDER = "Fonts";
+        private const string MISSING_ASSET = "__no_such_resource__";
 
         [Test]
         public void ASyncLoadReturnsTheAssetAndReportsDone()
         {
             var loader = new ResourceLoader();
 
-            Font font = loader.LoadResource<Font>(ExistingAsset);
+            Font font = loader.LoadResource<Font>(EXISTING_ASSET);
 
             Assert.That(font, Is.Not.Null);
             Assert.That(loader.Resource, Is.Not.Null);
-            Assert.That(loader.AssetName, Is.EqualTo(ExistingAsset));
+            Assert.That(loader.AssetName, Is.EqualTo(EXISTING_ASSET));
             Assert.That(loader.ResourceLoadState, Is.EqualTo(AssetLoader.LoadState.Done));
         }
 
@@ -36,7 +36,7 @@ namespace OpenSekai.Tests.EditMode.ResourceLoading
         {
             var loader = new ResourceLoader();
 
-            Font font = loader.LoadResource<Font>(MissingAsset);
+            Font font = loader.LoadResource<Font>(MISSING_ASSET);
 
             Assert.That(font, Is.Null);
             Assert.That(loader.Resource, Is.Null);
@@ -48,7 +48,7 @@ namespace OpenSekai.Tests.EditMode.ResourceLoading
         {
             var loader = new ResourceLoader();
 
-            Font[] fonts = loader.LoadResourcesAll<Font>(ExistingFolder);
+            Font[] fonts = loader.LoadResourcesAll<Font>(EXISTING_FOLDER);
 
             Assert.That(fonts, Is.Not.Null.And.Length.GreaterThanOrEqualTo(2));
             Assert.That(loader.AllResources, Is.Not.Null.And.Count.EqualTo(fonts.Length));
@@ -66,7 +66,7 @@ namespace OpenSekai.Tests.EditMode.ResourceLoading
             Object received = null;
             int callbacks = 0;
 
-            loader.LoadResourceAsync<Font>(ExistingAsset, null, asset =>
+            loader.LoadResourceAsync<Font>(EXISTING_ASSET, null, asset =>
             {
                 callbacks++;
                 received = asset;
@@ -84,7 +84,7 @@ namespace OpenSekai.Tests.EditMode.ResourceLoading
             Object received = new Object();
             int callbacks = 0;
 
-            loader.LoadResourceAsync<Font>(MissingAsset, null, asset =>
+            loader.LoadResourceAsync<Font>(MISSING_ASSET, null, asset =>
             {
                 callbacks++;
                 received = asset;
@@ -104,7 +104,7 @@ namespace OpenSekai.Tests.EditMode.ResourceLoading
         {
             var loader = new ResourceLoader();
 
-            loader.LoadResource<Font>(ExistingAsset);
+            loader.LoadResource<Font>(EXISTING_ASSET);
             Font bold = loader.LoadResource<Font>("Fonts/SourceHanSansSC-Bold");
 
             Assert.That(bold, Is.Not.Null);
@@ -121,12 +121,12 @@ namespace OpenSekai.Tests.EditMode.ResourceLoading
     /// </summary>
     public class NoteResourcesFallbackTests
     {
-        private const string NoteBundle = "live/note/custom01";
+        private const string NOTE_BUNDLE = "live/note/custom01";
 
         [Test]
         public void ANotePrefabIsServedFromResources()
         {
-            GameObject prefab = AssetBundleUtility.LoadAsset<GameObject>(NoteBundle, "FlickNote");
+            GameObject prefab = AssetBundleUtility.LoadAsset<GameObject>(NOTE_BUNDLE, "FlickNote");
 
             Assert.That(prefab, Is.Not.Null, "live/note/custom01/FlickNote.prefab");
         }
@@ -135,7 +135,7 @@ namespace OpenSekai.Tests.EditMode.ResourceLoading
         [Test]
         public void TheExtensionIsStrippedBeforeTheLookup()
         {
-            GameObject prefab = AssetBundleUtility.LoadAsset<GameObject>(NoteBundle, "FlickNote.prefab");
+            GameObject prefab = AssetBundleUtility.LoadAsset<GameObject>(NOTE_BUNDLE, "FlickNote.prefab");
 
             Assert.That(prefab, Is.Not.Null);
         }

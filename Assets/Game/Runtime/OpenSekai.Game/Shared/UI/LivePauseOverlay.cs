@@ -17,11 +17,11 @@ namespace OpenSekai.Shared.UI
         private const float PANEL_WIDTH = 720f;
         private const float PANEL_HEIGHT = 460f;
 
-        private static readonly Color32 DimColor = new Color32(0, 0, 0, 150);
-        private static readonly Color32 PanelColor = new Color32(26, 32, 40, 255);
-        private static readonly Color32 ButtonColor = new Color32(58, 74, 94, 255);
-        private static readonly Color32 AccentColor = new Color32(168, 208, 240, 255);
-        private static readonly Color32 SongColor = new Color32(168, 182, 198, 255);
+        private static readonly Color32 _dimColor = new Color32(0, 0, 0, 150);
+        private static readonly Color32 _panelColor = new Color32(26, 32, 40, 255);
+        private static readonly Color32 _buttonColor = new Color32(58, 74, 94, 255);
+        private static readonly Color32 _accentColor = new Color32(168, 208, 240, 255);
+        private static readonly Color32 _songColor = new Color32(168, 182, 198, 255);
 
         private static TMP_FontAsset _font;
         private static bool _fontResolved;
@@ -82,7 +82,7 @@ namespace OpenSekai.Shared.UI
             RectTransform root = (RectTransform)transform;
             Stretch(root);
 
-            Image dim = CreateImage("Dim", root, DimColor);
+            Image dim = CreateImage("Dim", root, _dimColor);
             Stretch(dim.rectTransform);
 
             RectTransform panel = CreateRect("Panel", root);
@@ -91,7 +91,7 @@ namespace OpenSekai.Shared.UI
             panel.pivot = new Vector2(0.5f, 0.5f);
             panel.sizeDelta = new Vector2(PANEL_WIDTH, PANEL_HEIGHT);
             Image panelImage = panel.gameObject.AddComponent<Image>();
-            panelImage.color = PanelColor;
+            panelImage.color = _panelColor;
 
             TextMeshProUGUI title = CreateText(
                 "Title", panel, "暂停", 44f, FontStyles.Bold, TextAlignmentOptions.Center);
@@ -107,7 +107,7 @@ namespace OpenSekai.Shared.UI
             _songText.rectTransform.pivot = new Vector2(0.5f, 1f);
             _songText.rectTransform.offsetMin = new Vector2(32f, -148f);
             _songText.rectTransform.offsetMax = new Vector2(-32f, -110f);
-            _songText.color = SongColor;
+            _songText.color = _songColor;
 
             Button resume = CreateButton("Resume", panel, "继续", Resume, 420f, 68f);
             Place((RectTransform)resume.transform, 250f);
@@ -195,7 +195,7 @@ namespace OpenSekai.Shared.UI
             rect.sizeDelta = new Vector2(width, height);
 
             Image image = go.GetComponent<Image>();
-            image.color = ButtonColor;
+            image.color = _buttonColor;
 
             Button button = go.GetComponent<Button>();
             button.targetGraphic = image;
@@ -209,7 +209,7 @@ namespace OpenSekai.Shared.UI
             button.onClick.AddListener(onClick);
 
             TextMeshProUGUI text = CreateText("Label", rect, label, 24f, FontStyles.Bold, TextAlignmentOptions.Center);
-            text.color = AccentColor;
+            text.color = _accentColor;
             Stretch(text.rectTransform);
             return button;
         }

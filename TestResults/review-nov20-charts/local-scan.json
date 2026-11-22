@@ -1,0 +1,26 @@
+[
+  {
+    "file": ".utmp/next-rush-research/kamisama-level-data.json.gz",
+    "entities": 1265,
+    "equalEndpoint": [],
+    "playableTail": []
+  },
+  {
+    "file": ".utmp/next-rush-research/life-reset/level-data.json.gz",
+    "entities": 8576,
+    "equalEndpoint": [],
+    "playableTail": []
+  },
+  {
+    "file": ".utmp/next-rush-research/hallway/level-data.json.gz",
+    "entities": 995,
+    "equalEndpoint": [],
+    "playableTail": []
+  },
+  {
+    "file": "TestResults/sbuga-master/level-data.json.gz",
+    "entities": 1783,
+    "equalEndpoint": [],
+    "playableTail": []
+  }
+]

@@ -161,8 +161,8 @@ namespace OpenSekai.Charts
         // Inspect each continuous piece independently: a skip can jump over the whole window.
         private double FindLegacySpawnTime(Position target, double duration)
         {
-            const double earliest = -2, padding = 0.01, step = 1.0 / 120;
-            double anchor = earliest;
+            const double EARLIEST = -2, PADDING = 0.01, STEP = 1.0 / 120;
+            double anchor = EARLIEST;
             while (anchor <= target.Time)
             {
                 var position = Sample(anchor);
@@ -188,7 +188,7 @@ namespace OpenSekai.Charts
                         entry = speed > 0 ? anchor + (distance - duration - slack) / speed : double.PositiveInfinity;
                     else if (distance < -slack)
                         entry = speed < 0 ? anchor + (distance + slack) / speed : double.PositiveInfinity;
-                    if (entry <= end) return Math.Max(earliest, entry - padding - (entry > anchor ? step : 0));
+                    if (entry <= end) return Math.Max(EARLIEST, entry - PADDING - (entry > anchor ? STEP : 0));
                 }
                 else
                 {
@@ -208,8 +208,8 @@ namespace OpenSekai.Charts
                         else
                         {
                             double width = right - left;
-                            if (width <= step || width <= 0.2 && coarseChecks++ < 2 && Intersects(right, right))
-                                return Math.Max(earliest, left - padding);
+                            if (width <= STEP || width <= 0.2 && coarseChecks++ < 2 && Intersects(right, right))
+                                return Math.Max(EARLIEST, left - PADDING);
                             right = left + width * 0.5;
                         }
                     }
@@ -252,14 +252,14 @@ namespace OpenSekai.Charts
         private static double VisibilityIntegrationError(int ease)
         {
             if (ease < 6 || ease >= 38) return 0;
-            const double width = 1.0 / 64;
+            const double WIDTH = 1.0 / 64;
             int family = (ease - 2) / 4;
             bool combined = (ease - 2) % 4 >= 2;
             if (family == 6)
             {
-                double h = combined ? 2 * width : width;
+                double h = combined ? 2 * WIDTH : WIDTH;
                 double gap = Math.Sqrt(h - h * h / 4) - Math.Sqrt(2 * h - h * h) / 2;
-                return width * gap * 2 / 3;
+                return WIDTH * gap * 2 / 3;
             }
             double derivative = family switch
             {
@@ -269,8 +269,8 @@ namespace OpenSekai.Charts
                 5 => Math.Pow(10 * Math.Log(2), 4),
                 _ => 0
             };
-            double error = derivative * Math.Pow(width, 5) / 2880 * (combined ? 16 : 1);
-            return family == 5 ? error + width / 3072 * (combined ? 2 : 1) : error;
+            double error = derivative * Math.Pow(WIDTH, 5) / 2880 * (combined ? 16 : 1);
+            return family == 5 ? error + WIDTH / 3072 * (combined ? 2 : 1) : error;
         }
 
         // Live uses one display clock for all the consumers of a group.

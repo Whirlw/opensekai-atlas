@@ -15,15 +15,15 @@ namespace OpenSekai.Shared.Conversion
 	/// </remarks>
 	public sealed class SusChartData
 	{
-		public const float DefaultBpm = 120f;
+		public const float DEFAULT_BPM = 120f;
 
-		public const float DefaultTimeSignature = 4f;
+		public const float DEFAULT_TIME_SIGNATURE = 4f;
 
-		public const float DefaultSpeedRatio = 1f;
+		public const float DEFAULT_SPEED_RATIO = 1f;
 
-		public const float DefaultSeVolume = 1f;
+		public const float DEFAULT_SE_VOLUME = 1f;
 
-		public const int DefaultTicksPerBeat = 480;
+		public const int DEFAULT_TICKS_PER_BEAT = 480;
 
 		/// <summary>Ticks per beat from <c>#REQUEST "ticks_per_beat"</c>; tick offsets are read against it.</summary>
 		public int TicksPerBeat;
@@ -59,7 +59,7 @@ namespace OpenSekai.Shared.Conversion
 
 		public void Reset()
 		{
-			TicksPerBeat = DefaultTicksPerBeat;
+			TicksPerBeat = DEFAULT_TICKS_PER_BEAT;
 			TimeSignatures = new List<TimeSignatureInfo>();
 			BpmTable = new Dictionary<string, float>();
 			BpmInfos = new List<BpmInfo>();

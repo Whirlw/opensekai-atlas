@@ -27,9 +27,9 @@ public static class ResultEffects {
         { "live_result_default_tex_kira_v2_01.png", new Size(16, 16) },
         { "live_result_default_txt_allperfect_line_dgr.png", new Size(1444, 182) },
         { "live_result_default_txt_fullcombo_line_dgr.png", new Size(1382, 182) },
-        { "live_result_default_txt_liveclear_line_dgr.png", new Size(1220, 166) },
-        { "live_result_default_txt_livefailed_line_dgr.png", new Size(1352, 166) },
-        { "live_result_default_txt_livefinish_line_dgr.png", new Size(1220, 166) },
+        { "live_result_default_txt_liveclear_line_dgr.png", new Size(1236, 182) },
+        { "live_result_default_txt_livefailed_line_dgr.png", new Size(1368, 182) },
+        { "live_result_default_txt_livefinish_line_dgr.png", new Size(1236, 182) },
     };
 
     static System.Windows.Media.GlyphTypeface Font;

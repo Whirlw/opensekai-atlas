@@ -30,9 +30,9 @@ namespace OpenSekai.App.UI
         private const float DIFFICULTY_MAX_WIDTH = 120f;
         private const float METADATA_GAP = 12f;
 
-        private static readonly string[] JudgeNames = { "PERFECT", "GREAT", "GOOD", "BAD", "MISS" };
-        private static readonly Color32 CardColor = new Color32(16, 20, 27, 184);
-        private static readonly Color32 SwitchOff = new Color32(255, 255, 255, 56);
+        private static readonly string[] _judgeNames = { "PERFECT", "GREAT", "GOOD", "BAD", "MISS" };
+        private static readonly Color32 _cardColor = new Color32(16, 20, 27, 184);
+        private static readonly Color32 _switchOff = new Color32(255, 255, 255, 56);
 
         private readonly Action<bool> _play;
         private readonly RectTransform _content;
@@ -57,7 +57,7 @@ namespace OpenSekai.App.UI
         private readonly TextMeshProUGUI _score;
         private readonly TextMeshProUGUI _clear;
         private readonly TextMeshProUGUI _played;
-        private readonly TextMeshProUGUI[] _judges = new TextMeshProUGUI[JudgeNames.Length];
+        private readonly TextMeshProUGUI[] _judges = new TextMeshProUGUI[_judgeNames.Length];
         private readonly TextMeshProUGUI _combo;
         private readonly GameObject _noRecord;
         private readonly TextMeshProUGUI _noRecordTitle;
@@ -179,7 +179,7 @@ namespace OpenSekai.App.UI
             SetPreviewProgress(null);
 
             // Best record, filling the space between the jacket and the action row.
-            Image card = LibraryWidgets.Panel("Record", _content, LibraryTheme.Radius.PANEL, CardColor);
+            Image card = LibraryWidgets.Panel("Record", _content, LibraryTheme.Radius.PANEL, _cardColor);
             LibraryWidgets.Inset(card.rectTransform, 0f, ACTION_HEIGHT + GAP, 0f, coverBottom + GAP);
             Image outline = LibraryWidgets.Shape(
                 "Outline", card.transform, LibraryShapes.Ring(LibraryTheme.Radius.PANEL, 1f), LibraryTheme.Colors.Hairline);
@@ -222,10 +222,10 @@ namespace OpenSekai.App.UI
             divider.raycastTarget = false;
             LibraryWidgets.TopStrip(divider.rectTransform, 0f, 0f, 116f, 1f);
 
-            for (int i = 0; i < JudgeNames.Length; i++)
+            for (int i = 0; i < _judgeNames.Length; i++)
             {
                 TextMeshProUGUI caption = LibraryWidgets.Label(
-                    "JudgeName" + i, record, JudgeNames[i], 16f, LibraryTheme.Colors.TextMuted, FontStyles.Bold);
+                    "JudgeName" + i, record, _judgeNames[i], 16f, LibraryTheme.Colors.TextMuted, FontStyles.Bold);
                 LibraryUi.UseCondensedFont(caption);
                 LibraryWidgets.Place(
                     caption.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f),
@@ -275,7 +275,7 @@ namespace OpenSekai.App.UI
             LibraryWidgets.Place(
                 (RectTransform)auto.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero,
                 new Vector2(AUTO_WIDTH, ACTION_HEIGHT));
-            _autoTrack = LibraryWidgets.Panel("Track", auto.transform, 16f, SwitchOff);
+            _autoTrack = LibraryWidgets.Panel("Track", auto.transform, 16f, _switchOff);
             LibraryWidgets.Place(
                 _autoTrack.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(24f, 0f), new Vector2(56f, 32f));
             Image knob = LibraryWidgets.Panel("Knob", _autoTrack.transform, 12f, LibraryTheme.Colors.TextPrimary);
@@ -372,7 +372,7 @@ namespace OpenSekai.App.UI
 
             SongPackageManifest manifest = item.Entry?.Manifest;
             CustomMusicScorePlayHistoryRecord best = summary?.Best;
-            long knownLength = best?.musicLengthMs ?? 0L;
+            long knownLength = best?.MusicLengthMs ?? 0L;
             if (knownLength <= 0 && item.HasAudio && manifest != null)
             {
                 knownLength = manifest.secForMusicScoreMaker * 1000L;
@@ -382,17 +382,17 @@ namespace OpenSekai.App.UI
             _noRecord.SetActive(best == null);
             if (best != null)
             {
-                _rank.text = best.rank ?? string.Empty;
-                _score.text = best.totalScore.ToString("N0", CultureInfo.InvariantCulture);
+                _rank.text = best.Rank ?? string.Empty;
+                _score.text = best.TotalScore.ToString("N0", CultureInfo.InvariantCulture);
                 _clear.text = LibraryModel.ClearLabel(summary);
                 _played.text = "上次游玩 " + FormatDate(summary.LastPlayedAtUtc);
-                _judges[0].text = best.perfectCount.ToString("N0", CultureInfo.InvariantCulture);
-                _judges[1].text = best.greatCount.ToString("N0", CultureInfo.InvariantCulture);
-                _judges[2].text = best.goodCount.ToString("N0", CultureInfo.InvariantCulture);
-                _judges[3].text = best.badCount.ToString("N0", CultureInfo.InvariantCulture);
-                _judges[4].text = best.missCount.ToString("N0", CultureInfo.InvariantCulture);
-                _combo.text = best.maxCombo.ToString("N0", CultureInfo.InvariantCulture)
-                    + "<size=70%><color=#9AA6B5> / " + best.totalComboCount.ToString("N0", CultureInfo.InvariantCulture)
+                _judges[0].text = best.PerfectCount.ToString("N0", CultureInfo.InvariantCulture);
+                _judges[1].text = best.GreatCount.ToString("N0", CultureInfo.InvariantCulture);
+                _judges[2].text = best.GoodCount.ToString("N0", CultureInfo.InvariantCulture);
+                _judges[3].text = best.BadCount.ToString("N0", CultureInfo.InvariantCulture);
+                _judges[4].text = best.MissCount.ToString("N0", CultureInfo.InvariantCulture);
+                _combo.text = best.MaxCombo.ToString("N0", CultureInfo.InvariantCulture)
+                    + "<size=70%><color=#9AA6B5> / " + best.TotalComboCount.ToString("N0", CultureInfo.InvariantCulture)
                     + "</color></size>";
             }
             else
@@ -426,14 +426,14 @@ namespace OpenSekai.App.UI
 
         private void LayoutTitleAndCredits()
         {
-            const float titleTop = 54f;
-            const float creditGap = 18f;
+            const float TITLE_TOP = 54f;
+            const float CREDIT_GAP = 18f;
             float titleHeight = Mathf.Clamp(Mathf.Ceil(_title.GetPreferredValues(_title.text, _info.rect.width, 0f).y),
                 TITLE_LINE_HEIGHT, TITLE_LINE_HEIGHT * 2f);
-            LibraryWidgets.TopStrip(_title.rectTransform, 0f, 0f, titleTop, titleHeight);
+            LibraryWidgets.TopStrip(_title.rectTransform, 0f, 0f, TITLE_TOP, titleHeight);
             for (int i = 0; i < _credits.Length; i++)
             {
-                float top = titleTop + titleHeight + creditGap + i * 36f;
+                float top = TITLE_TOP + titleHeight + CREDIT_GAP + i * 36f;
                 Vector2 anchor = new Vector2(0f, 1f);
                 LibraryWidgets.Place(_creditNames[i], anchor, anchor, new Vector2(0f, -top), new Vector2(64f, 30f));
                 LibraryWidgets.TopStrip(_credits[i].rectTransform, 68f, 0f, top, 30f);
@@ -504,7 +504,7 @@ namespace OpenSekai.App.UI
             _rank.color = _accent;
             _startBackground.color = _playable ? _accent : (Color)LibraryTheme.Colors.Control;
             _startLabel.color = _playable ? LibraryTheme.Colors.TextOnAccent : LibraryTheme.Colors.TextSecondary;
-            _autoTrack.color = _isAuto ? _accent : (Color)SwitchOff;
+            _autoTrack.color = _isAuto ? _accent : (Color)_switchOff;
             _previewIcon.color = _accent;
             _previewFill.color = _accent;
         }

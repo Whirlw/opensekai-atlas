@@ -18,6 +18,47 @@ namespace OpenSekai.Tests.PlayMode
     public sealed class SonolusBrowseTests
     {
         [UnityTest]
+        public IEnumerator DetailErrorFollowsTheSelectedTabAndRetryLoadsIt()
+        {
+            var first = new UniTaskCompletionSource<SonolusLevelDetails>();
+            var retry = new UniTaskCompletionSource<SonolusLevelDetails>();
+            int calls = 0;
+            var address = SonolusServerAddress.Parse("example.com");
+            var entry = new ServerEntry("test", ServerKind.Sonolus, "Test server", address.BaseUrl);
+            var session = new SonolusSession(entry, address);
+            var item = new Newtonsoft.Json.Linq.JObject { ["name"] = "test" };
+            var screen = ServerScreen.Create();
+            SonolusLevelPage page = null;
+            try
+            {
+                screen.SetPresented(true, false);
+                page = new SonolusLevelPage(screen, session, SonolusLevel.From(item),
+                    (_, __) => ++calls == 1 ? first.Task : retry.Task);
+                page.OnShown();
+                page.ShowTab(1);
+                page.ShowTab(0);
+                page.ShowTab(2);
+                first.TrySetException(new SonolusException("detail request failed"));
+                page.OnHidden();
+                page.OnShown();
+                page.ShowTab(1);
+                var status = page.Root.GetComponentsInChildren<TMP_Text>(true)
+                    .Single(text => text.text == "detail request failed" && text.gameObject.activeInHierarchy);
+                status.transform.parent.Find("Retry").GetComponent<Button>().onClick.Invoke();
+                Assert.That(calls, Is.EqualTo(2));
+                retry.TrySetResult(SonolusLevelDetails.From(new Newtonsoft.Json.Linq.JObject { ["item"] = item }));
+                Assert.That(page.HasDetails, Is.True);
+                Assert.That(status.text, Does.Not.Contain("failed"));
+            }
+            finally
+            {
+                page?.Dispose();
+                UnityEngine.Object.Destroy(screen.gameObject);
+            }
+            yield return null;
+        }
+
+        [UnityTest]
         public IEnumerator ReturningFromHomeRestartsTheInterruptedFirstSearchPage()
         {
             var firstPage = new UniTaskCompletionSource<SonolusPage<SonolusLevel>>();

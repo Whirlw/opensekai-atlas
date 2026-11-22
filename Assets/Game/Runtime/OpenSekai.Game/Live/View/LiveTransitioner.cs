@@ -25,23 +25,29 @@ namespace Sekai
 
 		private static LiveTransitioner _instance;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_contentRoot")]
 		[SerializeField]
-		private RectTransform _contentRoot;
+		private RectTransform contentRoot;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_coverFader")]
 		[SerializeField]
-		private ColorFader _coverFader;
+		private ColorFader coverFader;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_effectPrefab")]
 		[SerializeField]
-		private GameObject _effectPrefab;
+		private GameObject effectPrefab;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_effectEmitRoot")]
 		[SerializeField]
-		private RectTransform _effectEmitRoot;
+		private RectTransform effectEmitRoot;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_canvas")]
 		[SerializeField]
-		private Canvas _canvas;
+		private Canvas canvas;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_loadingContent")]
 		[SerializeField]
-		private GameObject _loadingContent;
+		private GameObject loadingContent;
 
 		private ParticleSystem _startParticle;
 		private Coroutine _destroyCoroutine;
@@ -51,7 +57,7 @@ namespace Sekai
 
 		public static bool Exists => _instance != null;
 
-		public GameObject ContentObject => _loadingContent;
+		public GameObject ContentObject => loadingContent;
 
 		public static LiveTransitioner Create()
 		{
@@ -150,15 +156,15 @@ namespace Sekai
 			gameObject.SetActive(true);
 			ShowLoadingContent(false);
 
-			if (_coverFader != null)
+			if (coverFader != null)
 			{
-				_coverFader.gameObject.SetActive(true);
-				_coverFader.Set(ColorUtility.WHITE_ALPHA_0);
+				coverFader.gameObject.SetActive(true);
+				coverFader.Set(ColorUtility.WHITE_ALPHA_0);
 			}
 
-			if (_effectPrefab != null && _effectEmitRoot != null)
+			if (effectPrefab != null && effectEmitRoot != null)
 			{
-				var effect = Instantiate(_effectPrefab, _effectEmitRoot);
+				var effect = Instantiate(effectPrefab, effectEmitRoot);
 				_startParticle = effect.transform.childCount > 0
 					? effect.transform.GetChild(0).GetComponent<ParticleSystem>()
 					: effect.GetComponentInChildren<ParticleSystem>(true);
@@ -173,7 +179,7 @@ namespace Sekai
 				SoundManager.Instance.PlaySEOneShot(seName);
 			}
 
-			_coverFader?.Stop();
+			coverFader?.Stop();
 			Action finish = () =>
 			{
 				if (_startParticle != null)
@@ -185,9 +191,9 @@ namespace Sekai
 				ShowLoadingContent(showsLoading);
 			};
 
-			if (_coverFader != null)
+			if (coverFader != null)
 			{
-				_coverFader.Play(ColorUtility.WHITE_ALPHA_1, delay, duration, finish);
+				coverFader.Play(ColorUtility.WHITE_ALPHA_1, delay, duration, finish);
 			}
 			else
 			{
@@ -204,10 +210,10 @@ namespace Sekai
 		private void PlayForceWhite(Action onFinished, string seName = DEFAULT_TRANSITION_SE, bool showsLoading = false, float timeout = 0f)
 		{
 			gameObject.SetActive(true);
-			if (_coverFader != null)
+			if (coverFader != null)
 			{
-				_coverFader.gameObject.SetActive(true);
-				_coverFader.Set(ColorUtility.WHITE_ALPHA_1);
+				coverFader.gameObject.SetActive(true);
+				coverFader.Set(ColorUtility.WHITE_ALPHA_1);
 			}
 
 			if (!string.IsNullOrEmpty(seName))
@@ -228,11 +234,11 @@ namespace Sekai
 		{
 			gameObject.SetActive(true);
 			ShowLoadingContent(false);
-			if (_coverFader != null)
+			if (coverFader != null)
 			{
-				_coverFader.gameObject.SetActive(true);
-				_coverFader.Set(ColorUtility.WHITE_ALPHA_0);
-				_coverFader.Play(ColorUtility.WHITE_ALPHA_1, delay, duration, () =>
+				coverFader.gameObject.SetActive(true);
+				coverFader.Set(ColorUtility.WHITE_ALPHA_0);
+				coverFader.Play(ColorUtility.WHITE_ALPHA_1, delay, duration, () =>
 				{
 					onFinished?.Invoke();
 					ShowLoadingContent(showsLoading);
@@ -253,15 +259,15 @@ namespace Sekai
 		public void Finish(Action onFinished = null, Action onFinishFadeBGM = null)
 		{
 			StopDestroyCoroutine();
-			if (_loadingContent != null)
+			if (loadingContent != null)
 			{
-				_loadingContent.SetActive(false);
+				loadingContent.SetActive(false);
 			}
 
-			if (_coverFader != null)
+			if (coverFader != null)
 			{
-				_coverFader.Stop();
-				_coverFader.Play(ColorUtility.WHITE_ALPHA_0, 1f, 1f, onFinished);
+				coverFader.Stop();
+				coverFader.Play(ColorUtility.WHITE_ALPHA_0, 1f, 1f, onFinished);
 			}
 			else
 			{
@@ -275,15 +281,15 @@ namespace Sekai
 		public void ForceFinish(Action onFinished = null)
 		{
 			StopDestroyCoroutine();
-			if (_loadingContent != null)
+			if (loadingContent != null)
 			{
-				_loadingContent.SetActive(false);
+				loadingContent.SetActive(false);
 			}
 
-			if (_coverFader != null)
+			if (coverFader != null)
 			{
-				_coverFader.Stop();
-				_coverFader.Set(ColorUtility.WHITE_ALPHA_0);
+				coverFader.Stop();
+				coverFader.Set(ColorUtility.WHITE_ALPHA_0);
 			}
 
 			ResumePausedStartParticle();
@@ -293,9 +299,9 @@ namespace Sekai
 
 		public void ShowLoadingContent(bool visible)
 		{
-			if (_loadingContent != null)
+			if (loadingContent != null)
 			{
-				_loadingContent.SetActive(visible);
+				loadingContent.SetActive(visible);
 			}
 		}
 

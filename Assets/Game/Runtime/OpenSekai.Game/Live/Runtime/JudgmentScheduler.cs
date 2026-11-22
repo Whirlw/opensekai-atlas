@@ -27,7 +27,7 @@ namespace Sekai.Core.Live
 		/// In either mode two Began samples of one finger closer than this are one contact reported twice
 		/// and share one press credit: no finger lifts and presses again inside a 60 fps frame.
 		/// </summary>
-		internal const float PressPassSeconds = 1f / 60f;
+		internal const float PRESS_PASS_SECONDS = 1f / 60f;
 		private readonly HashSet<int> _canceledTouches = new HashSet<int>(10);
 
 		internal JudgmentScheduler(LiveLogic logic, LiveSessionState session, LiveInputRouter input,
@@ -59,7 +59,7 @@ namespace Sekai.Core.Live
 				if (note is ConnectionNote { UsesNextRushContactWindow: true, ParentNote: null } tick)
 					tick.SettleFromCompletedTail();
 			}
-			if (!_session.IsAuto && _logic.result < 3)
+			if (!_session.IsAuto && _logic.Result < 3)
 				_logic.ConnectorAudio.Update(_session.MusicScore, Frame.time, false, _input.ActiveInputs, _session.NoteDisplayTimeOffset);
 
 			// Returns the frame's inputs and forgets the touches that ended. It runs after every channel
@@ -80,7 +80,7 @@ namespace Sekai.Core.Live
 			// its note. Frame matching groups presses closer than a 60 fps frame into one pass, where they
 			// compete as a chord; a late frame's presses further apart are still judged in order.
 			bool frameMatching = LiveConfig.UseFramePressMatching || LiveConfig.UseLegacyJudgeTiming;
-			int waves = AssignPressWaves(_input.ActiveInputs, frameMatching ? PressPassSeconds : 0f);
+			int waves = AssignPressWaves(_input.ActiveInputs, frameMatching ? PRESS_PASS_SECONDS : 0f);
 			_frameUsedFingers.Clear();
 			for (int wave = 0; wave < waves; wave++)
 			{
@@ -266,7 +266,7 @@ namespace Sekai.Core.Live
 					InputTmp earlier = inputs[j];
 					if (j == next || earlier.PressWave < 0 || earlier.Touch.phase != UnityEngine.InputSystem.TouchPhase.Began
 						|| earlier.Touch.fingerId != inputs[next].Touch.fingerId
-						|| time - earlier.Touch.musicTime >= PressPassSeconds)
+						|| time - earlier.Touch.musicTime >= PRESS_PASS_SECONDS)
 					{
 						continue;
 					}
@@ -684,15 +684,18 @@ namespace Sekai.Core.Live
 				return;
 			}
 
+			var events = _session.MusicScore?.musicScoreInfoArray;
+			var reversalEvents = events != null && System.Array.Exists(events, info => info.speedRatio < 0f)
+				? events : null;
 			HashSet<NoteBase> visited = new HashSet<NoteBase>();
 
 			foreach (NoteBase note in notes)
 			{
-				BindNoteCallbacks(note, visited);
+				BindNoteCallbacks(note, visited, reversalEvents);
 			}
 		}
 
-		private void BindNoteCallbacks(NoteBase note, HashSet<NoteBase> visited)
+		private void BindNoteCallbacks(NoteBase note, HashSet<NoteBase> visited, MusicScoreInfo[] reversalEvents)
 		{
 			if (note == null || !visited.Add(note))
 			{
@@ -707,6 +710,9 @@ namespace Sekai.Core.Live
 			note.OnDamage = OnDamage;
 			note.OnUpdateResult = OnUpdateResult;
 			note.CalcTimeOffset = _noteFrame.CalcTimeOffset;
+			if (note.NativeScroll == null)
+				note.ScrollApproachStart = NoteSpeedRatio.FindApproachStart(reversalEvents,
+					note.MusicScoreInfo, _session.NoteDisplayTimeOffset, note.speedRatio);
 
 			if (note.NoteList == null)
 			{
@@ -715,7 +721,7 @@ namespace Sekai.Core.Live
 
 			foreach (NoteBase childNote in note.NoteList)
 			{
-				BindNoteCallbacks(childNote, visited);
+				BindNoteCallbacks(childNote, visited, reversalEvents);
 			}
 		}
 	}

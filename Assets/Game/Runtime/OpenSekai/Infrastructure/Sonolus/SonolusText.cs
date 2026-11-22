@@ -11,7 +11,7 @@ namespace OpenSekai.Infrastructure.Sonolus
     /// </summary>
     public static class SonolusText
     {
-        private static readonly Dictionary<string, string> Table = new Dictionary<string, string>(StringComparer.Ordinal)
+        private static readonly Dictionary<string, string> _table = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["#NEWEST"] = "最新",
             ["#OLDEST"] = "最早",
@@ -92,7 +92,7 @@ namespace OpenSekai.Infrastructure.Sonolus
                 return text ?? string.Empty;
             }
 
-            if (Table.TryGetValue(text, out string localized))
+            if (_table.TryGetValue(text, out string localized))
             {
                 return localized;
             }

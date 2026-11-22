@@ -40,7 +40,7 @@ namespace Sekai.Live
 			}
 
 			ObserveBarContact(now);
-			if (State != NoteState.Done && now >= target + ConnectionNote.ContactWindowSeconds)
+			if (State != NoteState.Done && now >= target + ConnectionNote.CONTACT_WINDOW_SECONDS)
 				Finish(NoteResult.Miss, "pointMiss", now);
 		}
 

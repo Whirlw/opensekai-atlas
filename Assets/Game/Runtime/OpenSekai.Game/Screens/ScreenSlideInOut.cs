@@ -9,7 +9,7 @@ namespace Sekai
 {
 	public class ScreenSlideInOut : ScreenInOutAnimBase
 	{
-		private const float Duration = 0.2f;
+		private const float DURATION = 0.2f;
 
 		private MotionHandle _motion;
 
@@ -82,7 +82,7 @@ namespace Sekai
 			Destory();
 			Vector2 start = _from;
 			_rt.anchoredPosition = start;
-			_motion = LMotion.Create(start, (Vector2)_to, Duration)
+			_motion = LMotion.Create(start, (Vector2)_to, DURATION)
 				.WithEase(Ease.OutQuart)
 				.WithOnComplete(onComplete)
 				.BindToAnchoredPosition(_rt);

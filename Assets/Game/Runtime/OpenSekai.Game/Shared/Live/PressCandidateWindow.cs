@@ -9,21 +9,21 @@ namespace OpenSekai.Shared.Live
     /// </summary>
     public static class PressCandidateWindow
     {
-        public const float EarlyMs = 125f;
-        public const float TapLateMs = 125f;
-        public const float FlickLateMs = 141.7f;
+        public const float EARLY_MS = 125f;
+        public const float TAP_LATE_MS = 125f;
+        public const float FLICK_LATE_MS = 141.7f;
 
         /// <summary>Whether a press <paramref name="touchMinusNoteSeconds"/> off a tap or a head is a candidate.</summary>
-        public static bool AcceptsTap(float touchMinusNoteSeconds) => Accepts(touchMinusNoteSeconds, TapLateMs);
+        public static bool AcceptsTap(float touchMinusNoteSeconds) => Accepts(touchMinusNoteSeconds, TAP_LATE_MS);
 
         /// <summary>Whether a press <paramref name="touchMinusNoteSeconds"/> off a flick is a candidate.</summary>
-        public static bool AcceptsFlick(float touchMinusNoteSeconds) => Accepts(touchMinusNoteSeconds, FlickLateMs);
+        public static bool AcceptsFlick(float touchMinusNoteSeconds) => Accepts(touchMinusNoteSeconds, FLICK_LATE_MS);
 
         private static bool Accepts(float touchMinusNoteSeconds, float lateMs)
         {
             float ms = touchMinusNoteSeconds * 1000f;
             // A float second cannot hold 0.125 or 0.1417 exactly; the epsilon keeps the edges inside.
-            return ms >= -EarlyMs - 1e-3f && ms <= lateMs + 1e-3f;
+            return ms >= -EARLY_MS - 1e-3f && ms <= lateMs + 1e-3f;
         }
     }
 }

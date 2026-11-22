@@ -45,7 +45,7 @@ LIVE-FINISH_6,Assets/Game/AssetBundles/resources/tutorial/effect_asset/live/resu
 LIVE-FINISH_7,Assets/Game/AssetBundles/resources/tutorial/effect_asset/live/result/default/textures/LIVE-FINISH_7.asset,LIVE-FINISH.png,879,4,40,173,20.0000,86.7071,100.00,0.0,0.0,0.0,0.0
 LIVE-FINISH_8,Assets/Game/AssetBundles/resources/tutorial/effect_asset/live/result/default/textures/LIVE-FINISH_8.asset,LIVE-FINISH.png,931,0,123,182,61.5000,90.9239,100.00,0.0,0.0,0.0,0.0
 LIVE-FINISH_9,Assets/Game/AssetBundles/resources/tutorial/effect_asset/live/result/default/textures/LIVE-FINISH_9.asset,LIVE-FINISH.png,1070,4,129,174,64.5000,86.9239,100.00,0.0,0.0,0.0,0.0
-LIVEFAILED,Assets/Game/AssetBundles/resources/tutorial/effect_asset/live/result/default/textures/LIVEFAILED.asset,FAILED.png,0,4,1368,174,684.0000,86.9733,100.00,0.0,0.0,0.0,0.0
+LIVEFAILED,Assets/Game/AssetBundles/resources/tutorial/effect_asset/live/result/default/textures/LIVEFAILED.asset,FAILED.png,0,0,1368,182,684.0000,91.0000,100.00,0.0,0.0,0.0,0.0
 M,Assets/Game/AssetBundles/resources/tutorial/effect_asset/live/result/default/textures/M.asset,FULL-COMBO.png,863,4,160,174,80.0000,86.9733,100.00,0.0,0.0,0.0,0.0
 O1,Assets/Game/AssetBundles/resources/tutorial/effect_asset/live/result/default/textures/O1.asset,FULL-COMBO.png,703,0,146,182,73.0000,90.9239,100.00,0.0,0.0,0.0,0.0
 O2,Assets/Game/AssetBundles/resources/tutorial/effect_asset/live/result/default/textures/O2.asset,FULL-COMBO.png,1173,0,146,182,73.0000,90.9239,100.00,0.0,0.0,0.0,0.0

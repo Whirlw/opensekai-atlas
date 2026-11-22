@@ -21,13 +21,13 @@ namespace Sekai
 		[CompilerGenerated]
 		private sealed class _003CWaitComplete_003Ed__15 : IEnumerator<object>, IEnumerator, IDisposable
 		{
-			private int _003C_003E1__state;
+			private int _state;
 
-			private object _003C_003E2__current;
+			private object _current;
 
 			public AssetBundleDownloadHandler _003C_003E4__this;
 
-			private float _003Ctime_003E5__2;
+			private float _time;
 
 			object IEnumerator<object>.Current
 			{
@@ -76,11 +76,11 @@ namespace Sekai
 			}
 		}
 
-				private AssetBundleManager.DownloadResultCode _ResultCode;
+				private AssetBundleManager.DownloadResultCode _resultCode;
 		public AssetBundleManager.DownloadResultCode ResultCode
 		{
-		    get => _ResultCode;
-		    set => _ResultCode = value;
+		    get => _resultCode;
+		    set => _resultCode = value;
 		}
 
 		private FileStream _fs;

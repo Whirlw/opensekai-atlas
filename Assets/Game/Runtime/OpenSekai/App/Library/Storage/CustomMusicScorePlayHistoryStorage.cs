@@ -13,7 +13,7 @@ namespace OpenSekai.App.Library
 {
 	public static class CustomMusicScorePlayHistoryStorage
 	{
-		private static readonly PlayHistorySummaryCache Cache = new PlayHistorySummaryCache();
+		private static readonly PlayHistorySummaryCache _cache = new PlayHistorySummaryCache();
 
 		/// <summary>
 		/// Raised after a run was appended, with its score key and that package's updated summary, so
@@ -55,12 +55,10 @@ namespace OpenSekai.App.Library
 				SongPackage package = SongPackageManager.Shared.FindCachedItem(bootData.CustomMusicScorePath)?.Entry
 					?? SongPackageStorage.LoadEntry(bootData.CustomMusicScorePath);
 				CustomMusicScoreManifest manifest = CustomMusicScoreEntry.FromPackage(package)?.Manifest;
-				CustomMusicScorePlayHistoryRecord record = CreateRecord(bootData, manifest, score, musicTimeMs, musicLengthMs);
-				record.sessionId = sessionId ?? string.Empty;
-				record.chartHash = chartHash ?? string.Empty;
-				record.rulesVersion = rulesVersion;
-				scoreKey = record.scoreKey;
-				summary = Cache.Append(CustomMusicScoreStorage.PlayHistoryPath, record);
+				CustomMusicScorePlayHistoryRecord record = CreateRecord(bootData, manifest, score, musicTimeMs, musicLengthMs,
+					sessionId, chartHash, rulesVersion);
+				scoreKey = record.ScoreKey;
+				summary = _cache.Append(CustomMusicScoreStorage.PlayHistoryPath, record);
 			}
 			catch (Exception exception)
 			{
@@ -78,27 +76,28 @@ namespace OpenSekai.App.Library
 		/// One summary per score key (the content hash of the package's score file; records
 		/// without one are ignored): the best run, the latest play time and the play count. Served
 		/// from the cache, which a launch fills from the saved summary snapshot; new runs are folded in
-		/// as they are appended. The returned dictionary is the live cache: do not modify it.
+		/// as they are appended. Queries expose a read-only view of the cached summaries.
 		/// </summary>
-		public static Dictionary<string, CustomMusicScorePlayHistorySummary> LoadSummaries()
+		public static IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary> LoadSummaries()
 		{
 			try
 			{
-				return Cache.Load(CustomMusicScoreStorage.PlayHistoryPath);
+				return _cache.Load(CustomMusicScoreStorage.PlayHistoryPath);
 			}
 			catch (Exception exception)
 			{
 				Debug.LogWarningFormat("Failed to summarize custom music score play history. path:{0} error:{1}", CustomMusicScoreStorage.PlayHistoryPath, exception.Message);
-				return new Dictionary<string, CustomMusicScorePlayHistorySummary>(StringComparer.Ordinal);
+				return new System.Collections.ObjectModel.ReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary>(
+					new Dictionary<string, CustomMusicScorePlayHistorySummary>(StringComparer.Ordinal));
 			}
 		}
 
 		/// <summary>Folds the whole history file again and saves a fresh snapshot: the refresh button's resync.</summary>
-		public static Dictionary<string, CustomMusicScorePlayHistorySummary> ReloadSummaries()
+		public static IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary> ReloadSummaries()
 		{
 			try
 			{
-				return Cache.Reload(CustomMusicScoreStorage.PlayHistoryPath);
+				return _cache.Reload(CustomMusicScoreStorage.PlayHistoryPath);
 			}
 			catch (Exception exception)
 			{
@@ -142,73 +141,66 @@ namespace OpenSekai.App.Library
 		internal static CustomMusicScorePlayHistorySummary Fold(
 			Dictionary<string, CustomMusicScorePlayHistorySummary> summaries, CustomMusicScorePlayHistoryRecord record)
 		{
-			if (record == null || string.IsNullOrEmpty(record.scoreKey))
+			if (record == null || string.IsNullOrEmpty(record.ScoreKey))
 			{
 				return null;
 			}
 
-			if (!summaries.TryGetValue(record.scoreKey, out CustomMusicScorePlayHistorySummary summary))
-			{
-				summary = new CustomMusicScorePlayHistorySummary();
-				summaries[record.scoreKey] = summary;
-			}
-
-			summary.PlayCount++;
-			if (summary.Best == null || IsBetterResult(record, summary.Best))
-			{
-				summary.Best = record;
-			}
-
-			if (string.CompareOrdinal(record.playedAtUtc, summary.LastPlayedAtUtc) > 0)
-			{
-				summary.LastPlayedAtUtc = record.playedAtUtc;
-			}
+			summaries.TryGetValue(record.ScoreKey, out var previous);
+			var best = previous?.Best;
+			string lastPlayed = previous?.LastPlayedAtUtc ?? string.Empty;
+			var summary = new CustomMusicScorePlayHistorySummary(
+				best == null || IsBetterResult(record, best) ? record : best,
+				string.CompareOrdinal(record.PlayedAtUtc, lastPlayed) > 0 ? record.PlayedAtUtc : lastPlayed,
+				(previous?.PlayCount ?? 0) + 1);
+			summaries[record.ScoreKey] = summary;
 
 			return summary;
 		}
 
 		private static bool IsBetterResult(CustomMusicScorePlayHistoryRecord current, CustomMusicScorePlayHistoryRecord best)
 		{
-			int comparison = current.totalScore.CompareTo(best.totalScore);
+			int comparison = current.TotalScore.CompareTo(best.TotalScore);
 			if (comparison != 0)
 			{
 				return comparison > 0;
 			}
 
-			comparison = current.maxCombo.CompareTo(best.maxCombo);
+			comparison = current.MaxCombo.CompareTo(best.MaxCombo);
 			if (comparison != 0)
 			{
 				return comparison > 0;
 			}
 
-			comparison = current.perfectCount.CompareTo(best.perfectCount);
+			comparison = current.PerfectCount.CompareTo(best.PerfectCount);
 			if (comparison != 0)
 			{
 				return comparison > 0;
 			}
 
-			comparison = current.missCount.CompareTo(best.missCount);
+			comparison = current.MissCount.CompareTo(best.MissCount);
 			if (comparison != 0)
 			{
 				return comparison < 0;
 			}
 
-			comparison = current.badCount.CompareTo(best.badCount);
+			comparison = current.BadCount.CompareTo(best.BadCount);
 			if (comparison != 0)
 			{
 				return comparison < 0;
 			}
 
-			comparison = current.goodCount.CompareTo(best.goodCount);
+			comparison = current.GoodCount.CompareTo(best.GoodCount);
 			if (comparison != 0)
 			{
 				return comparison < 0;
 			}
 
-			return string.CompareOrdinal(current.playedAtUtc, best.playedAtUtc) > 0;
+			return string.CompareOrdinal(current.PlayedAtUtc, best.PlayedAtUtc) > 0;
 		}
 
-		private static CustomMusicScorePlayHistoryRecord CreateRecord(FreeLiveBootData bootData, CustomMusicScoreManifest manifest, LiveScore score, long musicTimeMs, long musicLengthMs)
+		private static CustomMusicScorePlayHistoryRecord CreateRecord(FreeLiveBootData bootData, CustomMusicScoreManifest manifest, LiveScore score,
+			long musicTimeMs, long musicLengthMs, string sessionId, string chartHash, int rulesVersion)
 		{
 			bool isAllPerfect = score.totalComboCount > 0
 				&& score.totalComboCount == score.perfectCount
@@ -221,46 +213,49 @@ namespace OpenSekai.App.Library
 
 			return new CustomMusicScorePlayHistoryRecord
 			{
-				schemaVersion = 2,
-				recordId = Guid.NewGuid().ToString("N"),
-				playedAtUtc = DateTime.UtcNow.ToString("O"),
-				appVersion = Application.version,
-				livePlayMode = bootData.LivePlayMode.ToString(),
-				scoreKey = bootData.CustomMusicScoreKey,
-				customMusicScoreId = bootData.CustomMusicScoreId,
-				customMusicScorePath = bootData.CustomMusicScorePath ?? string.Empty,
-				title = bootData.MusicData?.Music?.title ?? manifest?.title ?? string.Empty,
-				scoreTitle = bootData.CustomMusicScoreTitle ?? manifest?.scoreTitle ?? string.Empty,
-				authorName = bootData.CustomMusicScoreAuthorName ?? manifest?.userName ?? string.Empty,
-				difficulty = bootData.MusicData?.DifficultyString ?? manifest?.musicDifficultyType ?? string.Empty,
-				playLevel = bootData.MusicData?.PlayLevel ?? manifest?.playLevel ?? 0,
-				scoreFileName = manifest?.scoreFileName ?? string.Empty,
-				audioFileName = manifest?.audioFileName ?? string.Empty,
-				jacketFileName = manifest?.jacketFileName ?? string.Empty,
-				musicTimeMs = musicTimeMs,
-				musicLengthMs = musicLengthMs,
-				totalScore = score.totalScore,
-				technicalScore = score.technicalScore,
-				rank = score.rank.ToString(),
-				life = score.life,
-				clearType = clearType,
-				isFullCombo = isFullCombo,
-				isAllPerfect = isAllPerfect,
-				maxCombo = score.maxCombo,
-				totalComboCount = score.totalComboCount,
-				justPerfectCount = score.justPerfectCount,
-				perfectCount = score.perfectCount,
-				greatCount = score.greatCount,
-				goodCount = score.goodCount,
-				badCount = score.badCount,
-				missCount = score.missCount,
-				fastCount = score.fastCount,
-				lateCount = score.lateCount,
-				flickMissCount = score.flickCount,
-				autoCount = score.autoCount,
-				noteSpeed = bootData.LiveSettingData?.NoteSpeed ?? 0f,
-				timingAdjust = bootData.LiveSettingData?.TimingAdjustData ?? 0f,
-				noteSkinIndex = bootData.LiveSettingData?.NoteSkinIndex ?? 0
+				SchemaVersion = 2,
+				SessionId = sessionId ?? string.Empty,
+				ChartHash = chartHash ?? string.Empty,
+				RulesVersion = rulesVersion,
+				RecordId = Guid.NewGuid().ToString("N"),
+				PlayedAtUtc = DateTime.UtcNow.ToString("O"),
+				AppVersion = Application.version,
+				LivePlayMode = bootData.LivePlayMode.ToString(),
+				ScoreKey = bootData.CustomMusicScoreKey,
+				CustomMusicScoreId = bootData.CustomMusicScoreId,
+				CustomMusicScorePath = bootData.CustomMusicScorePath ?? string.Empty,
+				Title = bootData.MusicData?.Music?.title ?? manifest?.title ?? string.Empty,
+				ScoreTitle = bootData.CustomMusicScoreTitle ?? manifest?.scoreTitle ?? string.Empty,
+				AuthorName = bootData.CustomMusicScoreAuthorName ?? manifest?.userName ?? string.Empty,
+				Difficulty = bootData.MusicData?.DifficultyString ?? manifest?.musicDifficultyType ?? string.Empty,
+				PlayLevel = bootData.MusicData?.PlayLevel ?? manifest?.playLevel ?? 0,
+				ScoreFileName = manifest?.scoreFileName ?? string.Empty,
+				AudioFileName = manifest?.audioFileName ?? string.Empty,
+				JacketFileName = manifest?.jacketFileName ?? string.Empty,
+				MusicTimeMs = musicTimeMs,
+				MusicLengthMs = musicLengthMs,
+				TotalScore = score.totalScore,
+				TechnicalScore = score.technicalScore,
+				Rank = score.rank.ToString(),
+				Life = score.life,
+				ClearType = clearType,
+				IsFullCombo = isFullCombo,
+				IsAllPerfect = isAllPerfect,
+				MaxCombo = score.maxCombo,
+				TotalComboCount = score.totalComboCount,
+				JustPerfectCount = score.justPerfectCount,
+				PerfectCount = score.perfectCount,
+				GreatCount = score.greatCount,
+				GoodCount = score.goodCount,
+				BadCount = score.badCount,
+				MissCount = score.missCount,
+				FastCount = score.fastCount,
+				LateCount = score.lateCount,
+				FlickMissCount = score.flickCount,
+				AutoCount = score.autoCount,
+				NoteSpeed = bootData.LiveSettingData?.NoteSpeed ?? 0f,
+				TimingAdjust = bootData.LiveSettingData?.TimingAdjustData ?? 0f,
+				NoteSkinIndex = bootData.LiveSettingData?.NoteSkinIndex ?? 0
 			};
 		}
 	}
@@ -268,280 +263,157 @@ namespace OpenSekai.App.Library
 	/// <summary>What the play history says about one package: its best run and how recently it was played.</summary>
 	public sealed class CustomMusicScorePlayHistorySummary
 	{
-		public CustomMusicScorePlayHistoryRecord Best { get; internal set; }
+		internal CustomMusicScorePlayHistorySummary(CustomMusicScorePlayHistoryRecord best, string lastPlayed, int plays)
+		{
+			Best = best;
+			LastPlayedAtUtc = lastPlayed;
+			PlayCount = plays;
+		}
+
+		public CustomMusicScorePlayHistoryRecord Best { get; }
 
 		/// <summary>ISO 8601 UTC time of the latest run; empty when no record carries a time.</summary>
-		public string LastPlayedAtUtc { get; internal set; } = string.Empty;
+		public string LastPlayedAtUtc { get; }
 
-		public int PlayCount { get; internal set; }
+		public int PlayCount { get; }
 	}
 
 	public sealed class CustomMusicScorePlayHistoryRecord
 	{
-				private int _schemaVersion;
-		public int schemaVersion
-		{
-		    get => _schemaVersion;
-		    set => _schemaVersion = value;
-		}
-				private string _recordId;
-		public string recordId
-		{
-		    get => _recordId;
-		    set => _recordId = value;
-		}
+		[JsonProperty("schemaVersion")]
+		public int SchemaVersion { get; init; }
+
+		[JsonProperty("recordId")]
+		public string RecordId { get; init; }
+
 		/// <summary>Hash of the source chart file content; empty for records written before it existed.</summary>
-				private string _chartHash;
-		public string chartHash
-		{
-		    get => _chartHash;
-		    set => _chartHash = value;
-		}
+		[JsonProperty("chartHash")]
+		public string ChartHash { get; init; }
+
 		/// <summary>Judgement/scoring rules that produced this record; 0 means legacy unknown.</summary>
-				private int _rulesVersion;
-		public int rulesVersion
-		{
-		    get => _rulesVersion;
-		    set => _rulesVersion = value;
-		}
+		[JsonProperty("rulesVersion")]
+		public int RulesVersion { get; init; }
+
 		/// <summary>Live session that produced this record; empty for legacy records.</summary>
-				private string _sessionId;
-		public string sessionId
-		{
-		    get => _sessionId;
-		    set => _sessionId = value;
-		}
+		[JsonProperty("sessionId")]
+		public string SessionId { get; init; }
+
 		/// <summary>
 		/// Content hash of the package's score file when the run was played; the key
 		/// the library groups runs under. Empty for records written before it existed (not shown).
 		/// </summary>
-				private string _scoreKey;
-		public string scoreKey
-		{
-		    get => _scoreKey;
-		    set => _scoreKey = value;
-		}
-				private string _playedAtUtc;
-		public string playedAtUtc
-		{
-		    get => _playedAtUtc;
-		    set => _playedAtUtc = value;
-		}
-				private string _appVersion;
-		public string appVersion
-		{
-		    get => _appVersion;
-		    set => _appVersion = value;
-		}
-				private string _livePlayMode;
-		public string livePlayMode
-		{
-		    get => _livePlayMode;
-		    set => _livePlayMode = value;
-		}
-				private string _customMusicScoreId;
-		public string customMusicScoreId
-		{
-		    get => _customMusicScoreId;
-		    set => _customMusicScoreId = value;
-		}
-				private string _customMusicScorePath;
-		public string customMusicScorePath
-		{
-		    get => _customMusicScorePath;
-		    set => _customMusicScorePath = value;
-		}
-				private string _title;
-		public string title
-		{
-		    get => _title;
-		    set => _title = value;
-		}
-				private string _scoreTitle;
-		public string scoreTitle
-		{
-		    get => _scoreTitle;
-		    set => _scoreTitle = value;
-		}
-				private string _authorName;
-		public string authorName
-		{
-		    get => _authorName;
-		    set => _authorName = value;
-		}
-				private string _difficulty;
-		public string difficulty
-		{
-		    get => _difficulty;
-		    set => _difficulty = value;
-		}
-				private int _playLevel;
-		public int playLevel
-		{
-		    get => _playLevel;
-		    set => _playLevel = value;
-		}
-				private string _scoreFileName;
-		public string scoreFileName
-		{
-		    get => _scoreFileName;
-		    set => _scoreFileName = value;
-		}
-				private string _audioFileName;
-		public string audioFileName
-		{
-		    get => _audioFileName;
-		    set => _audioFileName = value;
-		}
-				private string _jacketFileName;
-		public string jacketFileName
-		{
-		    get => _jacketFileName;
-		    set => _jacketFileName = value;
-		}
-				private long _musicTimeMs;
-		public long musicTimeMs
-		{
-		    get => _musicTimeMs;
-		    set => _musicTimeMs = value;
-		}
-				private long _musicLengthMs;
-		public long musicLengthMs
-		{
-		    get => _musicLengthMs;
-		    set => _musicLengthMs = value;
-		}
-				private int _totalScore;
-		public int totalScore
-		{
-		    get => _totalScore;
-		    set => _totalScore = value;
-		}
-				private int _technicalScore;
-		public int technicalScore
-		{
-		    get => _technicalScore;
-		    set => _technicalScore = value;
-		}
-				private string _rank;
-		public string rank
-		{
-		    get => _rank;
-		    set => _rank = value;
-		}
-				private int _life;
-		public int life
-		{
-		    get => _life;
-		    set => _life = value;
-		}
-				private string _clearType;
-		public string clearType
-		{
-		    get => _clearType;
-		    set => _clearType = value;
-		}
-				private bool _isFullCombo;
-		public bool isFullCombo
-		{
-		    get => _isFullCombo;
-		    set => _isFullCombo = value;
-		}
-				private bool _isAllPerfect;
-		public bool isAllPerfect
-		{
-		    get => _isAllPerfect;
-		    set => _isAllPerfect = value;
-		}
-				private int _maxCombo;
-		public int maxCombo
-		{
-		    get => _maxCombo;
-		    set => _maxCombo = value;
-		}
-				private int _totalComboCount;
-		public int totalComboCount
-		{
-		    get => _totalComboCount;
-		    set => _totalComboCount = value;
-		}
-				private int _justPerfectCount;
-		public int justPerfectCount
-		{
-		    get => _justPerfectCount;
-		    set => _justPerfectCount = value;
-		}
-				private int _perfectCount;
-		public int perfectCount
-		{
-		    get => _perfectCount;
-		    set => _perfectCount = value;
-		}
-				private int _greatCount;
-		public int greatCount
-		{
-		    get => _greatCount;
-		    set => _greatCount = value;
-		}
-				private int _goodCount;
-		public int goodCount
-		{
-		    get => _goodCount;
-		    set => _goodCount = value;
-		}
-				private int _badCount;
-		public int badCount
-		{
-		    get => _badCount;
-		    set => _badCount = value;
-		}
-				private int _missCount;
-		public int missCount
-		{
-		    get => _missCount;
-		    set => _missCount = value;
-		}
-				private int _fastCount;
-		public int fastCount
-		{
-		    get => _fastCount;
-		    set => _fastCount = value;
-		}
-				private int _lateCount;
-		public int lateCount
-		{
-		    get => _lateCount;
-		    set => _lateCount = value;
-		}
-				private int _flickMissCount;
-		public int flickMissCount
-		{
-		    get => _flickMissCount;
-		    set => _flickMissCount = value;
-		}
-				private int _autoCount;
-		public int autoCount
-		{
-		    get => _autoCount;
-		    set => _autoCount = value;
-		}
-				private float _noteSpeed;
-		public float noteSpeed
-		{
-		    get => _noteSpeed;
-		    set => _noteSpeed = value;
-		}
-				private float _timingAdjust;
-		public float timingAdjust
-		{
-		    get => _timingAdjust;
-		    set => _timingAdjust = value;
-		}
-				private int _noteSkinIndex;
-		public int noteSkinIndex
-		{
-		    get => _noteSkinIndex;
-		    set => _noteSkinIndex = value;
-		}
+		[JsonProperty("scoreKey")]
+		public string ScoreKey { get; init; }
+
+		[JsonProperty("playedAtUtc")]
+		public string PlayedAtUtc { get; init; }
+
+		[JsonProperty("appVersion")]
+		public string AppVersion { get; init; }
+
+		[JsonProperty("livePlayMode")]
+		public string LivePlayMode { get; init; }
+
+		[JsonProperty("customMusicScoreId")]
+		public string CustomMusicScoreId { get; init; }
+
+		[JsonProperty("customMusicScorePath")]
+		public string CustomMusicScorePath { get; init; }
+
+		[JsonProperty("title")]
+		public string Title { get; init; }
+
+		[JsonProperty("scoreTitle")]
+		public string ScoreTitle { get; init; }
+
+		[JsonProperty("authorName")]
+		public string AuthorName { get; init; }
+
+		[JsonProperty("difficulty")]
+		public string Difficulty { get; init; }
+
+		[JsonProperty("playLevel")]
+		public int PlayLevel { get; init; }
+
+		[JsonProperty("scoreFileName")]
+		public string ScoreFileName { get; init; }
+
+		[JsonProperty("audioFileName")]
+		public string AudioFileName { get; init; }
+
+		[JsonProperty("jacketFileName")]
+		public string JacketFileName { get; init; }
+
+		[JsonProperty("musicTimeMs")]
+		public long MusicTimeMs { get; init; }
+
+		[JsonProperty("musicLengthMs")]
+		public long MusicLengthMs { get; init; }
+
+		[JsonProperty("totalScore")]
+		public int TotalScore { get; init; }
+
+		[JsonProperty("technicalScore")]
+		public int TechnicalScore { get; init; }
+
+		[JsonProperty("rank")]
+		public string Rank { get; init; }
+
+		[JsonProperty("life")]
+		public int Life { get; init; }
+
+		[JsonProperty("clearType")]
+		public string ClearType { get; init; }
+
+		[JsonProperty("isFullCombo")]
+		public bool IsFullCombo { get; init; }
+
+		[JsonProperty("isAllPerfect")]
+		public bool IsAllPerfect { get; init; }
+
+		[JsonProperty("maxCombo")]
+		public int MaxCombo { get; init; }
+
+		[JsonProperty("totalComboCount")]
+		public int TotalComboCount { get; init; }
+
+		[JsonProperty("justPerfectCount")]
+		public int JustPerfectCount { get; init; }
+
+		[JsonProperty("perfectCount")]
+		public int PerfectCount { get; init; }
+
+		[JsonProperty("greatCount")]
+		public int GreatCount { get; init; }
+
+		[JsonProperty("goodCount")]
+		public int GoodCount { get; init; }
+
+		[JsonProperty("badCount")]
+		public int BadCount { get; init; }
+
+		[JsonProperty("missCount")]
+		public int MissCount { get; init; }
+
+		[JsonProperty("fastCount")]
+		public int FastCount { get; init; }
+
+		[JsonProperty("lateCount")]
+		public int LateCount { get; init; }
+
+		[JsonProperty("flickMissCount")]
+		public int FlickMissCount { get; init; }
+
+		[JsonProperty("autoCount")]
+		public int AutoCount { get; init; }
+
+		[JsonProperty("noteSpeed")]
+		public float NoteSpeed { get; init; }
+
+		[JsonProperty("timingAdjust")]
+		public float TimingAdjust { get; init; }
+
+		[JsonProperty("noteSkinIndex")]
+		public int NoteSkinIndex { get; init; }
 	}
 }

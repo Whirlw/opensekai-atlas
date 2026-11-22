@@ -10,6 +10,7 @@ namespace Sekai
 		private const int POOL_COUNT = 50;
 
 		private MeshFilter _filter;
+		private Vector2 _skinScale = Vector2.one, _skinOffset;
 		private Mesh _mesh;
 		private Vector3[] _vertices;
 		private Vector2[] _uv;
@@ -21,7 +22,7 @@ namespace Sekai
 
 		public Material Material { get; private set; }
 
-		public void Setup(MusicScore score = null, double displayLead = 1)
+		public void Setup(MusicScore score = null, double displayLead = 1, LiveNoteSkin skin = null)
 		{
 			_filter = gameObject.AddComponent<MeshFilter>();
 			var renderer = gameObject.AddComponent<MeshRenderer>();
@@ -35,6 +36,8 @@ namespace Sekai
 			{
 				Material.SetTexture("_MainTex", texture);
 			}
+
+			skin?.BindLine("notes.line.simultaneous", Material, out _skinScale, out _skinOffset);
 
 			_pairNotes = new List<(INote, INote, bool)>(POOL_COUNT);
 			_scheduledLines = score?.HiddenSimLines?.Select(line =>
@@ -181,10 +184,10 @@ namespace Sekai
 					DrawNativePair(note, pair, musicTime, vertexIndex);
 					continue;
 				}
-				if (note.State == NoteState.Scrolling && note.Progress > 0f)
+				if (note.State == NoteState.Scrolling && LiveConfig.IsKeyVisible(note, musicTime))
 				{
-					float progress = LiveConfig.GetNoteViewProgress(LiveConfig.ViewProgressOf(note));
-					if (musicTime >= note.MusicScoreInfo.time && note is LongNote)
+					float progress = LiveConfig.GetNoteViewProgress(LiveConfig.ViewProgressOf(note, musicTime));
+					if (musicTime + LiveConfig.ViewLeadSeconds >= note.MusicScoreInfo.time && note is LongNote)
 					{
 						progress = 1f;
 					}
@@ -199,11 +202,7 @@ namespace Sekai
 				float clampedProgress = isNegativeSpeed ? Mathf.Min(progress, 1f) : progress;
 					Vector2 start = LiveUtility.EarlyVec2Lerp(effectiveSpawnPos, noteLaneCenter, clampedProgress);
 					Vector2 end = LiveUtility.EarlyVec2Lerp(effectiveSpawnPos, pairLaneCenter, clampedProgress);
-					float halfHeight = progress * 0.2f;
-					_vertices[vertexIndex] = new Vector3(start.x, start.y + halfHeight, 0f);
-					_vertices[vertexIndex + 1] = new Vector3(end.x, end.y + halfHeight, 0f);
-					_vertices[vertexIndex + 2] = new Vector3(start.x, start.y - halfHeight, 0f);
-					_vertices[vertexIndex + 3] = new Vector3(end.x, end.y - halfHeight, 0f);
+					WriteStrip(start, end, progress, progress, vertexIndex);
 				}
 			}
 
@@ -227,7 +226,7 @@ namespace Sekai
 			double now = (double)time + LiveConfig.ViewLeadSeconds;
 			float a = (float)left.NativeViewProgress(now, out bool leftHidden);
 			float b = (float)right.NativeViewProgress(now, out bool rightHidden);
-			float cutoff = (float)LiveConfig.NativeKeyProgressEnd;
+			float cutoff = (float)LiveConfig.NATIVE_KEY_PROGRESS_END;
 			float alpha = Mathf.Clamp01(2f * (1f - Mathf.Abs(a - b)));
 			if (leftHidden || rightHidden || alpha <= 0 || Mathf.Max(a, b) <= 0 || Mathf.Min(a, b) > cutoff
 				|| (a - 1f) * (b - 1f) < 0 || right.IsDecoration && now >= right.NativeTarget.Time
@@ -257,6 +256,21 @@ namespace Sekai
 			b = LiveConfig.GetNoteViewProgress(b);
 			Vector2 start = LiveUtility.EarlyVec2Lerp(LiveConfig.SpawnPosition, startLane, a);
 			Vector2 end = LiveUtility.EarlyVec2Lerp(LiveConfig.SpawnPosition, endLane, b);
+			WriteStrip(start, end, a, b, vertex);
+		}
+
+		private void WriteStrip(Vector2 start, Vector2 end, float a, float b, int vertex)
+		{
+			if (_skinScale != Vector2.one || _skinOffset != Vector2.zero)
+			{
+				float midX = (start.x + end.x) * .5f;
+				start.x = midX + (start.x - midX) * _skinScale.x;
+				end.x = midX + (end.x - midX) * _skinScale.x;
+				start += _skinOffset * a;
+				end += _skinOffset * b;
+				a *= _skinScale.y;
+				b *= _skinScale.y;
+			}
 			_vertices[vertex] = new Vector3(start.x, start.y + a * 0.2f, 0f);
 			_vertices[vertex + 1] = new Vector3(end.x, end.y + b * 0.2f, 0f);
 			_vertices[vertex + 2] = new Vector3(start.x, start.y - a * 0.2f, 0f);

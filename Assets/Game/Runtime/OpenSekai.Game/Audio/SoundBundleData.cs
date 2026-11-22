@@ -12,41 +12,29 @@ namespace Sekai
             Split = 1
         }
 
+        [UnityEngine.Serialization.FormerlySerializedAs("_formatType")]
         [SerializeField]
-        private FormatType _formatType;
+        private FormatType formatType;
 
+        [UnityEngine.Serialization.FormerlySerializedAs("_assetBundleFileName")]
         [SerializeField]
-        private string _assetBundleFileName;
+        private string assetBundleFileName;
 
+        [UnityEngine.Serialization.FormerlySerializedAs("_cueSheetName")]
         [SerializeField]
-        private string _cueSheetName;
+        private string cueSheetName;
 
         // Keep the legacy serialized field typo so copied assets deserialize correctly.
+        [UnityEngine.Serialization.FormerlySerializedAs("_spilitFileNum")]
         [SerializeField]
-        private int _spilitFileNum;
+        private int spilitFileNum;
 
-        public FormatType Format
-        {
-            get => _formatType;
-            set => _formatType = value;
-        }
+        public FormatType Format => formatType;
 
-        public string AssetBundleFileName
-        {
-            get => _assetBundleFileName;
-            set => _assetBundleFileName = value;
-        }
+        public string AssetBundleFileName => assetBundleFileName;
 
-        public string CueSheetName
-        {
-            get => _cueSheetName;
-            set => _cueSheetName = value;
-        }
+        public string CueSheetName => cueSheetName;
 
-        public int SpilitFileNum
-        {
-            get => _spilitFileNum;
-            set => _spilitFileNum = value;
-        }
+        public int SpilitFileNum => spilitFileNum;
     }
 }

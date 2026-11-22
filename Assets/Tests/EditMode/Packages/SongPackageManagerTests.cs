@@ -61,6 +61,45 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(entry.Manifest.id, Is.Not.Null.And.Not.Empty);
         }
 
+        [TestCase(".sus")]
+        [TestCase(".txt")]
+        public void ReplacingScoreWithAnEmptySusKeepsThePlayableScore(string extension)
+        {
+            SongPackage entry = _manager.CreateNewEntry();
+            ChartFileReader.Write(entry, TwoNoteDocument());
+            var score = File.ReadAllBytes(entry.ScorePath);
+            var manifest = File.ReadAllBytes(entry.ManifestPath);
+            string empty = Path.Combine(_root, "empty" + extension);
+            File.WriteAllText(empty, "#TITLE \"Empty\"\n#BPM01:120\n#00008:01");
+            Assert.Throws<InvalidDataException>(() => _manager.ReplaceScoreFile(entry, empty));
+            Assert.That(File.ReadAllBytes(entry.ScorePath), Is.EqualTo(score));
+            Assert.That(File.ReadAllBytes(entry.ManifestPath), Is.EqualTo(manifest));
+        }
+
+        [Test]
+        public void ReplacingAudioRollsBackIfTheManifestCannotBePublished()
+        {
+            var entry = _manager.CreateNewEntry();
+            string source = Path.Combine(_root, "new.wav");
+            File.WriteAllBytes(source, new byte[] { 1, 2, 3 });
+            entry = _manager.ReplaceAudioFile(entry, source);
+            File.WriteAllBytes(source, new byte[] { 4, 5, 6 });
+            string held = entry.ManifestPath + ".held";
+            File.Move(entry.ManifestPath, held);
+            Directory.CreateDirectory(entry.ManifestPath);
+            try
+            {
+                Assert.Catch<IOException>(() => _manager.ReplaceAudioFile(entry, source));
+                Assert.That(File.ReadAllBytes(entry.AudioPath), Is.EqualTo(new byte[] { 1, 2, 3 }));
+                Assert.That(Directory.GetFiles(entry.RootDirectory, "*.tmp*"), Is.Empty);
+            }
+            finally
+            {
+                Directory.Delete(entry.ManifestPath);
+                File.Move(held, entry.ManifestPath);
+            }
+        }
+
         [Test]
         public void LoadItemsFindsTheCreatedEntry()
         {

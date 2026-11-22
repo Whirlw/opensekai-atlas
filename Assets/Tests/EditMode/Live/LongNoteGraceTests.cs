@@ -67,32 +67,32 @@ namespace OpenSekai.Tests.EditMode.Live
 			float tailTime = tail.MusicScoreInfo.time;
 			int lane = Mathf.Clamp(Mathf.RoundToInt(bar.JudgeLaneStart), 0, LiveConfig.JudgmentPositions.Length - 1);
 			Vector3 position = LiveConfig.JudgmentPositions[lane];
-			const float frame = 1f / 60f;
+			const float FRAME = 1f / 60f;
 
 			void Step(float time, int finger, TouchPhase phase)
 			{
 				harness.Step(time, 10d + time, LiveHarness.Touch(finger, position, 10d + time, phase));
 			}
 
-			harness.Step(headTime - frame, 10d + headTime - frame);
+			harness.Step(headTime - FRAME, 10d + headTime - FRAME);
 			Step(headTime, 1, TouchPhase.Began);
 			AssertHeldBody(bar);
 
-			float lossTime = headTime + Mathf.Max(0.25f, LiveConfig.JudgeTime + frame);
+			float lossTime = headTime + Mathf.Max(0.25f, LiveConfig.JudgeTime + FRAME);
 			Assert.That(tailTime - lossTime, Is.GreaterThan(0.15f), "the fixture must leave time to resume before the tail");
-			for (float now = headTime + frame; now < lossTime; now += frame)
+			for (float now = headTime + FRAME; now < lossTime; now += FRAME)
 				Step(now, 1, TouchPhase.Stationary);
 
 			Step(lossTime, 1, TouchPhase.Ended);
-			float greyTime = lossTime + frame;
+			float greyTime = lossTime + FRAME;
 			harness.Step(greyTime, 10d + greyTime);
 			Assert.That(bar.State, Is.EqualTo(NoteState.Last), "the uncovered body entered its grace period");
 			Assert.That(bar.ShowsAsReleased, Is.True);
 
-			float returnTime = greyTime + frame;
+			float returnTime = greyTime + FRAME;
 			Step(returnTime, 3, TouchPhase.Began);
 			AssertHeldBody(bar, "a new finger lights the body while the grace is still open");
-			for (float now = returnTime + frame; now < tailTime - frame * 0.5f; now += frame)
+			for (float now = returnTime + FRAME; now < tailTime - FRAME * 0.5f; now += FRAME)
 			{
 				Step(now, 3, TouchPhase.Stationary);
 				AssertHeldBody(bar);
@@ -204,8 +204,8 @@ namespace OpenSekai.Tests.EditMode.Live
 			// Device trace 2026-11-15, bar 65.407: a zigzag bar's judge span jumps lanes between frames, so a
 			// following finger is outside it now and then. The held bar was Scrolling, each uncovered frame went
 			// through the first-crossing branch (Scrolling to Last), and every return restarted the hold SE.
-			const float frame = 1f / 60f;
-			const double inputBase = 10d;
+			const float FRAME = 1f / 60f;
+			const double INPUT_BASE = 10d;
 			using var harness = new LiveHarness();
 			var bar = new LongNote(Info(0.5f), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
 			bar.AddNoteListAndSetupChildNote(new NormalNote(Info(2f), 2, 4, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f));
@@ -214,18 +214,18 @@ namespace OpenSekai.Tests.EditMode.Live
 			Vector3 offTheBar = LiveConfig.JudgmentPositions[11];
 
 			int f = 0;
-			for (; f * frame < 0.5f; f++) harness.Step(f * frame, inputBase + f * frame);
-			harness.Step(f * frame, inputBase + f * frame, LiveHarness.Touch(1, onTheBar, inputBase + f * frame, TouchPhase.Began));
+			for (; f * FRAME < 0.5f; f++) harness.Step(f * FRAME, INPUT_BASE + f * FRAME);
+			harness.Step(f * FRAME, INPUT_BASE + f * FRAME, LiveHarness.Touch(1, onTheBar, INPUT_BASE + f * FRAME, TouchPhase.Began));
 			f++;
 			Assert.That(bar.State, Is.EqualTo(NoteState.Input), "the pressed head starts the hold");
 
 			for (int round = 0; round < 6; round++, f += 3)
 			{
-				harness.Step(f * frame, inputBase + f * frame, LiveHarness.Touch(1, onTheBar, inputBase + f * frame, TouchPhase.Moved));
-				harness.Step((f + 1) * frame, inputBase + (f + 1) * frame, LiveHarness.Touch(1, offTheBar, inputBase + (f + 1) * frame, TouchPhase.Moved));
-				harness.OnUpdate((f + 2) * frame, inputBase + (f + 2) * frame);
+				harness.Step(f * FRAME, INPUT_BASE + f * FRAME, LiveHarness.Touch(1, onTheBar, INPUT_BASE + f * FRAME, TouchPhase.Moved));
+				harness.Step((f + 1) * FRAME, INPUT_BASE + (f + 1) * FRAME, LiveHarness.Touch(1, offTheBar, INPUT_BASE + (f + 1) * FRAME, TouchPhase.Moved));
+				harness.OnUpdate((f + 2) * FRAME, INPUT_BASE + (f + 2) * FRAME);
 				Assert.That(bar.State, Is.EqualTo(NoteState.Last), $"round {round}: one uncovered frame is a grace");
-				harness.AddTouch(1, onTheBar, inputBase + (f + 2) * frame, TouchPhase.Moved);
+				harness.AddTouch(1, onTheBar, INPUT_BASE + (f + 2) * FRAME, TouchPhase.Moved);
 				harness.OnInput();
 				harness.OnView();
 				Assert.That(bar.State, Is.EqualTo(NoteState.Input), $"round {round}: the return is a hold, never Scrolling");
@@ -253,8 +253,8 @@ namespace OpenSekai.Tests.EditMode.Live
 			// Device trace 2026-11-14: a held FrictionHideLongNote went Input -> Last on every update pass and
 			// back to Input on the next input pass (292 of 319 recorded state changes). The rub path recorded
 			// the finger but never marked the frame, so the body's freshness check read it as a lift.
-			const float frame = 1f / 60f;
-			const double inputBase = 10d;
+			const float FRAME = 1f / 60f;
+			const double INPUT_BASE = 10d;
 			using var harness = new LiveHarness();
 			var carrier = new FrictionHideLongNote(Info(0.5f), 1, 4, 5, NoteCategory.FrictionHideLong, NoteType.Default, null, 1f);
 			carrier.AddNoteListAndSetupChildNote(new FrictionHideNote(Info(1.5f), 2, 4, 5, NoteCategory.Hidden, null, NoteType.Default, 1f, 0));
@@ -262,28 +262,28 @@ namespace OpenSekai.Tests.EditMode.Live
 			Vector3 onTheBar = LiveConfig.JudgmentPositions[4];
 
 			int f = 0;
-			for (; f * frame < 0.48f; f++) harness.Step(f * frame, inputBase + f * frame);
+			for (; f * FRAME < 0.48f; f++) harness.Step(f * FRAME, INPUT_BASE + f * FRAME);
 
 			TouchPhase phase = TouchPhase.Began;
-			for (; f * frame < 1.0f; f++)
+			for (; f * FRAME < 1.0f; f++)
 			{
-				harness.OnUpdate(f * frame, inputBase + f * frame);
-				if (f * frame > 0.6f)
+				harness.OnUpdate(f * FRAME, INPUT_BASE + f * FRAME);
+				if (f * FRAME > 0.6f)
 				{
 					Assert.That(carrier.State, Is.Not.EqualTo(NoteState.Last).And.Not.EqualTo(NoteState.Release),
-						$"held carrier after the update pass at t={f * frame:F3}");
+						$"held carrier after the update pass at t={f * FRAME:F3}");
 				}
 
-				harness.AddTouch(1, onTheBar, inputBase + f * frame, phase);
+				harness.AddTouch(1, onTheBar, INPUT_BASE + f * FRAME, phase);
 				harness.OnInput();
 				harness.OnView();
 				phase = TouchPhase.Moved;
 			}
 
-			harness.Step(f * frame, inputBase + f * frame,
-				LiveHarness.Touch(1, onTheBar, inputBase + f * frame, TouchPhase.Ended));
-			float lifted = f * frame;
-			for (f++; f * frame < lifted + 0.2f; f++) harness.Step(f * frame, inputBase + f * frame);
+			harness.Step(f * FRAME, INPUT_BASE + f * FRAME,
+				LiveHarness.Touch(1, onTheBar, INPUT_BASE + f * FRAME, TouchPhase.Ended));
+			float lifted = f * FRAME;
+			for (f++; f * FRAME < lifted + 0.2f; f++) harness.Step(f * FRAME, INPUT_BASE + f * FRAME);
 
 			Assert.That(carrier.State, Is.EqualTo(NoteState.Release), "a lifted carrier still runs out its grace");
 		}
@@ -294,39 +294,39 @@ namespace OpenSekai.Tests.EditMode.Live
 			// Device trace 2026-11-14, bar 34.105: two hands took turns on a long bar. Finger 1 lifted at
 			// 35.507, finger 0 landed at 35.519, and the one update in between saw no finger: the bar went
 			// Last and stayed there, held, until its end.
-			const float frame = 1f / 60f;
-			const double inputBase = 10d;
+			const float FRAME = 1f / 60f;
+			const double INPUT_BASE = 10d;
 			using var harness = new LiveHarness();
 			var bar = new LongNote(Info(0.5f), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
 			bar.AddNoteListAndSetupChildNote(new NormalNote(Info(2f), 2, 4, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f));
 			harness.Arrange(new MusicScore(new[] { Info(0f) }, System.Array.Empty<EventBase>(), new NoteBase[] { bar }));
 			Vector3 onTheBar = LiveConfig.JudgmentPositions[4];
 			void Touch(int finger, int at, TouchPhase phase) =>
-				harness.Step(at * frame, inputBase + at * frame, LiveHarness.Touch(finger, onTheBar, inputBase + at * frame, phase));
+				harness.Step(at * FRAME, INPUT_BASE + at * FRAME, LiveHarness.Touch(finger, onTheBar, INPUT_BASE + at * FRAME, phase));
 
 			int f = 0;
-			for (; f * frame < 0.5f; f++) harness.Step(f * frame, inputBase + f * frame);
+			for (; f * FRAME < 0.5f; f++) harness.Step(f * FRAME, INPUT_BASE + f * FRAME);
 			Touch(1, f++, TouchPhase.Began);
-			for (; f * frame < 0.9f; f++) Touch(1, f, TouchPhase.Moved);
+			for (; f * FRAME < 0.9f; f++) Touch(1, f, TouchPhase.Moved);
 			Touch(1, f++, TouchPhase.Ended);
-			harness.Step(f * frame, inputBase + f * frame);
+			harness.Step(f * FRAME, INPUT_BASE + f * FRAME);
 			f++;
 			Assert.That(bar.State, Is.EqualTo(NoteState.Last), "one frame with no finger starts the grace");
 
 			Touch(2, f++, TouchPhase.Began);
-			for (; f * frame < 1.5f; f++)
+			for (; f * FRAME < 1.5f; f++)
 			{
-				harness.OnUpdate(f * frame, inputBase + f * frame);
+				harness.OnUpdate(f * FRAME, INPUT_BASE + f * FRAME);
 				Assert.That(bar.State, Is.Not.EqualTo(NoteState.Last).And.Not.EqualTo(NoteState.Release),
-					$"the second finger holds the bar, after the update pass at t={f * frame:F3}");
-				harness.AddTouch(2, onTheBar, inputBase + f * frame, TouchPhase.Moved);
+					$"the second finger holds the bar, after the update pass at t={f * FRAME:F3}");
+				harness.AddTouch(2, onTheBar, INPUT_BASE + f * FRAME, TouchPhase.Moved);
 				harness.OnInput();
 				harness.OnView();
 			}
 
 			Touch(2, f++, TouchPhase.Ended);
-			float lifted = f * frame;
-			for (; f * frame < lifted + 0.2f; f++) harness.Step(f * frame, inputBase + f * frame);
+			float lifted = f * FRAME;
+			for (; f * FRAME < lifted + 0.2f; f++) harness.Step(f * FRAME, INPUT_BASE + f * FRAME);
 			Assert.That(bar.State, Is.EqualTo(NoteState.Release), "with no finger left the grace runs out");
 		}
 	}

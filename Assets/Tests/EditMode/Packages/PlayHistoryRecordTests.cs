@@ -12,7 +12,7 @@ namespace OpenSekai.Tests.EditMode.Packages
     public class PlayHistoryRecordTests
     {
         // A record as it looked before the three fields existed (only the fields we assert on).
-        private const string LegacyJson = @"{
+        private const string LEGACY_JSON = @"{
             ""schemaVersion"": 1,
             ""recordId"": ""legacy-record"",
             ""playedAtUtc"": ""2026-10-20T12:00:00Z"",
@@ -31,24 +31,24 @@ namespace OpenSekai.Tests.EditMode.Packages
         public void LegacyRecordStillDeserialises()
         {
             CustomMusicScorePlayHistoryRecord record =
-                JsonConvert.DeserializeObject<CustomMusicScorePlayHistoryRecord>(LegacyJson);
+                JsonConvert.DeserializeObject<CustomMusicScorePlayHistoryRecord>(LEGACY_JSON);
 
             Assert.That(record, Is.Not.Null);
-            Assert.That(record.recordId, Is.EqualTo("legacy-record"));
-            Assert.That(record.title, Is.EqualTo("Baseline Tap 120 BPM"));
-            Assert.That(record.totalScore, Is.EqualTo(1000000));
-            Assert.That(record.totalComboCount, Is.EqualTo(221));
+            Assert.That(record.RecordId, Is.EqualTo("legacy-record"));
+            Assert.That(record.Title, Is.EqualTo("Baseline Tap 120 BPM"));
+            Assert.That(record.TotalScore, Is.EqualTo(1000000));
+            Assert.That(record.TotalComboCount, Is.EqualTo(221));
         }
 
         [Test]
         public void MissingNewFieldsFallBackToDefaults()
         {
             CustomMusicScorePlayHistoryRecord record =
-                JsonConvert.DeserializeObject<CustomMusicScorePlayHistoryRecord>(LegacyJson);
+                JsonConvert.DeserializeObject<CustomMusicScorePlayHistoryRecord>(LEGACY_JSON);
 
-            Assert.That(record.chartHash, Is.Null.Or.Empty);
-            Assert.That(record.rulesVersion, Is.EqualTo(0), "0 means 'written before rules were versioned'");
-            Assert.That(record.sessionId, Is.Null.Or.Empty);
+            Assert.That(record.ChartHash, Is.Null.Or.Empty);
+            Assert.That(record.RulesVersion, Is.EqualTo(0), "0 means 'written before rules were versioned'");
+            Assert.That(record.SessionId, Is.Null.Or.Empty);
         }
 
         [Test]
@@ -56,42 +56,42 @@ namespace OpenSekai.Tests.EditMode.Packages
         {
             var record = new CustomMusicScorePlayHistoryRecord
             {
-                schemaVersion = 2,
-                recordId = "new-record",
-                chartHash = "abc123",
-                rulesVersion = 2,
-                sessionId = "session000001",
-                playedAtUtc = "2026-11-03T00:00:00Z",
-                customMusicScoreId = "id",
-                title = "T",
-                totalScore = 1000000,
-                totalComboCount = 221
+                SchemaVersion = 2,
+                RecordId = "new-record",
+                ChartHash = "abc123",
+                RulesVersion = 2,
+                SessionId = "session000001",
+                PlayedAtUtc = "2026-11-03T00:00:00Z",
+                CustomMusicScoreId = "id",
+                Title = "T",
+                TotalScore = 1000000,
+                TotalComboCount = 221
             };
 
             string json = JsonConvert.SerializeObject(record);
             CustomMusicScorePlayHistoryRecord back =
                 JsonConvert.DeserializeObject<CustomMusicScorePlayHistoryRecord>(json);
 
-            Assert.That(back.chartHash, Is.EqualTo("abc123"));
-            Assert.That(back.rulesVersion, Is.EqualTo(2));
-            Assert.That(back.sessionId, Is.EqualTo("session000001"));
-            Assert.That(back.totalScore, Is.EqualTo(1000000));
+            Assert.That(back.ChartHash, Is.EqualTo("abc123"));
+            Assert.That(back.RulesVersion, Is.EqualTo(2));
+            Assert.That(back.SessionId, Is.EqualTo("session000001"));
+            Assert.That(back.TotalScore, Is.EqualTo(1000000));
         }
 
         [Test]
         public void UnknownFieldsInNewerRecordsAreIgnored()
         {
-            const string futureJson = @"{
+            const string FUTURE_JSON = @"{
                 ""recordId"": ""future"",
                 ""totalScore"": 500,
                 ""someFieldFromTheFuture"": ""ignored""
             }";
 
             CustomMusicScorePlayHistoryRecord record =
-                JsonConvert.DeserializeObject<CustomMusicScorePlayHistoryRecord>(futureJson);
+                JsonConvert.DeserializeObject<CustomMusicScorePlayHistoryRecord>(FUTURE_JSON);
 
-            Assert.That(record.recordId, Is.EqualTo("future"));
-            Assert.That(record.totalScore, Is.EqualTo(500));
+            Assert.That(record.RecordId, Is.EqualTo("future"));
+            Assert.That(record.TotalScore, Is.EqualTo(500));
         }
     }
 }

@@ -20,7 +20,7 @@ namespace Sekai.Live
 	internal sealed class FlickTailJudge
 	{
 		/// <summary>How early a swipe may be recorded: the early edge of the end window, 125 ms.</summary>
-		internal const float EarlySeconds = LongEndJudgement.EarlyGoodMs / 1000f;
+		internal const float EARLY_SECONDS = LongEndJudgement.EARLY_GOOD_MS / 1000f;
 
 		/// <summary>The wait between leaving and grading: three reference frames, 50 ms.</summary>
 		internal static float ReleaseDelaySeconds => LongNote.HoldGraceSeconds;
@@ -47,7 +47,7 @@ namespace Sekai.Live
 		internal float FrameDeltaTime(float now) =>
 			_lastFrameTime is float lastFrameTime && now > lastFrameTime
 				? Mathf.Min(now - lastFrameTime, 0.1f)
-				: FlickGesture.ReferenceFrameSeconds;
+				: FlickGesture.REFERENCE_FRAME_SECONDS;
 
 		internal FlickTailJudge(FlickNote note)
 		{
@@ -111,7 +111,7 @@ namespace Sekai.Live
 			}
 
 			// Before the early edge nothing counts, and past the late edge the note's own timeout decides.
-			if (offset < -EarlySeconds || LongEndJudgement.IsPast(offset))
+			if (offset < -EARLY_SECONDS || LongEndJudgement.IsPast(offset))
 			{
 				return;
 			}
@@ -119,7 +119,7 @@ namespace Sekai.Live
 			bool ended = touch.phase == InputTouchPhase.Ended;
 			float moveLane = !float.IsNegativeInfinity(previousLane) || ended ? previousLane : lane;
 			if (InLanes(lane) || (touch.delta.sqrMagnitude > 0f && InLanes(moveLane)))
-				_note.RecordSlideEndInput(LongEndJudgement.LateGoodMs / 1000f);
+				_note.RecordSlideEndInput(LongEndJudgement.LATE_GOOD_MS / 1000f);
 
 			if (touch.delta.sqrMagnitude > 0f && InLanes(moveLane))
 			{
@@ -279,7 +279,7 @@ namespace Sekai.Live
 			}
 
 			finger.Accum += delta;
-			float frameSeconds = FlickGesture.ReferenceFrameSeconds;
+			float frameSeconds = FlickGesture.REFERENCE_FRAME_SECONDS;
 			float elapsed = now - finger.WindowStart.Value;
 
 			// Wait for one frame of travel, unless a whole flick distance is already covered: that much in a

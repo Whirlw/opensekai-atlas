@@ -9,7 +9,7 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void OneReferenceFrameIsASixtiethOfASecond()
         {
-            Assert.That(ReferenceFrame.Seconds, Is.EqualTo(1f / 60f).Within(1e-6f));
+            Assert.That(ReferenceFrame.SECONDS, Is.EqualTo(1f / 60f).Within(1e-6f));
         }
 
         [Test]
@@ -23,19 +23,19 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void AnInputWithinTheToleranceIsStillFresh()
         {
-            Assert.That(ReferenceFrame.IsStillFresh(1f, 1f + ReferenceFrame.Seconds - 0.001f, ReferenceFrame.Seconds), Is.True);
+            Assert.That(ReferenceFrame.IsStillFresh(1f, 1f + ReferenceFrame.SECONDS - 0.001f, ReferenceFrame.SECONDS), Is.True);
         }
 
         [Test]
         public void AnInputOlderThanTheToleranceIsStale()
         {
-            Assert.That(ReferenceFrame.IsStillFresh(1f, 1f + ReferenceFrame.Seconds + 0.001f, ReferenceFrame.Seconds), Is.False);
+            Assert.That(ReferenceFrame.IsStillFresh(1f, 1f + ReferenceFrame.SECONDS + 0.001f, ReferenceFrame.SECONDS), Is.False);
         }
 
         [Test]
         public void TheBoundaryMomentCountsAsFresh()
         {
-            Assert.That(ReferenceFrame.IsStillFresh(1f, 1f + ReferenceFrame.Seconds, ReferenceFrame.Seconds), Is.True);
+            Assert.That(ReferenceFrame.IsStillFresh(1f, 1f + ReferenceFrame.SECONDS, ReferenceFrame.SECONDS), Is.True);
         }
 
         [Test]
@@ -44,7 +44,7 @@ namespace OpenSekai.Tests.EditMode.Live
             // The bug this replaces: at 165 Hz "one frame" is 6 ms, so a hold refreshed at the start
             // of a frame was already stale by the next one. With the reference frame the tolerance is
             // the same on every device.
-            float tolerance = ReferenceFrame.Seconds;
+            float tolerance = ReferenceFrame.SECONDS;
             Assert.That(tolerance, Is.GreaterThan(1f / 165f));
             Assert.That(tolerance, Is.GreaterThan(1f / 120f));
             Assert.That(ReferenceFrame.IsStillFresh(0f, 1f / 165f, tolerance), Is.True,

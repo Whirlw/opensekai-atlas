@@ -7,21 +7,23 @@ namespace Sekai
 	[RequireComponent(typeof(HorizontalLayoutGroup))]
 	public sealed class UIPartsDialogButtonGroup : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_layoutGroup")]
 		[SerializeField]
-		private HorizontalLayoutGroup _layoutGroup;
+		private HorizontalLayoutGroup layoutGroup;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_buttonPrefab")]
 		[SerializeField]
-		private UIPartsCommonButton _buttonPrefab;
+		private UIPartsCommonButton buttonPrefab;
 
 		public void Setup(int buttonCount)
 		{
 			// Dialog prefabs already contain their concrete footer buttons; this keeps
 			// those children usable and only instantiates from the prefab when needed.
-			if (_layoutGroup == null)
+			if (layoutGroup == null)
 			{
-				_layoutGroup = GetComponent<HorizontalLayoutGroup>();
+				layoutGroup = GetComponent<HorizontalLayoutGroup>();
 			}
-			if (_buttonPrefab == null)
+			if (buttonPrefab == null)
 			{
 				return;
 			}
@@ -38,7 +40,7 @@ namespace Sekai
 
 			for (int i = transform.childCount; i < buttonCount; i++)
 			{
-				Instantiate(_buttonPrefab, transform, false);
+				Instantiate(buttonPrefab, transform, false);
 			}
 		}
 

@@ -26,8 +26,8 @@ namespace OpenSekai.Tests.EditMode.Live
     /// </summary>
     public sealed class StallReplayTests
     {
-        private const string Fixture = "deinos-phainein-device";
-        private const float OrthographicSize = 5f;
+        private const string FIXTURE = "deinos-phainein-device";
+        private const float ORTHOGRAPHIC_SIZE = 5f;
 
         private sealed class Sample
         {
@@ -88,7 +88,7 @@ namespace OpenSekai.Tests.EditMode.Live
             if (_replay != null)
                 return _replay;
 
-            string path = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Tools", "fixtures", Fixture, "replay.tsv.gz"));
+            string path = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Tools", "fixtures", FIXTURE, "replay.tsv.gz"));
             var replay = new Replay();
             CultureInfo c = CultureInfo.InvariantCulture;
             using var reader = new StreamReader(new GZipStream(File.OpenRead(path), CompressionMode.Decompress), Encoding.UTF8);
@@ -192,7 +192,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
         private static Outcome Run(Replay replay, List<Frame> frames, bool frameMatching)
         {
-            MusicScore score = AutoplayCompletionTests.LoadFixture(Fixture);
+            MusicScore score = AutoplayCompletionTests.LoadFixture(FIXTURE);
             var bundle = Resources.Load<LiveBundleBuildData>("live/config/LiveBundleBuildData");
             bool captureEnabled = LatencyCapture.Enabled;
             bool mix = LatencyCapture.MixProbeEnabled;
@@ -213,7 +213,7 @@ namespace OpenSekai.Tests.EditMode.Live
                 LatencyCapture.Enabled = true;
                 LatencyCapture.MixProbeEnabled = false;
                 LatencyCapture.Begin(marker, "master", false, 0f, 0f, 0f, false);
-                float worldHeight = OrthographicSize * 2f;
+                float worldHeight = ORTHOGRAPHIC_SIZE * 2f;
                 float worldWidth = worldHeight * replay.Screen.x / replay.Screen.y;
                 var touches = new List<LiveTouchSample>();
                 foreach (Frame frame in frames)
@@ -369,7 +369,7 @@ namespace OpenSekai.Tests.EditMode.Live
                     Assert.That(run.PressTouches[id], Is.EqualTo(baseline.PressTouches[id]), $"note {id} changed hands");
                 double bound = baseline.PressTouches[id] == run.PressTouches[id]
                     ? 1.05
-                    : JudgmentScheduler.PressPassSeconds * 1000.0 + 1.05;
+                    : JudgmentScheduler.PRESS_PASS_SECONDS * 1000.0 + 1.05;
                 Assert.That(shift, Is.LessThan(bound), FormattableString.Invariant(
                     $"press on note {id} moved {shift:F3} ms (touch {baseline.PressTouches[id]} -> {run.PressTouches[id]})"));
             }
@@ -380,7 +380,8 @@ namespace OpenSekai.Tests.EditMode.Live
         /// into one sample can still miss, and a slide connection point can drop; it reports rather than
         /// asserts.
         /// </summary>
-        [Test, Explicit("characterisation sweep; reports the stall table")]
+        [Test]
+        [Explicit("characterisation sweep; reports the stall table")]
         public void StallSweep([Values(20, 50, 100)] int stallMs, [Values(0.0, 0.31, 0.62)] double phase,
             [Values(false, true)] bool frameMatching)
         {

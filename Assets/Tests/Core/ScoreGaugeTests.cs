@@ -12,7 +12,7 @@ namespace OpenSekai.Tests.EditMode.Live
     /// </summary>
     public class ScoreGaugeTests
     {
-        private const int Total = 1000000;
+        private const int TOTAL = 1000000;
 
         private static MasterPlayLevelScore Thresholds() => new MasterPlayLevelScore
         {
@@ -46,15 +46,15 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void GaugeIsFullAtTheTopScore()
         {
-            ScoreGauge gauge = ScoreGauge.Create(Total);
+            ScoreGauge gauge = ScoreGauge.Create(TOTAL);
 
-            Assert.That(gauge.ProgressOf(Total), Is.EqualTo(1f).Within(0.001f));
+            Assert.That(gauge.ProgressOf(TOTAL), Is.EqualTo(1f).Within(0.001f));
         }
 
         [Test]
         public void GaugeIsEmptyAtZero()
         {
-            ScoreGauge gauge = ScoreGauge.Create(Total);
+            ScoreGauge gauge = ScoreGauge.Create(TOTAL);
 
             Assert.That(gauge.ProgressOf(0), Is.EqualTo(0f).Within(0.001f));
         }
@@ -62,10 +62,10 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void GaugeIsMonotonic()
         {
-            ScoreGauge gauge = ScoreGauge.Create(Total);
+            ScoreGauge gauge = ScoreGauge.Create(TOTAL);
             float previous = -1f;
 
-            for (int score = 0; score <= Total; score += 50000)
+            for (int score = 0; score <= TOTAL; score += 50000)
             {
                 float progress = gauge.ProgressOf(score);
                 Assert.That(progress, Is.GreaterThanOrEqualTo(previous), $"score={score}");
@@ -76,9 +76,9 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void GaugeToleratesAScoreAboveTheMaximum()
         {
-            ScoreGauge gauge = ScoreGauge.Create(Total);
+            ScoreGauge gauge = ScoreGauge.Create(TOTAL);
 
-            Assert.That(gauge.ProgressOf(Total * 2), Is.EqualTo(1f).Within(0.001f));
+            Assert.That(gauge.ProgressOf(TOTAL * 2), Is.EqualTo(1f).Within(0.001f));
         }
     }
 }

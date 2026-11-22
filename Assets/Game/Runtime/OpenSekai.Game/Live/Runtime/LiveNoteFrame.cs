@@ -36,7 +36,7 @@ namespace Sekai.Core.Live
 		/// </summary>
 		internal void UpdateState(float scoreInfoTime, double currentGameTime)
 		{
-			bool isActive = _logic.result <= 2;
+			bool isActive = _logic.Result <= 2;
 			_logic.currentFrameInfo = _logic.Clock.Sample(_session.MusicScore, scoreInfoTime, currentGameTime, isActive);
 			if (!isActive)
 			{
@@ -274,7 +274,7 @@ namespace Sekai.Core.Live
 		/// How much earlier than its own display window a note's view is built, so that building it can never
 		/// decide where the note first appears.
 		/// </summary>
-		internal const float PreloadMarginSeconds = 0.1f;
+		internal const float PRELOAD_MARGIN_SECONDS = 0.1f;
 
 		/// <summary>
 		/// Builds the note's view a little before it can be seen. Creating a view is what used to happen at
@@ -294,7 +294,7 @@ namespace Sekai.Core.Live
 			}
 
 			float timeLeft = note.MusicScoreInfo.time - Frame.time;
-			if (timeLeft > offsetTime + PreloadMarginSeconds)
+			if (timeLeft > offsetTime + PRELOAD_MARGIN_SECONDS)
 			{
 				return;
 			}
@@ -307,7 +307,7 @@ namespace Sekai.Core.Live
 		private void PreloadNativeVisual(NoteBase note)
 		{
 			double progress = note.NativeViewProgress(_nativeViewTime, out bool hidden);
-			bool visible = note.State != NoteState.Done && !hidden && progress > 0 && progress <= LiveConfig.NativeKeyProgressEnd
+			bool visible = note.State != NoteState.Done && !hidden && progress > 0 && progress <= LiveConfig.NATIVE_KEY_PROGRESS_END
 				&& (note is LongNote || note.IsVisible && (!note.IsDecoration || _nativeViewTime < note.NativeTarget.Time));
 			if (note is LongNote bar)
 			{
@@ -345,7 +345,7 @@ namespace Sekai.Core.Live
 						}
 					}
 					if (!node.HasNativeAttachment && node.IsVisible && node.State != NoteState.Done && !childHidden
-						&& next > 0 && next <= LiveConfig.NativeKeyProgressEnd
+						&& next > 0 && next <= LiveConfig.NATIVE_KEY_PROGRESS_END
 						&& _nativeViewTime < node.NativeTarget.Time && bar.ViewNoteList.Contains(node))
 						_presentation.Spawn(_session.Views, node, Frame.time);
 					previous = next;
@@ -359,7 +359,7 @@ namespace Sekai.Core.Live
 						|| attached.State == NoteState.Done || _nativeViewTime >= attached.NativeTarget.Time)
 						continue;
 					double next = attached.NativeViewProgress(_nativeViewTime, out bool childHidden);
-					if (!childHidden && next > 0 && next <= LiveConfig.NativeKeyProgressEnd)
+					if (!childHidden && next > 0 && next <= LiveConfig.NATIVE_KEY_PROGRESS_END)
 						_presentation.Spawn(_session.Views, attached, Frame.time);
 				}
 			}
@@ -539,7 +539,7 @@ namespace Sekai.Core.Live
 			}
 
 			float lead = Mathf.Max(timeOffset, _session.NoteDisplayTimeOffset);
-			return Frame.time + lead + LiveClock.ReferenceFrameSeconds <= note.MusicScoreInfo.time;
+			return Frame.time + lead + LiveClock.REFERENCE_FRAME_SECONDS <= note.MusicScoreInfo.time;
 		}
 
 		/// <summary>
@@ -569,7 +569,7 @@ namespace Sekai.Core.Live
 				return 0f;
 			}
 			if (note.NativeScroll != null)
-				return OpenSekai.Shared.Live.JudgeListLead.Seconds;
+				return OpenSekai.Shared.Live.JudgeListLead.SECONDS;
 
 			float currentProgress = Frame.bar + Frame.barProgress;
 			float noteProgress = note.MusicScoreInfo.bar + note.MusicScoreInfo.barProgress;
@@ -579,6 +579,13 @@ namespace Sekai.Core.Live
 			float timeOffset = OpenSekai.Shared.Live.NoteDisplayOffset.Resolve(
 				_session.NoteDisplayTimeOffset, speedRatio, note.speedRatio, ref isNegativeSpeed);
 			note.IsNegativeSpeed = isNegativeSpeed;
+			if (Frame.time < note.ScrollApproachStart)
+			{
+				// A reversal can bring a future key near the line on an earlier pass.
+				// Cap its lead before it can enter Scrolling and leave a stale child position.
+				float approachLead = note.MusicScoreInfo.time - note.ScrollApproachStart;
+				return timeOffset > 0f ? Mathf.Min(timeOffset, approachLead) : approachLead;
+			}
 			return timeOffset;
 		}
 

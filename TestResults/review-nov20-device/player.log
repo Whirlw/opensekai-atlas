@@ -1,0 +1,92 @@
+--------- beginning of main
+11-20 16:33:27.510 14660 14660 V Unity   : Context Type: ActivityOrService
+11-20 16:33:27.851 14660 14701 I Unity   : MemoryManager: Using 'Dynamic Heap' Allocator.
+11-20 16:33:27.851 14660 14701 I Unity   : Mimalloc is enabled and will override the Dynamic Heap and Dual Thread (Main and MainThread) allocators.
+11-20 16:33:28.056 14660 14701 E Unity   : java.lang.ClassNotFoundException: Didn't find class "com.google.android.play.core.assetpacks.AssetPackManager" on path: DexPathList[[zip file "/data/app/~~IZaDfPHzIIPz4WDNQMrrzw==/io.github.opensekai.reviewnov20-lQrjceRjE5b4X6x1rapJbg==/base.apk"],nativeLibraryDirectories=[/data/app/~~IZaDfPHzIIPz4WDNQMrrzw==/io.github.opensekai.reviewnov20-lQrjceRjE5b4X6x1rapJbg==/lib/arm64, /data/app/~~IZaDfPHzIIPz4WDNQMrrzw==/io.github.opensekai.reviewnov20-lQrjceRjE5b4X6x1rapJbg==/base.apk!/lib/arm64-v8a, /system/lib64, /system_ext/lib64]]
+11-20 16:33:28.077 14660 14701 I Unity   : SystemInfo CPU = ARM64 FP ASIMD AES, Cores = 8, Memory = 11117mb
+11-20 16:33:28.077 14660 14701 I Unity   : SystemInfo ARM big.LITTLE configuration: 2 big (mask: 0xc0), 6 little (mask: 0x3f)
+11-20 16:33:28.077 14660 14701 I Unity   : ApplicationInfo 'io.github.opensekai.reviewnov20', Version '0.6.0', Min API Level '26', Target API Level '36'
+11-20 16:33:28.077 14660 14701 I Unity   : Built from '6000.6/staging' branch, Version '6000.6.7f1 (b22767f04f04)', Build type 'Release', Scripting Backend 'il2cpp', CPU 'arm64-v8a', Stripping 'Enabled'
+11-20 16:33:28.077 14660 14701 I Unity   : Device Model 'OnePlus PLQ110', OS 'Android OS 16 (API 36)'
+11-20 16:33:28.309 14660 14701 I Unity   : Company Name: OpenSekai
+11-20 16:33:28.309 14660 14701 I Unity   : Product Name: OpenSekai
+11-20 16:33:28.788 14660 14701 I Unity   : [AudioOut] rate=48000 dsp=144x4 native=48000/144 lowLatencyFeature=True outputs=earpiece,speaker,telephony requested=48000/144 reset=accepted plan=rate set to native; buffer aligned to burst
+11-20 16:33:28.788 14660 14701 I Unity   : UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+11-20 16:33:28.788 14660 14701 I Unity   : Sekai.AudioOutputTuning:Apply()
+11-20 16:33:28.788 14660 14701 I Unity   : 
+11-20 16:33:29.006 14660 14701 I Unity   : [FramerateUtility] targetFrameRate=165 limit=follow display=165Hz appliedMode=0Hz vSync=0
+11-20 16:33:29.006 14660 14701 I Unity   : UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+11-20 16:33:29.006 14660 14701 I Unity   : CP.FramerateUtility:ApplyFrameRateLimit(Int32)
+11-20 16:33:29.006 14660 14701 I Unity   : 
+11-20 16:33:29.123 14660 14701 I Unity   : [LibraryScreen] CJK font: SourceHanSansSC-Medium SDF_Dynamic / os fonts: 218 / first: AndroidClock | Carrois Gothic SC | Coming Soon | Cutive Mono | Dancing Script | Droid Sans Mono | FZZWXBTOT_Uni | HYZhongHei | MyanmarZg | Noto Color Emoji | Noto Naskh Arabic | Noto Naskh Arabic Bold
+11-20 16:33:29.123 14660 14701 I Unity   : UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+11-20 16:33:29.123 14660 14701 I Unity   : OpenSekai.App.UI.LibraryUi:ResolveCjkFont()
+11-20 16:33:29.123 14660 14701 I Unity   : OpenSekai.App.UI.LibraryUi:ApplyCjkTextStyle(TextMeshProUGUI, FontStyles)
+11-20 16:33:29.123 14660 14701 I Unity   : OpenSekai.App.UI.LibraryUi:CreateText(String, Transform, String, Single, FontStyles, TextAlignmentOptions)
+11-20 16:33:29.123 14660 14701 I Unity   : OpenSekai.App.UI.LibraryWidgets:Label(String, Transform, String, Single, Color32, FontStyles, TextAlignmentOptions)
+11-20 16:33:29.123 14660 14701 I Unity   : OpenSekai.App.UI.LibraryWidgets:PillButton(String, Transform, String, UnityAction, Single, Single, Color32, Color32, Single, FontStyles, UiCue)
+11-20 16:33:29.123 14660 14701 I Unity   : OpenSekai.App.UI.LibraryView:CreateBarIconButton(Transform, String, LibraryIcon, UnityAction, Color32, UiCue)
+11-20 16:33:29.123 14660 14701 I Unity   : OpenSekai.App.UI.LibraryView:BuildTopBar(RectTransform, RectTransform, Single)
+11-20 16:33:29.123 14660 14701 I Unity   : OpenSekai.App.UI.LibraryView:BuildLayout(LibraryPresenter)
+11-20 16:33:29.123 14660 14701 I Unity   : OpenSekai.App.UI.LibraryScreen:Build(AppContext, Boolean)
+11-20 16:33:29.123 14660 14701 I Unity   : OpenSekai.App.UI.LibraryScreen:Create(AppContext, Transform, Boolean)
+11-20 16:33:29.123 14660 14701 I Unity   : OpenSekai.App.Bootstrap.<Start>d__2:MoveNext()
+11-20 16:33:29.123 14660 14701 I Unity   : System.Runtime.CompilerServices.AsyncVoidMethodBuilder:Start(TStateMachine&)
+11-20 16:33:29.123 14660 14701 I Unity   : OpenSekai.App.Bootstrap.LibraryEntryPoint:Start()
+11-20 16:33:29.123 14660 14701 I Unity   : 
+11-20 16:33:29.395 14660 14701 I Unity   : [Library] Player library started (home page with splash).
+11-20 16:33:29.395 14660 14701 I Unity   : UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+11-20 16:33:29.395 14660 14701 I Unity   : OpenSekai.App.Bootstrap.<Start>d__2:MoveNext()
+11-20 16:33:29.395 14660 14701 I Unity   : System.Runtime.CompilerServices.AsyncVoidMethodBuilder:Start(TStateMachine&)
+11-20 16:33:29.395 14660 14701 I Unity   : OpenSekai.App.Bootstrap.LibraryEntryPoint:Start()
+11-20 16:33:29.395 14660 14701 I Unity   : 
+11-20 16:33:30.175 14660 14701 I Unity   : [SoundManager] external pack: 13 cues for live/tap_se/custom01
+11-20 16:33:30.175 14660 14701 I Unity   : UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+11-20 16:33:30.175 14660 14701 I Unity   : Sekai.ExternalSoundPack:RegisterExternalAudioClips(String, List`1)
+11-20 16:33:30.175 14660 14701 I Unity   : Sekai.<>c__DisplayClass3_0:<Load>b__0(Dictionary`2)
+11-20 16:33:30.175 14660 14701 I Unity   : CriWare.<LoadAllRoutine>d__8:MoveNext()
+11-20 16:33:30.175 14660 14701 I Unity   : UnityEngine.SetupCoroutine:InvokeMoveNext(IEnumerator, IntPtr)
+11-20 16:33:30.175 14660 14701 I Unity   : 
+11-20 16:33:30.175 14660 14701 I Unity   : [SoundManager] external pack: 13 cues for live/tap_se/custom02
+11-20 16:33:30.175 14660 14701 I Unity   : UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+11-20 16:33:30.175 14660 14701 I Unity   : Sekai.ExternalSoundPack:RegisterExternalAudioClips(String, List`1)
+11-20 16:33:30.175 14660 14701 I Unity   : Sekai.<>c__DisplayClass3_0:<Load>b__0(Dictionary`2)
+11-20 16:33:30.175 14660 14701 I Unity   : CriWare.<LoadAllRoutine>d__8:MoveNext()
+11-20 16:33:30.175 14660 14701 I Unity   : UnityEngine.SetupCoroutine:InvokeMoveNext(IEnumerator, IntPtr)
+11-20 16:33:30.175 14660 14701 I Unity   : 
+11-20 16:33:30.175 14660 14701 I Unity   : [SoundManager] external pack: 12 cues for live/sound/live_se/default
+11-20 16:33:30.175 14660 14701 I Unity   : UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+11-20 16:33:30.175 14660 14701 I Unity   : Sekai.ExternalSoundPack:RegisterExternalAudioClips(String, List`1)
+11-20 16:33:30.175 14660 14701 I Unity   : Sekai.<>c__DisplayClass3_0:<Load>b__0(Dictionary`2)
+11-20 16:33:30.175 14660 14701 I Unity   : CriWare.<LoadAllRoutine>d__8:MoveNext()
+11-20 16:33:30.175 14660 14701 I Unity   : UnityEngine.SetupCoroutine:InvokeMoveNext(IEnumerator, IntPtr)
+11-20 16:33:30.175 14660 14701 I Unity   : 
+11-20 16:33:30.175 14660 14701 I Unity   : [SoundManager] external pack: 5 cues for live/sound/live_se/common
+11-20 16:33:30.175 14660 14701 I Unity   : UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+11-20 16:33:30.175 14660 14701 I Unity   : Sekai.ExternalSoundPack:RegisterExternalAudioClips(String, List`1)
+11-20 16:33:30.175 14660 14701 I Unity   : Sekai.<>c__DisplayClass3_0:<Load>b__0(Dictionary`2)
+11-20 16:33:30.175 14660 14701 I Unity   : CriWare.<LoadAllRoutine>d__8:MoveNext()
+11-20 16:33:30.175 14660 14701 I Unity   : UnityEngine.SetupCoroutine:InvokeMoveNext(IEnumerator, IntPtr)
+11-20 16:33:30.175 14660 14701 I Unity   : 
+11-20 16:33:33.428 14660 14701 I Unity   : [Review] introDone frame=584
+11-20 16:33:33.428 14660 14701 I Unity   : UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+11-20 16:33:33.428 14660 14701 I Unity   : OpenSekai.App.UI.HomeScreen:OnIntroDone()
+11-20 16:33:33.428 14660 14701 I Unity   : LitMotion.MotionUpdateJob`3:Execute(Int32)
+11-20 16:33:33.428 14660 14701 I Unity   : LitMotion.UpdateRunner`3:Update(Double, Double, Double)
+11-20 16:33:33.428 14660 14701 I Unity   : LitMotion.MotionDispatcher:Update(PlayerLoopTiming)
+11-20 16:33:33.428 14660 14701 I Unity   : 
+11-20 16:33:33.970 14660 14701 I Unity   : [Review] home enter frame=674
+11-20 16:33:33.970 14660 14701 I Unity   : UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+11-20 16:33:33.970 14660 14701 I Unity   : OpenSekai.App.UI.<Start>d__8:MoveNext()
+11-20 16:33:33.970 14660 14701 I Unity   : UnityEngine.SetupCoroutine:InvokeMoveNext(IEnumerator, IntPtr)
+11-20 16:33:33.970 14660 14701 I Unity   : 
+11-20 16:33:34.979 14660 14701 I Unity   : [Review] library presented=True
+11-20 16:33:34.979 14660 14701 I Unity   : UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+11-20 16:33:34.979 14660 14701 I Unity   : OpenSekai.App.UI.<Start>d__8:MoveNext()
+11-20 16:33:34.979 14660 14701 I Unity   : UnityEngine.SetupCoroutine:InvokeMoveNext(IEnumerator, IntPtr)
+11-20 16:33:34.979 14660 14701 I Unity   : 
+11-20 16:33:35.599 14660 14701 I Unity   : [Review] jar bundle=Done
+11-20 16:33:35.599 14660 14701 I Unity   : UnityEngine.DebugLogHandler:Internal_Log(LogType, LogOption, String, Object)
+11-20 16:33:35.599 14660 14701 I Unity   : OpenSekai.App.UI.<Start>d__8:MoveNext()
+11-20 16:33:35.599 14660 14701 I Unity   : UnityEngine.SetupCoroutine:InvokeMoveNext(IEnumerator, IntPtr)
+11-20 16:33:35.599 14660 14701 I Unity   : 

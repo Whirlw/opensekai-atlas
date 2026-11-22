@@ -42,6 +42,20 @@ namespace OpenSekai.Tests.EditMode.Settings
         }
 
         [Test]
+        public void LegacyNoteShowRateKeepsItsInvertedJsonValue()
+        {
+            File.WriteAllText(_path, "{\"_noteShowRate\":0.25}");
+            var store = new LiveSettingsStore(_path);
+            var settings = store.Load();
+            Assert.That(settings.NoteShowRate, Is.EqualTo(0.75f));
+            settings.NoteShowRate = 0.5f;
+            Assert.That(store.Save(settings), Is.True);
+            var saved = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(_path));
+            Assert.That((float)saved["_noteShowRate"], Is.EqualTo(0.5f));
+            Assert.That(saved.Property("NoteShowRate"), Is.Null);
+        }
+
+        [Test]
         public void SavedValuesComeBack()
         {
             var store = new LiveSettingsStore(_path);

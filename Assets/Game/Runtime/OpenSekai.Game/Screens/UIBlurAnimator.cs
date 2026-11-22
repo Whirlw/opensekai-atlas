@@ -4,25 +4,25 @@ public class UIBlurAnimator : MonoBehaviour
 {
 	private const float ANIMATION_INTERVAL = 2f;
 
-	private UIBlurController controller;
-	private float baseSamplingDistance;
-	private float elapsed;
+	private UIBlurController _controller;
+	private float _baseSamplingDistance;
+	private float _elapsed;
 
 	private void Start()
 	{
-		controller = GetComponent<UIBlurController>();
-		baseSamplingDistance = controller != null ? controller.BlurSamplingDistance : 1.5f;
+		_controller = GetComponent<UIBlurController>();
+		_baseSamplingDistance = _controller != null ? _controller.BlurSamplingDistance : 1.5f;
 	}
 
 	private void Update()
 	{
-		if (controller == null)
+		if (_controller == null)
 		{
 			return;
 		}
 
-		elapsed += Time.deltaTime;
-		var t = Mathf.Sin(elapsed / ANIMATION_INTERVAL * Mathf.PI * 2f) * 0.5f + 0.5f;
-		controller.BlurSamplingDistance = Mathf.Lerp(baseSamplingDistance * 0.9f, baseSamplingDistance * 1.1f, t);
+		_elapsed += Time.deltaTime;
+		var t = Mathf.Sin(_elapsed / ANIMATION_INTERVAL * Mathf.PI * 2f) * 0.5f + 0.5f;
+		_controller.BlurSamplingDistance = Mathf.Lerp(_baseSamplingDistance * 0.9f, _baseSamplingDistance * 1.1f, t);
 	}
 }

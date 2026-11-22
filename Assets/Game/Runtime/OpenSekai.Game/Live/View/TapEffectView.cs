@@ -31,7 +31,7 @@ namespace Sekai
 			public int noteId;
 		}
 
-		private static readonly int LANE_COUNT;
+		private static readonly int _laneCOUNT;
 
 		private const string COLLABORATION_SE_CATEGORY_1 = "collaborationTap1";
 
@@ -68,21 +68,23 @@ namespace Sekai
 
 		private int[] _lastTapLanes;
 
+		private LiveHitEffectSkin _skin;
 		private bool _isEnableVibration;
 
 		private Action _playSeAction;
 
-		public void Setup(BaseLiveController liveBaseController)
+		public void Setup(BaseLiveController liveBaseController, LiveHitEffectSkin skin = null)
 		{
+			_skin = skin;
 			_isEnableVibration = liveBaseController?.Settings?.UseVibration ?? true;
-			_tapLaneEffectList = new ParticleSystemController[LANE_COUNT];
-			_defaultLaneEffectList = new ParticleSystemController[LANE_COUNT];
-			_criticalLaneEffectList = new ParticleSystemController[LANE_COUNT];
-			_flickLaneEffectList = new ParticleSystemController[LANE_COUNT];
-			_criticalFlickLaneEffectList = new ParticleSystemController[LANE_COUNT];
+			_tapLaneEffectList = new ParticleSystemController[_laneCOUNT];
+			_defaultLaneEffectList = new ParticleSystemController[_laneCOUNT];
+			_criticalLaneEffectList = new ParticleSystemController[_laneCOUNT];
+			_flickLaneEffectList = new ParticleSystemController[_laneCOUNT];
+			_criticalFlickLaneEffectList = new ParticleSystemController[_laneCOUNT];
 			_pairNoteSeMap = new Dictionary<int, string>();
 
-			for (int i = 0; i < LANE_COUNT; i++)
+			for (int i = 0; i < _laneCOUNT; i++)
 			{
 				_tapLaneEffectList[i] = LoadTapEffect(LivePrefabDefine.FX_LANE_TAP);
 				_defaultLaneEffectList[i] = LoadTapEffect(LivePrefabDefine.FX_LANE_DEFAULT);
@@ -181,7 +183,7 @@ namespace Sekai
 				return;
 			}
 
-			list[lane].transform.localPosition = new Vector3(LiveUtility.CalcLaneTransformX(lane), 0f, 0f);
+			list[lane].Place(new Vector3(LiveUtility.CalcLaneTransformX(lane), 0f, 0f));
 			list[lane].Play(_noteInfo.style);
 		}
 
@@ -204,7 +206,7 @@ namespace Sekai
 				}
 
 				float lane = _noteInfo.laneStart - 0.5f + (i + 0.5f) * width / count;
-				controller.transform.localPosition = new Vector3(LiveUtility.CalcLaneTransformX(lane), 0f, 0f);
+				controller.Place(new Vector3(LiveUtility.CalcLaneTransformX(lane), 0f, 0f));
 				controller.Play(_noteInfo.style);
 			}
 		}
@@ -218,7 +220,7 @@ namespace Sekai
 				return;
 			}
 
-			controller.transform.localPosition = new Vector3(LiveUtility.CalcLaneTransformX(GetLaneCenter()), 0f, 0f);
+			controller.Place(new Vector3(LiveUtility.CalcLaneTransformX(GetLaneCenter()), 0f, 0f));
 			controller.Play(_noteInfo.style);
 		}
 
@@ -235,7 +237,7 @@ namespace Sekai
 				return;
 			}
 
-			controller.transform.localPosition = new Vector3(LiveUtility.CalcLaneTransformX(GetLaneCenter()), 0f, 0f);
+			controller.Place(new Vector3(LiveUtility.CalcLaneTransformX(GetLaneCenter()), 0f, 0f));
 			controller.transform.localScale = new Vector3(_noteInfo.laneEnd - _noteInfo.laneStart + 1f, 1f, 1f);
 			float z = _noteInfo.direction switch
 			{
@@ -257,7 +259,7 @@ namespace Sekai
 				ParticleSystemController controller = _tapLaneEffectList[lane];
 				if (controller != null)
 				{
-					controller.transform.localPosition = new Vector3(LiveUtility.CalcLaneTransformX(lane), 0f, 0f);
+					controller.Place(new Vector3(LiveUtility.CalcLaneTransformX(lane), 0f, 0f));
 					controller.Play();
 				}
 			}
@@ -408,7 +410,7 @@ namespace Sekai
 				return;
 			}
 
-			controller.transform.localPosition = new Vector3(LiveUtility.CalcLaneTransformX(GetLaneCenter()), 0f, 0f);
+			controller.Place(new Vector3(LiveUtility.CalcLaneTransformX(GetLaneCenter()), 0f, 0f));
 			controller.Play(_noteInfo.style);
 		}
 
@@ -425,13 +427,13 @@ namespace Sekai
 				return;
 			}
 
-			controller.transform.localPosition = new Vector3(LiveUtility.CalcLaneTransformX(GetLaneCenter()), 0f, 0f);
+			controller.Place(new Vector3(LiveUtility.CalcLaneTransformX(GetLaneCenter()), 0f, 0f));
 			controller.Play(_noteInfo.style);
 		}
 
 		internal void PlayNativeCue(NoteBase note, string cue)
 		{
-			if (!SoundManager.Instance.ExistsCueName(cue)) cue = LiveSoundDefine.NextRushFallbackCue(cue);
+			if (!SoundManager.Instance.ExistsLiveCue(cue)) cue = LiveSoundDefine.NextRushFallbackCue(cue);
 			double now = Time.unscaledTimeAsDouble;
 			if (_nativeCueTimes.TryGetValue(cue, out double previous) && now - previous < 0.0167) return;
 			_nativeCueTimes[cue] = now;
@@ -559,14 +561,13 @@ namespace Sekai
 
 		private ParticleSystemController LoadTapEffect(string name)
 		{
-			GameObject prefab = AssetBundleUtility.LoadAsset<GameObject>(LiveConfig.EffectBundleName, name);
+			GameObject prefab = LiveHitEffectSkin.LoadPrefab(LiveConfig.EffectBundleName, name, _skin);
 			if (prefab == null)
 			{
 				return null;
 			}
 
-			GameObject instance = Instantiate(prefab, transform);
-			return instance.AddComponent<ParticleSystemController>();
+			return ParticleSystemController.Create(prefab, transform, _skin);
 		}
 
 		public TapEffectView()
@@ -584,7 +585,7 @@ namespace Sekai
 
 		static TapEffectView()
 		{
-			LANE_COUNT = LiveUtility.LANE_COUNT + 1;
+			_laneCOUNT = LiveUtility.LANE_COUNT + 1;
 		}
 
 		private static int GetTapSeKey(NoteCategory category, NoteType type)
@@ -602,8 +603,8 @@ namespace Sekai
 			GameObject holder = new GameObject(effectName, typeof(EffectPool));
 			EffectPool pool = holder.GetComponent<EffectPool>();
 			holder.transform.SetParent(transform, false);
-			GameObject prefab = AssetBundleUtility.LoadAsset<GameObject>(LiveConfig.EffectBundleName, effectName);
-			pool.Setup(prefab, poolCount);
+			GameObject prefab = LiveHitEffectSkin.LoadPrefab(LiveConfig.EffectBundleName, effectName, _skin);
+			pool.Setup(prefab, poolCount, _skin);
 			return pool;
 		}
 

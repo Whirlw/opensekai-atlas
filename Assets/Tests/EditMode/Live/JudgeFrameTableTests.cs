@@ -16,14 +16,14 @@ namespace OpenSekai.Tests.EditMode.Live
     /// </summary>
     public sealed class JudgeFrameTableTests
     {
-        private const float FrameMs = 1000f / 60f;
+        private const float FRAME_MS = 1000f / 60f;
 
         [Test]
         public void FrameToTimeUsesSixtyFramesPerSecond()
         {
             Assert.That(LiveConfig.CalcFrameToTime(60f), Is.EqualTo(1f).Within(1e-6f));
             Assert.That(LiveConfig.CalcFrameToTime(30f), Is.EqualTo(0.5f).Within(1e-6f));
-            Assert.That(LiveConfig.CalcFrameToTime(2.5f), Is.EqualTo(2.5f * FrameMs / 1000f).Within(1e-6f));
+            Assert.That(LiveConfig.CalcFrameToTime(2.5f), Is.EqualTo(2.5f * FRAME_MS / 1000f).Within(1e-6f));
         }
 
         [TestCase(2.5f, 41.6667f, TestName = "Normal perfect is plus or minus 41.7 ms")]

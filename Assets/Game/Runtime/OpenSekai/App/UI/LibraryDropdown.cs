@@ -72,18 +72,18 @@ namespace OpenSekai.App.UI
             button.onClick.AddListener(dropdown.Toggle);
             LibraryPressFeedback.Attach(background.gameObject);
 
-            const float padding = 22f;
+            const float PADDING = 22f;
             TextMeshProUGUI captionText = LibraryWidgets.Label(
                 "Caption", background.transform, caption, LibraryTheme.FontSize.BODY, LibraryTheme.Colors.TextMuted);
             float captionWidth = captionText.GetPreferredValues(caption).x;
             LibraryWidgets.Place(
                 captionText.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-                new Vector2(padding, 0f), new Vector2(captionWidth + 2f, height));
+                new Vector2(PADDING, 0f), new Vector2(captionWidth + 2f, height));
 
             dropdown._value = LibraryWidgets.Label(
                 "Value", background.transform, string.Empty, LibraryTheme.FontSize.BODY, LibraryTheme.Colors.TextPrimary,
                 FontStyles.Bold);
-            LibraryWidgets.Inset(dropdown._value.rectTransform, padding + captionWidth + 10f, 0f, 46f, 0f);
+            LibraryWidgets.Inset(dropdown._value.rectTransform, PADDING + captionWidth + 10f, 0f, 46f, 0f);
 
             Image chevron = LibraryUi.CreateImage("Chevron", background.transform, LibraryTheme.Colors.TextSecondary);
             chevron.sprite = LibraryShapes.Chevron();

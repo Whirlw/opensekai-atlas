@@ -16,7 +16,7 @@ namespace OpenSekai.EditorTools
     /// </summary>
     public sealed class BuildStampBuildStep : IPreprocessBuildWithReport
     {
-        public const string RelativePath = "Assets/Game/Resources/BuildStamp.txt";
+        public const string RELATIVE_PATH = "Assets/Game/Resources/BuildStamp.txt";
 
         public int callbackOrder => -900;
 
@@ -30,10 +30,10 @@ namespace OpenSekai.EditorTools
             string dirty = string.IsNullOrWhiteSpace(Git(projectRoot, "status --porcelain --untracked-files=no")) ? "" : "+dirty";
             string stamp = $"commit={commit}{dirty} built={DateTime.UtcNow:yyyy-MM-ddTHH:mm:ssZ}";
 
-            string path = Path.Combine(projectRoot, RelativePath);
+            string path = Path.Combine(projectRoot, RELATIVE_PATH);
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             File.WriteAllText(path, stamp);
-            AssetDatabase.ImportAsset(RelativePath);
+            AssetDatabase.ImportAsset(RELATIVE_PATH);
             Debug.Log("[BuildStamp] " + stamp);
         }
 

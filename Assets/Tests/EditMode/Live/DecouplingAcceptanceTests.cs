@@ -18,8 +18,8 @@ namespace OpenSekai.Tests.EditMode.Live
 	[TestFixture]
 	public sealed class DecouplingAcceptanceTests
 	{
-		private const float Frame = 1f / 60f;
-		private const double InputBase = 10d;
+		private const float FRAME = 1f / 60f;
+		private const double INPUT_BASE = 10d;
 
 		private MusicScoreInfo _previousFrame;
 		private LiveConfig.NoteTypeJudgeData _previousJudgeData;
@@ -77,8 +77,8 @@ namespace OpenSekai.Tests.EditMode.Live
 			// Nothing ever lands on the lane: the bar crosses its own line on the clock alone.
 			for (int frame = 0; frame <= 20; frame++)
 			{
-				float now = frame * Frame;
-				harness.Step(now, InputBase + now);
+				float now = frame * FRAME;
+				harness.Step(now, INPUT_BASE + now);
 			}
 
 			Assert.That(bar.Head.IsSettled, Is.True, "the head has to settle once its window is gone");
@@ -98,19 +98,19 @@ namespace OpenSekai.Tests.EditMode.Live
 			harness.Arrange(ScoreOf(bar));
 
 			Vector3 position = LanePosition(bar.JudgeLaneStart);
-			harness.Step(0f, InputBase, LiveHarness.Touch(1, position, InputBase, TouchPhase.Began));
+			harness.Step(0f, INPUT_BASE, LiveHarness.Touch(1, position, INPUT_BASE, TouchPhase.Began));
 			Assert.That(bar.Head.IsSettled, Is.True, "the press settles the head");
 			NoteResult headResult = bar.Head.Result;
 			Assert.That(headResult, Is.Not.EqualTo(NoteResult.None).And.Not.EqualTo(NoteResult.Miss),
 				"a press on the head is a hit");
 
-			for (float now = Frame; now < 1f - Frame * 0.5f; now += Frame)
+			for (float now = FRAME; now < 1f - FRAME * 0.5f; now += FRAME)
 			{
-				harness.Step(now, InputBase + now, LiveHarness.Touch(1, position, InputBase + now, TouchPhase.Stationary));
+				harness.Step(now, INPUT_BASE + now, LiveHarness.Touch(1, position, INPUT_BASE + now, TouchPhase.Stationary));
 			}
 
 			// The lift at the tail is what ends the bar; the head was published long before it.
-			harness.Step(1f, InputBase + 1f, LiveHarness.Touch(1, position, InputBase + 1f, TouchPhase.Ended));
+			harness.Step(1f, INPUT_BASE + 1f, LiveHarness.Touch(1, position, INPUT_BASE + 1f, TouchPhase.Ended));
 
 			Assert.That(tail.Result, Is.Not.EqualTo(NoteResult.None), "the lift grades the tail");
 			Assert.That(bar.State, Is.EqualTo(NoteState.Done), "and finishes the bar");
@@ -146,15 +146,15 @@ namespace OpenSekai.Tests.EditMode.Live
 			harness.Arrange(ScoreOf(bar));
 
 			Vector3 body = LanePosition(bar.JudgeLaneStart);
-			harness.Step(0f, InputBase, LiveHarness.Touch(1, body, InputBase, TouchPhase.Began));
+			harness.Step(0f, INPUT_BASE, LiveHarness.Touch(1, body, INPUT_BASE, TouchPhase.Began));
 			Assert.That(bar.HasFinger, Is.True, "the real candidate path has to take the bar");
-			for (float now = Frame; now < 1f - Frame * 0.5f; now += Frame)
+			for (float now = FRAME; now < 1f - FRAME * 0.5f; now += FRAME)
 			{
-				harness.Step(now, InputBase + now, LiveHarness.Touch(1, body, InputBase + now, TouchPhase.Stationary));
+				harness.Step(now, INPUT_BASE + now, LiveHarness.Touch(1, body, INPUT_BASE + now, TouchPhase.Stationary));
 			}
 
-			harness.Step(1f, InputBase + 1f,
-				LiveHarness.Touch(1, LanePosition(liftLane), InputBase + 1f, TouchPhase.Ended));
+			harness.Step(1f, INPUT_BASE + 1f,
+				LiveHarness.Touch(1, LanePosition(liftLane), INPUT_BASE + 1f, TouchPhase.Ended));
 			return (tail.Result, bar.State);
 		}
 
@@ -194,15 +194,15 @@ namespace OpenSekai.Tests.EditMode.Live
 			harness.Arrange(ScoreOf(target, decoration));
 
 			Vector3 own = LanePosition(4f);
-			harness.Step(0f, InputBase, LiveHarness.Touch(1, own, InputBase, TouchPhase.Began));
+			harness.Step(0f, INPUT_BASE, LiveHarness.Touch(1, own, INPUT_BASE, TouchPhase.Began));
 			Assert.That(target.HasFinger, Is.True, "the press has to take the target bar");
-			for (float now = Frame; now < 1f - Frame * 0.5f; now += Frame)
+			for (float now = FRAME; now < 1f - FRAME * 0.5f; now += FRAME)
 			{
-				harness.Step(now, InputBase + now, LiveHarness.Touch(1, own, InputBase + now, TouchPhase.Stationary));
+				harness.Step(now, INPUT_BASE + now, LiveHarness.Touch(1, own, INPUT_BASE + now, TouchPhase.Stationary));
 			}
 
-			harness.Step(1f, InputBase + 1f,
-				LiveHarness.Touch(1, LanePosition(liftLane), InputBase + 1f, TouchPhase.Ended));
+			harness.Step(1f, INPUT_BASE + 1f,
+				LiveHarness.Touch(1, LanePosition(liftLane), INPUT_BASE + 1f, TouchPhase.Ended));
 			return (tail.Result, target.State);
 		}
 
@@ -225,7 +225,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
 			// The flick end judges itself: a swipe 20 ms after the tail time settles it at once.
 			LiveTouch swipe = new LiveTouch(7, 7, new Vector2(-60f, 60f), Vector3.zero, TouchPhase.Moved, 1.02f);
-			flick.TailJudge.Offer(ref swipe, 4.5f, 4.5f, Frame);
+			flick.TailJudge.Offer(ref swipe, 4.5f, 4.5f, FRAME);
 			Assert.That(tail.State, Is.EqualTo(NoteState.Done));
 			NoteResult settled = tail.Result;
 			Assert.That(settled, Is.Not.EqualTo(NoteResult.None));
@@ -233,9 +233,9 @@ namespace OpenSekai.Tests.EditMode.Live
 			// The bar and the note keep being driven while the rest of the chart plays out.
 			for (int frame = 1; frame <= 30; frame++)
 			{
-				float now = 1.02f + frame * Frame;
+				float now = 1.02f + frame * FRAME;
 				swipe = new LiveTouch(7, 7, new Vector2(-60f, 60f), Vector3.zero, TouchPhase.Moved, now);
-				flick.TailJudge.Offer(ref swipe, 4.5f, 4.5f, Frame);
+				flick.TailJudge.Offer(ref swipe, 4.5f, 4.5f, FRAME);
 				flick.TailJudge.EndInputFrame(now);
 				bar.Excute(Info(now), 0f);
 				tail.Excute(Info(now), 0f);

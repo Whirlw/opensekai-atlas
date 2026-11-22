@@ -8,31 +8,41 @@ namespace Sekai
 {
 	public class JudgmentView : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_miss")]
 		[SerializeField]
-		private Sprite _miss;
+		private Sprite miss;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_bad")]
 		[SerializeField]
-		private Sprite _bad;
+		private Sprite bad;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_good")]
 		[SerializeField]
-		private Sprite _good;
+		private Sprite good;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_great")]
 		[SerializeField]
-		private Sprite _great;
+		private Sprite great;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_perfect")]
 		[SerializeField]
-		private Sprite _perfect;
+		private Sprite perfect;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_justPerfect")]
 		[SerializeField]
-		private Sprite _justPerfect;
+		private Sprite justPerfect;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_auto")]
 		[SerializeField]
-		private Sprite _auto;
+		private Sprite auto;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_spriteRenderer")]
 		[SerializeField]
-		private SpriteRenderer _spriteRenderer;
+		private SpriteRenderer spriteRenderer;
 
-		private Dictionary<NoteResult, Sprite> _sprites;
+		private Dictionary<NoteResult, (Sprite builtin, MaterialGlyph glyph)> _sprites;
+
+		private SpriteRendererBaseline _baseline;
 
 		private float _time;
 
@@ -47,24 +57,26 @@ namespace Sekai
 
 		private void Start()
 		{
-			InitSprites();
-			Hide();
+			if (_sprites == null) Setup(null, LiveSettingsStore.Shared.Load()?.UsesAutoFakePerfectMode ?? false);
 		}
 
-		private void InitSprites()
+		public void Setup(LiveSpriteSkin skin, bool useFakePerfect)
 		{
-			bool useFakePerfect = LiveSettingsStore.Shared.Load()?.UsesAutoFakePerfectMode ?? false;
-			Sprite autoSprite = useFakePerfect ? _perfect : _auto;
-			_sprites = new Dictionary<NoteResult, Sprite>
+			if (spriteRenderer != null) _baseline ??= new SpriteRendererBaseline(spriteRenderer);
+			_frame = -1;
+			_sprites = new Dictionary<NoteResult, (Sprite, MaterialGlyph)>
 			{
-				{ NoteResult.Miss, _miss },
-				{ NoteResult.Bad, _bad },
-				{ NoteResult.Good, _good },
-				{ NoteResult.Great, _great },
-				{ NoteResult.Perfect, _perfect },
-				{ NoteResult.JustPerfect, _perfect },
-				{ NoteResult.Auto, autoSprite }
+				{ NoteResult.Miss, Bind("judgment.miss", miss) },
+				{ NoteResult.Bad, Bind("judgment.bad", bad) },
+				{ NoteResult.Good, Bind("judgment.good", good) },
+				{ NoteResult.Great, Bind("judgment.great", great) },
+				{ NoteResult.Perfect, Bind("judgment.perfect", perfect) },
+				{ NoteResult.JustPerfect, Bind("judgment.perfect", perfect) },
+				{ NoteResult.Auto, useFakePerfect ? Bind("judgment.perfect", perfect) : Bind("judgment.auto", auto) },
 			};
+			Hide();
+
+			(Sprite, MaterialGlyph) Bind(string slot, Sprite builtin) => (builtin, skin?.Resolve(slot, builtin));
 		}
 
 		/// <summary>
@@ -75,7 +87,7 @@ namespace Sekai
 		{
 			if (_sprites == null)
 			{
-				InitSprites();
+				Start();
 			}
 			if (Time.frameCount != _frame)
 			{
@@ -94,41 +106,43 @@ namespace Sekai
 				_frameResult = worst;
 			}
 
-			if (_sprites == null || !_sprites.TryGetValue(_frameResult, out Sprite sprite) || _spriteRenderer == null)
+			if (_sprites == null || !_sprites.TryGetValue(_frameResult, out var entry) || spriteRenderer == null)
 			{
 				return false;
 			}
 
-			_spriteRenderer.sprite = sprite;
+			// Unity converts renderer dimensions when switching Simple/Sliced and needs a nonzero scale.
+			spriteRenderer.transform.localScale = Vector3.one;
+			_baseline.Draw(spriteRenderer, entry.glyph, entry.builtin);
 			_time = 0f;
-			_spriteRenderer.transform.localScale = Vector3.zero;
+			spriteRenderer.transform.localScale = Vector3.zero;
 			return true;
 		}
 
 		private void Update()
 		{
-			if (_spriteRenderer == null)
+			if (spriteRenderer == null)
 			{
 				return;
 			}
 			if (_time > 0.3f)
 			{
-				_spriteRenderer.transform.localScale = Vector3.zero;
+				spriteRenderer.transform.localScale = Vector3.zero;
 				return;
 			}
 			float t = Mathf.Clamp01(_time * 20f);
 			float inv = 1f - t;
 			float scale = 1f - inv * inv * inv;
-			_spriteRenderer.transform.localScale = Vector3.one * scale;
+			spriteRenderer.transform.localScale = Vector3.one * scale;
 			_time += Time.deltaTime;
 		}
 
 		private void Hide()
 		{
 			_time = 1f;
-			if (_spriteRenderer != null)
+			if (spriteRenderer != null)
 			{
-				_spriteRenderer.transform.localScale = Vector3.zero;
+				spriteRenderer.transform.localScale = Vector3.zero;
 			}
 		}
 

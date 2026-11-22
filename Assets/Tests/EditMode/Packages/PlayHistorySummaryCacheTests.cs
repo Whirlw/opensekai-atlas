@@ -34,7 +34,7 @@ namespace OpenSekai.Tests.EditMode.Packages
 
         private static CustomMusicScorePlayHistoryRecord Run(string key, int score, string playedAt)
         {
-            return new CustomMusicScorePlayHistoryRecord { scoreKey = key, totalScore = score, playedAtUtc = playedAt };
+            return new CustomMusicScorePlayHistoryRecord { ScoreKey = key, TotalScore = score, PlayedAtUtc = playedAt };
         }
 
         private void WriteExisting(params CustomMusicScorePlayHistoryRecord[] records)
@@ -53,10 +53,24 @@ namespace OpenSekai.Tests.EditMode.Packages
 
             CustomMusicScorePlayHistorySummary summary = cache.Append(_path, Run("a", 200, "2026-11-16T00:00:00Z"));
 
-            Assert.That(summary.Best.totalScore, Is.EqualTo(300));
+            Assert.That(summary.Best.TotalScore, Is.EqualTo(300));
             Assert.That(summary.LastPlayedAtUtc, Is.EqualTo("2026-11-16T00:00:00Z"));
             Assert.That(summary.PlayCount, Is.EqualTo(2));
             Assert.That(cache.Load(_path)["b"].PlayCount, Is.EqualTo(1), "other packages are untouched");
+        }
+
+        [Test]
+        public void PublishedSummaryCannotChangeTheNextSnapshot()
+        {
+            var cache = new PlayHistorySummaryCache();
+            var run = Run("a", 300, "2026-11-01");
+            var first = cache.Append(_path, run);
+            var queried = (System.Collections.Generic.IDictionary<string, CustomMusicScorePlayHistorySummary>)cache.Load(_path);
+            Assert.Throws<NotSupportedException>(() => queried.Remove("a"));
+            cache.Append(_path, Run("a", 100, "2026-11-02"));
+
+            Assert.That(first.PlayCount, Is.EqualTo(1));
+            Assert.That(new PlayHistorySummaryCache().Load(_path)["a"].Best.TotalScore, Is.EqualTo(300));
         }
 
         [Test]
@@ -67,7 +81,7 @@ namespace OpenSekai.Tests.EditMode.Packages
 
             CustomMusicScorePlayHistorySummary summary = cache.Append(_path, Run("a", 400, "2026-11-16T00:00:00Z"));
 
-            Assert.That(summary.Best.totalScore, Is.EqualTo(400));
+            Assert.That(summary.Best.TotalScore, Is.EqualTo(400));
             Assert.That(summary.PlayCount, Is.EqualTo(2));
         }
 
@@ -82,7 +96,7 @@ namespace OpenSekai.Tests.EditMode.Packages
 
             Assert.That(cache.Load(_path), Is.SameAs(loaded));
             var fromFile = CustomMusicScorePlayHistoryStorage.Summarize(File.ReadLines(_path));
-            Assert.That(loaded["a"].Best.totalScore, Is.EqualTo(fromFile["a"].Best.totalScore));
+            Assert.That(loaded["a"].Best.TotalScore, Is.EqualTo(fromFile["a"].Best.TotalScore));
             Assert.That(loaded["a"].PlayCount, Is.EqualTo(fromFile["a"].PlayCount));
         }
 
@@ -122,7 +136,7 @@ namespace OpenSekai.Tests.EditMode.Packages
             var relaunched = new PlayHistorySummaryCache().Load(_path);
 
             Assert.That(File.Exists(PlayHistorySummaryCache.SnapshotPathOf(_path)), Is.True);
-            Assert.That(relaunched["a"].Best.totalScore, Is.EqualTo(250));
+            Assert.That(relaunched["a"].Best.TotalScore, Is.EqualTo(250));
             Assert.That(relaunched["a"].PlayCount, Is.EqualTo(2));
             Assert.That(relaunched["a"].LastPlayedAtUtc, Is.EqualTo("2026-11-02T00:00:00Z"));
         }
@@ -138,7 +152,7 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(summary.PlayCount, Is.EqualTo(2));
             var rebuilt = new PlayHistorySummaryCache().Reload(_path)["a"];
             Assert.That(rebuilt.PlayCount, Is.EqualTo(2));
-            Assert.That(rebuilt.Best.totalScore, Is.EqualTo(250));
+            Assert.That(rebuilt.Best.TotalScore, Is.EqualTo(250));
         }
     }
 }

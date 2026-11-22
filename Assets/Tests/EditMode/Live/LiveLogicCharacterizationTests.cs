@@ -91,7 +91,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
 			Vector3 mine = LanePosition(bar.JudgeLaneStart);
 			float start = bar.MusicScoreInfo.time;
-			const float frame = 1f / 60f;
+			const float FRAME = 1f / 60f;
 
 			harness.Step(start - 0.02f, FRAME_GAME_TIME - 0.02f);
 			harness.Step(start, FRAME_GAME_TIME,
@@ -100,9 +100,9 @@ namespace OpenSekai.Tests.EditMode.Live
 
 			// 抬手样本：touchId 换成 7，fingerId 仍是 1，位置也移到轨道外（只留 ID 这条路）。
 			float far = bar.JudgeLaneEnd >= 5.5f ? 0.5f : 10.5f;
-			harness.Step(start + frame, FRAME_GAME_TIME + frame,
+			harness.Step(start + FRAME, FRAME_GAME_TIME + FRAME,
 				new LiveTouchSample(7, new Vector2(800f, 600f), LanePosition(far),
-					FRAME_GAME_TIME + frame, TouchPhase.Ended, Vector2.zero, fingerId: 1));
+					FRAME_GAME_TIME + FRAME, TouchPhase.Ended, Vector2.zero, fingerId: 1));
 
 			Assert.That(tail.Result, Is.EqualTo(NoteResult.None),
 				"现状：touchId 与 fingerId 不等时，抬手既不算条内释放，也不结束这条");

@@ -7,20 +7,25 @@ namespace Sekai.UI
 {
 	public class CommonButtonTapEffect : ButtonViewInteractionBase
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_buttonImage")]
 		[SerializeField]
-		private Graphic _buttonImage;
+		private Graphic buttonImage;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_glowButtonImage")]
 		[SerializeField]
-		private CustomImage _glowButtonImage;
+		private CustomImage glowButtonImage;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_buttonTextMesh")]
 		[SerializeField]
-		private CustomTextMesh _buttonTextMesh;
+		private CustomTextMesh buttonTextMesh;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_additionalTextList")]
 		[SerializeField]
-		private List<CustomTextMesh> _additionalTextList;
+		private List<CustomTextMesh> additionalTextList;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_autoSetEffectImage")]
 		[SerializeField]
-		private bool _autoSetEffectImage;
+		private bool autoSetEffectImage;
 
 		private Color _defaultButtonColor;
 
@@ -44,9 +49,9 @@ namespace Sekai.UI
 		{
 			_effectButtonColor = effectButtonColor;
 			_effectTextColor = effectTextColor;
-			_defaultButtonColor = _buttonImage != null ? _buttonImage.color : Color.white;
-			_defaultTextColor = _buttonTextMesh != null ? _buttonTextMesh.color : Color.white;
-			if (_autoSetEffectImage)
+			_defaultButtonColor = buttonImage != null ? buttonImage.color : Color.white;
+			_defaultTextColor = buttonTextMesh != null ? buttonTextMesh.color : Color.white;
+			if (autoSetEffectImage)
 			{
 				SetGlowImage(buttonTypeName);
 			}
@@ -54,9 +59,9 @@ namespace Sekai.UI
 
 		private void SetGlowImage(string buttonTypeName)
 		{
-			if (_glowButtonImage != null)
+			if (glowButtonImage != null)
 			{
-				_glowButtonImage.SpriteName = "eff_btn_round_h" + buttonTypeName + "_a70_wh";
+				glowButtonImage.SpriteName = "eff_btn_round_h" + buttonTypeName + "_a70_wh";
 			}
 		}
 
@@ -92,22 +97,22 @@ namespace Sekai.UI
 		private void Fade(Color buttonColor, Color textColor, float duration)
 		{
 			KillFadeTween();
-			if (_buttonImage != null)
+			if (buttonImage != null)
 			{
-				_buttonImageMotion = PlayColor(_buttonImage, buttonColor, duration);
+				_buttonImageMotion = PlayColor(buttonImage, buttonColor, duration);
 			}
-			if (_glowButtonImage != null)
+			if (glowButtonImage != null)
 			{
-				_glowButtonImageMotion = PlayColor(_glowButtonImage, buttonColor, duration);
+				_glowButtonImageMotion = PlayColor(glowButtonImage, buttonColor, duration);
 			}
-			if (_buttonTextMesh != null)
+			if (buttonTextMesh != null)
 			{
-				_textMotion = PlayColor(_buttonTextMesh, textColor, duration);
+				_textMotion = PlayColor(buttonTextMesh, textColor, duration);
 			}
-			if (_additionalTextList != null)
+			if (additionalTextList != null)
 			{
 				_additionalTextMotions ??= new List<MotionHandle>();
-				foreach (CustomTextMesh text in _additionalTextList)
+				foreach (CustomTextMesh text in additionalTextList)
 				{
 					if (text != null)
 					{

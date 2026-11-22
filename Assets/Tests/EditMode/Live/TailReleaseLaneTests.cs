@@ -59,8 +59,8 @@ namespace OpenSekai.Tests.EditMode.Live
 
 			// Stop just short of the tail: the next step must be the release itself, and the clock never
 			// goes backwards, which would leave the hold's freshness in the past.
-			const float frame = 1f / 60f;
-			for (float now = _bar.MusicScoreInfo.time + frame; now < TailTime - frame * 0.5f; now += frame)
+			const float FRAME = 1f / 60f;
+			for (float now = _bar.MusicScoreInfo.time + FRAME; now < TailTime - FRAME * 0.5f; now += FRAME)
 			{
 				StepTo(now, LiveHarness.Touch(1, mine, 10d + now, TouchPhase.Stationary));
 			}
@@ -212,8 +212,8 @@ namespace OpenSekai.Tests.EditMode.Live
 			_harness.Arrange(score);
 			Vector3 position = LanePosition(lane);
 			StepTo(0f, Sample(1, position, 0f, TouchPhase.Began));
-			const float frame = 1f / 60f;
-			for (float now = frame; now < until - frame * 0.5f; now += frame)
+			const float FRAME = 1f / 60f;
+			for (float now = FRAME; now < until - FRAME * 0.5f; now += FRAME)
 			{
 				StepTo(now, Sample(1, position, now, TouchPhase.Stationary));
 			}
@@ -239,22 +239,22 @@ namespace OpenSekai.Tests.EditMode.Live
 		public void AQuickTapRestrictsItsLiftToPerfect(bool flick, float pressTime,
 			float liftTime, NoteResult expected)
 		{
-			const int keyLane = 10;
+			const int KEY_LANE = 10;
 			var info = new MusicScoreInfo(0, pressTime / 2f, pressTime, 120, 4, 1, 1);
 			NoteBase key = flick
-				? new FlickNote(info, 301, keyLane, keyLane, NoteCategory.Flick, 1f, NoteType.Default, NoteDirection.Default, 0f, 0f)
-				: new NormalNote(info, 301, keyLane, keyLane, NoteCategory.Normal, 1f, NoteType.Default, 0f);
+				? new FlickNote(info, 301, KEY_LANE, KEY_LANE, NoteCategory.Flick, 1f, NoteType.Default, NoteDirection.Default, 0f, 0f)
+				: new NormalNote(info, 301, KEY_LANE, KEY_LANE, NoteCategory.Normal, 1f, NoteType.Default, 0f);
 			LongNote bar = ArrangeHeldNormalBar(4, pressTime, key);
 			Vector3 position = LanePosition(4);
 			StepTo(pressTime, Sample(1, position, pressTime, TouchPhase.Stationary),
-				Sample(2, LanePosition(keyLane), pressTime, TouchPhase.Began));
+				Sample(2, LanePosition(KEY_LANE), pressTime, TouchPhase.Began));
 			if (key is FlickNote flickKey)
 				Assert.That(flickKey.IsArmedBy(2), Is.True);
 			else
 				Assert.That(key.Result, Is.EqualTo(NoteResult.JustPerfect));
 
 			// The key was in another lane, and the lifting contact is now alone in the tail's lane.
-			StepTo(liftTime, Sample(1, LanePosition(keyLane), liftTime, TouchPhase.Stationary),
+			StepTo(liftTime, Sample(1, LanePosition(KEY_LANE), liftTime, TouchPhase.Stationary),
 				Sample(2, position, liftTime, TouchPhase.Ended));
 			Assert.That(bar.TailNote.Result, Is.EqualTo(expected));
 		}
@@ -320,19 +320,19 @@ namespace OpenSekai.Tests.EditMode.Live
 		{
 			// A quick tap (lift 90 ms after the press): 80 ms late is past the earlier tail's Perfect
 			// band, 40 ms late is inside the later one's.
-			const float pressTime = 0.99f;
-			const float liftTime = 1.08f;
+			const float PRESS_TIME = 0.99f;
+			const float LIFT_TIME = 1.08f;
 			LongNote later = NormalBar(203, 4, 1.04f);
-			var info = new MusicScoreInfo(0, pressTime / 2f, pressTime, 120, 4, 1, 1);
+			var info = new MusicScoreInfo(0, PRESS_TIME / 2f, PRESS_TIME, 120, 4, 1, 1);
 			var tap = new NormalNote(info, 301, 10, 10, NoteCategory.Normal, 1f, NoteType.Default, 0f);
-			LongNote earlier = ArrangeHeldNormalBar(4, pressTime, later, tap);
+			LongNote earlier = ArrangeHeldNormalBar(4, PRESS_TIME, later, tap);
 			Vector3 position = LanePosition(4);
-			StepTo(pressTime, Sample(1, position, pressTime, TouchPhase.Stationary),
-				Sample(2, LanePosition(10), pressTime, TouchPhase.Began));
+			StepTo(PRESS_TIME, Sample(1, position, PRESS_TIME, TouchPhase.Stationary),
+				Sample(2, LanePosition(10), PRESS_TIME, TouchPhase.Began));
 			Assert.That(tap.Result, Is.EqualTo(NoteResult.JustPerfect));
 
-			StepTo(liftTime, Sample(1, position, liftTime, TouchPhase.Stationary),
-				Sample(2, position, liftTime, TouchPhase.Ended));
+			StepTo(LIFT_TIME, Sample(1, position, LIFT_TIME, TouchPhase.Stationary),
+				Sample(2, position, LIFT_TIME, TouchPhase.Ended));
 			Assert.That(earlier.TailNote.Result, Is.EqualTo(NoteResult.None));
 			Assert.That(later.TailNote.Result, Is.EqualTo(NoteResult.JustPerfect));
 		}

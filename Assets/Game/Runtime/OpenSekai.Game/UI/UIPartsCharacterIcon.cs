@@ -26,39 +26,45 @@ namespace Sekai
 			Direct = 2
 		}
 
-		private readonly Vector3 SIZE_S;
+		private readonly Vector3 _sizeS;
 
-		private readonly Vector3 SIZE_SM;
+		private readonly Vector3 _sizeSM;
 
-		private readonly Vector3 SIZE_M;
+		private readonly Vector3 _sizeM;
 
-		private readonly Vector3 SIZE_L;
+		private readonly Vector3 _sizeL;
 
-		private readonly Vector3 SIZE_SHOP;
+		private readonly Vector3 _sizeSHOP;
 
-		private readonly Vector3 SIZE_WORLDMAP;
+		private readonly Vector3 _sizeWORLDMAP;
 
-		private readonly Vector3 SIZE_AREAEXP;
+		private readonly Vector3 _sizeAREAEXP;
 
-		private readonly Vector3 SIZE_GACHAMEMBERDETAIL;
+		private readonly Vector3 _sizeGACHAMEMBERDETAIL;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_iconImage")]
 		[SerializeField]
-		private CustomImage _iconImage;
+		private CustomImage iconImage;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_assetBundleIconImage")]
 		[SerializeField]
-		private CustomImage _assetBundleIconImage;
+		private CustomImage assetBundleIconImage;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_characterId")]
 		[SerializeField]
-		private int _characterId;
+		private int characterId;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_iconSize")]
 		[SerializeField]
-		private Size _iconSize;
+		private Size iconSize;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_frameImage")]
 		[SerializeField]
-		private CustomImage _frameImage;
+		private CustomImage frameImage;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_grayMaskObj")]
 		[SerializeField]
-		private GameObject _grayMaskObj;
+		private GameObject grayMaskObj;
 
 		private ViewMode _viewMode;
 

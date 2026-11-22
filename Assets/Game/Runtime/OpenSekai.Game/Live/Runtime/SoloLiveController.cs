@@ -78,7 +78,7 @@ namespace Sekai.Core.Live
 		{
 			LiveTransitioner.SafeFinish(null, null);
 			base.OnMusicStart();
-			LiveViewExt.MusicStart(_liveViews, currentAudioLatencyMusicTimeMs);
+			LiveViewExt.MusicStart(_liveViews, CurrentViewTimeSeconds);
 		}
 
 		protected override bool IsIntroFinished() => LiveViewExt.IsIntroFinished(_liveViews);
@@ -89,7 +89,11 @@ namespace Sekai.Core.Live
 		{
 			if (LatencyCapture.Active)
 				LatencyCapture.Record("bgm_start", song: musicTime, value: SoundManager.Instance.GetCurrentIngamePlaybackId());
-			LiveViewExt.MusicPlaybackStart(_liveViews, musicTime);
+		}
+
+		protected override void OnViewPlaybackStarted(float viewTime)
+		{
+			LiveViewExt.MusicPlaybackStart(_liveViews, viewTime);
 		}
 
 		protected override void OnRhythmGameStart()
@@ -106,7 +110,7 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>How long past the end of the timeline a live may stay open before it is ended by force.</summary>
-		private const long StalledFinishGraceMs = 3000L;
+		private const long STALLED_FINISH_GRACE_MS = 3000L;
 
 		private long IntroSkipTargetMs => (long)System.Math.Floor(timelineSpan.IntroSkipTargetSeconds * 1000d);
 
@@ -153,11 +157,11 @@ namespace Sekai.Core.Live
 			TraceTimeline("intro skip from=" + currentMusicTimeMs + " to=" + targetMs);
 			SeekTimeline(targetMs);
 			LatencyCapture.Record("seek", song: targetMs / 1000d);
-			LiveViewExt.MusicSeek(_liveViews, targetMs / 1000f);
+			LiveViewExt.MusicSeek(_liveViews, CurrentViewTimeSeconds);
 		}
 
 		/// <summary>Cuts the rest of the music and plays the result effect now, then the usual fade to the result.</summary>
-		private void SkipOutro()
+		internal void SkipOutro()
 		{
 			HideSkip();
 			if (state != LiveControllerState.Finish || !_resultEffectPending)
@@ -217,12 +221,12 @@ namespace Sekai.Core.Live
 			{
 				_liveLogic?.OnInput();
 			}
-			if (_liveLogic?.result == 2 && _liveLogic.IsNotesAllFinished)
+			if (_liveLogic?.Result == 2 && _liveLogic.IsNotesAllFinished)
 			{
 				OnFinished();
 			}
 			else if (!_forcedFinish && state == LiveControllerState.Playing && _liveLogic != null
-				&& !_liveLogic.IsNotesAllFinished && currentMusicTimeMs > TimelineEndMs + StalledFinishGraceMs)
+				&& !_liveLogic.IsNotesAllFinished && currentMusicTimeMs > TimelineEndMs + STALLED_FINISH_GRACE_MS)
 			{
 				// The clock is well past the last note and the music, and something is still open: a
 				// note whose state never reached Done. End the live rather than leave it hanging, and
@@ -236,7 +240,7 @@ namespace Sekai.Core.Live
 
 			// The view block, last: it draws what the two blocks above decided.
 			_liveLogic?.OnView();
-			LiveViewExt.OnUpdate(_liveViews, currentAudioLatencyMusicTimeMs);
+			LiveViewExt.OnUpdate(_liveViews, CurrentViewTimeSeconds);
 		}
 
 		private new void OnApplicationPause(bool pauseStatus)
@@ -382,7 +386,7 @@ namespace Sekai.Core.Live
 			liveOutUIController?.Destroy();
 			ResumeMusicPlayback();
 			state = LiveControllerState.Playing;
-			LiveViewExt.Resume(_liveViews, currentAudioLatencyMusicTimeMs);
+			LiveViewExt.Resume(_liveViews, CurrentViewTimeSeconds);
 			_liveLogic?.RefreshInput();
 			BeginLatencyCapture();
 		}
@@ -394,6 +398,7 @@ namespace Sekai.Core.Live
 
 		protected override void OnRetry()
 		{
+			(BootData as FreeLiveBootData)?.MaterialAudio?.Stop();
 			LatencyCapture.End("retry");
 			_pauseOverlay?.Hide();
 			HideSkip();
@@ -416,16 +421,16 @@ namespace Sekai.Core.Live
 			_liveLogic?.ConnectorAudio.Reset();
 			if (_liveLogic != null)
 			{
-				_liveLogic.OnFinished -= OnFinished;
-				_liveLogic.OnFailure -= OnFailure;
+				_liveLogic.Finished -= OnFinished;
+				_liveLogic.Failed -= OnFailed;
 			}
 
 			_liveLogic = new LiveLogic(liveBundleBuildData);
 			_liveLogic.Setup(BootData, _liveViews);
 			_liveLogic.SetSkillLogic(new SkillLogic());
 			_liveLogic.SetScoreLogic(new ScoreLogic(liveBundleBuildData));
-			_liveLogic.OnFinished += OnFinished;
-			_liveLogic.OnFailure += OnFailure;
+			_liveLogic.Finished += OnFinished;
+			_liveLogic.Failed += OnFailed;
 		}
 
 		protected override void OnRetire()
@@ -436,7 +441,7 @@ namespace Sekai.Core.Live
 			PreExit(0f, 4f);
 		}
 
-		private void OnRetireByMySelf()
+		internal void OnRetireByMySelf()
 		{
 			_retiredByPlayer = true;
 			liveOutUIController?.Destroy();
@@ -465,7 +470,7 @@ namespace Sekai.Core.Live
 			yield return new WaitForSeconds(3f);
 			ResumeMusicPlayback();
 			state = LiveControllerState.Playing;
-			LiveViewExt.Resume(_liveViews, currentAudioLatencyMusicTimeMs);
+			LiveViewExt.Resume(_liveViews, CurrentViewTimeSeconds);
 			SoundManager.Instance.SetAudioSyncedUnityTimer(cueId);
 			BeginLatencyCapture();
 			_resumeCoroutine = null;
@@ -484,18 +489,19 @@ namespace Sekai.Core.Live
 		protected override void OnDestroy()
 		{
 			_liveLogic?.ConnectorAudio.Reset();
+			(BootData as FreeLiveBootData)?.ReleaseMaterialAudio();
 			LatencyCapture.End("destroy");
 			base.OnDestroy();
 		}
 
-		private void OnFailure()
+		private void OnFailed()
 		{
 			// Only while the audio drives the clock: before and after it the timer reads 0, which used
 			// to throw the clock back to the start of the song.
 			long audioTime = musicPhase == MusicPhase.Playing ? SoundManager.Instance.GetAudioSyncedUnityTimer() : -1L;
 			if (audioTime > 0L)
 			{
-				currentMusicTimeMs = audioTime;
+				currentMusicTimeMs = timingCompensation.TimelineAtPlayback(audioTime);
 			}
 		}
 
@@ -570,10 +576,9 @@ namespace Sekai.Core.Live
 				return;
 			}
 
-			PlayResultKind kind = result == 3
-				? PlayResultKind.Completed
-				: _retiredByPlayer ? PlayResultKind.Retired : PlayResultKind.Failed;
 			LiveScore score = _liveLogic != null ? _liveLogic.Score : default;
+			PlayResultKind kind = _retiredByPlayer ? PlayResultKind.Retired
+				: result == 3 && score.life > 0 ? PlayResultKind.Completed : PlayResultKind.Failed;
 			PlayResultHandoff.Publish(PlayResult.FromBootData(free, kind, score));
 		}
 
@@ -594,8 +599,8 @@ namespace Sekai.Core.Live
 			}
 			if (_liveLogic != null)
 			{
-				_liveLogic.OnFinished -= OnFinished;
-				_liveLogic.OnFailure -= OnFailure;
+				_liveLogic.Finished -= OnFinished;
+				_liveLogic.Failed -= OnFailed;
 			}
 			_resultEffectPending = true;
 			_resultEffectAtMs = resultEffectAtMs;

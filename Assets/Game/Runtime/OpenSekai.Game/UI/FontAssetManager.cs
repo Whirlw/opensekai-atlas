@@ -22,8 +22,6 @@ namespace Sekai
 
 		private bool _isInitialized;
 
-		private bool _isDynamicFontAssetReset;
-
 		protected override void OnInitialize()
 		{
 			base.OnInitialize();
@@ -49,7 +47,6 @@ namespace Sekai
 			UnloadDynamicFontAsset();
 			UnloadBaseFontAsset();
 			_isInitialized = false;
-			_isDynamicFontAssetReset = false;
 		}
 
 		public void SetupBuiltinFontAsset()
@@ -60,7 +57,7 @@ namespace Sekai
 			}
 
 			UnloadOnDemandFontAsset();
-			ResetDynamicFontAssets();
+			// Keep the authored glyphs in the two dynamic fallback atlases.
 
 			ClearPrimaryFontAssetData(_baseFontEB);
 			ClearFallbackFontAsset(_baseFontEB);
@@ -81,31 +78,11 @@ namespace Sekai
 			SetupBuiltinFontAsset();
 		}
 
-		private void ResetDynamicFontAssets()
-		{
-			if (_isDynamicFontAssetReset)
-			{
-				return;
-			}
-
-			// Dynamic TMP font assets can retain runtime character tables while their
-			// atlas texture still points at the copied project PNG. Clear them before
-			// fallback setup so TMP regenerates glyphs for local text.
-			ClearDynamicFontAssetData(_dynamicFontEB);
-			ClearDynamicFontAssetData(_dynamicFontDB);
-			_isDynamicFontAssetReset = true;
-		}
-
 		private void ClearPrimaryFontAssetData(TMP_FontAsset fontAsset)
 		{
 			// Keep the prefab/font references intact, but make the base
 			// Rodin assets act as empty shells so text resolves through one
 			// dynamic fallback font instead of mixing Rodin and CJK glyphs.
-			SafeClearFontAssetData(fontAsset);
-		}
-
-		private void ClearDynamicFontAssetData(TMP_FontAsset fontAsset)
-		{
 			SafeClearFontAssetData(fontAsset);
 		}
 

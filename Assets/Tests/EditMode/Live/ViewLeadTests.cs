@@ -42,6 +42,15 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(note.Progress, Is.EqualTo(logic), "the logic progress is not touched");
         }
 
+        [TestCase(1.02f, -0.04f, 0.98f)]
+        [TestCase(0.98f, 0.04f, 1.02f)]
+        public void AScrollingKeyCrossesOnDisplayTime(float now, float lead, float expected)
+        {
+            NormalNote note = TravellingNote(now);
+            LiveConfig.ViewLeadSeconds = lead;
+            Assert.That(LiveConfig.ViewProgressOf(note, now), Is.EqualTo(expected).Within(1e-5f));
+        }
+
         [Test]
         public void ALeadDoesNotPushAPinnedKeyPastTheLine()
         {

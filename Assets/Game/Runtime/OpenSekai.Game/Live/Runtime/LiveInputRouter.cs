@@ -9,24 +9,24 @@ namespace Sekai.Core.Live
 {
 	internal sealed class LiveInputRouter
 	{
-		private const int InputCapacity = 128;
-		private const int FingerCapacity = 10;
+		private const int INPUT_CAPACITY = 128;
+		private const int FINGER_CAPACITY = 10;
 		private readonly LiveLogic _logic;
 		private readonly LiveBundleBuildData _bundle;
 		private readonly InputSystemTouchSource _deviceTouchSource = new InputSystemTouchSource();
-		private readonly LiveInputCollector _collector = new LiveInputCollector(FingerCapacity);
+		private readonly LiveInputCollector _collector = new LiveInputCollector(FINGER_CAPACITY);
 		private readonly LiveCandidatePipeline _candidates = new LiveCandidatePipeline();
-		private readonly LiveLogic.InputTmp[] _inputBuffer = new LiveLogic.InputTmp[InputCapacity];
+		private readonly LiveLogic.InputTmp[] _inputBuffer = new LiveLogic.InputTmp[INPUT_CAPACITY];
 		private ILiveTouchSource _touchSource;
 		private Camera _camera;
 
 		internal List<NoteBase> JudgmentNotes { get; } = new List<NoteBase>();
 		internal List<GuideNote> DamageConnectors { get; } = new List<GuideNote>();
-		internal List<LiveLogic.InputTmp> ActiveInputs { get; } = new List<LiveLogic.InputTmp>(InputCapacity);
-		internal LiveHoldCoordinator Holds { get; } = new LiveHoldCoordinator(InputCapacity);
+		internal List<LiveLogic.InputTmp> ActiveInputs { get; } = new List<LiveLogic.InputTmp>(INPUT_CAPACITY);
+		internal LiveHoldCoordinator Holds { get; } = new LiveHoldCoordinator(INPUT_CAPACITY);
 
-		private readonly Dictionary<int, double> _judgedTouchTimes = new Dictionary<int, double>(FingerCapacity);
-		private readonly Dictionary<int, float> _previousTouchLanes = new Dictionary<int, float>(FingerCapacity);
+		private readonly Dictionary<int, double> _judgedTouchTimes = new Dictionary<int, double>(FINGER_CAPACITY);
+		private readonly Dictionary<int, float> _previousTouchLanes = new Dictionary<int, float>(FINGER_CAPACITY);
 
 		/// <summary>
 		/// JSON/SUS touches that started above the accepted height stay excluded until release.
@@ -101,7 +101,7 @@ namespace Sekai.Core.Live
 
 		internal void Register(NoteBase note)
 		{
-			_candidates.Register(note, JudgmentNotes, _logic.currentFrameInfo.time + LiveClock.ReferenceFrameSeconds);
+			_candidates.Register(note, JudgmentNotes, _logic.currentFrameInfo.time + LiveClock.REFERENCE_FRAME_SECONDS);
 		}
 
 		internal void CollectCandidates(int pressWave = 0)
@@ -180,7 +180,7 @@ namespace Sekai.Core.Live
 				float upperExtent = LiveConfig.widthX * (3.5f / 1.19f);
 				if (simTouch.Phase == InputTouchPhase.Canceled ||
 					OpenSekai.Shared.Live.TouchLane.IsAboveTheLine(positions, simTouch.WorldPosition, upperExtent))
-					return OpenSekai.Shared.Live.TouchLane.Outside;
+					return OpenSekai.Shared.Live.TouchLane.OUTSIDE;
 
 				return (simTouch.WorldPosition.x - positions[0].x) / LiveConfig.widthX;
 			}
@@ -199,7 +199,7 @@ namespace Sekai.Core.Live
 
 			if (!isAnInput || simTouch.Phase == InputTouchPhase.Canceled)
 			{
-				return OpenSekai.Shared.Live.TouchLane.Outside;
+				return OpenSekai.Shared.Live.TouchLane.OUTSIDE;
 			}
 
 			return OpenSekai.Shared.Live.TouchLane.Resolve(

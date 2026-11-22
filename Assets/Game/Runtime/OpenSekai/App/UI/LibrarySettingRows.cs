@@ -169,8 +169,8 @@ namespace OpenSekai.App.UI
             float min, float max, float step, string format, Func<float, string> display = null)
         {
             RectTransform row = section.AddRow(label, out TextMeshProUGUI labelText);
-            const float valueWidth = 104f;
-            float width = STEP_BUTTON * 2f + valueWidth;
+            const float VALUE_WIDTH = 104f;
+            float width = STEP_BUTTON * 2f + VALUE_WIDTH;
             labelText.rectTransform.offsetMax = new Vector2(-(width + CONTROL_INSET * 2f), 0f);
 
             RectTransform group = ControlGroup(row, width);
@@ -198,11 +198,17 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>A − field + group for whole milliseconds: tap to type, or nudge by one.</summary>
-        internal void AddMilliseconds(Section section, string label, Func<float> get, Action<float> set)
+        internal void AddMilliseconds(Section section, string label, Func<float> get, Action<float> set, Action showHelp)
         {
             RectTransform row = section.AddRow(label, out TextMeshProUGUI labelText);
-            const float fieldWidth = 136f;
-            float width = STEP_BUTTON * 2f + fieldWidth + 16f;
+            const float INFO_SIZE = 44f;
+            Button info = LibraryWidgets.PillButton("Info", row, "i", () => showHelp(), INFO_SIZE, INFO_SIZE,
+                LibraryTheme.Colors.Control, LibraryTheme.Colors.TextSecondary, sound: UiCue.None);
+            LibraryWidgets.Place((RectTransform)info.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                new Vector2(LABEL_INSET + labelText.GetPreferredValues(label).x + 8f, 0f), Vector2.one * INFO_SIZE);
+
+            const float FIELD_WIDTH = 136f;
+            float width = STEP_BUTTON * 2f + FIELD_WIDTH + 16f;
             labelText.rectTransform.offsetMax = new Vector2(-(width + CONTROL_INSET * 2f), 0f);
 
             RectTransform group = ControlGroup(row, width);
@@ -212,7 +218,7 @@ namespace OpenSekai.App.UI
             Image background = LibraryWidgets.Panel("Field", group, CONTROL_HEIGHT * 0.5f, LibraryTheme.Colors.Control);
             background.raycastTarget = true;
             LibraryWidgets.Place(background.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                Vector2.zero, new Vector2(fieldWidth, CONTROL_HEIGHT));
+                Vector2.zero, new Vector2(FIELD_WIDTH, CONTROL_HEIGHT));
             LibraryWidgets.Outline(background, CONTROL_HEIGHT * 0.5f);
 
             TextMeshProUGUI unit = LibraryWidgets.Label(
@@ -407,8 +413,8 @@ namespace OpenSekai.App.UI
             Section section, string label, Func<double> get, Action<double> set, double min, double max, double step, string unit = null)
         {
             RectTransform row = section.AddRow(label, out TextMeshProUGUI labelText);
-            const float fieldWidth = 156f;
-            float width = STEP_BUTTON * 2f + fieldWidth + 16f;
+            const float FIELD_WIDTH = 156f;
+            float width = STEP_BUTTON * 2f + FIELD_WIDTH + 16f;
             labelText.rectTransform.offsetMax = new Vector2(-(width + CONTROL_INSET * 2f), 0f);
             if (step <= 0d)
             {
@@ -423,7 +429,7 @@ namespace OpenSekai.App.UI
             Image background = LibraryWidgets.Panel("Field", group, CONTROL_HEIGHT * 0.5f, LibraryTheme.Colors.Control);
             background.raycastTarget = true;
             LibraryWidgets.Place(background.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                Vector2.zero, new Vector2(fieldWidth, CONTROL_HEIGHT));
+                Vector2.zero, new Vector2(FIELD_WIDTH, CONTROL_HEIGHT));
             LibraryWidgets.Outline(background, CONTROL_HEIGHT * 0.5f);
             float unitWidth = 0f;
             if (!string.IsNullOrEmpty(unit))
@@ -515,15 +521,15 @@ namespace OpenSekai.App.UI
             layout.childForceExpandHeight = false;
 
             var chips = new List<(Image Background, TextMeshProUGUI Text)>();
-            const float chipHeight = 44f;
+            const float CHIP_HEIGHT = 44f;
             for (int i = 0; i < options.Count; i++)
             {
                 int index = i;
-                Button chip = LibraryWidgets.PillButton("Chip" + i, group, options[i], null, 10f, chipHeight,
+                Button chip = LibraryWidgets.PillButton("Chip" + i, group, options[i], null, 10f, CHIP_HEIGHT,
                     LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, LibraryTheme.FontSize.CAPTION, sound: UiCue.None);
                 TextMeshProUGUI text = chip.GetComponentInChildren<TextMeshProUGUI>();
                 float width = Mathf.Ceil(text.GetPreferredValues(options[i]).x) + 36f;
-                ((RectTransform)chip.transform).sizeDelta = new Vector2(width, chipHeight);
+                ((RectTransform)chip.transform).sizeDelta = new Vector2(width, CHIP_HEIGHT);
                 chip.onClick.AddListener(() =>
                 {
                     bool on = !get(index);

@@ -5,33 +5,34 @@ namespace Sekai
 {
 	public class DialogHeader : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_title")]
 		[SerializeField]
-		private CustomText _title;
+		private CustomText title;
 
-		public CustomText Title => _title;
+		public CustomText Title => title;
 
 		public string TitleText
 		{
-			get => _title != null ? _title.Text : string.Empty;
+			get => title != null ? title.Text : string.Empty;
 			set
 			{
-				if (_title != null)
+				if (title != null)
 				{
-					_title.UseWordingKey = false;
-					_title.SetText(value);
+					title.UseWordingKey = false;
+					title.SetText(value);
 				}
 			}
 		}
 
 		public string TitleKey
 		{
-			get => _title != null ? _title.WordingKey : string.Empty;
+			get => title != null ? title.WordingKey : string.Empty;
 			set
 			{
-				if (_title != null)
+				if (title != null)
 				{
-					_title.UseWordingKey = true;
-					_title.SetWordingText(value);
+					title.UseWordingKey = true;
+					title.SetWordingText(value);
 				}
 			}
 		}

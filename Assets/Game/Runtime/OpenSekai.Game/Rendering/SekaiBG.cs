@@ -13,11 +13,13 @@ namespace Sekai
 			Closing = 3
 		}
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_background")]
 		[SerializeField]
-		private CustomImage _background;
+		private CustomImage background;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_triParticle")]
 		[SerializeField]
-		private GameObject _triParticle;
+		private GameObject triParticle;
 
 		private Status _status;
 
@@ -59,17 +61,17 @@ namespace Sekai
 
 		public void SetColor(Color color)
 		{
-			if (_background != null)
+			if (background != null)
 			{
-				_background.color = color;
+				background.color = color;
 			}
 		}
 
 		public void SetTriParticleActive(bool active)
 		{
-			if (_triParticle != null)
+			if (triParticle != null)
 			{
-				_triParticle.SetActive(active);
+				triParticle.SetActive(active);
 			}
 		}
 	}

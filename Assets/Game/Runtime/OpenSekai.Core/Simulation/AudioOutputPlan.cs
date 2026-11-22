@@ -31,17 +31,17 @@ namespace OpenSekai.Shared.Live.Simulation
 	/// </summary>
 	public static class AudioOutputPlan
 	{
-		public const int MinSampleRate = 22050;
-		public const int MaxSampleRate = 192000;
-		public const int MinDspBufferSize = 128;
-		public const int MaxBurstFrames = 1024;
+		public const int MIN_SAMPLE_RATE = 22050;
+		public const int MAX_SAMPLE_RATE = 192000;
+		public const int MIN_DSP_BUFFER_SIZE = 128;
+		public const int MAX_BURST_FRAMES = 1024;
 
 		public static AudioOutputDecision Choose(int currentSampleRate, int currentDspBufferSize,
 			int nativeSampleRate, int nativeFramesPerBuffer)
 		{
 			int sampleRate = currentSampleRate;
 			string rateReason;
-			if (nativeSampleRate >= MinSampleRate && nativeSampleRate <= MaxSampleRate)
+			if (nativeSampleRate >= MIN_SAMPLE_RATE && nativeSampleRate <= MAX_SAMPLE_RATE)
 			{
 				sampleRate = nativeSampleRate;
 				rateReason = nativeSampleRate == currentSampleRate ? "rate already native" : "rate set to native";
@@ -53,10 +53,10 @@ namespace OpenSekai.Shared.Live.Simulation
 
 			int buffer = currentDspBufferSize;
 			string bufferReason;
-			if (nativeFramesPerBuffer > 0 && nativeFramesPerBuffer <= MaxBurstFrames)
+			if (nativeFramesPerBuffer > 0 && nativeFramesPerBuffer <= MAX_BURST_FRAMES)
 			{
 				int aligned = nativeFramesPerBuffer;
-				while (aligned < MinDspBufferSize)
+				while (aligned < MIN_DSP_BUFFER_SIZE)
 				{
 					aligned += nativeFramesPerBuffer;
 				}

@@ -3,6 +3,9 @@
 <linker>
   <assembly fullname="Newtonsoft.Json" preserve="all" />
   <assembly fullname="Unity.TextMeshPro" preserve="all" />
+  <assembly fullname="OpenSekai.App">
+    <type fullname="OpenSekai.Infrastructure.Packages.MaterialPackState" preserve="all" />
+  </assembly>
 
   <assembly fullname="OpenSekai.Game">
     <type fullname="Sekai.AssetBundleInfo" preserve="all" />
@@ -12,6 +15,10 @@
   </assembly>
 
   <assembly fullname="OpenSekai.Core">
+    <type fullname="OpenSekai.MaterialPacks.MaterialAudioSelection" preserve="all" />
+    <type fullname="OpenSekai.MaterialPacks.InstalledMaterialPack" preserve="all" />
+    <type fullname="OpenSekai.MaterialPacks.MaterialPackGroup" preserve="all" />
+    <type fullname="OpenSekai.MaterialPacks.MaterialAudioSlot" preserve="all" />
     <type fullname="Sekai.LiveSettingData" preserve="all" />
     <type fullname="Sekai.MusicScoreMaker.Common.CustomMusicScoreManifest" preserve="all" />
     <type fullname="OpenSekai.Shared.Packages.SongPackageManifest" preserve="all" />

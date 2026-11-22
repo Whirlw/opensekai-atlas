@@ -26,3 +26,7 @@ jobs:
       - name: Check structure, links and generated assets
         shell: pwsh
         run: ./Tools/verify-structure.ps1 -CheckAssemblies -RequireNoEmptyDirectories
+
+      - name: Check C# declaration names and attributes
+        shell: pwsh
+        run: ./Tools/verify-coding-standards.ps1

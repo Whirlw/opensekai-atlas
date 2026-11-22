@@ -10,9 +10,9 @@ namespace AcbDecoder
         private const int HCA_VERSION103 = 0x0103;
         private const int HCA_VERSION200 = 0x0200;
         private const int HCA_VERSION300 = 0x0300;
-        private const int Subframes = 8;
+        private const int SUBFRAMES = 8;
         private const int SAMPLES_PER_SUBFRAME = 128;
-        private const int SAMPLES_PER_FRAME = Subframes * SAMPLES_PER_SUBFRAME;
+        private const int SAMPLES_PER_FRAME = SUBFRAMES * SAMPLES_PER_SUBFRAME;
         private const int MAX_CHANNELS = 16;
 
         private readonly HcaChannel[] _channels = new HcaChannel[MAX_CHANNELS];
@@ -426,7 +426,7 @@ namespace AcbDecoder
                 CalculateGain(_channels[ch]);
             }
 
-            for (int subframe = 0; subframe < Subframes; subframe++)
+            for (int subframe = 0; subframe < SUBFRAMES; subframe++)
             {
                 for (int ch = 0; ch < _channelCount; ch++)
                     DequantizeCoefficients(_channels[ch], ref br, subframe);
@@ -437,7 +437,7 @@ namespace AcbDecoder
 
         private void TransformBlock()
         {
-            for (int subframe = 0; subframe < Subframes; subframe++)
+            for (int subframe = 0; subframe < SUBFRAMES; subframe++)
             {
                 for (int ch = 0; ch < _channelCount; ch++)
                 {
@@ -461,7 +461,7 @@ namespace AcbDecoder
         private void CopyFrameToOutput(float[] output, int firstSampleIndex)
         {
             int outSamples = output.Length / _channelCount;
-            for (int subframe = 0; subframe < Subframes; subframe++)
+            for (int subframe = 0; subframe < SUBFRAMES; subframe++)
             {
                 int waveBase = subframe * SAMPLES_PER_SUBFRAME;
                 for (int s = 0; s < SAMPLES_PER_SUBFRAME; s++)
@@ -530,7 +530,7 @@ namespace AcbDecoder
             }
 
             for (int i = 0; i < extraCount; i++)
-                ch.ScaleFactors[SAMPLES_PER_SUBFRAME - 1 - i] = ch.ScaleFactors[csCount - i];
+                ch.ScaleFactors[SAMPLES_PER_SUBFRAME - 1 - i] = ch.ScaleFactors[csCount - i - 1];
         }
 
         private void UnpackIntensity(HcaChannel ch, ref BitReader br)
@@ -544,7 +544,7 @@ namespace AcbDecoder
                     if (value < 15)
                     {
                         br.Skip(4);
-                        for (int i = 1; i < Subframes; i++)
+                        for (int i = 1; i < SUBFRAMES; i++)
                             ch.Intensity[i] = (byte)br.Read(4);
                     }
                 }
@@ -558,14 +558,14 @@ namespace AcbDecoder
                         ch.Intensity[0] = (byte)value;
                         if (deltaBits == 3)
                         {
-                            for (int i = 1; i < Subframes; i++)
+                            for (int i = 1; i < SUBFRAMES; i++)
                                 ch.Intensity[i] = (byte)br.Read(4);
                         }
                         else
                         {
                             int bmax = (2 << deltaBits) - 1;
                             int bits = deltaBits + 1;
-                            for (int i = 1; i < Subframes; i++)
+                            for (int i = 1; i < SUBFRAMES; i++)
                             {
                                 int delta = (int)br.Read(bits);
                                 if (delta == bmax)
@@ -586,7 +586,7 @@ namespace AcbDecoder
                     else
                     {
                         br.Skip(4);
-                        for (int i = 0; i < Subframes; i++)
+                        for (int i = 0; i < SUBFRAMES; i++)
                             ch.Intensity[i] = 7;
                     }
                 }
@@ -616,7 +616,7 @@ namespace AcbDecoder
                     if (curvePosition < 0)
                         newResolution = 15;
                     else if (curvePosition <= 65)
-                        newResolution = InvertTable[curvePosition];
+                        newResolution = _invertTable[curvePosition];
                     else
                         newResolution = 0;
 
@@ -643,8 +643,8 @@ namespace AcbDecoder
         {
             for (int i = 0; i < ch.CodedCount; i++)
             {
-                float scalefactorScale = DequantizerScalingTable[ch.ScaleFactors[i]];
-                float resolutionScale = DequantizerRangeTable[ch.Resolution[i]];
+                float scalefactorScale = _dequantizerScalingTable[ch.ScaleFactors[i]];
+                float resolutionScale = _dequantizerRangeTable[ch.Resolution[i]];
                 ch.Gain[i] = scalefactorScale * resolutionScale;
             }
         }
@@ -655,7 +655,7 @@ namespace AcbDecoder
             for (int i = 0; i < ch.CodedCount; i++)
             {
                 int resolution = ch.Resolution[i];
-                int bits = MaxBitTable[resolution];
+                int bits = _maxBitTable[resolution];
                 uint code = br.Read(bits);
                 float qc;
                 if (resolution > 7)
@@ -668,9 +668,9 @@ namespace AcbDecoder
                 else
                 {
                     int index = (resolution << 4) + (int)code;
-                    int skip = ReadBitTable[index] - bits;
+                    int skip = _readBitTable[index] - bits;
                     br.Skip(skip);
-                    qc = ReadValueTable[index];
+                    qc = _readValueTable[index];
                 }
 
                 ch.Spectra[baseIndex + i] = ch.Gain[i] * qc;
@@ -699,9 +699,9 @@ namespace AcbDecoder
                 int scIndex = sfNoise - sfValid + 62;
                 if (scIndex < 0)
                     scIndex = 0;
-                if (scIndex >= ScaleConversionTable.Length)
-                    scIndex = ScaleConversionTable.Length - 1;
-                ch.Spectra[baseIndex + noiseIndex] = ScaleConversionTable[scIndex] * ch.Spectra[baseIndex + validIndex];
+                if (scIndex >= _scaleConversionTable.Length)
+                    scIndex = _scaleConversionTable.Length - 1;
+                ch.Spectra[baseIndex + noiseIndex] = _scaleConversionTable[scIndex] * ch.Spectra[baseIndex + validIndex];
             }
 
             _random = random;
@@ -730,9 +730,9 @@ namespace AcbDecoder
                     int scIndex = ch.ScaleFactors[hfrOffset + group] - ch.ScaleFactors[lowBand] + 63;
                     if (scIndex < 0)
                         scIndex = 0;
-                    if (scIndex >= ScaleConversionTable.Length)
-                        scIndex = ScaleConversionTable.Length - 1;
-                    ch.Spectra[baseIndex + highBand] = ScaleConversionTable[scIndex] * ch.Spectra[baseIndex + lowBand];
+                    if (scIndex >= _scaleConversionTable.Length)
+                        scIndex = _scaleConversionTable.Length - 1;
+                    ch.Spectra[baseIndex + highBand] = _scaleConversionTable[scIndex] * ch.Spectra[baseIndex + lowBand];
                     highBand++;
                     lowBand -= lowBandSub;
                 }
@@ -747,7 +747,7 @@ namespace AcbDecoder
             if (left.Type != ChannelType.StereoPrimary)
                 return;
             int baseIndex = subframe * SAMPLES_PER_SUBFRAME;
-            float ratioL = IntensityRatioTable[right.Intensity[subframe]];
+            float ratioL = _intensityRatioTable[right.Intensity[subframe]];
             float ratioR = 2.0f - ratioL;
             for (int band = _baseBandCount; band < _totalBandCount; band++)
             {
@@ -765,17 +765,17 @@ namespace AcbDecoder
                 float sum = 0;
                 int matrixBase = k * SAMPLES_PER_SUBFRAME;
                 for (int n = 0; n < SAMPLES_PER_SUBFRAME; n++)
-                    sum += ch.Spectra[spectraBase + n] * Dct4Matrix[matrixBase + n];
+                    sum += ch.Spectra[spectraBase + n] * _dct4Matrix[matrixBase + n];
                 ch.Temp[k] = sum;
             }
 
             int waveBase = subframe * SAMPLES_PER_SUBFRAME;
             for (int i = 0; i < 64; i++)
             {
-                ch.Wave[waveBase + i] = ImdctWindow[i] * ch.Temp[i + 64] + ch.ImdctPrevious[i];
-                ch.Wave[waveBase + i + 64] = ImdctWindow[i + 64] * ch.Temp[SAMPLES_PER_SUBFRAME - 1 - i] - ch.ImdctPrevious[i + 64];
-                ch.ImdctPrevious[i] = ImdctWindow[SAMPLES_PER_SUBFRAME - 1 - i] * ch.Temp[64 - i - 1];
-                ch.ImdctPrevious[i + 64] = ImdctWindow[64 - i - 1] * ch.Temp[i];
+                ch.Wave[waveBase + i] = _imdctWindow[i] * ch.Temp[i + 64] + ch.ImdctPrevious[i];
+                ch.Wave[waveBase + i + 64] = _imdctWindow[i + 64] * ch.Temp[SAMPLES_PER_SUBFRAME - 1 - i] - ch.ImdctPrevious[i + 64];
+                ch.ImdctPrevious[i] = _imdctWindow[SAMPLES_PER_SUBFRAME - 1 - i] * ch.Temp[64 - i - 1];
+                ch.ImdctPrevious[i + 64] = _imdctWindow[64 - i - 1] * ch.Temp[i];
             }
         }
 
@@ -783,7 +783,7 @@ namespace AcbDecoder
         {
             ushort sum = 0;
             for (int i = 0; i < data.Length; i++)
-                sum = (ushort)((sum << 8) ^ CrcTable[((sum >> 8) ^ data[i]) & 0xFF]);
+                sum = (ushort)((sum << 8) ^ _crcTable[((sum >> 8) ^ data[i]) & 0xFF]);
             return sum;
         }
 
@@ -815,14 +815,14 @@ namespace AcbDecoder
 
         private static void InitCipher1(byte[] table)
         {
-            const int mul = 13;
-            const int add = 11;
+            const int MUL = 13;
+            const int ADD = 11;
             int v = 0;
             for (int i = 1; i < 255; i++)
             {
-                v = (v * mul + add) & 0xFF;
+                v = (v * MUL + ADD) & 0xFF;
                 if (v == 0 || v == 0xFF)
-                    v = (v * mul + add) & 0xFF;
+                    v = (v * MUL + ADD) & 0xFF;
                 table[i] = (byte)v;
             }
 
@@ -925,13 +925,13 @@ namespace AcbDecoder
         private static float[] BuildDct4Matrix()
         {
             var matrix = new float[SAMPLES_PER_SUBFRAME * SAMPLES_PER_SUBFRAME];
-            const double scale = 0.125;
+            const double SCALE = 0.125;
             for (int k = 0; k < SAMPLES_PER_SUBFRAME; k++)
             {
                 for (int n = 0; n < SAMPLES_PER_SUBFRAME; n++)
                 {
                     matrix[k * SAMPLES_PER_SUBFRAME + n] =
-                        (float)(Math.Cos(Math.PI / SAMPLES_PER_SUBFRAME * (n + 0.5) * (k + 0.5)) * scale);
+                        (float)(Math.Cos(Math.PI / SAMPLES_PER_SUBFRAME * (n + 0.5) * (k + 0.5)) * SCALE);
                 }
             }
 
@@ -946,12 +946,12 @@ namespace AcbDecoder
             return values;
         }
 
-        private static readonly ushort[] CrcTable = BuildCrcTable();
-        private static readonly float[] Dct4Matrix = BuildDct4Matrix();
-        private static readonly float[] DequantizerScalingTable = BuildDequantizerScalingTable();
-        private static readonly float[] ScaleConversionTable = BuildScaleConversionTable();
+        private static readonly ushort[] _crcTable = BuildCrcTable();
+        private static readonly float[] _dct4Matrix = BuildDct4Matrix();
+        private static readonly float[] _dequantizerScalingTable = BuildDequantizerScalingTable();
+        private static readonly float[] _scaleConversionTable = BuildScaleConversionTable();
 
-        private static readonly byte[] InvertTable =
+        private static readonly byte[] _invertTable =
         {
             14,14,14,14,14,14,13,13, 13,13,13,13,12,12,12,12,
             12,12,11,11,11,11,11,11, 10,10,10,10,10,10,10, 9,
@@ -960,7 +960,7 @@ namespace AcbDecoder
              1, 1,
         };
 
-        private static readonly float[] DequantizerRangeTable =
+        private static readonly float[] _dequantizerRangeTable =
         {
             1.0f, 0.6666666667f, 0.4f, 0.2857142857f,
             0.2222222222f, 0.1818181818f, 0.1538461538f, 0.1333333333f,
@@ -968,12 +968,12 @@ namespace AcbDecoder
             0.0039138943f, 0.0019550342f, 0.0009770396f, 0.0004884005f,
         };
 
-        private static readonly byte[] MaxBitTable =
+        private static readonly byte[] _maxBitTable =
         {
             0,2,3,3,4,4,4,4, 5,6,7,8,9,10,11,12
         };
 
-        private static readonly byte[] ReadBitTable =
+        private static readonly byte[] _readBitTable =
         {
             0,0,0,0,0,0,0,0, 0,0,0,0,0,0,0,0,
             1,1,2,2,0,0,0,0, 0,0,0,0,0,0,0,0,
@@ -985,7 +985,7 @@ namespace AcbDecoder
             3,3,4,4,4,4,4,4, 4,4,4,4,4,4,4,4,
         };
 
-        private static readonly float[] ReadValueTable =
+        private static readonly float[] _readValueTable =
         {
             +0.0f,+0.0f,+0.0f,+0.0f,+0.0f,+0.0f,+0.0f,+0.0f, +0.0f,+0.0f,+0.0f,+0.0f,+0.0f,+0.0f,+0.0f,+0.0f,
             +0.0f,+0.0f,+1.0f,-1.0f,+0.0f,+0.0f,+0.0f,+0.0f, +0.0f,+0.0f,+0.0f,+0.0f,+0.0f,+0.0f,+0.0f,+0.0f,
@@ -997,7 +997,7 @@ namespace AcbDecoder
             +0.0f,+0.0f,+1.0f,-1.0f,+2.0f,-2.0f,+3.0f,-3.0f, +4.0f,-4.0f,+5.0f,-5.0f,+6.0f,-6.0f,+7.0f,-7.0f,
         };
 
-        private static readonly float[] IntensityRatioTable =
+        private static readonly float[] _intensityRatioTable =
         {
             2.0f, 13.0f / 7.0f, 12.0f / 7.0f, 11.0f / 7.0f,
             10.0f / 7.0f, 9.0f / 7.0f, 8.0f / 7.0f, 1.0f,
@@ -1005,7 +1005,7 @@ namespace AcbDecoder
             2.0f / 7.0f, 1.0f / 7.0f, 0.0f, 0.0f,
         };
 
-        private static readonly float[] ImdctWindow = Floats(
+        private static readonly float[] _imdctWindow = Floats(
             0x3A3504F0,0x3B0183B8,0x3B70C538,0x3BBB9268,0x3C04A809,0x3C308200,0x3C61284C,0x3C8B3F17,
             0x3CA83992,0x3CC77FBD,0x3CE91110,0x3D0677CD,0x3D198FC4,0x3D2DD35C,0x3D434643,0x3D59ECC1,
             0x3D71CBA8,0x3D85741E,0x3D92A413,0x3DA078B4,0x3DAEF522,0x3DBE1C9E,0x3DCDF27B,0x3DDE7A1D,
@@ -1032,83 +1032,83 @@ namespace AcbDecoder
 
         private sealed class HcaChannel
         {
-                        private ChannelType _Type;
+                        private ChannelType _type;
             public ChannelType Type
             {
-                get => _Type;
-                set => _Type = value;
+                get => _type;
+                set => _type = value;
             }
-                        private int _CodedCount;
+                        private int _codedCount;
             public int CodedCount
             {
-                get => _CodedCount;
-                set => _CodedCount = value;
+                get => _codedCount;
+                set => _codedCount = value;
             }
-                        private byte[] _Intensity = new byte[Subframes];
+                        private byte[] _intensity = new byte[SUBFRAMES];
             public byte[] Intensity
             {
-                get => _Intensity;
-                set => _Intensity = value;
+                get => _intensity;
+                set => _intensity = value;
             }
-                        private byte[] _ScaleFactors = new byte[SAMPLES_PER_SUBFRAME];
+                        private byte[] _scaleFactors = new byte[SAMPLES_PER_SUBFRAME];
             public byte[] ScaleFactors
             {
-                get => _ScaleFactors;
-                set => _ScaleFactors = value;
+                get => _scaleFactors;
+                set => _scaleFactors = value;
             }
-                        private byte[] _Resolution = new byte[SAMPLES_PER_SUBFRAME];
+                        private byte[] _resolution = new byte[SAMPLES_PER_SUBFRAME];
             public byte[] Resolution
             {
-                get => _Resolution;
-                set => _Resolution = value;
+                get => _resolution;
+                set => _resolution = value;
             }
-                        private byte[] _Noises = new byte[SAMPLES_PER_SUBFRAME];
+                        private byte[] _noises = new byte[SAMPLES_PER_SUBFRAME];
             public byte[] Noises
             {
-                get => _Noises;
-                set => _Noises = value;
+                get => _noises;
+                set => _noises = value;
             }
-                        private int _NoiseCount;
+                        private int _noiseCount;
             public int NoiseCount
             {
-                get => _NoiseCount;
-                set => _NoiseCount = value;
+                get => _noiseCount;
+                set => _noiseCount = value;
             }
-                        private int _ValidCount;
+                        private int _validCount;
             public int ValidCount
             {
-                get => _ValidCount;
-                set => _ValidCount = value;
+                get => _validCount;
+                set => _validCount = value;
             }
-                        private float[] _Gain = new float[SAMPLES_PER_SUBFRAME];
+                        private float[] _gain = new float[SAMPLES_PER_SUBFRAME];
             public float[] Gain
             {
-                get => _Gain;
-                set => _Gain = value;
+                get => _gain;
+                set => _gain = value;
             }
-                        private float[] _Spectra = new float[Subframes * SAMPLES_PER_SUBFRAME];
+                        private float[] _spectra = new float[SUBFRAMES * SAMPLES_PER_SUBFRAME];
             public float[] Spectra
             {
-                get => _Spectra;
-                set => _Spectra = value;
+                get => _spectra;
+                set => _spectra = value;
             }
-                        private float[] _Temp = new float[SAMPLES_PER_SUBFRAME];
+                        private float[] _temp = new float[SAMPLES_PER_SUBFRAME];
             public float[] Temp
             {
-                get => _Temp;
-                set => _Temp = value;
+                get => _temp;
+                set => _temp = value;
             }
-                        private float[] _ImdctPrevious = new float[SAMPLES_PER_SUBFRAME];
+                        private float[] _imdctPrevious = new float[SAMPLES_PER_SUBFRAME];
             public float[] ImdctPrevious
             {
-                get => _ImdctPrevious;
-                set => _ImdctPrevious = value;
+                get => _imdctPrevious;
+                set => _imdctPrevious = value;
             }
-                        private float[] _Wave = new float[Subframes * SAMPLES_PER_SUBFRAME];
+                        private float[] _wave = new float[SUBFRAMES * SAMPLES_PER_SUBFRAME];
             public float[] Wave
             {
-                get => _Wave;
-                set => _Wave = value;
+                get => _wave;
+                set => _wave = value;
             }
         }
     }

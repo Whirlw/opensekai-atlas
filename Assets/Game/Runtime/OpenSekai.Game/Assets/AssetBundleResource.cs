@@ -4,32 +4,32 @@ namespace Sekai
 {
 	public class AssetBundleResource
 	{
-				private AssetBundle _Bundle;
+				private AssetBundle _bundle;
 		public AssetBundle Bundle
 		{
-		    get => _Bundle;
-		    set => _Bundle = value;
+		    get => _bundle;
+		    set => _bundle = value;
 		}
 
-				private AssetBundleElement _Element;
+				private AssetBundleElement _element;
 		public AssetBundleElement Element
 		{
-		    get => _Element;
-		    set => _Element = value;
+		    get => _element;
+		    set => _element = value;
 		}
 
-				private string _DataPath;
+				private string _dataPath;
 		public string DataPath
 		{
-		    get => _DataPath;
-		    set => _DataPath = value;
+		    get => _dataPath;
+		    set => _dataPath = value;
 		}
 
-				private AssetBundleStream _Stream;
+				private AssetBundleStream _stream;
 		public AssetBundleStream Stream
 		{
-		    get => _Stream;
-		    set => _Stream = value;
+		    get => _stream;
+		    set => _stream = value;
 		}
 
 		public void Unload(bool unloadLoadedAsset)

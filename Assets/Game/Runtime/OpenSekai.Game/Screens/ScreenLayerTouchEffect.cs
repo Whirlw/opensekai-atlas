@@ -8,11 +8,12 @@ namespace Sekai
 {
 	public class ScreenLayerTouchEffect : ScreenLayer
 	{
-		private static readonly string DefaultLayerName = "UI";
-		private static readonly string EffectOverlayLayerName = "EffectOverlay";
+		private static readonly string _defaultLayerName = "UI";
+		private static readonly string _effectOverlayLayerName = "EffectOverlay";
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_touchEffects")]
 		[SerializeField]
-		private TouchEffect[] _touchEffects;
+		private TouchEffect[] touchEffects;
 
 		private Dictionary<int, TouchEffect> _touchEffectMap;
 		private int _playTapEffectIndex;
@@ -29,9 +30,9 @@ namespace Sekai
 		{
 			_uiCamera = ScreenManager.Instance != null ? ScreenManager.Instance.GetUICamera() : Camera.main;
 			_touchEffectMap = new Dictionary<int, TouchEffect>();
-			if (_touchEffects == null || _touchEffects.Length == 0)
+			if (touchEffects == null || touchEffects.Length == 0)
 			{
-				_touchEffects = GetComponentsInChildren<TouchEffect>(true);
+				touchEffects = GetComponentsInChildren<TouchEffect>(true);
 			}
 		}
 
@@ -47,7 +48,7 @@ namespace Sekai
 				_uiCamera = ScreenManager.Instance != null ? ScreenManager.Instance.GetUICamera() : Camera.main;
 			}
 
-			if (_uiCamera == null || _touchEffects == null || _touchEffects.Length == 0)
+			if (_uiCamera == null || touchEffects == null || touchEffects.Length == 0)
 			{
 				return;
 			}
@@ -73,7 +74,7 @@ namespace Sekai
 
 		public void SetEffectLayer()
 		{
-			var layer = LayerMask.NameToLayer(EffectOverlayLayerName);
+			var layer = LayerMask.NameToLayer(_effectOverlayLayerName);
 			if (layer >= 0)
 			{
 				gameObject.SetLayer(layer);
@@ -82,7 +83,7 @@ namespace Sekai
 
 		public void SetDefaultLayer()
 		{
-			var layer = LayerMask.NameToLayer(DefaultLayerName);
+			var layer = LayerMask.NameToLayer(_defaultLayerName);
 			if (layer >= 0)
 			{
 				gameObject.SetLayer(layer);
@@ -91,7 +92,7 @@ namespace Sekai
 
 		private void UpdateTouches(int touchCount)
 		{
-			var count = Mathf.Min(touchCount, _touchEffects.Length);
+			var count = Mathf.Min(touchCount, touchEffects.Length);
 			for (var i = 0; i < count; i++)
 			{
 				var touch = NativeInput.GetTouch(i);
@@ -129,7 +130,7 @@ namespace Sekai
 
 		private void UpdateMouseFallback()
 		{
-			const int mouseFingerId = 0;
+			const int MOUSE_FINGER_ID = 0;
 			var screenPos = NativeInput.PointerPosition;
 			screenPos.z = 0f;
 
@@ -137,7 +138,7 @@ namespace Sekai
 			{
 				_mousePressed = true;
 				_lastMousePosition = screenPos;
-				PlayTapEffect(mouseFingerId, screenPos);
+				PlayTapEffect(MOUSE_FINGER_ID, screenPos);
 				return;
 			}
 
@@ -148,43 +149,43 @@ namespace Sekai
 
 			if (NativeInput.PointerPressed)
 			{
-				if (_touchEffectMap == null || !_touchEffectMap.ContainsKey(mouseFingerId))
+				if (_touchEffectMap == null || !_touchEffectMap.ContainsKey(MOUSE_FINGER_ID))
 				{
-					PlayTapEffect(mouseFingerId, screenPos);
+					PlayTapEffect(MOUSE_FINGER_ID, screenPos);
 				}
 
 				var isMoved = screenPos != _lastMousePosition;
 				if (isMoved)
 				{
-					StartFollowEffect(mouseFingerId, screenPos);
+					StartFollowEffect(MOUSE_FINGER_ID, screenPos);
 				}
 
-				if (!isMoved && CountLongTap(mouseFingerId))
+				if (!isMoved && CountLongTap(MOUSE_FINGER_ID))
 				{
-					StartLongTapEffect(mouseFingerId, screenPos);
+					StartLongTapEffect(MOUSE_FINGER_ID, screenPos);
 				}
 				else
 				{
-					EndLongTapEffect(mouseFingerId);
+					EndLongTapEffect(MOUSE_FINGER_ID);
 				}
 
 				_lastMousePosition = screenPos;
 				return;
 			}
 
-			EndFollowEffect(mouseFingerId);
-			EndLongTapEffect(mouseFingerId);
+			EndFollowEffect(MOUSE_FINGER_ID);
+			EndLongTapEffect(MOUSE_FINGER_ID);
 			_mousePressed = false;
 		}
 
 		private void PlayTapEffect(int fingerId, Vector3 screenPos)
 		{
-			if (_touchEffects == null || _touchEffects.Length == 0 || _uiCamera == null)
+			if (touchEffects == null || touchEffects.Length == 0 || _uiCamera == null)
 			{
 				return;
 			}
 
-			var touchEffect = _touchEffects[_playTapEffectIndex];
+			var touchEffect = touchEffects[_playTapEffectIndex];
 			if (touchEffect == null)
 			{
 				return;
@@ -203,7 +204,7 @@ namespace Sekai
 				_touchEffectMap.Add(fingerId, touchEffect);
 			}
 
-			_playTapEffectIndex = Wrap(_playTapEffectIndex + 1, 0, _touchEffects.Length);
+			_playTapEffectIndex = Wrap(_playTapEffectIndex + 1, 0, touchEffects.Length);
 		}
 
 		private void EndTapEffect(int fingerId)
@@ -216,12 +217,12 @@ namespace Sekai
 
 		private void EndAllTapEffect()
 		{
-			if (_touchEffects == null)
+			if (touchEffects == null)
 			{
 				return;
 			}
 
-			foreach (var touchEffect in _touchEffects)
+			foreach (var touchEffect in touchEffects)
 			{
 				touchEffect?.StopTapEffect();
 			}
@@ -245,12 +246,12 @@ namespace Sekai
 
 		private void EndAllFlollowEffect()
 		{
-			if (_touchEffects == null)
+			if (touchEffects == null)
 			{
 				return;
 			}
 
-			foreach (var touchEffect in _touchEffects)
+			foreach (var touchEffect in touchEffects)
 			{
 				touchEffect?.EndFollowEffect();
 			}
@@ -281,12 +282,12 @@ namespace Sekai
 
 		private void EndAllLongTapEffect()
 		{
-			if (_touchEffects == null)
+			if (touchEffects == null)
 			{
 				return;
 			}
 
-			foreach (var touchEffect in _touchEffects)
+			foreach (var touchEffect in touchEffects)
 			{
 				touchEffect?.EndLongTapEffect();
 			}

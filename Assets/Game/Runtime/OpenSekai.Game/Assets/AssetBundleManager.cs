@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
+using Cysharp.Threading.Tasks;
+using OpenSekai.Shared.Storage;
 using CP;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -37,11 +39,11 @@ namespace Sekai
 
 		public class DownloadInfo
 		{
-						private float _Progress;
+						private float _progress;
 			public float Progress
 			{
-			    get => _Progress;
-			    set => _Progress = value;
+			    get => _progress;
+			    set => _progress = value;
 			}
 			public DownloadResultCode ResultCode;
 		}
@@ -82,6 +84,90 @@ namespace Sekai
 		private Dictionary<string, List<string>> _categoryResourceMap;
 		private Dictionary<string, AssetBundleElement> _serverAssetBundleCacheFileNameMap;
 		private bool _initialized;
+		private string _preparedCache;
+		private AsyncLazy<bool> _preparation;
+
+		private CancellationTokenSource _preparationLifetime;
+
+		public UniTask<bool> PrepareStreamingAssetsAsync(CancellationToken cancellationToken = default)
+		{
+			cancellationToken.ThrowIfCancellationRequested();
+			if (_initialized) return UniTask.FromResult(true);
+			if (IsDirectFilePath(Application.streamingAssetsPath)) return UniTask.FromResult(Initialize());
+			if (_preparation == null)
+			{
+				var lifetime = CancellationTokenSource.CreateLinkedTokenSource(Application.exitCancellationToken);
+				_preparationLifetime = lifetime;
+				_preparation = new AsyncLazy<bool>(() => PrepareUriCacheAsync(lifetime));
+			}
+			// Leaving one scene stops that waiter. Other scenes can still use the same download.
+			return _preparation.Task.AttachExternalCancellation(cancellationToken);
+		}
+
+		private async UniTask<bool> PrepareUriCacheAsync(CancellationTokenSource lifetime)
+		{
+			try { return await PrepareUriCacheAsync(lifetime.Token); }
+			finally
+			{
+				if (ReferenceEquals(_preparationLifetime, lifetime))
+				{
+					_preparation = null;
+					_preparationLifetime = null;
+				}
+				lifetime.Dispose();
+			}
+		}
+
+		private async UniTask<bool> PrepareUriCacheAsync(CancellationToken token)
+		{
+			string catalogUri = CombineStreamingAssetsPath(CACHE_DIRECTORY_NAME, ASSET_BUNDLE_INFO_FILE_NAME);
+			byte[] catalog = await ReadUriAsync(catalogUri, token);
+			var info = BinarySerializer.Deserialize<AssetBundleInfo>(catalog);
+			if (info?.bundles == null || info.bundles.Count == 0) return false;
+			string cache = Path.Combine(Application.temporaryCachePath, "OpenSekaiBundles");
+			foreach (var element in info.bundles.Values)
+			{
+				token.ThrowIfCancellationRequested();
+				string destination = CachedBundlePath(cache, element);
+				if (File.Exists(destination) && new FileInfo(destination).Length == element.fileSize) continue;
+				string uri = CombineStreamingAssetsPath(CACHE_DIRECTORY_NAME, element.cacheDirectoryName, element.cacheFileName);
+				byte[] bytes = await ReadUriAsync(uri, token);
+				if (bytes.LongLength != element.fileSize) throw new IOException("Incomplete AssetBundle: " + element.bundleName);
+				AtomicFile.Write(destination, temp => File.WriteAllBytes(temp, bytes));
+			}
+			_preparedCache = cache;
+			_clientAssetBundleInfo = _serverAssetBundleInfo = info;
+			ParseServerAssetBundleInfo();
+			return _initialized = true;
+		}
+
+		private static string CachedBundlePath(string cache, AssetBundleElement element) =>
+			Path.Combine(cache, element.cacheFileName + "-" + element.hash);
+
+		internal static async UniTask<byte[]> ReadUriAsync(string uri, CancellationToken token, int timeoutSeconds = 30)
+		{
+			token.ThrowIfCancellationRequested();
+			using var request = UnityWebRequest.Get(uri);
+			request.timeout = timeoutSeconds;
+			using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
+			using var timer = deadline.CancelAfterSlim(TimeSpan.FromSeconds(timeoutSeconds), DelayType.Realtime);
+			try
+			{
+				// Await the underlying operation so protocol failures are reported with the requested URI.
+				AsyncOperation operation = request.SendWebRequest();
+				await operation.ToUniTask(cancellationToken: deadline.Token);
+			}
+			catch (OperationCanceledException)
+			{
+				request.Abort();
+				token.ThrowIfCancellationRequested();
+				throw new TimeoutException("Timed out reading packaged asset: " + uri);
+			}
+			token.ThrowIfCancellationRequested();
+			if (request.result != UnityWebRequest.Result.Success)
+				throw new IOException($"Could not read packaged asset {uri} ({request.responseCode}): {request.error}");
+			return request.downloadHandler.data;
+		}
 
 		public static AssetBundleManager Instance => _instance;
 
@@ -95,6 +181,7 @@ namespace Sekai
 
 		public bool Initialize()
 		{
+			if (!IsDirectFilePath(Application.streamingAssetsPath)) return _initialized;
 			InitLocalPaths();
 			LoadClientAssetBundleInfo();
 			_serverAssetBundleInfo = _clientAssetBundleInfo;
@@ -117,8 +204,13 @@ namespace Sekai
 
 		public void ClearCache()
 		{
+			var lifetime = _preparationLifetime;
+			_preparationLifetime = null;
+			_preparation = null;
+			lifetime?.Cancel();
 			ClearServerBundleInfo();
 			_clientAssetBundleInfo = null;
+			_preparedCache = null;
 			_initialized = false;
 		}
 
@@ -153,7 +245,9 @@ namespace Sekai
 				return null;
 			}
 
-			return CombineStreamingAssetsPath(CACHE_DIRECTORY_NAME, element.cacheDirectoryName, element.cacheFileName);
+			return _preparedCache == null
+				? CombineStreamingAssetsPath(CACHE_DIRECTORY_NAME, element.cacheDirectoryName, element.cacheFileName)
+				: CachedBundlePath(_preparedCache, element);
 		}
 
 		public AssetBundleResource LoadAssetBundle(string bundleName, uint readBufferSize = 65536u)
@@ -176,14 +270,7 @@ namespace Sekai
 			AssetBundle bundle = null;
 			try
 			{
-				if (IsDirectFilePath(path))
-				{
-					bundle = AssetBundle.LoadFromFile(path);
-				}
-				else
-				{
-					bundle = LoadAssetBundleFromStreamingAssetsUri(path);
-				}
+				bundle = AssetBundle.LoadFromFile(path);
 
 				if (bundle == null)
 				{
@@ -440,46 +527,6 @@ namespace Sekai
 			return !IsDirectFilePath(streamingPath) || File.Exists(streamingPath);
 		}
 
-		private static AssetBundle LoadAssetBundleFromStreamingAssetsUri(string uri)
-		{
-			using (UnityWebRequest request = UnityWebRequestAssetBundle.GetAssetBundle(uri))
-			{
-				UnityWebRequestAsyncOperation operation = request.SendWebRequest();
-				while (!operation.isDone)
-				{
-					Thread.Sleep(1);
-				}
-
-				if (request.result != UnityWebRequest.Result.Success)
-				{
-					LogUtility.LogError("Failed to load StreamingAssets AssetBundle. uri:{0} error:{1}", uri, request.error);
-					return null;
-				}
-
-				return DownloadHandlerAssetBundle.GetContent(request);
-			}
-		}
-
-		private static byte[] ReadStreamingAssetBytes(string uri)
-		{
-			using (UnityWebRequest request = UnityWebRequest.Get(uri))
-			{
-				UnityWebRequestAsyncOperation operation = request.SendWebRequest();
-				while (!operation.isDone)
-				{
-					Thread.Sleep(1);
-				}
-
-				if (request.result != UnityWebRequest.Result.Success)
-				{
-					LogUtility.LogError("Failed to read StreamingAssets file. uri:{0} error:{1}", uri, request.error);
-					return null;
-				}
-
-				return request.downloadHandler?.data;
-			}
-		}
-
 		private static string CombineStreamingAssetsPath(params string[] parts)
 		{
 			string path = Application.streamingAssetsPath.TrimEnd('/', '\\');
@@ -544,14 +591,6 @@ namespace Sekai
 				if (File.Exists(streamingPath))
 				{
 					return File.ReadAllBytes(streamingPath);
-				}
-			}
-			else
-			{
-				byte[] streamingBytes = ReadStreamingAssetBytes(streamingPath);
-				if (streamingBytes != null && streamingBytes.Length > 0)
-				{
-					return streamingBytes;
 				}
 			}
 

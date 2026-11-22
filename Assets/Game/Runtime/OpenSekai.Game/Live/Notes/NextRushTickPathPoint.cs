@@ -64,14 +64,14 @@ namespace Sekai.Live
             if (right < left) left = right = (left + right) * 0.5f;
 
             // Static NextRUSH stage: use one lane's leniency and extend the outermost reachable lane.
-            const float outsideMargin = 1.8f / 1.19f;
+            const float OUTSIDE_MARGIN = 1.8f / 1.19f;
             bool withinStage = left >= -0.5f && right <= 11.5f;
             left -= 1f;
             right += 1f;
             if (withinStage)
             {
-                left = left <= 0f && right >= 0f ? -outsideMargin : Mathf.Max(left, -outsideMargin);
-                right = left <= 11f && right >= 11f ? 11f + outsideMargin : Mathf.Min(right, 11f + outsideMargin);
+                left = left <= 0f && right >= 0f ? -OUTSIDE_MARGIN : Mathf.Max(left, -OUTSIDE_MARGIN);
+                right = left <= 11f && right >= 11f ? 11f + OUTSIDE_MARGIN : Mathf.Min(right, 11f + OUTSIDE_MARGIN);
             }
             return left <= lane && lane <= right;
         }

@@ -7,17 +7,21 @@ namespace Sekai
 	[RequireComponent(typeof(CustomToggle))]
 	public class UIPartsDialogTab : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_backgroundImage")]
 		[SerializeField]
-		private CustomImage _backgroundImage;
+		private CustomImage backgroundImage;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_text")]
 		[SerializeField]
-		private CustomTextMesh _text;
+		private CustomTextMesh text;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_badge")]
 		[SerializeField]
-		private GameObject _badge;
+		private GameObject badge;
 
+		[UnityEngine.Serialization.FormerlySerializedAs("_lineObj")]
 		[SerializeField]
-		private GameObject _lineObj;
+		private GameObject lineObj;
 
 		private bool _isOn;
 
@@ -53,13 +57,13 @@ namespace Sekai
 		{
 			get
 			{
-				return _badge != null && _badge.activeSelf;
+				return badge != null && badge.activeSelf;
 			}
 			set
 			{
-				if (_badge != null)
+				if (badge != null)
 				{
-					_badge.SetActive(value);
+					badge.SetActive(value);
 				}
 			}
 		}
@@ -94,13 +98,13 @@ namespace Sekai
 		private void On()
 		{
 			_isOn = true;
-			if (_backgroundImage != null)
+			if (backgroundImage != null)
 			{
-				_backgroundImage.color = Color.white;
+				backgroundImage.color = Color.white;
 			}
-			if (_text != null)
+			if (text != null)
 			{
-				_text.color = Color.white;
+				text.color = Color.white;
 			}
 			ShowLine();
 		}
@@ -108,13 +112,13 @@ namespace Sekai
 		private void Off()
 		{
 			_isOn = false;
-			if (_backgroundImage != null)
+			if (backgroundImage != null)
 			{
-				_backgroundImage.color = new Color(1f, 1f, 1f, 0.65f);
+				backgroundImage.color = new Color(1f, 1f, 1f, 0.65f);
 			}
-			if (_text != null)
+			if (text != null)
 			{
-				_text.color = new Color(1f, 1f, 1f, 0.65f);
+				text.color = new Color(1f, 1f, 1f, 0.65f);
 			}
 			HideLine();
 		}
@@ -148,17 +152,17 @@ namespace Sekai
 
 		public void ShowLine()
 		{
-			if (_lineObj != null)
+			if (lineObj != null)
 			{
-				_lineObj.SetActive(true);
+				lineObj.SetActive(true);
 			}
 		}
 
 		public void HideLine()
 		{
-			if (_lineObj != null)
+			if (lineObj != null)
 			{
-				_lineObj.SetActive(false);
+				lineObj.SetActive(false);
 			}
 		}
 

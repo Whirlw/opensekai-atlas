@@ -15,9 +15,9 @@ namespace OpenSekai.Infrastructure.Charts
     /// <summary>Builds live notes directly from NextRUSH entities, without a ChartDocument round trip.</summary>
     public static class NextRushChartLoader
     {
-        public const string Format = "next-rush";
-        private const int MaxFileBytes = 32 * 1024 * 1024;
-        private static readonly HashSet<string> NoteFields = new HashSet<string>(new[] {
+        public const string FORMAT = "next-rush";
+        private const int MAX_FILE_BYTES = 32 * 1024 * 1024;
+        private static readonly HashSet<string> _noteFields = new HashSet<string>(new[] {
             "#BEAT", "#TIMESCALE_GROUP", "lane", "size", "style", "direction", "isAttached", "isSeparator",
             "connectorEase", "segmentKind", "segmentAlpha", "segmentLayer", "effectKind", "segmentThroughJudgeLine",
             "segmentPresentation", "next", "prev", "activeHead", "attachHead", "attachTail", "elevation"
@@ -35,7 +35,7 @@ namespace OpenSekai.Infrastructure.Charts
 
         internal static NextRushChart Read(Stream file)
         {
-            if (file.Length > MaxFileBytes) throw new InvalidDataException("NextRUSH+ 谱面文件超过大小限制。");
+            if (file.Length > MAX_FILE_BYTES) throw new InvalidDataException("NextRUSH+ 谱面文件超过大小限制。");
             int first = file.ReadByte(), second = file.ReadByte();
             file.Position = 0;
             bool gzip = first == 0x1f && second == 0x8b;
@@ -46,7 +46,7 @@ namespace OpenSekai.Infrastructure.Charts
             int read;
             while ((read = reader.Read(buffer, 0, buffer.Length)) > 0)
             {
-                if (text.Length + read > NextRushChart.MaxJsonCharacters)
+                if (text.Length + read > NextRushChart.MAX_JSON_CHARACTERS)
                     throw new InvalidDataException("NextRUSH+ 解压后的谱面超过大小限制。");
                 text.Append(buffer, 0, read);
             }
@@ -58,6 +58,11 @@ namespace OpenSekai.Infrastructure.Charts
         {
             if (source == null) throw new ArgumentNullException(nameof(source));
             if (config == null) throw new ArgumentNullException(nameof(config));
+            return Load(source, new ChartConversionSettings(config), showPair, isMirror);
+        }
+
+        internal static RuntimeChartDefinition Load(NextRushChart source, ChartConversionSettings config, bool showPair, bool isMirror)
+        {
             var compatibility = NextRushCompatibility.Analyze(source);
             if (compatibility.InvalidData.Count > 0) throw Invalid(string.Join("、", compatibility.InvalidData.Take(8)));
             if (compatibility.UnsupportedFeatures.Count > 0) throw Unsupported(string.Join("、", compatibility.UnsupportedFeatures.Take(8)));
@@ -67,7 +72,7 @@ namespace OpenSekai.Infrastructure.Charts
         private sealed class Builder
         {
             private readonly NextRushChart _source;
-            private readonly LiveBundleBuildData _config;
+            private readonly ChartConversionSettings _config;
             private readonly bool _showPair;
             private readonly bool _isMirror;
             private readonly Dictionary<NextRushEntity, NoteBase> _notes = new Dictionary<NextRushEntity, NoteBase>();
@@ -97,10 +102,9 @@ namespace OpenSekai.Infrastructure.Charts
             private readonly Dictionary<NextRushEntity, LongNote> _outgoingBars = new Dictionary<NextRushEntity, LongNote>();
             private readonly Dictionary<NextRushEntity, LongNote> _incomingBars = new Dictionary<NextRushEntity, LongNote>();
             private readonly HashSet<NextRushEntity> _endpointTicks = new HashSet<NextRushEntity>();
-            private readonly List<(double beat, double time, double bpm)> _bpm = new List<(double, double, double)>();
             private Dictionary<NextRushEntity, NextRushScrollTimeline> _groups;
             private NextRushScrollTimeline _defaultScroll;
-            private MusicScoreInfo[] _timing;
+            private TimingMap _timing;
             private int _nextId;
 
             private readonly struct ConnectorEdge
@@ -135,13 +139,13 @@ namespace OpenSekai.Infrastructure.Charts
                 }
             }
 
-            public Builder(NextRushChart source, LiveBundleBuildData config, bool showPair, bool isMirror)
+            public Builder(NextRushChart source, ChartConversionSettings config, bool showPair, bool isMirror)
             { _source = source; _config = config; _showPair = showPair; _isMirror = isMirror; }
 
             public RuntimeChartDefinition Build(NextRushCompatibilityReport compatibility)
             {
-                BuildTiming();
-                _groups = NextRushScrollCompiler.Compile(_source, TimingAt);
+                _timing = new TimingMap(_source);
+                _groups = NextRushScrollCompiler.Compile(_source, _timing.TimingAt);
                 if (_groups.Count != 0 || _source.Entities.Any(e => e.Archetype is
                     "Connector" or "DamageNote" or "TransientHiddenDamageTickNote"
                     || e.Archetype == "SimLine" && NeedsSimLineTimeline(e)
@@ -283,84 +287,90 @@ namespace OpenSekai.Infrastructure.Charts
                 foreach (var root in roots)
                     foreach (var note in root.NoteList)
                         note.UsesNextRushJudgment = true;
-                var score = new MusicScore(_timing, Array.Empty<EventBase>(),
+                var score = new MusicScore(_timing.Points, Array.Empty<EventBase>(),
                     roots.OrderBy(n => n.MusicScoreInfo.time).ToArray(), compatibility.InitialLife, useExtendedLanes: true,
                     connectorSounds: BuildConnectorSounds(), hiddenSimLines: hiddenLines.ToArray());
                 double lastBeat = _notes.Keys.Select(e => Beat(e)).DefaultIfEmpty(0).Max();
                 return RuntimeChartDefinition.CreateNative(_source, score, checked((long)Math.Round(lastBeat * ChartTimeline.TICKS_PER_BEAT)), compatibility);
             }
 
-            private void BuildTiming()
+            private sealed class TimingMap
             {
-                var changes = _source.Entities.Where(e => e.Archetype == "#BPM_CHANGE").OrderBy(Beat).ToArray();
-                int origin = Array.FindLastIndex(changes, entity => Beat(entity) <= 0);
-                if (changes.Length == 0) throw Invalid("谱面缺少 BPM 事件");
-                for (int i = 0; i < changes.Length; i++)
-                {
-                    var entity = changes[i];
-                    Fields(entity, "#BEAT", "#BPM", "meter");
-                    double beat = Beat(entity), nextBpm = entity.Number("#BPM");
-                    if (i > 0 && beat == _bpm[i - 1].beat) throw Invalid("同一拍有重复 BPM");
-                    if (nextBpm <= 0 || nextBpm > 10000) throw Invalid("BPM 超出有效范围");
-                    // The upstream play archetype times beats using BPM alone. Validate
-                    // the optional numeric meter metadata without rescaling the beat.
-                    entity.Number("meter", 4);
-                    _bpm.Add((beat, 0, nextBpm));
-                }
-                // Anchor beat zero before accumulating in either direction. A distant
-                // negative marker must not cost precision on the positive timeline.
-                if (origin < 0)
-                {
-                    _bpm.Insert(0, (0, 0, _bpm[0].bpm));
-                    origin = 0;
-                }
-                var anchor = _bpm[origin];
-                _bpm[origin] = (anchor.beat, anchor.beat * 60 / anchor.bpm, anchor.bpm);
-                for (int i = origin - 1; i >= 0; i--)
-                {
-                    var here = _bpm[i];
-                    var next = _bpm[i + 1];
-                    _bpm[i] = (here.beat, next.time - (next.beat - here.beat) * 60 / here.bpm, here.bpm);
-                }
-                for (int i = origin + 1; i < _bpm.Count; i++)
-                {
-                    var here = _bpm[i];
-                    var prev = _bpm[i - 1];
-                    _bpm[i] = (here.beat, prev.time + (here.beat - prev.beat) * 60 / prev.bpm, here.bpm);
-                }
-                _timing = _bpm.Select(point => Info(point.beat, point.time, point.bpm)).ToArray();
-            }
+                private readonly List<(double beat, double time, double bpm)> _bpm = new List<(double, double, double)>();
+                internal MusicScoreInfo[] Points { get; }
 
-            private MusicScoreInfo At(double beat)
-            {
-                var timing = TimingAt(beat);
-                return Info(beat, timing.time, timing.bpm);
-            }
-
-            private (double time, double bpm) TimingAt(double beat)
-            {
-                int low = 0, high = _bpm.Count - 1;
-                while (low < high)
+                internal TimingMap(NextRushChart source)
                 {
-                    int mid = (low + high + 1) / 2;
-                    double at = _bpm[mid].beat;
-                    if (at <= beat) low = mid; else high = mid - 1;
+                    var changes = source.Entities.Where(e => e.Archetype == "#BPM_CHANGE").OrderBy(Beat).ToArray();
+                    int origin = Array.FindLastIndex(changes, entity => Beat(entity) <= 0);
+                    if (changes.Length == 0) throw Invalid("谱面缺少 BPM 事件");
+                    for (int i = 0; i < changes.Length; i++)
+                    {
+                        var entity = changes[i];
+                        Fields(entity, "#BEAT", "#BPM", "meter");
+                        double beat = Beat(entity), nextBpm = entity.Number("#BPM");
+                        if (i > 0 && beat == _bpm[i - 1].beat) throw Invalid("同一拍有重复 BPM");
+                        if (nextBpm <= 0 || nextBpm > 10000) throw Invalid("BPM 超出有效范围");
+                        // The upstream play archetype times beats using BPM alone. Validate
+                        // the optional numeric meter metadata without rescaling the beat.
+                        entity.Number("meter", 4);
+                        _bpm.Add((beat, 0, nextBpm));
+                    }
+                    // Anchor beat zero before accumulating in either direction. A distant
+                    // negative marker must not cost precision on the positive timeline.
+                    if (origin < 0)
+                    {
+                        _bpm.Insert(0, (0, 0, _bpm[0].bpm));
+                        origin = 0;
+                    }
+                    var anchor = _bpm[origin];
+                    _bpm[origin] = (anchor.beat, anchor.beat * 60 / anchor.bpm, anchor.bpm);
+                    for (int i = origin - 1; i >= 0; i--)
+                    {
+                        var here = _bpm[i];
+                        var next = _bpm[i + 1];
+                        _bpm[i] = (here.beat, next.time - (next.beat - here.beat) * 60 / here.bpm, here.bpm);
+                    }
+                    for (int i = origin + 1; i < _bpm.Count; i++)
+                    {
+                        var here = _bpm[i];
+                        var prev = _bpm[i - 1];
+                        _bpm[i] = (here.beat, prev.time + (here.beat - prev.beat) * 60 / prev.bpm, here.bpm);
+                    }
+                    Points = _bpm.Select(point => Info(point.beat, point.time, point.bpm)).ToArray();
                 }
-                var start = _bpm[low];
-                return (start.time + (beat - start.beat) * 60 / start.bpm, start.bpm);
-            }
 
-            private static MusicScoreInfo Info(double beat, double time, double bpm)
-            {
-                if (double.IsNaN(time) || Math.Abs(time) > NextRushChart.MaxAbsoluteTimeSeconds)
-                    throw Invalid("谱面时间超出播放范围");
-                int bar = (int)Math.Floor(beat / 4);
-                return new MusicScoreInfo(bar, (float)(beat / 4 - bar), (float)time, (float)bpm, 4f, 1f, 1f);
+                internal MusicScoreInfo At(double beat)
+                {
+                    var timing = TimingAt(beat);
+                    return Info(beat, timing.time, timing.bpm);
+                }
+
+                internal (double time, double bpm) TimingAt(double beat)
+                {
+                    int low = 0, high = _bpm.Count - 1;
+                    while (low < high)
+                    {
+                        int mid = (low + high + 1) / 2;
+                        double at = _bpm[mid].beat;
+                        if (at <= beat) low = mid; else high = mid - 1;
+                    }
+                    var start = _bpm[low];
+                    return (start.time + (beat - start.beat) * 60 / start.bpm, start.bpm);
+                }
+
+                private static MusicScoreInfo Info(double beat, double time, double bpm)
+                {
+                    if (double.IsNaN(time) || Math.Abs(time) > NextRushChart.MAX_ABSOLUTE_TIME_SECONDS)
+                        throw Invalid("谱面时间超出播放范围");
+                    int bar = (int)Math.Floor(beat / 4);
+                    return new MusicScoreInfo(bar, (float)(beat / 4 - bar), (float)time, (float)bpm, 4f, 1f, 1f);
+                }
             }
 
             private NoteBase CreateNote(NextRushEntity entity, bool activeHead = false, bool connectorHeadView = false)
             {
-                Fields(entity, NoteFields.ToArray());
+                Fields(entity, _noteFields.ToArray());
                 string kind = Kind(entity);
                 bool fake = entity.Archetype.StartsWith("Fake", StringComparison.Ordinal);
                 var type = TypeOf(entity);
@@ -418,11 +428,11 @@ namespace OpenSekai.Infrastructure.Charts
                     if ((double)right - left != -1)
                         throw Unsupported("零宽音符的位置超出轨道坐标精度");
                 }
-                var info = At(Beat(entity));
+                var info = _timing.At(Beat(entity));
                 int id = ++_nextId;
                 var (a, b) = LaneIndices(left, right);
                 NoteBase note;
-                float flick = LiveUtility.ScreenDpiToInch(_config.FlickDistance);
+                float flick = _config.FlickPixels;
                 switch (kind)
                 {
                     case "TapNote":
@@ -450,7 +460,7 @@ namespace OpenSekai.Infrastructure.Charts
                     case "TransientHiddenDamageTickNote":
                         note = new NextRushDamageNote(info, id, a, b, hidden: true); break;
                     case "TraceNote": case "TailTraceNote": case "HeadTraceNote":
-                        note = new FrictionNote(info, id, a, b, NoteCategory.Friction, _config, type, 1,
+                        note = new FrictionNote(info, id, a, b, NoteCategory.Friction, Offset(NoteCategory.Friction), type, 1,
                             isTailTraceOwner: activeHead && !fake && kind == "TailTraceNote", isTraceTail: kind == "TailTraceNote"); break;
                     case "TraceFlickNote": case "TailTraceFlickNote": case "HeadTraceFlickNote":
                         note = new FrictionFlickNote(info, id, a, b, NoteCategory.FrictionFlick, 1, type, direction,
@@ -510,7 +520,7 @@ namespace OpenSekai.Infrastructure.Charts
                 if (_defaultScroll != null)
                 {
                     var scroll = group != null && _groups.TryGetValue(group, out var timeline) ? timeline : _defaultScroll;
-                    note.SetNextRushScroll(scroll, TimingAt(Beat(entity)).time);
+                    note.SetNextRushScroll(scroll, _timing.TimingAt(Beat(entity)).time);
                 }
             }
 
@@ -587,7 +597,7 @@ namespace OpenSekai.Infrastructure.Charts
                                 var source = _notes[next];
                                 var swipe = new FrictionFlickNote(source.MusicScoreInfo, ++_nextId, source.LaneStart,
                                     source.LaneEnd, source.Category, 1, source.Type, source.Direction,
-                                    LiveUtility.ScreenDpiToInch(_config.FlickDistance), Offset(source.Category),
+                                    _config.FlickPixels, Offset(source.Category),
                                     isTraceTail: kind == "TailTraceFlickNote");
                                 _standaloneKeys.Add(next, CopyGeometry(next, swipe));
                                 roots.Add(swipe);
@@ -677,7 +687,7 @@ namespace OpenSekai.Infrastructure.Charts
             {
                 var source = _notes[start];
                 var carrier = new FrictionHideLongNote(source.MusicScoreInfo, ++_nextId, source.LaneStart,
-                    source.LaneEnd, NoteCategory.FrictionHideLong, source.Type, _config, 1);
+                    source.LaneEnd, NoteCategory.FrictionHideLong, source.Type, Offset(NoteCategory.FrictionHideLong), 1);
                 var owner = _notes[activeHead];
                 var kind = Kind(activeHead);
                 if (!owner.IsDecoration && owner is FlickNote flick && kind is "FlickNote" or "HeadFlickNote")
@@ -714,7 +724,7 @@ namespace OpenSekai.Infrastructure.Charts
             {
                 var source = _notes[start];
                 var guide = CopyGeometry(start, new GuideNote(source.MusicScoreInfo, ++_nextId, source.LaneStart,
-                    source.LaneEnd, NoteCategory.Guide, source.Type, _config, 1));
+                    source.LaneEnd, NoteCategory.Guide, source.Type, Offset(NoteCategory.Guide), 1));
                 if (activeHead != null)
                     SetConnectorHeadView(guide, activeHead);
                 else if (segment is { IsFake: true, IsDamage: true })
@@ -901,7 +911,7 @@ namespace OpenSekai.Infrastructure.Charts
                 }
                 var root = AttachmentHold(entity, attachment.head, attachment.tail);
                 bool alwaysHeld = root is GuideNote { IsFakeHold: true };
-                var tick = new LongHoldCombo(At(Beat(entity)), root.Type, ++_nextId, 1, Offset(NoteCategory.Combo), alwaysHeld);
+                var tick = new LongHoldCombo(_timing.At(Beat(entity)), root.Type, ++_nextId, 1, Offset(NoteCategory.Combo), alwaysHeld);
                 if (alwaysHeld) roots.Add(tick);
                 else root.AddHoldCombo(tick);
                 // Adding a combo assigns the hold's lanes. Restore the tick's authored attachment.
@@ -957,7 +967,7 @@ namespace OpenSekai.Infrastructure.Charts
                     }
                     var head = entity.Number("isAttached") == 1 ? Resolve(entity, "attachHead", true) : entity;
                     path.TryGetValue(head, out var point);
-                    ((NextRushDamageNote)entry.Value).SetTickWindow(At(start).time, point);
+                    ((NextRushDamageNote)entry.Value).SetTickWindow(_timing.At(start).time, point);
                 }
             }
 
@@ -1103,9 +1113,9 @@ namespace OpenSekai.Infrastructure.Charts
                 bool attachedHead = _attachments.TryGetValue(head, out var parent);
                 if (head == tail && attachedHead) return parent;
                 int ease = attachedHead ? parent.ease : (int)head.Number("connectorEase", 1);
-                double start = TimingAt(Beat(head)).time;
-                double end = TimingAt(Beat(tail)).time;
-                double time = TimingAt(Beat(entity)).time;
+                double start = _timing.TimingAt(Beat(head)).time;
+                double end = _timing.TimingAt(Beat(tail)).time;
+                double time = _timing.TimingAt(Beat(entity)).time;
                 return new Attachment(head, tail, start == end ? 0.5f : (float)((time - start) / (end - start)),
                     ease);
             }
@@ -1598,9 +1608,9 @@ namespace OpenSekai.Infrastructure.Charts
 
             private float AlphaAt(NextRushEntity point, NextRushEntity start, NextRushEntity end)
             {
-                double first = TimingAt(Beat(start)).time, last = TimingAt(Beat(end)).time;
+                double first = _timing.TimingAt(Beat(start)).time, last = _timing.TimingAt(Beat(end)).time;
                 double progress = point == start ? 0 : point == end ? 1 : first == last ? 0.5
-                    : Math.Clamp((TimingAt(Beat(point)).time - first) / (last - first), 0, 1);
+                    : Math.Clamp((_timing.TimingAt(Beat(point)).time - first) / (last - first), 0, 1);
                 double alpha = start.Number("segmentAlpha", 1);
                 return (float)(alpha + (end.Number("segmentAlpha", 1) - alpha) * progress);
             }
@@ -1612,7 +1622,7 @@ namespace OpenSekai.Infrastructure.Charts
                 if (name == null || !_source.NamedEntities.TryGetValue(name, out var result)) throw Invalid("找不到实体引用 " + field + ": " + name);
                 return result;
             }
-            private float Offset(NoteCategory category) => LiveUtility.GetLaneOffset(category, _config);
+            private float Offset(NoteCategory category) => _config.LaneOffsetFor(category);
             private static (int start, int end) LaneIndices(float left, float right)
             {
                 double start = Math.Floor(left), end = Math.Ceiling(right);

@@ -5,14 +5,15 @@ namespace Sekai
 {
 	public class CameraFOVUpdater : MonoBehaviour
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_camera")]
 		[SerializeField]
-		private Camera _camera;
+		private Camera camera;
 
 		private void Awake()
 		{
-			if (_camera == null)
+			if (camera == null)
 			{
-				_camera = GetComponent<Camera>();
+				camera = GetComponent<Camera>();
 			}
 
 			UpdateFOVSize();
@@ -20,12 +21,12 @@ namespace Sekai
 
 		private void UpdateFOVSize()
 		{
-			if (_camera == null)
+			if (camera == null)
 			{
 				return;
 			}
 
-			_camera.fieldOfView = SekaiCameraAspect.CalculateVerticalFov(_camera.fieldOfView);
+			camera.fieldOfView = SekaiCameraAspect.CalculateVerticalFov(camera.fieldOfView);
 		}
 
 		public CameraFOVUpdater()

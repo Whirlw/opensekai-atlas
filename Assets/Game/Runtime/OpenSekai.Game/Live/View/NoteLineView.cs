@@ -46,19 +46,20 @@ namespace Sekai
 		private const int TRAPEZOID_INDEX_COUNT = 18;
 		private const int DEFAULT_LIST_CAPACITY = 64;
 
-		private static readonly Color PressColor = Color.white;
-		private static readonly Color ReleaseColor = new Color(0.60000002f, 0.70664f, 0.65332f, 1f);
+		private static readonly Color _pressColor = Color.white;
+		private static readonly Color _releaseColor = new Color(0.60000002f, 0.70664f, 0.65332f, 1f);
 		private static readonly Vector2[] _offsetValue =
 		{
 			new Vector2(0f, 0.125f),
 			new Vector2(0.875f, 1f)
 		};
 
-		private int SplitMeshCount;
+		private int _splitMeshCount;
 		private int _meshCapacity;
 		private readonly LayerBatch[] _batches = new LayerBatch[4];
 		private Camera _viewCamera;
 		private bool _guideView;
+		private Vector2 _skinScale = Vector2.one, _skinOffset;
 		private bool _hasViewport;
 		private Vector3 _viewportBottomLeft, _viewportTopLeft, _viewportBottomRight, _viewportTopRight;
 		private Vector3[] _vertices;
@@ -91,9 +92,9 @@ namespace Sekai
 		}
 
 		public void Setup(LiveBundleBuildData _bundleBuildData, string textureName, float alpha, bool isCustomMusicScore = false,
-			Camera viewCamera = null, bool guide = false)
+			Camera viewCamera = null, bool guide = false, LiveNoteSkin skin = null)
 		{
-			SplitMeshCount = Mathf.Max(1, GetSplitMeshCount(isCustomMusicScore));
+			_splitMeshCount = Mathf.Max(1, GetSplitMeshCount(isCustomMusicScore));
 			_viewCamera = viewCamera;
 			_guideView = guide;
 
@@ -105,13 +106,14 @@ namespace Sekai
 				Material.mainTexture = texture;
 			}
 
+			skin?.BindLine(guide ? "notes.line.guide" : "notes.line.long", Material, out _skinScale, out _skinOffset);
 			Material.color = new Color(1f, 1f, 1f, alpha);
 
 			_longNotes = new List<NoteBase>(DEFAULT_LIST_CAPACITY);
-			EnsureMeshCapacity(SplitMeshCount * GetPoolMultiplier(isCustomMusicScore));
+			EnsureMeshCapacity(_splitMeshCount * GetPoolMultiplier(isCustomMusicScore));
 
 			_batches[(int)NextRushConnectorLayer.Top] = CreateBatch(gameObject);
-			_meshSettingBuffer = new Setting[SplitMeshCount + 10];
+			_meshSettingBuffer = new Setting[_splitMeshCount + 10];
 			_trapezoidVertexInfo = new Trapezoid[2];
 			_meshCount = 0;
 		}
@@ -271,6 +273,13 @@ namespace Sekai
 		private void NextExecute(INote baseNote, float time, NextRushConnectorLayer layer)
 		{
 			LongNote bar = baseNote as LongNote;
+			// Preloading the bar also registers its full mesh. A later node can already be
+			// inside its own window while the head is still on an earlier pass of a reversal.
+			if (bar != null && bar.NativeScroll == null && time < bar.ScrollApproachStart)
+			{
+				return;
+			}
+
 			List<INote> viewNotes = bar != null ? bar.LineNoteList : baseNote?.ViewNoteList;
 			if (viewNotes == null || viewNotes.Count < 2)
 			{
@@ -329,7 +338,7 @@ namespace Sekai
 				else if (segment.HasColor) color *= segment.StyleColor();
 				if (segment.TracksDamageContact && baseNote is GuideNote damage
 					&& (!damage.DamageContact || damage.State == NoteState.Done))
-					color *= ReleaseColor;
+					color *= _releaseColor;
 			}
 			return color;
 		}
@@ -340,6 +349,21 @@ namespace Sekai
 			Color color = SetSegmentStyle(time, baseNote, segment);
 			bool solidGuide = segment?.IsGuide == true;
 			float textureMode = solidGuide ? -1f : 0f;
+			if (_skinScale != Vector2.one || _skinOffset != Vector2.zero)
+			{
+				for (int i = 0; i < meshDataCount; i++)
+				{
+					ref var sample = ref _meshSettingBuffer[i];
+					var left = sample.LanePosition.Left;
+					var right = sample.LanePosition.Right;
+					var center = (left + right) * .5f;
+					var half = (right - left) * (.5f * _skinScale.x);
+					float judgeY = LiveConfig.JudgmentPositions[0].y;
+					center.y = judgeY + (center.y - judgeY) * _skinScale.y;
+					center += _skinOffset * sample.CurrentViewProgress;
+					sample.LanePosition = new TwoPoint { Left = center - half, Right = center + half };
+				}
+			}
 			for (int i = 0; i < meshDataCount - 1; i++)
 			{
 				int vertexIndex = _meshCount * TRAPEZOID_VERTEX_COUNT;
@@ -382,6 +406,11 @@ namespace Sekai
 				_vertices[index] = i < 4
 					? (top ? _viewportTopLeft : _viewportBottomLeft)
 					: (top ? _viewportTopRight : _viewportBottomRight);
+				if (_skinOffset != Vector2.zero || _skinScale != Vector2.one)
+				{
+					Vector3 center = (_viewportBottomLeft + _viewportTopRight) * .5f;
+					_vertices[index] = center + Vector3.Scale(_vertices[index] - center, new Vector3(_skinScale.x, _skinScale.y, 1)) + (Vector3)_skinOffset;
+				}
 				_colors[index] = color;
 				_uv[index] = new Vector2(textureMode, 0);
 				_leftPoint[index] = _rightPoint[index] = Vector2.zero;
@@ -405,7 +434,7 @@ namespace Sekai
 			}
 
 			// 默认颜色基于状态
-			Color defaultColor = baseNote != null && baseNote.ShowsAsReleased ? ReleaseColor : PressColor;
+			Color defaultColor = baseNote != null && baseNote.ShowsAsReleased ? _releaseColor : _pressColor;
 
 			// 检查是否为Guide相关类型
 			if (baseNote == null)
@@ -483,15 +512,15 @@ namespace Sekai
 			_trapezoidVertexInfo[0].Top.Left = endSetting.LanePosition.Left;
 			_trapezoidVertexInfo[0].Bottom.Right = startSetting.LanePosition.Left;
 			_trapezoidVertexInfo[0].Bottom.Left = startSetting.LanePosition.Left;
-			_trapezoidVertexInfo[0].Top.Left.x -= endSetting.CurrentViewProgress * 0.4f;
-			_trapezoidVertexInfo[0].Bottom.Left.x -= startSetting.CurrentViewProgress * 0.4f;
+			_trapezoidVertexInfo[0].Top.Left.x -= endSetting.CurrentViewProgress * (0.4f * _skinScale.x);
+			_trapezoidVertexInfo[0].Bottom.Left.x -= startSetting.CurrentViewProgress * (0.4f * _skinScale.x);
 
 			_trapezoidVertexInfo[1].Top.Right = endSetting.LanePosition.Right;
 			_trapezoidVertexInfo[1].Top.Left = endSetting.LanePosition.Right;
 			_trapezoidVertexInfo[1].Bottom.Right = startSetting.LanePosition.Right;
 			_trapezoidVertexInfo[1].Bottom.Left = startSetting.LanePosition.Right;
-			_trapezoidVertexInfo[1].Top.Right.x += endSetting.CurrentViewProgress * 0.4f;
-			_trapezoidVertexInfo[1].Bottom.Right.x += startSetting.CurrentViewProgress * 0.4f;
+			_trapezoidVertexInfo[1].Top.Right.x += endSetting.CurrentViewProgress * (0.4f * _skinScale.x);
+			_trapezoidVertexInfo[1].Bottom.Right.x += startSetting.CurrentViewProgress * (0.4f * _skinScale.x);
 		}
 
 		private void UpdateVertex(int vertexIndex, Color color, float startAlpha, float endAlpha)
@@ -558,7 +587,7 @@ namespace Sekai
 			float startProgress = OpenSekai.Shared.Live.NoteLineProgress.Body(startOffset, time, startNote.MusicScoreInfo.time);
 			float endProgress = OpenSekai.Shared.Live.NoteLineProgress.Body(endOffset, time, endNote.MusicScoreInfo.time);
 			float progressRange = startProgress - endProgress;
-			int splitCount = Mathf.CeilToInt(progressRange * SplitMeshCount);
+			int splitCount = Mathf.CeilToInt(progressRange * _splitMeshCount);
 			if (splitCount < 0)
 			{
 				return splitCount + 1;
@@ -635,9 +664,9 @@ namespace Sekai
 				// Keep sampling over the curve even when endpoint motion compresses its screen height.
 				int samples = segment.Ease >= 30 && segment.Ease <= 37
 					? Mathf.Max(4, Mathf.CeilToInt(32 * (float)Math.Abs(last - first))) : segment.Ease != 1 ? 4 : 1;
-				minSplits = Mathf.Min(samples, SplitMeshCount);
+				minSplits = Mathf.Min(samples, _splitMeshCount);
 			}
-			int splits = Mathf.Clamp(Mathf.CeilToInt((float)(a - b) * SplitMeshCount), minSplits, SplitMeshCount);
+			int splits = Mathf.Clamp(Mathf.CeilToInt((float)(a - b) * _splitMeshCount), minSplits, _splitMeshCount);
 			List<INote> viewNotes = start.ParentNote is LongNote bar ? bar.LineNoteList : start.ViewNoteList;
 			int index = viewNotes != null ? Mathf.Max(0, viewNotes.IndexOf(start)) : 0;
 			int segmentCount = Mathf.Max(1, (viewNotes?.Count ?? 2) - 1);

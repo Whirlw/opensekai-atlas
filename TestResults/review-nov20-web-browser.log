@@ -1,0 +1,108 @@
+[32808:2856:1120/171240.266:ERROR:net\base\network_change_notifier_win.cc:224] WSALookupServiceBegin failed with: 10108
+[32808:2856:1120/171240.326:INFO:components\enterprise\browser\controller\chrome_browser_cloud_management_controller.cc:241] No machine level policy manager exists.
+[32808:2856:1120/171241.745:INFO:CONSOLE:1] "[UnityCache] 'http://127.0.0.1:64317/Build/WebOut.data' successfully downloaded and stored in the browser cache", source: http://127.0.0.1:64317/Build/WebOut.loader.js (1)
+[32808:2856:1120/171242.185:WARNING:chrome\browser\media\prefs\capture_device_ranking.h:256] Can't initialize the value of media.audio_input.user_preference_ranking because media.default_audio_capture_device isn't registered or is empty
+[32808:2856:1120/171242.185:WARNING:chrome\browser\media\prefs\capture_device_ranking.h:256] Can't initialize the value of media.video_input.user_preference_ranking because media.default_video_capture_Device isn't registered or is empty
+[32808:2856:1120/171242.185:WARNING:chrome\browser\media\prefs\capture_device_ranking.h:256] Can't initialize the value of media.audio_input.user_preference_ranking because media.default_audio_capture_device isn't registered or is empty
+[32808:2856:1120/171242.185:WARNING:chrome\browser\media\prefs\capture_device_ranking.h:256] Can't initialize the value of media.video_input.user_preference_ranking because media.default_video_capture_Device isn't registered or is empty
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "[UnityMemory] Configuration Parameters - Can be set up in boot.config
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-bucket-allocator-granularity=16"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-bucket-allocator-bucket-count=8"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-bucket-allocator-block-size=4194304"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-bucket-allocator-block-count=1"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-main-allocator-block-size=16777216"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-thread-allocator-block-size=16777216"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-main-allocator-mimalloc-enabled=1"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-gfx-main-allocator-block-size=16777216"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-gfx-thread-allocator-block-size=16777216"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-cache-allocator-block-size=4194304"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-typetree-allocator-block-size=2097152"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-profiler-bucket-allocator-granularity=16"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-profiler-bucket-allocator-block-size=4194304"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-profiler-bucket-allocator-block-count=1"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-profiler-allocator-block-size=16777216"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-profiler-editor-allocator-block-size=1048576"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-temp-allocator-size-main=4194304"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-job-temp-allocator-block-size=2097152"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-job-temp-allocator-block-size-background=1048576"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-temp-allocator-size-background-worker=32768"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-allocator-temp-initial-block-size-main=262144"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-allocator-temp-initial-block-size-worker=262144"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-temp-allocator-size-audio-worker=65536"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.223:INFO:CONSOLE:2] "    "memorysetup-remapper-allocator-initial-capacity=32768"
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.283:INFO:CONSOLE:2] "CodeReloadManager initialized
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.289:INFO:CONSOLE:2] "[Physics::Module] Initialized fallback backend.
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.289:INFO:CONSOLE:2] "[Physics::Module] Id: 0xdecafbad
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.292:INFO:CONSOLE:2] "Loading player data from data.unity3d
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.302:INFO:CONSOLE:2] "Initialize engine version: 6000.6.7f1 (b22767f04f04)
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.302:INFO:CONSOLE:2] "[EntityIdStore] init: page-table path, blockCount=262144, entitiesPerBlock=1024, top-level=2097152 bytes, sizeof(Block)=16512 (lazily allocated per committed block)
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.305:INFO:CONSOLE:1] "Creating WebGL 2.0 context.", source: http://127.0.0.1:64317/Build/WebOut.loader.js (1)
+[32808:2856:1120/171242.333:INFO:CONSOLE:2] "Renderer: WebKit WebGL
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.333:INFO:CONSOLE:2] "Vendor:   WebKit
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.333:INFO:CONSOLE:2] "Version:  OpenGL ES 3.0 (WebGL 2.0 (OpenGL ES 3.0 Chromium))
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.333:INFO:CONSOLE:2] "GLES:     3
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.333:INFO:CONSOLE:2] " EXT_clip_control EXT_color_buffer_float EXT_color_buffer_half_float EXT_conservative_depth EXT_depth_clamp EXT_disjoint_timer_query_webgl2 EXT_float_blend EXT_polygon_offset_clamp EXT_texture_compression_bptc EXT_texture_compression_rgtc EXT_texture_filter_anisotropic NV_shader_noperspective_interpolation OES_texture_float_linear WEBGL_clip_cull_distance WEBGL_compressed_texture_astc WEBGL_compressed_texture_etc WEBGL_compressed_texture_etc1 WEBGL_compressed_texture_s3tc WEBGL_compressed_texture_s3tc_srgb WEBGL_debug_renderer_info WEBGL_debug_shaders WEBGL_lose_context WEBGL_multi_draw WEBGL_polygon_mode GL_EXT_clip_control GL_EXT_color_buffer_float GL_EXT_color_buffer_half_float GL_EXT_conservative_depth GL_EXT_depth_clamp GL_EXT_disjoint_timer_query_webgl2 GL_EXT_float_blend GL_EXT_polygon_offset_clamp GL_EXT_texture_compression_bptc GL_EXT_texture_compression_rgtc GL_EXT_texture_filter_anisotropic GL_NV_shader_noperspective_interpolation GL_OES_texture_float_linear GL_WEBGL_clip_cull_distance GL_WEBGL_co
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.333:INFO:CONSOLE:2] "mpressed_texture_astc GL_WEBGL_compressed_texture_etc GL_WEBGL_compressed_texture_etc1 GL_WEBGL_compressed_texture_s3tc GL_WEBGL_compressed_texture_s3tc_srgb GL_WEBGL_debug_renderer_info GL_WEBGL_debug_shaders GL_WEBGL_lose_context GL_WEBGL_multi_draw GL_WEBGL_polygon_mode
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.342:INFO:CONSOLE:2] "OPENGL LOG: Creating OpenGL ES 3.0 graphics device ; Context level  <OpenGL ES 3.0> ; Context handle 1
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.479:INFO:CONSOLE:2] "[Physics::Module] Selected backend (deferred post-plugins).
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.481:INFO:CONSOLE:2] "[Physics::Module] Name: PhysX
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.481:INFO:CONSOLE:2] "[Physics::Module] Id: 0xf2b8ea05
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.481:INFO:CONSOLE:2] "[Physics::Module] SDK Version: 4.1.2
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.481:INFO:CONSOLE:2] "[Physics::Module] Integration Version: 1.0.0
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.481:INFO:CONSOLE:2] "[Physics::Module] Threading Mode: Single-Threaded
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.503:INFO:CONSOLE:2] "Input Manager initialize...
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.535:INFO:CONSOLE:2] "UnloadTime: 1.100000 ms
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171242.543:INFO:CONSOLE:2] "Audio context resumed after 0.103 seconds.", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171244.938:INFO:CONSOLE:2] "WEBGL_NORMAL_BUNDLE_OK concurrent=2 warm=ok path=http://127.0.0.1:64317/StreamingAssets
+", source: http://127.0.0.1:64317/Build/WebOut.framework.js (2)
+[32808:2856:1120/171244.951:INFO:CONSOLE:1] "[UnityCache] Response is served without Content-Length header. Please reconfigure server to include valid Content-Length for better download performance.", source: http://127.0.0.1:64317/Build/WebOut.loader.js (1)

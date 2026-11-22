@@ -1,39 +1,165 @@
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Sekai
 {
 	public class ScreenLayerData : ScriptableObject
 	{
-		public MenuScreenType ScreenType;
-		public DisplayLayerType DisplayLayer;
-		public ScreenInAnimType StartAnimationType;
-		public Texture2D MaskInTexture;
-		public Rect MaskInUV;
-		public bool MaskInHaveDirection;
-		public ScreenOutAnimType ExitAnimationType;
-		public Texture2D MaskOutTexture;
-		public Rect MaskOutUV;
-		public bool MaskOutHaveDirection;
-		public HeaderDisplay DisplayHeader;
-		public HeaderCategory DisplayCategory;
-		public HeaderDisplay DisplayPlayerInfo;
-		public HeaderDisplay DisplayBackUIScreen;
-		public bool EnableBackUIScreen;
-		public HeaderDisplay DisplayScreenName;
-		public string ScreenName;
-		public string ScreenSubName;
-		public bool EnableTapScreenAnimation;
-		public bool IncludeChildCanvasForAlphaTransiton;
-		public bool hasLayerCamera;
-		public int layerCameraPriority;
-		public ScreenLayerBgmType bgmType;
-		public ScreenLayerBackgroundType BackgroundType;
+		[FormerlySerializedAs("ScreenType")]
+		[SerializeField]
+		private MenuScreenType screenType;
+
+		public MenuScreenType ScreenType => screenType;
+
+		[FormerlySerializedAs("DisplayLayer")]
+		[SerializeField]
+		private DisplayLayerType displayLayer;
+
+		public DisplayLayerType DisplayLayer => displayLayer;
+
+		[FormerlySerializedAs("StartAnimationType")]
+		[SerializeField]
+		private ScreenInAnimType startAnimationType;
+
+		public ScreenInAnimType StartAnimationType => startAnimationType;
+
+		[FormerlySerializedAs("MaskInTexture")]
+		[SerializeField]
+		private Texture2D maskInTexture;
+
+		public Texture2D MaskInTexture => maskInTexture;
+
+		[FormerlySerializedAs("MaskInUV")]
+		[SerializeField]
+		private Rect maskInUV;
+
+		public Rect MaskInUV => maskInUV;
+
+		[FormerlySerializedAs("MaskInHaveDirection")]
+		[SerializeField]
+		private bool maskInHaveDirection;
+
+		public bool MaskInHaveDirection => maskInHaveDirection;
+
+		[FormerlySerializedAs("ExitAnimationType")]
+		[SerializeField]
+		private ScreenOutAnimType exitAnimationType;
+
+		public ScreenOutAnimType ExitAnimationType => exitAnimationType;
+
+		[FormerlySerializedAs("MaskOutTexture")]
+		[SerializeField]
+		private Texture2D maskOutTexture;
+
+		public Texture2D MaskOutTexture => maskOutTexture;
+
+		[FormerlySerializedAs("MaskOutUV")]
+		[SerializeField]
+		private Rect maskOutUV;
+
+		public Rect MaskOutUV => maskOutUV;
+
+		[FormerlySerializedAs("MaskOutHaveDirection")]
+		[SerializeField]
+		private bool maskOutHaveDirection;
+
+		public bool MaskOutHaveDirection => maskOutHaveDirection;
+
+		[FormerlySerializedAs("DisplayHeader")]
+		[SerializeField]
+		private HeaderDisplay displayHeader;
+
+		public HeaderDisplay DisplayHeader => displayHeader;
+
+		[FormerlySerializedAs("DisplayCategory")]
+		[SerializeField]
+		private HeaderCategory displayCategory;
+
+		public HeaderCategory DisplayCategory => displayCategory;
+
+		[FormerlySerializedAs("DisplayPlayerInfo")]
+		[SerializeField]
+		private HeaderDisplay displayPlayerInfo;
+
+		public HeaderDisplay DisplayPlayerInfo => displayPlayerInfo;
+
+		[FormerlySerializedAs("DisplayBackUIScreen")]
+		[SerializeField]
+		private HeaderDisplay displayBackUIScreen;
+
+		public HeaderDisplay DisplayBackUIScreen => displayBackUIScreen;
+
+		[FormerlySerializedAs("EnableBackUIScreen")]
+		[SerializeField]
+		private bool enableBackUIScreen;
+
+		public bool EnableBackUIScreen => enableBackUIScreen;
+
+		[FormerlySerializedAs("DisplayScreenName")]
+		[SerializeField]
+		private HeaderDisplay displayScreenName;
+
+		public HeaderDisplay DisplayScreenName => displayScreenName;
+
+		[FormerlySerializedAs("ScreenName")]
+		[SerializeField]
+		private string screenName;
+
+		public string ScreenName => screenName;
+
+		[FormerlySerializedAs("ScreenSubName")]
+		[SerializeField]
+		private string screenSubName;
+
+		public string ScreenSubName => screenSubName;
+
+		[FormerlySerializedAs("EnableTapScreenAnimation")]
+		[SerializeField]
+		private bool enableTapScreenAnimation;
+
+		public bool EnableTapScreenAnimation => enableTapScreenAnimation;
+
+		[FormerlySerializedAs("IncludeChildCanvasForAlphaTransiton")]
+		[SerializeField]
+		private bool includeChildCanvasForAlphaTransiton;
+
+		public bool IncludeChildCanvasForAlphaTransiton => includeChildCanvasForAlphaTransiton;
+
+		[SerializeField]
+		private bool hasLayerCamera;
+
+		public bool HasLayerCamera => hasLayerCamera;
+
+		[SerializeField]
+		private int layerCameraPriority;
+
+		public int LayerCameraPriority => layerCameraPriority;
+
+		[SerializeField]
+		private ScreenLayerBgmType bgmType;
+
+		public ScreenLayerBgmType BgmType => bgmType;
+
+		[FormerlySerializedAs("BackgroundType")]
+		[SerializeField]
+		private ScreenLayerBackgroundType backgroundType;
+
+		public ScreenLayerBackgroundType BackgroundType => backgroundType;
 
 		public GameObject LoadScreenLayerPrefab()
 		{
 			// Try the legacy resource path first, then the lowercase path used by this project.
 			var prefab = Resources.Load<GameObject>("Screen/Prefabs/" + name);
 			return prefab != null ? prefab : Resources.Load<GameObject>("screen/prefabs/" + name);
+		}
+
+		public async UniTask<GameObject> LoadScreenLayerPrefabAsync(CancellationToken token)
+		{
+			var prefab = await Resources.LoadAsync<GameObject>("Screen/Prefabs/" + name).ToUniTask(cancellationToken: token);
+			if (prefab != null) return (GameObject)prefab;
+			return (GameObject)await Resources.LoadAsync<GameObject>("screen/prefabs/" + name).ToUniTask(cancellationToken: token);
 		}
 	}
 }

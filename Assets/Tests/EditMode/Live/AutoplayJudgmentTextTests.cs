@@ -17,17 +17,17 @@ namespace OpenSekai.Tests.EditMode.Live
 	public sealed class AutoplayJudgmentTextTests
 	{
 		// The friction stretch the report names: bars 78-79, where only markers are graded.
-		private const float WindowStart = 98.5f;
-		private const float WindowEnd = 101.5f;
+		private const float WINDOW_START = 98.5f;
+		private const float WINDOW_END = 101.5f;
 
 		[Test]
 		public void TheFrictionStretchRefreshesTheAutoPopup()
 		{
 			var recorder = Run(out _);
-			int refreshes = recorder.TextEvents.Count(entry => entry >= WindowStart && entry <= WindowEnd);
+			int refreshes = recorder.TextEvents.Count(entry => entry >= WINDOW_START && entry <= WINDOW_END);
 
 			Assert.That(refreshes, Is.GreaterThanOrEqualTo(3),
-				$"only {refreshes} judgement texts were refreshed between {WindowStart} s and {WindowEnd} s");
+				$"only {refreshes} judgement texts were refreshed between {WINDOW_START} s and {WINDOW_END} s");
 		}
 
 		[Test]

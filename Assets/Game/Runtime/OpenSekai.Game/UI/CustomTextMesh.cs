@@ -7,8 +7,9 @@ namespace Sekai.UI
 	[AddComponentMenu("Custom UI/Custom Text Mesh")]
 	public class CustomTextMesh : TextMeshProUGUI, ICustomText
 	{
+		[UnityEngine.Serialization.FormerlySerializedAs("_useWordingKey")]
 		[SerializeField]
-		private bool _useWordingKey;
+		private bool useWordingKey;
 
 		[SerializeField]
 		protected string wordingKey;
@@ -83,11 +84,11 @@ namespace Sekai.UI
 		{
 			get
 			{
-				return _useWordingKey;
+				return useWordingKey;
 			}
 			set
 			{
-				_useWordingKey = value;
+				useWordingKey = value;
 			}
 		}
 
@@ -95,7 +96,7 @@ namespace Sekai.UI
 		{
 			base.Start();
 			InitializeOriginalScaleX();
-			if (_useWordingKey)
+			if (useWordingKey)
 			{
 				UpdateWordingText();
 			}
@@ -112,7 +113,7 @@ namespace Sekai.UI
 
 		public void UpdateWordingText()
 		{
-			if (!_useWordingKey || string.IsNullOrEmpty(wordingKey))
+			if (!useWordingKey || string.IsNullOrEmpty(wordingKey))
 			{
 				return;
 			}
@@ -123,7 +124,7 @@ namespace Sekai.UI
 		public void SetWordingKey(string key)
 		{
 			wordingKey = key;
-			_useWordingKey = true;
+			useWordingKey = true;
 			UpdateWordingText();
 		}
 
@@ -136,7 +137,7 @@ namespace Sekai.UI
 		{
 			wordingKey = key;
 			_formatArgs = args;
-			_useWordingKey = true;
+			useWordingKey = true;
 			UpdateWordingText();
 		}
 

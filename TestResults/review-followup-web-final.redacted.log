@@ -1,0 +1,2060 @@
+VBCSCompilerPreWarmer: watching VBCSCompiler (PID 34920)
+VBCSCompilerPreWarmer: pre-warm launched (dotnet PID 16296)
+VBCSCompiler prewarm took 25.21 ms
+[Licensing::Module] Trying to connect to existing licensing client channel...
+Built from '6000.6/staging' branch; Version is '6000.6.7f1 (b22767f04f04) revision 11675495'; Using compiler version '194234433'; Build Type 'Release'
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-31089" at "2026-11-20T18:17:14.7602825Z"
+OS: 'Windows 11  (10.0.26300) CoreCountrySpecific' Language: 'zh' Physical Memory: 48816 MB
+BatchMode: 1, IsHumanControllingUs: 0, StartBugReporterOnCrash: 0, Is64bit: 1
+System  architecture: x64
+Process architecture: x64
+Date: 2026-11-20T18:17:14Z
+[Licensing::Client] Code 10 while verifying Licensing Client signature (process Id: 22180, path: "C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/Resources/Licensing/Client/Unity.Licensing.Client.exe")
+[Licensing::Module] LicensingClient has failed validation; ignoring
+[Licensing::Client] Handshaking with LicensingClient:
+  Version:                 1.18.3+d7ffd15
+  Session Id:              47e1265203514008a9956a25c3d64c5c
+  Correlation Id:          b1c18ab22fa52bd534ccae8c45791a18
+  External correlation Id: 8877606747772770357
+  Machine Id:              I6r+LKnYxQAf8aUD0lBzMbJjlxo=
+[Licensing::Module] Successfully connected to LicensingClient on channel: "LicenseClient-31089" (connect: 0.00s, validation: 0.01s, handshake: 0.09s)
+[Licensing::IpcConnector] Successfully connected to: "LicenseClient-31089-notifications" at "2026-11-20T18:17:14.8600662Z"
+[Licensing::Client] Successfully updated the access token
+[Licensing::Module] Successfully updated the access token 3MS5VNeTl1...
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] License group:
+  Id: ewogICJzdWJzR3JvdXAiIDogInVuaXR5IGVkaXRvciIsCiAgIm5hbWVzcGFjZSIgOiAidW5pdHlfZWRpdG9yIiwKICAidHlwZSIgOiAiRURJVE9SIiwKICAidGFnIiA6ICJVbml0eVBlcnNvbmFsXXXX
+  Product: Unity Personal Version
+  Type: Assigned
+  Expiration: Unlimited
+[Licensing::Client] Successfully updated license, isAsync: True, time: 0.00
+[Licensing::Client] Successfully resolved entitlement details
+[Licensing::Module] Licensing Background thread has ended after 0.14s
+
+COMMAND LINE ARGUMENTS:
+C:\Program Files\Unity\Hub\Editor\6000.6.7f1\Editor\Unity.exe
+-batchmode
+-quit
+-projectPath
+E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web
+-logFile
+E:\DeepseekHarness\OpenSekai\TestResults\review-followup-web-final.log
+-buildTarget
+WebGL
+-executeMethod
+WebBuild.Run
+-hubSessionId
+f902e078-620a-46e2-beee-9d933c9a4b7c
+-accessToken
+[REDACTED]
+Successfully changed project path to: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web
+E:/DeepseekHarness/OpenSekai/.utmp/review-nov20-web
+[UnityMemory] Configuration Parameters - Can be set up in boot.config
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-gi-baking-worker=262144"
+    "memorysetup-temp-allocator-size-nav-mesh-worker=65536"
+    "memorysetup-temp-allocator-size-audio-worker=65536"
+    "memorysetup-temp-allocator-size-cloud-worker=32768"
+    "memorysetup-temp-allocator-size-gfx=262144"
+    "memorysetup-remapper-allocator-initial-capacity=32768"
+    "memorysetup-temp-allocator-size-preload-manager=33554432"
+    "memorysetup-allocator-temp-initial-block-size-main=262144"
+    "memorysetup-allocator-temp-initial-block-size-worker=262144"
+    "memorysetup-temp-allocator-size-job-worker=262144"
+    "memorysetup-temp-allocator-size-background-worker=32768"
+    "memorysetup-bucket-allocator-granularity=16"
+    "memorysetup-bucket-allocator-bucket-count=8"
+    "memorysetup-bucket-allocator-block-size=33554432"
+    "memorysetup-bucket-allocator-block-count=8"
+    "memorysetup-main-allocator-block-size=16777216"
+    "memorysetup-thread-allocator-block-size=16777216"
+    "memorysetup-main-allocator-mimalloc-enabled=1"
+    "memorysetup-gfx-main-allocator-block-size=16777216"
+    "memorysetup-gfx-thread-allocator-block-size=16777216"
+    "memorysetup-cache-allocator-block-size=4194304"
+    "memorysetup-typetree-allocator-block-size=2097152"
+    "memorysetup-profiler-bucket-allocator-granularity=16"
+    "memorysetup-profiler-bucket-allocator-bucket-count=8"
+    "memorysetup-profiler-bucket-allocator-block-size=33554432"
+    "memorysetup-profiler-bucket-allocator-block-count=8"
+    "memorysetup-profiler-allocator-block-size=16777216"
+    "memorysetup-profiler-editor-allocator-block-size=1048576"
+    "memorysetup-temp-allocator-size-main=16777216"
+    "memorysetup-job-temp-allocator-block-size=2097152"
+    "memorysetup-job-temp-allocator-block-size-background=1048576"
+    "memorysetup-job-temp-allocator-reduction-small-platforms=262144"
+Logging is directed to a specific file, skipping project log.
+Player connection [18872]  Target information:
+
+Player connection [18872]  * "[IP] 100.87.181.57 [Port] 55505 [Flags] 2 [Guid] 3719632352 [EditorId] 3719632352 [Version] 1048832 [Id] WindowsEditor(7,OMEN-16) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
+
+Player connection [18872]  * "[IP] 10.177.76.129 [Port] 55505 [Flags] 2 [Guid] 3719632352 [EditorId] 3719632352 [Version] 1048832 [Id] WindowsEditor(7,OMEN-16) [Debug] 1 [PackageName] WindowsEditor [ProjectName] Editor" 
+
+Player connection [18872] Host joined multi-casting on [225.0.0.222:54997]...
+Player connection [18872] Host joined alternative multi-casting on [225.0.0.222:34997]...
+Input System module state changed to: Initialized.
+[Physics::Module] Initialized fallback backend.
+[Physics::Module] Id: 0xdecafbad
+[Package Manager] Connected to IPC stream "Upm-34924" after 0.4 seconds.
+[Licensing::Client] Successfully resolved entitlement details
+Library Redirect Path: Library/
+Initialising UDS system complete:
+  - System type: Client
+  - Resource namespace: bc226b9618494d7c4fb061bdc6a95eb2
+  - Shared memory size: 1073741824
+  - Command buffer id: 1052576
+  - Command buffer size: 8192
+  - Hashmap size: 4194304
+  - Service connected: false
+Launching Unity Data Store - C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/Tools/Unity.DataStore.exe 
+Unity Data Store artifact dir = Library/DataStore, working dir = E:/DeepseekHarness/OpenSekai/.utmp/review-nov20-webUnity Data Store running and initialised
+Targeting platform: WebGL
+[Physics::Module] Selected backend (deferred post-plugins).
+[Physics::Module] Name: PhysX
+[Physics::Module] Id: 0xf2b8ea05
+[Physics::Module] SDK Version: 4.1.2
+[Physics::Module] Integration Version: 1.0.0
+[Physics::Module] Threading Mode: Multi-Threaded
+Initialize engine version: 6000.6.7f1 (b22767f04f04)
+[EntityIdStore] init: VM path (explicit commit), pageSize=4096, blockCount=262144, entitiesPerBlock=1024, blocksPerSlotPage=0, slots reserved=4294967296 bytes
+[Subsystems] Discovering subsystems at path C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/Resources/UnitySubsystems
+[Subsystems] Discovering subsystems at path E:/DeepseekHarness/OpenSekai/.utmp/review-nov20-web/Assets
+GfxDevice: creating device client; kGfxThreadingModeNonThreaded
+d3d12: failed to query info queue interface (0x80004002).
+Direct3D:
+    Version:         Direct3D 12 [level 12.2]
+    Renderer:        NVIDIA GeForce RTX 3070 Ti Laptop GPU (ID=0x24e0)
+    Vendor:          NVIDIA
+    VRAM:            8017 MB
+    App VRAM Budget: 7249 MB
+    Driver:          32.0.16.1091
+Initialize mono
+Mono path[0] = 'C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/Managed'
+Mono path[1] = 'C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/BCLExtensions/runtime/netstandard2.1'
+Mono path[2] = 'C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/MonoBleedingEdge/lib/mono/unityjit-win32'
+Mono config path = 'C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/MonoBleedingEdge/etc'
+Using monoOptions --debugger-agent=transport=dt_socket,embedding=1,server=y,suspend=n,address=127.0.0.1:56924
+CodeReloadManager initialized
+ImportWorker Server TCP listen port: 0
+AcceleratorClientConnectionCallback - disconnected - :0
+Begin MonoManager ReloadAssembly
+Registering precompiled unity dll's ...
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/PlaybackEngines/WebGLSupport/UnityEditor.WebGL.Extensions.dll
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport/UnityEditor.WindowsStandalone.Extensions.dll
+[Licensing::Client] Successfully resolved entitlement details
+Register platform support module: C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/PlaybackEngines/AndroidPlayer/UnityEditor.Android.Extensions.dll
+Registered in 0.007288 seconds.
+Native extension for Android target not found
+Native extension for WindowsStandalone target not found
+Native extension for WebGL target not found
+Package Manager log level set to [2]
+ScheduleIndexationOnStartup MainProcess:False IndexOnStartup:False
+Scripting: successfully reloaded assembly
+- Finished resetting the current domain, in  1.246 seconds
+Domain Reload Profiling: 2097ms
+	BeginReloadAssembly (164ms)
+		CreateAndSetChildDomain (17ms)
+	RebuildCommonClasses (7ms)
+	RebuildNativeTypeToScriptingClass (24ms)
+	initialDomainReloadingComplete (104ms)
+	LoadAllAssembliesAndSetupDomain (547ms)
+		LoadAssemblies (141ms)
+		TypeCache.Refresh (365ms)
+			TypeCache.ScanAssembly (343ms)
+		AnalyzeDomain (1ms)
+	FinalizeReload (1251ms)
+		SetupLoadedEditorAssemblies (0ms)
+			InitializePlatformSupportModulesInManaged (13ms)
+			BeforeProcessingInitializeOnLoad (168ms)
+			ProcessInitializeOnLoadAttributes (154ms)
+			ProcessInitializeOnLoadMethodAttributes (542ms)
+[Licensing::Client] Successfully resolved entitlement details
+Application.AssetDatabase Initial Refresh Start
+[Package Manager] Restoring resolved packages state from cache
+[Licensing::Client] Successfully resolved entitlement details
+[Package Manager] Registered 38 packages:
+  Built-in packages:
+    com.unity.modules.accessibility@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.accessibility)
+    com.unity.modules.adaptiveperformance@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.adaptiveperformance)
+    com.unity.modules.ai@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.ai)
+    com.unity.modules.androidjni@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.androidjni)
+    com.unity.modules.animation@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.animation)
+    com.unity.modules.assetbundle@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.assetbundle)
+    com.unity.modules.audio@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.audio)
+    com.unity.modules.director@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.director)
+    com.unity.modules.imageconversion@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.imageconversion)
+    com.unity.modules.imgui@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.imgui)
+    com.unity.modules.jsonserialize@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.jsonserialize)
+    com.unity.modules.particlesystem@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.particlesystem)
+    com.unity.modules.physics@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.physics)
+    com.unity.modules.physics2d@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.physics2d)
+    com.unity.modules.physicscore2d@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.physicscore2d)
+    com.unity.modules.screencapture@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.screencapture)
+    com.unity.modules.terrain@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.terrain)
+    com.unity.modules.terrainphysics@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.terrainphysics)
+    com.unity.modules.tetgen@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.tetgen)
+    com.unity.modules.tilemap@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.tilemap)
+    com.unity.modules.timelinefoundation@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.timelinefoundation)
+    com.unity.modules.ui@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.ui)
+    com.unity.modules.uielements@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.uielements)
+    com.unity.modules.umbra@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.umbra)
+    com.unity.modules.unityanalytics@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.unityanalytics)
+    com.unity.modules.unitywebrequest@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.unitywebrequest)
+    com.unity.modules.unitywebrequestassetbundle@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.unitywebrequestassetbundle)
+    com.unity.modules.unitywebrequestaudio@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.unitywebrequestaudio)
+    com.unity.modules.unitywebrequesttexture@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.unitywebrequesttexture)
+    com.unity.modules.unitywebrequestwww@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.unitywebrequestwww)
+    com.unity.modules.vectorgraphics@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.vectorgraphics)
+    com.unity.modules.video@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.video)
+    com.unity.modules.xr@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.xr)
+    com.unity.modules.subsystems@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.subsystems)
+    com.unity.modules.hierarchycore@1.0.0 (location: E:\DeepseekHarness\OpenSekai\.utmp\review-nov20-web\Library\PackageCache\com.unity.modules.hierarchycore)
+  Local packages:
+    com.cysharp.unitask@file:E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.cysharp.unitask@bf35135da627 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.cysharp.unitask@bf35135da627)
+    com.unity.nuget.newtonsoft-json@file:E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.nuget.newtonsoft-json@4dfd81071c64 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.nuget.newtonsoft-json@4dfd81071c64)
+    com.unity.ugui@file:E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.ugui@eb824e41fbc7 (location: E:\DeepseekHarness\OpenSekai\Library\PackageCache\com.unity.ugui@eb824e41fbc7)
+[Subsystems] No new subsystems found in resolved package list.
+[Package Manager] Done registering packages in 0.06 seconds
+[ScriptCompilation] Requested script compilation because: AssetDatabase observed changes in script compilation related files
+Starting: C:\Program Files\Unity\Hub\Editor\6000.6.7f1\Editor\Data\Tools\BuildPipeline\bee_backend.exe --ipc --defer-dag-verification --dagfile="Library/Bee/2000b0aE.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssemblies
+WorkingDir: E:/DeepseekHarness/OpenSekai/.utmp/review-nov20-web
+DisplayProgressbar: Compiling Scripts
+ExitCode: 0 Duration: 0s956ms
+[267/312    0s] ILPP-Configuration Library/ilpp-configuration.nevergeneratedoutput
+[304/312    0s] Csc Library/Bee/artifacts/2000b0aE.dag/Assembly-CSharp.dll (+2 others)
+[306/312    0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Assembly-CSharp.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Assembly-CSharp.dll, with 124 defines and 293 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+1 processor(s) skipped this assembly
+[307/312    0s] ILPostProcess Library/Bee/artifacts/2000b0aE.dag/post-processed/Assembly-CSharp-Editor.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aE.dag/Assembly-CSharp-Editor.dll, with 122 defines and 312 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+1 processor(s) skipped this assembly
+[310/312    0s] CopyFiles Library/ScriptAssemblies/Assembly-CSharp.pdb
+[311/312    0s] CopyFiles Library/ScriptAssemblies/Assembly-CSharp.dll
+*** Tundra build success (0.91 seconds), 6 items updated, 312 evaluated
+AssetDatabase: script compilation time: 1.951975s
+Begin MonoManager ReloadAssembly
+Symbol file LoadedFromMemory is not a mono symbol file
+Native extension for Android target not found
+Native extension for WindowsStandalone target not found
+Native extension for WebGL target not found
+ScheduleIndexationOnStartup MainProcess:True IndexOnStartup:True
+Scripting: successfully reloaded assembly
+- Finished resetting the current domain, in  0.924 seconds
+Domain Reload Profiling: 1857ms
+	BeginReloadAssembly (384ms)
+		DisableScriptedObjects (39ms)
+		CreateAndSetChildDomain (148ms)
+	RebuildCommonClasses (13ms)
+	RebuildNativeTypeToScriptingClass (22ms)
+	initialDomainReloadingComplete (66ms)
+	LoadAllAssembliesAndSetupDomain (443ms)
+		LoadAssemblies (317ms)
+		TypeCache.Refresh (65ms)
+			TypeCache.ScanAssembly (52ms)
+		AnalyzeDomain (13ms)
+			BuildScriptInfoCaches (9ms)
+	FinalizeReload (928ms)
+		SetupLoadedEditorAssemblies (0ms)
+			InitializePlatformSupportModulesInManaged (12ms)
+			BeforeProcessingInitializeOnLoad (220ms)
+			ProcessInitializeOnLoadAttributes (157ms)
+			ProcessInitializeOnLoadMethodAttributes (122ms)
+			AfterProcessingInitializeOnLoad (30ms)
+		AwakeInstancesAfterBackupRestoration (73ms)
+Starting new worker id: 0 with log in E:/DeepseekHarness/OpenSekai/.utmp/review-nov20-web/Logs/AssetImportWorkerHW0.log
+
+Asset Pipeline Refresh (id=3d710e8a64dfc6347abca6fcf221649a): Total: 4.506 seconds - Initiated by InitialRefreshV2(ForceSynchronousImport)
+	(Values over 0.05ms)
+	Summary:
+		Imports: total=0 (actual=0, local cache=0, cache server=0)
+		Asset DB Process Time: managed=0 ms, native=1333 ms
+		Asset DB Callback time: managed=113 ms, native=72 ms
+		Scripting: domain reloads=1, domain reload time=986 ms, compile time=1961 ms, other=40 ms
+		Project Asset Count: scripts=204, non-scripts=104
+		Asset File Changes: new=0, changed=1, moved=0, deleted=0
+		Scan Filter Count: 0
+	InvokePackagesCallback: 70.246ms
+	ApplyChangesToAssetFolders: 1.716ms
+	Scan: 67.935ms
+	Collect global state as custom dependencies: 25.040ms
+	OnSourceAssetsModified: 1.503ms
+	CategorizeScriptCompilationAssets: 4.789ms
+	ProcessAssetsWithTransientArtifactChanges: 9.444ms
+	CategorizeAssets: 3.165ms
+	CompileScripts: 1960.735ms
+	ImportOutOfDateAssets: 990.162ms (928.772ms without children)
+		UnloadImportedAssets: 1.676ms
+		EnsureUptoDateAssetsAreRegisteredWithGuidPM: 0.117ms
+		ImportSchedulerStart: 59.589ms
+	PostProcessAllAssets: 114.857ms
+		VCAutoAddAssetPostprocess 1.533ms
+		PostProcessCallbackCreateDeferredMaterials 0.069ms
+		MonoPostProcessAllAssets: 112.529ms
+			AssetPostprocessor.OnPostprocessAllAssets 45.223ms
+			WindowAssetPostprocessingWatcher.OnPostprocessAllAssets 12.746ms
+			StyleCatalogPostProcessor.OnPostprocessAllAssets 11.421ms
+			BuilderAssetPostprocessor.OnPostprocessAllAssets 10.314ms
+			SyncVS.PostprocessSyncProject 3.741ms
+			AssetChangedListener.OnPostprocessAllAssets 3.149ms
+			RetainedModeAssetPostprocessor.OnPostprocessAllAssets 2.158ms
+			SpeedTree9Postprocessor.OnPostprocessAllAssets 1.552ms
+			EditModeScopePostprocessor.OnPostprocessAllAssets 1.421ms
+			TextAssetPostProcessor.OnPostprocessAllAssets 1.355ms
+			ArtifactBrowserPostProcessor.OnPostprocessAllAssets 0.871ms
+			ReferencedClipsPostProcessor.OnPostprocessAllAssets 0.457ms
+			AudioMixerPostprocessor.OnPostprocessAllAssets 0.437ms
+			TMPro_TexturePostProcessor.OnPostprocessAllAssets 0.401ms
+			AssetEvents.OnPostprocessAllAssets 0.339ms
+			SpeedTreePostProcessor.OnPostprocessAllAssets 0.325ms
+			TerrainToolbarOverlayPostProcessor.OnPostprocessAllAssets 0.310ms
+			AssetDatabaseCallbacks.OnPostprocessAllAssets 0.287ms
+			ThemePostprocessor.OnPostprocessAllAssets 0.235ms
+			ConfigAssetsTracker.OnPostprocessAllAssets 0.218ms
+			ScenarioDriftAssetsTracker.OnPostprocessAllAssets 0.210ms
+			RenderPipelineGlobalSettingsPostprocessor.OnPostprocessAllAssets 0.147ms
+			AudioContainerPostProcessor.OnPostprocessAllAssets 0.114ms
+	PostAssetChangesProfiler: 4.213ms
+	UnloadStreamsBegin: 3.085ms
+	Untracked: 1238.228ms
+
+Application.AssetDatabase Initial Refresh End
+Launched and connected shader compiler UnityShaderCompiler.exe after 0.02 seconds
+Scanning for USB devices : 2.816ms
+Initializing Unity extensions:
+[MODES] ModeService[none].Initialize
+[MODES] ModeService[none].LoadModes
+[MODES] Loading mode Default (0) for mode-current-id-review-nov20-web
+Unloading 4 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 558 unused Assets / (0.7 MB). Loaded Objects now: 1290.
+Memory consumption went from 230.7 MB to 230.0 MB.
+Total: 7.410200 ms (FindLiveObjects: 0.326500 ms CreateObjectMapping: 0.032800 ms MarkObjects: 6.499100 ms  DeleteObjects: 0.378300 ms)
+
+Asset Pipeline Refresh (id=1b1fd580dd521cf44b76b48973a2290c): Total: 0.070 seconds - Initiated by RefreshV2(NoUpdateAssetOptions)
+
+***Player size statistics***
+Total compressed size 1.5 KB. Total uncompressed size 4.2 KB.
+Unloading 0 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 1 unused Assets / (1.9 KB). Loaded Objects now: 1296.
+Memory consumption went from 230.6 MB to 230.6 MB.
+Total: 5.623400 ms (FindLiveObjects: 0.189300 ms CreateObjectMapping: 0.015100 ms MarkObjects: 5.239400 ms  DeleteObjects: 0.025300 ms)
+
+
+-------------------------------------------------------------------------------
+Bundle Name: WebFixtureBundle
+Compressed Size:1.6 kb
+Uncompressed usage by category (Percentages based on user generated assets only):
+Textures               0.0 kb	 0.0% 
+Meshes                 0.0 kb	 0.0% 
+Animations             0.0 kb	 0.0% 
+Sounds                 0.0 kb	 0.0% 
+Shaders                0.0 kb	 0.0% 
+Other Assets           0.2 kb	 4.2% 
+Levels                 0.0 kb	 0.0% 
+File headers           4.0 kb	 95.8% 
+Total User Assets      4.2 kb	 100.0% 
+Complete build size    4.2 kb
+Used Assets and files from the Resources folder, sorted by uncompressed size:
+ 0.1 kb	 2.4% AssetBundle Object
+ 0.1 kb	 1.8% Built-in AssetBundleManifest: AssetBundleManifest
+-------------------------------------------------------------------------------
+Unloading 0 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 5 unused Assets / (3.6 KB). Loaded Objects now: 1299.
+Memory consumption went from 230.7 MB to 230.7 MB.
+Total: 6.283500 ms (FindLiveObjects: 0.209300 ms CreateObjectMapping: 0.017600 ms MarkObjects: 5.855000 ms  DeleteObjects: 0.030100 ms)
+
+Importing 'GUID: 5666f015de97468419c4dc81d7ba14de - Path: Assets/Review.unity' with importer (DefaultImporter)
+Imported 'GUID: 5666f015de97468419c4dc81d7ba14de' -> (Import Result ID: '95ab91248945ead0bfd3d184c9bd8cfb') in 0.006 seconds [static dependencies only]. Details - ImportResultOutputID=de07b222e30bf425a2f9edb20b9b638b DependenciesID=48d3e9ada334499ba6bf958df9ce87aa StaticDependenciesID=67514cfa80a61f0346597b6366f1f315 
+Asset Pipeline Refresh (id=fe460befe4de39848824ca6220b22bd1): Total: 0.020 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Asset Pipeline Refresh (id=382159e87fccc4a469359fb30de0004f): Total: 0.016 seconds - Initiated by RefreshV2(NoUpdateAssetOptions)
+Importing 'GUID: 00000000000000004000000000000000 - Path: ProjectSettings/ProjectSettings.asset' with importer (LibraryAssetImporter)
+Imported 'GUID: 00000000000000004000000000000000' -> (Import Result ID: '0c24a5462a7186a38cc913b21f253100') in 0.002 seconds [static dependencies only]. Details - ImportResultOutputID=054c890a8f4b6dddbea933bc5e4b7df4 DependenciesID=4e53da891d5ae980c16b2cad8ae88b84 StaticDependenciesID=210d83879c7c30a89dd521336e8288ef 
+Asset Pipeline Refresh (id=5d222c3eed9bc0645811a5aa5dc4b464): Total: 0.009 seconds - Initiated by StopAssetImportingV2(NoUpdateAssetOptions)
+Starting: C:\Program Files\Unity\Hub\Editor\6000.6.7f1\Editor\Data\Tools\BuildPipeline\bee_backend.exe --ipc --defer-dag-verification --dagfile="Library/Bee/2000b0aESkipCompile.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssembliesAndTypeDB
+WorkingDir: E:/DeepseekHarness/OpenSekai/.utmp/review-nov20-web
+ExitCode: 0 Duration: 0s644ms
+[2/3        0s] BuildPlayerDataGenerator Library/BuildPlayerData/Editor/TypeDb-All.json
+*** Tundra build success (0.56 seconds), 1 items updated, 3 evaluated
+Asset Pipeline Refresh (id=92a8c8dafa6d52f428dc9491383c8dec): Total: 0.011 seconds - Initiated by RefreshV2(NoUpdateAssetOptions)
+[ScriptCompilation] Requested script compilation because: Recompiling scripts for player build.
+BuildPlayer: start building target 20
+Starting: C:\Program Files\Unity\Hub\Editor\6000.6.7f1\Editor\Data\Tools\BuildPipeline\bee_backend.exe --ipc --defer-dag-verification --dagfile="Library/Bee/2000b0aP.dag" --continue-on-failure --profile="Library/Bee/backend1.traceevents" ScriptAssembliesAndTypeDB
+WorkingDir: E:/DeepseekHarness/OpenSekai/.utmp/review-nov20-web
+Total cache size 268221923
+Total cache size after purge 268221923, took 00:00:00.7045004
+ExitCode: 0 Duration: 1s689ms
+[144/175    0s] ILPP-Configuration Library/ilpp-configuration.nevergeneratedoutput
+[153/175    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.InternalAPIEngineBridge.004.dll
+[154/175    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/UnityEngine.UI.pdb
+[155/175    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/UniTask.Addressables.pdb
+[156/175    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/UniTask.TextMeshPro.pdb
+[157/175    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/UniTask.pdb
+[158/175    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/UniTask.DOTween.pdb
+[159/175    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/UniTask.Linq.pdb
+[160/175    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/UniTask.DOTween.dll
+[161/175    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/UnityEngine.UI.dll
+[162/175    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.InternalAPIEngineBridge.004.pdb
+[163/175    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.TextMeshPro.pdb
+[164/175    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Unity.TextMeshPro.dll
+[165/175    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/UniTask.TextMeshPro.dll
+[166/175    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/UniTask.Addressables.dll
+[167/175    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/UniTask.dll
+[168/175    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/UniTask.Linq.dll
+[169/175    0s] Csc Library/Bee/artifacts/2000b0aP.dag/Assembly-CSharp.dll (+2 others)
+[170/175    0s] ILPostProcess Library/Bee/artifacts/2000b0aP.dag/post-processed/Assembly-CSharp.dll (+pdb)
+Processing assembly Library/Bee/artifacts/2000b0aP.dag/Assembly-CSharp.dll, with 111 defines and 219 references
+
+processors: zzzUnity.Burst.CodeGen.BurstILPostProcessor
+
+1 processor(s) skipped this assembly
+[171/175    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Assembly-CSharp.pdb
+[172/175    0s] CopyFiles Library/Bee/PlayerScriptAssemblies/Assembly-CSharp.dll
+[174/175    0s] BuildPlayerDataGenerator Library/BuildPlayerData/Player/RuntimeInitializeOnLoads.json (+1 other)
+*** Tundra build success (1.64 seconds), 22 items updated, 175 evaluated
+Rebuilding Data files because Assets/Review.unity is dirty (hash)
+
+
+Mono dependencies included in the build
+Dependency assembly - System.Net.NameResolution.dll
+Dependency assembly - System.IdentityModel.Selectors.dll
+Dependency assembly - System.Security.dll
+Dependency assembly - System.Xml.Serialization.dll
+Dependency assembly - System.Threading.dll
+Dependency assembly - System.Runtime.Serialization.dll
+Dependency assembly - System.Drawing.Primitives.dll
+Dependency assembly - System.Globalization.dll
+Dependency assembly - System.Runtime.Serialization.Xml.dll
+Dependency assembly - Unity.InternalAPIEngineBridge.004.dll
+Dependency assembly - System.Security.Claims.dll
+Dependency assembly - System.Runtime.DurableInstancing.dll
+Dependency assembly - Microsoft.Win32.Registry.AccessControl.dll
+Dependency assembly - System.Linq.Expressions.dll
+Dependency assembly - System.Net.Primitives.dll
+Dependency assembly - System.IO.dll
+Dependency assembly - System.Net.Requests.dll
+Dependency assembly - System.Reflection.dll
+Dependency assembly - System.Globalization.Calendars.dll
+Dependency assembly - System.IO.FileSystem.Watcher.dll
+Dependency assembly - System.Security.SecureString.dll
+Dependency assembly - System.ServiceModel.Activation.dll
+Dependency assembly - System.IO.FileSystem.AccessControl.dll
+Dependency assembly - netstandard.dll
+Dependency assembly - Microsoft.CSharp.dll
+Dependency assembly - System.Memory.dll
+Dependency assembly - UniTask.Addressables.dll
+Dependency assembly - System.AppContext.dll
+Dependency assembly - System.Runtime.Loader.dll
+Dependency assembly - System.Diagnostics.TraceEvent.dll
+Dependency assembly - System.Runtime.InteropServices.WindowsRuntime.dll
+Dependency assembly - Assembly-CSharp.dll
+Dependency assembly - System.Diagnostics.StackTrace.dll
+Dependency assembly - System.Net.WebSockets.Client.dll
+Dependency assembly - Mono.Data.Tds.dll
+Dependency assembly - System.Numerics.Vectors.dll
+Dependency assembly - System.IO.Hashing.dll
+Dependency assembly - System.Globalization.Extensions.dll
+Dependency assembly - System.Reflection.Emit.Lightweight.dll
+Dependency assembly - System.dll
+Dependency assembly - System.Collections.Immutable.dll
+Dependency assembly - System.ServiceProcess.ServiceController.dll
+Dependency assembly - System.Reflection.Context.dll
+Dependency assembly - System.Security.Cryptography.Pkcs.dll
+Dependency assembly - System.Net.Mail.dll
+Dependency assembly - System.Security.Cryptography.Encryption.dll
+Dependency assembly - System.Resources.Reader.dll
+Dependency assembly - System.Xml.dll
+Dependency assembly - System.Diagnostics.TraceSource.dll
+Dependency assembly - System.IdentityModel.dll
+Dependency assembly - System.Reflection.DispatchProxy.dll
+Dependency assembly - System.Xml.XPath.XDocument.dll
+Dependency assembly - System.Design.dll
+Dependency assembly - System.Transactions.dll
+Dependency assembly - System.Xml.XPath.dll
+Dependency assembly - System.Net.WebSockets.dll
+Dependency assembly - System.Net.Utilities.dll
+Dependency assembly - Microsoft.Win32.Primitives.dll
+Dependency assembly - UniTask.Linq.dll
+Dependency assembly - UniTask.TextMeshPro.dll
+Dependency assembly - System.Data.dll
+Dependency assembly - System.Windows.Forms.DataVisualization.dll
+Dependency assembly - I18N.West.dll
+Dependency assembly - System.IO.Pipes.dll
+Dependency assembly - System.IO.Compression.dll
+Dependency assembly - System.Security.Cryptography.Primitives.dll
+Dependency assembly - System.Net.AuthenticationManager.dll
+Dependency assembly - System.ServiceProcess.dll
+Dependency assembly - System.Collections.dll
+Dependency assembly - System.ValueTuple.dll
+Dependency assembly - System.Reflection.Primitives.dll
+Dependency assembly - System.ServiceModel.Duplex.dll
+Dependency assembly - System.ServiceModel.Primitives.dll
+Dependency assembly - System.Resources.Writer.dll
+Dependency assembly - System.Resources.ResourceManager.dll
+Dependency assembly - System.Collections.Specialized.dll
+Dependency assembly - System.ServiceModel.Internals.dll
+Dependency assembly - System.Xml.Linq.dll
+Dependency assembly - System.Runtime.Remoting.dll
+Dependency assembly - System.Web.ApplicationServices.dll
+Dependency assembly - System.Web.Extensions.dll
+Dependency assembly - System.Resources.ReaderWriter.dll
+Dependency assembly - System.Xml.ReaderWriter.dll
+Dependency assembly - System.Messaging.dll
+Dependency assembly - System.Xml.XPath.XmlDocument.dll
+Dependency assembly - System.DirectoryServices.dll
+Dependency assembly - System.IO.FileSystem.DriveInfo.dll
+Dependency assembly - System.IO.UnmanagedMemoryStream.dll
+Dependency assembly - mscorlib.dll
+Dependency assembly - System.Runtime.InteropServices.dll
+Dependency assembly - System.Runtime.Numerics.dll
+Dependency assembly - System.Security.Cryptography.Csp.dll
+Dependency assembly - System.Collections.NonGeneric.dll
+Dependency assembly - System.Security.Cryptography.Hashing.Algorithms.dll
+Dependency assembly - System.Threading.AccessControl.dll
+Dependency assembly - System.Security.Cryptography.Hashing.dll
+Dependency assembly - System.Security.Cryptography.ProtectedData.dll
+Dependency assembly - System.Xml.XmlSerializer.dll
+Dependency assembly - System.Net.Http.dll
+Dependency assembly - System.IO.FileSystem.Primitives.dll
+Dependency assembly - System.Text.Encodings.Web.dll
+Dependency assembly - System.Reflection.Metadata.dll
+Dependency assembly - System.Security.Principal.dll
+Dependency assembly - I18N.Rare.dll
+Dependency assembly - System.Dynamic.Runtime.dll
+Dependency assembly - System.Net.Cache.dll
+Dependency assembly - UniTask.dll
+Dependency assembly - System.Buffers.dll
+Dependency assembly - UniTask.DOTween.dll
+Dependency assembly - I18N.MidEast.dll
+Dependency assembly - System.Security.Cryptography.RandomNumberGenerator.dll
+Dependency assembly - System.Data.Services.dll
+Dependency assembly - System.Configuration.Install.dll
+Dependency assembly - System.Collections.Concurrent.dll
+Dependency assembly - System.Security.AccessControl.dll
+Dependency assembly - Accessibility.dll
+Dependency assembly - System.Data.SqlClient.dll
+Dependency assembly - System.Linq.Queryable.dll
+Dependency assembly - System.Net.ServicePoint.dll
+Dependency assembly - System.ComponentModel.DataAnnotations.dll
+Dependency assembly - System.Diagnostics.Debug.dll
+Dependency assembly - System.Threading.Thread.dll
+Dependency assembly - System.Security.Cryptography.Algorithms.dll
+Dependency assembly - System.Security.Cryptography.OpenSsl.dll
+Dependency assembly - System.Net.Ping.dll
+Dependency assembly - System.Net.Http.WebRequest.dll
+Dependency assembly - System.Runtime.Extensions.dll
+Dependency assembly - System.Xaml.dll
+Dependency assembly - System.Runtime.Serialization.Formatters.dll
+Dependency assembly - System.Configuration.dll
+Dependency assembly - System.Windows.Forms.dll
+Dependency assembly - System.Data.OracleClient.dll
+Dependency assembly - System.Diagnostics.Tracing.dll
+Dependency assembly - System.Data.Common.dll
+Dependency assembly - System.Runtime.InteropServices.RuntimeInformation.dll
+Dependency assembly - System.Linq.Parallel.dll
+Dependency assembly - System.Net.Sockets.dll
+Dependency assembly - System.IO.IsolatedStorage.dll
+Dependency assembly - System.Diagnostics.DiagnosticSource.dll
+Dependency assembly - Mono.Data.Sqlite.dll
+Dependency assembly - System.Net.Security.dll
+Dependency assembly - System.Security.Cryptography.Encoding.dll
+Dependency assembly - System.Data.DataSetExtensions.dll
+Dependency assembly - System.Runtime.Handles.dll
+Dependency assembly - System.Management.dll
+Dependency assembly - UnityEngine.UI.dll
+Dependency assembly - System.IO.FileSystem.dll
+Dependency assembly - Microsoft.Bcl.AsyncInterfaces.dll
+Dependency assembly - System.Net.HttpListener.dll
+Dependency assembly - System.ServiceModel.Http.dll
+Dependency assembly - System.Numerics.dll
+Dependency assembly - System.Web.Extensions.Design.dll
+Dependency assembly - System.IO.Compression.FileSystem.dll
+Dependency assembly - System.Security.Cryptography.X509Certificates.dll
+Dependency assembly - System.ServiceModel.dll
+Dependency assembly - System.Net.NetworkInformation.dll
+Dependency assembly - System.Text.Encoding.Extensions.dll
+Dependency assembly - System.IO.Compression.ZipFile.dll
+Dependency assembly - System.ComponentModel.Primitives.dll
+Dependency assembly - System.Data.Services.Client.dll
+Dependency assembly - System.Web.Services.dll
+Dependency assembly - System.Runtime.CompilerServices.Unsafe.dll
+Dependency assembly - System.Linq.dll
+Dependency assembly - System.Runtime.dll
+Dependency assembly - I18N.dll
+Dependency assembly - System.Xml.XDocument.dll
+Dependency assembly - Unity.TextMeshPro.dll
+Dependency assembly - System.Diagnostics.Process.dll
+Dependency assembly - System.Security.Cryptography.Encryption.ECDiffieHellman.dll
+Dependency assembly - System.Text.Json.dll
+Dependency assembly - System.EnterpriseServices.dll
+Dependency assembly - System.Text.Encoding.dll
+Dependency assembly - System.ComponentModel.EventBasedAsync.dll
+Dependency assembly - System.Reflection.Emit.dll
+Dependency assembly - System.Runtime.Caching.dll
+Dependency assembly - System.Console.dll
+Dependency assembly - System.ComponentModel.Composition.dll
+Dependency assembly - System.DirectoryServices.Protocols.dll
+Dependency assembly - System.Web.RegularExpressions.dll
+Dependency assembly - System.ServiceModel.Security.dll
+Dependency assembly - System.Diagnostics.FileVersionInfo.dll
+Dependency assembly - System.Data.Entity.dll
+Dependency assembly - System.Core.dll
+Dependency assembly - System.Web.dll
+Dependency assembly - System.Net.WebHeaderCollection.dll
+Dependency assembly - System.Windows.dll
+Dependency assembly - System.Reflection.TypeExtensions.dll
+Dependency assembly - System.ServiceModel.Routing.dll
+Dependency assembly - System.Security.Cryptography.Encryption.Aes.dll
+Dependency assembly - System.Threading.Tasks.dll
+Dependency assembly - System.ServiceModel.Discovery.dll
+Dependency assembly - System.Xml.Xsl.Primitives.dll
+Dependency assembly - System.Text.Encoding.CodePages.dll
+Dependency assembly - I18N.CJK.dll
+Dependency assembly - System.ObjectModel.dll
+Dependency assembly - System.Text.RegularExpressions.dll
+Dependency assembly - System.Threading.Tasks.Extensions.dll
+Dependency assembly - System.Drawing.Design.dll
+Dependency assembly - System.Json.dll
+Dependency assembly - Mono.Security.dll
+Dependency assembly - I18N.Other.dll
+Dependency assembly - System.Reflection.Extensions.dll
+Dependency assembly - System.Threading.Timer.dll
+Dependency assembly - System.Runtime.Serialization.Json.dll
+Dependency assembly - System.Threading.Overlapped.dll
+Dependency assembly - System.Drawing.dll
+Dependency assembly - System.ServiceModel.NetTcp.dll
+Dependency assembly - System.Threading.Tasks.Parallel.dll
+Dependency assembly - System.Diagnostics.Tools.dll
+Dependency assembly - System.Web.DynamicData.dll
+Dependency assembly - System.Diagnostics.Contracts.dll
+Dependency assembly - System.Security.Cryptography.Encryption.ECDsa.dll
+Dependency assembly - System.Net.dll
+Dependency assembly - System.ComponentModel.Annotations.dll
+Dependency assembly - System.Reflection.Emit.ILGeneration.dll
+Dependency assembly - System.ServiceModel.Web.dll
+Dependency assembly - System.Runtime.Serialization.Primitives.dll
+Dependency assembly - System.Security.Cryptography.DeriveBytes.dll
+Dependency assembly - Newtonsoft.Json.dll
+Dependency assembly - System.Security.Cryptography.RSA.dll
+Dependency assembly - Microsoft.Extensions.Logging.Abstractions.dll
+Dependency assembly - Microsoft.Extensions.DependencyInjection.Abstractions.dll
+Dependency assembly - System.Security.Principal.Windows.dll
+Dependency assembly - System.Data.Linq.dll
+Dependency assembly - System.Diagnostics.TextWriterTraceListener.dll
+Dependency assembly - System.Runtime.Serialization.Formatters.Soap.dll
+Dependency assembly - Microsoft.Win32.Registry.dll
+Dependency assembly - System.Security.Cryptography.Cng.dll
+Dependency assembly - System.Threading.ThreadPool.dll
+Dependency assembly - System.Runtime.CompilerServices.VisualC.dll
+Dependency assembly - System.IO.MemoryMappedFiles.dll
+Dependency assembly - System.ComponentModel.TypeConverter.dll
+Dependency assembly - System.Xml.XmlDocument.dll
+Dependency assembly - System.ComponentModel.dll
+
+Opening scene 'Assets/Review.unity'
+Unloading 2 Unused Serialized files (Serialized files now loaded: 0)
+Loaded scene 'Assets/Review.unity'
+	Deserialize:            0.840 ms
+	Integration:            8.082 ms
+	Integration of assets:  0.003 ms
+	Thread Wait Time:       34.316 ms
+	Total Operation Time:   43.241 ms
+Unloading 26 unused Assets / (0.9 MB). Loaded Objects now: 1313.
+Memory consumption went from 245.1 MB to 244.2 MB.
+Total: 10.018800 ms (FindLiveObjects: 0.347700 ms CreateObjectMapping: 0.027500 ms MarkObjects: 8.939800 ms  DeleteObjects: 0.480900 ms)
+
+Unloading 2 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 20 unused Assets / (0.9 MB). Loaded Objects now: 1310.
+Memory consumption went from 242.7 MB to 241.8 MB.
+Total: 9.564300 ms (FindLiveObjects: 0.298800 ms CreateObjectMapping: 0.020300 ms MarkObjects: 8.607700 ms  DeleteObjects: 0.391400 ms)
+
+Unloading 0 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 0 unused Assets / (Unknown). Loaded Objects now: 1310.
+Memory consumption went from 241.8 MB to 241.8 MB.
+Total: 9.658100 ms (FindLiveObjects: 0.275600 ms CreateObjectMapping: 0.023900 ms MarkObjects: 9.125200 ms  DeleteObjects: 0.006900 ms)
+
+Unloading 1 Unused Serialized files (Serialized files now loaded: 0)
+Total cache size 268221923
+Total cache size after purge 268221923, took 00:00:00.6057678
+Unloading 180 unused Assets / (149.7 MB). Loaded Objects now: 1310.
+Memory consumption went from 392.7 MB to 243.1 MB.
+Total: 22.625500 ms (FindLiveObjects: 0.267700 ms CreateObjectMapping: 0.027500 ms MarkObjects: 7.957100 ms  DeleteObjects: 14.154700 ms)
+
+Compiling shader "Skybox/Procedural"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         3
+    After settings filtering:   3
+    After built-in stripping:   3
+    After scriptable stripping: 3
+    Processed in 0.01 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 3 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Skybox/Procedural in 0.00s
+    gles3 (total internal programs: 3, unique: 3)
+Compiling shader "Legacy Shaders/VertexLit"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         12
+    After settings filtering:   12
+    After built-in stripping:   3
+    After scriptable stripping: 3
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         4
+    After settings filtering:   4
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "ShadowCaster" (vp)
+    Target graphics API: gles3
+    Full variant space:         4
+    After settings filtering:   4
+    After built-in stripping:   2
+    After scriptable stripping: 2
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 3 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass ShadowCaster (vp, gles3) finished in 0.00 seconds. Local cache hits 2 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Legacy Shaders/VertexLit in 0.00s
+    gles3 (total internal programs: 6, unique: 6)
+Compiling shader "Legacy Shaders/Diffuse"
+  Pass "FORWARD" (vp)
+    Target graphics API: gles3
+    Full variant space:         664
+    After settings filtering:   664
+    After built-in stripping:   8
+    After scriptable stripping: 8
+    Processed in 0.00 seconds
+  Pass "FORWARD" (vp)
+    Target graphics API: gles3
+    Full variant space:         20
+    After settings filtering:   20
+    After built-in stripping:   5
+    After scriptable stripping: 5
+    Processed in 0.00 seconds
+  Pass "DEFERRED" (vp)
+    Target graphics API: gles3
+    Full variant space:         76
+    After settings filtering:   76
+    After built-in stripping:   4
+    After scriptable stripping: 4
+    Processed in 0.00 seconds
+  Pass FORWARD (vp, gles3) finished in 0.00 seconds. Local cache hits 8 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass FORWARD (vp, gles3) finished in 0.00 seconds. Local cache hits 5 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass DEFERRED (vp, gles3) finished in 0.00 seconds. Local cache hits 4 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Legacy Shaders/Diffuse in 0.00s
+    gles3 (total internal programs: 17, unique: 17)
+Compiling shader "Hidden/Internal-StencilWrite"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Internal-StencilWrite in 0.00s
+    gles3 (total internal programs: 1, unique: 1)
+Compiling shader "Hidden/Internal-DepthNormalsTexture"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Internal-DepthNormalsTexture in 0.00s
+    gles3 (total internal programs: 10, unique: 10)
+Compiling shader "Hidden/Internal-ScreenSpaceShadows"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         4
+    After settings filtering:   4
+    After built-in stripping:   4
+    After scriptable stripping: 4
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         4
+    After settings filtering:   4
+    After built-in stripping:   4
+    After scriptable stripping: 4
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         4
+    After settings filtering:   4
+    After built-in stripping:   4
+    After scriptable stripping: 4
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         4
+    After settings filtering:   4
+    After built-in stripping:   4
+    After scriptable stripping: 4
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 4 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 4 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 4 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 4 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Internal-ScreenSpaceShadows in 0.00s
+    gles3 (total internal programs: 16, unique: 16)
+Compiling shader "Hidden/Internal-CombineDepthNormals"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Internal-CombineDepthNormals in 0.00s
+    gles3 (total internal programs: 1, unique: 1)
+Compiling shader "Hidden/BlitCopy"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/BlitCopy in 0.00s
+    gles3 (total internal programs: 1, unique: 1)
+Compiling shader "Hidden/BlitCopyDepth"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/BlitCopyDepth in 0.00s
+    gles3 (total internal programs: 1, unique: 1)
+Compiling shader "Hidden/ConvertTexture"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/ConvertTexture in 0.00s
+    gles3 (total internal programs: 1, unique: 1)
+Compiling shader "Hidden/Internal-DeferredShading"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         94
+    After settings filtering:   94
+    After built-in stripping:   26
+    After scriptable stripping: 26
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 26 (0.03s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Internal-DeferredShading in 0.00s
+    gles3 (total internal programs: 27, unique: 27)
+Compiling shader "Hidden/Internal-DeferredReflections"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         2
+    After settings filtering:   2
+    After built-in stripping:   2
+    After scriptable stripping: 2
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 2 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Internal-DeferredReflections in 0.00s
+    gles3 (total internal programs: 3, unique: 3)
+Compiling shader "Hidden/Internal-MotionVectors"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Internal-MotionVectors in 0.00s
+    gles3 (total internal programs: 3, unique: 3)
+Compiling shader "Hidden/Internal-Flare"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Internal-Flare in 0.00s
+    gles3 (total internal programs: 1, unique: 1)
+Compiling shader "Hidden/Internal-Halo"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         4
+    After settings filtering:   4
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Internal-Halo in 0.00s
+    gles3 (total internal programs: 1, unique: 1)
+Compiling shader "Hidden/BlitCopyWithDepth"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/BlitCopyWithDepth in 0.00s
+    gles3 (total internal programs: 1, unique: 1)
+Compiling shader "Hidden/BlitToDepth"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/BlitToDepth in 0.00s
+    gles3 (total internal programs: 1, unique: 1)
+Compiling shader "Hidden/BlitToDepth_MSAA"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/BlitToDepth_MSAA in 0.00s
+    gles3 (total internal programs: 1, unique: 1)
+Compiling shader "Hidden/BlitCopyHDRTonemap"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/BlitCopyHDRTonemap in 0.00s
+    gles3 (total internal programs: 1, unique: 1)
+Compiling shader "Hidden/Internal-DebugPattern"
+  Pass "Target Color and DepthStencil" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "Target only Color" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "Target only DepthStencil" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass Target Color and DepthStencil (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass Target only Color (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass Target only DepthStencil (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Internal-DebugPattern in 0.00s
+    gles3 (total internal programs: 3, unique: 3)
+Compiling shader "Hidden/Internal-GUITextureClip"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Internal-GUITextureClip in 0.00s
+    gles3 (total internal programs: 2, unique: 1)
+Compiling shader "Hidden/Internal-GUITextureClipText"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Internal-GUITextureClipText in 0.00s
+    gles3 (total internal programs: 2, unique: 1)
+Compiling shader "Hidden/Internal-GUITexture"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Internal-GUITexture in 0.00s
+    gles3 (total internal programs: 2, unique: 1)
+Compiling shader "Hidden/Internal-GUITextureBlit"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Internal-GUITextureBlit in 0.00s
+    gles3 (total internal programs: 2, unique: 1)
+Compiling shader "Hidden/Internal-GUIRoundedRect"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Internal-GUIRoundedRect in 0.00s
+    gles3 (total internal programs: 2, unique: 1)
+Compiling shader "Hidden/Internal-GUIRoundedRectWithColorPerBorder"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Internal-GUIRoundedRectWithColorPerBorder in 0.00s
+    gles3 (total internal programs: 2, unique: 1)
+Compiling shader "Hidden/Internal-UIRDefault"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         40
+    After settings filtering:   40
+    After built-in stripping:   40
+    After scriptable stripping: 40
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 40 (0.04s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Internal-UIRDefault in 0.00s
+    gles3 (total internal programs: 40, unique: 40)
+Compiling shader "Hidden/Internal-UIRAtlasBlitCopy"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Internal-UIRAtlasBlitCopy in 0.00s
+    gles3 (total internal programs: 1, unique: 1)
+Compiling shader "Sprites/Default"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         8
+    After settings filtering:   8
+    After built-in stripping:   4
+    After scriptable stripping: 4
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 4 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Sprites/Default in 0.00s
+    gles3 (total internal programs: 4, unique: 4)
+Compiling shader "Sprites/Mask"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         4
+    After settings filtering:   4
+    After built-in stripping:   4
+    After scriptable stripping: 4
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 4 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Sprites/Mask in 0.00s
+    gles3 (total internal programs: 4, unique: 4)
+Compiling shader "UI/Default"
+  Pass "Default" (vp)
+    Target graphics API: gles3
+    Full variant space:         4
+    After settings filtering:   4
+    After built-in stripping:   4
+    After scriptable stripping: 4
+    Processed in 0.00 seconds
+  Pass "XRMotionVectors" (vp)
+    Target graphics API: gles3
+    Full variant space:         4
+    After settings filtering:   4
+    After built-in stripping:   4
+    After scriptable stripping: 4
+    Processed in 0.00 seconds
+  Pass Default (vp, gles3) finished in 0.00 seconds. Local cache hits 4 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass XRMotionVectors (vp, gles3) finished in 0.00 seconds. Local cache hits 4 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader UI/Default in 0.00s
+    gles3 (total internal programs: 8, unique: 8)
+Compiling shader "UI/DefaultETC1"
+  Pass "Default" (vp)
+    Target graphics API: gles3
+    Full variant space:         4
+    After settings filtering:   4
+    After built-in stripping:   4
+    After scriptable stripping: 4
+    Processed in 0.00 seconds
+  Pass "XRMotionVectors" (vp)
+    Target graphics API: gles3
+    Full variant space:         4
+    After settings filtering:   4
+    After built-in stripping:   4
+    After scriptable stripping: 4
+    Processed in 0.00 seconds
+  Pass Default (vp, gles3) finished in 0.00 seconds. Local cache hits 4 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass XRMotionVectors (vp, gles3) finished in 0.00 seconds. Local cache hits 4 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader UI/DefaultETC1 in 0.00s
+    gles3 (total internal programs: 8, unique: 8)
+Compiling shader "Hidden/CubeBlur"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/CubeBlur in 0.00s
+    gles3 (total internal programs: 2, unique: 2)
+Compiling shader "Hidden/CubeCopy"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/CubeCopy in 0.00s
+    gles3 (total internal programs: 2, unique: 1)
+Compiling shader "Hidden/CubeBlend"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/CubeBlend in 0.00s
+    gles3 (total internal programs: 2, unique: 1)
+Compiling shader "Hidden/VR/BlitTexArraySlice"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/VR/BlitTexArraySlice in 0.00s
+    gles3 (total internal programs: 1, unique: 1)
+Compiling shader "Hidden/Internal-ODSWorldTexture"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.01 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.01 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.01 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.01 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Internal-ODSWorldTexture in 0.00s
+    gles3 (total internal programs: 10, unique: 9)
+Compiling shader "Hidden/Internal-CubemapToEquirect"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Internal-CubemapToEquirect in 0.00s
+    gles3 (total internal programs: 1, unique: 1)
+Compiling shader "Hidden/VR/BlitFromTex2DToTexArraySlice"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/VR/BlitFromTex2DToTexArraySlice in 0.00s
+    gles3 (total internal programs: 2, unique: 2)
+Compiling shader "Hidden/VideoComposite"
+  Pass "Default" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass Default (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/VideoComposite in 0.00s
+    gles3 (total internal programs: 1, unique: 1)
+Compiling shader "Hidden/TextCore/Distance Field SSD"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         1
+    After settings filtering:   1
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/TextCore/Distance Field SSD in 0.00s
+    gles3 (total internal programs: 1, unique: 1)
+Compiling shader "Hidden/Physics2D/SDF_CircleGeometry"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         2
+    After settings filtering:   2
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Physics2D/SDF_CircleGeometry in 0.00s
+    gles3 (total internal programs: 1, unique: 1)
+Compiling shader "Hidden/Physics2D/SDF_CapsuleGeometry"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         2
+    After settings filtering:   2
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Physics2D/SDF_CapsuleGeometry in 0.00s
+    gles3 (total internal programs: 1, unique: 1)
+Compiling shader "Hidden/Physics2D/SDF_PolygonGeometry"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         2
+    After settings filtering:   2
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Physics2D/SDF_PolygonGeometry in 0.00s
+    gles3 (total internal programs: 1, unique: 1)
+Compiling shader "Hidden/Physics2D/SDF_Line"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         2
+    After settings filtering:   2
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Physics2D/SDF_Line in 0.00s
+    gles3 (total internal programs: 1, unique: 1)
+Compiling shader "Hidden/Physics2D/SDF_Point"
+  Pass "" (vp)
+    Target graphics API: gles3
+    Full variant space:         2
+    After settings filtering:   2
+    After built-in stripping:   1
+    After scriptable stripping: 1
+    Processed in 0.00 seconds
+  Pass  (vp, gles3) finished in 0.00 seconds. Local cache hits 1 (0.00s CPU time), remote cache hits 0 (0.00s CPU time), compiled 0 variants (0.00s CPU time), skipped 0 variants.
+    Prepared data for serialisation in 0.00s
+Serialized binary data for shader Hidden/Physics2D/SDF_Point in 0.00s
+    gles3 (total internal programs: 1, unique: 1)
+
+***Player size statistics***
+Level 0 'Assets/Review.unity' uses 369.0 KB compressed / 3.7 MB uncompressed.
+Total compressed size 369.4 KB. Total uncompressed size 3.7 MB.
+SpriteAtlasDatabase::Cleanup
+Worker ready: AssetImportWorkerHW0 0
+Starting: C:\Program Files\Unity\Hub\Editor\6000.6.7f1\Editor\Data\Tools\BuildPipeline\bee_backend.exe --ipc --dagfile="Library/Bee/Player7602eccc.dag" --profile="Library/Bee/backend1.traceevents" Player
+WorkingDir: E:/DeepseekHarness/OpenSekai/.utmp/review-nov20-web
+DisplayProgressbar: Incremental Player Build
+[ 10/403    0s] CopyFiles WebOut/StreamingAssets/data/AssetBundleInfo.bytes
+[           0s] ComputeLeafInputSignature Lib_WebGL_wasm Library/Bee/artifacts/WebGL/il2cpp/release_WebGL_wasm/il2cpp.a [pending dependencies]
+[           0s] ComputeLeafInputSignature Lib_WebGL_wasm Library/Bee/artifacts/WebGL/il2cpp/release_WebGL_wasm/il2cpp.a [success 376c9ed3b8dc0a0550a7b58c5c079922]
+[ 13/404    0s] AddBootConfigGUID Library/Bee/artifacts/WebGL/boot.config
+[BUSY       6s] UnityLinker E:/DeepseekHarness/OpenSekai/.utmp/review-nov20-web/Library/Bee/artifacts/unitylinker_ber2.traceevents
+[ 14/404   11s] UnityLinker E:/DeepseekHarness/OpenSekai/.utmp/review-nov20-web/Library/Bee/artifacts/unitylinker_ber2.traceevents
+C:\Program Files\Unity\Hub\Editor\6000.6.7f1\Editor\Data\il2cpp\build\deploy\UnityLinker.exe @Library\Bee\artifacts\rsp\454632372188891695.rsp
+[ 19/404    0s] CopyFiles Temp/EditorBuildOutput/UnityLinkerToEditorData.json
+[BUSY       6s] IL2CPP_CodeGen E:/DeepseekHarness/OpenSekai/.utmp/review-nov20-web/Library/Bee/artifacts/il2cpp_conv_ydpa.traceevents
+[ 20/404   10s] IL2CPP_CodeGen E:/DeepseekHarness/OpenSekai/.utmp/review-nov20-web/Library/Bee/artifacts/il2cpp_conv_ydpa.traceevents
+C:\Program Files\Unity\Hub\Editor\6000.6.7f1\Editor\Data\il2cpp\build\deploy\il2cpp.exe --convert-to-cpp --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/Assembly-CSharp.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/Mono.Security.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/mscorlib.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/Newtonsoft.Json.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/System.Configuration.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/System.Core.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/System.Data.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/System.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/System.Drawing.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/System.Numerics.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/System.Runtime.CompilerServices.Unsafe.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/System.Runtime.Serialization.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/System.Xml.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/System.Xml.Linq.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UniTask.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/Unity.Scripting.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.AnimationModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.AssetBundleModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.AudioModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.BurstModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.ContentLoadModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.CoreModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.GridModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.HierarchyCoreModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.IMGUIModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.InputForUIModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.InputLegacyModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.MathematicsModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.ParticleSystemModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.Physics2DModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.PhysicsModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.PropertiesModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.ScriptingModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.SpriteShapeModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.TextCoreFontEngineModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.TextCoreTextEngineModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.TextRenderingModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.TilemapModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.U2DRuntimeModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.UI.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.UIElementsModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.UIModule.dll --assembly=Library/Bee/artifacts/WebGL/ManagedStripped/UnityEngine.UnityWebRequestModule.dll --generatedcppdir=E:/DeepseekHarness/OpenSekai/.utmp/review-nov20-web/Library/Bee/artifacts/WebGL/il2cppOutput/cpp --symbols-folder=E:/DeepseekHarness/OpenSekai/.utmp/review-nov20-web/Library/Bee/artifacts/WebGL/il2cppOutput/cpp/Symbols --enable-analytics --emit-method-map --dotnetprofile=unityaot-linux --usymtool-path=C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/Tools\usymtool.exe --profiler-report --profiler-output-file=E:/DeepseekHarness/OpenSekai/.utmp/review-nov20-web/Library/Bee/artifacts/il2cpp_conv_ydpa.traceevents --print-command-line --static-lib-il2-cpp --data-folder=E:/DeepseekHarness/OpenSekai/.utmp/review-nov20-web/Library/Bee/artifacts/WebGL/il2cppOutput/data
+[358/404    0s] CopyFiles E:/DeepseekHarness/OpenSekai/.utmp/review-nov20-web/Library/Bee/artifacts/WebGL/il2cppOutput/build/Data/Resources/System.Data.dll-resources.dat
+[359/404    0s] CopyFiles E:/DeepseekHarness/OpenSekai/.utmp/review-nov20-web/Library/Bee/artifacts/WebGL/il2cppOutput/build/Data/Resources/Newtonsoft.Json.dll-resources.dat
+[375/404    0s] CopyFiles E:/DeepseekHarness/OpenSekai/.utmp/review-nov20-web/Library/Bee/artifacts/WebGL/il2cppOutput/build/Data/Resources/mscorlib.dll-resources.dat
+[376/404    0s] CopyFiles E:/DeepseekHarness/OpenSekai/.utmp/review-nov20-web/Library/Bee/artifacts/WebGL/il2cppOutput/build/Data/Resources/System.Drawing.dll-resources.dat
+[377/404    0s] CopyFiles E:/DeepseekHarness/OpenSekai/.utmp/review-nov20-web/Library/Bee/artifacts/WebGL/il2cppOutput/build/Data/Metadata/global-metadata.dat
+[379/404    0s] CopyFiles Temp/EditorBuildOutput/MethodMap.tsv
+[380/404    0s] Assemble WebGL Data Library/Bee/artifacts/WebGL/webgl.data
+[381/404    0s] CopyFiles WebOut/Build/WebOut.data
+[382/404    4s] C_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/ubeytf4pdg6n.o
+[383/404    1s] Lib_WebGL_wasm Library/Bee/artifacts/WebGL/GameAssembly/release_WebGL_wasm/GameAssembly.a
+[384/404    0s] CopyFiles E:/DeepseekHarness/OpenSekai/.utmp/review-nov20-web/Library/Bee/artifacts/WebGL/il2cppOutput/build/GameAssembly.a
+[BUSY       6s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY      17s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY      27s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY      37s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY      47s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY      57s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY      67s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY      77s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY      87s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY      97s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY     107s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY     117s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY     127s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY     138s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY     148s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY     158s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY     168s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY     178s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY     188s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY     198s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY     208s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY     218s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY     228s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[BUSY     238s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+[385/404   246s] Link_WebGL_wasm Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.js (+wasm)
+warning: C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/lib/lib_webgpu.js:7: #warning "Firefox browser before version 149 has issues with WebGPU (e.g. https://bugzil.la/2023423 )"
+warning: C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/lib/lib_webgpu.js:11: #warning "Firefox browser before version 152 has issues with WebGPU .mapAsync() function: https://bugzil.la/2023418"
+warning: C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/lib/lib_webgpu.js:7: #warning "Firefox browser before version 149 has issues with WebGPU (e.g. https://bugzil.la/2023423 )"
+warning: C:/Program Files/Unity/Hub/Editor/6000.6.7f1/Editor/Data/PlaybackEngines/WebGLSupport/BuildTools/lib/lib_webgpu.js:11: #warning "Firefox browser before version 152 has issues with WebGPU .mapAsync() function: https://bugzil.la/2023418"
+warning: JS library symbol '$stackTrace' is deprecated. Please open a bug if you have a continuing need for this symbol [-Wdeprecated]
+emcc: warning: warnings in JS library compilation [-Wjs-compiler]
+[386/404    0s] CopyFiles WebOut/Build/WebOut.wasm
+[387/404    0s] Merging JavaScript Code Library/Bee/artifacts/WebGL/build/debug_WebGL_wasm/build.framework.js
+[388/404    0s] CopyFiles WebOut/Build/WebOut.framework.js
+[402/404    0s] PreprocessJS Library/Bee/artifacts/WebGLWebOut.loader.js
+[403/404    0s] CopyFiles WebOut/Build/WebOut.loader.js
+*** Tundra build success (274.89 seconds - 0:04:34), 22 items updated, 404 evaluated
+ExitCode: 0 Duration: 4m:34s
+[websockify wrapper] Start node and websockify.js
+
+-------------------------------------------------------------------------------
+Build Report
+Uncompressed usage by category (Percentages based on user generated assets only):
+Textures               3.2 mb	 98.5% 
+Meshes                 0.0 kb	 0.0% 
+Animations             0.0 kb	 0.0% 
+Sounds                 0.0 kb	 0.0% 
+Shaders                7.1 kb	 0.2% 
+Other Assets           2.7 kb	 0.1% 
+Levels                 0.0 kb	 0.0% 
+File headers           10.5 kb	 0.3% 
+Total User Assets      3.2 mb	 100.0% 
+Complete build size    80.4 mb
+Used Assets and files from the Resources folder, sorted by uncompressed size:
+ 2.7 mb	 3.3% Built-in Texture2D: Splash Screen Unity Logo
+ 519.8 kb	 0.6% Resources/unity_builtin_extra
+ 1.3 kb	 0.0% Assets/Review.unity
+ 0.4 kb	 0.0% Built-in Sprite: 
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/External/TextMeshPro/TextMeshProAsyncExtensions.InputField.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/CompilerServices/AsyncUniTaskVoidMethodBuilder.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UnityAsyncExtensions.AsyncInstantiate.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/EventSystem/UIElements/UIToolkitInteroperabilityBridge.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/CompilerServices/AsyncUniTaskMethodBuilder.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/CancellationTokenSourceExtensions.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/CancellationTokenEqualityComparer.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_SpriteAssetImportFormats.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UnityAsyncExtensions.AssetBundleRequestAllAssets.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Internal/UnityWebRequestExtensions.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/External/TextMeshPro/TextMeshProAsyncExtensions.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Layout/HorizontalOrVerticalLayoutGroup.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UniTaskSynchronizationContext.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Triggers/MonoBehaviourMessagesTriggers.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Internal/RuntimeHelpersAbstraction.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/CompilerServices/AsyncMethodBuilderAttribute.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_DynamicFontAssetUtilities.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UnityAsyncExtensions.AsyncGPUReadback.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/EventSystem/UIElements/WorldDocumentRaycaster.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/EventSystem/InputModules/StandaloneInputModule.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UnityAsyncExtensions.MonoBehaviour.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UniTaskObservableExtensions.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Triggers/AsyncTriggerExtensions.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/ToUniTaskAsyncEnumerable.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/AsUniTaskAsyncEnumerable.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Internal/UnityEqualityComparer.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Internal/DiagnosticsExtensions.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/EnumeratorAsyncExtensions.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/EnumerableAsyncExtensions.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/CompilerServices/StateMachineRunner.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/CancellationTokenExtensions.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_ScrollbarEventHandler.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_PackageResourceImporter.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/InternalBridge/ObjectUtilsBridge.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/UnityExtensions/EveryValueChanged.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/TakeUntilCanceled.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/SkipUntilCanceled.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/DistinctUntilChanged.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Utility/ReflectionMethodsCache.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/MultipleDisplayUtilities.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Layout/HorizontalLayoutGroup.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/IGraphicEnabledDisabled.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/GraphicRebuildTracker.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Culling/RectangularVertexClipper.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/EventSystem/UIElements/PanelEventHandler.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/EventSystem/Raycasters/Physics2DRaycaster.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/EventSystem/InputModules/PointerInputModule.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UnityWebRequestException.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UnityBindingExtensions.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UnityAwaitableExtensions.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UnityAsyncExtensions.uGUI.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UnityAsyncExtensions.Jobs.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UniTaskExtensions.Shorthand.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UniTaskCompletionSource.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UniTask.AsValueTask.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Triggers/AsyncStartTrigger.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Triggers/AsyncDestroyTrigger.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Triggers/AsyncAwakeTrigger.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/DefaultIfEmpty.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/CombineLatest.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/AppendPrepend.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Internal/ContinuationQueue.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Animation/CoroutineTween.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/EventSystem/EventInterfaces.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMPro_ExtensionMethods.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_TextParsingUtilities.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_TextElement_Legacy.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_FontAssetUtilities.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/MaterialReferenceManager.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/FontFeatureCommonGSUB.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/ToObservable.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/TakeWhile.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/TakeUntil.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/SkipWhile.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/SkipUntil.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/SelectMany.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Intersect.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/GroupJoin.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/SetPropertyUtility.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/MaterialModifiers/IMaterialModifier.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Layout/VerticalLayoutGroup.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Layout/ContentSizeFitter.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Layout/AspectRatioFitter.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/FontUpdateTracker.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/CanvasUpdateRegistry.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/AnimationTriggers.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/EventSystem/UIElements/PanelRaycaster.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/EventSystem/Raycasters/PhysicsRaycaster.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/EventSystem/Raycasters/BaseRaycaster.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/EventSystem/RaycasterManager.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/EventSystem/RaycastResult.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/EventSystem/InputModules/TouchInputModule.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/EventSystem/InputModules/BaseInputModule.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/EventSystem/ExecuteEvents.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/EventSystem/EventData/PointerEventData.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/EventSystem/EventData/BaseEventData.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/EventSystem/EventData/AxisEventData.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_TextProcessingStack.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_FontFeaturesCommon.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UnityAsyncExtensions.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UniTaskExtensions.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/TimeoutController.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Where.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Union.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Throw.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/TakeLast.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/SkipLast.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Single.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/SequenceEqual.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Select.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Reverse.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Return.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Repeat.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Queue.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Publish.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Pairwise.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/OrderBy.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/OfType.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Never.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/MinMax.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Merge.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/GroupBy.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Except.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Empty.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Distinct.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Create.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Concat.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Buffer.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Internal/ValueStopwatch.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Internal/PlayerLoopRunner.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Internal/ArrayPoolUtil.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/ExceptionExtensions.cs
+ 0.1 kb	 0.0% Assets/AssetBundleMetaManager.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMPro_EventManager.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_UpdateRegistery.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_UpdateManager.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_TextUtilities.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_TextProcessingCommon.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_SpriteCharacter.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_SpriteAnimator.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_SelectionCaret.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_ResourcesManager.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_MaterialManager.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_InputValidator.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_FontFeatureTable.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_DefaultControls.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_Compatibility.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_ColorGradient.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_CharacterInfo.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/ITextPreProcessor.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/FontFeatureCommonGPOS.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/InternalBridge/TMPHelpURL.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UniTask.WhenAny.Generated.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UniTask.WhenAll.Generated.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Zip.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Take.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Skip.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Join.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Do.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Cast.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/VertexModifiers/PositionAsUV1.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/VertexModifiers/IMeshModifier.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/VertexModifiers/BaseMeshEffect.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/StencilMaterial.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/RaycastReceiver.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/MaskableGraphic.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/MaskUtilities.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Layout/LayoutUtility.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Layout/LayoutRebuilder.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Layout/LayoutElement.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Layout/ILayoutElement.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Layout/GridLayoutGroup.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/GraphicRegistry.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/GraphicRaycaster.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/DefaultControls.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Culling/ClipperRegistry.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/EventSystem/UIBehaviour.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/EventSystem/InputModules/BaseInput.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/EventSystem/EventTrigger.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/EventSystem/EventSystem.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMPro_MeshUtilities.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_ShaderUtilities.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_RichTextTagsCommon.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_FontAssetCommon.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UniTaskScheduler.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/PlayerLoopTimer.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/PlayerLoopHelper.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/MoveNextSource.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/UnityExtensions/EveryUpdate.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/ToHashSet.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/ToDictionary.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Subscribe.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/LongCount.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/ElementAt.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Aggregate.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Internal/StatePool.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Internal/ArrayUtil.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/IUniTaskSource.cs
+ 0.1 kb	 0.0% Assets/AtomicFile.cs
+ 0.1 kb	 0.0% Assets/AssetBundleStream.cs
+ 0.1 kb	 0.0% Assets/AssetBundleResource.cs
+ 0.1 kb	 0.0% Assets/AssetBundleManager.cs
+ 0.1 kb	 0.0% Assets/AssetBundleElement.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TextMeshProUGUI.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TextContainer.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_TextElement.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_SubMeshUI.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_StyleSheet.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_SpriteGlyph.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_SpriteAsset.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_InputField.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_FontAsset.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_CoroutineTween.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_Character.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UniTask.WaitUntil.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UniTask.Threading.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Utility/VertexHelper.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/ToggleGroup.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/SpriteState.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Selectable.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Scrollbar.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/ScrollRect.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/RectMask2D.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Navigation.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Layout/LayoutGroup.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Layout/CanvasScaler.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/InputField.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/IMaskable.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/ColorBlock.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UniTaskVoid.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UniTask.WhenEach.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UniTask.WhenAny.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UniTask.WhenAll.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UniTask.Factory.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UniTask.Delay.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UniTask.Bridge.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/UnityExtensions/Timer.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/ToLookup.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/ToList.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/ToArray.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Range.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/ForEach.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/First.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Count.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Contains.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Average.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Internal/TaskTracker.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Internal/Error.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/AsyncUnit.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/AsyncLazy.cs
+ 0.1 kb	 0.0% Assets/AssetBundleInfo.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Culling/IClipRegion.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TextMeshPro.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_TextInfo.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_SubMesh.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_Style.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_Sprite.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_Settings.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_MeshInfo.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_LineInfo.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_Dropdown.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_Asset.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/FastAction.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UniTask.Run.cs
+ 0.1 kb	 0.0% Assets/BinarySerializer.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/VertexModifiers/Shadow.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/VertexModifiers/Outline.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Toggle.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Slider.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/SafeArea.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/RawImage.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Image.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Graphic.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/FontData.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Dropdown.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Culling/Clipping.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Button.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/UniTask.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/TaskPool.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Progress.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Sum.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Min.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Max.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Last.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/Any.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Linq/All.cs
+ 0.1 kb	 0.0% Packages/com.cysharp.unitask/Runtime/Channel.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/TMP/TMP_Text.cs
+ 0.1 kb	 0.0% Assets/LogUtility.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Text.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Misc.cs
+ 0.1 kb	 0.0% Packages/com.unity.ugui/Runtime/UGUI/UI/Core/Mask.cs
+ 0.1 kb	 0.0% Assets/WebReview.cs
+-------------------------------------------------------------------------------
+Unloading 4 Unused Serialized files (Serialized files now loaded: 0)
+Unloading 6 unused Assets / (2.3 KB). Loaded Objects now: 1339.
+Memory consumption went from 250.1 MB to 250.1 MB.
+Total: 8.433200 ms (FindLiveObjects: 0.296200 ms CreateObjectMapping: 0.023500 ms MarkObjects: 7.844800 ms  DeleteObjects: 0.073400 ms)
+
+DisplayProgressNotification: Build Successful
+Build Finished, Result: Success.
+Unloading 0 Unused Serialized files (Serialized files now loaded: 0)
+Loaded scene 'Temp/__Backupscenes/0.backup'
+	Deserialize:            0.896 ms
+	Integration:            8.566 ms
+	Integration of assets:  0.002 ms
+	Thread Wait Time:       0.065 ms
+	Total Operation Time:   9.530 ms
+Unloading 0 unused Assets / (16.0 KB). Loaded Objects now: 1341.
+Memory consumption went from 247.4 MB to 247.4 MB.
+Total: 7.263500 ms (FindLiveObjects: 0.221700 ms CreateObjectMapping: 0.017400 ms MarkObjects: 6.833000 ms  DeleteObjects: 0.006700 ms)
+
+[Licensing::Client] Successfully resolved entitlement details
+##utp:{"success":true,"type":"PlayerBuildInfo","version":2,"phase":"Immediate","time":1795198924114,"processId":34924,"steps":[{"description":"Call PrepareForBuild callbacks","duration":1},{"description":"Call internal build started callbacks","duration":0},{"description":"Preprocess Player","duration":14},{"description":"Save scenes before build","duration":0},{"description":"Prepare For Build","duration":2},{"description":"ProducePlayerScriptAssemblies","duration":2776},{"description":"Verify Build setup","duration":51},{"description":"Prepare assets for target platform","duration":1},{"description":"Prepare splash screen","duration":1},{"description":"Build scripts DLLs","duration":64},{"description":"Building scenes","duration":89},{"description":"Build GlobalGameManagers file","duration":205},{"description":"Writing asset files","duration":59},{"description":"Building Resources/unity_builtin_extra","duration":126},{"description":"Creating compressed player package","duration":430},{"description":"Write data build dirty tracking information","duration":77},{"description":"Postprocess built player","duration":275596},{"description":"Call Post-Process callbacks","duration":39}],"duration":279531}
+[websockify wrapper] Proxying from :35020 to localhost:34999
+Total cache size 268221923
+Total cache size after purge 268221923, took 00:00:00.3769901
+Batchmode quit successfully invoked - shutting down!
+[websockify wrapper] Kill
+[websockify wrapper] Process killed
+Killing ADB server in 2.123344 seconds.
+[Physics::Module] Cleanup current backend.
+[Physics::Module] Id: 0xf2b8ea05
+Input System module state changed to: ShutdownInProgress.
+Input Polling Thread exited.
+Input System module state changed to: Shutdown.
+[Licensing::IpcConnector] LicenseClient-31089-notifications channel disconnected successfully.
+[Licensing::IpcConnector] LicenseClient-31089 channel disconnected successfully.
+Lingering sessions upon destruction of worker manager
+Unity Data Store service was successfully shut down
+UDS shutting down local client system
+Shut down UDS service system complete
+AcceleratorClientConnectionCallback - disconnected - :0
+Cleanup mono
+CodeReloadManager destroyed
+[websockify wrapper] Kill
+abort_threads: Failed aborting id: 0000000000000FFC, mono_thread_manage will ignore it
+
+abort_threads: Failed aborting id: 0000000000000FFC, mono_thread_manage will ignore it
+
+debugger-agent: Unable to listen on 4896
+Exiting batchmode successfully now!
+[ExitDontLaunchBugReporter] Exiting without the bug reporter. Application will exit with return code 0
