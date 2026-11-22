@@ -355,12 +355,12 @@ namespace OpenSekai.Tests.PlayMode
                 LiveConfig.ViewLeadSeconds = .02f;
                 view.Excute(.99f);
                 Assert.That(Playing(LivePrefabDefine.FX_CRITICAL_LONG_HOLD_GEN), Is.False);
-                view.Excute(1f);
+                view.Excute(1.02f);
                 var gen = effects.Single(p => p.name == LivePrefabDefine.FX_CRITICAL_LONG_HOLD_GEN + "(Clone)" && p.IsPlaying);
                 Assert.That(Playing(LivePrefabDefine.FX_CRITICAL_LONG_HOLD_AURA), Is.True);
                 CheckAuraWidth(LivePrefabDefine.FX_CRITICAL_LONG_HOLD_AURA, Mathf.Lerp(2, 5, .02f));
                 float startX = gen.transform.localPosition.x;
-                view.Excute(1.5f);
+                view.Excute(1.52f);
                 Assert.That(gen.transform.localPosition.x, Is.GreaterThan(startX));
                 CheckAuraWidth(LivePrefabDefine.FX_CRITICAL_LONG_HOLD_AURA, Mathf.Lerp(2, 5, .52f));
                 view.Excute(2f);

@@ -12,6 +12,32 @@ namespace Sekai.Live
 
 		protected string _guideColor = null;
 
+		// The mesh follows the chart's drawable segments. While it slides along the line,
+		// its visible head and hold effect need those lanes at display time too.
+		internal Vector2 ViewLanes(float viewTime)
+		{
+			if (IsNextRushHeadKey) return new Vector2(NativeLeft, NativeRight);
+			if (NativeScroll != null || LiveConfig.ViewLeadSeconds == 0f || childNote == null)
+				return new Vector2(LaneStartF, LaneEndF);
+
+			INote start = this;
+			for (int i = 1; i < LineNoteList.Count; i++)
+			{
+				INote end = LineNoteList[i];
+				if (end == null) continue;
+				bool isTail = ReferenceEquals(end, childNote);
+				if (!isTail && end.IsSkip) continue;
+				if (viewTime < end.MusicScoreInfo.time || isTail)
+				{
+					float t = LiveConfig.GetNoteLineParentProgress(viewTime, start, end);
+					return new Vector2(Mathf.Lerp(start.DefaultLeftLane, end.DefaultLeftLane, t),
+						Mathf.Lerp(start.DefaultRightLane, end.DefaultRightLane, t));
+				}
+				start = end;
+			}
+			return new Vector2(LaneStartF, LaneEndF);
+		}
+
 		internal NoteBase ConnectorHeadViewNote { get; private set; }
 		private int _connectorHeadStyle;
 		private NoteType _connectorHeadType;

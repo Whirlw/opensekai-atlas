@@ -156,11 +156,12 @@ namespace Sekai.Live
 			return OpenSekai.Shared.Live.Simulation.TimingCompensation.ViewProgress(note.Progress, offsetTime, ViewLeadSeconds);
 		}
 
-		internal static float ViewProgressOf(INote note, float time)
+		// Callers in the view receive chart time with visual latency already applied.
+		internal static float ViewProgressOf(INote note, float viewTime)
 		{
 			if (note is NoteBase native && native.NativeScroll != null)
 			{
-				double now = (double)time + ViewLeadSeconds;
+				double now = viewTime;
 				if (native.IsNextRushConnectorHeadVisual) return 1f;
 				if (native.IsNextRushHeadKey && now >= native.NativeTarget.Time) return 0f;
 				if (native.IsDecoration && native is not LongNote && now >= native.NativeTarget.Time)
@@ -190,7 +191,7 @@ namespace Sekai.Live
 			if (ViewLeadSeconds != 0f && note is NoteBase scrolling && scrolling.State == NoteState.Scrolling
 				&& scrolling.offsetTime > 0f)
 			{
-				return 1f + (time - scrolling.MusicScoreInfo.time + ViewLeadSeconds) / scrolling.offsetTime;
+				return 1f + (viewTime - scrolling.MusicScoreInfo.time) / scrolling.offsetTime;
 			}
 			return ViewProgressOf(note);
 		}

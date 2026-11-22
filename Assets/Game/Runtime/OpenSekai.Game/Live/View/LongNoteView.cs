@@ -51,14 +51,14 @@ namespace Sekai
 			}
 
 			transform.localScale = Vector3.one * progress;
-			transform.localPosition = CalcNotePosition(ref progress);
+			Vector2 lanes = note is LongNote hold ? hold.ViewLanes(musicTime) : new Vector2(note.LaneStartF, note.LaneEndF);
+			transform.localPosition = CalcNotePosition(ref progress, GetLaneCenter(lanes.x, lanes.y));
 			UpdateSpritePayload(progress);
 
-			if (note.Category == Sekai.Live.NoteCategory.Long && spriteRenderer != null)
+			if (spriteRenderer != null && (note.Category == NoteCategory.Long || note.Category == NoteCategory.FrictionLong
+				|| note.Category == NoteCategory.FrictionHideLong))
 			{
-				float width = note is LongNote { IsNextRushHeadKey: true } key
-					? key.NativeRight - key.NativeLeft : note.LaneEndF - note.LaneStartF;
-				spriteRenderer.size = LiveUtility.CalcSpriteRendererSize(width);
+				spriteRenderer.size = LiveUtility.CalcSpriteRendererSize(lanes.y - lanes.x);
 			}
 		}
 
@@ -95,16 +95,8 @@ namespace Sekai
 			return LiveConfig.GetNoteViewProgress(progress);
 		}
 
-		protected override Vector3 CalcNotePosition(ref float progress)
+		private Vector3 CalcNotePosition(ref float progress, Vector2 center)
 		{
-			if (note == null)
-			{
-				return Vector3.zero;
-			}
-
-			Vector2 center = note is LongNote { IsNextRushHeadKey: true } key
-				? GetLaneCenter(key.NativeLeft, key.NativeRight)
-				: GetLaneCenter(note.LaneStartF, note.LaneEndF);
 			Vector2 effectiveSpawnPos = spawnPosition;
 			if (note is NoteBase noteBase && noteBase.IsNegativeSpeed)
 			{

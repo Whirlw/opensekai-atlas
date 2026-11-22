@@ -15,10 +15,6 @@ namespace Sekai
 			{
 				centerIconRenderer.color = spriteRenderer.color;
 			}
-			if ((note?.Category == NoteCategory.FrictionLong || note?.Category == NoteCategory.FrictionHideLong) && spriteRenderer != null)
-			{
-				spriteRenderer.size = LiveUtility.CalcSpriteRendererSize(note.LaneEndF - note.LaneStartF);
-			}
 		}
 
 		public FrictionLongNoteView()
