@@ -209,10 +209,10 @@ namespace OpenSekai.Tests.EditMode
             var active = state.ActiveConfiguration();
             Assert.That(active.Audio.Groups, Is.EqualTo(new[] { preset.GroupReference("clicks") }));
             Assert.That(active.Notes.Groups, Is.EqualTo(new[] { preset.GroupReference("keys") }));
-            Assert.That(Sets(active.Builtin), Is.EqualTo((1, 1, 2)), "声明但省略基准、未声明的类别都用游戏默认");
+            Assert.That(Sets(active.Builtin), Is.EqualTo((1, 1, 1)), "整合包各类别均跟随内置整合包");
             Assert.That(active.Judgment.Groups, Is.Empty);
             Assert.That(state.MixConfiguration().SameChoicesAs(mixed), Is.True, "使用预设不改动混搭");
-            Assert.That(Sets(store.Builtin), Is.EqualTo((1, 1, 2)), "下一局取预设的内置套装");
+            Assert.That(Sets(store.Builtin), Is.EqualTo((1, 1, 1)), "下一局取内置整合包的套装");
 
             store.SetMode(MaterialPackModes.MIX, store.List().Revision);
             state = store.List();
@@ -233,6 +233,39 @@ namespace OpenSekai.Tests.EditMode
             Assert.Throws<InvalidDataException>(() => store.ChoosePreset(MaterialPresetChoice.Builtin(3), revision));
             Assert.Throws<ArgumentException>(() => store.SetMode("theme", revision));
             Assert.That(store.List().Revision, Is.EqualTo(revision));
+        }
+
+        [Test]
+        public async Task BundlesShareModuleFallbacksAndMixKeepsItsEditableCopy()
+        {
+            var store = Store();
+            var pack = await store.ImportAsync(PresetPack());
+            store.ChoosePreset(MaterialPresetChoice.Builtin(2), store.List().Revision);
+            Assert.That(Sets(Store().List().ActiveConfiguration().Builtin), Is.EqualTo((2, 2, 2)), "旧版整套选择");
+            store.ApplyPreset(pack.PackId, pack.Digest, store.List().Revision);
+            var sets = new MaterialBuiltinSelection { Notes = 2, HitFx = 1, Audio = 1 };
+            long before = store.List().Revision;
+            long saved = store.SaveBuiltinBundle(sets, before);
+            Assert.Throws<MaterialPackConflictException>(() => store.SaveBuiltinBundle(new MaterialBuiltinSelection(), before));
+            Assert.Throws<InvalidDataException>(() => store.SaveBuiltinBundle(new MaterialBuiltinSelection { HitFx = 3 }, saved));
+            Assert.That(store.SaveBuiltinBundle(sets, saved), Is.EqualTo(saved));
+            store = Store();
+            Assert.That(store.List().Preset.IsFrom(pack.PackId, pack.Digest), Is.True);
+            var bundle = store.ResolvePreset(pack.PackId, pack.Digest);
+            Assert.That(Sets(bundle.Builtin), Is.EqualTo((2, 1, 1)), "忽略包内旧的 audio.builtinSet=2");
+            var live = store.Capture();
+            try
+            {
+                Assert.That(Sets(live.Builtin), Is.EqualTo((2, 1, 1)));
+                Assert.That(live.Audio.Single(b => b.Slot == "audio.tap").Source, Is.EqualTo(pack.GroupReference("clicks")));
+            }
+            finally { store.Release(); }
+            store.SaveConfiguration(bundle, store.List().Revision);
+            store.SaveConfiguration(MaterialPresets.BuildBuiltin(1), store.List().Revision);
+            store.SetMode(MaterialPackModes.PRESET, store.List().Revision);
+            store.SetMode(MaterialPackModes.MIX, store.List().Revision);
+            Assert.That(store.List().ActiveConfiguration().SameChoicesAs(MaterialPresets.BuildBuiltin(1)), Is.True);
+            Assert.That(Sets(store.List().Preset.GetBuiltinSets()), Is.EqualTo((2, 1, 1)));
         }
 
         [Test]
@@ -260,7 +293,7 @@ namespace OpenSekai.Tests.EditMode
             var bindings = store.Bind(MaterialPresets.Build(preset));
             Assert.That(bindings.Audio.Single(b => b.Slot == "audio.tap").Source, Is.EqualTo(preset.GroupReference("clicks")));
             Assert.That(bindings.Notes.Single(b => b.Slot == "notes.notes_2").Source, Is.EqualTo(preset.GroupReference("keys")));
-            Assert.That(Sets(bindings.Builtin), Is.EqualTo((1, 1, 2)));
+            Assert.That(Sets(bindings.Builtin), Is.EqualTo((1, 1, 1)));
             Assert.That(store.IsInSession, Is.False);
             Assert.DoesNotThrow(() => store.SetMode(MaterialPackModes.MIX, store.List().Revision), "演示不占用存储");
 

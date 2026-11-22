@@ -292,11 +292,11 @@ namespace OpenSekai.App.UI
             RefreshDemo();
         }
 
+        /// <summary>Open the resource group list. A null revision identifies the built-in bundle.</summary>
         internal void OpenPack(InstalledMaterialPack pack)
         {
-            if (pack == null) return;
             UiSound.Play(UiCue.Forward);
-            Push(new PackDetailPage(this, pack.PackId, pack.Digest));
+            Push(new PackDetailPage(this, pack));
         }
 
         internal void OpenCategory(string category)
@@ -378,17 +378,36 @@ namespace OpenSekai.App.UI
             }
         }
 
-        /// <summary>Uses a pack's preset: 预设 mode with that preset.</summary>
-        internal bool ApplyPreset(InstalledMaterialPack pack) =>
-            pack?.Preset != null && ChoosePreset(MaterialPresetChoice.FromPack(pack.PackId, pack.Digest));
-
-        /// <summary>Chooses the preset 预设 mode uses and switches to 预设; 混搭 keeps its choices.</summary>
-        internal bool ChoosePreset(MaterialPresetChoice choice)
+        internal bool SaveBuiltinBundle(MaterialBuiltinSelection sets, long revision)
         {
-            if (choice == null || !CanWrite()) return false;
-            if (State.IsPresetMode && State.Preset.SameAs(choice)) return false;
+            if (!CanWrite()) return false;
             try
             {
+                Store.SaveBuiltinBundle(sets, revision);
+                Reload();
+                ShowToast(State?.IsPresetMode == false ? "已保存内置套装，点整合包可重新载入混搭" : "已保存内置整合包，下一次开局生效");
+                return true;
+            }
+            catch (Exception e) when (IsWriteFailure(e))
+            {
+                Reload();
+                ShowToast(PackImport.DescribeWrite(e));
+                return false;
+            }
+        }
+
+        /// <summary>Load a whole bundle into the current mode. In mix mode it becomes an editable copy.</summary>
+        internal bool UseBundle(MaterialPresetChoice choice)
+        {
+            if (choice == null || !CanWrite()) return false;
+            try
+            {
+                if (!State.IsPresetMode)
+                {
+                    MaterialPackConfiguration candidate = State.BundleConfiguration(choice);
+                    return candidate.SameChoicesAs(State.MixConfiguration()) || Save(candidate, "已载入整合包，可继续调整各模块");
+                }
+                if (State.Preset.SameAs(choice)) return true;
                 Store.ChoosePreset(choice, State.Revision);
                 Reload();
                 UiSound.Play(UiCue.Success);
@@ -585,12 +604,12 @@ namespace OpenSekai.App.UI
         /// <summary>A preset's name: the pack's preset name, or 游戏内置 with the set.</summary>
         internal string PresetName(MaterialPresetChoice choice)
         {
-            if (choice == null || choice.IsBuiltin) return BuiltinPresetName(choice?.BuiltinSet ?? 1);
+            if (choice == null || choice.IsBuiltin) return BUILTIN_BUNDLE_NAME;
             InstalledMaterialPack pack = State?.FindPack(choice.PackId, choice.Digest);
             return pack == null ? choice.PackId : pack.Preset?.Name ?? PackWidgets.PackName(pack);
         }
 
-        internal static string BuiltinPresetName(int set) => "游戏内置 · " + (set == 1 ? "第一套" : "第二套");
+        internal const string BUILTIN_BUNDLE_NAME = "游戏内置整合包";
 
         // ---------------------------------------------------------------- building
 

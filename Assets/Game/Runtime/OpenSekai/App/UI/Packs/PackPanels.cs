@@ -646,12 +646,13 @@ namespace OpenSekai.App.UI
             catch (InvalidDataException e)
             {
                 error = e.Message;
-                try { candidate = MaterialPresets.Build(pack); }
+                try { candidate = MaterialPresets.Build(pack, _screen.State.Preset.GetBuiltinSets()); }
                 catch (InvalidDataException) { }
             }
 
             MaterialPackConfiguration current = SafeActive(_screen.State);
-            bool isCurrent = IsCurrent(pack);
+            bool isCurrent = _screen.State.IsPresetMode ? _screen.State.Preset.IsFrom(pack.PackId, pack.Digest) :
+                candidate?.SameChoicesAs(current) == true;
             foreach (string category in MaterialCategories.All)
             {
                 AddRow(category, pack, candidate, current);
@@ -665,15 +666,16 @@ namespace OpenSekai.App.UI
             }
             else if (isCurrent)
             {
-                _note.text = "这是正在使用的预设。资源包页面左侧可以看到它的演示。";
+                _note.text = "当前配置已使用这个整合包。";
                 _note.color = LibraryTheme.Colors.TextMuted;
                 ServerWidgets.SetLabelledButton(_apply, "正在使用", LibraryIcon.Check, LibraryTheme.Colors.Control, LibraryTheme.Colors.TextSecondary);
             }
             else
             {
-                _note.text = "使用后切换到预设，九类一次生效，未声明的类别使用游戏默认。混搭的选择会保留，随时可以切回。下一次开局生效。";
+                _note.text = "缺少的资源跟随游戏内置整合包。下一次开局生效。";
                 _note.color = LibraryTheme.Colors.TextMuted;
-                ServerWidgets.SetLabelledButton(_apply, "使用此预设", LibraryIcon.Check, PackWidgets.Accent, LibraryTheme.Colors.TextOnAccent);
+                ServerWidgets.SetLabelledButton(_apply, _screen.State.IsPresetMode ? "使用整合包" : "用作混搭起点",
+                    LibraryIcon.Check, PackWidgets.Accent, LibraryTheme.Colors.TextOnAccent);
             }
 
             _apply.interactable = error == null;
@@ -693,17 +695,8 @@ namespace OpenSekai.App.UI
         private void Apply()
         {
             if (_pack == null) return;
-            if (IsCurrent(_pack))
-            {
-                Close();
-                return;
-            }
-
-            if (_screen.ApplyPreset(_pack)) Close();
+            if (_screen.UseBundle(MaterialPresetChoice.FromPack(_pack.PackId, _pack.Digest))) Close();
         }
-
-        private bool IsCurrent(InstalledMaterialPack pack) =>
-            _screen.State?.IsPresetMode == true && _screen.State.Preset.IsFrom(pack.PackId, pack.Digest);
 
         private static MaterialPackConfiguration SafeActive(MaterialPackState state)
         {
@@ -724,7 +717,7 @@ namespace OpenSekai.App.UI
             LibraryWidgets.Place(title.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(48f, 0f), new Vector2(170f, 40f));
 
             bool declared = pack.Preset.Categories.TryGetValue(category, out MaterialPresetCategory value);
-            string text = declared ? DescribeDeclared(category, pack, value, candidate) : "未声明 · 使用游戏默认";
+            string text = declared ? DescribeDeclared(category, pack, value, candidate) : "内置整合包 · " + MaterialSlotCatalog.BuiltinLabel(category, candidate?.Builtin);
             TextMeshProUGUI detail = PackWidgets.UserLabel("Detail", row, text, 19f,
                 declared ? LibraryTheme.Colors.TextSecondary : LibraryTheme.Colors.TextMuted);
             LibraryWidgets.Inset(detail.rectTransform, 230f, 0f, 150f, 0f);
@@ -748,8 +741,7 @@ namespace OpenSekai.App.UI
 
             if (MaterialCategories.HasBuiltinSets(category))
             {
-                int set = candidate?.Builtin.Get(category) ?? value.BuiltinSet ?? 1;
-                parts.Add("内置回退 " + MaterialSlotCatalog.BuiltinLabel(category, set) + (value.BuiltinSet.HasValue ? string.Empty : "（默认）"));
+                parts.Add("内置整合包 · " + MaterialSlotCatalog.BuiltinLabel(category, candidate?.Builtin));
             }
 
             return string.Join("  ·  ", parts);
@@ -829,7 +821,7 @@ namespace OpenSekai.App.UI
                 }
 
                 if (impact.ClearedPreset != null)
-                    text.AppendLine("选中的预设「" + impact.ClearedPreset + "」来自这个修订，卸载后预设改为「" + PackScreen.BuiltinPresetName(1) + "」"
+                    text.AppendLine("选中的预设「" + impact.ClearedPreset + "」来自这个修订，卸载后预设改为「" + PackScreen.BUILTIN_BUNDLE_NAME + "」"
                         + (_screen.State?.IsPresetMode == true ? "，下一次开局使用游戏内置资源。" : "。"));
             }
 

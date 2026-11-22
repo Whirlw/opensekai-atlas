@@ -14,9 +14,8 @@ namespace OpenSekai.App.UI
 {
     /// <summary>
     /// The first page of the 资源包 part. The mode card on the left says what the next live uses
-    /// and switches between the two modes. In 预设 the presets are listed under it and the right
-    /// side plays the chosen one as a small live; in 混搭 the installed packs are listed and the
-    /// right side holds the nine categories, each opening its own page.
+    /// and switches between the two modes. Both modes list the bundles below the card. The right
+    /// side plays a small live in preset mode and opens each of the nine categories in mix mode.
     /// </summary>
     internal sealed class PackOverviewPage : PackPage
     {
@@ -32,7 +31,6 @@ namespace OpenSekai.App.UI
         private readonly TextMeshProUGUI _listCount;
         private readonly RectTransform _list;
         private readonly ScrollRect _listScroll;
-        private readonly RectTransform _emptyPacks;
         private readonly List<GameObject> _rows = new List<GameObject>();
         private readonly List<CategoryTile> _tiles = new List<CategoryTile>();
         private readonly RectTransform _grid;
@@ -75,7 +73,6 @@ namespace OpenSekai.App.UI
             RectTransform listArea = LibraryUi.CreateRect("List", left);
             LibraryWidgets.Inset(listArea, 0f, 0f, 0f, MODE_HEIGHT + 14f + LibraryTheme.Layout.SECTION_CAPTION_HEIGHT);
             _list = ServerWidgets.VerticalList(listArea, out _listScroll, 10f, new RectOffset(0, 0, 0, 12));
-            _emptyPacks = BuildEmptyPacks(listArea);
 
             // Right column: 混搭's nine categories, three by three in fractions of the area so the
             // grid follows the screen's shape; or 预设's demo.
@@ -184,8 +181,8 @@ namespace OpenSekai.App.UI
             _subtitle.text = (preset ? "当前：预设「" + Screen.ActiveName + "」" : "当前：混搭")
                 + "  ·  " + external + " / 9 类使用资源包  ·  下一次开局生效";
             _hint.text = preset
-                ? "预设一次决定全部九类。点左上角的卡片切换到混搭，可按类别单独选择；两边的选择各自保留。"
-                : "按类别选择资源组和回退顺序，选择后立即保存，下一次开局生效。资源包为含 pack.json 的 ZIP。";
+                ? "点整合包即可使用。点内置整合包右侧的箭头，可选择各模块使用的套装。"
+                : "点左侧整合包载入整套配置，再点右侧类别调整资源组和回退顺序。";
             _mode.Refresh(state, active, external);
             _grid.gameObject.SetActive(!preset);
             _demo.Root.gameObject.SetActive(preset);
@@ -199,8 +196,7 @@ namespace OpenSekai.App.UI
                 foreach (CategoryTile tile in _tiles) tile.Refresh(Screen, state);
             }
 
-            if (preset) RebuildPresets(state);
-            else RebuildPacks(state);
+            RebuildBundles(state, active);
             if (_listedPresets != preset) _listScroll.verticalNormalizedPosition = 1f;
             _listedPresets = preset;
         }
@@ -216,12 +212,11 @@ namespace OpenSekai.App.UI
         {
             var external = MaterialCategories.All.Where(c => configuration.Get(c).Groups.Count > 0)
                 .Select(c => MaterialSlotCatalog.Category(c).Title).ToList();
-            string sets = "内置回退：音符" + MaterialSlotCatalog.BuiltinLabel(MaterialCategories.NOTES, configuration.Builtin)
-                + "、打击特效" + MaterialSlotCatalog.BuiltinLabel(MaterialCategories.HIT_FX, configuration.Builtin)
-                + "、打歌音效" + MaterialSlotCatalog.BuiltinLabel(MaterialCategories.AUDIO, configuration.Builtin);
+            string sets = string.Join(" / ", MaterialCategories.All.Where(MaterialCategories.HasBuiltinSets)
+                .Select(c => MaterialSlotCatalog.BuiltinLabel(c, configuration.Builtin)));
             string from = external.Count == 0 ? "全部使用游戏内置资源" : external.Count == 9
                 ? "九类都来自资源包" : "来自资源包：" + string.Join("、", external) + "，其余使用游戏内置";
-            return from + "\n" + sets + "  ·  自动演示，判定文字与连击照常显示";
+            return from + "  ·  内置套装：" + sets;
         }
 
         private void ClearRows()
@@ -230,46 +225,41 @@ namespace OpenSekai.App.UI
             _rows.Clear();
         }
 
-        // ------------------------------------------------------------------ 预设
-
-        private void RebuildPresets(MaterialPackState state)
+        private void RebuildBundles(MaterialPackState state, MaterialPackConfiguration active)
         {
             ClearRows();
-            _listCaption.text = "选择预设";
-            _emptyPacks.gameObject.SetActive(false);
-            _listScroll.gameObject.SetActive(true);
-            int count = 0;
-            for (int set = 1; set <= MaterialCategories.BUILTIN_SET_COUNT; set++)
-            {
-                MaterialPresetChoice choice = MaterialPresetChoice.Builtin(set);
-                AddPreset(choice, null, state.Preset.SameAs(choice));
-                count++;
-            }
+            _listCaption.text = "选择整合包";
+            var builtin = MaterialPresetChoice.Builtin(state.Preset.GetBuiltinSets());
+            AddBundle(builtin, null, state.IsPresetMode ? state.Preset.IsBuiltin : active.SameChoicesAs(state.BundleConfiguration(builtin)));
 
+            int count = 1;
             foreach (InstalledMaterialPack pack in state.Installed.Where(p => p.Preset != null))
             {
-                MaterialPresetChoice choice = MaterialPresetChoice.FromPack(pack.PackId, pack.Digest);
-                AddPreset(choice, pack, state.Preset.SameAs(choice));
+                var choice = MaterialPresetChoice.FromPack(pack.PackId, pack.Digest);
+                bool selected = state.IsPresetMode ? state.Preset.SameAs(choice) : active.SameChoicesAs(state.BundleConfiguration(choice));
+                AddBundle(choice, pack, selected);
                 count++;
             }
+            _listCount.text = count + " 个整合包";
 
-            if (count == MaterialCategories.BUILTIN_SET_COUNT)
+            if (state.IsPresetMode) return;
+            var standalone = state.Installed.Where(p => p.Preset == null).ToList();
+            if (standalone.Count == 0) return;
+            RectTransform heading = ServerWidgets.ListItem(_list, "OtherPacks", LibraryTheme.Layout.SECTION_CAPTION_HEIGHT);
+            PackWidgets.Caption(heading, "其他资源包", 0f, 0f, 0f);
+            _rows.Add(heading.gameObject);
+            var used = new HashSet<string>(MaterialCategories.All.SelectMany(c => active.Get(c).Groups));
+            foreach (InstalledMaterialPack pack in standalone)
             {
-                RectTransform note = ServerWidgets.ListItem(_list, "NoPackPresets", 72f);
-                TextMeshProUGUI text = PackWidgets.Paragraph(note, "Text",
-                    "导入带随包预设的资源包后，它的预设会出现在这里。", 18f, LibraryTheme.Colors.TextMuted);
-                text.alignment = TextAlignmentOptions.MidlineLeft;
-                LibraryWidgets.Inset(text.rectTransform, 24f, 0f, 24f, 0f);
-                _rows.Add(note.gameObject);
+                var row = new PackRow(_list, pack, pack.Groups.Any(g => used.Contains(pack.GroupReference(g.Id))), () => Screen.OpenPack(pack));
+                _rows.Add(row.Root.gameObject);
+                LoadIcon(row.Icon, pack).Forget();
             }
-
-            _listCount.text = count + " 个预设";
         }
 
-        private void AddPreset(MaterialPresetChoice choice, InstalledMaterialPack pack, bool selected)
+        private void AddBundle(MaterialPresetChoice choice, InstalledMaterialPack pack, bool selected)
         {
-            RectTransform row = ServerWidgets.ListItem(_list, "Preset-" + (pack == null ? "builtin-" + choice.BuiltinSet : pack.PackId + "-" + pack.ShortDigest),
-                ROW_HEIGHT);
+            RectTransform row = ServerWidgets.ListItem(_list, "Bundle-" + (pack == null ? "builtin" : pack.PackId + "-" + pack.ShortDigest), ROW_HEIGHT);
             Image surface = LibraryWidgets.Panel("Surface", row, 24f, selected ? HomeTheme.Colors.WithAlpha(HomeTheme.Colors.Rose, 34) : HomeTheme.Colors.Card);
             surface.raycastTarget = true;
             LibraryUi.Stretch(surface.rectTransform);
@@ -277,7 +267,7 @@ namespace OpenSekai.App.UI
                 selected ? HomeTheme.Colors.Rose : LibraryTheme.Colors.Hairline);
             LibraryUi.Stretch(outline.rectTransform);
             outline.raycastTarget = false;
-            PackWidgets.RowButton(surface.rectTransform, () => Screen.ChoosePreset(choice), UiCue.None, row);
+            PackWidgets.RowButton(surface.rectTransform, () => Screen.UseBundle(choice), UiCue.None, row);
 
             const float ICON = 80f;
             if (pack != null)
@@ -288,16 +278,14 @@ namespace OpenSekai.App.UI
             }
             else
             {
-                BuiltinBadge(row, choice.BuiltinSet, ICON);
+                Image badge = LibraryWidgets.Panel("Badge", row, 22f, HomeTheme.Colors.WithAlpha(HomeTheme.Colors.Rose, 38));
+                LibraryWidgets.Place(badge.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(18f, 0f), new Vector2(ICON, ICON));
+                LibraryWidgets.Icon(badge.transform, LibraryIcon.Bundle, HomeTheme.Colors.Rose, 50f);
             }
 
-            float right = 28f;
-            if (pack != null)
-            {
-                Button info = PackWidgets.SmallIconButton(row, "Info", LibraryIcon.ChevronRight, () => Screen.OpenPack(pack), 52f, UiCue.None);
-                LibraryWidgets.Place((RectTransform)info.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-14f, 0f), new Vector2(52f, 52f));
-                right = 80f;
-            }
+            Button info = PackWidgets.SmallIconButton(row, "Info", LibraryIcon.ChevronRight, () => Screen.OpenPack(pack), 52f, UiCue.None);
+            LibraryWidgets.Place((RectTransform)info.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-14f, 0f), new Vector2(52f, 52f));
+            float right = 80f;
 
             if (selected)
             {
@@ -306,16 +294,18 @@ namespace OpenSekai.App.UI
                 right += width + 12f;
             }
 
-            string title = pack == null ? PackScreen.BuiltinPresetName(choice.BuiltinSet) : pack.Preset.Name;
+            string title = pack == null ? PackScreen.BUILTIN_BUNDLE_NAME : PackWidgets.PackName(pack);
             TextMeshProUGUI name = PackWidgets.UserLabel("Name", row, title, 25f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
             LibraryWidgets.TopStrip(name.rectTransform, 116f, right, 14f, 34f);
-            string meta = pack == null ? "游戏自带资源" : "来自 " + PackWidgets.PackName(pack) + "  " + PackWidgets.Revision(pack);
+            string meta = pack == null ? "游戏自带资源" : pack.Preset.Name + "  " + PackWidgets.Revision(pack);
             TextMeshProUGUI metaLabel = PackWidgets.UserLabel("Meta", row, meta, 17f, LibraryTheme.Colors.TextMuted);
-            LibraryWidgets.TopStrip(metaLabel.rectTransform, 116f, pack != null ? 80f : 28f, 50f, 24f);
+            LibraryWidgets.TopStrip(metaLabel.rectTransform, 116f, 80f, 50f, 24f);
             string holds;
             if (pack == null)
             {
-                holds = "音符皮肤、打击特效与打歌音效用" + (choice.BuiltinSet == 1 ? "第一套" : "第二套");
+                var sets = choice.GetBuiltinSets();
+                holds = string.Join(" · ", MaterialCategories.All.Where(MaterialCategories.HasBuiltinSets)
+                    .Select(c => MaterialSlotCatalog.BuiltinLabel(c, sets)));
             }
             else
             {
@@ -323,72 +313,18 @@ namespace OpenSekai.App.UI
                     .Where(c => pack.Preset.Categories.TryGetValue(c, out MaterialPresetCategory value) && value.Groups.Count > 0)
                     .Select(c => MaterialSlotCatalog.Category(c).Title).ToList();
                 holds = categories.Count == 9 ? "九类都由资源包提供"
-                    : categories.Count == 0 ? "只改内置套装" : string.Join(" · ", categories);
+                    : categories.Count == 0 ? "使用游戏内置资源" : string.Join(" · ", categories);
             }
 
             TextMeshProUGUI summary = PackWidgets.UserLabel("Holds", row, holds, 17f, LibraryTheme.Colors.TextSecondary);
-            LibraryWidgets.TopStrip(summary.rectTransform, 116f, pack != null ? 80f : 28f, 78f, 24f);
+            LibraryWidgets.TopStrip(summary.rectTransform, 116f, 80f, 78f, 24f);
             _rows.Add(row.gameObject);
-        }
-
-        private static void BuiltinBadge(RectTransform row, int set, float size)
-        {
-            Color32 tint = set == 1 ? HomeTheme.Colors.Periwinkle : HomeTheme.Colors.Violet;
-            Image badge = LibraryWidgets.Panel("Badge", row, 22f, HomeTheme.Colors.WithAlpha(tint, 46));
-            LibraryWidgets.Place(badge.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(18f, 0f), new Vector2(size, size));
-            Image ring = LibraryWidgets.Shape("Ring", badge.transform, LibraryShapes.Ring(22f, 1f), HomeTheme.Colors.WithAlpha(tint, 120));
-            LibraryUi.Stretch(ring.rectTransform);
-            TextMeshProUGUI digit = LibraryWidgets.Label("Set", badge.transform, set.ToString(), 46f, tint, FontStyles.Bold, TextAlignmentOptions.Center);
-            LibraryUi.UseCondensedFont(digit);
-            LibraryUi.Stretch(digit.rectTransform);
-        }
-
-        // ------------------------------------------------------------------ 混搭
-
-        private void RebuildPacks(MaterialPackState state)
-        {
-            ClearRows();
-            _listCaption.text = "已安装的资源包";
-            var used = new HashSet<string>(MaterialCategories.All.SelectMany(c => state.Selection(c).Groups), System.StringComparer.Ordinal);
-            // Newest names first would reorder the list under the player; keep install order.
-            foreach (InstalledMaterialPack pack in state.Installed)
-            {
-                bool inUse = pack.Groups.Any(g => used.Contains(pack.GroupReference(g.Id)));
-                var row = new PackRow(_list, pack, inUse, () => Screen.OpenPack(pack));
-                _rows.Add(row.Root.gameObject);
-                LoadIcon(row.Icon, pack).Forget();
-            }
-
-            _listCount.text = state.Installed.Count > 0 ? state.Installed.Count + " 个修订" : string.Empty;
-            _emptyPacks.gameObject.SetActive(state.Installed.Count == 0);
-            _listScroll.gameObject.SetActive(state.Installed.Count > 0);
         }
 
         private async UniTaskVoid LoadIcon(PackIconView icon, InstalledMaterialPack pack)
         {
             Sprite sprite = await Screen.Media.LoadIconAsync(Screen.Store, pack, _icons.Token);
             if (!IsDisposed && icon.Root != null) icon.SetSprite(sprite);
-        }
-
-        private RectTransform BuildEmptyPacks(RectTransform parent)
-        {
-            Image panel = PackWidgets.Group(parent, "Empty");
-            LibraryWidgets.TopStrip(panel.rectTransform, 0f, 0f, 0f, 300f);
-            var icon = new PackIconView(panel.transform, 92f, "EmptyIcon");
-            LibraryWidgets.Place(icon.Root, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -32f), new Vector2(92f, 92f));
-            TextMeshProUGUI title = LibraryWidgets.Label("Title", panel.transform, "还没有导入资源包", 28f, LibraryTheme.Colors.TextPrimary,
-                FontStyles.Bold, TextAlignmentOptions.Center);
-            LibraryWidgets.TopStrip(title.rectTransform, 24f, 24f, 136f, 40f);
-            TextMeshProUGUI text = PackWidgets.Paragraph(panel.transform, "Text",
-                "内置资源始终可用。导入 ZIP 后，可在各类别里选用它的资源组，或在预设里一次使用它的随包预设。", 18f, LibraryTheme.Colors.TextMuted);
-            text.alignment = TextAlignmentOptions.Top;
-            LibraryWidgets.TopStrip(text.rectTransform, 40f, 40f, 180f, 56f);
-            const float WIDTH = 220f;
-            Button import = ServerWidgets.LabelledButton(panel.transform, "Import", "导入 ZIP", LibraryIcon.Add, Screen.Import, WIDTH, 60f,
-                LibraryTheme.Colors.TextPrimary, LibraryTheme.Colors.TextOnAccent, UiCue.None);
-            LibraryWidgets.Place((RectTransform)import.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 24f), new Vector2(WIDTH, 60f));
-            panel.gameObject.SetActive(false);
-            return panel.rectTransform;
         }
 
         // ------------------------------------------------------------------ parts
@@ -407,6 +343,8 @@ namespace OpenSekai.App.UI
             private readonly TextMeshProUGUI _name;
             private readonly TextMeshProUGUI _source;
             private readonly TextMeshProUGUI _external;
+            private readonly RectTransform _mixIcon;
+            private readonly Image _presetIcon;
             private readonly Image[] _lights = new Image[9];
             private readonly Image[] _segments = new Image[2];
             private readonly TextMeshProUGUI[] _segmentLabels = new TextMeshProUGUI[2];
@@ -458,11 +396,15 @@ namespace OpenSekai.App.UI
                 }
 
                 // Lights in the same order as the category grid.
-                RectTransform lights = LibraryUi.CreateRect("Lights", content);
-                LibraryWidgets.Place(lights, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-pad, -pad - 6f), new Vector2(120f, 120f));
+                Vector2 iconOffset = new Vector2(-pad, -pad - 6f);
+                var iconSize = new Vector2(120f, 120f);
+                _presetIcon = LibraryWidgets.Icon(content, LibraryIcon.Bundle, HomeTheme.Colors.Rose, iconSize.x);
+                LibraryWidgets.Place(_presetIcon.rectTransform, Vector2.one, Vector2.one, iconOffset, iconSize);
+                _mixIcon = LibraryUi.CreateRect("Lights", content);
+                LibraryWidgets.Place(_mixIcon, Vector2.one, Vector2.one, iconOffset, iconSize);
                 for (int i = 0; i < 9; i++)
                 {
-                    Image light = LibraryWidgets.Panel("Light" + i, lights, 9f, LibraryTheme.Colors.Control);
+                    Image light = LibraryWidgets.Panel("Light" + i, _mixIcon, 9f, LibraryTheme.Colors.Control);
                     LibraryWidgets.Place(light.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
                         new Vector2(i % 3 * 42f, -(i / 3) * 42f), new Vector2(34f, 34f));
                     _lights[i] = light;
@@ -475,6 +417,8 @@ namespace OpenSekai.App.UI
             internal void Refresh(MaterialPackState state, MaterialPackConfiguration active, int external)
             {
                 bool preset = state.IsPresetMode;
+                _mixIcon.gameObject.SetActive(!preset);
+                _presetIcon.gameObject.SetActive(preset);
                 _eyebrow.text = preset ? "PRESET" : "MIX";
                 _name.text = preset ? "预设" : "混搭";
                 InstalledMaterialPack source = preset ? state.PresetPack : null;
@@ -537,7 +481,6 @@ namespace OpenSekai.App.UI
                 string holds = string.Join("  ·  ", pack.Groups.GroupBy(g => g.Category)
                     .OrderBy(g => IndexOf(g.Key))
                     .Select(g => MaterialSlotCatalog.Category(g.Key).Title + (g.Count() > 1 ? " ×" + g.Count() : string.Empty)));
-                if (pack.Preset != null) holds = "附带预设  ·  " + holds;
                 TextMeshProUGUI summary = PackWidgets.UserLabel("Holds", Root, holds, 17f, LibraryTheme.Colors.TextSecondary);
                 LibraryWidgets.TopStrip(summary.rectTransform, 116f, 60f, 78f, 24f);
             }

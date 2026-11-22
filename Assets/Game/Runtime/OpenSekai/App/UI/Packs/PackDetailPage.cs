@@ -6,14 +6,14 @@ using OpenSekai.Infrastructure.Packages;
 using OpenSekai.MaterialPacks;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UI;
 
 namespace OpenSekai.App.UI
 {
     /// <summary>
-    /// One installed revision: its name, icon, version, ID and digest; its preset, if it ships
-    /// one, with a way to review and apply it; every group it provides, grouped by category, with
-    /// a preview and where each is used now; and uninstalling it.
+    /// The built-in bundle and installed revisions share this page and its category, preview
+    /// and group selection rows. Only installed revisions have manifest metadata and uninstall.
     /// </summary>
     internal sealed class PackDetailPage : PackPage
     {
@@ -45,10 +45,12 @@ namespace OpenSekai.App.UI
         private readonly CancellationTokenSource _iconLoad = new CancellationTokenSource();
         private InstalledMaterialPack _pack;
 
-        internal PackDetailPage(PackScreen screen, string packId, string digest) : base(screen, "PackDetail")
+        private bool IsBuiltin => _packId == null;
+
+        internal PackDetailPage(PackScreen screen, InstalledMaterialPack pack) : base(screen, "PackDetail")
         {
-            _packId = packId;
-            _digest = digest;
+            _packId = pack?.PackId;
+            _digest = pack?.Digest;
             RectTransform bar = ServerWidgets.TopBar(Root, string.Empty, screen.Back, screen.OpenSettings, out _title, out _subtitle, out _);
             _title.richText = false;
             _subtitle.richText = false;
@@ -94,7 +96,7 @@ namespace OpenSekai.App.UI
             LibraryWidgets.TopStrip(_counts.rectTransform, pad, pad, pad + ICON_SIZE + 80f, 28f);
 
             // Its preset.
-            PackWidgets.Caption(left, "随包预设", 0f, 0f, HERO_HEIGHT + 10f);
+            PackWidgets.Caption(left, IsBuiltin ? "整合包配置" : "随包预设", 0f, 0f, HERO_HEIGHT + 10f);
             Image preset = PackWidgets.Group(left, "Preset");
             _presetPanel = preset.rectTransform;
             LibraryWidgets.TopStrip(_presetPanel, 0f, 0f, HERO_HEIGHT + 10f + LibraryTheme.Layout.SECTION_CAPTION_HEIGHT, 220f);
@@ -108,13 +110,22 @@ namespace OpenSekai.App.UI
                 PackWidgets.Accent, LibraryTheme.Colors.TextOnAccent, UiCue.None);
             LibraryWidgets.Place((RectTransform)_presetButton.transform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(24f, 22f), new Vector2(240f, 60f));
 
-            _legacyHint = PackWidgets.Paragraph(left, "Legacy",
-                "此修订安装于旧版本，暂未读取包名、图标与预设。重新导入同一 ZIP 即可显示。", 17f, LibraryTheme.Colors.Warning);
-            LibraryWidgets.TopStrip(_legacyHint.rectTransform, 8f, 0f, HERO_HEIGHT + 286f, 50f);
+            if (IsBuiltin)
+            {
+                _icon.SetSprite(LibraryShapes.Icon(LibraryIcon.Bundle));
+            }
+            else
+            {
+                _legacyHint = PackWidgets.Paragraph(left, "Legacy",
+                    "此修订安装于旧版本，暂未读取包名、图标与预设。重新导入同一 ZIP 即可显示。", 17f, LibraryTheme.Colors.Warning);
+                LibraryWidgets.TopStrip(_legacyHint.rectTransform, 8f, 0f, HERO_HEIGHT + 286f, 50f);
 
-            Button uninstall = ServerWidgets.LabelledButton(left, "Uninstall", "卸载此修订", LibraryIcon.Trash, OpenUninstall, 260f, 64f,
-                LibraryTheme.Colors.DangerSurface, LibraryTheme.Colors.Danger, UiCue.None);
-            LibraryWidgets.Place((RectTransform)uninstall.transform, Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(260f, 64f));
+                Button uninstall = ServerWidgets.LabelledButton(left, "Uninstall", "卸载此修订", LibraryIcon.Trash, OpenUninstall, 260f, 64f,
+                    LibraryTheme.Colors.DangerSurface, LibraryTheme.Colors.Danger, UiCue.None);
+                LibraryWidgets.Place((RectTransform)uninstall.transform, Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(260f, 64f));
+                _presetCard = new PackPresetPanel(screen);
+                _uninstallCard = new PackUninstallPanel(screen);
+            }
 
             // Its groups.
             RectTransform right = LibraryUi.CreateRect("Groups", body);
@@ -124,9 +135,6 @@ namespace OpenSekai.App.UI
             LibraryWidgets.Inset(listArea, -6f, 0f, -6f, LibraryTheme.Layout.SECTION_CAPTION_HEIGHT);
             _groups = ServerWidgets.VerticalList(listArea, out _groupScroll, 10f, new RectOffset(6, 6, 0, 16));
 
-            _presetCard = new PackPresetPanel(screen);
-            _uninstallCard = new PackUninstallPanel(screen);
-            Refresh();
         }
 
         internal override void OnShown() => Refresh();
@@ -135,14 +143,14 @@ namespace OpenSekai.App.UI
 
         internal override bool TryHandleBack()
         {
-            if (_presetCard.IsOpen)
+            if (_presetCard?.IsOpen == true)
             {
                 _presetCard.Close();
                 UiSound.Play(UiCue.Close);
                 return true;
             }
 
-            if (_uninstallCard.IsOpen)
+            if (_uninstallCard?.IsOpen == true)
             {
                 _uninstallCard.Close();
                 UiSound.Play(UiCue.Close);
@@ -156,13 +164,32 @@ namespace OpenSekai.App.UI
         {
             _iconLoad.Cancel();
             _iconLoad.Dispose();
-            _presetCard.Dispose();
-            _uninstallCard.Dispose();
+            _presetCard?.Dispose();
+            _uninstallCard?.Dispose();
         }
 
         private void Refresh()
         {
             MaterialPackState state = Screen.State;
+            if (IsBuiltin && state != null)
+            {
+                var sets = state.Preset.GetBuiltinSets();
+                var categories = MaterialCategories.All.Where(MaterialCategories.HasBuiltinSets).ToList();
+                _title.text = _name.text = PackScreen.BUILTIN_BUNDLE_NAME;
+                _subtitle.text = "游戏自带资源";
+                _meta.text = string.Join("、", categories.Select(c => MaterialSlotCatalog.Category(c).Title));
+                _counts.text = categories.Count + " 个可选类别  ·  " + categories.Count * MaterialCategories.BUILTIN_SET_COUNT + " 个资源组";
+                _presetName.text = string.Join(" · ", categories.Select(c => MaterialSlotCatalog.BuiltinLabel(c, sets)));
+                _presetText.text = "右侧选用的资源组也会用于补全其他整合包缺少的资源。";
+                bool selected = state.IsPresetMode ? state.Preset.IsBuiltin :
+                    state.MixConfiguration().SameChoicesAs(new MaterialPackConfiguration { Builtin = sets });
+                _presetTag.gameObject.SetActive(selected);
+                _presetButton.gameObject.SetActive(!selected);
+                ServerWidgets.SetLabelledButton(_presetButton, state.IsPresetMode ? "使用整合包" : "用作混搭起点",
+                    LibraryIcon.Check, PackWidgets.Accent, LibraryTheme.Colors.TextOnAccent);
+                RebuildGroups(state);
+                return;
+            }
             _pack = state?.FindPack(_packId, _digest);
             if (_pack == null)
             {
@@ -178,8 +205,8 @@ namespace OpenSekai.App.UI
             int revisions = state.Installed.Count(p => p.PackId == _pack.PackId);
             _meta.text = "版本 " + _pack.Version + "  ·  包 ID " + _pack.PackId + "\n摘要 " + _pack.Digest.Substring(0, 16) + "…"
                 + (revisions > 1 ? "  ·  同一包共 " + revisions + " 个修订" : string.Empty);
-            int categories = _pack.Groups.Select(g => g.Category).Distinct().Count();
-            _counts.text = categories + " 个类别  ·  " + _pack.Groups.Count + " 个资源组" + (_pack.Icon == null ? "  ·  无图标" : string.Empty);
+            int categoryCount = _pack.Groups.Select(g => g.Category).Distinct().Count();
+            _counts.text = categoryCount + " 个类别  ·  " + _pack.Groups.Count + " 个资源组" + (_pack.Icon == null ? "  ·  无图标" : string.Empty);
             LoadIcon().Forget();
 
             bool current = state.IsPresetMode && state.Preset.IsFrom(_pack.PackId, _pack.Digest);
@@ -188,7 +215,7 @@ namespace OpenSekai.App.UI
                 _presetName.text = _pack.Preset.Name;
                 string declared = string.Join("、", MaterialCategories.All.Where(_pack.Preset.Categories.ContainsKey)
                     .Select(c => MaterialSlotCatalog.Category(c).Title));
-                _presetText.text = (declared.Length > 0 ? "设置 " + declared + "；" : string.Empty) + "其余类别使用游戏默认。使用后切换到预设，九类一次生效。";
+                _presetText.text = (declared.Length > 0 ? "设置 " + declared + "。" : string.Empty) + "缺少的资源跟随游戏内置整合包。";
                 _presetTag.gameObject.SetActive(current);
                 _presetButton.gameObject.SetActive(true);
             }
@@ -213,25 +240,61 @@ namespace OpenSekai.App.UI
 
         private void RebuildGroups(MaterialPackState state)
         {
-            foreach (GameObject row in _rows) Object.Destroy(row);
+            foreach (GameObject row in _rows)
+            {
+                row.SetActive(false);
+                Object.Destroy(row);
+            }
             _rows.Clear();
+            if (IsBuiltin)
+            {
+                var sets = state.Preset.GetBuiltinSets();
+                foreach (string category in MaterialCategories.All.Where(MaterialCategories.HasBuiltinSets))
+                {
+                    AddCaption(category);
+                    for (int i = 1; i <= MaterialCategories.BUILTIN_SET_COUNT; i++)
+                    {
+                        int set = i;
+                        bool selected = sets.Get(category) == set;
+                        AddGroupRow(category + "-" + set, category, MaterialSlotCatalog.BuiltinLabel(category, set), PackScreen.BUILTIN_BUNDLE_NAME,
+                            selected ? "已选用" : null, selected, () => Screen.Preview.OpenBuiltin(category, set),
+                            selected ? null : () => SelectBuiltin(category, set));
+                    }
+                }
+                return;
+            }
+
             foreach (string category in MaterialCategories.All)
             {
                 List<MaterialPackGroup> groups = _pack.Groups.Where(g => g.Category == category).ToList();
                 if (groups.Count == 0) continue;
-                MaterialSlotCatalog.CategoryInfo info = MaterialSlotCatalog.Category(category);
-                RectTransform caption = ServerWidgets.ListItem(_groups, "Caption-" + category, 44f);
-                Image dot = LibraryWidgets.Panel("Dot", caption, 5f, info.Tint);
-                LibraryWidgets.Place(dot.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(10f, 12f), new Vector2(10f, 10f));
-                TextMeshProUGUI label = LibraryWidgets.Label("Label", caption, info.Title + "  ·  " + info.Description, 19f,
-                    LibraryTheme.Colors.TextSecondary, FontStyles.Bold, TextAlignmentOptions.BottomLeft);
-                LibraryWidgets.Inset(label.rectTransform, 30f, 4f, 0f, 0f);
-                _rows.Add(caption.gameObject);
-                foreach (MaterialPackGroup group in groups) _rows.Add(GroupRow(state, group).gameObject);
+                AddCaption(category);
+                foreach (MaterialPackGroup group in groups) AddInstalledGroup(state, group);
             }
         }
 
-        private RectTransform GroupRow(MaterialPackState state, MaterialPackGroup group)
+        private void AddCaption(string category)
+        {
+            var info = MaterialSlotCatalog.Category(category);
+            RectTransform caption = ServerWidgets.ListItem(_groups, "Caption-" + category, 44f);
+            Image dot = LibraryWidgets.Panel("Dot", caption, 5f, info.Tint);
+            LibraryWidgets.Place(dot.rectTransform, Vector2.zero, Vector2.zero, new Vector2(10f, 12f), new Vector2(10f, 10f));
+            TextMeshProUGUI label = LibraryWidgets.Label("Label", caption, info.Title + "  ·  " + info.Description, 19f,
+                LibraryTheme.Colors.TextSecondary, FontStyles.Bold, TextAlignmentOptions.BottomLeft);
+            LibraryWidgets.Inset(label.rectTransform, 30f, 4f, 0f, 0f);
+            _rows.Add(caption.gameObject);
+        }
+
+        private void SelectBuiltin(string category, int set)
+        {
+            var state = Screen.State;
+            if (state == null) return;
+            var sets = state.Preset.GetBuiltinSets();
+            sets.Set(category, set);
+            Screen.SaveBuiltinBundle(sets, state.Revision);
+        }
+
+        private void AddInstalledGroup(MaterialPackState state, MaterialPackGroup group)
         {
             string reference = _pack.GroupReference(group.Id);
             MaterialGroupSelection selection = state.Selection(group.Category);
@@ -239,43 +302,55 @@ namespace OpenSekai.App.UI
             int total = MaterialCategories.Slots(group.Category).Count();
             int provided = MaterialCategories.Slots(group.Category).Count(group.Provides);
 
-            RectTransform row = ServerWidgets.ListItem(_groups, "Group-" + group.Id, GROUP_ROW);
-            Image surface = LibraryWidgets.Panel("Surface", row, 22f, HomeTheme.Colors.Card);
-            surface.raycastTarget = true;
-            LibraryUi.Stretch(surface.rectTransform);
-            LibraryWidgets.Outline(surface, 22f);
-
-            TextMeshProUGUI name = PackWidgets.UserLabel("Name", row, PackWidgets.GroupName(group), 24f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
-            LibraryWidgets.TopStrip(name.rectTransform, 28f, 420f, 16f, 34f);
             string coverage = group.Category == MaterialCategories.BACKGROUND
                 ? group.Background.Layers.Length + " 个图层，整组替换"
                 : "提供 " + provided + " / " + total + " 个槽位";
             if (group.Layout != null) coverage += "  ·  含 COMBO 布局";
             if (group.Sprites.Values.Any(s => s.TemplateSet.HasValue)) coverage += "  ·  模板套装 " + group.Sprites.Values.First(s => s.TemplateSet.HasValue).TemplateSet;
-            TextMeshProUGUI meta = PackWidgets.UserLabel("Meta", row, group.Id + "  ·  " + coverage, 17f, LibraryTheme.Colors.TextMuted);
+            string usage = order == 0 ? "混搭主组" : order > 0 ? "混搭回退 " + order : null;
+            AddGroupRow(group.Id, group.Category, PackWidgets.GroupName(group), group.Id + "  ·  " + coverage, usage, order == 0,
+                () => Screen.Preview.OpenGroup(_pack, group), () => Screen.OpenCategory(group.Category));
+        }
+
+        private void AddGroupRow(string id, string category, string title, string description, string usage, bool primary,
+            UnityAction previewGroup, UnityAction useGroup)
+        {
+            RectTransform row = ServerWidgets.ListItem(_groups, "Group-" + id, GROUP_ROW);
+            Image surface = LibraryWidgets.Panel("Surface", row, 22f, HomeTheme.Colors.Card);
+            surface.raycastTarget = true;
+            LibraryUi.Stretch(surface.rectTransform);
+            LibraryWidgets.Outline(surface, 22f);
+            TextMeshProUGUI name = PackWidgets.UserLabel("Name", row, title, 24f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
+            LibraryWidgets.TopStrip(name.rectTransform, 28f, 420f, 16f, 34f);
+            TextMeshProUGUI meta = PackWidgets.UserLabel("Meta", row, description, 17f, LibraryTheme.Colors.TextMuted);
             LibraryWidgets.TopStrip(meta.rectTransform, 28f, 420f, 54f, 26f);
 
-            string usage = order == 0 ? "混搭主组" : order > 0 ? "混搭回退 " + order : null;
             if (usage != null)
             {
-                RectTransform tag = PackWidgets.Tag(row, usage, MaterialSlotCatalog.Category(group.Category).Tint, out _, 32f, filled: order == 0);
+                RectTransform tag = PackWidgets.Tag(row, usage, MaterialSlotCatalog.Category(category).Tint, out _, 32f, filled: primary);
                 LibraryWidgets.Place(tag, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-300f, 0f), tag.sizeDelta);
             }
 
             Button preview = ServerWidgets.LabelledButton(row, "Preview", "预览", LibraryIcon.Search, () =>
             {
                 UiSound.Play(UiCue.Open);
-                Screen.Preview.OpenGroup(_pack, group);
+                previewGroup();
             }, 124f, 56f, LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, UiCue.None);
             LibraryWidgets.Place((RectTransform)preview.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-156f, 0f), new Vector2(124f, 56f));
-            Button use = ServerWidgets.LabelledButton(row, "Use", "选用", LibraryIcon.Forward, () => Screen.OpenCategory(group.Category),
+            Button use = ServerWidgets.LabelledButton(row, "Use", "选用", LibraryIcon.Forward, useGroup,
                 124f, 56f, LibraryTheme.Colors.TextPrimary, LibraryTheme.Colors.TextOnAccent, UiCue.None);
             LibraryWidgets.Place((RectTransform)use.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-20f, 0f), new Vector2(124f, 56f));
-            return row;
+            if (useGroup == null) PackWidgets.SetEnabled(use, false);
+            _rows.Add(row.gameObject);
         }
 
         private void OpenPreset()
         {
+            if (IsBuiltin && Screen.State != null)
+            {
+                Screen.UseBundle(MaterialPresetChoice.Builtin(Screen.State.Preset.GetBuiltinSets()));
+                return;
+            }
             if (_pack?.Preset == null) return;
             _presetCard.Open(_pack);
         }

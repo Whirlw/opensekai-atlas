@@ -115,32 +115,39 @@ namespace OpenSekai.MaterialPacks
     }
 
     /// <summary>
-    /// The preset 预设 mode uses: a pack revision's own preset, or, with no pack, one of the two
-    /// built-in sets (every category at the game default, the two-set categories at that set).
+    /// The pack revision used in preset mode and the module choices of the built-in bundle.
+    /// Older indexes have only BuiltinSet, which selected the same set for all three modules.
     /// </summary>
     public sealed class MaterialPresetChoice
     {
         public string PackId { get; set; }
         public string Digest { get; set; }
         public int BuiltinSet { get; set; } = 1;
+        public MaterialBuiltinSelection BuiltinSets { get; set; }
 
         [Newtonsoft.Json.JsonIgnore]
         public bool IsBuiltin => PackId == null;
 
         public static MaterialPresetChoice Builtin(int set) => new() { BuiltinSet = set };
 
+        public static MaterialPresetChoice Builtin(MaterialBuiltinSelection sets) =>
+            new() { BuiltinSet = sets.Notes, BuiltinSets = sets.Copy() };
+
+        public MaterialBuiltinSelection GetBuiltinSets() => BuiltinSets?.Copy() ??
+            new MaterialBuiltinSelection { Notes = BuiltinSet, HitFx = BuiltinSet, Audio = BuiltinSet };
+
         public static MaterialPresetChoice FromPack(string packId, string digest) => new() { PackId = packId, Digest = digest };
 
         public bool IsFrom(string packId, string digest) => !IsBuiltin && PackId == packId && Digest == digest;
 
         public bool SameAs(MaterialPresetChoice other) =>
-            other != null && PackId == other.PackId && Digest == other.Digest && (!IsBuiltin || BuiltinSet == other.BuiltinSet);
+            other != null && PackId == other.PackId && Digest == other.Digest && (!IsBuiltin || GetBuiltinSets().SameAs(other.GetBuiltinSets()));
 
-        public bool IsValid() => IsBuiltin
-            ? Digest == null && BuiltinSet is >= 1 and <= MaterialCategories.BUILTIN_SET_COUNT
-            : PackId.Length > 0 && Digest?.Length == 64;
+        public bool IsValid() => GetBuiltinSets().IsValid() && (IsBuiltin
+            ? Digest == null
+            : PackId.Length > 0 && Digest?.Length == 64);
 
-        public MaterialPresetChoice Copy() => new() { PackId = PackId, Digest = Digest, BuiltinSet = BuiltinSet };
+        public MaterialPresetChoice Copy() => new() { PackId = PackId, Digest = Digest, BuiltinSet = BuiltinSet, BuiltinSets = BuiltinSets?.Copy() };
     }
 
     /// <summary>
@@ -264,18 +271,17 @@ namespace OpenSekai.MaterialPacks
 
         /// <summary>
         /// The complete configuration the pack's preset gives: declared categories take the
-        /// preset's groups (bound to this installed revision) and built-in set, or the game default
-        /// where the set is left out; undeclared categories use the game default.
+        /// preset's groups bound to this installed revision. Every missing slot falls back to
+        /// the player's built-in bundle, including when an older manifest declares builtinSet.
         /// </summary>
-        public static MaterialPackConfiguration Build(InstalledMaterialPack pack)
+        public static MaterialPackConfiguration Build(InstalledMaterialPack pack, MaterialBuiltinSelection builtin = null)
         {
             if (pack?.Preset == null) throw new InvalidDataException("此资源包没有随包预设。");
             Validate(pack);
-            var configuration = new MaterialPackConfiguration();
+            var configuration = new MaterialPackConfiguration { Builtin = builtin?.Copy() ?? new MaterialBuiltinSelection() };
             foreach (var item in pack.Preset.Categories)
             {
                 configuration.Get(item.Key).Groups.AddRange(item.Value.Groups.Select(pack.GroupReference));
-                if (item.Value.BuiltinSet.HasValue) configuration.Builtin.Set(item.Key, item.Value.BuiltinSet.Value);
             }
             return configuration;
         }
@@ -291,13 +297,14 @@ namespace OpenSekai.MaterialPacks
 
         /// <summary>
         /// The configuration a preset choice gives among <paramref name="installed"/>. A pack that is
-        /// no longer installed, or has no preset, gives built-in set 1.
+        /// no longer installed, or has no preset, falls back to the built-in bundle.
         /// </summary>
         public static MaterialPackConfiguration Build(IEnumerable<InstalledMaterialPack> installed, MaterialPresetChoice choice)
         {
-            if (choice == null || choice.IsBuiltin) return BuildBuiltin(choice?.BuiltinSet ?? 1);
+            if (choice == null) return BuildBuiltin(1);
+            if (choice.IsBuiltin) return new MaterialPackConfiguration { Builtin = choice.GetBuiltinSets() };
             var pack = installed?.FirstOrDefault(p => choice.IsFrom(p.PackId, p.Digest));
-            return pack?.Preset == null ? BuildBuiltin(1) : Build(pack);
+            return pack?.Preset == null ? new MaterialPackConfiguration { Builtin = choice.GetBuiltinSets() } : Build(pack, choice.GetBuiltinSets());
         }
 
         private static InvalidDataException Error(string message) => new("随包预设：" + message);

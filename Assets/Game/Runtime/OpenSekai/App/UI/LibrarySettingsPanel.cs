@@ -381,7 +381,7 @@ namespace OpenSekai.App.UI
                 var state = OpenSekai.Infrastructure.Packages.MaterialPackStore.Shared.List();
                 if (!state.IsPresetMode) return "资源包 · 混搭";
                 var pack = state.PresetPack;
-                string name = state.Preset.IsBuiltin ? PackScreen.BuiltinPresetName(state.Preset.BuiltinSet) : pack?.Preset?.Name ?? state.Preset.PackId;
+                string name = state.Preset.IsBuiltin ? PackScreen.BUILTIN_BUNDLE_NAME : pack?.Preset?.Name ?? state.Preset.PackId;
                 return "资源包 · 预设「" + name + "」";
             }
             catch (Exception)

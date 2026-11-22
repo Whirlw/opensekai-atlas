@@ -40,6 +40,7 @@ namespace OpenSekai.Infrastructure.Packages
         /// an index written before the two modes; the store decides it when it reads such an index.
         /// </summary>
         public string Mode { get; set; }
+        public bool MixInitialized { get; set; }
 
         /// <summary>The preset 预设 mode uses. 混搭 leaves it as it is, and the other way round.</summary>
         public MaterialPresetChoice Preset { get; set; } = MaterialPresetChoice.Builtin(1);
@@ -72,6 +73,14 @@ namespace OpenSekai.Infrastructure.Packages
         /// <summary>The configuration a live gets now: the chosen preset in 预设 mode, the 混搭 one otherwise.</summary>
         public MaterialPackConfiguration ActiveConfiguration() =>
             IsPresetMode ? MaterialPresets.Build(Installed, Preset) : MixConfiguration();
+
+        internal MaterialPackConfiguration BundleConfiguration(MaterialPresetChoice choice)
+        {
+            if (choice == null || !choice.IsValid()) throw new InvalidDataException("预设选择无效。");
+            if (choice.IsBuiltin) return new MaterialPackConfiguration { Builtin = choice.GetBuiltinSets() };
+            var pack = FindPack(choice.PackId, choice.Digest) ?? throw new InvalidDataException("找不到已安装的资源包修订。");
+            return MaterialPresets.Build(pack, Preset.GetBuiltinSets());
+        }
 
         /// <summary>The installed pack whose preset 预设 mode uses; null for a built-in preset.</summary>
         [JsonIgnore]
@@ -271,6 +280,7 @@ namespace OpenSekai.Infrastructure.Packages
             // come from no longer change, so every read gives the same result.
             if (_state.Builtin == null) _state.Builtin = ReadLegacy(legacyBuiltin);
             if (_state.Mode == null) _state.Mode = InitialMode(_state);
+            if (!_state.IsPresetMode) _state.MixInitialized = true;
             // Only the process-owned store opens this root. An interrupted import never became selectable.
             string staging = Path.Combine(_root, "staging");
             if (Directory.Exists(staging)) Directory.Delete(staging, true);
@@ -370,8 +380,8 @@ namespace OpenSekai.Infrastructure.Packages
             MaterialPackResolver.ResolveHitFx(state.Installed, state.HitFx, InstalledRoot);
             if (state.Mode != null && !MaterialPackModes.IsKnown(state.Mode)) throw new InvalidDataException("资源包模式无效。");
             if (state.Preset == null || !state.Preset.IsValid()) throw new InvalidDataException("预设选择无效。");
-            // A preset whose pack is gone (or no longer has one) gives way to built-in set 1.
-            if (!state.Preset.IsBuiltin && state.PresetPack?.Preset == null) state.Preset = MaterialPresetChoice.Builtin(1);
+            if (!state.Preset.IsBuiltin && state.PresetPack?.Preset == null)
+                state.Preset = MaterialPresetChoice.Builtin(state.Preset.GetBuiltinSets());
             return state;
         }
 
@@ -542,7 +552,7 @@ namespace OpenSekai.Infrastructure.Packages
         {
             lock (_gate)
             {
-                var configuration = BuildPreset(_state, choice);
+                var configuration = _state.BundleConfiguration(choice);
                 MaterialPackResolver.Validate(_state.Installed, configuration, InstalledRoot);
                 return configuration;
             }
@@ -559,10 +569,16 @@ namespace OpenSekai.Infrastructure.Packages
             {
                 CheckWritable(expectedRevision);
                 var next = Copy(_state);
-                BuildPreset(next, choice);
-                next.Preset = choice.Copy();
+                MaterialPackConfiguration configuration = next.BundleConfiguration(choice);
+                MaterialPackResolver.Validate(next.Installed, configuration, InstalledRoot);
+                if (choice.IsBuiltin) next.Preset = choice.Copy();
+                else
+                {
+                    // Keep the built-in bundle's module choices while an imported bundle is active.
+                    next.Preset.PackId = choice.PackId;
+                    next.Preset.Digest = choice.Digest;
+                }
                 next.Mode = MaterialPackModes.PRESET;
-                MaterialPackResolver.Validate(next.Installed, next.ActiveConfiguration(), InstalledRoot);
                 return Commit(next);
             }
         }
@@ -584,8 +600,11 @@ namespace OpenSekai.Infrastructure.Packages
                 CheckWritable(expectedRevision);
                 if (_state.Mode == mode) return _state.Revision;
                 var next = Copy(_state);
-                if (mode == MaterialPackModes.MIX && IsUntouched(next.MixConfiguration()))
-                    next.Apply(next.ActiveConfiguration());
+                if (mode == MaterialPackModes.MIX && !next.MixInitialized)
+                {
+                    if (IsUntouched(next.MixConfiguration())) next.Apply(next.ActiveConfiguration());
+                    next.MixInitialized = true;
+                }
                 next.Mode = mode;
                 MaterialPackResolver.Validate(next.Installed, next.ActiveConfiguration(), InstalledRoot);
                 return Commit(next);
@@ -595,12 +614,18 @@ namespace OpenSekai.Infrastructure.Packages
         private static bool IsUntouched(MaterialPackConfiguration mix) =>
             mix.SameChoicesAs(new MaterialPackConfiguration()) && MaterialCategories.All.All(c => mix.Get(c).Overrides.Count == 0);
 
-        private static MaterialPackConfiguration BuildPreset(MaterialPackState state, MaterialPresetChoice choice)
+        public long SaveBuiltinBundle(MaterialBuiltinSelection sets, long expectedRevision)
         {
-            if (choice == null || !choice.IsValid()) throw new InvalidDataException("预设选择无效。");
-            if (choice.IsBuiltin) return MaterialPresets.BuildBuiltin(choice.BuiltinSet);
-            var pack = state.FindPack(choice.PackId, choice.Digest) ?? throw new InvalidDataException("找不到已安装的资源包修订。");
-            return MaterialPresets.Build(pack);
+            lock (_gate)
+            {
+                CheckWritable(expectedRevision);
+                if (sets?.IsValid() != true) throw new InvalidDataException("内置整合包的套装选择无效。");
+                if (_state.Preset.GetBuiltinSets().SameAs(sets)) return _state.Revision;
+                var next = Copy(_state);
+                next.Preset.BuiltinSet = sets.Notes;
+                next.Preset.BuiltinSets = sets.Copy();
+                return Commit(next);
+            }
         }
 
         private long CommitMix(MaterialPackConfiguration configuration)
@@ -608,6 +633,7 @@ namespace OpenSekai.Infrastructure.Packages
             var next = Copy(_state);
             next.Apply(configuration);
             next.Mode = MaterialPackModes.MIX;
+            next.MixInitialized = true;
             MaterialPackResolver.Validate(next.Installed, next.MixConfiguration(), InstalledRoot);
             return Commit(next);
         }
@@ -656,7 +682,7 @@ namespace OpenSekai.Infrastructure.Packages
             if (next.Preset.IsFrom(packId, digest))
             {
                 impact.ClearedPreset = pack.Preset?.Name ?? PackLabel(pack);
-                next.Preset = MaterialPresetChoice.Builtin(1);
+                next.Preset = MaterialPresetChoice.Builtin(next.Preset.GetBuiltinSets());
             }
             return impact;
         }

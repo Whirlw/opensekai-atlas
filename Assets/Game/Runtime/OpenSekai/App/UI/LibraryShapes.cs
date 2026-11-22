@@ -7,7 +7,7 @@ namespace OpenSekai.App.UI
     {
         Back, Search, Add, Refresh, Settings, List, Grid, Check, Wave, Play, More,
         Close, Minus, ChevronRight, Export, Trash, Info, Forward,
-        Heart, Comment, Clock, Trophy, Tag, Globe, Download, Browser, User
+        Heart, Comment, Clock, Trophy, Tag, Globe, Download, Browser, User, Bundle
     }
 
     /// <summary>
@@ -119,20 +119,22 @@ namespace OpenSekai.App.UI
             }
 
             const int VIEW_SIZE = 24;
-            const int SIZE = VIEW_SIZE * SCALE;
-            var pixels = new Color32[SIZE * SIZE];
-            for (int y = 0; y < SIZE; y++)
+            // The bundle also appears at 120 canvas units on the mode card.
+            int scale = icon == LibraryIcon.Bundle ? 8 : SCALE;
+            int size = VIEW_SIZE * scale;
+            var pixels = new Color32[size * size];
+            for (int y = 0; y < size; y++)
             {
-                for (int x = 0; x < SIZE; x++)
+                for (int x = 0; x < size; x++)
                 {
-                    var point = new Vector2((x + 0.5f) / SCALE, VIEW_SIZE - (y + 0.5f) / SCALE);
-                    float alpha = Mathf.Clamp01(0.5f - IconDistance(icon, point) * SCALE);
-                    pixels[y * SIZE + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(alpha * 255f));
+                    var point = new Vector2((x + 0.5f) / scale, VIEW_SIZE - (y + 0.5f) / scale);
+                    float alpha = Mathf.Clamp01(0.5f - IconDistance(icon, point) * scale);
+                    pixels[y * size + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(alpha * 255f));
                 }
             }
 
-            Texture2D texture = CreateTexture(icon.ToString(), SIZE, SIZE, pixels);
-            sprite = Sprite.Create(texture, new Rect(0f, 0f, SIZE, SIZE), new Vector2(0.5f, 0.5f), PIXELS_PER_UNIT);
+            Texture2D texture = CreateTexture(icon.ToString(), size, size, pixels);
+            sprite = Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f * scale);
             _icons[icon] = sprite;
             return sprite;
         }
@@ -172,6 +174,11 @@ namespace OpenSekai.App.UI
                 case LibraryIcon.Grid:
                     return Mathf.Min(Mathf.Min(Box(7.2f, 7.2f), Box(16.8f, 7.2f)),
                         Mathf.Min(Box(7.2f, 16.8f), Box(16.8f, 16.8f)));
+                case LibraryIcon.Bundle:
+                    // A diamond cover with two offset sheets beneath it.
+                    float layer = Mathf.Min(Line(3, 7, 12, 2.5f), Line(12, 2.5f, 21, 7));
+                    float Fold(float y) => Mathf.Min(Line(3, y, 12, y + 4.5f), Line(12, y + 4.5f, 21, y));
+                    return Mathf.Min(Mathf.Min(layer, Fold(7)), Mathf.Min(Fold(12), Fold(17)));
                 case LibraryIcon.Check:
                     return Mathf.Min(Line(5, 12, 9.5f, 16.5f), Line(9.5f, 16.5f, 19, 7));
                 case LibraryIcon.Wave:
