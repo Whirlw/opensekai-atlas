@@ -1,5 +1,6 @@
 using System.Linq;
 using OpenSekai.MaterialPacks;
+using Sekai.Live;
 using UnityEngine;
 
 namespace Sekai
@@ -26,6 +27,13 @@ namespace Sekai
 			if (prefab == null) return null;
 			var controller = Instantiate(prefab, parent, false).AddComponent<ParticleSystemController>();
 			skin?.Apply(controller, prefab.name);
+			if (prefab.name is LivePrefabDefine.FX_LONG_AURA or LivePrefabDefine.FX_CRITICAL_LONG_AURA
+				or LivePrefabDefine.FX_LONG_HOLD_AURA or LivePrefabDefine.FX_CRITICAL_LONG_HOLD_AURA
+				or LivePrefabDefine.FX_FLICK_AURA or LivePrefabDefine.FX_CRITICAL_FLICK_AURA)
+			{
+				if (controller.Sequence == null && skin?.HasTemplateTexture(prefab.name) != true)
+					controller.AlignBuiltInHoldBeams();
+			}
 			if (varyBurst && controller.Sequence == null)
 			{
 				var layers = controller._particleSystems ?? controller.GetComponentsInChildren<ParticleSystem>(true);
@@ -33,6 +41,25 @@ namespace Sekai
 					.Select(p => (p, p.randomSeed)).ToArray();
 			}
 			return controller;
+		}
+
+		private void AlignBuiltInHoldBeams()
+		{
+			// Both the base beam and its additive pass draw the bright edge at the bottom of the cell.
+			foreach (var renderer in _renderers ?? GetComponentsInChildren<ParticleSystemRenderer>(true))
+			{
+				if (renderer.name is not ("aura" or "aura_add")) continue;
+				renderer.pivot = new Vector3(renderer.pivot.x, 0.5f, renderer.pivot.z);
+
+				// The burst stretches and fades above the hit. Keep its base there as it grows.
+				var particles = renderer.GetComponent<ParticleSystem>();
+				var shape = particles.shape;
+				shape.position = new Vector3(shape.position.x, 0f, shape.position.z);
+				var velocity = particles.velocityOverLifetime;
+				if (velocity.enabled) velocity.yMultiplier = 0f;
+				var force = particles.forceOverLifetime;
+				if (force.enabled) force.yMultiplier = 0f;
+			}
 		}
 
 		internal void SetHitLayout(MaterialSpriteSlot layout, bool screen)

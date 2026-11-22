@@ -148,6 +148,7 @@ namespace OpenSekai.Tests.PlayMode
                         Assert.That(rendered.Length, Is.EqualTo(original.Length), key);
                         for (int r = 0; r < rendered.Length; r++)
                         {
+                            Assert.That(rendered[r].pivot, Is.EqualTo(original[r].pivot), key);
                             var baseline = original[r].GetComponent<ParticleSystem>();
                             var activeSystem = rendered[r].GetComponent<ParticleSystem>();
                             var tint = baseline.main.startColor;
@@ -182,7 +183,7 @@ namespace OpenSekai.Tests.PlayMode
                         }
                     }
                     Assert.That(seen, Is.EquivalentTo(group.Sprites.Keys));
-                    VerifyAutoplayHolds(holds, instances);
+                    VerifyAutoplayHolds(holds, instances, group);
                     var note = new NoteBase(default, 1, 5, 6, NoteCategory.Flick, 1, 0, NoteType.Default) { Direction = NoteDirection.Left };
                     note.SetJudgeInfoForDecoration(NoteResult.Perfect);
                     var layout = group.Sprites["hitFx.flick.flash"];
@@ -225,10 +226,104 @@ namespace OpenSekai.Tests.PlayMode
             Assert.That(resources.Values.All(t => t == null), Is.True);
         }
 
-        private static void VerifyAutoplayHolds(LongTapEffectView view, ParticleSystemController[] effects)
+        [TestCase(0)]
+        [TestCase(1)]
+        public void BuiltInHoldHeadAndTailBeamsStartAtTheHitAnchor(int set)
         {
+            string previous = LiveConfig.EffectBundleName;
+            var host = new GameObject("Hold endpoint effects");
+            var mesh = new Mesh();
+            try
+            {
+                var camera = new GameObject("Endpoint camera").AddComponent<Camera>();
+                camera.transform.SetParent(host.transform, false);
+                camera.transform.localPosition = Vector3.back * 10;
+                camera.enabled = false;
+                LiveConfig.SetNoteEffectName(set);
+                var view = host.AddComponent<TapEffectView>();
+                view.Setup(null);
+                var effects = host.GetComponentsInChildren<ParticleSystemController>(true);
+                foreach (var type in new[] { NoteType.Default, NoteType.Critical })
+                {
+                    var head = new LongNote(default, 1, 3, 3, NoteCategory.Long, type, 1, 0);
+                    var tail = new NormalNote(default, 2, 5, 5, NoteCategory.Normal, 1, type, 0);
+                    head.AddNoteListAndSetupChildNote(tail);
+                    string aura = type == NoteType.Default ? LivePrefabDefine.FX_LONG_AURA : LivePrefabDefine.FX_CRITICAL_LONG_AURA;
+                    CheckHit(head, aura);
+                    CheckHit(tail, aura);
+                    var flick = new FlickNote(default, 3, 7, 7, NoteCategory.Flick, 1, type, NoteDirection.Left, 0, 1);
+                    flick.SetParentNote(head);
+                    CheckHit(flick, type == NoteType.Default ? LivePrefabDefine.FX_FLICK_AURA : LivePrefabDefine.FX_CRITICAL_FLICK_AURA);
+                }
+
+                void CheckHit(NoteBase note, string prefab)
+                {
+                    note.SetJudgeInfoForDecoration(NoteResult.Perfect);
+                    view.Excute(note, () => true);
+                    var aura = effects.Single(c => c.name == prefab + "(Clone)" && c.IsPlaying);
+                    var beams = aura.GetComponentsInChildren<ParticleSystemRenderer>()
+                        .Where(r => r.name is "aura" or "aura_add").ToArray();
+                    Assert.That(beams, Is.Not.Empty, prefab);
+                    foreach (var beam in beams)
+                    {
+                        var sheet = beam.GetComponent<ParticleSystem>();
+                        foreach (float time in new[] { .02f, .08f, .16f })
+                        {
+                            sheet.Simulate(time, false, true, false);
+                            beam.BakeMesh(mesh, camera, ParticleSystemBakeMeshOptions.BakeRotationAndScale);
+                            Assert.That(mesh.vertexCount, Is.Positive, prefab + "/" + beam.name);
+                            Assert.That(mesh.bounds.min.y, Is.EqualTo(0f).Within(.001f), prefab + "/" + beam.name);
+                        }
+                    }
+                    foreach (var effect in effects.Where(c => c.IsPlaying)) effect.Stop();
+                }
+            }
+            finally
+            {
+                LiveConfig.SetNoteEffectName(previous == LiveConfig.GetEffectBundleName(1) ? 1 : 0);
+                Object.DestroyImmediate(mesh);
+                Object.DestroyImmediate(host);
+            }
+        }
+
+        [TestCase(0)]
+        [TestCase(1)]
+        public void BuiltInHoldBeamsStartAtTheHitAnchor(int set)
+        {
+            string previous = LiveConfig.EffectBundleName;
+            var host = new GameObject("Built-in hold effects");
+            try
+            {
+                LiveConfig.SetNoteEffectName(set);
+                var holds = host.AddComponent<LongTapEffectView>();
+                holds.Setup(autoplay: true);
+                VerifyAutoplayHolds(holds, host.GetComponentsInChildren<ParticleSystemController>(true));
+            }
+            finally
+            {
+                LiveConfig.SetNoteEffectName(previous == LiveConfig.GetEffectBundleName(1) ? 1 : 0);
+                Object.DestroyImmediate(host);
+            }
+        }
+
+        private static void VerifyAutoplayHolds(LongTapEffectView view, ParticleSystemController[] effects, MaterialPackGroup group = null)
+        {
+            bool builtIn = group == null;
             MusicScoreInfo At(float time) => new MusicScoreInfo(0, time / 2, time, 120, 4, 1, 1);
             bool Playing(string prefab) => effects.Any(p => p.name == prefab + "(Clone)" && p.IsPlaying);
+            var front = new GameObject("Note projection").AddComponent<Camera>();
+            front.enabled = false;
+            front.transform.SetParent(view.transform, false);
+            front.orthographic = true;
+            front.orthographicSize = 5f;
+            var projection = new GameObject("Effect projection").AddComponent<Camera>();
+            projection.enabled = false;
+            projection.transform.SetParent(view.transform, false);
+            projection.transform.localPosition = new Vector3(0, 5.32f, -5.86f);
+            projection.transform.localRotation = Quaternion.Euler(27.1f, 0, 0);
+            projection.fieldOfView = 50f;
+            Vector3 judge = view.transform.TransformPoint(LiveConfig.JudgmentPositions[0]);
+            view.AlignBeamToLine(front, projection, judge);
             var bar = new LongNote(At(1), 1, 2, 6, NoteCategory.Long, NoteType.Default, 1, 0);
             bar.AddNoteListAndSetupChildNote(new NormalNote(At(2), 2, 2, 6, NoteCategory.Normal, 1, NoteType.Default, 0));
             view.Add(bar);
@@ -292,6 +387,19 @@ namespace OpenSekai.Tests.PlayMode
                     Assert.That(mesh.vertexCount, Is.GreaterThan(0));
                     float expected = LiveUtility.CalcLaneTransformX(lanes) - LiveUtility.CalcLaneTransformX(0);
                     Assert.That(mesh.bounds.size.x, Is.EqualTo(expected).Within(.001f), prefab);
+                    float expectedBottom = builtIn ? 0f : -0.15f * mesh.bounds.size.y;
+                    Assert.That(mesh.bounds.min.y, Is.EqualTo(expectedBottom).Within(.001f), prefab);
+                    if (builtIn)
+                    {
+                        float edge = mesh.vertices.Min(v => projection.WorldToViewportPoint(sheet.transform.position + v).y);
+                        Assert.That(edge, Is.EqualTo(front.WorldToViewportPoint(judge).y).Within(.0001f), prefab);
+                    }
+                    else
+                    {
+                        Assert.That(MaterialHitFxSlots.TryGetTemplate(prefab, out string slot), Is.True);
+                        float packY = group.Sprites[slot].Position?[1] ?? 0f;
+                        Assert.That(aura.transform.localPosition.y, Is.EqualTo(packY * LiveUtility.EFFECT_LANE_WIDTH).Within(.0001f), prefab);
+                    }
                 }
                 finally
                 {

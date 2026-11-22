@@ -11,6 +11,10 @@ namespace Sekai
         private readonly List<ParticleSystemController> _controllers = new();
         internal bool Paused { get; private set; }
 
+        internal bool HasTemplateTexture(string prefabName) =>
+            MaterialHitFxSlots.TryGetTemplate(prefabName, out string slot) &&
+            TryGetBinding(slot, out var binding) && binding.texture != null;
+
         internal static GameObject LoadPrefab(string fallbackBundle, string prefabName, LiveHitEffectSkin skin)
         {
             string bundle = fallbackBundle;

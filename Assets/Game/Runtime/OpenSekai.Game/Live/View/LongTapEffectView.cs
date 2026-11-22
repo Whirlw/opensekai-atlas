@@ -23,6 +23,7 @@ namespace Sekai
 			}
 
 			internal bool SoundRequested;
+			internal readonly bool UsesBuiltInBeam;
 			private uint _playbackId;
 			public uint PlaybackId
 			{
@@ -50,6 +51,7 @@ namespace Sekai
 				Aura = LoadTapEffect(bundleName, auraPath, parent, skin);
 				if (Aura != null && Aura.Sequence == null)
 				{
+					UsesBuiltInBeam = skin?.HasTemplateTexture(auraPath) != true;
 					// RenderPair stretches this sheet by the live lane count. Its base width is one effect lane.
 					var sheet = Aura.GetComponentInChildren<ParticleSystem>(true);
 					if (sheet != null)
@@ -88,6 +90,15 @@ namespace Sekai
 		private readonly Dictionary<LongNote, NativeHold> _nativeHolds = new Dictionary<LongNote, NativeHold>();
 
 		private bool _autoplay;
+		private Vector3 _beamOrigin;
+
+		internal void AlignBeamToLine(Camera front, Camera effect, Vector3 judgmentPoint)
+		{
+			// The note ribbon is orthographic. Preserve the beam's depth and width in the effect camera.
+			Vector3 point = effect.WorldToViewportPoint(transform.position);
+			point.y = front.WorldToViewportPoint(judgmentPoint).y;
+			_beamOrigin = transform.InverseTransformPoint(effect.ViewportToWorldPoint(point));
+		}
 
 		public void Setup(LiveHitEffectSkin skin = null, bool autoplay = false)
 		{
@@ -276,7 +287,7 @@ namespace Sekai
 			hold.Pair = null;
 		}
 
-		private static void RenderPair(EffectPair pair, float left, float right, int style)
+		private void RenderPair(EffectPair pair, float left, float right, int style)
 		{
 			float x = LiveUtility.CalcLaneTransformX((left + right) * 0.5f);
 			if (pair.Gen != null)
@@ -287,7 +298,8 @@ namespace Sekai
 			}
 			if (pair.Aura != null)
 			{
-				pair.Aura.Place(new Vector3(x, 0f, 0f));
+				Vector3 origin = pair.UsesBuiltInBeam ? _beamOrigin : Vector3.zero;
+				pair.Aura.Place(origin + Vector3.right * x);
 				pair.Aura.transform.localScale = new Vector3(right - left + 1f, 1f, 1f);
 				if (pair.Aura.IsPlaying) pair.Aura.SetStyle(style);
 				else pair.Aura.Play(style);

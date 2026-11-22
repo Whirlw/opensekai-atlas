@@ -880,6 +880,11 @@ namespace Sekai.Live
 				effectCamera.fieldOfView = SekaiCameraAspect.CalculateVerticalFov(_effectCameraBaseFieldOfView);
 			}
 			effectCamera.ResetProjectionMatrix();
+			if (_longTapEffectView != null && frontViewCamera != null)
+			{
+				Vector3 judgmentPoint = (liveRoot != null ? liveRoot : transform).TransformPoint(LiveConfig.JudgmentPositions[0]);
+				_longTapEffectView.AlignBeamToLine(frontViewCamera, effectCamera, judgmentPoint);
+			}
 			Shader.SetGlobalMatrix(_tapEffectViewMatrixId, effectCamera.worldToCameraMatrix);
 			Shader.SetGlobalMatrix(_tapEffectProjectionMatrixId, GL.GetGPUProjectionMatrix(effectCamera.projectionMatrix, false));
 		}
