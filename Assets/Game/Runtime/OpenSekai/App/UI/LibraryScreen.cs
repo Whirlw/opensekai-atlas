@@ -71,8 +71,8 @@ namespace OpenSekai.App.UI
 
         public void Refresh()
         {
-            // An in-progress build reads the current catalog in its final step.
-            if (_build == null) _presenter?.Refresh();
+            // Once the initial listing exists, its history can change while rows are still warming.
+            if (_build == null || _view?.HasListing == true) _presenter?.Refresh();
         }
 
         public void ShowResult(PlayResult result) => _presenter?.ShowResult(result);

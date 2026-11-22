@@ -148,13 +148,86 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(_target.ConfirmImport(preview.Id).Best30.Total, Is.EqualTo(900));
         }
 
-        private static void Save(PlayerProfileStore store, string id, string chart)
+        [Test]
+        public void DeletingBestThenClearingAndRestoringReplacesWarmAndPersistedIndexes()
+        {
+            Save(_source, "older", "A", 900000, "2026-11-21T00:00:00Z");
+            Assert.Throws<InvalidOperationException>(() => _source.DeleteAllHistory());
+            _source.ExportBackup(_backup);
+            var reopened = new PlayerProfileStore(_sourceRoot);
+            Assert.That(reopened.HasCurrentBackup, Is.True);
+            string Journal() => Path.Combine(SongPackageStorage.ActivePlayerDirectory(_sourceRoot), "PlayHistory.jsonl");
+            Assert.That(reopened.Summaries.Load(Journal())["A"].PlayCount, Is.EqualTo(2));
+            var best = reopened.ReadHistory(0, 3).Records.Single(p => p.RecordId == "a");
+            reopened.DeleteHistory(best);
+            Assert.That(reopened.ReadHistory(0, 10).TotalCount, Is.EqualTo(2));
+            Assert.That(reopened.Read().Best30.Entries.Single(e => e.Play.ScoreKey == "A").Play.RecordId, Is.EqualTo("older"));
+            var fallback = reopened.Summaries.Load(Journal())["A"];
+            Assert.That(fallback.PlayCount, Is.EqualTo(1));
+            Assert.That(fallback.Best.RecordId, Is.EqualTo("older"));
+            Assert.That(fallback.LastPlayedAtUtc, Is.EqualTo("2026-11-21T00:00:00Z"));
+            Assert.That(reopened.History.Retry("a", out _), Is.Null);
+            Assert.Throws<InvalidOperationException>(() => reopened.DeleteHistory(best));
+            reopened.DeleteAllHistory();
+            Assert.That(reopened.Read().Best30.Total, Is.Zero);
+            Assert.That(reopened.Summaries.Load(Journal()), Is.Empty);
+            Assert.That(reopened.ReadHistory(0, 10).Records, Is.Empty);
+            Assert.That(reopened.Read().Appearance.Nickname, Is.EqualTo("初音"));
+            reopened = new PlayerProfileStore(_sourceRoot);
+            Assert.That(reopened.HasCurrentBackup, Is.False);
+            Assert.That(reopened.Summaries.Load(Journal()), Is.Empty);
+            var preview = reopened.PreviewBackup(_backup);
+            reopened.ConfirmImport(preview.Id);
+            Assert.That(reopened.HasCurrentBackup, Is.False);
+            Assert.That(reopened.ReadHistory(0, 10).TotalCount, Is.EqualTo(3));
+            Assert.That(reopened.Read().Best30.Total, Is.EqualTo(600));
+            Assert.That(reopened.Summaries.Load(Journal())["A"].Best.RecordId, Is.EqualTo("a"));
+            Assert.That(new PlayerProfileStore(_sourceRoot).Summaries.Load(Journal())["A"].PlayCount, Is.EqualTo(2));
+        }
+
+        [Test]
+        public async Task TemporaryCopyAndLatePickerSuccessCannotAuthorizeClearingNewScores()
+        {
+            var copy = await _source.WriteBackupCopyAsync(_backup, default);
+            Assert.That(_source.HasCurrentBackup, Is.False);
+            Save(_source, "c", "C");
+            _source.MarkBackupSaved(copy.Directory, copy.Bytes);
+            Assert.Throws<InvalidOperationException>(() => _source.DeleteAllHistory());
+            await _source.ExportBackupAsync(_backup);
+            Assert.That(_source.HasCurrentBackup, Is.True);
+            // A retired run changes the journal even though it has no library summary.
+            _source.History.Submit(new CustomMusicScorePlayHistoryRecord
+                { RecordId = "retired", EndReason = PlayResultKind.Retired }, null, out var summary);
+            Assert.That(summary, Is.Null);
+            Assert.That(new PlayerProfileStore(_sourceRoot).HasCurrentBackup, Is.False);
+            Assert.Throws<InvalidOperationException>(() => _source.DeleteAllHistory());
+        }
+
+        [Test]
+        public void IdenticalIdlessLegacyPlaysCanBeDeletedIndividuallyAndRestoredAfterClearing()
+        {
+            string path = Path.Combine(_sourceRoot, "PlayHistory.jsonl");
+            const string legacy = "{\"schemaVersion\":1,\"title\":\"legacy\"}";
+            File.AppendAllLines(path, new[] { legacy, "{torn", legacy });
+            _source.ExportBackup(_backup);
+            var selected = _source.ReadHistory(0, 10).Records.Last(p => p.Title == "legacy");
+            _source.DeleteHistory(selected);
+            string current = Path.Combine(SongPackageStorage.ActivePlayerDirectory(_sourceRoot), "PlayHistory.jsonl");
+            Assert.That(File.ReadAllLines(current).Count(line => line == legacy), Is.EqualTo(1));
+            Assert.That(File.ReadAllLines(current), Does.Contain("{torn"));
+            _source.DeleteAllHistory();
+            _source.ConfirmImport(_source.PreviewBackup(_backup).Id);
+            Assert.That(_source.ReadHistory(0, 10).Records.Count(p => p.Title == "legacy"), Is.EqualTo(2));
+        }
+
+        private static void Save(PlayerProfileStore store, string id, string chart, int score = 1000000,
+            string when = "2026-11-22T00:00:00Z")
         {
             var play = new CustomMusicScorePlayHistoryRecord
             {
                 SchemaVersion = 3, RecordId = id, ScoreKey = chart, EndReason = PlayResultKind.Completed,
-                PlayedAtUtc = "2026-11-22T00:00:00Z", FormulaVersion = RankingRules.FormulaVersion,
-                MaximumScore = 1000000, Life = 100, PlayLevel = 30, TotalScore = 1000000, TotalComboCount = 10
+                PlayedAtUtc = when, FormulaVersion = RankingRules.FormulaVersion,
+                MaximumScore = 1000000, Life = 100, PlayLevel = 30, TotalScore = score, TotalComboCount = 10
             };
             store.History.Submit(play, null, out _);
         }

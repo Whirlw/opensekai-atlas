@@ -205,10 +205,7 @@ namespace OpenSekai.App.UI
             if (animate)
             {
                 // A short shake says "this one is different now" without a second dialog.
-                _armMotion = LMotion.Punch.Create(0f, 1.6f, 0.36f)
-                    .WithFrequency(8)
-                    .WithDampingRatio(1f)
-                    .Bind(_deleteRow, static (z, row) => row.localRotation = Quaternion.Euler(0f, 0f, z));
+                _armMotion = LibraryActionRow.Shake(_deleteRow);
             }
         }
 

@@ -405,4 +405,121 @@ namespace OpenSekai.App.UI
             _captions[index].text = caption;
         }
     }
+
+    /// <summary>
+    /// Confirms deleting history the way the package card confirms 删除曲包. The first tap turns
+    /// the row red and shakes it, and the second deletes. One run can always be deleted. Clearing
+    /// everything needs a backup of the current history. Without one the card says so and offers
+    /// 导出备份 in place of the delete row.
+    /// </summary>
+    internal sealed class ProfileDeletePanel : IDisposable
+    {
+        internal const string ROOT_NAME = "ProfileDelete";
+
+        private readonly LibraryModal _modal;
+        private readonly LibraryActionRow _delete;
+        private readonly LibraryActionRow _export;
+        private Action _onDelete;
+        private Action _onExport;
+
+        internal ProfileDeletePanel(RectTransform layer)
+        {
+            RectTransform root = LibraryUi.CreateRect(ROOT_NAME, layer);
+            LibraryUi.Stretch(root);
+            float header = LibraryTheme.Layout.MODAL_HEADER_HEIGHT;
+            float height = header + 8f + LibraryActionRow.HEIGHT + LibraryTheme.Layout.MODAL_PADDING;
+            _modal = new LibraryModal(root, new Vector2(780f, height), string.Empty, Close, withSubtitle: true);
+            _modal.Title.fontSize = 30f;
+            _modal.Title.richText = false;
+            _modal.Subtitle.richText = false;
+            RectTransform body = _modal.Body;
+            body.offsetMax = new Vector2(body.offsetMax.x, -header - 8f);
+
+            _delete = new LibraryActionRow(body, 0, "Delete", LibraryIcon.Trash, string.Empty, string.Empty, string.Empty, string.Empty,
+                LibraryTheme.Colors.Danger, LibraryTheme.Colors.Danger, OnDeleteClicked);
+            _export = new LibraryActionRow(body, 0, "Export", LibraryIcon.Export, "导出备份", "导出成功后会回到这里，继续清空",
+                string.Empty, string.Empty, HomeTheme.Colors.Violet, HomeTheme.Colors.Violet, OnExportClicked);
+            root.gameObject.SetActive(false);
+        }
+
+        internal bool IsOpen => _modal.IsOpen;
+
+        /// <param name="standing">The run's place in the Best 30, or 0 when it holds none.</param>
+        /// <param name="backedUp">True when the last backup holds the whole current history, so this run too.</param>
+        internal void ShowRun(CustomMusicScorePlayHistoryRecord play, int standing, bool backedUp, Action delete)
+        {
+            ProfileCopy.TryWhen(play, out string date, out string time);
+            string when = string.IsNullOrEmpty(time) ? date : date + " " + time;
+            Present(ProfileCopy.Title(play),
+                ProfileCopy.Difficulty(play) + "  ·  " + when + "  ·  " + ProfileCopy.Number(play.TotalScore), delete, null);
+            _delete.SetText("删除这条记录",
+                standing > 0 ? "Best 30 第 " + standing + " 名，删除后 Ranking Score 会重新计算" : "从全部历史中移除这一局",
+                "再点一次确认删除",
+                backedUp ? "可从已导出的备份恢复" : "此操作无法撤销");
+        }
+
+        /// <param name="backedUp">False shows 导出备份 instead of the delete row.</param>
+        internal void ShowClear(int count, bool backedUp, Action delete, Action export)
+        {
+            if (backedUp)
+            {
+                Present("清空全部历史", "共 " + ProfileCopy.Number(count) + " 局游玩记录，当前历史已备份", delete, null);
+                _delete.SetText("删除全部记录", "Best 30 与 Ranking Score 会一并清零",
+                    "再点一次确认清空", "可从已导出的备份恢复");
+            }
+            else
+            {
+                Present("清空前需要备份", "清空后只能从备份恢复，请先导出当前的 " + ProfileCopy.Number(count) + " 局记录",
+                    null, export);
+            }
+        }
+
+        internal void Close()
+        {
+            _onDelete = null;
+            _onExport = null;
+            _delete.SetArmed(false, false);
+            _modal.Close();
+        }
+
+        public void Dispose()
+        {
+            _delete.Dispose();
+            _export.Dispose();
+            _modal.Dispose();
+        }
+
+        private void Present(string title, string subtitle, Action delete, Action export)
+        {
+            _modal.Title.text = title;
+            _modal.Subtitle.text = subtitle;
+            _onDelete = delete;
+            _onExport = export;
+            _delete.Rect.gameObject.SetActive(delete != null);
+            _export.Rect.gameObject.SetActive(export != null);
+            _delete.SetArmed(false, false);
+            _modal.Open(delete != null ? UiCue.Open : UiCue.Blocked);
+        }
+
+        private void OnDeleteClicked()
+        {
+            if (!_delete.Armed)
+            {
+                UiSound.Play(UiCue.Warning);
+                _delete.SetArmed(true, true);
+                return;
+            }
+
+            Action action = _onDelete;
+            Close();
+            action?.Invoke();
+        }
+
+        private void OnExportClicked()
+        {
+            Action action = _onExport;
+            Close();
+            action?.Invoke();
+        }
+    }
 }

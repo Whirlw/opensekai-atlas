@@ -18,6 +18,13 @@ namespace OpenSekai.App.Library
         private long _bytes = -1;
         private RankingSettlement _last;
         private List<CustomMusicScorePlayHistoryRecord> _timeline = new();
+        internal event Action Appended;
+
+        internal bool Contains(CustomMusicScorePlayHistoryRecord record)
+        {
+            EnsureLoaded();
+            return _timeline.Contains(record);
+        }
 
         internal HistoryPage ReadPage(int offset, int limit)
         {
@@ -28,9 +35,10 @@ namespace OpenSekai.App.Library
                 _timeline.GetRange(start, Math.Min(limit, _timeline.Count - start)).AsReadOnly());
         }
 
-        internal void TransferPendingTo(RankingHistory next)
+        internal void TransferPendingTo(RankingHistory next, string deletedId = null)
         {
-            foreach (var pair in _pending) next._pending[pair.Key] = pair.Value;
+            foreach (var pair in _pending)
+                if (pair.Key != deletedId) next._pending[pair.Key] = pair.Value;
         }
 
         internal RankingHistory(string path, PlayHistorySummaryCache library)
@@ -69,7 +77,6 @@ namespace OpenSekai.App.Library
                 _timeline.Insert(index < 0 ? ~index : index, play);
                 _pending.Remove(play.RecordId);
                 _last = _board.Evaluate(play, HistorySaveState.Saved);
-                return _last;
             }
             catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
             {
@@ -79,6 +86,9 @@ namespace OpenSekai.App.Library
                 _pending[play.RecordId] = play;
                 return _board.Evaluate(play, HistorySaveState.SaveFailed);
             }
+            var saved = _last;
+            Appended?.Invoke();
+            return saved;
         }
 
         internal RankingSettlement Retry(string playId, out CustomMusicScorePlayHistorySummary summary)
@@ -130,12 +140,16 @@ namespace OpenSekai.App.Library
         private IEnumerable<CustomMusicScorePlayHistoryRecord> Records()
         {
             if (!File.Exists(_path)) yield break;
+            int lineNumber = 0;
             foreach (string line in File.ReadLines(_path))
             {
+                lineNumber++;
                 CustomMusicScorePlayHistoryRecord record;
                 try { record = JsonConvert.DeserializeObject<CustomMusicScorePlayHistoryRecord>(line); }
                 catch (JsonException) { continue; } // A truncated final line cannot invalidate earlier plays.
-                if (record != null) yield return record;
+                if (record == null) continue;
+                record.SourceLine = lineNumber;
+                yield return record;
             }
         }
 

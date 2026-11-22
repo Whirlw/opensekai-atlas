@@ -35,6 +35,8 @@ namespace OpenSekai.App.UI
             Root = LibraryUi.CreateRect("Row", parent);
             _surface = LibraryWidgets.Panel("Surface", Root, LibraryTheme.Radius.ROW, LibraryTheme.Colors.Control);
             LibraryUi.Stretch(_surface.rectTransform);
+            _surface.raycastTarget = true;
+            Hold = Root.gameObject.AddComponent<ProfileHistoryHold>();
 
             Vector2 left = new Vector2(0f, 0.5f);
             _lead = LibraryWidgets.Label("Lead", Root, string.Empty, 36f, LibraryTheme.Colors.TextSecondary, FontStyles.Normal,
@@ -88,6 +90,7 @@ namespace OpenSekai.App.UI
         }
 
         internal RectTransform Root { get; }
+        internal ProfileHistoryHold Hold { get; }
 
         /// <summary>The list index the row shows; -1 while pooled.</summary>
         internal int Index { get; set; } = -1;

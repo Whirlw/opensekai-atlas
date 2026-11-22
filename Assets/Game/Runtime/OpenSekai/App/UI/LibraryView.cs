@@ -187,6 +187,8 @@ namespace OpenSekai.App.UI
             _rowList.DeferBinding = _tileList.DeferBinding = false;
         }
 
+        internal bool HasListing => _state != null;
+
         public void Render(LibraryViewState state)
         {
             bool modeChanged = _state == null || _state.ViewMode != state.ViewMode;

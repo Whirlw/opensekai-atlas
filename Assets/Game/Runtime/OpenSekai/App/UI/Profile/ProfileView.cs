@@ -67,6 +67,7 @@ namespace OpenSekai.App.UI
         private readonly TextMeshProUGUI _plateLabel;
         private readonly HomePageTabs _tabs;
         private readonly TextMeshProUGUI _summary;
+        private readonly Button _clearHistory;
         private readonly VirtualListView _list;
         private readonly ServerStatusView _status;
         private readonly Dictionary<RectTransform, ProfileRow> _rows = new Dictionary<RectTransform, ProfileRow>();
@@ -190,6 +191,10 @@ namespace OpenSekai.App.UI
             _summary = LibraryWidgets.Label("Summary", lists, string.Empty, 19f, LibraryTheme.Colors.TextMuted, FontStyles.Normal,
                 TextAlignmentOptions.Right);
             LibraryWidgets.TopStrip(_summary.rectTransform, 460f, 34f, 26f, TAB_HEIGHT);
+            _clearHistory = ServerWidgets.LabelledButton(lists, "ClearHistory", "清空历史", LibraryIcon.Trash,
+                screen.RequestClearHistory, 178f, TAB_HEIGHT, LibraryTheme.Colors.DangerSurface, LibraryTheme.Colors.Danger, UiCue.None);
+            LibraryWidgets.Place((RectTransform)_clearHistory.transform, Vector2.one, Vector2.one,
+                new Vector2(-28f, -26f), new Vector2(178f, TAB_HEIGHT));
 
             RectTransform listArea = LibraryUi.CreateRect("ListArea", lists);
             LibraryWidgets.Inset(listArea, LIST_PAD, LIST_PAD, LIST_PAD, 26f + TAB_HEIGHT + 18f);
@@ -205,7 +210,7 @@ namespace OpenSekai.App.UI
         internal ProfileTab Tab => _tab;
 
         /// <summary>Redraws everything from the screen's current snapshot.</summary>
-        internal void Bind()
+        internal void Bind(bool keepScroll = false)
         {
             PlayerProfileSnapshot snapshot = _screen.Snapshot;
             Best30Snapshot best = snapshot?.Best30;
@@ -218,7 +223,6 @@ namespace OpenSekai.App.UI
             _avatar.SetAvatar(snapshot?.Appearance.AvatarId ?? ProfileAvatars.DEFAULT_ID);
             _nickname.text = snapshot?.Appearance.Nickname ?? "—";
             _meta.text = readable ? "本机档案  ·  " + ProfileCopy.Number(plays) + " 次游玩" : "档案暂时无法读取";
-            _subtitle.text = "头像、昵称与游玩记录都保存在本机，可以导出备份";
             _badge.SetTier(tier);
             _total.text = readable ? ProfileCopy.Number(total) : "—";
             Color32 tierColor = RankingTiers.Color(tier);
@@ -244,7 +248,7 @@ namespace OpenSekai.App.UI
                 Debug.LogWarning("[Profile] Best 30 entries add up to " + SumOfEntries(best) + " but the total is " + total + ".");
             }
 
-            ShowTab(_tab, false);
+            ShowTab(_tab, keepScroll);
         }
 
         /// <summary>Shows a list; <paramref name="keepScroll"/> false starts it from the top.</summary>
@@ -259,6 +263,13 @@ namespace OpenSekai.App.UI
             }
 
             PlayerProfileSnapshot snapshot = _screen.Snapshot;
+            bool historyTab = tab == ProfileTab.History;
+            _subtitle.text = historyTab && _screen.HistoryCount > 0
+                ? "长按一条记录即可删除。清空全部历史前，请先导出备份。"
+                : "头像、昵称与游玩记录都保存在本机，可以导出备份";
+            // Always tappable: without a backup the card it opens asks for one.
+            _clearHistory.gameObject.SetActive(historyTab && snapshot != null && _screen.HistoryCount > 0);
+            LibraryWidgets.TopStrip(_summary.rectTransform, 436f, historyTab ? 222f : 34f, 26f, TAB_HEIGHT);
             if (snapshot == null)
             {
                 _summary.text = string.Empty;
@@ -278,7 +289,7 @@ namespace OpenSekai.App.UI
             else
             {
                 count = _screen.HistoryCount;
-                _summary.text = count == 0 ? "每次游玩都会留下一条记录" : "共 " + ProfileCopy.Number(count) + " 次  ·  新的在前";
+                _summary.text = count == 0 ? string.Empty : _screen.HistoryBackedUp ? "已备份" : "待备份";
             }
 
             _list.SetItemCount(count, keepScroll && !changed);
@@ -330,6 +341,7 @@ namespace OpenSekai.App.UI
         private RectTransform CreateRow(RectTransform content)
         {
             var row = new ProfileRow(content);
+            row.Hold.LongPressed = _screen.RequestDeleteHistory;
             _rows[row.Root] = row;
             return row.Root;
         }
@@ -339,6 +351,7 @@ namespace OpenSekai.App.UI
             if (_rows.TryGetValue(cell, out ProfileRow row))
             {
                 row.Index = -1;
+                row.Hold.Bind(null);
                 row.Version++;
             }
         }
@@ -383,6 +396,7 @@ namespace OpenSekai.App.UI
         private void BindHistory(ProfileRow row, int index)
         {
             CustomMusicScorePlayHistoryRecord play = _screen.HistoryAt(index);
+            row.Hold.Bind(play);
             if (play == null)
             {
                 row.SetMissing();

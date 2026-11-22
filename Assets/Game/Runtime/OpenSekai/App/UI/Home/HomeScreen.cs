@@ -670,7 +670,7 @@ namespace OpenSekai.App.UI
             }
         }
 
-        /// <summary>An import changed the history under the library's play counts; the cards refresh on the way back.</summary>
+        /// <summary>Redraws the library after a history change. The home cards refresh on return.</summary>
         private void OnProfileChanged(bool history)
         {
             if (history)

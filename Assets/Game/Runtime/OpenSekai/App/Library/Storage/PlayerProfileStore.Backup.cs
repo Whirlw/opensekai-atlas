@@ -39,18 +39,28 @@ namespace OpenSekai.App.Library
         public void ExportBackup(string destination)
         {
             RequireIdle();
+            long bytes = HistoryLength();
             ProfileBackupArchive.Write(destination, HistoryPath, ReadAppearance());
+            MarkBackupSaved(_directory, bytes);
         }
 
-        public Task ExportBackupAsync(string destination, CancellationToken cancel = default)
+        public async Task ExportBackupAsync(string destination, CancellationToken cancel = default)
+        {
+            var copy = await WriteBackupCopyAsync(destination, cancel);
+            MarkBackupSaved(copy.Directory, copy.Bytes);
+        }
+
+        internal Task<(string Directory, long Bytes)> WriteBackupCopyAsync(string destination, CancellationToken cancel)
         {
             RequireIdle();
+            string directory = _directory;
             string history = HistoryPath;
+            long bytes = HistoryLength();
             var appearance = ReadAppearance();
             return RunBackupAsync(() =>
             {
                 ProfileBackupArchive.Write(destination, history, appearance, cancel);
-                return true;
+                return (directory, bytes);
             }, cancel);
         }
 
@@ -95,9 +105,7 @@ namespace OpenSekai.App.Library
                 File.Delete(incoming);
                 if (!preview.RestoresAppearance) appearance = ReadAppearance();
                 File.WriteAllText(Path.Combine(stage, PROFILE_FILE), JsonConvert.SerializeObject(appearance));
-                var summaries = new PlayHistorySummaryCache();
-                summaries.Reload(merged);
-                var history = new RankingHistory(merged, summaries);
+                var (history, summaries) = IndexHistory(merged);
                 preview.Result = new PlayerProfileSnapshot(appearance, history.Read());
                 cancel.ThrowIfCancellationRequested();
                 preview.Id = id;
@@ -128,16 +136,9 @@ namespace OpenSekai.App.Library
                 CancelPendingPreview();
                 return result;
             }
-            string previous = _directory;
-            string next = Path.Combine(Archives, previewId);
             History.TransferPendingTo(_preparedHistory);
-            // All data and indexes are ready before this single same-volume rename.
-            AtomicFile.WriteAllText(Path.Combine(Archives, "active"), previewId);
-            _directory = next;
-            History = _preparedHistory;
-            Summaries = _preparedSummaries;
+            ActivateHistory(previewId, _preparedHistory, _preparedSummaries);
             ForgetPreview();
-            if (previous != _root) DiscardDirectory(previous);
             return result;
         }
 
@@ -208,7 +209,15 @@ namespace OpenSekai.App.Library
                 var row = ProfileBackupArchive.Parse(line);
                 var record = row.ToObject<CustomMusicScorePlayHistoryRecord>();
                 ValidateRecord(row, record, lineNumber);
-                if (string.IsNullOrWhiteSpace(record.RecordId)) { missing.Add(lineNumber); continue; }
+                if (string.IsNullOrWhiteSpace(record.RecordId))
+                {
+                    // In an empty journal even identical legacy runs can be restored verbatim.
+                    // During a merge they have no stable key for deduplication.
+                    if (hasLocalPlays) { missing.Add(lineNumber); continue; }
+                    writer.WriteLine(line);
+                    preview.Added++;
+                    continue;
+                }
                 if (known.TryGetValue(record.RecordId, out string previous))
                 {
                     if (JToken.DeepEquals(ProfileBackupArchive.Parse(previous), row)) preview.Duplicates++;

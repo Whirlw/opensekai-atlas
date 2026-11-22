@@ -33,6 +33,7 @@ namespace OpenSekai.App.UI
 
         private Func<IReadOnlyList<SongPackageItem>> _loadPackages;
         private PlayerProfileStore _store;
+        private RankingHistory _observedHistory;
         private Camera _camera;
         private GameObject _canvasRoot;
         private GraphicRaycaster _raycaster;
@@ -44,6 +45,7 @@ namespace OpenSekai.App.UI
         private ProfileEditPanel _editor;
         private ProfileBusyPanel _busy;
         private ProfileImportPanel _import;
+        private ProfileDeletePanel _deletion;
         private ProfileImportPreview _preview;
         private PlayerProfileStore _previewStore;
         private CancellationTokenSource _operation;
@@ -53,7 +55,7 @@ namespace OpenSekai.App.UI
         /// <summary>The back button (and back with nothing open): leave the part.</summary>
         internal event Action BackRequested;
 
-        /// <summary>The profile changed; true when the play history itself did (an import), so other pages re-read their counts.</summary>
+        /// <summary>True when an import or deletion changed history and the library needs fresh counts.</summary>
         internal event Action<bool> DataChanged;
 
         internal bool IsPresented => _presented;
@@ -79,6 +81,7 @@ namespace OpenSekai.App.UI
 
         /// <summary>Runs in the whole history, as last read.</summary>
         internal int HistoryCount { get; private set; }
+        internal bool HistoryBackedUp { get; private set; }
 
         internal bool IsEditorOpen => _editor.IsOpen;
 
@@ -108,9 +111,11 @@ namespace OpenSekai.App.UI
             _raycaster.enabled = presented;
             if (!presented)
             {
+                ObserveHistory(null);
                 _operation?.Cancel();
                 _settings?.Hide();
                 _editor.Close();
+                _deletion.Close();
                 _busy.Hide();
                 DiscardPreview();
                 _toast.Hide();
@@ -187,6 +192,13 @@ namespace OpenSekai.App.UI
                 return true;
             }
 
+            if (_deletion.IsOpen)
+            {
+                _deletion.Close();
+                UiSound.Play(UiCue.Close);
+                return true;
+            }
+
             if (_editor.IsOpen)
             {
                 _editor.Close();
@@ -226,14 +238,18 @@ namespace OpenSekai.App.UI
         // ---------------------------------------------------------------- data
 
         /// <summary>Reads the profile, the history size and the Best 30 standings again and redraws the page.</summary>
-        internal void Reload()
+        internal void Reload() => Reload(false);
+
+        private void Reload(bool keepScroll)
         {
             _historyPages.Clear();
             _standings.Clear();
             try
             {
                 Snapshot = Store.Read();
+                ObserveHistory(_presented ? Store.History : null);
                 HistoryCount = Store.ReadHistory(0, 1).TotalCount;
+                HistoryBackedUp = Store.HasCurrentBackup;
                 IReadOnlyList<Best30Entry> entries = Snapshot.Best30.Entries;
                 for (int i = 0; i < entries.Count; i++)
                 {
@@ -249,11 +265,73 @@ namespace OpenSekai.App.UI
                 Debug.LogWarning("[Profile] Could not read the player profile: " + exception);
                 Snapshot = null;
                 HistoryCount = 0;
+                HistoryBackedUp = false;
                 LoadError = exception is InvalidDataException ? "档案数据无法识别，请检查运行日志" : "档案读取失败，请稍后重试";
             }
 
             UpdateGlow();
-            View.Bind();
+            View.Bind(keepScroll);
+        }
+
+        private void ObserveHistory(RankingHistory history)
+        {
+            if (_observedHistory == history) return;
+            if (_observedHistory != null) _observedHistory.Appended -= OnHistoryAppended;
+            _observedHistory = history;
+            if (history != null) history.Appended += OnHistoryAppended;
+        }
+
+        private void OnHistoryAppended()
+        {
+            // A new run changes what the open card promises (the backup no longer covers everything).
+            _deletion.Close();
+            Reload(true);
+        }
+
+        /// <summary>清空历史: confirms with a backup of the current history, or asks for one first.</summary>
+        internal void RequestClearHistory()
+        {
+            if (IsBusy || HistoryCount == 0)
+            {
+                UiSound.Play(UiCue.Blocked);
+                return;
+            }
+
+            _deletion.ShowClear(HistoryCount, HistoryBackedUp, () => ApplyDeletion(null), ExportThenClear);
+        }
+
+        /// <summary>A long press on a history row: confirms before that one run is deleted.</summary>
+        internal void RequestDeleteHistory(CustomMusicScorePlayHistoryRecord play)
+        {
+            if (play == null || IsBusy)
+            {
+                return;
+            }
+
+            TryStanding(play.RecordId, out int position, out _);
+            _deletion.ShowRun(play, position, HistoryBackedUp, () => ApplyDeletion(play));
+        }
+
+        private void ApplyDeletion(CustomMusicScorePlayHistoryRecord play)
+        {
+            if (IsBusy) return;
+            try
+            {
+                if (play == null) Store.DeleteAllHistory();
+                else Store.DeleteHistory(play);
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is InvalidOperationException || e is InvalidDataException)
+            {
+                Debug.LogWarning("[Profile] Could not delete history: " + e.Message);
+                Reload(true);
+                UiSound.Play(UiCue.Error);
+                ShowToast(play == null && !HistoryBackedUp ? "历史有了新记录，请重新导出备份后再清空" : "删除失败，请重试");
+                return;
+            }
+            Reload(true);
+            DataChanged?.Invoke(true);
+            UiSound.Play(UiCue.Delete);
+            ShowToast(play == null ? "已清空全部游玩记录" : "已删除这条游玩记录");
         }
 
         /// <summary>The run at <paramref name="index"/> of the history, newest first; null when it cannot be read.</summary>
@@ -431,7 +509,19 @@ namespace OpenSekai.App.UI
             }
 
             UiSound.Play(UiCue.Open);
-            RunExportAsync().Forget();
+            RunExportAsync(false).Forget();
+        }
+
+        /// <summary>导出备份 on the card that asked for one: back to the clear confirmation once it is saved.</summary>
+        private void ExportThenClear()
+        {
+            if (IsBusy)
+            {
+                return;
+            }
+
+            UiSound.Play(UiCue.Open);
+            RunExportAsync(true).Forget();
         }
 
         /// <summary>Lets the player pick a backup ZIP, checks it and shows what merging it would do.</summary>
@@ -460,20 +550,25 @@ namespace OpenSekai.App.UI
             _import.Show(preview, Snapshot, ConfirmPreview, CancelPreview);
         }
 
-        private async UniTaskVoid RunExportAsync()
+        private async UniTaskVoid RunExportAsync(bool thenClear)
         {
             var cancellation = new CancellationTokenSource();
             _operation = cancellation;
             _busy.Show("正在导出…", "打包头像、昵称与全部游玩记录", "准备完成后会打开系统的保存位置", () => cancellation.Cancel());
             try
             {
-                bool saved = await ProfileBackupPicker.ExportAsync(cancellation.Token);
+                bool saved = await ProfileBackupPicker.ExportAsync(cancellation.Token, Store);
                 if (this == null) return;
                 _busy.Hide();
                 if (saved)
                 {
+                    Reload(true);
                     UiSound.Play(UiCue.Success);
                     ShowToast("个人档案已导出");
+                    if (thenClear && _presented && HistoryBackedUp && HistoryCount > 0)
+                    {
+                        _deletion.ShowClear(HistoryCount, true, () => ApplyDeletion(null), ExportThenClear);
+                    }
                 }
                 else
                 {
@@ -505,10 +600,10 @@ namespace OpenSekai.App.UI
             _operation = cancellation;
             DiscardPreview();
             _busy.Show("正在读取备份…", "确认合并之前不会改动本机档案", "校验格式、版本与每一条记录", () => cancellation.Cancel());
-            PlayerProfileStore store = PlayerProfileStore.Local;
+            PlayerProfileStore store = Store;
             try
             {
-                ProfileImportPreview preview = await ProfileBackupPicker.PickImportAsync(cancellation.Token);
+                ProfileImportPreview preview = await ProfileBackupPicker.PickImportAsync(cancellation.Token, store);
                 if (this == null || !_presented)
                 {
                     if (preview != null) store.CancelImport(preview.Id);
@@ -664,6 +759,7 @@ namespace OpenSekai.App.UI
             _editor = new ProfileEditPanel(ModalLayer, SaveAppearance);
             _busy = new ProfileBusyPanel(ModalLayer);
             _import = new ProfileImportPanel(ModalLayer);
+            _deletion = new ProfileDeletePanel(ModalLayer);
             _toast = new UiToast(root, 48f, HomeTheme.Colors.Violet);
             _thumbnails = new JacketThumbnails(Path.Combine(Application.temporaryCachePath, THUMBNAIL_DIRECTORY));
 
@@ -712,6 +808,7 @@ namespace OpenSekai.App.UI
 
         private void OnDestroy()
         {
+            ObserveHistory(null);
             _curtainMotion.TryCancel();
             _operation?.Cancel();
             DiscardPreview();
@@ -722,6 +819,7 @@ namespace OpenSekai.App.UI
             _editor?.Dispose();
             _busy?.Dispose();
             _import?.Dispose();
+            _deletion?.Dispose();
             _thumbnails?.Dispose();
             if (_camera != null)
             {

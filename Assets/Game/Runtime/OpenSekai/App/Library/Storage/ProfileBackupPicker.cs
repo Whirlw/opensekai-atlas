@@ -12,12 +12,13 @@ namespace OpenSekai.App.Library
     {
         private static TaskCompletionSource<string> _pending;
 
-        public static async Task<bool> ExportAsync(CancellationToken cancel = default)
+        public static async Task<bool> ExportAsync(CancellationToken cancel = default, PlayerProfileStore store = null)
         {
+            store ??= PlayerProfileStore.Local;
 #if UNITY_EDITOR
             string destination = UnityEditor.EditorUtility.SaveFilePanel("导出个人档案", "", "OpenSekai-Player", "zip");
             if (string.IsNullOrEmpty(destination)) return false;
-            await PlayerProfileStore.Local.ExportBackupAsync(destination, cancel);
+            await store.ExportBackupAsync(destination, cancel);
             return true;
 #elif UNITY_ANDROID
             string directory = Path.Combine(Application.temporaryCachePath, Guid.NewGuid().ToString("N"));
@@ -25,8 +26,11 @@ namespace OpenSekai.App.Library
             try
             {
                 string file = Path.Combine(directory, "OpenSekai-Player.zip");
-                await PlayerProfileStore.Local.ExportBackupAsync(file, cancel);
-                return await Pick(file) != null;
+                var copy = await store.WriteBackupCopyAsync(file, cancel);
+                if (await Pick(file) == null) return false;
+                cancel.ThrowIfCancellationRequested();
+                store.MarkBackupSaved(copy.Directory, copy.Bytes);
+                return true;
             }
             finally { Directory.Delete(directory, true); }
 #else
@@ -34,15 +38,16 @@ namespace OpenSekai.App.Library
 #endif
         }
 
-        public static async Task<ProfileImportPreview> PickImportAsync(CancellationToken cancel = default)
+        public static async Task<ProfileImportPreview> PickImportAsync(CancellationToken cancel = default, PlayerProfileStore store = null)
         {
+            store ??= PlayerProfileStore.Local;
 #if UNITY_EDITOR
             string path = UnityEditor.EditorUtility.OpenFilePanel("导入个人档案", "", "zip");
-            return string.IsNullOrEmpty(path) ? null : await PlayerProfileStore.Local.PreviewBackupAsync(path, cancel);
+            return string.IsNullOrEmpty(path) ? null : await store.PreviewBackupAsync(path, cancel);
 #elif UNITY_ANDROID
             string path = await Pick(null);
             if (path == null) return null;
-            try { return await PlayerProfileStore.Local.PreviewBackupAsync(path, cancel); }
+            try { return await store.PreviewBackupAsync(path, cancel); }
             finally { File.Delete(path); }
 #else
             throw new PlatformNotSupportedException();

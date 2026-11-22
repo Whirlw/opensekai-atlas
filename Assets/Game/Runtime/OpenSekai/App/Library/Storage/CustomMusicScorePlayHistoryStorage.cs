@@ -271,6 +271,9 @@ namespace OpenSekai.App.Library
 
 	public sealed class CustomMusicScorePlayHistoryRecord
 	{
+		// Locates a legacy run without an ID, even if another line has identical contents.
+		internal int SourceLine { get; set; }
+
 		[JsonProperty("schemaVersion")]
 		public int SchemaVersion { get; init; }
 
