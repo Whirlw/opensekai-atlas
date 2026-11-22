@@ -30,10 +30,17 @@ namespace OpenSekai.Infrastructure.Packages
         public MaterialGroupSelection Combo { get; set; } = new();
 
         /// <summary>
-        /// The 混搭 built-in fallback sets. Missing from an index written before the resource pack
-        /// page; the store fills it from the old settings when it reads such an index.
+        /// The 混搭 built-in fallback sets. Choosing the built-in bundle's sets sets them too, so
+        /// 混搭 falls back to the same sets as every bundle. Missing from an index written before
+        /// the resource pack page; the store fills it from the old settings when it reads such an index.
         /// </summary>
         public MaterialBuiltinSelection Builtin { get; set; }
+
+        /// <summary>
+        /// The main group the player chose per category in each installed bundle, keyed by
+        /// <see cref="BundleKey"/>. A category left out uses the bundle's own preset.
+        /// </summary>
+        public Dictionary<string, Dictionary<string, string>> BundleGroups { get; set; } = new();
 
         /// <summary>
         /// <see cref="MaterialPackModes.PRESET"/> or <see cref="MaterialPackModes.MIX"/>. Missing from
@@ -72,15 +79,21 @@ namespace OpenSekai.Infrastructure.Packages
 
         /// <summary>The configuration a live gets now: the chosen preset in 预设 mode, the 混搭 one otherwise.</summary>
         public MaterialPackConfiguration ActiveConfiguration() =>
-            IsPresetMode ? MaterialPresets.Build(Installed, Preset) : MixConfiguration();
+            IsPresetMode ? MaterialPresets.Build(Installed, Preset, BundleGroupsOf(Preset?.PackId, Preset?.Digest)) : MixConfiguration();
 
         internal MaterialPackConfiguration BundleConfiguration(MaterialPresetChoice choice)
         {
             if (choice == null || !choice.IsValid()) throw new InvalidDataException("预设选择无效。");
             if (choice.IsBuiltin) return new MaterialPackConfiguration { Builtin = choice.GetBuiltinSets() };
             var pack = FindPack(choice.PackId, choice.Digest) ?? throw new InvalidDataException("找不到已安装的资源包修订。");
-            return MaterialPresets.Build(pack, Preset.GetBuiltinSets());
+            return MaterialPresets.Build(pack, Preset.GetBuiltinSets(), BundleGroupsOf(pack.PackId, pack.Digest));
         }
+
+        /// <summary>The main groups the player chose in one installed bundle (category to group ID); null when none.</summary>
+        public IReadOnlyDictionary<string, string> BundleGroupsOf(string packId, string digest) =>
+            packId != null && BundleGroups != null && BundleGroups.TryGetValue(BundleKey(packId, digest), out var groups) ? groups : null;
+
+        internal static string BundleKey(string packId, string digest) => packId + "/" + digest;
 
         /// <summary>The installed pack whose preset 预设 mode uses; null for a built-in preset.</summary>
         [JsonIgnore]
@@ -382,6 +395,8 @@ namespace OpenSekai.Infrastructure.Packages
             if (state.Preset == null || !state.Preset.IsValid()) throw new InvalidDataException("预设选择无效。");
             if (!state.Preset.IsBuiltin && state.PresetPack?.Preset == null)
                 state.Preset = MaterialPresetChoice.Builtin(state.Preset.GetBuiltinSets());
+            // A choice that no longer matches the bundle's groups is ignored where it is read.
+            state.BundleGroups ??= new Dictionary<string, Dictionary<string, string>>();
             return state;
         }
 
@@ -611,19 +626,58 @@ namespace OpenSekai.Infrastructure.Packages
             }
         }
 
+        // The built-in sets follow the built-in bundle, so only groups and per-slot choices count.
         private static bool IsUntouched(MaterialPackConfiguration mix) =>
-            mix.SameChoicesAs(new MaterialPackConfiguration()) && MaterialCategories.All.All(c => mix.Get(c).Overrides.Count == 0);
+            MaterialCategories.All.All(c => mix.Get(c).Groups.Count == 0 && mix.Get(c).Overrides.Count == 0);
 
+        /// <summary>
+        /// Saves the built-in bundle's set for each two-set category. Every bundle falls back to
+        /// these sets, and so does 混搭, whose own copy changes with them. The mode stays.
+        /// </summary>
         public long SaveBuiltinBundle(MaterialBuiltinSelection sets, long expectedRevision)
         {
             lock (_gate)
             {
                 CheckWritable(expectedRevision);
                 if (sets?.IsValid() != true) throw new InvalidDataException("内置整合包的套装选择无效。");
-                if (_state.Preset.GetBuiltinSets().SameAs(sets)) return _state.Revision;
+                if (_state.Preset.GetBuiltinSets().SameAs(sets) && (_state.Builtin ?? new MaterialBuiltinSelection()).SameAs(sets))
+                    return _state.Revision;
                 var next = Copy(_state);
                 next.Preset.BuiltinSet = sets.Notes;
                 next.Preset.BuiltinSets = sets.Copy();
+                next.Builtin = sets.Copy();
+                return Commit(next);
+            }
+        }
+
+        /// <summary>
+        /// Chooses which of a bundle's groups its preset uses as the main group of one category
+        /// (one of <see cref="MaterialPresets.Options"/>). The choice belongs to that installed
+        /// revision: 预设 mode uses it at once when the bundle is the chosen preset, and 混搭 takes
+        /// it the next time the bundle is loaded. The mode stays; choosing what is already used
+        /// writes nothing.
+        /// </summary>
+        public long SaveBundleGroup(string packId, string digest, string category, string groupId, long expectedRevision)
+        {
+            lock (_gate)
+            {
+                CheckWritable(expectedRevision);
+                var pack = _state.FindPack(packId, digest) ?? throw new InvalidDataException("找不到已安装的资源包修订。");
+                if (pack.Preset == null) throw new InvalidDataException("此资源包没有随包预设。");
+                if (!MaterialPresets.Options(pack, category).Any(g => g.Id == groupId))
+                    throw new InvalidDataException("资源组 " + groupId + " 不是此整合包在 " + category + " 中的可选项。");
+                if (MaterialPresets.MainGroup(pack, category, _state.BundleGroupsOf(packId, digest)) == groupId) return _state.Revision;
+
+                var next = Copy(_state);
+                next.BundleGroups ??= new Dictionary<string, Dictionary<string, string>>();
+                string key = MaterialPackState.BundleKey(packId, digest);
+                if (!next.BundleGroups.TryGetValue(key, out var groups) || groups == null)
+                    next.BundleGroups[key] = groups = new Dictionary<string, string>(StringComparer.Ordinal);
+                // The preset's own main group needs no entry.
+                if (groupId == pack.Preset.Categories[category].Groups[0]) groups.Remove(category);
+                else groups[category] = groupId;
+                if (groups.Count == 0) next.BundleGroups.Remove(key);
+                MaterialPackResolver.Validate(next.Installed, next.BundleConfiguration(MaterialPresetChoice.FromPack(packId, digest)), InstalledRoot);
                 return Commit(next);
             }
         }
@@ -679,6 +733,7 @@ namespace OpenSekai.Infrastructure.Packages
                 }
             }
             next.Installed.Remove(pack);
+            next.BundleGroups?.Remove(MaterialPackState.BundleKey(packId, digest));
             if (next.Preset.IsFrom(packId, digest))
             {
                 impact.ClearedPreset = pack.Preset?.Name ?? PackLabel(pack);

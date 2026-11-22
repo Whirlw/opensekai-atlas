@@ -180,7 +180,7 @@ namespace OpenSekai.App.UI
                 _meta.text = string.Join("、", categories.Select(c => MaterialSlotCatalog.Category(c).Title));
                 _counts.text = categories.Count + " 个可选类别  ·  " + categories.Count * MaterialCategories.BUILTIN_SET_COUNT + " 个资源组";
                 _presetName.text = string.Join(" · ", categories.Select(c => MaterialSlotCatalog.BuiltinLabel(c, sets)));
-                _presetText.text = "右侧选用的资源组也会用于补全其他整合包缺少的资源。";
+                _presetText.text = "右侧选用的资源组也用于补全其他整合包和混搭缺少的资源。";
                 bool selected = state.IsPresetMode ? state.Preset.IsBuiltin :
                     state.MixConfiguration().SameChoicesAs(new MaterialPackConfiguration { Builtin = sets });
                 _presetTag.gameObject.SetActive(selected);
@@ -215,14 +215,16 @@ namespace OpenSekai.App.UI
                 _presetName.text = _pack.Preset.Name;
                 string declared = string.Join("、", MaterialCategories.All.Where(_pack.Preset.Categories.ContainsKey)
                     .Select(c => MaterialSlotCatalog.Category(c).Title));
-                _presetText.text = (declared.Length > 0 ? "设置 " + declared + "。" : string.Empty) + "缺少的资源跟随游戏内置整合包。";
+                bool choices = MaterialCategories.All.Any(c => MaterialPresets.Options(_pack, c).Count > 1);
+                _presetText.text = (declared.Length > 0 ? "设置 " + declared + "。" : string.Empty) + "缺少的资源跟随游戏内置整合包。"
+                    + (choices ? "右侧可为各类别选用资源组。" : string.Empty);
                 _presetTag.gameObject.SetActive(current);
                 _presetButton.gameObject.SetActive(true);
             }
             else
             {
                 _presetName.text = "未附带预设";
-                _presetText.text = "可以在混搭的各类别中选用此包的资源组。";
+                _presetText.text = "可以在混搭的各类别中启用此包的资源组。";
                 _presetTag.gameObject.SetActive(false);
                 _presetButton.gameObject.SetActive(false);
             }
@@ -264,6 +266,12 @@ namespace OpenSekai.App.UI
                 return;
             }
 
+            if (_pack.Preset != null)
+            {
+                RebuildBundleChoices(state);
+                return;
+            }
+
             foreach (string category in MaterialCategories.All)
             {
                 List<MaterialPackGroup> groups = _pack.Groups.Where(g => g.Category == category).ToList();
@@ -271,6 +279,53 @@ namespace OpenSekai.App.UI
                 AddCaption(category);
                 foreach (MaterialPackGroup group in groups) AddInstalledGroup(state, group);
             }
+        }
+
+        /// <summary>
+        /// A bundle's settings, as the built-in bundle has them: per category, the groups its preset
+        /// can use as the main group, the one in use marked. A category with a single option needs
+        /// no choice and is left out.
+        /// </summary>
+        private void RebuildBundleChoices(MaterialPackState state)
+        {
+            IReadOnlyDictionary<string, string> chosen = state.BundleGroupsOf(_pack.PackId, _pack.Digest);
+            foreach (string category in MaterialCategories.All)
+            {
+                IReadOnlyList<MaterialPackGroup> options = MaterialPresets.Options(_pack, category);
+                if (options.Count < 2) continue;
+                string main = MaterialPresets.MainGroup(_pack, category, chosen);
+                string behind = string.Join("、", _pack.Preset.Categories[category].Groups.Skip(1)
+                    .Select(id => PackWidgets.GroupName(_pack.Groups.Find(g => g.Id == id))));
+                AddCaption(category);
+                foreach (MaterialPackGroup group in options)
+                {
+                    bool selected = group.Id == main;
+                    string description = group.Id + "  ·  " + Coverage(group) + (behind.Length > 0 ? "  ·  缺项由 " + behind + " 补上" : string.Empty);
+                    string id = group.Id;
+                    string groupCategory = category;
+                    AddGroupRow(id, category, PackWidgets.GroupName(group), description, selected ? "已选用" : null, selected,
+                        () => Screen.Preview.OpenGroup(_pack, group), selected ? null : () => Screen.SaveBundleGroup(_pack, groupCategory, id));
+                }
+            }
+
+            if (_rows.Count > 0) return;
+            RectTransform empty = ServerWidgets.ListItem(_groups, "NoChoices", 120f);
+            TextMeshProUGUI text = PackWidgets.Paragraph(empty, "Text",
+                "这个整合包的每个类别只有一个资源组，已全部选用，无需设置。点左侧「查看预设」可以看到各类别的来源。", 19f, LibraryTheme.Colors.TextMuted);
+            LibraryWidgets.Inset(text.rectTransform, 8f, 16f, 8f, 16f);
+            _rows.Add(empty.gameObject);
+        }
+
+        private static string Coverage(MaterialPackGroup group)
+        {
+            int total = MaterialCategories.Slots(group.Category).Count();
+            int provided = MaterialCategories.Slots(group.Category).Count(group.Provides);
+            string coverage = group.Category == MaterialCategories.BACKGROUND
+                ? group.Background.Layers.Length + " 个图层，整组替换"
+                : "提供 " + provided + " / " + total + " 个槽位";
+            if (group.Layout != null) coverage += "  ·  含 COMBO 布局";
+            if (group.Sprites.Values.Any(s => s.TemplateSet.HasValue)) coverage += "  ·  模板套装 " + group.Sprites.Values.First(s => s.TemplateSet.HasValue).TemplateSet;
+            return coverage;
         }
 
         private void AddCaption(string category)
@@ -299,16 +354,8 @@ namespace OpenSekai.App.UI
             string reference = _pack.GroupReference(group.Id);
             MaterialGroupSelection selection = state.Selection(group.Category);
             int order = selection.Groups.IndexOf(reference);
-            int total = MaterialCategories.Slots(group.Category).Count();
-            int provided = MaterialCategories.Slots(group.Category).Count(group.Provides);
-
-            string coverage = group.Category == MaterialCategories.BACKGROUND
-                ? group.Background.Layers.Length + " 个图层，整组替换"
-                : "提供 " + provided + " / " + total + " 个槽位";
-            if (group.Layout != null) coverage += "  ·  含 COMBO 布局";
-            if (group.Sprites.Values.Any(s => s.TemplateSet.HasValue)) coverage += "  ·  模板套装 " + group.Sprites.Values.First(s => s.TemplateSet.HasValue).TemplateSet;
-            string usage = order == 0 ? "混搭主组" : order > 0 ? "混搭回退 " + order : null;
-            AddGroupRow(group.Id, group.Category, PackWidgets.GroupName(group), group.Id + "  ·  " + coverage, usage, order == 0,
+            string usage = order < 0 ? null : "混搭第 " + (order + 1) + " 位";
+            AddGroupRow(group.Id, group.Category, PackWidgets.GroupName(group), group.Id + "  ·  " + Coverage(group), usage, order == 0,
                 () => Screen.Preview.OpenGroup(_pack, group), () => Screen.OpenCategory(group.Category));
         }
 

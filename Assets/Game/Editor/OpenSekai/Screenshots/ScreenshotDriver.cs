@@ -567,12 +567,8 @@ namespace OpenSekai.EditorTools.Screenshots
                 screen.OpenCategory(category);
                 yield return new WaitForSecondsRealtime(1f);
                 yield return Capture(shot, stem + "-category-" + category, category + " category", null);
-                if (category == "notes" && screen.Top is PackCategoryPage page)
+                if (category == "notes" && screen.Top is PackCategoryPage)
                 {
-                    page.OpenMainChoices();
-                    yield return new WaitForSecondsRealtime(0.6f);
-                    yield return Capture(shot, stem + "-group", "main note group choices", null);
-                    screen.Choices.Close();
                     screen.Preview.OpenBuiltin("notes", 2);
                     yield return new WaitForSecondsRealtime(1f);
                     yield return Capture(shot, stem + "-builtin", "built-in note skin 2", null);

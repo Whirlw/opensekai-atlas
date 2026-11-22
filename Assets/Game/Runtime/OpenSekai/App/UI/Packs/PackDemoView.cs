@@ -70,6 +70,8 @@ namespace OpenSekai.App.UI
 
             _footer = PackWidgets.Paragraph(content, "Footer", string.Empty, 18f, LibraryTheme.Colors.TextMuted);
             _footer.alignment = TextAlignmentOptions.TopLeft;
+            // Two lines (the source, then a note) fit the strip only without the paragraph's extra spacing.
+            _footer.lineSpacing = 0f;
             LibraryWidgets.BottomStrip(_footer.rectTransform, PAD, PAD, PAD - 6f, FOOTER - 4f);
 
             demo.Changed += Refresh;

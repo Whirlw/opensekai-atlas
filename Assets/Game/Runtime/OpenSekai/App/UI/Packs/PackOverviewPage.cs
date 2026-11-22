@@ -181,8 +181,8 @@ namespace OpenSekai.App.UI
             _subtitle.text = (preset ? "当前：预设「" + Screen.ActiveName + "」" : "当前：混搭")
                 + "  ·  " + external + " / 9 类使用资源包  ·  下一次开局生效";
             _hint.text = preset
-                ? "点整合包即可使用。点内置整合包右侧的箭头，可选择各模块使用的套装。"
-                : "点左侧整合包载入整套配置，再点右侧类别调整资源组和回退顺序。";
+                ? "点整合包即可使用。点整合包右侧的箭头，可选择各类别使用的资源组。"
+                : "点左侧整合包可一键套用它的配置作为起点，再点右侧类别启用、停用资源组或调整顺序。";
             _mode.Refresh(state, active, external);
             _grid.gameObject.SetActive(!preset);
             _demo.Root.gameObject.SetActive(preset);
@@ -424,7 +424,7 @@ namespace OpenSekai.App.UI
                 InstalledMaterialPack source = preset ? state.PresetPack : null;
                 _source.text = preset
                     ? "「" + _screen.PresetName(state.Preset) + "」" + (source != null ? "  ·  " + PackWidgets.PackName(source) : string.Empty)
-                    : "按类别选择资源组与回退顺序";
+                    : "按类别启用资源组并排列顺序";
                 _external.text = external + "<size=60%><color=#9AA6B5> / 9</color></size>";
                 for (int i = 0; i < MaterialCategories.All.Count; i++)
                 {
@@ -557,7 +557,7 @@ namespace OpenSekai.App.UI
                 {
                     _source.text = screen.DescribeGroup(selection.Groups[0]);
                     var parts = new List<string>();
-                    if (selection.Groups.Count > 1) parts.Add("另有 " + (selection.Groups.Count - 1) + " 个回退");
+                    if (selection.Groups.Count > 1) parts.Add("共启用 " + selection.Groups.Count + " 个");
                     parts.Add("缺项用" + (hasBuiltinSets ? "内置" + builtin : "游戏默认"));
                     _detail.text = string.Join("  ·  ", parts);
                     PackWidgets.SetTag(_tag, "资源包", MaterialSlotCatalog.Category(_category).Tint, filled: true);

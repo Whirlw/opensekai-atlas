@@ -13,110 +13,6 @@ using UnityEngine.UI;
 
 namespace OpenSekai.App.UI
 {
-    /// <summary>
-    /// A card listing the choices for one decision (a category's main group, a fallback to add,
-    /// one slot's source). The current choice is marked; tapping any other confirms it at once,
-    /// tapping the current one or closing the card changes nothing.
-    /// </summary>
-    internal sealed class PackChoicePanel : IDisposable
-    {
-        private const float ROW_HEIGHT = 96f;
-
-        internal sealed class Option
-        {
-            internal string Label;
-            internal string Detail;
-            internal bool Selected;
-            internal bool Enabled = true;
-            internal string Badge;
-            internal Color32 BadgeTint = HomeTheme.Colors.Periwinkle;
-        }
-
-        private readonly RectTransform _root;
-        private readonly LibraryModal _modal;
-        private readonly RectTransform _content;
-        private readonly ScrollRect _scroll;
-        private readonly List<GameObject> _rows = new List<GameObject>();
-
-        internal PackChoicePanel(RectTransform layer)
-        {
-            _root = LibraryUi.CreateRect("PackChoices", layer);
-            LibraryUi.Stretch(_root);
-            _modal = new LibraryModal(_root, new Vector2(1060f, 840f), string.Empty, Close, withSubtitle: true);
-            _modal.Title.richText = false;
-            _modal.Subtitle.richText = false;
-            _content = ServerWidgets.VerticalList(_modal.Body, out _scroll, 10f, new RectOffset(0, 0, 6, 6));
-            _root.gameObject.SetActive(false);
-        }
-
-        internal bool IsOpen => _modal.IsOpen;
-
-        internal void Open(string title, string subtitle, IReadOnlyList<Option> options, Action<int> onPick)
-        {
-            foreach (GameObject row in _rows) UnityEngine.Object.Destroy(row);
-            _rows.Clear();
-            _modal.Title.text = title;
-            _modal.Subtitle.text = subtitle ?? string.Empty;
-            for (int i = 0; i < options.Count; i++)
-            {
-                int index = i;
-                Option option = options[i];
-                RectTransform item = ServerWidgets.ListItem(_content, "Option" + i, ROW_HEIGHT);
-                Image surface = LibraryWidgets.Panel("Surface", item, PackWidgets.ROW_RADIUS,
-                    option.Selected ? LibraryTheme.Colors.SurfaceSelected : LibraryTheme.Colors.Control);
-                surface.raycastTarget = true;
-                LibraryUi.Stretch(surface.rectTransform);
-                LibraryWidgets.Outline(surface, PackWidgets.ROW_RADIUS);
-                if (option.Selected)
-                {
-                    Image rim = LibraryWidgets.Shape("Rim", surface.transform, LibraryShapes.Ring(PackWidgets.ROW_RADIUS, 2f),
-                        HomeTheme.Colors.WithAlpha(PackWidgets.Accent, 200));
-                    LibraryUi.Stretch(rim.rectTransform);
-                }
-
-                Image check = LibraryWidgets.Icon(item, option.Selected ? LibraryIcon.Check : LibraryIcon.ChevronRight,
-                    option.Selected ? PackWidgets.Accent : LibraryTheme.Colors.TextMuted, 28f);
-                LibraryWidgets.Place(check.rectTransform, new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(40f, 0f), new Vector2(28f, 28f));
-
-                float right = 28f;
-                if (!string.IsNullOrEmpty(option.Badge))
-                {
-                    RectTransform badge = PackWidgets.Tag(item, option.Badge, option.BadgeTint, out float width);
-                    LibraryWidgets.Place(badge, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-24f, 0f), badge.sizeDelta);
-                    right = width + 48f;
-                }
-
-                TextMeshProUGUI label = PackWidgets.UserLabel("Label", item, option.Label, 24f,
-                    option.Enabled ? LibraryTheme.Colors.TextPrimary : LibraryTheme.Colors.TextMuted, FontStyles.Bold);
-                LibraryWidgets.TopStrip(label.rectTransform, 76f, right, 16f, 34f);
-                TextMeshProUGUI detail = PackWidgets.UserLabel("Detail", item, option.Detail ?? string.Empty, 18f, LibraryTheme.Colors.TextMuted);
-                LibraryWidgets.TopStrip(detail.rectTransform, 76f, right, 52f, 28f);
-
-                PackWidgets.RowButton((RectTransform)surface.transform, () =>
-                {
-                    if (!option.Enabled)
-                    {
-                        UiSound.Play(UiCue.Blocked);
-                        return;
-                    }
-
-                    Close();
-                    if (!option.Selected) UiSound.Play(UiCue.Select);
-                    onPick?.Invoke(index);
-                }, UiCue.None);
-                _rows.Add(item.gameObject);
-            }
-
-            _scroll.verticalNormalizedPosition = 1f;
-            _modal.Open();
-            _root.SetAsLastSibling();
-        }
-
-        internal void Close() => _modal.Close();
-
-        public void Dispose() => _modal.Dispose();
-    }
-
     /// <summary>"正在导入…" over the page while a ZIP is checked and installed, with a way to cancel.</summary>
     internal sealed class PackImportPanel : IDisposable
     {
@@ -262,7 +158,7 @@ namespace OpenSekai.App.UI
             MaterialSlotCatalog.CategoryInfo info = MaterialSlotCatalog.Category(group.Category);
             string coverage = group.Category == MaterialCategories.BACKGROUND
                 ? "背景按整组替换：选用此组会一次替换全部 " + preview.Items.Count + " 个图层"
-                : "此组提供 " + preview.ProvidedSlots + " / " + preview.TotalSlots + " 个槽位，其余部分由回退的组或本类内置补上";
+                : "此组提供 " + preview.ProvidedSlots + " / " + preview.TotalSlots + " 个槽位，其余部分由排在下方的启用组或内置整合包补上";
             Begin(PackWidgets.GroupName(group), PackWidgets.PackName(pack) + "  ·  " + PackWidgets.Revision(pack) + "  ·  " + info.Title,
                 "来自此资源包", PackWidgets.Accent, coverage, group.Category);
             Show(preview.Items);
@@ -646,7 +542,7 @@ namespace OpenSekai.App.UI
             catch (InvalidDataException e)
             {
                 error = e.Message;
-                try { candidate = MaterialPresets.Build(pack, _screen.State.Preset.GetBuiltinSets()); }
+                try { candidate = MaterialPresets.Build(pack, _screen.State.Preset.GetBuiltinSets(), _screen.State.BundleGroupsOf(pack.PackId, pack.Digest)); }
                 catch (InvalidDataException) { }
             }
 
@@ -729,14 +625,18 @@ namespace OpenSekai.App.UI
             _rows.Add(row.gameObject);
         }
 
+        /// <summary>The category's groups in the order the bundle uses them, with the player's chosen main group first.</summary>
         private static string DescribeDeclared(string category, InstalledMaterialPack pack, MaterialPresetCategory value, MaterialPackConfiguration candidate)
         {
             var parts = new List<string>();
-            if (value.Groups.Count == 0) parts.Add("仅用内置");
-            for (int i = 0; i < value.Groups.Count; i++)
+            List<string> groups = candidate?.Get(category).Groups.Select(r =>
+                InstalledMaterialPack.TryParseReference(r, out _, out _, out string id) ? id : r).ToList() ?? value.Groups;
+            if (groups.Count == 0) parts.Add("仅用内置");
+            for (int i = 0; i < groups.Count; i++)
             {
-                MaterialPackGroup group = pack.Groups.Find(g => g.Id == value.Groups[i]);
-                parts.Add((i == 0 ? "主组 " : "回退 ") + PackWidgets.GroupName(group));
+                string id = groups[i];
+                MaterialPackGroup group = pack.Groups.Find(g => g.Id == id);
+                parts.Add((i == 0 ? "选用 " : "补充 ") + PackWidgets.GroupName(group));
             }
 
             if (MaterialCategories.HasBuiltinSets(category))
@@ -810,7 +710,7 @@ namespace OpenSekai.App.UI
                 if (impact.Categories.Count > 0)
                 {
                     text.AppendLine("混搭中受影响的类别：" + string.Join("、", impact.Categories.Select(c => MaterialSlotCatalog.Category(c).Title)));
-                    text.AppendLine("这些类别会移除此修订的资源组，由剩下的回退或本类内置补上。");
+                    text.AppendLine("这些类别会移除此修订的资源组，由剩下启用的组或内置整合包补上。");
                 }
 
                 if (impact.Overrides.Count > 0)

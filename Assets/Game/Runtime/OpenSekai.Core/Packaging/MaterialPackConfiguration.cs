@@ -271,19 +271,53 @@ namespace OpenSekai.MaterialPacks
 
         /// <summary>
         /// The complete configuration the pack's preset gives: declared categories take the
-        /// preset's groups bound to this installed revision. Every missing slot falls back to
-        /// the player's built-in bundle, including when an older manifest declares builtinSet.
+        /// preset's groups bound to this installed revision, with the player's
+        /// <paramref name="chosen"/> main group (category to group ID) in place of the preset's
+        /// own where it is one of the <see cref="Options"/>. Every missing slot falls back to the
+        /// player's built-in bundle, including when an older manifest declares builtinSet.
         /// </summary>
-        public static MaterialPackConfiguration Build(InstalledMaterialPack pack, MaterialBuiltinSelection builtin = null)
+        public static MaterialPackConfiguration Build(InstalledMaterialPack pack, MaterialBuiltinSelection builtin = null,
+            IReadOnlyDictionary<string, string> chosen = null)
         {
             if (pack?.Preset == null) throw new InvalidDataException("此资源包没有随包预设。");
             Validate(pack);
             var configuration = new MaterialPackConfiguration { Builtin = builtin?.Copy() ?? new MaterialBuiltinSelection() };
             foreach (var item in pack.Preset.Categories)
             {
-                configuration.Get(item.Key).Groups.AddRange(item.Value.Groups.Select(pack.GroupReference));
+                List<string> groups = item.Value.Groups;
+                string main = MainGroup(pack, item.Key, chosen);
+                IEnumerable<string> ids = main == null ? groups : new[] { main }.Concat(groups.Skip(1).Where(id => id != main));
+                configuration.Get(item.Key).Groups.AddRange(ids.Select(pack.GroupReference));
             }
             return configuration;
+        }
+
+        /// <summary>
+        /// The groups of <paramref name="category"/> the player can pick the preset's main group
+        /// from: the pack's groups of that category, except those the preset lists after its main
+        /// group, which keep filling in behind whichever one is picked. Empty when the preset
+        /// declares no group for the category.
+        /// </summary>
+        public static IReadOnlyList<MaterialPackGroup> Options(InstalledMaterialPack pack, string category)
+        {
+            if (pack?.Preset?.Categories == null || category == null
+                || !pack.Preset.Categories.TryGetValue(category, out MaterialPresetCategory value) || value?.Groups == null || value.Groups.Count == 0)
+                return Array.Empty<MaterialPackGroup>();
+            var behind = new HashSet<string>(value.Groups.Skip(1), StringComparer.Ordinal);
+            return pack.Groups.Where(g => g.Category == category && !behind.Contains(g.Id)).ToList();
+        }
+
+        /// <summary>
+        /// The main group the preset uses for <paramref name="category"/>: the player's choice while
+        /// it is still one of the <see cref="Options"/>, otherwise the preset's own. Null when the
+        /// preset declares no group for the category.
+        /// </summary>
+        public static string MainGroup(InstalledMaterialPack pack, string category, IReadOnlyDictionary<string, string> chosen)
+        {
+            IReadOnlyList<MaterialPackGroup> options = Options(pack, category);
+            if (options.Count == 0) return null;
+            if (chosen != null && chosen.TryGetValue(category, out string id) && options.Any(g => g.Id == id)) return id;
+            return pack.Preset.Categories[category].Groups[0];
         }
 
         /// <summary>A built-in preset: no external groups, and the two-set categories at <paramref name="set"/>.</summary>
@@ -296,15 +330,17 @@ namespace OpenSekai.MaterialPacks
         }
 
         /// <summary>
-        /// The configuration a preset choice gives among <paramref name="installed"/>. A pack that is
-        /// no longer installed, or has no preset, falls back to the built-in bundle.
+        /// The configuration a preset choice gives among <paramref name="installed"/>, with the
+        /// player's <paramref name="chosen"/> main groups for that pack. A pack that is no longer
+        /// installed, or has no preset, falls back to the built-in bundle.
         /// </summary>
-        public static MaterialPackConfiguration Build(IEnumerable<InstalledMaterialPack> installed, MaterialPresetChoice choice)
+        public static MaterialPackConfiguration Build(IEnumerable<InstalledMaterialPack> installed, MaterialPresetChoice choice,
+            IReadOnlyDictionary<string, string> chosen = null)
         {
             if (choice == null) return BuildBuiltin(1);
             if (choice.IsBuiltin) return new MaterialPackConfiguration { Builtin = choice.GetBuiltinSets() };
             var pack = installed?.FirstOrDefault(p => choice.IsFrom(p.PackId, p.Digest));
-            return pack?.Preset == null ? new MaterialPackConfiguration { Builtin = choice.GetBuiltinSets() } : Build(pack, choice.GetBuiltinSets());
+            return pack?.Preset == null ? new MaterialPackConfiguration { Builtin = choice.GetBuiltinSets() } : Build(pack, choice.GetBuiltinSets(), chosen);
         }
 
         private static InvalidDataException Error(string message) => new("随包预设：" + message);
