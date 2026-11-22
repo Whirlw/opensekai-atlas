@@ -11,8 +11,35 @@ namespace OpenSekai.Tests.EditMode.Live
     public sealed class LatencyCaptureTests
     {
         [Test]
+        public void DisabledTestModeBlocksSavedLatencyAndMixCapture()
+        {
+            bool testMode = LiveTrace.Enabled;
+            bool enabled = LatencyCapture.Enabled;
+            bool mix = LatencyCapture.MixProbeEnabled;
+            try
+            {
+                LiveTrace.Enabled = false;
+                LatencyCapture.Enabled = true;
+                LatencyCapture.MixProbeEnabled = true;
+
+                LatencyCapture.Begin("disabled-test-mode", "master", false, 0f, 0f, 0f, false);
+
+                Assert.That(LatencyCapture.Active, Is.False);
+                Assert.That(LatencyCapture.Enabled, Is.True);
+                Assert.That(LatencyCapture.MixProbeEnabled, Is.True);
+            }
+            finally
+            {
+                LatencyCapture.Enabled = enabled;
+                LatencyCapture.MixProbeEnabled = mix;
+                LiveTrace.Enabled = testMode;
+            }
+        }
+
+        [Test]
         public void StartingAnotherCaptureKeepsEachExportsRowsAndMetadata()
         {
+            bool testMode = LiveTrace.Enabled;
             bool enabled = LatencyCapture.Enabled;
             bool mix = LatencyCapture.MixProbeEnabled;
             string directory = Path.Combine(Application.persistentDataPath, "logs");
@@ -22,6 +49,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Task second = Task.CompletedTask;
             try
             {
+                LiveTrace.Enabled = true;
                 LatencyCapture.Enabled = true;
                 LatencyCapture.MixProbeEnabled = false;
                 LatencyCapture.Begin(marker + "-first", "master", false, 0f, 0f, 0f, false);
@@ -49,6 +77,7 @@ namespace OpenSekai.Tests.EditMode.Live
                 Task.WhenAll(first, second, LatencyCapture.End("test_cleanup")).GetAwaiter().GetResult();
                 LatencyCapture.MixProbeEnabled = mix;
                 LatencyCapture.Enabled = enabled;
+                LiveTrace.Enabled = testMode;
                 if (Directory.Exists(directory))
                 {
                     foreach (string path in Directory.GetFiles(directory, "latency-*.tsv").Except(existing))
@@ -63,6 +92,7 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void ExportCarriesAndroidProbeColumnsAndExplicitTimes()
         {
+            bool testMode = LiveTrace.Enabled;
             bool enabled = LatencyCapture.Enabled;
             bool mix = LatencyCapture.MixProbeEnabled;
             string directory = Path.Combine(Application.persistentDataPath, "logs");
@@ -71,6 +101,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Task export = Task.CompletedTask;
             try
             {
+                LiveTrace.Enabled = true;
                 LatencyCapture.Enabled = true;
                 LatencyCapture.MixProbeEnabled = false;
                 LatencyCapture.Begin(marker, "master", false, 0f, 0f, 0f, false);
@@ -101,6 +132,7 @@ namespace OpenSekai.Tests.EditMode.Live
                 Task.WhenAll(export, LatencyCapture.End("test_cleanup")).GetAwaiter().GetResult();
                 LatencyCapture.MixProbeEnabled = mix;
                 LatencyCapture.Enabled = enabled;
+                LiveTrace.Enabled = testMode;
                 if (Directory.Exists(directory))
                 {
                     foreach (string path in Directory.GetFiles(directory, "latency-*.tsv").Except(existing))

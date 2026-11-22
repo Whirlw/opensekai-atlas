@@ -427,7 +427,7 @@ namespace Sekai
 		/// </summary>
 		private Color GetNoteColor(INote baseNote)
 		{
-			if (baseNote is LongNote && baseNote.State == NoteState.Last && LiveTrace.HighlightLast)
+			if (baseNote is LongNote && baseNote.State == NoteState.Last && LiveTrace.Enabled && LiveTrace.HighlightLast)
 			{
 				return Color.red;
 			}

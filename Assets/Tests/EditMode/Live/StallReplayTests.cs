@@ -194,6 +194,8 @@ namespace OpenSekai.Tests.EditMode.Live
         {
             MusicScore score = AutoplayCompletionTests.LoadFixture(FIXTURE);
             var bundle = Resources.Load<LiveBundleBuildData>("live/config/LiveBundleBuildData");
+            bool testMode = LiveTrace.Enabled;
+            LiveTraceCategory categories = LiveTrace.Categories;
             bool captureEnabled = LatencyCapture.Enabled;
             bool mix = LatencyCapture.MixProbeEnabled;
             string marker = "stall-replay-" + Guid.NewGuid().ToString("N");
@@ -210,6 +212,8 @@ namespace OpenSekai.Tests.EditMode.Live
                 scoreLogic.Setup(null, score);
                 harness.BindViews(recorder);
 
+                LiveTrace.Categories = LiveTraceCategory.None;
+                LiveTrace.Enabled = true;
                 LatencyCapture.Enabled = true;
                 LatencyCapture.MixProbeEnabled = false;
                 LatencyCapture.Begin(marker, "master", false, 0f, 0f, 0f, false);
@@ -249,6 +253,8 @@ namespace OpenSekai.Tests.EditMode.Live
                 export.GetAwaiter().GetResult();
                 LatencyCapture.MixProbeEnabled = mix;
                 LatencyCapture.Enabled = captureEnabled;
+                LiveTrace.Enabled = testMode;
+                LiveTrace.Categories = categories;
                 if (Directory.Exists(logs))
                 {
                     foreach (string file in Directory.GetFiles(logs, "latency-*.tsv"))

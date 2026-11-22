@@ -70,7 +70,7 @@ namespace OpenSekai.Shared.Diagnostics
         internal static void Begin(string chart, string difficulty, bool autoplay,
             float audioLatencyMs, float visualLatencyMs, float judgeOffsetMs, bool legacy)
         {
-            if (Active || !Enabled)
+            if (Active || !LiveTrace.Enabled || !Enabled)
                 return;
 
             _samples = Interlocked.Exchange(ref _spareSamples, null) ?? new Sample[CAPACITY];
@@ -99,7 +99,14 @@ namespace OpenSekai.Shared.Diagnostics
             EnhancedTouch.onFingerMove += Receive;
             EnhancedTouch.onFingerUp += Receive;
             Active = true;
+            LiveTrace.EnabledChanged += OnTestModeChanged;
             AndroidTouchProbe.Begin();
+        }
+
+        private static void OnTestModeChanged(bool enabled)
+        {
+            if (!enabled)
+                _ = End("test_mode_disabled");
         }
 
         private static void Receive(Finger finger)
@@ -202,6 +209,7 @@ namespace OpenSekai.Shared.Diagnostics
             _mixTickets = null;
             _mixCount = 0;
             Active = false;
+            LiveTrace.EnabledChanged -= OnTestModeChanged;
             EnhancedTouch.onFingerDown -= Receive;
             EnhancedTouch.onFingerMove -= Receive;
             EnhancedTouch.onFingerUp -= Receive;

@@ -2,6 +2,7 @@ using System;
 using System.Text;
 using System.Collections.Generic;
 using OpenSekai.Charts;
+using OpenSekai.Shared.Diagnostics;
 using Sekai.Core.Live;
 using Sekai.Live;
 using UnityEngine;
@@ -33,7 +34,7 @@ namespace OpenSekai.Diagnostics
                 PlayerPrefs.SetInt(ENABLED_PREF_KEY, value ? 1 : 0);
                 PlayerPrefs.Save();
                 if (_instance == null) Bootstrap();
-                else _instance.gameObject.SetActive(value);
+                else _instance.RefreshVisibility();
             }
         }
 
@@ -68,8 +69,15 @@ namespace OpenSekai.Diagnostics
             DontDestroyOnLoad(host);
             host.SetActive(false);
             _instance = host.AddComponent<PerformanceHud>();
-            host.SetActive(Enabled);
+            LiveTrace.EnabledChanged += _instance.OnTestModeChanged;
+            _instance.RefreshVisibility();
         }
+
+        private void RefreshVisibility() => gameObject.SetActive(LiveTrace.Enabled && Enabled);
+
+        private void OnTestModeChanged(bool enabled) => RefreshVisibility();
+
+        private void OnDestroy() => LiveTrace.EnabledChanged -= OnTestModeChanged;
 
         private void OnEnable()
         {

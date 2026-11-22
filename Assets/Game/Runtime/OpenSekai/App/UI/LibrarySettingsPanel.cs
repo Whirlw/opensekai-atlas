@@ -51,6 +51,8 @@ namespace OpenSekai.App.UI
         private LibraryModal _timingHelp;
         private TextMeshProUGUI _timingDescription;
         private readonly LibrarySettingRows _rows = new LibrarySettingRows();
+        private LibrarySettingRows.Section _developerSection;
+        private GameObject _traceLink;
         private GameObject _tracePanel;
         private ScrollRect _mainScroll;
 
@@ -74,6 +76,7 @@ namespace OpenSekai.App.UI
                 _localSettings.LiveVolume = _localSettings.SetupLiveVolume();
             }
 
+            RefreshTraceLink();
             _rows.Refresh();
             if (_tracePanel != null) _tracePanel.SetActive(false);
             if (_mainScroll != null) _mainScroll.verticalNormalizedPosition = 1f;
@@ -219,11 +222,17 @@ namespace OpenSekai.App.UI
             _rows.AddLink(look, "音符皮肤、打击音与特效", DescribeResourcePacks, OpenResourcePacks);
             top += LibrarySettingRows.SectionHeight(1) + gap;
 
-            LibrarySettingRows.Section developer = _rows.AddSection(content, "开发", 2, rightStart, 0f, top);
-            _rows.AddSwitch(developer, "测试模式",
+            _developerSection = _rows.AddSection(content, "开发", 2, rightStart, 0f, top);
+            _rows.AddSwitch(_developerSection, "测试模式",
                 () => LiveTrace.Enabled,
-                value => { LiveTrace.Enabled = value; SaveSettings(); });
-            _rows.AddLink(developer, "追踪选项", DescribeTrace, OpenTrace);
+                value =>
+                {
+                    LiveTrace.Enabled = value;
+                    RefreshTraceLink();
+                    SaveSettings();
+                });
+            _traceLink = _rows.AddLink(_developerSection, "追踪选项", DescribeTrace, OpenTrace);
+            RefreshTraceLink();
             float rightHeight = top + LibrarySettingRows.SectionHeight(2);
 
             content.sizeDelta = new Vector2(0f, Mathf.Max(leftHeight, rightHeight) + 8f);
@@ -276,7 +285,7 @@ namespace OpenSekai.App.UI
                 "Title", pageRect, "追踪选项", 34f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
             LibraryWidgets.TopStrip(title.rectTransform, 28f + BACK_SIZE + 20f, padding, 26f, 46f);
             TextMeshProUGUI hint = LibraryWidgets.Label(
-                "Hint", pageRect, "分类追踪需开启测试模式。延迟采样在退出打歌时保存。",
+                "Hint", pageRect, "延迟采样在退出打歌时保存。",
                 LibraryTheme.FontSize.BODY, LibraryTheme.Colors.TextMuted);
             LibraryWidgets.TopStrip(hint.rectTransform, 28f + BACK_SIZE + 20f, padding, 72f, 28f);
 
@@ -347,8 +356,17 @@ namespace OpenSekai.App.UI
             return content;
         }
 
+        private void RefreshTraceLink()
+        {
+            bool enabled = LiveTrace.Enabled;
+            _traceLink.SetActive(enabled);
+            _developerSection.SetVisibleRowCount(enabled ? 2 : 1);
+        }
+
         private void OpenTrace()
         {
+            if (!LiveTrace.Enabled) return;
+
             _rows.Refresh();
             _tracePanel.SetActive(true);
             _tracePanel.transform.SetAsLastSibling();
@@ -362,11 +380,6 @@ namespace OpenSekai.App.UI
 
         private static string DescribeTrace()
         {
-            if (!LiveTrace.Enabled)
-            {
-                return "测试模式未开启";
-            }
-
             int count = 0;
             foreach (LiveTraceCategory category in _inputCategories) if ((LiveTrace.Categories & category) != 0) count++;
             foreach (LiveTraceCategory category in _viewCategories) if ((LiveTrace.Categories & category) != 0) count++;

@@ -95,6 +95,11 @@ namespace OpenSekai.App.UI
                 _group = group;
             }
 
+            internal void SetVisibleRowCount(int rows)
+            {
+                _group.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, rows * LibraryTheme.Layout.SETTING_ROW_HEIGHT);
+            }
+
             /// <summary>Next line of the group, with its label; the control goes on its right.</summary>
             internal RectTransform AddRow(string label, out TextMeshProUGUI labelText)
             {
@@ -552,7 +557,7 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>A line that opens a sub-page: a muted summary and a chevron.</summary>
-        internal void AddLink(Section section, string label, Func<string> describe, Action open)
+        internal GameObject AddLink(Section section, string label, Func<string> describe, Action open)
         {
             RectTransform row = section.AddRow(label, out TextMeshProUGUI labelText);
             labelText.rectTransform.offsetMax = new Vector2(-260f, 0f);
@@ -572,6 +577,7 @@ namespace OpenSekai.App.UI
             {
                 _refreshers.Add(() => value.text = describe());
             }
+            return row.gameObject;
         }
 
         // ------------------------------------------------------------------ pieces
