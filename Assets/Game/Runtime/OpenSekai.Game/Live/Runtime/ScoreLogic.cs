@@ -61,6 +61,7 @@ namespace Sekai.Core.Live
 		}
 
 		private bool _fakePerfect;
+		private OpenSekai.Shared.Playback.DanLiveSong _dan;
 
 		public ScoreLogic(LiveBundleBuildData data)
 		{
@@ -82,7 +83,8 @@ namespace Sekai.Core.Live
 				totalCombo = bootData?.MusicData?.TotalNoteCount ?? 0;
 			}
 			_score.totalComboCount = totalCombo;
-			_score.life = musicScore?.InitialLife
+			_dan = (bootData as FreeLiveBootData)?.DanSong;
+			_score.life = _dan?.StartingLife ?? musicScore?.InitialLife
 				?? (_liveBundleBuildData != null && _liveBundleBuildData.Life > 0 ? _liveBundleBuildData.Life : 1000);
 			_score.rank = ScoreRank.D;
 			_score.totalScore = 0;
@@ -226,6 +228,16 @@ namespace Sekai.Core.Live
 		{
 			if (note == null)
 			{
+				return;
+			}
+
+			if (_dan != null)
+			{
+				if (!note.HasJudgment || note is NextRushDamageNote && note.Result != NoteResult.Miss) return;
+				int life = System.Math.Max(0, _score.life - _dan.Damage.For(note.Result));
+				if (life == _score.life) return;
+				_score.life = life;
+				_dan.LifeChanged?.Invoke(life);
 				return;
 			}
 

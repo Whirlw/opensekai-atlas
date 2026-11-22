@@ -96,17 +96,13 @@ namespace OpenSekai.App.Playback
                 {
                     return Result(PlayStartStatus.Failed, "无法从当前场景开始游玩。");
                 }
-                if (!_surface.Exists || _surface.CurrentScene != request.ReturnScene)
-                {
-                    return Result(PlayStartStatus.Failed, "曲库界面尚未就绪。");
-                }
-                if (!_surface.IsLibraryReady)
+                if (!IsRequestSceneReady(request))
                 {
                     return Result(PlayStartStatus.Failed, "曲库界面尚未就绪。");
                 }
                 progress?.Invoke("正在读取谱面...");
                 await UniTask.DelayFrame(1, cancellationToken: cancellationToken);
-                if (!await _surface.PrepareLiveLoadingAsync(cancellationToken))
+                if (request.DanSong == null && !await _surface.PrepareLiveLoadingAsync(cancellationToken))
                 {
                     return Result(PlayStartStatus.Failed, "打歌加载界面尚未就绪。");
                 }
@@ -157,6 +153,7 @@ namespace OpenSekai.App.Playback
                 PlaySession session = PlaySession.FromChart(request, entry, chart, config, settings, material?.Audio, material?.Combo, material?.Judgment, material?.HitFx, material?.Notes, material?.Lane, material?.Background, material?.Hud, material?.ResultFx);
                 FreeLiveBootData boot = LegacyLiveBootAdapter.Create(session, _deckSelection.SelectedDeckId);
                 boot.CustomMusicScoreKey = chartHash;
+                boot.DanSong = request.DanSong;
                 cancellationToken.ThrowIfCancellationRequested();
                 string message = request.IsAuto ? "正在开始自动游玩..." : "正在开始游玩...";
                 progress?.Invoke(message);
@@ -176,7 +173,8 @@ namespace OpenSekai.App.Playback
                 _boot.Publish(boot);
                 bootPublished = true;
                 _surface.ForceFinishTransition();
-                _surface.PushLiveLoading();
+                if (request.DanSong != null) _surface.EnterCore();
+                else _surface.PushLiveLoading();
                 transitionAccepted = true;
                 if (materialDiagnostics.Count > 0)
                     Debug.LogWarning("[MaterialPack] 使用内置资源：" + string.Join(" / ", materialDiagnostics));
@@ -218,7 +216,7 @@ namespace OpenSekai.App.Playback
                     material?.Judgment?.Dispose();
                     material?.Combo?.Dispose();
                     material?.Audio.Dispose();
-                    if (bootPublished && _surface.CurrentScene == request.ReturnScene)
+                    if (bootPublished && _surface.CurrentScene == request.SourceScene)
                     {
                         _boot.Restore(previousBoot);
                     }
@@ -228,8 +226,11 @@ namespace OpenSekai.App.Playback
             }
         }
 
-        private bool IsRequestSceneReady(PlayRequest request) =>
-            _surface.Exists && _surface.CurrentScene == request.ReturnScene && _surface.IsLibraryReady;
+        private bool IsRequestSceneReady(PlayRequest request)
+        {
+            if (request.DanSong != null) return _surface.CurrentScene == request.SourceScene;
+            return _surface.Exists && _surface.CurrentScene == request.ReturnScene && _surface.IsLibraryReady;
+        }
 
         private static (SongPackage entry, RuntimeChartDefinition chart, string hash) PrepareChart(
             PlayRequest request, SongPackage cached, ChartConversionSettings config, PlaybackSettingsSnapshot settings,

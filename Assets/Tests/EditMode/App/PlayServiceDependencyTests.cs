@@ -457,6 +457,7 @@ namespace OpenSekai.Tests.EditMode
             {
             }
 
+            public void EnterCore() => PushLiveLoading();
             public void PushLiveLoading()
             {
                 if (FailOnPush)

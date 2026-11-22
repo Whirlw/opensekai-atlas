@@ -27,6 +27,8 @@ namespace OpenSekai.App.Playback
 
         void PushLiveLoading();
 
+        void EnterCore();
+
         void SubscribeSceneExit(Action handler);
 
         void UnsubscribeSceneExit(Action handler);

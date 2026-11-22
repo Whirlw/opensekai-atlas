@@ -86,6 +86,8 @@ namespace OpenSekai.App.Playback
             LiveTransitioner.SafeForceFinish(null);
         }
 
+        public void EnterCore() => SceneManager.Instance.RequestScene(SceneManager.Scene.Core);
+
         public void PushLiveLoading()
         {
             ScreenManager screens = ScreenManager.Instance;

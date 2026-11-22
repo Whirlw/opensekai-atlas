@@ -18,10 +18,11 @@ namespace OpenSekai.App.Library
         private const string PROFILE = "profile.json";
         private const string MANIFEST = "manifest.json";
         private const int HISTORY_LIMIT = 64 * 1024 * 1024;
+        private const int DAN_LIMIT = 64 * 1024 * 1024;
         private const int JSON_LIMIT = 16 * 1024;
         internal static readonly UTF8Encoding Utf8 = new(false, true);
 
-        internal static void Write(string destination, string historyPath, ProfileAppearance appearance, CancellationToken cancel = default)
+        internal static void Write(string destination, string historyPath, ProfileAppearance appearance, DanArchive dan, CancellationToken cancel = default)
         {
             AtomicFile.Write(destination, temp =>
             {
@@ -46,9 +47,12 @@ namespace OpenSekai.App.Library
                             writer.Write('\n');
                         }
                 }
+                byte[] challenges = Utf8.GetBytes(JsonConvert.SerializeObject(dan));
+                if (challenges.Length > DAN_LIMIT) throw new InvalidDataException("Challenge archive exceeds backup size limit.");
+                using (var target = zip.CreateEntry(PlayerProfileStore.DAN_FILE).Open()) target.Write(challenges, 0, challenges.Length);
                 var manifest = new JObject
                 {
-                    ["format"] = FORMAT, ["version"] = 1,
+                    ["format"] = FORMAT, ["version"] = 2, ["danSha256"] = Hash(challenges),
                     ["profileSha256"] = Hash(profile), ["historySha256"] = Convert.ToBase64String(digest.Hash)
                 };
                 using var metadata = new StreamWriter(zip.CreateEntry(MANIFEST).Open(), Utf8);
@@ -57,17 +61,27 @@ namespace OpenSekai.App.Library
             });
         }
 
-        internal static ProfileAppearance Unpack(string path, string stagedHistory)
+        internal static (ProfileAppearance, DanArchive) Unpack(string path, string stagedHistory)
         {
             using var file = File.OpenRead(path);
-            if (file.Length > HISTORY_LIMIT + 1024 * 1024) throw new InvalidDataException("Backup exceeds size limit.");
+            if (file.Length > HISTORY_LIMIT + DAN_LIMIT + 1024 * 1024) throw new InvalidDataException("Backup exceeds size limit.");
             using var zip = new ZipArchive(file, ZipArchiveMode.Read);
-            if (zip.Entries.Count != 3) throw new InvalidDataException("Unexpected player backup entries.");
             using var json = new MemoryStream();
             Copy(zip, MANIFEST, json, JSON_LIMIT);
             var manifest = Parse(Utf8.GetString(json.ToArray()));
             if ((string)manifest["format"] != FORMAT || manifest["version"]?.Type != JTokenType.Integer ||
-                (int)manifest["version"] != 1) throw new InvalidDataException("Unsupported player backup.");
+                (int)manifest["version"] is not (1 or 2)) throw new InvalidDataException("Unsupported player backup.");
+            bool hasDan = (int)manifest["version"] == 2;
+            if (zip.Entries.Count != (hasDan ? 4 : 3)) throw new InvalidDataException("Unexpected player backup entries.");
+            var dan = new DanArchive();
+            if (hasDan)
+            {
+                json.SetLength(0);
+                Copy(zip, PlayerProfileStore.DAN_FILE, json, DAN_LIMIT);
+                byte[] bytes = json.ToArray();
+                if (Hash(bytes) != (string)manifest["danSha256"]) throw new InvalidDataException("Challenge checksum mismatch.");
+                dan = DanArchive.Decode(Utf8.GetString(bytes));
+            }
             json.SetLength(0);
             Copy(zip, PROFILE, json, JSON_LIMIT);
             byte[] profile = json.ToArray();
@@ -81,7 +95,7 @@ namespace OpenSekai.App.Library
             var fields = Parse(Utf8.GetString(profile));
             if (fields["nickname"]?.Type != JTokenType.String || fields["avatarId"]?.Type != JTokenType.String)
                 throw new InvalidDataException("Invalid player appearance.");
-            return new ProfileAppearance((string)fields["nickname"], (string)fields["avatarId"]);
+            return (new ProfileAppearance((string)fields["nickname"], (string)fields["avatarId"]), dan);
         }
 
         internal static IEnumerable<string> LocalLines(string path)

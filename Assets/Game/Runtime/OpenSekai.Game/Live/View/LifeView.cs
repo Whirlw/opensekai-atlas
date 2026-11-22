@@ -65,13 +65,13 @@ namespace Sekai
 			_liveBundleBuildData = ResourceCatalog.LiveBundleConfig.Load();
 		}
 
-		public void Setup(Action callback = null)
+		public void Setup(Action callback = null, int? initialLife = null)
 		{
 			if (_liveBundleBuildData == null)
 			{
 				_liveBundleBuildData = ResourceCatalog.LiveBundleConfig.Load();
 			}
-			_maxLife = _liveBundleBuildData != null && _liveBundleBuildData.Life > 0 ? _liveBundleBuildData.Life : 1000;
+			_maxLife = initialLife ?? (_liveBundleBuildData != null && _liveBundleBuildData.Life > 0 ? _liveBundleBuildData.Life : 1000);
 			_lifeDefaultGaugeSize = lifeDefaultGauge != null ? lifeDefaultGauge.size : Vector2.one;
 			_lifeDamageGaugeSize = lifeDamageGauge != null ? lifeDamageGauge.size : Vector2.one;
 			if (number != null)

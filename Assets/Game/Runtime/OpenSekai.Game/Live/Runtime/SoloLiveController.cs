@@ -16,6 +16,8 @@ namespace Sekai.Core.Live
 		private string _playId;
 		private RankingSettlement _settlement;
 		private bool _retiredByPlayer;
+		private bool _restartDan;
+		private DanLiveSong DanSong => (BootData as FreeLiveBootData)?.DanSong;
 		private ILivePauseMenu _pauseOverlay;
 		private MusicInfoView _musicInfoView;
 		private LiveViewBase[] _liveViews;
@@ -74,6 +76,7 @@ namespace Sekai.Core.Live
 			liveOutUIController?.Initialize(BootData.LivePlayMode, BaseCamera);
 			LiveViewExt.OnLoad(_liveViews);
 			StartCoroutine(LiveStart(6f));
+			DanSong?.BindRetire(OnRetireByMySelf);
 		}
 
 		protected override void OnMusicStart()
@@ -400,6 +403,12 @@ namespace Sekai.Core.Live
 
 		protected override void OnRetry()
 		{
+			if (DanSong != null)
+			{
+				_restartDan = true;
+				OnRetireByMySelf();
+				return;
+			}
 			(BootData as FreeLiveBootData)?.MaterialAudio?.Stop();
 			LatencyCapture.End("retry");
 			_pauseOverlay?.Hide();
@@ -501,6 +510,12 @@ namespace Sekai.Core.Live
 
 		private void OnFailed()
 		{
+			if (DanSong != null)
+			{
+				result = 2;
+				PreExit(0f, 0f);
+				return;
+			}
 			// Only while the audio drives the clock: before and after it the timer reads 0, which used
 			// to throw the clock back to the start of the song.
 			long audioTime = musicPhase == MusicPhase.Playing ? SoundManager.Instance.GetAudioSyncedUnityTimer() : -1L;
@@ -530,8 +545,17 @@ namespace Sekai.Core.Live
 
 			double historyStart = LatencyCapture.Active ? Time.realtimeSinceStartupAsDouble : 0d;
 			LiveScore score = _liveLogic?.Score ?? default;
-			var kind = _retiredByPlayer ? PlayResultKind.Retired
+			var kind = _retiredByPlayer || DanSong != null && _forcedFinish ? PlayResultKind.Retired
 				: result == 3 && score.life > 0 ? PlayResultKind.Completed : PlayResultKind.Failed;
+			if (DanSong != null)
+			{
+				state = LiveControllerState.Finish;
+				DanSong.BindRetire(null);
+				DanSong.Finish(kind, score, currentMusicTimeMs);
+				HideSkip();
+				StartCoroutine(ExitDanSong());
+				return;
+			}
 			FinishAttempt(kind);
 			if (LatencyCapture.Active)
 				LatencyCapture.Record("finish_history", value: (Time.realtimeSinceStartupAsDouble - historyStart) * 1000d);
@@ -549,6 +573,13 @@ namespace Sekai.Core.Live
 				: null;
 		}
 
+		private IEnumerator ExitDanSong()
+		{
+			// Let the judgement frame finish before unloading the current chart.
+			yield return null;
+			Exit();
+		}
+
 		private void FinishAttempt(PlayResultKind kind)
 		{
 			if (_settlement == null && BootData is FreeLiveBootData free && _context?.PlayHistory != null)
@@ -562,7 +593,12 @@ namespace Sekai.Core.Live
 			LiveViewExt.OnUnload(_liveViews);
 			SceneManager.Scene returnScene = (BootData as FreeLiveBootData)?.ReturnScene ?? SceneManager.Scene.Library;
 			base.OnExit();
-			SceneManager.Instance.RequestScene(returnScene);
+			if (DanSong != null)
+			{
+				DanSong.BindRetire(null);
+				DanSong.Exit(_restartDan);
+			}
+			else SceneManager.Instance.RequestScene(returnScene);
 		}
 
 		private void SetFinish(float delay, float waitTime, float finishWaitSeconds, long? resultEffectAtMs)

@@ -59,6 +59,36 @@ namespace OpenSekai.Tests.EditMode.Live
             return logic;
         }
 
+        [Test]
+        public void DanDamageUsesFiveGradesAndHazardsOnlyOnContactThenRestoresChartLife()
+        {
+            var logic = Setup(1);
+            var chart = new MusicScore(null, null, null, initialLife: 325);
+            var boot = new FreeLiveBootData(1, "master", 1);
+            boot.DanSong = new OpenSekai.Shared.Playback.DanLiveSong(100, 63,
+                new OpenSekai.Shared.Playback.DanDamage(1, 2, 3, 4, 10), null, null, null);
+            logic.Setup(boot, chart);
+            Assert.That(logic.Score.life, Is.EqualTo(63));
+            foreach (var grade in new[] { NoteResult.JustPerfect, NoteResult.Perfect, NoteResult.Great,
+                         NoteResult.Good, NoteResult.Bad, NoteResult.Miss })
+                logic.Damage(new TestNote(grade));
+            logic.Damage(new TestNote(NoteResult.Miss, decoration: true));
+            Assert.That(logic.Score.life, Is.EqualTo(42));
+            var hazard = new NextRushDamageNote(default, 1, 0, 0);
+            hazard.Resolve(false);
+            logic.Damage(hazard);
+            Assert.That(logic.Score.life, Is.EqualTo(42));
+            hazard = new NextRushDamageNote(default, 2, 0, 0);
+            hazard.Resolve(true);
+            logic.Damage(hazard);
+            Assert.That(logic.Score.life, Is.EqualTo(32));
+            boot.DanSong = null;
+            logic.Setup(boot, chart);
+            Assert.That(logic.Score.life, Is.EqualTo(325));
+            logic.Damage(hazard);
+            Assert.That(logic.Score.life, Is.EqualTo(325 - NextRushDamageNote.LIFE_PENALTY));
+        }
+
         [TestCase(1)]
         [TestCase(7)]
         [TestCase(64)]

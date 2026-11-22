@@ -63,6 +63,19 @@ namespace OpenSekai.Tests.EditMode.Sonolus
             Assert.That(File.ReadAllBytes(Directory.GetFiles(_indexDirectory, "*.bak").Single()), Is.EqualTo(before));
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        public void MissingSongDataOrAudioRequiresPreparationAgain(bool removeChart)
+        {
+            var installer = CreateInstaller();
+            var level = Level();
+            var package = installer.PublishPackage(StagePackage(withCover: true), _server, level);
+            Assert.That(installer.FindPlayableInstalled(_server, level.Name), Is.Not.Null);
+            File.Delete(removeChart ? package.ScorePath : package.AudioPath);
+            Assert.That(installer.FindPlayableInstalled(_server, level.Name), Is.Null);
+            Assert.That(installer.FindInstalled(_server, level.Name), Is.EqualTo(package.RootDirectory));
+        }
+
         [Test]
         public void MissingOptionalCoverLeavesThePackageAvailableAndCanBeRetried()
         {

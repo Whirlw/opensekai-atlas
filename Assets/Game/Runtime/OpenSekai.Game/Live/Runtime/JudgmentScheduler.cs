@@ -9,6 +9,7 @@ namespace Sekai.Core.Live
 	internal sealed class JudgmentScheduler
 	{
 		private readonly LiveLogic _logic;
+		private readonly System.Func<bool> _hasDanLife;
 		private readonly LiveSessionState _session;
 		private readonly LiveInputRouter _input;
 		private readonly LiveNoteFrame _noteFrame;
@@ -34,6 +35,7 @@ namespace Sekai.Core.Live
 			LiveNoteFrame noteFrame, LivePresentationBridge presentation)
 		{
 			_logic = logic;
+			_hasDanLife = () => _session.ScoreLogic?.Score.life > 0;
 			_session = session;
 			_input = input;
 			_noteFrame = noteFrame;
@@ -708,6 +710,7 @@ namespace Sekai.Core.Live
 			note.OnUpdateCombo = OnUpdateCombo;
 			note.OnUpdateScore = OnUpdateScore;
 			note.OnDamage = OnDamage;
+			note.CanPublishResult = _session.BootData is FreeLiveBootData { DanSong: not null } ? _hasDanLife : null;
 			note.OnUpdateResult = OnUpdateResult;
 			note.CalcTimeOffset = _noteFrame.CalcTimeOffset;
 			if (note.NativeScroll == null)

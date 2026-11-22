@@ -782,7 +782,9 @@ namespace Sekai.Live
 			ResultPublication.Publish(this, Callbacks, this, PublishShape.Key);
 
 		/// <summary>This note's four result callbacks, for <see cref="ResultPublication"/>.</summary>
-		internal ResultCallbacks Callbacks => new ResultCallbacks(onJudgment, onUpdateCombo, onUpdateScore, onDamage);
+		internal ResultCallbacks Callbacks => new ResultCallbacks(onJudgment, onUpdateCombo, onUpdateScore, onDamage, CanPublishResult);
+
+		internal Func<bool> CanPublishResult { private get; set; }
 
 		private bool _resultPublished;
 

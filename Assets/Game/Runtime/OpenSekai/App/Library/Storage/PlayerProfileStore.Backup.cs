@@ -19,6 +19,11 @@ namespace OpenSekai.App.Library
         public int Duplicates { get; internal set; }
         public IReadOnlyList<string> ConflictingIds { get; internal set; }
         public IReadOnlyList<int> MissingIdLines { get; internal set; }
+        public int DanDefinitionsAdded { get; internal set; }
+        public int DanAttemptsAdded { get; internal set; }
+        public int DanDuplicates { get; internal set; }
+        public IReadOnlyList<string> DanConflictingIds { get; internal set; }
+        public bool HasChanges => Added > 0 || RestoresAppearance || DanDefinitionsAdded > 0 || DanAttemptsAdded > 0;
         public bool RestoresAppearance { get; internal set; }
         public PlayerProfileSnapshot Result { get; internal set; }
     }
@@ -40,7 +45,7 @@ namespace OpenSekai.App.Library
         {
             RequireIdle();
             long bytes = HistoryLength();
-            ProfileBackupArchive.Write(destination, HistoryPath, ReadAppearance());
+            ProfileBackupArchive.Write(destination, HistoryPath, ReadAppearance(), ReadDanArchive());
             MarkBackupSaved(_directory, bytes);
         }
 
@@ -57,9 +62,10 @@ namespace OpenSekai.App.Library
             string history = HistoryPath;
             long bytes = HistoryLength();
             var appearance = ReadAppearance();
+            var dan = ReadDanArchive();
             return RunBackupAsync(() =>
             {
-                ProfileBackupArchive.Write(destination, history, appearance, cancel);
+                ProfileBackupArchive.Write(destination, history, appearance, dan, cancel);
                 return (directory, bytes);
             }, cancel);
         }
@@ -98,15 +104,19 @@ namespace OpenSekai.App.Library
             try
             {
                 string incoming = Path.Combine(stage, "incoming.jsonl");
-                var appearance = ProfileBackupArchive.Unpack(zipPath, incoming);
+                var (appearance, incomingDan) = ProfileBackupArchive.Unpack(zipPath, incoming);
                 string merged = Path.Combine(stage, ProfileBackupArchive.HISTORY);
                 _previewHistoryLength = HistoryLength();
                 var preview = Merge(incoming, merged, cancel);
                 File.Delete(incoming);
+                var dan = LoadDanArchive();
+                if (dan.Definitions.Count != 0 || dan.Attempts.Count != 0) preview.RestoresAppearance = false;
+                dan.Merge(incomingDan, preview);
+                File.WriteAllText(Path.Combine(stage, DAN_FILE), JsonConvert.SerializeObject(dan));
                 if (!preview.RestoresAppearance) appearance = ReadAppearance();
                 File.WriteAllText(Path.Combine(stage, PROFILE_FILE), JsonConvert.SerializeObject(appearance));
                 var (history, summaries) = IndexHistory(merged);
-                preview.Result = new PlayerProfileSnapshot(appearance, history.Read());
+                preview.Result = new PlayerProfileSnapshot(appearance, history.Read(), dan);
                 cancel.ThrowIfCancellationRequested();
                 preview.Id = id;
                 _preparedHistory = history;
@@ -131,7 +141,7 @@ namespace OpenSekai.App.Library
                 throw new InvalidOperationException("Local player data changed. Preview the backup again.");
             }
             var result = _preview.Result;
-            if (_preview.Added == 0 && !_preview.RestoresAppearance)
+            if (!_preview.HasChanges)
             {
                 CancelPendingPreview();
                 return result;

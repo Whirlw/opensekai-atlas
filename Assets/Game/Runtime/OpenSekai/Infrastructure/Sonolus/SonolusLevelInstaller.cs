@@ -117,6 +117,14 @@ namespace OpenSekai.Infrastructure.Sonolus
             return TryGetEntry(server, levelName, out IndexEntry entry) ? entry.Directory : null;
         }
 
+        // A manifest can outlive a deleted score or audio file. Keep the index entry so publication
+        // can replace the broken package, but treat it as a miss for actual playback and download.
+        internal SongPackage FindPlayableInstalled(SonolusServerAddress server, string levelName)
+        {
+            var entry = SongPackageStorage.LoadEntry(FindInstalled(server, levelName));
+            return entry != null && File.Exists(entry.ScorePath) && File.Exists(entry.AudioPath) ? entry : null;
+        }
+
         public SonolusInstallState StateOf(SonolusServerAddress server, SonolusLevel level)
         {
             if (level == null || !TryGetEntry(server, level.Name, out IndexEntry entry))
@@ -354,7 +362,7 @@ namespace OpenSekai.Infrastructure.Sonolus
         private SongPackage FindCurrentPackage(SonolusServerAddress server, SonolusLevel level)
         {
             return StateOf(server, level) == SonolusInstallState.Installed
-                ? SongPackageStorage.LoadEntry(FindInstalled(server, level.Name)) : null;
+                ? FindPlayableInstalled(server, level.Name) : null;
         }
 
         internal SongPackage PublishPackage(string staging, SonolusServerAddress server, SonolusLevel level, bool ownsDownloadStage = false)

@@ -56,6 +56,7 @@ namespace OpenSekai.App.Library
                 {
                     if (play != null) CopyExcept(play, writer);
                 }
+                if (File.Exists(DanPath)) File.Copy(DanPath, Path.Combine(stage, DAN_FILE));
                 if (File.Exists(ProfilePath)) File.Copy(ProfilePath, Path.Combine(stage, PROFILE_FILE));
                 var (history, summaries) = IndexHistory(path);
                 if (play != null) History.TransferPendingTo(history, play.RecordId);
@@ -105,6 +106,7 @@ namespace OpenSekai.App.Library
             string next = Path.Combine(Archives, id);
             AtomicFile.WriteAllText(Path.Combine(Archives, "active"), id);
             _directory = next;
+            _cachedDan = null;
             History = history;
             Summaries = summaries;
             if (previous != _root) DiscardDirectory(previous);

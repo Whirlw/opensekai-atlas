@@ -108,6 +108,23 @@ RankingSettlement ranking = CustomMusicScorePlayHistoryStorage.ForDisplay(play);
 - **验证。** 在 Play Mode 中用脚本注入指针事件，确认了以下滑动行为：抖动 14 单位仍是点击；拖动 30% 翻页并取消点击；拖动 10% 回弹；从第二页拖回 25% 翻回第一页；竖向拖动 90 单位取消点击但不翻页；越过最后一页时有回弹阻力。甩动速度阈值和真实手指下的点击与滑动区分，还要在手机上确认。EditMode 共 1665 项，1643 项通过，21 项跳过。唯一的失败 `NextRushChartLoaderTests.ActiveConnectorCanJoinTwoRawChainsIntoOneContinuousHold` 与本阶段改动无关：NextRush 连接音在编辑模式下调用了 `DontDestroyOnLoad`。
 - **未完成。** 以下几项需要真机验证：手机横屏翻页不误触，导出、空档恢复、重复合并、取消和损坏文件。段位牌的选择和佩戴要等 `EarnedDanIds` 有内容后再接。`ProfileCopy.DanLabel` 现在直接显示段位 ID，第三阶段改为段位定义中的牌面文字。
 
+### 第三阶段后端联调入口
+
+段位制作页和挑战页使用 `OpenSekai.App.Playback`，个人页沿用 `OpenSekai.App.Library.PlayerProfileStore.Local`。页面操作在 Unity 主线程调用。
+
+| 操作 | 接口与行为 |
+| --- | --- |
+| 创建、粘贴、复制 | 用 `new DanDefinition(initialLife, damage, songs, label, emblem, color)` 构造定义。扣血表是 `OpenSekai.Shared.Playback.DanDamage(perfect, great, good, bad, miss)`。用 `DanDefinition.Parse(text)` 预览，捕获 `DanFieldException.Field` 定位错误（如 `songs[1]` 或 `damage.miss`）。复制 `definition.ShareText` 即可分享。相同谱面链接的 HTTPS、Sonolus 和分享包装形式归一为同一个地址。 |
+| 保存与编辑 | `SaveDanDefinition(definition)` 按规范化定义去重。`ReadDanDefinitions()` 提供曲序、初始生命、扣血表和牌面字段。编辑后内容变化即有新 ID，原定义继续与原通关记录关联。 |
+| 开始与重试 | 先订阅 `DanChallengeService.Local.Changed`，再调用 `await service.StartAsync(definition, token)`。返回的 `PlayStartResult.Started` 表示首曲已交给打歌场景。准备时按 `Phase` 和从 1 起算的 `SongNumber` 显示进度。失败时读取 `Error` 和曲序，修复后再次调用即可。全部曲目的谱面和音频在首曲前检查，本轮使用固定副本。 |
+| 打歌与曲间 | `Definition.InitialLife` 是 HUD 分母，`RemainingLife` 是实时分子。`BetweenSongs` 时 `SongNumber` 已指向即将开打的曲目，约一秒后自动进入下一首。主动退出调用 `Quit()`；暂停与恢复沿用当前打歌控制器，暂停菜单的重试从第一首另开场次。跨场景页面销毁时解除事件订阅。 |
+| 结算与历史 | 终局读取 `Attempt` 和 `NewlyAwarded`，后者表示本次首次取得牌面。`ReadDanHistory()` 按开始时间倒序返回场次。每个 `DanAttempt` 有稳定 ID、定义 ID、开始时间、结局和逐曲明细。`SongNumber(definition)` 提供结束或中断位置；每曲含标题、谱面键、起始生命、结束原因、进度毫秒及五档判定等分数快照。强退后保留最近一个已落盘的曲界，未完成场次不授牌。普通历史和 Best 30 独立计算。 |
+| 佩戴与恢复 | `EquipDan(id)` 校验已经通关，传 `null` 卸下。`Read().EquippedDan` 直接提供牌面文字、图案和颜色，`EarnedDanIds` 用于筛选已获牌面。备份 v2 增加带校验和的 `dan.json`，仍可导入 v1。预览通过 `DanDefinitionsAdded`、`DanAttemptsAdded`、`DanDuplicates`、`DanConflictingIds` 展示段位变化。确认按钮绑定 `preview.HasChanges`，这样只有段位数据变化也能合并。空档恢复佩戴，已有档案保留本机选择。 |
+
+运行中的页面以 `Phase` 驱动显示。首曲交接前会写入场次，随后在每首结束时更新；存档中的未完成场次统一标为 `Interrupted`。这样进程被杀后，历史仍能指出中断曲序。准备阶段取消可能没有场次，调用方先检查 `PlayStartResult.Status`。
+
+2026-11-22 已在独立 Unity 工程副本跑通两曲实播。两首各漏一键，初始生命 2 时末键归零失败，初始生命 3 时剩 1 点授牌。第二首预检失败可修复重试，开打后移除源谱仍能切歌。从第二首暂停重试会另开场次，主动退出保留两次未完成记录。Android 真机联调仍待验收。
+
 ## 一、从首页到个人页
 
 首页分为两页。第一页保留现有曲库、服务器和资源包入口；向左滑动，露出右侧第二页的「个人信息」「段位」「成就」。每页保留三个入口，并让玩家能发现另一页。拖动越过翻页阈值后取消卡片点击，轻触仍打开卡片。从三个新页面返回时停在第二页。

@@ -136,7 +136,7 @@ namespace Sekai.Live
 		internal void SetupHud(LiveHudSkin skin, LiveMusicData musicData)
 		{
 			_hudBindings.Setup(transform, skin);
-			lifeView?.Setup(OnPause);
+			lifeView?.Setup(OnPause, (_baseController?.BootData as FreeLiveBootData)?.DanSong?.InitialLife);
 			scoreView?.Setup(musicData, skin);
 		}
 

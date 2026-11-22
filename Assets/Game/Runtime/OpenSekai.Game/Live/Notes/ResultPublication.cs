@@ -27,13 +27,15 @@ namespace Sekai.Live
 		internal readonly Action<NoteBase> Combo;
 		internal readonly Action<NoteBase> Score;
 		internal readonly Action<NoteBase> Damage;
+		internal readonly Func<bool> CanPublish;
 
-		internal ResultCallbacks(Action<NoteBase> judgment, Action<NoteBase> combo, Action<NoteBase> score, Action<NoteBase> damage)
+		internal ResultCallbacks(Action<NoteBase> judgment, Action<NoteBase> combo, Action<NoteBase> score, Action<NoteBase> damage, Func<bool> canPublish = null)
 		{
 			Judgment = judgment;
 			Combo = combo;
 			Score = score;
 			Damage = damage;
+			CanPublish = canPublish;
 		}
 	}
 
@@ -60,7 +62,9 @@ namespace Sekai.Live
 		/// <returns>False when the point had already published in this take.</returns>
 		internal static bool Publish(NoteBase point, in ResultCallbacks callbacks, NoteBase visual, PublishShape shape)
 		{
-			if (point == null)
+			// Finish all callbacks of the lethal note, including heads whose damage callback runs first.
+			// Later notes in that input frame must not contribute to the completed challenge result.
+			if (point == null || callbacks.CanPublish?.Invoke() == false)
 			{
 				return false;
 			}

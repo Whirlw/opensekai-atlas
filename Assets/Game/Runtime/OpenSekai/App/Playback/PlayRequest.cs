@@ -9,6 +9,15 @@ namespace OpenSekai.App.Playback
     {
         public string PackageDirectory { get; }
         internal TemporarySongPackage TemporaryPackage { get; }
+        internal OpenSekai.Shared.Playback.DanLiveSong DanSong { get; }
+        internal SceneManager.Scene SourceScene { get; }
+        internal PlayRequest(string directory, OpenSekai.Shared.Playback.DanLiveSong song, SceneManager.Scene source)
+            : this(directory, false, SceneManager.Scene.Library)
+        {
+            DanSong = song;
+            SourceScene = source;
+        }
+
         public bool IsAuto { get; }
         public SceneManager.Scene ReturnScene { get; }
 
@@ -23,6 +32,7 @@ namespace OpenSekai.App.Playback
             TemporaryPackage = temporaryPackage;
             IsAuto = isAuto;
             ReturnScene = returnScene;
+            SourceScene = returnScene;
         }
     }
 

@@ -47,13 +47,17 @@ namespace OpenSekai.App.Library
     {
         public ProfileAppearance Appearance { get; }
         public Best30Snapshot Best30 { get; }
-        public IReadOnlyList<string> EarnedDanIds => Array.Empty<string>();
-        public string EquippedDanId => null;
+        public IReadOnlyList<string> EarnedDanIds { get; }
+        public string EquippedDanId { get; }
+        public OpenSekai.App.Playback.DanDefinition EquippedDan { get; }
 
-        internal PlayerProfileSnapshot(ProfileAppearance appearance, Best30Snapshot best30)
+        internal PlayerProfileSnapshot(ProfileAppearance appearance, Best30Snapshot best30, DanArchive archive)
         {
             Appearance = appearance;
             Best30 = best30;
+            EarnedDanIds = new List<string>(archive.Earned()).AsReadOnly();
+            EquippedDanId = archive.Equipped;
+            if (EquippedDanId != null) EquippedDan = archive.DecodeDefinitions()[EquippedDanId];
         }
     }
 
@@ -81,7 +85,7 @@ namespace OpenSekai.App.Library
             History = new RankingHistory(HistoryPath, Summaries);
         }
 
-        public PlayerProfileSnapshot Read() => new(ReadAppearance(), History.Read());
+        public PlayerProfileSnapshot Read() => new(ReadAppearance(), History.Read(), ReadDanArchive());
         public HistoryPage ReadHistory(int offset, int limit) => History.ReadPage(offset, limit);
 
         public void SetAppearance(string nickname, string avatarId)

@@ -2,6 +2,8 @@ namespace Sekai
 {
 	public class FreeLiveBootData : LiveBootDataBase
 	{
+		public OpenSekai.Shared.Playback.DanLiveSong DanSong { get; set; }
+
 		public int[] DeckFormationIndexes { get; set; }
 
 		public string CustomMusicScoreId { get; set; }

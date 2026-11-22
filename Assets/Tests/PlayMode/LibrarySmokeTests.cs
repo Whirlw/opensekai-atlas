@@ -719,6 +719,128 @@ namespace OpenSekai.Tests.PlayMode
             }
         }
 
+        [UnityTest]
+        public IEnumerator DanCoursePreflightsAllSongsCarriesLifeAndFailsOnTheLastMiss()
+        {
+            yield return PlayTwoSongDan(2, DanOutcome.Failed);
+        }
+
+        [UnityTest]
+        public IEnumerator DanCourseAwardsTheBadgeWhenOneLifeRemains()
+        {
+            yield return PlayTwoSongDan(3, DanOutcome.Passed);
+        }
+
+        [UnityTest]
+        public IEnumerator DanPauseRetryStartsANewCourseAndQuitLeavesBothAttemptsUnawarded()
+        {
+            yield return PlayTwoSongDan(3, DanOutcome.Interrupted);
+        }
+
+        private static IEnumerator PlayTwoSongDan(int life, DanOutcome expected)
+        {
+            // A previous interrupted smoke test can leave Core live. Let its controller unload
+            // before resetting the persistent scene manager for the next cold home.
+            var previous = Object.FindFirstObjectByType<SoloLiveController>();
+            if (previous != null && SceneLoader.GetActiveScene().name == "Core")
+            {
+                previous.Exit();
+                yield return WaitFor(() => SceneLoader.GetActiveScene().name == "Library",
+                    BOOT_TIMEOUT_SECONDS, "leaving the previous live");
+            }
+            yield return LoadColdHome();
+            string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "DanLive-" + System.Guid.NewGuid().ToString("N"))).FullName;
+            try
+            {
+                var address = SonolusServerAddress.Parse("https://dan.test");
+                var profile = new PlayerProfileStore(Path.Combine(root, "player"));
+                var installer = new SonolusLevelInstaller(new SongPackageManager(Path.Combine(root, "library")),
+                    Path.Combine(root, "index"), Path.Combine(root, "staging"));
+                var service = new DanChallengeService(profile, installer, Path.Combine(root, "pinned"));
+                var links = new string[2];
+                string secondChart = null;
+                for (int i = 0; i < links.Length; i++)
+                {
+                    string dir = Directory.CreateDirectory(Path.Combine(root, "song" + i)).FullName;
+                    WriteNextRushTimingPackage(dir);
+                    var level = SonolusLevel.From(new JObject { ["name"] = "test" + i });
+                    links[i] = address.LevelPage(level.Name);
+                    var package = OpenSekai.Shared.Packages.SongPackageStorage.LoadEntry(dir);
+                    var data = JObject.Parse(File.ReadAllText(package.ScorePath));
+                    data["entities"] = new JArray(((JArray)data["entities"]).Where(e =>
+                        (string)e["archetype"] == "Initialization" || (string)e["archetype"] == "#BPM_CHANGE" ||
+                        (string)e["archetype"] == "NormalTapNote").Take(3));
+                    File.WriteAllText(package.ScorePath, data.ToString());
+                    installer.CommitPublication(address, level, package);
+                    secondChart = package.ScorePath;
+                }
+                int ordinaryPlays = CustomMusicScorePlayHistoryStorage.Ranking.ReadPage(0, 1).TotalCount;
+                var definition = new DanDefinition(life, new DanDamage(0, 0, 0, 0, 1), links, "双曲", "diamond", "#112233");
+                string chart = File.ReadAllText(secondChart);
+                File.WriteAllText(secondChart, "{}");
+                yield return service.StartAsync(definition).ToCoroutine(result => Assert.That(result.Started, Is.False));
+                Assert.That(service.SongNumber, Is.EqualTo(2));
+                Assert.That(profile.ReadDanHistory(), Is.Empty);
+                File.WriteAllText(secondChart, chart);
+                int coreEntries = 0;
+                int libraryEntries = 0;
+                void Loaded(Scene scene, LoadSceneMode mode)
+                {
+                    if (scene.name == "Core") coreEntries++;
+                    if (scene.name == "Library") libraryEntries++;
+                }
+                SceneLoader.sceneLoaded += Loaded;
+                try
+                {
+                    yield return service.StartAsync(definition).ToCoroutine(result => Assert.That(result.Started, Is.True, result.Message));
+                    File.Delete(secondChart); // Song two plays the copy fixed before the first scene load.
+                    if (expected == DanOutcome.Interrupted)
+                    {
+                        string original = service.Attempt.Id;
+                        SoloLiveController controller = null;
+                        yield return WaitFor(() => coreEntries == 2 &&
+                            (controller = Object.FindFirstObjectByType<SoloLiveController>()) != null && controller.JustPlayingState,
+                            35f, "reaching the second chart");
+                        controller.PauseLive();
+                        yield return null;
+                        Assert.That(service.Attempt.Id, Is.EqualTo(original));
+                        Assert.That(service.RemainingLife, Is.EqualTo(life - 1));
+                        controller.ResumeNoCountDown();
+                        controller.Retry();
+                        yield return WaitFor(() => coreEntries == 3 && service.Phase == DanPhase.Playing, BOOT_TIMEOUT_SECONDS,
+                            "restarting at the first chart");
+                        Assert.That(service.SongNumber, Is.EqualTo(1));
+                        Assert.That(service.RemainingLife, Is.EqualTo(life));
+                        Assert.That(service.Attempt.Id, Is.Not.EqualTo(original));
+                        service.Quit();
+                    }
+                    yield return WaitFor(() => service.Phase == DanPhase.Finished || service.Phase == DanPhase.Error,
+                        55f, "completing two manual charts");
+                    Assert.That(service.Error, Is.Null);
+                    yield return WaitFor(() => libraryEntries == 1, BOOT_TIMEOUT_SECONDS, "returning directly from the course");
+                }
+                finally { SceneLoader.sceneLoaded -= Loaded; }
+                Assert.That(CustomMusicScorePlayHistoryStorage.Ranking.ReadPage(0, 1).TotalCount, Is.EqualTo(ordinaryPlays));
+                if (expected == DanOutcome.Interrupted)
+                {
+                    var history = profile.ReadDanHistory();
+                    Assert.That(history.Count, Is.EqualTo(2));
+                    Assert.That(history.All(a => a.Outcome == DanOutcome.Interrupted), Is.True);
+                    Assert.That(history.Select(a => a.Songs.Count), Is.EquivalentTo(new[] { 1, 2 }));
+                    Assert.That(profile.Read().EarnedDanIds, Is.Empty);
+                    yield break;
+                }
+                Assert.That(coreEntries, Is.EqualTo(2));
+                var attempt = profile.ReadDanHistory().Single();
+                Assert.That(attempt.Songs.Select(s => s.StartingLife), Is.EqualTo(new[] { life, life - 1 }));
+                Assert.That(attempt.Songs.Select(s => s.Score.life), Is.EqualTo(new[] { life - 1, life - 2 }));
+                Assert.That(attempt.Outcome, Is.EqualTo(expected));
+                Assert.That(service.NewlyAwarded, Is.EqualTo(expected == DanOutcome.Passed));
+                Assert.That(PlayResultHandoff.Pending, Is.Null);
+            }
+            finally { Directory.Delete(root, true); }
+        }
+
         private static SonolusLevel BaselineSonolusLevel(int version) => SonolusLevel.From(new JObject
         {
             ["name"] = "baseline-tap",
