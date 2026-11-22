@@ -1,6 +1,6 @@
 # Open Sekai Atlas 文档
 
-当前版本为 0.6.0。玩家可从 [游玩指南](guides/play-a-chart.md)、[服务器使用指南](guides/server-chart-downloads.md)和[设置参考](reference/live-settings.md)开始。项目来源与曲包支持见 [项目 README](../README.md)。
+当前版本为 0.7.0。玩家可从 [游玩指南](guides/play-a-chart.md)、[服务器使用指南](guides/server-chart-downloads.md)和[设置参考](reference/live-settings.md)开始。项目来源与曲包支持见 [项目 README](../README.md)。
 
 从这里按任务查找项目文档。文档中的历史基线和测试结果只代表记录时的状态；与代码不一致时以代码为准。
 
