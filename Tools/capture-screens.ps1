@@ -65,6 +65,9 @@
 #                 hand-over, a new, a passed and a failed course, the maker, a shared text and a broken one,
 #                 the delete card, the preparation card, the rest screen, the pass result with three award
 #                 ceremony frames, a failed and an abandoned result, and the profile wearing the plate.
+#   -AchievementsPage  The 成就 part on a sample profile in a temp folder (never the player's own): the home
+#                 card and hand-over, every goal and each filter, the unlock card for one goal, for three
+#                 at once and mid-entrance, back to page 2, and a new profile.
 #   -Server       The server part: hand-over frames, list, add card, then UntitledCharts (needs the
 #                 network): level home page, advanced search, every level, one level and its tabs.
 #   -Intro        Seconds into the splash; it hands over to the home page at about 4.4 s. Pass
@@ -93,6 +96,7 @@ param(
     [switch]$Packs,
     [switch]$ProfilePage,
     [switch]$DanPage,
+    [switch]$AchievementsPage,
     [string[]]$Intro,
     [switch]$All,
     [switch]$PlainAuto,
@@ -153,6 +157,7 @@ if ($Request) {
     if ($Packs) { [void]$shots.Add(@{ kind = 'packs' }) }
     if ($ProfilePage) { [void]$shots.Add(@{ kind = 'profile' }) }
     if ($DanPage) { [void]$shots.Add(@{ kind = 'dan' }) }
+    if ($AchievementsPage) { [void]$shots.Add(@{ kind = 'achievements' }) }
     if ($introDefault) { [void]$shots.Add(@{ kind = 'intro' }) }
     elseif ($introTimes) { [void]$shots.Add(@{ kind = 'intro'; times = @($introTimes) }) }
     if ($Library) { [void]$shots.Add(@{ kind = 'library' }) }
@@ -197,7 +202,7 @@ if ($Request) {
         if ($Difficulty) { $shot.difficulty = $Difficulty }
         [void]$shots.Add($shot)
     }
-    if ($shots.Count -eq 0) { throw 'Nothing to capture: pass -All, -HomePage, -Server, -Packs, -ProfilePage, -DanPage, -Intro, -Live, -Info, -Finish, -Library, -Settings, -SettingsTrace, -Result or -Request.' }
+    if ($shots.Count -eq 0) { throw 'Nothing to capture: pass -All, -HomePage, -Server, -Packs, -ProfilePage, -DanPage, -AchievementsPage, -Intro, -Live, -Info, -Finish, -Library, -Settings, -SettingsTrace, -Result or -Request.' }
 
     $requestPath = Join-Path $requestDir "request-$stamp.json"
     $body = @{ outDir = $OutDir; width = $Width; height = $Height; shots = @($shots) }

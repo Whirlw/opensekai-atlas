@@ -1,12 +1,74 @@
 using System;
+using System.Linq;
 using NUnit.Framework;
 using OpenSekai.App.UI;
+using TMPro;
+using UnityEngine;
+using UnityEngine.TextCore;
 
 namespace OpenSekai.Tests.EditMode
 {
     public sealed class BrandArtTests
     {
         private const int SIZE = 256;
+
+        [TestCase("OPEN SEKAI ATLAS", 34f, 14f)]
+        [TestCase("OPEN SEKAI ATLAS", 84f, 18f)]
+        [TestCase("DAN", 22f, 28f)]
+        public void HomeTitlesKeepTheirTrackingWhenTheFontIsPopulated(string text, float size, float spacing)
+        {
+            var canvas = new GameObject("Canvas", typeof(RectTransform), typeof(Canvas));
+            try
+            {
+                TextMeshProUGUI label;
+                if (text == "DAN")
+                {
+                    var card = new HomeFeatureCard(canvas.transform, "DanCard", text, "段位", "", Color.white, null, null);
+                    card.Root.sizeDelta = new Vector2(700f, 400f);
+                    label = card.Root.GetComponentsInChildren<TextMeshProUGUI>().Single(item => item.text == text);
+                }
+                else
+                {
+                    label = HomeView.CreateWordmark("Wordmark", canvas.transform, size, spacing);
+                    label.rectTransform.sizeDelta = new Vector2(2400f, 160f);
+                }
+
+                float settled = ReadLetterGap(label, text);
+                label.font.TryAddCharacters("ACHIEVEMENTS OPEN SEKAI ATLAS DAN", true);
+                LibraryUi.SetLetterSpacing(label, 64f);
+                LibraryUi.SetLetterSpacing(label, 64f);
+                Assert.That(ReadLetterGap(label, text) - settled, Is.EqualTo((64f - spacing) * size / 100f).Within(0.01f));
+                LibraryUi.SetLetterSpacing(label, spacing);
+                Assert.That(ReadLetterGap(label, text), Is.EqualTo(settled).Within(0.01f));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(canvas);
+            }
+        }
+
+        private static float ReadLetterGap(TextMeshProUGUI label, string text)
+        {
+            label.ForceMeshUpdate();
+            Assert.That(label.GetParsedText(), Is.EqualTo(text));
+            Assert.That(label.fontFeatures.Contains(OTL_FeatureTag.kern), Is.False);
+            var info = label.textInfo;
+            float? firstGap = null;
+            for (int i = 1; i < info.characterCount; i++)
+            {
+                var left = info.characterInfo[i - 1];
+                var right = info.characterInfo[i];
+                if (!left.isVisible || !right.isVisible) continue;
+                var rightEdge = info.meshInfo[left.materialReferenceIndex].vertices[left.vertexIndex + 2];
+                var leftEdge = info.meshInfo[right.materialReferenceIndex].vertices[right.vertexIndex];
+                float gap = leftEdge.x - rightEdge.x;
+                firstGap ??= gap;
+                Assert.That(gap, Is.EqualTo(firstGap.Value).Within(0.01f), $"{left.character}/{right.character}");
+            }
+
+            Assert.That(firstGap.HasValue, Is.True);
+            return firstGap.Value;
+        }
 
         [Test]
         public void ImportedSplashContainsEveryNamedLayer()

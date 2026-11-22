@@ -103,8 +103,8 @@ namespace OpenSekai.Tests.EditMode.Packages
         }
 
         private static CustomMusicScorePlayHistoryRecord Play(string id, string key, int raw, string utc = "2026-11-22")
-            => new() { SchemaVersion = 3, RecordId = id, ScoreKey = key, FormulaVersion = RankingRules.FormulaVersion,
-                MaximumScore = RankingRules.MaximumScore, EndReason = PlayResultKind.Completed, PlayedAtUtc = utc,
+            => new() { SchemaVersion = 3, RecordId = id, ScoreKey = key, FormulaVersion = RankingRules.FORMULA_VERSION,
+                MaximumScore = RankingRules.MAXIMUM_SCORE, EndReason = PlayResultKind.Completed, PlayedAtUtc = utc,
                 Life = 100, TotalComboCount = 300, TotalScore = raw, PlayLevel = 30 };
     }
 }

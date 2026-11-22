@@ -259,8 +259,7 @@ namespace OpenSekai.App.UI
             _badge = LibraryWidgets.Label(
                 "Clear", Body, string.Empty, LibraryTheme.FontSize.CAPTION, LibraryTheme.Colors.TextSecondary,
                 FontStyles.Bold, TextAlignmentOptions.Right);
-            LibraryUi.UseCondensedFont(_badge);
-            _badge.characterSpacing = LABEL_SPACING * 100f / _badge.fontSize;
+            LibraryUi.UseSpacedCondensedFont(_badge, LABEL_SPACING * 100f / _badge.fontSize);
 
             _title = LibraryWidgets.Label(
                 "Title", Body, string.Empty, LibraryTheme.FontSize.ROW_TITLE, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);

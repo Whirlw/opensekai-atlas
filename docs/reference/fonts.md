@@ -56,6 +56,12 @@ Medium 和 Bold 两份 SDF_Dynamic 随包提供曲库常用字形，包括省略
 3. 若行高不对，用 SerializedObject 把 `m_FaceInfo` 的 `m_LineHeight` / `m_AscentLine` / `m_DescentLine` 设成目标值。
 4. 材质子集：以新字体资产的主材质为模板 `new Material(target.material)`，`CopyPropertiesFromMaterial(old)` 后把 `_MainTex` 指到 `target.atlasTextures[0]`，覆盖原 `.mat`。
 
+### 运行时 UI 的字距
+
+`OpenSekai/App/UI` 的窄体英文标签用 `LibraryUi.UseSpacedCondensedFont(label, spacing)`。沿用当前字体或在动画中改变字距时，用 `LibraryUi.SetLetterSpacing(label, spacing)`。创建品牌字标用 `HomeView.CreateWordmark`。
+
+TMP 的字偶距记录可以让某些字母对忽略显式字距。公共入口会在当前标签上关闭该特性，并在排版后均分单行大写字母间的空隙。新增页面直接给 `characterSpacing` 赋值会触发 C# 检查。`BrandArtTests` 另外测量实际字形间隙，覆盖字体新增字形和开场动画反复设置字距的情况。
+
 ## 示例
 
 `FontAssetManager.SetupBuiltinFontAsset()` 在启动时把 Base 资产与 Dynamic 资产串成 fallback 链：

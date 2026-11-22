@@ -88,7 +88,7 @@ namespace OpenSekai.EditorTools.Screenshots
                 yield return new WaitForSecondsRealtime(0.6f);
                 yield return Capture(shot, stem + "-paste", "a shared course", null);
                 screen.Share.Close();
-                screen.OpenPaste(DanDefinition.Prefix + "\n{\"initialLife\":100,\"damage\":{\"perfect\":0,\"great\":1,\"good\":3,\"bad\":6,\"miss\":10},"
+                screen.OpenPaste(DanDefinition.PREFIX + "\n{\"initialLife\":100,\"damage\":{\"perfect\":0,\"great\":1,\"good\":3,\"bad\":6,\"miss\":10},"
                     + "\"songs\":[\"https://sample.test/levels/aurora-line\",\"not a link\"],\"style\":{\"label\":\"双曲\",\"emblem\":\"diamond\",\"color\":\"#526DC8\"}}");
                 yield return new WaitForSecondsRealtime(0.6f);
                 yield return Capture(shot, stem + "-paste-error", "a shared text with a broken link", null);

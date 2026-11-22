@@ -92,7 +92,7 @@ namespace OpenSekai.App.Playback
             {
                 SchemaVersion = 3, RecordId = id, ScoreKey = key, Title = title, PlayLevel = level,
                 PlayedAtUtc = "2026-11-22T00:00:00.0000000Z", EndReason = kind,
-                FormulaVersion = RankingRules.FormulaVersion, MaximumScore = RankingRules.MaximumScore,
+                FormulaVersion = RankingRules.FORMULA_VERSION, MaximumScore = RankingRules.MAXIMUM_SCORE,
                 TotalScore = score.totalScore, Life = score.life, TotalComboCount = score.totalComboCount,
                 AutoCount = score.autoCount, PerfectCount = score.perfectCount, GreatCount = score.greatCount,
                 MissCount = score.missCount, MaxCombo = score.maxCombo, Difficulty = "master",

@@ -149,8 +149,7 @@ namespace OpenSekai.App.UI
 
             TextMeshProUGUI status = LibraryWidgets.Label(
                 "Status", _modal.Card, "PAUSED", 22f, LibraryTheme.Colors.TextMuted, FontStyles.Bold, TextAlignmentOptions.Right);
-            LibraryUi.UseCondensedFont(status);
-            status.characterSpacing = 6f;
+            LibraryUi.UseSpacedCondensedFont(status, 6f);
             LibraryWidgets.Place(status.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 0.5f),
                 new Vector2(-padding, -header * 0.5f), new Vector2(STATUS_WIDTH, 32f));
 

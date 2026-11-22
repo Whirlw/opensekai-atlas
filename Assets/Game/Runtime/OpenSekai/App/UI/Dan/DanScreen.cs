@@ -631,7 +631,8 @@ namespace OpenSekai.App.UI
             DanRecord record = Find(service.Definition.Id);
             ShowResult(new DanResultModel(service.Definition, service.Attempt, service.NewlyAwarded, record?.Equipped == true,
                 service.Phase == DanPhase.Error ? service.Error : null,
-                SongsOf(record ?? new DanRecord(service.Definition, Array.Empty<DanAttempt>(), false, false))), true);
+                SongsOf(record ?? new DanRecord(service.Definition, Array.Empty<DanAttempt>(), false, false)),
+                service.UnlockedAchievementIds), true);
         }
 
         /// <param name="animate">False shows where the opening settles, for screenshots.</param>

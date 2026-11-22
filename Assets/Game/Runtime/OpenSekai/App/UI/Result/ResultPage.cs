@@ -16,7 +16,8 @@ namespace OpenSekai.App.UI
     /// level page) exactly as the run left it. It reads one finished <see cref="PlayResult"/> and
     /// its <see cref="RankingSettlement"/>, and never changes either: the score, the award mark,
     /// the points the run earned and the Ranking Score come in on one timeline that a tap anywhere
-    /// jumps to its end. A tier upgrade plays once per play id, however often the run is reopened.
+    /// jumps to its end. A tier upgrade plays once per play id, however often the run is reopened,
+    /// and so does the card for the achievements the run unlocked, which drops in after it.
     /// </summary>
     internal sealed partial class ResultPage : MonoBehaviour
     {
@@ -40,9 +41,13 @@ namespace OpenSekai.App.UI
         private const float SETTLED = 2.5f;
         private const float CELEBRATED = TIER_SWAP + TIER_BURST + 0.1f;
         private const float HINT_FADE = 0.35f;
+        private const float UNLOCK_DELAY = 0.15f;
 
         /// <summary>Play ids whose tier upgrade has been shown in this run of the app.</summary>
         private static readonly HashSet<string> _celebrated = new HashSet<string>(StringComparer.Ordinal);
+
+        /// <summary>Play ids whose unlocked achievements have been announced in this run of the app.</summary>
+        private static readonly HashSet<string> _announced = new HashSet<string>(StringComparer.Ordinal);
 
         private Action<PlayResult> _onRetry;
         private PlayResult _current;
@@ -52,6 +57,8 @@ namespace OpenSekai.App.UI
         private float _time;
         private float _end = SETTLED;
         private bool _celebrateTier;
+        private bool _announceUnlocks;
+        private float _unlockAt = SETTLED;
         private bool _silent;
         private long _shownScore;
         private long _shownPoints;
@@ -100,11 +107,13 @@ namespace OpenSekai.App.UI
             _accent = accent;
             _ranking = RankingFor(result);
             _celebrateTier = ShouldCelebrate(_ranking);
+            _announceUnlocks = ShouldAnnounce(_ranking);
             gameObject.SetActive(true);
             transform.SetAsLastSibling();
             SetCover(cover);
             Bind(result);
             BindRanking();
+            BindUnlocks();
             ApplyAccent();
             if (!result.HasScore)
             {
@@ -133,6 +142,7 @@ namespace OpenSekai.App.UI
             if (_timeline.IsActive())
             {
                 Seek(_end);
+                ContinueUnlocks();
             }
         }
 
@@ -162,6 +172,7 @@ namespace OpenSekai.App.UI
         {
             _timeline.TryCancel();
             _timeline = default;
+            _unlock.Hide();
             gameObject.SetActive(false);
         }
 
@@ -177,11 +188,16 @@ namespace OpenSekai.App.UI
         private void OnDestroy()
         {
             _timeline.TryCancel();
+            _unlock?.Dispose();
         }
 
         /// <summary>Lets every tier upgrade play again; a new run of the app starts this way.</summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        internal static void ForgetCelebrations() => _celebrated.Clear();
+        internal static void ForgetCelebrations()
+        {
+            _celebrated.Clear();
+            _announced.Clear();
+        }
 
         private static RankingSettlement RankingFor(PlayResult result)
         {
@@ -203,6 +219,25 @@ namespace OpenSekai.App.UI
         {
             return ranking != null && ranking.TierUp && !string.IsNullOrEmpty(ranking.PlayId)
                 && _celebrated.Add(ranking.PlayId);
+        }
+
+        /// <summary>True the first time a saved run with unlocks is shown; a reopened run does not announce them again.</summary>
+        private static bool ShouldAnnounce(RankingSettlement ranking)
+        {
+            return ranking != null && ranking.SaveState == HistorySaveState.Saved && ranking.UnlockedAchievementIds.Count > 0
+                && !string.IsNullOrEmpty(ranking.PlayId) && _announced.Add(ranking.PlayId);
+        }
+
+        private void BindUnlocks()
+        {
+            _unlock.Hide();
+            if (_announceUnlocks && !_unlock.Bind(_ranking.UnlockedAchievementIds, null)) _announceUnlocks = false;
+        }
+
+        /// <summary>Once the opening has ended, the unlock card holds a while on its own, then lifts away.</summary>
+        private void ContinueUnlocks()
+        {
+            if (_announceUnlocks && IsOpen) _unlock.Play(_end - _unlockAt, false);
         }
 
         private void Close()
@@ -247,7 +282,9 @@ namespace OpenSekai.App.UI
             UiSound.Play(UiCue.Success);
             _ranking = saved;
             _celebrateTier = ShouldCelebrate(saved);
+            _announceUnlocks = ShouldAnnounce(saved);
             BindRanking();
+            BindUnlocks();
             ApplyAccent();
             Play(POINTS_START);
         }
@@ -255,11 +292,14 @@ namespace OpenSekai.App.UI
         private void Play(float from)
         {
             _timeline.TryCancel();
-            _end = _celebrateTier ? CELEBRATED : SETTLED;
+            float settled = _celebrateTier ? CELEBRATED : SETTLED;
+            _unlockAt = settled + UNLOCK_DELAY;
+            _end = _announceUnlocks ? _unlockAt + AchievementUnlockPopup.ENTER : settled;
             _time = from;
             Apply(from);
             _timeline = LMotion.Create(from, _end, _end - from)
                 .WithScheduler(HomeMotion.Scheduler)
+                .WithOnComplete(ContinueUnlocks)
                 .Bind(this, static (time, page) => page.Apply(time));
         }
 
@@ -285,7 +325,16 @@ namespace OpenSekai.App.UI
             }
 
             ApplyRanking(previous, time);
-            _skipHint.alpha = 1f - HomeMotion.Span(time, _end - HINT_FADE, HINT_FADE);
+            if (_announceUnlocks)
+            {
+                // After the tier upgrade: the card drops in as the page settles.
+                _unlock.Seek(time - _unlockAt);
+                Cue(previous, time, _unlockAt, UiCue.Achievement);
+            }
+
+            // The hint sits where the unlock card lands, so it is gone before the card arrives.
+            float hintEnd = _announceUnlocks ? _unlockAt : _end;
+            _skipHint.alpha = 1f - HomeMotion.Span(time, hintEnd - HINT_FADE, HINT_FADE);
         }
 
         private void ApplyRanking(float previous, float time)

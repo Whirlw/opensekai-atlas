@@ -10,11 +10,11 @@ namespace OpenSekai.Shared.Playback
 
     public static class RankingRules
     {
-        public const int FormulaVersion = 1;
-        public const int MaximumScore = 1_000_000;
-        private static readonly int[] TierStarts = { 0, 3000, 6000, 8400, 9300 };
+        public const int FORMULA_VERSION = 1;
+        public const int MAXIMUM_SCORE = 1_000_000;
+        private static readonly int[] _tierStarts = { 0, 3000, 6000, 8400, 9300 };
 
-        public static int Tier(long total) => Array.FindLastIndex(TierStarts, threshold => total >= threshold);
+        public static int Tier(long total) => Array.FindLastIndex(_tierStarts, threshold => total >= threshold);
 
         public static long BasePoints(int level, int score, int maximum)
         {

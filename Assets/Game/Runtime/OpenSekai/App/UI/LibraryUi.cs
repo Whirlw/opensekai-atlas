@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using Sekai;
 using TMPro;
 using UnityEngine;
+using UnityEngine.TextCore;
 using UnityEngine.UI;
 
 namespace OpenSekai.App.UI
 {
     internal static class LibraryUi
     {
+        private static readonly Action<TMP_TextInfo> _evenLetterGaps = EvenLetterGaps;
         private static readonly Color32 _buttonColor = new Color32(54, 67, 80, 255);
         private static readonly Color32 _accentColor = new Color32(72, 148, 214, 255);
         private static readonly string[] _cjkFontCandidates =
@@ -48,8 +50,19 @@ namespace OpenSekai.App.UI
         internal static void UseSpacedCondensedFont(TextMeshProUGUI label, float spacing)
         {
             UseCondensedFont(label);
+            SetLetterSpacing(label, spacing);
+        }
+
+        internal static void SetLetterSpacing(TextMeshProUGUI label, float spacing)
+        {
+            // TMP can suppress characterSpacing on a kern pair. Keep explicit tracking independent
+            // of which pair records the shared dynamic font has loaded when this label rebuilds.
+            label.fontFeatures.Remove(OTL_FeatureTag.kern);
+            // Animation and recycled rows may reapply the style to the same label.
+            label.OnPreRenderText -= _evenLetterGaps;
+            label.OnPreRenderText += _evenLetterGaps;
             label.characterSpacing = spacing;
-            label.OnPreRenderText += EvenLetterGaps;
+            label.havePropertiesChanged = true;
         }
 
         private static void EvenLetterGaps(TMP_TextInfo textInfo)

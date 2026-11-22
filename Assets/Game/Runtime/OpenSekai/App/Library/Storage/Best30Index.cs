@@ -34,10 +34,10 @@ namespace OpenSekai.App.Library
 
     internal sealed class Best30Index
     {
-        private const int Capacity = 30;
-        private static readonly IComparer<Best30Entry> Order = Comparer<Best30Entry>.Create(Compare);
+        private const int CAPACITY = 30;
+        private static readonly IComparer<Best30Entry> _order = Comparer<Best30Entry>.Create(Compare);
         private readonly Dictionary<string, Best30Entry> _best = new(StringComparer.Ordinal);
-        private readonly List<Best30Entry> _top = new(Capacity + 1);
+        private readonly List<Best30Entry> _top = new(CAPACITY + 1);
         private long _total;
 
         internal Best30Snapshot Snapshot() => new(_total, _top.ToArray());
@@ -61,7 +61,7 @@ namespace OpenSekai.App.Library
 
         private static RankingEligibility Eligibility(CustomMusicScorePlayHistoryRecord play)
         {
-            if (play.SchemaVersion != 3 || play.FormulaVersion != RankingRules.FormulaVersion ||
+            if (play.SchemaVersion != 3 || play.FormulaVersion != RankingRules.FORMULA_VERSION ||
                 play.MaximumScore <= 0 || !play.EndReason.HasValue)
                 return RankingEligibility.UnknownRules;
             if (play.AutoCount != 0) return RankingEligibility.Auto;
@@ -87,13 +87,13 @@ namespace OpenSekai.App.Library
                 if (_top.Remove(previous)) _total -= previous.Points;
             }
             _best[entry.Play.ScoreKey] = entry;
-            int index = _top.BinarySearch(entry, Order);
+            int index = _top.BinarySearch(entry, _order);
             _top.Insert(index < 0 ? ~index : index, entry);
             _total += entry.Points;
-            if (_top.Count > Capacity)
+            if (_top.Count > CAPACITY)
             {
-                _total -= _top[Capacity].Points;
-                _top.RemoveAt(Capacity);
+                _total -= _top[CAPACITY].Points;
+                _top.RemoveAt(CAPACITY);
             }
         }
 

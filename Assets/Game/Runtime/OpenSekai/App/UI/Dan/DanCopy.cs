@@ -320,7 +320,7 @@ namespace OpenSekai.App.UI
 
             switch (field)
             {
-                case "version": return "这不是 OpenSekai 段位分享文本：第一行应为 " + DanDefinition.Prefix;
+                case "version": return "这不是 OpenSekai 段位分享文本：第一行应为 " + DanDefinition.PREFIX;
                 case "json": return "分享文本不完整或已损坏，请重新复制";
                 case "initialLife": return "初始生命需要是大于 0 的整数";
                 case "damage": return "缺少扣血表";
@@ -361,6 +361,6 @@ namespace OpenSekai.App.UI
 
         /// <summary>True when the text looks like a shared 段位 (its first line is the format prefix).</summary>
         internal static bool IsShareText(string text) =>
-            text != null && text.TrimStart().StartsWith(DanDefinition.Prefix, StringComparison.Ordinal);
+            text != null && text.TrimStart().StartsWith(DanDefinition.PREFIX, StringComparison.Ordinal);
     }
 }

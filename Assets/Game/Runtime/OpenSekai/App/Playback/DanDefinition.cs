@@ -21,7 +21,7 @@ namespace OpenSekai.App.Playback
 
     public sealed class DanDefinition
     {
-        public const string Prefix = "OpenSekai-Dan/1";
+        public const string PREFIX = "OpenSekai-Dan/1";
         public string Id { get; }
         public int InitialLife { get; }
         public DanDamage Damage { get; }
@@ -58,7 +58,7 @@ namespace OpenSekai.App.Playback
                 ["songs"] = new JArray(links),
                 ["style"] = new JObject { ["label"] = Label, ["emblem"] = Emblem, ["color"] = Color }
             };
-            ShareText = Prefix + "\n" + body.ToString(Formatting.None);
+            ShareText = PREFIX + "\n" + body.ToString(Formatting.None);
             using var sha = SHA256.Create();
             Id = BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(ShareText))).Replace("-", "").ToLowerInvariant();
         }
@@ -66,7 +66,7 @@ namespace OpenSekai.App.Playback
         public static DanDefinition Parse(string text)
         {
             int newline = text?.IndexOf('\n') ?? -1;
-            if (newline < 0 || text.Substring(0, newline).Trim() != Prefix) throw Error("version");
+            if (newline < 0 || text.Substring(0, newline).Trim() != PREFIX) throw Error("version");
             JObject body;
             try { body = ProfileBackupArchive.Parse(text.Substring(newline + 1)); }
             catch (Exception ex) when (ex is JsonException or InvalidDataException)

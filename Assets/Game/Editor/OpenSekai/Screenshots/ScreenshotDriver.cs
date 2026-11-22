@@ -92,6 +92,7 @@ namespace OpenSekai.EditorTools.Screenshots
                     case "packs": body = PacksShot(shot); break;
                     case "profile": body = ProfileShot(shot); break;
                     case "dan": body = DanShot(shot); break;
+                    case "achievements": body = AchievementsShot(shot); break;
                     default:
                         Fail(shot, "unknown kind '" + shot.kind + "'");
                         continue;

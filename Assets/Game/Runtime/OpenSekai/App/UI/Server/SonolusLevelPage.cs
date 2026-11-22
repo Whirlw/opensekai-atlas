@@ -1041,8 +1041,7 @@ namespace OpenSekai.App.UI
             LibraryWidgets.Inset(player.rectTransform, 120f, 0f, 380f, 0f);
             TextMeshProUGUI value = LibraryWidgets.Label("Value", row, record.Value, 24f, LibraryTheme.Colors.TextSecondary,
                 FontStyles.Normal, TextAlignmentOptions.Right);
-            LibraryUi.UseCondensedFont(value);
-            value.characterSpacing = 2f;
+            LibraryUi.UseSpacedCondensedFont(value, 2f);
             LibraryWidgets.Place(value.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-24f, 0f), new Vector2(360f, 64f));
         }
 

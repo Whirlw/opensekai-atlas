@@ -59,10 +59,10 @@ namespace OpenSekai.Tests.EditMode.Live
         [TestCase(true, -100f)]
         public void HoldMeshAndKeysTravelTogetherOnTheDisplayClock(bool native, float visualLatencyMs)
         {
-            const float timeline = 0.8f;
+            const float TIMELINE = 0.8f;
             var timing = new TimingCompensation(0f, visualLatencyMs, 30f);
-            float viewTime = timing.ViewTime(timeline);
-            var frame = Info(timing.LogicTime(timeline));
+            float viewTime = timing.ViewTime(TIMELINE);
+            var frame = Info(timing.LogicTime(TIMELINE));
             var bar = new LongNote(Info(1f), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
             var tail = new NormalNote(Info(1.3f), 2, 4, 5, NoteCategory.Normal, 1f, NoteType.Default, 0f);
             if (native)

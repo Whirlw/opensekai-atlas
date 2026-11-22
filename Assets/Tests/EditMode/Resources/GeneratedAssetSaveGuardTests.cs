@@ -62,6 +62,8 @@ namespace OpenSekai.Tests.EditMode.ResourceLoading
         [Test]
         public void WhatASessionBakesNeverReachesTheFileAndIsDroppedAfterwards()
         {
+            // Start from the committed asset: earlier tests that draw text may already have baked glyphs into it in memory.
+            GeneratedAssetSaveGuard.DiscardInMemoryChanges();
             string before = Sha(MEDIUM_DYNAMIC);
             var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(MEDIUM_DYNAMIC);
             int characters = font.characterTable.Count;

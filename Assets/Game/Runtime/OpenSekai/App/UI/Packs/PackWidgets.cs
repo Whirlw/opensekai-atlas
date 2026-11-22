@@ -59,8 +59,7 @@ namespace OpenSekai.App.UI
         internal static TextMeshProUGUI Eyebrow(Transform parent, string text, Color32 tint, float size = 20f, float spacing = 24f)
         {
             TextMeshProUGUI label = LibraryWidgets.Label("Eyebrow", parent, text, size, tint);
-            LibraryUi.UseCondensedFont(label);
-            label.characterSpacing = spacing;
+            LibraryUi.UseSpacedCondensedFont(label, spacing);
             return label;
         }
 
@@ -208,8 +207,7 @@ namespace OpenSekai.App.UI
                 {
                     Glow(root, tint, 150f, 70f);
                     TextMeshProUGUI word = LibraryWidgets.Label("Word", root, "PERFECT", 34f, tint, FontStyles.Normal, TextAlignmentOptions.Center);
-                    LibraryUi.UseCondensedFont(word);
-                    word.characterSpacing = 6f;
+                    LibraryUi.UseSpacedCondensedFont(word, 6f);
                     word.fontStyle = FontStyles.Italic;
                     LibraryWidgets.Place(word.rectTransform, center, center, new Vector2(0f, 6f), new Vector2(170f, 48f));
                     Image underline = LibraryWidgets.Panel("Underline", root, 2f, faint);
@@ -223,8 +221,7 @@ namespace OpenSekai.App.UI
                     LibraryUi.UseCondensedFont(digits);
                     LibraryWidgets.Place(digits.rectTransform, center, center, new Vector2(0f, 8f), new Vector2(160f, 74f));
                     TextMeshProUGUI label = LibraryWidgets.Label("Label", root, "COMBO", 18f, soft, FontStyles.Normal, TextAlignmentOptions.Center);
-                    LibraryUi.UseCondensedFont(label);
-                    label.characterSpacing = 18f;
+                    LibraryUi.UseSpacedCondensedFont(label, 18f);
                     LibraryWidgets.Place(label.rectTransform, center, center, new Vector2(0f, -36f), new Vector2(160f, 24f));
                     break;
                 }

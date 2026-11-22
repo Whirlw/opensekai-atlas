@@ -76,7 +76,7 @@ namespace OpenSekai.App.UI
             Strip(_meta.rectTransform, TEXT_LEFT + 120f, VALUE_WIDTH + 150f, 54f, 26f);
 
             _tag = PackWidgets.Tag(body, "AP", LibraryTheme.Colors.TextSecondary, out _, TAG_HEIGHT);
-            _tag.GetComponentInChildren<TextMeshProUGUI>().characterSpacing = 2f;
+            LibraryUi.SetLetterSpacing(_tag.GetComponentInChildren<TextMeshProUGUI>(), 2f);
             LibraryWidgets.Place(_tag, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-(VALUE_WIDTH + 24f), 0f),
                 _tag.sizeDelta);
 

@@ -207,13 +207,13 @@ namespace OpenSekai.Tests.EditMode.Packages
         public void IdenticalIdlessLegacyPlaysCanBeDeletedIndividuallyAndRestoredAfterClearing()
         {
             string path = Path.Combine(_sourceRoot, "PlayHistory.jsonl");
-            const string legacy = "{\"schemaVersion\":1,\"title\":\"legacy\"}";
-            File.AppendAllLines(path, new[] { legacy, "{torn", legacy });
+            const string LEGACY_PLAY = "{\"schemaVersion\":1,\"title\":\"legacy\"}";
+            File.AppendAllLines(path, new[] { LEGACY_PLAY, "{torn", LEGACY_PLAY });
             _source.ExportBackup(_backup);
             var selected = _source.ReadHistory(0, 10).Records.Last(p => p.Title == "legacy");
             _source.DeleteHistory(selected);
             string current = Path.Combine(SongPackageStorage.ActivePlayerDirectory(_sourceRoot), "PlayHistory.jsonl");
-            Assert.That(File.ReadAllLines(current).Count(line => line == legacy), Is.EqualTo(1));
+            Assert.That(File.ReadAllLines(current).Count(line => line == LEGACY_PLAY), Is.EqualTo(1));
             Assert.That(File.ReadAllLines(current), Does.Contain("{torn"));
             _source.DeleteAllHistory();
             _source.ConfirmImport(_source.PreviewBackup(_backup).Id);
@@ -226,7 +226,7 @@ namespace OpenSekai.Tests.EditMode.Packages
             var play = new CustomMusicScorePlayHistoryRecord
             {
                 SchemaVersion = 3, RecordId = id, ScoreKey = chart, EndReason = PlayResultKind.Completed,
-                PlayedAtUtc = when, FormulaVersion = RankingRules.FormulaVersion,
+                PlayedAtUtc = when, FormulaVersion = RankingRules.FORMULA_VERSION,
                 MaximumScore = 1000000, Life = 100, PlayLevel = 30, TotalScore = score, TotalComboCount = 10
             };
             store.History.Submit(play, null, out _);

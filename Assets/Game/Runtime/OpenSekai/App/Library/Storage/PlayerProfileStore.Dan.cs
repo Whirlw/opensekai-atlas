@@ -10,8 +10,10 @@ namespace OpenSekai.App.Library
 {
     internal sealed class DanArchive
     {
-        [JsonProperty(Required = Required.Always)] public List<string> Definitions { get; set; } = new();
-        [JsonProperty(Required = Required.Always)] public List<DanAttempt> Attempts { get; set; } = new();
+        [JsonProperty(Required = Required.Always)]
+        public List<string> Definitions { get; set; } = new();
+        [JsonProperty(Required = Required.Always)]
+        public List<DanAttempt> Attempts { get; set; } = new();
         public string Equipped { get; set; }
 
         private Dictionary<string, DanDefinition> _decoded;

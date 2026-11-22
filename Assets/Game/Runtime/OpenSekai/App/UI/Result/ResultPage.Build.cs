@@ -98,6 +98,7 @@ namespace OpenSekai.App.UI
         private Image _retryBackground;
         private TextMeshProUGUI _retryLabel;
         private Image _retryIcon;
+        private AchievementUnlockPopup _unlock;
 
         /// <summary>A tap that lands on no control bubbles up here and skips the opening.</summary>
         public void OnPointerClick(PointerEventData eventData) => Skip();
@@ -124,6 +125,8 @@ namespace OpenSekai.App.UI
             BuildJudgements(results);
             BuildContribution(results);
             BuildActions(results);
+            // Last, so it draws over everything; at the top right, clear of the award mark and the score.
+            _unlock = new AchievementUnlockPopup(root, 18f, MARGIN);
         }
 
         private void BuildTopBar(RectTransform root, string backLabel)
@@ -202,8 +205,7 @@ namespace OpenSekai.App.UI
             _awardGlow = Glow("Glow", _award, new Vector2(0f, 0.5f), new Vector2(240f, 0f), 1f);
             _awardGlow.rectTransform.sizeDelta = new Vector2(820f, 260f);
             _awardText = LibraryWidgets.Label("Mark", _award, string.Empty, 60f, LibraryTheme.Colors.TextPrimary);
-            LibraryUi.UseCondensedFont(_awardText);
-            _awardText.characterSpacing = 10f;
+            LibraryUi.UseSpacedCondensedFont(_awardText, 10f);
             _awardText.richText = true;
             _awardText.overflowMode = TextOverflowModes.Overflow;
             LibraryUi.Stretch(_awardText.rectTransform);
@@ -325,8 +327,7 @@ namespace OpenSekai.App.UI
             _tierName = LibraryWidgets.Label("TierName", section, string.Empty, 26f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
             TopLeft(_tierName.rectTransform, TEXT_LEFT, 58f, 160f, 36f);
             _tierLatin = LibraryWidgets.Label("TierLatin", section, string.Empty, LibraryTheme.FontSize.CAPTION, LibraryTheme.Colors.TextMuted);
-            LibraryUi.UseCondensedFont(_tierLatin);
-            _tierLatin.characterSpacing = 4f;
+            LibraryUi.UseSpacedCondensedFont(_tierLatin, 4f);
             TopLeft(_tierLatin.rectTransform, TEXT_LEFT, 58f, 200f, 36f);
             _tierUpTag = new Chip(section, "TierUp", 61f, TAG_HEIGHT);
 
@@ -605,8 +606,7 @@ namespace OpenSekai.App.UI
         private static TextMeshProUGUI Caption(Transform parent, string name, string text)
         {
             TextMeshProUGUI caption = LibraryWidgets.Label(name, parent, text, 17f, LibraryTheme.Colors.TextMuted);
-            LibraryUi.UseCondensedFont(caption);
-            caption.characterSpacing = 3f;
+            LibraryUi.UseSpacedCondensedFont(caption, 3f);
             return caption;
         }
 

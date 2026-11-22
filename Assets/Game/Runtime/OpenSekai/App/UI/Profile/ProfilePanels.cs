@@ -386,7 +386,13 @@ namespace OpenSekai.App.UI
             }
             else if (notes.Length == 0)
             {
-                notes.Append("所有记录均通过校验。合并后 Best 30 按全部记录重新计算。");
+                notes.Append("所有记录均通过校验。合并后 Best 30 按全部记录重新计算。\n");
+            }
+
+            int unlocks = preview.UnlockedAchievementIds?.Count ?? 0;
+            if (changes && unlocks > 0)
+            {
+                notes.Append("合并后解锁成就：").Append(AchievementCopy.Names(preview.UnlockedAchievementIds)).Append("。");
             }
 
             _notes.text = notes.ToString().TrimEnd('\n');

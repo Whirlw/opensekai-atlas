@@ -41,6 +41,7 @@ namespace OpenSekai.App.UI
         private Image _curtain;
         private MotionHandle _curtainMotion;
         private UiToast _toast;
+        private AchievementUnlockPopup _unlock;
         private LibrarySettingsPanel _settings;
         private ProfileEditPanel _editor;
         private ProfileBusyPanel _busy;
@@ -121,6 +122,7 @@ namespace OpenSekai.App.UI
                 _busy.Hide();
                 DiscardPreview();
                 _toast.Hide();
+                _unlock.Hide();
             }
 
             _canvasRoot.SetActive(presented);
@@ -759,6 +761,8 @@ namespace OpenSekai.App.UI
             ShowToast(preview.Added > 0
                 ? "已合并 " + ProfileCopy.Number(preview.Added) + " 局" + (dan > 0 ? "与段位记录" : string.Empty) + score
                 : dan > 0 ? "已合并备份中的段位与挑战记录" : "已恢复备份中的头像与昵称");
+            // One card for every goal the merged history reaches; a backup merged twice unlocks nothing new.
+            if (_unlock.Bind(preview.UnlockedAchievementIds, "合并备份后解锁")) _unlock.Play();
             DataChanged?.Invoke(preview.Added > 0);
         }
 
@@ -834,6 +838,7 @@ namespace OpenSekai.App.UI
             _deletion = new ProfileDeletePanel(ModalLayer);
             _plates = new DanPlatePicker(ModalLayer, WearPlate);
             _toast = new UiToast(root, 48f, HomeTheme.Colors.Violet);
+            _unlock = new AchievementUnlockPopup(root, 18f);
             _thumbnails = new JacketThumbnails(Path.Combine(Application.temporaryCachePath, THUMBNAIL_DIRECTORY));
 
             _curtain = LibraryUi.CreateImage("Curtain", root, LibraryTheme.Colors.Ground);
@@ -888,6 +893,7 @@ namespace OpenSekai.App.UI
             _lifetime.Cancel();
             _lifetime.Dispose();
             _toast?.Dispose();
+            _unlock?.Dispose();
             View?.Dispose();
             _editor?.Dispose();
             _busy?.Dispose();

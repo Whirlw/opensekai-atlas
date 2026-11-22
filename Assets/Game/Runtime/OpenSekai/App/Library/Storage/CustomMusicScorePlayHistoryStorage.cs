@@ -204,8 +204,8 @@ namespace OpenSekai.App.Library
 			{
 				SchemaVersion = 3,
 				EndReason = kind,
-				MaximumScore = RankingRules.MaximumScore,
-				FormulaVersion = RankingRules.FormulaVersion,
+				MaximumScore = RankingRules.MAXIMUM_SCORE,
+				FormulaVersion = RankingRules.FORMULA_VERSION,
 				SessionId = sessionId ?? string.Empty,
 				ChartHash = chartHash ?? string.Empty,
 				RulesVersion = rulesVersion,

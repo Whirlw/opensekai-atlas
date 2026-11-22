@@ -37,10 +37,7 @@ namespace OpenSekai.App.UI
             LibraryUi.Stretch(emblem.Root);
 
             float textLeft = EMBLEM_SIZE + 24f;
-            TextMeshProUGUI name = LibraryWidgets.Label("Name", body, HomeView.Wordmark, 54f, LibraryTheme.Colors.TextPrimary);
-            LibraryUi.UseCondensedFont(name);
-            name.characterSpacing = 12f;
-            name.richText = true;
+            TextMeshProUGUI name = HomeView.CreateWordmark("Name", body, 54f, 12f);
             // The condensed face's line is taller than its capitals; ellipsising would hide it.
             name.overflowMode = TextOverflowModes.Overflow;
             Strip(name.rectTransform, textLeft, 0f, 72f);

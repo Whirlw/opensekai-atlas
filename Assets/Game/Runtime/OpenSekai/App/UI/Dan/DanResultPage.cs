@@ -15,9 +15,11 @@ namespace OpenSekai.App.UI
     /// <summary>One finished (or abandoned) attempt, as the result page shows it.</summary>
     internal sealed class DanResultModel
     {
+        /// <param name="unlocks">Achievements the attempt unlocked; announced once the result has played.</param>
         internal DanResultModel(DanDefinition definition, DanAttempt attempt, bool newlyAwarded, bool equipped, string error,
-            IReadOnlyList<DanSongInfo> songs)
+            IReadOnlyList<DanSongInfo> songs, IReadOnlyList<string> unlocks = null)
         {
+            UnlockedAchievementIds = unlocks ?? Array.Empty<string>();
             Definition = definition;
             Attempt = attempt;
             NewlyAwarded = newlyAwarded;
@@ -35,6 +37,10 @@ namespace OpenSekai.App.UI
         internal string Error { get; }
 
         internal IReadOnlyList<DanSongInfo> Songs { get; }
+
+        /// <summary>Achievements this attempt unlocked, for the card after the result; empty when none.</summary>
+        internal IReadOnlyList<string> UnlockedAchievementIds { get; }
+
         internal bool Passed => Attempt.Outcome == DanOutcome.Passed;
     }
 
@@ -42,7 +48,8 @@ namespace OpenSekai.App.UI
     /// 段位结算: whether the course was passed, every song in a list with its score, judgments and
     /// what it cost in life, and the life left at the end. The songs come in one after another with
     /// their life draining, then the verdict stamps in; a pass goes on into the award ceremony
-    /// (<see cref="DanAwardCeremony"/>). A tap skips to the end. 再次挑战 starts the same 段位 again.
+    /// (<see cref="DanAwardCeremony"/>). Achievements the attempt unlocked get their card once that
+    /// is over (after the ceremony on a pass). A tap skips to the end. 再次挑战 starts the same 段位 again.
     /// </summary>
     internal sealed class DanResultPage : IDisposable
     {
@@ -52,6 +59,9 @@ namespace OpenSekai.App.UI
         private const float ROW_STAGGER = 0.16f;
         private const float ROW_DRAIN = 0.4f;
         private const float VERDICT = 0.35f;
+
+        /// <summary>Attempts whose unlocked achievements have been announced in this run of the app.</summary>
+        private static readonly HashSet<string> _announced = new HashSet<string>(StringComparer.Ordinal);
 
         private readonly RectTransform _root;
         private readonly Image _glow;
@@ -73,6 +83,7 @@ namespace OpenSekai.App.UI
         private readonly RectTransform _rowContent;
         private readonly List<Row> _rows = new List<Row>();
         private readonly DanAwardCeremony _ceremony;
+        private readonly AchievementUnlockPopup _unlock;
         private readonly Action _onBack;
         private readonly Action<DanDefinition> _onRetry;
         private readonly Func<DanDefinition, bool> _onEquip;
@@ -80,6 +91,7 @@ namespace OpenSekai.App.UI
         private MotionHandle _reveal;
         private float _revealLength;
         private bool _revealDone;
+        private bool _unlockPending;
 
         internal DanResultPage(RectTransform parent, Action onBack, Action<DanDefinition> onRetry, Func<DanDefinition, bool> onEquip)
         {
@@ -192,7 +204,8 @@ namespace OpenSekai.App.UI
             LibraryWidgets.Inset(list, 18f, 18f, 18f, 84f);
             _rowContent = PackWidgets.Scroll(list, out _);
 
-            _ceremony = new DanAwardCeremony(_root, OnEquip, () => { });
+            _ceremony = new DanAwardCeremony(_root, OnEquip, AnnounceUnlocks);
+            _unlock = new AchievementUnlockPopup(_root, 18f);
             _root.gameObject.SetActive(false);
         }
 
@@ -206,6 +219,9 @@ namespace OpenSekai.App.UI
             _model = model;
             _root.gameObject.SetActive(true);
             _root.SetAsLastSibling();
+            _unlock.Hide();
+            _unlockPending = animate && model.UnlockedAchievementIds.Count > 0 && _announced.Add(model.Attempt.Id)
+                && _unlock.Bind(model.UnlockedAchievementIds, null);
             Bind();
             _reveal.TryCancel();
             _revealDone = false;
@@ -241,10 +257,22 @@ namespace OpenSekai.App.UI
             _ceremony.Seek(seconds);
         }
 
-        internal void Hide()
+        /// <summary>The unlock card for <paramref name="ids"/> over the settled page, held at <paramref name="seconds"/> in, for screenshots.</summary>
+        internal void SeekUnlock(IReadOnlyList<string> ids, float seconds)
         {
             _reveal.TryCancel();
+            ApplyReveal(_revealLength);
+            _revealDone = true;
+            _unlockPending = false;
+            if (_unlock.Bind(ids, null)) _unlock.Seek(seconds);
+        }
+
+        internal void Hide()
+        {
+            _unlockPending = false;
+            _reveal.TryCancel();
             _ceremony.Hide();
+            _unlock.Hide();
             _root.gameObject.SetActive(false);
         }
 
@@ -266,6 +294,7 @@ namespace OpenSekai.App.UI
             _reveal.TryCancel();
             _plate.Dispose();
             _ceremony.Dispose();
+            _unlock.Dispose();
         }
 
         private void Skip()
@@ -288,8 +317,20 @@ namespace OpenSekai.App.UI
             else
             {
                 UiSound.Play(_model.Attempt.Outcome == DanOutcome.Failed ? UiCue.Warning : UiCue.Close);
+                AnnounceUnlocks();
             }
         }
+
+        /// <summary>The unlock card, once: after the reveal, or after the award ceremony on a pass.</summary>
+        private void AnnounceUnlocks()
+        {
+            if (!_unlockPending || !IsOpen) return;
+            _unlockPending = false;
+            _unlock.Play();
+        }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ForgetAnnouncements() => _announced.Clear();
 
         private void OnEquip()
         {

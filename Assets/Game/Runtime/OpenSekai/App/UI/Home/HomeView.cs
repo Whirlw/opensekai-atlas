@@ -81,8 +81,10 @@ namespace OpenSekai.App.UI
         /// <param name="comingSoon">A card for an unbuilt part was tapped; gets the part's name.</param>
         /// <param name="openProfile">The 个人信息 card was tapped.</param>
         /// <param name="openDan">The 段位 card was tapped.</param>
+        /// <param name="openAchievements">The 成就 card was tapped.</param>
         internal HomeView(RectTransform parent, Action openLibrary, Action openAbout, Action openSettings, Action<string> comingSoon,
-            Action openServer = null, Action openPacks = null, Action openProfile = null, Action openDan = null)
+            Action openServer = null, Action openPacks = null, Action openProfile = null, Action openDan = null,
+            Action openAchievements = null)
         {
             _root = LibraryUi.CreateRect("Home", parent);
             LibraryUi.Stretch(_root);
@@ -143,7 +145,13 @@ namespace OpenSekai.App.UI
                 },
                 available: openDan != null, status: openDan != null ? "开始挑战" : null);
             _achievements = new HomeFeatureCard(Slot(1, 2).Rect, "AchievementsCard", "ACHIEVEMENTS", "成就", "累计击打 · 谱面达成 · 段位通关",
-                HomeTheme.Colors.Gold, root => new HomeMedalArt(root), () => comingSoon?.Invoke("成就"));
+                HomeTheme.Colors.Gold, root => new HomeMedalArt(root),
+                () =>
+                {
+                    if (openAchievements != null) openAchievements();
+                    else comingSoon?.Invoke("成就");
+                },
+                available: openAchievements != null, status: openAchievements != null ? "查看进度" : null);
             _profile = new HomeProfileCard(Slot(1, 0).Rect, () => openProfile?.Invoke());
 
             Bind(0, 0, _library);
@@ -201,6 +209,9 @@ namespace OpenSekai.App.UI
 
         /// <summary>The 段位 card's chip: how many courses there are and how many are passed.</summary>
         internal void SetDanStatus(string status) => _dan.SetStatus(status);
+
+        /// <summary>The 成就 card's chip: how many goals are unlocked out of all of them.</summary>
+        internal void SetAchievementStatus(string status) => _achievements.SetStatus(status);
 
         /// <summary>Idle animation: marquee, globe, card fan, badge, status lights; only for a page in view.</summary>
         internal void Tick(double time)
@@ -615,11 +626,7 @@ namespace OpenSekai.App.UI
             BrandSlot = LibraryUi.CreateRect("BrandSlot", header);
             LibraryWidgets.Place(BrandSlot, leftCenter, leftCenter, new Vector2(-6f, 0f), new Vector2(emblem, emblem));
 
-            TextMeshProUGUI wordmark = LibraryWidgets.Label("Wordmark", header, Wordmark, HomeTheme.Layout.WORDMARK_SIZE,
-                LibraryTheme.Colors.TextPrimary);
-            LibraryUi.UseCondensedFont(wordmark);
-            wordmark.characterSpacing = HomeTheme.Layout.WORDMARK_SPACING;
-            wordmark.richText = true;
+            TextMeshProUGUI wordmark = CreateWordmark("Wordmark", header, HomeTheme.Layout.WORDMARK_SIZE, HomeTheme.Layout.WORDMARK_SPACING);
             float wordmarkX = emblem + 6f;
             float wordmarkWidth = Mathf.Ceil(wordmark.GetPreferredValues(wordmark.text).x) + 4f;
             LibraryWidgets.Place(wordmark.rectTransform, leftCenter, leftCenter, new Vector2(wordmarkX, 2f), new Vector2(wordmarkWidth, 52f));
@@ -629,8 +636,7 @@ namespace OpenSekai.App.UI
             Image chip = LibraryWidgets.Panel("Version", header, CHIP_HEIGHT * 0.5f, HomeTheme.Colors.Chip);
             TextMeshProUGUI chipLabel = LibraryWidgets.Label(
                 "Label", chip.transform, version, 20f, LibraryTheme.Colors.TextMuted, FontStyles.Normal, TextAlignmentOptions.Center);
-            LibraryUi.UseCondensedFont(chipLabel);
-            chipLabel.characterSpacing = 6f;
+            LibraryUi.UseSpacedCondensedFont(chipLabel, 6f);
             LibraryUi.Stretch(chipLabel.rectTransform);
             float chipWidth = Mathf.Ceil(chipLabel.GetPreferredValues(version).x) + 30f;
             LibraryWidgets.Place(chip.rectTransform, leftCenter, leftCenter, new Vector2(wordmarkX + wordmarkWidth + 14f, 0f),
@@ -646,8 +652,15 @@ namespace OpenSekai.App.UI
                 new Vector2(size, size));
         }
 
-        /// <summary>The wordmark's text, with "ATLAS" in the brand's light violet.</summary>
-        internal static string Wordmark => "OPEN SEKAI <color=" + HomeTheme.Colors.WORDMARK_ACCENT_HEX + ">ATLAS</color>";
+        internal static TextMeshProUGUI CreateWordmark(string name, Transform parent, float fontSize, float spacing,
+            TextAlignmentOptions alignment = TextAlignmentOptions.Left)
+        {
+            const string TEXT = "OPEN SEKAI <color=" + HomeTheme.Colors.WORDMARK_ACCENT_HEX + ">ATLAS</color>";
+            TextMeshProUGUI label = LibraryWidgets.Label(name, parent, TEXT, fontSize, LibraryTheme.Colors.TextPrimary, alignment: alignment);
+            label.richText = true;
+            LibraryUi.UseSpacedCondensedFont(label, spacing);
+            return label;
+        }
 
         /// <summary>One card's place on a page, at rest and grown over the screen.</summary>
         private sealed class HomeSlot

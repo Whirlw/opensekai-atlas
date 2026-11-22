@@ -46,7 +46,7 @@ namespace OpenSekai.App.UI
             _root = LibraryUi.CreateRect("DanShare", layer);
             LibraryUi.Stretch(_root);
             _modal = new LibraryModal(_root, new Vector2(CARD_WIDTH, CARD_HEIGHT), "粘贴段位", Close, withSubtitle: true);
-            _modal.Subtitle.text = "好友复制的段位分享文本以 " + DanDefinition.Prefix + " 开头，保存后即可挑战同一个段位";
+            _modal.Subtitle.text = "好友复制的段位分享文本以 " + DanDefinition.PREFIX + " 开头，保存后即可挑战同一个段位";
             RectTransform body = _modal.Body;
             float footer = LibraryTheme.Layout.MODAL_BUTTON_HEIGHT + 20f;
 
