@@ -1,4 +1,5 @@
 using System.Collections;
+using OpenSekai.Shared.Live.Simulation;
 using Sekai.Live;
 using UnityEngine;
 using OpenSekai.Shared.Playback;
@@ -108,9 +109,9 @@ namespace Sekai.Core.Live
 			_liveLogic?.RefreshInput();
 			BeginLatencyCapture();
 			_forcedFinish = false;
-			if (timelineSpan.HasIntroSkip && currentMusicTimeMs < IntroSkipTargetMs)
+			if (timelineSpan.HasIntroSkip)
 			{
-				ShowSkip(SkipIntro);
+				ShowSkip(SkipIntro, IntroSkipTargetMs);
 			}
 		}
 
@@ -130,8 +131,12 @@ namespace Sekai.Core.Live
 		private float _pendingFinishWait;
 
 		/// <summary>The skip button takes the pause button's place until it is pressed or hidden.</summary>
-		private void ShowSkip(System.Action onPress)
+		private void ShowSkip(System.Action onPress, long untilMs)
 		{
+			if (untilMs - currentMusicTimeMs < LiveTimelineSpan.MIN_SKIP_VISIBLE_SECONDS * 1000L)
+			{
+				return;
+			}
 			_skipShown = true;
 			LiveViewExt.ShowSkip(_liveViews, onPress);
 		}
@@ -165,7 +170,7 @@ namespace Sekai.Core.Live
 			LiveViewExt.MusicSeek(_liveViews, CurrentViewTimeSeconds);
 		}
 
-		/// <summary>Cuts the rest of the music and plays the result effect now, then the usual fade to the result.</summary>
+		/// <summary>Cuts the rest of the music and starts the song's ending immediately.</summary>
 		internal void SkipOutro()
 		{
 			HideSkip();
@@ -189,16 +194,16 @@ namespace Sekai.Core.Live
 		protected override void OnUpdate()
 		{
 			base.OnUpdate();
-			if (state == LiveControllerState.Finish && _resultEffectAtMs.HasValue)
+			if (state == LiveControllerState.Finish && _resultEffectAtMs is long dueMs)
 			{
 				// The result effect and outro skip both use the same clock as the music and chart.
 				UpdateMusicTime();
 				if (_outroSkipAtMs is long skipAtMs && currentMusicTimeMs >= skipAtMs)
 				{
 					_outroSkipAtMs = null;
-					if (_resultEffectPending && currentMusicTimeMs < ResultEffectMs)
+					if (_resultEffectPending)
 					{
-						ShowSkip(SkipOutro);
+						ShowSkip(SkipOutro, dueMs);
 					}
 				}
 			}
@@ -513,6 +518,7 @@ namespace Sekai.Core.Live
 			if (DanSong != null)
 			{
 				result = 2;
+				SoundManager.Instance.StopIngame();
 				PreExit(0f, 0f);
 				return;
 			}
@@ -547,30 +553,34 @@ namespace Sekai.Core.Live
 			LiveScore score = _liveLogic?.Score ?? default;
 			var kind = _retiredByPlayer || DanSong != null && _forcedFinish ? PlayResultKind.Retired
 				: result == 3 && score.life > 0 ? PlayResultKind.Completed : PlayResultKind.Failed;
+			state = LiveControllerState.Finish;
+			HideSkip();
 			if (DanSong != null)
 			{
-				state = LiveControllerState.Finish;
 				DanSong.BindRetire(null);
 				DanSong.Finish(kind, score, currentMusicTimeMs);
-				HideSkip();
-				StartCoroutine(ExitDanSong());
-				return;
+				if (_retiredByPlayer)
+				{
+					StartCoroutine(ExitDanSong());
+					return;
+				}
 			}
-			FinishAttempt(kind);
-			if (LatencyCapture.Active)
-				LatencyCapture.Record("finish_history", value: (Time.realtimeSinceStartupAsDouble - historyStart) * 1000d);
-			if (BootData is FreeLiveBootData free && free.ReturnScene == SceneManager.Scene.Library)
-				PlayResultHandoff.Publish(PlayResult.FromBootData(free, kind, score, _settlement));
-			state = LiveControllerState.Finish;
-			SetFinish(delay, waitTime, 2f, resultEffectAtMs);
+			else
+			{
+				FinishAttempt(kind);
+				if (LatencyCapture.Active)
+					LatencyCapture.Record("finish_history", value: (Time.realtimeSinceStartupAsDouble - historyStart) * 1000d);
+				if (BootData is FreeLiveBootData free && free.ReturnScene == SceneManager.Scene.Library)
+					PlayResultHandoff.Publish(PlayResult.FromBootData(free, kind, score, _settlement));
+			}
 
 			// The chart is done but the music runs on: the result effect waits for it unless the player
 			// skips. The button only comes up the margin after the last note, so the end of the chart is
 			// seen, and not at all when the effect is due within that margin.
-			HideSkip();
 			_outroSkipAtMs = result == 3 && resultEffectAtMs.HasValue && timelineSpan.HasOutroSkip
 				? (long)System.Math.Ceiling(timelineSpan.OutroSkipAvailableSeconds * 1000d)
 				: null;
+			SetFinish(delay, waitTime, 2f, resultEffectAtMs);
 		}
 
 		private IEnumerator ExitDanSong()
@@ -656,7 +666,7 @@ namespace Sekai.Core.Live
 
 		private LiveResultAnimationType GetLiveResultAnimationType()
 		{
-			if (result < 2)
+			if (DanSong != null || result < 2)
 			{
 				return LiveResultAnimationType.None;
 			}

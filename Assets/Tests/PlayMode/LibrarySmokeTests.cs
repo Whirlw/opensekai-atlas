@@ -799,6 +799,8 @@ namespace OpenSekai.Tests.PlayMode
                 {
                     yield return service.StartAsync(definition).ToCoroutine(result => Assert.That(result.Started, Is.True, result.Message));
                     File.Delete(secondChart); // Song two plays the copy fixed before the first scene load.
+                    if (expected != DanOutcome.Interrupted)
+                        yield return CheckDanOutro(service, skip: expected == DanOutcome.Failed);
                     if (expected == DanOutcome.Interrupted)
                     {
                         string original = service.Attempt.Id;
@@ -845,6 +847,32 @@ namespace OpenSekai.Tests.PlayMode
                 Assert.That(PlayResultHandoff.Pending, Is.Null);
             }
             finally { Directory.Delete(root, true); }
+        }
+
+        private static IEnumerator CheckDanOutro(DanChallengeService service, bool skip)
+        {
+            // The first song has a long audible tail and enough life to finish in both courses.
+            yield return WaitFor(() => service.Attempt.Songs.Count == 1, BOOT_TIMEOUT_SECONDS, "judging the last note");
+            var controller = Object.FindFirstObjectByType<SoloLiveController>();
+            var life = Object.FindFirstObjectByType<LifeView>();
+            var front = Object.FindFirstObjectByType<LiveFrontView>();
+            var result = Object.FindFirstObjectByType<LiveResultView>(FindObjectsInactive.Include);
+            const BindingFlags FIELDS = BindingFlags.Instance | BindingFlags.NonPublic;
+            var span = (LiveTimelineSpan)typeof(BaseLiveController).GetField("timelineSpan", FIELDS).GetValue(controller);
+            var fade = (SpriteRenderer)typeof(LiveFrontView).GetField("fade", FIELDS).GetValue(front);
+            var resultBackground = (SpriteRenderer)typeof(LiveResultView).GetField("background", FIELDS).GetValue(result);
+            Assert.That(fade.enabled, Is.False);
+            yield return WaitFor(() => life.IsSkipShown, 4f, "offering to skip the course outro");
+            Assert.That(fade.enabled, Is.False);
+            if (skip) controller.SkipOutro();
+            yield return WaitFor(() => fade.enabled, 5f, "starting the black fade");
+            double fadeAt = controller.CaptureTimeMs / 1000d;
+            if (skip) Assert.That(fadeAt, Is.LessThan(span.ResultEffectSeconds));
+            else Assert.That(fadeAt, Is.EqualTo(span.ResultEffectSeconds).Within(0.15d));
+            Assert.That(life.IsSkipShown, Is.False);
+            Assert.That(resultBackground.gameObject.activeSelf, Is.False);
+            yield return WaitFor(() => fade.color.a > 0f && fade.color.a < 1f, 1f, "fading through partial black");
+            Assert.That(service.Phase, Is.EqualTo(DanPhase.Playing));
         }
 
         private static SonolusLevel BaselineSonolusLevel(int version) => SonolusLevel.From(new JObject
@@ -998,8 +1026,8 @@ namespace OpenSekai.Tests.PlayMode
                     ""entities"": [
                         { ""archetype"": ""Initialization"", ""data"": [{ ""name"": ""initialLife"", ""value"": 1000 }] },
                         { ""archetype"": ""#BPM_CHANGE"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 0 }, { ""name"": ""#BPM"", ""value"": 120 }] },
-                        { ""archetype"": ""NormalTapNote"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 4 }, { ""name"": ""lane"", ""value"": 0 }, { ""name"": ""size"", ""value"": 1 }] },
-                        { ""archetype"": ""NormalTapNote"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 5 }, { ""name"": ""lane"", ""value"": 0 }, { ""name"": ""size"", ""value"": 1 }] }
+                        { ""archetype"": ""NormalTapNote"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 3.5 }, { ""name"": ""lane"", ""value"": 0 }, { ""name"": ""size"", ""value"": 1 }] },
+                        { ""archetype"": ""NormalTapNote"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 3.75 }, { ""name"": ""lane"", ""value"": 0 }, { ""name"": ""size"", ""value"": 1 }] }
                     ]
                 }");
 
