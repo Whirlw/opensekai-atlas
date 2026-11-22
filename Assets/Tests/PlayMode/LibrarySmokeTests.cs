@@ -757,6 +757,11 @@ namespace OpenSekai.Tests.PlayMode
                 var installer = new SonolusLevelInstaller(new SongPackageManager(Path.Combine(root, "library")),
                     Path.Combine(root, "index"), Path.Combine(root, "staging"));
                 var service = new DanChallengeService(profile, installer, Path.Combine(root, "pinned"));
+                // The rest between songs lasts up to 50 s; the player can skip it, and so does the test.
+                service.Changed += () =>
+                {
+                    if (service.Phase == DanPhase.BetweenSongs) service.ContinueNow();
+                };
                 var links = new string[2];
                 string secondChart = null;
                 for (int i = 0; i < links.Length; i++)

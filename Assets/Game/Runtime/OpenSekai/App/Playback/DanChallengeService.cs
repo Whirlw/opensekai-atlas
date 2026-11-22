@@ -15,6 +15,9 @@ namespace OpenSekai.App.Playback
     /// <summary>Main-thread course owner. It survives Core scene swaps. Changed is raised on the main thread.</summary>
     public sealed class DanChallengeService
     {
+        /// <summary>Longest rest between two songs. <see cref="ContinueNow"/> ends it sooner.</summary>
+        public const float REST_SECONDS = 50f;
+
         public static DanChallengeService Local { get; private set; } = new();
         public event Action Changed;
         public DanPhase Phase { get; private set; }
@@ -24,6 +27,18 @@ namespace OpenSekai.App.Playback
         public int RemainingLife { get; private set; }
         public bool NewlyAwarded { get; private set; }
         public string Error { get; private set; }
+
+        /// <summary>Seconds left of the rest while <see cref="DanPhase.BetweenSongs"/>; counts unscaled time, paused in the background.</summary>
+        public float RestRemaining { get; private set; }
+
+        /// <summary>The pinned package folder of song <paramref name="number"/> (from 1) while a course runs; null otherwise.</summary>
+        public string SongDirectory(int number) =>
+            _songs != null && number >= 1 && number <= _songs.Length ? _songs[number - 1]?.Directory : null;
+
+        /// <summary>Ends the rest between songs; the next song starts at once.</summary>
+        public void ContinueNow() => _skipRest = true;
+
+        private bool _skipRest;
 
         private readonly PlayerProfileStore _profile;
         private readonly SonolusLevelInstaller _installer;
@@ -57,6 +72,7 @@ namespace OpenSekai.App.Playback
             _quit = false;
             RemainingLife = definition.InitialLife;
             _operation = CancellationTokenSource.CreateLinkedTokenSource(token);
+            Profile.ActiveDanId = definition.Id;
             var preparationToken = _operation.Token;
             try
             {
@@ -151,9 +167,18 @@ namespace OpenSekai.App.Playback
                     {
                         if (restart) BeginAttempt();
                         else SongNumber++;
-                        SetPhase(DanPhase.BetweenSongs);
                         var token = _operation.Token;
-                        await UniTask.Delay(TimeSpan.FromSeconds(1), ignoreTimeScale: true, cancellationToken: token);
+                        // Reset before the phase change: a page may skip the rest from its Changed handler.
+                        _skipRest = false;
+                        RestRemaining = REST_SECONDS;
+                        SetPhase(DanPhase.BetweenSongs);
+                        while (RestRemaining > 0f && !_skipRest)
+                        {
+                            await UniTask.Yield(PlayerLoopTiming.Update, token);
+                            // A long frame (or coming back from the background) must not swallow the rest.
+                            RestRemaining = Math.Max(0f, RestRemaining - Math.Min(Time.unscaledDeltaTime, 0.1f));
+                        }
+                        RestRemaining = 0f;
                         var result = await StartSong(SceneManager.Scene.Core, token);
                         if (result.Started) return;
                         if (result.Status != PlayStartStatus.Cancelled) Error = result.Message;
@@ -168,6 +193,8 @@ namespace OpenSekai.App.Playback
 
         private void EndOperation(string error, bool cancelled = false)
         {
+            Profile.ActiveDanId = null;
+            RestRemaining = 0f;
             Error = cancelled ? null : error;
             _preparation?.Dispose();
             _preparation = null;

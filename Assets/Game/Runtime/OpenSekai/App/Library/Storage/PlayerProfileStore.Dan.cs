@@ -108,6 +108,23 @@ namespace OpenSekai.App.Library
             WriteDan(archive);
         }
 
+        internal string ActiveDanId { get; set; }
+
+        public void DeleteDanDefinition(string id)
+        {
+            RequireIdle();
+            if (_preview != null) throw new InvalidOperationException("A backup preview is open.");
+            if (id == null) return;
+            if (id == ActiveDanId) throw new InvalidOperationException("The challenge is running.");
+            var current = ReadDanArchive();
+            if (!current.DecodeDefinitions().TryGetValue(id, out var definition)) return;
+            var next = current.Copy();
+            next.Definitions.Remove(definition.ShareText);
+            next.Attempts.RemoveAll(a => a.DefinitionId == id);
+            if (next.Equipped == id) next.Equipped = null;
+            WriteDan(next);
+        }
+
         internal bool SaveDanAttempt(DanDefinition definition, DanAttempt attempt)
         {
             RequireIdle();

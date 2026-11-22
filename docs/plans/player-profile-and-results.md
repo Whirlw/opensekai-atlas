@@ -117,7 +117,7 @@ RankingSettlement ranking = CustomMusicScorePlayHistoryStorage.ForDisplay(play);
 | 创建、粘贴、复制 | 用 `new DanDefinition(initialLife, damage, songs, label, emblem, color)` 构造定义。扣血表是 `OpenSekai.Shared.Playback.DanDamage(perfect, great, good, bad, miss)`。用 `DanDefinition.Parse(text)` 预览，捕获 `DanFieldException.Field` 定位错误（如 `songs[1]` 或 `damage.miss`）。复制 `definition.ShareText` 即可分享。相同谱面链接的 HTTPS、Sonolus 和分享包装形式归一为同一个地址。 |
 | 保存与编辑 | `SaveDanDefinition(definition)` 按规范化定义去重。`ReadDanDefinitions()` 提供曲序、初始生命、扣血表和牌面字段。编辑后内容变化即有新 ID，原定义继续与原通关记录关联。 |
 | 开始与重试 | 先订阅 `DanChallengeService.Local.Changed`，再调用 `await service.StartAsync(definition, token)`。返回的 `PlayStartResult.Started` 表示首曲已交给打歌场景。准备时按 `Phase` 和从 1 起算的 `SongNumber` 显示进度。失败时读取 `Error` 和曲序，修复后再次调用即可。全部曲目的谱面和音频在首曲前检查，本轮使用固定副本。 |
-| 打歌与曲间 | `Definition.InitialLife` 是 HUD 分母，`RemainingLife` 是实时分子。`BetweenSongs` 时 `SongNumber` 已指向即将开打的曲目，约一秒后自动进入下一首。主动退出调用 `Quit()`；暂停与恢复沿用当前打歌控制器，暂停菜单的重试从第一首另开场次。跨场景页面销毁时解除事件订阅。 |
+| 打歌与曲间 | `Definition.InitialLife` 是 HUD 分母，`RemainingLife` 是实时分子。`BetweenSongs` 时 `SongNumber` 已指向即将开打的曲目，休息最长 `REST_SECONDS`（50 秒），`RestRemaining` 给出剩余秒数，`ContinueNow()` 立即开打，`SongDirectory(n)` 给出第 n 首固定副本的曲包目录。主动退出调用 `Quit()`；暂停与恢复沿用当前打歌控制器，暂停菜单的重试从第一首另开场次。跨场景页面销毁时解除事件订阅。 |
 | 结算与历史 | 终局读取 `Attempt` 和 `NewlyAwarded`，后者表示本次首次取得牌面。`ReadDanHistory()` 按开始时间倒序返回场次。每个 `DanAttempt` 有稳定 ID、定义 ID、开始时间、结局和逐曲明细。`SongNumber(definition)` 提供结束或中断位置；每曲含标题、谱面键、起始生命、结束原因、进度毫秒及五档判定等分数快照。强退后保留最近一个已落盘的曲界，未完成场次不授牌。普通历史和 Best 30 独立计算。 |
 | 佩戴与恢复 | `EquipDan(id)` 校验已经通关，传 `null` 卸下。`Read().EquippedDan` 直接提供牌面文字、图案和颜色，`EarnedDanIds` 用于筛选已获牌面。备份 v2 增加带校验和的 `dan.json`，仍可导入 v1。预览通过 `DanDefinitionsAdded`、`DanAttemptsAdded`、`DanDuplicates`、`DanConflictingIds` 展示段位变化。确认按钮绑定 `preview.HasChanges`，这样只有段位数据变化也能合并。空档恢复佩戴，已有档案保留本机选择。 |
 
@@ -198,7 +198,7 @@ OpenSekai-Dan/1
 ### 从第一首到最后一首
 
 1. 开始前解析全部链接，优先命中本地谱面，缺失时复用 Sonolus 下载与导入流程。确认每首的谱面、音频和支持的引擎均就绪，固定本轮使用的内容版本。任一首不可用时指出曲序并允许重试，避免打到一半才发现下一首缺歌。
-2. 整段只初始化一次生命。首版建议按顺序实际播放每张谱面，曲间显示短暂的「第 2 / 3 首 · 剩余生命 63」后自动开打。每首使用自己的音频、时间轴与判定窗口；切歌不回曲库、不进单曲结算。生命延续，单曲分数和连击从头计算。
+2. 整段只初始化一次生命。首版建议按顺序实际播放每张谱面，每首结束后进入最长 50 秒的休息页，显示下一首的信息和剩余生命，可以调整设置，也可以直接开始下一首，倒计时结束自动开打。每首使用自己的音频、时间轴与判定窗口；切歌不回曲库、不进单曲结算。生命延续，单曲分数和连击从头计算。
 3. 每次有效判定只扣一次，最低为零。按五档判定读取扣血配置，装饰节点不扣血。NextRUSH 的伤害音符触发伤害时按挑战的 Miss 扣血一次，避开时不扣；接入时替换原有伤害分支，避免双扣。课程生命优先于谱面自带初始生命，HUD 分母使用整段初始生命。
 4. 生命第一次归零即失败，即使发生在最后一键；最后一首完成且剩余生命大于零即通关。例：初始 100，首曲扣 37，次曲从 63 开始；再扣 63 就立即失败。暂停后恢复同次挑战，主动退出或进程中断记为未完成，再挑战从第一首开始。
 5. 段位结算显示通过或失败、逐曲表现、剩余生命，以及失败所在曲目。首次通过授予段位牌，可当场佩戴。玩家可拥有多个自定义段位，并自行选择个人页展示哪一个。

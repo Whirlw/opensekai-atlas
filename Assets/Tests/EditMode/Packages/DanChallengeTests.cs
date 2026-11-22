@@ -103,6 +103,40 @@ namespace OpenSekai.Tests.EditMode.Packages
         }
 
         [Test]
+        public void DeleteProtectsActiveCourseAndFailedWriteLeavesEarnedPlateIntact()
+        {
+            string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "Dan-" + Guid.NewGuid().ToString("N"))).FullName;
+            try
+            {
+                var store = new PlayerProfileStore(root);
+                var dan = Definition();
+                var other = Definition("另一段位");
+                var passed = DanAttempt.Begin(dan).Append(dan, Row(100, 63, PlayResultKind.Completed))
+                    .Append(dan, Row(63, 1, PlayResultKind.Completed));
+                store.SaveDanAttempt(dan, passed);
+                store.SaveDanDefinition(other);
+                store.EquipDan(dan.Id);
+                store.ActiveDanId = dan.Id;
+                Assert.Throws<InvalidOperationException>(() => store.DeleteDanDefinition(dan.Id));
+                store.DeleteDanDefinition(other.Id);
+                store.ActiveDanId = null;
+                string path = Path.Combine(root, "dan.json");
+                File.Move(path, path + ".original");
+                Directory.CreateDirectory(path);
+                var error = Assert.Catch(() => store.DeleteDanDefinition(dan.Id));
+                Assert.That(error, Is.InstanceOf<IOException>().Or.InstanceOf<UnauthorizedAccessException>());
+                Assert.That(store.Read().EquippedDanId, Is.EqualTo(dan.Id));
+                Directory.Delete(path);
+                File.Move(path + ".original", path);
+                var reopened = new PlayerProfileStore(root);
+                Assert.That(reopened.ReadDanHistory().Single().Id, Is.EqualTo(passed.Id));
+                Assert.That(reopened.ReadDanDefinitions().Single().Id, Is.EqualTo(dan.Id));
+                Assert.That(reopened.Read().EquippedDanId, Is.EqualTo(dan.Id));
+            }
+            finally { Directory.Delete(root, true); }
+        }
+
+        [Test]
         public void DanOnlyMergeCanBeConfirmedOnAnExistingProfileAndEditsInvalidatePreview()
         {
             string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "Dan-" + Guid.NewGuid().ToString("N"))).FullName;
