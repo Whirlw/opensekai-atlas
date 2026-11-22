@@ -360,7 +360,26 @@ namespace OpenSekai.App.UI
                 notes.Append("备份历史").Append(ProfileCopy.Lines(preview.MissingIdLines)).Append("缺少局 ID，无法判断是否重复，已跳过。\n");
             }
 
-            bool changes = preview.Added > 0 || preview.RestoresAppearance;
+            int danAdded = preview.DanDefinitionsAdded + preview.DanAttemptsAdded;
+            int danConflicts = preview.DanConflictingIds?.Count ?? 0;
+            if (danAdded > 0 || preview.DanDuplicates > 0 || danConflicts > 0)
+            {
+                notes.Append("段位：");
+                var parts = new List<string>();
+                if (preview.DanDefinitionsAdded > 0) parts.Add("新增 " + ProfileCopy.Number(preview.DanDefinitionsAdded) + " 个段位");
+                if (preview.DanAttemptsAdded > 0) parts.Add(ProfileCopy.Number(preview.DanAttemptsAdded) + " 次挑战记录");
+                if (preview.DanDuplicates > 0) parts.Add(ProfileCopy.Number(preview.DanDuplicates) + " 项已在本机");
+                if (danConflicts > 0) parts.Add(ProfileCopy.Number(danConflicts) + " 次挑战与本机不同，保留本机");
+                notes.Append(string.Join("，", parts)).Append("。");
+                if (preview.RestoresAppearance && preview.Result?.EquippedDan != null)
+                {
+                    notes.Append("会恢复佩戴「").Append(preview.Result.EquippedDan.Label).Append("」。");
+                }
+
+                notes.Append('\n');
+            }
+
+            bool changes = preview.HasChanges;
             if (!changes)
             {
                 notes.Append("备份里没有本机缺少的内容，无需合并。");

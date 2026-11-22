@@ -13,9 +13,11 @@ namespace OpenSekai.App.UI
         internal static readonly HomeProfileSummary Empty =
             new HomeProfileSummary("Player", ProfileAvatars.DEFAULT_ID, 0L, 0, 0, 0, null, false);
 
+        /// <param name="danColor">The worn plate's "#RRGGBB"; ignored when no plate is worn.</param>
         internal HomeProfileSummary(string nickname, string avatarId, long total, int tierId, int chartCount, int playCount,
-            string danLabel, bool unreadable)
+            string danLabel, bool unreadable, string danColor = null)
         {
+            DanColor = danColor;
             Nickname = nickname;
             AvatarId = avatarId;
             Total = total;
@@ -38,6 +40,9 @@ namespace OpenSekai.App.UI
 
         /// <summary>The equipped 段位 plate's text; null when none is worn.</summary>
         internal string DanLabel { get; }
+
+        /// <summary>The equipped plate's color as "#RRGGBB"; null when none is worn.</summary>
+        internal string DanColor { get; }
 
         /// <summary>The profile could not be read; the card says so instead of showing zeros as fact.</summary>
         internal bool Unreadable { get; }
@@ -347,8 +352,9 @@ namespace OpenSekai.App.UI
                 _satellites[i].color = Color.Lerp(accent, Color.white, 0.5f);
             }
 
-            _plate.color = worn ? HomeTheme.Colors.WithAlpha(HomeTheme.Colors.Violet, 46) : HomeTheme.Colors.Chip;
-            _plateOutline.color = worn ? HomeTheme.Colors.WithAlpha(HomeTheme.Colors.Violet, 150) : LibraryTheme.Colors.Hairline;
+            Color32 plate = DanStyles.ParseColor(_summary?.DanColor, HomeTheme.Colors.Violet);
+            _plate.color = worn ? HomeTheme.Colors.WithAlpha(plate, 56) : HomeTheme.Colors.Chip;
+            _plateOutline.color = worn ? HomeTheme.Colors.WithAlpha(DanStyles.Light(plate), 170) : LibraryTheme.Colors.Hairline;
             _plateLabel.color = worn ? LibraryTheme.Colors.TextPrimary : LibraryTheme.Colors.TextMuted;
         }
 

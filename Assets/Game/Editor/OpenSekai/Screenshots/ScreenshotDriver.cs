@@ -91,6 +91,7 @@ namespace OpenSekai.EditorTools.Screenshots
                     case "server": body = ServerShot(shot); break;
                     case "packs": body = PacksShot(shot); break;
                     case "profile": body = ProfileShot(shot); break;
+                    case "dan": body = DanShot(shot); break;
                     default:
                         Fail(shot, "unknown kind '" + shot.kind + "'");
                         continue;

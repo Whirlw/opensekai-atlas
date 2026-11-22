@@ -19,9 +19,8 @@ namespace OpenSekai.App.UI
 
         internal static string Number(long value) => value.ToString("N0", CultureInfo.InvariantCulture);
 
-        /// <summary>The worn 段位 plate's text; null while none is worn (段位 arrive with the third stage).</summary>
-        internal static string DanLabel(PlayerProfileSnapshot snapshot) =>
-            string.IsNullOrEmpty(snapshot?.EquippedDanId) ? null : snapshot.EquippedDanId;
+        /// <summary>The worn 段位 plate's text; null while none is worn.</summary>
+        internal static string DanLabel(PlayerProfileSnapshot snapshot) => snapshot?.EquippedDan?.Label;
 
         /// <summary>The song's name as the run saved it.</summary>
         internal static string Title(CustomMusicScorePlayHistoryRecord play)

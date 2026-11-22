@@ -80,8 +80,9 @@ namespace OpenSekai.App.UI
         /// <param name="openAbout">The header's about button was tapped.</param>
         /// <param name="comingSoon">A card for an unbuilt part was tapped; gets the part's name.</param>
         /// <param name="openProfile">The 个人信息 card was tapped.</param>
+        /// <param name="openDan">The 段位 card was tapped.</param>
         internal HomeView(RectTransform parent, Action openLibrary, Action openAbout, Action openSettings, Action<string> comingSoon,
-            Action openServer = null, Action openPacks = null, Action openProfile = null)
+            Action openServer = null, Action openPacks = null, Action openProfile = null, Action openDan = null)
         {
             _root = LibraryUi.CreateRect("Home", parent);
             LibraryUi.Stretch(_root);
@@ -134,7 +135,13 @@ namespace OpenSekai.App.UI
             _library = new HomeLibraryCard(Slot(0, 0).Rect, openLibrary);
 
             _dan = new HomeFeatureCard(Slot(1, 1).Rect, "DanCard", "DAN", "段位", "多曲连打 · 生命延续 · 段位牌",
-                HomeTheme.Colors.Violet, root => new HomePlateArt(root), () => comingSoon?.Invoke("段位"));
+                HomeTheme.Colors.Violet, root => new HomePlateArt(root),
+                () =>
+                {
+                    if (openDan != null) openDan();
+                    else comingSoon?.Invoke("段位");
+                },
+                available: openDan != null, status: openDan != null ? "开始挑战" : null);
             _achievements = new HomeFeatureCard(Slot(1, 2).Rect, "AchievementsCard", "ACHIEVEMENTS", "成就", "累计击打 · 谱面达成 · 段位通关",
                 HomeTheme.Colors.Gold, root => new HomeMedalArt(root), () => comingSoon?.Invoke("成就"));
             _profile = new HomeProfileCard(Slot(1, 0).Rect, () => openProfile?.Invoke());
@@ -191,6 +198,9 @@ namespace OpenSekai.App.UI
         internal void SetAccent(Color32 accent, Color32 glow) => _library.SetAccent(accent, glow);
 
         internal void SetProfile(HomeProfileSummary summary) => _profile.SetSummary(summary);
+
+        /// <summary>The 段位 card's chip: how many courses there are and how many are passed.</summary>
+        internal void SetDanStatus(string status) => _dan.SetStatus(status);
 
         /// <summary>Idle animation: marquee, globe, card fan, badge, status lights; only for a page in view.</summary>
         internal void Tick(double time)

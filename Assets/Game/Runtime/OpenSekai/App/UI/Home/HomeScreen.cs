@@ -41,6 +41,7 @@ namespace OpenSekai.App.UI
         private PackScreen _packs;
         private PackOrigin _packsOrigin;
         private ProfileScreen _profile;
+        private DanScreen _dan;
         private PlayerProfileStore _profileStore;
         private CancellationTokenSource _serverPlayCancellation;
         private LibraryLoadingOverlay _serverLoading;
@@ -78,6 +79,9 @@ namespace OpenSekai.App.UI
         /// <summary>True while the 个人信息 part is on screen.</summary>
         public bool IsProfileShown => _profile != null && _profile.IsPresented;
 
+        /// <summary>True while the 段位 part is on screen.</summary>
+        public bool IsDanShown => _dan != null && _dan.IsPresented;
+
         /// <summary>The home page that is on screen once it settles: 0 the first, 1 the second.</summary>
         public int HomePage => _view.Page;
 
@@ -92,6 +96,7 @@ namespace OpenSekai.App.UI
             {
                 _profileStore = value;
                 if (_profile != null) _profile.Store = value;
+                if (_dan != null) _dan.Store = value;
             }
         }
 
@@ -101,7 +106,8 @@ namespace OpenSekai.App.UI
             Home,
             Library,
             Server,
-            Profile
+            Profile,
+            Dan
         }
 
         /// <summary>True once the emblem has its bundled layers.</summary>
@@ -121,7 +127,7 @@ namespace OpenSekai.App.UI
             else
             {
                 screen.HideHome();
-                if (!screen.RestoreServerAfterLive()) screen.ShowReadyLibrary(false);
+                if (!screen.RestoreDanAfterCourse() && !screen.RestoreServerAfterLive()) screen.ShowReadyLibrary(false);
             }
 
             return screen;
@@ -139,6 +145,7 @@ namespace OpenSekai.App.UI
             HideServer();
             HidePacks();
             HideProfile();
+            HideDan();
             HideHome();
             _view.TurnTo(0, false);
             ShowReadyLibrary(false);
@@ -156,6 +163,7 @@ namespace OpenSekai.App.UI
             HideServer();
             HidePacks();
             HideProfile();
+            HideDan();
             ShowHome(refreshSummary);
             _about.Hide();
             _splash.Evaluate(HomeSplash.Length);
@@ -206,6 +214,7 @@ namespace OpenSekai.App.UI
             _library?.SetPresented(false, false);
             HidePacks();
             HideProfile();
+            HideDan();
             HideHome();
             EnsureServer().SetPresented(true, false);
         }
@@ -234,6 +243,7 @@ namespace OpenSekai.App.UI
             _library?.SetPresented(false, false);
             HideServer();
             HideProfile();
+            HideDan();
             HideHome();
             _packsOrigin = PackOrigin.Home;
             EnsurePacks().SetPresented(true, false);
@@ -263,9 +273,40 @@ namespace OpenSekai.App.UI
             _library?.SetPresented(false, false);
             HideServer();
             HidePacks();
+            HideDan();
             HideHome();
             _view.TurnTo(1, false);
             EnsureProfile().SetPresented(true, false);
+        }
+
+        /// <summary>Shows the 段位 part at once, as if the player had gone in.</summary>
+        public void ShowDanImmediately()
+        {
+            _view.StopTransition();
+            _splash.Stop();
+            _splash.Evaluate(HomeSplash.Length);
+            _navigating = false;
+            _library?.SetPresented(false, false);
+            HideServer();
+            HidePacks();
+            HideProfile();
+            HideHome();
+            _view.TurnTo(1, false);
+            EnsureDan().SetPresented(true, false);
+        }
+
+        /// <summary>
+        /// Holds the hand-over to the 段位 part at <paramref name="amount"/> (0 the second page at
+        /// rest, 1 the 段位 card covering the screen), for screenshots of the transition.
+        /// </summary>
+        public void SeekDanHandoff(float amount)
+        {
+            ShowHomeImmediately();
+            _idle.TryCancel();
+            _idle = default;
+            TickIdle(IntroLength);
+            _view.TurnTo(1, false);
+            _view.ApplyExpansion(HomeDestination.Dan, Mathf.Clamp01(amount));
         }
 
         /// <summary>
@@ -303,6 +344,9 @@ namespace OpenSekai.App.UI
         /// <summary>What tapping the 个人信息 card does.</summary>
         public void EnterProfile() => OpenProfile();
 
+        /// <summary>What tapping the 段位 card does.</summary>
+        public void EnterDan() => OpenDan();
+
         /// <summary>What tapping the 资源包 card does.</summary>
         public void EnterPacks() => OpenPacks();
 
@@ -339,7 +383,7 @@ namespace OpenSekai.App.UI
 
             var root = (RectTransform)_canvasRoot.transform;
             _backdrop = new HomeBackdrop(root);
-            _view = new HomeView(root, OpenLibrary, OpenAbout, OpenSettings, ShowComingSoon, OpenServer, OpenPacks, OpenProfile);
+            _view = new HomeView(root, OpenLibrary, OpenAbout, OpenSettings, ShowComingSoon, OpenServer, OpenPacks, OpenProfile, OpenDan);
             if (ServerChartDownloads.Current != null)
             {
                 ServerChartDownloads.Current.StatusChanged += ShowServerStatus;
@@ -520,6 +564,12 @@ namespace OpenSekai.App.UI
                 return;
             }
 
+            if (_dan != null && _dan.IsPresented)
+            {
+                CoverThenShowPacks(PackOrigin.Dan, _dan.PlayExit, () => _dan.SetPresented(false, false));
+                return;
+            }
+
             if (_server != null && _server.IsPresented)
             {
                 CoverThenShowPacks(PackOrigin.Server, _server.PlayExit, () => _server.SetPresented(false, false));
@@ -577,6 +627,13 @@ namespace OpenSekai.App.UI
                 if (origin == PackOrigin.Profile && _profile != null)
                 {
                     _profile.SetPresented(true, true);
+                    _navigating = false;
+                    return;
+                }
+
+                if (origin == PackOrigin.Dan && _dan != null)
+                {
+                    _dan.SetPresented(true, true);
                     _navigating = false;
                     return;
                 }
@@ -668,6 +725,80 @@ namespace OpenSekai.App.UI
             {
                 _profile.SetPresented(false, false);
             }
+        }
+
+        /// <summary>The 段位 card grows over the second page, then the part rises out of it.</summary>
+        private void OpenDan()
+        {
+            if (_navigating || !_homeShown)
+            {
+                return;
+            }
+
+            _navigating = true;
+            UiSound.Play(UiCue.Forward);
+            DanScreen dan = EnsureDan();
+            _view.PlayExpand(HomeDestination.Dan, () =>
+            {
+                HideHome();
+                dan.SetPresented(true, true);
+                _navigating = false;
+            });
+        }
+
+        /// <summary>The 段位 part falls into the ground, then its card shrinks back into the second page.</summary>
+        private void ReturnFromDan()
+        {
+            if (_navigating || _dan == null || !_dan.IsPresented)
+            {
+                return;
+            }
+
+            _navigating = true;
+            _dan.PlayExit(() =>
+            {
+                _dan.SetPresented(false, false);
+                ShowHome();
+                _splash.Evaluate(HomeSplash.Length);
+                _view.PlayCollapse(HomeDestination.Dan, () => _navigating = false);
+            });
+        }
+
+        private DanScreen EnsureDan()
+        {
+            if (_dan != null)
+            {
+                return _dan;
+            }
+
+            _dan = DanScreen.Create();
+            _dan.transform.SetParent(transform, false);
+            _dan.Store = _profileStore;
+            _dan.BackRequested += ReturnFromDan;
+            return _dan;
+        }
+
+        private void HideDan()
+        {
+            if (_dan != null && _dan.IsPresented)
+            {
+                _dan.SetPresented(false, false);
+            }
+        }
+
+        /// <summary>
+        /// After a 段位 course the library scene opens on the 段位 part and its result, once; the
+        /// second home page waits underneath for the part's back button.
+        /// </summary>
+        private bool RestoreDanAfterCourse()
+        {
+            if (!DanResultHandoff.TakeFinished(DanChallengeService.Local)) return false;
+            _library?.SetPresented(false, false);
+            _view.TurnTo(1, false);
+            DanScreen dan = EnsureDan();
+            dan.SetPresented(true, false);
+            dan.ShowCourseResult();
+            return true;
         }
 
         /// <summary>Redraws the library after a history change. The home cards refresh on return.</summary>
@@ -931,6 +1062,17 @@ namespace OpenSekai.App.UI
                 return;
             }
 
+            if (_dan != null && _dan.IsPresented)
+            {
+                if (!_dan.TryHandleBack())
+                {
+                    UiSound.Play(UiCue.Back);
+                    ReturnFromDan();
+                }
+
+                return;
+            }
+
             if (_server != null && _server.IsPresented)
             {
                 if (!_server.TryHandleBack())
@@ -1095,7 +1237,10 @@ namespace OpenSekai.App.UI
                 PlayerProfileSnapshot snapshot = store.Read();
                 int plays = store.ReadHistory(0, 1).TotalCount;
                 _view.SetProfile(new HomeProfileSummary(snapshot.Appearance.Nickname, snapshot.Appearance.AvatarId,
-                    snapshot.Best30.Total, snapshot.Best30.TierId, snapshot.Best30.Entries.Count, plays, ProfileCopy.DanLabel(snapshot), false));
+                    snapshot.Best30.Total, snapshot.Best30.TierId, snapshot.Best30.Entries.Count, plays, ProfileCopy.DanLabel(snapshot), false,
+                    snapshot.EquippedDan?.Color));
+                int courses = store.ReadDanDefinitions().Count;
+                _view.SetDanStatus(courses == 0 ? "开始挑战" : courses + " 个段位  ·  已通过 " + snapshot.EarnedDanIds.Count);
             }
             catch (Exception exception)
             {
@@ -1232,6 +1377,11 @@ namespace OpenSekai.App.UI
             {
                 _profile.BackRequested -= ReturnFromProfile;
                 _profile.DataChanged -= OnProfileChanged;
+            }
+
+            if (_dan != null)
+            {
+                _dan.BackRequested -= ReturnFromDan;
             }
 
             if (_server != null)

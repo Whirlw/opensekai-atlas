@@ -457,6 +457,8 @@ namespace OpenSekai.App.UI
         private readonly HomeCardFrame _frame;
         private readonly CanvasGroup _copy;
         private readonly Image _statusDot;
+        private readonly Image _chip;
+        private readonly TextMeshProUGUI _chipLabel;
         private readonly IHomeCardArt _art;
         private MotionHandle _shake;
 
@@ -505,6 +507,7 @@ namespace OpenSekai.App.UI
             const float CHIP_HEIGHT = 46f;
             const float CHIP_WIDTH = 158f;
             Image chip = LibraryWidgets.Panel("Soon", content, CHIP_HEIGHT * 0.5f, HomeTheme.Colors.Chip);
+            _chip = chip;
             LibraryWidgets.Outline(chip, CHIP_HEIGHT * 0.5f);
             LibraryWidgets.Place(chip.rectTransform, Vector2.zero, Vector2.zero, new Vector2(pad, pad - 4f), new Vector2(CHIP_WIDTH, CHIP_HEIGHT));
             _statusDot = LibraryUi.CreateImage("Dot", chip.transform, tint);
@@ -515,6 +518,7 @@ namespace OpenSekai.App.UI
             TextMeshProUGUI chipLabel = LibraryWidgets.Label(
                 "Label", chip.transform, status ?? (available ? "进入社区" : "即将推出"), 19f, LibraryTheme.Colors.TextSecondary, FontStyles.Normal, TextAlignmentOptions.Left);
             LibraryWidgets.Inset(chipLabel.rectTransform, 44f, 0f, 12f, 0f);
+            _chipLabel = chipLabel;
 
             void Stretch(RectTransform rect, float left, float top, float height)
             {
@@ -538,6 +542,14 @@ namespace OpenSekai.App.UI
 
         /// <summary>Fades what is drawn on the card (copy, art, chip) without fading the card itself.</summary>
         public void SetInnerAlpha(float alpha) => _copy.alpha = alpha;
+
+        /// <summary>Replaces the chip's text; the chip grows to fit it.</summary>
+        internal void SetStatus(string status)
+        {
+            _chipLabel.text = status;
+            float width = Mathf.Ceil(_chipLabel.GetPreferredValues(status).x) + 44f + 24f;
+            _chip.rectTransform.sizeDelta = new Vector2(Mathf.Max(158f, width), _chip.rectTransform.sizeDelta.y);
+        }
 
         /// <inheritdoc cref="HomeCardFrame.SetCovering"/>
         public void SetCovering(float amount) => _frame.SetCovering(amount);

@@ -61,10 +61,8 @@ namespace OpenSekai.App.UI
         private readonly TextMeshProUGUI _total;
         private readonly TextMeshProUGUI _tier;
         private readonly TextMeshProUGUI _coverage;
-        private readonly Image _plate;
-        private readonly Image _plateRim;
-        private readonly Image _plateEmblem;
-        private readonly TextMeshProUGUI _plateLabel;
+        private readonly DanPlate _plate;
+        private readonly TextMeshProUGUI _plateNote;
         private readonly HomePageTabs _tabs;
         private readonly TextMeshProUGUI _summary;
         private readonly Button _clearHistory;
@@ -157,26 +155,19 @@ namespace OpenSekai.App.UI
             Strip(_coverage.rectTransform, PAD, PAD, badgeTop + BADGE_SIZE + 18f, 26f);
 
             // The worn plate, from the bottom up: note, plate, caption.
-            TextMeshProUGUI note = LibraryWidgets.Label("DanNote", card, "通关段位挑战后，可以在这里选择展示的段位牌", 17f,
-                LibraryTheme.Colors.TextMuted);
-            LibraryWidgets.BottomStrip(note.rectTransform, PAD, PAD, PAD - 4f, 26f);
+            _plateNote = LibraryWidgets.Label("DanNote", card, string.Empty, 17f, LibraryTheme.Colors.TextMuted);
+            LibraryWidgets.BottomStrip(_plateNote.rectTransform, PAD, PAD, PAD - 4f, 26f);
             float plateBottom = PAD + 34f;
-            _plate = LibraryWidgets.Panel("Plate", card, 14f, HomeTheme.Colors.Chip);
-            _plate.raycastTarget = true;
-            LibraryWidgets.BottomStrip(_plate.rectTransform, PAD, PAD, plateBottom, PLATE_HEIGHT);
-            _plateRim = LibraryWidgets.Shape("Rim", _plate.transform, LibraryShapes.Ring(14f, 1.5f), LibraryTheme.Colors.Hairline);
-            LibraryUi.Stretch(_plateRim.rectTransform);
-            _plateEmblem = LibraryWidgets.Shape("Emblem", _plate.transform, LibraryShapes.Ring(5f, 2f), LibraryTheme.Colors.TextMuted);
-            LibraryWidgets.Place(_plateEmblem.rectTransform, new Vector2(0f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(42f, 0f),
-                new Vector2(26f, 26f));
-            _plateEmblem.rectTransform.localEulerAngles = new Vector3(0f, 0f, 45f);
-            _plateLabel = PackWidgets.UserLabel("Label", _plate.transform, string.Empty, 22f, LibraryTheme.Colors.TextMuted, FontStyles.Bold);
-            LibraryWidgets.Inset(_plateLabel.rectTransform, 80f, 0f, 24f, 0f);
-            Button plateButton = _plate.gameObject.AddComponent<Button>();
-            plateButton.targetGraphic = _plate;
+            _plate = new DanPlate(card, "Plate", new Vector2(LEFT_WIDTH - PAD * 2f, PLATE_HEIGHT), shadow: false);
+            LibraryWidgets.Place(_plate.Root, Vector2.zero, Vector2.zero, new Vector2(PAD, plateBottom), _plate.Root.sizeDelta);
+            Image plateHit = LibraryUi.CreateImage("Hit", _plate.Root, Color.clear);
+            plateHit.raycastTarget = true;
+            LibraryUi.Stretch(plateHit.rectTransform);
+            Button plateButton = plateHit.gameObject.AddComponent<Button>();
+            plateButton.targetGraphic = plateHit;
             plateButton.transition = Selectable.Transition.None;
-            plateButton.onClick.AddListener(screen.ExplainDan);
-            LibraryPressFeedback.Attach(_plate.gameObject, null, 0.985f);
+            plateButton.onClick.AddListener(screen.OpenPlates);
+            LibraryPressFeedback.Attach(plateHit.gameObject, _plate.Root, 0.985f);
             TextMeshProUGUI danCaption = LibraryWidgets.Label("DanCaption", card, "段位牌", 18f, LibraryTheme.Colors.TextMuted, FontStyles.Bold);
             LibraryWidgets.BottomStrip(danCaption.rectTransform, PAD, PAD, plateBottom + PLATE_HEIGHT + 10f, 26f);
             Divider(card, plateBottom + PLATE_HEIGHT + 52f, false);
@@ -233,13 +224,21 @@ namespace OpenSekai.App.UI
                 ? "手动完成一首谱面后，成绩会计入 Best 30"
                 : "Best 30 已收录 " + charts + " / 30 张谱面";
 
-            string dan = ProfileCopy.DanLabel(snapshot);
-            bool worn = dan != null;
-            _plateLabel.text = worn ? dan : "未取得段位";
-            _plateLabel.color = worn ? LibraryTheme.Colors.TextPrimary : LibraryTheme.Colors.TextMuted;
-            _plate.color = worn ? HomeTheme.Colors.WithAlpha(HomeTheme.Colors.Violet, 40) : HomeTheme.Colors.Chip;
-            _plateRim.color = worn ? HomeTheme.Colors.WithAlpha(HomeTheme.Colors.Violet, 160) : LibraryTheme.Colors.Hairline;
-            _plateEmblem.color = worn ? HomeTheme.Colors.Violet : LibraryTheme.Colors.TextMuted;
+            OpenSekai.App.Playback.DanDefinition worn = snapshot?.EquippedDan;
+            int earned = snapshot?.EarnedDanIds.Count ?? 0;
+            if (worn != null)
+            {
+                _plate.SetStyle(worn.Label, worn.Emblem, worn.Color);
+                _plate.SetLocked(false);
+            }
+            else
+            {
+                _plate.SetEmpty(earned > 0 ? "未佩戴段位牌" : "未取得段位");
+            }
+
+            _plateNote.text = earned > 0
+                ? "已取得 " + earned + " 块段位牌，点按即可更换展示的一块"
+                : "通过段位挑战后，可以在这里选择展示的段位牌";
 
             _tabs.SetLabel(0, "Best 30  " + Count(charts));
             _tabs.SetLabel(1, "全部历史  " + Count(plays));
@@ -323,6 +322,7 @@ namespace OpenSekai.App.UI
         {
             _enter.TryCancel();
             _status.Dispose();
+            _plate.Dispose();
         }
 
         private void ApplyEnter(float time)

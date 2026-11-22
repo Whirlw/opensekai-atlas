@@ -58,6 +58,7 @@ namespace OpenSekai.App.UI
 
             _modal.Title.text = string.IsNullOrWhiteSpace(info.Title) ? "未命名曲目" : info.Title;
             _modal.Subtitle.text = Subtitle(info);
+            ApplyCourse();
             _cover.texture = info.Jacket;
             _cover.enabled = info.Jacket != null;
             _coverPlaceholder.enabled = info.Jacket == null;
@@ -79,6 +80,24 @@ namespace OpenSekai.App.UI
             _retry?.SetArmed(false, false);
             _quit?.SetArmed(false, false);
             _modal?.Close();
+        }
+
+        /// <summary>In a 段位 course retry restarts the whole course and quitting gives it up; the rows say so.</summary>
+        private void ApplyCourse()
+        {
+            OpenSekai.App.Playback.DanChallengeService course = OpenSekai.App.Playback.DanChallengeService.Local;
+            bool inCourse = course.Phase == OpenSekai.App.Playback.DanPhase.Playing && course.Definition != null;
+            if (!inCourse)
+            {
+                _retry.SetText("重新开始", "从头再打一次", "再点一次重新开始", "这一局的进度会清空");
+                _quit.SetText("返回曲库", "结束这一局，回到曲库", "再点一次返回曲库", "这一局会按中途退出结算");
+                return;
+            }
+
+            _retry.SetText("从第一首重来", "整场段位重新开始，生命回满", "再点一次从第一首重来", "这一场会记为未完成");
+            _quit.SetText("放弃挑战", "结束这场段位，查看结算", "再点一次放弃挑战", "这一场会记为未完成，不授予段位牌");
+            string line = "段位「" + course.Definition.Label + "」第 " + course.SongNumber + " / " + course.Definition.Songs.Count + " 首";
+            _modal.Subtitle.text = string.IsNullOrEmpty(_modal.Subtitle.text) ? line : line + "  ·  " + _modal.Subtitle.text;
         }
 
         private void OnDestroy()

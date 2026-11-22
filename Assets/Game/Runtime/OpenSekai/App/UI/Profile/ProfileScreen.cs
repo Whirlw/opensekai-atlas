@@ -46,6 +46,7 @@ namespace OpenSekai.App.UI
         private ProfileBusyPanel _busy;
         private ProfileImportPanel _import;
         private ProfileDeletePanel _deletion;
+        private DanPlatePicker _plates;
         private ProfileImportPreview _preview;
         private PlayerProfileStore _previewStore;
         private CancellationTokenSource _operation;
@@ -116,6 +117,7 @@ namespace OpenSekai.App.UI
                 _settings?.Hide();
                 _editor.Close();
                 _deletion.Close();
+                _plates.Close();
                 _busy.Hide();
                 DiscardPreview();
                 _toast.Hide();
@@ -206,6 +208,13 @@ namespace OpenSekai.App.UI
                 return true;
             }
 
+            if (_plates.IsOpen)
+            {
+                _plates.Close();
+                UiSound.Play(UiCue.Close);
+                return true;
+            }
+
             if (_settings != null && _settings.IsOpen)
             {
                 _settings.Back();
@@ -228,11 +237,73 @@ namespace OpenSekai.App.UI
 
         internal void ShowToast(string message) => _toast.Show(message, 2.8f);
 
-        /// <summary>The plate on the player's card: 段位 can be worn once the third stage brings them.</summary>
-        internal void ExplainDan()
+        internal bool IsPlatePickerOpen => _plates.IsOpen;
+
+        /// <summary>The plate on the player's card: choose which earned 段位 plate to wear, or none.</summary>
+        internal void OpenPlates()
         {
-            UiSound.Play(UiCue.Blocked);
-            ShowToast(ProfileCopy.DanLabel(Snapshot) == null ? "段位挑战还在路上，通关后可以在这里佩戴段位牌" : "更换段位牌将随段位挑战一同开放");
+            if (IsBusy || Snapshot == null)
+            {
+                UiSound.Play(UiCue.Blocked);
+                if (Snapshot == null) ShowToast(LoadError ?? "档案暂时无法读取");
+                return;
+            }
+
+            if (Snapshot.EarnedDanIds.Count == 0)
+            {
+                UiSound.Play(UiCue.Blocked);
+                ShowToast("通过段位挑战后，就能在这里佩戴段位牌。首页第二页可以进入段位");
+                return;
+            }
+
+            var earned = new List<OpenSekai.App.Playback.DanDefinition>();
+            var ids = new HashSet<string>(Snapshot.EarnedDanIds, StringComparer.Ordinal);
+            try
+            {
+                IReadOnlyList<OpenSekai.App.Playback.DanDefinition> definitions = Store.ReadDanDefinitions();
+                for (int i = definitions.Count - 1; i >= 0; i--)
+                {
+                    if (ids.Contains(definitions[i].Id)) earned.Add(definitions[i]);
+                }
+            }
+            catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException || exception is InvalidDataException)
+            {
+                Debug.LogWarning("[Profile] Could not read the 段位 plates: " + exception.Message);
+                UiSound.Play(UiCue.Error);
+                ShowToast("段位牌暂时无法读取");
+                return;
+            }
+
+            _plates.Open(earned, Snapshot.EquippedDanId);
+        }
+
+        private bool WearPlate(string id)
+        {
+            if (string.Equals(id, Snapshot?.EquippedDanId, StringComparison.Ordinal)) return true;
+            try
+            {
+                Store.EquipDan(id);
+            }
+            catch (InvalidOperationException)
+            {
+                UiSound.Play(UiCue.Blocked);
+                ShowToast("备份正在进行，完成后再更换段位牌");
+                return false;
+            }
+            catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException)
+            {
+                Debug.LogWarning("[Profile] Could not wear the plate: " + exception.Message);
+                UiSound.Play(UiCue.Error);
+                ShowToast("保存失败：文件无法写入");
+                return false;
+            }
+
+            Reload(true);
+            UiSound.Play(id != null ? UiCue.Success : UiCue.ToggleOff);
+            string label = ProfileCopy.DanLabel(Snapshot);
+            ShowToast(label != null ? "已佩戴「" + label + "」" : "已卸下段位牌");
+            DataChanged?.Invoke(false);
+            return true;
         }
 
         // ---------------------------------------------------------------- data
@@ -684,9 +755,10 @@ namespace OpenSekai.App.UI
             string score = after != before
                 ? " · Ranking Score " + ProfileCopy.Number(before) + " → " + ProfileCopy.Number(after)
                 : " · Ranking Score 保持 " + ProfileCopy.Number(after);
+            int dan = preview.DanDefinitionsAdded + preview.DanAttemptsAdded;
             ShowToast(preview.Added > 0
-                ? "已合并 " + ProfileCopy.Number(preview.Added) + " 局" + score
-                : "已恢复备份中的头像与昵称");
+                ? "已合并 " + ProfileCopy.Number(preview.Added) + " 局" + (dan > 0 ? "与段位记录" : string.Empty) + score
+                : dan > 0 ? "已合并备份中的段位与挑战记录" : "已恢复备份中的头像与昵称");
             DataChanged?.Invoke(preview.Added > 0);
         }
 
@@ -760,6 +832,7 @@ namespace OpenSekai.App.UI
             _busy = new ProfileBusyPanel(ModalLayer);
             _import = new ProfileImportPanel(ModalLayer);
             _deletion = new ProfileDeletePanel(ModalLayer);
+            _plates = new DanPlatePicker(ModalLayer, WearPlate);
             _toast = new UiToast(root, 48f, HomeTheme.Colors.Violet);
             _thumbnails = new JacketThumbnails(Path.Combine(Application.temporaryCachePath, THUMBNAIL_DIRECTORY));
 
@@ -820,6 +893,7 @@ namespace OpenSekai.App.UI
             _busy?.Dispose();
             _import?.Dispose();
             _deletion?.Dispose();
+            _plates?.Dispose();
             _thumbnails?.Dispose();
             if (_camera != null)
             {
