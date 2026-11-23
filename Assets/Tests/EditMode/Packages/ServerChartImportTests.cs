@@ -4,6 +4,7 @@ using System.IO;
 using System.IO.Compression;
 using NUnit.Framework;
 using OpenSekai.Infrastructure.Packages;
+using OpenSekai.Infrastructure.Sonolus;
 using UnityEngine.TestTools;
 
 namespace OpenSekai.Tests.EditMode.Packages
@@ -11,6 +12,68 @@ namespace OpenSekai.Tests.EditMode.Packages
     public sealed class ServerChartImportTests
     {
         private string _root;
+
+        [TestCase("https://opensekai.com/download?id=761", "os-761")]
+        [TestCase("https://opensekai.com/chart?other=1&id=761", "os-761")]
+        [TestCase("https://opensekai.com/chart?id=761&id=12", null)]
+        [TestCase("https://opensekai.com.fake.org/chart?id=761", null)]
+        [TestCase("https://opensekai.com:444/chart?id=761", null)]
+        [TestCase("https://opensekai.com/?zone=quality&id=761", null)]
+        public void RankLookupTargetsOnlyASinglePublisherChart(string page, string key)
+        {
+            Assert.That(ChartRankCache.Key(SongPackageSource.FromWeb(page, "https://cdn.test/song.zip")), Is.EqualTo(key));
+        }
+
+        [TestCase("quality", true)]
+        [TestCase("beginner", false)]
+        [TestCase("abstract", false)]
+        public void DetailAndDownloadMetadataAgreeOnRankedContentAndLevel(string zone, bool ranked)
+        {
+            string html = "<div class=\"detail-labels\"><span class=\"badge master\" style=\"color:red\">master · 34</span>"
+                + "<span class=\"zone-badge " + zone + "\">标签</span></div><a href=\"/download?id=761\">下载</a>";
+            var verdict = ChartRankCache.ParseDetail(html, "761");
+            Assert.That(verdict.Ranked, Is.EqualTo(ranked));
+            Assert.That(verdict.Level, Is.EqualTo(34));
+            Assert.That(ChartRankCache.ParseDetail(html, "99"), Is.Null);
+            Assert.That(ChartRankCache.FromWeb("unknown", 34, "file"), Is.Null);
+            var snapshot = ChartRankCache.FromWeb(zone, 34, "file");
+            Assert.That(snapshot.Matches("file", 34), Is.EqualTo(ranked));
+            Assert.That(snapshot.Matches("edited", 34), Is.False);
+            Assert.That(snapshot.Matches("file", 38), Is.False);
+        }
+
+        [TestCase("https://sonolus.sbuga.com", true)]
+        [TestCase("https://sonolus.sbuga.com:443", true)]
+        [TestCase("https://sonolus.sbuga.com/en", true)]
+        [TestCase("https://sonolus.sbuga.com:444", false)]
+        [TestCase("https://sonolus.sbuga.com.other.test", false)]
+        [TestCase("https://untitledcharts.com", false)]
+        public void SbugaRanksUntaggedChartsFromThePublisher(string url, bool expected)
+        {
+            var server = SonolusServerAddress.Parse(url);
+            var level = SonolusLevel.From(Newtonsoft.Json.Linq.JObject.FromObject(new { name = "song/expert", rating = 30 }));
+            var verdict = ChartRankCache.FromLevel(server, level, "original");
+            Assert.That(verdict.Matches("original", 30), Is.EqualTo(expected));
+            Assert.That(verdict.Matches("edited", 30), Is.False);
+            Assert.That(verdict.Matches("original", 31), Is.False);
+            string key = ChartRankCache.SonolusKey(server, level.Name);
+            if (expected) Assert.That(key, Does.Match("^sbuga-[0-9a-f]{64}$"));
+            else Assert.That(key, Is.Null);
+        }
+
+        [TestCase("Staff Pick", "trophy", true)]
+        [TestCase("", "trophy", true)]
+        [TestCase("Staff Pick", "tag", false)]
+        public void StaffPickUsesThePublisherTag(string title, string icon, bool picked)
+        {
+            const string NAME = "UnCh-1acf28f11b564a13a3d13bae634e92dc";
+            var level = SonolusLevel.From(Newtonsoft.Json.Linq.JObject.FromObject(new { name = NAME, tags = new[] { new { title, icon } } }));
+            Assert.That(ChartRankCache.IsStaffPick(level), Is.EqualTo(picked));
+            SonolusServerAddress.TryParse("https://untitledcharts.com", out var server, out _, out _);
+            Assert.That(ChartRankCache.UntitledKey(server, NAME), Is.EqualTo(NAME));
+            SonolusServerAddress.TryParse("https://untitledcharts.com/community", out server, out _, out _);
+            Assert.That(ChartRankCache.UntitledKey(server, NAME), Is.Null);
+        }
         [SetUp]
         public void SetUp()
         {
@@ -129,12 +192,18 @@ namespace OpenSekai.Tests.EditMode.Packages
             var firstTask = manager.ImportDownloadedZipAsync(zip, "42");
             while (!firstTask.IsCompleted) yield return null;
             var first = firstTask.GetAwaiter().GetResult();
+            Assert.That(SongPackageSource.Read(first), Is.Null);
             // Simulate process death after publishing but before acknowledging the download.
             var restarted = new SongPackageManager(manager.RootDirectory);
-            var recoveredTask = restarted.ImportDownloadedZipAsync(zip, "42");
+            const string PAGE = "https://charts.test/song?id=歌#downloads";
+            const string DOWNLOAD = "https://cdn.test/package.zip?signature=Ab%2FC";
+            var recoveredTask = restarted.ImportDownloadedZipAsync(zip, "42", source: SongPackageSource.FromWeb(PAGE, DOWNLOAD));
             while (!recoveredTask.IsCompleted) yield return null;
             var recovered = recoveredTask.GetAwaiter().GetResult();
             Assert.That(recovered.RootDirectory, Is.EqualTo(first.RootDirectory));
+            var source = SongPackageSource.Read(recovered);
+            Assert.That(source.PageUrl, Is.EqualTo(PAGE));
+            Assert.That(source.DownloadUrl, Is.EqualTo(DOWNLOAD));
             Assert.That(restarted.LoadItems().Count, Is.EqualTo(2));
             Assert.That(Directory.GetDirectories(_root, ".chart-import-*"), Is.Empty);
         }
@@ -154,14 +223,36 @@ namespace OpenSekai.Tests.EditMode.Packages
                     score.Write(@"{""bgmOffset"":0,""entities"":[]}");
             }
 
-            var task = manager.ImportDownloadedZipAsync(zip, "45");
+            var task = manager.ImportDownloadedZipAsync(zip, "45", source: SongPackageSource.FromWeb(
+                "https://charts.test/chart/1", "https://cdn.test/1.zip?token=abc"));
             while (!task.IsCompleted) yield return null;
             var installed = task.GetAwaiter().GetResult();
 
             Assert.That(installed.Manifest.chartFormat, Is.EqualTo("next-rush"));
             Assert.That(Path.GetFileName(installed.ScorePath), Is.EqualTo(SCORE_NAME));
             Assert.That(File.Exists(installed.ScorePath), Is.True);
+            Assert.That(SongPackageSource.Read(installed).DownloadUrl, Is.EqualTo("https://cdn.test/1.zip?token=abc"));
+            string exported = manager.ExportZip(installed, Path.Combine(_root, "exported.zip"));
+            using (var archive = ZipFile.OpenRead(exported))
+            {
+                Assert.That(archive.GetEntry("web-source.json"), Is.Null);
+                Assert.That(archive.GetEntry(SCORE_NAME), Is.Not.Null);
+            }
             Assert.That(Directory.GetDirectories(_root, ".chart-import-*"), Is.Empty);
+        }
+
+        [Test]
+        public void ExistingSonolusRecordKeepsItsServerAndLevelLinks()
+        {
+            var manager = new SongPackageManager(Path.Combine(_root, "library"));
+            var package = manager.CreateNewEntry();
+            string file = Path.Combine(package.RootDirectory, "sonolus-source.json");
+            const string JSON = "{\"server\":\"https://charts.test/pack\",\"name\":\"song / 1\"}";
+            File.WriteAllText(file, JSON);
+            var source = SongPackageSource.Read(package);
+            Assert.That(source.SonolusServerUrl, Is.EqualTo("https://charts.test/pack"));
+            Assert.That(source.SonolusLevelUrl, Is.EqualTo("https://charts.test/pack/levels/song%20%2F%201"));
+            Assert.That(File.ReadAllText(file), Is.EqualTo(JSON));
         }
 
         [UnityTest]

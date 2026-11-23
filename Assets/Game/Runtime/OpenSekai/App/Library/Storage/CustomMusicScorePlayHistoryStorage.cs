@@ -214,6 +214,7 @@ namespace OpenSekai.App.Library
 				AppVersion = Application.version,
 				LivePlayMode = bootData.LivePlayMode.ToString(),
 				ScoreKey = bootData.CustomMusicScoreKey,
+				Ranked = bootData.CustomMusicScoreRanked,
 				CustomMusicScoreId = bootData.CustomMusicScoreId,
 				CustomMusicScorePath = bootData.CustomMusicScorePath ?? string.Empty,
 				Title = bootData.MusicData?.Music?.title ?? manifest?.title ?? string.Empty,
@@ -298,6 +299,9 @@ namespace OpenSekai.App.Library
 		/// </summary>
 		[JsonProperty("scoreKey")]
 		public string ScoreKey { get; init; }
+
+		[JsonProperty("ranked")]
+		public bool Ranked { get; init; }
 
 		[JsonProperty("playedAtUtc")]
 		public string PlayedAtUtc { get; init; }

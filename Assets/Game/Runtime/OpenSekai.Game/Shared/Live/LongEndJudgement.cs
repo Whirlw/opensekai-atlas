@@ -28,7 +28,7 @@ namespace OpenSekai.Shared.Live
             return ms >= -EARLY_GOOD_MS && ms <= LATE_GOOD_MS;
         }
 
-        /// <summary>Whether a release at this offset lands in the Perfect band (graded JustPerfect).</summary>
+        /// <summary>Whether a release at this offset lands in the Perfect band.</summary>
         public static bool IsPerfect(float offsetSeconds)
         {
             float ms = offsetSeconds * 1000f;
@@ -54,12 +54,12 @@ namespace OpenSekai.Shared.Live
 
             if (early)
             {
-                if (magnitude <= EARLY_PERFECT_MS) return NoteResult.JustPerfect;
+                if (magnitude <= EARLY_PERFECT_MS) return NoteResult.Perfect;
                 if (magnitude <= EARLY_GREAT_MS) return NoteResult.Great;
                 return NoteResult.Good;
             }
 
-            if (magnitude <= LATE_PERFECT_MS) return NoteResult.JustPerfect;
+            if (magnitude <= LATE_PERFECT_MS) return NoteResult.Perfect;
             if (magnitude <= LATE_GREAT_MS) return NoteResult.Great;
             return NoteResult.Good;
         }

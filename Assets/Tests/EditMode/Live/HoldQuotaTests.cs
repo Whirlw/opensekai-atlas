@@ -124,7 +124,7 @@ namespace OpenSekai.Tests.EditMode.Live
             harness.Step(tailTime, 10d + tailTime,
                 LiveHarness.Touch(1, positions[4], 10d + tailTime, TouchPhase.Ended),
                 LiveHarness.Touch(2, positions[6], 10d + tailTime, TouchPhase.Stationary));
-            Assert.That(leftTail.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(leftTail.Result, Is.EqualTo(NoteResult.Perfect));
             Assert.That(rightTail.Result, Is.EqualTo(NoteResult.None), "one lift cannot grade both overlapping tails");
 
             float secondLift = tailTime + FRAME;

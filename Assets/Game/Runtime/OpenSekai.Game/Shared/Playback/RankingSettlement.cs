@@ -1,31 +1,53 @@
 using System;
 using System.Collections.Generic;
 using Sekai.Core.Live;
+using OpenSekai.Shared.Scoring;
 
 namespace OpenSekai.Shared.Playback
 {
     public enum ClearAward { None, Clear, FullCombo, AllPerfect }
-    public enum RankingEligibility { Eligible, Auto, Incomplete, TestPlay, MissingChart, UnknownRules, InvalidChart, LoadError }
+    public enum RankingEligibility { Eligible, Auto, Incomplete, TestPlay, MissingChart, UnknownRules, InvalidChart, LoadError, Unranked, BelowRankC }
     public enum HistorySaveState { NotRecorded, Saved, SaveFailed }
 
     public static class RankingRules
     {
-        public const int FORMULA_VERSION = 1;
-        public const int MAXIMUM_SCORE = 1_000_000;
+        public const int FORMULA_VERSION = 2;
+        public const int MAXIMUM_SCORE = ScoreGauge.MAXIMUM_SCORE;
+        private const int POINTS_PER_LEVEL = 10;
         private static readonly int[] _tierStarts = { 0, 3000, 6000, 8400, 9300 };
 
         public static int Tier(long total) => Array.FindLastIndex(_tierStarts, threshold => total >= threshold);
 
+        // Both history versions contain the raw inputs needed to rebuild Best 30.
+        public static bool SupportsFormula(int version) => version == 1 || version == FORMULA_VERSION;
+
+        public static bool ReachesRankC(int score, int maximum) =>
+            maximum > 0 && (long)score * MAXIMUM_SCORE >= (long)maximum * ScoreGauge.SCORE_C;
+
         public static long BasePoints(int level, int score, int maximum)
         {
             if (level <= 0 || maximum <= 0) throw new ArgumentOutOfRangeException();
-            decimal earned = Math.Min(Math.Max(score, 0), maximum);
-            decimal rate = earned / maximum;
-            return (long)Math.Round(10m * level * rate * rate, MidpointRounding.AwayFromZero);
+            if (!ReachesRankC(score, maximum)) return 0;
+
+            decimal normalized = (decimal)Math.Min(score, maximum) * MAXIMUM_SCORE / maximum;
+            decimal effectiveLevel = level + Math.Max(0, level - 33) / 2m;
+            decimal Segment(int fromScore, int toScore, int levelsBelowFull)
+            {
+                decimal fromLevel = Math.Max(0m, effectiveLevel - levelsBelowFull);
+                decimal toLevel = Math.Max(0m, effectiveLevel - levelsBelowFull + 2);
+                return fromLevel + (toLevel - fromLevel) * (normalized - fromScore) / (toScore - fromScore);
+            }
+
+            decimal resultLevel;
+            if (normalized < ScoreGauge.SCORE_B) resultLevel = Segment(ScoreGauge.SCORE_C, ScoreGauge.SCORE_B, 8);
+            else if (normalized < ScoreGauge.SCORE_A) resultLevel = Segment(ScoreGauge.SCORE_B, ScoreGauge.SCORE_A, 6);
+            else if (normalized < ScoreGauge.SCORE_S) resultLevel = Segment(ScoreGauge.SCORE_A, ScoreGauge.SCORE_S, 4);
+            else resultLevel = Segment(ScoreGauge.SCORE_S, MAXIMUM_SCORE, 2);
+            return (long)Math.Round(resultLevel * POINTS_PER_LEVEL, MidpointRounding.AwayFromZero);
         }
 
         public static int Bonus(ClearAward award) =>
-            award == ClearAward.AllPerfect ? 10 : award == ClearAward.FullCombo ? 5 : 0;
+            award == ClearAward.AllPerfect ? POINTS_PER_LEVEL : award == ClearAward.FullCombo ? POINTS_PER_LEVEL / 2 : 0;
 
         public static ClearAward Award(PlayResultKind kind, bool auto, LiveScore score)
         {

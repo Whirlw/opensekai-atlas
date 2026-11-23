@@ -7,14 +7,14 @@ namespace Sekai.Core.Live
 {
 	public class ScoreLogic
 	{
-		private const int DEFAULT_TOTAL_SCORE = 1000000;
+		private const int DEFAULT_TOTAL_SCORE = ScoreGauge.MAXIMUM_SCORE;
 
 		private readonly LiveBundleBuildData _liveBundleBuildData;
-		private MasterPlayLevelScore _scoreInfo;
+		private ScoreGauge _gauge = ScoreGauge.Standard;
 
 		/// <summary>
 		/// 已经分配过分数的音符数（不含装饰音符）。用于把 1,000,000 均匀摊到每个音符上：
-		/// 第 i 个音符拿 round(1e6*(i+1)/n) - round(1e6*i/n)，n 个音符全 JustPerfect 时总分正好 =
+		/// 第 i 个音符拿 round(1e6*(i+1)/n) - round(1e6*i/n)，n 个音符全 Perfect 时总分正好 =
 		/// 1,000,000。直接按 1e6/n 取整会让每音符少一点，n=2019 的谱面满分只有 999,405。
 		/// </summary>
 		private int _scoredNoteCount;
@@ -73,7 +73,7 @@ namespace Sekai.Core.Live
 		public virtual void Setup(LiveBootDataBase bootData, MusicScore musicScore)
 		{
 			_score = default;
-			_scoreInfo = bootData?.MusicData?.Score;
+			_gauge = ScoreGauge.Create(bootData?.MusicData?.Score);
 			// The live's own settings snapshot decides; the stored settings only when there is none.
 			_fakePerfect = bootData?.LiveSettingData?.UsesAutoFakePerfectMode
 				?? LiveSettingsStore.Shared.Load()?.UsesAutoFakePerfectMode == true;
@@ -128,10 +128,6 @@ namespace Sekai.Core.Live
 
 			switch (note?.Result)
 			{
-				case NoteResult.JustPerfect:
-					_score.justPerfectCount++;
-					_score.perfectCount++;
-					break;
 				case NoteResult.Perfect:
 					_score.perfectCount++;
 					break;
@@ -177,10 +173,6 @@ namespace Sekai.Core.Live
 			int noteBaseScore = TakeNextNoteBaseScore();
 			int addScore = note.Result switch
 			{
-				// A just-perfect hit and a perfect hit pay the same: the tighter window is a visual
-				// nuance, not a scoring one. Paying perfect only 90% made every all-PERFECT play fall
-				// short of 1,000,000.
-				NoteResult.JustPerfect => noteBaseScore,
 				NoteResult.Perfect => noteBaseScore,
 				NoteResult.Great => UnityEngine.Mathf.RoundToInt(noteBaseScore * 0.7f),
 				NoteResult.Good => UnityEngine.Mathf.RoundToInt(noteBaseScore * 0.5f),
@@ -196,7 +188,7 @@ namespace Sekai.Core.Live
 
 		/// <summary>
 		/// 取当前音符应得的基分：把 1,000,000 累积摊分，第 i 个音符 = round(1e6*(i+1)/n) - round(1e6*i/n)。
-		/// 这样 n 个音符全 JustPerfect 时最后一次正好补上前面所有截断误差，总分严格等于 1,000,000。
+		/// 这样 n 个音符全 Perfect 时最后一次正好补上前面所有截断误差，总分严格等于 1,000,000。
 		/// </summary>
 		private int TakeNextNoteBaseScore()
 		{
@@ -254,22 +246,7 @@ namespace Sekai.Core.Live
 
 		public virtual void UpdateScoreRank()
 		{
-			if (_scoreInfo != null && (_scoreInfo.s > 0 || _scoreInfo.a > 0 || _scoreInfo.b > 0 || _scoreInfo.c > 0))
-			{
-				_score.rank = ScoreGauge.GetRank(_scoreInfo, _score.totalScore);
-				return;
-			}
-
-			// OpenSekai fallback for custom scores: keep rank thresholds aligned with ScoreGaugeCalculator.Create(1000000).
-			int rankS = UnityEngine.Mathf.FloorToInt(ScoreGauge.RANK_RATE_S * DEFAULT_TOTAL_SCORE);
-			int rankA = UnityEngine.Mathf.FloorToInt(ScoreGauge.RANK_RATE_A * DEFAULT_TOTAL_SCORE);
-			int rankB = UnityEngine.Mathf.FloorToInt(ScoreGauge.RANK_RATE_B * DEFAULT_TOTAL_SCORE);
-			int rankC = UnityEngine.Mathf.FloorToInt(ScoreGauge.RANK_RATE_C * DEFAULT_TOTAL_SCORE);
-			_score.rank = _score.totalScore >= rankS ? ScoreRank.S
-				: _score.totalScore >= rankA ? ScoreRank.A
-				: _score.totalScore >= rankB ? ScoreRank.B
-				: _score.totalScore >= rankC ? ScoreRank.C
-				: ScoreRank.D;
+			_score.rank = _gauge.RankOf(_score.totalScore);
 		}
 	}
 }

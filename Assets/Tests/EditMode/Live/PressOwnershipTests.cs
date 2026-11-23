@@ -133,8 +133,8 @@ namespace OpenSekai.Tests.EditMode.Live
 
             Assert.That(left.JudgmentCalls, Is.EqualTo(1));
             Assert.That(right.JudgmentCalls, Is.EqualTo(1));
-            Assert.That(left.Result, Is.EqualTo(NoteResult.JustPerfect));
-            Assert.That(right.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(left.Result, Is.EqualTo(NoteResult.Perfect));
+            Assert.That(right.Result, Is.EqualTo(NoteResult.Perfect));
         }
 
         /// <summary>
@@ -156,7 +156,7 @@ namespace OpenSekai.Tests.EditMode.Live
             _logic.OnInput();
 
             Assert.That(early.JudgmentCalls, Is.EqualTo(1));
-            Assert.That(early.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(early.Result, Is.EqualTo(NoteResult.Perfect));
             Assert.That(shared.JudgmentCalls, Is.EqualTo(1), "The finger that can play only this key gets it.");
             Assert.That(shared.Result, Is.Not.EqualTo(NoteResult.None));
         }
@@ -173,14 +173,14 @@ namespace OpenSekai.Tests.EditMode.Live
             _logic.OnInput();
 
             Assert.That(left.JudgmentCalls + right.JudgmentCalls, Is.EqualTo(1));
-            Assert.That(left.Result, Is.EqualTo(NoteResult.JustPerfect), "The first sample spends the credit.");
+            Assert.That(left.Result, Is.EqualTo(NoteResult.Perfect), "The first sample spends the credit.");
             Assert.That(right.Result, Is.EqualTo(NoteResult.None));
             Assert.That(_logic.TapCount, Is.EqualTo(2), "Both samples are still taps.");
 
             _source.Clear();
             _source.Add(Press(3, 6f, fingerId: 7));
             _logic.OnInput();
-            Assert.That(right.Result, Is.EqualTo(NoteResult.JustPerfect), "The next frame has a credit of its own.");
+            Assert.That(right.Result, Is.EqualTo(NoteResult.Perfect), "The next frame has a credit of its own.");
         }
 
         [Test]
@@ -198,8 +198,8 @@ namespace OpenSekai.Tests.EditMode.Live
             _source.Add(PressAt(2, laterPressNearer ? 3.5f : 4.2f, INPUT_TIME + 0.08, fingerId: 7));
             _logic.OnInput();
 
-            Assert.That(first.Result, Is.EqualTo(NoteResult.JustPerfect), "The first press takes the first note on time.");
-            Assert.That(second.Result, Is.EqualTo(NoteResult.JustPerfect), "The second press takes the second note on time.");
+            Assert.That(first.Result, Is.EqualTo(NoteResult.Perfect), "The first press takes the first note on time.");
+            Assert.That(second.Result, Is.EqualTo(NoteResult.Perfect), "The second press takes the second note on time.");
             Assert.That(first.JudgmentCalls + second.JudgmentCalls, Is.EqualTo(2));
         }
 
@@ -218,8 +218,8 @@ namespace OpenSekai.Tests.EditMode.Live
             _source.Add(PressAt(2, 5f, INPUT_TIME + 0.042, fingerId: 1));
             _logic.OnInput();
 
-            Assert.That(early.Result, Is.EqualTo(NoteResult.JustPerfect), "The earlier press takes the earlier note.");
-            Assert.That(late.Result, Is.EqualTo(NoteResult.JustPerfect), "The later press takes the later note.");
+            Assert.That(early.Result, Is.EqualTo(NoteResult.Perfect), "The earlier press takes the earlier note.");
+            Assert.That(late.Result, Is.EqualTo(NoteResult.Perfect), "The later press takes the later note.");
         }
 
         [Test]
@@ -294,7 +294,7 @@ namespace OpenSekai.Tests.EditMode.Live
             _logic.OnInput();
 
             Assert.That(left.JudgmentCalls + right.JudgmentCalls, Is.EqualTo(1));
-            Assert.That(left.Result, Is.EqualTo(NoteResult.JustPerfect), "The first sample spends the credit.");
+            Assert.That(left.Result, Is.EqualTo(NoteResult.Perfect), "The first sample spends the credit.");
             Assert.That(right.Result, Is.EqualTo(NoteResult.None));
         }
 
@@ -562,7 +562,7 @@ namespace OpenSekai.Tests.EditMode.Live
                 Assert.That(bar.Head.Candidate.CalcNoteResult(t), Is.EqualTo(bar.CalcNoteResult(t)));
             }
 
-            Assert.That(bar.Head.Candidate.CalcNoteResult(0f), Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(bar.Head.Candidate.CalcNoteResult(0f), Is.EqualTo(NoteResult.Perfect));
         }
     }
 }

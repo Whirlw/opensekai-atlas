@@ -14,33 +14,34 @@ namespace OpenSekai.Tests.EditMode.Live
     {
         private const int TOTAL = 1000000;
 
-        private static MasterPlayLevelScore Thresholds() => new MasterPlayLevelScore
+        [TestCase(-1, 0f)]
+        [TestCase(450000, 0.225f)]
+        [TestCase(900000, 0.45f)]
+        [TestCase(925000, 0.525f)]
+        [TestCase(950000, 0.60f)]
+        [TestCase(962500, 0.675f)]
+        [TestCase(975000, 0.75f)]
+        [TestCase(982500, 0.825f)]
+        [TestCase(990000, 0.90f)]
+        [TestCase(995000, 0.95f)]
+        public void ScoreFillsTheIntervalBetweenItsMarkers(int score, float fill)
         {
-            s = 900000, a = 750000, b = 600000, c = 450000
-        };
-
-        [Test]
-        public void RankRatesMatchTheDesignTable()
-        {
-            Assert.That(ScoreGauge.RANK_RATE_S, Is.EqualTo(0.9f).Within(0.0001f));
-            Assert.That(ScoreGauge.RANK_RATE_A, Is.EqualTo(0.75f).Within(0.0001f));
-            Assert.That(ScoreGauge.RANK_RATE_B, Is.EqualTo(0.6f).Within(0.0001f));
-            Assert.That(ScoreGauge.RANK_RATE_C, Is.EqualTo(0.45f).Within(0.0001f));
+            Assert.That(ScoreGauge.Standard.ProgressOf(score), Is.EqualTo(fill).Within(0.00001f));
         }
 
         [TestCase(1000000, ScoreRank.S)]
-        [TestCase(900000, ScoreRank.S)]
-        [TestCase(899999, ScoreRank.A)]
-        [TestCase(750000, ScoreRank.A)]
-        [TestCase(749999, ScoreRank.B)]
-        [TestCase(600000, ScoreRank.B)]
-        [TestCase(599999, ScoreRank.C)]
-        [TestCase(450000, ScoreRank.C)]
-        [TestCase(449999, ScoreRank.D)]
+        [TestCase(990000, ScoreRank.S)]
+        [TestCase(989999, ScoreRank.A)]
+        [TestCase(975000, ScoreRank.A)]
+        [TestCase(974999, ScoreRank.B)]
+        [TestCase(950000, ScoreRank.B)]
+        [TestCase(949999, ScoreRank.C)]
+        [TestCase(900000, ScoreRank.C)]
+        [TestCase(899999, ScoreRank.D)]
         [TestCase(0, ScoreRank.D)]
         public void RankFollowsTheThresholdTable(int score, ScoreRank expected)
         {
-            Assert.That(ScoreGauge.GetRank(Thresholds(), score), Is.EqualTo(expected));
+            Assert.That(ScoreGauge.Create(new MasterPlayLevelScore()).RankOf(score), Is.EqualTo(expected));
         }
 
         [Test]

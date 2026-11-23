@@ -61,7 +61,7 @@ namespace OpenSekai.App.Library
 
         private static RankingEligibility Eligibility(CustomMusicScorePlayHistoryRecord play)
         {
-            if (play.SchemaVersion != 3 || play.FormulaVersion != RankingRules.FORMULA_VERSION ||
+            if (play.SchemaVersion != 3 || !RankingRules.SupportsFormula(play.FormulaVersion) ||
                 play.MaximumScore <= 0 || !play.EndReason.HasValue)
                 return RankingEligibility.UnknownRules;
             if (play.AutoCount != 0) return RankingEligibility.Auto;
@@ -69,7 +69,9 @@ namespace OpenSekai.App.Library
             if (string.IsNullOrWhiteSpace(play.ScoreKey)) return RankingEligibility.MissingChart;
             if (play.PlayLevel <= 0 || play.TotalComboCount <= 0 || play.TotalScore < 0)
                 return RankingEligibility.InvalidChart;
-            return RankingEligibility.Eligible;
+            if (!play.Ranked) return RankingEligibility.Unranked;
+            return RankingRules.ReachesRankC(play.TotalScore, play.MaximumScore)
+                ? RankingEligibility.Eligible : RankingEligibility.BelowRankC;
         }
 
         private RankingStanding Standing(string key)

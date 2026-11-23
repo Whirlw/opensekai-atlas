@@ -62,5 +62,6 @@ namespace OpenSekai.App.Playback
             + (Audio != null ? (long)Audio.samples * Audio.channels * sizeof(float) : 0L);
         internal float? Loudness { get; set; }
         internal bool LoudnessMeasured { get; set; }
+        internal bool Ranked { get; set; }
     }
 }

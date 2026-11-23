@@ -62,11 +62,6 @@ namespace OpenSekai.Tests.EditMode.Live
 		[TestCase(0f)]
 		[TestCase(0.004f)]
 		[TestCase(-0.004f)]
-		public void APressOnTheBeatIsJustPerfect(float offset)
-		{
-			Assert.That(PressAt(offset), Is.EqualTo(NoteResult.JustPerfect));
-		}
-
 		[TestCase(-0.03f)]
 		[TestCase(0.03f)]
 		public void APressInsideThePerfectBandIsPerfect(float offset)

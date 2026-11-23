@@ -160,7 +160,7 @@ namespace OpenSekai.Tests.EditMode.Live
             combo.SetParentNote(bar);
             bar.Excute(Info(0f), 0);
 
-            combo.FinishWith(NoteResult.JustPerfect);
+            combo.FinishWith(NoteResult.Perfect);
 
             Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done), "A combo marker is graded on its own beat, not the bar's.");
         }
@@ -177,7 +177,7 @@ namespace OpenSekai.Tests.EditMode.Live
             bar.Judgment(ref press.Touch, 4.5f);
 
             Assert.That(tail.ParentRole, Is.EqualTo(NoteParentRole.Tail));
-            tail.FinishWith(NoteResult.JustPerfect);
+            tail.FinishWith(NoteResult.Perfect);
 
             Assert.That(bar.State, Is.EqualTo(NoteState.Done), "The tail is the one child that ends the bar.");
         }
@@ -221,7 +221,7 @@ namespace OpenSekai.Tests.EditMode.Live
             finger.Touch.phase = TouchPhase.Moved;
             logic.Input.ActiveInputs.Add(finger);
             logic.Scheduler.Run();
-            Assert.That(slide.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(slide.Result, Is.EqualTo(NoteResult.Perfect));
             Assert.That(slide.State, Is.EqualTo(NoteState.Done));
         }
 
@@ -299,7 +299,7 @@ namespace OpenSekai.Tests.EditMode.Live
             second.Touch.phase = TouchPhase.Moved;
             logic.Input.ActiveInputs.Add(second);
             logic.Scheduler.Run();
-            Assert.That(rub.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(rub.Result, Is.EqualTo(NoteResult.Perfect));
         }
         [Test]
         public void ASlideFinallyMissesAfterTheLateWindow()
@@ -325,7 +325,7 @@ namespace OpenSekai.Tests.EditMode.Live
             finger.Touch.phase = TouchPhase.Moved;
             logic.Input.ActiveInputs.Add(finger);
             logic.Scheduler.Run();
-            Assert.That(slide.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(slide.Result, Is.EqualTo(NoteResult.Perfect));
             Assert.That(bar.LastTime, Is.EqualTo(1f).Within(1e-5f), "the bar keeps being refreshed");
         }
         [TestCase(false)]
@@ -346,7 +346,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(held.JudgmentCalls, Is.EqualTo(1));
             Assert.That(held.HasFinger, Is.True);
             Assert.That(tap.State, Is.EqualTo(NoteState.Done));
-            Assert.That(tap.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(tap.Result, Is.EqualTo(NoteResult.Perfect));
         }
 
         [TestCase(NoteCategory.Long, false, false)]
@@ -394,20 +394,20 @@ namespace OpenSekai.Tests.EditMode.Live
             logic.Scheduler.Run();
             // A missing input now becomes an irreversible combo MISS at the following update.
             foreach (var note in notes) note.Excute(Info(0.142f), 0);
-            Assert.That(combos[0].Result, Is.EqualTo(NoteResult.JustPerfect));
-            Assert.That(combos[1].Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(combos[0].Result, Is.EqualTo(NoteResult.Perfect));
+            Assert.That(combos[1].Result, Is.EqualTo(NoteResult.Perfect));
             Assert.That(notes[0].HasFinger, Is.True);
             Assert.That(notes[1].HasFinger, Is.True);
         }
 
-        [TestCase(0f, NoteResult.JustPerfect)]
-        [TestCase(-0.058f, NoteResult.JustPerfect)]
+        [TestCase(0f, NoteResult.Perfect)]
+        [TestCase(-0.058f, NoteResult.Perfect)]
         [TestCase(-0.06f, NoteResult.Great)]
         [TestCase(-0.108f, NoteResult.Great)]
         [TestCase(-0.109f, NoteResult.Good)]
         [TestCase(-0.125f, NoteResult.Good)]
         [TestCase(-0.126f, NoteResult.None)]
-        [TestCase(0.066f, NoteResult.JustPerfect)]
+        [TestCase(0.066f, NoteResult.Perfect)]
         [TestCase(0.067f, NoteResult.Great)]
         [TestCase(0.133f, NoteResult.Great)]
         [TestCase(0.134f, NoteResult.Good)]
@@ -645,7 +645,7 @@ namespace OpenSekai.Tests.EditMode.Live
             logic.Input.ActiveInputs.Add(Input(1, 4.5f));
             logic.currentFrameInfo = MusicScore.CurrentFrameInfo = Info(0.125f);
             logic.Scheduler.RefreshSustainedHolds();
-            Assert.That(combo.Result, Is.EqualTo(NoteResult.JustPerfect), "A refreshed hold must still score its interior combo ticks.");
+            Assert.That(combo.Result, Is.EqualTo(NoteResult.Perfect), "A refreshed hold must still score its interior combo ticks.");
             Assert.That(note.HasFinger, Is.True);
         }
 

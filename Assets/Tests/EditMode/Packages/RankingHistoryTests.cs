@@ -10,14 +10,14 @@ namespace OpenSekai.Tests.EditMode.Packages
 {
     public class RankingHistoryTests
     {
-        [TestCase(SettlementExample.FirstClear, 288, 0, 288)]
-        [TestCase(SettlementExample.SameChartFullCombo, 293, 288, 293)]
+        [TestCase(SettlementExample.FirstClear, 267, 0, 267)]
+        [TestCase(SettlementExample.SameChartFullCombo, 272, 267, 272)]
         [TestCase(SettlementExample.NewChartAllPerfectTierUp, 310, 8390, 8430)]
-        [TestCase(SettlementExample.OutsideBest30, 197, 8390, 8390)]
+        [TestCase(SettlementExample.OutsideBest30, 172, 8390, 8390)]
         [TestCase(SettlementExample.Auto, 0, 0, 0)]
         [TestCase(SettlementExample.Failed, 0, 0, 0)]
         [TestCase(SettlementExample.Retired, 0, 0, 0)]
-        [TestCase(SettlementExample.SaveFailed, 293, 288, 288)]
+        [TestCase(SettlementExample.SaveFailed, 272, 267, 267)]
         public void PreviewMatchesProductionRules(SettlementExample example, int points, int before, int after)
         {
             var result = SettlementSamples.Create(example);
@@ -36,6 +36,38 @@ namespace OpenSekai.Tests.EditMode.Packages
                 Assert.That(s.SaveState, Is.EqualTo(HistorySaveState.SaveFailed));
         }
 
+        [TestCase(31, 990000, 290)]
+        [TestCase(33, 975000, 290)]
+        [TestCase(33, 899999, 0)]
+        [TestCase(33, 900000, 250)]
+        [TestCase(33, 925000, 260)]
+        [TestCase(33, 950000, 270)]
+        [TestCase(33, 962500, 280)]
+        [TestCase(33, 982500, 300)]
+        [TestCase(33, 995000, 320)]
+        [TestCase(34, 1000000, 345)]
+        [TestCase(35, 990000, 340)]
+        [TestCase(35, 1100000, 360)]
+        public void RankingPointsFollowGradeAndCorrectedLevel(int level, int raw, int expected)
+        {
+            Assert.That(RankingRules.BasePoints(level, raw, 1000000), Is.EqualTo(expected));
+            Assert.That(RankingRules.BasePoints(level, raw * 2, 2000000), Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void BelowCFullComboStaysOutOfBest30AndOldRankedScoresUseCurrentRules()
+        {
+            var board = new Best30Index();
+            var below = board.Evaluate(Play("fc", "below", 899999, fullCombo: true), HistorySaveState.Saved);
+            Assert.That(below.Eligibility, Is.EqualTo(RankingEligibility.BelowRankC));
+            Assert.That(below.Award, Is.EqualTo(ClearAward.FullCombo));
+            Assert.That(below.Points, Is.Zero);
+            Assert.That(board.Snapshot().Entries, Is.Empty);
+            var old = board.Evaluate(Play("old", "chart", 900000, formulaVersion: 1), HistorySaveState.Saved);
+            Assert.That(old.Eligibility, Is.EqualTo(RankingEligibility.Eligible));
+            Assert.That(board.Snapshot().Total, Is.EqualTo(220));
+        }
+
         [Test]
         public void ReplayAndRetryNeverCountTheSamePlayOrChartTwice()
         {
@@ -50,7 +82,7 @@ namespace OpenSekai.Tests.EditMode.Packages
                 var initial = history.Submit(first, null, out _);
                 var refresh = history.Submit(better, null, out _);
                 Assert.That(refresh.Before.ChartBest, Is.EqualTo(initial.Points));
-                Assert.That(refresh.After.ChartBest, Is.EqualTo(288));
+                Assert.That(refresh.After.ChartBest, Is.EqualTo(267));
                 Assert.That(history.Read().Entries.Count, Is.EqualTo(1));
 
                 File.AppendAllText(path, "{broken");
@@ -59,9 +91,9 @@ namespace OpenSekai.Tests.EditMode.Packages
                 Assert.That(summary, Is.Null);
                 Assert.That(duplicate.Delta, Is.EqualTo(initial.Delta));
                 reopened.Submit(Play("run-c", "other", 980000), null, out _);
-                Assert.That(reopened.Read().Total, Is.EqualTo(576));
+                Assert.That(reopened.Read().Total, Is.EqualTo(534));
                 Assert.That(File.ReadLines(path).Count(), Is.EqualTo(4));
-                Assert.That(new RankingHistory(path, new PlayHistorySummaryCache()).Read().Total, Is.EqualTo(576));
+                Assert.That(new RankingHistory(path, new PlayHistorySummaryCache()).Read().Total, Is.EqualTo(534));
             }
             finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
         }
@@ -102,9 +134,34 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(board.Snapshot().Entries[0].Play.RecordId, Is.EqualTo("01"));
         }
 
-        private static CustomMusicScorePlayHistoryRecord Play(string id, string key, int raw, string utc = "2026-11-22")
-            => new() { SchemaVersion = 3, RecordId = id, ScoreKey = key, FormulaVersion = RankingRules.FORMULA_VERSION,
+        private static CustomMusicScorePlayHistoryRecord Play(string id, string key, int raw, string utc = "2026-11-22",
+            int formulaVersion = RankingRules.FORMULA_VERSION, bool fullCombo = false)
+            => new() { SchemaVersion = 3, RecordId = id, ScoreKey = key, Ranked = true, FormulaVersion = formulaVersion, IsFullCombo = fullCombo,
                 MaximumScore = RankingRules.MAXIMUM_SCORE, EndReason = PlayResultKind.Completed, PlayedAtUtc = utc,
                 Life = 100, TotalComboCount = 300, TotalScore = raw, PlayLevel = 30 };
+
+        [Test]
+        public void UnrankedAndLegacyPlaysStayInHistoryAndDoNotDisplaceARankedBest()
+        {
+            string root = Path.Combine(Path.GetTempPath(), "OpenSekai-rank-status-" + Guid.NewGuid().ToString("N"));
+            string path = Path.Combine(root, "history.jsonl");
+            try
+            {
+                var history = new RankingHistory(path, new PlayHistorySummaryCache());
+                var ranked = history.Submit(Play("ranked", "same", 975000), null, out _);
+                var legacy = Newtonsoft.Json.Linq.JObject.FromObject(Play("old", "same", 1000000));
+                legacy.Remove("ranked");
+                var play = legacy.ToObject<CustomMusicScorePlayHistoryRecord>();
+                var receipt = history.Submit(play, null, out var summary);
+                Assert.That(receipt.Eligibility, Is.EqualTo(RankingEligibility.Unranked));
+                Assert.That(receipt.Points, Is.Zero);
+                Assert.That(summary.Best.RecordId, Is.EqualTo("old"));
+                Assert.That(receipt.SaveState, Is.EqualTo(HistorySaveState.Saved));
+                var reopened = new RankingHistory(path, new PlayHistorySummaryCache());
+                Assert.That(reopened.Read().Total, Is.EqualTo(ranked.Points));
+                Assert.That(reopened.ReadPage(0, 10).TotalCount, Is.EqualTo(2));
+            }
+            finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+        }
     }
 }

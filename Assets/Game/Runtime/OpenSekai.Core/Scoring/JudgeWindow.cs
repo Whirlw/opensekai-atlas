@@ -8,8 +8,8 @@ namespace OpenSekai.Shared.Scoring
     /// Offsets are positive when the note is still ahead of the input (the player is early) and negative
     /// when it has passed (late), which is why the "after" bounds are compared with a negated value.
     ///
-    /// The order of the branches is the behaviour: JustPerfect is a global window that applies to every
-    /// note type, then the per-type Perfect/Great/Good/Bad windows, then Miss.
+    /// The note type's timing table determines the grade. The center of the timing window only
+    /// determines the timing description.
     /// </summary>
     public static class JudgeWindow
     {
@@ -21,54 +21,43 @@ namespace OpenSekai.Shared.Scoring
             noteMinusNow < -data.BadAfterJudgeTime;
 
         public static (NoteResult, NoteResultDescription) ResultFor(
-            JudgeTimeData data, float offset, bool isDirection, float justPerfectHalf)
+            JudgeTimeData data, float offset, bool isDirection, float onTimeWindowHalf)
         {
-            if (isDirection)
+            var description = DescriptionFor(offset, onTimeWindowHalf);
+            if (data.PerfectBeforeJudgeTime >= offset && -data.PerfectAfterJudgeTime <= offset)
             {
-                if (-justPerfectHalf <= offset && justPerfectHalf >= offset)
-                {
-                    return (NoteResult.JustPerfect, DescriptionFor(offset, justPerfectHalf));
-                }
-
-                if (data.PerfectBeforeJudgeTime >= offset && -data.PerfectAfterJudgeTime <= offset)
-                {
-                    return (NoteResult.Perfect, DescriptionFor(offset, justPerfectHalf));
-                }
-            }
-            else if (data.PerfectBeforeJudgeTime >= offset && -data.PerfectAfterJudgeTime <= offset)
-            {
-                // A flick whose direction was wrong still lands inside the perfect window, but it is not a
-                // perfect: the result reports it as a direction miss so the effect can say so.
-                return (NoteResult.Great, NoteResultDescription.FlickMiss);
+                return isDirection
+                    ? (NoteResult.Perfect, description)
+                    : (NoteResult.Great, NoteResultDescription.FlickMiss);
             }
 
             if (data.GreatBeforeJudgeTime >= offset && -data.GreatAfterJudgeTime <= offset)
             {
-                return (NoteResult.Great, DescriptionFor(offset, justPerfectHalf));
+                return (NoteResult.Great, description);
             }
 
             if (data.GoodBeforeJudgeTime >= offset && -data.GoodAfterJudgeTime <= offset)
             {
-                return (NoteResult.Good, DescriptionFor(offset, justPerfectHalf));
+                return (NoteResult.Good, description);
             }
 
             if (data.BadBeforeJudgeTime >= offset && -data.BadAfterJudgeTime <= offset)
             {
-                return (NoteResult.Bad, DescriptionFor(offset, justPerfectHalf));
+                return (NoteResult.Bad, description);
             }
 
-            return (NoteResult.Miss, DescriptionFor(offset, justPerfectHalf));
+            return (NoteResult.Miss, description);
         }
 
-        /// <summary>Whether an accepted input was early, late, or inside the just-perfect window.</summary>
-        public static NoteResultDescription DescriptionFor(float offset, float justPerfectHalf)
+        /// <summary>Classifies an input's timing independently of the grade.</summary>
+        public static NoteResultDescription DescriptionFor(float offset, float onTimeWindowHalf)
         {
-            if (-justPerfectHalf <= offset && justPerfectHalf >= offset)
+            if (-onTimeWindowHalf <= offset && offset <= onTimeWindowHalf)
             {
                 return NoteResultDescription.Just;
             }
 
-            return offset > justPerfectHalf ? NoteResultDescription.Fast : NoteResultDescription.Late;
+            return offset > onTimeWindowHalf ? NoteResultDescription.Fast : NoteResultDescription.Late;
         }
     }
 }

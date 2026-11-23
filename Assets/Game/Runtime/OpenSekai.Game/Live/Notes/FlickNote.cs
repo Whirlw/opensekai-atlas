@@ -97,7 +97,7 @@ namespace Sekai.Live
 				&& CalcProgress(currentFrameInfo, offsetTime) >= 1f)
 			{
 				// A tail is graded by its own swipe rule (FlickTailJudge), never by this settle: doing
-				// so graded a stationary finger as JustPerfect.
+				// so graded a stationary finger as Perfect.
 				if (ParentRole != NoteParentRole.Tail)
 				{
 					JudgmentFlick(currentFrameInfo.time);
@@ -273,7 +273,7 @@ namespace Sekai.Live
 			}
 
 			_lastInputTime = touch.musicTime;
-			if (MusicScoreInfo.time - touch.musicTime <= -LiveConfig.JustPerfectJudgeTimeHalf && isTrueDirection && isUpdatedDelta)
+			if (MusicScoreInfo.time - touch.musicTime <= -LiveConfig.OnTimeWindowHalfSeconds && isTrueDirection && isUpdatedDelta)
 			{
 				return FinishFlick(touch.musicTime);
 			}
@@ -333,7 +333,7 @@ namespace Sekai.Live
 		internal (NoteResult, NoteResultDescription) GradeAsTail(float musicTime, bool trueDirection)
 		{
 			NoteResult result = LongEndJudgement.Evaluate(musicTime - MusicScoreInfo.time);
-			if (!trueDirection && (result == NoteResult.Perfect || result == NoteResult.JustPerfect))
+			if (!trueDirection && result == NoteResult.Perfect)
 			{
 				return (NoteResult.Great, NoteResultDescription.FlickMiss);
 			}

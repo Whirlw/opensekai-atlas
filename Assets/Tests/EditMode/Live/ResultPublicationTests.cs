@@ -154,10 +154,10 @@ namespace OpenSekai.Tests.EditMode.Live
 
             Assert.That(board.Log, Is.EqualTo(new[]
             {
-                "J tap JustPerfect",
-                "C tap JustPerfect",
-                "S tap JustPerfect #0->1 +1000000",
-                "D tap JustPerfect",
+                "J tap Perfect",
+                "C tap Perfect",
+                "S tap Perfect #0->1 +1000000",
+                "D tap Perfect",
             }));
             Assert.That(board.Score.totalScore, Is.EqualTo(1000000));
             Assert.That(board.Score.combo, Is.EqualTo(1));
@@ -201,14 +201,14 @@ namespace OpenSekai.Tests.EditMode.Live
 
             Assert.That(board.Log, Is.EqualTo(new[]
             {
-                "D head JustPerfect",
-                "C head JustPerfect",
-                "J bar JustPerfect",
-                "S head JustPerfect #0->1 +500000",
-                "J tail JustPerfect",
-                "C tail JustPerfect",
-                "S tail JustPerfect #1->2 +500000",
-                "D tail JustPerfect",
+                "D head Perfect",
+                "C head Perfect",
+                "J bar Perfect",
+                "S head Perfect #0->1 +500000",
+                "J tail Perfect",
+                "C tail Perfect",
+                "S tail Perfect #1->2 +500000",
+                "D tail Perfect",
             }));
             Assert.That(board.Score.totalScore, Is.EqualTo(1000000));
             Assert.That(board.Score.combo, Is.EqualTo(2));
@@ -238,7 +238,7 @@ namespace OpenSekai.Tests.EditMode.Live
             }));
             Assert.That(Of(board, "tap"), Is.EqualTo(new[]
             {
-                "J tap JustPerfect", "C tap JustPerfect", "S tap JustPerfect #1->2 +333334", "D tap JustPerfect",
+                "J tap Perfect", "C tap Perfect", "S tap Perfect #1->2 +333334", "D tap Perfect",
             }));
             Assert.That(board.Log.Take(3), Is.EqualTo(new[] { "D head Miss", "C head Miss", "J bar Miss" }),
                 "the head is the first verdict on the board");
@@ -299,9 +299,9 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(tailEntries, Has.Length.EqualTo(4), string.Join(" | ", board.Log));
             Assert.That(Of(board, "late"), Is.EqualTo(new[]
             {
-                "S late JustPerfect #2->3 +333333", "C late JustPerfect", "D late JustPerfect", "J late JustPerfect",
+                "S late Perfect #2->3 +333333", "C late Perfect", "D late Perfect", "J late Perfect",
             }), string.Join(" | ", board.Log));
-            Assert.That(board.Log.IndexOf(tailEntries[3]), Is.LessThan(board.Log.IndexOf("S late JustPerfect #2->3 +333333")),
+            Assert.That(board.Log.IndexOf(tailEntries[3]), Is.LessThan(board.Log.IndexOf("S late Perfect #2->3 +333333")),
                 "the tail's verdict ends the bar, and the bar's end settles the point");
         }
 
@@ -321,7 +321,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(Of(board, "hidden"), Is.Empty);
             Assert.That(board.Log, Is.EqualTo(new[]
             {
-                "D head JustPerfect", "C head JustPerfect", "J bar JustPerfect", "S head JustPerfect #0->1 +1000000",
+                "D head Perfect", "C head Perfect", "J bar Perfect", "S head Perfect #0->1 +1000000",
             }));
             Assert.That(bar.State, Is.EqualTo(NoteState.Done));
         }
@@ -506,9 +506,9 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(Of(board, "bar"), Has.Length.EqualTo(1));
             Assert.That(Of(board, "tap"), Has.Length.EqualTo(4));
             Assert.That(Of(board, "tail"), Has.Length.EqualTo(4));
-            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.JustPerfect));
-            Assert.That(tap.Result, Is.EqualTo(NoteResult.JustPerfect));
-            Assert.That(tail.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.Perfect));
+            Assert.That(tap.Result, Is.EqualTo(NoteResult.Perfect));
+            Assert.That(tail.Result, Is.EqualTo(NoteResult.Perfect));
         }
     }
 }

@@ -32,7 +32,7 @@
 | cue 文件名（不含 .wav） | 代码中的用途 |
 | --- | --- |
 | `se_live_tap` | 点到没有可判定音符的位置时的点击反馈，不是普通音符 PERFECT 的默认音效。 |
-| `se_live_perfect` | 普通单点 PERFECT / JUST PERFECT / AUTO；也映射到长条端点的判定反馈。 |
+| `se_live_perfect` | 普通单点 PERFECT / AUTO；也映射到长条端点的判定反馈。 |
 | `se_live_great` | 普通单点 GREAT。 |
 | `se_live_good` | 普通单点 GOOD。 |
 | `se_live_critical` | critical 普通单点的判定反馈。 |

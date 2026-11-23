@@ -57,7 +57,7 @@ namespace Sekai.Live
 
 		public static readonly int Life;
 
-		public static readonly float JustPerfectJudgeTimeHalf;
+		public static readonly float OnTimeWindowHalfSeconds;
 
 		public static readonly float JudgeTime;
 
@@ -448,7 +448,7 @@ namespace Sekai.Live
 			OpenSekai.Shared.Scoring.JudgeWindow.IsPast(GetJudgeWindow(type), noteMinusNow);
 
 		private static (NoteResult, NoteResultDescription) GetJudgeResultInternal(float offset, JudgeFrameType judgeFrameType, bool isDirection) =>
-			OpenSekai.Shared.Scoring.JudgeWindow.ResultFor(GetJudgeWindow(judgeFrameType), offset, isDirection, JustPerfectJudgeTimeHalf);
+			OpenSekai.Shared.Scoring.JudgeWindow.ResultFor(GetJudgeWindow(judgeFrameType), offset, isDirection, OnTimeWindowHalfSeconds);
 
 		static LiveConfig()
 		{
@@ -462,7 +462,7 @@ namespace Sekai.Live
 			ContinueNoDamageTime = 1f;
 			MaxSkillCount = 6;
 			Life = 1000;
-			JustPerfectJudgeTimeHalf = 1f / 120f;
+			OnTimeWindowHalfSeconds = 1f / 120f;
 			JudgeTime = 0.125f;
 			LotteryPraiseCount = 5;
 			PraiseComboRate = 0.3f;

@@ -32,7 +32,7 @@ namespace OpenSekai.Tests.EditMode
                 Path.Combine(_historyRoot, "PlayHistory.jsonl"), new PlayHistorySummaryCache());
             ResultPage.ForgetCelebrations();
             _canvas = new GameObject("Canvas", typeof(RectTransform), typeof(Canvas));
-            ((RectTransform)_canvas.transform).sizeDelta = new Vector2(1920f, 1080f);
+            ((RectTransform)_canvas.transform).sizeDelta = new Vector2(1670f, 1080f);
         }
 
         [TearDown]
@@ -71,10 +71,10 @@ namespace OpenSekai.Tests.EditMode
                 "a retired run and a failed one give different reasons");
         }
 
-        [TestCase(SettlementExample.FirstClear, "0  →  288", "288", "第 1 名", "基础 288")]
-        [TestCase(SettlementExample.SameChartFullCombo, "288  →  293", "288  →  293", "第 1 名", "基础 288   FC 奖励 +5")]
+        [TestCase(SettlementExample.FirstClear, "0  →  267", "267", "第 1 名", "基础 267")]
+        [TestCase(SettlementExample.SameChartFullCombo, "267  →  272", "267  →  272", "第 1 名", "基础 267   FC 奖励 +5")]
         [TestCase(SettlementExample.NewChartAllPerfectTierUp, "8,390  →  8,430", "310", "第 1 名", "基础 300   AP 奖励 +10")]
-        [TestCase(SettlementExample.OutsideBest30, "谱面新纪录在 Best 30 之外，总分持平", "192  →  197", "榜外", "基础 192   FC 奖励 +5")]
+        [TestCase(SettlementExample.OutsideBest30, "谱面新纪录在 Best 30 之外，总分持平", "167  →  172", "榜外", "基础 167   FC 奖励 +5")]
         public void TheContributionLinesDescribeTheRanking(
             SettlementExample example, string standing, string best, string position, string breakdown)
         {
@@ -131,13 +131,13 @@ namespace OpenSekai.Tests.EditMode
             page.Skip();
 
             Assert.That(Text(page, "Status"), Is.EqualTo(ResultCopy.NOT_SAVED));
-            Assert.That(Text(page, "Total"), Is.EqualTo("288"));
+            Assert.That(Text(page, "Total"), Is.EqualTo("267"));
             Assert.That(Find<Button>(page, "SaveRetry").gameObject.activeSelf, Is.True);
             Assert.That(Find<RectTransform>(page, "Delta").gameObject.activeSelf, Is.False, "no gain is shown until it is saved");
 
             // The sample was never written, so saving again finds nothing and the page stays as it was.
             Find<Button>(page, "SaveRetry").onClick.Invoke();
-            Assert.That(Text(page, "Total"), Is.EqualTo("288"));
+            Assert.That(Text(page, "Total"), Is.EqualTo("267"));
             Assert.That(Find<Button>(page, "SaveRetry").gameObject.activeSelf, Is.True);
         }
 

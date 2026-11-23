@@ -46,7 +46,7 @@ namespace OpenSekai.App.UI
             _root = LibraryUi.CreateRect("DanShare", layer);
             LibraryUi.Stretch(_root);
             _modal = new LibraryModal(_root, new Vector2(CARD_WIDTH, CARD_HEIGHT), "粘贴段位", Close, withSubtitle: true);
-            _modal.Subtitle.text = "好友复制的段位分享文本以 " + DanDefinition.PREFIX + " 开头，保存后即可挑战同一个段位";
+            _modal.Subtitle.text = "粘贴好友复制的段位分享文本，查看曲目和挑战规则";
             RectTransform body = _modal.Body;
             float footer = LibraryTheme.Layout.MODAL_BUTTON_HEIGHT + 20f;
 
@@ -201,8 +201,9 @@ namespace OpenSekai.App.UI
                 _lines[i].Root.gameObject.SetActive(used);
                 if (!used) continue;
                 DanSongInfo info = DanSongInfo.Resolve(definition.Songs[i]);
-                _lines[i].Bind(i + 1, info.Title, info.Host + "  ·  " + info.LevelName,
-                    info.Installed ? "本机已有" : "开打前下载", info.Installed ? DanCopy.Life : LibraryTheme.Colors.TextMuted, HomeTheme.Colors.Chip);
+                string meta = info.LevelName != null ? info.Host + "  ·  " + info.LevelName : info.Host;
+                _lines[i].Bind(i + 1, info.Title, meta, info.Availability,
+                    info.Installed ? DanCopy.Life : LibraryTheme.Colors.TextMuted, HomeTheme.Colors.Chip);
             }
 
             _songContent.sizeDelta = new Vector2(0f, definition.Songs.Count * (LINE_HEIGHT + GAP));

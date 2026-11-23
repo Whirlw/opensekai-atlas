@@ -26,7 +26,7 @@ namespace OpenSekai.Shared.Playback
 
         internal int For(NoteResult result) => result switch
         {
-            NoteResult.JustPerfect or NoteResult.Perfect => Perfect,
+            NoteResult.Perfect => Perfect,
             NoteResult.Great => Great,
             NoteResult.Good => Good,
             NoteResult.Bad => Bad,

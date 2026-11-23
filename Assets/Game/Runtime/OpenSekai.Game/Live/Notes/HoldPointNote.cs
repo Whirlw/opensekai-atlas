@@ -53,7 +53,7 @@ namespace Sekai.Live
 			}
 
 			if ((_hasContact || _alwaysHeld) && now >= target)
-				Finish(NoteResult.JustPerfect, "pointHit", now);
+				Finish(NoteResult.Perfect, "pointHit", now);
 		}
 
 		public override void ResetNote()
@@ -93,7 +93,7 @@ namespace Sekai.Live
 			if (tail.State != NoteState.Done && (!tailHasInput || now < MusicScoreInfo.time)) return;
 
 			if (_hasContact || _alwaysHeld)
-				Finish(NoteResult.JustPerfect, "pointTerminateHit", now);
+				Finish(NoteResult.Perfect, "pointTerminateHit", now);
 			else if (tailHasInput)
 				Finish(NoteResult.Perfect, "pointTailHit", now);
 			else
@@ -109,7 +109,7 @@ namespace Sekai.Live
 			if (State != NoteState.Done)
 			{
 				bool hit = _hasContact || _alwaysHeld;
-				Finish(hit ? NoteResult.JustPerfect : NoteResult.Miss, hit ? "pointTerminateHit" : "pointTerminateMiss", now);
+				Finish(hit ? NoteResult.Perfect : NoteResult.Miss, hit ? "pointTerminateHit" : "pointTerminateMiss", now);
 			}
 		}
 

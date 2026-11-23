@@ -28,10 +28,6 @@ namespace Sekai
 		[SerializeField]
 		private Sprite perfect;
 
-		[UnityEngine.Serialization.FormerlySerializedAs("_justPerfect")]
-		[SerializeField]
-		private Sprite justPerfect;
-
 		[UnityEngine.Serialization.FormerlySerializedAs("_auto")]
 		[SerializeField]
 		private Sprite auto;
@@ -71,7 +67,6 @@ namespace Sekai
 				{ NoteResult.Good, Bind("judgment.good", good) },
 				{ NoteResult.Great, Bind("judgment.great", great) },
 				{ NoteResult.Perfect, Bind("judgment.perfect", perfect) },
-				{ NoteResult.JustPerfect, Bind("judgment.perfect", perfect) },
 				{ NoteResult.Auto, useFakePerfect ? Bind("judgment.perfect", perfect) : Bind("judgment.auto", auto) },
 			};
 			Hide();

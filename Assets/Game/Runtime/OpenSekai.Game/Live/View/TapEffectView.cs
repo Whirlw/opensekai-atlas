@@ -453,7 +453,6 @@ namespace Sekai
 				{
 					case NoteResult.Auto:
 					case NoteResult.Perfect:
-					case NoteResult.JustPerfect:
 						PlaySE(LiveSoundDefine.SE_LIVE_PERFECT, "perfect", _noteInfo.noteId, _noteInfo.pairNote);
 						return;
 					case NoteResult.Good:
@@ -484,7 +483,6 @@ namespace Sekai
 				{
 					case NoteResult.Auto:
 					case NoteResult.Perfect:
-					case NoteResult.JustPerfect:
 						PlaySE(LiveSoundDefine.SE_LIVE_PERFECT, category, _noteInfo.noteId, _noteInfo.pairNote);
 						return;
 					case NoteResult.Good:

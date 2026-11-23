@@ -86,7 +86,7 @@ namespace Sekai.Live
 			if (TickOwner is GuideNote { IsFakeHold: true })
 			{
 				AdvanceNote(currentFrameInfo, offsetTime, settleTimeout: false);
-				if (currentFrameInfo.time >= MusicScoreInfo.time) FinishContact(NoteResult.JustPerfect);
+				if (currentFrameInfo.time >= MusicScoreInfo.time) FinishContact(NoteResult.Perfect);
 				return;
 			}
 
@@ -96,7 +96,7 @@ namespace Sekai.Live
 				if (State == NoteState.Wait) State = NoteState.Scrolling;
 				Progress = CalcProgress(currentFrameInfo, offsetTime);
 				if (HasRecordedContact && currentFrameInfo.time >= MusicScoreInfo.time)
-					FinishContact(NoteResult.JustPerfect);
+					FinishContact(NoteResult.Perfect);
 				else if (currentFrameInfo.time >= MusicScoreInfo.time + LateContactSeconds)
 					FinishContact(NoteResult.Miss);
 				return;
@@ -167,7 +167,7 @@ namespace Sekai.Live
 					State = NoteState.Input;
 					return false;
 				}
-				FinishContact(NoteResult.JustPerfect);
+				FinishContact(NoteResult.Perfect);
 				return true;
 			}
 
@@ -175,7 +175,7 @@ namespace Sekai.Live
 			{
 				OffsetJudgeTime = 0f;
 				Progress = 1f;
-				JudgeInfo = (NoteResult.JustPerfect, NoteResultDescription.None);
+				JudgeInfo = (NoteResult.Perfect, NoteResultDescription.None);
 				State = NoteState.Done;
 				return true;
 			}
@@ -192,7 +192,7 @@ namespace Sekai.Live
 			if (State == NoteState.Done || UsesHoldPointJudgment || !IsVisibleTick
 				|| TickOwner?.LinkedPointTail is not { State: NoteState.Done })
 				return false;
-			FinishContact(NoteResult.JustPerfect);
+			FinishContact(NoteResult.Perfect);
 			return true;
 		}
 
@@ -205,7 +205,7 @@ namespace Sekai.Live
 
 		protected void FinishContact(NoteResult result)
 		{
-			if (result is NoteResult.JustPerfect or NoteResult.Perfect) Progress = 1f;
+			if (result == NoteResult.Perfect) Progress = 1f;
 			FinishWith(result);
 		}
 
@@ -227,7 +227,7 @@ namespace Sekai.Live
 			// A hidden point changes the bar's shape only: ending the bar may not award it a hit.
 			JudgeInfo = IsSkip
 				? (NoteResult.Pass, NoteResultDescription.None)
-				: (NoteResult.JustPerfect, NoteResultDescription.None);
+				: (NoteResult.Perfect, NoteResultDescription.None);
 			State = NoteState.Done;
 		}
 

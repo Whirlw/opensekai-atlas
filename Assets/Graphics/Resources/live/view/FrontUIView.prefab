@@ -589,7 +589,6 @@ MonoBehaviour:
   _good: {fileID: 21300000, guid: bc640e477016e224ca81cca4c2fa96a7, type: 3}
   _great: {fileID: 21300000, guid: 0a65c55ad98abd84f9757dea7f2de125, type: 3}
   _perfect: {fileID: 21300000, guid: 2bbceade72bbf3d4cbf4ad2470a7081d, type: 3}
-  _justPerfect: {fileID: 21300000, guid: 2bbceade72bbf3d4cbf4ad2470a7081d, type: 3}
   _auto: {fileID: 21300000, guid: e9b6b9544cb8e264e806548917007fa3, type: 3}
   _spriteRenderer: {fileID: 212838352681112328}
 --- !u!1 &1025901758691103

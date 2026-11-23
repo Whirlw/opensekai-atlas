@@ -79,7 +79,7 @@ namespace OpenSekai.Tests.EditMode.Live
 				}
 			}
 
-			Assert.That(point.Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(point.Result, Is.EqualTo(NoteResult.Perfect));
 		}
 	}
 }

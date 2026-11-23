@@ -413,7 +413,7 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            // Five grades, as on the HUD: a just-perfect hit is still a PERFECT.
+            // Use the same five grades as the HUD.
             _judges[0].text = ResultCopy.Number(result.Perfect);
             _judges[1].text = ResultCopy.Number(result.Great);
             _judges[2].text = ResultCopy.Number(result.Good);

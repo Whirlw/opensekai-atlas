@@ -3288,7 +3288,6 @@ namespace OpenSekai.Tests.EditMode.Charts
             harness.Step(1f, 11, LiveHarness.Touch(1, lane, 11));
             harness.Step(2.117f, 12.117, LiveHarness.Touch(2, lane, 12.117));
             Assert.That(score.NoteArray.Select(n => n.Result), Is.EqualTo(new[] { NoteResult.Perfect, NoteResult.Bad }));
-            Assert.That(board.Score.justPerfectCount, Is.Zero);
             Assert.That(board.Score.perfectCount, Is.EqualTo(1));
             Assert.That(board.Score.badCount, Is.EqualTo(1));
         }

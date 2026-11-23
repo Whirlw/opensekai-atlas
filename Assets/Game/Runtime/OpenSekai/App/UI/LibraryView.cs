@@ -86,6 +86,8 @@ namespace OpenSekai.App.UI
         private ResultPage _resultPage;
         private LibraryLoadingOverlay _loadingOverlay;
         private LibraryActionsPanel _actionsPanel;
+        private LibrarySourcePanel _sourcePanel;
+        private SongPackageSource _selectedSource;
 
         /// <param name="presented">Whether the page starts on screen; see <see cref="SetPresented"/>.</param>
         internal LibraryView(GameObject page, bool presented = true)
@@ -155,7 +157,7 @@ namespace OpenSekai.App.UI
             detailRoot.anchorMax = new Vector2(1f, 1f);
             detailRoot.offsetMin = Vector2.zero;
             detailRoot.offsetMax = Vector2.zero;
-            _detail = new LibraryDetailPanel(detailRoot, LIST_PADDING_TOP, PlaySelected, presenter.OpenActionsForSelected);
+            _detail = new LibraryDetailPanel(detailRoot, LIST_PADDING_TOP, PlaySelected, presenter.OpenActionsForSelected, ShowSource);
             _preview = _page.AddComponent<LibraryPreview>();
             _preview.Initialize(_detail);
 
@@ -546,6 +548,13 @@ namespace OpenSekai.App.UI
                 return true;
             }
 
+            if (_sourcePanel != null && _sourcePanel.IsOpen)
+            {
+                _sourcePanel.Hide();
+                UiSound.Play(UiCue.Close);
+                return true;
+            }
+
             if (_settingsPanel != null && _settingsPanel.IsOpen)
             {
                 _settingsPanel.Back();
@@ -606,6 +615,35 @@ namespace OpenSekai.App.UI
             _actionsPanel.Show(LibraryModel.BuildTitle(item), DescribePackage(item), cover, Accent, export, delete);
         }
 
+        private void ShowSource()
+        {
+            if (_selectedSource == null) return;
+            _sourcePanel ??= new LibrarySourcePanel(_page.transform);
+            _sourcePanel.Show(_selectedSource, LibraryModel.BuildTitle(_selected));
+            if (ChartRankCache.Key(_selectedSource) != null)
+                CheckSelectedRank(_selected, _selectedSource).Forget();
+        }
+
+        private async UniTask CheckSelectedRank(SongPackageItem item, SongPackageSource source)
+        {
+            _sourcePanel.SetRankStatus("正在核验 Ranked 状态…");
+            string status = await ChartRankLookup.CheckAsync(source, item.Entry, item.ScoreKey);
+            if (_page == null || _sourcePanel == null || _selected != item) return;
+            if (_sourcePanel.IsOpen) _sourcePanel.SetRankStatus(status);
+            ShowRank(item).Forget();
+        }
+
+        private async UniTask ShowRank(SongPackageItem item)
+        {
+            if (item == null) return;
+            int level = LibraryModel.PlayLevelOf(item);
+            string key = ChartRankCache.Key(_selectedSource);
+            var verdict = await ChartRankLookup.ReadInstalledAsync(_selectedSource, item.Entry);
+            if (_detail == null || _selected != item) return;
+            string status = key == null ? "Unranked" : ChartRankLookup.Label(verdict, item.ScoreKey, level);
+            _detail.SetRankStatus(level, status == "待确认" ? "待确认 · 点来源核验" : status);
+        }
+
         /// <summary>Difficulty, level and charter, the line under a package's title in its action card.</summary>
         private static string DescribePackage(SongPackageItem item)
         {
@@ -646,6 +684,9 @@ namespace OpenSekai.App.UI
             }
 
             _detail?.Dispose();
+            _detail = null;
+            _sourcePanel?.Dispose();
+            _sourcePanel = null;
             _thumbnails?.Dispose();
             _thumbnails = null;
             _detailThumbnails?.Dispose();
@@ -1009,7 +1050,10 @@ namespace OpenSekai.App.UI
         {
             CancelDetailLoad();
             SongPackageItem item = _selected;
+            _selectedSource = SongPackageSource.Read(item?.Entry);
+            _detail.SetSourceAvailable(_selectedSource != null);
             _detail.Show(item, LibraryModel.SummaryOf(item, _state?.History), true);
+            ShowRank(item).Forget();
             ResumePreview();
             if (item == null || !item.HasJacket || item.Entry == null)
             {

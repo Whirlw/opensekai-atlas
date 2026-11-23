@@ -225,7 +225,7 @@ namespace OpenSekai.Tests.EditMode.Packages
         {
             var play = new CustomMusicScorePlayHistoryRecord
             {
-                SchemaVersion = 3, RecordId = id, ScoreKey = chart, EndReason = PlayResultKind.Completed,
+                SchemaVersion = 3, RecordId = id, ScoreKey = chart, Ranked = true, EndReason = PlayResultKind.Completed,
                 PlayedAtUtc = when, FormulaVersion = RankingRules.FORMULA_VERSION,
                 MaximumScore = 1000000, Life = 100, PlayLevel = 30, TotalScore = score, TotalComboCount = 10
             };

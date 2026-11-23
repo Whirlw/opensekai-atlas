@@ -32,13 +32,15 @@ namespace OpenSekai.App.UI
         private readonly Button _close;
         private IReadOnlyList<DanSongInfo> _songs = Array.Empty<DanSongInfo>();
         private MotionHandle _breathe;
+        private int _failedSong;
+        private string _lastError;
 
         internal DanPreparePanel(RectTransform layer, Action cancel, Action retry, Action close)
         {
             _root = LibraryUi.CreateRect("DanPrepare", layer);
             LibraryUi.Stretch(_root);
             _modal = new LibraryModal(_root, new Vector2(CARD_WIDTH, CARD_HEIGHT), "准备挑战", null, withSubtitle: true);
-            _modal.Subtitle.text = "开打前检查全部曲目，本机没有的谱面会自动下载";
+            _modal.Subtitle.text = "准备全部曲目后开始挑战";
             RectTransform body = _modal.Body;
             float width = CARD_WIDTH - LibraryTheme.Layout.MODAL_PADDING * 2f;
             _plate = new DanPlate(body, "Plate", new Vector2(width - 120f, 84f), glow: true);
@@ -78,7 +80,7 @@ namespace OpenSekai.App.UI
             const float GAP = 8f;
             while (_lines.Count < _songs.Count)
             {
-                var line = new DanSongLine(_songContent, "Song" + _lines.Count, LINE_HEIGHT);
+                var line = new DanSongLine(_songContent, "Song" + _lines.Count, LINE_HEIGHT, manualDownload: true);
                 line.Root.anchorMin = new Vector2(0f, 1f);
                 line.Root.anchorMax = new Vector2(1f, 1f);
                 line.Root.pivot = new Vector2(0.5f, 1f);
@@ -93,10 +95,19 @@ namespace OpenSekai.App.UI
             if (!_modal.IsOpen) _modal.Open();
         }
 
+        internal void RefreshSongs(IReadOnlyList<DanSongInfo> songs)
+        {
+            if (_failedSong == 0 || songs.Count != _songs.Count) return;
+            _songs = songs;
+            Apply(DanPhase.Error, _failedSong, _lastError);
+        }
+
         /// <summary>Redraws from the course's state: which song is being prepared, the first song starting, or an error.</summary>
         internal void Apply(DanPhase phase, int songNumber, string error)
         {
             bool failed = phase == DanPhase.Error || error != null;
+            _failedSong = failed ? songNumber : 0;
+            _lastError = error;
             bool starting = phase == DanPhase.StartingSong || phase == DanPhase.Playing;
             for (int i = 0; i < _songs.Count; i++)
             {
@@ -111,7 +122,7 @@ namespace OpenSekai.App.UI
                 }
                 else if (number == songNumber)
                 {
-                    tag = failed ? "失败" : "准备中";
+                    tag = failed ? (info.Installed && info.RequiresLocalPackage ? "本机已有" : "失败") : "准备中";
                     color = failed ? LibraryTheme.Colors.Danger : HomeTheme.Colors.Violet;
                 }
                 else
@@ -122,9 +133,10 @@ namespace OpenSekai.App.UI
 
                 string meta = info.Installed
                     ? "本机已有" + (info.Difficulty != null ? "  ·  " + info.Difficulty : string.Empty)
-                    : info.Host + "  ·  需要下载";
+                    : info.Host + "  ·  " + info.Availability;
                 _lines[i].Bind(number, info.Title, meta, tag, color,
-                    number == songNumber && !starting ? HomeTheme.Colors.WithAlpha(color, 60) : HomeTheme.Colors.Chip);
+                    number == songNumber && !starting ? HomeTheme.Colors.WithAlpha(color, 60) : HomeTheme.Colors.Chip,
+                    downloadPage: failed ? info.ManualDownloadPage : null);
             }
 
             _breathe.TryCancel();

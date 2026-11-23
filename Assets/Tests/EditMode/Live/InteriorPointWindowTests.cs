@@ -97,7 +97,7 @@ namespace OpenSekai.Tests.EditMode.Live
                 Assert.That(point.Result, Is.EqualTo(NoteResult.Miss));
                 Assert.That(point.State, Is.EqualTo(NoteState.Done));
             }
-            Assert.That(due.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(due.Result, Is.EqualTo(NoteResult.Perfect));
             Assert.That(scored, Is.EqualTo(1), "three expired points must not join the one live point, even on a repeated refresh");
         }
 
@@ -117,7 +117,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             bar.SetStateUnnotice(NoteState.Release);
             point.Excute(Info(1f), 0f);
-            Assert.That(point.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(point.Result, Is.EqualTo(NoteResult.Perfect));
         }
 
         [TestCase(false)]
@@ -133,7 +133,7 @@ namespace OpenSekai.Tests.EditMode.Live
             point.Excute(Info(1f), 0f);
             point.Excute(Info(1.084f), 0f);
 
-            Assert.That(point.Result, Is.EqualTo(covered ? NoteResult.JustPerfect : NoteResult.Miss));
+            Assert.That(point.Result, Is.EqualTo(covered ? NoteResult.Perfect : NoteResult.Miss));
         }
 
         [TestCase(false, false, false)]
@@ -199,7 +199,7 @@ namespace OpenSekai.Tests.EditMode.Live
                 harness.Step(1.364f, 11.364);
 
             Assert.That(point.Result, Is.EqualTo(lift ? NoteResult.Perfect : NoteResult.Miss));
-            Assert.That(tail.Result, Is.EqualTo(lift ? NoteResult.JustPerfect : NoteResult.None));
+            Assert.That(tail.Result, Is.EqualTo(lift ? NoteResult.Perfect : NoteResult.None));
         }
 
         [Test]
@@ -241,7 +241,7 @@ namespace OpenSekai.Tests.EditMode.Live
             harness.Step(1.039f, 11.039, LiveHarness.Touch(1, LiveConfig.JudgmentPositions[4], 11.032));
 
             Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.Perfect));
-            Assert.That(point.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(point.Result, Is.EqualTo(NoteResult.Perfect));
         }
 
         [TestCase(-0.084f, false)]
@@ -261,7 +261,7 @@ namespace OpenSekai.Tests.EditMode.Live
                 if (expected) key.Judgment(ref touch, 4.5f);
                 if (offset < 0f) Assert.That(key.Result, Is.EqualTo(NoteResult.None));
                 key.Excute(Info(1.1f), 0.5f);
-                Assert.That(key.Result, Is.EqualTo(expected ? NoteResult.JustPerfect : NoteResult.Miss));
+                Assert.That(key.Result, Is.EqualTo(expected ? NoteResult.Perfect : NoteResult.Miss));
             }
         }
 
@@ -313,7 +313,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(point.Result, Is.EqualTo(NoteResult.Miss));
         }
 
-        [TestCase(1.082f, NoteResult.JustPerfect)]
+        [TestCase(1.082f, NoteResult.Perfect)]
         [TestCase(1.084f, NoteResult.Miss)]
         public void AConnectionPointCanBeCaughtAfterItsCrossingFrame(float time, NoteResult expected)
         {
@@ -351,7 +351,7 @@ namespace OpenSekai.Tests.EditMode.Live
                 var logic = Drive(bar, 0.125f, stamp);
                 Refresh(logic);
 
-                Assert.That(point.Result, Is.EqualTo(NoteResult.JustPerfect), $"touch stamp {stamp} must not replace the frame clock");
+                Assert.That(point.Result, Is.EqualTo(NoteResult.Perfect), $"touch stamp {stamp} must not replace the frame clock");
                 Assert.That(point.State, Is.EqualTo(NoteState.Done));
                 Assert.That(scored, Is.EqualTo(1));
             }

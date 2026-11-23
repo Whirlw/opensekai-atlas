@@ -116,7 +116,10 @@ namespace OpenSekai.Tests.EditMode.Live
                         });
                         break;
                     case "J":
-                        replay.DeviceResults[int.Parse(f[1], c)] = Enum.Parse<NoteResult>(f[2]);
+                        // The original device capture uses the old name for centered hits.
+                        replay.DeviceResults[int.Parse(f[1], c)] = f[2] == "JustPerfect"
+                            ? NoteResult.Perfect
+                            : Enum.Parse<NoteResult>(f[2]);
                         break;
                     case "P":
                         replay.DevicePressErrors[int.Parse(f[1], c)] = double.Parse(f[3], c);
@@ -303,7 +306,7 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         private static string Summary(Outcome o) => FormattableString.Invariant(
-            $"score={o.Score.totalScore} maxCombo={o.Score.maxCombo} JP={o.Score.justPerfectCount} P={o.Score.perfectCount} Gr={o.Score.greatCount} Go={o.Score.goodCount} Bad={o.Score.badCount} Miss={o.Score.missCount} judged={o.Judged.Count} presses={o.PressErrors.Count}");
+            $"score={o.Score.totalScore} maxCombo={o.Score.maxCombo} P={o.Score.perfectCount} Gr={o.Score.greatCount} Go={o.Score.goodCount} Bad={o.Score.badCount} Miss={o.Score.missCount} judged={o.Judged.Count} presses={o.PressErrors.Count}");
 
         [Test]
         public void TheDeviceRunReplaysToTheDevicesJudgments()
@@ -312,14 +315,12 @@ namespace OpenSekai.Tests.EditMode.Live
             Replay replay = Load();
             Outcome baseline = Baseline(replay, frameMatching: true);
             var both = replay.DeviceResults.Where(pair => baseline.Judged.ContainsKey(pair.Key)).ToArray();
-            var mismatched = both.Where(pair => baseline.Judged[pair.Key].Result != pair.Value
-                && !(baseline.Judged[pair.Key].Kind == nameof(FrictionFlickNote)
-                    && baseline.Judged[pair.Key].Result == NoteResult.Perfect && pair.Value == NoteResult.JustPerfect)).ToArray();
+            var mismatched = both.Where(pair => baseline.Judged[pair.Key].Result != pair.Value).ToArray();
             string differing = string.Join("\n", mismatched.Take(15)
                 .Select(pair => FormattableString.Invariant($"    note {pair.Key} {baseline.Judged[pair.Key].Kind}: device {pair.Value}, replay {baseline.Judged[pair.Key].Result}")));
             // A flick's swipe threshold is Screen.dpi-based and the capture predates the dpi header field, so
             // flicks are compared loosely. Any other difference must be a press the replay matches to 0.05 ms
-            // that sits on a grade edge (16586: -8.331 ms against the 8.333 ms Just Perfect edge).
+            // that sits on a grade edge.
             var taps = mismatched.Where(pair => !(baseline.Judged[pair.Key].Kind is nameof(FlickNote) or nameof(FrictionFlickNote))).ToArray();
             int pressSame = replay.DevicePressErrors.Count(pair =>
                 baseline.PressErrors.TryGetValue(pair.Key, out double e) && Math.Abs(e - pair.Value) < 0.05);

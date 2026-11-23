@@ -31,7 +31,7 @@ namespace Sekai.Live
 				{
 					if (bar is GuideNote { IsFakeHold: true } || _owner == null && bar.HasFinger)
 					{
-						FinishContact(NoteResult.JustPerfect);
+						FinishContact(NoteResult.Perfect);
 						return;
 					}
 				}

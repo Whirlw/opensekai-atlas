@@ -40,10 +40,10 @@ namespace OpenSekai.Tests.EditMode.Live
         public void UnjudgedTailKeepsSlidingWithoutTimeout(float elapsed) =>
             Assert.That(PhaseAt(TAIL_TIME + elapsed), Is.EqualTo(TailKeyPhase.SlidingOut));
 
-        [TestCase(-3f, NoteResult.JustPerfect)]
-        [TestCase(0.5f, NoteResult.JustPerfect)]
-        [TestCase(2f, NoteResult.JustPerfect)]
-        [TestCase(3f, NoteResult.JustPerfect)]
+        [TestCase(-3f, NoteResult.Perfect)]
+        [TestCase(0.5f, NoteResult.Perfect)]
+        [TestCase(2f, NoteResult.Perfect)]
+        [TestCase(3f, NoteResult.Perfect)]
         [TestCase(-3f, NoteResult.Good)]
         [TestCase(0.5f, NoteResult.Good)]
         [TestCase(2f, NoteResult.Good)]
@@ -65,7 +65,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(TailKeyLifetime.Of(TAIL_TIME, VISIBLE_FROM, now, NoteResult.None, true),
                 Is.EqualTo(TailKeyPhase.Retired));
 
-        [TestCase(NoteResult.JustPerfect)]
+        [TestCase(NoteResult.Perfect)]
         [TestCase(NoteResult.Good)]
         [TestCase(NoteResult.Miss)]
         public void JudgedTailNeverReappearsWhenTimeRewinds(NoteResult result)

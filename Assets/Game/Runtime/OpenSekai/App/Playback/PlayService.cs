@@ -153,6 +153,8 @@ namespace OpenSekai.App.Playback
                 PlaySession session = PlaySession.FromChart(request, entry, chart, config, settings, material?.Audio, material?.Combo, material?.Judgment, material?.HitFx, material?.Notes, material?.Lane, material?.Background, material?.Hud, material?.ResultFx);
                 FreeLiveBootData boot = LegacyLiveBootAdapter.Create(session, _deckSelection.SelectedDeckId);
                 boot.CustomMusicScoreKey = chartHash;
+                boot.CustomMusicScoreRanked = temporary?.Ranked ??
+                    ((await ChartRankLookup.ReadInstalledAsync(SongPackageSource.Read(entry), entry))?.Matches(chartHash, entry.Manifest.playLevel) == true);
                 boot.DanSong = request.DanSong;
                 cancellationToken.ThrowIfCancellationRequested();
                 string message = request.IsAuto ? "正在开始自动游玩..." : "正在开始游玩...";

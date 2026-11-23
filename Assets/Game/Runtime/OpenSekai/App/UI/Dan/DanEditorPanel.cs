@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using OpenSekai.App.Playback;
+using OpenSekai.Infrastructure.Packages;
 using OpenSekai.Shared.Playback;
 using TMPro;
 using UnityEngine;
@@ -31,6 +32,7 @@ namespace OpenSekai.App.UI
 
         private readonly RectTransform _root;
         private readonly LibraryModal _modal;
+        private readonly DanLibraryPicker _libraryPicker;
         private readonly RectTransform _songContent;
         private readonly ScrollRect _songScroll;
         private readonly TextMeshProUGUI _songCount;
@@ -82,6 +84,12 @@ namespace OpenSekai.App.UI
                 LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, UiCue.None, 18f);
             LibraryWidgets.Outline((Image)paste.targetGraphic, SMALL_HEIGHT * 0.5f);
             LibraryWidgets.Place((RectTransform)paste.transform, Vector2.one, Vector2.one, new Vector2(-180f, 0f), new Vector2(168f, SMALL_HEIGHT));
+            UnityEngine.UI.Button library = ServerWidgets.LabelledButton(left, "FromLibrary", "从曲库添加", LibraryIcon.List,
+                OpenLibraryPicker, 176f, SMALL_HEIGHT, LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, UiCue.None, 18f);
+            LibraryWidgets.Outline((Image)library.targetGraphic, SMALL_HEIGHT * 0.5f);
+            LibraryWidgets.Place((RectTransform)library.transform, Vector2.one, Vector2.one, new Vector2(-360f, 0f),
+                new Vector2(176f, SMALL_HEIGHT));
+            _libraryPicker = new DanLibraryPicker(layer, PickLibrarySong);
 
             Image well = PackWidgets.Group(left, "Well");
             LibraryWidgets.Inset(well.rectTransform, 0f, 0f, 0f, SMALL_HEIGHT + 16f);
@@ -213,7 +221,7 @@ namespace OpenSekai.App.UI
             _source = source;
             _modal.Title.text = source == null ? "新建段位" : "编辑段位";
             _modal.Subtitle.text = source == null
-                ? "依次添加谱面的分享链接，设定生命与扣血，再设计一块段位牌"
+                ? "从曲库选择谱面或粘贴 Sonolus 关卡链接，再设定扣血与段位牌"
                 : "保存后成为一个新的段位；原来的段位、通关记录和已取得的段位牌都会保留";
             if (source != null) Load(source);
             else LoadFresh();
@@ -222,13 +230,21 @@ namespace OpenSekai.App.UI
 
         internal void Close()
         {
+            _libraryPicker.Close();
             DeactivateFields();
             _modal.Close();
+        }
+
+        internal void Back()
+        {
+            if (_libraryPicker.IsOpen) _libraryPicker.Close();
+            else Close();
         }
 
         public void Dispose()
         {
             _preview.Dispose();
+            _libraryPicker.Dispose();
             _modal.Dispose();
         }
 
@@ -333,6 +349,37 @@ namespace OpenSekai.App.UI
             RebuildRows();
             ScrollToEnd();
             ClearMessage();
+        }
+
+        private void OpenLibraryPicker()
+        {
+            DeactivateFields();
+            _libraryPicker.Show();
+        }
+
+        private void PickLibrarySong(SongPackageItem item)
+        {
+            string reference;
+            try { reference = DanLibrarySong.ReferenceFor(item); }
+            catch (Exception exception) when (exception is System.IO.IOException or System.IO.InvalidDataException
+                or UnauthorizedAccessException or FormatException)
+            {
+                reference = null;
+            }
+            if (reference == null)
+            {
+                _libraryPicker.SetMessage("无法读取这个曲包，请刷新曲库后重试");
+                return;
+            }
+
+            int empty = _links.FindIndex(string.IsNullOrWhiteSpace);
+            if (empty < 0) _links.Add(reference);
+            else _links[empty] = reference;
+            _libraryPicker.Close();
+            RebuildRows();
+            if (empty < 0) ScrollToEnd();
+            ClearMessage();
+            UiSound.Play(UiCue.Success);
         }
 
         private void PasteLinks()
@@ -609,7 +656,8 @@ namespace OpenSekai.App.UI
             {
                 _index = index;
                 _number.text = (index + 1).ToString(CultureInfo.InvariantCulture);
-                Link.SetTextWithoutNotify(link ?? string.Empty);
+                Link.readOnly = DanLibrarySong.TryParse(link, out var librarySong);
+                Link.SetTextWithoutNotify(librarySong?.Title ?? link ?? string.Empty);
                 PackWidgets.SetEnabled(_up, index > 0);
                 PackWidgets.SetEnabled(_down, index < count - 1);
                 SetError(false);
@@ -633,7 +681,7 @@ namespace OpenSekai.App.UI
             /// <param name="lookUp">Also check whether the chart is already on this device (reads the install index).</param>
             private void Describe(bool lookUp)
             {
-                string link = Link.text;
+                string link = _owner._links[_index];
                 if (string.IsNullOrWhiteSpace(link))
                 {
                     _status.text = "支持 HTTPS、sonolus:// 与 open.sonolus.com 链接";
@@ -658,9 +706,10 @@ namespace OpenSekai.App.UI
                     return;
                 }
 
+                string source = info.LevelName != null ? info.Host + "  ·  " + info.LevelName : info.Host;
                 _status.text = info.Installed
                     ? "本机已有  ·  " + info.Title + (info.Difficulty != null ? "  ·  " + info.Difficulty : string.Empty)
-                    : info.Host + "  ·  " + info.LevelName + "  ·  开打前下载";
+                    : source + "  ·  " + info.Availability;
                 _status.color = info.Installed ? DanCopy.Life : LibraryTheme.Colors.TextMuted;
             }
         }

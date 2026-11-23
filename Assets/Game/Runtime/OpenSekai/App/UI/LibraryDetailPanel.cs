@@ -40,6 +40,7 @@ namespace OpenSekai.App.UI
         private readonly RectTransform _coverFrame;
         private readonly Image _cover;
         private readonly GameObject _coverPlaceholder;
+        private readonly UnityEngine.UI.Button _source;
         private readonly RectTransform _difficultyChip;
         private readonly TextMeshProUGUI _difficulty;
         private readonly TextMeshProUGUI _level;
@@ -81,7 +82,7 @@ namespace OpenSekai.App.UI
         /// <param name="coverTop">Top inset of the first song when grouping is off.</param>
         /// <param name="play">Starts the selected package; the argument is the 自动演奏 switch.</param>
         /// <param name="more">Opens export and delete for the selected package.</param>
-        internal LibraryDetailPanel(RectTransform root, float coverTop, Action<bool> play, Action more)
+        internal LibraryDetailPanel(RectTransform root, float coverTop, Action<bool> play, Action more, Action source)
         {
             _play = play;
             _content = LibraryUi.CreateRect("Detail", root);
@@ -116,6 +117,11 @@ namespace OpenSekai.App.UI
             _cover.raycastTarget = false;
             _cover.enabled = false;
             LibraryUi.Stretch(_cover.rectTransform);
+            _source = LibraryWidgets.PillButton("Source", _coverFrame, "来源", () => source?.Invoke(), 106f, 48f,
+                new Color32(16, 20, 27, 232), LibraryTheme.Colors.TextPrimary, 21f);
+            LibraryWidgets.Place((RectTransform)_source.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-16f, 16f),
+                new Vector2(106f, 48f));
+            _source.gameObject.SetActive(false);
 
             // Title and credits, to the right of the jacket.
             RectTransform info = LibraryUi.CreateRect("Info", _content);
@@ -302,6 +308,14 @@ namespace OpenSekai.App.UI
             _startIcon.rectTransform.anchoredPosition = new Vector2(-63f, 0f);
 
             Show(null, null, false);
+        }
+
+        internal void SetSourceAvailable(bool available) => _source.gameObject.SetActive(available);
+
+        internal void SetRankStatus(int level, string status)
+        {
+            _level.text = (level > 0 ? "LV " + level + "  ·  " : string.Empty) + status;
+            LayoutDifficulty();
         }
 
         /// <summary>Fills the panel for a package; null clears it for an empty list.</summary>

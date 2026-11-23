@@ -294,14 +294,15 @@ namespace OpenSekai.App.UI
             _statValues[2].text = record.Attempts.Count.ToString(CultureInfo.InvariantCulture);
             _best.text = record.Earned
                 ? "通过 " + record.Passes + " 次  ·  最多剩余生命 " + DanCopy.Number(record.BestLife) + " / " + DanCopy.Number(definition.InitialLife)
-                : record.Attempts.Count > 0 ? "最远完成 " + record.FurthestCleared + " / " + definition.Songs.Count + " 首" : "开打前会检查每一首，缺少的谱面自动下载";
+                : record.Attempts.Count > 0 ? "最远完成 " + record.FurthestCleared + " / " + definition.Songs.Count + " 首" : "开打前检查所有曲目是否就绪";
 
             float top = 0f;
             _songsCaption.rectTransform.anchoredPosition = new Vector2(_songsCaption.rectTransform.anchoredPosition.x, -top);
             top += 34f;
             IReadOnlyList<DanSongInfo> songs = _screen.SongsOf(record);
             const float GAP = 8f;
-            while (_songLines.Count < songs.Count) _songLines.Add(NewLine(_scrollContent, "Song" + _songLines.Count, LINE_HEIGHT, 180f));
+            while (_songLines.Count < songs.Count) _songLines.Add(NewLine(_scrollContent, "Song" + _songLines.Count, LINE_HEIGHT, 180f,
+                manualDownload: true));
             for (int i = 0; i < _songLines.Count; i++)
             {
                 bool used = i < songs.Count;
@@ -310,9 +311,9 @@ namespace OpenSekai.App.UI
                 DanSongInfo info = songs[i];
                 string meta = (info.Difficulty != null ? info.Difficulty + "  ·  " : string.Empty) + info.Host;
                 string best = BestScore(record, i);
-                _songLines[i].Bind(i + 1, info.Title, meta, info.Installed ? "本机已有" : "开打前下载",
+                _songLines[i].Bind(i + 1, info.Title, meta, info.Availability,
                     info.Installed ? DanCopy.Life : LibraryTheme.Colors.TextMuted, HomeTheme.Colors.WithAlpha(tint, 46),
-                    best != null ? "<size=60%><color=#9AA6B5>最高 </color></size>" + best : null);
+                    best != null ? "<size=60%><color=#9AA6B5>最高 </color></size>" + best : null, info.ManualDownloadPage);
                 _songLines[i].Root.anchoredPosition = new Vector2(0f, -top);
                 top += LINE_HEIGHT + GAP;
             }
@@ -365,9 +366,9 @@ namespace OpenSekai.App.UI
             return best >= 0 ? DanCopy.Number(best) : null;
         }
 
-        private static DanSongLine NewLine(RectTransform content, string name, float height, float valueWidth)
+        private static DanSongLine NewLine(RectTransform content, string name, float height, float valueWidth, bool manualDownload = false)
         {
-            var line = new DanSongLine(content, name, height, valueWidth);
+            var line = new DanSongLine(content, name, height, valueWidth, manualDownload);
             line.Root.anchorMin = new Vector2(0f, 1f);
             line.Root.anchorMax = new Vector2(1f, 1f);
             line.Root.pivot = new Vector2(0.5f, 1f);

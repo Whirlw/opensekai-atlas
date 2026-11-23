@@ -39,6 +39,11 @@ namespace OpenSekai.App.Playback
             var links = new List<string>();
             foreach (string link in songs ?? throw Error("songs"))
             {
+                if (DanLibrarySong.TryParse(link, out var librarySong))
+                {
+                    links.Add(librarySong.Reference);
+                    continue;
+                }
                 if (!SonolusServerAddress.TryParse(link, out var server, out var level, out _) ||
                     string.IsNullOrWhiteSpace(level) || level == "." || level == ".." || level.Any(char.IsControl))
                     throw Error($"songs[{links.Count}]");

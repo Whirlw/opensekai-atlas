@@ -140,7 +140,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
 			StepTo(0.96f, At(1, 0.96f, TouchPhase.Stationary, FAR_LANE));
 			// Graded at 0.95: 50 ms early is still the Perfect band.
-			Assert.That(Tail.Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(Tail.Result, Is.EqualTo(NoteResult.Perfect));
 		}
 
 		[Test]
@@ -156,7 +156,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			}
 
 			StepTo(1f, At(1, 1f, TouchPhase.Stationary));
-			Assert.That(Tail.Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(Tail.Result, Is.EqualTo(NoteResult.Perfect));
 		}
 
 		[Test]
@@ -185,7 +185,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(Tail.TailJudge.HasArmedFinger, Is.False, "under the flick speed");
 		}
 
-		[TestCase(false, NoteResult.JustPerfect)]
+		[TestCase(false, NoteResult.Perfect)]
 		[TestCase(true, NoteResult.Great)]
 		public void TheLatestSwipeDecidesTheDirection(bool wrongWayLast, NoteResult expected)
 		{
@@ -215,7 +215,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
 			// One long frame: both fingers come due together, and the better grade is kept.
 			StepTo(0.96f);
-			Assert.That(Tail.Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(Tail.Result, Is.EqualTo(NoteResult.Perfect));
 		}
 
 		[TestCase(0f)]
@@ -225,7 +225,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			Arrange(chartStart: chartStart);
 			HoldUntil(1.03f);
 			StepTo(1.03f, At(1, 1.03f, TouchPhase.Moved, moveX: -100f));
-			Assert.That(Tail.Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(Tail.Result, Is.EqualTo(NoteResult.Perfect));
 		}
 
 		[Test]
@@ -240,7 +240,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			StepTo(0.97f, At(1, 0.97f, TouchPhase.Stationary));
 			Assert.That(Tail.Result, Is.EqualTo(NoteResult.None));
 			StepTo(0.99f, At(1, 0.99f, TouchPhase.Stationary));
-			Assert.That(Tail.Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(Tail.Result, Is.EqualTo(NoteResult.Perfect));
 		}
 
 		[Test]

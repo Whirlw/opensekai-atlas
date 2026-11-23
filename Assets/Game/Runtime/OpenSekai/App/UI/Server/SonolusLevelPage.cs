@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using OpenSekai.Infrastructure.Packages;
 using OpenSekai.Infrastructure.Sonolus;
 using OpenSekai.Shared.Packages;
 using TMPro;
@@ -311,11 +312,22 @@ namespace OpenSekai.App.UI
         {
             Clear(_tags);
             float x = 0f;
+            if (ChartRankCache.IsSbuga(_session.Address))
+            {
+                var chip = ServerWidgets.Chip(_tags, "Ranked", LibraryIcon.Trophy, LibraryTheme.Colors.Control,
+                    LibraryTheme.Colors.TextSecondary, out float width);
+                x = PlaceChip(_tags, chip, x, width);
+            }
             foreach (SonolusTag tag in _level.Tags)
             {
                 string text = ServerWidgets.Localize(tag.Title);
                 LibraryIcon? icon = ServerWidgets.IconFor(tag.Icon) ?? (string.IsNullOrEmpty(text) ? (LibraryIcon?)LibraryIcon.Tag : null);
-                if (string.IsNullOrEmpty(text) && tag.Icon == "trophy")
+                if (tag.Icon == "trophy" && ChartRankCache.UntitledKey(_session.Address, _level.Name) != null
+                    && ChartRankCache.IsStaffPick(_level))
+                {
+                    text = "Ranked · Staff Pick";
+                }
+                else if (string.IsNullOrEmpty(text) && tag.Icon == "trophy")
                 {
                     text = "精选";
                 }
@@ -362,6 +374,8 @@ namespace OpenSekai.App.UI
             try
             {
                 SonolusLevelDetails details = await _getDetails(_level.Name, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+                await Screen.Installer.ObserveRankAsync(_session.Address, details.Level, cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();
                 _details = details;
                 _detailStatus.Hide();

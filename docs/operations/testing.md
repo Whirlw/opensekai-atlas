@@ -59,7 +59,7 @@ EditMode：
 - `Packages/SongPackageStorageTests`：目录名生成（空白折叠、裁剪、空标题回落）、12 位短 id、`SongPackage` 的派生路径与 `MusicId` 稳定性。
 - `Packages/ChartFileReaderTests`：写读往返、`MusicId` 打戳、迁移、缺失文件、null 参数、拒绝非谱面扩展名。
 - `Playback/PlaySessionTests`：四个 `ArgumentNullException` 守卫、session 字段保持同一引用、`PlaybackSettingsSnapshot` 与后续编辑解耦。
-- `Live/ScoreLogicTests`：1/7/64/221/348/1000/2019 音符全 JustPerfect 严格合计 1,000,000、Perfect/Great/Good 的 0.9/0.7/0.5、技能倍率、装饰音符不计分、连击在 Great 及以上累加、空谱基分为 0。
+- `Live/ScoreLogicTests`：1/7/64/221/348/1000/2019 音符全 Perfect 严格合计 1,000,000、Perfect/Great/Good 的 1.0/0.7/0.5、技能倍率、装饰音符不计分、连击在 Great 及以上累加、空谱基分为 0。
 - `Live/ScoreGaugeCalculatorTests`：S/A/B/C 阈值、gauge 单调与夹紧。
 - `Live/PlayResultTests`：`IsAllPerfectClear` 的六种边界、`KindText`、`PlayResultHandoff` 单槽语义。
 - `Charts/RuntimeChartConverterTests`：七类 `noteBaseType` 到具体 Note 的映射、长条是「一个 root + hold 子节点」、连接音符并入同一 root、装饰音符不参与计数、Critical 保留类型、BPM 事件进时间轴、只有链头成为 root、孤立尾巴被丢弃、悬空 `nextConnectionId` 不致命、环形连接抛 `InvalidDataException`、FrictionLong 对折叠成 `FrictionHideLongNote`。
@@ -69,7 +69,7 @@ EditMode：
 - `Live/DecorationTailFromChartTests`：**真实谱面驱动**——读 `Tools/fixtures/deco-tail-test10/score.json`（取自报告者 `Test10.zip`），`ChartJson.Read` → `RuntimeChartConverter.Convert` → 用真实 `OnUpdate`/`OnInput` 把手指依次送到每根 `GuideNote` 条的尾时间（flick / friction-flick 给划动采样，普通尾给按下），断言每种尾都判出结果。这是目前唯一能验证「尾进不进候选」的用例，**动到 `_judgmentNoteList` 注册时必须跑它**。
 - `Live/DecorationTailJudgmentTests`：装饰条的四种尾（普通尾按下、划键尾划动、摩擦尾触摸、摩擦划键尾划动）各一条，用手工音符经 `LiveHarness` 走真实 `OnUpdate` / `OnInput`，另有两条对照：不碰的尾不被判、划键尾只按不划不被判。旧版手工 `new` 后反射调内部阶段、进不了候选，曾被停放，现已改写恢复。谱面版本见 `DecorationTailFromChartTests`。
 - `Live/TailReleaseLaneTests`：真实谱面 + `LiveHarness` 逐帧驱动一根普通尾长条，验证**抬手归属**——另一根手指在别的轨道按下再抬起时尾不许被判定、条也不许结束；持握者自己在条内抬手时尾必须被判。拥挤的尾：范围内还有其他触摸时只认 Perfect 区间的抬手，单独抬手任何评级都判；范围外的触摸、同帧也抬起的触摸、同一触摸的多个样本都不算拥挤。**动到 `CoverHoldsWithAnyFinger` 的松手分支时必须跑它**。
-- `Live/LongHeadGradeTests`：真实循环里按不同偏移按下普通长条头，断言实际评级（`Long` 表，对称）：±4 ms 以内 JustPerfect，±30 ms Perfect，±60/±80 ms Great，±95 ms Good，±118 ms Bad；晚 150 ms 的按下不进候选、头记 Miss；早 150 ms 的按下不判头，头在窗口关闭后记 Miss。**动到头的窗口表、`PressCandidateWindow` 或 `LongNoteHead.TryJudge` 时必须跑它**。
+- `Live/LongHeadGradeTests`：真实循环里按不同偏移按下普通长条头，断言实际评级（`Long` 表，对称）：±4 ms 和 ±30 ms 均为 Perfect，±60/±80 ms Great，±95 ms Good，±118 ms Bad；晚 150 ms 的按下不进候选、头记 Miss；早 150 ms 的按下不判头，头在窗口关闭后记 Miss。**动到头的窗口表、`PressCandidateWindow` 或 `LongNoteHead.TryJudge` 时必须跑它**。
 - `Live/PressCandidateRuleTests`：候选硬标准。按下只收单键、未推进的独立划键、长条普通头（条身、尾、内部点、摩擦键、挂在条上的划键都不收），判定过的键立刻离开；车道（头用条的扩展车道）；时间窗口边界（单键与头 ±125 ms，划键早 125 ms / 晚 141.7 ms）；抬起只收普通尾。真实循环里：一次按下推进划键并在它身上消费，紧随其后的单键不被这次按下判；推进后另一根手指在划键车道内的滑动也能完成它（即使推进它的手指排在本帧前面），车道外的滑动不行；晚 150 ms 的按下推进不了划键。**动到 `IsPressStep` / `AdmitsPress`、`FlickNote.IsJudgment`、`DriveIndependentNotes` 或 `IsReleaseKey` 时必须跑它**。
 - `Live/PressOwnershipTests`：按下归属。收集候选不写 `_judgedTouchTimes`、尚未命中的候选不挡后续候选；同帧双押各取更近的音符；去重三步（只剩一个键的手指优先并级联、两指两键按谱面顺序配对、配对的键从其他手指剔除，三指三键与两指三键不配对、其余按车道中心距离再按较小 `fingerId`）；单指按谱面时间、再按 `ChartOrder` 取最早的键，最早的只能拿 Good 及以下而后面的能拿 Great 及以上时让给后者；头按所属条的起点窗口评级；同一手指同帧多个 `Began` 样本共用一个按下额度；「两指争同一音符、其中一指还够得到更早一颗」时两颗都被判，与注册顺序无关。**动到 `LiveCandidatePipeline.Collect` / `SortPressCandidates` 或 `JudgmentScheduler.EvaluateJudgment` 的消费路径时必须跑它**。
 - `Live/FrictionHeadLifetimeTests`：摩擦头的键与独立 friction 音符同生命周期。手动搓到、自动播放、未碰到 Miss 三种情况下，头判定的那一帧 `HeadKeyLeftWithItsVerdict` 变真、条身仍在；搓到与自动时判定以 `FrictionLong` 身份在同一帧到达视图一次；普通头的键仍停在线上。视图一侧由 `LongNoteKeyLifetimeTests.ARubHeadsKeyIsTakenOffWithItsVerdict` 固定。

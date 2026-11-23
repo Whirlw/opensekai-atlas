@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using OpenSekai.App.Library;
 using OpenSekai.App.Playback;
+using OpenSekai.Infrastructure.Packages;
 using OpenSekai.Infrastructure.Sonolus;
 using OpenSekai.Shared.Packages;
 using OpenSekai.Shared.Playback;
@@ -25,6 +26,11 @@ namespace OpenSekai.App.UI
         internal string Link { get; }
         internal string Host { get; private set; }
         internal string LevelName { get; private set; }
+        internal string PageUrl { get; private set; }
+        internal bool RequiresLocalPackage { get; private set; }
+        internal string Availability => Installed ? "本机已有" : PageUrl != null ? "手动下载"
+            : RequiresLocalPackage ? "需要导入曲包" : "开打前下载";
+        internal string ManualDownloadPage => Installed ? null : PageUrl;
 
         /// <summary>The song's title: the installed chart's, then one a past attempt saved, then the level's name.</summary>
         internal string Title { get; private set; }
@@ -43,19 +49,25 @@ namespace OpenSekai.App.UI
         internal static DanSongInfo Resolve(string link, string savedTitle = null)
         {
             var info = new DanSongInfo(link);
-            if (!SonolusServerAddress.TryParse(link, out SonolusServerAddress server, out string level, out _) || string.IsNullOrEmpty(level))
+            SonolusServerAddress server = null;
+            string level = null;
+            bool local = DanLibrarySong.TryParse(link, out var librarySong);
+            if (!local && (!SonolusServerAddress.TryParse(link, out server, out level, out _) || string.IsNullOrEmpty(level)))
             {
                 info.Title = string.IsNullOrWhiteSpace(link) ? "未填写链接" : link.Trim();
                 return info;
             }
 
             info.Valid = true;
-            info.Host = server.Host;
+            info.RequiresLocalPackage = local;
+            info.PageUrl = librarySong?.PageUrl;
+            info.Host = SongPackageSource.TryHttps(info.PageUrl, out Uri page) ? page.Host : server?.Host ?? "曲库";
             info.LevelName = level;
-            info.Title = !string.IsNullOrWhiteSpace(savedTitle) ? savedTitle : level;
+            info.Title = !string.IsNullOrWhiteSpace(savedTitle) ? savedTitle : librarySong?.Title ?? level;
             try
             {
-                SongPackage package = SonolusLevelInstaller.Shared.FindPlayableInstalled(server, level);
+                SongPackage package = local ? librarySong.FindInstalled(SongPackageManager.Shared)?.Entry
+                    : SonolusLevelInstaller.Shared.FindPlayableInstalled(server, level);
                 if (package?.Manifest != null)
                 {
                     info.Installed = true;
@@ -320,7 +332,7 @@ namespace OpenSekai.App.UI
 
             switch (field)
             {
-                case "version": return "这不是 OpenSekai 段位分享文本：第一行应为 " + DanDefinition.PREFIX;
+                case "version": return "无法识别 OpenSekai 段位分享文本的版本";
                 case "json": return "分享文本不完整或已损坏，请重新复制";
                 case "initialLife": return "初始生命需要是大于 0 的整数";
                 case "damage": return "缺少扣血表";

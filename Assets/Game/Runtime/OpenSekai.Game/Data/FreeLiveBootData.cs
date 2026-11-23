@@ -47,6 +47,7 @@ namespace Sekai
 
 		/// <summary>Content hash of the package's score file; the play history key.</summary>
 		public string CustomMusicScoreKey { get; set; }
+		public bool CustomMusicScoreRanked { get; set; }
 
 		public bool IsOfficialMusicScore { get; set; }
 

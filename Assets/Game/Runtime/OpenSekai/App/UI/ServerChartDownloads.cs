@@ -99,7 +99,9 @@ namespace OpenSekai.App.UI
                 {
                     _attempted.Add(id);
                     _progress = 0;
-                    _import = ImportAsync(id, (string)item["path"]);
+                    _import = ImportAsync(id, (string)item["path"],
+                        SongPackageSource.FromWeb((string)item["pageUrl"], (string)item["downloadUrl"]),
+                        (string)item["chartZone"], (int?)item["chartLevel"] ?? 0);
                     return; // Serialize imports and shared library-cache updates.
                 }
                 if (status == 16 && _attempted.Add(id))
@@ -113,7 +115,7 @@ namespace OpenSekai.App.UI
             }
         }
 
-        private async Task ImportAsync(string id, string path)
+        private async Task ImportAsync(string id, string path, SongPackageSource source, string zone, int level)
         {
             try
             {
@@ -122,7 +124,14 @@ namespace OpenSekai.App.UI
                     throw new InvalidDataException("下载文件位于应用下载目录之外。");
                 // Resolve Shared on Unity's thread before starting work (its paths use Unity APIs).
                 var manager = SongPackageManager.Shared;
-                await manager.ImportDownloadedZipAsync(path, id, value => Volatile.Write(ref _progress, value));
+                var package = await manager.ImportDownloadedZipAsync(path, id, value => Volatile.Write(ref _progress, value), source);
+                string key = ChartRankCache.Key(source);
+                if (key != null)
+                {
+                    string hash = manager.ScoreKeyOf(package);
+                    var snapshot = ChartRankCache.FromWeb(zone, level, hash);
+                    ChartRankCache.Save(key, snapshot);
+                }
                 using var plugin = new AndroidJavaClass("com.opensekai.MiniWebView");
                 plugin.CallStatic("acknowledge", id);
                 Imported?.Invoke();

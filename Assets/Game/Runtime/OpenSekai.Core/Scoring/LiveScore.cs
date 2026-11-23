@@ -24,7 +24,6 @@ namespace Sekai.Core.Live
 
 		public int technicalScore;
 
-		public int justPerfectCount;
 
 		public int perfectCount;
 

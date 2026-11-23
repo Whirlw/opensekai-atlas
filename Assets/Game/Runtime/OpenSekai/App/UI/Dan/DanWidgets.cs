@@ -112,9 +112,11 @@ namespace OpenSekai.App.UI
         private readonly TextMeshProUGUI _meta;
         private readonly RectTransform _tag;
         private readonly TextMeshProUGUI _value;
+        private readonly UnityEngine.UI.Button _download;
+        private string _downloadPage;
 
         /// <param name="valueWidth">Room on the right for a value (a score, a life change); 0 for none.</param>
-        internal DanSongLine(Transform parent, string name, float height, float valueWidth = 0f)
+        internal DanSongLine(Transform parent, string name, float height, float valueWidth = 0f, bool manualDownload = false)
         {
             Root = LibraryUi.CreateRect(name, parent);
             Background = LibraryWidgets.Panel("Background", Root, LibraryTheme.Radius.ROW, LibraryTheme.Colors.Control);
@@ -131,10 +133,10 @@ namespace OpenSekai.App.UI
             float left = 18f + disc + 18f;
             float right = 20f + (valueWidth > 0f ? valueWidth + 16f : 0f);
             _title = PackWidgets.UserLabel("Title", Root, string.Empty, 23f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
-            LibraryWidgets.Inset(_title.rectTransform, left, height * 0.5f - 2f, right + 150f, 0f);
+            LibraryWidgets.Inset(_title.rectTransform, left, height * 0.5f - 2f, right + (manualDownload ? 184f : 150f), 0f);
             _title.alignment = TextAlignmentOptions.BottomLeft;
             _meta = PackWidgets.UserLabel("Meta", Root, string.Empty, 17f, LibraryTheme.Colors.TextMuted);
-            LibraryWidgets.Inset(_meta.rectTransform, left, 0f, right, height * 0.5f + 4f);
+            LibraryWidgets.Inset(_meta.rectTransform, left, 0f, right + (manualDownload ? 184f : 0f), height * 0.5f + 4f);
             _meta.alignment = TextAlignmentOptions.TopLeft;
 
             _tag = PackWidgets.Tag(Root, string.Empty, LibraryTheme.Colors.TextMuted, out _, 32f);
@@ -151,6 +153,16 @@ namespace OpenSekai.App.UI
 
             PlaceTag(valueWidth);
             _valueWidth = valueWidth;
+            if (manualDownload)
+            {
+                const float DOWNLOAD_WIDTH = 166f;
+                _download = LibraryWidgets.PillButton("ManualDownload", Root, "打开来源网页", OpenDownloadPage, DOWNLOAD_WIDTH, 48f,
+                    LibraryTheme.Colors.Surface, LibraryTheme.Colors.TextPrimary, 18f);
+                float buttonRight = 20f + (valueWidth > 0f ? valueWidth + 16f : 0f);
+                LibraryWidgets.Place((RectTransform)_download.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
+                    new Vector2(-buttonRight, 0f), new Vector2(DOWNLOAD_WIDTH, 48f));
+                _download.gameObject.SetActive(false);
+            }
         }
 
         private readonly float _valueWidth;
@@ -158,13 +170,17 @@ namespace OpenSekai.App.UI
         internal RectTransform Root { get; }
         internal Image Background { get; }
 
-        internal void Bind(int number, string title, string meta, string tag, Color32 tagColor, Color32 discColor, string value = null)
+        internal void Bind(int number, string title, string meta, string tag, Color32 tagColor, Color32 discColor,
+            string value = null, string downloadPage = null)
         {
             _number.text = number.ToString(CultureInfo.InvariantCulture);
             _disc.color = discColor;
             _title.text = title ?? string.Empty;
             _meta.text = meta ?? string.Empty;
-            bool hasTag = !string.IsNullOrEmpty(tag);
+            _downloadPage = downloadPage;
+            bool showDownload = _download != null && _downloadPage != null;
+            if (_download != null) _download.gameObject.SetActive(showDownload);
+            bool hasTag = !showDownload && !string.IsNullOrEmpty(tag);
             _tag.gameObject.SetActive(hasTag);
             if (hasTag)
             {
@@ -176,6 +192,8 @@ namespace OpenSekai.App.UI
         }
 
         internal void SetNumberColor(Color32 color) => _number.color = color;
+
+        private void OpenDownloadPage() => ServerChartDownloads.Open(_downloadPage, "谱面来源");
 
         private void PlaceTag(float valueWidth)
         {

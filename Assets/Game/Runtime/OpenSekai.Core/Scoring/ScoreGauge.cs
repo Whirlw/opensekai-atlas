@@ -11,20 +11,28 @@ namespace OpenSekai.Shared.Scoring
     /// </summary>
     public sealed class ScoreGauge
     {
-        public const float RANK_RATE_S = 0.9f;
-        public const float RANK_RATE_A = 0.75f;
-        public const float RANK_RATE_B = 0.6f;
-        public const float RANK_RATE_C = 0.45f;
+        public const float MARKER_S = 0.9f;
+        public const float MARKER_A = 0.75f;
+        public const float MARKER_B = 0.6f;
+        public const float MARKER_C = 0.45f;
 
-        private const int DEFAULT_TOTAL_SCORE = 1000000;
+        public const int MAXIMUM_SCORE = 1_000_000;
+        public const int SCORE_C = 900_000;
+        public const int SCORE_B = 950_000;
+        public const int SCORE_A = 975_000;
+        public const int SCORE_S = 990_000;
+        public static readonly ScoreGauge Standard = Create(MAXIMUM_SCORE);
+
+        private readonly int _maximum;
 
         private readonly int _rankS;
         private readonly int _rankA;
         private readonly int _rankB;
         private readonly int _rankC;
 
-        private ScoreGauge(int rankS, int rankA, int rankB, int rankC)
+        private ScoreGauge(int rankS, int rankA, int rankB, int rankC, int maximum)
         {
+            _maximum = maximum;
             _rankS = rankS;
             _rankA = rankA;
             _rankB = rankB;
@@ -36,7 +44,7 @@ namespace OpenSekai.Shared.Scoring
         {
             if (score == null || (score.s <= 0 && score.a <= 0 && score.b <= 0 && score.c <= 0))
             {
-                return Create(DEFAULT_TOTAL_SCORE);
+                return Standard;
             }
 
             return Create(score.s, score.a, score.b, score.c);
@@ -44,71 +52,58 @@ namespace OpenSekai.Shared.Scoring
 
         public static ScoreGauge Create(int totalScore)
         {
-            float total = totalScore;
-            return Create(
-                (int)Math.Floor(RANK_RATE_S * total),
-                (int)Math.Floor(RANK_RATE_A * total),
-                (int)Math.Floor(RANK_RATE_B * total),
-                (int)Math.Floor(RANK_RATE_C * total));
+            int Threshold(int score) => (int)Math.Ceiling((decimal)score * totalScore / MAXIMUM_SCORE);
+            return new ScoreGauge(Threshold(SCORE_S), Threshold(SCORE_A), Threshold(SCORE_B), Threshold(SCORE_C), totalScore);
         }
 
-        public static ScoreGauge Create(int rankS, int rankA, int rankB, int rankC)
-        {
-            return new ScoreGauge(rankS, rankA, rankB, rankC);
-        }
+        public static ScoreGauge Create(int rankS, int rankA, int rankB, int rankC) =>
+            new ScoreGauge(rankS, rankA, rankB, rankC, Math.Max(MAXIMUM_SCORE, rankS));
 
-        public static ScoreRank GetRank(MasterPlayLevelScore thresholds, int totalScore)
+        public ScoreRank RankOf(int totalScore)
         {
-            if (thresholds == null)
-            {
-                return ScoreRank.D;
-            }
-
-            if (totalScore >= thresholds.s)
+            if (totalScore >= _rankS)
             {
                 return ScoreRank.S;
             }
 
-            if (totalScore >= thresholds.a)
+            if (totalScore >= _rankA)
             {
                 return ScoreRank.A;
             }
 
-            if (totalScore >= thresholds.b)
+            if (totalScore >= _rankB)
             {
                 return ScoreRank.B;
             }
 
-            return totalScore >= thresholds.c ? ScoreRank.C : ScoreRank.D;
+            return totalScore >= _rankC ? ScoreRank.C : ScoreRank.D;
         }
 
         /// <summary>
-        /// Fill ratio for the score bar: piecewise linear between 0 → C → B → A → S, clamped to 1.
-        /// Above the S threshold the bar stays full.
+        /// Fill each score interval between its two HUD markers, including S to full score.
         /// </summary>
         public float ProgressOf(int totalScore)
         {
-            if (totalScore >= _rankS)
-            {
-                return 1f;
-            }
+            if (totalScore <= 0) return 0f;
+            if (totalScore >= _maximum) return 1f;
+            if (totalScore >= _rankS) return Interpolate(_rankS, _maximum, MARKER_S, 1f, totalScore);
 
             if (totalScore >= _rankA)
             {
-                return Interpolate(_rankA, _rankS, RANK_RATE_A, RANK_RATE_S, totalScore);
+                return Interpolate(_rankA, _rankS, MARKER_A, MARKER_S, totalScore);
             }
 
             if (totalScore >= _rankB)
             {
-                return Interpolate(_rankB, _rankA, RANK_RATE_B, RANK_RATE_A, totalScore);
+                return Interpolate(_rankB, _rankA, MARKER_B, MARKER_A, totalScore);
             }
 
             if (totalScore >= _rankC)
             {
-                return Interpolate(_rankC, _rankB, RANK_RATE_C, RANK_RATE_B, totalScore);
+                return Interpolate(_rankC, _rankB, MARKER_C, MARKER_B, totalScore);
             }
 
-            return totalScore <= 0 ? 0f : Interpolate(0, _rankC, 0f, RANK_RATE_C, totalScore);
+            return Interpolate(0, _rankC, 0f, MARKER_C, totalScore);
         }
 
         /// <summary>Splits one gauge between several players: each gets a share proportional to their score.</summary>

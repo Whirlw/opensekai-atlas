@@ -259,7 +259,7 @@ namespace OpenSekai.App.Library
             if (record.SchemaVersion != 3) return;
             if (!record.EndReason.HasValue || !Enum.IsDefined(typeof(PlayResultKind), record.EndReason.Value) ||
                 record.EndReason == PlayResultKind.LoadError || record.MaximumScore <= 0 ||
-                record.FormulaVersion != RankingRules.FORMULA_VERSION || string.IsNullOrWhiteSpace(record.PlayedAtUtc))
+                !RankingRules.SupportsFormula(record.FormulaVersion) || string.IsNullOrWhiteSpace(record.PlayedAtUtc))
                 throw new InvalidDataException("Invalid play at line " + line);
             foreach (string field in _judgementFields)
                 if (row[field]?.Type != JTokenType.Integer || (long)row[field] < 0)

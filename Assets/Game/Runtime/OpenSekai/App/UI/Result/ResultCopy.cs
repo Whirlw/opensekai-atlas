@@ -48,6 +48,8 @@ namespace OpenSekai.App.UI
                 case RankingEligibility.MissingChart: return "谱面缺少标识，本局无法计入";
                 case RankingEligibility.UnknownRules: return "计分规则无法识别，本局无法计入";
                 case RankingEligibility.InvalidChart: return "谱面难度或满分无效，本局无法计入";
+                case RankingEligibility.BelowRankC: return "未达到 C 评级，本局不计入 Ranking Score";
+                case RankingEligibility.Unranked: return "谱面未确认 Ranked，本局不计入 Ranking Score";
                 case RankingEligibility.LoadError: return "曲包没能载入，本局没有开始";
                 default: return "本局不计入 Ranking Score";
             }

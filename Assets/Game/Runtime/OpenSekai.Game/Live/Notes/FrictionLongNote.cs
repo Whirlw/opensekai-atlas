@@ -5,7 +5,7 @@ namespace Sekai.Live
 		// This bar ends in a friction note: the friction note's own judgement finishes it, not a release.
 		protected bool isTouched;
 
-		protected virtual NoteResult CompletedTouchResult => NoteResult.JustPerfect;
+		protected virtual NoteResult CompletedTouchResult => NoteResult.Perfect;
 
 		public FrictionLongNote()
 		{

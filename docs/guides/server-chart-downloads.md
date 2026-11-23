@@ -15,6 +15,14 @@
 
 点网页服务器后，在内置浏览器中打开它的地址；顶栏的返回按钮先退网页历史，到第一页时回到游戏，系统返回键 / 手势相同，右侧有刷新和关闭。用户自行搜索、登录、完成网站人机验证并点击下载，系统 WebView 的 DownloadListener 将 HTTPS 下载交给 Android DownloadManager。返回游戏后自动解压、验证并刷新曲库，无需再次选择文件。
 
+## Ranked 与 Ranking Score
+
+sonolus.sbuga.com 的全部谱面、opensekai.com 标为「上架」的谱面和 UntitledCharts 的 Staff Pick 均可获得 Ranked。Sbuga 的下载与临时游玩直接按来源确认资格。旧下载优先使用本地安装记录核对谱面内容和发布等级。Android 浏览器读取当前详情页已经显示的分区和等级，并把它们按谱面 ID 交给对应的下载任务。UntitledCharts 使用单谱详情中的 Staff Pick 标签，直接游玩和下载使用同一规则。
+
+曲库详情显示该曲包的状态。旧下载显示「待确认」时，点「来源」即可单独核验这张谱面。同一版本在七天内复用已确认结果，查询失败后本次运行内等待十分钟可重试。手动核验 opensekai.com 上架谱面时，还会读取这个 ID 的公开预览谱面文件以核对内容。平时浏览曲库、开局和结算只读取本地记录，离线游玩沿用最近确认的状态。
+
+开局时按来源、谱面内容和发布等级确认资格。普通手动通关的 Ranked 成绩达到 C 评级（百万制 900,000 分）后参与 Best 30。低于 C 的成绩保留在游玩历史中，FC 也没有积分奖励。其他谱面的手动成绩仍保存在历史中。每局保存开局时的资格，重启和导入备份都据此重建积分。旧版成绩没有这项记录，会保留在游玩历史中。
+
 ## 集成方式
 
 项目为 Unity 6000.6.7f1，沿用 `Assets/Plugins/Android/com/opensekai/` 的 Java 源码插件方式，由 Unity 的 Android 构建自动编译，无需额外 AAR、Android Studio 工程或场景接线。不要再导入包含相同类的 AAR。Manifest 增加了 INTERNET 权限和不可外部启动的 ChartBrowserActivity；不需要存储权限、AndroidX、OkHttp 或第三方 WebView SDK。使用项目随 Unity 安装的 JDK 和 compileSdk 36 或更高版本。

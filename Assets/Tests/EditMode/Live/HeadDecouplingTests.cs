@@ -89,7 +89,7 @@ namespace OpenSekai.Tests.EditMode.Live
                     friction.Judgment(ref touch, 4.5f);
                 }
                 Assert.That(heads, Is.EqualTo(hidden ? 0 : 1));
-                Assert.That(friction.Result, Is.EqualTo(hidden ? NoteResult.Pass : NoteResult.JustPerfect));
+                Assert.That(friction.Result, Is.EqualTo(hidden ? NoteResult.Pass : NoteResult.Perfect));
             }
         }
 
@@ -106,14 +106,14 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(bar.State, Is.EqualTo(NoteState.Last));
             bar.Excute(Info(0.06f), 0); // Leave Last through the real lifecycle.
             bar.Head.SettleExpiredHead(1f); // The head's own clock: it is already settled, so this is a no-op.
-            Assert.That(bar.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(bar.Result, Is.EqualTo(NoteResult.Perfect));
             Assert.That(judgments, Is.EqualTo(1));
 
             // Any visual replay of the old publishing transition must also be silent.
             bar.Visual(NoteState.Last);
             bar.Visual(NoteState.InputBegan);
             Assert.That(judgments, Is.EqualTo(1));
-            Assert.That(bar.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(bar.Result, Is.EqualTo(NoteResult.Perfect));
         }
 
         [Test]
@@ -143,11 +143,11 @@ namespace OpenSekai.Tests.EditMode.Live
             }
 
             Assert.That(tail.State, Is.EqualTo(NoteState.Done));
-            Assert.That(headResults, Is.EqualTo(new[] { NoteResult.JustPerfect }));
+            Assert.That(headResults, Is.EqualTo(new[] { NoteResult.Perfect }));
             Assert.That(tailResults.Count, Is.EqualTo(1));
             Assert.That(tailResults[0], Is.EqualTo(bar.ChildNote.Result));
             Assert.That(tailResults[0], Is.Not.EqualTo(NoteResult.Miss));
-            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.JustPerfect), "tail grading must not replace the owned head result");
+            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.Perfect), "tail grading must not replace the owned head result");
         }
 
         [Test]

@@ -95,7 +95,7 @@ namespace OpenSekai.Tests.EditMode.Live
 				view.Move(0f);
 				Assert.That(view.transform.localScale.x, Is.GreaterThan(0f), "the key is drawn before its verdict");
 
-				bar.Head.Settle((NoteResult.JustPerfect, NoteResultDescription.None));
+				bar.Head.Settle((NoteResult.Perfect, NoteResultDescription.None));
 				view.Move(0f);
 				Assert.That(bar.State, Is.Not.EqualTo(NoteState.Done));
 				Assert.That(view.transform.localScale, Is.EqualTo(Vector3.zero), "the judged rub key is gone");

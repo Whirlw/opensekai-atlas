@@ -168,14 +168,14 @@ namespace OpenSekai.Tests.EditMode.Live
 			// The rule now is: a part the bar can end is graded, so a pressable head is not swallowed.
 			// With the head settled the bar still ends silently - its hidden tail never judges itself into
 			// the bar's result.
-			bar.Head.Settle((NoteResult.JustPerfect, NoteResultDescription.None));
+			bar.Head.Settle((NoteResult.Perfect, NoteResultDescription.None));
 
 
 		Assert.That(bar.ExpireTail(1.2f), Is.True);
 
 		Assert.That(bar.State, Is.EqualTo(NoteState.Done));
 
-		Assert.That(bar.Result, Is.EqualTo(NoteResult.JustPerfect)); // the head's verdict, not a tail's
+		Assert.That(bar.Result, Is.EqualTo(NoteResult.Perfect)); // the head's verdict, not a tail's
 
 	}
 

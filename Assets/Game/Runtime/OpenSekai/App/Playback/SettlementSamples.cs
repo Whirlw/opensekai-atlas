@@ -90,7 +90,7 @@ namespace OpenSekai.App.Playback
             var award = RankingRules.Award(kind, score.autoCount > 0, score);
             return new CustomMusicScorePlayHistoryRecord
             {
-                SchemaVersion = 3, RecordId = id, ScoreKey = key, Title = title, PlayLevel = level,
+                SchemaVersion = 3, RecordId = id, ScoreKey = key, Ranked = true, Title = title, PlayLevel = level,
                 PlayedAtUtc = "2026-11-22T00:00:00.0000000Z", EndReason = kind,
                 FormulaVersion = RankingRules.FORMULA_VERSION, MaximumScore = RankingRules.MAXIMUM_SCORE,
                 TotalScore = score.totalScore, Life = score.life, TotalComboCount = score.totalComboCount,
@@ -102,9 +102,9 @@ namespace OpenSekai.App.Playback
         }
 
         private static LiveScore NormalClear() => new() { totalScore = 980000, totalComboCount = 300,
-            perfectCount = 294, missCount = 6, maxCombo = 180, life = 640, rank = Sekai.ScoreRank.S };
+            perfectCount = 294, missCount = 6, maxCombo = 180, life = 640, rank = Sekai.ScoreRank.A };
         private static LiveScore FullCombo() => new() { totalScore = 980000, totalComboCount = 300,
-            perfectCount = 280, greatCount = 20, maxCombo = 300, life = 1000, rank = Sekai.ScoreRank.S };
+            perfectCount = 280, greatCount = 20, maxCombo = 300, life = 1000, rank = Sekai.ScoreRank.A };
         private static LiveScore AllPerfect() => new() { totalScore = 1000000, totalComboCount = 300,
             perfectCount = 300, maxCombo = 300, life = 1000, rank = Sekai.ScoreRank.S };
     }

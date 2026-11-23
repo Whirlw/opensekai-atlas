@@ -331,15 +331,8 @@ namespace Sekai.Live
 		internal bool HasSlideEndInputAt(float now) =>
 			(Result >= NoteResult.Bad && Result != NoteResult.Auto) || now <= _slideEndInputUntil;
 
-		private (NoteResult result, NoteResultDescription description) _judgeInfo;
-
 		[JsonIgnore]
-		public (NoteResult result, NoteResultDescription description) JudgeInfo
-		{
-			get => _judgeInfo;
-			protected set => _judgeInfo = UsesNextRushJudgment && value.result == NoteResult.JustPerfect
-				? (NoteResult.Perfect, value.description) : value;
-		}
+		public (NoteResult result, NoteResultDescription description) JudgeInfo { get; protected set; }
 
 		[JsonIgnore]
 		public NoteResult Result

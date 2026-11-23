@@ -53,29 +53,43 @@ namespace OpenSekai.App.Playback
         {
             token.ThrowIfCancellationRequested();
             if (_prepared.TryGetValue(link, out var previous)) return previous;
-            if (!SonolusServerAddress.TryParse(link, out var address, out var level, out var error))
-                throw new InvalidDataException(error);
-            string local = _installer.FindPlayableInstalled(address, level)?.RootDirectory;
-            if (local == null)
+            string local;
+            string fallbackTitle;
+            if (DanLibrarySong.TryParse(link, out var librarySong))
             {
-                var client = new SonolusClient(address);
-                var details = await client.GetLevelAsync(level, token);
-                var installed = await _installer.InstallAsync(client, details, null, token);
-                local = installed.RootDirectory;
+                local = librarySong.FindInstalled(_installer.Packages)?.Entry.RootDirectory
+                    ?? throw new InvalidDataException(librarySong.PageUrl != null
+                        ? "请打开来源网页下载对应版本，导入后重试。"
+                        : "请先将对应版本的曲包导入曲库。");
+                fallbackTitle = librarySong.Title;
+            }
+            else
+            {
+                if (!SonolusServerAddress.TryParse(link, out var address, out var level, out var error))
+                    throw new InvalidDataException(error);
+                local = _installer.FindPlayableInstalled(address, level)?.RootDirectory;
+                if (local == null)
+                {
+                    var client = new SonolusClient(address);
+                    var details = await client.GetLevelAsync(level, token);
+                    var installed = await _installer.InstallAsync(client, details, null, token);
+                    local = installed.RootDirectory;
+                }
+                fallbackTitle = level;
             }
 
             string pinned = Path.Combine(_directory, _prepared.Count.ToString(CultureInfo.InvariantCulture));
-            var (copy, hash) = await Task.Run(() => Pin(local, pinned, token), token);
+            var (copy, hash) = await Task.Run(() => Pin(local, pinned, librarySong, token), token);
             var clip = await PackageAudio.LoadClipAsync(copy, token);
             if (clip == null) throw new InvalidDataException("曲目音频无法解码。");
             UnityEngine.Object.Destroy(clip);
             string title = copy.Manifest.scoreTitle;
-            var song = new PreparedDanSong(pinned, string.IsNullOrWhiteSpace(title) ? level : title, hash);
+            var song = new PreparedDanSong(pinned, string.IsNullOrWhiteSpace(title) ? fallbackTitle : title, hash);
             _prepared.Add(link, song);
             return song;
         }
 
-        private (SongPackage, string) Pin(string source, string pinned, CancellationToken token)
+        private (SongPackage, string) Pin(string source, string pinned, DanLibrarySong reference, CancellationToken token)
         {
             var package = SongPackageStorage.LoadEntry(source) ?? throw new InvalidDataException("曲包信息无效。");
             Directory.CreateDirectory(pinned);
@@ -86,10 +100,12 @@ namespace OpenSekai.App.Playback
             if (File.Exists(package.JacketPath)) File.Copy(package.JacketPath, copy.JacketPath);
             if (File.Exists(package.VideoPath)) File.Copy(package.VideoPath, copy.VideoPath);
             token.ThrowIfCancellationRequested();
-            if (!RuntimeChartLoader.IsNextRushChart(copy) || !RuntimeChartLoader.Load(copy, _config, true, false).HasPlayableNotes)
+            if (!RuntimeChartLoader.Load(copy, _config, true, false).HasPlayableNotes)
                 throw new InvalidDataException("该谱面无法手动游玩。");
             string hash = SongPackageHash.Compute(copy.ScorePath);
             if (string.IsNullOrEmpty(hash)) throw new IOException("无法确认谱面版本。");
+            if (reference != null && (hash != reference.ScoreKey || !reference.MatchesAudio(copy.AudioPath)))
+                throw new InvalidDataException("曲包内容已变化，请导入对应版本后重试。");
             return (copy, hash);
         }
 

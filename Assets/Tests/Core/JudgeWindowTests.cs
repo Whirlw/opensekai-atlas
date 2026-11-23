@@ -11,7 +11,7 @@ namespace OpenSekai.Tests.EditMode.Live
     /// </summary>
     public sealed class JudgeWindowTests
     {
-        private const float JUST_PERFECT_HALF = 0.5f;
+        private const float ON_TIME_WINDOW_HALF = 0.5f;
 
         /// <summary>A normal note: 2.5 / 5 / 6.5 / 7.5 half-frames, the shipped table.</summary>
         private static JudgeTimeData Window(
@@ -30,7 +30,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
         private static NoteResult Result(JudgeTimeData data, float offset, bool isDirection = true)
         {
-            return JudgeWindow.ResultFor(data, offset, isDirection, JUST_PERFECT_HALF).Item1;
+            return JudgeWindow.ResultFor(data, offset, isDirection, ON_TIME_WINDOW_HALF).Item1;
         }
 
         [Test]
@@ -46,18 +46,26 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         [Test]
-        public void DeadOnIsJustPerfect()
+        public void CenteredInputsArePerfect()
         {
-            Assert.That(Result(Window(), 0f), Is.EqualTo(NoteResult.JustPerfect));
-            Assert.That(Result(Window(), JUST_PERFECT_HALF), Is.EqualTo(NoteResult.JustPerfect));
-            Assert.That(Result(Window(), -JUST_PERFECT_HALF), Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(Result(Window(), 0f), Is.EqualTo(NoteResult.Perfect));
+            Assert.That(Result(Window(), ON_TIME_WINDOW_HALF), Is.EqualTo(NoteResult.Perfect));
+            Assert.That(Result(Window(), -ON_TIME_WINDOW_HALF), Is.EqualTo(NoteResult.Perfect));
         }
 
         [Test]
-        public void JustOutsideTheJustWindowIsPerfectOnBothSides()
+        public void PerfectGradeExtendsBeyondTheOnTimeDescriptionWindow()
         {
             Assert.That(Result(Window(), 0.51f), Is.EqualTo(NoteResult.Perfect));
             Assert.That(Result(Window(), -0.51f), Is.EqualTo(NoteResult.Perfect));
+        }
+
+        [Test]
+        public void OnTimeDescriptionDoesNotExpandThePerfectGradeWindow()
+        {
+            var grade = JudgeWindow.ResultFor(Window(perfectAfter: 0.25f), -0.4f, true, ON_TIME_WINDOW_HALF);
+
+            Assert.That(grade, Is.EqualTo((NoteResult.Great, NoteResultDescription.Just)));
         }
 
         [Test]
@@ -87,7 +95,7 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void WrongDirectionInsideThePerfectWindowIsAGreatWithTheFlickMissReason()
         {
-            (NoteResult result, NoteResultDescription description) = JudgeWindow.ResultFor(Window(), 1f, false, JUST_PERFECT_HALF);
+            (NoteResult result, NoteResultDescription description) = JudgeWindow.ResultFor(Window(), 1f, false, ON_TIME_WINDOW_HALF);
 
             Assert.That(result, Is.EqualTo(NoteResult.Great));
             Assert.That(description, Is.EqualTo(NoteResultDescription.FlickMiss));
@@ -103,9 +111,9 @@ namespace OpenSekai.Tests.EditMode.Live
         [Test]
         public void DescriptionSeparatesEarlyFromLate()
         {
-            Assert.That(JudgeWindow.DescriptionFor(0.2f, JUST_PERFECT_HALF), Is.EqualTo(NoteResultDescription.Just));
-            Assert.That(JudgeWindow.DescriptionFor(2f, JUST_PERFECT_HALF), Is.EqualTo(NoteResultDescription.Fast));
-            Assert.That(JudgeWindow.DescriptionFor(-2f, JUST_PERFECT_HALF), Is.EqualTo(NoteResultDescription.Late));
+            Assert.That(JudgeWindow.DescriptionFor(0.2f, ON_TIME_WINDOW_HALF), Is.EqualTo(NoteResultDescription.Just));
+            Assert.That(JudgeWindow.DescriptionFor(2f, ON_TIME_WINDOW_HALF), Is.EqualTo(NoteResultDescription.Fast));
+            Assert.That(JudgeWindow.DescriptionFor(-2f, ON_TIME_WINDOW_HALF), Is.EqualTo(NoteResultDescription.Late));
         }
     }
 }

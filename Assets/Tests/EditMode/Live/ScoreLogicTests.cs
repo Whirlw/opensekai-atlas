@@ -69,19 +69,19 @@ namespace OpenSekai.Tests.EditMode.Live
                 new OpenSekai.Shared.Playback.DanDamage(1, 2, 3, 4, 10), null, null, null);
             logic.Setup(boot, chart);
             Assert.That(logic.Score.life, Is.EqualTo(63));
-            foreach (var grade in new[] { NoteResult.JustPerfect, NoteResult.Perfect, NoteResult.Great,
+            foreach (var grade in new[] { NoteResult.Perfect, NoteResult.Great,
                          NoteResult.Good, NoteResult.Bad, NoteResult.Miss })
                 logic.Damage(new TestNote(grade));
             logic.Damage(new TestNote(NoteResult.Miss, decoration: true));
-            Assert.That(logic.Score.life, Is.EqualTo(42));
+            Assert.That(logic.Score.life, Is.EqualTo(43));
             var hazard = new NextRushDamageNote(default, 1, 0, 0);
             hazard.Resolve(false);
             logic.Damage(hazard);
-            Assert.That(logic.Score.life, Is.EqualTo(42));
+            Assert.That(logic.Score.life, Is.EqualTo(43));
             hazard = new NextRushDamageNote(default, 2, 0, 0);
             hazard.Resolve(true);
             logic.Damage(hazard);
-            Assert.That(logic.Score.life, Is.EqualTo(32));
+            Assert.That(logic.Score.life, Is.EqualTo(33));
             boot.DanSong = null;
             logic.Setup(boot, chart);
             Assert.That(logic.Score.life, Is.EqualTo(325));
@@ -96,14 +96,14 @@ namespace OpenSekai.Tests.EditMode.Live
         [TestCase(348)]
         [TestCase(1000)]
         [TestCase(2019)]
-        public void AllJustPerfectSumsToExactlyOneMillion(int noteCount)
+        public void AllPerfectSumsToExactlyOneMillion(int noteCount)
         {
             ScoreLogic logic = Setup(noteCount);
             int total = 0;
 
             for (int i = 0; i < noteCount; i++)
             {
-                total += logic.CalculateAddScore(new TestNote(NoteResult.JustPerfect));
+                total += logic.CalculateAddScore(new TestNote(NoteResult.Perfect));
             }
 
             Assert.That(total, Is.EqualTo(1000000), $"n={noteCount}");
@@ -132,36 +132,20 @@ namespace OpenSekai.Tests.EditMode.Live
 
             for (int i = 0; i < 221; i++)
             {
-                running += logic.CalculateAddScore(new TestNote(NoteResult.JustPerfect));
+                running += logic.CalculateAddScore(new TestNote(NoteResult.Perfect));
                 Assert.That(running, Is.LessThanOrEqualTo(1000000), $"after {i + 1} notes");
             }
         }
 
         [Test]
-        public void PerfectPaysTheSameAsAJustPerfect()
+        public void PerfectPaysTheFullBaseScore()
         {
-            // The tighter window is a visual nuance: an all-PERFECT play has to reach 1,000,000.
             ScoreLogic logic = Setup(1000);
             int baseScore = logic.BaseNoteScore;
 
             int gained = logic.CalculateAddScore(new TestNote(NoteResult.Perfect));
 
             Assert.That(gained, Is.EqualTo(baseScore));
-        }
-
-        [Test]
-        public void AnAllPerfectPlayReachesTheFullScore()
-        {
-            const int NOTES = 2019;
-            ScoreLogic logic = Setup(NOTES);
-            int total = 0;
-
-            for (int i = 0; i < NOTES; i++)
-            {
-                total += logic.CalculateAddScore(new TestNote(NoteResult.Perfect));
-            }
-
-            Assert.That(total, Is.EqualTo(1_000_000));
         }
 
         [Test]
@@ -183,7 +167,7 @@ namespace OpenSekai.Tests.EditMode.Live
             ScoreLogic logic = Setup(1000);
             int baseScore = logic.BaseNoteScore;
 
-            int doubled = logic.CalculateAddScore(new TestNote(NoteResult.JustPerfect), 2f);
+            int doubled = logic.CalculateAddScore(new TestNote(NoteResult.Perfect), 2f);
 
             Assert.That(doubled, Is.EqualTo(baseScore * 2));
         }
@@ -193,7 +177,7 @@ namespace OpenSekai.Tests.EditMode.Live
         {
             ScoreLogic logic = Setup(10);
 
-            int gained = logic.CalculateAddScore(new TestNote(NoteResult.JustPerfect, decoration: true));
+            int gained = logic.CalculateAddScore(new TestNote(NoteResult.Perfect, decoration: true));
 
             Assert.That(gained, Is.EqualTo(0));
             Assert.That(logic.Score.totalScore, Is.EqualTo(0));
@@ -213,10 +197,9 @@ namespace OpenSekai.Tests.EditMode.Live
         {
             ScoreLogic logic = Setup(10);
 
-            logic.UpdateNoteResult(new TestNote(NoteResult.JustPerfect));
+            logic.UpdateNoteResult(new TestNote(NoteResult.Perfect));
 
-            Assert.That(logic.Score.justPerfectCount, Is.EqualTo(1));
-            Assert.That(logic.Score.perfectCount, Is.EqualTo(1), "a just perfect also counts as perfect");
+            Assert.That(logic.Score.perfectCount, Is.EqualTo(1));
 
             logic.UpdateNoteResult(new TestNote(NoteResult.Great));
             logic.UpdateNoteResult(new TestNote(NoteResult.Miss));
@@ -230,9 +213,8 @@ namespace OpenSekai.Tests.EditMode.Live
         {
             ScoreLogic logic = Setup(10);
 
-            logic.UpdateNoteResult(new TestNote(NoteResult.JustPerfect, decoration: true));
+            logic.UpdateNoteResult(new TestNote(NoteResult.Perfect, decoration: true));
 
-            Assert.That(logic.Score.justPerfectCount, Is.EqualTo(0));
             Assert.That(logic.Score.perfectCount, Is.EqualTo(0));
         }
 
@@ -241,7 +223,7 @@ namespace OpenSekai.Tests.EditMode.Live
         {
             ScoreLogic logic = Setup(10);
 
-            logic.UpdateCombo(new TestNote(NoteResult.JustPerfect));
+            logic.UpdateCombo(new TestNote(NoteResult.Perfect));
             logic.UpdateCombo(new TestNote(NoteResult.Great));
             Assert.That(logic.Score.combo, Is.EqualTo(2));
             Assert.That(logic.Score.maxCombo, Is.EqualTo(2));
@@ -257,7 +239,7 @@ namespace OpenSekai.Tests.EditMode.Live
             ScoreLogic logic = Setup(0);
 
             Assert.That(logic.BaseNoteScore, Is.EqualTo(0));
-            Assert.That(logic.CalculateAddScore(new TestNote(NoteResult.JustPerfect)), Is.EqualTo(0));
+            Assert.That(logic.CalculateAddScore(new TestNote(NoteResult.Perfect)), Is.EqualTo(0));
         }
     }
 }

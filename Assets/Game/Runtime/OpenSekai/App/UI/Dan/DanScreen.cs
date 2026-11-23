@@ -109,6 +109,7 @@ namespace OpenSekai.App.UI
             var host = new GameObject("DanScreen");
             DanScreen screen = host.AddComponent<DanScreen>();
             screen.Build();
+            if (ServerChartDownloads.Current != null) ServerChartDownloads.Current.Imported += screen.OnWebChartImported;
             return screen;
         }
 
@@ -190,7 +191,7 @@ namespace OpenSekai.App.UI
 
             if (_editor.IsOpen)
             {
-                _editor.Close();
+                _editor.Back();
                 UiSound.Play(UiCue.Close);
                 return true;
             }
@@ -243,6 +244,15 @@ namespace OpenSekai.App.UI
         }
 
         internal void ShowToast(string message) => _toast.Show(message, 2.8f);
+
+        private void OnWebChartImported()
+        {
+            if (!_presented) return;
+            _songs.Clear();
+            View.Bind();
+            DanRecord record = Find(_startingDefinition?.Id);
+            if (_prepare.IsOpen && record != null) _prepare.RefreshSongs(SongsOf(record));
+        }
 
         // ---------------------------------------------------------------- data
 
@@ -553,6 +563,7 @@ namespace OpenSekai.App.UI
             }
 
             UiSound.Play(UiCue.Start);
+            _songs.Clear();
             _startingDefinition = definition;
             DanRecord record = Find(definition.Id);
             _prepare.Show(definition, record != null ? SongsOf(record) : SongsOf(new DanRecord(definition, Array.Empty<DanAttempt>(), false, false)));
@@ -736,6 +747,7 @@ namespace OpenSekai.App.UI
         private void OnDestroy()
         {
             _curtainMotion.TryCancel();
+            if (ServerChartDownloads.Current != null) ServerChartDownloads.Current.Imported -= OnWebChartImported;
             // A start that already handed the first song over keeps running; only a pending one is cancelled.
             _starting?.Cancel();
             _toast?.Dispose();

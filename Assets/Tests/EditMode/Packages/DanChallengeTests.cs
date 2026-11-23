@@ -6,6 +6,7 @@ using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using OpenSekai.App.Library;
 using OpenSekai.App.Playback;
+using OpenSekai.Infrastructure.Packages;
 using OpenSekai.Shared.Playback;
 using Sekai.Core.Live;
 
@@ -28,6 +29,36 @@ namespace OpenSekai.Tests.EditMode.Packages
             var reversed = new DanDefinition(100, dan.Damage, dan.Songs.Reverse(), dan.Label, dan.Emblem, dan.Color);
             Assert.That(reversed.Id, Is.Not.EqualTo(dan.Id));
             Assert.That(Definition("新牌面").Id, Is.Not.EqualTo(dan.Id));
+        }
+
+        [Test]
+        public void SharedWebSongMatchesRedownloadedChartAndAudioWithoutSharingDownloadUrl()
+        {
+            string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "Dan-" + Guid.NewGuid().ToString("N"))).FullName;
+            try
+            {
+                var author = new SongPackageManager(Path.Combine(root, "author"));
+                var reader = new SongPackageManager(Path.Combine(root, "reader"));
+                var original = author.CreateNewEntry();
+                File.WriteAllText(original.AudioPath, "matching audio");
+                const string PAGE = "https://charts.test/song?id=曲#attachments";
+                SongPackageSource.FromWeb(PAGE, "https://cdn.test/chart.zip?secret=temporary").WriteWeb(original.RootDirectory);
+                string reference = DanLibrarySong.ReferenceFor(author.RescanItems().Single());
+                var dan = new DanDefinition(100, Definition().Damage, new[] { reference, _songs[1] }, "混合", "diamond", "#112233");
+                Assert.That(dan.ShareText, Does.Not.Contain("temporary"));
+                var copy = DanDefinition.Parse(dan.ShareText);
+                Assert.That(copy.Id, Is.EqualTo(dan.Id));
+                Assert.That(DanLibrarySong.TryParse(copy.Songs[0], out var song), Is.True);
+                Assert.That(song.PageUrl, Is.EqualTo(PAGE));
+                Assert.That(song.FindInstalled(reader), Is.Null);
+
+                string zip = author.ExportZip(original, Path.Combine(root, "chart.zip"));
+                var imported = reader.ImportZip(zip);
+                Assert.That(song.FindInstalled(reader)?.Entry.RootDirectory, Is.EqualTo(imported.RootDirectory));
+                File.WriteAllText(imported.AudioPath, "different audio");
+                Assert.That(song.FindInstalled(reader), Is.Null);
+            }
+            finally { Directory.Delete(root, true); }
         }
 
         [TestCase("initialLife", "0")]

@@ -183,7 +183,7 @@ namespace Sekai.Live
 				// leaves the head to close itself.
 				JudgeInfo = childNote != null
 					&& (childNote.Result > NoteResult.Pass || childNote.State == NoteState.Input)
-						? (NoteResult.JustPerfect, NoteResultDescription.None)
+						? (NoteResult.Perfect, NoteResultDescription.None)
 						: (NoteResult.Miss, NoteResultDescription.None);
 				State = NoteState.Done;
 			}

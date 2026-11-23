@@ -151,7 +151,7 @@ namespace OpenSekai.Tests.EditMode.Live
                             $"frame={frame} time={time} note={notes[i].Id} lane={notes[i].LaneStartF}..{notes[i].LaneEndF} finger={notes[i].HasFinger}"); }
                         foreach (var child in notes[i].NoteList)
                             if (child is LongHoldCombo && child.MusicScoreInfo.time < time)
-                                Assert.That(child.Result, Is.EqualTo(NoteResult.JustPerfect), $"frame={frame} time={time} tick={child.MusicScoreInfo.time}");
+                                Assert.That(child.Result, Is.EqualTo(NoteResult.Perfect), $"frame={frame} time={time} tick={child.MusicScoreInfo.time}");
                     }
             }
         }
@@ -190,17 +190,17 @@ namespace OpenSekai.Tests.EditMode.Live
             _source.Clear();
             _source.Add(Touch(2, Position()));
             _logic.OnInput();
-            Assert.That(note.Result, Is.EqualTo(NoteResult.JustPerfect), "In-lane control must traverse the judge table.");
+            Assert.That(note.Result, Is.EqualTo(NoteResult.Perfect), "In-lane control must traverse the judge table.");
             Assert.That(note.JudgmentCalls, Is.EqualTo(1));
         }
 
         [Test]
-        public void OnTimeTouchJudgesJustPerfect()
+        public void OnTimeTouchJudgesPerfect()
         {
             var note = Arrange();
             _source.Add(Touch(1, Position()));
             _logic.OnInput();
-            Assert.That(note.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(note.Result, Is.EqualTo(NoteResult.Perfect));
             Assert.That(note.State, Is.EqualTo(NoteState.Done));
             Assert.That(note.JudgmentCalls, Is.EqualTo(1));
         }
@@ -266,27 +266,27 @@ namespace OpenSekai.Tests.EditMode.Live
                         if (note is FrictionLongNote) { Assert.That(note.State, Is.EqualTo(NoteState.InputBegan).Or.EqualTo(NoteState.Input), $"frame={frame} note={note.Id}"); } else { LongNoteGraceTests.AssertHeldBody(note, $"frame={frame} note={note.Id}"); }
                     foreach (var child in note.NoteList)
                         if (child is LongHoldCombo && child.MusicScoreInfo.time < time)
-                            Assert.That(child.Result, Is.EqualTo(NoteResult.JustPerfect), $"frame={frame} note={note.Id} tick={child.MusicScoreInfo.time}");
+                            Assert.That(child.Result, Is.EqualTo(NoteResult.Perfect), $"frame={frame} note={note.Id} tick={child.MusicScoreInfo.time}");
                 }
             }
         }
 
         [TestCase(-1)]
         [TestCase(1)]
-        public void JustPerfectHalfBoundaryIsInclusive(int side)
+        public void OnTimeWindowBoundaryIsInclusive(int side)
         {
-            var note = Arrange(side * LiveConfig.JustPerfectJudgeTimeHalf);
+            var note = Arrange(side * LiveConfig.OnTimeWindowHalfSeconds);
             _source.Add(Touch(1, Position()));
             _logic.OnInput();
-            Assert.That(note.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(note.Result, Is.EqualTo(NoteResult.Perfect));
             Assert.That(note.Description, Is.EqualTo(NoteResultDescription.Just));
         }
 
         [TestCase(-1)]
         [TestCase(1)]
-        public void JustOutsideJustPerfectHalfJudgesPerfect(int side)
+        public void PerfectOutsideOnTimeWindowReportsFastOrLate(int side)
         {
-            var note = Arrange(side * (LiveConfig.JustPerfectJudgeTimeHalf + 0.0001f));
+            var note = Arrange(side * (LiveConfig.OnTimeWindowHalfSeconds + 0.0001f));
             _source.Add(Touch(1, Position()));
             _logic.OnInput();
             Assert.That(note.Result, Is.EqualTo(NoteResult.Perfect));
@@ -306,9 +306,9 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(note.State, Is.EqualTo(NoteState.Done));
         }
 
-        [TestCase(1f, 0.1f, 0.1f, NoteResult.JustPerfect)]
-        [TestCase(1f, 0.25f, 0.1f, NoteResult.JustPerfect)]
-        [TestCase(2f, 0.25f, 0.1f, NoteResult.JustPerfect)]
+        [TestCase(1f, 0.1f, 0.1f, NoteResult.Perfect)]
+        [TestCase(1f, 0.25f, 0.1f, NoteResult.Perfect)]
+        [TestCase(2f, 0.25f, 0.1f, NoteResult.Perfect)]
         [TestCase(1f, 0.26f, 0.24f, NoteResult.Miss)]
         public void BufferedPressUsesItsSampleTimeWhenTheFrameCrossesTheWindow(
             float speed, float frameTime, float sampleTime, NoteResult expected)
@@ -355,7 +355,7 @@ namespace OpenSekai.Tests.EditMode.Live
             _source.Clear();
             _source.Add(Touch(2, Position(edgeLane)));
             _logic.OnInput();
-            Assert.That(note.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(note.Result, Is.EqualTo(NoteResult.Perfect));
         }
 
         [Test]
@@ -365,7 +365,7 @@ namespace OpenSekai.Tests.EditMode.Live
             var first = Arrange(0f, next);
             _source.Add(Touch(1, Position()));
             _logic.OnInput();
-            Assert.That(first.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(first.Result, Is.EqualTo(NoteResult.Perfect));
             Assert.That(next.Result, Is.EqualTo(NoteResult.None));
 
             _logic.OnUpdate(0.02f, INPUT_TIME);
@@ -380,7 +380,7 @@ namespace OpenSekai.Tests.EditMode.Live
             _source.Clear();
             _source.Add(Touch(2, Position(), INPUT_TIME + 0.02d));
             _logic.OnInput();
-            Assert.That(next.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(next.Result, Is.EqualTo(NoteResult.Perfect));
             Assert.That(_logic.TapCount, Is.EqualTo(2));
         }
 
@@ -415,7 +415,7 @@ namespace OpenSekai.Tests.EditMode.Live
             _source.Add(Touch(1, Position()));
             _source.Add(Touch(2, Position()));
             _logic.OnInput();
-            Assert.That(note.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(note.Result, Is.EqualTo(NoteResult.Perfect));
             Assert.That(note.State, Is.EqualTo(NoteState.Done));
             Assert.That(note.JudgmentCalls, Is.EqualTo(1));
             Assert.That(_logic.TapCount, Is.EqualTo(2));
@@ -429,7 +429,7 @@ namespace OpenSekai.Tests.EditMode.Live
             _source.Add(Touch(1, Position()));
             _logic.OnInput();
             Assert.That(note.JudgmentCalls, Is.EqualTo(1));
-            Assert.That(note.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(note.Result, Is.EqualTo(NoteResult.Perfect));
         }
 
         [Test]

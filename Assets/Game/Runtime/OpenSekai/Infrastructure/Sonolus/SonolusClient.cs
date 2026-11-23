@@ -241,7 +241,7 @@ namespace OpenSekai.Infrastructure.Sonolus
             }
         }
 
-        private static async UniTask SendAsync(
+        internal static async UniTask SendAsync(
             UnityWebRequest request, long maxBytes, Action<float> progress, CancellationToken cancellationToken)
         {
             request.redirectLimit = 8;

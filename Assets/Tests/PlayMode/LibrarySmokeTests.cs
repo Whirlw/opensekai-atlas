@@ -726,6 +726,54 @@ namespace OpenSekai.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator WebChartShowsBothSourceLinksAndCanPrepareALegacyChartForDan()
+        {
+            string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "DanWeb-" + System.Guid.NewGuid().ToString("N"))).FullName;
+            var canvas = new GameObject("Source canvas", typeof(RectTransform), typeof(Canvas));
+            canvas.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
+            try
+            {
+                var library = new SongPackageManager(Path.Combine(root, "library"));
+                var draft = library.CreateNewEntry();
+                string audioFixture = Directory.CreateDirectory(Path.Combine(root, "audio")).FullName;
+                WriteNextRushTimingPackage(audioFixture);
+                draft = library.ReplaceAudioFile(draft, Path.Combine(audioFixture, "audio.wav"));
+                var chart = OpenSekai.Infrastructure.Charts.ChartFileReader.Read(draft);
+                chart.NoteList.Add(new ChartNote(1, 480, 4, 6, NoteCategory.Normal));
+                OpenSekai.Infrastructure.Charts.ChartFileReader.Write(draft, chart);
+                string zip = library.ExportZip(draft, Path.Combine(root, "download.zip"));
+                const string PAGE = "https://charts.test/song/1";
+                const string DOWNLOAD = "https://cdn.test/chart.zip?token=a%2Fb";
+                var import = library.ImportDownloadedZipAsync(zip, "51", source: SongPackageSource.FromWeb(PAGE, DOWNLOAD));
+                while (!import.IsCompleted) yield return null;
+                var installed = import.GetAwaiter().GetResult();
+                var item = library.LoadItems().Single(item => item.Entry.RootDirectory == installed.RootDirectory);
+
+                using var panel = new LibrarySourcePanel(canvas.transform);
+                panel.Show(SongPackageSource.Read(installed), "样例");
+                yield return null;
+                Canvas.ForceUpdateCanvases();
+                var urls = canvas.GetComponentsInChildren<TextMeshProUGUI>().Where(label => label.name == "Url").ToArray();
+                Assert.That(urls.Select(label => label.text), Is.EqualTo(new[] { PAGE, DOWNLOAD }));
+                Assert.That(urls.All(label => label.rectTransform.rect.width > 0 && label.rectTransform.rect.height > 0), Is.True);
+                Assert.That(canvas.GetComponentsInChildren<Button>().Count(button => button.name == "Copy"), Is.EqualTo(2));
+
+                var installer = new SonolusLevelInstaller(library, Path.Combine(root, "index"), Path.Combine(root, "staging"));
+                using var preparation = new DanSongPreparation(installer, Path.Combine(root, "pinned"));
+                yield return preparation.PrepareAsync(DanLibrarySong.ReferenceFor(item), CancellationToken.None).ToCoroutine(prepared =>
+                {
+                    Assert.That(prepared.ScoreKey, Is.EqualTo(item.ScoreKey));
+                    Assert.That(File.Exists(Path.Combine(prepared.Directory, "score.json")), Is.True);
+                });
+            }
+            finally
+            {
+                Object.Destroy(canvas);
+                Directory.Delete(root, true);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator DanCourseAwardsTheBadgeWhenOneLifeRemains()
         {
             yield return PlayTwoSongDan(3, DanOutcome.Passed);

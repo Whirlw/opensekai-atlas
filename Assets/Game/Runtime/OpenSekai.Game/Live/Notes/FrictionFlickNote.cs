@@ -105,7 +105,7 @@ namespace Sekai.Live
 			{
 				_everCorrect = true;
 				_nextRushCorrectTime = sampleTime;
-				if (!IsTailFlickOwner && sampleTime >= MusicScoreInfo.time + LiveConfig.JustPerfectJudgeTimeHalf)
+				if (!IsTailFlickOwner && sampleTime >= MusicScoreInfo.time + LiveConfig.OnTimeWindowHalfSeconds)
 					FinishTraceFlick(sampleTime, true);
 			}
 			return true;
@@ -126,7 +126,7 @@ namespace Sekai.Live
 			}
 
 			if (IsTailFlickOwner && hasMotion && (!contactRecently ||
-				correct && _nextRushCorrectTime >= target + LiveConfig.JustPerfectJudgeTimeHalf))
+				correct && _nextRushCorrectTime >= target + LiveConfig.OnTimeWindowHalfSeconds))
 			{
 				float time = contactRecently ? _nextRushCorrectTime : now;
 				HasNextRushHit = IsNextRush;

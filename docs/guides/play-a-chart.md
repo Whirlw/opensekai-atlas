@@ -89,7 +89,7 @@
 
 1. **默认连击为 0**：`ScoreLogic.UpdateCombo` 里 `effectiveResult < NoteResult.Great` 就把连击清零，而 `NoteResult.Auto`
    低于这个门槛。
-2. **判定计数全 0**：`UpdateNoteResult` 对 Auto 只累加 `autoCount`，不填 JustPerfect/Perfect/Great 等。
+2. **判定计数全 0**：`UpdateNoteResult` 对 Auto 只累加 `autoCount`，手动评级的计数保持为 0。
 3. **不写历史**：只有已安装谱面的手动完成成绩保存到本地。临时游玩后下载曲包时，先前的成绩不会补写。
 
 因此自动打歌的满分是 `1,000,000`（累积摊分后严格成立），但面板上显示的是「总音符 2019 · 自动判定 2019」而不是各级判定。
@@ -100,7 +100,7 @@
 
 单个音符的基分不是 `1,000,000 / 音符数`，而是按**累积摊分**：第 i 个音符（0 基）拿
 `round(1e6 * (i+1) / n) - round(1e6 * i / n)`，所以 n 个音符全打满时总和严格等于 1,000,000。
-判定倍率：JustPerfect/Auto = 1.0，Perfect = 0.9，Great = 0.7，Good = 0.5。
+判定倍率：Perfect/Auto = 1.0，Great = 0.7，Good = 0.5。
 
 细节与修复原因见 [ADR-0004](../decisions/0004-cumulative-scoring.md)。
 
@@ -125,7 +125,7 @@
 - **导入后列表里没有**：确认目录层级是 `CustomMusicScores/<任意目录>/manifest.json`，不是再多套一层。
 - **点开局后停在加载浮层**：看状态栏文案停在哪个阶段；「正在加载音频...」卡住通常是音频文件缺失或格式不支持。
 - **结算显示「加载失败」**：曲包元数据或谱面 JSON 解析失败，面板上的 `Message` 会给出原因。
-- **手动打歌分数不满 1,000,000 但全是 Perfect**：Perfect 倍率是 0.9，满分要求 JustPerfect。
+- **手动打歌分数不满 1,000,000 但全是 Perfect**：核对整首谱面的判定点是否都已计分。
 
 ## 相关文档
 
