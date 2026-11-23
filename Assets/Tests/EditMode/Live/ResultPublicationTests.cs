@@ -194,7 +194,7 @@ namespace OpenSekai.Tests.EditMode.Live
                 "D tap Miss",
             }));
             Assert.That(board.Score.combo, Is.Zero);
-            Assert.That(board.Score.life, Is.EqualTo(999));
+            Assert.That(board.Score.life, Is.EqualTo(500));
         }
 
         [Test]

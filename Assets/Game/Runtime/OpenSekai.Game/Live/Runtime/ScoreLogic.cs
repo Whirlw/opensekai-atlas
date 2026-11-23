@@ -8,6 +8,8 @@ namespace Sekai.Core.Live
 	public class ScoreLogic
 	{
 		private const int DEFAULT_TOTAL_SCORE = ScoreGauge.MAXIMUM_SCORE;
+		private const int DAMAGE_REFERENCE_NOTE_COUNT = 1000;
+		private const int MAX_STANDARD_NOTE_DAMAGE = 500;
 
 		private readonly LiveBundleBuildData _liveBundleBuildData;
 		private ScoreGauge _gauge = ScoreGauge.Standard;
@@ -254,13 +256,17 @@ namespace Sekai.Core.Live
 				return;
 			}
 
-			decimal damageRate = note.Result switch
+			int totalCombo = _score.totalComboCount;
+			if (totalCombo <= 0) return;
+
+			int referenceDamage = note.Result switch
 			{
-				NoteResult.Bad => 0.03m,
-				NoteResult.Miss => 0.04m,
-				_ => 0m
+				NoteResult.Bad => 15,
+				NoteResult.Miss => 20,
+				_ => 0
 			};
-			int damage = (int)System.Math.Ceiling(_score.totalComboCount * damageRate);
+			int damage = (int)System.Math.Ceiling((double)referenceDamage * DAMAGE_REFERENCE_NOTE_COUNT / totalCombo);
+			damage = System.Math.Min(MAX_STANDARD_NOTE_DAMAGE, damage);
 			_score.life = UnityEngine.Mathf.Max(0, _score.life - damage);
 		}
 

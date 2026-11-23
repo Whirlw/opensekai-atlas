@@ -59,10 +59,14 @@ namespace OpenSekai.Tests.EditMode.Live
             return logic;
         }
 
-        [TestCase(2, 1, 1)]
-        [TestCase(1000, 30, 40)]
-        [TestCase(1001, 31, 41)]
-        public void NormalDamageRoundsUpFromTheChartsTotalNoteCount(int noteCount, int badDamage, int missDamage)
+        [TestCase(0, 0, 0)]
+        [TestCase(2, 500, 500)]
+        [TestCase(39, 385, 500)]
+        [TestCase(41, 366, 488)]
+        [TestCase(999, 16, 21)]
+        [TestCase(1000, 15, 20)]
+        [TestCase(2000, 8, 10)]
+        public void NormalDamageScalesInverselyWithNoteCountAndCapsAt500(int noteCount, int badDamage, int missDamage)
         {
             var logic = Setup(noteCount);
             var bad = new TestNote(NoteResult.Bad);

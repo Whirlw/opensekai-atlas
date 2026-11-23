@@ -1196,10 +1196,11 @@ namespace OpenSekai.Tests.PlayMode
             try
             {
                 WriteNextRushTimingPackage(directory);
+                // Leave enough life to reach the outro even when both notes are missed in manual mode.
                 File.WriteAllText(Path.Combine(directory, "level-data.json"), @"{
                     ""bgmOffset"": 0,
                     ""entities"": [
-                        { ""archetype"": ""Initialization"", ""data"": [{ ""name"": ""initialLife"", ""value"": 1000 }] },
+                        { ""archetype"": ""Initialization"", ""data"": [{ ""name"": ""initialLife"", ""value"": 1500 }] },
                         { ""archetype"": ""#BPM_CHANGE"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 0 }, { ""name"": ""#BPM"", ""value"": 120 }] },
                         { ""archetype"": ""NormalTapNote"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 3.5 }, { ""name"": ""lane"", ""value"": 0 }, { ""name"": ""size"", ""value"": 1 }] },
                         { ""archetype"": ""NormalTapNote"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 3.75 }, { ""name"": ""lane"", ""value"": 0 }, { ""name"": ""size"", ""value"": 1 }] }
