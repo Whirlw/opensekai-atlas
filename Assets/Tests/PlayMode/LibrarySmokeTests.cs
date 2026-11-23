@@ -750,7 +750,29 @@ namespace OpenSekai.Tests.PlayMode
                 var item = library.LoadItems().Single(item => item.Entry.RootDirectory == installed.RootDirectory);
 
                 using var panel = new LibrarySourcePanel(canvas.transform);
-                panel.Show(SongPackageSource.Read(installed), "样例");
+                using var detail = new LibraryDetailPanel((RectTransform)canvas.transform, 0f, null, null,
+                    () => panel.Show(SongPackageSource.Read(installed), "样例"));
+                detail.Show(item, null, animate: false, hasSource: false);
+                var info = canvas.transform.Find("Detail/Info");
+                var source = (RectTransform)info.Find("Source");
+                var difficulty = (RectTransform)info.Find("Difficulty");
+                var level = (RectTransform)info.Find("Level");
+                var length = (RectTransform)info.Find("Length");
+                Assert.That(source.gameObject.activeSelf, Is.False);
+                Assert.That(length.offsetMax.x, Is.Zero);
+
+                detail.Show(item, null, animate: false, hasSource: true);
+                detail.SetRankStatus(31, "Ranked");
+                Assert.That(source.gameObject.activeInHierarchy, Is.True);
+                Assert.That(source.anchorMin.x, Is.EqualTo(1f));
+                Assert.That(source.anchorMax.x, Is.EqualTo(1f));
+                Assert.That(source.offsetMax.x, Is.Zero);
+                Assert.That(source.anchoredPosition.y, Is.EqualTo(difficulty.anchoredPosition.y - difficulty.rect.height / 2f));
+                Assert.That(difficulty.anchoredPosition.x, Is.Zero);
+                Assert.That(level.anchoredPosition.x, Is.GreaterThan(difficulty.anchoredPosition.x + difficulty.rect.width));
+                Assert.That(length.offsetMin.x, Is.GreaterThan(level.anchoredPosition.x + level.rect.width));
+                Assert.That(length.offsetMax.x, Is.LessThan(source.offsetMin.x));
+                source.GetComponent<Button>().onClick.Invoke();
                 yield return null;
                 Canvas.ForceUpdateCanvases();
                 var urls = canvas.GetComponentsInChildren<TextMeshProUGUI>().Where(label => label.name == "Url").ToArray();

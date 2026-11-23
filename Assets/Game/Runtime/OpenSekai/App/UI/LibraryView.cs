@@ -1051,8 +1051,7 @@ namespace OpenSekai.App.UI
             CancelDetailLoad();
             SongPackageItem item = _selected;
             _selectedSource = SongPackageSource.Read(item?.Entry);
-            _detail.SetSourceAvailable(_selectedSource != null);
-            _detail.Show(item, LibraryModel.SummaryOf(item, _state?.History), true);
+            _detail.Show(item, LibraryModel.SummaryOf(item, _state?.History), animate: true, hasSource: _selectedSource != null);
             ShowRank(item).Forget();
             ResumePreview();
             if (item == null || !item.HasJacket || item.Entry == null)

@@ -117,22 +117,19 @@ namespace OpenSekai.App.UI
             _cover.raycastTarget = false;
             _cover.enabled = false;
             LibraryUi.Stretch(_cover.rectTransform);
-            _source = LibraryWidgets.PillButton("Source", _coverFrame, "来源", () => source?.Invoke(), 106f, 48f,
-                new Color32(16, 20, 27, 232), LibraryTheme.Colors.TextPrimary, 21f);
-            LibraryWidgets.Place((RectTransform)_source.transform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-16f, 16f),
-                new Vector2(106f, 48f));
-            _source.gameObject.SetActive(false);
-
             // Title and credits, to the right of the jacket.
             RectTransform info = LibraryUi.CreateRect("Info", _content);
             _info = info;
             LibraryWidgets.TopStrip(info, coverSize + INFO_LEFT, 0f, coverTop + 8f, coverSize - 8f);
 
+            _source = LibraryWidgets.PillButton("Source", info, "来源", () => source?.Invoke(), 106f, 48f,
+                new Color32(16, 20, 27, 232), LibraryTheme.Colors.TextPrimary, 21f);
+            var sourceRect = (RectTransform)_source.transform;
+            LibraryWidgets.Place(sourceRect, Vector2.one, new Vector2(1f, 0.5f),
+                new Vector2(0f, -DIFFICULTY_HEIGHT * 0.5f), sourceRect.sizeDelta);
+
             Image chip = LibraryWidgets.Panel("Difficulty", info, LibraryTheme.Radius.CHIP, LibraryTheme.Colors.Hairline);
             _difficultyChip = chip.rectTransform;
-            Vector2 topLeft = new Vector2(0f, 1f);
-            LibraryWidgets.Place(_difficultyChip, topLeft, topLeft, Vector2.zero,
-                new Vector2(DIFFICULTY_MAX_WIDTH, DIFFICULTY_HEIGHT));
             _difficulty = LibraryWidgets.Label(
                 "Label", chip.transform, string.Empty, 22f, LibraryTheme.Colors.TextSecondary,
                 FontStyles.Bold, TextAlignmentOptions.Center);
@@ -307,10 +304,8 @@ namespace OpenSekai.App.UI
             _startIcon = LibraryWidgets.Icon(_startButton.transform, LibraryIcon.Play, LibraryTheme.Colors.TextOnAccent, 26f);
             _startIcon.rectTransform.anchoredPosition = new Vector2(-63f, 0f);
 
-            Show(null, null, false);
+            Show(null, null, false, false);
         }
-
-        internal void SetSourceAvailable(bool available) => _source.gameObject.SetActive(available);
 
         internal void SetRankStatus(int level, string status)
         {
@@ -319,8 +314,9 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>Fills the panel for a package; null clears it for an empty list.</summary>
-        internal void Show(SongPackageItem item, CustomMusicScorePlayHistorySummary summary, bool animate)
+        internal void Show(SongPackageItem item, CustomMusicScorePlayHistorySummary summary, bool animate, bool hasSource)
         {
+            _source.gameObject.SetActive(hasSource);
             _contentGroup.gameObject.SetActive(item != null);
             _cover.sprite = null;
             _cover.enabled = false;
@@ -422,9 +418,9 @@ namespace OpenSekai.App.UI
         {
             float chipWidth = Mathf.Min(DIFFICULTY_MAX_WIDTH,
                 Mathf.Ceil(_difficulty.GetPreferredValues(_difficulty.text).x) + DIFFICULTY_PADDING * 2f);
-            _difficultyChip.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, chipWidth);
-
             Vector2 topLeft = new Vector2(0f, 1f);
+            LibraryWidgets.Place(_difficultyChip, topLeft, topLeft, Vector2.zero,
+                new Vector2(chipWidth, DIFFICULTY_HEIGHT));
             float cursor = chipWidth + METADATA_GAP;
             if (_level.text.Length > 0)
             {
@@ -434,7 +430,8 @@ namespace OpenSekai.App.UI
                 cursor += levelWidth + METADATA_GAP;
             }
 
-            LibraryWidgets.TopStrip(_length.rectTransform, cursor, 0f, 0f, DIFFICULTY_HEIGHT);
+            float rightInset = _source.gameObject.activeSelf ? ((RectTransform)_source.transform).rect.width + METADATA_GAP : 0f;
+            LibraryWidgets.TopStrip(_length.rectTransform, cursor, rightInset, 0f, DIFFICULTY_HEIGHT);
         }
 
         private void LayoutTitleAndCredits()
