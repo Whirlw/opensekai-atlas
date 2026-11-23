@@ -14,9 +14,17 @@ namespace OpenSekai.Shared.Playback
         public const int FORMULA_VERSION = 2;
         public const int MAXIMUM_SCORE = ScoreGauge.MAXIMUM_SCORE;
         private const int POINTS_PER_LEVEL = 10;
-        private static readonly int[] _tierStarts = { 0, 3000, 6000, 8400, 9300 };
+        private static readonly int[] _tierStarts = { 0, 7000, 8200, 9200, 10000, 10500, 11000 };
 
+        /// <summary>Returns the highest tier reached, or -1 below the first threshold.</summary>
         public static int Tier(long total) => Array.FindLastIndex(_tierStarts, threshold => total >= threshold);
+
+        /// <summary>Returns the next tier's starting total, or null at the highest tier.</summary>
+        public static int? NextTierThreshold(long total)
+        {
+            int nextTier = Tier(total) + 1;
+            return nextTier < _tierStarts.Length ? _tierStarts[nextTier] : null;
+        }
 
         // Both history versions contain the raw inputs needed to rebuild Best 30.
         public static bool SupportsFormula(int version) => version == 1 || version == FORMULA_VERSION;

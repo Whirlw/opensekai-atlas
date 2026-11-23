@@ -42,7 +42,7 @@ RankingSettlement ranking = CustomMusicScorePlayHistoryStorage.ForDisplay(play);
 ```
 
 - 从 `play` 读取曲名、难度、原始分、连击和五档判定；`play.Award` 区分普通通关、FC 和 AP。真实加载失败也可交给 `ForDisplay`。
-- 从 `ranking` 读取 `BasePoints`、`Bonus`、`Points` 和 `Eligibility`。前后状态 `Before` / `After` 均含总分、评级 ID（0 至 4）、该谱最佳和榜内名次（1 至 30，榜外为空）。`ChartImproved` 控制新纪录文字，`Delta` 控制涨分，`TierUp` 控制升级。
+- 从 `ranking` 读取 `BasePoints`、`Bonus`、`Points` 和 `Eligibility`。前后状态 `Before` / `After` 均含总分、评级 ID（0 至 6）、该谱最佳和榜内名次（1 至 30，榜外为空）。`ChartImproved` 控制新纪录文字，`Delta` 控制涨分，`TierUp` 控制升级。
 - 写入失败显示 `SaveFailed`，总分维持原值。真实结果可调用 `CustomMusicScorePlayHistoryStorage.RetrySave(ranking.PlayId)`，绑定返回的新快照。失败样例用于预览。成功保存后，从 `UnlockedAchievementIds` 读取本局首次解锁的成就。
 - 榜单调用 `CustomMusicScorePlayHistoryStorage.ReadBest30()`，返回按贡献排序的只读快照。第一个条目为第 1 名，每项包含成绩分和对应的最佳历史记录。上述存储接口均在 Unity 主线程调用。
 
@@ -50,8 +50,8 @@ RankingSettlement ranking = CustomMusicScorePlayHistoryStorage.ForDisplay(play);
 | --- | ---: | --- |
 | FirstClear | 267 | 0 → 267 |
 | SameChartFullCombo | 272 | 同谱 267 → 272，+5 |
-| NewChartAllPerfectTierUp | 310 | 8,390 → 8,430，+40，跨过 8,400 |
-| OutsideBest30 | 172 | 榜外谱刷新，8,390 持平 |
+| NewChartAllPerfectTierUp | 310 | 8,190 → 8,230，+40，跨过 8,200 |
+| OutsideBest30 | 172 | 榜外谱刷新，8,190 持平 |
 | Auto / Failed / Retired | 0 | 自动、失败、退出分别展示原因 |
 | SaveFailed | 272 | 267 持平，写入失败 |
 
@@ -213,7 +213,17 @@ Ranking Score 徽章表示积分所在区间。段位牌表示玩家实际打通
 2. 同谱判定首选项目已有的谱面内容键 `ScoreKey`。同一份谱面从曲库或服务器启动、移动安装目录、换封面或重装，均应归为同一张。不同难度若使用不同谱面内容，则分别排名。本地安装和服务器临时游玩均以原始谱面字节的 SHA-256 为键。
 3. 先从每张谱的全部合格记录中取最高成绩分，再取最高的 30 张求和。只有 12 张时就加 12 张。总分相同的候选记录优先保留先取得的记录，再按稳定 ID 排序，反复开页或导入不会改变次序。
 4. 不足 30 张时，新谱贡献全部成绩分。榜内已有谱从 267 提到 272，总分只涨 **5**。榜满后，新谱得 272、第 30 名为 264，总分涨 **8**。榜外谱即使刷新个人最佳，只要仍低于第 30 名，结算就显示「谱面新纪录」，Ranking Score 增量为 0。
-5. 评级使用可配置门槛表，每档有起始分和图标。调参样例为 0、3,000、6,000、8,400、9,300；恰好达到门槛即升级。例如总分从 8,397 到 8,405 时显示 **+8**，徽章由旧档过渡到新档。最终门槛应拿现有谱面等级分布和一批历史记录回放后再定。
+5. 后端以 Best 30 总分计算评级。达到门槛即进入该档，例如从 8,197 分涨到 8,205 分会从新星升到流星。已有档案直接按当前门槛计算。
+
+| 评级 ID | 名称 | 总分区间 |
+| ---: | --- | ---: |
+| 0 | 星辰 | 0–6,999 |
+| 1 | 新星 NOVA | 7,000–8,199 |
+| 2 | 流星 METEOR | 8,200–9,199 |
+| 3 | 银河 GALAXY | 9,200–9,999 |
+| 4 | 星海 STARFIELD | 10,000–10,499 |
+| 5 | 天穹 ZENITH | 10,500–10,999 |
+| 6 | 寰宇 COSMOS | 11,000 及以上 |
 
 ## 三、独立结算页
 

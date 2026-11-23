@@ -42,7 +42,10 @@ namespace OpenSekai.App.Playback
                 case SettlementExample.NewChartAllPerfectTierUp:
                 case SettlementExample.OutsideBest30:
                     for (int i = 1; i <= 30; i++)
-                        Seed("seed-" + i, "chart-" + i, i == 30 ? 26 : 27, AllPerfect());
+                    {
+                        int seedLevel = i <= 9 ? 27 : 26;
+                        Seed("seed-" + i, "chart-" + i, seedLevel, AllPerfect());
+                    }
                     if (example == SettlementExample.OutsideBest30)
                     {
                         level = 20;

@@ -19,6 +19,12 @@ namespace OpenSekai.App.UI
 
         internal static string Number(long value) => value.ToString("N0", CultureInfo.InvariantCulture);
 
+        internal static string NextTier(long total)
+        {
+            int? threshold = RankingRules.NextTierThreshold(total);
+            return threshold.HasValue ? "距下一评级还差 " + Number(threshold.Value - total) + " 分" : "已达最高评级";
+        }
+
         /// <summary>The worn 段位 plate's text; null while none is worn.</summary>
         internal static string DanLabel(PlayerProfileSnapshot snapshot) => snapshot?.EquippedDan?.Label;
 

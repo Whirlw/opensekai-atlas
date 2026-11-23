@@ -60,6 +60,7 @@ namespace OpenSekai.App.UI
         private readonly RankingBadge _badge;
         private readonly TextMeshProUGUI _total;
         private readonly TextMeshProUGUI _tier;
+        private readonly TextMeshProUGUI _nextTier;
         private readonly TextMeshProUGUI _coverage;
         private readonly DanPlate _plate;
         private readonly TextMeshProUGUI _plateNote;
@@ -151,8 +152,11 @@ namespace OpenSekai.App.UI
             Strip(_total.rectTransform, totalLeft - 4f, PAD, badgeTop - 14f, 96f);
             _tier = LibraryWidgets.Label("Tier", card, string.Empty, 24f, LibraryTheme.Colors.TextSecondary, FontStyles.Bold);
             Strip(_tier.rectTransform, totalLeft, PAD, badgeTop + 84f, 34f);
+            float nextTierTop = badgeTop + BADGE_SIZE + 18f;
+            _nextTier = LibraryWidgets.Label("NextTier", card, string.Empty, 20f, LibraryTheme.Colors.TextSecondary);
+            Strip(_nextTier.rectTransform, PAD, PAD, nextTierTop, 28f);
             _coverage = LibraryWidgets.Label("Coverage", card, string.Empty, 18f, LibraryTheme.Colors.TextMuted);
-            Strip(_coverage.rectTransform, PAD, PAD, badgeTop + BADGE_SIZE + 18f, 26f);
+            Strip(_coverage.rectTransform, PAD, PAD, nextTierTop + 34f, 26f);
 
             // The worn plate, from the bottom up: note, plate, caption.
             _plateNote = LibraryWidgets.Label("DanNote", card, string.Empty, 17f, LibraryTheme.Colors.TextMuted);
@@ -220,6 +224,7 @@ namespace OpenSekai.App.UI
             Color32 tierColor = RankingTiers.Color(tier);
             _tier.text = RankingTiers.Name(tier) + "  " + RankingTiers.LatinName(tier);
             _tier.color = tierColor;
+            _nextTier.text = best != null ? ProfileCopy.NextTier(total) : string.Empty;
             _coverage.text = charts == 0
                 ? "手动完成一首谱面后，成绩会计入 Best 30"
                 : "Best 30 已收录 " + charts + " / 30 张谱面";
