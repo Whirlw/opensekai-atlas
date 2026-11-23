@@ -19,7 +19,7 @@ namespace OpenSekai.Infrastructure.Packages
         Known,
         /// <summary>The server could not be reached or refused for now; the same check may work later.</summary>
         RetryLater,
-        /// <summary>The answer or the local chart could not be read; checking again will fail the same way.</summary>
+        /// <summary>The local chart could not be read.</summary>
         Unreadable
     }
 
@@ -45,8 +45,7 @@ namespace OpenSekai.Infrastructure.Packages
         internal const string UNRANKED = "Unranked";
         internal const string PENDING = "待确认";
         private static readonly HashSet<string> _active = new();
-        private static readonly Dictionary<string, DateTime> _retryAfter = new();
-        private static readonly Dictionary<string, string> _unreadable = new();
+        private static readonly Dictionary<string, DateTime> _refreshAfter = new();
 
         internal static async UniTask<ChartRankCache.Verdict> ReadInstalledAsync(SongPackageSource source, SongPackage package)
         {
@@ -58,85 +57,89 @@ namespace OpenSekai.Infrastructure.Packages
             return ChartRankCache.Read(key);
         }
 
-        // Only the library's 检查 and 详情 buttons request a lookup. Import, browsing and settlement stay offline.
-        internal static async UniTask<RankCheck> CheckAsync(SongPackageSource source, SongPackage package, string hash)
+        // The library calls this only when the player chooses 检查 or 刷新 Ranked.
+        internal static UniTask<RankCheck> CheckAsync(SongPackageSource source, SongPackage package, string hash)
         {
             string key = ChartRankCache.Key(source);
-            if (key == null) return RankCheck.Known;
-            if (string.IsNullOrEmpty(hash)) return Unreadable(key, "缺少谱面文件，无法核验");
-            int level = package.Manifest.playLevel;
-            ChartRankCache.Verdict known;
-            try { known = await ReadInstalledAsync(source, package); }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return Unreadable(key, "无法读取本地谱面文件"); }
-            if (key.StartsWith("sbuga-", StringComparison.Ordinal) && known?.Matches(hash, level) == true) return RankCheck.Known;
+            if (key == null) return UniTask.FromResult(RankCheck.Known);
+            if (string.IsNullOrEmpty(hash))
+                return UniTask.FromResult(new RankCheck(RankCheckOutcome.Unreadable, "缺少谱面文件，无法核验"));
+            return CheckRemoteAsync(key, hash, package.Manifest.playLevel, known => FetchVerdictAsync(key, source, package, hash, known));
+        }
+
+        internal static async UniTask<RankCheck> CheckRemoteAsync(
+            string key, string hash, int level, Func<ChartRankCache.Verdict, UniTask<ChartRankCache.Verdict>> fetchVerdict)
+        {
             var now = DateTime.UtcNow;
-            if (known != null && (!known.Ranked || known.ScoreKey == hash) && now - known.CheckedUtc < TimeSpan.FromDays(7))
-                return RankCheck.Known;
-            if (_active.Contains(key))
+            if (_refreshAfter.TryGetValue(key, out var next) && now < next)
+                return new RankCheck(RankCheckOutcome.RetryLater, "刚收到服务器响应，请 " + Math.Ceiling((next - now).TotalMinutes) + " 分钟后再试");
+            if (!_active.Add(key))
+                return new RankCheck(RankCheckOutcome.RetryLater, "正在核验 Ranked 状态");
+            _refreshAfter.Remove(key);
+            bool networkFailed = false;
+            try
             {
-                await UniTask.WaitUntil(() => !_active.Contains(key));
-                return ChartRankCache.Read(key) != null ? RankCheck.Known : new RankCheck(RankCheckOutcome.RetryLater, "上次核验没有结果，请再试一次");
+                var known = ChartRankCache.Read(key);
+                ChartRankCache.Verdict verdict;
+                try { verdict = await fetchVerdict(known); }
+                catch (Exception e) when (e is InvalidDataException or JsonException or FormatException or InvalidOperationException
+                    or CryptographicException or SonolusException { IsInvalidResponse: true })
+                {
+                    verdict = ChartRankCache.FromUnreadableResponse(hash, level);
+                }
+                if (ReferenceEquals(known, ChartRankCache.Read(key))) ChartRankCache.Save(key, verdict);
+                return RankCheck.Known;
             }
-            if (_retryAfter.TryGetValue(key, out var next) && now < next)
-                return new RankCheck(RankCheckOutcome.RetryLater, "刚核验过，请 " + Math.Max(1, (int)Math.Ceiling((next - now).TotalMinutes)) + " 分钟后再试");
-            _active.Add(key);
-            _retryAfter[key] = now.AddMinutes(10);
+            catch (SonolusException e)
+            {
+                networkFailed = e.IsNetworkFailure;
+                return new RankCheck(RankCheckOutcome.RetryLater, e.Message.TrimEnd('。'));
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                return new RankCheck(RankCheckOutcome.Unreadable, "无法读取本地谱面文件");
+            }
+            finally
+            {
+                if (!networkFailed) _refreshAfter[key] = DateTime.UtcNow.AddMinutes(10);
+                _active.Remove(key);
+            }
+        }
+
+        private static async UniTask<ChartRankCache.Verdict> FetchVerdictAsync(
+            string key, SongPackageSource source, SongPackage package, string hash, ChartRankCache.Verdict known)
+        {
             bool readingDetails = true;
             try
             {
-                ChartRankCache.Verdict verdict;
                 if (key.StartsWith("os-", StringComparison.Ordinal))
                 {
                     string id = key.Substring(3);
                     using var page = UnityWebRequest.Get("https://opensekai.com/chart?id=" + id);
                     page.timeout = 8;
                     await SonolusClient.SendAsync(page, 1024 * 1024, null, default);
-                    verdict = ChartRankCache.ParseDetail(page.downloadHandler.text, id);
-                    if (verdict == null) return Unreadable(key, "未能识别上架状态");
+                    var verdict = ChartRankCache.ParseDetail(page.downloadHandler.text, id);
+                    if (verdict == null) throw new InvalidDataException("未能识别上架状态");
                     // A publisher may replace the file under the same ID. Bind each fresh positive lookup to its bytes.
                     readingDetails = false;
                     verdict.ScoreKey = verdict.Ranked ? await PreviewHashAsync(id) : hash;
+                    return verdict;
                 }
-                else
-                {
-                    if (!SonolusServerAddress.TryParse(source.SonolusLevelUrl, out var address, out var name, out _))
-                        return Unreadable(key, "无法识别 Sonolus 关卡地址");
-                    var details = await new SonolusClient(address).GetLevelAsync(name, CancellationToken.None);
-                    if (details.Level.Name != name) return Unreadable(key, "服务器返回了其他谱面");
-                    readingDetails = false;
-                    string verified = await VerifyLocalAsync(package, details.Level);
-                    if (verified == null && known?.DataHash != null && known.DataHash == details.Level.Data?.Hash)
-                        verified = known.ScoreKey;
-                    verdict = ChartRankCache.FromLevel(address, details.Level, verified);
-                }
-                if (ReferenceEquals(known, ChartRankCache.Read(key))) ChartRankCache.Save(key, verdict);
-                return RankCheck.Known;
+
+                if (!SonolusServerAddress.TryParse(source.SonolusLevelUrl, out var address, out var name, out _))
+                    throw new InvalidDataException("无法识别 Sonolus 关卡地址");
+                var details = await new SonolusClient(address).GetLevelAsync(name, CancellationToken.None);
+                if (details.Level.Name != name) throw new InvalidDataException("服务器返回了其他谱面");
+                readingDetails = false;
+                string verified = await VerifyLocalAsync(package, details.Level);
+                if (verified == null && known?.DataHash != null && known.DataHash == details.Level.Data?.Hash)
+                    verified = known.ScoreKey;
+                return ChartRankCache.FromLevel(address, details.Level, verified);
             }
             catch (SonolusException e) when (readingDetails && (e.Status == 404 || e.Status == 410))
             {
-                if (ReferenceEquals(known, ChartRankCache.Read(key)))
-                    ChartRankCache.Save(key, new ChartRankCache.Verdict { ScoreKey = hash, CheckedUtc = now });
-                return RankCheck.Known;
+                return new ChartRankCache.Verdict { ScoreKey = hash };
             }
-            // Server and network failures can pass on their own; the rest will fail the same way next time.
-            catch (SonolusException e) { return new RankCheck(RankCheckOutcome.RetryLater, e.Message.TrimEnd('。')); }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return Unreadable(key, "无法读取本地谱面文件"); }
-            catch (InvalidDataException e) { return Unreadable(key, e.Message); }
-            catch (Exception e) when (e is JsonException or FormatException or InvalidOperationException or CryptographicException)
-            {
-                return Unreadable(key, "无法解析发布方返回的数据");
-            }
-            finally { _active.Remove(key); }
-        }
-
-        /// <summary>Why the last lookup of this chart could not be read, until the app restarts; null when it could.</summary>
-        internal static string UnreadableReason(string key) =>
-            key != null && _unreadable.TryGetValue(key, out string reason) ? reason : null;
-
-        private static RankCheck Unreadable(string key, string reason)
-        {
-            _unreadable[key] = reason;
-            return new RankCheck(RankCheckOutcome.Unreadable, reason);
         }
 
         internal static string Label(ChartRankCache.Verdict verdict, string hash, int level) =>
@@ -170,6 +173,8 @@ namespace OpenSekai.Infrastructure.Packages
             preview.timeout = 8;
             var operation = preview.SendWebRequest();
             while (!operation.isDone) await UniTask.Yield();
+            if (preview.result == UnityWebRequest.Result.ConnectionError && preview.responseCode <= 0)
+                throw SonolusException.ConnectionFailure(preview.error);
             string target = preview.GetResponseHeader("Location");
             if (!SongPackageSource.TryHttps(target, out var uri) || !uri.IsDefaultPort
                 || uri.Host != "chartview.unipjsk.com" || uri.AbsolutePath != "/preview")

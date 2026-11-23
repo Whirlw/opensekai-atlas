@@ -21,8 +21,8 @@ namespace OpenSekai.Infrastructure.Packages
             public string ScoreKey;
             public int Level;
             public bool Ranked;
+            public bool UnreadableResponse;
             public string DataHash;
-            public DateTime CheckedUtc;
 
             internal bool Matches(string hash, int level) => Ranked && Level == level && level > 0
                 && !string.IsNullOrEmpty(hash) && ScoreKey == hash;
@@ -35,7 +35,7 @@ namespace OpenSekai.Infrastructure.Packages
 
         internal static string Key(SongPackageSource source)
         {
-            if (source?.PageUrl != null)
+            if (source?.IsWeb == true)
             {
                 string page = WebKey(source.PageUrl);
                 string download = WebKey(source.DownloadUrl);
@@ -79,14 +79,20 @@ namespace OpenSekai.Infrastructure.Packages
         internal static Verdict FromLevel(SonolusServerAddress server, SonolusLevel level, string scoreKey) => new()
         {
             Ranked = IsRankedLevel(server, level), Level = (int)Math.Round(level.Rating), DataHash = level.Data?.Hash,
-            ScoreKey = scoreKey, CheckedUtc = DateTime.UtcNow
+            ScoreKey = scoreKey
         };
 
         internal static Verdict FromWeb(string zone, int level, string hash)
         {
             if (level <= 0 || (zone != "quality" && zone != "abstract" && zone != "beginner")) return null;
-            return new Verdict { Ranked = zone == "quality", Level = level, ScoreKey = hash, CheckedUtc = DateTime.UtcNow };
+            return new Verdict { Ranked = zone == "quality", Level = level, ScoreKey = hash };
         }
+
+        internal static Verdict FromUnreadableResponse(string hash, int level) =>
+            new() { ScoreKey = hash, Level = level, UnreadableResponse = true };
+
+        internal static void RecordWebDownload(string key, string zone, int publishedLevel, string hash, int installedLevel) =>
+            Save(key, FromWeb(zone, publishedLevel, hash) ?? FromUnreadableResponse(hash, installedLevel));
 
         internal static Verdict ParseDetail(string html, string id)
         {

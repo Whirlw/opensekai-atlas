@@ -18,8 +18,17 @@ namespace OpenSekai.Infrastructure.Sonolus
             Status = status;
         }
 
-        /// <summary>HTTP status, or 0 when the request never got an answer.</summary>
+        /// <summary>HTTP status when available, otherwise 0.</summary>
         public long Status { get; }
+
+        internal bool IsNetworkFailure { get; private set; }
+        internal bool IsInvalidResponse { get; private set; }
+
+        internal static SonolusException ConnectionFailure(string error) =>
+            new SonolusException("无法连接服务器，请检查网络（" + error + "）。") { IsNetworkFailure = true };
+
+        internal static SonolusException InvalidResponse(string message) =>
+            new SonolusException(message) { IsInvalidResponse = true };
     }
 
     /// <summary>
@@ -77,7 +86,7 @@ namespace OpenSekai.Infrastructure.Sonolus
             SonolusLevelDetails details = SonolusLevelDetails.From(await GetJsonAsync("/levels/" + Escape(name), null, cancellationToken));
             if (details == null)
             {
-                throw new SonolusException("服务器返回的谱面详情无效。");
+                throw SonolusException.InvalidResponse("服务器返回的谱面详情无效。");
             }
 
             return details;
@@ -236,7 +245,7 @@ namespace OpenSekai.Infrastructure.Sonolus
                 }
                 catch (Exception)
                 {
-                    throw new SonolusException("服务器返回的不是 Sonolus 数据，请确认地址。");
+                    throw SonolusException.InvalidResponse("服务器返回的不是 Sonolus 数据，请确认地址。");
                 }
             }
         }
@@ -259,7 +268,7 @@ namespace OpenSekai.Infrastructure.Sonolus
                 if ((long)received > maxBytes)
                 {
                     request.Abort();
-                    throw new SonolusException("资源超过大小限制（" + FormatBytes(maxBytes) + "）。");
+                    throw SonolusException.InvalidResponse("资源超过大小限制（" + FormatBytes(maxBytes) + "）。");
                 }
 
                 string declared = request.GetResponseHeader("Content-Length");
@@ -268,7 +277,7 @@ namespace OpenSekai.Infrastructure.Sonolus
                     if (length > maxBytes)
                     {
                         request.Abort();
-                        throw new SonolusException("资源超过大小限制（" + FormatBytes(maxBytes) + "）。");
+                        throw SonolusException.InvalidResponse("资源超过大小限制（" + FormatBytes(maxBytes) + "）。");
                     }
 
                     progress?.Invoke(length > 0 ? Mathf.Clamp01((float)received / length) : -1f);
@@ -284,7 +293,7 @@ namespace OpenSekai.Infrastructure.Sonolus
             cancellationToken.ThrowIfCancellationRequested();
             if (request.result == UnityWebRequest.Result.ConnectionError)
             {
-                throw new SonolusException("无法连接服务器，请检查网络（" + request.error + "）。");
+                throw SonolusException.ConnectionFailure(request.error);
             }
 
             if (request.result == UnityWebRequest.Result.ProtocolError || request.responseCode >= 400)
@@ -294,12 +303,12 @@ namespace OpenSekai.Infrastructure.Sonolus
 
             if (request.result != UnityWebRequest.Result.Success)
             {
-                throw new SonolusException("请求失败：" + request.error);
+                throw SonolusException.InvalidResponse("请求失败：" + request.error);
             }
 
             if (request.downloadedBytes > (ulong)maxBytes || request.downloadHandler.nativeData.Length > maxBytes)
             {
-                throw new SonolusException("资源超过大小限制（" + FormatBytes(maxBytes) + "）。");
+                throw SonolusException.InvalidResponse("资源超过大小限制（" + FormatBytes(maxBytes) + "）。");
             }
 
             progress?.Invoke(1f);

@@ -2,9 +2,12 @@ using System;
 using System.Collections;
 using System.IO;
 using System.IO.Compression;
+using Cysharp.Threading.Tasks;
 using NUnit.Framework;
+using OpenSekai.App.UI;
 using OpenSekai.Infrastructure.Packages;
 using OpenSekai.Infrastructure.Sonolus;
+using OpenSekai.Shared.Packages;
 using UnityEngine.TestTools;
 
 namespace OpenSekai.Tests.EditMode.Packages
@@ -25,22 +28,134 @@ namespace OpenSekai.Tests.EditMode.Packages
         }
 
         [Test]
-        public void ACheckThatCannotReadTheChartIsRememberedAndOtherSourcesNeedNoCheck()
+        public void OnlyMissingLinksBlockDetailsAndLocalReadErrorsDoNotBlockChecking()
         {
-            string id = new Random().Next(1, int.MaxValue).ToString();
-            var ranked = SongPackageSource.FromWeb("https://opensekai.com/chart?id=" + id, "https://opensekai.com/download?id=" + id);
-            string key = ChartRankCache.Key(ranked);
-            Assert.That(ChartRankLookup.UnreadableReason(key), Is.Null);
+            string id = (1L + (uint)Guid.NewGuid().GetHashCode()).ToString();
+            var ranked = SongPackageSource.FromWeb(null, "https://opensekai.com/download?id=" + id);
+            var entry = new SongPackage(_root, new SongPackageManifest { playLevel = 30 });
+            var pending = new SongPackageItem(entry, default, true, false, false, false, default, source: ranked);
+            Assert.That(pending.RankKey, Is.EqualTo("os-" + id));
+            Assert.That(LibraryView.ChartInfoAccessFor(pending, false), Is.EqualTo(ChartInfoAccess.Check));
+            Assert.That(LibraryView.ChartInfoAccessFor(pending, true), Is.EqualTo(ChartInfoAccess.Checking));
 
-            RankCheck missing = ChartRankLookup.CheckAsync(ranked, null, string.Empty).GetAwaiter().GetResult();
+            RankCheck missing = ChartRankLookup.CheckAsync(ranked, entry, string.Empty).GetAwaiter().GetResult();
             Assert.That(missing.Outcome, Is.EqualTo(RankCheckOutcome.Unreadable));
             Assert.That(missing.Reason, Is.Not.Empty);
-            Assert.That(ChartRankLookup.UnreadableReason(key), Is.EqualTo(missing.Reason));
+            Assert.That(LibraryView.ChartInfoAccessFor(pending, false), Is.EqualTo(ChartInfoAccess.Check));
 
-            var elsewhere = SongPackageSource.FromWeb("https://charts.test/song/1", "https://cdn.test/song.zip");
+            var elsewhere = SongPackageSource.FromWeb("https://charts.test/song/1", null);
+            var unranked = new SongPackageItem(entry, default, true, true, true, false, default, "hash", elsewhere);
+            var local = new SongPackageItem(entry, default, true, true, true, false, default, "hash");
+            Assert.That(LibraryView.ChartInfoAccessFor(unranked, false), Is.EqualTo(ChartInfoAccess.Open));
+            Assert.That(LibraryView.ChartInfoAccessFor(local, false), Is.EqualTo(ChartInfoAccess.Blocked));
             RankCheck none = ChartRankLookup.CheckAsync(elsewhere, null, "hash").GetAwaiter().GetResult();
             Assert.That(none.Outcome, Is.EqualTo(RankCheckOutcome.Known));
             Assert.That(none.Reason, Is.Null);
+        }
+
+        [Test]
+        public void NetworkFailureAllowsAnImmediateRankCheckRetry()
+        {
+            string key = "rank-check-test-" + Guid.NewGuid().ToString("N");
+            int requests = 0;
+            UniTask<ChartRankCache.Verdict> Disconnect(ChartRankCache.Verdict _)
+            {
+                requests++;
+                return UniTask.FromException<ChartRankCache.Verdict>(SonolusException.ConnectionFailure("timeout"));
+            }
+
+            for (int i = 0; i < 2; i++)
+            {
+                RankCheck result = ChartRankLookup.CheckRemoteAsync(key, "original", 30, Disconnect).GetAwaiter().GetResult();
+                Assert.That(result.Outcome, Is.EqualTo(RankCheckOutcome.RetryLater));
+                Assert.That(result.Reason, Does.Contain("timeout"));
+            }
+            Assert.That(requests, Is.EqualTo(2));
+        }
+
+        [TestCase("valid")]
+        [TestCase("unparseable")]
+        [TestCase("invalid-sonolus")]
+        [TestCase("http-error")]
+        public void AServerResponseStartsCooldownAndInvalidDataRecordsUnranked(string response)
+        {
+            string id = (1L + (uint)Guid.NewGuid().GetHashCode()).ToString();
+            var source = SongPackageSource.FromWeb("https://opensekai.com/chart?id=" + id, null);
+            var entry = new SongPackage(_root, new SongPackageManifest { playLevel = 30 });
+            var item = new SongPackageItem(entry, default, true, true, true, false, default, "original", source);
+            string key = item.RankKey;
+            string rankFile = Path.Combine(UnityEngine.Application.persistentDataPath, "ChartRanks", key + ".json");
+            var original = ChartRankCache.FromWeb("quality", 30, "original");
+            if (response is "invalid-sonolus" or "http-error") ChartRankCache.Save(key, original);
+            try
+            {
+                int requests = 0;
+                UniTask<ChartRankCache.Verdict> Fetch(ChartRankCache.Verdict _)
+                {
+                    requests++;
+                    return response switch
+                    {
+                        "unparseable" => UniTask.FromException<ChartRankCache.Verdict>(new InvalidDataException("bad data")),
+                        "invalid-sonolus" => UniTask.FromException<ChartRankCache.Verdict>(SonolusException.InvalidResponse("bad JSON")),
+                        "http-error" => UniTask.FromException<ChartRankCache.Verdict>(new SonolusException("server error", 503)),
+                        _ => UniTask.FromResult(ChartRankCache.FromWeb("quality", 31, "updated"))
+                    };
+                }
+
+                RankCheck first = ChartRankLookup.CheckRemoteAsync(key, item.ScoreKey, 30, Fetch).GetAwaiter().GetResult();
+                Assert.That(first.Outcome, Is.EqualTo(response == "http-error" ? RankCheckOutcome.RetryLater : RankCheckOutcome.Known));
+                if (response == "valid")
+                    Assert.That(ChartRankCache.Read(key).Matches("updated", 31), Is.True);
+                else if (response == "http-error")
+                    Assert.That(ChartRankCache.Read(key), Is.SameAs(original));
+                else
+                {
+                    var verdict = ChartRankCache.Read(key);
+                    Assert.That(verdict.UnreadableResponse, Is.True);
+                    Assert.That(verdict.ScoreKey, Is.EqualTo(item.ScoreKey));
+                    Assert.That(verdict.Level, Is.EqualTo(30));
+                    Assert.That(ChartRankLookup.CachedLabel(item), Is.EqualTo(ChartRankLookup.UNRANKED));
+                    Assert.That(LibraryView.ChartInfoAccessFor(item, false), Is.EqualTo(ChartInfoAccess.Open));
+                    Assert.That(LibraryChartInfoPanel.RankNote(item), Does.Contain("无法解析"));
+                }
+
+                RankCheck retry = ChartRankLookup.CheckRemoteAsync(key, item.ScoreKey, 30, Fetch).GetAwaiter().GetResult();
+                Assert.That(retry.Outcome, Is.EqualTo(RankCheckOutcome.RetryLater));
+                Assert.That(retry.Reason, Does.Contain("10 分钟后再试"));
+                Assert.That(requests, Is.EqualTo(1));
+            }
+            finally
+            {
+                File.Delete(rankFile);
+            }
+        }
+
+        [TestCase(null, 0)]
+        [TestCase("unknown", 30)]
+        [TestCase("quality", 0)]
+        public void DownloadWithUnreadableRankMetadataIsUnrankedWithDetails(string zone, int publishedLevel)
+        {
+            string id = (1L + (uint)Guid.NewGuid().GetHashCode()).ToString();
+            var source = SongPackageSource.FromWeb("https://opensekai.com/chart?id=" + id, null);
+            var entry = new SongPackage(_root, new SongPackageManifest { playLevel = 30 });
+            var item = new SongPackageItem(entry, default, true, true, true, false, default, "downloaded", source);
+            string rankFile = Path.Combine(UnityEngine.Application.persistentDataPath, "ChartRanks", item.RankKey + ".json");
+            try
+            {
+                Assert.That(LibraryView.ChartInfoAccessFor(item, false), Is.EqualTo(ChartInfoAccess.Check));
+                ChartRankCache.RecordWebDownload(item.RankKey, zone, publishedLevel, item.ScoreKey, entry.Manifest.playLevel);
+                Assert.That(File.Exists(rankFile), Is.True);
+                Assert.That(ChartRankLookup.CachedLabel(item), Is.EqualTo(ChartRankLookup.UNRANKED));
+                Assert.That(LibraryView.ChartInfoAccessFor(item, false), Is.EqualTo(ChartInfoAccess.Open));
+                var verdict = ChartRankCache.Read(item.RankKey);
+                Assert.That(verdict.UnreadableResponse, Is.True);
+                Assert.That(verdict.ScoreKey, Is.EqualTo(item.ScoreKey));
+                Assert.That(verdict.Level, Is.EqualTo(30));
+            }
+            finally
+            {
+                File.Delete(rankFile);
+            }
         }
 
         [TestCase("quality", true)]

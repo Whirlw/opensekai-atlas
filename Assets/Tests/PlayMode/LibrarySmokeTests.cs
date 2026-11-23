@@ -14,6 +14,7 @@ using OpenSekai.Charts;
 using OpenSekai.Infrastructure.Packages;
 using OpenSekai.Infrastructure.Sonolus;
 using OpenSekai.Shared.Live.Simulation;
+using OpenSekai.Shared.Packages;
 using OpenSekai.Shared.Playback;
 using Sekai;
 using Sekai.Core.Live;
@@ -749,7 +750,7 @@ namespace OpenSekai.Tests.PlayMode
                 var installed = import.GetAwaiter().GetResult();
                 var item = library.LoadItems().Single(item => item.Entry.RootDirectory == installed.RootDirectory);
 
-                using var panel = new LibraryChartInfoPanel(canvas.transform);
+                using var panel = new LibraryChartInfoPanel(canvas.transform, _ => UniTask.FromResult(RankCheck.Known));
                 using var detail = new LibraryDetailPanel((RectTransform)canvas.transform, 0f, null, null, () => panel.Show(item));
                 detail.Show(item, null, animate: false);
                 var info = canvas.transform.Find("Detail/Info");
@@ -786,6 +787,7 @@ namespace OpenSekai.Tests.PlayMode
                 Assert.That(urls.Select(label => label.text), Is.EqualTo(new[] { PAGE, DOWNLOAD }));
                 Assert.That(urls.All(label => label.rectTransform.rect.width > 0 && label.rectTransform.rect.height > 0), Is.True);
                 Assert.That(canvas.GetComponentsInChildren<Button>().Count(button => button.name == "Copy"), Is.EqualTo(2));
+                Assert.That(canvas.GetComponentsInChildren<Button>().Any(button => button.name == "RefreshRank"), Is.False);
                 var labels = canvas.GetComponentsInChildren<TextMeshProUGUI>();
                 Assert.That(labels.Single(label => label.name == "Verdict").text, Is.EqualTo(LibraryChartInfoPanel.UNRANKED_BANNER));
                 Assert.That(labels.Single(label => label.name == "Note").text, Is.EqualTo("此来源不提供 Ranked 谱面"));
@@ -814,6 +816,68 @@ namespace OpenSekai.Tests.PlayMode
             {
                 Object.Destroy(canvas);
                 Directory.Delete(root, true);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ChartDetailsRefreshesOnlyOnRequestAndKeepsTheLocalVerdictOnFailure()
+        {
+            var canvas = new GameObject("Ranked details canvas", typeof(RectTransform), typeof(Canvas));
+            canvas.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
+            string id = (1L + (uint)System.Guid.NewGuid().GetHashCode()).ToString();
+            var source = SongPackageSource.FromWeb("https://opensekai.com/chart?id=" + id, "https://opensekai.com/download?id=" + id);
+            var package = new SongPackage("ranked-details", new SongPackageManifest { title = "Ranked details", playLevel = 30 });
+            var item = new SongPackageItem(package, default, true, true, true, false, default, "original", source);
+            string key = item.RankKey;
+            string rankFile = Path.Combine(Application.persistentDataPath, "ChartRanks", key + ".json");
+            try
+            {
+                ChartRankCache.Save(key, ChartRankCache.FromWeb("quality", 30, item.ScoreKey));
+                var request = new UniTaskCompletionSource<RankCheck>();
+                int checks = 0;
+                using var panel = new LibraryChartInfoPanel(canvas.transform, actual =>
+                {
+                    Assert.That(actual, Is.SameAs(item));
+                    checks++;
+                    return request.Task;
+                });
+                panel.Show(item);
+                yield return null;
+                Canvas.ForceUpdateCanvases();
+
+                var labels = canvas.GetComponentsInChildren<TextMeshProUGUI>();
+                var verdict = labels.Single(label => label.name == "Verdict");
+                var banner = (RectTransform)verdict.transform.parent;
+                var links = (RectTransform)banner.parent.Find("Links");
+                var refresh = canvas.GetComponentsInChildren<Button>().Single(button => button.name == "RefreshRank");
+                Assert.That(banner.offsetMax.y, Is.Zero);
+                Assert.That(links.offsetMax.y, Is.LessThan(banner.offsetMin.y));
+                Assert.That(checks, Is.Zero, "opening details must only read the local verdict");
+                Assert.That(verdict.text, Is.EqualTo(LibraryChartInfoPanel.RANKED_BANNER));
+
+                refresh.onClick.Invoke();
+                Assert.That(refresh.interactable, Is.False);
+                refresh.onClick.Invoke();
+                Assert.That(checks, Is.EqualTo(1));
+                request.TrySetResult(new RankCheck(RankCheckOutcome.RetryLater, "连接失败"));
+                yield return null;
+                Assert.That(refresh.interactable, Is.True);
+                Assert.That(verdict.text, Is.EqualTo(LibraryChartInfoPanel.RANKED_BANNER));
+                Assert.That(labels.Single(label => label.name == "Note").text, Does.Contain("沿用本地记录"));
+
+                request = new UniTaskCompletionSource<RankCheck>();
+                refresh.onClick.Invoke();
+                Assert.That(checks, Is.EqualTo(2));
+                ChartRankCache.Save(key, ChartRankCache.FromWeb("quality", 31, item.ScoreKey));
+                request.TrySetResult(RankCheck.Known);
+                yield return null;
+                Assert.That(refresh.interactable, Is.True);
+                Assert.That(verdict.text, Is.EqualTo(LibraryChartInfoPanel.UNRANKED_BANNER));
+            }
+            finally
+            {
+                File.Delete(rankFile);
+                Object.Destroy(canvas);
             }
         }
 

@@ -18,6 +18,7 @@ namespace OpenSekai.Infrastructure.Packages
         public string SonolusServerUrl { get; }
         public string SonolusLevelUrl { get; }
         internal string SonolusLevelName { get; }
+        internal bool IsWeb => PageUrl != null || DownloadUrl != null;
 
         private SongPackageSource(string pageUrl, string downloadUrl, SonolusServerAddress server, string name)
         {
@@ -37,8 +38,11 @@ namespace OpenSekai.Infrastructure.Packages
         }
 
         internal static SongPackageSource FromWeb(string pageUrl, string downloadUrl)
-            => TryHttps(pageUrl, out _) && TryHttps(downloadUrl, out _)
-                ? new SongPackageSource(pageUrl, downloadUrl, null, null) : null;
+        {
+            string page = TryHttps(pageUrl, out _) ? pageUrl : null;
+            string download = TryHttps(downloadUrl, out _) ? downloadUrl : null;
+            return page != null || download != null ? new SongPackageSource(page, download, null, null) : null;
+        }
 
         internal static SongPackageSource FromSonolus(string serverUrl, string name)
         {

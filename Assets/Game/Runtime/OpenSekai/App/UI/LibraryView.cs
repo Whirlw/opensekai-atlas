@@ -648,26 +648,20 @@ namespace OpenSekai.App.UI
         /// What the 详情 button does for a chart: open the card once its Ranked status is on
         /// record, look the status up once while it is not, and otherwise only say why not.
         /// </summary>
-        private ChartInfoAccess AccessOf(SongPackageItem item, out string reason)
-        {
-            reason = null;
-            if (item?.Source == null)
-            {
-                reason = "未记录下载地址，没有可查看的详情";
-                return ChartInfoAccess.Blocked;
-            }
+        private ChartInfoAccess AccessOf(SongPackageItem item) => ChartInfoAccessFor(item, _checking.Contains(item));
 
+        internal static ChartInfoAccess ChartInfoAccessFor(SongPackageItem item, bool checking)
+        {
+            if (item?.Source == null) return ChartInfoAccess.Blocked;
             if (ChartRankLookup.CachedLabel(item) != ChartRankLookup.PENDING) return ChartInfoAccess.Open;
-            if (_checking.Contains(item)) return ChartInfoAccess.Checking;
-            reason = ChartRankLookup.UnreadableReason(item.RankKey);
-            return reason != null ? ChartInfoAccess.Blocked : ChartInfoAccess.Check;
+            return checking ? ChartInfoAccess.Checking : ChartInfoAccess.Check;
         }
 
         private void RefreshAccess(SongPackageItem item)
         {
             if (_detail != null && item != null && item == _selected)
             {
-                _detail.SetAccess(AccessOf(item, out _));
+                _detail.SetAccess(AccessOf(item));
             }
         }
 
@@ -675,13 +669,12 @@ namespace OpenSekai.App.UI
         {
             SongPackageItem item = _selected;
             if (item == null) return;
-            switch (AccessOf(item, out string reason))
+            switch (AccessOf(item))
             {
                 case ChartInfoAccess.Open:
                     UiSound.Play(UiCue.Press);
-                    _chartInfo ??= new LibraryChartInfoPanel(_page.transform);
+                    _chartInfo ??= new LibraryChartInfoPanel(_page.transform, CheckChartRankAsync);
                     _chartInfo.Show(item);
-                    if (item.RankKey != null) RenewChartInfo(item).Forget();
                     break;
                 case ChartInfoAccess.Check:
                     UiSound.Play(UiCue.Press);
@@ -693,7 +686,7 @@ namespace OpenSekai.App.UI
                     break;
                 default:
                     UiSound.Play(UiCue.Blocked);
-                    _detail.ShowHint(reason);
+                    _detail.ShowHint("未记录来源链接，没有可查看的详情");
                     break;
             }
         }
@@ -706,7 +699,7 @@ namespace OpenSekai.App.UI
             RankCheck result;
             try
             {
-                result = await ChartRankLookup.CheckAsync(item.Source, item.Entry, item.ScoreKey);
+                result = await CheckChartRankAsync(item);
             }
             finally
             {
@@ -722,15 +715,8 @@ namespace OpenSekai.App.UI
             }
         }
 
-        // Opening 详情 also renews a record older than a week; a fresh one comes straight back.
-        private async UniTaskVoid RenewChartInfo(SongPackageItem item)
-        {
-            RankCheck result = await ChartRankLookup.CheckAsync(item.Source, item.Entry, item.ScoreKey);
-            if (_chartInfo != null && _chartInfo.IsOpen && _chartInfo.Item == item)
-            {
-                _chartInfo.ShowRank(result.Outcome == RankCheckOutcome.Known ? null : "暂时无法更新");
-            }
-        }
+        private static UniTask<RankCheck> CheckChartRankAsync(SongPackageItem item) =>
+            ChartRankLookup.CheckAsync(item.Source, item.Entry, item.ScoreKey);
 
         /// <summary>Difficulty, level and charter, the line under a package's title in its action card.</summary>
         private static string DescribePackage(SongPackageItem item)

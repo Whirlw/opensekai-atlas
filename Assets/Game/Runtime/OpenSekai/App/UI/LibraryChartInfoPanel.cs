@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
 using LitMotion;
 using LitMotion.Extensions;
 using OpenSekai.Infrastructure.Packages;
@@ -9,9 +11,7 @@ using UnityEngine.UI;
 namespace OpenSekai.App.UI
 {
     /// <summary>
-    /// A chart's 详情 card: where it came from, with copyable links, and whether it plays Ranked,
-    /// as a large banner across the lower middle with the reason under it. 「Ranked 规则」 in the
-    /// bottom-right corner opens the rules over the card.
+    /// A chart's 详情 card shows its Ranked status above the copyable source links.
     /// </summary>
     internal sealed class LibraryChartInfoPanel : IDisposable
     {
@@ -23,14 +23,17 @@ namespace OpenSekai.App.UI
         private const float COPY_WIDTH = 136f;
         private const float FOOTER_HEIGHT = 56f;
         private const float BANNER_HEIGHT = 116f;
-        private const float BANNER_GAP = 10f;
+        private const float STATUS_HEIGHT = 56f;
         private const float LINKS_GAP = 14f;
         private const float RULES_WIDTH = 196f;
+        private const float REFRESH_WIDTH = 196f;
         private const float BANNER_FONT_SIZE = 80f;
         private const byte RANKED_BAND_OPACITY = 44;
         private const byte UNRANKED_BAND_OPACITY = 12;
 
         private readonly Transform _parent;
+        private readonly Func<SongPackageItem, UniTask<RankCheck>> _checkRank;
+        private readonly HashSet<string> _refreshing = new(StringComparer.Ordinal);
         private readonly LibraryModal _modal;
         private readonly ScrollRect _scroll;
         private readonly RectTransform _content;
@@ -44,29 +47,26 @@ namespace OpenSekai.App.UI
         private readonly Image _bottomLine;
         private readonly TextMeshProUGUI _bannerText;
         private readonly TextMeshProUGUI _note;
+        private readonly UnityEngine.UI.Button _refresh;
+        private readonly TextMeshProUGUI _refreshLabel;
         private LibraryRankRulesPanel _rules;
         private MotionHandle _bannerMotion;
         private bool? _shownRanked;
 
-        internal LibraryChartInfoPanel(Transform parent)
+        internal LibraryChartInfoPanel(Transform parent, Func<SongPackageItem, UniTask<RankCheck>> checkRank)
         {
             _parent = parent;
+            _checkRank = checkRank;
             RectTransform root = LibraryUi.CreateRect("LibraryChartInfo", parent);
             LibraryUi.Stretch(root);
             _modal = new LibraryModal(root, new Vector2(CARD_WIDTH, CARD_HEIGHT), "谱面详情", Hide, withSubtitle: true);
             _modal.Subtitle.richText = false;
             RectTransform body = _modal.Body;
 
-            RectTransform links = LibraryUi.CreateRect("Links", body);
-            LibraryWidgets.Inset(links, 0f, FOOTER_HEIGHT + BANNER_GAP + BANNER_HEIGHT + LINKS_GAP, 0f, 10f);
-            _content = PackWidgets.Scroll(links, out _scroll);
-            _first = new LinkRow(_content, "FirstLink", OnCopied);
-            _second = new LinkRow(_content, "SecondLink", OnCopied);
-
             // The banner: a band that fades out toward both sides, edged by two hairlines, the
             // verdict large in the middle.
             _banner = LibraryUi.CreateRect("Banner", body);
-            LibraryWidgets.BottomStrip(_banner, 0f, 0f, FOOTER_HEIGHT + BANNER_GAP, BANNER_HEIGHT);
+            LibraryWidgets.TopStrip(_banner, 0f, 0f, 0f, BANNER_HEIGHT);
             _bannerGroup = _banner.gameObject.AddComponent<CanvasGroup>();
             _bannerGroup.blocksRaycasts = false;
             _glow = LibraryUi.CreateImage("Glow", _banner, Color.clear);
@@ -89,10 +89,22 @@ namespace OpenSekai.App.UI
             _bannerText.overflowMode = TextOverflowModes.Overflow;
             LibraryUi.Stretch(_bannerText.rectTransform);
 
-            _note = PackWidgets.UserLabel(
-                "Note", body, string.Empty, LibraryTheme.FontSize.BODY, LibraryTheme.Colors.TextMuted,
-                alignment: TextAlignmentOptions.Center);
-            LibraryWidgets.BottomStrip(_note.rectTransform, RULES_WIDTH + 16f, RULES_WIDTH + 16f, 0f, FOOTER_HEIGHT);
+            RectTransform status = LibraryUi.CreateRect("RankStatus", body);
+            LibraryWidgets.TopStrip(status, 0f, 0f, BANNER_HEIGHT, STATUS_HEIGHT);
+            _note = PackWidgets.UserLabel("Note", status, string.Empty, LibraryTheme.FontSize.BODY, LibraryTheme.Colors.TextMuted);
+            _refresh = LibraryWidgets.PillButton(
+                "RefreshRank", status, "刷新 Ranked", () => RefreshRankAsync().Forget(), REFRESH_WIDTH, STATUS_HEIGHT,
+                LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, 21f);
+            Vector2 right = new Vector2(1f, 0.5f);
+            LibraryWidgets.Place((RectTransform)_refresh.transform, right, right, Vector2.zero,
+                new Vector2(REFRESH_WIDTH, STATUS_HEIGHT));
+            _refreshLabel = _refresh.GetComponentInChildren<TextMeshProUGUI>();
+
+            RectTransform links = LibraryUi.CreateRect("Links", body);
+            LibraryWidgets.Inset(links, 0f, FOOTER_HEIGHT + LINKS_GAP, 0f, BANNER_HEIGHT + STATUS_HEIGHT + LINKS_GAP);
+            _content = PackWidgets.Scroll(links, out _scroll);
+            _first = new LinkRow(_content, "FirstLink", OnCopied);
+            _second = new LinkRow(_content, "SecondLink", OnCopied);
 
             Button rules = LibraryWidgets.PillButton(
                 "Rules", body, "Ranked 规则", OpenRules, RULES_WIDTH, FOOTER_HEIGHT,
@@ -121,12 +133,16 @@ namespace OpenSekai.App.UI
             }
             else
             {
-                bool web = source.PageUrl != null;
+                bool web = source.IsWeb;
                 top = _first.Bind(web ? "来源网页" : "Sonolus 服务器", source.PageUrl ?? source.SonolusServerUrl, 0f);
                 top = _second.Bind(web ? "下载直链" : "Sonolus 关卡", source.DownloadUrl ?? source.SonolusLevelUrl, top);
             }
 
             _content.sizeDelta = new Vector2(0f, top);
+            bool canRefresh = item?.RankKey != null;
+            _refresh.gameObject.SetActive(canRefresh);
+            LibraryWidgets.Inset(_note.rectTransform, 6f, 0f, canRefresh ? REFRESH_WIDTH + 16f : 6f, 0f);
+            UpdateRefreshButton();
             _shownRanked = null;
             ShowRank(null);
             _modal.Root.SetAsLastSibling();
@@ -160,7 +176,7 @@ namespace OpenSekai.App.UI
             _topLine.color = _bottomLine.color = WithAlpha(tint, ranked ? (byte)210 : (byte)40);
             _glow.enabled = ranked;
             _glow.color = WithAlpha(tint, 64);
-            _note.text = problem != null ? problem + "，显示本地记录" : RankNote(Item);
+            _note.text = problem != null ? problem + "，沿用本地记录" : RankNote(Item);
 
             if (_shownRanked == ranked)
             {
@@ -189,6 +205,7 @@ namespace OpenSekai.App.UI
             if (item.RankKey == null) return "此来源不提供 Ranked 谱面";
             ChartRankCache.Verdict verdict = ChartRankCache.Read(item.RankKey);
             if (verdict == null) return "尚未核验，暂按 Unranked 计";
+            if (verdict.UnreadableResponse) return "发布方返回的数据无法解析，已记为 Unranked";
             return verdict.Ranked ? "谱面内容或等级与发布版本不一致" : "发布方未将此谱面列为 Ranked";
         }
 
@@ -212,9 +229,43 @@ namespace OpenSekai.App.UI
 
         public void Dispose()
         {
+            Item = null;
             _bannerMotion.TryCancel();
             _rules?.Dispose();
             _modal.Dispose();
+        }
+
+        private async UniTask RefreshRankAsync()
+        {
+            SongPackageItem item = Item;
+            string key = item?.RankKey;
+            if (key == null || !_refreshing.Add(key)) return;
+
+            UpdateRefreshButton();
+            ShowRank(null);
+            string problem = "暂时无法更新";
+            try
+            {
+                RankCheck result = await _checkRank(item);
+                problem = result.Reason;
+            }
+            finally
+            {
+                _refreshing.Remove(key);
+                if (Item?.RankKey == key && IsOpen)
+                {
+                    UpdateRefreshButton();
+                    ShowRank(problem);
+                }
+            }
+        }
+
+        private void UpdateRefreshButton()
+        {
+            bool refreshing = Item?.RankKey != null && _refreshing.Contains(Item.RankKey);
+            _refresh.interactable = !refreshing;
+            _refreshLabel.text = refreshing ? "刷新中…" : "刷新 Ranked";
+            _refreshLabel.color = refreshing ? LibraryTheme.Colors.TextMuted : LibraryTheme.Colors.TextPrimary;
         }
 
         private void OpenRules()
@@ -267,6 +318,11 @@ namespace OpenSekai.App.UI
             /// <returns>The top of the next row.</returns>
             internal float Bind(string caption, string url, float top, bool copyable = true)
             {
+                if (string.IsNullOrEmpty(url))
+                {
+                    Hide();
+                    return top;
+                }
                 _root.gameObject.SetActive(true);
                 _caption.text = caption;
                 _url.text = url;

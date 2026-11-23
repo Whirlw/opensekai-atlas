@@ -99,9 +99,11 @@ namespace OpenSekai.App.UI
                 {
                     _attempted.Add(id);
                     _progress = 0;
+                    string zone = item["chartZone"]?.Type == JTokenType.String ? (string)item["chartZone"] : null;
+                    int.TryParse(item["chartLevel"]?.ToString(), out int level);
                     _import = ImportAsync(id, (string)item["path"],
                         SongPackageSource.FromWeb((string)item["pageUrl"], (string)item["downloadUrl"]),
-                        (string)item["chartZone"], (int?)item["chartLevel"] ?? 0);
+                        zone, level);
                     return; // Serialize imports and shared library-cache updates.
                 }
                 if (status == 16 && _attempted.Add(id))
@@ -127,11 +129,7 @@ namespace OpenSekai.App.UI
                 var package = await manager.ImportDownloadedZipAsync(path, id, value => Volatile.Write(ref _progress, value), source);
                 string key = ChartRankCache.Key(source);
                 if (key != null)
-                {
-                    string hash = manager.ScoreKeyOf(package);
-                    var snapshot = ChartRankCache.FromWeb(zone, level, hash);
-                    ChartRankCache.Save(key, snapshot);
-                }
+                    ChartRankCache.RecordWebDownload(key, zone, level, manager.ScoreKeyOf(package), package.Manifest.playLevel);
                 using var plugin = new AndroidJavaClass("com.opensekai.MiniWebView");
                 plugin.CallStatic("acknowledge", id);
                 Imported?.Invoke();
