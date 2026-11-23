@@ -19,7 +19,8 @@ namespace OpenSekai.App.UI
 
     /// <summary>
     /// Layout and binding of the 个人信息 page. On the left, the player's card: avatar and nickname
-    /// (tap either to edit them), the Ranking Score with its tier badge, and the worn 段位 plate.
+    /// (tap either to edit them), the Ranking Score with its tier badge (tap it for every tier's
+    /// badge), and the worn 段位 plate.
     /// On the right, the Best 30 (one line per chart, by contribution) or the whole history (one
     /// line per run, newest first) in a recycling list. The page reads everything from its
     /// <see cref="ProfileScreen"/> and never computes a score itself. Sizes are canvas units at the
@@ -141,9 +142,17 @@ namespace OpenSekai.App.UI
             LibraryWidgets.Place(rankCaption.rectTransform, topLeft, topLeft, new Vector2(PAD, -(rankTop + 8f)),
                 new Vector2(BADGE_SIZE, 26f));
             float badgeTop = rankTop + 46f;
-            _badge = new RankingBadge(card, BADGE_SIZE);
+            _badge = new RankingBadge(card, BADGE_SIZE, animate: true);
             LibraryWidgets.Place(_badge.Root, topLeft, new Vector2(0.5f, 0.5f),
                 new Vector2(PAD + BADGE_SIZE * 0.5f, -(badgeTop + BADGE_SIZE * 0.5f)), new Vector2(BADGE_SIZE, BADGE_SIZE));
+            Image badgeHit = LibraryUi.CreateImage("Hit", _badge.Root, Color.clear);
+            badgeHit.raycastTarget = true;
+            LibraryUi.Stretch(badgeHit.rectTransform);
+            Button badgeButton = badgeHit.gameObject.AddComponent<Button>();
+            badgeButton.targetGraphic = badgeHit;
+            badgeButton.transition = Selectable.Transition.None;
+            badgeButton.onClick.AddListener(screen.OpenBadges);
+            LibraryPressFeedback.Attach(badgeHit.gameObject, _badge.Root);
             float totalLeft = PAD + BADGE_SIZE + 26f;
             _total = LibraryWidgets.Label("Total", card, "0", 88f, LibraryTheme.Colors.TextPrimary);
             LibraryUi.UseCondensedFont(_total);
@@ -221,9 +230,8 @@ namespace OpenSekai.App.UI
             _meta.text = readable ? "本机档案  ·  " + ProfileCopy.Number(plays) + " 次游玩" : "档案暂时无法读取";
             _badge.SetTier(tier);
             _total.text = readable ? ProfileCopy.Number(total) : "—";
-            Color32 tierColor = RankingTiers.Color(tier);
             _tier.text = RankingTiers.Name(tier) + "  " + RankingTiers.LatinName(tier);
-            _tier.color = tierColor;
+            RankingTiers.Paint(_tier, tier);
             _nextTier.text = best != null ? ProfileCopy.NextTier(total) : string.Empty;
             _coverage.text = charts == 0
                 ? "手动完成一首谱面后，成绩会计入 Best 30"

@@ -367,6 +367,19 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>
+        /// Puts <paramref name="summary"/> on the 个人信息 card and holds the page's idle motion at
+        /// <paramref name="time"/> seconds, for screenshots of each Ranking Score tier. The next
+        /// <see cref="ShowHomeImmediately"/> reads the real profile again.
+        /// </summary>
+        internal void PreviewProfileCard(HomeProfileSummary summary, double time)
+        {
+            _view.SetProfile(summary);
+            _idle.TryCancel();
+            _idle = default;
+            TickIdle(time);
+        }
+
+        /// <summary>
         /// Holds the home page between its two pages: 0 the first, 1 the second, in between part of
         /// each, as a swipe leaves them. Whole numbers settle on that page.
         /// </summary>

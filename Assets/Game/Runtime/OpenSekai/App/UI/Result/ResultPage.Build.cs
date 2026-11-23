@@ -311,7 +311,7 @@ namespace OpenSekai.App.UI
             const float TEXT_LEFT = BADGE_SIZE + 28f;
             TextMeshProUGUI caption = Caption(section, "Caption", "RANKING SCORE");
             TopLeft(caption.rectTransform, 0f, 26f, 300f, 26f);
-            _badge = new RankingBadge(section, BADGE_SIZE);
+            _badge = new RankingBadge(section, BADGE_SIZE, animate: true);
             TopLeft(_badge.Root, -10f, 62f, BADGE_SIZE, BADGE_SIZE);
 
             _tierName = LibraryWidgets.Label("TierName", section, string.Empty, 26f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
@@ -443,6 +443,9 @@ namespace OpenSekai.App.UI
             _tierUpTag.Set(ResultCopy.TIER_UP, RankingTiers.Color(_ranking.After.TierId));
             _tierUpTag.SetShown(_ranking.TierUp);
             _tierUpTag.Pop(1f);
+            // Both crests start drawing now, so the upgrade 2.6 s in has the new one ready.
+            _badge.Warm(_ranking.Before.TierId);
+            _badge.Warm(_ranking.After.TierId);
             ShowTier(_ranking.After.TierId);
 
             bool saveFailed = _ranking.SaveState == HistorySaveState.SaveFailed;

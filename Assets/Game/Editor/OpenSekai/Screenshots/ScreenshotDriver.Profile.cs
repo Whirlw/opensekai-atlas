@@ -19,7 +19,7 @@ namespace OpenSekai.EditorTools.Screenshots
         /// The second home page and the 个人信息 part, on a sample profile in a temporary folder, so
         /// the frames never show or change the player's own: the second page at rest and mid-swipe,
         /// the 个人信息 card growing over it, the real tap in, the Best 30 and the history, the
-        /// 编辑资料 card, a backup's merge preview, back out (it lands on the second page), and last
+        /// 编辑资料 card, the 评级徽章 card, a backup's merge preview, back out (it lands on the second page), and last
         /// an empty profile on the card and the page. Sample songs are the installed packages
         /// (with their jackets), topped up with made-up titles.
         /// </summary>
@@ -80,6 +80,12 @@ namespace OpenSekai.EditorTools.Screenshots
                 screen.OpenEditor();
                 yield return new WaitForSecondsRealtime(0.6f);
                 yield return Capture(shot, stem + "-edit", "edit card", null);
+                screen.TryHandleBack();
+
+                screen.OpenBadges();
+                yield return WaitUntil(() => !RankingCrests.IsBusy, "the Ranking Score crests");
+                yield return new WaitForSecondsRealtime(0.8f);
+                yield return Capture(shot, stem + "-badges", "评级徽章 card from the badge", null);
                 screen.TryHandleBack();
 
                 ProfileImportPreview preview = sample.PreviewBackup(backup);

@@ -51,8 +51,8 @@ namespace OpenSekai.App.UI
     /// <summary>
     /// The second page's big card, the way into 个人信息: the player's avatar and nickname, the
     /// worn 段位 plate, the Ranking Score with its tier, and how many charts and plays stand behind
-    /// it. On the right the tier badge floats in its own color with two orbits around it. Like the
-    /// library card it grows over the page when tapped.
+    /// it. On the right the tier badge floats in its own color in a sky that grows richer with the
+    /// tier (<see cref="HomeRankingSky"/>). Like the library card it grows over the page when tapped.
     /// </summary>
     internal sealed class HomeProfileCard : IHomeCard
     {
@@ -63,14 +63,6 @@ namespace OpenSekai.App.UI
         private const float AVATAR_SIZE = 104f;
         private const float BADGE_SIZE = 260f;
         private const float PLATE_HEIGHT = 36f;
-        private const int STARS = 9;
-
-        private static readonly Vector2[] _starPositions =
-        {
-            new Vector2(-250f, 210f), new Vector2(-120f, 290f), new Vector2(170f, 250f), new Vector2(280f, 120f),
-            new Vector2(300f, -150f), new Vector2(150f, -280f), new Vector2(-200f, -240f), new Vector2(-300f, -40f),
-            new Vector2(40f, 330f)
-        };
 
         private readonly HomeCardFrame _frame;
         private readonly Image _glow;
@@ -79,10 +71,7 @@ namespace OpenSekai.App.UI
         private readonly RectTransform _badgeAnchor;
         private readonly RankingBadge _badge;
         private readonly Image _badgeGlow;
-        private readonly RectTransform[] _orbits = new RectTransform[2];
-        private readonly Image[] _orbitPaths = new Image[2];
-        private readonly Image[] _satellites = new Image[2];
-        private readonly Image[] _stars = new Image[STARS];
+        private readonly HomeRankingSky _sky;
         private readonly Image _cover;
         private readonly Image _coverFade;
         private readonly CanvasGroup _copy;
@@ -121,37 +110,7 @@ namespace OpenSekai.App.UI
             _glow.raycastTarget = false;
             LibraryWidgets.Place(_glow.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
                 new Vector2(1100f, 1100f));
-            for (int i = 0; i < _stars.Length; i++)
-            {
-                Image star = LibraryUi.CreateImage("Star" + i, artRoot, Color.white);
-                star.sprite = LibraryShapes.Glow();
-                star.raycastTarget = false;
-                float size = i % 3 == 0 ? 26f : 16f;
-                LibraryWidgets.Place(star.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), _starPositions[i],
-                    new Vector2(size, size));
-                _stars[i] = star;
-            }
-
-            for (int i = 0; i < _orbits.Length; i++)
-            {
-                float diameter = i == 0 ? 470f : 660f;
-                RectTransform orbit = LibraryUi.CreateRect("Orbit" + i, artRoot);
-                LibraryWidgets.Place(orbit, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(diameter, diameter));
-                orbit.localEulerAngles = new Vector3(0f, 0f, i == 0 ? -14f : 10f);
-                RectTransform squash = LibraryUi.CreateRect("Squash", orbit);
-                LibraryUi.Stretch(squash);
-                squash.localScale = new Vector3(1f, i == 0 ? 0.34f : 0.26f, 1f);
-                _orbitPaths[i] = LibraryWidgets.Shape("Path", squash, LibraryShapes.Ring(150f, 2f), Color.white);
-                _orbitPaths[i].type = Image.Type.Simple;
-                LibraryUi.Stretch(_orbitPaths[i].rectTransform);
-                Image satellite = LibraryUi.CreateImage("Satellite", orbit, Color.white);
-                satellite.sprite = LibraryShapes.Glow();
-                satellite.raycastTarget = false;
-                LibraryWidgets.Place(satellite.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
-                    new Vector2(30f, 30f));
-                _orbits[i] = orbit;
-                _satellites[i] = satellite;
-            }
+            _sky = new HomeRankingSky(artRoot);
 
             // The copy sits on a solid band that fades out toward the art, as on the library card.
             _cover = LibraryUi.CreateImage("CopyBand", content, HomeTheme.Colors.Card);
@@ -278,6 +237,15 @@ namespace OpenSekai.App.UI
             _tier.text = _summary.Unreadable
                 ? "档案暂时无法读取"
                 : RankingTiers.Name(_summary.TierId) + "  " + RankingTiers.LatinName(_summary.TierId);
+            if (_summary.Unreadable)
+            {
+                _tier.enableVertexGradient = false;
+                _tier.color = LibraryTheme.Colors.TextMuted;
+            }
+            else
+            {
+                RankingTiers.Paint(_tier, _summary.TierId);
+            }
             _charts.text = _summary.ChartCount.ToString(CultureInfo.InvariantCulture);
             _plays.text = _summary.PlayCount.ToString(CultureInfo.InvariantCulture);
             bool worn = !string.IsNullOrEmpty(_summary.DanLabel);
@@ -316,26 +284,8 @@ namespace OpenSekai.App.UI
             Color halo = _badgeGlow.color;
             halo.a = (0.22f + 0.08f * bob);
             _badgeGlow.color = halo;
-            for (int i = 0; i < _orbits.Length; i++)
-            {
-                float period = i == 0 ? 9f : 14f;
-                float angle = (float)(time % period / period) * Mathf.PI * 2f * (i == 0 ? 1f : -1f) + i * 2.1f;
-                float half = _orbits[i].sizeDelta.x * 0.5f;
-                float squash = i == 0 ? 0.34f : 0.26f;
-                _satellites[i].rectTransform.anchoredPosition = new Vector2(Mathf.Cos(angle) * half, Mathf.Sin(angle) * half * squash);
-                // Behind the badge on the far half of the orbit.
-                Color satellite = _satellites[i].color;
-                satellite.a = Mathf.Sin(angle) > 0f ? 0.25f : 0.9f;
-                _satellites[i].color = satellite;
-            }
-
-            for (int i = 0; i < _stars.Length; i++)
-            {
-                float twinkle = 0.5f + 0.5f * Mathf.Sin((float)(time * (0.6d + i * 0.07d)) + i * 1.7f);
-                Color star = _stars[i].color;
-                star.a = 0.12f + 0.5f * twinkle * twinkle;
-                _stars[i].color = star;
-            }
+            _sky.Tick(time);
+            _badge.Tick(time);
         }
 
         private void ApplyAccent(Color32 accent, bool worn)
@@ -345,12 +295,7 @@ namespace OpenSekai.App.UI
             _ctaGlow.color = HomeTheme.Colors.WithAlpha(accent, 46);
             _glow.color = HomeTheme.Colors.WithAlpha(accent, 70);
             _badgeGlow.color = HomeTheme.Colors.WithAlpha(accent, 60);
-            _tier.color = accent;
-            for (int i = 0; i < _orbits.Length; i++)
-            {
-                _orbitPaths[i].color = HomeTheme.Colors.WithAlpha(accent, (byte)(i == 0 ? 90 : 50));
-                _satellites[i].color = Color.Lerp(accent, Color.white, 0.5f);
-            }
+            _sky.SetTier(_summary.Unreadable ? 0 : _summary.TierId, accent);
 
             Color32 plate = DanStyles.ParseColor(_summary?.DanColor, HomeTheme.Colors.Violet);
             _plate.color = worn ? HomeTheme.Colors.WithAlpha(plate, 56) : HomeTheme.Colors.Chip;

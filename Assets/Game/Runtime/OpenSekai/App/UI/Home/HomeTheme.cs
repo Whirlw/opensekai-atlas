@@ -16,7 +16,7 @@ namespace OpenSekai.App.UI
             internal static readonly Color32 Violet = ToColor32(BrandArt.Violet);
             internal static readonly Color32 Rose = ToColor32(BrandArt.Rose);
 
-            /// <summary>The 成就 card's tint; the same gold as the top Ranking Score tier.</summary>
+            /// <summary>The 成就 card's tint; the same gold as the 天穹 Ranking Score tier.</summary>
             internal static readonly Color32 Gold = new Color32(255, 198, 112, 255);
 
             /// <summary>Card body: a step above the library's surface so cards lift off the aurora.</summary>

@@ -48,6 +48,7 @@ namespace OpenSekai.App.UI
         private ProfileImportPanel _import;
         private ProfileDeletePanel _deletion;
         private DanPlatePicker _plates;
+        private RankingBadgeGallery _badges;
         private ProfileImportPreview _preview;
         private PlayerProfileStore _previewStore;
         private CancellationTokenSource _operation;
@@ -119,6 +120,7 @@ namespace OpenSekai.App.UI
                 _editor.Close();
                 _deletion.Close();
                 _plates.Close();
+                _badges.Close();
                 _busy.Hide();
                 DiscardPreview();
                 _toast.Hide();
@@ -133,6 +135,7 @@ namespace OpenSekai.App.UI
 
             LoadPackages();
             Reload();
+            _badges.Warm();
             if (!animate)
             {
                 return;
@@ -217,6 +220,13 @@ namespace OpenSekai.App.UI
                 return true;
             }
 
+            if (_badges.IsOpen)
+            {
+                _badges.Close();
+                UiSound.Play(UiCue.Close);
+                return true;
+            }
+
             if (_settings != null && _settings.IsOpen)
             {
                 _settings.Back();
@@ -240,6 +250,20 @@ namespace OpenSekai.App.UI
         internal void ShowToast(string message) => _toast.Show(message, 2.8f);
 
         internal bool IsPlatePickerOpen => _plates.IsOpen;
+
+        internal bool IsBadgeGalleryOpen => _badges.IsOpen;
+
+        internal RankingBadgeGallery BadgeGallery => _badges;
+
+        /// <summary>
+        /// The badge on the player's card: every Ranking Score tier's badge, with the player's own
+        /// marked. It only reads, so it opens even mid-backup or with the profile unreadable.
+        /// </summary>
+        internal void OpenBadges()
+        {
+            Best30Snapshot best = Snapshot?.Best30;
+            _badges.Open(best != null ? best.Total : (long?)null);
+        }
 
         /// <summary>The plate on the player's card: choose which earned 段位 plate to wear, or none.</summary>
         internal void OpenPlates()
@@ -837,6 +861,7 @@ namespace OpenSekai.App.UI
             _import = new ProfileImportPanel(ModalLayer);
             _deletion = new ProfileDeletePanel(ModalLayer);
             _plates = new DanPlatePicker(ModalLayer, WearPlate);
+            _badges = new RankingBadgeGallery(ModalLayer);
             _toast = new UiToast(root, 48f, HomeTheme.Colors.Violet);
             _unlock = new AchievementUnlockPopup(root, 18f);
             _thumbnails = new JacketThumbnails(Path.Combine(Application.temporaryCachePath, THUMBNAIL_DIRECTORY));
@@ -900,6 +925,7 @@ namespace OpenSekai.App.UI
             _import?.Dispose();
             _deletion?.Dispose();
             _plates?.Dispose();
+            _badges?.Dispose();
             _thumbnails?.Dispose();
             if (_camera != null)
             {

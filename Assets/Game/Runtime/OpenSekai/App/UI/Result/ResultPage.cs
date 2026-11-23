@@ -35,9 +35,9 @@ namespace OpenSekai.App.UI
         private const float POP_DURATION = 0.3f;
         private const float DELTA_AT = 2.15f;
         private const float TIER_AT = 2.3f;
-        private const float TIER_CHARGE = 0.28f;
+        private const float TIER_CHARGE = RankingBadge.UPGRADE_CHARGE;
         private const float TIER_SWAP = TIER_AT + TIER_CHARGE;
-        private const float TIER_BURST = 0.6f;
+        private const float TIER_BURST = RankingBadge.UPGRADE_BURST;
         private const float SETTLED = 2.5f;
         private const float CELEBRATED = TIER_SWAP + TIER_BURST + 0.1f;
         private const float HINT_FADE = 0.35f;
@@ -359,22 +359,22 @@ namespace OpenSekai.App.UI
             if (!_celebrateTier)
             {
                 ShowTier(_ranking.After.TierId);
-                _badge.SetMotion(1f, 0f, 0f);
+                _badge.SetMotion(1f, 0f, 1f);
                 return;
             }
 
             bool swapped = time >= TIER_SWAP;
             ShowTier(swapped ? _ranking.After.TierId : _ranking.Before.TierId);
+            // The badge stages its own reveal over the burst: the higher the tier, the more it throws.
+            _badge.SetUpgrade(time - TIER_SWAP);
             if (swapped)
             {
-                float settle = EaseUtility.Evaluate(HomeMotion.Span(time, TIER_SWAP, 0.45f), Ease.OutBack);
-                _badge.SetMotion(Mathf.LerpUnclamped(1.3f, 1f, settle), 1f - HomeMotion.Span(time, TIER_SWAP, 0.35f),
-                    HomeMotion.Span(time, TIER_SWAP, TIER_BURST, Ease.OutCubic));
-            }
-            else
-            {
-                float charge = HomeMotion.Span(time, TIER_AT, TIER_CHARGE, Ease.InQuad);
-                _badge.SetMotion(1f + 0.12f * charge, charge, 0f);
+                // The page's glow flares in the new tier's color, brighter for a higher tier.
+                int tier = _ranking.After.TierId;
+                float flare = 1f - HomeMotion.Span(time, TIER_SWAP, TIER_BURST + 0.1f);
+                Color32 color = RankingTiers.Color(tier);
+                color.a = (byte)Mathf.RoundToInt(30f + flare * flare * (50f + 14f * Mathf.Clamp(tier, 0, RankingTiers.TOP)));
+                _glowSecondary.color = color;
             }
 
             _tierUpTag.Pop(HomeMotion.Span(time, TIER_SWAP + 0.12f, POP_DURATION));
@@ -392,7 +392,7 @@ namespace OpenSekai.App.UI
             Color32 color = RankingTiers.Color(tier);
             _badge.SetTier(tier);
             _tierName.text = RankingTiers.Name(tier);
-            _tierName.color = color;
+            RankingTiers.Paint(_tierName, tier);
             _tierLatin.text = RankingTiers.LatinName(tier);
             float nameWidth = Mathf.Ceil(_tierName.GetPreferredValues(_tierName.text).x);
             RectTransform latin = _tierLatin.rectTransform;
