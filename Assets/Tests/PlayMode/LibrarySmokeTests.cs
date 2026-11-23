@@ -850,9 +850,12 @@ namespace OpenSekai.Tests.PlayMode
                     Path.Combine(root, "index"), Path.Combine(root, "staging"));
                 var service = new DanChallengeService(profile, installer, Path.Combine(root, "pinned"));
                 // The rest between songs lasts up to 50 s; the player can skip it, and so does the test.
+                var restSongs = new System.Collections.Generic.List<int>();
                 service.Changed += () =>
                 {
-                    if (service.Phase == DanPhase.BetweenSongs) service.ContinueNow();
+                    if (service.Phase != DanPhase.BetweenSongs) return;
+                    restSongs.Add(service.SongNumber);
+                    service.ContinueNow();
                 };
                 var links = new string[2];
                 string secondChart = null;
@@ -887,8 +890,10 @@ namespace OpenSekai.Tests.PlayMode
                     if (scene.name == "Library") libraryEntries++;
                 }
                 SceneLoader.sceneLoaded += Loaded;
+                DanCourseOverlay overlay = null;
                 try
                 {
+                    if (expected == DanOutcome.Interrupted) overlay = DanCourseOverlay.Ensure(service);
                     yield return service.StartAsync(definition).ToCoroutine(result => Assert.That(result.Started, Is.True, result.Message));
                     File.Delete(secondChart); // Song two plays the copy fixed before the first scene load.
                     if (expected != DanOutcome.Interrupted)
@@ -900,14 +905,23 @@ namespace OpenSekai.Tests.PlayMode
                         yield return WaitFor(() => coreEntries == 2 &&
                             (controller = Object.FindFirstObjectByType<SoloLiveController>()) != null && controller.JustPlayingState,
                             35f, "reaching the second chart");
-                        controller.PauseLive();
+                        controller.Pause();
                         yield return null;
                         Assert.That(service.Attempt.Id, Is.EqualTo(original));
                         Assert.That(service.RemainingLife, Is.EqualTo(life - 1));
-                        controller.ResumeNoCountDown();
-                        controller.Retry();
+                        var retry = controller.GetComponentInChildren<LivePausePanel>()
+                            .GetComponentsInChildren<Button>().Single(button => button.name == "Retry");
+                        retry.onClick.Invoke();
+                        retry.onClick.Invoke();
+                        LibraryLoadingOverlay loading = null;
+                        yield return WaitFor(() => (loading = Object.FindFirstObjectByType<LibraryLoadingOverlay>()) != null,
+                            BOOT_TIMEOUT_SECONDS, "showing the first song loading screen on retry");
+                        Assert.That(overlay.IsRestShown, Is.False);
+                        Assert.That(loading.GetComponentsInChildren<TextMeshProUGUI>().Select(label => label.text),
+                            Does.Contain("正在载入第 1 首…"));
                         yield return WaitFor(() => coreEntries == 3 && service.Phase == DanPhase.Playing, BOOT_TIMEOUT_SECONDS,
                             "restarting at the first chart");
+                        Assert.That(loading == null, Is.True, "The old scene's loading screen must leave with it.");
                         Assert.That(service.SongNumber, Is.EqualTo(1));
                         Assert.That(service.RemainingLife, Is.EqualTo(life));
                         Assert.That(service.Attempt.Id, Is.Not.EqualTo(original));
@@ -918,7 +932,12 @@ namespace OpenSekai.Tests.PlayMode
                     Assert.That(service.Error, Is.Null);
                     yield return WaitFor(() => libraryEntries == 1, BOOT_TIMEOUT_SECONDS, "returning directly from the course");
                 }
-                finally { SceneLoader.sceneLoaded -= Loaded; }
+                finally
+                {
+                    SceneLoader.sceneLoaded -= Loaded;
+                    if (overlay != null) Object.Destroy(overlay.gameObject);
+                }
+                Assert.That(restSongs, Is.EqualTo(new[] { 2 }), "Only advancing to the second chart should show the rest screen.");
                 Assert.That(CustomMusicScorePlayHistoryStorage.Ranking.ReadPage(0, 1).TotalCount, Is.EqualTo(ordinaryPlays));
                 if (expected == DanOutcome.Interrupted)
                 {

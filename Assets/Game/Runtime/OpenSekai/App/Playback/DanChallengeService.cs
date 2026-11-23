@@ -173,20 +173,16 @@ namespace OpenSekai.App.Playback
                     bool next = Attempt.Songs.Count < _songs.Length && Attempt.Songs[Attempt.Songs.Count - 1].Kind == PlayResultKind.Completed;
                     if (restart || next)
                     {
-                        if (restart) BeginAttempt();
-                        else SongNumber++;
                         var token = _operation.Token;
-                        // Reset before the phase change: a page may skip the rest from its Changed handler.
-                        _skipRest = false;
-                        RestRemaining = REST_SECONDS;
-                        SetPhase(DanPhase.BetweenSongs);
-                        while (RestRemaining > 0f && !_skipRest)
+                        if (restart)
                         {
-                            await UniTask.Yield(PlayerLoopTiming.Update, token);
-                            // A long frame (or coming back from the background) must not swallow the rest.
-                            RestRemaining = Math.Max(0f, RestRemaining - Math.Min(Time.unscaledDeltaTime, 0.1f));
+                            BeginAttempt();
                         }
-                        RestRemaining = 0f;
+                        else
+                        {
+                            SongNumber++;
+                            await RestBetweenSongs(token);
+                        }
                         var result = await StartSong(SceneManager.Scene.Core, token);
                         if (result.Started) return;
                         if (result.Status != PlayStartStatus.Cancelled) Error = result.Message;
@@ -197,6 +193,21 @@ namespace OpenSekai.App.Playback
             catch (Exception e) { Error = e.Message; }
             EndOperation(Error);
             SceneManager.Instance.RequestScene(SceneManager.Scene.Library);
+        }
+
+        private async UniTask RestBetweenSongs(CancellationToken token)
+        {
+            // Reset before the phase change: a page may skip the rest from its Changed handler.
+            _skipRest = false;
+            RestRemaining = REST_SECONDS;
+            SetPhase(DanPhase.BetweenSongs);
+            while (RestRemaining > 0f && !_skipRest)
+            {
+                await UniTask.Yield(PlayerLoopTiming.Update, token);
+                // A long frame (or coming back from the background) must not swallow the rest.
+                RestRemaining = Math.Max(0f, RestRemaining - Math.Min(Time.unscaledDeltaTime, 0.1f));
+            }
+            RestRemaining = 0f;
         }
 
         private void EndOperation(string error, bool cancelled = false)

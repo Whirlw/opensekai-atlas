@@ -41,7 +41,6 @@ namespace OpenSekai.App.UI
         private Image _restGlow;
         private Image _restAccent;
         private DanPlate _plate;
-        private TextMeshProUGUI _eyebrow;
         private TextMeshProUGUI _songCaption;
         private Image _jacketFrame;
         private Image _jacket;
@@ -73,13 +72,16 @@ namespace OpenSekai.App.UI
         private float _backArmedUntil = -1f;
 
         /// <summary>The overlay, created the first time a course starts; it then follows every course.</summary>
-        internal static DanCourseOverlay Ensure()
+        internal static DanCourseOverlay Ensure(DanChallengeService service = null)
         {
-            if (_instance != null) return _instance;
-            var host = new GameObject("DanCourseOverlay");
-            DontDestroyOnLoad(host);
-            _instance = host.AddComponent<DanCourseOverlay>();
-            _instance.Build();
+            if (_instance == null)
+            {
+                var host = new GameObject("DanCourseOverlay");
+                DontDestroyOnLoad(host);
+                _instance = host.AddComponent<DanCourseOverlay>();
+                _instance.Build();
+            }
+            _instance.Follow(service ?? DanChallengeService.Local);
             return _instance;
         }
 
@@ -95,7 +97,7 @@ namespace OpenSekai.App.UI
             float remaining)
         {
             _preview = true;
-            BindRest(definition, attempt, songNumber, life, songs, songNumber == 1 && attempt.Songs.Count == 0);
+            BindRest(definition, attempt, songNumber, life, songs);
             SetCountdown(remaining);
             ShowRest(false);
         }
@@ -120,19 +122,18 @@ namespace OpenSekai.App.UI
             UnitySceneManager.sceneLoaded -= OnSceneLoaded;
         }
 
-        private void Follow()
+        private void Follow(DanChallengeService service)
         {
-            DanChallengeService service = DanChallengeService.Local;
             if (_service == service) return;
             if (_service != null) _service.Changed -= Refresh;
             _service = service;
-            if (_service != null) _service.Changed += Refresh;
+            _service.Changed += Refresh;
+            Refresh();
         }
 
         private void Refresh()
         {
             if (_preview) return;
-            Follow();
             DanChallengeService service = _service;
             DanPhase previous = _phase;
             _phase = service?.Phase ?? DanPhase.Idle;
@@ -141,7 +142,6 @@ namespace OpenSekai.App.UI
                 case DanPhase.BetweenSongs:
                 {
                     _leaving = false;
-                    bool restart = service.SongNumber == 1 && (service.Attempt?.Songs.Count ?? 0) == 0;
                     var songs = new List<DanSongInfo>();
                     for (int i = 0; i < service.Definition.Songs.Count; i++)
                     {
@@ -150,7 +150,7 @@ namespace OpenSekai.App.UI
 
                     if (previous != DanPhase.BetweenSongs)
                     {
-                        BindRest(service.Definition, service.Attempt, service.SongNumber, service.RemainingLife, songs, restart);
+                        BindRest(service.Definition, service.Attempt, service.SongNumber, service.RemainingLife, songs);
                         ShowRest(true);
                         UiSound.Play(UiCue.Open);
                     }
@@ -158,7 +158,18 @@ namespace OpenSekai.App.UI
                     break;
                 }
                 case DanPhase.StartingSong:
-                    if (_restShown) SetLoading("正在载入第 " + service.SongNumber + " 首…");
+                    if (previous == DanPhase.Playing && service.SongNumber == 1)
+                    {
+                        var song = DanSongInfo.FromDirectory(service.SongDirectory(1), service.Definition.Songs[0]);
+                        // Owned by the outgoing Core scene while the first song is prepared again.
+                        var loading = LibraryLoadingOverlay.Create(null, service.Quit);
+                        loading.Show(song.Title, "正在载入第 1 首…", null, DanStyles.ParseColor(service.Definition.Color));
+                        RequestJacket(song, thumbnail =>
+                        {
+                            if (loading != null) loading.SetArtwork(thumbnail.Sprite, thumbnail.Palette.Accent);
+                        });
+                    }
+                    else if (_restShown) SetLoading("正在载入第 " + service.SongNumber + " 首…");
                     break;
                 case DanPhase.Playing:
                     if (_restShown) SetLoading("正在进入第 " + service.SongNumber + " 首…");
@@ -183,7 +194,6 @@ namespace OpenSekai.App.UI
         private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
         {
             if (_preview) return;
-            Follow();
             if (scene.name == "Core")
             {
                 if (_restShown && (_phase == DanPhase.Playing || _phase == DanPhase.StartingSong)) HideRest(true);
@@ -272,7 +282,7 @@ namespace OpenSekai.App.UI
 
         // ---------------------------------------------------------------- binding
 
-        private void BindRest(DanDefinition definition, DanAttempt attempt, int songNumber, int life, IReadOnlyList<DanSongInfo> songs, bool restart)
+        private void BindRest(DanDefinition definition, DanAttempt attempt, int songNumber, int life, IReadOnlyList<DanSongInfo> songs)
         {
             DisarmQuit();
             _backArmedUntil = -1f;
@@ -281,8 +291,7 @@ namespace OpenSekai.App.UI
             _plate.SetStyle(definition.Label, definition.Emblem, definition.Color);
             _plate.SetLocked(false);
             int count = definition.Songs.Count;
-            _eyebrow.text = restart ? "重新开始  ·  RESTART" : "休息  ·  REST";
-            _songCaption.text = (restart ? "从第一首重新开始  ·  " : "下一首  ·  ") + "第 " + songNumber + " / " + count + " 首";
+            _songCaption.text = "下一首  ·  第 " + songNumber + " / " + count + " 首";
 
             DanSongInfo next = songNumber >= 1 && songNumber <= songs.Count ? songs[songNumber - 1] : null;
             _title.text = next?.Title ?? "第 " + songNumber + " 首";
@@ -297,7 +306,13 @@ namespace OpenSekai.App.UI
             _jacketMark.enabled = true;
             _jacketFrame.color = Color.Lerp(HomeTheme.Colors.Card, tint, 0.2f);
             _restAccent.color = HomeTheme.Colors.WithAlpha(tint, 30);
-            RequestJacket(next);
+            RequestJacket(next, thumbnail =>
+            {
+                _jacket.sprite = thumbnail.Sprite;
+                _jacket.enabled = true;
+                _jacketMark.enabled = false;
+                _restAccent.color = HomeTheme.Colors.WithAlpha(thumbnail.Palette.Glow, 46);
+            });
 
             _life.text = DanCopy.Number(life);
             _life.color = life * 5 <= definition.InitialLife ? DanCopy.LifeLow : LibraryTheme.Colors.TextPrimary;
@@ -305,7 +320,7 @@ namespace OpenSekai.App.UI
             float width = Mathf.Ceil(_life.GetPreferredValues(_life.text).x);
             _lifeMax.rectTransform.anchoredPosition = new Vector2(_life.rectTransform.anchoredPosition.x + width + 12f, _lifeMax.rectTransform.anchoredPosition.y);
             float initial = Mathf.Max(1, definition.InitialLife);
-            DanSongResult last = !restart && attempt != null && attempt.Songs.Count > 0 ? attempt.Songs[attempt.Songs.Count - 1] : null;
+            DanSongResult last = attempt != null && attempt.Songs.Count > 0 ? attempt.Songs[attempt.Songs.Count - 1] : null;
             float before = last != null ? last.StartingLife / initial : life / initial;
             _lifeLost.rectTransform.anchorMax = new Vector2(Mathf.Clamp01(before), 1f);
             _lifeFill.rectTransform.anchorMax = new Vector2(Mathf.Clamp01(life / initial), 1f);
@@ -318,18 +333,16 @@ namespace OpenSekai.App.UI
             }
             else
             {
-                _lastSong.text = restart ? "生命已回满，从第一首开始重新挑战" : string.Empty;
+                _lastSong.text = string.Empty;
             }
 
-            BindProgress(definition, attempt, songNumber, songs, restart);
+            BindProgress(definition, attempt, songNumber, songs);
             PackWidgets.SetEnabled(_start, true);
             PackWidgets.SetEnabled(_quit, true);
             PackWidgets.SetEnabled(_settingsButton, true);
-            ServerWidgets.SetLabelledButton(_start, restart ? "开始第一首" : "立即开始", LibraryIcon.Play, LibraryTheme.Colors.TextPrimary,
-                LibraryTheme.Colors.TextOnAccent);
         }
 
-        private void BindProgress(DanDefinition definition, DanAttempt attempt, int songNumber, IReadOnlyList<DanSongInfo> songs, bool restart)
+        private void BindProgress(DanDefinition definition, DanAttempt attempt, int songNumber, IReadOnlyList<DanSongInfo> songs)
         {
             int count = definition.Songs.Count;
             while (_nodes.Count < count) _nodes.Add(new ProgressNode(_progress, _nodes.Count));
@@ -341,7 +354,7 @@ namespace OpenSekai.App.UI
                 _nodes[i].Root.gameObject.SetActive(used);
                 if (!used) continue;
                 int number = i + 1;
-                DanSongResult song = !restart && attempt != null && i < attempt.Songs.Count ? attempt.Songs[i] : null;
+                DanSongResult song = attempt != null && i < attempt.Songs.Count ? attempt.Songs[i] : null;
                 string title = song?.Title ?? (i < songs.Count ? songs[i].Title : null);
                 _nodes[i].Root.anchoredPosition = new Vector2(i * step, 0f);
                 _nodes[i].Bind(number, title, song, number == songNumber, DanStyles.ParseColor(definition.Color),
@@ -366,14 +379,14 @@ namespace OpenSekai.App.UI
             _settings?.Hide();
         }
 
-        private void RequestJacket(DanSongInfo info)
+        private void RequestJacket(DanSongInfo info, Action<JacketThumbnail> apply)
         {
             int request = ++_jacketRequest;
             if (info?.JacketPath == null) return;
-            LoadJacketAsync(info.JacketPath, info.JacketVersion, request).Forget();
+            LoadJacketAsync(info.JacketPath, info.JacketVersion, request, apply).Forget();
         }
 
-        private async UniTaskVoid LoadJacketAsync(string path, long version, int request)
+        private async UniTaskVoid LoadJacketAsync(string path, long version, int request, Action<JacketThumbnail> apply)
         {
             JacketThumbnail thumbnail;
             try
@@ -391,10 +404,7 @@ namespace OpenSekai.App.UI
             }
 
             if (this == null || request != _jacketRequest || thumbnail.Sprite == null) return;
-            _jacket.sprite = thumbnail.Sprite;
-            _jacket.enabled = true;
-            _jacketMark.enabled = false;
-            _restAccent.color = HomeTheme.Colors.WithAlpha(thumbnail.Palette.Glow, 46);
+            apply(thumbnail);
         }
 
         // ---------------------------------------------------------------- showing
@@ -467,8 +477,6 @@ namespace OpenSekai.App.UI
 
             BuildRest();
             _rest.gameObject.SetActive(false);
-            Follow();
-            Refresh();
         }
 
         private void BuildRest()
@@ -489,9 +497,9 @@ namespace OpenSekai.App.UI
             LibraryWidgets.TopStrip(bar, margin, margin, 28f, 84f);
             _plate = new DanPlate(bar, "Plate", new Vector2(360f, 72f));
             LibraryWidgets.Place(_plate.Root, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, _plate.Root.sizeDelta);
-            _eyebrow = LibraryWidgets.Label("Eyebrow", bar, string.Empty, 22f, LibraryTheme.Colors.TextSecondary);
-            LibraryUi.UseSpacedCondensedFont(_eyebrow, 18f);
-            LibraryWidgets.Place(_eyebrow.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(392f, 0f), new Vector2(520f, 36f));
+            var eyebrow = LibraryWidgets.Label("Eyebrow", bar, "休息  ·  REST", 22f, LibraryTheme.Colors.TextSecondary);
+            LibraryUi.UseSpacedCondensedFont(eyebrow, 18f);
+            LibraryWidgets.Place(eyebrow.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(392f, 0f), new Vector2(520f, 36f));
             float control = LibraryTheme.Layout.CONTROL_HEIGHT;
             _settingsButton = ServerWidgets.LabelledButton(bar, "Settings", "设置", LibraryIcon.Settings, OpenSettings, 168f, control,
                 LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, UiCue.Open);
