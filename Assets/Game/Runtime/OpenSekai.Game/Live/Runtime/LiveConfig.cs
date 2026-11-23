@@ -81,7 +81,6 @@ namespace Sekai.Live
 
 		public static readonly float LotteryIntervalFactor;
 
-		public static readonly Dictionary<NoteResult, int> Damages;
 
 		public static readonly string ConfigBundleNamePath;
 
@@ -474,11 +473,6 @@ namespace Sekai.Live
 			CacheTimingTime = 0f;
 			NoteSpeedOffset = 0.04f;
 			NoteSpeedCoefficient = 0.22f;
-			Damages = new Dictionary<NoteResult, int>
-			{
-				{ NoteResult.Bad, 60 },
-				{ NoteResult.Miss, 80 }
-			};
 			ConfigBundleNamePath = "Live/Config/LiveBundleBuildData";
 			NoteBundleName = "live/note/custom01";
 			NoteSeName = "custom01";

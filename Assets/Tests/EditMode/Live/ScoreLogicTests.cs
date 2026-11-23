@@ -59,6 +59,23 @@ namespace OpenSekai.Tests.EditMode.Live
             return logic;
         }
 
+        [TestCase(2, 1, 1)]
+        [TestCase(1000, 30, 40)]
+        [TestCase(1001, 31, 41)]
+        public void NormalDamageRoundsUpFromTheChartsTotalNoteCount(int noteCount, int badDamage, int missDamage)
+        {
+            var logic = Setup(noteCount);
+            var bad = new TestNote(NoteResult.Bad);
+            logic.UpdateCombo(bad);
+            logic.Damage(bad);
+            Assert.That(logic.Score.life, Is.EqualTo(1000 - badDamage));
+
+            var miss = new TestNote(NoteResult.Miss);
+            logic.UpdateCombo(miss);
+            logic.Damage(miss);
+            Assert.That(logic.Score.life, Is.EqualTo(1000 - badDamage - missDamage));
+        }
+
         [Test]
         public void DanDamageUsesFiveGradesAndHazardsOnlyOnContactThenRestoresChartLife()
         {

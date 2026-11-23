@@ -251,11 +251,17 @@ namespace Sekai.Core.Live
 			{
 				if (note.Result == NoteResult.Miss)
 					_score.life = UnityEngine.Mathf.Max(0, _score.life - NextRushDamageNote.LIFE_PENALTY);
+				return;
 			}
-			else if (LiveConfig.Damages.TryGetValue(note.Result, out int damage))
+
+			decimal damageRate = note.Result switch
 			{
-				_score.life = UnityEngine.Mathf.Max(0, _score.life - damage);
-			}
+				NoteResult.Bad => 0.03m,
+				NoteResult.Miss => 0.04m,
+				_ => 0m
+			};
+			int damage = (int)System.Math.Ceiling(_score.totalComboCount * damageRate);
+			_score.life = UnityEngine.Mathf.Max(0, _score.life - damage);
 		}
 
 		public virtual void UpdateScoreRank()
