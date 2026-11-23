@@ -164,7 +164,8 @@ namespace OpenSekai.App.UI
                 locked: () => _settings.UseLegacyJudgeTiming);
             top += LibrarySettingRows.SectionHeight(5) + gap;
 
-            LibrarySettingRows.Section display = _rows.AddSection(content, "画面", 5, 0f, rightStart, top);
+            const int DISPLAY_ROWS = 6;
+            LibrarySettingRows.Section display = _rows.AddSection(content, "画面", DISPLAY_ROWS, 0f, rightStart, top);
             _rows.AddSwitch(display, "播放开场动画",
                 () => _localSettings.PlayStartupAnimation,
                 value => { _localSettings.PlayStartupAnimation = value; SaveLocal(); });
@@ -175,6 +176,9 @@ namespace OpenSekai.App.UI
             _rows.AddSwitch(display, "同时押线",
                 () => _settings.UseSimultaneousPushingLine,
                 value => { _settings.UseSimultaneousPushingLine = value; SaveSettings(); });
+            _rows.AddSwitch(display, "减法分数",
+                () => _settings.UseSubtractiveScore,
+                value => { _settings.UseSubtractiveScore = value; SaveSettings(); });
             int[] limits = FramerateUtility.SupportedLimits;
             var limitLabels = new List<string>(limits.Length);
             foreach (int limit in limits)
@@ -193,7 +197,7 @@ namespace OpenSekai.App.UI
                 () => Mathf.Clamp01(_settings.MovieBrightness),
                 value => { _settings.MovieBrightness = value; SaveSettings(); },
                 0f, 1f, 0.1f, "0.0", Percent);
-            float leftHeight = top + LibrarySettingRows.SectionHeight(5);
+            float leftHeight = top + LibrarySettingRows.SectionHeight(DISPLAY_ROWS);
 
             // Right column: sound, appearance, developer.
             top = 0f;

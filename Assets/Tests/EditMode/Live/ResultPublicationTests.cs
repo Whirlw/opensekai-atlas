@@ -26,7 +26,15 @@ namespace OpenSekai.Tests.EditMode.Live
         private const double CLOCK = 10d;
         private LiveHarness _harness;
         private Recorder _board;
+        private ScoreDisplay _hud;
         private readonly Dictionary<object, string> _labels = new Dictionary<object, string>();
+
+        private sealed class ScoreDisplay : LiveViewBase
+        {
+            internal int Total { get; private set; }
+            public override void SetupScore(LiveScore score) => Total = score.totalScore;
+            public override void UpdateScore(LiveScore score) => Total = score.totalScore;
+        }
 
         /// <summary>The score board, recording each call and the base score index it moved.</summary>
         private sealed class Recorder : ScoreLogic
@@ -77,7 +85,11 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         [TearDown]
-        public void TearDown() => _harness.Dispose();
+        public void TearDown()
+        {
+            if (_hud != null) UnityEngine.Object.DestroyImmediate(_hud.gameObject);
+            _harness.Dispose();
+        }
 
         private static MusicScoreInfo Info(float time) => new MusicScoreInfo(0, time / 2f, time, 120f, 4f, 1f, 1f);
 
@@ -225,8 +237,20 @@ namespace OpenSekai.Tests.EditMode.Live
             LongNote bar = Bar(tail);
             var tap = Named(new NormalNote(Info(2.0f), 3, 8, 8, NoteCategory.Normal, 1f, NoteType.Default, 0f), "tap");
             Recorder board = Arrange(false, bar, tap);
+            var boot = new Sekai.FreeLiveBootData(1, "master", 1)
+            {
+                LiveSettingData = new Sekai.LiveSettingData { UseSubtractiveScore = true }
+            };
+            boot.MusicData.MusicScore = _harness.Logic.Session.MusicScore;
+            _hud = new GameObject("Score HUD").AddComponent<ScoreDisplay>();
+            _harness.Logic.Setup(boot, new LiveViewBase[] { _hud });
+            _harness.Logic.SetScoreLogic(board);
+            Assert.That(_hud.Total, Is.EqualTo(1_000_000));
 
-            for (float t = 0.4f; t < 2.0f - 1e-4f; t += 0.05f) Frame(t);
+            Frame(0.4f);
+            Frame(0.8f);
+            Assert.That(_hud.Total, Is.EqualTo(666_667), "the expired head alone has missed");
+            for (float t = 0.85f; t < 2.0f - 1e-4f; t += 0.05f) Frame(t);
             Frame(2.0f, Sample(2, 8f, 2.0f, InputTouchPhase.Began));
             Frame(2.1f);
 
@@ -242,6 +266,8 @@ namespace OpenSekai.Tests.EditMode.Live
             }));
             Assert.That(board.Log.Take(3), Is.EqualTo(new[] { "D head Miss", "C head Miss", "J bar Miss" }),
                 "the head is the first verdict on the board");
+            Assert.That(_hud.Total, Is.EqualTo(333_334));
+            Assert.That(_hud.Total, Is.EqualTo(board.Score.totalScore));
         }
 
         /// <summary>

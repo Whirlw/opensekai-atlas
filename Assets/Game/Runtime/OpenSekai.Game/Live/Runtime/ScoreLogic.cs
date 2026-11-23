@@ -18,6 +18,24 @@ namespace Sekai.Core.Live
 		/// 1,000,000。直接按 1e6/n 取整会让每音符少一点，n=2019 的谱面满分只有 999,405。
 		/// </summary>
 		private int _scoredNoteCount;
+		internal int RemainingNoteCount { get; private set; }
+		internal bool UseSubtractiveScore { get; private set; }
+
+		internal LiveScore HudScore
+		{
+			get
+			{
+				if (!UseSubtractiveScore) return _score;
+				// A timed-out hold head consumes a judgement but no additive score slot.
+				// Price the remaining Perfects starting at the next actual score slot.
+				var hud = _score;
+				hud.totalScore += _score.totalComboCount > 0
+					? CumulativeBaseScore(_scoredNoteCount + RemainingNoteCount) - CumulativeBaseScore(_scoredNoteCount)
+					: DEFAULT_TOTAL_SCORE;
+				hud.rank = _gauge.RankOf(hud.totalScore);
+				return hud;
+			}
+		}
 
 		/// <summary>Live snapshot of the running session. Read-only from outside: only the board may write it.</summary>
 		public LiveScore Score => _score;
@@ -75,14 +93,16 @@ namespace Sekai.Core.Live
 			_score = default;
 			_gauge = ScoreGauge.Create(bootData?.MusicData?.Score);
 			// The live's own settings snapshot decides; the stored settings only when there is none.
-			_fakePerfect = bootData?.LiveSettingData?.UsesAutoFakePerfectMode
-				?? LiveSettingsStore.Shared.Load()?.UsesAutoFakePerfectMode == true;
+			var settings = bootData?.LiveSettingData ?? LiveSettingsStore.Shared.Load();
+			_fakePerfect = settings.UsesAutoFakePerfectMode;
+			UseSubtractiveScore = settings.UseSubtractiveScore;
 			int totalCombo = LiveUtility.CalculateTotalComboCount(musicScore);
 			if (totalCombo <= 0)
 			{
 				totalCombo = bootData?.MusicData?.TotalNoteCount ?? 0;
 			}
 			_score.totalComboCount = totalCombo;
+			RemainingNoteCount = totalCombo;
 			_dan = (bootData as FreeLiveBootData)?.DanSong;
 			_score.life = _dan?.StartingLife ?? musicScore?.InitialLife
 				?? (_liveBundleBuildData != null && _liveBundleBuildData.Life > 0 ? _liveBundleBuildData.Life : 1000);
@@ -104,6 +124,7 @@ namespace Sekai.Core.Live
 				return;
 			}
 
+			RemainingNoteCount = System.Math.Max(0, RemainingNoteCount - 1);
 			NoteResult effectiveResult = note.Result;
 			// In Fake Perfect mode, treat Auto as Perfect for combo counting
 			if (effectiveResult == NoteResult.Auto && _fakePerfect)
@@ -174,8 +195,9 @@ namespace Sekai.Core.Live
 			int addScore = note.Result switch
 			{
 				NoteResult.Perfect => noteBaseScore,
-				NoteResult.Great => UnityEngine.Mathf.RoundToInt(noteBaseScore * 0.7f),
+				NoteResult.Great => UnityEngine.Mathf.RoundToInt(noteBaseScore * 0.85f),
 				NoteResult.Good => UnityEngine.Mathf.RoundToInt(noteBaseScore * 0.5f),
+				NoteResult.Bad => UnityEngine.Mathf.RoundToInt(noteBaseScore * 0.2f),
 				NoteResult.Auto => noteBaseScore,
 				NoteResult.Pass => 0,
 				_ => 0
@@ -201,20 +223,12 @@ namespace Sekai.Core.Live
 
 			int index = _scoredNoteCount;
 			int nextIndex = index + 1;
-			long weightNow = (long)DEFAULT_TOTAL_SCORE * index;
-			long weightNext = (long)DEFAULT_TOTAL_SCORE * nextIndex;
-			// 四舍五入到最近的整数分值，避免误差全部堆在最后一个音符上
-			int cumulativeNow = (int)((weightNow + total / 2) / total);
-			int cumulativeNext = (int)((weightNext + total / 2) / total);
-			int baseScore = cumulativeNext - cumulativeNow;
-			if (baseScore < 0)
-			{
-				baseScore = 0;
-			}
-
 			_scoredNoteCount = nextIndex;
-			return baseScore;
+			return System.Math.Max(0, CumulativeBaseScore(nextIndex) - CumulativeBaseScore(index));
 		}
+
+		private int CumulativeBaseScore(int count) =>
+			(int)(((long)DEFAULT_TOTAL_SCORE * count + _score.totalComboCount / 2) / _score.totalComboCount);
 
 		public virtual void Damage(NoteBase note)
 		{

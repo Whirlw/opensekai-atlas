@@ -111,6 +111,48 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         [Test]
+        public void SubtractiveHudDeductsOnlyLostPointsAndRetirementUsesEarnedPoints()
+        {
+            var boot = new FreeLiveBootData(1, "master", 1)
+            {
+                LiveSettingData = new LiveSettingData { UseSubtractiveScore = true }
+            };
+            var chart = ScoreWithNotes(6);
+            var logic = new ScoreLogic(_config);
+            logic.Setup(boot, chart);
+            Assert.That(logic.HudScore.totalScore, Is.EqualTo(1_000_000));
+            Assert.That(logic.HudScore.rank, Is.EqualTo(ScoreRank.S));
+            Assert.That(logic.Score.totalScore, Is.Zero);
+
+            void Judge(NoteResult grade, int expectedHud, bool decoration = false)
+            {
+                var note = new TestNote(grade, decoration);
+                logic.UpdateCombo(note);
+                logic.CalculateAddScore(note);
+                Assert.That(logic.HudScore.totalScore, Is.EqualTo(expectedHud), grade.ToString());
+            }
+
+            Judge(NoteResult.Miss, 1_000_000, decoration: true);
+            Judge(NoteResult.Perfect, 1_000_000);
+            Judge(NoteResult.Great, 975_000);
+            var retired = OpenSekai.Shared.Playback.PlayResult.FromBootData(
+                boot, OpenSekai.Shared.Playback.PlayResultKind.Retired, logic.Score);
+            Assert.That(retired.Score, Is.EqualTo(308_333));
+            Assert.That(retired.Rank, Is.EqualTo(ScoreRank.D));
+            Judge(NoteResult.Good, 891_667);
+            Judge(NoteResult.Bad, 758_333);
+            Judge(NoteResult.Miss, 591_667);
+            Judge(NoteResult.Auto, 591_667);
+            Assert.That(logic.HudScore.totalScore, Is.EqualTo(logic.Score.totalScore));
+
+            logic.Setup(boot, chart);
+            Assert.That(logic.HudScore.totalScore, Is.EqualTo(1_000_000));
+            boot.LiveSettingData.UseSubtractiveScore = false;
+            logic.Setup(boot, chart);
+            Assert.That(logic.HudScore.totalScore, Is.Zero);
+        }
+
+        [Test]
         public void AllAutoSumsToExactlyOneMillion()
         {
             ScoreLogic logic = Setup(221);
@@ -137,28 +179,15 @@ namespace OpenSekai.Tests.EditMode.Live
             }
         }
 
-        [Test]
-        public void PerfectPaysTheFullBaseScore()
+        [TestCase(NoteResult.Perfect, 1000)]
+        [TestCase(NoteResult.Great, 850)]
+        [TestCase(NoteResult.Good, 500)]
+        [TestCase(NoteResult.Bad, 200)]
+        [TestCase(NoteResult.Miss, 0)]
+        public void JudgementAwardsItsShareOfTheNoteBaseScore(NoteResult grade, int expected)
         {
             ScoreLogic logic = Setup(1000);
-            int baseScore = logic.BaseNoteScore;
-
-            int gained = logic.CalculateAddScore(new TestNote(NoteResult.Perfect));
-
-            Assert.That(gained, Is.EqualTo(baseScore));
-        }
-
-        [Test]
-        public void GreatAndGoodPaySeventyAndFiftyPercent()
-        {
-            ScoreLogic perfectLogic = Setup(1000);
-            int baseScore = perfectLogic.BaseNoteScore;
-
-            int great = perfectLogic.CalculateAddScore(new TestNote(NoteResult.Great));
-            int good = perfectLogic.CalculateAddScore(new TestNote(NoteResult.Good));
-
-            Assert.That(great, Is.EqualTo(Mathf.RoundToInt(baseScore * 0.7f)));
-            Assert.That(good, Is.EqualTo(Mathf.RoundToInt(baseScore * 0.5f)));
+            Assert.That(logic.CalculateAddScore(new TestNote(grade)), Is.EqualTo(expected));
         }
 
         [Test]
@@ -181,15 +210,6 @@ namespace OpenSekai.Tests.EditMode.Live
 
             Assert.That(gained, Is.EqualTo(0));
             Assert.That(logic.Score.totalScore, Is.EqualTo(0));
-        }
-
-        [Test]
-        public void MissAndBadScoreNothing()
-        {
-            ScoreLogic logic = Setup(10);
-
-            Assert.That(logic.CalculateAddScore(new TestNote(NoteResult.Miss)), Is.EqualTo(0));
-            Assert.That(logic.CalculateAddScore(new TestNote(NoteResult.Bad)), Is.EqualTo(0));
         }
 
         [Test]

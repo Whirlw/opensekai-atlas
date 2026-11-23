@@ -56,11 +56,11 @@ public static float ComputeInputMusicTime(double frameMusicTime, double frameGam
 `Assets/Game/Runtime/Sekai/Core/Live/ScoreLogic.cs`：
 
 - 每音符基分按累积摊分：第 i 个音符（0 基）拿 `round(1e6*(i+1)/n) - round(1e6*i/n)`
-- 判定倍率：Perfect/Auto 1.0、Great 0.7、Good 0.5
+- Perfect/Auto、Great、Good、Bad、Miss 分别获得音符基分的 100%、85%、50%、20%、0%。
 - 连击清零规则：`effectiveResult < NoteResult.Great` 时 `combo = 0`
 - 百万制评级线为 C 900,000、B 950,000、A 975,000、S 990,000。左上角分数条在各线之间线性填充，到达评级线时分别填至 45%、60%、75%、90%，在 1,000,000 分填满。
 
-口径版本记在 `PlaySessionContext.RulesVersion`，当前 **2**。1 = 旧的 `floor(1e6/n)`，2 = 累积摊分。
+计分规则版本记在 `PlaySessionContext.RULES_VERSION`。版本 1 使用 `floor(1e6/n)`，版本 2 引入累积摊分，当前版本 **3** 将 Great 和 Bad 的得分比例调整为 85% 和 20%。
 
 ### 结算与返回
 

@@ -67,6 +67,8 @@ namespace Sekai
 
 		public bool UseSimultaneousPushingLine { get; set; }
 
+		public bool UseSubtractiveScore { get; set; }
+
 		public bool UseVibration { get; set; }
 
 		public bool UseAllPerfectEffect { get; set; }

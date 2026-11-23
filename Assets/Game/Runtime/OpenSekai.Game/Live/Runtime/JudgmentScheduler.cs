@@ -665,7 +665,8 @@ namespace Sekai.Core.Live
 		private void OnUpdateScore(NoteBase note)
 		{
 			int addScore = _session.ScoreLogic?.CalculateAddScore(note, _session.SkillLogic?.ScoreFactor(note) ?? 1f) ?? 0;
-			_presentation.UpdateScore(_session.Views, _session.ScoreLogic?.Score ?? default, addScore);
+			if (_session.ScoreLogic?.UseSubtractiveScore != true)
+				_presentation.UpdateScore(_session.Views, _session.Score, addScore);
 		}
 
 		private void OnDamage(NoteBase note)

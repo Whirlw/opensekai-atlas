@@ -34,7 +34,7 @@
 | 判定窗口 | 以帧定义的容差，`CalcFrameToTime(frame) = frame/60` | `LiveLogic` |
 | 音乐时间 | 按音频进度换算的秒数，判定与谱面推进都用它 | `BaseLiveController.currentAudioLatencyMusicTimeMs` |
 | 回填（input rewind） | 把触摸时间戳折算回判定时刻 | `LiveLogic.ComputeInputMusicTime` |
-| 规则版本（RulesVersion） | 计分/判定口径的编号，当前 2 | `App/Playback/PlaySessionContext.cs` |
+| 规则版本（RulesVersion） | 计分/判定口径的编号，当前 3 | `OpenSekai.Game/Shared/Playback/PlaySessionContext.cs` |
 | 会话（session） | 一次开局的标识，12 位十六进制 | 同上 |
 
 ### 工程与流程
