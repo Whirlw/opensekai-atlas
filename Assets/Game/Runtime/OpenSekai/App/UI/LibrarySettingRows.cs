@@ -81,6 +81,8 @@ namespace OpenSekai.App.UI
             Image group = LibraryWidgets.Panel("Section-" + caption, parent, LibraryTheme.Radius.ROW, LibraryTheme.Colors.Control);
             LibraryWidgets.TopStrip(group.rectTransform, left, right,
                 top + LibraryTheme.Layout.SECTION_CAPTION_HEIGHT, rows * LibraryTheme.Layout.SETTING_ROW_HEIGHT);
+            // Clip full-row press highlights to the group's current rounded outline.
+            group.gameObject.AddComponent<Mask>().showMaskGraphic = true;
             LibraryWidgets.Outline(group, LibraryTheme.Radius.ROW);
             return new Section(group.rectTransform);
         }
