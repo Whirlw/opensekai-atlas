@@ -15,7 +15,7 @@
 | 普通划键 `Flick` | 2.5 / 2.5 | 宽 83.3 ms | 6.5 / 7.5 | 7 / 8 | 7.5 / 8.5 |
 | 关键划键 `Flick_Critical` | 3.5 / 3.5 | ±58.3 ms，宽 116.7 ms | 6.5 / 7.5 | 7 / 8 | 7.5 / 8.5 |
 | 长条结束 `Long_End` | 3.5 / 4 | 宽 125 ms | 6.5 / 8 | 7.5 / 8.5 | 7.5 / 8.5 |
-| 摩擦 `Friction` / 条内连击点 `LongHoldCombo` | 5 / 5（接触窗） | ±83.3 ms | — | — | — |
+| 独立摩擦 `Friction` / 普通谱面条内计分点 | 5 / 5（接触窗） | ±83.3 ms | — | — | — |
 | `Friction_Flick` | 复制对应的 `Flick` 表 | — | — | — | — | — |
 | `Friction_Long` / `Friction_Long_End` | 分别复制对应的 `Long` / `Long_End` 表 | — | — | — | — |
 

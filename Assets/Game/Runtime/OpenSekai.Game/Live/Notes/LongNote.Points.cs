@@ -13,7 +13,7 @@ namespace Sekai.Live
 		internal bool HasTailLinkedComboPoints => !IsDecoration && LinkedPointTail != null
 			&& NoteList?.Exists(IsTailLinkedPoint) == true;
 
-		private static bool IsTailLinkedPoint(NoteBase point) => point is LongHoldCombo { HasJudgment: true }
+		private static bool IsTailLinkedPoint(NoteBase point) => point is HoldPointNote { UsesHoldPointJudgment: true, HasJudgment: true }
 			or ConnectionNote { IsConnectedVisibleTick: true };
 
 		public void SetComboTail(NoteBase tail) => _comboTail = tail;
@@ -29,7 +29,7 @@ namespace Sekai.Live
 			float now = MusicScore.CurrentFrameInfo.time;
 			for (int i = 0; i < NoteList.Count; i++)
 			{
-				if (NoteList[i] is LongHoldCombo point && point.ParentNote == this)
+				if (NoteList[i] is HoldPointNote { UsesHoldPointJudgment: true } point && point.ParentNote == this)
 				{
 					if (tail == null || IsAutoPlaying)
 						point.Terminate();
@@ -60,7 +60,7 @@ namespace Sekai.Live
 					pending |= tick.State != NoteState.Done;
 					continue;
 				}
-				if (note is not LongHoldCombo { HasJudgment: true } point)
+				if (note is not HoldPointNote { UsesHoldPointJudgment: true, HasJudgment: true } point)
 					continue;
 				if (barEnded) point.Excute(frame, 0);
 				point.SettleFromTail(tail, frame.time);

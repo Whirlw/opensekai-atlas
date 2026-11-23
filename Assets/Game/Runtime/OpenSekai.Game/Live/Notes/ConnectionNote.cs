@@ -1,6 +1,8 @@
+using OpenSekai.Shared.Live;
+
 namespace Sekai.Live
 {
-	public class ConnectionNote : NoteBase
+	public class ConnectionNote : HoldPointNote
 	{
 		internal const float CONTACT_WINDOW_FRAMES = 5f;
 		internal const float CONTACT_WINDOW_SECONDS = CONTACT_WINDOW_FRAMES / 60f;
@@ -12,7 +14,11 @@ namespace Sekai.Live
 		private float _crossingFrame;
 		private LongNote TickOwner => _endpointSection ?? parentNote;
 		private bool IsVisibleTick => Category == NoteCategory.Connection && IsVisible && !IsSkip && HasJudgment;
-		internal bool IsConnectedVisibleTick => IsVisibleTick && !UsesContactWindow && TickOwner != null;
+		internal override bool UsesHoldPointJudgment => IsVisibleTick && !UsesNextRushJudgment && !UsesContactWindow
+			&& parentNote is { IsDecorativeBar: false, NativeConnector: null }
+			&& ParentRole == NoteParentRole.Connection;
+		internal bool IsConnectedVisibleTick => IsVisibleTick && !UsesContactWindow && TickOwner != null
+			&& !UsesHoldPointJudgment;
 		internal virtual bool UsesContactWindow => UsesNextRushContactWindow
 			|| !UsesNextRushJudgment && Category == NoteCategory.Connection && TickOwner == null && !IsDecoration;
 		internal virtual float EarlyContactSeconds => CONTACT_WINDOW_SECONDS;
@@ -59,6 +65,19 @@ namespace Sekai.Live
 			this.offsetTime = offsetTime;
 			if (State == NoteState.Done)
 			{
+				return;
+			}
+
+			if (UsesHoldPointJudgment)
+			{
+				float time = currentFrameInfo.time;
+				OffsetJudgeTime = time - MusicScoreInfo.time;
+				if (State != NoteState.Wait || time >= MusicScoreInfo.time - offsetTime)
+				{
+					if (State == NoteState.Wait) State = NoteState.Scrolling;
+					Progress = CalcProgress(currentFrameInfo, offsetTime);
+				}
+				base.Excute(currentFrameInfo, offsetTime);
 				return;
 			}
 
@@ -122,6 +141,8 @@ namespace Sekai.Live
 
 		public override bool IsJudgment(ref LiveTouch touch, float lane)
 		{
+			if (UsesHoldPointJudgment) return false;
+
 			if (UsesContactWindow)
 				return State is NoteState.Scrolling or NoteState.Input && JudgeLaneStart <= lane && JudgeLaneEnd >= lane
 					&& AcceptsContactAt(MusicScoreInfo.time + OffsetJudgeTime, MusicScoreInfo.time)
@@ -135,6 +156,8 @@ namespace Sekai.Live
 
 		public override bool Judgment(ref LiveTouch touch, float lane)
 		{
+			if (UsesHoldPointJudgment) return false;
+
 			if (UsesContactWindow)
 			{
 				if (!IsJudgment(ref touch, lane)) return false;
@@ -166,7 +189,8 @@ namespace Sekai.Live
 
 		internal bool SettleFromCompletedTail()
 		{
-			if (State == NoteState.Done || !IsVisibleTick || TickOwner?.LinkedPointTail is not { State: NoteState.Done })
+			if (State == NoteState.Done || UsesHoldPointJudgment || !IsVisibleTick
+				|| TickOwner?.LinkedPointTail is not { State: NoteState.Done })
 				return false;
 			FinishContact(NoteResult.JustPerfect);
 			return true;
@@ -181,13 +205,20 @@ namespace Sekai.Live
 
 		protected void FinishContact(NoteResult result)
 		{
-			if (result == NoteResult.JustPerfect) Progress = 1f;
-			JudgeInfo = (result, NoteResultDescription.None);
-			State = NoteState.Done;
+			if (result is NoteResult.JustPerfect or NoteResult.Perfect) Progress = 1f;
+			FinishWith(result);
 		}
+
+		protected override void FinishHoldPoint(NoteResult result) => FinishContact(result);
 
 		public override void Terminate()
 		{
+			if (UsesHoldPointJudgment)
+			{
+				base.Terminate();
+				return;
+			}
+
 			if (State == NoteState.Done)
 			{
 				return;

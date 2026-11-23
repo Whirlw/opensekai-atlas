@@ -180,7 +180,7 @@ namespace Sekai.Live
 					&& now - note.MusicScoreInfo.time >= -OpenSekai.Shared.Live.LongEndJudgement.EARLY_GOOD_MS / 1000f
 					&& now - note.MusicScoreInfo.time <= OpenSekai.Shared.Live.LongEndJudgement.LATE_GOOD_MS / 1000f)
 				{
-					if (note is LongHoldCombo combo) combo.ObserveBarContact(now);
+					if (note is HoldPointNote { UsesHoldPointJudgment: true } point) point.ObserveBarContact(now);
 					else note.Judgment(ref touch, lane);
 				}
 			}
