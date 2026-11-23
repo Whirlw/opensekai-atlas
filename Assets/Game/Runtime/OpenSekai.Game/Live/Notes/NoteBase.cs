@@ -551,10 +551,12 @@ namespace Sekai.Live
 		/// Finishes this note with an explicit result. Used by a long note that has to score its tail
 		/// itself: the tail is a separate note and carries its own judgment.
 		/// </summary>
-		internal void FinishWith(NoteResult result)
+		internal void FinishWith(NoteResult result) => FinishWith((result, NoteResultDescription.None));
+
+		internal void FinishWith((NoteResult result, NoteResultDescription description) judgeInfo)
 		{
 			if (State == NoteState.Done) return;
-			JudgeInfo = (result, NoteResultDescription.None);
+			JudgeInfo = judgeInfo;
 			State = NoteState.Done;
 		}
 

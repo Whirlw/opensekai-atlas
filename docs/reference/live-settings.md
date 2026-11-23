@@ -3,7 +3,7 @@
 > 目的：将设置界面与对应字段关联起来，说明落盘位置与生效时机。
 > 适用读者：开发者、使用者。
 > 前置条件：无。
-> 最后更新：2026-11-20
+> 最后更新：2026-11-23
 
 ## 概述
 
@@ -34,6 +34,8 @@
 | 判定时机 / 多押分配 | `UseLegacyJudgeTiming` / `UseFramePressMatching` | 旧判定时机会锁定为逐帧分配 | 下次开局 |
 | 音符流速 | `NoteSpeed` | 步进 0.1 | 下次开局 |
 | 同时押线 | `UseSimultaneousPushingLine` | 开 / 关 | 下次开局（构建运行时谱面时读取） |
+| 显示 FAST / LATE | `ShowFastLate` | 默认关。开启后，GREAT、GOOD、BAD 上方显示 FAST（偏早）或 LATE（偏晚） | 下次开局 |
+| 显示滑反提示 | `ShowFlickMiss` | 默认关。有方向的 Flick 判为滑反时，在 GREAT 上方显示滑反图标。旧存档的两个开关均继承原快慢提示设置 | 下次开局 |
 | 帧率 | `FrameRateLimit` | 跟随屏幕 / 120 / 144 / 165 / 185 / 240 | **立即**（`FramerateUtility.ApplyFrameRateLimit`） |
 | 音乐音量 | `ApplicationLocalSettings.LiveVolume` | 0–1 | **立即**（`SoundManager.SetupVolume`） |
 | 音效音量 | `ApplicationLocalSettings.LiveVolume.Se` | 0–100% | 立即 |

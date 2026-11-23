@@ -332,13 +332,13 @@ namespace Sekai.Live
 		/// </summary>
 		internal (NoteResult, NoteResultDescription) GradeAsTail(float musicTime, bool trueDirection)
 		{
-			NoteResult result = LongEndJudgement.Evaluate(musicTime - MusicScoreInfo.time);
-			if (!trueDirection && result == NoteResult.Perfect)
+			var hit = LongEndJudgement.EvaluateHit(musicTime - MusicScoreInfo.time);
+			if (!trueDirection && hit.result == NoteResult.Perfect)
 			{
 				return (NoteResult.Great, NoteResultDescription.FlickMiss);
 			}
 
-			return (result, NoteResultDescription.None);
+			return hit;
 		}
 
 		/// <summary>Writes the tail judge's verdict and finishes the note.</summary>

@@ -29,8 +29,6 @@ namespace Sekai
 
 		private float _time;
 
-		private bool _isFastLateFlick;
-
 		private void Awake()
 		{
 			Hide();
@@ -38,19 +36,22 @@ namespace Sekai
 
 		private void Start()
 		{
-			if (_sprites == null) Setup(null, LiveSettingsStore.Shared.Load()?.IsFastLateFlick ?? true);
+			if (_sprites == null) Setup(null, LiveSettingsStore.Shared.Load());
 		}
 
-		public void Setup(LiveSpriteSkin skin, bool showTiming)
+		public void Setup(LiveSpriteSkin skin, LiveSettingData settings)
 		{
 			if (spriteRenderer != null) _baseline ??= new SpriteRendererBaseline(spriteRenderer);
-			_isFastLateFlick = showTiming;
-			_sprites = new Dictionary<NoteResultDescription, (Sprite, MaterialGlyph)>
+			_sprites = new Dictionary<NoteResultDescription, (Sprite, MaterialGlyph)>(3);
+			if (settings?.ShowFastLate == true)
 			{
-				{ NoteResultDescription.Fast, Bind("judgment.fast", fast) },
-				{ NoteResultDescription.Late, Bind("judgment.late", late) },
-				{ NoteResultDescription.FlickMiss, Bind("judgment.flickMiss", flickMiss) },
-			};
+				_sprites.Add(NoteResultDescription.Fast, Bind("judgment.fast", fast));
+				_sprites.Add(NoteResultDescription.Late, Bind("judgment.late", late));
+			}
+			if (settings?.ShowFlickMiss == true)
+			{
+				_sprites.Add(NoteResultDescription.FlickMiss, Bind("judgment.flickMiss", flickMiss));
+			}
 			Hide();
 
 			(Sprite, MaterialGlyph) Bind(string slot, Sprite builtin) => (builtin, skin?.Resolve(slot, builtin));
@@ -62,15 +63,16 @@ namespace Sekai
 			{
 				Start();
 			}
-			if (!_isFastLateFlick || judgeInfo.result < NoteResult.Bad || judgeInfo.result > NoteResult.Great)
-			{
-				return;
-			}
 			if (spriteRenderer == null)
 			{
 				return;
 			}
-			_sprites.TryGetValue(judgeInfo.description, out var entry);
+			if (judgeInfo.result is not (NoteResult.Great or NoteResult.Good or NoteResult.Bad)
+				|| !_sprites.TryGetValue(judgeInfo.description, out var entry))
+			{
+				Hide();
+				return;
+			}
 			// Unity converts renderer dimensions when switching Simple/Sliced and needs a nonzero scale.
 			spriteRenderer.transform.localScale = Vector3.one;
 			_baseline.Draw(spriteRenderer, entry.glyph, entry.builtin);
@@ -101,6 +103,7 @@ namespace Sekai
 			_time = 1f;
 			if (spriteRenderer != null)
 			{
+				spriteRenderer.sprite = null;
 				spriteRenderer.transform.localScale = Vector3.zero;
 			}
 		}

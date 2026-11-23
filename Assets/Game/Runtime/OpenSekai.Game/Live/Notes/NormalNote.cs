@@ -109,7 +109,7 @@ namespace Sekai.Live
 			{
 				if (!IsJudgment(ref touch, lane)) return false;
 				HasNextRushHit = IsNextRush;
-				FinishWith(CalcNoteResult(touch.musicTime));
+				FinishWith(LongEndJudgement.EvaluateHit(touch.musicTime - MusicScoreInfo.time));
 				return true;
 			}
 

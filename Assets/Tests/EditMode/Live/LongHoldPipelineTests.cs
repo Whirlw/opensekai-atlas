@@ -422,6 +422,17 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(OpenSekai.Shared.Live.LongEndJudgement.IsPast(offset), Is.EqualTo(offset > 0f && expected == NoteResult.None));
         }
 
+        [TestCase(-0.08f, NoteResult.Great, NoteResultDescription.Fast)]
+        [TestCase(0.135f, NoteResult.Good, NoteResultDescription.Late)]
+        public void ReleaseTailKeepsItsTimingDescription(float offset, NoteResult grade, NoteResultDescription timing)
+        {
+            var bar = new LongNote(Info(0), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
+            var tail = new NormalNote(Info(1), 2, 4, 5, NoteCategory.Long, 1, NoteType.Default, 0);
+            bar.AddNoteListAndSetupChildNote(tail);
+            Assert.That(bar.JudgeTailAsRelease(1f + offset), Is.True);
+            Assert.That(tail.JudgeInfo, Is.EqualTo((grade, timing)));
+        }
+
         [Test]
         public void AReleaseInTheMiddleOfTheBarIsNotTheEndPoint()
         {

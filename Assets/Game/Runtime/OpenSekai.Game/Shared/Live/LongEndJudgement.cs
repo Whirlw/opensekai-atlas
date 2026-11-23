@@ -37,6 +37,14 @@ namespace OpenSekai.Shared.Live
 
         public static bool IsPast(float offsetSeconds) => offsetSeconds * 1000f > LATE_GOOD_MS;
 
+        public static (NoteResult result, NoteResultDescription description) EvaluateHit(float offsetSeconds)
+        {
+            var result = Evaluate(offsetSeconds);
+            if (result is NoteResult.Great or NoteResult.Good)
+                return (result, offsetSeconds < 0f ? NoteResultDescription.Fast : NoteResultDescription.Late);
+            return (result, NoteResultDescription.None);
+        }
+
         /// <summary>
         /// Grades a release at <paramref name="offsetSeconds"/> (negative = early). Returns null-ish
         /// <see cref="NoteResult.None"/> when the release is outside both windows.
