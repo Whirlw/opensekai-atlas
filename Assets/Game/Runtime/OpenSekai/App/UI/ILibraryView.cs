@@ -50,6 +50,9 @@ namespace OpenSekai.App.UI
         /// <summary>Redraws the visible cells and the detail side of the package with this score key.</summary>
         void RefreshScore(string scoreKey);
 
+        /// <summary>Redraws the visible cells and the 详情 button of the packages with this Ranked key.</summary>
+        void RefreshRank(string rankKey);
+
         void SetStatus(string message);
         void ShowSettings();
         void ShowResult(PlayResult result);

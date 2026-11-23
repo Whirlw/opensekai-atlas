@@ -97,6 +97,52 @@ namespace OpenSekai.Tests.EditMode
         }
 
         [Test]
+        public void RankGroupsFollowThePublisherVerdictForEachInstalledCopy()
+        {
+            string key = "UnCh-" + Guid.NewGuid().ToString("N");
+            string source = JsonConvert.SerializeObject(new { server = "https://untitledcharts.com", name = key });
+            foreach (string id in new[] { "original", "edited", "other-level", "local" })
+            {
+                string folder = AddPackage(id, id, id == "other-level" ? 20 : 30);
+                File.WriteAllText(Path.Combine(folder, "score.json"), id == "edited" ? "edited" : "original");
+                if (id != "local") File.WriteAllText(Path.Combine(folder, "sonolus-source.json"), source);
+            }
+
+            _presenter.Refresh();
+            _presenter.SetGroupMode(LibraryGroupKey.RankStatus);
+            _presenter.SelectGroup("待确认");
+            Assert.That(_view.Items, Has.Count.EqualTo(3));
+            var original = _view.Items.Single(item => item.Entry.Manifest.id == "original");
+            try
+            {
+                ChartRankCache.Save(key, ChartRankCache.FromWeb("quality", 30, original.ScoreKey));
+                var listing = _view.State.Listing;
+                Assert.That(listing.SelectedGroup, Is.Null);
+                Assert.That(listing.Groups.Select(group => group.Name), Is.EqualTo(new[] { "Ranked", "Unranked" }));
+                Assert.That(listing.Groups.Select(group => group.Count), Is.EqualTo(new[] { 1, 3 }));
+                _presenter.SelectGroup("Ranked");
+                Assert.That(_view.Items.Single(), Is.SameAs(original));
+
+                ChartRankCache.Save(key, ChartRankCache.FromWeb("abstract", 30, original.ScoreKey));
+                Assert.That(_view.State.Listing.Groups.Single().Name, Is.EqualTo("Unranked"));
+                Assert.That(_view.Items, Has.Count.EqualTo(4));
+
+                // Without rank groups the list stays put; the RANKED tags and the 详情 button still redraw.
+                _presenter.SetGroupMode(LibraryGroupKey.None);
+                _view.RefreshedRanks.Clear();
+                ChartRankCache.Save(key, ChartRankCache.FromWeb("quality", 30, original.ScoreKey));
+                Assert.That(_view.RefreshedRanks, Is.EqualTo(new[] { key }));
+                Assert.That(LibraryModel.IsRanked(original), Is.True);
+                Assert.That(LibraryModel.IsRanked(_view.Items.Single(item => item.Entry.Manifest.id == "edited")), Is.False);
+                Assert.That(LibraryModel.IsRanked(_view.Items.Single(item => item.Entry.Manifest.id == "other-level")), Is.False);
+            }
+            finally
+            {
+                File.Delete(Path.Combine(Application.persistentDataPath, "ChartRanks", key + ".json"));
+            }
+        }
+
+        [Test]
         public void ImportedSortUsesTheRecordedTimeEvenAfterAnEarlierPackageIsEdited()
         {
             AddPackage("alpha", "Alpha", 1, DateTimeOffset.UnixEpoch.AddDays(1));
@@ -327,6 +373,8 @@ namespace OpenSekai.Tests.EditMode
             public void ShowActions(SongPackageItem item, Action export, Action delete) { }
             internal List<string> RefreshedScores { get; } = new List<string>();
             public void RefreshScore(string scoreKey) => RefreshedScores.Add(scoreKey);
+            internal List<string> RefreshedRanks { get; } = new List<string>();
+            public void RefreshRank(string rankKey) => RefreshedRanks.Add(rankKey);
 
             public void Render(LibraryViewState state)
             {

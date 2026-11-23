@@ -29,6 +29,7 @@ namespace OpenSekai.Infrastructure.Packages
         }
 
         private static readonly Dictionary<string, Verdict> _loaded = new(StringComparer.Ordinal);
+        internal static event Action<string> Changed;
         private static readonly Regex _id = new(@"^[1-9][0-9]{0,15}$");
         private static readonly Regex _name = new(@"^UnCh-[0-9a-f]{32}$");
 
@@ -123,6 +124,7 @@ namespace OpenSekai.Infrastructure.Packages
             _loaded[key] = verdict;
             try { AtomicFile.WriteAllText(PathOf(key), JsonConvert.SerializeObject(verdict)); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Debug.LogWarning("[Ranked] " + e.Message); }
+            Changed?.Invoke(key);
         }
     }
 }

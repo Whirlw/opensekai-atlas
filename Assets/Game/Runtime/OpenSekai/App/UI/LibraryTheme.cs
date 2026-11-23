@@ -36,6 +36,34 @@ namespace OpenSekai.App.UI
             /// <summary>Accent used until a jacket supplies its own.</summary>
             internal static readonly Color32 DefaultAccent = new Color32(157, 184, 255, 255);
 
+            /// <summary>ALL PERFECT runs pink to violet to cyan. The result page and the library badges share it.</summary>
+            internal static readonly Color32[] AllPerfectStops =
+            {
+                new Color32(255, 146, 214, 255),
+                new Color32(186, 158, 255, 255),
+                new Color32(112, 224, 255, 255)
+            };
+            internal static readonly Color32 AllPerfectGlow = new Color32(206, 150, 255, 100);
+            internal static readonly Color32 AllPerfectInk = new Color32(36, 18, 58, 255);
+
+            /// <summary>FULL COMBO is a gold ramp, light at the top.</summary>
+            internal static readonly Color32 FullComboTop = new Color32(255, 238, 176, 255);
+            internal static readonly Color32 FullComboBottom = new Color32(255, 176, 84, 255);
+            internal static readonly Color32 FullComboGlow = new Color32(255, 190, 96, 90);
+            internal static readonly Color32 FullComboInk = new Color32(74, 38, 4, 255);
+
+            /// <summary>Ranked charts: the 详情 banner and the RANKED tag on list cells.</summary>
+            internal static readonly Color32 Ranked = new Color32(255, 210, 122, 255);
+            internal static readonly Color32 RankedLight = new Color32(255, 247, 222, 255);
+
+            /// <summary>A solid color sampled along <see cref="AllPerfectStops"/>, 0 at pink and 1 at cyan.</summary>
+            internal static Color AllPerfectAt(float position)
+            {
+                float scaled = Mathf.Clamp01(position) * (AllPerfectStops.Length - 1);
+                int stop = Mathf.Min((int)scaled, AllPerfectStops.Length - 2);
+                return Color.Lerp(AllPerfectStops[stop], AllPerfectStops[stop + 1], scaled - stop);
+            }
+
             private static readonly Color32 _difficultyEasy = new Color32(123, 216, 143, 255);
             private static readonly Color32 _difficultyNormal = new Color32(124, 200, 245, 255);
             private static readonly Color32 _difficultyHard = new Color32(245, 196, 81, 255);

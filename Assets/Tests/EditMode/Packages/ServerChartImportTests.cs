@@ -24,6 +24,25 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(ChartRankCache.Key(SongPackageSource.FromWeb(page, "https://cdn.test/song.zip")), Is.EqualTo(key));
         }
 
+        [Test]
+        public void ACheckThatCannotReadTheChartIsRememberedAndOtherSourcesNeedNoCheck()
+        {
+            string id = new Random().Next(1, int.MaxValue).ToString();
+            var ranked = SongPackageSource.FromWeb("https://opensekai.com/chart?id=" + id, "https://opensekai.com/download?id=" + id);
+            string key = ChartRankCache.Key(ranked);
+            Assert.That(ChartRankLookup.UnreadableReason(key), Is.Null);
+
+            RankCheck missing = ChartRankLookup.CheckAsync(ranked, null, string.Empty).GetAwaiter().GetResult();
+            Assert.That(missing.Outcome, Is.EqualTo(RankCheckOutcome.Unreadable));
+            Assert.That(missing.Reason, Is.Not.Empty);
+            Assert.That(ChartRankLookup.UnreadableReason(key), Is.EqualTo(missing.Reason));
+
+            var elsewhere = SongPackageSource.FromWeb("https://charts.test/song/1", "https://cdn.test/song.zip");
+            RankCheck none = ChartRankLookup.CheckAsync(elsewhere, null, "hash").GetAwaiter().GetResult();
+            Assert.That(none.Outcome, Is.EqualTo(RankCheckOutcome.Known));
+            Assert.That(none.Reason, Is.Null);
+        }
+
         [TestCase("quality", true)]
         [TestCase("beginner", false)]
         [TestCase("abstract", false)]

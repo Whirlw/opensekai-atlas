@@ -69,6 +69,19 @@ namespace OpenSekai.App.UI
                 _viewMode = ReadPreference(VIEW_PREFERENCE, _viewMode);
             }
             CustomMusicScorePlayHistoryStorage.Recorded += OnScoreRecorded;
+            ChartRankCache.Changed += OnRankChanged;
+        }
+
+        private void OnRankChanged(string key)
+        {
+            foreach (var item in _items)
+            {
+                if (item.RankKey != key) continue;
+                // Regrouping redraws every cell already; the RANKED tags still need it otherwise.
+                if (_model.GroupKey == LibraryGroupKey.RankStatus) Render();
+                _view.RefreshRank(key);
+                return;
+            }
         }
 
         /// <summary>
@@ -165,6 +178,7 @@ namespace OpenSekai.App.UI
         {
             _disposed = true;
             CustomMusicScorePlayHistoryStorage.Recorded -= OnScoreRecorded;
+            ChartRankCache.Changed -= OnRankChanged;
             _loudness?.Dispose();
             _playbackCts?.Cancel();
             _playbackCts?.Dispose();

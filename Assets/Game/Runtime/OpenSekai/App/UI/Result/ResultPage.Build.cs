@@ -36,16 +36,6 @@ namespace OpenSekai.App.UI
         private const float STATUS_HEIGHT = 40f;
 
         private static readonly string[] _judgeNames = { "PERFECT", "GREAT", "GOOD", "BAD", "MISS" };
-        private static readonly Color32 _fullComboTop = new Color32(255, 238, 176, 255);
-        private static readonly Color32 _fullComboBottom = new Color32(255, 176, 84, 255);
-        private static readonly Color32 _fullComboGlow = new Color32(255, 190, 96, 90);
-        private static readonly Color32[] _allPerfectStops =
-        {
-            new Color32(255, 146, 214, 255),
-            new Color32(186, 158, 255, 255),
-            new Color32(112, 224, 255, 255)
-        };
-        private static readonly Color32 _allPerfectGlow = new Color32(206, 150, 255, 100);
 
         private readonly List<Block> _blocks = new List<Block>();
 
@@ -521,7 +511,7 @@ namespace OpenSekai.App.UI
                 _awardText.color = Color.white;
                 var shade = new Color(0.86f, 0.86f, 0.9f, 1f);
                 _awardText.colorGradient = new VertexGradient(Color.white, Color.white, shade, shade);
-                _awardGlow.color = _allPerfectGlow;
+                _awardGlow.color = LibraryTheme.Colors.AllPerfectGlow;
                 return;
             }
 
@@ -529,8 +519,10 @@ namespace OpenSekai.App.UI
             if (fullCombo)
             {
                 _awardText.color = Color.white;
-                _awardText.colorGradient = new VertexGradient(_fullComboTop, _fullComboTop, _fullComboBottom, _fullComboBottom);
-                _awardGlow.color = _fullComboGlow;
+                _awardText.colorGradient = new VertexGradient(
+                    LibraryTheme.Colors.FullComboTop, LibraryTheme.Colors.FullComboTop,
+                    LibraryTheme.Colors.FullComboBottom, LibraryTheme.Colors.FullComboBottom);
+                _awardGlow.color = LibraryTheme.Colors.FullComboGlow;
                 return;
             }
 
@@ -576,9 +568,7 @@ namespace OpenSekai.App.UI
             float last = Mathf.Max(1, text.Length - 1);
             for (int i = 0; i < text.Length; i++)
             {
-                float position = i / last * (_allPerfectStops.Length - 1);
-                int stop = Mathf.Min((int)position, _allPerfectStops.Length - 2);
-                Color color = Color.Lerp(_allPerfectStops[stop], _allPerfectStops[stop + 1], position - stop);
+                Color color = LibraryTheme.Colors.AllPerfectAt(i / last);
                 builder.Append("<color=#").Append(ColorUtility.ToHtmlStringRGB(color)).Append('>')
                     .Append(text[i]).Append("</color>");
             }

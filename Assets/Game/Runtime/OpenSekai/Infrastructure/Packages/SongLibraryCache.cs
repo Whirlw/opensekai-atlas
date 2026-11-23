@@ -22,7 +22,8 @@ namespace OpenSekai.Infrastructure.Packages
 		internal const string FILE_NAME = "library_cache.json";
 		private const string LEGACY_HASH_FILE_NAME = "package_hashes.json";
 		// 2: the score key hashes the score file alone. 3: each package carries its audio's loudness.
-		private const int SNAPSHOT_VERSION = 3;
+		// 4 adds source links; version 3 can backfill them without hashing scores or measuring audio.
+		private const int SNAPSHOT_VERSION = 4;
 
 		private readonly string _root;
 		private Dictionary<string, Cached> _packages;
@@ -60,7 +61,7 @@ namespace OpenSekai.Infrastructure.Packages
 		/// </summary>
 		internal void Rescan()
 		{
-			Dictionary<string, Cached> previous = _packages ?? ReadSnapshot() ?? NewMap();
+			Dictionary<string, Cached> previous = _packages ?? ReadSnapshot(out _) ?? NewMap();
 			var scanned = NewMap();
 			if (Directory.Exists(_root))
 			{
@@ -180,11 +181,12 @@ namespace OpenSekai.Infrastructure.Packages
 				return;
 			}
 
-			Dictionary<string, Cached> snapshot = ReadSnapshot();
+			Dictionary<string, Cached> snapshot = ReadSnapshot(out bool upgraded);
 			if (snapshot != null)
 			{
 				_packages = snapshot;
 				_sorted = null;
+				if (upgraded) Save();
 				return;
 			}
 
@@ -223,7 +225,8 @@ namespace OpenSekai.Infrastructure.Packages
 				File.Exists(entry.AudioPath),
 				File.Exists(entry.JacketPath),
 				importedAt,
-				scoreKey);
+				scoreKey,
+				SongPackageSource.Read(entry));
 			FileStamp audioStamp = FileStamp.Of(entry.AudioPath);
 			string audioFileName = entry.Manifest.audioFileName ?? string.Empty;
 			if (keepLoudness && previous != null && previous.Item.LoudnessMeasured
@@ -272,8 +275,9 @@ namespace OpenSekai.Infrastructure.Packages
 			return importedAt;
 		}
 
-		private Dictionary<string, Cached> ReadSnapshot()
+		private Dictionary<string, Cached> ReadSnapshot(out bool upgraded)
 		{
+			upgraded = false;
 			string path = SnapshotPath;
 			if (!File.Exists(path))
 			{
@@ -283,15 +287,17 @@ namespace OpenSekai.Infrastructure.Packages
 			try
 			{
 				Snapshot snapshot = JsonConvert.DeserializeObject<Snapshot>(File.ReadAllText(path));
-				if (snapshot?.packages == null || snapshot.version != SNAPSHOT_VERSION)
+				if (snapshot?.packages == null || (snapshot.version != 3 && snapshot.version != SNAPSHOT_VERSION))
 				{
 					return null;
 				}
 
+				upgraded = snapshot.version == 3;
 				var map = NewMap();
 				foreach (Record record in snapshot.packages)
 				{
-					if (record?.manifest == null || string.IsNullOrEmpty(record.folder))
+					if (record?.manifest == null || string.IsNullOrEmpty(record.folder)
+						|| record.folder != Path.GetFileName(record.folder) || record.folder == "." || record.folder == "..")
 					{
 						continue;
 					}
@@ -306,7 +312,8 @@ namespace OpenSekai.Infrastructure.Packages
 						record.hasAudio,
 						record.hasJacket,
 						record.manifest.importedAtUtc ?? DateTimeOffset.MinValue,
-						record.scoreKey)
+						record.scoreKey,
+						upgraded ? SongPackageSource.Read(entry) : record.Source())
 					{
 						LoudnessMeasured = record.loudnessMeasured,
 						LoudnessLufs = record.loudnessLufs
@@ -347,6 +354,10 @@ namespace OpenSekai.Infrastructure.Packages
 					hasJacket = item.HasJacket,
 					lastWriteTicks = item.LastWriteTime.Ticks,
 					scoreKey = item.ScoreKey,
+					sourcePageUrl = item.Source?.PageUrl,
+					sourceDownloadUrl = item.Source?.DownloadUrl,
+					sonolusServerUrl = item.Source?.SonolusServerUrl,
+					sonolusLevelName = item.Source?.SonolusLevelName,
 					scoreFileName = pair.Value.ScoreFileName,
 					scoreStamp = pair.Value.ScoreStamp,
 					audioFileName = pair.Value.AudioFileName,
@@ -430,12 +441,19 @@ namespace OpenSekai.Infrastructure.Packages
 			public bool hasJacket;
 			public long lastWriteTicks;
 			public string scoreKey;
+			public string sourcePageUrl;
+			public string sourceDownloadUrl;
+			public string sonolusServerUrl;
+			public string sonolusLevelName;
 			public string scoreFileName;
 			public FileStamp scoreStamp;
 			public string audioFileName;
 			public FileStamp audioStamp;
 			public bool loudnessMeasured;
 			public float? loudnessLufs;
+
+			internal SongPackageSource Source() => SongPackageSource.FromWeb(sourcePageUrl, sourceDownloadUrl)
+				?? SongPackageSource.FromSonolus(sonolusServerUrl, sonolusLevelName);
 		}
 	}
 }

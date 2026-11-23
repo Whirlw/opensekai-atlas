@@ -28,7 +28,10 @@ namespace OpenSekai.App.UI
         private static readonly Dictionary<long, Sprite> _rings = new Dictionary<long, Sprite>();
         private static readonly Dictionary<long, Sprite> _shadows = new Dictionary<long, Sprite>();
         private static readonly Dictionary<LibraryIcon, Sprite> _icons = new Dictionary<LibraryIcon, Sprite>();
+        private static readonly Dictionary<long, Sprite> _awardPills = new Dictionary<long, Sprite>();
+        private static readonly Dictionary<byte, Sprite> _ditheredBands = new Dictionary<byte, Sprite>();
         private static Sprite _glow;
+        private static Sprite _band;
         private static Sprite _chevron;
 
         /// <summary>Filled rectangle with the given corner radius, in canvas units.</summary>
@@ -100,6 +103,113 @@ namespace OpenSekai.App.UI
             }
 
             return _glow;
+        }
+
+        /// <summary>
+        /// Horizontal strip, solid through the middle and fading out toward both ends: the band
+        /// and the edge lines of a banner. Stretch it to any size.
+        /// </summary>
+        internal static Sprite Band()
+        {
+            if (_band == null)
+            {
+                const int WIDTH = 512;
+                const float FADE = 0.3f;
+                var pixels = new Color32[WIDTH];
+                for (int x = 0; x < WIDTH; x++)
+                {
+                    float t = (x + 0.5f) / WIDTH;
+                    float edge = Mathf.Clamp01(Mathf.Min(t, 1f - t) / FADE);
+                    float alpha = edge * edge * (3f - 2f * edge);
+                    pixels[x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(alpha * 255f));
+                }
+
+                Texture2D texture = CreateTexture("Band", WIDTH, 1, pixels);
+                _band = Sprite.Create(texture, new Rect(0f, 0f, WIDTH, 1f), new Vector2(0.5f, 0.5f), 100f);
+            }
+
+            return _band;
+        }
+
+        /// <summary>
+        /// <see cref="Band"/> with <paramref name="opacity"/> baked in and the ramp dithered: a faint
+        /// band tinted by alpha alone shows each 8-bit step as a stripe. Tint it with an opaque color.
+        /// </summary>
+        internal static Sprite DitheredBand(byte opacity)
+        {
+            if (_ditheredBands.TryGetValue(opacity, out Sprite sprite) && sprite != null)
+            {
+                return sprite;
+            }
+
+            const int WIDTH = 1024;
+            const int HEIGHT = 48;
+            const float FADE = 0.3f;
+            var pixels = new Color32[WIDTH * HEIGHT];
+            // A fixed seed keeps the dither identical between runs, so screenshots stay comparable.
+            var random = new System.Random(20261123 + opacity);
+            for (int x = 0; x < WIDTH; x++)
+            {
+                float t = (x + 0.5f) / WIDTH;
+                float edge = Mathf.Clamp01(Mathf.Min(t, 1f - t) / FADE);
+                float alpha = edge * edge * (3f - 2f * edge) * opacity;
+                for (int y = 0; y < HEIGHT; y++)
+                {
+                    float dithered = alpha + (float)random.NextDouble() - 0.5f;
+                    pixels[y * WIDTH + x] = new Color32(255, 255, 255, (byte)Mathf.Clamp(Mathf.RoundToInt(dithered), 0, opacity));
+                }
+            }
+
+            Texture2D texture = CreateTexture("Band" + opacity, WIDTH, HEIGHT, pixels);
+            sprite = Sprite.Create(texture, new Rect(0f, 0f, WIDTH, HEIGHT), new Vector2(0.5f, 0.5f), 100f);
+            _ditheredBands[opacity] = sprite;
+            return sprite;
+        }
+
+        /// <summary>
+        /// Pill in an award's own colors, drawn at exactly <paramref name="size"/> canvas units: ALL
+        /// PERFECT runs its prism across, FULL COMBO a gold ramp upward. Both carry a gloss over the
+        /// upper half and a bright rim. Use it untinted.
+        /// </summary>
+        internal static Sprite AwardPill(bool allPerfect, Vector2 size)
+        {
+            int width = Mathf.Max(2, Mathf.RoundToInt(size.x * SCALE));
+            int height = Mathf.Max(2, Mathf.RoundToInt(size.y * SCALE));
+            long key = ((long)width << 32) | ((long)height << 1) | (allPerfect ? 1L : 0L);
+            if (_awardPills.TryGetValue(key, out Sprite sprite) && sprite != null)
+            {
+                return sprite;
+            }
+
+            float radius = height * 0.5f;
+            float rim = 1.4f * SCALE;
+            var pixels = new Color32[width * height];
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    float px = x + 0.5f;
+                    float py = y + 0.5f;
+                    float cx = Mathf.Clamp(px, radius, width - radius);
+                    float distance = Mathf.Sqrt((px - cx) * (px - cx) + (py - radius) * (py - radius));
+                    float alpha = Mathf.Clamp01(radius - distance + 0.5f);
+                    float u = px / width;
+                    float v = py / height;
+                    Color color = allPerfect
+                        ? LibraryTheme.Colors.AllPerfectAt(u * 0.85f + (1f - v) * 0.15f)
+                        : Color.Lerp(LibraryTheme.Colors.FullComboBottom, LibraryTheme.Colors.FullComboTop, v);
+                    float gloss = Mathf.SmoothStep(0f, 1f, (v - 0.48f) / 0.52f) * 0.42f;
+                    float edge = Mathf.Clamp01(1f - (radius - distance) / rim);
+                    color = Color.Lerp(color, Color.white, Mathf.Max(gloss, edge * 0.6f));
+                    color.a = alpha;
+                    pixels[y * width + x] = color;
+                }
+            }
+
+            Texture2D texture = CreateTexture((allPerfect ? "AllPerfect" : "FullCombo") + width + "x" + height, width, height, pixels);
+            sprite = Sprite.Create(texture, new Rect(0f, 0f, width, height), new Vector2(0.5f, 0.5f), PIXELS_PER_UNIT);
+            _awardPills[key] = sprite;
+            return sprite;
         }
 
         /// <summary>

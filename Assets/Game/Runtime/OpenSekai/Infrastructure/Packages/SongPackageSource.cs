@@ -17,9 +17,16 @@ namespace OpenSekai.Infrastructure.Packages
         public string DownloadUrl { get; }
         public string SonolusServerUrl { get; }
         public string SonolusLevelUrl { get; }
+        internal string SonolusLevelName { get; }
 
-        private SongPackageSource(string pageUrl, string downloadUrl, string sonolusServerUrl, string sonolusLevelUrl)
-            => (PageUrl, DownloadUrl, SonolusServerUrl, SonolusLevelUrl) = (pageUrl, downloadUrl, sonolusServerUrl, sonolusLevelUrl);
+        private SongPackageSource(string pageUrl, string downloadUrl, SonolusServerAddress server, string name)
+        {
+            PageUrl = pageUrl;
+            DownloadUrl = downloadUrl;
+            SonolusServerUrl = server?.BaseUrl;
+            SonolusLevelUrl = server?.LevelPage(name);
+            SonolusLevelName = name;
+        }
 
         internal static bool TryHttps(string value, out Uri uri)
         {
@@ -33,6 +40,14 @@ namespace OpenSekai.Infrastructure.Packages
             => TryHttps(pageUrl, out _) && TryHttps(downloadUrl, out _)
                 ? new SongPackageSource(pageUrl, downloadUrl, null, null) : null;
 
+        internal static SongPackageSource FromSonolus(string serverUrl, string name)
+        {
+            if (string.IsNullOrWhiteSpace(name) || name == "." || name == ".." || name.Any(char.IsControl)
+                || !SonolusServerAddress.TryParse(serverUrl, out var server, out var level, out _)
+                || level != null) return null;
+            return new SongPackageSource(null, null, server, name);
+        }
+
         public static SongPackageSource Read(SongPackage package)
         {
             if (package == null) return null;
@@ -41,11 +56,7 @@ namespace OpenSekai.Infrastructure.Packages
             if (source != null) return source;
 
             JObject sonolus = ReadRecord(package, SonolusLevelInstaller.SOURCE_FILE_NAME);
-            string name = Text(sonolus, "name");
-            if (string.IsNullOrWhiteSpace(name) || name == "." || name == ".." || name.Any(char.IsControl)
-                || !SonolusServerAddress.TryParse(Text(sonolus, "server"), out var server, out var level, out _)
-                || level != null) return null;
-            return new SongPackageSource(null, null, server.BaseUrl, server.LevelPage(name));
+            return FromSonolus(Text(sonolus, "server"), Text(sonolus, "name"));
         }
 
         internal static SonolusLevel ReadSavedLevel(SongPackage package)
