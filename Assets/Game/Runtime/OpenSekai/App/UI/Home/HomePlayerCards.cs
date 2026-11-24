@@ -172,7 +172,7 @@ namespace OpenSekai.App.UI
             for (int i = 0; i < _medals.Length; i++)
             {
                 _medals[i] = new MedalChip(copyRoot, "Medal" + i);
-                LibraryWidgets.Place(_medals[i].Root, topLeft, topLeft, new Vector2(nameLeft, -identityTop - 64f), _medals[i].Root.sizeDelta);
+                LibraryWidgets.Place(_medals[i].Root, topLeft, topLeft, new Vector2(nameLeft, -identityTop - 67f), _medals[i].Root.sizeDelta);
             }
 
             // Call to action: drawn only, the whole card takes the tap.

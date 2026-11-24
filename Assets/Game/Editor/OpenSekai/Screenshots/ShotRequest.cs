@@ -55,7 +55,7 @@ namespace OpenSekai.EditorTools.Screenshots
     [Serializable]
     public sealed class Shot
     {
-        /// <summary>live | info | finish | library | settings | settings-trace | result | actions | loading | return | home | intro | handoff | about | server | packs | profile | dan | achievements</summary>
+        /// <summary>live | info | finish | library | settings | settings-trace | result | actions | loading | return | home | intro | handoff | about | server | packs | profile | dan | achievements | medals</summary>
         public string kind;
 
         /// <summary>File name stem; defaults to the kind (plus the time for live/info).</summary>

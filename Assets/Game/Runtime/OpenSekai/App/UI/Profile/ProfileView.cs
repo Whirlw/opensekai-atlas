@@ -36,7 +36,9 @@ namespace OpenSekai.App.UI
         private const float AVATAR_SIZE = 128f;
         private const float BADGE_SIZE = 118f;
         private const float MEDAL_HEIGHT = 62f;
-        private const float MEDAL_GAP = 14f;
+
+        /// <summary>Room for the special medals' peaks.</summary>
+        private const float MEDAL_GAP = 26f;
         private const float TAB_HEIGHT = 56f;
         private const float LIST_PAD = 16f;
 

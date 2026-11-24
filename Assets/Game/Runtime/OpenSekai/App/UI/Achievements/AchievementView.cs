@@ -33,7 +33,7 @@ namespace OpenSekai.App.UI
         private const float ROW_GAP = 12f;
         private const float ROW_STEP = AchievementRow.HEIGHT + ROW_GAP;
         private const float LIST_TOP = 108f;
-        private const float TAB_WIDTH = 188f;
+        private const float TAB_WIDTH = 146f;
         private const float TAB_HEIGHT = 60f;
         private const float ENTER = 0.9f;
         private const float LIST_STAGGER = 0.05f;

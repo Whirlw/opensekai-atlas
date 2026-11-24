@@ -67,7 +67,7 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(looks.Select(look => look.Goal), Has.None.Empty);
             for (int i = 0; i < goals.Count; i++)
             {
-                Assert.That(looks[i].Category, Is.EqualTo(AchievementCopy.CategoryOf(goals[i].Metric)), goals[i].Id);
+                Assert.That(looks[i].Category, Is.EqualTo(AchievementCopy.CategoryOf(goals[i].Goal.Category)).And.Not.EqualTo(AchievementCategory.All), goals[i].Id);
             }
         }
 
@@ -78,7 +78,7 @@ namespace OpenSekai.Tests.EditMode
             AchievementLook look = AchievementCopy.For(hits);
             Assert.That(look.Title, Does.Contain("70,000"));
             Assert.That(look.Mark, Is.EqualTo("70K"));
-            Assert.That(look.Category, Is.EqualTo(AchievementCategory.Hits));
+            Assert.That(look.Category, Is.EqualTo(AchievementCategory.Practice));
 
             Assert.That(AchievementCopy.For(new AchievementProgress("manual_hits_2000000", AchievementMetric.ManualHits, 0, 2000000)).Mark,
                 Is.EqualTo("2M"));
@@ -174,13 +174,15 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(Text(screen.gameObject, "StatCaption1"), Is.EqualTo("游戏次数"));
             Assert.That(Text(screen.gameObject, "StatValue1"), Is.EqualTo("4"));
 
-            screen.SetFilter(AchievementCategory.Charts);
-            Assert.That(Rows(screen), Is.EqualTo(screen.Series.Count(item => AchievementCopy.For(item.Steps[0]).Category == AchievementCategory.Charts)));
-            int chartGoals = screen.Items.Count(item => AchievementCopy.For(item).Category == AchievementCategory.Charts);
+            screen.SetFilter(AchievementCategory.Technique);
+            Assert.That(Rows(screen), Is.EqualTo(screen.Series.Count(item => AchievementCopy.For(item.Steps[0]).Category == AchievementCategory.Technique)));
+            int chartGoals = screen.Items.Count(item => AchievementCopy.For(item).Category == AchievementCategory.Technique);
             Assert.That(Text(screen.gameObject, "FilterCount"), Is.EqualTo("已解锁 1 / " + chartGoals));
 
-            screen.SetFilter(AchievementCategory.Dan);
-            Assert.That(Rows(screen), Is.EqualTo(4));
+            screen.SetFilter(AchievementCategory.Course);
+            Assert.That(Rows(screen), Is.EqualTo(3));
+            screen.SetFilter(AchievementCategory.Special);
+            Assert.That(Rows(screen), Is.EqualTo(3));
             screen.SetPresented(false, false);
         }
 

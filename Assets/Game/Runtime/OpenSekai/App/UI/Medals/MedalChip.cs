@@ -9,8 +9,9 @@ namespace OpenSekai.App.UI
     /// One medal in small, for places with room for a line of text only: the medal's color, its text
     /// and its grade, without the band, the emblem and the light. The frame keeps what tells the
     /// tiers apart (see <see cref="MedalArt.RenderCompactFrame"/>) and reaches a little past the
-    /// rectangle, so the face is the same in every tier; a 段位 medal still has its lattice. It is as
-    /// wide as its text asks; the owner sets the width with <see cref="SetWidth"/>.
+    /// rectangle, so the face is the same in every tier; a 段位 medal still has its lattice, and a 特殊
+    /// medal its own face, outline and lights (<see cref="SpecialPlateArt"/>). It is as wide as its text
+    /// asks; the owner sets the width with <see cref="SetWidth"/>.
     /// </summary>
     internal sealed class MedalChip
     {
@@ -34,13 +35,17 @@ namespace OpenSekai.App.UI
         private readonly Image _gradeLine;
         private readonly TextMeshProUGUI _roman;
         private readonly TextMeshProUGUI _greek;
+        private readonly SpecialMedalView _special;
         private MedalLook _look;
+        private bool _graded;
 
         internal MedalChip(Transform parent, string name)
         {
             float radius = HEIGHT * MedalArt.COMPACT_RADIUS;
             Root = LibraryUi.CreateRect(name, parent);
             Root.sizeDelta = new Vector2(MIN_WIDTH, HEIGHT);
+            RectTransform back = LibraryUi.CreateRect("SpecialBack", Root);
+            LibraryUi.Stretch(back);
             _face = LibraryWidgets.Panel("Face", Root, radius, Color.white);
             LibraryUi.Stretch(_face.rectTransform);
             _face.gameObject.AddComponent<Mask>().showMaskGraphic = true;
@@ -64,6 +69,9 @@ namespace OpenSekai.App.UI
             _roman = Grade("GradeRoman", 22f);
             LibraryUi.UseCondensedFont(_roman);
             _greek = Grade("GradeGreek", 20f);
+            RectTransform front = LibraryUi.CreateRect("SpecialFront", Root);
+            LibraryUi.Stretch(front);
+            _special = new SpecialMedalView(back, front);
             SetEmpty(string.Empty);
         }
 
@@ -77,32 +85,41 @@ namespace OpenSekai.App.UI
             _look = look;
             Color32 tint = look.Color;
             Color32 light = DanStyles.Light(tint);
+            bool special = _special.Set(look.Art);
+            _face.gameObject.SetActive(!special);
             _face.color = Color.Lerp(HomeTheme.Colors.Card, tint, 0.24f);
             _pattern.enabled = look.Patterned;
             _pattern.color = HomeTheme.Colors.WithAlpha(light, 34);
 
-            bool framed = look.Tier > MedalTiers.LOWEST;
+            bool framed = look.Tier > MedalTiers.LOWEST && (!special || _special.Art.KeepsTierFrame);
             bool prism = MedalArt.IsPrismatic(look.Tier);
-            _rim.enabled = !framed;
+            _rim.enabled = !framed && !special;
             _rim.color = HomeTheme.Colors.WithAlpha(light, 170);
             _frame.enabled = framed;
             _frame.color = prism ? Color.white : Color.Lerp(tint, Color.white, 0.3f);
 
             bool roman = MedalGrades.IsRoman(look.Grade);
-            _gradeLine.enabled = look.Grade != null;
-            _gradeLine.color = HomeTheme.Colors.WithAlpha(light, 110);
+            _graded = look.Grade != null;
+            _gradeLine.enabled = _graded && !(special && _special.Art.DividesGrade);
+            _gradeLine.color = HomeTheme.Colors.WithAlpha(special ? (Color32)SpecialMedalView.ToColor(_special.Art.TextBottom) : light, 110);
             _roman.text = roman ? look.Grade : string.Empty;
             _greek.text = roman ? string.Empty : look.Grade ?? string.Empty;
             Color32 ink = Color.Lerp(tint, Color.white, 0.72f);
             _roman.color = ink;
             _greek.color = ink;
             SetText(look.Label, LibraryTheme.Colors.TextPrimary);
+            _special.Paint(_label, false);
+            _special.Paint(_roman, false);
+            _special.Paint(_greek, false);
         }
 
         /// <summary>The chip with no medal behind it: a plain grey one with <paramref name="text"/>.</summary>
         internal void SetEmpty(string text)
         {
             _look = null;
+            _graded = false;
+            _special.Set(null);
+            _face.gameObject.SetActive(true);
             _face.color = HomeTheme.Colors.Chip;
             _pattern.enabled = false;
             _rim.enabled = true;
@@ -112,11 +129,19 @@ namespace OpenSekai.App.UI
             _roman.text = string.Empty;
             _greek.text = string.Empty;
             SetText(text, LibraryTheme.Colors.TextMuted);
+            _special.Paint(_label, false);
         }
 
         internal void SetWidth(float width)
         {
             Root.sizeDelta = new Vector2(width, HEIGHT);
+            if (_special.Art != null)
+            {
+                float half = width / HEIGHT * 0.5f;
+                float end = half - (PADDING - 4f + (_graded ? GRADE - 8f : 0f)) / HEIGHT;
+                _special.Draw(Root.sizeDelta, new PlateSpace(width / HEIGHT, true, -half, _graded ? half - GRADE / HEIGHT : half, end));
+            }
+
             if (!_frame.enabled)
             {
                 return;
@@ -133,7 +158,7 @@ namespace OpenSekai.App.UI
         {
             _label.text = text;
             _label.color = color;
-            float grade = _gradeLine.enabled ? GRADE - 8f : 0f;
+            float grade = _graded ? GRADE - 8f : 0f;
             LibraryWidgets.Inset(_label.rectTransform, PADDING - 4f, 0f, PADDING - 4f + grade, 0f);
             float width = Mathf.Max(MIN_WIDTH, Mathf.Ceil(_label.GetPreferredValues(text).x) + PADDING * 2f + grade);
             FitWidth = Mathf.Ceil(width / STEP) * STEP;

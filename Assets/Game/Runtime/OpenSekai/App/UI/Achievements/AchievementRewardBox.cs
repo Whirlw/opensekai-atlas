@@ -7,8 +7,9 @@ using UnityEngine.UI;
 namespace OpenSekai.App.UI
 {
     /// <summary>
-    /// A medal at thumbnail size: its color, its frame and what its band shows (10K, FC, AP or a
-    /// trophy), without the name, which would be too small to read.
+    /// A medal at thumbnail size: its color, its frame and what its band shows (an emblem, or 10K and
+    /// such), without the name, which would be too small to read. A 特殊 medal has its own face,
+    /// outline and lights here too.
     /// </summary>
     internal sealed class MedalThumb
     {
@@ -18,6 +19,8 @@ namespace OpenSekai.App.UI
         private readonly Image _frame;
         private readonly TextMeshProUGUI _mark;
         private readonly Image _trophy;
+        private readonly MedalEmblemView _art;
+        private readonly SpecialMedalView _special;
 
         internal MedalThumb(Transform parent, string name, Vector2 size)
         {
@@ -25,6 +28,8 @@ namespace OpenSekai.App.UI
             float radius = size.y * MedalArt.COMPACT_RADIUS;
             Root = LibraryUi.CreateRect(name, parent);
             Root.sizeDelta = size;
+            RectTransform back = LibraryUi.CreateRect("SpecialBack", Root);
+            LibraryUi.Stretch(back);
             _face = LibraryWidgets.Panel("Face", Root, radius, Color.white);
             LibraryUi.Stretch(_face.rectTransform);
             _rim = LibraryWidgets.Shape("Rim", Root, LibraryShapes.Ring(radius, 1.5f), Color.white);
@@ -40,6 +45,11 @@ namespace OpenSekai.App.UI
             _mark.overflowMode = TextOverflowModes.Overflow;
             LibraryUi.Stretch(_mark.rectTransform);
             _trophy = LibraryWidgets.Icon(Root, LibraryIcon.Trophy, Color.white, size.y * 0.66f);
+            _art = new MedalEmblemView("Art", Root);
+            LibraryWidgets.Place(_art.Root, center, center, Vector2.zero, Vector2.zero);
+            RectTransform front = LibraryUi.CreateRect("SpecialFront", Root);
+            LibraryUi.Stretch(front);
+            _special = new SpecialMedalView(back, front);
         }
 
         internal RectTransform Root { get; }
@@ -47,17 +57,24 @@ namespace OpenSekai.App.UI
         internal void SetLook(MedalLook look)
         {
             Color32 light = DanStyles.Light(look.Color);
+            bool special = _special.Set(look.Art);
+            _face.enabled = !special;
             _face.color = Color.Lerp(HomeTheme.Colors.Card, look.Color, 0.3f);
-            bool framed = look.Tier > MedalTiers.LOWEST;
-            _rim.enabled = !framed;
+            bool framed = look.Tier > MedalTiers.LOWEST && (!special || _special.Art.KeepsTierFrame);
+            _rim.enabled = !framed && !special;
             _rim.color = HomeTheme.Colors.WithAlpha(light, 190);
             _frame.enabled = framed;
             if (framed) _frame.sprite = MedalFrames.Compact(look.Tier, _size);
             _frame.color = MedalArt.IsPrismatic(look.Tier) ? Color.white : Color.Lerp(look.Color, Color.white, 0.3f);
-            _mark.text = look.Mark ?? string.Empty;
+            bool drawn = look.Art != null;
+            _art.Show(look.Art, light, _size.y * 0.74f);
+            _mark.text = drawn ? string.Empty : look.Mark ?? string.Empty;
             _mark.color = light;
-            _trophy.enabled = look.Mark == null;
+            _trophy.enabled = !drawn && look.Mark == null;
             _trophy.color = light;
+            if (!special) return;
+            float half = _size.x / _size.y * 0.5f;
+            _special.Draw(_size, new PlateSpace(half * 2f, true, -half, half, half));
         }
     }
 

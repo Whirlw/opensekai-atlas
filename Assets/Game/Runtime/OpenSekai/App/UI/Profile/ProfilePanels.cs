@@ -21,9 +21,11 @@ namespace OpenSekai.App.UI
         private const int COLUMNS = 6;
         private const float LEFT_WIDTH = 300f;
         private const float BUTTON_WIDTH = 200f;
+        private const float ROW_STEP = TILE + 28f;
 
         private readonly RectTransform _root;
         private readonly LibraryModal _modal;
+        private readonly ScrollRect _scroll;
         private readonly ProfileAvatarView _preview;
         private readonly TMP_InputField _nickname;
         private readonly TextMeshProUGUI _hint;
@@ -39,7 +41,7 @@ namespace OpenSekai.App.UI
             _onSave = onSave;
             _root = LibraryUi.CreateRect("ProfileEdit", layer);
             LibraryUi.Stretch(_root);
-            _modal = new LibraryModal(_root, new Vector2(1240f, 740f), "编辑资料", Close, withSubtitle: true);
+            _modal = new LibraryModal(_root, new Vector2(1240f, 860f), "编辑资料", Close, withSubtitle: true);
             _modal.Subtitle.text = "头像与昵称保存在本机，导出备份时一并带走";
             RectTransform body = _modal.Body;
             Vector2 topLeft = new Vector2(0f, 1f);
@@ -68,9 +70,11 @@ namespace OpenSekai.App.UI
             LibraryWidgets.Inset(right, LEFT_WIDTH + 48f, LibraryTheme.Layout.MODAL_BUTTON_HEIGHT + 24f, 0f, 0f);
             TextMeshProUGUI gridCaption = LibraryWidgets.Label("GridCaption", right, "选择头像", 18f, LibraryTheme.Colors.TextMuted, FontStyles.Bold);
             LibraryWidgets.TopStrip(gridCaption.rectTransform, 4f, 0f, 0f, 26f);
-            RectTransform grid = LibraryUi.CreateRect("Grid", right);
-            LibraryWidgets.Inset(grid, 0f, 0f, 0f, 40f);
+            RectTransform area = LibraryUi.CreateRect("Grid", right);
+            LibraryWidgets.Inset(area, 0f, 0f, 0f, 32f);
+            RectTransform grid = PackWidgets.Scroll(area, out _scroll);
             IReadOnlyList<ProfileAvatars.Avatar> avatars = ProfileAvatars.All;
+            grid.sizeDelta = new Vector2(0f, (avatars.Count + COLUMNS - 1) / COLUMNS * ROW_STEP);
             for (int i = 0; i < avatars.Count; i++)
             {
                 string id = avatars[i].Id;
@@ -81,7 +85,7 @@ namespace OpenSekai.App.UI
                 tile.anchorMax = new Vector2((column + 1) / (float)COLUMNS, 1f);
                 tile.pivot = new Vector2(0.5f, 1f);
                 tile.sizeDelta = new Vector2(0f, TILE + 12f);
-                tile.anchoredPosition = new Vector2(0f, -row * (TILE + 28f));
+                tile.anchoredPosition = new Vector2(0f, -row * ROW_STEP - 8f);
                 Image ring = LibraryWidgets.Shape("Selected", tile, LibraryShapes.Ring((TILE + 12f) * 0.5f, 3f), Color.white);
                 LibraryWidgets.Place(ring.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
                     new Vector2(TILE + 12f, TILE + 12f));
@@ -128,6 +132,17 @@ namespace OpenSekai.App.UI
             Choose(current?.AvatarId ?? ProfileAvatars.DEFAULT_ID, false);
             Validate();
             _modal.Open();
+            ShowChosen();
+        }
+
+        /// <summary>Scrolls to the row with the avatar in use.</summary>
+        private void ShowChosen()
+        {
+            int index = Math.Max(0, _tiles.FindIndex(tile => string.Equals(tile.Id, _avatarId, StringComparison.Ordinal)));
+            float hidden = Mathf.Max(0f, _scroll.content.sizeDelta.y - _scroll.viewport.rect.height);
+            float top = index / COLUMNS * ROW_STEP - ROW_STEP;
+            _scroll.StopMovement();
+            _scroll.content.anchoredPosition = new Vector2(0f, Mathf.Clamp(top, 0f, hidden));
         }
 
         internal void Close()

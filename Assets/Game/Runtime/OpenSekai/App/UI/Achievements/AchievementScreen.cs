@@ -10,7 +10,7 @@ namespace OpenSekai.App.UI
 {
     /// <summary>
     /// The 成就 part: how many levels are unlocked and the latest ones on the left, every achievement
-    /// with its medal and progress on the right, filtered by 累计击打, 谱面达成 or 段位通关. Progress comes
+    /// with its medal and progress on the right, filtered by the backend's groups. Progress comes
     /// from <see cref="PlayerProfileStore.ReadAchievements"/> on the main thread each time the part
     /// opens; a tap on a reached one unlocks it, which hands over its medal and avatar. Like the
     /// other parts it builds its own camera and canvas in the Library scene.

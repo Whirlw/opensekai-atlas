@@ -8,7 +8,8 @@ namespace OpenSekai.App.UI
     /// <summary>How one medal reads on its plate: its text, what its band shows, color, frame, grade and ground.</summary>
     internal sealed class MedalLook
     {
-        internal MedalLook(string label, string emblem, string mark, Color32 color, int tier, string grade, bool patterned)
+        internal MedalLook(string label, string emblem, string mark, Color32 color, int tier, string grade, bool patterned,
+            string art = null)
         {
             Label = label ?? string.Empty;
             Emblem = emblem;
@@ -17,6 +18,7 @@ namespace OpenSekai.App.UI
             Tier = Mathf.Clamp(tier, MedalTiers.LOWEST, MedalTiers.SPECIAL);
             Grade = string.IsNullOrEmpty(grade) ? null : grade;
             Patterned = patterned;
+            Art = art;
         }
 
         internal string Label { get; }
@@ -26,6 +28,9 @@ namespace OpenSekai.App.UI
 
         /// <summary>Short text in the band instead of an emblem (10K, FC, AP); null for an emblem.</summary>
         internal string Mark { get; }
+
+        /// <summary>The achievement emblem in the band (<see cref="MedalEmblemArt"/>), or a special medal, whose whole plate is drawn its own way; null for neither.</summary>
+        internal string Art { get; }
 
         internal Color32 Color { get; }
 
@@ -56,7 +61,7 @@ namespace OpenSekai.App.UI
             DanStyles.ParseColor(definition.Color), definition.Tier, definition.Grade, true);
 
         internal static MedalLook Of(AchievementLook look) => new MedalLook(look.MedalName,
-            "trophy", string.IsNullOrEmpty(look.Mark) ? null : look.Mark, look.Tint, look.MedalTier, look.Grade, false);
+            "trophy", string.IsNullOrEmpty(look.Mark) ? null : look.Mark, look.Tint, look.MedalTier, look.Grade, false, look.Emblem);
     }
 
     /// <summary>The words around medals.</summary>
@@ -72,7 +77,10 @@ namespace OpenSekai.App.UI
         internal static string Kind(MedalKind kind) => kind == MedalKind.Dan ? "段位" : "成就";
 
         /// <summary>"段位 · 高阶" under a medal in a list.</summary>
-        internal static string Describe(Medal medal) => Kind(medal.Kind) + " · " + Tier(MedalLook.Of(medal).Tier);
+        internal static string Describe(Medal medal) => Kind(medal.Kind) + " · " + Tier(TierOf(medal));
+
+        /// <summary>The medal's own tier; 终乐章's is 特殊, though it wears 极阶's frame.</summary>
+        private static int TierOf(Medal medal) => medal.Kind == MedalKind.Achievement ? medal.Achievement.Goal.MedalTier : medal.Dan.Tier;
 
         /// <summary>The medal's text with its grade, as a toast names it.</summary>
         internal static string Name(Medal medal)

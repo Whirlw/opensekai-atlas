@@ -12,8 +12,10 @@ namespace OpenSekai.App.UI
     /// the left, its text, and its grade on the right when it has one. Rectangular on purpose,
     /// unlike the hexagonal Ranking Score badge. The tier picks the frame: 初阶 is a plain outline
     /// and the others are drawn by <see cref="MedalArt"/>. 段位 medals carry a diamond lattice on
-    /// the face, which is the same size in every tier. <see cref="SetLook"/> redraws it; <see cref="SetLocked"/> greys it out for a medal
-    /// not earned yet. <see cref="Shine"/> sweeps a light across it.
+    /// the face, which is the same size in every tier. A 特殊 medal replaces the face, the frame and
+    /// the emblem with its own (<see cref="SpecialPlateArt"/>) and moves. <see cref="SetLook"/> redraws
+    /// it; <see cref="SetLocked"/> greys it out for a medal not earned yet. <see cref="Shine"/> sweeps a
+    /// light across it.
     /// </summary>
     internal sealed class MedalPlate : IDisposable
     {
@@ -27,11 +29,17 @@ namespace OpenSekai.App.UI
         /// <summary>The grade's ground fades out past its divider, so the pattern thins out before the grade.</summary>
         private const float GRADE_GROUND = 1.9f;
         private const float EMBLEM = 0.58f;
+
+        /// <summary>The achievements' emblems fill their square less than the 段位 ones.</summary>
+        private const float ART = 0.64f;
+        private const float SPECIAL_ART = 0.7f;
         private const float LABEL = 0.38f;
 
         private readonly Vector2 _size;
         private readonly RectTransform _body;
         private readonly Image _face;
+        private readonly Mask _faceMask;
+        private readonly SpecialMedalView _special;
         private readonly Image _pattern;
         private readonly Image _patternFade;
         private readonly Image _light;
@@ -42,6 +50,7 @@ namespace OpenSekai.App.UI
         private readonly Image _frame;
         private readonly Image _frameLights;
         private readonly RectTransform _emblem;
+        private readonly MedalEmblemView _art;
         private readonly TextMeshProUGUI _mark;
         private readonly TextMeshProUGUI _label;
         private readonly Image _gradeGround;
@@ -77,9 +86,11 @@ namespace OpenSekai.App.UI
                 LibraryWidgets.Shadow(_body, radius, Mathf.Max(10f, size.y * 0.3f), Mathf.Max(3f, size.y * 0.08f), 120);
             }
 
+            RectTransform back = LibraryUi.CreateRect("SpecialBack", _body);
+            LibraryUi.Stretch(back);
             _face = LibraryWidgets.Panel("Face", _body, radius, Color.white);
             LibraryUi.Stretch(_face.rectTransform);
-            _face.gameObject.AddComponent<Mask>().showMaskGraphic = true;
+            _faceMask = _face.gameObject.AddComponent<Mask>();
             _pattern = Picture("Pattern", _face.transform, null);
             _pattern.type = Image.Type.Tiled;
             LibraryUi.Stretch(_pattern.rectTransform);
@@ -92,10 +103,12 @@ namespace OpenSekai.App.UI
             _band = Picture("Band", _face.transform, null);
             _divider = Picture("Divider", _face.transform, null);
             _emblem = LibraryUi.CreateRect("Emblem", _face.transform);
+            _art = new MedalEmblemView("Art", _face.transform);
             _mark = LibraryWidgets.Label("Mark", _face.transform, string.Empty, 10f, LibraryTheme.Colors.TextPrimary,
                 FontStyles.Normal, TextAlignmentOptions.MidlineGeoAligned);
             LibraryUi.UseCondensedFont(_mark);
             _mark.overflowMode = TextOverflowModes.Overflow;
+            _mark.enableAutoSizing = true;
 
             _gradeGround = Picture("GradeGround", _face.transform, HomeShapes.FadeRight());
             _gradeGround.rectTransform.localScale = new Vector3(-1f, 1f, 1f);
@@ -122,6 +135,9 @@ namespace OpenSekai.App.UI
             Vector2 framed = new Vector2(size.x + MedalArt.MARGIN_X * 2f * size.y, size.y + MedalArt.MARGIN_Y * 2f * size.y);
             LibraryWidgets.Place(_frame.rectTransform, center, center, Vector2.zero, framed);
             LibraryWidgets.Place(_frameLights.rectTransform, center, center, Vector2.zero, framed);
+            RectTransform front = LibraryUi.CreateRect("SpecialFront", Root);
+            LibraryUi.Stretch(front);
+            _special = new SpecialMedalView(back, front);
             LayOut();
             SetEmpty(string.Empty);
         }
@@ -179,6 +195,12 @@ namespace OpenSekai.App.UI
             Color32 tint = _locked ? (Color32)Color.Lerp(_look.Color, LibraryTheme.Colors.TextMuted, 0.75f) : _look.Color;
             Color32 light = DanStyles.Light(tint);
             Color face = Color.Lerp(HomeTheme.Colors.Card, tint, _locked ? 0.1f : 0.26f);
+            bool special = _special.Set(_look.Art);
+            // A special medal's face lies under this one, which then only keeps the rest inside.
+            _faceMask.showMaskGraphic = !special;
+            _light.enabled = !special;
+            _band.enabled = !special;
+            _divider.enabled = !special;
             _face.color = face;
             _band.color = HomeTheme.Colors.WithAlpha(tint, (byte)(_locked ? 34 : 70));
             _divider.color = HomeTheme.Colors.WithAlpha(tint, (byte)(_locked ? 60 : 190));
@@ -190,11 +212,13 @@ namespace OpenSekai.App.UI
             _pattern.color = HomeTheme.Colors.WithAlpha(Color.Lerp(tint, Color.white, 0.25f), (byte)(_locked ? 40 : 86));
             _patternFade.color = HomeTheme.Colors.WithAlpha(face, 160);
 
-            bool marked = _look.Mark != null;
+            bool marked = _look.Mark != null && _look.Art == null;
             _mark.text = marked ? _look.Mark : string.Empty;
             _mark.color = light;
-            _emblem.gameObject.SetActive(!marked);
-            if (!marked)
+            _art.Show(_look.Art, light, FaceHeight * (special ? SPECIAL_ART : ART), _locked);
+            bool emblem = !marked && _look.Art == null;
+            _emblem.gameObject.SetActive(emblem);
+            if (emblem)
             {
                 Color32 ink = _empty ? HomeTheme.Colors.WithAlpha(LibraryTheme.Colors.TextMuted, 120) : light;
                 // Drawing builds the emblem from parts; only do it when it changes.
@@ -208,13 +232,29 @@ namespace OpenSekai.App.UI
 
             _label.text = _look.Label;
             _label.color = _locked ? LibraryTheme.Colors.TextSecondary : LibraryTheme.Colors.TextPrimary;
-            ApplyGrade(tint, light, face);
+            ApplyGrade(tint, light, face, special);
+            _special.Paint(_label, _locked);
+            if (special) _special.Draw(_size, Space(), _locked);
+        }
+
+        /// <summary>Where a special medal finds the band, the text's end and the grade, in plate heights.</summary>
+        private PlateSpace Space()
+        {
+            float face = FaceHeight / _size.y;
+            float aspect = _size.x / _size.y;
+            float half = aspect * 0.5f - MedalArt.INSET;
+            float grade = _look.Grade != null ? half - face * GRADE : half;
+            float start = -half + face * (BAND + 0.26f);
+            float room = grade - face * 0.14f - start;
+            float text = _label.GetPreferredValues(_look.Label).x / _size.y;
+            return new PlateSpace(aspect, false, -half + face * BAND, grade, start + Mathf.Min(text, room));
         }
 
         private void ApplyFrame(Color32 tint)
         {
-            bool framed = _look.Tier > MedalTiers.LOWEST;
-            _rim.enabled = !framed;
+            bool special = _special.Art != null;
+            bool framed = _look.Tier > MedalTiers.LOWEST && (!special || _special.Art.KeepsTierFrame);
+            _rim.enabled = !framed && !special;
             _frame.enabled = framed;
             _frameLights.enabled = framed;
             _rim.color = HomeTheme.Colors.WithAlpha(tint, (byte)(_locked ? 90 : 190));
@@ -231,13 +271,13 @@ namespace OpenSekai.App.UI
                 : (Color)HomeTheme.Colors.WithAlpha(Color.Lerp(tint, Color.white, 0.65f), (byte)(_locked ? 90 : 255));
         }
 
-        private void ApplyGrade(Color32 tint, Color32 light, Color face)
+        private void ApplyGrade(Color32 tint, Color32 light, Color face, bool special)
         {
             string grade = _look.Grade;
             bool graded = grade != null;
             bool roman = graded && MedalGrades.IsRoman(grade);
-            _gradeGround.enabled = graded;
-            _gradeLine.enabled = graded;
+            _gradeGround.enabled = graded && !special;
+            _gradeLine.enabled = graded && !(special && _special.Art.DividesGrade);
             _roman.text = roman ? grade : string.Empty;
             _greek.text = graded && !roman ? grade : string.Empty;
             float height = FaceHeight;
@@ -246,6 +286,13 @@ namespace OpenSekai.App.UI
             _gradeGround.color = Color.Lerp(face, tint, _locked ? 0.1f : 0.24f);
             _gradeLine.color = HomeTheme.Colors.WithAlpha(light, (byte)(_locked ? 70 : 120));
             TextMeshProUGUI label = roman ? _roman : _greek;
+            if (special && !_locked)
+            {
+                _gradeLine.color = HomeTheme.Colors.WithAlpha(SpecialMedalView.ToColor(_special.Art.TextBottom), 110);
+                _special.Paint(label, false);
+                return;
+            }
+
             bool prism = MedalArt.IsPrismatic(_look.Tier) && !_locked;
             label.enableVertexGradient = prism;
             if (prism)
@@ -275,8 +322,10 @@ namespace OpenSekai.App.UI
             LibraryWidgets.Place(_band.rectTransform, left, left, Vector2.zero, new Vector2(band, height));
             LibraryWidgets.Place(_divider.rectTransform, left, center, new Vector2(band, 0f), new Vector2(Mathf.Max(1.5f, height * 0.03f), height));
             LibraryWidgets.Place(_emblem, left, center, new Vector2(band * 0.5f, 0f), new Vector2(height * EMBLEM, height * EMBLEM));
-            LibraryWidgets.Place(_mark.rectTransform, left, left, Vector2.zero, new Vector2(band, height));
-            _mark.fontSize = height * 0.46f;
+            LibraryWidgets.Place(_art.Root, left, center, new Vector2(band * 0.5f, 0f), Vector2.zero);
+            LibraryWidgets.Place(_mark.rectTransform, left, left, new Vector2(height * 0.06f, 0f), new Vector2(band - height * 0.12f, height));
+            _mark.fontSizeMax = height * 0.46f;
+            _mark.fontSizeMin = height * 0.24f;
 
             _label.fontSizeMax = height * LABEL;
             _label.fontSizeMin = height * 0.2f;

@@ -93,6 +93,7 @@ namespace OpenSekai.EditorTools.Screenshots
                     case "profile": body = ProfileShot(shot); break;
                     case "dan": body = DanShot(shot); break;
                     case "achievements": body = AchievementsShot(shot); break;
+                    case "medals": body = MedalsShot(shot); break;
                     case "ranking": body = RankingShot(shot); break;
                     default:
                         Fail(shot, "unknown kind '" + shot.kind + "'");

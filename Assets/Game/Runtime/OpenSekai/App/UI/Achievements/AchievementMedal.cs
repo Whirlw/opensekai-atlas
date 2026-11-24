@@ -7,16 +7,20 @@ namespace OpenSekai.App.UI
 {
     /// <summary>
     /// One achievement's medal: a round disc (unlike the hexagonal Ranking badge and the rectangular
-    /// 段位 plates, so the three read apart), its mark on the face (10K, FC, AP or a small plate),
-    /// and, when asked for, a ring around it that fills with the progress. Medals under way are grey
-    /// with the mark dimmed; reached ones take the achievement's color, and unlocked ones glow and
-    /// carry a check. The owner can drive a pop (<see cref="SetMotion"/>), a flash, the glow and the
+    /// 段位 plates, so the three read apart), its emblem or mark on the face with what the level asks for
+    /// under it, and, when asked for, a ring around it that fills with the progress. Medals under way
+    /// are grey with the emblem dimmed; reached ones take the achievement's color, and unlocked ones
+    /// glow and carry a check. A reached 特殊 medal takes a face and a rim of its own in place of the
+    /// ring, and moves. The owner can drive a pop (<see cref="SetMotion"/>), a flash, the glow and the
     /// check for the unlock.
     /// </summary>
     internal sealed class AchievementMedal
     {
         private const float RING_STROKE = 0.05f;
         private const float RING_GAP = 0.05f;
+
+        /// <summary>How much larger than the disc a special medal's rim is drawn.</summary>
+        private const float SPECIAL_REACH = 1.5f;
 
         private readonly float _size;
         private readonly bool _withRing;
@@ -35,6 +39,10 @@ namespace OpenSekai.App.UI
         private readonly Image _plateDiamond;
         private readonly Image _plateLine;
         private readonly Image _trophy;
+        private readonly MedalEmblemView _emblem;
+        private readonly Mask _discMask;
+        private readonly VectorGraphic _special;
+        private readonly VectorGraphic _specialMotion;
         private readonly RectTransform _shine;
         private readonly Image _check;
         private readonly Image _checkIcon;
@@ -63,9 +71,11 @@ namespace OpenSekai.App.UI
             float disc = withRing ? size * (1f - 2f * (RING_STROKE + RING_GAP)) : size;
             _body = LibraryUi.CreateRect("MedalBody", Root);
             _body.sizeDelta = new Vector2(disc, disc);
+            _special = VectorGraphic.Create("MedalSpecial", _body);
+            LibraryWidgets.Place(_special.rectTransform, center, center, Vector2.zero, new Vector2(disc, disc) * SPECIAL_REACH);
             _disc = LibraryWidgets.Panel("MedalDisc", _body, disc * 0.5f, Color.white);
             LibraryUi.Stretch(_disc.rectTransform);
-            _disc.gameObject.AddComponent<Mask>().showMaskGraphic = true;
+            _discMask = _disc.gameObject.AddComponent<Mask>();
             Image fade = LibraryWidgets.Shape("MedalShade", _disc.transform, HomeShapes.FadeDown(), new Color32(0, 0, 0, 70));
             fade.type = Image.Type.Simple;
             fade.rectTransform.anchorMin = Vector2.zero;
@@ -124,6 +134,10 @@ namespace OpenSekai.App.UI
                 new Vector2(plateWidth - plateHeight * 1.6f, plateHeight * 0.14f));
 
             _trophy = LibraryWidgets.Icon(_body, LibraryIcon.Trophy, LibraryTheme.Colors.TextPrimary, disc * 0.42f);
+            _emblem = new MedalEmblemView("MedalEmblem", _body);
+            LibraryWidgets.Place(_emblem.Root, center, center, Vector2.zero, Vector2.zero);
+            _specialMotion = VectorGraphic.Create("MedalSpecialMotion", _body, ownCanvas: true);
+            LibraryWidgets.Place(_specialMotion.rectTransform, center, center, Vector2.zero, new Vector2(disc, disc) * SPECIAL_REACH);
 
             _flash = LibraryWidgets.Panel("MedalFlash", _body, disc * 0.5f, Color.white);
             LibraryUi.Stretch(_flash.rectTransform);
@@ -151,11 +165,14 @@ namespace OpenSekai.App.UI
             Color32 tint = look.Tint;
             _tint = tint;
             Color32 dim = LibraryTheme.Colors.TextMuted;
+            SpecialPlateArt special = lit ? SpecialPlateArt.Create(look.Emblem) : null;
+            BindSpecial(special);
             SetGlow(unlocked ? 0.25f : 0f);
             _track.color = HomeTheme.Colors.Chip;
             _arc.color = lit ? tint : HomeTheme.Colors.WithAlpha(tint, 210);
             _arc.fillAmount = Mathf.Clamp01(progress);
-            _arc.enabled = _withRing && progress > 0f;
+            _arc.enabled = _withRing && progress > 0f && special == null;
+            _track.enabled = special == null;
             _disc.color = lit ? Color.Lerp(HomeTheme.Colors.Card, tint, unlocked ? 0.3f : 0.16f)
                 : Color.Lerp(HomeTheme.Colors.Card, Color.white, 0.04f);
             _rim.color = lit ? tint : new Color32(255, 255, 255, 40);
@@ -163,17 +180,21 @@ namespace OpenSekai.App.UI
 
             bool text = look.Glyph == AchievementGlyph.Hits || look.Glyph == AchievementGlyph.FullCombo || look.Glyph == AchievementGlyph.AllPerfect;
             _mark.gameObject.SetActive(text);
-            _subMark.gameObject.SetActive(text && !string.IsNullOrEmpty(look.SubMark));
+            _subMark.gameObject.SetActive(!string.IsNullOrEmpty(look.SubMark));
             _plate.gameObject.SetActive(look.Glyph == AchievementGlyph.Dan);
             _trophy.gameObject.SetActive(look.Glyph == AchievementGlyph.Trophy);
-            float markShift = string.IsNullOrEmpty(look.SubMark) ? 0f : _body.sizeDelta.x * 0.06f;
+            bool captioned = !string.IsNullOrEmpty(look.SubMark);
+            float markShift = captioned ? _body.sizeDelta.x * 0.06f : 0f;
             _mark.rectTransform.anchoredPosition = new Vector2(0f, markShift);
-            if (text)
-            {
-                BindMark(look, lit);
-                _subMark.text = look.SubMark;
-                _subMark.color = lit ? (Color)Color.Lerp(tint, Color.white, 0.55f) : (Color)HomeTheme.Colors.WithAlpha(dim, 200);
-            }
+            if (text) BindMark(look, lit);
+            _subMark.text = look.SubMark ?? string.Empty;
+            _subMark.color = !lit ? (Color)HomeTheme.Colors.WithAlpha(dim, 200)
+                : special != null ? SpecialMedalView.ToColor(special.TextBottom) : (Color)Color.Lerp(tint, Color.white, 0.55f);
+
+            bool drawn = look.Glyph == AchievementGlyph.Emblem;
+            Color ink = lit ? (Color)DanStyles.Light(tint) : (Color)HomeTheme.Colors.WithAlpha(dim, 210);
+            _emblem.Show(drawn ? look.Emblem : null, ink, _body.sizeDelta.x * (special != null ? 0.5f : 0.46f), !lit);
+            _emblem.Root.anchoredPosition = new Vector2(0f, captioned ? _body.sizeDelta.x * 0.07f : 0f);
 
             Color32 light = Color.Lerp(tint, Color.white, 0.35f);
             _plateFace.color = lit ? Color.Lerp(HomeTheme.Colors.Card, tint, 0.35f) : (Color)new Color32(255, 255, 255, 26);
@@ -185,6 +206,22 @@ namespace OpenSekai.App.UI
             _check.gameObject.SetActive(unlocked);
             _check.color = tint;
             SetCheck(1f);
+        }
+
+        private void BindSpecial(SpecialPlateArt special)
+        {
+            _discMask.showMaskGraphic = special == null;
+            _rim.enabled = special == null;
+            _inner.enabled = special == null;
+            if (special == null)
+            {
+                _special.Hide();
+                _specialMotion.Hide();
+                return;
+            }
+
+            _special.Show((mesh, time) => special.Disc(mesh), _body.sizeDelta.x);
+            _specialMotion.Show(special.DiscMotion, _body.sizeDelta.x, true);
         }
 
         /// <param name="strength">0 hides the glow behind the medal, 1 is full.</param>

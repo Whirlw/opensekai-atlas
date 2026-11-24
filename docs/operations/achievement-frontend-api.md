@@ -63,3 +63,15 @@ if (receipt.NewlyClaimed)
 - 备份预览读取 `ProfileImportPreview.ReachedAchievementIds`；确认导入或删除记录后重读进度、收藏和已佩戴槽位。旧版收藏不会增加 145 项的分母。
 - 暂停重试与曲库、服务器结果页重试均由游玩入口记录。新局启动按新局 ID 去重。重新选择同一谱面不会增加 RETRY。页面无需自行累加或写入存档。
 - 历史缺少游戏日、专项音符统计或段位 Ranked／等级快照时，对应项目等待有证据的新记录。成绩可证明的其他进度仍会回算。前端不需要解析历史 JSON。
+
+## 前端实现
+
+| 内容 | 位置 |
+| --- | --- |
+| 各系列的颜色、短文案、图章下标 | `UI/Achievements/AchievementSeriesCopy.cs`。名称、奖牌和等级直接取自 `AchievementGoal` |
+| 普通奖牌左侧图案 | `UI/Medals/MedalEmblemArt.cs`，按系列编号绘制；B30 六级各不相同 |
+| 特殊奖牌 | `UI/Medals/SpecialPlateArt*.cs`。每块牌实现牌面、边框、图案、圆章和各自的动画，横牌、首页小牌和奖励缩略图共用同一份绘制，只换 `PlateSpace` |
+| 成就头像 | `UI/Profile/AvatarArt.cs`，登记在 `ProfileAvatars` |
+| 矢量绘制 | `UI/VectorMesh.cs` 生成三角形，`UI/VectorGraphic.cs` 放到画布上。会动的部分各有一个子画布，画布外或不可见时停止重绘 |
+
+新增系列要同时补 `AchievementSeriesCopy` 和 `MedalEmblemArt`，`AchievementMedalArtTests` 会检查缺漏、越界和每帧顶点数。

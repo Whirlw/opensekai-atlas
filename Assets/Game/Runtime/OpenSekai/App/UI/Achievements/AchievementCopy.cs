@@ -6,13 +6,15 @@ using UnityEngine;
 
 namespace OpenSekai.App.UI
 {
-    /// <summary>The page's filters: what kind of goal an achievement counts.</summary>
+    /// <summary>The page's filters: the backend's groups, in its order.</summary>
     internal enum AchievementCategory
     {
         All,
-        Hits,
-        Charts,
-        Dan
+        Practice,
+        Technique,
+        Consistency,
+        Course,
+        Special
     }
 
     /// <summary>What a medal shows on its face.</summary>
@@ -22,14 +24,18 @@ namespace OpenSekai.App.UI
         FullCombo,
         AllPerfect,
         Dan,
-        Trophy
+        Trophy,
+
+        /// <summary>The drawing <see cref="AchievementLook.Emblem"/> names.</summary>
+        Emblem
     }
 
     /// <summary>How one achievement reads and looks: its name, what it asks for, how it is counted, its medal.</summary>
     internal sealed class AchievementLook
     {
         internal AchievementLook(string title, string latin, string goal, string rule, AchievementCategory category,
-            AchievementGlyph glyph, string mark, string subMark, Color32 tint, int medalTier = MedalTiers.LOWEST, string medalName = null, string grade = null)
+            AchievementGlyph glyph, string mark, string subMark, Color32 tint, int medalTier = MedalTiers.LOWEST,
+            string medalName = null, string grade = null, string emblem = null)
         {
             Title = title;
             Latin = latin;
@@ -43,6 +49,7 @@ namespace OpenSekai.App.UI
             MedalTier = medalTier;
             MedalName = medalName ?? title;
             Grade = grade;
+            Emblem = emblem;
         }
 
         /// <summary>The name, e.g. 万键之路.</summary>
@@ -70,14 +77,21 @@ namespace OpenSekai.App.UI
 
         /// <summary>Which frame the medal it gives wears, one of <see cref="MedalTiers"/>.</summary>
         internal int MedalTier { get; }
+
+        /// <summary>The medal's text, which its levels can share.</summary>
         internal string MedalName { get; }
+
         internal string Grade { get; }
+
+        /// <summary>The series whose emblem it wears (<see cref="MedalEmblemArt"/>) or the special medal; null for a mark.</summary>
+        internal string Emblem { get; }
     }
 
     /// <summary>
     /// The words and medals of the achievements. The backend owns the goals (ids, metrics,
-    /// targets, what counts); this maps each stable id to its copy and look. An id this table does
-    /// not know still reads sensibly from its metric and target, so a new goal never shows a raw id.
+    /// targets, what counts); <see cref="AchievementSeriesCopy"/> gives each series its copy and look,
+    /// and this keeps the medals of an earlier version. An id neither knows still reads sensibly from
+    /// its metric and target, so a new goal never shows a raw id.
     /// </summary>
     internal static class AchievementCopy
     {
@@ -91,67 +105,64 @@ namespace OpenSekai.App.UI
         internal static readonly Color32 PrismStart = new Color32(255, 146, 214, 255);
         internal static readonly Color32 PrismEnd = new Color32(112, 224, 255, 255);
 
-        private const string HITS_RULE = "Perfect、Great、Good、Bad 都算，段位各曲与中途结束前的击打也算；Miss 和自动游玩不计";
+        internal const string HITS_RULE = "Perfect、Great、Good、Bad 都算，段位各曲与中途结束前的击打也算；Miss 和自动游玩不计";
 
-        internal static readonly string[] CategoryNames = { "全部", "累计击打", "谱面达成", "段位通关" };
+        internal static readonly string[] CategoryNames = { "全部", "练习曲库", "单谱技巧", "稳定发挥", "段位组曲", "特殊奖牌" };
 
         private static readonly Dictionary<string, AchievementLook> _known = new Dictionary<string, AchievementLook>(StringComparer.Ordinal)
         {
             ["manual_hits_10000"] = new AchievementLook("万键之路", "10,000 HITS", "累计击打 10,000 个音符", HITS_RULE,
-                AchievementCategory.Hits, AchievementGlyph.Hits, "10K", "HITS", HitsTint, 1),
+                AchievementCategory.Practice, AchievementGlyph.Hits, "10K", "HITS", HitsTint, 1),
             ["manual_hits_50000"] = new AchievementLook("五万键之路", "50,000 HITS", "累计击打 50,000 个音符", HITS_RULE,
-                AchievementCategory.Hits, AchievementGlyph.Hits, "50K", "HITS", HitsTint, 2),
+                AchievementCategory.Practice, AchievementGlyph.Hits, "50K", "HITS", HitsTint, 2),
             ["manual_hits_100000"] = new AchievementLook("十万键之路", "100,000 HITS", "累计击打 100,000 个音符", HITS_RULE,
-                AchievementCategory.Hits, AchievementGlyph.Hits, "100K", "HITS", HitsTint, 2),
+                AchievementCategory.Practice, AchievementGlyph.Hits, "100K", "HITS", HitsTint, 2),
             ["manual_hits_500000"] = new AchievementLook("五十万键之路", "500,000 HITS", "累计击打 500,000 个音符", HITS_RULE,
-                AchievementCategory.Hits, AchievementGlyph.Hits, "500K", "HITS", HitsTint, 3),
+                AchievementCategory.Practice, AchievementGlyph.Hits, "500K", "HITS", HitsTint, 3),
             ["manual_hits_1000000"] = new AchievementLook("百万键之路", "1,000,000 HITS", "累计击打 1,000,000 个音符", HITS_RULE,
-                AchievementCategory.Hits, AchievementGlyph.Hits, "1M", "HITS", HitsTint, 4),
+                AchievementCategory.Practice, AchievementGlyph.Hits, "1M", "HITS", HitsTint, 4),
             ["fc_lv25"] = new AchievementLook("高阶全连", "FULL COMBO · LV.25+", "在 Lv.25 及以上的谱面取得 FULL COMBO",
                 "普通模式手动通关即可，ALL PERFECT 同样算数；段位中的曲目不计",
-                AchievementCategory.Charts, AchievementGlyph.FullCombo, "FC", "LV25+", FullComboTint, 2),
+                AchievementCategory.Technique, AchievementGlyph.FullCombo, "FC", "LV25+", FullComboTint, 2),
             ["fc_lv28_10"] = new AchievementLook("十面全连", "10 × FULL COMBO · LV.28+", "在 10 张 Lv.28 及以上的谱面取得 FULL COMBO",
                 "按谱面计数，同一张谱反复全连只算一张；ALL PERFECT 同样算数",
-                AchievementCategory.Charts, AchievementGlyph.FullCombo, "FC", "×10", FullComboDeepTint, 3),
+                AchievementCategory.Technique, AchievementGlyph.FullCombo, "FC", "×10", FullComboDeepTint, 3),
             ["first_ap"] = new AchievementLook("完美无缺", "ALL PERFECT", "首次取得 ALL PERFECT",
                 "普通模式手动通关，每一个判定都是 Perfect",
-                AchievementCategory.Charts, AchievementGlyph.AllPerfect, "AP", string.Empty, AllPerfectTint, 2),
+                AchievementCategory.Technique, AchievementGlyph.AllPerfect, "AP", string.Empty, AllPerfectTint, 2),
             ["first_dan_pass"] = new AchievementLook("初获段位", "DAN CLEAR", "首次通过段位挑战",
                 "打完段位的全部曲目时仍有生命即为通过，任何段位都算",
-                AchievementCategory.Dan, AchievementGlyph.Dan, string.Empty, string.Empty, DanTint)
+                AchievementCategory.Course, AchievementGlyph.Dan, string.Empty, string.Empty, DanTint)
         };
 
         /// <summary>The copy of <paramref name="id"/>; from <paramref name="progress"/>'s metric when the id is new.</summary>
         internal static AchievementLook For(string id, AchievementProgress progress = null)
         {
             if (id != null && _known.TryGetValue(id, out AchievementLook look)) return look;
-            var goal = AchievementGoals.Find(id);
+            AchievementGoal goal = AchievementGoals.Find(id);
             if (goal != null)
             {
-                var category = CategoryOf(goal.Metric);
-                var glyph = category == AchievementCategory.Hits ? AchievementGlyph.Hits :
-                    category == AchievementCategory.Dan ? AchievementGlyph.Dan : AchievementGlyph.Trophy;
-                var tint = category == AchievementCategory.Hits ? HitsTint :
-                    category == AchievementCategory.Dan ? DanTint : FullComboTint;
-                return new AchievementLook(goal.Title, goal.Id, goal.Description, string.Empty, category, glyph,
-                    goal.Series, string.Empty, tint, goal.MedalFrameTier, goal.MedalName, goal.MedalGrade);
+                return AchievementSeriesCopy.For(goal) ?? new AchievementLook(goal.Title, goal.Id, goal.Description, string.Empty,
+                    CategoryOf(goal.Category), AchievementGlyph.Trophy, string.Empty, string.Empty, FullComboTint, goal.MedalFrameTier,
+                    goal.MedalName, goal.MedalGrade);
             }
+
             return progress != null ? FromMetric(progress) : new AchievementLook("新成就", "ACHIEVEMENT", "达成了一项新目标", string.Empty,
                 AchievementCategory.All, AchievementGlyph.Trophy, string.Empty, string.Empty, FullComboTint);
         }
 
         internal static AchievementLook For(AchievementProgress progress) => For(progress?.Id, progress);
 
-        internal static AchievementCategory CategoryOf(AchievementMetric metric)
+        internal static AchievementCategory CategoryOf(AchievementCategoryGroup group)
         {
-            switch (metric)
+            switch (group)
             {
-                case AchievementMetric.ManualHits: return AchievementCategory.Hits;
-                case AchievementMetric.DanPass:
-                case AchievementMetric.PassedCourses:
-                case AchievementMetric.PerfectRateCourses:
-                case AchievementMetric.Coda: return AchievementCategory.Dan;
-                default: return AchievementCategory.Charts;
+                case AchievementCategoryGroup.Practice: return AchievementCategory.Practice;
+                case AchievementCategoryGroup.Technique: return AchievementCategory.Technique;
+                case AchievementCategoryGroup.Consistency: return AchievementCategory.Consistency;
+                case AchievementCategoryGroup.Course: return AchievementCategory.Course;
+                case AchievementCategoryGroup.Special: return AchievementCategory.Special;
+                default: return AchievementCategory.All;
             }
         }
 
@@ -197,8 +208,34 @@ namespace OpenSekai.App.UI
         /// <summary>Where the count stands, e.g. "6,240 / 10,000" or "3 / 10 张".</summary>
         internal static string Count(AchievementProgress progress)
         {
-            string unit = progress.Metric == AchievementMetric.FullComboCharts ? " 张" : string.Empty;
-            return Number(Math.Min(progress.Current, progress.Target)) + " / " + Number(progress.Target) + unit;
+            return Number(Math.Min(progress.Current, progress.Target)) + " / " + Number(progress.Target) + Unit(progress.Metric);
+        }
+
+        /// <summary>What the count is in, after it; empty when the goal's own line says it.</summary>
+        private static string Unit(AchievementMetric metric)
+        {
+            switch (metric)
+            {
+                case AchievementMetric.FullComboCharts:
+                case AchievementMetric.AllPerfect:
+                case AchievementMetric.ClearedCharts:
+                case AchievementMetric.PerfectHoldCharts:
+                case AchievementMetric.DailySetlist:
+                case AchievementMetric.RepairedCharts: return " 张";
+                case AchievementMetric.LongEnoughClears:
+                case AchievementMetric.PerfectRateClears:
+                case AchievementMetric.NearMissClears:
+                case AchievementMetric.DistinctComboStreak:
+                case AchievementMetric.RisingLevels:
+                case AchievementMetric.Prism: return " 局";
+                case AchievementMetric.PracticeDays:
+                case AchievementMetric.ReviewDays: return " 天";
+                case AchievementMetric.ChartRetries:
+                case AchievementMetric.PassedCourses:
+                case AchievementMetric.PerfectRateCourses:
+                case AchievementMetric.Encore: return " 次";
+                default: return string.Empty;
+            }
         }
 
         /// <summary>What the player has piled up beyond the goal, e.g. "累计 12,480 键"; null when nothing more to say.</summary>
@@ -237,25 +274,25 @@ namespace OpenSekai.App.UI
             {
                 case AchievementMetric.ManualHits:
                     return new AchievementLook("累计击打 " + target, target + " HITS", "累计击打 " + target + " 个音符",
-                        "Perfect、Great、Good、Bad 都算；Miss 和自动游玩不计", AchievementCategory.Hits, AchievementGlyph.Hits,
+                        "Perfect、Great、Good、Bad 都算；Miss 和自动游玩不计", AchievementCategory.Practice, AchievementGlyph.Hits,
                         Short(progress.Target), "HITS", HitsTint);
                 case AchievementMetric.FullComboCharts:
                     return new AchievementLook(target + " 张全连", target + " × FULL COMBO",
                         "在 " + target + " 张" + level + "谱面取得 FULL COMBO", "按谱面计数，同一张谱只算一张",
-                        AchievementCategory.Charts, AchievementGlyph.FullCombo, "FC",
+                        AchievementCategory.Technique, AchievementGlyph.FullCombo, "FC",
                         progress.Target > 1 ? "×" + target : progress.MinimumLevel > 0 ? "LV" + progress.MinimumLevel + "+" : string.Empty,
                         FullComboTint);
                 case AchievementMetric.AllPerfect:
                     return new AchievementLook("ALL PERFECT", "ALL PERFECT", "取得 ALL PERFECT", "普通模式手动通关，每一个判定都是 Perfect",
-                        AchievementCategory.Charts, AchievementGlyph.AllPerfect, "AP", string.Empty, AllPerfectTint);
+                        AchievementCategory.Technique, AchievementGlyph.AllPerfect, "AP", string.Empty, AllPerfectTint);
                 default:
                     return new AchievementLook("段位通关", "DAN CLEAR", "通过段位挑战", "打完段位的全部曲目时仍有生命即为通过",
-                        AchievementCategory.Dan, AchievementGlyph.Dan, string.Empty, string.Empty, DanTint);
+                        AchievementCategory.Course, AchievementGlyph.Dan, string.Empty, string.Empty, DanTint);
             }
         }
 
         /// <summary>10000 → 10K, 2500 → 2.5K, 900 → 900, 2000000 → 2M.</summary>
-        private static string Short(long value)
+        internal static string Short(long value)
         {
             if (value < 1000) return value.ToString(CultureInfo.InvariantCulture);
             bool millions = value >= 1000000;

@@ -144,7 +144,7 @@ namespace OpenSekai.App.UI
                     else comingSoon?.Invoke("段位");
                 },
                 available: openDan != null, status: openDan != null ? "开始挑战" : null);
-            _achievements = new HomeFeatureCard(Slot(1, 2).Rect, "AchievementsCard", "ACHIEVEMENTS", "成就", "累计击打 · 谱面达成 · 段位通关",
+            _achievements = new HomeFeatureCard(Slot(1, 2).Rect, "AchievementsCard", "ACHIEVEMENTS", "成就", "练习 · 技巧 · 段位 · 特殊奖牌",
                 HomeTheme.Colors.Gold, root => new HomeMedalArt(root),
                 () =>
                 {

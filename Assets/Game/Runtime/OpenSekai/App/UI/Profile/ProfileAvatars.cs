@@ -9,7 +9,7 @@ namespace OpenSekai.App.UI
     /// <summary>
     /// The built-in avatars. The profile stores only the stable id; this table turns it into a
     /// drawing: a disc in the avatar's color with one emblem in the middle, built from the
-    /// library's shapes so no image ships with it. Ids are never renamed or reused. An id this
+    /// library's shapes or drawn by <see cref="AvatarArt"/>, so no image ships with it. Ids are never renamed or reused. An id this
     /// table does not know (a newer version's, or one from a backup) is kept as it is and drawn as
     /// the default. Some are given by achievements (<see cref="PlayerProfileStore.OwnsAvatar"/>).
     /// </summary>
@@ -29,7 +29,10 @@ namespace OpenSekai.App.UI
             Orbit,
             Beat,
             Crest,
-            Sparkle
+            Sparkle,
+
+            /// <summary>One of <see cref="AvatarArt"/>'s, by the avatar's id.</summary>
+            Art
         }
 
         internal readonly struct Avatar
@@ -64,7 +67,22 @@ namespace OpenSekai.App.UI
             new Avatar("play", new Color32(123, 216, 143, 255), Emblem.Icon, LibraryIcon.Play),
             new Avatar("beat", new Color32(110, 200, 255, 255), Emblem.Beat),
             new Avatar("crest", new Color32(255, 176, 96, 255), Emblem.Crest),
-            new Avatar("sparkle", new Color32(206, 158, 255, 255), Emblem.Sparkle)
+            new Avatar("sparkle", new Color32(206, 158, 255, 255), Emblem.Sparkle),
+            new Avatar("encore_light", new Color32(255, 170, 128, 255), Emblem.Art),
+            new Avatar("tour_book", new Color32(96, 212, 188, 255), Emblem.Art),
+            new Avatar("practice_moon", new Color32(160, 172, 255, 255), Emblem.Art),
+            new Avatar("long_kite", new Color32(255, 122, 134, 255), Emblem.Art),
+            new Avatar("flawless_atlas", new Color32(206, 150, 255, 255), Emblem.Art),
+            new Avatar("flying_arrow", new Color32(255, 132, 176, 255), Emblem.Art),
+            new Avatar("silk_moon", new Color32(130, 226, 160, 255), Emblem.Art),
+            new Avatar("setlist", new Color32(224, 214, 120, 255), Emblem.Art),
+            new Avatar("baton", new Color32(255, 176, 88, 255), Emblem.Art),
+            new Avatar("chromatic_keys", new Color32(142, 150, 255, 255), Emblem.Art),
+            new Avatar("ranker", new Color32(176, 150, 255, 255), Emblem.Art),
+            new Avatar("aureole", new Color32(255, 220, 140, 255), Emblem.Art),
+            new Avatar("prism_eye", new Color32(132, 150, 255, 255), Emblem.Art),
+            new Avatar("seventh_light", new Color32(236, 92, 120, 255), Emblem.Art),
+            new Avatar("final_barline", new Color32(232, 214, 184, 255), Emblem.Art)
         };
 
         internal static IReadOnlyList<Avatar> All => _all;
@@ -279,6 +297,15 @@ namespace OpenSekai.App.UI
                         gem.rectTransform.localEulerAngles = new Vector3(0f, 0f, 45f);
                     }
 
+                    break;
+                }
+                case ProfileAvatars.Emblem.Art:
+                {
+                    VectorGraphic art = VectorGraphic.Create("Art", _emblem);
+                    LibraryUi.Stretch(art.rectTransform);
+                    string id = avatar.Id;
+                    VectorMesh.Ink ink = SpecialMedalView.ToInk((Color)color);
+                    art.Show((mesh, time) => AvatarArt.Draw(mesh, id, ink), s);
                     break;
                 }
                 default:

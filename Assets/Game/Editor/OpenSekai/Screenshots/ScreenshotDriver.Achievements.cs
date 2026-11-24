@@ -15,7 +15,8 @@ namespace OpenSekai.EditorTools.Screenshots
     {
         private static readonly (AchievementCategory Category, string Name)[] _achievementFilters =
         {
-            (AchievementCategory.Hits, "hits"), (AchievementCategory.Charts, "charts"), (AchievementCategory.Dan, "dan")
+            (AchievementCategory.Practice, "practice"), (AchievementCategory.Technique, "technique"),
+            (AchievementCategory.Consistency, "consistency"), (AchievementCategory.Course, "course"), (AchievementCategory.Special, "special")
         };
 
         /// <summary>
@@ -208,7 +209,7 @@ namespace OpenSekai.EditorTools.Screenshots
     /// a failed run for about 12,000 hits in all (万键之路 unlocked, the next level under way), no all
     /// perfect, and a passed two-song 段位 (初获段位 can be unlocked).
     /// </summary>
-    internal static class AchievementSamples
+    internal static partial class AchievementSamples
     {
         internal static PlayerProfileStore Build(string root)
         {
@@ -258,12 +259,13 @@ namespace OpenSekai.EditorTools.Screenshots
             return store;
         }
 
-        private static CustomMusicScorePlayHistoryRecord Record(string id, string title, int level, PlayResultKind kind, bool fullCombo, DateTime when)
+        private static CustomMusicScorePlayHistoryRecord Record(string id, string title, int level, PlayResultKind kind, bool fullCombo, DateTime when,
+            string difficulty = "master", bool perfect = false)
         {
             int notes = 640 + level * 24;
             bool failed = kind == PlayResultKind.Failed;
             int played = failed ? notes / 3 : notes;
-            int greats = fullCombo ? 18 : 40;
+            int greats = perfect ? 0 : fullCombo ? 18 : 40;
             int misses = fullCombo ? 0 : failed ? 60 : 7;
             return new CustomMusicScorePlayHistoryRecord
             {
@@ -271,13 +273,13 @@ namespace OpenSekai.EditorTools.Screenshots
                 RecordId = id,
                 ScoreKey = "sample-achievement-" + title.ToLowerInvariant().Replace(' ', '-'),
                 Title = title,
-                Difficulty = "master",
+                Difficulty = difficulty,
                 PlayLevel = level,
                 PlayedAtUtc = when.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture),
                 EndReason = kind,
                 FormulaVersion = RankingRules.FORMULA_VERSION,
                 MaximumScore = RankingRules.MAXIMUM_SCORE,
-                TotalScore = fullCombo ? 991200 : failed ? 402000 : 951000,
+                TotalScore = perfect ? RankingRules.MAXIMUM_SCORE : fullCombo ? 991200 : failed ? 402000 : 951000,
                 Life = failed ? 0 : 640,
                 TotalComboCount = notes,
                 MaxCombo = fullCombo ? notes : played / 2,
@@ -285,6 +287,7 @@ namespace OpenSekai.EditorTools.Screenshots
                 GreatCount = greats,
                 MissCount = misses,
                 IsFullCombo = fullCombo,
+                IsAllPerfect = perfect,
                 LivePlayMode = "Free"
             };
         }
