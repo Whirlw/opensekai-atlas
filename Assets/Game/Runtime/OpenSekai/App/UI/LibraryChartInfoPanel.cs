@@ -11,20 +11,20 @@ using UnityEngine.UI;
 namespace OpenSekai.App.UI
 {
     /// <summary>
-    /// A chart's 详情 card shows its Ranked status above the copyable source links.
+    /// A chart's 详情 card shows its Ranked status below the copyable source links.
     /// </summary>
     internal sealed class LibraryChartInfoPanel : IDisposable
     {
         internal const string RANKED_BANNER = "-Ranked-";
         internal const string UNRANKED_BANNER = "-Unranked-";
 
+        private const string REFRESH_LABEL = "刷新Ranked状态";
         private const float CARD_WIDTH = 1120f;
-        private const float CARD_HEIGHT = 660f;
         private const float COPY_WIDTH = 136f;
         private const float FOOTER_HEIGHT = 56f;
         private const float BANNER_HEIGHT = 116f;
-        private const float STATUS_HEIGHT = 56f;
-        private const float LINKS_GAP = 14f;
+        private const float MIN_STATUS_HEIGHT = 56f;
+        private const float GAP = 14f;
         private const float RULES_WIDTH = 196f;
         private const float REFRESH_WIDTH = 196f;
         private const float BANNER_FONT_SIZE = 80f;
@@ -35,6 +35,7 @@ namespace OpenSekai.App.UI
         private readonly Func<SongPackageItem, UniTask<RankCheck>> _checkRank;
         private readonly HashSet<string> _refreshing = new(StringComparer.Ordinal);
         private readonly LibraryModal _modal;
+        private readonly RectTransform _links;
         private readonly ScrollRect _scroll;
         private readonly RectTransform _content;
         private readonly LinkRow _first;
@@ -59,14 +60,13 @@ namespace OpenSekai.App.UI
             _checkRank = checkRank;
             RectTransform root = LibraryUi.CreateRect("LibraryChartInfo", parent);
             LibraryUi.Stretch(root);
-            _modal = new LibraryModal(root, new Vector2(CARD_WIDTH, CARD_HEIGHT), "谱面详情", Hide, withSubtitle: true);
+            _modal = new LibraryModal(root, new Vector2(CARD_WIDTH, 0f), "谱面详情", Hide, withSubtitle: true);
             _modal.Subtitle.richText = false;
             RectTransform body = _modal.Body;
 
             // The banner: a band that fades out toward both sides, edged by two hairlines, the
             // verdict large in the middle.
             _banner = LibraryUi.CreateRect("Banner", body);
-            LibraryWidgets.TopStrip(_banner, 0f, 0f, 0f, BANNER_HEIGHT);
             _bannerGroup = _banner.gameObject.AddComponent<CanvasGroup>();
             _bannerGroup.blocksRaycasts = false;
             _glow = LibraryUi.CreateImage("Glow", _banner, Color.clear);
@@ -89,22 +89,20 @@ namespace OpenSekai.App.UI
             _bannerText.overflowMode = TextOverflowModes.Overflow;
             LibraryUi.Stretch(_bannerText.rectTransform);
 
-            RectTransform status = LibraryUi.CreateRect("RankStatus", body);
-            LibraryWidgets.TopStrip(status, 0f, 0f, BANNER_HEIGHT, STATUS_HEIGHT);
-            _note = PackWidgets.UserLabel("Note", status, string.Empty, LibraryTheme.FontSize.BODY, LibraryTheme.Colors.TextMuted);
-            _refresh = LibraryWidgets.PillButton(
-                "RefreshRank", status, "刷新 Ranked", () => RefreshRankAsync().Forget(), REFRESH_WIDTH, STATUS_HEIGHT,
-                LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, 21f);
-            Vector2 right = new Vector2(1f, 0.5f);
-            LibraryWidgets.Place((RectTransform)_refresh.transform, right, right, Vector2.zero,
-                new Vector2(REFRESH_WIDTH, STATUS_HEIGHT));
-            _refreshLabel = _refresh.GetComponentInChildren<TextMeshProUGUI>();
+            _note = PackWidgets.UserLabel("Note", body, string.Empty, LibraryTheme.FontSize.BODY, LibraryTheme.Colors.TextMuted);
+            _note.textWrappingMode = TextWrappingModes.Normal;
 
-            RectTransform links = LibraryUi.CreateRect("Links", body);
-            LibraryWidgets.Inset(links, 0f, FOOTER_HEIGHT + LINKS_GAP, 0f, BANNER_HEIGHT + STATUS_HEIGHT + LINKS_GAP);
-            _content = PackWidgets.Scroll(links, out _scroll);
+            _links = LibraryUi.CreateRect("Links", body);
+            _content = PackWidgets.Scroll(_links, out _scroll);
             _first = new LinkRow(_content, "FirstLink", OnCopied);
             _second = new LinkRow(_content, "SecondLink", OnCopied);
+
+            _refresh = LibraryWidgets.PillButton(
+                "RefreshRank", body, REFRESH_LABEL, () => RefreshRankAsync().Forget(), REFRESH_WIDTH, FOOTER_HEIGHT,
+                LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, 21f);
+            LibraryWidgets.Place((RectTransform)_refresh.transform, Vector2.right, Vector2.right,
+                new Vector2(-RULES_WIDTH - GAP, 0f), new Vector2(REFRESH_WIDTH, FOOTER_HEIGHT));
+            _refreshLabel = _refresh.GetComponentInChildren<TextMeshProUGUI>();
 
             Button rules = LibraryWidgets.PillButton(
                 "Rules", body, "Ranked 规则", OpenRules, RULES_WIDTH, FOOTER_HEIGHT,
@@ -125,23 +123,19 @@ namespace OpenSekai.App.UI
             Item = item;
             _modal.Subtitle.text = LibraryModel.BuildTitle(item);
             SongPackageSource source = item?.Source;
-            float top;
             if (source == null)
             {
-                top = _first.Bind("来源", "未记录下载地址", 0f, copyable: false);
+                _first.Bind("来源", "未记录下载地址", copyable: false);
                 _second.Hide();
             }
             else
             {
                 bool web = source.IsWeb;
-                top = _first.Bind(web ? "来源网页" : "Sonolus 服务器", source.PageUrl ?? source.SonolusServerUrl, 0f);
-                top = _second.Bind(web ? "下载直链" : "Sonolus 关卡", source.DownloadUrl ?? source.SonolusLevelUrl, top);
+                _first.Bind(web ? "来源网页" : "Sonolus 服务器", source.PageUrl ?? source.SonolusServerUrl);
+                _second.Bind(web ? "下载直链" : "Sonolus 关卡", source.DownloadUrl ?? source.SonolusLevelUrl);
             }
 
-            _content.sizeDelta = new Vector2(0f, top);
-            bool canRefresh = item?.RankKey != null;
-            _refresh.gameObject.SetActive(canRefresh);
-            LibraryWidgets.Inset(_note.rectTransform, 6f, 0f, canRefresh ? REFRESH_WIDTH + 16f : 6f, 0f);
+            _refresh.gameObject.SetActive(item?.RankKey != null);
             UpdateRefreshButton();
             _shownRanked = null;
             ShowRank(null);
@@ -151,8 +145,33 @@ namespace OpenSekai.App.UI
             _content.anchoredPosition = Vector2.zero;
         }
 
+        private float LayoutBody(Vector2 available)
+        {
+            const float NOTE_PADDING = 6f;
+            float noteWidth = Mathf.Max(1f, available.x - 2f * NOTE_PADDING);
+            float statusHeight = Mathf.Max(MIN_STATUS_HEIGHT, Mathf.Ceil(_note.GetPreferredValues(_note.text, noteWidth, 0f).y));
+            float statusBottom = FOOTER_HEIGHT + GAP;
+            float bannerBottom = statusBottom + statusHeight;
+            float linksBottom = bannerBottom + BANNER_HEIGHT + GAP;
+            LibraryWidgets.BottomStrip(_note.rectTransform, NOTE_PADDING, NOTE_PADDING, statusBottom, statusHeight);
+            LibraryWidgets.BottomStrip(_banner, 0f, 0f, bannerBottom, BANNER_HEIGHT);
+            LibraryWidgets.Inset(_links, 0f, Mathf.Min(linksBottom, available.y), 0f, 0f);
+
+            float firstBottom = _first.Layout(0f, available.x);
+            float contentHeight = _second.Layout(firstBottom, available.x);
+            _content.sizeDelta = new Vector2(0f, contentHeight);
+            _scroll.vertical = contentHeight > Mathf.Max(0f, available.y - linksBottom);
+            if (!_scroll.vertical)
+            {
+                _scroll.StopMovement();
+                _content.anchoredPosition = Vector2.zero;
+            }
+
+            return linksBottom + contentHeight;
+        }
+
         /// <summary>Draws the banner from the chart's local record.</summary>
-        /// <param name="problem">Why a refresh of that record just failed; the card then says it shows the old one.</param>
+        /// <param name="problem">The refresh failure message, if any.</param>
         internal void ShowRank(string problem)
         {
             bool ranked = LibraryModel.IsRanked(Item);
@@ -176,7 +195,8 @@ namespace OpenSekai.App.UI
             _topLine.color = _bottomLine.color = WithAlpha(tint, ranked ? (byte)210 : (byte)40);
             _glow.enabled = ranked;
             _glow.color = WithAlpha(tint, 64);
-            _note.text = problem != null ? problem + "，沿用本地记录" : RankNote(Item);
+            _note.text = problem ?? RankNote(Item);
+            _modal.FitToBody(LayoutBody);
 
             if (_shownRanked == ranked)
             {
@@ -264,7 +284,7 @@ namespace OpenSekai.App.UI
         {
             bool refreshing = Item?.RankKey != null && _refreshing.Contains(Item.RankKey);
             _refresh.interactable = !refreshing;
-            _refreshLabel.text = refreshing ? "刷新中…" : "刷新 Ranked";
+            _refreshLabel.text = refreshing ? "刷新中…" : REFRESH_LABEL;
             _refreshLabel.color = refreshing ? LibraryTheme.Colors.TextMuted : LibraryTheme.Colors.TextPrimary;
         }
 
@@ -287,6 +307,11 @@ namespace OpenSekai.App.UI
 
         private sealed class LinkRow
         {
+            private const float ROW_GAP = 22f;
+            private const float URL_LEFT = 6f;
+            private const float URL_TOP = 38f;
+            private const float COPY_GUTTER = COPY_WIDTH + 24f;
+
             private readonly RectTransform _root;
             private readonly TextMeshProUGUI _caption;
             private readonly TextMeshProUGUI _url;
@@ -297,7 +322,7 @@ namespace OpenSekai.App.UI
             {
                 _root = LibraryUi.CreateRect(name, content);
                 _caption = LibraryWidgets.Label("Caption", _root, string.Empty, 24f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
-                LibraryWidgets.TopStrip(_caption.rectTransform, 6f, COPY_WIDTH + 24f, 4f, 32f);
+                LibraryWidgets.TopStrip(_caption.rectTransform, URL_LEFT, COPY_GUTTER, 4f, 32f);
                 _url = LibraryWidgets.Label("Url", _root, string.Empty, 20f, LibraryTheme.Colors.TextSecondary,
                     alignment: TextAlignmentOptions.TopLeft);
                 _url.richText = false;
@@ -315,13 +340,12 @@ namespace OpenSekai.App.UI
                 _copyLabel = copy.GetComponentInChildren<TextMeshProUGUI>();
             }
 
-            /// <returns>The top of the next row.</returns>
-            internal float Bind(string caption, string url, float top, bool copyable = true)
+            internal void Bind(string caption, string url, bool copyable = true)
             {
                 if (string.IsNullOrEmpty(url))
                 {
                     Hide();
-                    return top;
+                    return;
                 }
                 _root.gameObject.SetActive(true);
                 _caption.text = caption;
@@ -329,11 +353,21 @@ namespace OpenSekai.App.UI
                 _url.color = copyable ? LibraryTheme.Colors.TextSecondary : LibraryTheme.Colors.TextMuted;
                 _copy.SetActive(copyable);
                 ResetCopy();
-                float width = CARD_WIDTH - LibraryTheme.Layout.MODAL_PADDING * 2f - COPY_WIDTH - 42f;
-                float height = Mathf.Max(32f, _url.GetPreferredValues(url, width, 0f).y + 4f);
-                LibraryWidgets.TopStrip(_root, 0f, 0f, top, height + 60f);
-                LibraryWidgets.TopStrip(_url.rectTransform, 6f, COPY_WIDTH + 24f, 38f, height);
-                return top + height + 60f;
+            }
+
+            /// <returns>The bottom of the last visible row.</returns>
+            internal float Layout(float top, float width)
+            {
+                if (!_root.gameObject.activeSelf) return top;
+                if (top > 0f) top += ROW_GAP;
+
+                float right = _copy.activeSelf ? COPY_GUTTER : URL_LEFT;
+                float textWidth = Mathf.Max(1f, width - URL_LEFT - right);
+                float textHeight = Mathf.Max(32f, Mathf.Ceil(_url.GetPreferredValues(_url.text, textWidth, 0f).y) + 4f);
+                float height = URL_TOP + textHeight;
+                LibraryWidgets.TopStrip(_root, 0f, 0f, top, height);
+                LibraryWidgets.TopStrip(_url.rectTransform, URL_LEFT, right, URL_TOP, textHeight);
+                return top + height;
             }
 
             internal void Hide() => _root.gameObject.SetActive(false);

@@ -820,10 +820,85 @@ namespace OpenSekai.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator ChartDetailsFitsTheLinksUntilTheyExceedTheAvailableHeight()
+        {
+            var canvas = new GameObject("Chart details canvas", typeof(RectTransform), typeof(Canvas));
+            canvas.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
+            var page = new GameObject("Page", typeof(RectTransform)).GetComponent<RectTransform>();
+            page.SetParent(canvas.transform, false);
+            page.sizeDelta = new Vector2(1200f, 900f);
+            try
+            {
+                const string PAGE = "https://charts.test/song/1";
+                const string DOWNLOAD = "https://charts.test/download?token=";
+                var package = new SongPackage("chart-links", new SongPackageManifest { title = "Chart links" });
+                SongPackageItem WithLinks(string sourcePage, string download) =>
+                    new SongPackageItem(package, default, true, true, true, false, default, "original",
+                        SongPackageSource.FromWeb(sourcePage, download));
+
+                using var panel = new LibraryChartInfoPanel(page, _ => UniTask.FromResult(RankCheck.Known));
+                panel.Show(WithLinks(null, DOWNLOAD + "short"));
+                yield return null;
+                Canvas.ForceUpdateCanvases();
+
+                var card = (RectTransform)page.Find("LibraryChartInfo/Frame/Card");
+                var scroll = card.GetComponentInChildren<ScrollRect>();
+                var lastRow = (RectTransform)scroll.content.Find("SecondLink");
+                float shortCardHeight = card.rect.height;
+                Assert.That(scroll.vertical, Is.False);
+                Assert.That(scroll.viewport.rect.height, Is.EqualTo(scroll.content.rect.height));
+                Assert.That(scroll.content.rect.height, Is.EqualTo(lastRow.rect.height));
+                Assert.That(lastRow.offsetMax.y, Is.Zero);
+
+                panel.Show(WithLinks(PAGE, DOWNLOAD + new string('W', 180)));
+                yield return null;
+                Canvas.ForceUpdateCanvases();
+                Assert.That(card.rect.height, Is.GreaterThan(shortCardHeight));
+                Assert.That(scroll.vertical, Is.False);
+                Assert.That(scroll.viewport.rect.height, Is.EqualTo(scroll.content.rect.height));
+                Assert.That(scroll.content.rect.height, Is.EqualTo(-lastRow.offsetMin.y));
+                Assert.That(lastRow.Find("Url").GetComponent<TextMeshProUGUI>().textInfo.lineCount, Is.GreaterThan(1));
+
+                panel.Show(WithLinks(PAGE, DOWNLOAD + new string('W', 2400)));
+                yield return null;
+                Canvas.ForceUpdateCanvases();
+                float fullWidthContentHeight = scroll.content.rect.height;
+                Assert.That(card.rect.height, Is.EqualTo(((RectTransform)card.parent).rect.height));
+                Assert.That(scroll.vertical, Is.True);
+                Assert.That(scroll.viewport.rect.height, Is.LessThan(fullWidthContentHeight));
+                scroll.verticalNormalizedPosition = 0f;
+                Assert.That(scroll.content.anchoredPosition.y, Is.GreaterThan(0f));
+
+                page.sizeDelta = new Vector2(800f, 720f);
+                yield return null;
+                Canvas.ForceUpdateCanvases();
+                Assert.That(card.rect.height, Is.EqualTo(((RectTransform)card.parent).rect.height));
+                Assert.That(scroll.content.rect.height, Is.GreaterThan(fullWidthContentHeight));
+                Assert.That(scroll.vertical, Is.True);
+
+                panel.Show(WithLinks(null, DOWNLOAD + "short"));
+                yield return null;
+                Canvas.ForceUpdateCanvases();
+                Assert.That(card.rect.height, Is.EqualTo(shortCardHeight));
+                Assert.That(scroll.vertical, Is.False);
+                Assert.That(scroll.viewport.rect.height, Is.EqualTo(scroll.content.rect.height));
+                Assert.That(scroll.content.anchoredPosition, Is.EqualTo(Vector2.zero));
+            }
+            finally
+            {
+                Object.Destroy(canvas);
+            }
+        }
+
+        [UnityTest]
         public IEnumerator ChartDetailsRefreshesOnlyOnRequestAndKeepsTheLocalVerdictOnFailure()
         {
             var canvas = new GameObject("Ranked details canvas", typeof(RectTransform), typeof(Canvas));
             canvas.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
+            // A fixed page: the Game view may be too short for the whole card.
+            var page = new GameObject("Page", typeof(RectTransform)).GetComponent<RectTransform>();
+            page.SetParent(canvas.transform, false);
+            page.sizeDelta = new Vector2(1200f, 900f);
             string id = (1L + (uint)System.Guid.NewGuid().GetHashCode()).ToString();
             var source = SongPackageSource.FromWeb("https://opensekai.com/chart?id=" + id, "https://opensekai.com/download?id=" + id);
             var package = new SongPackage("ranked-details", new SongPackageManifest { title = "Ranked details", playLevel = 30 });
@@ -835,7 +910,7 @@ namespace OpenSekai.Tests.PlayMode
                 ChartRankCache.Save(key, ChartRankCache.FromWeb("quality", 30, item.ScoreKey));
                 var request = new UniTaskCompletionSource<RankCheck>();
                 int checks = 0;
-                using var panel = new LibraryChartInfoPanel(canvas.transform, actual =>
+                using var panel = new LibraryChartInfoPanel(page, actual =>
                 {
                     Assert.That(actual, Is.SameAs(item));
                     checks++;
@@ -847,11 +922,20 @@ namespace OpenSekai.Tests.PlayMode
 
                 var labels = canvas.GetComponentsInChildren<TextMeshProUGUI>();
                 var verdict = labels.Single(label => label.name == "Verdict");
+                var note = labels.Single(label => label.name == "Note");
                 var banner = (RectTransform)verdict.transform.parent;
                 var links = (RectTransform)banner.parent.Find("Links");
                 var refresh = canvas.GetComponentsInChildren<Button>().Single(button => button.name == "RefreshRank");
-                Assert.That(banner.offsetMax.y, Is.Zero);
-                Assert.That(links.offsetMax.y, Is.LessThan(banner.offsetMin.y));
+                var refreshRect = (RectTransform)refresh.transform;
+                var rulesRect = (RectTransform)banner.parent.Find("Rules");
+                Assert.That(links.offsetMin.y, Is.GreaterThan(banner.offsetMax.y));
+                Assert.That(note.rectTransform.offsetMax.y, Is.EqualTo(banner.offsetMin.y));
+                Assert.That(refreshRect.offsetMax.y, Is.LessThan(note.rectTransform.offsetMin.y));
+                Assert.That(refreshRect.offsetMax.x, Is.LessThan(rulesRect.offsetMin.x));
+                Assert.That(refreshRect.offsetMin.y, Is.EqualTo(rulesRect.offsetMin.y));
+                Assert.That(refreshRect.rect.size, Is.EqualTo(new Vector2(196f, 56f)));
+                var refreshLabel = refresh.GetComponentInChildren<TextMeshProUGUI>();
+                Assert.That(refreshLabel.text, Is.EqualTo("刷新Ranked状态"));
                 Assert.That(checks, Is.Zero, "opening details must only read the local verdict");
                 Assert.That(verdict.text, Is.EqualTo(LibraryChartInfoPanel.RANKED_BANNER));
 
@@ -863,7 +947,8 @@ namespace OpenSekai.Tests.PlayMode
                 yield return null;
                 Assert.That(refresh.interactable, Is.True);
                 Assert.That(verdict.text, Is.EqualTo(LibraryChartInfoPanel.RANKED_BANNER));
-                Assert.That(labels.Single(label => label.name == "Note").text, Does.Contain("沿用本地记录"));
+                Assert.That(note.text, Is.EqualTo("连接失败"));
+                Assert.That(refreshLabel.text, Is.EqualTo("刷新Ranked状态"));
 
                 request = new UniTaskCompletionSource<RankCheck>();
                 refresh.onClick.Invoke();

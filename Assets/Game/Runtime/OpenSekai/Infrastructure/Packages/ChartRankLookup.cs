@@ -57,7 +57,7 @@ namespace OpenSekai.Infrastructure.Packages
             return ChartRankCache.Read(key);
         }
 
-        // The library calls this only when the player chooses 检查 or 刷新 Ranked.
+        // The library calls this only when the player chooses 检查 or 刷新Ranked状态.
         internal static UniTask<RankCheck> CheckAsync(SongPackageSource source, SongPackage package, string hash)
         {
             string key = ChartRankCache.Key(source);
