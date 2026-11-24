@@ -67,7 +67,7 @@ namespace OpenSekai.App.UI
     /// <summary>The words around medals.</summary>
     internal static class MedalCopy
     {
-        private static readonly string[] _tiers = { "初阶", "进阶", "高阶", "尊阶", "极阶", "特殊" };
+        private static readonly string[] _tiers = { "初阶", "进阶", "高阶", "星阶", "虹阶", "特殊" };
         private static readonly string[] _slots = { "第一块", "第二块" };
 
         internal static string Tier(int tier) => _tiers[Mathf.Clamp(tier, 0, _tiers.Length - 1)];
@@ -79,7 +79,7 @@ namespace OpenSekai.App.UI
         /// <summary>"段位 · 高阶" under a medal in a list.</summary>
         internal static string Describe(Medal medal) => Kind(medal.Kind) + " · " + Tier(TierOf(medal));
 
-        /// <summary>The medal's own tier; 终乐章's is 特殊, though it wears 极阶's frame.</summary>
+        /// <summary>The medal's own tier; 终乐章's is 特殊, though it wears 虹阶's frame.</summary>
         private static int TierOf(Medal medal) => medal.Kind == MedalKind.Achievement ? medal.Achievement.Goal.MedalTier : medal.Dan.Tier;
 
         /// <summary>The medal's text with its grade, as a toast names it.</summary>

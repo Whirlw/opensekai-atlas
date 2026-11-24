@@ -42,7 +42,7 @@ namespace OpenSekai.App.UI
     /// diamonds) and are recognised by their outline: 皆传's frame is one golden line that rises into
     /// a peak per letter, 真·皆传 is cut like a crystal and carries a crystal per letter, 白昼折光
     /// comes apart into five colors toward its right end, 不落幕的安可 is a ticket with running lights,
-    /// and 终乐章 keeps 极阶's frame round a staff that runs into the final barline.
+    /// and 终乐章 keeps 虹阶's frame round a staff that runs into the final barline.
     ///
     /// Four layers: the face and what moves on it lie under the text, the frame and what runs along it
     /// over it. The moving two are drawn again for each moment; nothing else changes. A plate, a chip

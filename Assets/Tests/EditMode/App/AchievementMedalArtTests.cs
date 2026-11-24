@@ -190,7 +190,7 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(plate.Label.enableVertexGradient, Is.True);
 
             plate.SetLook(MedalLook.Of(AchievementCopy.For("CODA-01")));
-            Assert.That(Image(plate.Root, "Frame").enabled, Is.True, "终乐章 keeps 极阶's frame");
+            Assert.That(Image(plate.Root, "Frame").enabled, Is.True, "终乐章 keeps 虹阶's frame");
             Assert.That(Image(plate.Root, "GradeLine").enabled, Is.False, "the final barline divides its grade");
 
             plate.SetLook(MedalLook.Of(AchievementCopy.For("SET-05")));

@@ -502,7 +502,7 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>
-        /// 终乐章: 极阶's frame round a staff on black. Four voices come out of the band at four heights
+        /// 终乐章: 虹阶's frame round a staff on black. Four voices come out of the band at four heights
         /// and run into the final barline before the grade; notes travel along them, and the barline
         /// answers as they arrive.
         /// </summary>

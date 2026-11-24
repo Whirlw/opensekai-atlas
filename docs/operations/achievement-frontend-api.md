@@ -49,7 +49,7 @@ if (receipt.NewlyClaimed)
 | --- | --- |
 | `goal.GivesMedal` | 为真时渲染奖牌预览。 |
 | `goal.MedalName`、`MedalGrade`、`MedalDisplayName` | 分别是牌名主体、右侧等级字形、带等级的完整文字。横牌绘制前两项，纯文本提示直接用完整文字。 |
-| `goal.MedalTier`、`MedalFrameTier`、`MedalFaceId` | 第一项是主表阶位，第二项是实际边框。初至极阶为 0–4，成就特殊阶为 5。用稳定的 FaceId 查找牌面资源。CODA-01 的阶位为特殊，边框为 4。两组皆传的希腊牌和三个 ω 牌分别有独立 FaceId。 |
+| `goal.MedalTier`、`MedalFrameTier`、`MedalFaceId` | 第一项是主表阶位，第二项是实际边框。初至虹阶为 0–4，成就特殊阶为 5。用稳定的 FaceId 查找牌面资源。CODA-01 的阶位为特殊，边框为 4。两组皆传的希腊牌和三个 ω 牌分别有独立 FaceId。 |
 | `goal.AvatarId`、`goal.AvatarName` | 稳定资源键与展示名，无头像时为空。沿用 beat、crest、sparkle。其余资源键可从目录枚举。 |
 | `store.ReadMedals()` | 已拥有的段位牌和成就牌。成就牌的 `medal.Achievement.Goal` 提供同一份显示定义，旧收藏的 `IsLegacy` 为真。 |
 | `store.WearMedal(slot, key)`、`store.RemoveMedal(key)` | 指定槽位 0 或 1，传入收藏中的 `Medal.Key`。传 null 清空指定槽位。另有 `WearMedal(key)` 自动选槽并返回下标。 |

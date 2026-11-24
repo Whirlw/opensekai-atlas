@@ -7,8 +7,8 @@ namespace OpenSekai.App.UI
     /// The frames of the medal plates and the 段位 plates' ground pattern. 初阶 is the plain plate:
     /// one rounded outline. Every tier above it keeps what the one below has and adds to it, in the
     /// same flat strokes and diamonds: 进阶 a fine inner line and a diamond on each end; 高阶
-    /// brackets round the corners and a diamond in the middle of the long sides; 尊阶 a whole outer
-    /// frame with corner diamonds, and rows of diamonds out of the ends; 极阶 the ALL PERFECT prism
+    /// brackets round the corners and a diamond in the middle of the long sides; 星阶 a whole outer
+    /// frame with corner diamonds, and rows of diamonds out of the ends; 虹阶 the ALL PERFECT prism
     /// on every stroke, a second outer line, stars in place of the middle diamonds and a soft glow.
     /// The plate is the same in every tier and leaves room in its rectangle for the largest frame,
     /// so a lower tier looks smaller as a whole. A medal drawn small has a simpler frame.
@@ -38,13 +38,13 @@ namespace OpenSekai.App.UI
         internal const float PATTERN_TILE_X = 0.64f;
         internal const float PATTERN_TILE_Y = 0.5f;
 
-        /// <summary>极阶 strokes run through the ALL PERFECT prism instead of the medal's color.</summary>
+        /// <summary>虹阶 strokes run through the ALL PERFECT prism instead of the medal's color.</summary>
         internal static bool IsPrismatic(int tier) => Clamp(tier) == MedalTiers.TOP;
 
         /// <summary>
         /// Draws the frame of a tier above 初阶 for a plate <paramref name="aspect"/> times as wide as high, at
         /// <paramref name="density"/> pixels per plate height. The strokes are white, to be tinted
-        /// (极阶's carry the prism); <paramref name="lights"/> holds the hearts of the diamonds,
+        /// (虹阶's carry the prism); <paramref name="lights"/> holds the hearts of the diamonds,
         /// always white.
         /// </summary>
         internal static void RenderFrame(int tier, float aspect, float density, out byte[] strokes, out byte[] lights,
@@ -52,9 +52,9 @@ namespace OpenSekai.App.UI
             Render(tier, aspect, density, false, out strokes, out lights, out width, out height);
 
         /// <summary>
-        /// Draws the frame of a medal drawn small, white to be tinted (极阶's carries the prism). It
+        /// Draws the frame of a medal drawn small, white to be tinted (虹阶's carries the prism). It
         /// keeps what still reads at that size: 进阶 a thicker outline and a diamond on each end;
-        /// 高阶 a diamond in the middle of the long sides; 尊阶 an outer line; 极阶 the prism, stars
+        /// 高阶 a diamond in the middle of the long sides; 星阶 an outer line; 虹阶 the prism, stars
         /// and the glow.
         /// </summary>
         internal static byte[] RenderCompactFrame(int tier, float aspect, float density, out int width, out int height)
