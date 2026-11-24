@@ -80,6 +80,8 @@ TMP 会在运行时把 kerning、连字和字形按需烘进资产文件本身�
 
 实测（2026-11-12）：`SourceHanSansSC-Medium SDF_Dynamic.asset` 跑过一次后从 6,516 字节涨到约 967 KB——2,316 条 kerning 对、113 条连字替换，共 35,222 行 YAML，而字形表仍是空的；`SourceHanSansSC-Medium SDF_Base.asset` 同时丢掉一条连字记录。提交这种缓存会让仓库和安装包都变大，diff 无法审阅、无法合并，换台机器内容还不一样。
 
+TMP 自带的 `LiberationSans SDF - Fallback.asset` 也受同一清单保护。历史提交 `63ffa63e` 的字符表只增加了右箭头 `→`（U+2192），一张动态生成的图集就让文件从 9,748 字节涨到 534,540 字节。成就说明和结算分数都会显示这个字符。回归测试在真实后备字体上烘入右箭头并保存，检查磁盘哈希和丢弃缓存后的字符表。
+
 ### 省略号为什么要预烘
 
 TMP 的 `TextOverflowModes.Ellipsis` 只做 `HasCharacter('…')`，不会自己去加字形。曲库页的字体是运行时解析的，真机实测：给运行时 `CreateFontAsset` 出来的资产调 `TryAddCharacters("…")` **只写进了 character 行、没写进 glyph**（日志 `has=True chars=1`），0.8 秒后 TMP 仍把 20 个标签降级成截断。所以改成让资产自带这个字形：

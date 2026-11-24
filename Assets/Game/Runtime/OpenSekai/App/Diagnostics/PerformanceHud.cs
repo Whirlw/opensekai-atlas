@@ -33,8 +33,7 @@ namespace OpenSekai.Diagnostics
             {
                 PlayerPrefs.SetInt(ENABLED_PREF_KEY, value ? 1 : 0);
                 PlayerPrefs.Save();
-                if (_instance == null) Bootstrap();
-                else _instance.RefreshVisibility();
+                if (_instance != null) _instance.RefreshVisibility();
             }
         }
 
@@ -69,15 +68,23 @@ namespace OpenSekai.Diagnostics
             DontDestroyOnLoad(host);
             host.SetActive(false);
             _instance = host.AddComponent<PerformanceHud>();
-            LiveTrace.EnabledChanged += _instance.OnTestModeChanged;
             _instance.RefreshVisibility();
+            // Awake/OnDestroy must run even when neither diagnostic switch has ever been enabled.
+            // Only the component is disabled, so the hidden HUD still owns its subscription.
+            host.SetActive(true);
         }
 
-        private void RefreshVisibility() => gameObject.SetActive(LiveTrace.Enabled && Enabled);
+        private void Awake() => LiveTrace.EnabledChanged += OnTestModeChanged;
+
+        private void RefreshVisibility() => enabled = LiveTrace.Enabled && Enabled;
 
         private void OnTestModeChanged(bool enabled) => RefreshVisibility();
 
-        private void OnDestroy() => LiveTrace.EnabledChanged -= OnTestModeChanged;
+        private void OnDestroy()
+        {
+            LiveTrace.EnabledChanged -= OnTestModeChanged;
+            if (_instance == this) _instance = null;
+        }
 
         private void OnEnable()
         {

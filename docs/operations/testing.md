@@ -11,6 +11,12 @@
 
 ## 怎么跑
 
+编辑器已打开时，可以在项目根目录用 PowerShell 7.3 或以上版本运行以下命令。验证器比对游戏、编辑器与测试程序集实际加载的模块 ID、匹配的 PDB，以及其中每份项目 C# 源码的 SHA-256。它也核对新增和删除的脚本。`-Repair` 在发现过期源码时定向导入并复验；省略它就只检查。验证通过才运行测试，已同步的工程会保留当前脚本域，适合截图退出 Play 模式后复测。
+
+```powershell
+pwsh -NoProfile -File Tools/verify-editor-scripts.ps1 -Repair && unity command test run --mode editor --timeout 560 --project-path .
+```
+
 Unity 命令行（`unity test`）会另起一个编辑器实例，**与本机已打开的编辑器互斥**，所以日常用工程内的桥接菜单：
 
 1. 编辑器里 `OpenSekai/Dev/Run EditMode Tests`（或 `Run PlayMode Tests`）。
@@ -80,7 +86,7 @@ EditMode：
 - `Live/FlickEndBehaviourTests`：划键尾的窗口、延迟结算、方向与速度门槛。其中的独立尾（摩擦划）几条按 `tail-classes.md` §3 的 R1/R2/R3 改写：尾自己写 Miss（条只驱动与读取）、尾判定不结束条、条结束把没判的中间点判 Perfect。**动到 `DetachStandaloneTail`、`ForceTerminate` 对尾的判定、或 `SettleLeftoverAsPerfect` 时必须跑它**。
 - `App/PlayServiceDependencyTests`：开局路径依赖全部换成假端口，覆盖四种前置拒绝（曲库未就绪、加载界面未就绪、请求目标不是曲库、当前不在曲库场景）、推入加载界面失败后的回滚与锁释放、开局成功后的持锁与场景退场释放、以及连续两局；并断言发布的 `FreeLiveBootData.DeckData.UserInfo.DeckId` 取自端口而不是单例。**动开局流程或 `PlayService` 的前置判断时必须跑它**。
 - `LiveContextTests`：`LiveContext.FromRetainedBoot()` 把 `UserDataManager`、`EntryPoint.PlayMode`、`PlaySessionContext` 的五个事实逐项抄进上下文；缺 Boot 时其余字段仍完整，null 会话字段降级成空串，两次读取互不影响。用例在 `[SetUp]/[TearDown]` 里存旧值并写回，不会污染同一进程里的其它用例。
-- `Resources/GeneratedAssetSaveGuardTests`：`Tools/generated-assets.txt` 里的文件受保存拦截保护。四个字体资产都在清单里；保存请求会把它们剔除，`AllowSaves()` 范围内不剔除，范围结束后恢复；`Medium SDF_Dynamic` 关掉了 Clear Dynamic Data on Build；往真实资产里烘入新字符后 `SaveAssets`，文件哈希不变，`DiscardInMemoryChanges` 之后内存里的字符表回到提交时的状态，省略号还在。**动到 `GeneratedAssetSaveGuard`、字体资产或清单时必须跑它**。
+- `Resources/GeneratedAssetSaveGuardTests` 覆盖四个思源字体和 TMP 的 LiberationSans 后备字体，包括有意重烘的保存范围、预烘省略号的构建设置，以及真实字体写入新字后的磁盘哈希和内存还原。**动到 `GeneratedAssetSaveGuard`、字体资产或清单时必须跑它**。
 - `Resources/ResourceCatalogTests`：`ResourceCatalog` 里每条固定 `Resources` 路径都能加载、类型正确、回退只在主路径失败时生效；另含两条字体相关断言——`Fonts/SourceHanSansSC-Medium` 能被 TMP 建成字面、以及 `LibraryUi.EnsureRequiredGlyphs` 能对三条来源（bundled / OS / 项目资产）补上省略号字形。项目 SDF 资产在用例里是**克隆**后操作的，避免编辑器回写被跟踪的 `.asset`。
 
 PlayMode：
@@ -157,7 +163,7 @@ $rsp    = (Get-ChildItem 'Library\Bee\artifacts' -Recurse -Filter 'OpenSekai.Gam
 - 没有 `Editor\Data\Tools\Roslyn\csc.exe`，只有 `DotNetSdk\...\Roslyn\bincore\csc.dll`，要经 `dotnet.exe` 起。
 - `.rsp` 是这次编译实际用的文件列表，**新增的 `.cs` 不在里面**时它会报 `CS0246` 找不到类型：先在 Unity 里 `AssetDatabase.Refresh(ForceSynchronousImport)` + `CompilationPipeline.RequestScriptCompilation()`，等 rsp 重新生成再跑。
 - 一条命令就能拿到全部错误（含 `CS0051` 这类可访问性不一致），比在编辑器里翻 Console 快得多。
-- 这条路径**只验证语法与类型**：它不重新生成 `Library/ScriptAssemblies`。要通过还要回到 Unity 确认 `OpenSekai.Game.dll` 的时间戳变新，再跑测试。
+- 这条路径只验证语法与类型。运行测试前，用本页开头的验证命令核对编辑器实际加载的代码。DLL 的修改时间和 `script recompile` 的 `up_to_date` 都无法证明某份源码已被编入。
 
 ## 「整首打歌」的自动化
 

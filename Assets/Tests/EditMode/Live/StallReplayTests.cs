@@ -5,7 +5,6 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using OpenSekai.Shared.Diagnostics;
 using Sekai;
@@ -203,7 +202,6 @@ namespace OpenSekai.Tests.EditMode.Live
             bool mix = LatencyCapture.MixProbeEnabled;
             string marker = "stall-replay-" + Guid.NewGuid().ToString("N");
             string logs = Path.Combine(Application.persistentDataPath, "logs");
-            Task export = Task.CompletedTask;
             var recorder = new GameObject("stall-replay-recorder").AddComponent<JudgmentRecorder>();
             try
             {
@@ -252,23 +250,35 @@ namespace OpenSekai.Tests.EditMode.Live
             {
                 LiveUtility.FrameDeltaTimeOverride = float.NaN;
                 UnityEngine.Object.DestroyImmediate(recorder.gameObject);
-                export = LatencyCapture.End("stall_replay");
-                export.GetAwaiter().GetResult();
-                LatencyCapture.MixProbeEnabled = mix;
-                LatencyCapture.Enabled = captureEnabled;
-                LiveTrace.Enabled = testMode;
-                LiveTrace.Categories = categories;
-                if (Directory.Exists(logs))
+                try
                 {
-                    foreach (string file in Directory.GetFiles(logs, "latency-*.tsv"))
+                    LatencyCapture.End("stall_replay").GetAwaiter().GetResult();
+                }
+                finally
+                {
+                    LatencyCapture.MixProbeEnabled = mix;
+                    LatencyCapture.Enabled = captureEnabled;
+                    LiveTrace.Categories = categories;
+                    try
                     {
-                        if (File.ReadLines(file).FirstOrDefault()?.Contains($" chart={marker} ") == true)
-                            File.Delete(file);
+                        LiveTrace.Enabled = testMode;
+                    }
+                    finally
+                    {
+                        DeleteReplayExports(logs, marker);
                     }
                 }
             }
 
             return recorder.Outcome;
+        }
+
+        private static void DeleteReplayExports(string logs, string marker)
+        {
+            if (!Directory.Exists(logs)) return;
+            foreach (string file in Directory.GetFiles(logs, "latency-*.tsv"))
+                if (File.ReadLines(file).FirstOrDefault()?.Contains($" chart={marker} ") == true)
+                    File.Delete(file);
         }
 
         private static string Compare(Outcome baseline, Outcome run, out int resultChanges, out int errorChanges)

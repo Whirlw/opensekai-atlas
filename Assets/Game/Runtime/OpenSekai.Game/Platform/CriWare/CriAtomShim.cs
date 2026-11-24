@@ -31,8 +31,7 @@ namespace CriWare
 
 		public static void InitializeLibrary()
 		{
-			_initialized = true;
-			CriAtomAudioRuntime.EnsureInitialized();
+			_initialized = CriAtomAudioRuntime.EnsureInitialized();
 		}
 
 		public static void FinalizeLibrary()
@@ -537,7 +536,7 @@ namespace CriWare
 
 		internal CriAtomExPlayback Start(int requestSequence, bool loop = false)
 		{
-			if (_acb == null || string.IsNullOrEmpty(_cueName))
+			if (!Application.isPlaying || _acb == null || string.IsNullOrEmpty(_cueName))
 			{
 				_currentPlayback = CriAtomExPlayback.Invalid;
 				return _currentPlayback;
@@ -711,10 +710,15 @@ namespace CriWare
 		private static AudioListener[] _sceneListeners = Array.Empty<AudioListener>();
 		private static uint _nextPlaybackId = 1;
 
-		public static void EnsureInitialized()
+		public static bool EnsureInitialized()
 		{
+			if (!Application.isPlaying) return false;
 			if (_root == null)
 			{
+				// A new play session may share the old domain, but never its playback objects.
+				_playbacks.Clear();
+				_freeStates.Clear();
+				_freeProbeStates.Clear();
 				_root = new GameObject("CriAtomAudioRuntime");
 				UnityEngine.Object.DontDestroyOnLoad(_root);
 				_root.AddComponent<CriAtomAudioListenerGuard>();
@@ -726,6 +730,7 @@ namespace CriWare
 			}
 
 			UpdateAudioListener();
+			return true;
 		}
 
 		public static CriAtomExPlayback Play(AudioClip clip, float _volume, float startTimeSeconds)
@@ -741,12 +746,11 @@ namespace CriWare
 		public static CriAtomExPlayback Play(CriAtomExAcb.CueAudioClip[] clips, float _volume, float startTimeSeconds,
 			int requestSequence = 0, bool loop = false)
 		{
-			if (clips == null || clips.Length == 0)
+			if (clips == null || clips.Length == 0 || !EnsureInitialized())
 			{
 				return CriAtomExPlayback.Invalid;
 			}
 
-			EnsureInitialized();
 			uint id = AllocatePlaybackId();
 			int clipCount = 0;
 			for (int i = 0; i < clips.Length; i++)

@@ -37,3 +37,4 @@
 1d726943495112d3a771f2aa971be981fda8329ee756591f355f8cc3cb56000e  8617917  Assets/Graphics/Resources/font/SourceHanSansSC-Bold SDF_Dynamic.asset
 6ec9983d3d0363b51322e4fa6acd728a51fce0ee69bbe729ecbb0ddfafb6a87b  6651  Assets/Graphics/Resources/font/SourceHanSansSC-Medium SDF_Base.asset
 67748c10eb607e9df41b203cac6bb587db861769d461e9f8e49e9f202940e3ef  8616899  Assets/Graphics/Resources/font/SourceHanSansSC-Medium SDF_Dynamic.asset
+f53586850a70c4f308e7e71b99b63881a49f38de4bd40f4edb7fe7ae6ecf8a52  9748  Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Fallback.asset
