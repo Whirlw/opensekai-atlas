@@ -308,11 +308,13 @@ namespace OpenSekai.App.UI
 
         private void BuildRankingScore(RectTransform section)
         {
+            const float BADGE_LEFT = -10f;
             const float TEXT_LEFT = BADGE_SIZE + 28f;
             TextMeshProUGUI caption = Caption(section, "Caption", "RANKING SCORE");
-            TopLeft(caption.rectTransform, 0f, 26f, 300f, 26f);
+            caption.alignment = TextAlignmentOptions.Center;
+            TopLeft(caption.rectTransform, BADGE_LEFT, 26f, BADGE_SIZE, 26f);
             _badge = new RankingBadge(section, BADGE_SIZE, animate: true);
-            TopLeft(_badge.Root, -10f, 62f, BADGE_SIZE, BADGE_SIZE);
+            TopLeft(_badge.Root, BADGE_LEFT, 62f, BADGE_SIZE, BADGE_SIZE);
 
             _tierName = LibraryWidgets.Label("TierName", section, string.Empty, 26f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
             TopLeft(_tierName.rectTransform, TEXT_LEFT, 58f, 160f, 36f);
