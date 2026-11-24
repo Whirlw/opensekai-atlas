@@ -58,7 +58,9 @@
 | `-AchievementsPage` | 拍成就页（用临时目录里的样例档案，不读也不改本机档案）：首页第二页的成就卡、奖牌未点亮一帧与有成就可解锁时的四帧（0.11 s 到 2.4 s）、卡片放大一帧、全部成就与练习曲库 / 单谱技巧 / 稳定发挥 / 段位组曲 / 特殊奖牌五个筛选、单项与双项奖励弹窗、高阶全连解锁动画的七帧（0.2 s 到 1.9 s）和解锁后的列表、点击解锁初获段位的过程与排序后的列表、左滑查看前一等级、一到八级的星星对照、单项提示卡、三项合并的提示卡、提示卡落下中途（0.3 s）、返回后停在第二页，最后是新档案的成就页 | 关 |
 | `-MedalsPage` | 拍成就的奖牌与头像（样例档案在临时目录）：28 个系列的普通奖牌、11 块特殊奖牌在各尺寸下的四个动画时刻、18 个成就头像，再到首页、个人信息、选择奖牌、编辑资料、成就页和奖励弹窗里各拍一遍。动画由 `MedalClock.Held` 定格 | 关 |
 | `-RankingTiers` | 拍 Ranking Score 的七个评级（用临时目录里的空档案，不读也不改本机档案）：首页第二页的个人信息卡在每个评级下各一张（星空的待机动画停在同一时刻），再拍一张各评级徽章在 200 / 148 / 118 / 58 单位下的对照，每档升级动画并排的三帧（展开到 0.12、0.3、0.55），以及个人页徽章打开的「评级徽章」弹窗（样例分数 8,405，落在银河）静止一张、寰宇重播蓄力和展开各一张。拍摄前会等所有徽章在后台画完 | 关 |
-| `-Server` | 拍服务器页面：卡片放大两帧、列表、添加卡，再连 UntitledCharts 拍首页栏目、高级搜索、全部谱面、一首谱面的简介 / 社区 / 排行榜，最后返回首页（需要联网；含第三方封面，只作本地检查，不要提交或发布） | 关 |
+| `-Sample` | 先装入示例曲库（虚构曲目、自绘封面、成绩、服务器和资源包），后面的截图都显示它；顺带拍一张空的服务器列表。只能在[示例工作区](#示例工作区)里用 | 关 |
+| `-StyleGuide` | 在示例工作区拍打歌以外的全部界面，给[界面美术风格指南](../reference/ui-style-guide.md)配图。等于 `-Sample` 加上曲库各状态和所有界面类开关 | 关 |
+| `-Server` | 拍服务器页面：卡片放大两帧、列表、添加卡，再连 UntitledCharts 拍首页栏目、高级搜索、全部谱面、一首谱面的简介 / 社区 / 排行榜，最后返回首页（需要联网；含第三方封面，只作本地检查，不要提交或发布）。在示例工作区里改连编辑器内的示例服务器，不联网，画面可以公开 | 关 |
 | `-Intro` | 开屏动画开始后的秒数，可多个；`-Intro default` 拍覆盖整段开屏的 8 帧（约 4.4 s 交接到首页） | — |
 | `-All` | 一次拍全：曲库、设置、结算（`default`）、信息页 `0.3,0.8,1.5,2.7`、打歌 `30,60`（需 `-Package`；已给的时间不会被覆盖） | 关 |
 | `-Width` / `-Height` | 分辨率。真机是 `2800x1272`，另一常用尺寸 `1750x795` | `2800` / `1272` |
@@ -138,7 +140,7 @@
 
 | 字段 | 适用 | 含义 | 默认 |
 | --- | --- | --- | --- |
-| `kind` | 全部 | `live` / `info` / `finish` / `library` / `settings` / `settings-trace` / `result` / `actions` / `loading` / `return` / `home` / `intro` / `handoff` / `about` / `achievements` / `medals` / `ranking` | — |
+| `kind` | 全部 | `live` / `info` / `finish` / `library` / `settings` / `settings-trace` / `result` / `actions` / `loading` / `return` / `home` / `intro` / `handoff` / `about` / `achievements` / `medals` / `ranking` / `sample` / `library-states` | — |
 | `name` | 全部 | 文件名前缀 | 等于 `kind` |
 | `package` | live / info / finish | 曲包（匹配规则同 `-Package`） | — |
 | `difficulty` | live / info / finish | 难度覆盖 | 曲包自带 |
@@ -222,6 +224,41 @@ unity command script eval_file --project-path . --result-only -- --file Temp/Ope
 
 `start.cs` 内容就是上面那行 `ScreenshotSession.Start(...)`，前面加 `return`。
 
+## 示例工作区
+
+截图会进仓库、文档或宣传片时，画面里不能有第三方的封面和谱面。示例工作区是工程的一份副本，有自己的数据目录，里面只有为本项目虚构的内容：
+
+| 内容 | 来源 |
+| --- | --- |
+| 22 首虚构曲目和封面 | `SampleLibrary.cs` 里的曲目表；封面在 `ArtSource/SampleCovers/`，由 `ArtSource/Tools/SampleCovers/render_covers.js` 画出 |
+| 音频 | 装入时生成的两音长音，只为有时长和试听，录片时自行换音乐 |
+| 成绩、Ranked 状态、资料 | 装入时生成；已有游玩记录时不再添加 |
+| 示例服务器 | `SampleServer.cs`。对 `https://charts.example.com` 的请求由本地文件应答，不发到网络 |
+| 资源包 | 四组生成的打击音 |
+
+做一个并打开：
+
+```powershell
+powershell -File Tools/new-sample-workspace.ps1
+```
+
+脚本用 `git worktree` 建副本（默认在工程旁边，名为 `<工程>-sample`），把公司名改成 `OpenSekaiSample`，并复制包缓存。第一次在 Unity 里打开要导入几分钟。副本只含已提交的文件。之后在副本目录里运行：
+
+```powershell
+powershell -File Tools/capture-screens.ps1 -StyleGuide -OutDir TestResults/screenshots/style-guide
+```
+
+这一条拍 181 张（2800x1272），要几分钟。录宣传片时先用 `-Sample` 装入内容，再在编辑器里播放 `Library.unity` 录制。
+
+保护措施：
+
+- 示例内容只在公司名为 `OpenSekaiSample` 的工程里安装，示例服务器也只在那里应答。在普通工程里用 `-Sample` 会报错，不会写入你的曲库。
+- `Tools/export-style-guide-images.ps1` 只接受装过示例曲库的那次输出。
+- 副本里的 `ProjectSettings.asset` 是有意改过的，不要从副本提交它。
+- 加曲目时封面要自己画，不临摹任何已有的封面、标志或角色。
+
+用完先关掉它的编辑器，再 `git worktree remove --force <路径>`；数据在 `%USERPROFILE%/AppData/LocalLow/OpenSekaiSample`，可以整个删除。
+
 ## 示例
 
 改了音符皮肤，看真机分辨率下中段和高潮各一帧：
@@ -286,6 +323,7 @@ powershell -File Tools/capture-screens.ps1 -All -Package DEINOS -Difficulty expe
 
 ## 相关文档
 
+- [界面美术风格指南](../reference/ui-style-guide.md)
 - [编辑器菜单](editor-menus.md)
 - [音符皮肤制作](note-skin-authoring.md)
 - [材质包导入](material-pack-import.md)

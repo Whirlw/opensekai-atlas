@@ -75,6 +75,7 @@
 - [builtin-symbols.md](reference/builtin-symbols.md)
 - [字体](reference/fonts.md)
 - [术语表](reference/glossary.md)
+- [界面美术风格指南](reference/ui-style-guide.md)
 - [判定窗口](reference/judging.md)
 - [设置项](reference/live-settings.md)
 
