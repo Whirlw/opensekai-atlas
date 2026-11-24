@@ -24,7 +24,7 @@ namespace OpenSekai.App.UI
         private readonly LibraryModal _modal;
         private readonly TMP_InputField _text;
         private readonly RectTransform _preview;
-        private readonly DanPlate _plate;
+        private readonly MedalPlate _plate;
         private readonly TextMeshProUGUI _shape;
         private readonly DanJudgeTable _damage;
         private readonly RectTransform _songContent;
@@ -70,7 +70,7 @@ namespace OpenSekai.App.UI
             _preview = LibraryUi.CreateRect("Content", right);
             LibraryUi.Stretch(_preview);
             float width = CARD_WIDTH - LibraryTheme.Layout.MODAL_PADDING * 2f - LEFT_WIDTH - 48f;
-            _plate = new DanPlate(_preview, "Plate", new Vector2(width - 40f, 92f), glow: true);
+            _plate = new MedalPlate(_preview, "Plate", new Vector2(width - 40f, 92f), glow: true);
             LibraryWidgets.Place(_plate.Root, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -4f), _plate.Root.sizeDelta);
             _shape = LibraryWidgets.Label("Shape", _preview, string.Empty, 20f, LibraryTheme.Colors.TextSecondary);
             LibraryWidgets.TopStrip(_shape.rectTransform, 4f, 0f, 116f, 30f);
@@ -170,7 +170,7 @@ namespace OpenSekai.App.UI
             _problem.gameObject.SetActive(false);
             _preview.gameObject.SetActive(true);
             DanDefinition definition = _definition;
-            _plate.SetStyle(definition.Label, definition.Emblem, definition.Color);
+            _plate.SetLook(MedalLook.Of(definition));
             _plate.SetLocked(false);
             _shape.text = DanCopy.Shape(definition);
             for (int i = 0; i < 5; i++) _damage.Set(i, DanCopy.Cost(DanCopy.Damage(definition.Damage, i)));

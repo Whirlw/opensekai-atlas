@@ -17,6 +17,8 @@ namespace OpenSekai.Tests.EditMode.Packages
         private readonly string[] _songs = { "https://charts.test/levels/a", "sonolus://charts.test/levels/b" };
         private DanDefinition Definition(string label = "双曲") =>
             new(100, new DanDamage(0, 1, 3, 6, 10), _songs, label, "diamond", "#526dc8");
+        private DanDefinition Graded() =>
+            new(100, new DanDamage(0, 1, 3, 6, 10), _songs, "双曲", "diamond", "#526dc8", MedalTiers.TOP, "ω");
 
         [Test]
         public void ShareRoundTripCanonicalizesWrappersButPreservesSongOrderAndStyle()
@@ -29,6 +31,21 @@ namespace OpenSekai.Tests.EditMode.Packages
             var reversed = new DanDefinition(100, dan.Damage, dan.Songs.Reverse(), dan.Label, dan.Emblem, dan.Color);
             Assert.That(reversed.Id, Is.Not.EqualTo(dan.Id));
             Assert.That(Definition("新牌面").Id, Is.Not.EqualTo(dan.Id));
+        }
+
+        [Test]
+        public void TierAndGradeTravelInTheShareTextAndAPlainPlateKeepsItsOldText()
+        {
+            var graded = DanDefinition.Parse(Graded().ShareText);
+            Assert.That(graded.Tier, Is.EqualTo(MedalTiers.TOP));
+            Assert.That(graded.Grade, Is.EqualTo("ω"));
+            Assert.That(graded.Id, Is.EqualTo(Graded().Id));
+            var plain = Definition();
+            Assert.That(graded.Id, Is.Not.EqualTo(plain.Id));
+            Assert.That(plain.ShareText, Does.EndWith("\"style\":{\"label\":\"双曲\",\"emblem\":\"diamond\",\"color\":\"#526DC8\"}}"));
+            var spelledOut = DanDefinition.Parse(plain.ShareText.Replace("\"#526DC8\"", "\"#526DC8\",\"tier\":0"));
+            Assert.That(spelledOut.Id, Is.EqualTo(plain.Id));
+            Assert.That(spelledOut.Grade, Is.Null);
         }
 
         [Test]
@@ -68,9 +85,13 @@ namespace OpenSekai.Tests.EditMode.Packages
         [TestCase("songs", "[\"https://charts.test/levels/a\"]")]
         [TestCase("songs[1]", "\"https://charts.test\"")]
         [TestCase("style.color", "\"green\"")]
+        [TestCase("style.tier", "5")]
+        [TestCase("style.tier", "\"2\"")]
+        [TestCase("style.grade", "\"XI\"")]
+        [TestCase("style.grade", "3")]
         public void InvalidShareIdentifiesField(string field, string replacement)
         {
-            var share = Definition().ShareText.Split('\n');
+            var share = Graded().ShareText.Split('\n');
             var body = JObject.Parse(share[1]);
             body.SelectToken(field).Replace(JToken.Parse(replacement));
             var error = Assert.Throws<DanFieldException>(() => DanDefinition.Parse(share[0] + "\n" + body));
@@ -98,12 +119,12 @@ namespace OpenSekai.Tests.EditMode.Packages
                 var stopped = store.ReadDanHistory().Single();
                 Assert.That(stopped.Outcome, Is.EqualTo(DanOutcome.Interrupted));
                 Assert.That(stopped.SongNumber(dan), Is.EqualTo(2));
-                Assert.Throws<InvalidOperationException>(() => store.EquipDan(dan.Id));
+                Assert.Throws<InvalidOperationException>(() => store.WearMedal(Medal.DanKey(dan.Id)));
                 var last = first.Append(dan, Row(stopped.RemainingLife(dan), life, life == 0 ? PlayResultKind.Failed : PlayResultKind.Completed));
                 Assert.That(store.SaveDanAttempt(dan, last), Is.EqualTo(life > 0));
                 Assert.That(store.SaveDanAttempt(dan, last), Is.False);
                 Assert.That(last.Outcome, Is.EqualTo(outcome));
-                if (life > 0) store.EquipDan(dan.Id);
+                if (life > 0) store.WearMedal(Medal.DanKey(dan.Id));
                 store.SaveDanDefinition(Definition("改版"));
                 Assert.That(store.ReadDanDefinitions().Count, Is.EqualTo(2));
                 Assert.That(store.ReadDanHistory().Count, Is.EqualTo(1));
@@ -119,7 +140,7 @@ namespace OpenSekai.Tests.EditMode.Packages
                 Assert.That(preview.DanDefinitionsAdded, Is.EqualTo(2));
                 Assert.That(preview.DanAttemptsAdded, Is.EqualTo(1));
                 var profile = restored.ConfirmImport(preview.Id);
-                Assert.That(profile.EquippedDanId, Is.EqualTo(life > 0 ? dan.Id : null));
+                Assert.That(profile.WornMedals[0]?.Dan.Id, Is.EqualTo(life > 0 ? dan.Id : null));
                 Assert.That(restored.ReadDanHistory().Single().Songs[1].Score.life, Is.EqualTo(life));
                 var repeat = restored.PreviewBackup(backup);
                 Assert.That(repeat.DanDuplicates, Is.EqualTo(3));
@@ -146,7 +167,7 @@ namespace OpenSekai.Tests.EditMode.Packages
                     .Append(dan, Row(63, 1, PlayResultKind.Completed));
                 store.SaveDanAttempt(dan, passed);
                 store.SaveDanDefinition(other);
-                store.EquipDan(dan.Id);
+                store.WearMedal(Medal.DanKey(dan.Id));
                 store.ActiveDanId = dan.Id;
                 Assert.Throws<InvalidOperationException>(() => store.DeleteDanDefinition(dan.Id));
                 store.DeleteDanDefinition(other.Id);
@@ -156,13 +177,13 @@ namespace OpenSekai.Tests.EditMode.Packages
                 Directory.CreateDirectory(path);
                 var error = Assert.Catch(() => store.DeleteDanDefinition(dan.Id));
                 Assert.That(error, Is.InstanceOf<IOException>().Or.InstanceOf<UnauthorizedAccessException>());
-                Assert.That(store.Read().EquippedDanId, Is.EqualTo(dan.Id));
+                Assert.That(store.Read().IsWorn(Medal.DanKey(dan.Id)), Is.True);
                 Directory.Delete(path);
                 File.Move(path + ".original", path);
                 var reopened = new PlayerProfileStore(root);
                 Assert.That(reopened.ReadDanHistory().Single().Id, Is.EqualTo(passed.Id));
                 Assert.That(reopened.ReadDanDefinitions().Single().Id, Is.EqualTo(dan.Id));
-                Assert.That(reopened.Read().EquippedDanId, Is.EqualTo(dan.Id));
+                Assert.That(reopened.Read().IsWorn(Medal.DanKey(dan.Id)), Is.True);
             }
             finally { Directory.Delete(root, true); }
         }

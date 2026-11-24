@@ -43,7 +43,7 @@ namespace OpenSekai.App.UI
         private readonly TextMeshProUGUI _listEmpty;
 
         private readonly RectTransform _detail;
-        private readonly DanPlate _plate;
+        private readonly MedalPlate _plate;
         private readonly RectTransform _statusTag;
         private readonly RectTransform _wornTag;
         private readonly TextMeshProUGUI[] _statValues = new TextMeshProUGUI[3];
@@ -62,7 +62,7 @@ namespace OpenSekai.App.UI
         private readonly Button _equip;
 
         private readonly RectTransform _welcome;
-        private readonly DanPlate _welcomePlate;
+        private readonly MedalPlate _welcomePlate;
         private readonly TextMeshProUGUI _welcomeText;
         private MotionHandle _enter;
 
@@ -122,7 +122,7 @@ namespace OpenSekai.App.UI
             _detail = LibraryUi.CreateRect("Detail", detailCard);
             LibraryUi.Stretch(_detail);
 
-            _plate = new DanPlate(_detail, "Plate", new Vector2(520f, 112f), glow: true);
+            _plate = new MedalPlate(_detail, "Plate", new Vector2(520f, 112f), glow: true);
             LibraryWidgets.Place(_plate.Root, topLeft, topLeft, new Vector2(PAD, -PAD), _plate.Root.sizeDelta);
             float statsLeft = PAD + 520f + 40f;
             _statusTag = PackWidgets.Tag(_detail, "尚未挑战", LibraryTheme.Colors.TextMuted, out _, 34f);
@@ -174,9 +174,9 @@ namespace OpenSekai.App.UI
             // ---------------------------------------------------------------- no course yet
             _welcome = LibraryUi.CreateRect("Welcome", detailCard);
             LibraryUi.Stretch(_welcome);
-            _welcomePlate = new DanPlate(_welcome, "Plate", new Vector2(560f, 116f), glow: true);
+            _welcomePlate = new MedalPlate(_welcome, "Plate", new Vector2(560f, 116f), glow: true);
             LibraryWidgets.Place(_welcomePlate.Root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 150f), _welcomePlate.Root.sizeDelta);
-            _welcomePlate.SetStyle("你的第一块段位牌", "star", "#B692FF");
+            _welcomePlate.SetLook(new MedalLook("你的第一块段位牌", "star", null, DanStyles.ParseColor("#B692FF"), 0, null, true));
             _welcomeText = PackWidgets.Paragraph(_welcome, "Text",
                 "段位把几首谱面连成一场挑战：生命只在开始时给一次，每个判定按扣血表扣除，打完最后一首仍有生命就算通过。\n"
                 + "挑选谱面、设定生命与扣血、设计段位牌，再把分享文本发给好友，大家挑战的就是同一个段位。",
@@ -281,7 +281,7 @@ namespace OpenSekai.App.UI
         {
             DanDefinition definition = record.Definition;
             Color32 tint = DanStyles.ParseColor(definition.Color);
-            _plate.SetStyle(definition.Label, definition.Emblem, definition.Color);
+            _plate.SetLook(MedalLook.Of(definition));
             _plate.SetLocked(!record.Earned);
             float statsLeft = PAD + 520f + 40f;
             string status = record.Earned ? "已通过" : record.Attempts.Count > 0 ? "未通过" : "尚未挑战";
@@ -411,7 +411,7 @@ namespace OpenSekai.App.UI
         {
             private readonly Image _background;
             private readonly Image _accent;
-            private readonly DanPlate _plate;
+            private readonly MedalPlate _plate;
             private readonly TextMeshProUGUI _shape;
             private readonly TextMeshProUGUI _status;
             private readonly RectTransform _worn;
@@ -428,8 +428,8 @@ namespace OpenSekai.App.UI
                 PackWidgets.RowButton(Root, () => screen.Select(Record), UiCue.None, Root);
                 _accent = LibraryWidgets.Panel("Accent", Root, 3f, Color.clear);
                 LibraryWidgets.Place(_accent.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(6f, 0f), new Vector2(6f, ROW_HEIGHT - 40f));
-                _plate = new DanPlate(Root, "Plate", new Vector2(270f, 60f), shadow: false);
-                LibraryWidgets.Place(_plate.Root, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(22f, 0f), _plate.Root.sizeDelta);
+                _plate = new MedalPlate(Root, "Plate", new Vector2(258f, 60f), shadow: false);
+                LibraryWidgets.Place(_plate.Root, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(28f, 0f), _plate.Root.sizeDelta);
                 _shape = LibraryWidgets.Label("Shape", Root, string.Empty, 20f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
                 LibraryWidgets.Inset(_shape.rectTransform, 312f, ROW_HEIGHT * 0.5f, 20f, 18f);
                 _shape.alignment = TextAlignmentOptions.BottomLeft;
@@ -447,7 +447,7 @@ namespace OpenSekai.App.UI
             {
                 Record = record;
                 DanDefinition definition = record.Definition;
-                _plate.SetStyle(definition.Label, definition.Emblem, definition.Color);
+                _plate.SetLook(MedalLook.Of(definition));
                 _plate.SetLocked(!record.Earned);
                 _shape.text = DanCopy.Shape(definition);
                 _status.text = DanCopy.Status(record);

@@ -123,7 +123,7 @@ namespace OpenSekai.App.Library
                 var (history, summaries) = IndexHistory(merged);
                 history.DanSource = () => dan;
                 preview.UnlockedAchievementIds = AchievementIndex.NewUnlocks(before, history.ReadAchievements());
-                preview.Result = new PlayerProfileSnapshot(appearance, history.Read(), dan);
+                preview.Result = new PlayerProfileSnapshot(appearance, history.Read(), dan, history.ReadAchievements);
                 cancel.ThrowIfCancellationRequested();
                 preview.Id = id;
                 _previewHistoryLength = bytes;

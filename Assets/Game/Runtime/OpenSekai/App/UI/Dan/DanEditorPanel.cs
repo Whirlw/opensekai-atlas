@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using OpenSekai.App.Library;
 using OpenSekai.App.Playback;
 using OpenSekai.Infrastructure.Packages;
 using OpenSekai.Shared.Playback;
@@ -12,8 +13,8 @@ namespace OpenSekai.App.UI
 {
     /// <summary>
     /// 新建段位 / 编辑段位: the songs in order (a share link each, moved with the arrows), the
-    /// starting life and what each judgment costs, and the plate (its text, emblem and color) with a
-    /// live preview. Nothing is saved until 保存; the definition itself checks every field, and the
+    /// starting life and what each judgment costs, and the plate (its text, emblem, color, tier and
+    /// grade) with a live preview. Nothing is saved until 保存; the definition itself checks every field, and the
     /// field it refuses is outlined with the reason under the form. 粘贴链接 adds every level link
     /// on the clipboard, or loads a whole shared 段位.
     /// </summary>
@@ -26,7 +27,8 @@ namespace OpenSekai.App.UI
         private const float ROW_HEIGHT = 100f;
         private const float ROW_GAP = 10f;
         private const float FIELD_HEIGHT = 60f;
-        private const float TILE = 70f;
+        private const float TILE = 60f;
+        private const float TIER_HEIGHT = 50f;
         private const float SWATCH = 44f;
         private const float BUTTON_WIDTH = 200f;
 
@@ -38,13 +40,16 @@ namespace OpenSekai.App.UI
         private readonly TextMeshProUGUI _songCount;
         private readonly List<SongRow> _rows = new List<SongRow>();
         private readonly List<string> _links = new List<string>();
-        private readonly DanPlate _preview;
+        private readonly MedalPlate _preview;
         private readonly TMP_InputField _label;
         private readonly TMP_InputField _color;
         private readonly TMP_InputField _life;
         private readonly TMP_InputField[] _damage = new TMP_InputField[5];
         private readonly List<(string Id, Image Ring, RectTransform Art)> _emblems = new List<(string, Image, RectTransform)>();
         private readonly List<(string Hex, Image Ring)> _swatches = new List<(string, Image)>();
+        private readonly List<(Image Chip, Image Ring, TextMeshProUGUI Label)> _tiers = new List<(Image, Image, TextMeshProUGUI)>();
+        private readonly TextMeshProUGUI _gradeLabel;
+        private readonly MedalGradePicker _gradePicker;
         private readonly TextMeshProUGUI _message;
         private readonly Button _save;
         private readonly Func<DanDefinition, DanDefinition, bool> _onSave;
@@ -52,6 +57,8 @@ namespace OpenSekai.App.UI
         private DanDefinition _source;
         private string _emblem = DanStyles.DEFAULT_EMBLEM;
         private string _colorHex = DanStyles.DEFAULT_COLOR;
+        private int _tier = MedalTiers.LOWEST;
+        private string _grade;
 
         /// <param name="onSave">Gets the definition being edited (null for a new one) and the new one; true closes the card.</param>
         internal DanEditorPanel(RectTransform layer, Func<DanDefinition, DanDefinition, bool> onSave, Action<string> toast)
@@ -101,10 +108,10 @@ namespace OpenSekai.App.UI
             RectTransform right = LibraryUi.CreateRect("Style", body);
             LibraryWidgets.Inset(right, RIGHT_LEFT, LibraryTheme.Layout.MODAL_BUTTON_HEIGHT + 20f, 0f, 0f);
             float width = CARD_WIDTH - LibraryTheme.Layout.MODAL_PADDING * 2f - RIGHT_LEFT;
-            _preview = new DanPlate(right, "Preview", new Vector2(width - 40f, 96f), glow: true);
+            _preview = new MedalPlate(right, "Preview", new Vector2(width - 40f, 96f), glow: true);
             LibraryWidgets.Place(_preview.Root, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -6f), _preview.Root.sizeDelta);
 
-            float top = 128f;
+            float top = 116f;
             DanWidgets.Caption(right, "段位名（即牌面文字）", 4f, top);
             _label = LibraryWidgets.TextField("Label", right, FIELD_HEIGHT, "例如：三曲耐久", LibraryIcon.Tag, 22f);
             LibraryWidgets.TopStrip((RectTransform)_label.transform, 0f, 0f, top + 28f, FIELD_HEIGHT);
@@ -113,7 +120,7 @@ namespace OpenSekai.App.UI
             _label.onValidateInput = (text, index, character) => char.IsControl(character) ? '\0' : character;
             _label.onValueChanged.AddListener(_ => OnStyleChanged());
 
-            top += 28f + FIELD_HEIGHT + 16f;
+            top += 28f + FIELD_HEIGHT + 12f;
             DanWidgets.Caption(right, "图案", 4f, top);
             RectTransform tiles = LibraryUi.CreateRect("Emblems", right);
             LibraryWidgets.TopStrip(tiles, 0f, 0f, top + 28f, TILE);
@@ -137,7 +144,7 @@ namespace OpenSekai.App.UI
                 _emblems.Add((id, ring, art));
             }
 
-            top += 28f + TILE + 16f;
+            top += 28f + TILE + 12f;
             DanWidgets.Caption(right, "颜色", 4f, top);
             RectTransform swatches = LibraryUi.CreateRect("Swatches", right);
             LibraryWidgets.TopStrip(swatches, 0f, 0f, top + 28f, FIELD_HEIGHT);
@@ -169,7 +176,44 @@ namespace OpenSekai.App.UI
             _color.onValidateInput = (text, index, character) => character == '#' || Uri.IsHexDigit(character) ? char.ToUpperInvariant(character) : '\0';
             _color.onValueChanged.AddListener(OnHexChanged);
 
-            top += 28f + FIELD_HEIGHT + 18f;
+            top += 28f + FIELD_HEIGHT + 10f;
+            const float GRADE_WIDTH = 190f;
+            DanWidgets.Caption(right, "阶位（决定边框）", 4f, top, 260f);
+            DanWidgets.Caption(right, "等级", width - GRADE_WIDTH + 4f, top, GRADE_WIDTH);
+            RectTransform medalRow = LibraryUi.CreateRect("Medal", right);
+            LibraryWidgets.TopStrip(medalRow, 0f, 0f, top + 28f, TIER_HEIGHT);
+            float tierWidth = (width - GRADE_WIDTH - 20f - 8f * MedalTiers.TOP) / (MedalTiers.TOP + 1);
+            for (int i = MedalTiers.LOWEST; i <= MedalTiers.TOP; i++)
+            {
+                int tier = i;
+                Image chip = LibraryWidgets.Panel("Tier" + i, medalRow, 14f, HomeTheme.Colors.Chip);
+                chip.raycastTarget = true;
+                LibraryWidgets.Place(chip.rectTransform, topLeft, topLeft, new Vector2(i * (tierWidth + 8f), 0f), new Vector2(tierWidth, TIER_HEIGHT));
+                Image ring = LibraryWidgets.Shape("Ring", chip.transform, LibraryShapes.Ring(14f, 2.5f), Color.clear);
+                LibraryUi.Stretch(ring.rectTransform);
+                TextMeshProUGUI name = LibraryWidgets.Label("Name", chip.transform, MedalCopy.Tier(i), 19f, LibraryTheme.Colors.TextSecondary,
+                    FontStyles.Bold, TextAlignmentOptions.Center);
+                LibraryUi.Stretch(name.rectTransform);
+                Button button = chip.gameObject.AddComponent<Button>();
+                button.targetGraphic = chip;
+                button.transition = Selectable.Transition.None;
+                button.onClick.AddListener(() => ChooseTier(tier, true));
+                LibraryPressFeedback.Attach(chip.gameObject);
+                _tiers.Add((chip, ring, name));
+            }
+
+            Button grade = LibraryWidgets.PillButton("Grade", medalRow, string.Empty, OpenGradePicker, GRADE_WIDTH, TIER_HEIGHT,
+                LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, sound: UiCue.None);
+            LibraryWidgets.Outline((Image)grade.targetGraphic, TIER_HEIGHT * 0.5f);
+            LibraryWidgets.Place((RectTransform)grade.transform, Vector2.one, Vector2.one, Vector2.zero, new Vector2(GRADE_WIDTH, TIER_HEIGHT));
+            _gradeLabel = LibraryWidgets.Label("Value", grade.transform, string.Empty, 21f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold,
+                TextAlignmentOptions.Center);
+            LibraryWidgets.Inset(_gradeLabel.rectTransform, 20f, 0f, 44f, 0f);
+            Image gradeArrow = LibraryWidgets.Icon(grade.transform, LibraryIcon.ChevronRight, LibraryTheme.Colors.TextMuted, 20f);
+            LibraryWidgets.Place(gradeArrow.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-20f, 0f), new Vector2(20f, 20f));
+            _gradePicker = new MedalGradePicker(layer, picked => ChooseGrade(picked));
+
+            top += 28f + TIER_HEIGHT + 12f;
             DanWidgets.Caption(right, "初始生命与每个判定的扣血", 4f, top);
             RectTransform lifeRow = LibraryUi.CreateRect("Life", right);
             LibraryWidgets.TopStrip(lifeRow, 0f, 0f, top + 28f, FIELD_HEIGHT + 24f);
@@ -231,6 +275,7 @@ namespace OpenSekai.App.UI
         internal void Close()
         {
             _libraryPicker.Close();
+            _gradePicker.Close();
             DeactivateFields();
             _modal.Close();
         }
@@ -238,6 +283,7 @@ namespace OpenSekai.App.UI
         internal void Back()
         {
             if (_libraryPicker.IsOpen) _libraryPicker.Close();
+            else if (_gradePicker.IsOpen) _gradePicker.Close();
             else Close();
         }
 
@@ -245,6 +291,7 @@ namespace OpenSekai.App.UI
         {
             _preview.Dispose();
             _libraryPicker.Dispose();
+            _gradePicker.Dispose();
             _modal.Dispose();
         }
 
@@ -259,6 +306,8 @@ namespace OpenSekai.App.UI
             _life.SetTextWithoutNotify("100");
             int[] costs = { 0, 1, 3, 6, 10 };
             for (int i = 0; i < 5; i++) _damage[i].SetTextWithoutNotify(costs[i].ToString(CultureInfo.InvariantCulture));
+            ChooseTier(MedalTiers.LOWEST, false);
+            ChooseGrade(null);
             ChooseEmblem(DanStyles.DEFAULT_EMBLEM, false);
             ChooseColor(DanStyles.DEFAULT_COLOR, false);
             RebuildRows();
@@ -276,6 +325,8 @@ namespace OpenSekai.App.UI
                 _damage[i].SetTextWithoutNotify(DanCopy.Damage(definition.Damage, i).ToString(CultureInfo.InvariantCulture));
             }
 
+            ChooseTier(definition.Tier, false);
+            ChooseGrade(definition.Grade);
             ChooseEmblem(definition.Emblem, false);
             ChooseColor(definition.Color, false);
             RebuildRows();
@@ -294,6 +345,39 @@ namespace OpenSekai.App.UI
 
             if (sound) UiSound.Play(UiCue.Select);
             OnStyleChanged();
+        }
+
+        private void ChooseTier(int tier, bool sound)
+        {
+            _tier = tier;
+            if (sound) UiSound.Play(UiCue.Select);
+            RecolorTiers();
+            OnStyleChanged();
+        }
+
+        internal void OpenGradePicker()
+        {
+            DeactivateFields();
+            _gradePicker.Open(_grade);
+        }
+
+        private void ChooseGrade(string grade)
+        {
+            _grade = grade;
+            _gradeLabel.text = grade ?? "不显示";
+            OnStyleChanged();
+        }
+
+        private void RecolorTiers()
+        {
+            Color32 tint = DanStyles.ParseColor(_colorHex);
+            for (int i = 0; i < _tiers.Count; i++)
+            {
+                bool chosen = i == _tier;
+                _tiers[i].Ring.color = chosen ? (Color)tint : Color.clear;
+                _tiers[i].Chip.color = chosen ? HomeTheme.Colors.WithAlpha(tint, 60) : HomeTheme.Colors.Chip;
+                _tiers[i].Label.color = chosen ? LibraryTheme.Colors.TextPrimary : LibraryTheme.Colors.TextSecondary;
+            }
         }
 
         private void ChooseColor(string hex, bool sound)
@@ -320,6 +404,7 @@ namespace OpenSekai.App.UI
 
         private void RecolorChoices()
         {
+            RecolorTiers();
             Color32 tint = DanStyles.ParseColor(_colorHex);
             foreach ((string hex, Image ring) in _swatches)
             {
@@ -336,7 +421,7 @@ namespace OpenSekai.App.UI
         private void OnStyleChanged()
         {
             string label = (_label.text ?? string.Empty).Trim();
-            _preview.SetStyle(label.Length > 0 ? label : "段位名", _emblem, _colorHex);
+            _preview.SetLook(new MedalLook(label.Length > 0 ? label : "段位名", _emblem, null, DanStyles.ParseColor(_colorHex), _tier, _grade, true));
             _preview.SetLocked(label.Length == 0);
             DanWidgets.SetFieldError(_label, false);
         }
@@ -538,7 +623,7 @@ namespace OpenSekai.App.UI
             try
             {
                 return new DanDefinition(life.Value, new DanDamage(costs[0], costs[1], costs[2], costs[3], costs[4]), links,
-                    _label.text, _emblem, _colorHex);
+                    _label.text, _emblem, _colorHex, _tier, _grade);
             }
             catch (DanFieldException exception)
             {

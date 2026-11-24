@@ -67,7 +67,7 @@ namespace OpenSekai.App.UI
         private readonly Image _glow;
         private readonly TextMeshProUGUI _subtitle;
         private readonly CanvasGroup _leftGroup;
-        private readonly DanPlate _plate;
+        private readonly MedalPlate _plate;
         private readonly RectTransform _verdictRoot;
         private readonly CanvasGroup _verdictGroup;
         private readonly TextMeshProUGUI _verdict;
@@ -133,7 +133,7 @@ namespace OpenSekai.App.UI
             left.offsetMax = new Vector2(LEFT_WIDTH, 0f);
             _leftGroup = left.gameObject.AddComponent<CanvasGroup>();
             Vector2 topLeft = new Vector2(0f, 1f);
-            _plate = new DanPlate(left, "Plate", new Vector2(LEFT_WIDTH - 40f, 108f), glow: true);
+            _plate = new MedalPlate(left, "Plate", new Vector2(LEFT_WIDTH - 40f, 108f), glow: true);
             LibraryWidgets.Place(_plate.Root, topLeft, topLeft, new Vector2(10f, -12f), _plate.Root.sizeDelta);
 
             _verdictRoot = LibraryUi.CreateRect("Verdict", left);
@@ -353,7 +353,7 @@ namespace OpenSekai.App.UI
             Color32 tint = DanStyles.ParseColor(definition.Color);
             _glow.color = HomeTheme.Colors.WithAlpha(tint, 46);
             _subtitle.text = DanCopy.When(attempt.StartedUtc) + "  ·  " + DanCopy.Shape(definition);
-            _plate.SetStyle(definition.Label, definition.Emblem, definition.Color);
+            _plate.SetLook(MedalLook.Of(definition));
             _plate.SetLocked(!model.Passed);
 
             Color32 color = DanCopy.OutcomeColor(attempt.Outcome);

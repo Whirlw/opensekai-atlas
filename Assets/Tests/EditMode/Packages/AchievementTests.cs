@@ -85,7 +85,7 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(lastUnlocks, Is.EqualTo(new[] { "first_dan_pass" }));
             _store.SaveDanAttempt(dan, last, out var repeated);
             Assert.That(repeated, Is.Empty);
-            _store.EquipDan(dan.Id);
+            _store.WearMedal(Medal.DanKey(dan.Id));
             string zip = Path.Combine(_root, "player.zip");
             _store.ExportBackup(zip);
             var target = new PlayerProfileStore(Path.Combine(_root, "merged"));
@@ -103,13 +103,13 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(repeat.UnlockedAchievementIds, Is.Empty);
             Assert.Throws<InvalidOperationException>(() => target.DeleteDanDefinition(dan.Id));
             target.CancelImport(repeat.Id);
-            target.EquipDan(dan.Id);
+            target.WearMedal(Medal.DanKey(dan.Id));
             target.DeleteDanDefinition(dan.Id);
             target.DeleteDanDefinition(dan.Id);
             _store = new PlayerProfileStore(Path.Combine(_root, "merged"));
             Assert.That(_store.ReadDanDefinitions(), Is.Empty);
             Assert.That(_store.ReadDanHistory(), Is.Empty);
-            Assert.That(_store.Read().EquippedDanId, Is.Null);
+            Assert.That(_store.Read().WornMedals, Is.All.Null);
             Assert.That(_store.Read().EarnedDanIds, Is.Empty);
             Assert.That(Item("manual_hits_10000").Current, Is.EqualTo(9970));
             Assert.That(_store.ReadAchievements().All(a => a.UnlockedAtUtc == null), Is.True);

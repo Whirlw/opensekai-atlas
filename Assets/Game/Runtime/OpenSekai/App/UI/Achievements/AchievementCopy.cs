@@ -29,7 +29,7 @@ namespace OpenSekai.App.UI
     internal sealed class AchievementLook
     {
         internal AchievementLook(string title, string latin, string goal, string rule, AchievementCategory category,
-            AchievementGlyph glyph, string mark, string subMark, Color32 tint)
+            AchievementGlyph glyph, string mark, string subMark, Color32 tint, int medalTier = MedalTiers.LOWEST)
         {
             Title = title;
             Latin = latin;
@@ -40,6 +40,7 @@ namespace OpenSekai.App.UI
             Mark = mark;
             SubMark = subMark;
             Tint = tint;
+            MedalTier = medalTier;
         }
 
         /// <summary>The name, e.g. 万键之路.</summary>
@@ -64,6 +65,9 @@ namespace OpenSekai.App.UI
         internal string SubMark { get; }
 
         internal Color32 Tint { get; }
+
+        /// <summary>Which frame the medal it gives wears, one of <see cref="MedalTiers"/>.</summary>
+        internal int MedalTier { get; }
     }
 
     /// <summary>
@@ -89,16 +93,16 @@ namespace OpenSekai.App.UI
         {
             ["manual_hits_10000"] = new AchievementLook("万键之路", "10,000 HITS", "累计击打 10,000 个音符",
                 "Perfect、Great、Good、Bad 都算，段位各曲与中途结束前的击打也算；Miss 和自动游玩不计",
-                AchievementCategory.Hits, AchievementGlyph.Hits, "10K", "HITS", HitsTint),
+                AchievementCategory.Hits, AchievementGlyph.Hits, "10K", "HITS", HitsTint, 1),
             ["fc_lv25"] = new AchievementLook("高阶全连", "FULL COMBO · LV.25+", "在 Lv.25 及以上的谱面取得 FULL COMBO",
                 "普通模式手动通关即可，ALL PERFECT 同样算数；段位中的曲目不计",
-                AchievementCategory.Charts, AchievementGlyph.FullCombo, "FC", "LV25+", FullComboTint),
+                AchievementCategory.Charts, AchievementGlyph.FullCombo, "FC", "LV25+", FullComboTint, 2),
             ["fc_lv28_10"] = new AchievementLook("十面全连", "10 × FULL COMBO · LV.28+", "在 10 张 Lv.28 及以上的谱面取得 FULL COMBO",
                 "按谱面计数，同一张谱反复全连只算一张；ALL PERFECT 同样算数",
-                AchievementCategory.Charts, AchievementGlyph.FullCombo, "FC", "×10", FullComboDeepTint),
+                AchievementCategory.Charts, AchievementGlyph.FullCombo, "FC", "×10", FullComboDeepTint, 3),
             ["first_ap"] = new AchievementLook("完美无缺", "ALL PERFECT", "首次取得 ALL PERFECT",
                 "普通模式手动通关，每一个判定都是 Perfect",
-                AchievementCategory.Charts, AchievementGlyph.AllPerfect, "AP", string.Empty, AllPerfectTint),
+                AchievementCategory.Charts, AchievementGlyph.AllPerfect, "AP", string.Empty, AllPerfectTint, 2),
             ["first_dan_pass"] = new AchievementLook("初获段位", "DAN CLEAR", "首次通过段位挑战",
                 "打完段位的全部曲目时仍有生命即为通过，任何段位都算",
                 AchievementCategory.Dan, AchievementGlyph.Dan, string.Empty, string.Empty, DanTint)

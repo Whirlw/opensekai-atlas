@@ -371,12 +371,18 @@ namespace OpenSekai.App.UI
                 if (preview.DanDuplicates > 0) parts.Add(ProfileCopy.Number(preview.DanDuplicates) + " 项已在本机");
                 if (danConflicts > 0) parts.Add(ProfileCopy.Number(danConflicts) + " 次挑战与本机不同，保留本机");
                 notes.Append(string.Join("，", parts)).Append("。");
-                if (preview.RestoresAppearance && preview.Result?.EquippedDan != null)
+                notes.Append('\n');
+            }
+
+            if (preview.RestoresAppearance && preview.Result != null)
+            {
+                var worn = new StringBuilder();
+                foreach (Medal medal in preview.Result.WornMedals)
                 {
-                    notes.Append("会恢复佩戴「").Append(preview.Result.EquippedDan.Label).Append("」。");
+                    if (medal != null) worn.Append('「').Append(MedalCopy.Name(medal)).Append('」');
                 }
 
-                notes.Append('\n');
+                if (worn.Length > 0) notes.Append("会恢复佩戴").Append(worn).Append("。\n");
             }
 
             bool changes = preview.HasChanges;

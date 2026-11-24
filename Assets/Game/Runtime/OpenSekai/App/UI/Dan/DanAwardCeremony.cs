@@ -34,7 +34,7 @@ namespace OpenSekai.App.UI
         private readonly RectTransform[] _sparks = new RectTransform[SPARKS];
         private readonly Image[] _sparkImages = new Image[SPARKS];
         private readonly Vector2[] _sparkPaths = new Vector2[SPARKS];
-        private readonly DanPlate _plate;
+        private readonly MedalPlate _plate;
         private readonly CanvasGroup _plateGroup;
         private readonly RectTransform _copy;
         private readonly CanvasGroup _copyGroup;
@@ -102,7 +102,7 @@ namespace OpenSekai.App.UI
                 _sparkImages[i] = spark;
             }
 
-            _plate = new DanPlate(_root, "Plate", new Vector2(760f, 160f), glow: true);
+            _plate = new MedalPlate(_root, "Plate", new Vector2(760f, 160f), glow: true);
             LibraryWidgets.Place(_plate.Root, center, center, focus, _plate.Root.sizeDelta);
             _plateGroup = _plate.Root.gameObject.AddComponent<CanvasGroup>();
 
@@ -144,7 +144,7 @@ namespace OpenSekai.App.UI
         {
             Color32 tint = DanStyles.ParseColor(model.Definition.Color);
             Color32 light = DanStyles.Light(tint);
-            _plate.SetStyle(model.Definition.Label, model.Definition.Emblem, model.Definition.Color);
+            _plate.SetLook(MedalLook.Of(model.Definition));
             _plate.SetLocked(false);
             _halo.color = HomeTheme.Colors.WithAlpha(tint, 90);
             for (int i = 0; i < RAYS; i++)

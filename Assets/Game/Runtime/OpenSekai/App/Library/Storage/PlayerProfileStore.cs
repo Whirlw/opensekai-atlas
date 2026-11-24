@@ -48,16 +48,24 @@ namespace OpenSekai.App.Library
         public ProfileAppearance Appearance { get; }
         public Best30Snapshot Best30 { get; }
         public IReadOnlyList<string> EarnedDanIds { get; }
-        public string EquippedDanId { get; }
-        public OpenSekai.App.Playback.DanDefinition EquippedDan { get; }
 
-        internal PlayerProfileSnapshot(ProfileAppearance appearance, Best30Snapshot best30, DanArchive archive)
+        /// <summary>The medal in each of the <see cref="Medal.SLOTS"/> slots, null where none is worn.</summary>
+        public IReadOnlyList<Medal> WornMedals { get; }
+
+        internal PlayerProfileSnapshot(ProfileAppearance appearance, Best30Snapshot best30, DanArchive archive,
+            Func<IReadOnlyList<AchievementProgress>> achievements)
         {
             Appearance = appearance;
             Best30 = best30;
             EarnedDanIds = new List<string>(archive.Earned()).AsReadOnly();
-            EquippedDanId = archive.Equipped;
-            if (EquippedDanId != null) EquippedDan = archive.DecodeDefinitions()[EquippedDanId];
+            WornMedals = Array.AsReadOnly(PlayerProfileStore.WornMedals(archive, achievements));
+        }
+
+        public bool IsWorn(string medalKey)
+        {
+            foreach (var medal in WornMedals)
+                if (medal != null && medal.Key == medalKey) return true;
+            return false;
         }
     }
 
@@ -85,7 +93,7 @@ namespace OpenSekai.App.Library
             History = new RankingHistory(HistoryPath, Summaries) { DanSource = ReadDanArchive };
         }
 
-        public PlayerProfileSnapshot Read() => new(ReadAppearance(), History.Read(), ReadDanArchive());
+        public PlayerProfileSnapshot Read() => new(ReadAppearance(), History.Read(), ReadDanArchive(), ReadAchievements);
         public HistoryPage ReadHistory(int offset, int limit) => History.ReadPage(offset, limit);
         public IReadOnlyList<AchievementProgress> ReadAchievements() => History.ReadAchievements();
 

@@ -284,7 +284,7 @@ namespace OpenSekai.App.UI
                     DanDefinition definition = definitions[i];
                     attempts.TryGetValue(definition.Id, out List<DanAttempt> list);
                     _records.Add(new DanRecord(definition, (IReadOnlyList<DanAttempt>)list ?? Array.Empty<DanAttempt>(),
-                        earned.Contains(definition.Id), string.Equals(snapshot.EquippedDanId, definition.Id, StringComparison.Ordinal)));
+                        earned.Contains(definition.Id), snapshot.IsWorn(Medal.DanKey(definition.Id))));
                 }
 
                 LoadError = null;
@@ -503,37 +503,52 @@ namespace OpenSekai.App.UI
                 return;
             }
 
+            string label = Selected.Definition.Label;
             bool wearing = !Selected.Equipped;
-            if (Equip(wearing ? Selected.Definition.Id : null))
+            if (SetWorn(Selected.Definition, wearing, out string replaced))
             {
                 UiSound.Play(wearing ? UiCue.Success : UiCue.ToggleOff);
-                ShowToast(wearing ? "已佩戴「" + Selected.Definition.Label + "」" : "已卸下段位牌");
+                ShowToast(!wearing ? "已卸下段位牌" : "已佩戴「" + label + "」" + Replaced(replaced));
             }
         }
 
         private bool EquipFromResult(DanDefinition definition)
         {
-            if (!Equip(definition.Id)) return false;
-            ShowToast("已佩戴「" + definition.Label + "」，个人信息里会展示这块段位牌");
+            if (!SetWorn(definition, true, out string replaced)) return false;
+            ShowToast("已佩戴「" + definition.Label + "」" + (replaced != null ? Replaced(replaced) : "，个人信息和首页会展示这块段位牌"));
             return true;
         }
 
-        private bool Equip(string id)
+        private static string Replaced(string medal) => medal != null ? "，换下了「" + medal + "」" : string.Empty;
+
+        /// <summary>Wears a 段位's plate or takes it off; <paramref name="replaced"/> names the medal that gave up its slot.</summary>
+        private bool SetWorn(DanDefinition definition, bool wear, out string replaced)
         {
+            replaced = null;
+            string key = Medal.DanKey(definition.Id);
             try
             {
-                Store.EquipDan(id);
+                if (wear)
+                {
+                    IReadOnlyList<Medal> before = Store.Read().WornMedals;
+                    Medal last = before[Store.WearMedal(key)];
+                    if (last != null && !string.Equals(last.Key, key, StringComparison.Ordinal)) replaced = MedalCopy.Name(last);
+                }
+                else
+                {
+                    Store.RemoveMedal(key);
+                }
             }
             catch (InvalidOperationException exception)
             {
-                Debug.LogWarning("[Dan] Could not wear the plate: " + exception.Message);
+                Debug.LogWarning("[Dan] Could not wear the medal: " + exception.Message);
                 UiSound.Play(UiCue.Blocked);
                 ShowToast("暂时无法佩戴，请稍后再试");
                 return false;
             }
             catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException)
             {
-                Debug.LogWarning("[Dan] Could not wear the plate: " + exception.Message);
+                Debug.LogWarning("[Dan] Could not wear the medal: " + exception.Message);
                 UiSound.Play(UiCue.Error);
                 ShowToast("保存失败：文件无法写入");
                 return false;

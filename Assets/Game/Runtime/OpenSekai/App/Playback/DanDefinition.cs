@@ -29,9 +29,16 @@ namespace OpenSekai.App.Playback
         public string Label { get; }
         public string Emblem { get; }
         public string Color { get; }
+
+        /// <summary>Which frame the plate wears, one of <see cref="MedalTiers"/>.</summary>
+        public int Tier { get; }
+
+        /// <summary>The grade on the plate's right, one of <see cref="MedalGrades"/>; null for none.</summary>
+        public string Grade { get; }
         public string ShareText { get; }
 
-        public DanDefinition(int initialLife, DanDamage damage, IEnumerable<string> songs, string label, string emblem, string color)
+        public DanDefinition(int initialLife, DanDamage damage, IEnumerable<string> songs, string label, string emblem, string color,
+            int tier = MedalTiers.LOWEST, string grade = null)
         {
             if (initialLife <= 0) throw Error("initialLife");
             InitialLife = initialLife;
@@ -55,13 +62,19 @@ namespace OpenSekai.App.Playback
             Emblem = StyleText(emblem, "emblem");
             if (color?.Length != 7 || color[0] != '#' || !color.Skip(1).All(Uri.IsHexDigit)) throw Error("style.color");
             Color = color.ToUpperInvariant();
+            Tier = MedalTiers.IsKnown(tier) ? tier : throw Error("style.tier");
+            Grade = string.IsNullOrEmpty(grade) ? null : MedalGrades.IsKnown(grade) ? grade : throw Error("style.grade");
+            var style = new JObject { ["label"] = Label, ["emblem"] = Emblem, ["color"] = Color };
+            // Left out when they say nothing, so a plain plate keeps the text and id it had before they existed.
+            if (Tier != MedalTiers.LOWEST) style["tier"] = Tier;
+            if (Grade != null) style["grade"] = Grade;
             var body = new JObject
             {
                 ["initialLife"] = InitialLife,
                 ["damage"] = new JObject { ["perfect"] = damage.Perfect, ["great"] = damage.Great,
                     ["good"] = damage.Good, ["bad"] = damage.Bad, ["miss"] = damage.Miss },
                 ["songs"] = new JArray(links),
-                ["style"] = new JObject { ["label"] = Label, ["emblem"] = Emblem, ["color"] = Color }
+                ["style"] = style
             };
             ShareText = PREFIX + "\n" + body.ToString(Formatting.None);
             using var sha = SHA256.Create();
@@ -81,13 +94,15 @@ namespace OpenSekai.App.Playback
             if (body["songs"] is not JArray songs) throw Error("songs");
             CheckFields(body, "", "initialLife", "damage", "songs", "style");
             CheckFields(damage, "damage.", "perfect", "great", "good", "bad", "miss");
-            CheckFields(style, "style.", "label", "emblem", "color");
+            CheckFields(style, "style.", "label", "emblem", "color", "tier", "grade");
             int Cost(string name) => Number(damage[name], "damage." + name);
             string Style(string name) => style[name]?.Type == JTokenType.String ? (string)style[name] : throw Error("style." + name);
             return new DanDefinition(Number(body["initialLife"], "initialLife"),
                 new DanDamage(Cost("perfect"), Cost("great"), Cost("good"), Cost("bad"), Cost("miss")),
                 songs.Select((s, i) => s.Type == JTokenType.String ? (string)s : throw Error($"songs[{i}]")),
-                Style("label"), Style("emblem"), Style("color"));
+                Style("label"), Style("emblem"), Style("color"),
+                style["tier"] == null ? MedalTiers.LOWEST : Number(style["tier"], "style.tier"),
+                style["grade"] == null ? null : Style("grade"));
         }
 
         private static void CheckFields(JObject obj, string prefix, params string[] fields)

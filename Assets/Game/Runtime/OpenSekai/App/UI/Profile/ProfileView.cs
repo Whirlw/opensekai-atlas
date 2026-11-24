@@ -20,7 +20,7 @@ namespace OpenSekai.App.UI
     /// <summary>
     /// Layout and binding of the 个人信息 page. On the left, the player's card: avatar and nickname
     /// (tap either to edit them), the Ranking Score with its tier badge (tap it for every tier's
-    /// badge), and the worn 段位 plate.
+    /// badge), and the two worn medals (tap either to change it).
     /// On the right, the Best 30 (one line per chart, by contribution) or the whole history (one
     /// line per run, newest first) in a recycling list. The page reads everything from its
     /// <see cref="ProfileScreen"/> and never computes a score itself. Sizes are canvas units at the
@@ -35,7 +35,8 @@ namespace OpenSekai.App.UI
         private const float PAD = 36f;
         private const float AVATAR_SIZE = 128f;
         private const float BADGE_SIZE = 118f;
-        private const float PLATE_HEIGHT = 76f;
+        private const float MEDAL_HEIGHT = 62f;
+        private const float MEDAL_GAP = 14f;
         private const float TAB_HEIGHT = 56f;
         private const float LIST_PAD = 16f;
 
@@ -63,8 +64,8 @@ namespace OpenSekai.App.UI
         private readonly TextMeshProUGUI _tier;
         private readonly TextMeshProUGUI _nextTier;
         private readonly TextMeshProUGUI _coverage;
-        private readonly DanPlate _plate;
-        private readonly TextMeshProUGUI _plateNote;
+        private readonly MedalPlate[] _medals = new MedalPlate[Medal.SLOTS];
+        private readonly TextMeshProUGUI _medalNote;
         private readonly HomePageTabs _tabs;
         private readonly TextMeshProUGUI _summary;
         private readonly Button _clearHistory;
@@ -167,23 +168,19 @@ namespace OpenSekai.App.UI
             _coverage = LibraryWidgets.Label("Coverage", card, string.Empty, 18f, LibraryTheme.Colors.TextMuted);
             Strip(_coverage.rectTransform, PAD, PAD, nextTierTop + 34f, 26f);
 
-            // The worn plate, from the bottom up: note, plate, caption.
-            _plateNote = LibraryWidgets.Label("DanNote", card, string.Empty, 17f, LibraryTheme.Colors.TextMuted);
-            LibraryWidgets.BottomStrip(_plateNote.rectTransform, PAD, PAD, PAD - 4f, 26f);
-            float plateBottom = PAD + 34f;
-            _plate = new DanPlate(card, "Plate", new Vector2(LEFT_WIDTH - PAD * 2f, PLATE_HEIGHT), shadow: false);
-            LibraryWidgets.Place(_plate.Root, Vector2.zero, Vector2.zero, new Vector2(PAD, plateBottom), _plate.Root.sizeDelta);
-            Image plateHit = LibraryUi.CreateImage("Hit", _plate.Root, Color.clear);
-            plateHit.raycastTarget = true;
-            LibraryUi.Stretch(plateHit.rectTransform);
-            Button plateButton = plateHit.gameObject.AddComponent<Button>();
-            plateButton.targetGraphic = plateHit;
-            plateButton.transition = Selectable.Transition.None;
-            plateButton.onClick.AddListener(screen.OpenPlates);
-            LibraryPressFeedback.Attach(plateHit.gameObject, _plate.Root, 0.985f);
-            TextMeshProUGUI danCaption = LibraryWidgets.Label("DanCaption", card, "段位牌", 18f, LibraryTheme.Colors.TextMuted, FontStyles.Bold);
-            LibraryWidgets.BottomStrip(danCaption.rectTransform, PAD, PAD, plateBottom + PLATE_HEIGHT + 10f, 26f);
-            Divider(card, plateBottom + PLATE_HEIGHT + 52f, false);
+            // The worn medals, from the bottom up: note, second slot, first slot, caption.
+            _medalNote = LibraryWidgets.Label("MedalNote", card, string.Empty, 17f, LibraryTheme.Colors.TextMuted);
+            LibraryWidgets.BottomStrip(_medalNote.rectTransform, PAD, PAD, PAD - 10f, 26f);
+            float medalTop = PAD + 28f;
+            for (int i = Medal.SLOTS - 1; i >= 0; i--)
+            {
+                _medals[i] = MedalSlot(card, i, medalTop);
+                medalTop += MEDAL_HEIGHT + MEDAL_GAP;
+            }
+
+            TextMeshProUGUI medalCaption = LibraryWidgets.Label("MedalCaption", card, "奖牌", 18f, LibraryTheme.Colors.TextMuted, FontStyles.Bold);
+            LibraryWidgets.BottomStrip(medalCaption.rectTransform, PAD, PAD, medalTop - 2f, 26f);
+            Divider(card, medalTop + 38f, false);
 
             // ---------------------------------------------------------------- the lists
             RectTransform right = LibraryUi.CreateRect("Right", body);
@@ -237,21 +234,23 @@ namespace OpenSekai.App.UI
                 ? "手动完成一首谱面后，成绩会计入 Best 30"
                 : "Best 30 已收录 " + charts + " / 30 张谱面";
 
-            OpenSekai.App.Playback.DanDefinition worn = snapshot?.EquippedDan;
-            int earned = snapshot?.EarnedDanIds.Count ?? 0;
-            if (worn != null)
+            int owned = _screen.Medals.Count;
+            for (int i = 0; i < _medals.Length; i++)
             {
-                _plate.SetStyle(worn.Label, worn.Emblem, worn.Color);
-                _plate.SetLocked(false);
-            }
-            else
-            {
-                _plate.SetEmpty(earned > 0 ? "未佩戴段位牌" : "未取得段位");
+                Medal worn = snapshot?.WornMedals[i];
+                if (worn == null)
+                {
+                    _medals[i].SetEmpty(owned > 0 ? "未佩戴奖牌" : "未取得奖牌");
+                    continue;
+                }
+
+                _medals[i].SetLook(MedalLook.Of(worn));
+                _medals[i].SetLocked(false);
             }
 
-            _plateNote.text = earned > 0
-                ? "已取得 " + earned + " 块段位牌，点按即可更换展示的一块"
-                : "通过段位挑战后，可以在这里选择展示的段位牌";
+            _medalNote.text = owned > 0
+                ? "已取得 " + owned + " 块奖牌，点按即可更换"
+                : "通过段位挑战或解锁成就，就能得到奖牌";
 
             _tabs.SetLabel(0, "Best 30  " + Count(charts));
             _tabs.SetLabel(1, "全部历史  " + Count(plays));
@@ -335,7 +334,7 @@ namespace OpenSekai.App.UI
         {
             _enter.TryCancel();
             _status.Dispose();
-            _plate.Dispose();
+            foreach (MedalPlate medal in _medals) medal.Dispose();
         }
 
         private void ApplyEnter(float time)
@@ -447,6 +446,21 @@ namespace OpenSekai.App.UI
         }
 
         // ---------------------------------------------------------------- building
+
+        private MedalPlate MedalSlot(RectTransform card, int slot, float bottom)
+        {
+            var plate = new MedalPlate(card, "Medal" + slot, new Vector2(LEFT_WIDTH - PAD * 2f, MEDAL_HEIGHT), shadow: false);
+            LibraryWidgets.Place(plate.Root, Vector2.zero, Vector2.zero, new Vector2(PAD, bottom), plate.Root.sizeDelta);
+            Image hit = LibraryUi.CreateImage("Hit", plate.Root, Color.clear);
+            hit.raycastTarget = true;
+            LibraryUi.Stretch(hit.rectTransform);
+            Button button = hit.gameObject.AddComponent<Button>();
+            button.targetGraphic = hit;
+            button.transition = Selectable.Transition.None;
+            button.onClick.AddListener(() => _screen.OpenMedals(slot));
+            LibraryPressFeedback.Attach(hit.gameObject, plate.Root, 0.985f);
+            return plate;
+        }
 
         /// <summary>The page's own card: a raised surface with the home cards' light from above.</summary>
         private static RectTransform Card(RectTransform parent, string name)

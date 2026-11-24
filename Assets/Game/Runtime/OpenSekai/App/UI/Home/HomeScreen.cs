@@ -1380,8 +1380,7 @@ namespace OpenSekai.App.UI
                 PlayerProfileSnapshot snapshot = store.Read();
                 int plays = store.ReadHistory(0, 1).TotalCount;
                 _view.SetProfile(new HomeProfileSummary(snapshot.Appearance.Nickname, snapshot.Appearance.AvatarId,
-                    snapshot.Best30.Total, snapshot.Best30.TierId, snapshot.Best30.Entries.Count, plays, ProfileCopy.DanLabel(snapshot), false,
-                    snapshot.EquippedDan?.Color));
+                    snapshot.Best30.Total, snapshot.Best30.TierId, snapshot.Best30.Entries.Count, plays, MedalLook.Of(snapshot.WornMedals), false));
                 int courses = store.ReadDanDefinitions().Count;
                 _view.SetDanStatus(courses == 0 ? "开始挑战" : courses + " 个段位  ·  已通过 " + snapshot.EarnedDanIds.Count);
                 IReadOnlyList<AchievementProgress> goals = store.ReadAchievements();

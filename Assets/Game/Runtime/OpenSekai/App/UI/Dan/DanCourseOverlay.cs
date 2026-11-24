@@ -40,7 +40,7 @@ namespace OpenSekai.App.UI
         private CanvasGroup _restGroup;
         private Image _restGlow;
         private Image _restAccent;
-        private DanPlate _plate;
+        private MedalPlate _plate;
         private TextMeshProUGUI _songCaption;
         private Image _jacketFrame;
         private Image _jacket;
@@ -288,7 +288,7 @@ namespace OpenSekai.App.UI
             _backArmedUntil = -1f;
             Color32 tint = DanStyles.ParseColor(definition.Color);
             _restGlow.color = HomeTheme.Colors.WithAlpha(tint, 54);
-            _plate.SetStyle(definition.Label, definition.Emblem, definition.Color);
+            _plate.SetLook(MedalLook.Of(definition));
             _plate.SetLocked(false);
             int count = definition.Songs.Count;
             _songCaption.text = "下一首  ·  第 " + songNumber + " / " + count + " 首";
@@ -495,7 +495,7 @@ namespace OpenSekai.App.UI
             Vector2 topLeft = new Vector2(0f, 1f);
             RectTransform bar = LibraryUi.CreateRect("TopBar", _rest);
             LibraryWidgets.TopStrip(bar, margin, margin, 28f, 84f);
-            _plate = new DanPlate(bar, "Plate", new Vector2(360f, 72f));
+            _plate = new MedalPlate(bar, "Plate", new Vector2(360f, 72f));
             LibraryWidgets.Place(_plate.Root, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, _plate.Root.sizeDelta);
             var eyebrow = LibraryWidgets.Label("Eyebrow", bar, "休息  ·  REST", 22f, LibraryTheme.Colors.TextSecondary);
             LibraryUi.UseSpacedCondensedFont(eyebrow, 18f);

@@ -12,8 +12,8 @@ using UnityEngine.UI;
 namespace OpenSekai.App.UI
 {
     /// <summary>
-    /// The 个人信息 part: the player's local profile (avatar, nickname, Ranking Score and the worn
-    /// 段位 plate), the Best 30 and the whole play history, and the way to back the profile up to a
+    /// The 个人信息 part: the player's local profile (avatar, nickname, Ranking Score and the two
+    /// worn medals), the Best 30 and the whole play history, and the way to back the profile up to a
     /// ZIP and merge one back in. Like the server and resource pack parts it builds its own camera
     /// and canvas in the Library scene; the home page decides when it comes and goes. Every read and
     /// write goes through <see cref="PlayerProfileStore"/> on the main thread; the page only shows
@@ -47,7 +47,7 @@ namespace OpenSekai.App.UI
         private ProfileBusyPanel _busy;
         private ProfileImportPanel _import;
         private ProfileDeletePanel _deletion;
-        private DanPlatePicker _plates;
+        private MedalPicker _medals;
         private RankingBadgeGallery _badges;
         private ProfileImportPreview _preview;
         private PlayerProfileStore _previewStore;
@@ -81,6 +81,9 @@ namespace OpenSekai.App.UI
         internal PlayerProfileSnapshot Snapshot { get; private set; }
 
         internal string LoadError { get; private set; }
+
+        /// <summary>Every medal the player owns, as last read.</summary>
+        internal IReadOnlyList<Medal> Medals { get; private set; } = Array.Empty<Medal>();
 
         /// <summary>Runs in the whole history, as last read.</summary>
         internal int HistoryCount { get; private set; }
@@ -119,7 +122,7 @@ namespace OpenSekai.App.UI
                 _settings?.Hide();
                 _editor.Close();
                 _deletion.Close();
-                _plates.Close();
+                _medals.Close();
                 _badges.Close();
                 _busy.Hide();
                 DiscardPreview();
@@ -213,9 +216,9 @@ namespace OpenSekai.App.UI
                 return true;
             }
 
-            if (_plates.IsOpen)
+            if (_medals.IsOpen)
             {
-                _plates.Close();
+                _medals.Close();
                 UiSound.Play(UiCue.Close);
                 return true;
             }
@@ -249,7 +252,7 @@ namespace OpenSekai.App.UI
 
         internal void ShowToast(string message) => _toast.Show(message, 2.8f);
 
-        internal bool IsPlatePickerOpen => _plates.IsOpen;
+        internal bool IsMedalPickerOpen => _medals.IsOpen;
 
         internal bool IsBadgeGalleryOpen => _badges.IsOpen;
 
@@ -265,8 +268,8 @@ namespace OpenSekai.App.UI
             _badges.Open(best != null ? best.Total : (long?)null);
         }
 
-        /// <summary>The plate on the player's card: choose which earned 段位 plate to wear, or none.</summary>
-        internal void OpenPlates()
+        /// <summary>A medal slot on the player's card: choose which medal to wear in it, or none.</summary>
+        internal void OpenMedals(int slot)
         {
             if (IsBusy || Snapshot == null)
             {
@@ -275,59 +278,41 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            if (Snapshot.EarnedDanIds.Count == 0)
+            if (Medals.Count == 0)
             {
                 UiSound.Play(UiCue.Blocked);
-                ShowToast("通过段位挑战后，就能在这里佩戴段位牌。首页第二页可以进入段位");
+                ShowToast("通过段位挑战或解锁成就后，就能在这里佩戴奖牌");
                 return;
             }
 
-            var earned = new List<OpenSekai.App.Playback.DanDefinition>();
-            var ids = new HashSet<string>(Snapshot.EarnedDanIds, StringComparer.Ordinal);
-            try
-            {
-                IReadOnlyList<OpenSekai.App.Playback.DanDefinition> definitions = Store.ReadDanDefinitions();
-                for (int i = definitions.Count - 1; i >= 0; i--)
-                {
-                    if (ids.Contains(definitions[i].Id)) earned.Add(definitions[i]);
-                }
-            }
-            catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException || exception is InvalidDataException)
-            {
-                Debug.LogWarning("[Profile] Could not read the 段位 plates: " + exception.Message);
-                UiSound.Play(UiCue.Error);
-                ShowToast("段位牌暂时无法读取");
-                return;
-            }
-
-            _plates.Open(earned, Snapshot.EquippedDanId);
+            _medals.Open(Medals, Snapshot.WornMedals, slot);
         }
 
-        private bool WearPlate(string id)
+        private bool WearMedal(int slot, string key)
         {
-            if (string.Equals(id, Snapshot?.EquippedDanId, StringComparison.Ordinal)) return true;
+            if (string.Equals(key, Snapshot?.WornMedals[slot]?.Key, StringComparison.Ordinal)) return true;
             try
             {
-                Store.EquipDan(id);
+                Store.WearMedal(slot, key);
             }
             catch (InvalidOperationException)
             {
                 UiSound.Play(UiCue.Blocked);
-                ShowToast("备份正在进行，完成后再更换段位牌");
+                ShowToast("备份正在进行，完成后再更换奖牌");
                 return false;
             }
             catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException)
             {
-                Debug.LogWarning("[Profile] Could not wear the plate: " + exception.Message);
+                Debug.LogWarning("[Profile] Could not wear the medal: " + exception.Message);
                 UiSound.Play(UiCue.Error);
                 ShowToast("保存失败：文件无法写入");
                 return false;
             }
 
             Reload(true);
-            UiSound.Play(id != null ? UiCue.Success : UiCue.ToggleOff);
-            string label = ProfileCopy.DanLabel(Snapshot);
-            ShowToast(label != null ? "已佩戴「" + label + "」" : "已卸下段位牌");
+            UiSound.Play(key != null ? UiCue.Success : UiCue.ToggleOff);
+            Medal worn = Snapshot?.WornMedals[slot];
+            ShowToast(worn != null ? "已佩戴「" + MedalCopy.Name(worn) + "」" : "已卸下奖牌");
             DataChanged?.Invoke(false);
             return true;
         }
@@ -344,6 +329,7 @@ namespace OpenSekai.App.UI
             try
             {
                 Snapshot = Store.Read();
+                Medals = Store.ReadMedals();
                 ObserveHistory(_presented ? Store.History : null);
                 HistoryCount = Store.ReadHistory(0, 1).TotalCount;
                 HistoryBackedUp = Store.HasCurrentBackup;
@@ -361,6 +347,7 @@ namespace OpenSekai.App.UI
                 // A profile that cannot be read still opens the page, which says so and offers to retry.
                 Debug.LogWarning("[Profile] Could not read the player profile: " + exception);
                 Snapshot = null;
+                Medals = Array.Empty<Medal>();
                 HistoryCount = 0;
                 HistoryBackedUp = false;
                 LoadError = exception is InvalidDataException ? "档案数据无法识别，请检查运行日志" : "档案读取失败，请稍后重试";
@@ -860,7 +847,7 @@ namespace OpenSekai.App.UI
             _busy = new ProfileBusyPanel(ModalLayer);
             _import = new ProfileImportPanel(ModalLayer);
             _deletion = new ProfileDeletePanel(ModalLayer);
-            _plates = new DanPlatePicker(ModalLayer, WearPlate);
+            _medals = new MedalPicker(ModalLayer, WearMedal);
             _badges = new RankingBadgeGallery(ModalLayer);
             _toast = new UiToast(root, 48f, HomeTheme.Colors.Violet);
             _unlock = new AchievementUnlockPopup(root, 18f);
@@ -924,7 +911,7 @@ namespace OpenSekai.App.UI
             _busy?.Dispose();
             _import?.Dispose();
             _deletion?.Dispose();
-            _plates?.Dispose();
+            _medals?.Dispose();
             _badges?.Dispose();
             _thumbnails?.Dispose();
             if (_camera != null)

@@ -19,7 +19,7 @@ namespace OpenSekai.EditorTools.Screenshots
         /// second home page and the hand-over, the page on a passed and on a failed course, the
         /// maker, a shared text and a broken one, the delete card, the preparation card, the rest
         /// screen between songs, the result of a pass (and its award ceremony at three moments), a
-        /// failure and an abandoned course, and last the 个人信息 card wearing the plate with its
+        /// failure and an abandoned course, and last the 个人信息 card wearing medals with their
         /// picker.
         /// </summary>
         private IEnumerator DanShot(Shot shot)
@@ -34,6 +34,7 @@ namespace OpenSekai.EditorTools.Screenshots
             string stem = FileStem(shot, null);
             string root = Path.Combine(Path.GetTempPath(), "OpenSekaiShots-Dan-" + Guid.NewGuid().ToString("N"));
             DanCourseOverlay overlay = null;
+            GameObject gallery = null;
             try
             {
                 DanSamples samples = DanSamples.Build(Path.Combine(root, "sample"));
@@ -78,6 +79,10 @@ namespace OpenSekai.EditorTools.Screenshots
                 screen.OpenEdit();
                 yield return new WaitForSecondsRealtime(0.6f);
                 yield return Capture(shot, stem + "-editor", "editing the five-song course", null);
+                screen.Editor.OpenGradePicker();
+                yield return new WaitForSecondsRealtime(0.6f);
+                yield return Capture(shot, stem + "-grades", "choosing the plate's grade", null);
+                screen.TryHandleBack();
                 screen.TryHandleBack();
                 screen.OpenCreate();
                 yield return new WaitForSecondsRealtime(0.6f);
@@ -138,16 +143,24 @@ namespace OpenSekai.EditorTools.Screenshots
                 yield return new WaitForSecondsRealtime(1f);
                 home.ShowProfileImmediately();
                 yield return new WaitForSecondsRealtime(1f);
-                yield return Capture(shot, stem + "-profile", "the profile wearing a plate", null);
+                yield return Capture(shot, stem + "-profile", "the profile wearing medals", null);
                 ProfileScreen profile = UnityEngine.Object.FindFirstObjectByType<ProfileScreen>();
-                profile?.OpenPlates();
+                profile?.OpenMedals(1);
                 yield return new WaitForSecondsRealtime(0.6f);
-                yield return Capture(shot, stem + "-plates", "choosing a plate", null);
+                yield return Capture(shot, stem + "-medals", "choosing a medal", null);
                 profile?.TryHandleBack();
+                home.ShowHomeImmediately();
+                home.SeekHomePage(1f);
+                yield return new WaitForSecondsRealtime(0.3f);
+                gallery = BuildMedalGallery();
+                yield return null;
+                yield return null;
+                yield return Capture(shot, stem + "-medal-tiers", "every medal tier and grade", null);
             }
             finally
             {
                 overlay?.EndPreview();
+                if (gallery != null) UnityEngine.Object.Destroy(gallery);
                 home.ProfileStore = null;
                 home.ShowLibraryImmediately();
                 try
@@ -191,9 +204,9 @@ namespace OpenSekai.EditorTools.Screenshots
             var store = new PlayerProfileStore(root);
             store.SetAppearance("Atlas", "halo");
             var damage = new DanDamage(0, 1, 3, 6, 10);
-            samples.Failed = new DanDefinition(100, damage, Links(0, 5), "极限五连", "star", "#F58080");
-            samples.Passed = new DanDefinition(100, damage, Links(5, 3), "三曲耐久", "chevron", "#526DC8");
-            samples.Shared = new DanDefinition(60, new DanDamage(0, 0, 2, 5, 8), Links(2, 4), "夜行四曲", "halo", "#6ED6C0");
+            samples.Failed = new DanDefinition(100, damage, Links(0, 5), "极限五连", "star", "#F58080", 4, "ω");
+            samples.Passed = new DanDefinition(100, damage, Links(5, 3), "三曲耐久", "chevron", "#526DC8", 2, "VIII");
+            samples.Shared = new DanDefinition(60, new DanDamage(0, 0, 2, 5, 8), Links(2, 4), "夜行四曲", "halo", "#6ED6C0", 1, "III");
             var fresh = new DanDefinition(150, new DanDamage(0, 0, 1, 3, 5), Links(1, 2), "新手入门", "note", "#7BD88F");
             store.SaveDanDefinition(samples.Failed);
             store.SaveDanDefinition(samples.Passed);
@@ -201,7 +214,8 @@ namespace OpenSekai.EditorTools.Screenshots
 
             samples.Pass = Play(store, samples.Passed, 5, new[] { 18, 23, 31 }, PlayResultKind.Completed);
             Play(store, samples.Passed, 5, new[] { 40, 38, 30 }, PlayResultKind.Failed);
-            store.EquipDan(samples.Passed.Id);
+            store.WearMedal(Medal.DanKey(samples.Passed.Id));
+            store.WearMedal(Medal.AchievementKey("first_dan_pass"));
             samples.Fail = Play(store, samples.Failed, 0, new[] { 21, 17, 26, 36 }, PlayResultKind.Failed);
             samples.Quit = Play(store, samples.Failed, 0, new[] { 12, 9 }, PlayResultKind.Retired);
             samples.Resting = Play(null, samples.Failed, 0, new[] { 21, 17 }, PlayResultKind.Completed);

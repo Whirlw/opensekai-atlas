@@ -25,9 +25,6 @@ namespace OpenSekai.App.UI
             return threshold.HasValue ? "距下一评级还差 " + Number(threshold.Value - total) + " 分" : "已达最高评级";
         }
 
-        /// <summary>The worn 段位 plate's text; null while none is worn.</summary>
-        internal static string DanLabel(PlayerProfileSnapshot snapshot) => snapshot?.EquippedDan?.Label;
-
         /// <summary>The song's name as the run saved it.</summary>
         internal static string Title(CustomMusicScorePlayHistoryRecord play)
         {

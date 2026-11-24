@@ -22,7 +22,7 @@ namespace OpenSekai.App.UI
 
         private readonly RectTransform _root;
         private readonly LibraryModal _modal;
-        private readonly DanPlate _plate;
+        private readonly MedalPlate _plate;
         private readonly RectTransform _songContent;
         private readonly List<DanSongLine> _lines = new List<DanSongLine>();
         private readonly TextMeshProUGUI _status;
@@ -43,7 +43,7 @@ namespace OpenSekai.App.UI
             _modal.Subtitle.text = "准备全部曲目后开始挑战";
             RectTransform body = _modal.Body;
             float width = CARD_WIDTH - LibraryTheme.Layout.MODAL_PADDING * 2f;
-            _plate = new DanPlate(body, "Plate", new Vector2(width - 120f, 84f), glow: true);
+            _plate = new MedalPlate(body, "Plate", new Vector2(width - 120f, 84f), glow: true);
             LibraryWidgets.Place(_plate.Root, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -4f), _plate.Root.sizeDelta);
             RectTransform songs = LibraryUi.CreateRect("Songs", body);
             LibraryWidgets.Inset(songs, 0f, LibraryTheme.Layout.MODAL_BUTTON_HEIGHT + 70f, 0f, 112f);
@@ -75,7 +75,7 @@ namespace OpenSekai.App.UI
         internal void Show(DanDefinition definition, IReadOnlyList<DanSongInfo> songs)
         {
             _songs = songs ?? Array.Empty<DanSongInfo>();
-            _plate.SetStyle(definition.Label, definition.Emblem, definition.Color);
+            _plate.SetLook(MedalLook.Of(definition));
             _plate.SetLocked(false);
             const float GAP = 8f;
             while (_lines.Count < _songs.Count)

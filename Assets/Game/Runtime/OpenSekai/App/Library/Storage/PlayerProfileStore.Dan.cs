@@ -14,7 +14,13 @@ namespace OpenSekai.App.Library
         public List<string> Definitions { get; set; } = new();
         [JsonProperty(Required = Required.Always)]
         public List<DanAttempt> Attempts { get; set; } = new();
-        public string Equipped { get; set; }
+
+        /// <summary>The key of the medal worn in each slot (<see cref="Medal.Key"/>), null for an empty one.</summary>
+        public string[] Worn { get; set; } = new string[Medal.SLOTS];
+
+        // Archives from before medals wore one 段位, by its id.
+        [JsonProperty]
+        private string Equipped { set => Worn[0] ??= value == null ? null : Medal.DanKey(value); }
 
         private Dictionary<string, DanDefinition> _decoded;
         internal Dictionary<string, DanDefinition> DecodeDefinitions() => _decoded ??=
@@ -28,8 +34,17 @@ namespace OpenSekai.App.Library
         {
             Definitions = new List<string>(Definitions),
             Attempts = new List<DanAttempt>(Attempts),
-            Equipped = Equipped
+            Worn = (string[])Worn.Clone()
         };
+
+        /// <summary>Empties the slot that wears <paramref name="key"/>; false when none does.</summary>
+        internal bool TakeOff(string key)
+        {
+            int slot = Array.IndexOf(Worn, key);
+            if (slot < 0) return false;
+            Worn[slot] = null;
+            return true;
+        }
 
         internal void InvalidateDerived()
         {
@@ -49,8 +64,11 @@ namespace OpenSekai.App.Library
                     throw new InvalidDataException("Invalid challenge history reference.");
                 attempt.Validate(definition);
             }
-            if (archive.Equipped != null && !archive.Earned().Contains(archive.Equipped))
-                throw new InvalidDataException("Equipped challenge has not been passed.");
+            if (archive.Worn?.Length != Medal.SLOTS || archive.Worn[0] != null && archive.Worn[0] == archive.Worn[1])
+                throw new InvalidDataException("Invalid worn medals.");
+            // Achievements follow from the play history, which is not at hand here; a lost one just does not show.
+            if (archive.Worn.Select(Medal.DanIdOf).Any(id => id != null && !archive.Earned().Contains(id)))
+                throw new InvalidDataException("Worn challenge has not been passed.");
             return archive;
         }
 
@@ -73,7 +91,7 @@ namespace OpenSekai.App.Library
             }
             preview.DanConflictingIds = conflicts.AsReadOnly();
             _earned = null;
-            if (preview.RestoresAppearance) Equipped = incoming.Equipped;
+            if (preview.RestoresAppearance) Worn = (string[])incoming.Worn.Clone();
         }
     }
 
@@ -101,15 +119,6 @@ namespace OpenSekai.App.Library
             WriteDan(archive);
         }
 
-        public void EquipDan(string id)
-        {
-            RequireIdle();
-            var archive = ReadDanArchive().Copy();
-            if (id != null && !archive.Earned().Contains(id)) throw new InvalidOperationException("尚未取得该段位。");
-            archive.Equipped = id;
-            WriteDan(archive);
-        }
-
         internal string ActiveDanId { get; set; }
 
         public void DeleteDanDefinition(string id)
@@ -123,7 +132,7 @@ namespace OpenSekai.App.Library
             var next = current.Copy();
             next.Definitions.Remove(definition.ShareText);
             next.Attempts.RemoveAll(a => a.DefinitionId == id);
-            if (next.Equipped == id) next.Equipped = null;
+            next.TakeOff(Medal.DanKey(id));
             WriteDan(next);
             History.InvalidateAchievements();
         }

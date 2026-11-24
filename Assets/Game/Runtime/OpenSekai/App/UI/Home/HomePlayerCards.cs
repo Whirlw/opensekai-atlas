@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using LitMotion;
+using OpenSekai.App.Library;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -13,18 +15,17 @@ namespace OpenSekai.App.UI
         internal static readonly HomeProfileSummary Empty =
             new HomeProfileSummary("Player", ProfileAvatars.DEFAULT_ID, 0L, 0, 0, 0, null, false);
 
-        /// <param name="danColor">The worn plate's "#RRGGBB"; ignored when no plate is worn.</param>
+        /// <param name="medals">The worn medals, at most two; null or empty when none is worn.</param>
         internal HomeProfileSummary(string nickname, string avatarId, long total, int tierId, int chartCount, int playCount,
-            string danLabel, bool unreadable, string danColor = null)
+            IReadOnlyList<MedalLook> medals, bool unreadable)
         {
-            DanColor = danColor;
             Nickname = nickname;
             AvatarId = avatarId;
             Total = total;
             TierId = tierId;
             ChartCount = chartCount;
             PlayCount = playCount;
-            DanLabel = danLabel;
+            Medals = medals ?? Array.Empty<MedalLook>();
             Unreadable = unreadable;
         }
 
@@ -38,11 +39,8 @@ namespace OpenSekai.App.UI
 
         internal int PlayCount { get; }
 
-        /// <summary>The equipped 段位 plate's text; null when none is worn.</summary>
-        internal string DanLabel { get; }
-
-        /// <summary>The equipped plate's color as "#RRGGBB"; null when none is worn.</summary>
-        internal string DanColor { get; }
+        /// <summary>The worn medals in slot order, without the empty slots.</summary>
+        internal IReadOnlyList<MedalLook> Medals { get; }
 
         /// <summary>The profile could not be read; the card says so instead of showing zeros as fact.</summary>
         internal bool Unreadable { get; }
@@ -50,7 +48,7 @@ namespace OpenSekai.App.UI
 
     /// <summary>
     /// The second page's big card, the way into 个人信息: the player's avatar and nickname, the
-    /// worn 段位 plate, the Ranking Score with its tier, and how many charts and plays stand behind
+    /// worn medals beside it, the Ranking Score with its tier, and how many charts and plays stand behind
     /// it. On the right the tier badge floats in its own color in a sky that grows richer with the
     /// tier (<see cref="HomeRankingSky"/>). Like the library card it grows over the page when tapped.
     /// </summary>
@@ -62,7 +60,10 @@ namespace OpenSekai.App.UI
         private const float CTA_HEIGHT = 80f;
         private const float AVATAR_SIZE = 104f;
         private const float BADGE_SIZE = 260f;
-        private const float PLATE_HEIGHT = 36f;
+
+        /// <summary>Both medals together with the gap between them; long ones shrink to fit.</summary>
+        private const float MEDALS_WIDTH = 424f;
+        private const float MEDAL_GAP = 24f;
 
         private readonly HomeCardFrame _frame;
         private readonly Image _glow;
@@ -78,9 +79,7 @@ namespace OpenSekai.App.UI
         private readonly TextMeshProUGUI _eyebrow;
         private readonly ProfileAvatarView _avatar;
         private readonly TextMeshProUGUI _nickname;
-        private readonly Image _plate;
-        private readonly Image _plateOutline;
-        private readonly TextMeshProUGUI _plateLabel;
+        private readonly MedalChip[] _medals = new MedalChip[Medal.SLOTS];
         private readonly TextMeshProUGUI _score;
         private readonly TextMeshProUGUI _tier;
         private readonly TextMeshProUGUI _charts;
@@ -161,7 +160,7 @@ namespace OpenSekai.App.UI
             LibraryUi.UseSpacedCondensedFont(_eyebrow, 30f);
             LibraryWidgets.Place(_eyebrow.rectTransform, topLeft, topLeft, new Vector2(pad, -pad + 4f), new Vector2(TEXT_WIDTH - pad, 30f));
 
-            // Who: avatar, nickname and the worn plate.
+            // Who: avatar, nickname and the worn medals.
             float identityTop = pad + 44f;
             _avatar = new ProfileAvatarView(copyRoot, "Avatar", AVATAR_SIZE);
             LibraryWidgets.Place(_avatar.Root, topLeft, topLeft, new Vector2(pad, -identityTop), new Vector2(AVATAR_SIZE, AVATAR_SIZE));
@@ -170,16 +169,11 @@ namespace OpenSekai.App.UI
             _nickname.richText = false;
             LibraryWidgets.Place(_nickname.rectTransform, topLeft, topLeft, new Vector2(nameLeft, -identityTop + 4f),
                 new Vector2(TEXT_WIDTH - nameLeft - 12f, 62f));
-            _plate = LibraryWidgets.Panel("Plate", copyRoot, 8f, HomeTheme.Colors.Chip);
-            LibraryWidgets.Place(_plate.rectTransform, topLeft, topLeft, new Vector2(nameLeft, -identityTop - 64f),
-                new Vector2(180f, PLATE_HEIGHT));
-            _plateOutline = LibraryWidgets.Shape("Outline", _plate.transform, LibraryShapes.Ring(8f, 1f), LibraryTheme.Colors.Hairline);
-            LibraryUi.Stretch(_plateOutline.rectTransform);
-            _plateLabel = LibraryWidgets.Label("Label", _plate.transform, string.Empty, 18f, LibraryTheme.Colors.TextMuted,
-                FontStyles.Normal, TextAlignmentOptions.Center);
-            _plateLabel.richText = false;
-            _plateLabel.overflowMode = TextOverflowModes.Overflow;
-            LibraryUi.Stretch(_plateLabel.rectTransform);
+            for (int i = 0; i < _medals.Length; i++)
+            {
+                _medals[i] = new MedalChip(copyRoot, "Medal" + i);
+                LibraryWidgets.Place(_medals[i].Root, topLeft, topLeft, new Vector2(nameLeft, -identityTop - 64f), _medals[i].Root.sizeDelta);
+            }
 
             // Call to action: drawn only, the whole card takes the tap.
             _ctaGlow = LibraryUi.CreateImage("CtaGlow", copyRoot, Color.clear);
@@ -248,11 +242,17 @@ namespace OpenSekai.App.UI
             }
             _charts.text = _summary.ChartCount.ToString(CultureInfo.InvariantCulture);
             _plays.text = _summary.PlayCount.ToString(CultureInfo.InvariantCulture);
-            bool worn = !string.IsNullOrEmpty(_summary.DanLabel);
-            _plateLabel.text = worn ? _summary.DanLabel : "未取得段位";
-            float width = Mathf.Ceil(_plateLabel.GetPreferredValues(_plateLabel.text).x) + 36f;
-            _plate.rectTransform.sizeDelta = new Vector2(Mathf.Max(120f, width), PLATE_HEIGHT);
-            ApplyAccent(_summary.Unreadable ? LibraryTheme.Colors.TextMuted : RankingTiers.Color(_summary.TierId), worn);
+            for (int i = 0; i < _medals.Length; i++)
+            {
+                bool worn = i < _summary.Medals.Count;
+                // With none worn, one empty chip holds the place.
+                _medals[i].Root.gameObject.SetActive(worn || i == 0);
+                if (worn) _medals[i].SetLook(_summary.Medals[i]);
+                else _medals[i].SetEmpty("未佩戴奖牌");
+            }
+
+            LayOutMedals(_summary.Medals.Count);
+            ApplyAccent(_summary.Unreadable ? LibraryTheme.Colors.TextMuted : RankingTiers.Color(_summary.TierId));
         }
 
         public void SetInnerAlpha(float alpha)
@@ -288,7 +288,24 @@ namespace OpenSekai.App.UI
             _badge.Tick(time);
         }
 
-        private void ApplyAccent(Color32 accent, bool worn)
+        /// <summary>Puts the worn medals side by side; a short one leaves its room to the other.</summary>
+        private void LayOutMedals(int worn)
+        {
+            if (worn < _medals.Length)
+            {
+                _medals[0].SetWidth(Mathf.Min(_medals[0].FitWidth, MEDALS_WIDTH));
+                return;
+            }
+
+            float room = MEDALS_WIDTH - MEDAL_GAP;
+            float first = Mathf.Min(_medals[0].FitWidth, Mathf.Max(room * 0.5f, room - _medals[1].FitWidth));
+            _medals[0].SetWidth(first);
+            _medals[1].SetWidth(Mathf.Min(_medals[1].FitWidth, room - first));
+            Vector2 start = _medals[0].Root.anchoredPosition;
+            _medals[1].Root.anchoredPosition = new Vector2(start.x + first + MEDAL_GAP, start.y);
+        }
+
+        private void ApplyAccent(Color32 accent)
         {
             _eyebrow.color = accent;
             _cta.color = accent;
@@ -296,11 +313,6 @@ namespace OpenSekai.App.UI
             _glow.color = HomeTheme.Colors.WithAlpha(accent, 70);
             _badgeGlow.color = HomeTheme.Colors.WithAlpha(accent, 60);
             _sky.SetTier(_summary.Unreadable ? 0 : _summary.TierId, accent);
-
-            Color32 plate = DanStyles.ParseColor(_summary?.DanColor, HomeTheme.Colors.Violet);
-            _plate.color = worn ? HomeTheme.Colors.WithAlpha(plate, 56) : HomeTheme.Colors.Chip;
-            _plateOutline.color = worn ? HomeTheme.Colors.WithAlpha(DanStyles.Light(plate), 170) : LibraryTheme.Colors.Hairline;
-            _plateLabel.color = worn ? LibraryTheme.Colors.TextPrimary : LibraryTheme.Colors.TextMuted;
         }
 
         private static TextMeshProUGUI Stat(Transform parent, string name, string caption, Vector2 position)

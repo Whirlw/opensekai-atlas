@@ -341,6 +341,8 @@ namespace OpenSekai.App.UI
                 case "style.label": return "段位名不能为空，也不能包含控制字符";
                 case "style.emblem": return "段位牌图案无效";
                 case "style.color": return "颜色需要写成 #RRGGBB，例如 #526DC8";
+                case "style.tier": return "段位牌的阶位无效";
+                case "style.grade": return "段位牌的等级需要是 I 到 X 或 α 到 ω";
             }
 
             if (field.StartsWith("damage.", StringComparison.Ordinal))
