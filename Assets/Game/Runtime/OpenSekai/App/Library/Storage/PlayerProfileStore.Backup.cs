@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -23,10 +24,13 @@ namespace OpenSekai.App.Library
         public int DanAttemptsAdded { get; internal set; }
         public int DanDuplicates { get; internal set; }
         public IReadOnlyList<string> DanConflictingIds { get; internal set; }
-        public bool HasChanges => Added > 0 || RestoresAppearance || DanDefinitionsAdded > 0 || DanAttemptsAdded > 0;
+        public int AchievementsAdded { get; internal set; }
+        public bool HasChanges => Added > 0 || RestoresAppearance || DanDefinitionsAdded > 0 || DanAttemptsAdded > 0 || AchievementsAdded > 0;
         public bool RestoresAppearance { get; internal set; }
         public PlayerProfileSnapshot Result { get; internal set; }
-        public IReadOnlyList<string> UnlockedAchievementIds { get; internal set; }
+
+        /// <summary>Goals the merged records newly reach, waiting to be unlocked.</summary>
+        public IReadOnlyList<string> ReachedAchievementIds { get; internal set; }
     }
 
     public sealed partial class PlayerProfileStore
@@ -46,7 +50,7 @@ namespace OpenSekai.App.Library
         {
             RequireIdle();
             long bytes = HistoryLength();
-            ProfileBackupArchive.Write(destination, HistoryPath, ReadAppearance(), ReadDanArchive());
+            ProfileBackupArchive.Write(destination, HistoryPath, ReadAppearance(), ReadDanArchive(), ReadClaims());
             MarkBackupSaved(_directory, bytes);
         }
 
@@ -64,9 +68,10 @@ namespace OpenSekai.App.Library
             long bytes = HistoryLength();
             var appearance = ReadAppearance();
             var dan = ReadDanArchive();
+            var claims = ReadClaims();
             return RunBackupAsync(() =>
             {
-                ProfileBackupArchive.Write(destination, history, appearance, dan, cancel);
+                ProfileBackupArchive.Write(destination, history, appearance, dan, claims, cancel);
                 return (directory, bytes);
             }, cancel);
         }
@@ -110,7 +115,7 @@ namespace OpenSekai.App.Library
             try
             {
                 string incoming = Path.Combine(stage, "incoming.jsonl");
-                var (appearance, incomingDan) = ProfileBackupArchive.Unpack(zipPath, incoming);
+                var (appearance, incomingDan, incomingClaims) = ProfileBackupArchive.Unpack(zipPath, incoming);
                 string merged = Path.Combine(stage, ProfileBackupArchive.HISTORY);
                 var preview = Merge(incoming, merged, cancel);
                 File.Delete(incoming);
@@ -118,12 +123,16 @@ namespace OpenSekai.App.Library
                 if (dan.Definitions.Count != 0 || dan.Attempts.Count != 0) preview.RestoresAppearance = false;
                 dan.Merge(incomingDan, preview);
                 File.WriteAllText(Path.Combine(stage, DAN_FILE), JsonConvert.SerializeObject(dan));
+                var claims = LoadClaims();
+                preview.AchievementsAdded = claims.Merge(incomingClaims);
+                File.WriteAllText(Path.Combine(stage, ACHIEVEMENTS_FILE), JsonConvert.SerializeObject(claims));
                 if (!preview.RestoresAppearance) appearance = ReadAppearance();
                 File.WriteAllText(Path.Combine(stage, PROFILE_FILE), JsonConvert.SerializeObject(appearance));
                 var (history, summaries) = IndexHistory(merged);
                 history.DanSource = () => dan;
-                preview.UnlockedAchievementIds = AchievementIndex.NewUnlocks(before, history.ReadAchievements());
-                preview.Result = new PlayerProfileSnapshot(appearance, history.Read(), dan, history.ReadAchievements);
+                preview.ReachedAchievementIds = AchievementIndex.NewlyReached(before, history.ReadAchievements())
+                    .Where(goal => !claims.Contains(goal)).ToList().AsReadOnly();
+                preview.Result = new PlayerProfileSnapshot(appearance, history.Read(), dan, () => claims.Apply(history.ReadAchievements()));
                 cancel.ThrowIfCancellationRequested();
                 preview.Id = id;
                 _previewHistoryLength = bytes;

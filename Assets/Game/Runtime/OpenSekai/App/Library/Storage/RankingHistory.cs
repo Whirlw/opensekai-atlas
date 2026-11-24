@@ -37,7 +37,7 @@ namespace OpenSekai.App.Library
             if (_achievements != null && !_achievements.TryAppend(contribution)) InvalidateAchievements();
         }
 
-        private RankingSettlement WithUnlocks(RankingSettlement receipt)
+        private RankingSettlement WithReached(RankingSettlement receipt)
         {
             var ids = Achievements.ForPlay(receipt.PlayId);
             return ids.Count == 0 ? receipt : new RankingSettlement(receipt.PlayId, receipt.ScoreKey, receipt.Eligibility,
@@ -90,7 +90,7 @@ namespace OpenSekai.App.Library
                 {
                     var existing = _last?.PlayId == play.RecordId ? _last : Replay(play.RecordId);
                     _pending.Remove(play.RecordId);
-                    return WithUnlocks(existing);
+                    return WithReached(existing);
                 }
 
                 // Load existing progress before the write; a failed append cannot award anything.
@@ -113,7 +113,7 @@ namespace OpenSekai.App.Library
                 _pending[play.RecordId] = play;
                 return _board.Evaluate(play, HistorySaveState.SaveFailed);
             }
-            var saved = WithUnlocks(_last);
+            var saved = WithReached(_last);
             Appended?.Invoke();
             return saved;
         }
@@ -124,7 +124,7 @@ namespace OpenSekai.App.Library
             if (_pending.TryGetValue(playId, out var play)) return Submit(play, null, out summary);
             EnsureLoaded();
             var receipt = _last?.PlayId == playId ? _last : _ids.Contains(playId) ? Replay(playId) : null;
-            return receipt == null ? null : WithUnlocks(receipt);
+            return receipt == null ? null : WithReached(receipt);
         }
 
         private void EnsureLoaded()

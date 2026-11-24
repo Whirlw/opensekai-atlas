@@ -20,8 +20,10 @@ namespace OpenSekai.EditorTools.Screenshots
 
         /// <summary>
         /// The 成就 part on a sample profile in a temporary folder (never the player's own): the
-        /// second home page with its chip and the card growing, every goal (two unlocked, two under
-        /// way, one not started) and each filter, the unlock card for one goal and for three at once
+        /// second home page with its chip and the card growing, every achievement (two that can be
+        /// unlocked, two under way) and each filter, two reward cards, one unlock held at several times
+        /// and one run with a tap until the list has sorted itself, an earlier level, rows with more
+        /// levels than one strip of stars, the card for one goal reached and for three at once
         /// (holding, and mid-entrance), back out to the second page, and last a new profile.
         /// </summary>
         private IEnumerator AchievementsShot(Shot shot)
@@ -76,10 +78,46 @@ namespace OpenSekai.EditorTools.Screenshots
 
                 screen.SetFilter(AchievementCategory.All);
                 yield return new WaitForSecondsRealtime(0.7f);
+                foreach (string id in new[] { "fc_lv25", "fc_lv28_10" })
+                {
+                    screen.ShowReward(FindGoal(screen, id));
+                    yield return new WaitForSecondsRealtime(0.6f);
+                    yield return Capture(shot, stem + "-reward-" + id, "what " + id + " gives", null);
+                    screen.HideReward();
+                }
+
+                AchievementRow row = screen.View.FindRow("fc_lv25");
+                AchievementSeries after = screen.Unlock("fc_lv25");
+                foreach (float time in _achievementUnlockTimes)
+                {
+                    row.SeekUnlock(after, time);
+                    yield return null;
+                    yield return Capture(shot, stem + "-claim" + Mathf.RoundToInt(time * 100f), "unlocking 高阶全连", null, time);
+                }
+
+                screen.View.BindList(false);
+                yield return null;
+                yield return Capture(shot, stem + "-claimed", "after the unlock, in the new order", null);
+                screen.View.FindRow("first_dan_pass").Root.Find("Inner/Hit").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+                yield return new WaitForSecondsRealtime(1.2f);
+                yield return Capture(shot, stem + "-tapped", "unlocking 初获段位 with a tap, the count gone up and what it gave", null);
+                yield return new WaitForSecondsRealtime(2.4f);
+                yield return Capture(shot, stem + "-sorted", "after it, complete and last", null);
+                screen.View.FindRow("manual_hits_10000").SlideTo(0);
+                yield return new WaitForSecondsRealtime(0.15f);
+                yield return Capture(shot, stem + "-sliding", "turning to an earlier level", null);
+                yield return new WaitForSecondsRealtime(0.6f);
+                yield return Capture(shot, stem + "-earlier", "an earlier level", null);
+
+                GameObject gallery = BuildAchievementGallery();
+                yield return null;
+                yield return Capture(shot, stem + "-levels", "rows with one to eight levels open", null);
+                UnityEngine.Object.Destroy(gallery);
+
                 screen.PreviewUnlock(new[] { "fc_lv25" }, null, 1.6f);
                 yield return null;
-                yield return Capture(shot, stem + "-unlock", "the unlock card for one goal", null, 1.6f);
-                screen.PreviewUnlock(new[] { "manual_hits_10000", "fc_lv28_10", "first_ap" }, "合并备份后解锁", 1.6f);
+                yield return Capture(shot, stem + "-unlock", "the card for one goal reached", null, 1.6f);
+                screen.PreviewUnlock(new[] { "manual_hits_10000", "fc_lv28_10", "first_ap" }, "合并备份后可解锁", 1.6f);
                 yield return null;
                 yield return Capture(shot, stem + "-unlock-multi", "one card for three goals after a backup merge", null, 1.6f);
                 screen.PreviewUnlock(new[] { "first_dan_pass", "manual_hits_10000" }, null, 0.3f);
@@ -112,12 +150,63 @@ namespace OpenSekai.EditorTools.Screenshots
                 }
             }
         }
+
+        private static readonly float[] _achievementUnlockTimes = { 0.2f, 0.34f, 0.5f, 0.75f, 1f, 1.5f, 1.9f };
+
+        private static AchievementProgress FindGoal(AchievementScreen screen, string id)
+        {
+            foreach (AchievementProgress goal in screen.Items)
+            {
+                if (goal.Id == id) return goal;
+            }
+
+            throw new InvalidOperationException("No goal " + id);
+        }
+
+        /// <summary>Rows of a made-up achievement with eight levels, with ever more of them unlocked.</summary>
+        private static GameObject BuildAchievementGallery()
+        {
+            var host = new GameObject("[Achievement gallery]", typeof(RectTransform));
+            Canvas canvas = host.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 900;
+            UnityEngine.UI.CanvasScaler scaler = host.AddComponent<UnityEngine.UI.CanvasScaler>();
+            scaler.uiScaleMode = UnityEngine.UI.CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            scaler.matchWidthOrHeight = 0.5f;
+            UnityEngine.UI.Image ground = LibraryUi.CreateImage("Ground", host.transform, LibraryTheme.Colors.Ground);
+            LibraryUi.Stretch(ground.rectTransform);
+            RectTransform area = LibraryUi.CreateRect("Area", host.transform);
+            LibraryWidgets.Inset(area, 260f, 20f, 260f, 20f);
+            RectTransform content = PackWidgets.Scroll(area, out UnityEngine.UI.ScrollRect scroll);
+            int[] unlocked = { 0, 3, 4, 5, 8 };
+            for (int i = 0; i < unlocked.Length; i++)
+            {
+                var steps = new System.Collections.Generic.List<AchievementProgress>();
+                for (int step = 0; step < 8; step++)
+                {
+                    int target = 10000 * (step + 1);
+                    var goal = new AchievementGoal("sample_" + i + "_" + step, AchievementMetric.ManualHits, 0, target, "sample_" + i,
+                        step % 2 == 0 ? "sparkle" : null, step != 1);
+                    bool reached = step < unlocked[i] || (step == unlocked[i] && i % 2 == 1);
+                    steps.Add(new AchievementProgress(goal, unlocked[i] * 10000 + 6200, reached ? DateTimeOffset.UtcNow : (DateTimeOffset?)null,
+                        step < unlocked[i] ? DateTimeOffset.UtcNow : (DateTimeOffset?)null));
+                }
+
+                var row = new AchievementRow(content, i, scroll, _ => { }, _ => { });
+                row.SetTop(i * (AchievementRow.HEIGHT + 12f));
+                row.Bind(new AchievementSeries(steps));
+            }
+
+            return host;
+        }
     }
 
     /// <summary>
     /// A made-up profile part of the way through the goals: four full combos at Lv.26 to Lv.30 over
-    /// the last nine days (so 高阶全连 is unlocked and 十面全连 stands at 3 of 10), a failed run, no all
-    /// perfect, and a passed two-song 段位 (初获段位), for about 6,200 hits in all.
+    /// the last nine days (so 高阶全连 can be unlocked and 十面全连 stands at 3 of 10), four more clears and
+    /// a failed run for about 12,000 hits in all (万键之路 unlocked, the next level under way), no all
+    /// perfect, and a passed two-song 段位 (初获段位 can be unlocked).
     /// </summary>
     internal static class AchievementSamples
     {
@@ -134,6 +223,11 @@ namespace OpenSekai.EditorTools.Screenshots
             {
                 (string title, int level, double daysAgo) = fullCombos[i];
                 store.History.Submit(Record("achievement-fc-" + i, title, level, PlayResultKind.Completed, true, now.AddDays(-daysAgo)), null, out _);
+            }
+
+            for (int i = 0; i < 4; i++)
+            {
+                store.History.Submit(Record("achievement-clear-" + i, "Long Tide " + i, 34, PlayResultKind.Completed, false, now.AddDays(-8 + i)), null, out _);
             }
 
             store.History.Submit(Record("achievement-failed", "Lumen Drive", 31, PlayResultKind.Failed, false, now.AddHours(-20)), null, out _);
@@ -160,6 +254,7 @@ namespace OpenSekai.EditorTools.Screenshots
             }
 
             store.SaveDanAttempt(course, attempt);
+            store.UnlockAchievement("manual_hits_10000");
             return store;
         }
 

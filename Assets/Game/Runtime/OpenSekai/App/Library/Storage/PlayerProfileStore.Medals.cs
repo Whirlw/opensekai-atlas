@@ -6,7 +6,7 @@ namespace OpenSekai.App.Library
 {
     public sealed partial class PlayerProfileStore
     {
-        /// <summary>Every medal the player owns: passed 段位, newest saved first, then unlocked achievements.</summary>
+        /// <summary>Every medal the player owns: passed 段位, newest saved first, then the ones unlocked achievements gave.</summary>
         public IReadOnlyList<Medal> ReadMedals() => Medals(ReadDanArchive(), ReadAchievements());
 
         /// <summary>
@@ -63,7 +63,7 @@ namespace OpenSekai.App.Library
         {
             var earned = new HashSet<string>(archive.Earned(), StringComparer.Ordinal);
             return archive.DecodeDefinitions().Values.Where(definition => earned.Contains(definition.Id)).Reverse().Select(Medal.Of)
-                .Concat(achievements.Where(progress => progress.UnlockedAtUtc.HasValue).Select(Medal.Of))
+                .Concat(achievements.Where(progress => progress.Goal.GivesMedal && progress.State == AchievementState.Unlocked).Select(Medal.Of))
                 .ToArray();
         }
     }

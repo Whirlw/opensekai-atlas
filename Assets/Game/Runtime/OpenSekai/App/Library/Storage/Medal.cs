@@ -41,8 +41,8 @@ namespace OpenSekai.App.Library
 
     /// <summary>
     /// A medal the player owns: the plate of a 段位 they passed, or the one an unlocked achievement
-    /// gives. Nothing about it is stored; it follows from the play history and the 段位 attempts.
-    /// Only the keys of the worn ones are saved.
+    /// gives. Nothing about it is stored; it follows from the play history, the 段位 attempts and the
+    /// unlocked achievements. Only the keys of the worn ones are saved.
     /// </summary>
     public sealed class Medal
     {

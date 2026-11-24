@@ -43,7 +43,7 @@ RankingSettlement ranking = CustomMusicScorePlayHistoryStorage.ForDisplay(play);
 
 - 从 `play` 读取曲名、难度、原始分、连击和五档判定；`play.Award` 区分普通通关、FC 和 AP。真实加载失败也可交给 `ForDisplay`。
 - 从 `ranking` 读取 `BasePoints`、`Bonus`、`Points` 和 `Eligibility`。前后状态 `Before` / `After` 均含总分、评级 ID（0 至 6）、该谱最佳和榜内名次（1 至 30，榜外为空）。`ChartImproved` 控制新纪录文字，`Delta` 控制涨分，`TierUp` 控制升级。
-- 写入失败显示 `SaveFailed`，总分维持原值。真实结果可调用 `CustomMusicScorePlayHistoryStorage.RetrySave(ranking.PlayId)`，绑定返回的新快照。失败样例用于预览。成功保存后，从 `UnlockedAchievementIds` 读取本局首次解锁的成就。
+- 写入失败显示 `SaveFailed`，总分维持原值。真实结果可调用 `CustomMusicScorePlayHistoryStorage.RetrySave(ranking.PlayId)`，绑定返回的新快照。失败样例用于预览。成功保存后，从 `ReachedAchievementIds` 读取本局首次达成、等待解锁的成就。
 - 榜单调用 `CustomMusicScorePlayHistoryStorage.ReadBest30()`，返回按贡献排序的只读快照。第一个条目为第 1 名，每项包含成绩分和对应的最佳历史记录。上述存储接口均在 Unity 主线程调用。
 
 | SettlementExample | 成绩分 | 个人总分变化 |
@@ -97,7 +97,7 @@ RankingSettlement ranking = CustomMusicScorePlayHistoryStorage.ForDisplay(play);
   - 历史每行显示本地日期时间、手动或自动、连击、结束标签和原始分。正好是某谱贡献局的那一行标「Best 30 · 第 n 名 · x 分」，不计入的写明原因（旧版、自动、未完成、中途退出）。
   - 在「全部历史」中长按一条记录 0.7 秒，会弹出删除确认卡。「清空历史」始终可以点。系统成功保存当前历史的备份后，它打开清空确认卡。没有这样的备份时，卡片说明清空前需要备份，并提供「导出备份」，导出成功后回到清空确认。两种确认都沿用删除曲包的「再点一次确认」行，第一下变红并抖动，第二下才删除（`LibraryActionRow`，暂停卡也用它）。单条删除后，现有备份仍覆盖剩余成绩。写入新成绩或导入新增记录后，清空前需要再次导出。
   - 前端不计算成绩分，也不判断入榜资格，只按 `RecordId` 对照 Best 30 的条目。
-- **头像与昵称。** 「编辑资料」卡提供 12 个内置头像，稳定 ID 为 `default`、`note`、`flick`、`hexagon`、`diamond`、`halo`、`wave`、`heart`、`globe`、`trophy`、`orbit`、`play`（`ProfileAvatars`）。头像全部用现有形状绘制，不附带图片。遇到不认识的 ID 时按默认头像显示，但保留原 ID，除非玩家另选。昵称在前端限制为 24 个字符，去掉首尾空格，过滤控制字符，空昵称不能保存。
+- **头像与昵称。** 「编辑资料」卡提供 12 个内置头像，另有 3 个由成就给出（见[成就的等级与解锁](#成就的等级与解锁)）。内置头像的稳定 ID 为 `default`、`note`、`flick`、`hexagon`、`diamond`、`halo`、`wave`、`heart`、`globe`、`trophy`、`orbit`、`play`（`ProfileAvatars`）。头像全部用现有形状绘制，不附带图片。遇到不认识的 ID 时按默认头像显示，但保留原 ID，除非玩家另选。昵称在前端限制为 24 个字符，去掉首尾空格，过滤控制字符，空昵称不能保存。
 - **备份。**
   - 导出调用 `ExportAsync`，成功、取消和失败分别提示。
   - 导入调用 `PickImportAsync`，等待期间显示处理中卡片，并可以取消。
@@ -149,32 +149,33 @@ RankingSettlement ranking = CustomMusicScorePlayHistoryStorage.ForDisplay(play);
 
 段位牌已改为通用的奖牌体系：段位和成就都能得到奖牌，玩家选两块展示在个人信息页和首页。后端在 `App/Library/Storage/Medal.cs` 和 `PlayerProfileStore.Medals.cs`，前端在 `App/UI/Medals/`。
 
-- **来源。** 通过的段位和已解锁的成就各是一块奖牌（`Medal`，`Kind` 为 `Dan` 或 `Achievement`）。奖牌不单独存档，由段位记录和游玩历史推出，删除记录后随之收回。新来源在 `PlayerProfileStore.Medals` 里加入，并在 `MedalLook` 里给出牌面。
+- **来源。** 通过的段位和已解锁的成就各是一块奖牌（`Medal`，`Kind` 为 `Dan` 或 `Achievement`）。成就达成后要在成就页点击解锁才会给出奖牌（见[成就的等级与解锁](#成就的等级与解锁)）。奖牌不单独存档，由段位记录、游玩历史和已解锁的成就推出，删除记录后随之收回。新来源在 `PlayerProfileStore.Medals` 里加入，并在 `MedalLook` 里给出牌面。
 - **佩戴。** `Medal.SLOTS` 为 2。`dan.json` 的 `Worn` 按位置保存奖牌键（`dan:<段位 ID>` 或 `achievement:<成就 ID>`）。`WearMedal(slot, key)` 指定位置，已戴在另一位置的奖牌与它对调，传 `null` 卸下；`WearMedal(key)` 放进第一个空位，满了换下第二块；`RemoveMedal(key)` 卸下。失去的奖牌不再显示，它的位置视为空位，重新取得后恢复。旧档案的 `Equipped` 读入第一个位置。空档恢复备份时一并恢复两个位置，已有档案保留本机选择。
 - **阶位。** `MedalTiers` 0–4，名称为初阶、进阶、高阶、尊阶、极阶，只决定边框。初阶是原有的单线边框，往上逐级累加（`MedalArt`）：进阶加内线和两端菱形；高阶加四角的角饰和上下居中的菱形；尊阶把角饰连成完整外框，加四角菱形和两端的成排菱形；极阶的线条改用 ALL PERFECT 渐变，加第二道外框、上下的四角星和柔光。各阶的牌面（内框）一样大，固定内缩 `MedalArt.INSET`，四周留给最高阶的边框，所以低阶整块看起来更小。
 - **等级。** `MedalGrades` 依次是 I 到 X、α 到 ω，共 34 级，显示在牌面右侧，可以不显示。
 - **底纹。** 只有段位牌铺菱格底纹，文字和等级处变淡；其他奖牌是素底，色带里放成就的标记（10K、FC、AP）或奖杯。
-- **阶位和等级由谁定。** 段位牌由制作者在制作器里选，写进分享文本。成就奖牌的阶位写在 `AchievementCopy`：初获段位为初阶，万键之路为进阶，高阶全连和完美无缺为高阶，十面全连为尊阶；目前都不带等级。
+- **阶位和等级由谁定。** 段位牌由制作者在制作器里选，写进分享文本。成就奖牌的阶位写在 `AchievementCopy`：初获段位为初阶，万键之路为进阶，五万与十万键之路、高阶全连和完美无缺为高阶，五十万键之路和十面全连为尊阶，百万键之路为极阶；目前都不带等级。
 - **选择。** 个人页的两块奖牌分别点开「选择奖牌」（`MedalPicker`），可切换位置，列出全部奖牌的种类、阶位和佩戴位置，以及「不佩戴」。
 - **首页缩小样式。** 首页个人卡用 `MedalChip`：高 36，与原来的段位标签相同，宽度随文字，最小 120。只保留颜色、名称、等级和段位底纹，不画色带和图案；边框也简化（`MedalArt.RenderCompactFrame`）：进阶加粗描边和两端菱形，高阶加上下居中的菱形，尊阶加外框，极阶用 ALL PERFECT 渐变、四角星和柔光。各阶牌面同样大，外框和装饰伸到矩形外。两块合计不超过 424，放不下时长的一块先缩小文字，仍放不下则省略。
 - **绘制。** 边框按阶位和尺寸生成白色纹理再着色（`MedalFrames`），与奖牌颜色无关，同尺寸共用。
 
 ### 第四阶段后端联调入口
 
-成就页在主线程调用 `PlayerProfileStore.Local.ReadAchievements()`，得到五项只读快照。每项包含稳定的 `Id`、指标 `Metric`、最低谱面等级 `MinimumLevel`、实际进度 `Current`、目标 `Target` 和可空的首次解锁时间 `UnlockedAtUtc`。最近解锁按该时间降序展示。累计击打和不同谱面数可以超过目标。
+成就页在主线程调用 `PlayerProfileStore.Local.ReadAchievements()`，得到全部目标的只读快照。每项包含稳定的 `Id`、指标 `Metric`、最低谱面等级 `MinimumLevel`、实际进度 `Current`、目标 `Target`、可空的首次达成时间 `ReachedAtUtc` 和玩家点击解锁的时间 `UnlockedAtUtc`，状态见 `State`。最近解锁按 `UnlockedAtUtc` 降序展示。累计击打和不同谱面数可以超过目标。
 
 | ID | 指标 | 目标 |
 | --- | --- | --- |
 | `manual_hits_10000` | `ManualHits` | 普通手动局及段位各曲累计 10,000 个 Perfect、Great、Good、Bad，含失败和退出前的有效击打 |
+| `manual_hits_50000`、`_100000`、`_500000`、`_1000000` | `ManualHits` | 同上，累计 5 万、10 万、50 万、100 万，是 `manual_hits_10000` 的后续等级 |
 | `fc_lv25` | `FullComboCharts` | 1 张 Lv.25 及以上普通谱面 FC，AP 同样计入 |
 | `fc_lv28_10` | `FullComboCharts` | 10 张 Lv.28 及以上普通谱面 FC，按谱面键去重 |
 | `first_ap` | `AllPerfect` | 首次普通手动通关并取得 AP |
 | `first_dan_pass` | `DanPass` | 首次通过段位 |
 
-- 普通结算绑定 `RankingSettlement.UnlockedAchievementIds`，保存重试绑定返回的新快照。同局可解锁多项，重复打开时前端按 `PlayId` 控制提示。内存样例 `SettlementExample.SameChartFullCombo` 可预览首次等级 FC，`SaveFailed` 可预览保存失败。
-- 段位结算读取 `DanChallengeService.UnlockedAchievementIds`，它汇总本场各首已保存的解锁，重开从新场次开始。
-- 备份确认成功后可用同一份 `ProfileImportPreview.UnlockedAchievementIds` 显示合并摘要，再读取最新进度。取消预览不会改动成就。重复导入同一份备份时该列表为空。
-- 普通游玩采用有稳定局 ID 和结束时间的 v3 记录。段位以已保存的逐曲结果为准。新段位记录保存每首结束的 UTC 时间，旧备份只有场次开始时间，回算时使用该时间。按时间、稳定 ID 及曲序确定首次达标记录。删除普通历史或段位后，按剩余记录重算进度和解锁时间。
+- 普通结算绑定 `RankingSettlement.ReachedAchievementIds`，保存重试绑定返回的新快照。同局可达成多项，重复打开时前端按 `PlayId` 控制提示。内存样例 `SettlementExample.SameChartFullCombo` 可预览首次等级 FC，`SaveFailed` 可预览保存失败。
+- 段位结算读取 `DanChallengeService.ReachedAchievementIds`，它汇总本场各首已保存的达成，重开从新场次开始。
+- 备份确认成功后可用同一份 `ProfileImportPreview.ReachedAchievementIds` 显示合并摘要（不含已解锁的），再读取最新进度。取消预览不会改动成就。重复导入同一份备份时该列表为空。
+- 普通游玩采用有稳定局 ID 和结束时间的 v3 记录。段位以已保存的逐曲结果为准。新段位记录保存每首结束的 UTC 时间，旧备份只有场次开始时间，回算时使用该时间。按时间、稳定 ID 及曲序确定首次达标记录。删除普通历史或段位后，按剩余记录重算进度和达成时间。
 
 2026-11-22 在 Unity 6000.6.7f1 验证。EditMode 全套 1,675 项通过、21 项跳过。三条双曲 PlayMode 用例均通过，覆盖末键归零、剩 1 点授牌并解锁成就、暂停重开后退出。Android 真机全流程仍待第四阶段前端接入后验收。
 
@@ -182,15 +183,32 @@ RankingSettlement ranking = CustomMusicScorePlayHistoryStorage.ForDisplay(play);
 
 成就页和三处解锁提示已接入，代码在 `App/UI/Achievements/`。
 
-- **入口与成就页。** 首页第二页的「成就」卡已开放，状态芯片显示「已解锁 N / 5」，每次回到首页都从 `ReadAchievements()` 刷新。成就页左侧是解锁进度环、两项累计数（累计击打，以及最低门槛那项 FC 成就的不同谱面数，现为 Lv.25+），和按 `UnlockedAtUtc` 倒序的最近解锁。右侧可按「全部 / 累计击打 / 谱面达成 / 段位通关」筛选，每项显示奖章和进度环、名称、目标与计数口径。未解锁时显示百分比和「当前 / 目标」，满额前最多显示 99%；只需达成一次的显示「未达成」；已解锁的显示解锁时间，击打与谱面数超过目标后另起一行写累计值。列表沿用后端顺序，解锁后条目不换位置。
+- **入口与成就页。** 首页第二页的「成就」卡已开放，状态芯片显示「已解锁 N / 9」，有可解锁的再加「M 项可解锁」，每次回到首页都从 `ReadAchievements()` 刷新。成就页左侧是解锁进度环、累计击打、游戏次数（`ReadHistory` 的总数，与个人信息页一致），和按 `UnlockedAtUtc` 倒序的最近解锁。右侧可按「全部 / 累计击打 / 谱面达成 / 段位通关」筛选，每项显示奖章和进度环、名称、目标与计数口径。未解锁时显示百分比和「当前 / 目标」，满额前最多显示 99%；只需达成一次的显示「未达成」；已解锁的显示解锁时间，击打与谱面数超过目标后另起一行写累计值。列表的排序、等级与解锁见[成就的等级与解锁](#成就的等级与解锁)。
 - **文案与奖章。** 前端名称为 `manual_hits_10000` 万键之路、`fc_lv25` 高阶全连、`fc_lv28_10` 十面全连、`first_ap` 完美无缺、`first_dan_pass` 初获段位（`AchievementCopy`）。奖章是圆形，和六边形的评级徽章、矩形的奖牌区分开；解锁后另有一块同名奖牌可以佩戴（见[奖牌](#奖牌)）。牌面依次是 10K、FC LV25+、FC ×10、AP 和一块小段位牌，FC 用金色渐变，AP 用结算页同款的逐字配色。后端新增而前端未收录的 ID，按 `Metric`、`MinimumLevel` 和 `Target` 生成名称与牌面，不会显示原始 ID。所有新文案都在内置的 GB2312 字体子集里。
-- **解锁提示。** 三处共用 `AchievementUnlockPopup`：一张从页面顶部落下的卡片，停留约 4 秒后收起，不拦截点击。结算页的卡片放在右上角，避开 FULL COMBO 字标和分数，其余页面放在顶部正中。同时解锁多项时合并成一张卡，最多叠三枚奖章，名称用顿号连接。
+- **解锁提示。** 三处共用 `AchievementUnlockPopup`：一张从页面顶部落下的「成就可解锁」卡片，提示到成就页点击解锁，停留约 4 秒后收起，不拦截点击。结算页的卡片放在右上角，避开 FULL COMBO 字标和分数，其余页面放在顶部正中。同时解锁多项时合并成一张卡，最多叠三枚奖章，名称用顿号连接。
   - 普通结算：卡片排在升级动画之后进入时间线，跨档时约在 3.4 s 落下，否则约在 2.65 s。「轻触屏幕跳过动画」提示在卡片落下前淡出。轻触跳过时直接显示且不发声，再停留后收起。按 `PlayId` 在本次运行中只提示一次，重开同一局不再提示。保存失败时不提示，重新保存成功后从成绩分开始重播，结尾再提示。
-  - 段位结算：读取 `DanChallengeService.UnlockedAchievementIds`。未通过时在逐曲动画结束后提示；通过时等授牌特效关闭后再提示。按挑战场次 ID 只提示一次。
-  - 备份合并：预览卡的说明里写「合并后解锁成就：「…」」。确认成功后弹出一张卡，注明「合并备份后解锁」。重复导入同一份备份时列表为空，不提示。
-- **预览。** `Tools/capture-screens.ps1 -AchievementsPage` 在临时目录生成样例档案，不读也不改本机档案。脚本会拍下首页第二页与卡片放大、全部成就和三个筛选、单项与三项合并的解锁卡、卡片落下中途、返回后的第二页和新档案。`-Result fc` 的定格画面现在带「高阶全连」的解锁卡。
+  - 段位结算：读取 `DanChallengeService.ReachedAchievementIds`。未通过时在逐曲动画结束后提示；通过时等授牌特效关闭后再提示。按挑战场次 ID 只提示一次。
+  - 备份合并：预览卡的说明里写「合并后可解锁成就：「…」」。确认成功后弹出一张卡，注明「合并备份后可解锁」。重复导入同一份备份时列表为空，不提示。
+- **预览。** `Tools/capture-screens.ps1 -AchievementsPage` 在临时目录生成样例档案，不读也不改本机档案。拍摄内容见[截图工具](../operations/screenshot-tools.md)。`-Result fc` 的定格画面现在带「高阶全连」的解锁卡。
 - **验证。** 新增 `AchievementPageTests` 共 8 项，覆盖五个 ID 都有独立文案和正确分类、未知 ID 按指标回退、满额前不显示 100%、多项合并成一张卡、同一局只提示一次、保存失败不提示，以及页面的条目数与筛选。`GeneratedAssetSaveGuardTests` 原来以内存中的字体为基线，前面的界面测试画出新字后它就会失败，现在先丢弃内存改动再取基线。EditMode 全套 1,707 项：1,686 项通过、21 项跳过、无失败。截图核对了成就页、两种解锁卡和结算页的卡片位置。
-- **未完成。** 以下几项需要在真机上确认：解锁卡在刘海屏上的位置、首页成就卡的进入与返回，以及第四阶段的整条验收流程「打歌 → 结算涨分与解锁 → 个人页 → 段位通关 → 佩戴 → 备份恢复」。段位结算和备份合并后的解锁卡还没有截图样例，也没有专门的测试，目前只核对过代码路径。
+- **未完成。** 以下几项需要在真机上确认：提示卡在刘海屏上的位置、首页成就卡的进入与返回，以及第四阶段的整条验收流程「打歌 → 结算涨分与解锁 → 个人页 → 段位通关 → 佩戴 → 备份恢复」。段位结算和备份合并后的解锁卡还没有截图样例，也没有专门的测试，目前只核对过代码路径。
+
+### 成就的等级与解锁
+
+2026-11-24 起，成就分为未达成、可解锁、已解锁三种状态，同一项成就可以有多个等级。后端在 `AchievementGoals.cs`、`AchievementClaims.cs` 和 `PlayerProfileStore.Achievements.cs`，前端在 `App/UI/Achievements/`。
+
+- **目标表。** `AchievementGoals` 列出全部目标。`Series` 相同的目标是同一项成就的各等级，按表中顺序由低到高，后一级的条件必须包含前一级。每个目标写明是否给奖牌（`GivesMedal`）和给哪个头像（`AvatarId`）。累计击打有 5 级（1 万到 100 万），全连有 2 级（高阶全连、十面全连），完美无缺和初获段位各 1 级，共 4 项 9 级。新增等级只需在表里加一行，并在 `AchievementCopy` 里补文案。
+- **解锁与存档。** 达成后为 `Claimable`，玩家点击后调用 `UnlockAchievement(id)` 变为 `Unlocked`，必须按等级顺序。解锁时间存在 `achievements.json`，其余仍由记录推出。删除记录使目标不再达成时，对应的解锁一并清除，重新达成后要再点一次。清除前佩戴的奖牌在重新解锁后恢复到原位置。
+- **计数。** 解锁进度按等级计，只算已解锁的；标签上的数字按成就计。
+- **备份。** 备份格式升为 v3，增加 `achievements.json` 与校验值，v1、v2 仍可导入。合并时取两边解锁的并集，时间保留本机的。
+- **头像奖励。** 十万键之路给 `beat`，十面全连给 `crest`，完美无缺给 `sparkle`。未解锁时在「编辑资料」里变暗并带锁，点按说明由哪项成就给出；`SetAppearance` 也会拒绝。原有 12 个头像不受影响。
+- **条目。** 每行显示一个等级，默认是正在进行的一级。左右滑动查看前面已解锁的等级，竖向拖动仍滚动列表（`AchievementSwipe`）。多等级成就的奖章下方有星星（`AchievementStars`）：已解锁的点亮，最后一颗是下一级，进行中为灰色，可解锁时闪烁，当前查看的等级最大；每条最多 5 颗，第 6 颗起滑到下一条。只有一个等级的不显示星星。
+- **解锁动画。** 可解锁的条目描边、标签和奖章会呼吸。点击后奖章收缩、爆开光环与菱形，星星点亮，标签变为「已解锁」，奖励框弹起并打勾，左侧计数增长，底部提示领到的奖励。还有下一级时长出新星星并滑到下一级，否则停在已解锁。整段是一条时间线（`AchievementRow.ApplyUnlock`）。
+- **排序。** 可解锁、未完成、全部等级已解锁，同组内沿用目标表顺序。解锁动画结束后各行移动到新位置。
+- **奖励框。** 进度条右侧的方框显示奖牌、头像或两者，未达成时变暗带锁，已解锁时打勾。点击打开「成就奖励」（`AchievementRewardPanel`）看大图、阶位和领取条件。
+- **升级影响。** 旧档案里已达成的成就变为可解锁，对应的奖牌在点击解锁前不再显示。
+- **验证。** `AchievementTests`、`MedalTests`、`AchievementPageTests` 覆盖状态、顺序、排序、删除、备份和页面；PlayMode 的 `AchievementInteractionTests` 用真实射线点击解锁、左右滑动、竖向滚动和打开奖励框。EditMode 全套 1,809 项：1,806 项通过、3 项跳过、无失败。截图核对了 2800×1272 和 1920×1080。
+- **未完成。** 滑动手感、解锁动画帧率和触摸误触需要在真机上确认。等级门槛和奖励搭配是首轮数值。
 
 ## 一、从首页到个人页
 

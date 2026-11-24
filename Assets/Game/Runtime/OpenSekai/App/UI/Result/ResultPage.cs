@@ -224,14 +224,14 @@ namespace OpenSekai.App.UI
         /// <summary>True the first time a saved run with unlocks is shown; a reopened run does not announce them again.</summary>
         private static bool ShouldAnnounce(RankingSettlement ranking)
         {
-            return ranking != null && ranking.SaveState == HistorySaveState.Saved && ranking.UnlockedAchievementIds.Count > 0
+            return ranking != null && ranking.SaveState == HistorySaveState.Saved && ranking.ReachedAchievementIds.Count > 0
                 && !string.IsNullOrEmpty(ranking.PlayId) && _announced.Add(ranking.PlayId);
         }
 
         private void BindUnlocks()
         {
             _unlock.Hide();
-            if (_announceUnlocks && !_unlock.Bind(_ranking.UnlockedAchievementIds, null)) _announceUnlocks = false;
+            if (_announceUnlocks && !_unlock.Bind(_ranking.ReachedAchievementIds, null)) _announceUnlocks = false;
         }
 
         /// <summary>Once the opening has ended, the unlock card holds a while on its own, then lifts away.</summary>

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using LitMotion;
+using OpenSekai.App.Library;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,10 +9,10 @@ using UnityEngine.UI;
 namespace OpenSekai.App.UI
 {
     /// <summary>
-    /// 成就解锁: a card that drops in at the top of a page with the new medals, holds for a few
-    /// seconds and lifts away. Goals reached together share one card (their medals fanned out and
-    /// their names in a row), so a run that unlocks three says so once. It never takes a tap; the
-    /// page under it stays usable. The whole card is one timeline (<see cref="LENGTH"/> seconds),
+    /// 成就可解锁: a card that drops in at the top of a page with the medals of the goals just
+    /// reached, holds for a few seconds and lifts away; unlocking them is done on the 成就 page.
+    /// Goals reached together share one card (their medals fanned out and their names in a row), so
+    /// a run that reaches three says so once. It never takes a tap; the page under it stays usable. The whole card is one timeline (<see cref="LENGTH"/> seconds),
     /// so an owner can fold its entrance into its own opening (<see cref="Seek"/>) and let it run on
     /// from there (<see cref="Play"/>).
     /// </summary>
@@ -23,6 +24,7 @@ namespace OpenSekai.App.UI
         /// <summary>Seconds from dropping in to gone.</summary>
         internal const float LENGTH = 4.6f;
 
+        private const string NEXT = "到成就页点击解锁";
         private const float EXIT = 0.4f;
         private const float HEIGHT = 132f;
         private const float MEDAL = 92f;
@@ -95,7 +97,7 @@ namespace OpenSekai.App.UI
                     new Vector2(MEDAL * 0.5f + i * MEDAL_STEP, 0f), new Vector2(MEDAL, MEDAL));
             }
 
-            _eyebrow = LibraryWidgets.Label("UnlockEyebrow", _card, "成就解锁  ·  ACHIEVEMENT UNLOCKED", 17f, gold, FontStyles.Bold);
+            _eyebrow = LibraryWidgets.Label("UnlockEyebrow", _card, "成就可解锁  ·  ACHIEVEMENT READY", 17f, gold, FontStyles.Bold);
             LibraryUi.SetLetterSpacing(_eyebrow, 2f);
             _title = PackWidgets.UserLabel("UnlockTitle", _card, string.Empty, 30f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
             _line = LibraryWidgets.Label("UnlockLine", _card, string.Empty, 18f, LibraryTheme.Colors.TextSecondary);
@@ -110,7 +112,7 @@ namespace OpenSekai.App.UI
         /// Fills the card for <paramref name="ids"/> and keeps it hidden until <see cref="Play"/> or
         /// <see cref="Seek"/>. False (and nothing to show) when there are none.
         /// </summary>
-        /// <param name="context">Where the goals came from (合并备份后解锁); null for a run.</param>
+        /// <param name="context">Where the goals came from (合并备份后达成); null for a run.</param>
         internal bool Bind(IReadOnlyList<string> ids, string context)
         {
             Hide();
@@ -122,7 +124,7 @@ namespace OpenSekai.App.UI
             {
                 bool used = i < shown;
                 _medals[i].Root.gameObject.SetActive(used);
-                if (used) _medals[i].Bind(AchievementCopy.For(ids[i]), true, 1f);
+                if (used) _medals[i].Bind(AchievementCopy.For(ids[i]), AchievementState.Claimable, 1f);
             }
 
             AchievementLook first = AchievementCopy.For(ids[0]);
@@ -130,14 +132,14 @@ namespace OpenSekai.App.UI
             if (_count == 1)
             {
                 _title.text = first.Title;
-                _line.text = context != null ? first.Goal + "  ·  " + context : first.Goal;
+                _line.text = first.Goal + "  ·  " + (context ?? NEXT);
             }
             else
             {
                 var names = new List<string>();
                 for (int i = 0; i < ids.Count; i++) names.Add(AchievementCopy.For(ids[i]).Title);
                 _title.text = string.Join("、", names);
-                _line.text = "同时解锁 " + _count + " 项成就" + (context != null ? "  ·  " + context : string.Empty);
+                _line.text = "同时达成 " + _count + " 项成就  ·  " + (context ?? NEXT);
             }
 
             // The card grows with its text, within a band that keeps it clear of the page's corners.
@@ -158,7 +160,7 @@ namespace OpenSekai.App.UI
             return true;
         }
 
-        /// <summary>Runs the card from <paramref name="from"/> seconds in to its end; <paramref name="sound"/> plays the unlock cue first.</summary>
+        /// <summary>Runs the card from <paramref name="from"/> seconds in to its end; <paramref name="sound"/> plays the achievement cue first.</summary>
         internal void Play(float from = 0f, bool sound = true)
         {
             if (_count == 0) return;

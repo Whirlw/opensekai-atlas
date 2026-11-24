@@ -9,11 +9,11 @@ using UnityEngine.UI;
 namespace OpenSekai.App.UI
 {
     /// <summary>
-    /// The 成就 part: how many goals are unlocked and the latest ones on the left, every goal with
-    /// its medal and progress on the right, filtered by 累计击打, 谱面达成 or 段位通关. It only reads:
-    /// progress comes from <see cref="PlayerProfileStore.ReadAchievements"/> on the main thread
-    /// each time the part opens. Like the other parts it builds its own camera and canvas in the
-    /// Library scene.
+    /// The 成就 part: how many levels are unlocked and the latest ones on the left, every achievement
+    /// with its medal and progress on the right, filtered by 累计击打, 谱面达成 or 段位通关. Progress comes
+    /// from <see cref="PlayerProfileStore.ReadAchievements"/> on the main thread each time the part
+    /// opens; a tap on a reached one unlocks it, which hands over its medal and avatar. Like the
+    /// other parts it builds its own camera and canvas in the Library scene.
     /// </summary>
     public sealed class AchievementScreen : MonoBehaviour
     {
@@ -26,6 +26,9 @@ namespace OpenSekai.App.UI
         private MotionHandle _curtainMotion;
         private LibrarySettingsPanel _settings;
         private AchievementUnlockPopup _preview;
+        private AchievementRewardPanel _rewards;
+        private UiToast _toast;
+        private IReadOnlyList<AchievementSeries> _series = Array.Empty<AchievementSeries>();
         private bool _presented;
 
         /// <summary>The back button (and back with nothing open): leave the part.</summary>
@@ -46,6 +49,12 @@ namespace OpenSekai.App.UI
 
         /// <summary>Every goal, in the backend's order.</summary>
         internal IReadOnlyList<AchievementProgress> Items => _items;
+
+        /// <summary>The goals as achievements with their levels, in the backend's order.</summary>
+        internal IReadOnlyList<AchievementSeries> Series => _series;
+
+        /// <summary>Plays on record; null when they could not be read.</summary>
+        internal int? PlayCount { get; private set; }
 
         internal AchievementCategory Filter { get; private set; }
 
@@ -74,6 +83,9 @@ namespace OpenSekai.App.UI
             {
                 _settings?.Hide();
                 _preview.Hide();
+                _rewards.Close();
+                _toast.Hide();
+                View.Stop();
             }
 
             _canvasRoot.SetActive(presented);
@@ -118,10 +130,17 @@ namespace OpenSekai.App.UI
                 .Bind(alpha => _curtain.color = WithAlpha(LibraryTheme.Colors.Ground, alpha));
         }
 
-        /// <summary>The Android back key: closes the settings when they are open. False with nothing open.</summary>
+        /// <summary>The Android back key: closes the reward card or the settings when they are open. False with nothing open.</summary>
         internal bool TryHandleBack()
         {
             if (_curtainMotion.IsActive()) return true;
+            if (_rewards.IsOpen)
+            {
+                _rewards.Close();
+                UiSound.Play(UiCue.Close);
+                return true;
+            }
+
             if (_settings != null && _settings.IsOpen)
             {
                 _settings.Back();
@@ -145,9 +164,12 @@ namespace OpenSekai.App.UI
         internal void Reload()
         {
             _items.Clear();
+            _series = Array.Empty<AchievementSeries>();
+            PlayCount = null;
             try
             {
-                _items.AddRange(Store.ReadAchievements());
+                ReadItems();
+                PlayCount = Store.ReadHistory(0, 1).TotalCount;
                 LoadError = null;
             }
             catch (Exception exception)
@@ -168,16 +190,63 @@ namespace OpenSekai.App.UI
             View.BindList(true);
         }
 
-        /// <summary>The goals the current filter lets through, in the backend's order.</summary>
-        internal List<AchievementProgress> Filtered()
+        /// <summary>The achievements the current filter lets through, what can be unlocked first.</summary>
+        internal IReadOnlyList<AchievementSeries> Filtered()
         {
-            var filtered = new List<AchievementProgress>();
-            foreach (AchievementProgress item in _items)
+            var filtered = new List<AchievementSeries>();
+            foreach (AchievementSeries series in _series)
             {
-                if (Filter == AchievementCategory.All || AchievementCopy.For(item).Category == Filter) filtered.Add(item);
+                if (Filter == AchievementCategory.All || AchievementCopy.For(series.Steps[0]).Category == Filter) filtered.Add(series);
             }
 
-            return filtered;
+            return AchievementSeries.Sort(filtered);
+        }
+
+        /// <summary>
+        /// Unlocks a reached goal and returns its achievement as it stands then. Null when it could
+        /// not be saved, which the page says; nothing has changed then.
+        /// </summary>
+        internal AchievementSeries Unlock(string id)
+        {
+            try
+            {
+                Store.UnlockAchievement(id);
+                _items.Clear();
+                ReadItems();
+            }
+            catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException ||
+                exception is InvalidOperationException)
+            {
+                Debug.LogWarning("[Achievements] Could not unlock " + id + ": " + exception.Message);
+                UiSound.Play(UiCue.Error);
+                _toast.Show(exception is InvalidOperationException ? "现在还不能解锁，请稍后再试" : "解锁没有保存，请稍后再试");
+                return null;
+            }
+
+            foreach (AchievementSeries series in _series)
+            {
+                if (series.IndexOf(id) >= 0) return series;
+            }
+
+            return null;
+        }
+
+        /// <summary>Says what the goal just unlocked has given.</summary>
+        internal void Announce(AchievementProgress goal)
+        {
+            string received = AchievementCopy.Received(goal);
+            if (received != null) _toast.Show(received, 2.6f);
+        }
+
+        /// <summary>What <paramref name="goal"/> gives, large.</summary>
+        internal void ShowReward(AchievementProgress goal) => _rewards.Open(goal);
+
+        internal void HideReward() => _rewards.Close();
+
+        private void ReadItems()
+        {
+            _items.AddRange(Store.ReadAchievements());
+            _series = AchievementSeries.Group(_items);
         }
 
         /// <summary>The unlock card for <paramref name="ids"/>, held at <paramref name="seconds"/> in, for screenshots.</summary>
@@ -219,6 +288,8 @@ namespace OpenSekai.App.UI
             View = new AchievementView(root, this);
             ModalLayer = LibraryUi.CreateRect("Modals", root);
             LibraryUi.Stretch(ModalLayer);
+            _rewards = new AchievementRewardPanel(ModalLayer);
+            _toast = new UiToast(root, 48f, HomeTheme.Colors.Gold);
             _preview = new AchievementUnlockPopup(root, 18f);
 
             _curtain = LibraryUi.CreateImage("Curtain", root, LibraryTheme.Colors.Ground);
@@ -267,6 +338,8 @@ namespace OpenSekai.App.UI
         {
             _curtainMotion.TryCancel();
             _preview?.Dispose();
+            _rewards?.Dispose();
+            _toast?.Dispose();
             View?.Dispose();
             // The camera is a child of this object and goes with it.
         }

@@ -1,3 +1,4 @@
+using OpenSekai.App.Library;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -7,9 +8,10 @@ namespace OpenSekai.App.UI
     /// <summary>
     /// One achievement's medal: a round disc (unlike the hexagonal Ranking badge and the rectangular
     /// 段位 plates, so the three read apart), its mark on the face (10K, FC, AP or a small plate),
-    /// and, when asked for, a ring around it that fills with the progress. Locked medals are grey
-    /// with the mark dimmed; unlocked ones take the achievement's color, glow and carry a check.
-    /// The owner can drive a pop (<see cref="SetMotion"/>) for the unlock popup.
+    /// and, when asked for, a ring around it that fills with the progress. Medals under way are grey
+    /// with the mark dimmed; reached ones take the achievement's color, and unlocked ones glow and
+    /// carry a check. The owner can drive a pop (<see cref="SetMotion"/>), a flash, the glow and the
+    /// check for the unlock.
     /// </summary>
     internal sealed class AchievementMedal
     {
@@ -36,6 +38,8 @@ namespace OpenSekai.App.UI
         private readonly RectTransform _shine;
         private readonly Image _check;
         private readonly Image _checkIcon;
+        private readonly Image _flash;
+        private Color32 _tint;
 
         /// <param name="withRing">Draws the progress ring around the disc; the disc shrinks to make room.</param>
         internal AchievementMedal(Transform parent, string name, float size, bool withRing = true)
@@ -121,6 +125,9 @@ namespace OpenSekai.App.UI
 
             _trophy = LibraryWidgets.Icon(_body, LibraryIcon.Trophy, LibraryTheme.Colors.TextPrimary, disc * 0.42f);
 
+            _flash = LibraryWidgets.Panel("MedalFlash", _body, disc * 0.5f, Color.white);
+            LibraryUi.Stretch(_flash.rectTransform);
+
             // The check sits on the rim, at the lower right.
             float check = size * 0.3f;
             _check = LibraryWidgets.Panel("MedalCheck", Root, check * 0.5f, Color.white);
@@ -131,24 +138,28 @@ namespace OpenSekai.App.UI
             _checkIcon = LibraryWidgets.Icon(_check.transform, LibraryIcon.Check, LibraryTheme.Colors.TextOnAccent, check * 0.56f);
 
             SetMotion(1f, 0f);
+            SetFlash(0f);
         }
 
         internal RectTransform Root { get; }
 
         /// <param name="progress">0 to 1, drawn on the ring; ignored without one.</param>
-        internal void Bind(AchievementLook look, bool unlocked, float progress)
+        internal void Bind(AchievementLook look, AchievementState state, float progress)
         {
+            bool unlocked = state == AchievementState.Unlocked;
+            bool lit = state != AchievementState.InProgress;
             Color32 tint = look.Tint;
+            _tint = tint;
             Color32 dim = LibraryTheme.Colors.TextMuted;
-            _glow.color = unlocked ? HomeTheme.Colors.WithAlpha(tint, 64) : (Color32)Color.clear;
-            _glow.enabled = unlocked;
+            SetGlow(unlocked ? 0.25f : 0f);
             _track.color = HomeTheme.Colors.Chip;
-            _arc.color = unlocked ? tint : HomeTheme.Colors.WithAlpha(tint, 210);
+            _arc.color = lit ? tint : HomeTheme.Colors.WithAlpha(tint, 210);
             _arc.fillAmount = Mathf.Clamp01(progress);
             _arc.enabled = _withRing && progress > 0f;
-            _disc.color = unlocked ? Color.Lerp(HomeTheme.Colors.Card, tint, 0.3f) : Color.Lerp(HomeTheme.Colors.Card, Color.white, 0.04f);
-            _rim.color = unlocked ? tint : new Color32(255, 255, 255, 40);
-            _inner.color = unlocked ? HomeTheme.Colors.WithAlpha(Color.Lerp(tint, Color.white, 0.4f), 110) : new Color32(255, 255, 255, 22);
+            _disc.color = lit ? Color.Lerp(HomeTheme.Colors.Card, tint, unlocked ? 0.3f : 0.16f)
+                : Color.Lerp(HomeTheme.Colors.Card, Color.white, 0.04f);
+            _rim.color = lit ? tint : new Color32(255, 255, 255, 40);
+            _inner.color = lit ? HomeTheme.Colors.WithAlpha(Color.Lerp(tint, Color.white, 0.4f), 110) : new Color32(255, 255, 255, 22);
 
             bool text = look.Glyph == AchievementGlyph.Hits || look.Glyph == AchievementGlyph.FullCombo || look.Glyph == AchievementGlyph.AllPerfect;
             _mark.gameObject.SetActive(text);
@@ -159,21 +170,39 @@ namespace OpenSekai.App.UI
             _mark.rectTransform.anchoredPosition = new Vector2(0f, markShift);
             if (text)
             {
-                BindMark(look, unlocked);
+                BindMark(look, lit);
                 _subMark.text = look.SubMark;
-                _subMark.color = unlocked ? (Color)Color.Lerp(tint, Color.white, 0.55f) : (Color)HomeTheme.Colors.WithAlpha(dim, 200);
+                _subMark.color = lit ? (Color)Color.Lerp(tint, Color.white, 0.55f) : (Color)HomeTheme.Colors.WithAlpha(dim, 200);
             }
 
             Color32 light = Color.Lerp(tint, Color.white, 0.35f);
-            _plateFace.color = unlocked ? Color.Lerp(HomeTheme.Colors.Card, tint, 0.35f) : (Color)new Color32(255, 255, 255, 26);
-            _plateBand.color = unlocked ? HomeTheme.Colors.WithAlpha(tint, 150) : new Color32(255, 255, 255, 22);
-            _plateDiamond.color = unlocked ? Color.white : (Color)HomeTheme.Colors.WithAlpha(dim, 200);
-            _plateLine.color = unlocked ? HomeTheme.Colors.WithAlpha(light, 210) : HomeTheme.Colors.WithAlpha(dim, 120);
-            _trophy.color = unlocked ? light : HomeTheme.Colors.WithAlpha(dim, 200);
+            _plateFace.color = lit ? Color.Lerp(HomeTheme.Colors.Card, tint, 0.35f) : (Color)new Color32(255, 255, 255, 26);
+            _plateBand.color = lit ? HomeTheme.Colors.WithAlpha(tint, 150) : new Color32(255, 255, 255, 22);
+            _plateDiamond.color = lit ? Color.white : (Color)HomeTheme.Colors.WithAlpha(dim, 200);
+            _plateLine.color = lit ? HomeTheme.Colors.WithAlpha(light, 210) : HomeTheme.Colors.WithAlpha(dim, 120);
+            _trophy.color = lit ? light : HomeTheme.Colors.WithAlpha(dim, 200);
 
             _check.gameObject.SetActive(unlocked);
             _check.color = tint;
+            SetCheck(1f);
         }
+
+        /// <param name="strength">0 hides the glow behind the medal, 1 is full.</param>
+        internal void SetGlow(float strength)
+        {
+            _glow.enabled = strength > 0f;
+            _glow.color = HomeTheme.Colors.WithAlpha(_tint, (byte)Mathf.RoundToInt(255f * Mathf.Clamp01(strength)));
+        }
+
+        /// <param name="strength">0 to 1: white over the face.</param>
+        internal void SetFlash(float strength)
+        {
+            _flash.enabled = strength > 0f;
+            _flash.color = new Color(1f, 1f, 1f, Mathf.Clamp01(strength));
+        }
+
+        /// <summary>Scales the check of an unlocked medal.</summary>
+        internal void SetCheck(float scale) => _check.rectTransform.localScale = new Vector3(scale, scale, 1f);
 
         /// <param name="scale">Size of the disc (the ring keeps its size).</param>
         /// <param name="shine">0 to 1: how far the light has crossed the face; 0 and 1 hide it.</param>
@@ -190,10 +219,10 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>FULL COMBO's gold, ALL PERFECT's letters in its own colors, the rest in the medal's light.</summary>
-        private void BindMark(AchievementLook look, bool unlocked)
+        private void BindMark(AchievementLook look, bool lit)
         {
             _mark.enableVertexGradient = false;
-            if (!unlocked)
+            if (!lit)
             {
                 _mark.text = look.Mark;
                 _mark.color = HomeTheme.Colors.WithAlpha(LibraryTheme.Colors.TextMuted, 220);

@@ -540,7 +540,7 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            _editor.Open(Snapshot.Appearance);
+            _editor.Open(Snapshot.Appearance, Store.ReadAchievements());
         }
 
         private bool SaveAppearance(string nickname, string avatarId)
@@ -771,9 +771,10 @@ namespace OpenSekai.App.UI
             int dan = preview.DanDefinitionsAdded + preview.DanAttemptsAdded;
             ShowToast(preview.Added > 0
                 ? "已合并 " + ProfileCopy.Number(preview.Added) + " 局" + (dan > 0 ? "与段位记录" : string.Empty) + score
-                : dan > 0 ? "已合并备份中的段位与挑战记录" : "已恢复备份中的头像与昵称");
-            // One card for every goal the merged history reaches; a backup merged twice unlocks nothing new.
-            if (_unlock.Bind(preview.UnlockedAchievementIds, "合并备份后解锁")) _unlock.Play();
+                : dan > 0 ? "已合并备份中的段位与挑战记录"
+                : preview.RestoresAppearance ? "已恢复备份中的头像与昵称" : "已合并备份中解锁的成就");
+            // One card for every goal the merged history reaches; a backup merged twice reaches nothing new.
+            if (_unlock.Bind(preview.ReachedAchievementIds, "合并备份后可解锁")) _unlock.Play();
             DataChanged?.Invoke(preview.Added > 0);
         }
 

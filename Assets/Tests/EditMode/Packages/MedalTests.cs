@@ -32,7 +32,8 @@ namespace OpenSekai.Tests.EditMode.Packages
         {
             Assert.That(_store.ReadMedals(), Is.Empty);
             _store.SaveDanDefinition(Course("未通过"));
-            string first = Pass("一段");
+            string first = Pass("一段", unlock: false);
+            Assert.That(_store.ReadMedals().Select(medal => medal.Key), Is.EqualTo(new[] { first }), "reached, not unlocked yet");
             string second = Pass("二段");
             Assert.That(_store.ReadMedals().Select(medal => medal.Key), Is.EqualTo(new[] { second, first, _dan }));
             Assert.That(_store.ReadMedals().Select(medal => medal.Kind),
@@ -200,7 +201,8 @@ namespace OpenSekai.Tests.EditMode.Packages
         private static DanDefinition Course(string label) => new DanDefinition(10, new DanDamage(0, 1, 2, 3, 4),
             new[] { "https://test.org/levels/a", "https://test.org/levels/b" }, label, "star", "#112233", 2, "III");
 
-        private string Pass(string label)
+        /// <param name="unlock">Also unlocks 初获段位, for its medal.</param>
+        private string Pass(string label, bool unlock = true)
         {
             DanDefinition course = Course(label);
             DanAttempt attempt = DanAttempt.Begin(course);
@@ -211,6 +213,7 @@ namespace OpenSekai.Tests.EditMode.Packages
             }
 
             _store.SaveDanAttempt(course, attempt);
+            if (unlock) _store.UnlockAchievement("first_dan_pass");
             return Medal.DanKey(course.Id);
         }
     }

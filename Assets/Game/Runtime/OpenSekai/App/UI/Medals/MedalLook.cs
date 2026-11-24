@@ -55,7 +55,7 @@ namespace OpenSekai.App.UI
         internal static MedalLook Of(DanDefinition definition) => new MedalLook(definition.Label, definition.Emblem, null,
             DanStyles.ParseColor(definition.Color), definition.Tier, definition.Grade, true);
 
-        private static MedalLook Of(AchievementLook look) => new MedalLook(look.Title,
+        internal static MedalLook Of(AchievementLook look) => new MedalLook(look.Title,
             "trophy", string.IsNullOrEmpty(look.Mark) ? null : look.Mark, look.Tint, look.MedalTier, null, false);
     }
 

@@ -87,13 +87,22 @@ namespace OpenSekai.App.UI
         internal static readonly Color32 PrismStart = new Color32(255, 146, 214, 255);
         internal static readonly Color32 PrismEnd = new Color32(112, 224, 255, 255);
 
+        private const string HITS_RULE = "Perfect、Great、Good、Bad 都算，段位各曲与中途结束前的击打也算；Miss 和自动游玩不计";
+
         internal static readonly string[] CategoryNames = { "全部", "累计击打", "谱面达成", "段位通关" };
 
         private static readonly Dictionary<string, AchievementLook> _known = new Dictionary<string, AchievementLook>(StringComparer.Ordinal)
         {
-            ["manual_hits_10000"] = new AchievementLook("万键之路", "10,000 HITS", "累计击打 10,000 个音符",
-                "Perfect、Great、Good、Bad 都算，段位各曲与中途结束前的击打也算；Miss 和自动游玩不计",
+            ["manual_hits_10000"] = new AchievementLook("万键之路", "10,000 HITS", "累计击打 10,000 个音符", HITS_RULE,
                 AchievementCategory.Hits, AchievementGlyph.Hits, "10K", "HITS", HitsTint, 1),
+            ["manual_hits_50000"] = new AchievementLook("五万键之路", "50,000 HITS", "累计击打 50,000 个音符", HITS_RULE,
+                AchievementCategory.Hits, AchievementGlyph.Hits, "50K", "HITS", HitsTint, 2),
+            ["manual_hits_100000"] = new AchievementLook("十万键之路", "100,000 HITS", "累计击打 100,000 个音符", HITS_RULE,
+                AchievementCategory.Hits, AchievementGlyph.Hits, "100K", "HITS", HitsTint, 2),
+            ["manual_hits_500000"] = new AchievementLook("五十万键之路", "500,000 HITS", "累计击打 500,000 个音符", HITS_RULE,
+                AchievementCategory.Hits, AchievementGlyph.Hits, "500K", "HITS", HitsTint, 3),
+            ["manual_hits_1000000"] = new AchievementLook("百万键之路", "1,000,000 HITS", "累计击打 1,000,000 个音符", HITS_RULE,
+                AchievementCategory.Hits, AchievementGlyph.Hits, "1M", "HITS", HitsTint, 4),
             ["fc_lv25"] = new AchievementLook("高阶全连", "FULL COMBO · LV.25+", "在 Lv.25 及以上的谱面取得 FULL COMBO",
                 "普通模式手动通关即可，ALL PERFECT 同样算数；段位中的曲目不计",
                 AchievementCategory.Charts, AchievementGlyph.FullCombo, "FC", "LV25+", FullComboTint, 2),
@@ -128,24 +137,42 @@ namespace OpenSekai.App.UI
             }
         }
 
-        internal static bool IsUnlocked(AchievementProgress progress) => progress?.UnlockedAtUtc.HasValue == true;
+        internal static bool IsUnlocked(AchievementProgress progress) => progress?.State == AchievementState.Unlocked;
+
+        internal static bool IsReached(AchievementProgress progress) => progress?.ReachedAtUtc.HasValue == true;
+
+        /// <summary>What a goal hands over, as its box names it; empty when it gives nothing.</summary>
+        internal static string RewardKinds(AchievementProgress progress)
+        {
+            bool avatar = progress.Goal.AvatarId != null;
+            if (!progress.Goal.GivesMedal) return avatar ? "头像" : string.Empty;
+            return avatar ? "奖牌 · 头像" : "奖牌";
+        }
+
+        /// <summary>"已领取奖牌「十万键之路」和头像" once <paramref name="progress"/> is unlocked; null when it gives nothing.</summary>
+        internal static string Received(AchievementProgress progress)
+        {
+            bool avatar = progress.Goal.AvatarId != null;
+            if (!progress.Goal.GivesMedal) return avatar ? "已领取头像，可以在编辑资料里使用" : null;
+            return "已领取奖牌「" + For(progress).Title + "」" + (avatar ? "和头像" : string.Empty) + "，可以到个人信息页使用";
+        }
 
         /// <summary>True when the goal is reached once or not at all, so a bar would say nothing.</summary>
         internal static bool IsOneShot(AchievementProgress progress) => progress.Target <= 1;
 
-        /// <summary>0 to 1, how far toward the target; 1 once unlocked.</summary>
+        /// <summary>0 to 1, how far toward the target; 1 once reached.</summary>
         internal static float Fraction(AchievementProgress progress)
         {
             if (progress == null) return 0f;
-            if (IsUnlocked(progress)) return 1f;
+            if (IsReached(progress)) return 1f;
             if (progress.Target <= 0) return 0f;
             return Mathf.Clamp01((float)((double)progress.Current / progress.Target));
         }
 
-        /// <summary>A whole percentage; never 100 before the goal is unlocked.</summary>
+        /// <summary>A whole percentage; never 100 before the goal is reached.</summary>
         internal static int Percent(AchievementProgress progress)
         {
-            if (IsUnlocked(progress)) return 100;
+            if (IsReached(progress)) return 100;
             return Mathf.Min(99, Mathf.FloorToInt(Fraction(progress) * 100f));
         }
 
@@ -209,13 +236,13 @@ namespace OpenSekai.App.UI
             }
         }
 
-        /// <summary>10000 → 10K, 2500 → 2.5K, 900 → 900.</summary>
+        /// <summary>10000 → 10K, 2500 → 2.5K, 900 → 900, 2000000 → 2M.</summary>
         private static string Short(long value)
         {
             if (value < 1000) return value.ToString(CultureInfo.InvariantCulture);
-            double thousands = value / 1000d;
-            return (thousands % 1d == 0d ? thousands.ToString("0", CultureInfo.InvariantCulture)
-                : thousands.ToString("0.#", CultureInfo.InvariantCulture)) + "K";
+            bool millions = value >= 1000000;
+            double scaled = value / (millions ? 1000000d : 1000d);
+            return scaled.ToString("0.#", CultureInfo.InvariantCulture) + (millions ? "M" : "K");
         }
     }
 }

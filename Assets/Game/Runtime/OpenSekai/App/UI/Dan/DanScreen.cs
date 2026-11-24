@@ -658,7 +658,7 @@ namespace OpenSekai.App.UI
             ShowResult(new DanResultModel(service.Definition, service.Attempt, service.NewlyAwarded, record?.Equipped == true,
                 service.Phase == DanPhase.Error ? service.Error : null,
                 SongsOf(record ?? new DanRecord(service.Definition, Array.Empty<DanAttempt>(), false, false)),
-                service.UnlockedAchievementIds), true);
+                service.ReachedAchievementIds), true);
         }
 
         /// <param name="animate">False shows where the opening settles, for screenshots.</param>

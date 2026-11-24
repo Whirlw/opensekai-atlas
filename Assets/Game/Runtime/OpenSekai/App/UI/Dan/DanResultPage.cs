@@ -19,7 +19,7 @@ namespace OpenSekai.App.UI
         internal DanResultModel(DanDefinition definition, DanAttempt attempt, bool newlyAwarded, bool equipped, string error,
             IReadOnlyList<DanSongInfo> songs, IReadOnlyList<string> unlocks = null)
         {
-            UnlockedAchievementIds = unlocks ?? Array.Empty<string>();
+            ReachedAchievementIds = unlocks ?? Array.Empty<string>();
             Definition = definition;
             Attempt = attempt;
             NewlyAwarded = newlyAwarded;
@@ -39,7 +39,7 @@ namespace OpenSekai.App.UI
         internal IReadOnlyList<DanSongInfo> Songs { get; }
 
         /// <summary>Achievements this attempt unlocked, for the card after the result; empty when none.</summary>
-        internal IReadOnlyList<string> UnlockedAchievementIds { get; }
+        internal IReadOnlyList<string> ReachedAchievementIds { get; }
 
         internal bool Passed => Attempt.Outcome == DanOutcome.Passed;
     }
@@ -220,8 +220,8 @@ namespace OpenSekai.App.UI
             _root.gameObject.SetActive(true);
             _root.SetAsLastSibling();
             _unlock.Hide();
-            _unlockPending = animate && model.UnlockedAchievementIds.Count > 0 && _announced.Add(model.Attempt.Id)
-                && _unlock.Bind(model.UnlockedAchievementIds, null);
+            _unlockPending = animate && model.ReachedAchievementIds.Count > 0 && _announced.Add(model.Attempt.Id)
+                && _unlock.Bind(model.ReachedAchievementIds, null);
             Bind();
             _reveal.TryCancel();
             _revealDone = false;

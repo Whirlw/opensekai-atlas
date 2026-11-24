@@ -1383,14 +1383,17 @@ namespace OpenSekai.App.UI
                     snapshot.Best30.Total, snapshot.Best30.TierId, snapshot.Best30.Entries.Count, plays, MedalLook.Of(snapshot.WornMedals), false));
                 int courses = store.ReadDanDefinitions().Count;
                 _view.SetDanStatus(courses == 0 ? "开始挑战" : courses + " 个段位  ·  已通过 " + snapshot.EarnedDanIds.Count);
-                IReadOnlyList<AchievementProgress> goals = store.ReadAchievements();
+                int goals = 0;
                 int unlocked = 0;
-                foreach (AchievementProgress goal in goals)
+                int claimable = 0;
+                foreach (AchievementSeries series in AchievementSeries.Group(store.ReadAchievements()))
                 {
-                    if (goal.UnlockedAtUtc.HasValue) unlocked++;
+                    goals += series.Steps.Count;
+                    unlocked += series.UnlockedCount;
+                    if (series.State == AchievementState.Claimable) claimable++;
                 }
 
-                _view.SetAchievementStatus("已解锁 " + unlocked + " / " + goals.Count);
+                _view.SetAchievementStatus("已解锁 " + unlocked + " / " + goals + (claimable > 0 ? "  ·  " + claimable + " 项可解锁" : string.Empty));
             }
             catch (Exception exception)
             {

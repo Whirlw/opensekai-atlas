@@ -12,6 +12,7 @@ namespace OpenSekai.App.UI
     /// <summary>
     /// 编辑资料: the nickname in a text field and the built-in avatars in a grid, with the choice
     /// previewed large on the left. Nothing is saved until 保存; an empty nickname cannot be saved.
+    /// Avatars that achievements give stay dark with a lock until they are unlocked.
     /// An avatar id from a newer version or a backup stays as it is unless another one is picked.
     /// </summary>
     internal sealed class ProfileEditPanel : IDisposable
@@ -26,7 +27,8 @@ namespace OpenSekai.App.UI
         private readonly ProfileAvatarView _preview;
         private readonly TMP_InputField _nickname;
         private readonly TextMeshProUGUI _hint;
-        private readonly List<(string Id, Image Ring)> _tiles = new List<(string, Image)>();
+        private readonly List<Tile> _tiles = new List<Tile>();
+        private readonly TextMeshProUGUI _lockNote;
         private readonly Button _save;
         private readonly Func<string, string, bool> _onSave;
         private string _avatarId;
@@ -93,10 +95,14 @@ namespace OpenSekai.App.UI
                 Button button = hit.gameObject.AddComponent<Button>();
                 button.targetGraphic = hit;
                 button.transition = Selectable.Transition.None;
-                button.onClick.AddListener(() => Choose(id, true));
+                var entry = new Tile(id, ring, view.Root);
+                button.onClick.AddListener(() => Tap(entry));
                 LibraryPressFeedback.Attach(hit.gameObject, view.Root);
-                _tiles.Add((id, ring));
+                _tiles.Add(entry);
             }
+
+            _lockNote = LibraryWidgets.Label("LockNote", body, string.Empty, 18f, LibraryTheme.Colors.TextMuted);
+            LibraryWidgets.BottomStrip(_lockNote.rectTransform, 4f, (BUTTON_WIDTH + 16f) * 2f + 16f, 0f, LibraryTheme.Layout.MODAL_BUTTON_HEIGHT);
 
             float height = LibraryTheme.Layout.MODAL_BUTTON_HEIGHT;
             _save = ServerWidgets.LabelledButton(body, "Save", "保存", LibraryIcon.Check, Save, BUTTON_WIDTH, height,
@@ -113,9 +119,12 @@ namespace OpenSekai.App.UI
 
         internal bool IsOpen => _modal.IsOpen;
 
-        internal void Open(ProfileAppearance current)
+        /// <param name="goals">Decide which of the avatars achievements give are unlocked.</param>
+        internal void Open(ProfileAppearance current, IReadOnlyList<AchievementProgress> goals)
         {
             _nickname.SetTextWithoutNotify(current?.Nickname ?? string.Empty);
+            _lockNote.text = string.Empty;
+            foreach (Tile tile in _tiles) tile.Bind(goals);
             Choose(current?.AvatarId ?? ProfileAvatars.DEFAULT_ID, false);
             Validate();
             _modal.Open();
@@ -134,16 +143,29 @@ namespace OpenSekai.App.UI
             _avatarId = id;
             _preview.SetAvatar(id);
             ProfileAvatars.Avatar avatar = ProfileAvatars.Find(id);
-            foreach ((string tileId, Image ring) in _tiles)
+            foreach (Tile tile in _tiles)
             {
-                bool chosen = string.Equals(tileId, id, StringComparison.Ordinal);
-                ring.color = chosen ? (Color)avatar.Color : Color.clear;
+                bool chosen = string.Equals(tile.Id, id, StringComparison.Ordinal);
+                tile.Ring.color = chosen ? (Color)avatar.Color : Color.clear;
             }
 
             if (sound)
             {
                 UiSound.Play(UiCue.Select);
             }
+        }
+
+        private void Tap(Tile tile)
+        {
+            if (tile.Giver != null)
+            {
+                UiSound.Play(UiCue.Blocked);
+                _lockNote.text = "解锁成就「" + AchievementCopy.For(tile.Giver).Title + "」后可用";
+                return;
+            }
+
+            _lockNote.text = string.Empty;
+            Choose(tile.Id, true);
         }
 
         private bool Validate()
@@ -167,6 +189,44 @@ namespace OpenSekai.App.UI
             if (_onSave((_nickname.text ?? string.Empty).Trim(), _avatarId))
             {
                 Close();
+            }
+        }
+
+        /// <summary>One avatar in the grid.</summary>
+        private sealed class Tile
+        {
+            private readonly CanvasGroup _group;
+            private readonly Image _lock;
+
+            internal Tile(string id, Image ring, RectTransform avatar)
+            {
+                Id = id;
+                Ring = ring;
+                _group = avatar.gameObject.AddComponent<CanvasGroup>();
+                _group.blocksRaycasts = false;
+                _lock = LibraryWidgets.Panel("Lock", avatar.parent, 16f, LibraryTheme.Colors.SurfaceSelected);
+                Vector2 center = new Vector2(0.5f, 0.5f);
+                LibraryWidgets.Place(_lock.rectTransform, center, center, new Vector2(TILE * 0.34f, -TILE * 0.34f), new Vector2(32f, 32f));
+                LibraryWidgets.Icon(_lock.transform, LibraryIcon.Lock, LibraryTheme.Colors.TextSecondary, 19f);
+            }
+
+            internal string Id { get; }
+
+            internal Image Ring { get; }
+
+            /// <summary>The achievement that gives it, while that is not unlocked; null for an avatar to choose freely.</summary>
+            internal AchievementProgress Giver { get; private set; }
+
+            internal void Bind(IReadOnlyList<AchievementProgress> goals)
+            {
+                Giver = null;
+                foreach (AchievementProgress goal in goals)
+                {
+                    if (goal.Goal.AvatarId == Id && goal.State != AchievementState.Unlocked) Giver = goal;
+                }
+
+                _group.alpha = Giver != null ? 0.3f : 1f;
+                _lock.gameObject.SetActive(Giver != null);
             }
         }
     }
@@ -395,10 +455,10 @@ namespace OpenSekai.App.UI
                 notes.Append("所有记录均通过校验。合并后 Best 30 按全部记录重新计算。\n");
             }
 
-            int unlocks = preview.UnlockedAchievementIds?.Count ?? 0;
-            if (changes && unlocks > 0)
+            int reached = preview.ReachedAchievementIds?.Count ?? 0;
+            if (changes && reached > 0)
             {
-                notes.Append("合并后解锁成就：").Append(AchievementCopy.Names(preview.UnlockedAchievementIds)).Append("。");
+                notes.Append("合并后可解锁成就：").Append(AchievementCopy.Names(preview.ReachedAchievementIds)).Append("。");
             }
 
             _notes.text = notes.ToString().TrimEnd('\n');

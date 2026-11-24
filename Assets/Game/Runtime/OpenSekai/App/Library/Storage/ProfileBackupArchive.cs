@@ -22,7 +22,8 @@ namespace OpenSekai.App.Library
         private const int JSON_LIMIT = 16 * 1024;
         internal static readonly UTF8Encoding Utf8 = new(false, true);
 
-        internal static void Write(string destination, string historyPath, ProfileAppearance appearance, DanArchive dan, CancellationToken cancel = default)
+        internal static void Write(string destination, string historyPath, ProfileAppearance appearance, DanArchive dan,
+            AchievementClaims claims, CancellationToken cancel = default)
         {
             AtomicFile.Write(destination, temp =>
             {
@@ -50,9 +51,11 @@ namespace OpenSekai.App.Library
                 byte[] challenges = Utf8.GetBytes(JsonConvert.SerializeObject(dan));
                 if (challenges.Length > DAN_LIMIT) throw new InvalidDataException("Challenge archive exceeds backup size limit.");
                 using (var target = zip.CreateEntry(PlayerProfileStore.DAN_FILE).Open()) target.Write(challenges, 0, challenges.Length);
+                byte[] unlocks = Utf8.GetBytes(JsonConvert.SerializeObject(claims));
+                using (var target = zip.CreateEntry(PlayerProfileStore.ACHIEVEMENTS_FILE).Open()) target.Write(unlocks, 0, unlocks.Length);
                 var manifest = new JObject
                 {
-                    ["format"] = FORMAT, ["version"] = 2, ["danSha256"] = Hash(challenges),
+                    ["format"] = FORMAT, ["version"] = 3, ["danSha256"] = Hash(challenges), ["achievementsSha256"] = Hash(unlocks),
                     ["profileSha256"] = Hash(profile), ["historySha256"] = Convert.ToBase64String(digest.Hash)
                 };
                 using var metadata = new StreamWriter(zip.CreateEntry(MANIFEST).Open(), Utf8);
@@ -61,7 +64,7 @@ namespace OpenSekai.App.Library
             });
         }
 
-        internal static (ProfileAppearance, DanArchive) Unpack(string path, string stagedHistory)
+        internal static (ProfileAppearance, DanArchive, AchievementClaims) Unpack(string path, string stagedHistory)
         {
             using var file = File.OpenRead(path);
             if (file.Length > HISTORY_LIMIT + DAN_LIMIT + 1024 * 1024) throw new InvalidDataException("Backup exceeds size limit.");
@@ -70,17 +73,27 @@ namespace OpenSekai.App.Library
             Copy(zip, MANIFEST, json, JSON_LIMIT);
             var manifest = Parse(Utf8.GetString(json.ToArray()));
             if ((string)manifest["format"] != FORMAT || manifest["version"]?.Type != JTokenType.Integer ||
-                (int)manifest["version"] is not (1 or 2)) throw new InvalidDataException("Unsupported player backup.");
-            bool hasDan = (int)manifest["version"] == 2;
-            if (zip.Entries.Count != (hasDan ? 4 : 3)) throw new InvalidDataException("Unexpected player backup entries.");
+                (int)manifest["version"] is not (1 or 2 or 3)) throw new InvalidDataException("Unsupported player backup.");
+            // Version 2 added the challenges, version 3 the unlocked achievements.
+            int version = (int)manifest["version"];
+            if (zip.Entries.Count != version + 2) throw new InvalidDataException("Unexpected player backup entries.");
             var dan = new DanArchive();
-            if (hasDan)
+            if (version >= 2)
             {
                 json.SetLength(0);
                 Copy(zip, PlayerProfileStore.DAN_FILE, json, DAN_LIMIT);
                 byte[] bytes = json.ToArray();
                 if (Hash(bytes) != (string)manifest["danSha256"]) throw new InvalidDataException("Challenge checksum mismatch.");
                 dan = DanArchive.Decode(Utf8.GetString(bytes));
+            }
+            var claims = new AchievementClaims();
+            if (version >= 3)
+            {
+                json.SetLength(0);
+                Copy(zip, PlayerProfileStore.ACHIEVEMENTS_FILE, json, JSON_LIMIT);
+                byte[] bytes = json.ToArray();
+                if (Hash(bytes) != (string)manifest["achievementsSha256"]) throw new InvalidDataException("Achievement checksum mismatch.");
+                claims = AchievementClaims.Decode(Utf8.GetString(bytes));
             }
             json.SetLength(0);
             Copy(zip, PROFILE, json, JSON_LIMIT);
@@ -95,7 +108,7 @@ namespace OpenSekai.App.Library
             var fields = Parse(Utf8.GetString(profile));
             if (fields["nickname"]?.Type != JTokenType.String || fields["avatarId"]?.Type != JTokenType.String)
                 throw new InvalidDataException("Invalid player appearance.");
-            return (new ProfileAppearance((string)fields["nickname"], (string)fields["avatarId"]), dan);
+            return (new ProfileAppearance((string)fields["nickname"], (string)fields["avatarId"]), dan, claims);
         }
 
         internal static IEnumerable<string> LocalLines(string path)

@@ -28,7 +28,7 @@ namespace OpenSekai.App.Playback
         public int SongNumber { get; private set; }
         public int RemainingLife { get; private set; }
         public bool NewlyAwarded { get; private set; }
-        public IReadOnlyList<string> UnlockedAchievementIds { get; private set; } = Array.Empty<string>();
+        public IReadOnlyList<string> ReachedAchievementIds { get; private set; } = Array.Empty<string>();
         public string Error { get; private set; }
 
         /// <summary>Seconds left of the rest while <see cref="DanPhase.BetweenSongs"/>; counts unscaled time, paused in the background.</summary>
@@ -71,7 +71,7 @@ namespace OpenSekai.App.Playback
             Attempt = null;
             SongNumber = 1;
             Error = null;
-            UnlockedAchievementIds = Array.Empty<string>();
+            ReachedAchievementIds = Array.Empty<string>();
             NewlyAwarded = false;
             _quit = false;
             RemainingLife = definition.InitialLife;
@@ -115,7 +115,7 @@ namespace OpenSekai.App.Playback
 
         private void BeginAttempt()
         {
-            UnlockedAchievementIds = Array.Empty<string>();
+            ReachedAchievementIds = Array.Empty<string>();
             Attempt = DanAttempt.Begin(Definition);
             Profile.SaveDanAttempt(Definition, Attempt);
             SongNumber = 1;
@@ -140,9 +140,9 @@ namespace OpenSekai.App.Playback
                     var updated = Attempt.Append(Definition, row);
                     try
                     {
-                        NewlyAwarded = Profile.SaveDanAttempt(Definition, updated, out var unlocks);
-                        if (unlocks.Count > 0)
-                            UnlockedAchievementIds = Array.AsReadOnly(UnlockedAchievementIds.Union(unlocks).ToArray());
+                        NewlyAwarded = Profile.SaveDanAttempt(Definition, updated, out var reached);
+                        if (reached.Count > 0)
+                            ReachedAchievementIds = Array.AsReadOnly(ReachedAchievementIds.Union(reached).ToArray());
                         Attempt = updated;
                     }
                     catch (Exception e) { Error = e.Message; }

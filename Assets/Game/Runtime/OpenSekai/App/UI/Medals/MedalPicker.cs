@@ -37,7 +37,7 @@ namespace OpenSekai.App.UI
             _root = LibraryUi.CreateRect("MedalPicker", layer);
             LibraryUi.Stretch(_root);
             _modal = new LibraryModal(_root, new Vector2(CARD_WIDTH, CARD_HEIGHT), "选择奖牌", Close, withSubtitle: true);
-            _modal.Subtitle.text = "通过段位挑战、解锁成就都会得到奖牌；个人信息和首页会展示两块";
+            _modal.Subtitle.text = "通过段位挑战、在成就页解锁成就都会得到奖牌；个人信息和首页会展示两块";
             _tabs = new HomePageTabs(_modal.Body, new[] { MedalCopy.Slot(0), MedalCopy.Slot(1) }, index => ShowSlot(index, true), 170f, TABS_HEIGHT, 21f);
             LibraryWidgets.Place(_tabs.Root, new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, _tabs.Root.sizeDelta);
             RectTransform area = LibraryUi.CreateRect("Area", _modal.Body);

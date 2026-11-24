@@ -6,32 +6,6 @@ using OpenSekai.Shared.Playback;
 
 namespace OpenSekai.App.Library
 {
-    public enum AchievementMetric { ManualHits, FullComboCharts, AllPerfect, DanPass }
-
-    public sealed class AchievementProgress
-    {
-        public string Id { get; }
-        public AchievementMetric Metric { get; }
-        public int MinimumLevel { get; }
-        public int Target { get; }
-        public long Current { get; }
-        public DateTimeOffset? UnlockedAtUtc { get; }
-
-        internal AchievementProgress(string id, AchievementMetric metric, int minimumLevel, int target,
-            long current = 0, DateTimeOffset? unlockedAtUtc = null)
-        {
-            Id = id;
-            Metric = metric;
-            MinimumLevel = minimumLevel;
-            Target = target;
-            Current = current;
-            UnlockedAtUtc = unlockedAtUtc;
-        }
-
-        internal AchievementProgress WithValue(long current, DateTimeOffset time) =>
-            new(Id, Metric, MinimumLevel, Target, current, UnlockedAtUtc ?? (current >= Target ? time : (DateTimeOffset?)null));
-    }
-
     // One contribution per saved normal play or checkpointed course song. Course totals never add hits.
     internal sealed class AchievementEvent : IComparable<AchievementEvent>
     {
@@ -84,24 +58,20 @@ namespace OpenSekai.App.Library
 
     internal sealed class AchievementIndex
     {
-        private AchievementProgress _hits = new("manual_hits_10000", AchievementMetric.ManualHits, 0, 10000);
-        private AchievementProgress _fc25 = new("fc_lv25", AchievementMetric.FullComboCharts, 25, 1);
-        private AchievementProgress _fc28 = new("fc_lv28_10", AchievementMetric.FullComboCharts, 28, 10);
-        private AchievementProgress _ap = new("first_ap", AchievementMetric.AllPerfect, 0, 1);
-        private AchievementProgress _dan = new("first_dan_pass", AchievementMetric.DanPass, 0, 1);
-        private readonly HashSet<string> _charts25 = new(StringComparer.Ordinal);
-        private readonly HashSet<string> _charts28 = new(StringComparer.Ordinal);
-        private readonly Dictionary<string, List<string>> _playUnlocks = new(StringComparer.Ordinal);
+        private readonly AchievementProgress[] _goals = AchievementGoals.All.Select(goal => new AchievementProgress(goal)).ToArray();
+        private readonly Dictionary<int, HashSet<string>> _fullCombos = new(); // Distinct charts, by the lowest level that counts.
+        private readonly Dictionary<string, List<string>> _playGoals = new(StringComparer.Ordinal);
+        private long _hits;
         private AchievementEvent _last;
 
-        internal IReadOnlyList<AchievementProgress> Snapshot() => Array.AsReadOnly(new[] { _hits, _fc25, _fc28, _ap, _dan });
+        internal IReadOnlyList<AchievementProgress> Snapshot() => Array.AsReadOnly((AchievementProgress[])_goals.Clone());
 
         internal IReadOnlyList<string> ForPlay(string id) =>
-            id != null && _playUnlocks.TryGetValue(id, out var ids) ? ids.AsReadOnly() : Array.Empty<string>();
+            id != null && _playGoals.TryGetValue(id, out var ids) ? ids.AsReadOnly() : Array.Empty<string>();
 
-        internal static IReadOnlyList<string> NewUnlocks(IReadOnlyList<AchievementProgress> before,
+        internal static IReadOnlyList<string> NewlyReached(IReadOnlyList<AchievementProgress> before,
             IReadOnlyList<AchievementProgress> after) => Array.AsReadOnly(after
-            .Where((item, i) => item.UnlockedAtUtc.HasValue && !before[i].UnlockedAtUtc.HasValue)
+            .Where((item, i) => item.ReachedAtUtc.HasValue && !before[i].ReachedAtUtc.HasValue)
             .Select(item => item.Id).ToArray());
 
         internal static AchievementIndex Build(IEnumerable<CustomMusicScorePlayHistoryRecord> plays, DanArchive dan)
@@ -123,24 +93,39 @@ namespace OpenSekai.App.Library
             if (e == null) return true;
             if (_last != null && e.CompareTo(_last) < 0) return false;
             _last = e;
-            if (e.Hits > 0) Update(ref _hits, _hits.Current + e.Hits, e);
-            if (!string.IsNullOrWhiteSpace(e.FullComboChart))
-            {
-                if (e.Level >= _fc25.MinimumLevel && _charts25.Add(e.FullComboChart)) Update(ref _fc25, _charts25.Count, e);
-                if (e.Level >= _fc28.MinimumLevel && _charts28.Add(e.FullComboChart)) Update(ref _fc28, _charts28.Count, e);
-            }
-            if (e.AllPerfect) Update(ref _ap, 1, e);
-            if (e.DanPass) Update(ref _dan, 1, e);
+            _hits += e.Hits;
+            for (int i = 0; i < _goals.Length; i++) Update(i, Value(_goals[i], e), e);
             return true;
         }
 
-        private void Update(ref AchievementProgress progress, long value, AchievementEvent e)
+        private long Value(AchievementProgress goal, AchievementEvent e)
         {
+            switch (goal.Metric)
+            {
+                case AchievementMetric.ManualHits: return _hits;
+                case AchievementMetric.FullComboCharts: return FullCombos(goal.MinimumLevel, e);
+                case AchievementMetric.AllPerfect: return e.AllPerfect ? 1 : goal.Current;
+                case AchievementMetric.DanPass: return e.DanPass ? 1 : goal.Current;
+                default: throw new ArgumentOutOfRangeException(nameof(goal));
+            }
+        }
+
+        private long FullCombos(int minimumLevel, AchievementEvent e)
+        {
+            if (!_fullCombos.TryGetValue(minimumLevel, out var charts))
+                _fullCombos.Add(minimumLevel, charts = new HashSet<string>(StringComparer.Ordinal));
+            if (!string.IsNullOrWhiteSpace(e.FullComboChart) && e.Level >= minimumLevel) charts.Add(e.FullComboChart);
+            return charts.Count;
+        }
+
+        private void Update(int index, long value, AchievementEvent e)
+        {
+            var progress = _goals[index];
             if (progress.Current == value) return;
-            bool wasUnlocked = progress.UnlockedAtUtc.HasValue;
-            progress = progress.WithValue(value, e.Time);
-            if (wasUnlocked || !progress.UnlockedAtUtc.HasValue || e.SongNumber != 0) return;
-            if (!_playUnlocks.TryGetValue(e.Id, out var ids)) _playUnlocks.Add(e.Id, ids = new List<string>());
+            bool wasReached = progress.ReachedAtUtc.HasValue;
+            _goals[index] = progress = progress.WithValue(value, e.Time);
+            if (wasReached || !progress.ReachedAtUtc.HasValue || e.SongNumber != 0) return;
+            if (!_playGoals.TryGetValue(e.Id, out var ids)) _playGoals.Add(e.Id, ids = new List<string>());
             ids.Add(progress.Id);
         }
     }

@@ -7,7 +7,7 @@ namespace OpenSekai.App.UI
     {
         Back, Search, Add, Refresh, Settings, List, Grid, Check, Wave, Play, More,
         Close, Minus, ChevronRight, Export, Trash, Info, Forward,
-        Heart, Comment, Clock, Trophy, Tag, Globe, Download, Browser, User, Bundle
+        Heart, Comment, Clock, Trophy, Tag, Globe, Download, Browser, User, Bundle, Star, Lock
     }
 
     /// <summary>
@@ -288,8 +288,8 @@ namespace OpenSekai.App.UI
             }
 
             const int VIEW_SIZE = 24;
-            // The bundle also appears at 120 canvas units on the mode card.
-            int scale = icon == LibraryIcon.Bundle ? 8 : SCALE;
+            // The bundle also appears at 120 canvas units on the mode card; a star pops to twice its size.
+            int scale = icon == LibraryIcon.Bundle ? 8 : icon == LibraryIcon.Star ? 4 : SCALE;
             int size = VIEW_SIZE * scale;
             var pixels = new Color32[size * size];
             for (int y = 0; y < size; y++)
@@ -405,9 +405,32 @@ namespace OpenSekai.App.UI
                         Line(3.5f, 9f, 20.5f, 9f));
                 case LibraryIcon.User:
                     return Mathf.Min(Ring(12, 8.2f, 3.6f), Mathf.Max(Ring(12, 21.5f, 7.5f), point.y - 20.5f));
+                case LibraryIcon.Star:
+                    return Star(point - new Vector2(12f, 12.9f), 9.6f, 0.46f) - 1.4f;
+                case LibraryIcon.Lock:
+                    // A solid body under a tall shackle.
+                    return Mathf.Min(RoundedRectRing(point, new Vector2(12f, 15.7f), new Vector2(6.6f, 4.8f), 1.4f, true),
+                        Mathf.Min(Mathf.Max(Ring(12, 7.6f, 3.9f), point.y - 7.6f), Mathf.Min(Line(8.1f, 7.6f, 8.1f, 12f), Line(15.9f, 7.6f, 15.9f, 12f))));
                 default:
                     return Mathf.Min(Circle(5, 12, 1.9f), Mathf.Min(Circle(12, 12, 1.9f), Circle(19, 12, 1.9f)));
             }
+        }
+
+        /// <summary>
+        /// Signed distance to a five-pointed star about the origin, one point up (y runs down):
+        /// <paramref name="radius"/> to its points, <paramref name="depth"/> how deep the notches are.
+        /// </summary>
+        private static float Star(Vector2 point, float radius, float depth)
+        {
+            var k1 = new Vector2(0.8090170f, -0.5877853f);
+            var k2 = new Vector2(-k1.x, k1.y);
+            var p = new Vector2(Mathf.Abs(point.x), -point.y);
+            p -= 2f * Mathf.Max(Vector2.Dot(k1, p), 0f) * k1;
+            p -= 2f * Mathf.Max(Vector2.Dot(k2, p), 0f) * k2;
+            p = new Vector2(Mathf.Abs(p.x), p.y - radius);
+            Vector2 edge = depth * new Vector2(-k1.y, k1.x) - Vector2.up;
+            float along = Mathf.Clamp(Vector2.Dot(p, edge) / Vector2.Dot(edge, edge), 0f, radius);
+            return (p - edge * along).magnitude * Mathf.Sign(p.y * edge.x - p.x * edge.y);
         }
 
         /// <summary>Signed distance to a filled triangle (negative inside).</summary>
@@ -420,12 +443,12 @@ namespace OpenSekai.App.UI
             return inside ? -edge : edge;
         }
 
-        /// <summary>Distance to the stroke of a rounded rectangle, one unit either side of its edge.</summary>
-        private static float RoundedRectRing(Vector2 point, Vector2 center, Vector2 halfSize, float radius)
+        /// <summary>Distance to the stroke of a rounded rectangle, one unit either side of its edge, or to its <paramref name="filled"/> area.</summary>
+        private static float RoundedRectRing(Vector2 point, Vector2 center, Vector2 halfSize, float radius, bool filled = false)
         {
             Vector2 d = new Vector2(Mathf.Abs(point.x - center.x), Mathf.Abs(point.y - center.y)) - halfSize + new Vector2(radius, radius);
             float outside = new Vector2(Mathf.Max(d.x, 0f), Mathf.Max(d.y, 0f)).magnitude + Mathf.Min(Mathf.Max(d.x, d.y), 0f) - radius;
-            return Mathf.Abs(outside) - 1f;
+            return filled ? outside - 1f : Mathf.Abs(outside) - 1f;
         }
 
         /// <summary>Approximate signed distance to an ellipse's outline.</summary>

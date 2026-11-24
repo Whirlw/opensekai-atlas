@@ -75,14 +75,14 @@ namespace OpenSekai.App.Playback
 
             string title = "联调谱面 · " + level;
             var record = Record("preview-" + example, key, title, level, score, kind);
-            IReadOnlyList<string> unlocks = Array.Empty<string>();
+            IReadOnlyList<string> reached = Array.Empty<string>();
             if (state == HistorySaveState.Saved)
             {
                 var before = AchievementIndex.Build(prior, null).Snapshot();
                 prior.Add(record);
-                unlocks = AchievementIndex.NewUnlocks(before, AchievementIndex.Build(prior, null).Snapshot());
+                reached = AchievementIndex.NewlyReached(before, AchievementIndex.Build(prior, null).Snapshot());
             }
-            var receipt = board.Evaluate(record, state, mode, unlocks);
+            var receipt = board.Evaluate(record, state, mode, reached);
             return new PlayResult(kind, mode == RankingEligibility.Auto, string.Empty, title, level,
                 score, settlement: receipt, difficulty: "master");
         }

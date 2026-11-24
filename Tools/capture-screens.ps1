@@ -66,8 +66,9 @@
 #                 the delete card, the preparation card, the rest screen, the pass result with three award
 #                 ceremony frames, a failed and an abandoned result, and the profile wearing the plate.
 #   -AchievementsPage  The 成就 part on a sample profile in a temp folder (never the player's own): the home
-#                 card and hand-over, every goal and each filter, the unlock card for one goal, for three
-#                 at once and mid-entrance, back to page 2, and a new profile.
+#                 card and hand-over, every achievement and each filter, two reward cards, an unlock frame by
+#                 frame and one with a tap, an earlier level, rows with one to eight levels, the card for one
+#                 goal reached, for three at once and mid-entrance, back to page 2, and a new profile.
 #   -RankingTiers The seven Ranking Score tiers on an empty profile in a temp folder: the home card on each
 #                 tier, the badges at every size the game draws them, and three frames of each tier's upgrade.
 #   -Server       The server part: hand-over frames, list, add card, then UntitledCharts (needs the

@@ -229,11 +229,13 @@ namespace OpenSekai.Tests.EditMode.Packages
                 using (var zip = ZipFile.Open(path, ZipArchiveMode.Update))
                 {
                     zip.GetEntry("dan.json").Delete();
+                    zip.GetEntry("achievements.json").Delete();
                     var entry = zip.GetEntry("manifest.json");
                     JObject manifest;
                     using (var reader = new StreamReader(entry.Open())) manifest = JObject.Parse(reader.ReadToEnd());
                     manifest["version"] = 1;
                     manifest.Remove("danSha256");
+                    manifest.Remove("achievementsSha256");
                     entry.Delete();
                     using var writer = new StreamWriter(zip.CreateEntry("manifest.json").Open());
                     writer.Write(manifest);

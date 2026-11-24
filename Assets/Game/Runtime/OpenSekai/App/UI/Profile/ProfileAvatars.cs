@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using OpenSekai.App.Library;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -10,7 +11,7 @@ namespace OpenSekai.App.UI
     /// drawing: a disc in the avatar's color with one emblem in the middle, built from the
     /// library's shapes so no image ships with it. Ids are never renamed or reused. An id this
     /// table does not know (a newer version's, or one from a backup) is kept as it is and drawn as
-    /// the default.
+    /// the default. Some are given by achievements (<see cref="PlayerProfileStore.OwnsAvatar"/>).
     /// </summary>
     internal static class ProfileAvatars
     {
@@ -25,7 +26,10 @@ namespace OpenSekai.App.UI
             Hexagon,
             Diamond,
             Halo,
-            Orbit
+            Orbit,
+            Beat,
+            Crest,
+            Sparkle
         }
 
         internal readonly struct Avatar
@@ -57,7 +61,10 @@ namespace OpenSekai.App.UI
             new Avatar("globe", new Color32(157, 184, 255, 255), Emblem.Icon, LibraryIcon.Globe),
             new Avatar("trophy", new Color32(245, 196, 81, 255), Emblem.Icon, LibraryIcon.Trophy),
             new Avatar("orbit", new Color32(242, 176, 222, 255), Emblem.Orbit),
-            new Avatar("play", new Color32(123, 216, 143, 255), Emblem.Icon, LibraryIcon.Play)
+            new Avatar("play", new Color32(123, 216, 143, 255), Emblem.Icon, LibraryIcon.Play),
+            new Avatar("beat", new Color32(110, 200, 255, 255), Emblem.Beat),
+            new Avatar("crest", new Color32(255, 176, 96, 255), Emblem.Crest),
+            new Avatar("sparkle", new Color32(206, 158, 255, 255), Emblem.Sparkle)
         };
 
         internal static IReadOnlyList<Avatar> All => _all;
@@ -140,7 +147,10 @@ namespace OpenSekai.App.UI
             _glow.color = HomeTheme.Colors.WithAlpha(color, 56);
             for (int i = _emblem.childCount - 1; i >= 0; i--)
             {
-                UnityEngine.Object.Destroy(_emblem.GetChild(i).gameObject);
+                GameObject child = _emblem.GetChild(i).gameObject;
+                child.SetActive(false);
+                if (Application.isPlaying) UnityEngine.Object.Destroy(child);
+                else UnityEngine.Object.DestroyImmediate(child);
             }
 
             DrawEmblem(avatar);
@@ -222,6 +232,53 @@ namespace OpenSekai.App.UI
                     orbit.localScale = new Vector3(1f, 0.36f, 1f);
                     Image moon = Block("Moon", Color.white, s * 0.04f, new Vector2(s * 0.08f, s * 0.08f));
                     moon.rectTransform.anchoredPosition = new Vector2(s * 0.3f, s * 0.06f);
+                    break;
+                }
+                case ProfileAvatars.Emblem.Beat:
+                {
+                    // Notes coming down the lanes, the nearest one widest.
+                    Glow(color, new Vector2(0f, -s * 0.16f), new Vector2(s * 0.95f, s * 0.5f), 110);
+                    for (int i = 0; i < 3; i++)
+                    {
+                        Image note = Block("Note" + i, HomeTheme.Colors.WithAlpha(light, (byte)(255 - i * 75)), s * (0.075f - i * 0.015f),
+                            new Vector2(s * (0.58f - i * 0.13f), s * (0.15f - i * 0.03f)));
+                        note.rectTransform.anchoredPosition = new Vector2(0f, s * (-0.17f + i * 0.18f));
+                    }
+
+                    break;
+                }
+                case ProfileAvatars.Emblem.Crest:
+                {
+                    Glow(color, Vector2.zero, new Vector2(s * 0.95f, s * 0.95f), 100);
+                    Shape("Outer", LibraryShapes.Hexagon(0.055f), light, s * 0.62f, 0f);
+                    Image heart = Block("Heart", light, s * 0.03f, new Vector2(s * 0.18f, s * 0.18f));
+                    heart.rectTransform.localEulerAngles = new Vector3(0f, 0f, 45f);
+                    for (int i = 0; i < 4; i++)
+                    {
+                        float angle = i * 90f * Mathf.Deg2Rad;
+                        Image gem = Block("Gem" + i, HomeTheme.Colors.WithAlpha(light, 200), s * 0.012f, new Vector2(s * 0.06f, s * 0.06f));
+                        gem.rectTransform.anchoredPosition = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * (s * 0.19f);
+                        gem.rectTransform.localEulerAngles = new Vector3(0f, 0f, 45f);
+                    }
+
+                    break;
+                }
+                case ProfileAvatars.Emblem.Sparkle:
+                {
+                    // ALL PERFECT's colors: a star between a pink and a cyan diamond.
+                    Glow(color, Vector2.zero, new Vector2(s * 0.95f, s * 0.95f), 120);
+                    RectTransform star = LibraryUi.CreateRect("Star", _emblem);
+                    Center(star, s * 0.62f, 0f);
+                    DanEmblemArt.Draw(star, "star", light, s * 0.62f);
+                    Color32[] stops = LibraryTheme.Colors.AllPerfectStops;
+                    for (int i = 0; i < 2; i++)
+                    {
+                        float side = i == 0 ? -1f : 1f;
+                        Image gem = Block("Gem" + i, stops[i == 0 ? 0 : stops.Length - 1], s * 0.015f, new Vector2(s * 0.085f, s * 0.085f));
+                        gem.rectTransform.anchoredPosition = new Vector2(side * s * 0.24f, -side * s * 0.24f);
+                        gem.rectTransform.localEulerAngles = new Vector3(0f, 0f, 45f);
+                    }
+
                     break;
                 }
                 default:

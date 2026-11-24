@@ -95,12 +95,13 @@ namespace OpenSekai.App.Library
 
         public PlayerProfileSnapshot Read() => new(ReadAppearance(), History.Read(), ReadDanArchive(), ReadAchievements);
         public HistoryPage ReadHistory(int offset, int limit) => History.ReadPage(offset, limit);
-        public IReadOnlyList<AchievementProgress> ReadAchievements() => History.ReadAchievements();
 
         public void SetAppearance(string nickname, string avatarId)
         {
             RequireIdle();
             var appearance = new ProfileAppearance(nickname, avatarId);
+            if (appearance.AvatarId != ReadAppearance().AvatarId && !OwnsAvatar(appearance.AvatarId))
+                throw new InvalidOperationException("尚未取得该头像。");
             AtomicFile.WriteAllText(ProfilePath, JsonConvert.SerializeObject(appearance));
             CancelPendingPreview();
         }

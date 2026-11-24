@@ -135,12 +135,13 @@ namespace OpenSekai.App.Library
             next.TakeOff(Medal.DanKey(id));
             WriteDan(next);
             History.InvalidateAchievements();
+            ForgetUnreachedClaims();
         }
 
         internal bool SaveDanAttempt(DanDefinition definition, DanAttempt attempt) =>
             SaveDanAttempt(definition, attempt, out _);
 
-        internal bool SaveDanAttempt(DanDefinition definition, DanAttempt attempt, out IReadOnlyList<string> unlocks)
+        internal bool SaveDanAttempt(DanDefinition definition, DanAttempt attempt, out IReadOnlyList<string> reached)
         {
             RequireIdle();
             attempt.Validate(definition);
@@ -162,7 +163,7 @@ namespace OpenSekai.App.Library
             else
                 for (int i = prefix; i < attempt.Songs.Count; i++)
                     History.AppendAchievement(AchievementEvent.FromSong(attempt, i));
-            unlocks = AchievementIndex.NewUnlocks(before, ReadAchievements());
+            reached = AchievementIndex.NewlyReached(before, ReadAchievements());
             return firstAward;
         }
 
