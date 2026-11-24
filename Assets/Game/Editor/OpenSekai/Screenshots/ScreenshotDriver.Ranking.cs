@@ -15,13 +15,13 @@ namespace OpenSekai.EditorTools.Screenshots
         private const double RANKING_IDLE_TIME = 11.45d;
 
         /// <summary>A total inside each tier, for the card's number.</summary>
-        private static readonly long[] _rankingTotals = { 3120, 7480, 8650, 9540, 10230, 10720, 11360 };
+        private static readonly long[] _rankingTotals = { 3120, 6480, 7350, 8405, 9540, 10230, 10720 };
 
         private static readonly float[] _galleryRows = { 200f, 148f, 118f, 58f };
         private static readonly float[] _revealFrames = { 0.12f, 0.3f, 0.55f };
 
         /// <summary>The player's score in the 评级徽章 card: inside 银河, so tiers on both sides of it show.</summary>
-        private const long GALLERY_TOTAL = 9540;
+        private const long GALLERY_TOTAL = 8405;
 
         /// <summary>Where the 评级徽章 card's replay frames hold, in seconds from the tier showing.</summary>
         private static readonly float[] _replayFrames = { -0.1f, 0.15f };

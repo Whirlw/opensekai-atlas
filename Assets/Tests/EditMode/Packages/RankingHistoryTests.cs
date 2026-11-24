@@ -12,8 +12,8 @@ namespace OpenSekai.Tests.EditMode.Packages
     {
         [TestCase(SettlementExample.FirstClear, 267, 0, 267)]
         [TestCase(SettlementExample.SameChartFullCombo, 272, 267, 272)]
-        [TestCase(SettlementExample.NewChartAllPerfectTierUp, 310, 8190, 8230)]
-        [TestCase(SettlementExample.OutsideBest30, 172, 8190, 8190)]
+        [TestCase(SettlementExample.NewChartAllPerfectTierUp, 310, 7790, 7850)]
+        [TestCase(SettlementExample.OutsideBest30, 172, 7790, 7790)]
         [TestCase(SettlementExample.Auto, 0, 0, 0)]
         [TestCase(SettlementExample.Failed, 0, 0, 0)]
         [TestCase(SettlementExample.Retired, 0, 0, 0)]
@@ -36,13 +36,13 @@ namespace OpenSekai.Tests.EditMode.Packages
                 Assert.That(s.SaveState, Is.EqualTo(HistorySaveState.SaveFailed));
         }
 
-        [TestCase(0, 0, 7000)]
-        [TestCase(7000, 1, 8200)]
-        [TestCase(8200, 2, 9200)]
-        [TestCase(9200, 3, 10000)]
-        [TestCase(10000, 4, 10500)]
-        [TestCase(10500, 5, 11000)]
-        [TestCase(11000, 6, null)]
+        [TestCase(0, 0, 6000)]
+        [TestCase(6000, 1, 6900)]
+        [TestCase(6900, 2, 7800)]
+        [TestCase(7800, 3, 9000)]
+        [TestCase(9000, 4, 9900)]
+        [TestCase(9900, 5, 10500)]
+        [TestCase(10500, 6, null)]
         public void RankingTierStartsAtItsThreshold(int threshold, int tierId, int? nextThreshold)
         {
             Assert.That(RankingRules.Tier(threshold - 1), Is.EqualTo(tierId - 1));

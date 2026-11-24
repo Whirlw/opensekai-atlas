@@ -14,7 +14,7 @@ namespace OpenSekai.Shared.Playback
         public const int FORMULA_VERSION = 2;
         public const int MAXIMUM_SCORE = ScoreGauge.MAXIMUM_SCORE;
         private const int POINTS_PER_LEVEL = 10;
-        private static readonly int[] _tierStarts = { 0, 7000, 8200, 9200, 10000, 10500, 11000 };
+        private static readonly int[] _tierStarts = { 0, 6000, 6900, 7800, 9000, 9900, 10500 };
 
         /// <summary>Returns the highest tier reached, or -1 below the first threshold.</summary>
         public static int Tier(long total) => Array.FindLastIndex(_tierStarts, threshold => total >= threshold);

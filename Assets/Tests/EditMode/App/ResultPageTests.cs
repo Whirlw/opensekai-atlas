@@ -73,7 +73,7 @@ namespace OpenSekai.Tests.EditMode
 
         [TestCase(SettlementExample.FirstClear, "0  →  267", "267", "第 1 名", "基础 267")]
         [TestCase(SettlementExample.SameChartFullCombo, "267  →  272", "267  →  272", "第 1 名", "基础 267   FC 奖励 +5")]
-        [TestCase(SettlementExample.NewChartAllPerfectTierUp, "8,190  →  8,230", "310", "第 1 名", "基础 300   AP 奖励 +10")]
+        [TestCase(SettlementExample.NewChartAllPerfectTierUp, "7,790  →  7,850", "310", "第 1 名", "基础 300   AP 奖励 +10")]
         [TestCase(SettlementExample.OutsideBest30, "谱面新纪录在 Best 30 之外，总分持平", "167  →  172", "榜外", "基础 167   FC 奖励 +5")]
         public void TheContributionLinesDescribeTheRanking(
             SettlementExample example, string standing, string best, string position, string breakdown)
@@ -91,15 +91,15 @@ namespace OpenSekai.Tests.EditMode
             ResultPage page = Create();
             PlayResult played = SettlementSamples.Create(SettlementExample.NewChartAllPerfectTierUp);
             page.Show(played, null, _accent);
-            Assert.That(Text(page, "Total"), Is.EqualTo("8,190"), "the total starts where it was");
+            Assert.That(Text(page, "Total"), Is.EqualTo("7,790"), "the total starts where it was");
             Assert.That(Text(page, "TierName"), Is.EqualTo(RankingTiers.Name(played.Settlement.Before.TierId)));
 
             page.Skip();
 
             Assert.That(Text(page, "Score"), Is.EqualTo("1,000,000"));
             Assert.That(Text(page, "Points"), Is.EqualTo("310"));
-            Assert.That(Text(page, "Total"), Is.EqualTo("8,230"));
-            Assert.That(ChipText(page, "Delta"), Is.EqualTo("+40"));
+            Assert.That(Text(page, "Total"), Is.EqualTo("7,850"));
+            Assert.That(ChipText(page, "Delta"), Is.EqualTo("+60"));
             Assert.That(ChipText(page, "Record"), Is.EqualTo(ResultCopy.NEW_RECORD));
             Assert.That(ChipText(page, "TierUp"), Is.EqualTo(ResultCopy.TIER_UP));
             Assert.That(Text(page, "TierName"), Is.EqualTo(RankingTiers.Name(played.Settlement.After.TierId)));

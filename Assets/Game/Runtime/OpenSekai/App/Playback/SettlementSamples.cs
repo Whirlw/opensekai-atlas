@@ -43,7 +43,7 @@ namespace OpenSekai.App.Playback
                 case SettlementExample.OutsideBest30:
                     for (int i = 1; i <= 30; i++)
                     {
-                        int seedLevel = i <= 9 ? 27 : 26;
+                        int seedLevel = i <= 29 ? 25 : 24;
                         Seed("seed-" + i, "chart-" + i, seedLevel, AllPerfect());
                     }
                     if (example == SettlementExample.OutsideBest30)

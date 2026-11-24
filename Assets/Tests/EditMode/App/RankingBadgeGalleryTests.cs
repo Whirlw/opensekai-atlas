@@ -8,7 +8,7 @@ namespace OpenSekai.Tests.EditMode
     public sealed class RankingBadgeGalleryTests
     {
         /// <summary>A score inside 银河.</summary>
-        private const long TOTAL = 9540;
+        private const long TOTAL = 8405;
 
         [Test]
         public void EachTierStartsWhereTheBackendSaysItDoes()
