@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using LitMotion;
 using NUnit.Framework;
 using OpenSekai.App.Library;
 using OpenSekai.App.Playback;
@@ -105,6 +106,65 @@ namespace OpenSekai.Tests.EditMode
 
             var charts = new AchievementProgress("fc_lv28_10", AchievementMetric.FullComboCharts, 28, 10, 3);
             Assert.That(AchievementCopy.Count(charts), Is.EqualTo("3 / 10 张"));
+        }
+
+        [Test]
+        public void TheHomeMedalFloatsWithItsRaysAroundItsCenter()
+        {
+            RectTransform root = LibraryUi.CreateRect("Art", _canvas.transform);
+            var art = new HomeMedalArt(root);
+            Vector2 first = HomeArtCenter(root, "Medal");
+            float moved = 0f;
+            for (float time = 0f; time < 5f; time += 0.4f)
+            {
+                art.Tick(time);
+                Vector2 medal = HomeArtCenter(root, "Medal");
+                moved = Mathf.Max(moved, Vector2.Distance(medal, first));
+                foreach (string name in new[] { "Rays", "Glow", "Pulse0", "Pulse1" })
+                {
+                    Assert.That(Vector2.Distance(HomeArtCenter(root, name), medal), Is.LessThan(0.01f), name + " at " + time);
+                }
+            }
+
+            Assert.That(moved, Is.GreaterThan(2f), "the medal floats");
+            art.Dispose();
+        }
+
+        [Test]
+        public void TheHomeMedalIsLitOnlyWhileThereIsSomethingToUnlock()
+        {
+            var clock = new ManualMotionDispatcher();
+            IMotionScheduler previous = HomeMotion.CaptureScheduler;
+            HomeMotion.CaptureScheduler = clock.Scheduler;
+            RectTransform root = LibraryUi.CreateRect("Art", _canvas.transform);
+            var art = new HomeMedalArt(root);
+            try
+            {
+                Image disc = Find(root.gameObject, "Disc").GetComponent<Image>();
+                GameObject shine = Find(root.gameObject, "Shine");
+                Color unlit = disc.color;
+                double crossing = HomeMedalArt.BEAT * 2d + 0.55d;
+                art.Tick(crossing);
+                Assert.That(shine.activeSelf, Is.False);
+
+                art.SetClaimable(true);
+                clock.Update(1d);
+                art.Tick(crossing);
+                Assert.That(art.IsClaimable, Is.True);
+                Assert.That(disc.color.grayscale, Is.GreaterThan(unlit.grayscale + 0.2f));
+                Assert.That(shine.activeSelf, Is.True);
+
+                art.SetClaimable(false);
+                clock.Update(1d);
+                art.Tick(crossing);
+                Assert.That(disc.color, Is.EqualTo(unlit));
+                Assert.That(shine.activeSelf, Is.False);
+            }
+            finally
+            {
+                art.Dispose();
+                HomeMotion.CaptureScheduler = previous;
+            }
         }
 
         [Test]
@@ -286,6 +346,12 @@ namespace OpenSekai.Tests.EditMode
             screen.Store = store;
             screen.SetPresented(true, false);
             return screen;
+        }
+
+        private static Vector2 HomeArtCenter(RectTransform root, string name)
+        {
+            RectTransform rect = root.GetComponentsInChildren<RectTransform>(true).Single(item => item.name == name);
+            return root.InverseTransformPoint(rect.TransformPoint(rect.rect.center));
         }
 
         private static void Tap(AchievementRow row) => row.Root.Find("Inner/Hit").GetComponent<Button>().onClick.Invoke();

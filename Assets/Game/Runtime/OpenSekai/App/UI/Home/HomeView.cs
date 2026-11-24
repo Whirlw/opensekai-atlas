@@ -54,6 +54,7 @@ namespace OpenSekai.App.UI
         private readonly HomeProfileCard _profile;
         private readonly HomeFeatureCard _dan;
         private readonly HomeFeatureCard _achievements;
+        private HomeMedalArt _medal;
         private readonly HomePageTabs _tabs;
         private readonly HomeEdgeHandle _next;
         private readonly HomeEdgeHandle _previous;
@@ -145,7 +146,7 @@ namespace OpenSekai.App.UI
                 },
                 available: openDan != null, status: openDan != null ? "开始挑战" : null);
             _achievements = new HomeFeatureCard(Slot(1, 2).Rect, "AchievementsCard", "ACHIEVEMENTS", "成就", "练习 · 技巧 · 段位 · 特殊奖牌",
-                HomeTheme.Colors.Gold, root => new HomeMedalArt(root),
+                HomeTheme.Colors.Gold, root => _medal = new HomeMedalArt(root),
                 () =>
                 {
                     if (openAchievements != null) openAchievements();
@@ -210,8 +211,12 @@ namespace OpenSekai.App.UI
         /// <summary>The 段位 card's chip: how many courses there are and how many are passed.</summary>
         internal void SetDanStatus(string status) => _dan.SetStatus(status);
 
-        /// <summary>The 成就 card's chip: how many goals are unlocked out of all of them.</summary>
-        internal void SetAchievementStatus(string status) => _achievements.SetStatus(status);
+        /// <summary>The 成就 card: its chip counts the goals unlocked, and its medal is lit while there are more to unlock.</summary>
+        internal void SetAchievementStatus(int unlocked, int goals, int claimable)
+        {
+            _achievements.SetStatus("已解锁 " + unlocked + " / " + goals + (claimable > 0 ? "  ·  " + claimable + " 项可解锁" : string.Empty));
+            _medal.SetClaimable(claimable > 0);
+        }
 
         /// <summary>Idle animation: marquee, globe, card fan, badge, status lights; only for a page in view.</summary>
         internal void Tick(double time)

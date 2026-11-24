@@ -9,7 +9,8 @@
         "Unity.InputSystem",
         "Unity.TextMeshPro",
         "UnityEngine.UI",
-        "UniTask"
+        "UniTask",
+        "LitMotion"
     ],
     "includePlatforms": [
         "Editor"

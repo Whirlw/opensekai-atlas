@@ -431,13 +431,30 @@ namespace OpenSekai.App.UI
     }
 
     /// <summary>
-    /// 成就: a medal on two ribbons in front of a slowly turning crown of rays, with sparkles
-    /// that come and go. A tap flips the medal over once.
+    /// 成就: a medal on two ribbons inside a slowly turning crown of rays, all of it floating as one,
+    /// with sparkles that come and go. While an achievement can be unlocked the medal is lit: its face
+    /// turns solid gold, the rays reach out and take turns, and every few seconds it swings once while
+    /// a light crosses its face and rings go out from its rim. A tap flips the medal over once.
     /// </summary>
     internal sealed class HomeMedalArt : IHomeCardArt
     {
+        /// <summary>Seconds from one swing of a lit medal to the next.</summary>
+        internal const float BEAT = 3.2f;
+
         private const int RAYS = 12;
         private const float MEDAL_SIZE = 150f;
+
+        /// <summary>The medal sits above the middle of the art, so that it and its ribbons fill it evenly.</summary>
+        private const float MEDAL_RISE = 14f;
+        private const float FLOAT = 4f;
+        private const float FLOAT_SECONDS = 4.8f;
+        private const float TURN_SECONDS = 40f;
+        private const float RAY_START = 98f;
+        private const float RAY_WIDTH = 8f;
+        private const float RAY_SECONDS = 1.6f;
+        private const float SWING_SECONDS = 1.1f;
+        private const float SWING_DEGREES = 11f;
+        private const float LIGHT_SECONDS = 0.6f;
 
         private static readonly Vector2[] _sparklePositions =
         {
@@ -445,53 +462,85 @@ namespace OpenSekai.App.UI
             new Vector2(10f, 128f), new Vector2(70f, -110f)
         };
 
+        private readonly RectTransform _body;
         private readonly RectTransform _rays;
+        private readonly Image[] _rayImages = new Image[RAYS];
+        private readonly Image _glow;
+        private readonly Image[] _pulses = new Image[2];
+        private readonly RectTransform[] _ribbons = new RectTransform[2];
         private readonly RectTransform _medal;
+        private readonly Image _disc;
+        private readonly Image _ring;
+        private readonly Image _inner;
+        private readonly Image _trophy;
+        private readonly RectTransform _shine;
         private readonly Image[] _sparkles = new Image[_sparklePositions.Length];
+        private readonly Image[] _stars = new Image[_sparklePositions.Length];
         private float _flip;
         private MotionHandle _flipMotion;
+        private float _lit;
+        private MotionHandle _lightMotion;
 
         internal HomeMedalArt(RectTransform root)
         {
             Color32 gold = HomeTheme.Colors.Gold;
-            _rays = LibraryUi.CreateRect("Rays", root);
+            Vector2 center = new Vector2(0.5f, 0.5f);
+
+            // Everything but the sparkles hangs from the medal's center and floats with it.
+            _body = LibraryUi.CreateRect("Body", root);
+            LibraryWidgets.Place(_body, center, center, new Vector2(0f, MEDAL_RISE), new Vector2(MEDAL_SIZE, MEDAL_SIZE));
+            _rays = LibraryUi.CreateRect("Rays", _body);
             LibraryUi.Stretch(_rays);
             for (int i = 0; i < RAYS; i++)
             {
                 RectTransform spoke = LibraryUi.CreateRect("Spoke" + i, _rays);
                 LibraryUi.Stretch(spoke);
                 spoke.localEulerAngles = new Vector3(0f, 0f, i * 360f / RAYS);
-                Image ray = LibraryWidgets.Panel("Ray", spoke, 4f, HomeTheme.Colors.WithAlpha(gold, (byte)(i % 2 == 0 ? 80 : 40)));
-                LibraryWidgets.Place(ray.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0f), new Vector2(0f, 98f),
-                    new Vector2(8f, i % 2 == 0 ? 34f : 22f));
+                _rayImages[i] = LibraryWidgets.Panel("Ray", spoke, 4f, gold);
+                LibraryWidgets.Place(_rayImages[i].rectTransform, center, new Vector2(0.5f, 0f), new Vector2(0f, RAY_START),
+                    new Vector2(RAY_WIDTH, RAY_WIDTH));
             }
 
-            Image glow = LibraryUi.CreateImage("Glow", root, HomeTheme.Colors.WithAlpha(gold, 60));
-            glow.sprite = LibraryShapes.Glow();
-            glow.raycastTarget = false;
-            LibraryWidgets.Place(glow.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(300f, 300f));
+            _glow = LibraryUi.CreateImage("Glow", _body, gold);
+            _glow.sprite = LibraryShapes.Glow();
+            _glow.raycastTarget = false;
+            LibraryWidgets.Place(_glow.rectTransform, center, center, Vector2.zero, new Vector2(300f, 300f));
+            for (int i = 0; i < _pulses.Length; i++)
+            {
+                _pulses[i] = LibraryWidgets.Shape("Pulse" + i, _body, LibraryShapes.Ring(MEDAL_SIZE * 0.5f, i == 0 ? 3f : 2f), gold);
+                LibraryUi.Stretch(_pulses[i].rectTransform);
+            }
 
             Color32[] ribbons = { HomeTheme.Colors.Rose, HomeTheme.Colors.Violet };
-            for (int i = 0; i < 2; i++)
+            for (int i = 0; i < _ribbons.Length; i++)
             {
-                Image ribbon = LibraryWidgets.Panel("Ribbon" + i, root, 6f, Color.Lerp(HomeTheme.Colors.Card, ribbons[i], 0.75f));
-                LibraryWidgets.Place(ribbon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 1f),
-                    new Vector2(i == 0 ? -24f : 24f, -34f), new Vector2(38f, 104f));
-                ribbon.rectTransform.localEulerAngles = new Vector3(0f, 0f, i == 0 ? -18f : 18f);
+                Image ribbon = LibraryWidgets.Panel("Ribbon" + i, _body, 6f, Color.Lerp(HomeTheme.Colors.Card, ribbons[i], 0.75f));
+                LibraryWidgets.Place(ribbon.rectTransform, center, new Vector2(0.5f, 1f),
+                    new Vector2(i == 0 ? -24f : 24f, -34f - MEDAL_RISE), new Vector2(38f, 104f));
+                _ribbons[i] = ribbon.rectTransform;
             }
 
-            _medal = LibraryUi.CreateRect("Medal", root);
-            LibraryWidgets.Place(_medal, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 14f),
-                new Vector2(MEDAL_SIZE, MEDAL_SIZE));
+            _medal = LibraryUi.CreateRect("Medal", _body);
+            LibraryUi.Stretch(_medal);
             LibraryWidgets.Shadow(_medal, MEDAL_SIZE * 0.5f, 28f, 10f, 120);
-            Image disc = LibraryWidgets.Panel("Disc", _medal, MEDAL_SIZE * 0.5f, Color.Lerp(HomeTheme.Colors.Card, gold, 0.28f));
-            LibraryUi.Stretch(disc.rectTransform);
-            Image ring = LibraryWidgets.Shape("Ring", _medal, LibraryShapes.Ring(MEDAL_SIZE * 0.5f, 5f), gold);
-            LibraryUi.Stretch(ring.rectTransform);
-            Image inner = LibraryWidgets.Shape("Inner", _medal, LibraryShapes.Ring(MEDAL_SIZE * 0.39f, 2f), HomeTheme.Colors.WithAlpha(gold, 130));
-            LibraryWidgets.Place(inner.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero,
-                new Vector2(MEDAL_SIZE * 0.78f, MEDAL_SIZE * 0.78f));
-            LibraryWidgets.Icon(_medal, LibraryIcon.Trophy, Color.Lerp(gold, Color.white, 0.45f), 66f);
+            _disc = LibraryWidgets.Panel("Disc", _medal, MEDAL_SIZE * 0.5f, gold);
+            LibraryUi.Stretch(_disc.rectTransform);
+
+            // A mask has a hard edge: this one ends under the ring, so that the disc keeps its smooth one.
+            const float FACE = MEDAL_SIZE - 5f;
+            Image face = LibraryWidgets.Panel("Face", _medal, FACE * 0.5f, Color.white);
+            LibraryWidgets.Place(face.rectTransform, center, center, Vector2.zero, new Vector2(FACE, FACE));
+            face.gameObject.AddComponent<Mask>().showMaskGraphic = false;
+            Image shine = LibraryUi.CreateImage("Shine", face.transform, HomeTheme.Colors.WithAlpha(Color.white, 120));
+            shine.raycastTarget = false;
+            LibraryWidgets.Place(shine.rectTransform, center, center, Vector2.zero, new Vector2(34f, MEDAL_SIZE * 1.6f));
+            shine.rectTransform.localEulerAngles = new Vector3(0f, 0f, 28f);
+            _shine = shine.rectTransform;
+            _ring = LibraryWidgets.Shape("Ring", _medal, LibraryShapes.Ring(MEDAL_SIZE * 0.5f, 5f), gold);
+            LibraryUi.Stretch(_ring.rectTransform);
+            _inner = LibraryWidgets.Shape("Inner", _medal, LibraryShapes.Ring(MEDAL_SIZE * 0.39f, 2f), gold);
+            LibraryWidgets.Place(_inner.rectTransform, center, center, Vector2.zero, new Vector2(MEDAL_SIZE * 0.78f, MEDAL_SIZE * 0.78f));
+            _trophy = LibraryWidgets.Icon(_medal, LibraryIcon.Trophy, gold, 66f);
 
             for (int i = 0; i < _sparkles.Length; i++)
             {
@@ -499,28 +548,53 @@ namespace OpenSekai.App.UI
                 sparkle.sprite = LibraryShapes.Glow();
                 sparkle.raycastTarget = false;
                 float size = i % 2 == 0 ? 30f : 20f;
-                LibraryWidgets.Place(sparkle.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), _sparklePositions[i],
-                    new Vector2(size, size));
+                LibraryWidgets.Place(sparkle.rectTransform, center, center, _sparklePositions[i], new Vector2(size, size));
                 _sparkles[i] = sparkle;
+                // Lit, each sparkle has a star at its heart.
+                _stars[i] = LibraryWidgets.Icon(sparkle.transform, LibraryIcon.Star, Color.Lerp(gold, Color.white, 0.55f), size);
             }
 
+            ApplyLight();
             Tick(0d);
+        }
+
+        /// <summary>Whether there is an achievement to unlock: the medal is lit, or about to be.</summary>
+        internal bool IsClaimable { get; private set; }
+
+        /// <summary>Lights the medal while there is an achievement to unlock, and puts it out after the last one.</summary>
+        internal void SetClaimable(bool claimable)
+        {
+            if (IsClaimable == claimable) return;
+            IsClaimable = claimable;
+            _lightMotion.TryCancel();
+            _lightMotion = LMotion.Create(_lit, claimable ? 1f : 0f, LIGHT_SECONDS)
+                .WithEase(Ease.OutCubic)
+                .WithScheduler(HomeMotion.Scheduler)
+                .Bind(this, static (value, art) =>
+                {
+                    art._lit = value;
+                    art.ApplyLight();
+                });
         }
 
         public void Tick(double time)
         {
-            _rays.localEulerAngles = new Vector3(0f, 0f, -(float)(time % 40d / 40d) * 360f);
-            float bob = Mathf.Sin((float)(time % 4.8d / 4.8d) * Mathf.PI * 2f);
-            _medal.anchoredPosition = new Vector2(0f, 14f + 4f * bob);
+            _rays.localEulerAngles = new Vector3(0f, 0f, -(float)(time % TURN_SECONDS / TURN_SECONDS) * 360f);
+            float bob = Mathf.Sin((float)(time % FLOAT_SECONDS / FLOAT_SECONDS) * Mathf.PI * 2f);
+            _body.anchoredPosition = new Vector2(0f, MEDAL_RISE + FLOAT * bob);
             float turn = Mathf.Cos(_flip * Mathf.PI * 2f);
             _medal.localScale = new Vector3(Mathf.Abs(turn) < 0.04f ? 0.04f : turn, 1f, 1f);
+            TickLight(time);
             for (int i = 0; i < _sparkles.Length; i++)
             {
                 float p = (float)((time + i * 0.53d) % 2.4d / 2.4d);
                 float shown = Mathf.Sin(p * Mathf.PI);
                 Color color = _sparkles[i].color;
-                color.a = shown * shown * 0.85f;
+                color.a = shown * shown * Mathf.Lerp(0.85f, 0.45f, _lit);
                 _sparkles[i].color = color;
+                Color star = _stars[i].color;
+                star.a = shown * shown * _lit;
+                _stars[i].color = star;
                 float scale = 0.6f + 0.5f * shown;
                 _sparkles[i].rectTransform.localScale = new Vector3(scale, scale, 1f);
             }
@@ -535,6 +609,67 @@ namespace OpenSekai.App.UI
                 .Bind(v => _flip = v);
         }
 
-        public void Dispose() => _flipMotion.TryCancel();
+        public void Dispose()
+        {
+            _flipMotion.TryCancel();
+            _lightMotion.TryCancel();
+        }
+
+        /// <summary>The colors of the medal as far as it is lit; they change with the state, not with time.</summary>
+        private void ApplyLight()
+        {
+            Color gold = HomeTheme.Colors.Gold;
+            Color ink = Color.Lerp(HomeTheme.Colors.Card, gold, 0.1f);
+            _disc.color = Color.Lerp(HomeTheme.Colors.Card, gold, Mathf.Lerp(0.28f, 0.94f, _lit));
+            _ring.color = Color.Lerp(gold, Color.white, 0.5f * _lit);
+            _inner.color = Color.Lerp(HomeTheme.Colors.WithAlpha(gold, 130), new Color(ink.r, ink.g, ink.b, 0.45f), _lit);
+            _trophy.color = Color.Lerp(Color.Lerp(gold, Color.white, 0.45f), ink, _lit);
+            for (int i = 0; i < RAYS; i++)
+            {
+                float alpha = i % 2 == 0 ? Mathf.Lerp(80f, 235f, _lit) : Mathf.Lerp(40f, 150f, _lit);
+                _rayImages[i].color = HomeTheme.Colors.WithAlpha(gold, (byte)Mathf.RoundToInt(alpha));
+            }
+        }
+
+        /// <summary>What moves on a lit medal; unlit, all of it rests.</summary>
+        private void TickLight(double time)
+        {
+            float wave = Mathf.Sin((float)(time % RAY_SECONDS / RAY_SECONDS) * Mathf.PI * 2f);
+            for (int i = 0; i < RAYS; i++)
+            {
+                // Long and short rays take turns reaching out.
+                float rest = i % 2 == 0 ? 34f : 22f;
+                float reach = i % 2 == 0 ? 6f + 5f * wave : 5f - 5f * wave;
+                _rayImages[i].rectTransform.sizeDelta = new Vector2(RAY_WIDTH, rest + reach * _lit);
+            }
+
+            float beat = (float)(time % BEAT);
+            float glow = Mathf.Lerp(60f, 105f + 25f * wave, _lit);
+            _glow.color = HomeTheme.Colors.WithAlpha(HomeTheme.Colors.Gold, (byte)Mathf.RoundToInt(glow));
+            for (int i = 0; i < _pulses.Length; i++)
+            {
+                float away = HomeMotion.Span(beat, 0.12f + i * 0.22f, 1.3f);
+                float eased = 1f - (1f - away) * (1f - away);
+                float scale = Mathf.Lerp(1f, i == 0 ? 1.85f : 1.6f, eased);
+                _pulses[i].rectTransform.localScale = new Vector3(scale, scale, 1f);
+                float alpha = away > 0f ? (1f - away) * _lit : 0f;
+                _pulses[i].color = HomeTheme.Colors.WithAlpha(HomeTheme.Colors.Gold, (byte)Mathf.RoundToInt(150f * alpha));
+            }
+
+            // A pendulum dying down: the medal goes one way, its ribbons trail the other. On a round
+            // medal only what is drawn on it has to turn; its edge and its shadow stay put.
+            float swing = HomeMotion.Span(beat, 0f, SWING_SECONDS);
+            float angle = Mathf.Sin(swing * Mathf.PI * 5f) * (1f - swing) * (1f - swing) * SWING_DEGREES * _lit;
+            _trophy.rectTransform.localEulerAngles = new Vector3(0f, 0f, angle);
+            for (int i = 0; i < _ribbons.Length; i++)
+            {
+                _ribbons[i].localEulerAngles = new Vector3(0f, 0f, (i == 0 ? -18f : 18f) - angle * 0.45f);
+            }
+
+            float sweep = HomeMotion.Span(beat, 0.15f, 0.85f, Ease.InOutQuad);
+            bool crossing = _lit > 0f && sweep > 0f && sweep < 1f;
+            if (_shine.gameObject.activeSelf != crossing) _shine.gameObject.SetActive(crossing);
+            if (crossing) _shine.anchoredPosition = new Vector2(Mathf.Lerp(-MEDAL_SIZE * 0.8f, MEDAL_SIZE * 0.8f, sweep), 0f);
+        }
     }
 }

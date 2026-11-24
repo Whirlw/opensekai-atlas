@@ -21,7 +21,8 @@ namespace OpenSekai.EditorTools.Screenshots
 
         /// <summary>
         /// The 成就 part on a sample profile in a temporary folder (never the player's own): the
-        /// second home page with its chip and the card growing, every achievement (two that can be
+        /// second home page with its chip, the medal there unlit and lit at several times, and the
+        /// card growing, every achievement (two that can be
         /// unlocked, two under way) and each filter, two reward cards, one unlock held at several times
         /// and one run with a tap until the list has sorted itself, an earlier level, rows with more
         /// levels than one strip of stars, the card for one goal reached and for three at once
@@ -52,6 +53,24 @@ namespace OpenSekai.EditorTools.Screenshots
                 home.SeekHomePage(1f);
                 yield return new WaitForSecondsRealtime(0.3f);
                 yield return Capture(shot, stem + "-page2", "second home page with the 成就 card", null);
+                home.ProfileStore = empty;
+                home.ShowHomeImmediately();
+                home.SeekHomePage(1f);
+                yield return new WaitForSecondsRealtime(1f);
+                home.HoldIdle(HomeMedalArt.BEAT * 3d);
+                yield return null;
+                yield return Capture(shot, stem + "-medal-unlit", "the home medal with nothing to unlock", null);
+                home.ProfileStore = sample;
+                home.ShowHomeImmediately();
+                home.SeekHomePage(1f);
+                yield return new WaitForSecondsRealtime(1f);
+                foreach (float time in _achievementMedalTimes)
+                {
+                    home.HoldIdle(HomeMedalArt.BEAT * 3d + time);
+                    yield return null;
+                    yield return Capture(shot, stem + "-medal-lit" + Mathf.RoundToInt(time * 100f), "the home medal with achievements to unlock", null, time);
+                }
+
                 home.SeekAchievementsHandoff(0.5f);
                 yield return null;
                 yield return null;
@@ -151,6 +170,9 @@ namespace OpenSekai.EditorTools.Screenshots
                 }
             }
         }
+
+        /// <summary>Into a lit home medal's beat: swinging, the light crossing with both rings out, the rings fading, at rest.</summary>
+        private static readonly float[] _achievementMedalTimes = { 0.11f, 0.58f, 1f, 2.4f };
 
         private static readonly float[] _achievementUnlockTimes = { 0.2f, 0.34f, 0.5f, 0.75f, 1f, 1.5f, 1.9f };
 

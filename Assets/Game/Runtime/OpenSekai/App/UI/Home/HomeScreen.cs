@@ -374,6 +374,15 @@ namespace OpenSekai.App.UI
         internal void PreviewProfileCard(HomeProfileSummary summary, double time)
         {
             _view.SetProfile(summary);
+            HoldIdle(time);
+        }
+
+        /// <summary>
+        /// Holds the page's idle motion at <paramref name="time"/> seconds, for screenshots; the next
+        /// <see cref="ShowHomeImmediately"/> sets it going again.
+        /// </summary>
+        internal void HoldIdle(double time)
+        {
             _idle.TryCancel();
             _idle = default;
             TickIdle(time);
@@ -1393,7 +1402,7 @@ namespace OpenSekai.App.UI
                     if (series.State == AchievementState.Claimable) claimable++;
                 }
 
-                _view.SetAchievementStatus("已解锁 " + unlocked + " / " + goals + (claimable > 0 ? "  ·  " + claimable + " 项可解锁" : string.Empty));
+                _view.SetAchievementStatus(unlocked, goals, claimable);
             }
             catch (Exception exception)
             {
