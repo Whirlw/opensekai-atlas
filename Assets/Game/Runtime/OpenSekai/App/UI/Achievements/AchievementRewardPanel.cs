@@ -74,7 +74,7 @@ namespace OpenSekai.App.UI
                 _medal.SetLook(plate);
                 _medal.SetLocked(false);
                 _medalItem.Place(avatar ? left + medalWidth * 0.5f : 0f, medalWidth, Mathf.Min(1f, (medalWidth - 60f) / _medalSize.x));
-                _medalItem.Bind("奖牌「" + look.Title + "」", MedalCopy.Tier(plate.Tier) + "奖牌，可以佩戴在个人信息页和首页");
+                _medalItem.Bind("奖牌「" + (progress.Goal.MedalDisplayName ?? look.Title) + "」", MedalCopy.Tier(plate.Tier) + "奖牌，可以佩戴在个人信息页和首页");
                 if (unlocked) _medal.Shine(0.25f);
             }
 
@@ -83,7 +83,7 @@ namespace OpenSekai.App.UI
             {
                 _avatar.SetAvatar(progress.Goal.AvatarId);
                 _avatarItem.Place(medal ? -left - AVATAR * 0.5f : 0f, AVATAR + 40f, 1f);
-                _avatarItem.Bind("专属头像", "在编辑资料里选用");
+                _avatarItem.Bind(progress.Goal.AvatarName ?? "专属头像", "在编辑资料里选用");
             }
 
             _footer.color = unlocked || state == AchievementState.Claimable ? HomeTheme.Colors.WithAlpha(look.Tint, 30) : LibraryTheme.Colors.Control;

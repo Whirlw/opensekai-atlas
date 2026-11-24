@@ -78,7 +78,7 @@ namespace OpenSekai.EditorTools.Screenshots
 
                 screen.SetFilter(AchievementCategory.All);
                 yield return new WaitForSecondsRealtime(0.7f);
-                foreach (string id in new[] { "fc_lv25", "fc_lv28_10" })
+                foreach (string id in new[] { "FC-02", "FC-03" })
                 {
                     screen.ShowReward(FindGoal(screen, id));
                     yield return new WaitForSecondsRealtime(0.6f);
@@ -86,24 +86,24 @@ namespace OpenSekai.EditorTools.Screenshots
                     screen.HideReward();
                 }
 
-                AchievementRow row = screen.View.FindRow("fc_lv25");
-                AchievementSeries after = screen.Unlock("fc_lv25");
+                AchievementRow row = screen.View.FindRow("FC-01");
+                AchievementSeries after = screen.Unlock("FC-01");
                 foreach (float time in _achievementUnlockTimes)
                 {
                     row.SeekUnlock(after, time);
                     yield return null;
-                    yield return Capture(shot, stem + "-claim" + Mathf.RoundToInt(time * 100f), "unlocking 高阶全连", null, time);
+                    yield return Capture(shot, stem + "-claim" + Mathf.RoundToInt(time * 100f), "unlocking 全连达人", null, time);
                 }
 
                 screen.View.BindList(false);
                 yield return null;
                 yield return Capture(shot, stem + "-claimed", "after the unlock, in the new order", null);
-                screen.View.FindRow("first_dan_pass").Root.Find("Inner/Hit").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
+                screen.View.FindRow("DAN-01").Root.Find("Inner/Hit").GetComponent<UnityEngine.UI.Button>().onClick.Invoke();
                 yield return new WaitForSecondsRealtime(1.2f);
                 yield return Capture(shot, stem + "-tapped", "unlocking 初获段位 with a tap, the count gone up and what it gave", null);
                 yield return new WaitForSecondsRealtime(2.4f);
                 yield return Capture(shot, stem + "-sorted", "after it, complete and last", null);
-                screen.View.FindRow("manual_hits_10000").SlideTo(0);
+                screen.View.FindRow("HIT-01").SlideTo(0);
                 yield return new WaitForSecondsRealtime(0.15f);
                 yield return Capture(shot, stem + "-sliding", "turning to an earlier level", null);
                 yield return new WaitForSecondsRealtime(0.6f);
@@ -114,13 +114,13 @@ namespace OpenSekai.EditorTools.Screenshots
                 yield return Capture(shot, stem + "-levels", "rows with one to eight levels open", null);
                 UnityEngine.Object.Destroy(gallery);
 
-                screen.PreviewUnlock(new[] { "fc_lv25" }, null, 1.6f);
+                screen.PreviewUnlock(new[] { "FC-01" }, null, 1.6f);
                 yield return null;
                 yield return Capture(shot, stem + "-unlock", "the card for one goal reached", null, 1.6f);
-                screen.PreviewUnlock(new[] { "manual_hits_10000", "fc_lv28_10", "first_ap" }, "合并备份后可解锁", 1.6f);
+                screen.PreviewUnlock(new[] { "HIT-01", "FC-02", "AP-01" }, "合并备份后可解锁", 1.6f);
                 yield return null;
                 yield return Capture(shot, stem + "-unlock-multi", "one card for three goals after a backup merge", null, 1.6f);
-                screen.PreviewUnlock(new[] { "first_dan_pass", "manual_hits_10000" }, null, 0.3f);
+                screen.PreviewUnlock(new[] { "DAN-01", "HIT-01" }, null, 0.3f);
                 yield return null;
                 yield return Capture(shot, stem + "-unlock-enter", "the unlock card dropping in", null, 0.3f);
                 screen.EndPreview();
@@ -254,7 +254,7 @@ namespace OpenSekai.EditorTools.Screenshots
             }
 
             store.SaveDanAttempt(course, attempt);
-            store.UnlockAchievement("manual_hits_10000");
+            store.UnlockAchievement("HIT-01");
             return store;
         }
 
@@ -267,7 +267,7 @@ namespace OpenSekai.EditorTools.Screenshots
             int misses = fullCombo ? 0 : failed ? 60 : 7;
             return new CustomMusicScorePlayHistoryRecord
             {
-                SchemaVersion = 3,
+                SchemaVersion = 3, Ranked = true,
                 RecordId = id,
                 ScoreKey = "sample-achievement-" + title.ToLowerInvariant().Replace(' ', '-'),
                 Title = title,

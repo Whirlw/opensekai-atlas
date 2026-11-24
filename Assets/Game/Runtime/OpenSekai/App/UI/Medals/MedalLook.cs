@@ -14,7 +14,7 @@ namespace OpenSekai.App.UI
             Emblem = emblem;
             Mark = mark;
             Color = color;
-            Tier = Mathf.Clamp(tier, MedalTiers.LOWEST, MedalTiers.TOP);
+            Tier = Mathf.Clamp(tier, MedalTiers.LOWEST, MedalTiers.SPECIAL);
             Grade = string.IsNullOrEmpty(grade) ? null : grade;
             Patterned = patterned;
         }
@@ -55,14 +55,14 @@ namespace OpenSekai.App.UI
         internal static MedalLook Of(DanDefinition definition) => new MedalLook(definition.Label, definition.Emblem, null,
             DanStyles.ParseColor(definition.Color), definition.Tier, definition.Grade, true);
 
-        internal static MedalLook Of(AchievementLook look) => new MedalLook(look.Title,
-            "trophy", string.IsNullOrEmpty(look.Mark) ? null : look.Mark, look.Tint, look.MedalTier, null, false);
+        internal static MedalLook Of(AchievementLook look) => new MedalLook(look.MedalName,
+            "trophy", string.IsNullOrEmpty(look.Mark) ? null : look.Mark, look.Tint, look.MedalTier, look.Grade, false);
     }
 
     /// <summary>The words around medals.</summary>
     internal static class MedalCopy
     {
-        private static readonly string[] _tiers = { "初阶", "进阶", "高阶", "尊阶", "极阶" };
+        private static readonly string[] _tiers = { "初阶", "进阶", "高阶", "尊阶", "极阶", "特殊" };
         private static readonly string[] _slots = { "第一块", "第二块" };
 
         internal static string Tier(int tier) => _tiers[Mathf.Clamp(tier, 0, _tiers.Length - 1)];

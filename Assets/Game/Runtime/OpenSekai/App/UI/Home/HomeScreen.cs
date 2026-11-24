@@ -945,10 +945,10 @@ namespace OpenSekai.App.UI
         private void OnServerPlayRequested(ServerScreen.PlayRequest request)
         {
             if (_navigating || _server == null || (request.Temporary == null && string.IsNullOrEmpty(request.PackageDirectory))) return;
-            StartServerLive(request.PackageDirectory, request.Title, request.IsAuto, request.Temporary).Forget();
+            StartServerLive(request.PackageDirectory, request.Title, request.IsAuto, request.Temporary, request.RetryFrom).Forget();
         }
 
-        private async UniTaskVoid StartServerLive(string packageDirectory, string title, bool isAuto, TemporarySongPackage temporary)
+        private async UniTaskVoid StartServerLive(string packageDirectory, string title, bool isAuto, TemporarySongPackage temporary, RankingSettlement retryFrom)
         {
             _navigating = true;
             var cancellation = new CancellationTokenSource();
@@ -969,7 +969,7 @@ namespace OpenSekai.App.UI
                 _serverReturningFromLive = server;
 
                 PlayStartResult result = await _context.Playback.StartAsync(
-                    new PlayRequest(packageDirectory, isAuto, Sekai.SceneManager.Scene.Library, temporary),
+                    new PlayRequest(packageDirectory, isAuto, Sekai.SceneManager.Scene.Library, temporary) { RetryFrom = retryFrom },
                     cancellation.Token, _serverLoading.SetMessage);
                 started = result.Started;
                 if (started)

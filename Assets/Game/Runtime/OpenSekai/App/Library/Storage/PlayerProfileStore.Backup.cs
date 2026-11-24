@@ -25,7 +25,8 @@ namespace OpenSekai.App.Library
         public int DanDuplicates { get; internal set; }
         public IReadOnlyList<string> DanConflictingIds { get; internal set; }
         public int AchievementsAdded { get; internal set; }
-        public bool HasChanges => Added > 0 || RestoresAppearance || DanDefinitionsAdded > 0 || DanAttemptsAdded > 0 || AchievementsAdded > 0;
+        public int RetryStartsAdded { get; internal set; }
+        public bool HasChanges => RetryStartsAdded > 0 || Added > 0 || RestoresAppearance || DanDefinitionsAdded > 0 || DanAttemptsAdded > 0 || AchievementsAdded > 0;
         public bool RestoresAppearance { get; internal set; }
         public PlayerProfileSnapshot Result { get; internal set; }
 
@@ -124,15 +125,19 @@ namespace OpenSekai.App.Library
                 dan.Merge(incomingDan, preview);
                 File.WriteAllText(Path.Combine(stage, DAN_FILE), JsonConvert.SerializeObject(dan));
                 var claims = LoadClaims();
+                int priorRetries = claims.RetryCount;
                 preview.AchievementsAdded = claims.Merge(incomingClaims);
+                preview.RetryStartsAdded = claims.RetryCount - priorRetries;
                 File.WriteAllText(Path.Combine(stage, ACHIEVEMENTS_FILE), JsonConvert.SerializeObject(claims));
                 if (!preview.RestoresAppearance) appearance = ReadAppearance();
                 File.WriteAllText(Path.Combine(stage, PROFILE_FILE), JsonConvert.SerializeObject(appearance));
                 var (history, summaries) = IndexHistory(merged);
                 history.DanSource = () => dan;
-                preview.ReachedAchievementIds = AchievementIndex.NewlyReached(before, history.ReadAchievements())
-                    .Where(goal => !claims.Contains(goal)).ToList().AsReadOnly();
-                preview.Result = new PlayerProfileSnapshot(appearance, history.Read(), dan, () => claims.Apply(history.ReadAchievements()));
+                history.ClaimsSource = () => claims;
+                var after = claims.Apply(history);
+                var pending = new HashSet<string>(after.Where(goal => goal.State == AchievementState.Claimable).Select(goal => goal.Id));
+                preview.ReachedAchievementIds = AchievementIndex.NewlyReached(before, after).Where(pending.Contains).ToList().AsReadOnly();
+                preview.Result = new PlayerProfileSnapshot(appearance, history.Read(), dan, () => claims.Rewards(history));
                 cancel.ThrowIfCancellationRequested();
                 preview.Id = id;
                 _previewHistoryLength = bytes;

@@ -13,7 +13,7 @@ namespace OpenSekai.Tests.EditMode.Packages
 {
     public sealed class MedalTests
     {
-        private static readonly string _dan = Medal.AchievementKey("first_dan_pass");
+        private static readonly string _dan = Medal.AchievementKey("HIT-01");
         private string _root;
         private PlayerProfileStore _store;
 
@@ -201,7 +201,7 @@ namespace OpenSekai.Tests.EditMode.Packages
         private static DanDefinition Course(string label) => new DanDefinition(10, new DanDamage(0, 1, 2, 3, 4),
             new[] { "https://test.org/levels/a", "https://test.org/levels/b" }, label, "star", "#112233", 2, "III");
 
-        /// <param name="unlock">Also unlocks 初获段位, for its medal.</param>
+        /// <param name="unlock">Also unlocks 万键之路, for its medal.</param>
         private string Pass(string label, bool unlock = true)
         {
             DanDefinition course = Course(label);
@@ -209,11 +209,11 @@ namespace OpenSekai.Tests.EditMode.Packages
             for (int i = 0; i < course.Songs.Count; i++)
             {
                 attempt = attempt.Append(course, new DanSongResult("chart", "Title", PlayResultKind.Completed, 15, 10,
-                    new LiveScore { life = 10, perfectCount = 1 }));
+                    new LiveScore { life = 10, perfectCount = 5000, totalComboCount = 5000 }));
             }
 
             _store.SaveDanAttempt(course, attempt);
-            if (unlock) _store.UnlockAchievement("first_dan_pass");
+            if (unlock) _store.UnlockAchievement("HIT-01");
             return Medal.DanKey(course.Id);
         }
     }

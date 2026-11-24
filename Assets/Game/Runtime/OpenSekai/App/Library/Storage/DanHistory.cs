@@ -24,9 +24,14 @@ namespace OpenSekai.App.Library
         [JsonProperty(Required = Required.Default, NullValueHandling = NullValueHandling.Ignore)]
         public DateTimeOffset? FinishedUtc { get; }
 
+        [JsonProperty(Required = Required.Default, NullValueHandling = NullValueHandling.Ignore)]
+        public bool? Ranked { get; }
+        [JsonProperty(Required = Required.Default, NullValueHandling = NullValueHandling.Ignore)]
+        public int? PlayLevel { get; }
+
         [JsonConstructor]
         internal DanSongResult(string scoreKey, string title, PlayResultKind kind, long positionMs, int startingLife,
-            LiveScore score, DateTimeOffset? finishedUtc = null)
+            LiveScore score, DateTimeOffset? finishedUtc = null, bool? ranked = null, int? playLevel = null)
         {
             ScoreKey = scoreKey;
             Title = title;
@@ -35,6 +40,8 @@ namespace OpenSekai.App.Library
             StartingLife = startingLife;
             Score = score;
             FinishedUtc = finishedUtc;
+            Ranked = ranked;
+            PlayLevel = playLevel;
         }
     }
 

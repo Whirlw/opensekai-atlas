@@ -7,7 +7,7 @@ namespace OpenSekai.App.Library
     public sealed partial class PlayerProfileStore
     {
         /// <summary>Every medal the player owns: passed 段位, newest saved first, then the ones unlocked achievements gave.</summary>
-        public IReadOnlyList<Medal> ReadMedals() => Medals(ReadDanArchive(), ReadAchievements());
+        public IReadOnlyList<Medal> ReadMedals() => Medals(ReadDanArchive(), RewardAchievements());
 
         /// <summary>
         /// Wears the medal in <paramref name="slot"/>; null leaves the slot empty. A medal already
@@ -34,7 +34,7 @@ namespace OpenSekai.App.Library
             RequireIdle();
             if (key == null) throw new ArgumentNullException(nameof(key));
             // A slot whose medal is gone (its record was deleted) counts as free.
-            var worn = WornMedals(ReadDanArchive(), ReadAchievements);
+            var worn = WornMedals(ReadDanArchive(), RewardAchievements);
             int slot = Array.FindIndex(worn, medal => medal?.Key == key);
             if (slot >= 0) return slot;
             slot = Array.IndexOf(worn, null);

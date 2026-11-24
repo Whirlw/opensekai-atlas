@@ -540,7 +540,7 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            _editor.Open(Snapshot.Appearance, Store.ReadAchievements());
+            _editor.Open(Snapshot.Appearance, Store.ReadAchievements(), Store.OwnsAvatar);
         }
 
         private bool SaveAppearance(string nickname, string avatarId)

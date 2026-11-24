@@ -120,11 +120,11 @@ namespace OpenSekai.App.UI
         internal bool IsOpen => _modal.IsOpen;
 
         /// <param name="goals">Decide which of the avatars achievements give are unlocked.</param>
-        internal void Open(ProfileAppearance current, IReadOnlyList<AchievementProgress> goals)
+        internal void Open(ProfileAppearance current, IReadOnlyList<AchievementProgress> goals, Func<string, bool> ownsAvatar = null)
         {
             _nickname.SetTextWithoutNotify(current?.Nickname ?? string.Empty);
             _lockNote.text = string.Empty;
-            foreach (Tile tile in _tiles) tile.Bind(goals);
+            foreach (Tile tile in _tiles) tile.Bind(goals, ownsAvatar);
             Choose(current?.AvatarId ?? ProfileAvatars.DEFAULT_ID, false);
             Validate();
             _modal.Open();
@@ -217,12 +217,12 @@ namespace OpenSekai.App.UI
             /// <summary>The achievement that gives it, while that is not unlocked; null for an avatar to choose freely.</summary>
             internal AchievementProgress Giver { get; private set; }
 
-            internal void Bind(IReadOnlyList<AchievementProgress> goals)
+            internal void Bind(IReadOnlyList<AchievementProgress> goals, Func<string, bool> ownsAvatar)
             {
                 Giver = null;
                 foreach (AchievementProgress goal in goals)
                 {
-                    if (goal.Goal.AvatarId == Id && goal.State != AchievementState.Unlocked) Giver = goal;
+                    if (goal.Goal.AvatarId == Id && goal.State != AchievementState.Unlocked && ownsAvatar?.Invoke(Id) != true) Giver = goal;
                 }
 
                 _group.alpha = Giver != null ? 0.3f : 1f;

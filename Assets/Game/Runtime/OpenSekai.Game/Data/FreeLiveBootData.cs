@@ -4,6 +4,10 @@ namespace Sekai
 	{
 		public OpenSekai.Shared.Playback.DanLiveSong DanSong { get; set; }
 
+		public string RetrySourceId { get; set; }
+		public string RetrySource { get; set; }
+		public System.Action<string, string, string, string> RecordRetryStart { get; set; }
+
 		public int[] DeckFormationIndexes { get; set; }
 
 		public string CustomMusicScoreId { get; set; }

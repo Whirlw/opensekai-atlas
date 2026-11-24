@@ -52,6 +52,7 @@ namespace OpenSekai.App.Library
                 if (challenges.Length > DAN_LIMIT) throw new InvalidDataException("Challenge archive exceeds backup size limit.");
                 using (var target = zip.CreateEntry(PlayerProfileStore.DAN_FILE).Open()) target.Write(challenges, 0, challenges.Length);
                 byte[] unlocks = Utf8.GetBytes(JsonConvert.SerializeObject(claims));
+                if (unlocks.Length > HISTORY_LIMIT) throw new InvalidDataException("Achievement archive exceeds backup size limit.");
                 using (var target = zip.CreateEntry(PlayerProfileStore.ACHIEVEMENTS_FILE).Open()) target.Write(unlocks, 0, unlocks.Length);
                 var manifest = new JObject
                 {
@@ -67,7 +68,7 @@ namespace OpenSekai.App.Library
         internal static (ProfileAppearance, DanArchive, AchievementClaims) Unpack(string path, string stagedHistory)
         {
             using var file = File.OpenRead(path);
-            if (file.Length > HISTORY_LIMIT + DAN_LIMIT + 1024 * 1024) throw new InvalidDataException("Backup exceeds size limit.");
+            if (file.Length > 2L * HISTORY_LIMIT + DAN_LIMIT + 1024 * 1024) throw new InvalidDataException("Backup exceeds size limit.");
             using var zip = new ZipArchive(file, ZipArchiveMode.Read);
             using var json = new MemoryStream();
             Copy(zip, MANIFEST, json, JSON_LIMIT);
@@ -90,7 +91,7 @@ namespace OpenSekai.App.Library
             if (version >= 3)
             {
                 json.SetLength(0);
-                Copy(zip, PlayerProfileStore.ACHIEVEMENTS_FILE, json, JSON_LIMIT);
+                Copy(zip, PlayerProfileStore.ACHIEVEMENTS_FILE, json, HISTORY_LIMIT);
                 byte[] bytes = json.ToArray();
                 if (Hash(bytes) != (string)manifest["achievementsSha256"]) throw new InvalidDataException("Achievement checksum mismatch.");
                 claims = AchievementClaims.Decode(Utf8.GetString(bytes));

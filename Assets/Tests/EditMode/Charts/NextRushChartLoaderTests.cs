@@ -416,7 +416,11 @@ namespace OpenSekai.Tests.EditMode.Charts
 
             using var harness = new LiveHarness();
             harness.Arrange(score);
+            harness.BindViews();
             var lane = LiveConfig.JudgmentPositions[mirror ? 7 : 4];
+            var board = new ScoreLogic(_config);
+            board.Setup(null, score);
+            harness.Logic.Session.ScoreLogic = board;
             float originalFrameDelta = LiveUtility.FrameDeltaTimeOverride;
             try
             {
@@ -438,6 +442,8 @@ namespace OpenSekai.Tests.EditMode.Charts
                     harness.Step(2.04f, 12.04);
                 }
                 Assert.That(key.Result, Is.EqualTo(expected));
+                Assert.That(board.Score.flickJudgments, Is.EqualTo(1));
+                Assert.That(board.Score.perfectFlicks, Is.EqualTo(expected == NoteResult.Perfect ? 1 : 0));
             }
             finally { LiveUtility.FrameDeltaTimeOverride = originalFrameDelta; }
         }
@@ -540,6 +546,9 @@ namespace OpenSekai.Tests.EditMode.Charts
             var result = Load(Hold());
             var head = (LongNote)result.Score.NoteArray.Single();
             Assert.That(head.ChildNote, Is.TypeOf<NormalNote>());
+            var board = new ScoreLogic(_config);
+            board.Setup(null, result.Score);
+            Assert.That((board.Score.holdChains, board.Score.holdPoints), Is.EqualTo((1, 2)));
             Assert.That(head.NoteList.Count, Is.EqualTo(4));
             Assert.That(result.TotalNoteCount, Is.EqualTo(4));
             var hidden = head.NoteList.OfType<LongHoldCombo>().Single();
@@ -2699,12 +2708,17 @@ namespace OpenSekai.Tests.EditMode.Charts
             using var harness = new LiveHarness();
             harness.Arrange(chart.Score);
             harness.BindViews();
+            var board = new ScoreLogic(_config);
+            board.Setup(null, chart.Score);
+            harness.Logic.Session.ScoreLogic = board;
             var ownerLane = LiveConfig.NativeLanePosition(1.5f);
             harness.Step(1, 11, LiveHarness.Touch(1, ownerLane, 11));
             harness.Step(2, 12, LiveHarness.Touch(1, ownerLane, 12, InputTouchPhase.Stationary),
                 LiveHarness.Touch(2, touchGuide ? LiveConfig.NativeLanePosition(8.5f) : ownerLane, 12));
             harness.Step(2.02f, 12.02);
             Assert.That(ticks.Select(t => t.Result), Is.All.EqualTo(touchGuide ? NoteResult.Perfect : NoteResult.Miss));
+            Assert.That((board.Score.holdChains, board.Score.holdPoints, board.Score.perfectHoldPoints),
+                Is.EqualTo((1, 2, touchGuide ? 2 : 0)));
             var replay = Load(json);
             AssertCompletesAutoplay(replay);
             Assert.That(replay.Score.NoteArray.OfType<NextRushConnectorTickNote>().Select(t => t.Result), Is.All.EqualTo(NoteResult.Auto));

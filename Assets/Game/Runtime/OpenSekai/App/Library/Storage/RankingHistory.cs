@@ -19,15 +19,22 @@ namespace OpenSekai.App.Library
         private RankingSettlement _last;
         private List<CustomMusicScorePlayHistoryRecord> _timeline = new();
         internal Func<DanArchive> DanSource { private get; set; }
+        internal Func<AchievementClaims> ClaimsSource { private get; set; }
         private AchievementIndex _achievements;
         internal event Action Appended;
 
-        private AchievementIndex Achievements => _achievements ??= AchievementIndex.Build(_timeline, DanSource?.Invoke());
+        private AchievementIndex Achievements => _achievements ??= AchievementIndex.Build(_timeline, DanSource?.Invoke(), ClaimsSource?.Invoke()?.RetryEvents);
 
         internal IReadOnlyList<AchievementProgress> ReadAchievements()
         {
             EnsureLoaded();
             return Achievements.Snapshot();
+        }
+
+        internal IReadOnlyList<AchievementProgress> ReadLegacyAchievements()
+        {
+            EnsureLoaded();
+            return Achievements.LegacySnapshot();
         }
 
         internal void InvalidateAchievements() => _achievements = null;
@@ -40,6 +47,7 @@ namespace OpenSekai.App.Library
         private RankingSettlement WithReached(RankingSettlement receipt)
         {
             var ids = Achievements.ForPlay(receipt.PlayId);
+            if (ids.Count > 0 && ClaimsSource != null) ids = ClaimsSource().WithoutLegacyUnlocks(ids, this);
             return ids.Count == 0 ? receipt : new RankingSettlement(receipt.PlayId, receipt.ScoreKey, receipt.Eligibility,
                 receipt.SaveState, receipt.Award, receipt.BasePoints, receipt.Before, receipt.After, ids);
         }

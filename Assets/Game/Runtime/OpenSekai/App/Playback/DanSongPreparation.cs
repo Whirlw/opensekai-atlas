@@ -22,8 +22,11 @@ namespace OpenSekai.App.Playback
         public string Title { get; }
         public string ScoreKey { get; }
 
-        internal PreparedDanSong(string directory, string title, string scoreKey)
-            => (Directory, Title, ScoreKey) = (directory, title, scoreKey);
+        public bool Ranked { get; }
+        public int PlayLevel { get; }
+
+        internal PreparedDanSong(string directory, string title, string scoreKey, bool ranked = false, int playLevel = 0)
+            => (Directory, Title, ScoreKey, Ranked, PlayLevel) = (directory, title, scoreKey, ranked, playLevel);
     }
 
     // Pin files, not decoded music clips. Only one song needs to occupy audio memory at a time.
@@ -84,7 +87,11 @@ namespace OpenSekai.App.Playback
             if (clip == null) throw new InvalidDataException("曲目音频无法解码。");
             UnityEngine.Object.Destroy(clip);
             string title = copy.Manifest.scoreTitle;
-            var song = new PreparedDanSong(pinned, string.IsNullOrWhiteSpace(title) ? fallbackTitle : title, hash);
+            var original = SongPackageStorage.LoadEntry(local);
+            var verdict = await ChartRankLookup.ReadInstalledAsync(SongPackageSource.Read(original), original);
+            int playLevel = copy.Manifest.playLevel;
+            var song = new PreparedDanSong(pinned, string.IsNullOrWhiteSpace(title) ? fallbackTitle : title,
+                hash, verdict?.Matches(hash, playLevel) == true, playLevel);
             _prepared.Add(link, song);
             return song;
         }

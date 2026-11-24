@@ -136,13 +136,13 @@ namespace OpenSekai.Tests.EditMode
         public void ARunAnnouncesWhatItReachedOnce()
         {
             PlayResult played = SettlementSamples.Create(SettlementExample.SameChartFullCombo);
-            Assume.That(played.Settlement.ReachedAchievementIds, Is.EqualTo(new[] { "fc_lv25" }));
+            Assert.That(played.Settlement.ReachedAchievementIds, Does.Contain("FC-01"));
             ResultPage page = ResultPage.Create(_canvas.transform, null, "返回曲库");
             page.Show(played, null, LibraryTheme.Colors.DefaultAccent);
             float announcing = page.Duration;
             page.Skip();
             Assert.That(Find(page.gameObject, "AchievementUnlock").activeSelf, Is.True, "skipping still shows the card");
-            Assert.That(Text(page.gameObject, "UnlockTitle"), Is.EqualTo("高阶全连"));
+            Assert.That(Text(page.gameObject, "UnlockTitle"), Does.Contain("全连达人"));
 
             page.Hide();
             page.Show(played, null, LibraryTheme.Colors.DefaultAccent);
@@ -164,7 +164,7 @@ namespace OpenSekai.Tests.EditMode
         public void ThePageListsEveryAchievementAndFiltersThem()
         {
             PlayerProfileStore store = FourFullCombos();
-            store.UnlockAchievement("fc_lv25");
+            store.UnlockAchievement("FC-01");
             AchievementScreen screen = Open(store);
             Assert.That(Rows(screen), Is.EqualTo(screen.Series.Count));
             Assert.That(screen.Series.Count, Is.LessThan(screen.Items.Count), "levels share a row");
@@ -175,11 +175,12 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(Text(screen.gameObject, "StatValue1"), Is.EqualTo("4"));
 
             screen.SetFilter(AchievementCategory.Charts);
-            Assert.That(Rows(screen), Is.EqualTo(2));
-            Assert.That(Text(screen.gameObject, "FilterCount"), Is.EqualTo("已解锁 1 / 3"));
+            Assert.That(Rows(screen), Is.EqualTo(screen.Series.Count(item => AchievementCopy.For(item.Steps[0]).Category == AchievementCategory.Charts)));
+            int chartGoals = screen.Items.Count(item => AchievementCopy.For(item).Category == AchievementCategory.Charts);
+            Assert.That(Text(screen.gameObject, "FilterCount"), Is.EqualTo("已解锁 1 / " + chartGoals));
 
             screen.SetFilter(AchievementCategory.Dan);
-            Assert.That(Rows(screen), Is.EqualTo(1));
+            Assert.That(Rows(screen), Is.EqualTo(4));
             screen.SetPresented(false, false);
         }
 
@@ -189,42 +190,43 @@ namespace OpenSekai.Tests.EditMode
             PlayerProfileStore store = FourFullCombos();
             AchievementScreen screen = Open(store);
             Assert.That(Text(screen.gameObject, "Count"), Is.EqualTo("0"), "reached is not unlocked");
-            AchievementRow row = screen.View.FindRow("fc_lv25");
-            Assert.That(row.Top, Is.Zero, "what can be unlocked comes first");
+            AchievementRow row = screen.View.FindRow("FC-01");
+            Assert.That(row.Series.State, Is.EqualTo(AchievementState.Claimable));
             Assert.That((row.Step, row.StarCount), Is.EqualTo((0, 1)));
 
             Tap(row);
             Assert.That(row.IsUnlocking, Is.True);
-            Assert.That(State(store, "fc_lv25"), Is.EqualTo(AchievementState.Unlocked));
-            Assert.That(store.ReadMedals().Select(medal => medal.Key), Is.EqualTo(new[] { Medal.AchievementKey("fc_lv25") }));
+            Assert.That(State(store, "FC-01"), Is.EqualTo(AchievementState.Unlocked));
+            Assert.That(store.ReadMedals().Select(medal => medal.Key), Is.Empty);
             Tap(row);
             row.SeekUnlock(null, 60f);
             Assert.That((row.Step, row.StarCount), Is.EqualTo((1, 2)), "its star is lit, and the next level's is there");
-            Assert.That(Text(screen.gameObject, "FilterCount"), Is.EqualTo("已解锁 1 / 9"));
+            Assert.That(Text(screen.gameObject, "FilterCount"), Is.EqualTo("已解锁 1 / 145"));
 
             screen.View.BindList(false);
-            row = screen.View.FindRow("fc_lv28_10");
+            row = screen.View.FindRow("FC-02");
             Assert.That(row.IsUnlocking, Is.False);
             Assert.That(row.Step, Is.EqualTo(1), "opened at the level to work on");
             Tap(row);
-            Assert.That(row.IsUnlocking, Is.False, "under way: nothing to unlock");
+            Assert.That(State(store, "FC-02"), Is.EqualTo(AchievementState.Unlocked));
         }
 
         [Test]
         public void AnAchievementWithoutAnotherLevelStaysUnlockedAtTheEndOfTheList()
         {
             PlayerProfileStore store = FourFullCombos();
-            store.History.Submit(FullCombo(9, 20, ap: true), null, out _);
-            store.UnlockAchievement("fc_lv25");
+            foreach (var pair in new[] { "expert", "hard", "easy", "normal", "master" }.Select((difficulty, index) => (difficulty, index)))
+                store.History.Submit(FullCombo(9 + pair.index, 20, true, pair.difficulty), null, out _);
+            store.UnlockAchievement("FC-01");
             AchievementScreen screen = Open(store);
-            AchievementRow row = screen.View.FindRow("first_ap");
-            Assert.That(row.Top, Is.Zero);
+            AchievementRow row = screen.View.FindRow("PRISM-01");
+            Assert.That(row.Series.State, Is.EqualTo(AchievementState.Claimable));
             Assert.That(row.StarCount, Is.Zero, "a single level has no stars");
             Tap(row);
             row.SeekUnlock(null, 60f);
             Assert.That(row.Step, Is.Zero);
             screen.View.BindList(false);
-            Assert.That(screen.View.FindRow("first_ap").Top,
+            Assert.That(screen.View.FindRow("PRISM-01").Top,
                 Is.EqualTo(screen.Series.Max(series => screen.View.FindRow(series.Steps[0].Id).Top)));
         }
 
@@ -234,14 +236,14 @@ namespace OpenSekai.Tests.EditMode
             AchievementScreen screen = Open(FourFullCombos());
             foreach (AchievementProgress goal in screen.Items)
             {
-                Assert.That(goal.Goal.AvatarId == null || ProfileAvatars.IsKnown(goal.Goal.AvatarId), Is.True, goal.Id);
-                Assert.That(AchievementCopy.RewardKinds(goal), Is.Not.Empty, goal.Id);
+                Assert.That(goal.Goal.AvatarId == null || !string.IsNullOrEmpty(goal.Goal.AvatarName), Is.True, goal.Id);
+                Assert.That(AchievementCopy.RewardKinds(goal).Length > 0, Is.EqualTo(goal.Goal.GivesMedal || goal.Goal.AvatarId != null), goal.Id);
             }
 
-            screen.ShowReward(screen.Items.Single(goal => goal.Id == "fc_lv28_10"));
+            screen.ShowReward(screen.Items.Single(goal => goal.Id == "FC-03"));
             Assert.That(Find(screen.gameObject, "AchievementReward").activeInHierarchy, Is.True);
             Assert.That(Find(screen.gameObject, "MedalItem").activeInHierarchy && Find(screen.gameObject, "AvatarItem").activeInHierarchy, Is.True);
-            Assert.That(Text(screen.gameObject, "RewardState"), Does.Contain("2 / 10 张"));
+            Assert.That(Text(screen.gameObject, "RewardState"), Does.Contain("0 / 5 张"));
             Assert.That(screen.TryHandleBack(), Is.True);
             Assert.That(Find(screen.gameObject, "AchievementReward").activeSelf, Is.False);
         }
@@ -288,9 +290,9 @@ namespace OpenSekai.Tests.EditMode
 
         private static AchievementState State(PlayerProfileStore store, string id) => store.ReadAchievements().Single(goal => goal.Id == id).State;
 
-        private static CustomMusicScorePlayHistoryRecord FullCombo(int n, int level, bool ap = false) => new CustomMusicScorePlayHistoryRecord
+        private static CustomMusicScorePlayHistoryRecord FullCombo(int n, int level, bool ap = false, string difficulty = null) => new CustomMusicScorePlayHistoryRecord
         {
-            SchemaVersion = 3, RecordId = "fc-" + n, ScoreKey = "chart-" + n, PlayedAtUtc = _epoch.AddHours(n).ToString("O"),
+            SchemaVersion = 3, Ranked = true, Difficulty = difficulty, RecordId = "fc-" + n, ScoreKey = "chart-" + n, PlayedAtUtc = _epoch.AddHours(n).ToString("O"),
             EndReason = PlayResultKind.Completed, Life = 100, PlayLevel = level, MaximumScore = 1000000, FormulaVersion = 1,
             TotalScore = 990000, TotalComboCount = 500, MaxCombo = 500, PerfectCount = ap ? 500 : 490, GreatCount = ap ? 0 : 10, IsFullCombo = true,
             IsAllPerfect = ap

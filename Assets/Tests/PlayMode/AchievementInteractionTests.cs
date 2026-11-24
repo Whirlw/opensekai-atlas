@@ -52,8 +52,8 @@ namespace OpenSekai.Tests.PlayMode
         [UnityTest]
         public IEnumerator ATapUnlocksTheLevelThenTheRowTurnsAndTheListSortsItself()
         {
-            AchievementRow row = _screen.View.FindRow("fc_lv25");
-            AchievementRow other = _screen.View.FindRow("manual_hits_10000");
+            AchievementRow row = _screen.View.FindRow("HIT-01");
+            AchievementRow other = _screen.View.FindRow("COMBO-01");
             Assert.That(row.Top, Is.Zero);
             Assert.That(Text("Count"), Is.EqualTo("0"));
             Press(Center(row.Root));
@@ -61,7 +61,7 @@ namespace OpenSekai.Tests.PlayMode
             yield return Until(() => !row.IsUnlocking, 5f);
             Assert.That((row.Step, row.StarCount), Is.EqualTo((1, 2)));
             Assert.That(Text("Count"), Is.EqualTo("1"));
-            Assert.That(Text("FilterCount"), Is.EqualTo("已解锁 1 / 9"));
+            Assert.That(Text("FilterCount"), Is.EqualTo("已解锁 1 / 145"));
             yield return Until(() => other.Top <= 0f, 2f);
             Assert.That(row.Top, Is.GreaterThan(0f), "under way again, it goes back to its place");
             Assert.That(_store.ReadMedals().Count, Is.EqualTo(1));
@@ -70,10 +70,10 @@ namespace OpenSekai.Tests.PlayMode
         [UnityTest]
         public IEnumerator ASwipeTurnsToAnUnlockedLevelAndAVerticalDragScrolls()
         {
-            _store.UnlockAchievement("fc_lv25");
+            _store.UnlockAchievement("HIT-01");
             _screen.Reload();
             yield return null;
-            AchievementRow row = _screen.View.FindRow("fc_lv25");
+            AchievementRow row = _screen.View.FindRow("HIT-01");
             Assert.That(row.Step, Is.EqualTo(1));
             Vector2 center = Center(row.Root);
             Drag(center, center + new Vector2(Screen.width * 0.3f, 4f));
@@ -96,7 +96,7 @@ namespace OpenSekai.Tests.PlayMode
         [UnityTest]
         public IEnumerator ATapOnTheBoxShowsTheRewardAndUnlocksNothing()
         {
-            AchievementRow row = _screen.View.FindRow("fc_lv25");
+            AchievementRow row = _screen.View.FindRow("HIT-01");
             RectTransform box = row.Root.GetComponentsInChildren<RectTransform>().Single(rect => rect.name == "RewardBox");
             Press(Center(box));
             yield return null;
@@ -189,7 +189,7 @@ namespace OpenSekai.Tests.PlayMode
             SchemaVersion = 3, RecordId = "fc-" + n, ScoreKey = "chart-" + n,
             PlayedAtUtc = new DateTimeOffset(2026, 11, 1, n, 0, 0, TimeSpan.Zero).ToString("O"),
             EndReason = PlayResultKind.Completed, Life = 100, PlayLevel = 26 + n, MaximumScore = 1000000, FormulaVersion = 1,
-            TotalScore = 990000, TotalComboCount = 500, MaxCombo = 500, PerfectCount = 490, GreatCount = 10, IsFullCombo = true
+            TotalScore = 990000, TotalComboCount = 2500, MaxCombo = 2500, PerfectCount = 2490, GreatCount = 10, IsFullCombo = true
         };
     }
 }

@@ -78,6 +78,7 @@ namespace Sekai.Core.Live
 			LiveViewExt.OnLoad(_liveViews);
 			StartCoroutine(LiveStart(6f));
 			DanSong?.BindRetire(OnRetireByMySelf);
+			RecordRetryStart();
 		}
 
 		protected override void OnMusicStart()
@@ -424,6 +425,11 @@ namespace Sekai.Core.Live
 			liveOutUIController?.Destroy();
 			SoundManager.Instance.StopIngame();
 			FinishAttempt(PlayResultKind.Retired);
+			if (BootData is FreeLiveBootData boot)
+			{
+				boot.RetrySourceId = _playId;
+				boot.RetrySource = "pause";
+			}
 			_playId = System.Guid.NewGuid().ToString("N");
 			_settlement = null;
 			_retiredByPlayer = false;
@@ -433,6 +439,14 @@ namespace Sekai.Core.Live
 			LiveViewExt.Retry(_liveViews);
 			RetryProcess();
 			StartCoroutine(LiveStart(6f));
+			RecordRetryStart();
+		}
+
+		private void RecordRetryStart()
+		{
+			if (BootData is FreeLiveBootData boot && !boot.IsAuto && boot.DanSong == null &&
+				boot.IsCustomMusicScore && boot.MusicData?.IsTestPlay != true && !string.IsNullOrEmpty(boot.RetrySourceId))
+				boot.RecordRetryStart?.Invoke(_playId, boot.CustomMusicScoreKey, boot.RetrySourceId, boot.RetrySource);
 		}
 
 		private void RetryProcess()

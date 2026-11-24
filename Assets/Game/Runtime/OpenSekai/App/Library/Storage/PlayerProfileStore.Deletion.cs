@@ -60,8 +60,10 @@ namespace OpenSekai.App.Library
                 if (File.Exists(ProfilePath)) File.Copy(ProfilePath, Path.Combine(stage, PROFILE_FILE));
                 var (history, summaries) = IndexHistory(path);
                 history.DanSource = ReadDanArchive;
-                var claims = ReadClaims().WithoutUnreached(history.ReadAchievements());
-                if (claims.Count > 0) File.WriteAllText(Path.Combine(stage, ACHIEVEMENTS_FILE), JsonConvert.SerializeObject(claims));
+                var retained = ReadClaims().WithoutRetry(play?.RecordId);
+                history.ClaimsSource = () => retained;
+                var claims = retained.WithoutUnreached(history);
+                if (claims.Count > 0 || claims.RetryCount > 0) File.WriteAllText(Path.Combine(stage, ACHIEVEMENTS_FILE), JsonConvert.SerializeObject(claims));
                 if (play != null) History.TransferPendingTo(history, play.RecordId);
                 if (play != null && backedUp)
                     File.WriteAllText(Path.Combine(stage, BACKUP_MARKER), new FileInfo(path).Length.ToString(CultureInfo.InvariantCulture));
@@ -113,6 +115,7 @@ namespace OpenSekai.App.Library
             _cachedClaims = null;
             History = history;
             History.DanSource = ReadDanArchive;
+            History.ClaimsSource = ReadClaims;
             Summaries = summaries;
             if (previous != _root) DiscardDirectory(previous);
             else

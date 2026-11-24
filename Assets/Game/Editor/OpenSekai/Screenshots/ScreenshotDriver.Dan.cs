@@ -215,8 +215,7 @@ namespace OpenSekai.EditorTools.Screenshots
             samples.Pass = Play(store, samples.Passed, 5, new[] { 18, 23, 31 }, PlayResultKind.Completed);
             Play(store, samples.Passed, 5, new[] { 40, 38, 30 }, PlayResultKind.Failed);
             store.WearMedal(Medal.DanKey(samples.Passed.Id));
-            store.UnlockAchievement("first_dan_pass");
-            store.WearMedal(Medal.AchievementKey("first_dan_pass"));
+            store.UnlockAchievement("DAN-01");
             samples.Fail = Play(store, samples.Failed, 0, new[] { 21, 17, 26, 36 }, PlayResultKind.Failed);
             samples.Quit = Play(store, samples.Failed, 0, new[] { 12, 9 }, PlayResultKind.Retired);
             samples.Resting = Play(null, samples.Failed, 0, new[] { 21, 17 }, PlayResultKind.Completed);

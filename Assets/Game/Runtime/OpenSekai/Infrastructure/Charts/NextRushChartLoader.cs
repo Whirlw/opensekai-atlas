@@ -289,9 +289,51 @@ namespace OpenSekai.Infrastructure.Charts
                         note.UsesNextRushJudgment = true;
                 var score = new MusicScore(_timing.Points, Array.Empty<EventBase>(),
                     roots.OrderBy(n => n.MusicScoreInfo.time).ToArray(), compatibility.InitialLife, useExtendedLanes: true,
-                    connectorSounds: BuildConnectorSounds(), hiddenSimLines: hiddenLines.ToArray());
+                    connectorSounds: BuildConnectorSounds(), hiddenSimLines: hiddenLines.ToArray(), scoringHoldChains: ScoringHoldChains());
                 double lastBeat = _notes.Keys.Select(e => Beat(e)).DefaultIfEmpty(0).Max();
                 return RuntimeChartDefinition.CreateNative(_source, score, checked((long)Math.Round(lastBeat * ChartTimeline.TICKS_PER_BEAT)), compatibility);
+            }
+
+            // One authored interval can span several runtime bars. A tick may also judge on its own
+            // root while borrowing geometry from a different interval.
+            private NoteBase[][] ScoringHoldChains()
+            {
+                var sections = new Dictionary<LongNote, (NextRushEntity head, NextRushEntity tail)>();
+                void Register(LongNote bar, ConnectorEdge edge)
+                {
+                    if (edge.activeHead != null && edge.activeTail != null && bar is not GuideNote &&
+                        !edge.segment.IsFake && !edge.segment.IsDamage && edge.segment.Kind < 101)
+                        sections[bar] = (edge.activeHead, edge.activeTail);
+                }
+                foreach (var (entity, edge) in _edges) Register(_outgoingBars[entity], edge);
+                foreach (var (pair, edge) in _graphEdges) Register(_graphBars[pair], edge);
+                if (sections.Count == 0) return Array.Empty<NoteBase[]>();
+                var byHead = sections.Values.Distinct().ToLookup(section => section.head);
+                var chains = new Dictionary<(NextRushEntity head, NextRushEntity tail), HashSet<NoteBase>>();
+                foreach (var (entity, point) in _notes)
+                {
+                    if (point is not HoldPointNote || !point.HasJudgment ||
+                        Kind(entity) != "TickNote" && entity.Archetype != "TransientHiddenTickNote") continue;
+                    void Add((NextRushEntity head, NextRushEntity tail) section)
+                    {
+                        if (entity == section.head || entity == section.tail || Beat(entity) < Beat(section.head) ||
+                            Beat(entity) > Beat(section.tail)) return;
+                        if (!chains.TryGetValue(section, out var points)) chains.Add(section, points = new HashSet<NoteBase>());
+                        points.Add(point);
+                    }
+
+                    var owner = Resolve(entity, "activeHead", false);
+                    if (point.ParentNote is LongNote parent && sections.TryGetValue(parent, out var bound))
+                        Add(bound);
+                    else if (owner != null)
+                        foreach (var section in byHead[owner]) Add(section);
+                    else if (_incomingBars.TryGetValue(entity, out var incoming) && sections.TryGetValue(incoming, out var preceding))
+                        Add(preceding);
+                    else if (_graphNodes.Contains(entity))
+                        foreach (var edge in JunctionEdges[entity])
+                            if (sections.TryGetValue(_graphBars[edge], out var branch)) Add(branch);
+                }
+                return chains.Values.Select(points => points.ToArray()).ToArray();
             }
 
             private sealed class TimingMap

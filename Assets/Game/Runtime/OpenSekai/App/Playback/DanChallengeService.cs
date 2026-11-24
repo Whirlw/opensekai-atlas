@@ -136,7 +136,7 @@ namespace OpenSekai.App.Playback
                     _finishedSong = true;
                     RemainingLife = score.life;
                     var row = new DanSongResult(song.ScoreKey, song.Title, kind, Math.Max(0L, time), startLife, score,
-                        DateTimeOffset.UtcNow);
+                        DateTimeOffset.UtcNow, song.Ranked, song.PlayLevel);
                     var updated = Attempt.Append(Definition, row);
                     try
                     {
@@ -150,7 +150,7 @@ namespace OpenSekai.App.Playback
                 restart => LeaveSongAsync(restart).Forget());
             _live = live;
             SetPhase(DanPhase.StartingSong);
-            var result = await PlayService.Instance.StartAsync(new PlayRequest(song.Directory, live, source), token);
+            var result = await PlayService.Instance.StartAsync(new PlayRequest(song.Directory, live, source, song.Ranked), token);
             if (result.Started) SetPhase(DanPhase.Playing);
             return result;
         }

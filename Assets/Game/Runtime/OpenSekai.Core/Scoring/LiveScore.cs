@@ -14,6 +14,9 @@ namespace Sekai.Core.Live
 
 		public int flickCount;
 
+		public int flickJudgments, perfectFlicks;
+		public int holdChains, holdPoints, perfectHoldPoints;
+
 		public int totalComboCount;
 
 		public ScoreRank rank;

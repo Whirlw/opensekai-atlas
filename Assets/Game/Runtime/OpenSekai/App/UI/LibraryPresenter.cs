@@ -342,7 +342,7 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            StartPlayback(result.PackageDirectory, result.Title, result.IsAuto);
+            StartPlayback(result.PackageDirectory, result.Title, result.IsAuto, result.Settlement);
         }
 
         private void ExportPackage(SongPackageItem item)
@@ -509,12 +509,12 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>Starts a session for a package directory; used by rows and by 再玩一次.</summary>
-        private void StartPlayback(string packageDirectory, string title, bool isAuto)
+        private void StartPlayback(string packageDirectory, string title, bool isAuto, RankingSettlement retryFrom = null)
         {
             _playbackCts?.Cancel();
             _playbackCts?.Dispose();
             _playbackCts = new CancellationTokenSource();
-            PlayAsync(packageDirectory, title, isAuto, _playbackCts.Token).Forget();
+            PlayAsync(packageDirectory, title, isAuto, _playbackCts.Token, retryFrom).Forget();
         }
 
         internal void OnCancelPlayback()
@@ -523,7 +523,7 @@ namespace OpenSekai.App.UI
         }
 
         private async UniTaskVoid PlayAsync(
-            string packageDirectory, string title, bool isAuto, CancellationToken cancellationToken)
+            string packageDirectory, string title, bool isAuto, CancellationToken cancellationToken, RankingSettlement retryFrom)
         {
             _isStartingPlayback = true;
             // Decoding a song to measure it would compete with the live's own loading.
@@ -534,7 +534,7 @@ namespace OpenSekai.App.UI
                 _view.SetStatus((isAuto ? "自动" : "手动") + "：" + title + " — 准备中…");
                 _view.ShowLoading(title, packageDirectory);
                 PlayStartResult result = await _startPlay(
-                    new PlayRequest(packageDirectory, isAuto, SceneManager.Scene.Library),
+                    new PlayRequest(packageDirectory, isAuto, SceneManager.Scene.Library) { RetryFrom = retryFrom },
                     cancellationToken,
                     message =>
                     {

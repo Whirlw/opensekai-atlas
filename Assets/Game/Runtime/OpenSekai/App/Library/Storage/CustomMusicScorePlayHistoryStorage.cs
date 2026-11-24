@@ -191,9 +191,13 @@ namespace OpenSekai.App.Library
 			return string.CompareOrdinal(current.PlayedAtUtc, best.PlayedAtUtc) > 0;
 		}
 
+		internal static string GameDayOf(DateTimeOffset localTime) =>
+			localTime.DateTime.AddHours(-4).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+
 		private static CustomMusicScorePlayHistoryRecord CreateRecord(FreeLiveBootData bootData, CustomMusicScoreManifest manifest, LiveScore score,
 			PlayResultKind kind, long musicTimeMs, long musicLengthMs, string sessionId, string chartHash, int rulesVersion)
 		{
+			var finished = DateTimeOffset.Now;
 			var award = RankingRules.Award(kind, bootData.IsAuto, score);
 			bool isAllPerfect = award == ClearAward.AllPerfect;
 			bool isFullCombo = isAllPerfect || award == ClearAward.FullCombo;
@@ -210,7 +214,15 @@ namespace OpenSekai.App.Library
 				ChartHash = chartHash ?? string.Empty,
 				RulesVersion = rulesVersion,
 				RecordId = sessionId,
-				PlayedAtUtc = DateTime.UtcNow.ToString("O"),
+				PlayedAtUtc = finished.UtcDateTime.ToString("O"),
+				GameDay = GameDayOf(finished),
+				RetrySourceId = bootData.RetrySourceId,
+				RetrySource = bootData.RetrySource,
+				FlickJudgments = score.flickJudgments,
+				PerfectFlicks = score.perfectFlicks,
+				HoldChains = score.holdChains,
+				HoldPoints = score.holdPoints,
+				PerfectHoldPoints = score.perfectHoldPoints,
 				AppVersion = Application.version,
 				LivePlayMode = bootData.LivePlayMode.ToString(),
 				ScoreKey = bootData.CustomMusicScoreKey,
@@ -305,6 +317,15 @@ namespace OpenSekai.App.Library
 
 		[JsonProperty("playedAtUtc")]
 		public string PlayedAtUtc { get; init; }
+
+		[JsonProperty("gameDay")] public string GameDay { get; init; }
+		[JsonProperty("retrySourceId")] public string RetrySourceId { get; init; }
+		[JsonProperty("retrySource")] public string RetrySource { get; init; }
+		[JsonProperty("flickJudgments")] public int? FlickJudgments { get; init; }
+		[JsonProperty("perfectFlicks")] public int? PerfectFlicks { get; init; }
+		[JsonProperty("holdChains")] public int? HoldChains { get; init; }
+		[JsonProperty("holdPoints")] public int? HoldPoints { get; init; }
+		[JsonProperty("perfectHoldPoints")] public int? PerfectHoldPoints { get; init; }
 
 		[JsonProperty("appVersion")]
 		public string AppVersion { get; init; }

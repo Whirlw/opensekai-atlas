@@ -29,7 +29,7 @@ namespace OpenSekai.App.UI
     internal sealed class AchievementLook
     {
         internal AchievementLook(string title, string latin, string goal, string rule, AchievementCategory category,
-            AchievementGlyph glyph, string mark, string subMark, Color32 tint, int medalTier = MedalTiers.LOWEST)
+            AchievementGlyph glyph, string mark, string subMark, Color32 tint, int medalTier = MedalTiers.LOWEST, string medalName = null, string grade = null)
         {
             Title = title;
             Latin = latin;
@@ -41,6 +41,8 @@ namespace OpenSekai.App.UI
             SubMark = subMark;
             Tint = tint;
             MedalTier = medalTier;
+            MedalName = medalName ?? title;
+            Grade = grade;
         }
 
         /// <summary>The name, e.g. 万键之路.</summary>
@@ -68,6 +70,8 @@ namespace OpenSekai.App.UI
 
         /// <summary>Which frame the medal it gives wears, one of <see cref="MedalTiers"/>.</summary>
         internal int MedalTier { get; }
+        internal string MedalName { get; }
+        internal string Grade { get; }
     }
 
     /// <summary>
@@ -121,6 +125,17 @@ namespace OpenSekai.App.UI
         internal static AchievementLook For(string id, AchievementProgress progress = null)
         {
             if (id != null && _known.TryGetValue(id, out AchievementLook look)) return look;
+            var goal = AchievementGoals.Find(id);
+            if (goal != null)
+            {
+                var category = CategoryOf(goal.Metric);
+                var glyph = category == AchievementCategory.Hits ? AchievementGlyph.Hits :
+                    category == AchievementCategory.Dan ? AchievementGlyph.Dan : AchievementGlyph.Trophy;
+                var tint = category == AchievementCategory.Hits ? HitsTint :
+                    category == AchievementCategory.Dan ? DanTint : FullComboTint;
+                return new AchievementLook(goal.Title, goal.Id, goal.Description, string.Empty, category, glyph,
+                    goal.Series, string.Empty, tint, goal.MedalFrameTier, goal.MedalName, goal.MedalGrade);
+            }
             return progress != null ? FromMetric(progress) : new AchievementLook("新成就", "ACHIEVEMENT", "达成了一项新目标", string.Empty,
                 AchievementCategory.All, AchievementGlyph.Trophy, string.Empty, string.Empty, FullComboTint);
         }
@@ -132,7 +147,10 @@ namespace OpenSekai.App.UI
             switch (metric)
             {
                 case AchievementMetric.ManualHits: return AchievementCategory.Hits;
-                case AchievementMetric.DanPass: return AchievementCategory.Dan;
+                case AchievementMetric.DanPass:
+                case AchievementMetric.PassedCourses:
+                case AchievementMetric.PerfectRateCourses:
+                case AchievementMetric.Coda: return AchievementCategory.Dan;
                 default: return AchievementCategory.Charts;
             }
         }
@@ -154,7 +172,7 @@ namespace OpenSekai.App.UI
         {
             bool avatar = progress.Goal.AvatarId != null;
             if (!progress.Goal.GivesMedal) return avatar ? "已领取头像，可以在编辑资料里使用" : null;
-            return "已领取奖牌「" + For(progress).Title + "」" + (avatar ? "和头像" : string.Empty) + "，可以到个人信息页使用";
+            return "已领取奖牌「" + (progress.Goal.MedalDisplayName ?? For(progress).Title) + "」" + (avatar ? "和头像" : string.Empty) + "，可以到个人信息页使用";
         }
 
         /// <summary>True when the goal is reached once or not at all, so a bar would say nothing.</summary>

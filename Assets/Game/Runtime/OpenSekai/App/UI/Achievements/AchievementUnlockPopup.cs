@@ -173,7 +173,7 @@ namespace OpenSekai.App.UI
                 .WithOnComplete(() =>
                 {
                     _motion = default;
-                    _card.gameObject.SetActive(false);
+                    if (_card != null) _card.gameObject.SetActive(false);
                 })
                 .Bind(this, static (time, popup) => popup.Apply(time));
         }
@@ -198,6 +198,11 @@ namespace OpenSekai.App.UI
 
         private void Apply(float time)
         {
+            if (_card == null)
+            {
+                _motion.TryCancel();
+                return;
+            }
             bool shown = time >= 0f && time < LENGTH;
             if (_card.gameObject.activeSelf != shown)
             {

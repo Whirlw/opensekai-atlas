@@ -11,6 +11,7 @@ namespace OpenSekai.App.Library
     {
         public const int LOWEST = 0;
         public const int TOP = 4;
+        public const int SPECIAL = 5; // Achievement-only. Dan definitions still accept 0–4.
 
         public static bool IsKnown(int tier) => tier >= LOWEST && tier <= TOP;
     }

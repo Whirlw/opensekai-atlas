@@ -2,6 +2,7 @@ using OpenSekai.Shared.Settings;
 using Sekai.Live;
 using OpenSekai.Shared.Scoring;
 using Sekai;
+using System.Collections.Generic;
 
 namespace Sekai.Core.Live
 {
@@ -43,6 +44,37 @@ namespace Sekai.Core.Live
 		public LiveScore Score => _score;
 
 		private LiveScore _score;
+		private readonly HashSet<NoteBase> _flicks = new();
+		private readonly HashSet<NoteBase> _holdPoints = new();
+
+		private void CountChartJudgments(MusicScore chart)
+		{
+			_flicks.Clear();
+			_holdPoints.Clear();
+			if (chart?.NoteArray == null) return;
+			foreach (var root in chart.NoteArray)
+			{
+				if (root?.NoteList == null) continue;
+				foreach (var part in root.NoteList)
+					if (part is FlickNote or FrictionFlickNote && part.HasJudgment) _flicks.Add(part);
+				if (chart.ScoringHoldChains != null || root is not LongNote bar || bar is GuideNote || bar.IsDecoration || bar.LinkedPointTail == null) continue;
+				bool hasPoints = false;
+				foreach (var point in bar.JudgedPoints)
+				{
+					if (!point.HasJudgment || point is not HoldPointNote) continue;
+					_holdPoints.Add(point);
+					hasPoints = true;
+				}
+				if (hasPoints) _score.holdChains++;
+			}
+			if (chart.ScoringHoldChains != null)
+			{
+				_score.holdChains = chart.ScoringHoldChains.Length;
+				foreach (var chain in chart.ScoringHoldChains) _holdPoints.UnionWith(chain);
+			}
+			_score.flickJudgments = _flicks.Count;
+			_score.holdPoints = _holdPoints.Count;
+		}
 
 		public int BaseNoteScore { get; set; }
 
@@ -93,6 +125,7 @@ namespace Sekai.Core.Live
 		public virtual void Setup(LiveBootDataBase bootData, MusicScore musicScore)
 		{
 			_score = default;
+			CountChartJudgments(musicScore);
 			_gauge = ScoreGauge.Create(bootData?.MusicData?.Score);
 			// The live's own settings snapshot decides; the stored settings only when there is none.
 			var settings = bootData?.LiveSettingData ?? LiveSettingsStore.Shared.Load();
@@ -152,6 +185,8 @@ namespace Sekai.Core.Live
 			switch (note?.Result)
 			{
 				case NoteResult.Perfect:
+					if (_flicks.Remove(note)) _score.perfectFlicks++;
+					if (_holdPoints.Remove(note)) _score.perfectHoldPoints++;
 					_score.perfectCount++;
 					break;
 				case NoteResult.Great:

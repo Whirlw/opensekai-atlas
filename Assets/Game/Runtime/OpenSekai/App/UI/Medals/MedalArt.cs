@@ -158,7 +158,7 @@ namespace OpenSekai.App.UI
             }
         }
 
-        private static int Clamp(int tier) => Math.Max(MedalTiers.LOWEST, Math.Min(MedalTiers.TOP, tier));
+        private static int Clamp(int tier) => Math.Max(MedalTiers.LOWEST, Math.Min(MedalTiers.SPECIAL, tier));
 
         private static float Cover(float distance, float pixel) => Clamp01(0.5f - distance / pixel);
 

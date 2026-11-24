@@ -13,6 +13,7 @@ using OpenSekai.Infrastructure.Packages;
 using UnityEngine;
 using OpenSekai.Shared.Packages;
 using OpenSekai.Shared.Settings;
+using OpenSekai.Shared.Playback;
 using OpenSekai.Shared.Audio;
 using OpenSekai.Live.Conversion;
 using Sekai.Core;
@@ -153,9 +154,16 @@ namespace OpenSekai.App.Playback
                 PlaySession session = PlaySession.FromChart(request, entry, chart, config, settings, material?.Audio, material?.Combo, material?.Judgment, material?.HitFx, material?.Notes, material?.Lane, material?.Background, material?.Hud, material?.ResultFx);
                 FreeLiveBootData boot = LegacyLiveBootAdapter.Create(session, _deckSelection.SelectedDeckId);
                 boot.CustomMusicScoreKey = chartHash;
-                boot.CustomMusicScoreRanked = temporary?.Ranked ??
+                boot.CustomMusicScoreRanked = request.DanRanked ?? temporary?.Ranked ??
                     ((await ChartRankLookup.ReadInstalledAsync(SongPackageSource.Read(entry), entry))?.Matches(chartHash, entry.Manifest.playLevel) == true);
                 boot.DanSong = request.DanSong;
+                boot.RecordRetryStart = OpenSekai.App.Library.PlayerProfileStore.Local.RecordRetryStart;
+                if (!string.IsNullOrEmpty(chartHash) && request.RetryFrom?.ScoreKey == chartHash &&
+                    request.RetryFrom.Eligibility is not (RankingEligibility.TestPlay or RankingEligibility.Auto))
+                {
+                    boot.RetrySourceId = request.RetryFrom.PlayId;
+                    boot.RetrySource = "result";
+                }
                 cancellationToken.ThrowIfCancellationRequested();
                 string message = request.IsAuto ? "正在开始自动游玩..." : "正在开始游玩...";
                 progress?.Invoke(message);

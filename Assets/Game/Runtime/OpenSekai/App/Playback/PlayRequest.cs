@@ -10,13 +10,17 @@ namespace OpenSekai.App.Playback
         public string PackageDirectory { get; }
         internal TemporarySongPackage TemporaryPackage { get; }
         internal OpenSekai.Shared.Playback.DanLiveSong DanSong { get; }
+        internal bool? DanRanked { get; }
         internal SceneManager.Scene SourceScene { get; }
-        internal PlayRequest(string directory, OpenSekai.Shared.Playback.DanLiveSong song, SceneManager.Scene source)
+        internal PlayRequest(string directory, OpenSekai.Shared.Playback.DanLiveSong song, SceneManager.Scene source, bool? ranked = null)
             : this(directory, false, SceneManager.Scene.Library)
         {
             DanSong = song;
+            DanRanked = ranked;
             SourceScene = source;
         }
+
+        internal OpenSekai.Shared.Playback.RankingSettlement RetryFrom { get; init; }
 
         public bool IsAuto { get; }
         public SceneManager.Scene ReturnScene { get; }

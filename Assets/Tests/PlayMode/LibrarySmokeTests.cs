@@ -1102,8 +1102,10 @@ namespace OpenSekai.Tests.PlayMode
                 Assert.That(attempt.Songs.Select(s => s.StartingLife), Is.EqualTo(new[] { life, life - 1 }));
                 Assert.That(attempt.Songs.Select(s => s.Score.life), Is.EqualTo(new[] { life - 1, life - 2 }));
                 Assert.That(attempt.Outcome, Is.EqualTo(expected));
+                Assert.That(attempt.Songs.All(song => song.Ranked.HasValue), Is.True);
+                Assert.That(attempt.Songs.Select(song => song.PlayLevel), Is.EqualTo(new[] { 33, 33 }));
                 Assert.That(service.NewlyAwarded, Is.EqualTo(expected == DanOutcome.Passed));
-                Assert.That(service.ReachedAchievementIds.Contains("first_dan_pass"), Is.EqualTo(expected == DanOutcome.Passed));
+                Assert.That(service.ReachedAchievementIds.Contains("DAN-01"), Is.EqualTo(expected == DanOutcome.Passed));
                 Assert.That(PlayResultHandoff.Pending, Is.Null);
             }
             finally { Directory.Delete(root, true); }
@@ -1356,7 +1358,7 @@ namespace OpenSekai.Tests.PlayMode
         {
             File.WriteAllText(Path.Combine(directory, "manifest.json"),
                 "{\"formatVersion\":1,\"id\":\"next-rush-p1-" + System.Guid.NewGuid().ToString("N") +
-                "\",\"chartFormat\":\"next-rush\",\"title\":\"Native timing test\",\"scoreFileName\":\"level-data.json\",\"audioFileName\":\"audio.wav\"}");
+                "\",\"chartFormat\":\"next-rush\",\"playLevel\":33,\"title\":\"Native timing test\",\"scoreFileName\":\"level-data.json\",\"audioFileName\":\"audio.wav\"}");
             File.WriteAllText(Path.Combine(directory, "level-data.json"), @"{
                 ""bgmOffset"": 0.51,
                 ""entities"": [
