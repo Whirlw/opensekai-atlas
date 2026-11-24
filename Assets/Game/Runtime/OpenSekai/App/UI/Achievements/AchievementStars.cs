@@ -14,14 +14,17 @@ namespace OpenSekai.App.UI
     internal sealed class AchievementStars
     {
         internal const int PER_STRIP = 5;
-        internal const float HEIGHT = 34f;
+        internal const float HEIGHT = 42f;
 
-        private const float PITCH = 23f;
+        private const float PITCH = 25f;
         private const float SIZE = 18f;
         private const float SELECTED = 1.5f;
 
-        /// <summary>Room at the strip's ends for a large star; less than the gap to the next strip's first.</summary>
-        private const float EDGE = 2f;
+        /// <summary>Room at the strip's ends for a star that pops.</summary>
+        private const float EDGE = 8f;
+
+        /// <summary>From one strip to the next, far enough that none of its stars show beside this one.</summary>
+        private const float STRIP = PER_STRIP * PITCH + EDGE;
 
         private static readonly Color32 _dark = new Color32(255, 255, 255, 52);
 
@@ -72,7 +75,7 @@ namespace OpenSekai.App.UI
                 if (!used) continue;
                 int strip = i / PER_STRIP;
                 float inStrip = Mathf.Clamp(count - strip * PER_STRIP, 1f, PER_STRIP);
-                float x = strip * PER_STRIP * PITCH + (i % PER_STRIP - (inStrip - 1f) * 0.5f) * PITCH;
+                float x = strip * STRIP + (i % PER_STRIP - (inStrip - 1f) * 0.5f) * PITCH;
                 float selected = Mathf.Clamp01(1f - Mathf.Abs(position - i));
                 float scale = Mathf.Lerp(1f, SELECTED, selected) * Mathf.Clamp01(count - i);
                 if (i == popped) scale *= 1f + pop;
@@ -85,7 +88,7 @@ namespace OpenSekai.App.UI
             float clamped = Mathf.Clamp(position, 0f, last);
             int low = Mathf.FloorToInt(clamped);
             float strips = Mathf.Lerp(low / PER_STRIP, Mathf.Min(low + 1, last) / PER_STRIP, clamped - low);
-            _content.anchoredPosition = new Vector2(-strips * PER_STRIP * PITCH, 0f);
+            _content.anchoredPosition = new Vector2(-strips * STRIP, 0f);
         }
 
         private Image Create(int index)

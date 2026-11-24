@@ -302,7 +302,8 @@ namespace OpenSekai.App.UI
                 }
             }
 
-            Texture2D texture = CreateTexture(icon.ToString(), size, size, pixels);
+            // A star mostly shows at a quarter of its texture; without mipmaps its thin points go ragged there.
+            Texture2D texture = CreateTexture(icon.ToString(), size, size, pixels, icon == LibraryIcon.Star);
             sprite = Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f * scale);
             _icons[icon] = sprite;
             return sprite;
@@ -406,7 +407,7 @@ namespace OpenSekai.App.UI
                 case LibraryIcon.User:
                     return Mathf.Min(Ring(12, 8.2f, 3.6f), Mathf.Max(Ring(12, 21.5f, 7.5f), point.y - 20.5f));
                 case LibraryIcon.Star:
-                    return Star(point - new Vector2(12f, 12.9f), 9.6f, 0.46f) - 1.4f;
+                    return Star(point - new Vector2(12f, 12f), 10.4f, 12.8f) - 1f;
                 case LibraryIcon.Lock:
                     // A solid body under a tall shackle.
                     return Mathf.Min(RoundedRectRing(point, new Vector2(12f, 15.7f), new Vector2(6.6f, 4.8f), 1.4f, true),
@@ -417,20 +418,22 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>
-        /// Signed distance to a five-pointed star about the origin, one point up (y runs down):
-        /// <paramref name="radius"/> to its points, <paramref name="depth"/> how deep the notches are.
+        /// Signed distance to a four-pointed star about the origin, points up, down and sideways:
+        /// <paramref name="radius"/> to its points. Each side is an arc about the spot
+        /// <paramref name="center"/> along both axes; farther out than the points makes the waist fuller.
         /// </summary>
-        private static float Star(Vector2 point, float radius, float depth)
+        private static float Star(Vector2 point, float radius, float center)
         {
-            var k1 = new Vector2(0.8090170f, -0.5877853f);
-            var k2 = new Vector2(-k1.x, k1.y);
-            var p = new Vector2(Mathf.Abs(point.x), -point.y);
-            p -= 2f * Mathf.Max(Vector2.Dot(k1, p), 0f) * k1;
-            p -= 2f * Mathf.Max(Vector2.Dot(k2, p), 0f) * k2;
-            p = new Vector2(Mathf.Abs(p.x), p.y - radius);
-            Vector2 edge = depth * new Vector2(-k1.y, k1.x) - Vector2.up;
-            float along = Mathf.Clamp(Vector2.Dot(p, edge) / Vector2.Dot(edge, edge), 0f, radius);
-            return (p - edge * along).magnitude * Mathf.Sign(p.y * edge.x - p.x * edge.y);
+            float x = Mathf.Abs(point.x);
+            float y = Mathf.Abs(point.y);
+            var p = new Vector2(Mathf.Max(x, y), Mathf.Min(x, y));
+            var tip = new Vector2(radius, 0f);
+            Vector2 toTip = tip - new Vector2(center, center);
+            Vector2 toPoint = p - new Vector2(center, center);
+
+            // Past the end of the arc the tip is nearest.
+            bool pastTip = toTip.x * toPoint.y > toTip.y * toPoint.x;
+            return pastTip ? Vector2.Distance(p, tip) : toTip.magnitude - toPoint.magnitude;
         }
 
         /// <summary>Signed distance to a filled triangle (negative inside).</summary>
@@ -566,18 +569,18 @@ namespace OpenSekai.App.UI
             return Vector2.Distance(point, a + segment * t);
         }
 
-        private static Texture2D CreateTexture(string name, int width, int height, Color32[] pixels)
+        private static Texture2D CreateTexture(string name, int width, int height, Color32[] pixels, bool mipmaps = false)
         {
             // Uncompressed on purpose: block compression bands soft alpha ramps.
-            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false)
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, mipmaps)
             {
                 name = "LibraryShape-" + name,
                 wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Bilinear,
+                filterMode = mipmaps ? FilterMode.Trilinear : FilterMode.Bilinear,
                 hideFlags = HideFlags.HideAndDontSave
             };
             texture.SetPixels32(pixels);
-            texture.Apply(false, true);
+            texture.Apply(mipmaps, true);
             return texture;
         }
     }
