@@ -54,6 +54,14 @@ namespace OpenSekai.Infrastructure.Sonolus
 
         public SonolusServerAddress Address { get; }
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// Installed by the editor's sample content: gives the local file that answers a request, or
+        /// null to send it. Null in normal use.
+        /// </summary>
+        internal static Func<string, string> CaptureResponder { get; set; }
+#endif
+
         public async UniTask<SonolusServerInfo> GetServerInfoAsync(CancellationToken cancellationToken)
         {
             return SonolusServerInfo.From(await GetJsonAsync("/info", null, cancellationToken));
@@ -253,6 +261,13 @@ namespace OpenSekai.Infrastructure.Sonolus
         internal static async UniTask SendAsync(
             UnityWebRequest request, long maxBytes, Action<float> progress, CancellationToken cancellationToken)
         {
+#if UNITY_EDITOR
+            string localAnswer = CaptureResponder?.Invoke(request.url);
+            if (localAnswer != null)
+            {
+                request.url = localAnswer;
+            }
+#endif
             request.redirectLimit = 8;
             request.SetRequestHeader("User-Agent", "OpenSekaiAtlas/" + Application.version);
             UnityWebRequestAsyncOperation operation = request.SendWebRequest();

@@ -267,6 +267,7 @@ namespace OpenSekai.EditorTools.Screenshots
                 SchemaVersion = 3,
                 RecordId = id,
                 ScoreKey = chart.Key,
+                Ranked = true,
                 Title = chart.Title,
                 Difficulty = chart.Difficulty,
                 PlayLevel = chart.Level,

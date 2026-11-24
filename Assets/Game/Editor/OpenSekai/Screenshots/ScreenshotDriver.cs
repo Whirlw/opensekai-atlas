@@ -95,6 +95,8 @@ namespace OpenSekai.EditorTools.Screenshots
                     case "achievements": body = AchievementsShot(shot); break;
                     case "medals": body = MedalsShot(shot); break;
                     case "ranking": body = RankingShot(shot); break;
+                    case "sample": body = SampleShot(shot); break;
+                    case "library-states": body = LibraryStatesShot(shot); break;
                     default:
                         Fail(shot, "unknown kind '" + shot.kind + "'");
                         continue;
@@ -419,7 +421,7 @@ namespace OpenSekai.EditorTools.Screenshots
         /// <summary>
         /// The server part: the server card growing over the home page (two held frames), the
         /// real tap into the server list, the 添加服务器 card, then UntitledCharts (from the live
-        /// server, so these frames need the network): its level home page, the advanced search,
+        /// server, so these frames need the network; the sample server in a sample workspace): its level home page, the advanced search,
         /// every level, and the first level's page with each of its three tabs. Last, back out
         /// to the home page the way the back button goes.
         /// </summary>
@@ -463,13 +465,15 @@ namespace OpenSekai.EditorTools.Screenshots
             list.CloseAddPanel();
 
             // Opened directly, not added: a screenshot run never changes the player's server list.
-            var untitled = new OpenSekai.App.Server.ServerEntry(
-                "screenshots-untitledcharts", OpenSekai.App.Server.ServerKind.Sonolus, "UntitledCharts", "https://untitledcharts.com");
-            screen.OpenServer(untitled);
+            // A sample workspace shows its own stand-in server instead of a live one.
+            string serverName = SampleLibrary.IsWorkspace ? SampleServer.NAME : "UntitledCharts";
+            string serverUrl = SampleLibrary.IsWorkspace ? SampleServer.BASE_URL : "https://untitledcharts.com";
+            screen.OpenServer(new OpenSekai.App.Server.ServerEntry(
+                "screenshots-server", OpenSekai.App.Server.ServerKind.Sonolus, serverName, serverUrl));
             SonolusBrowsePage browse = null;
-            yield return WaitUntil(() => (browse = screen.Top as SonolusBrowsePage) != null && browse.IsHomeReady, "the UntitledCharts sections");
+            yield return WaitUntil(() => (browse = screen.Top as SonolusBrowsePage) != null && browse.IsHomeReady, "the " + serverName + " sections");
             yield return new WaitForSecondsRealtime(3f);
-            yield return Capture(shot, stem + "-sonolus-home", "UntitledCharts level home page", null);
+            yield return Capture(shot, stem + "-sonolus-home", serverName + " level home page", null);
 
             browse.OpenAdvancedSearch();
             yield return new WaitForSecondsRealtime(0.8f);

@@ -39,6 +39,9 @@
 #   # The home page, and the splash at 0.95 s (note falling), 1.12 s (the hit) and 2.6 s (wordmark)
 #   powershell -File Tools/capture-screens.ps1 -HomePage -Intro 0.95,1.12,2.6
 #
+#   # Every menu page on the sample library, for the style guide (in a sample workspace, see below)
+#   powershell -File Tools/capture-screens.ps1 -StyleGuide
+#
 #   # Anything else: write a request JSON yourself (format: Assets/Game/Editor/OpenSekai/Screenshots/ShotRequest.cs)
 #   powershell -File Tools/capture-screens.ps1 -Request my-shots.json
 #
@@ -75,7 +78,13 @@
 #   -RankingTiers The seven Ranking Score tiers on an empty profile in a temp folder: the home card on each
 #                 tier, the badges at every size the game draws them, and three frames of each tier's upgrade.
 #   -Server       The server part: hand-over frames, list, add card, then UntitledCharts (needs the
-#                 network): level home page, advanced search, every level, one level and its tabs.
+#                 network): level home page, advanced search, every level, one level and its tabs. In a
+#                 sample workspace it shows the sample server instead and needs no network.
+#   -Sample       Installs the sample library first (fictional songs, covers drawn for this project).
+#                 Only in a sample workspace, which Tools/new-sample-workspace.ps1 makes.
+#   -StyleGuide   Everything outside the live on the sample library: -Sample and then every menu page. The
+#                 pictures in docs/reference/ui-style-guide.md come from this run, through
+#                 Tools/export-style-guide-images.ps1.
 #   -Intro        Seconds into the splash; it hands over to the home page at about 4.4 s. Pass
 #                 -Intro default for a set of eight frames across the whole sequence.
 #   -PlainAuto    Live frames show plain autoplay (AUTO, no combo) instead of PERFECT + combo.
@@ -105,6 +114,8 @@ param(
     [switch]$AchievementsPage,
     [switch]$MedalsPage,
     [switch]$RankingTiers,
+    [switch]$Sample,
+    [switch]$StyleGuide,
     [string[]]$Intro,
     [switch]$All,
     [switch]$PlainAuto,
@@ -159,7 +170,22 @@ if ($Request) {
         if (-not $infoTimes) { $infoTimes = @(0.3, 0.8, 1.5, 2.7) }
         if (-not $liveTimes) { $liveTimes = @(30.0, 60.0) }
     }
+    if ($StyleGuide) {
+        $Sample = $true; $HomePage = $true; $Server = $true; $Packs = $true; $ProfilePage = $true; $DanPage = $true
+        $AchievementsPage = $true; $MedalsPage = $true; $RankingTiers = $true; $SettingsTrace = $true; $introDefault = $true
+        if (-not $Result) { $Result = 'default,fc,ap,outside,auto,failed,retired,savefailed,loaderror' }
+        if (-not $infoTimes) { $infoTimes = @(0.3, 1.5) }
+        if (-not $Package) { $Package = 'Aurora Line' }
+    }
     $shots = New-Object System.Collections.ArrayList
+    # First: everything after it shows the sample songs.
+    if ($Sample) { [void]$shots.Add(@{ kind = 'sample' }) }
+    if ($StyleGuide) {
+        foreach ($kind in 'library-states', 'about', 'actions', 'actions-armed', 'loading') {
+            $name = if ($kind -eq 'library-states') { 'library' } else { $kind }
+            [void]$shots.Add(@{ kind = $kind; name = $name })
+        }
+    }
     if ($HomePage) { [void]$shots.Add(@{ kind = 'home' }) }
     if ($Server) { [void]$shots.Add(@{ kind = 'server' }) }
     if ($Packs) { [void]$shots.Add(@{ kind = 'packs' }) }
@@ -212,7 +238,7 @@ if ($Request) {
         if ($Difficulty) { $shot.difficulty = $Difficulty }
         [void]$shots.Add($shot)
     }
-    if ($shots.Count -eq 0) { throw 'Nothing to capture: pass -All, -HomePage, -Server, -Packs, -ProfilePage, -DanPage, -AchievementsPage, -MedalsPage, -RankingTiers, -Intro, -Live, -Info, -Finish, -Library, -Settings, -SettingsTrace, -Result or -Request.' }
+    if ($shots.Count -eq 0) { throw 'Nothing to capture: pass -All, -HomePage, -Server, -Packs, -ProfilePage, -DanPage, -AchievementsPage, -MedalsPage, -RankingTiers, -Sample, -StyleGuide, -Intro, -Live, -Info, -Finish, -Library, -Settings, -SettingsTrace, -Result or -Request.' }
 
     $requestPath = Join-Path $requestDir "request-$stamp.json"
     $body = @{ outDir = $OutDir; width = $Width; height = $Height; shots = @($shots) }

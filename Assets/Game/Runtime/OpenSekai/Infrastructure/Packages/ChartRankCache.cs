@@ -54,8 +54,22 @@ namespace OpenSekai.Infrastructure.Packages
             return ids.Length == 1 && _id.IsMatch(ids[0].Substring(3)) ? "os-" + ids[0].Substring(3) : null;
         }
 
+#if UNITY_EDITOR
+        /// <summary>Base URL of the editor's sample server, whose charts are looked up like UntitledCharts'. Null in normal use.</summary>
+        internal static string CaptureServer { get; set; }
+#endif
+
         internal static string UntitledKey(SonolusServerAddress server, string name) =>
-            server?.BaseUrl == "https://untitledcharts.com" && name != null && _name.IsMatch(name) ? name : null;
+            IsUntitled(server) && name != null && _name.IsMatch(name) ? name : null;
+
+        private static bool IsUntitled(SonolusServerAddress server)
+        {
+            string url = server?.BaseUrl;
+#if UNITY_EDITOR
+            if (url != null && url == CaptureServer) return true;
+#endif
+            return url == "https://untitledcharts.com";
+        }
 
         internal static bool IsSbuga(SonolusServerAddress server) =>
             server?.Host is "sonolus.sbuga.com" or "sonolus.sbuga.com:443";
