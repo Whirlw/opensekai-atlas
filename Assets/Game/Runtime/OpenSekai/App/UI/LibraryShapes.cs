@@ -28,7 +28,7 @@ namespace OpenSekai.App.UI
         private static readonly Dictionary<long, Sprite> _rings = new Dictionary<long, Sprite>();
         private static readonly Dictionary<long, Sprite> _shadows = new Dictionary<long, Sprite>();
         private static readonly Dictionary<LibraryIcon, Sprite> _icons = new Dictionary<LibraryIcon, Sprite>();
-        private static readonly Dictionary<long, Sprite> _awardPills = new Dictionary<long, Sprite>();
+        private static readonly Dictionary<(bool, int, int, int), Sprite> _awardChips = new Dictionary<(bool, int, int, int), Sprite>();
         private static readonly Dictionary<byte, Sprite> _ditheredBands = new Dictionary<byte, Sprite>();
         private static Sprite _glow;
         private static Sprite _band;
@@ -167,22 +167,22 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>
-        /// Pill in an award's own colors, drawn at exactly <paramref name="size"/> canvas units: ALL
-        /// PERFECT runs its prism across, FULL COMBO a gold ramp upward. Both carry a gloss over the
-        /// upper half and a bright rim. Use it untinted.
+        /// Rounded rectangle in an award's own colors, drawn at exactly <paramref name="size"/> canvas
+        /// units: ALL PERFECT runs its prism across, FULL COMBO a gold ramp upward. Both carry a gloss
+        /// over the upper half and a bright rim, equally thick on every side. Use it untinted.
         /// </summary>
-        internal static Sprite AwardPill(bool allPerfect, Vector2 size)
+        internal static Sprite AwardChip(bool allPerfect, Vector2 size, float radius)
         {
+            const float RIM = 1.5f * SCALE;
             int width = Mathf.Max(2, Mathf.RoundToInt(size.x * SCALE));
             int height = Mathf.Max(2, Mathf.RoundToInt(size.y * SCALE));
-            long key = ((long)width << 32) | ((long)height << 1) | (allPerfect ? 1L : 0L);
-            if (_awardPills.TryGetValue(key, out Sprite sprite) && sprite != null)
+            int corner = Mathf.Min(Mathf.RoundToInt(radius * SCALE), Mathf.Min(width, height) / 2);
+            (bool, int, int, int) key = (allPerfect, width, height, corner);
+            if (_awardChips.TryGetValue(key, out Sprite sprite) && sprite != null)
             {
                 return sprite;
             }
 
-            float radius = height * 0.5f;
-            float rim = 1.4f * SCALE;
             var pixels = new Color32[width * height];
             for (int y = 0; y < height; y++)
             {
@@ -190,17 +190,18 @@ namespace OpenSekai.App.UI
                 {
                     float px = x + 0.5f;
                     float py = y + 0.5f;
-                    float cx = Mathf.Clamp(px, radius, width - radius);
-                    float distance = Mathf.Sqrt((px - cx) * (px - cx) + (py - radius) * (py - radius));
-                    float alpha = Mathf.Clamp01(radius - distance + 0.5f);
+                    float dx = px - Mathf.Clamp(px, corner, width - corner);
+                    float dy = py - Mathf.Clamp(py, corner, height - corner);
+                    float distance = Mathf.Sqrt(dx * dx + dy * dy);
+                    float alpha = Mathf.Clamp01(corner - distance + 0.5f);
                     float u = px / width;
                     float v = py / height;
                     Color color = allPerfect
                         ? LibraryTheme.Colors.AllPerfectAt(u * 0.85f + (1f - v) * 0.15f)
                         : Color.Lerp(LibraryTheme.Colors.FullComboBottom, LibraryTheme.Colors.FullComboTop, v);
                     float gloss = Mathf.SmoothStep(0f, 1f, (v - 0.48f) / 0.52f) * 0.42f;
-                    float edge = Mathf.Clamp01(1f - (radius - distance) / rim);
-                    color = Color.Lerp(color, Color.white, Mathf.Max(gloss, edge * 0.6f));
+                    float edge = Mathf.Clamp01(distance - (corner - RIM) + 0.5f);
+                    color = Color.Lerp(Color.Lerp(color, Color.white, gloss), Color.white, edge * 0.6f);
                     color.a = alpha;
                     pixels[y * width + x] = color;
                 }
@@ -208,7 +209,7 @@ namespace OpenSekai.App.UI
 
             Texture2D texture = CreateTexture((allPerfect ? "AllPerfect" : "FullCombo") + width + "x" + height, width, height, pixels);
             sprite = Sprite.Create(texture, new Rect(0f, 0f, width, height), new Vector2(0.5f, 0.5f), PIXELS_PER_UNIT);
-            _awardPills[key] = sprite;
+            _awardChips[key] = sprite;
             return sprite;
         }
 

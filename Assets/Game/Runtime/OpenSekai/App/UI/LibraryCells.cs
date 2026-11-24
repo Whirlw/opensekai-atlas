@@ -215,7 +215,6 @@ namespace OpenSekai.App.UI
         private const float LABEL_SPACING = 1.5f;
         private const float COLUMN_GAP = 20f;
         private const float TAG_GAP = 10f;
-        private static readonly Vector2 _awardSize = new Vector2(54f, CHIP_HEIGHT);
         private static readonly Color32 _rankedBackground = new Color32(255, 210, 122, 22);
 
         private readonly Image _background;
@@ -267,7 +266,7 @@ namespace OpenSekai.App.UI
             LibraryWidgets.Inset(_difficulty.rectTransform, CHIP_PADDING, 0f, CHIP_PADDING, 0f);
 
             _ranked = new LibraryRankedTag(Body, CHIP_HEIGHT, 16f, _rankedBackground);
-            _award = new LibraryAwardBadge(Body, _awardSize);
+            _award = new LibraryAwardBadge(Body, CHIP_HEIGHT, LibraryTheme.Radius.CHIP);
 
             _title = LibraryWidgets.Label(
                 "Title", Body, string.Empty, LibraryTheme.FontSize.ROW_TITLE, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
@@ -310,7 +309,7 @@ namespace OpenSekai.App.UI
             if (_award.Visible)
             {
                 right += TAG_GAP;
-                LibraryWidgets.Place(_award.Root, anchor, anchor, new Vector2(-right, 0f), _awardSize);
+                LibraryWidgets.Place(_award.Root, anchor, anchor, new Vector2(-right, 0f), _award.Root.sizeDelta);
                 right += _award.Width;
             }
 
@@ -351,8 +350,8 @@ namespace OpenSekai.App.UI
     }
 
     /// <summary>
-    /// Grid tile: a square jacket with RANKED in its top-left corner, difficulty and level in its
-    /// bottom-right corner with AP / FC just left of them, and the title under it.
+    /// Grid tile: a square jacket with RANKED in its top-left corner, AP / FC in its bottom-left
+    /// corner, difficulty and level in its bottom-right corner, and the title under it.
     /// </summary>
     internal sealed class LibraryTileCell : LibraryCell
     {
@@ -360,14 +359,12 @@ namespace OpenSekai.App.UI
         private const float RING_WIDTH = 4f;
         private const float COVER_RADIUS = 18f;
         private const float CHIP_HEIGHT = 32f;
+        private const float CHIP_RADIUS = 9f;
         private const float CHIP_PADDING = 10f;
         private const float CHIP_GAP = 8f;
         private const float CHIP_MAX_WIDTH = 126f;
-        private const float TAG_GAP = 6f;
         private const float MISSING_PADDING = 12f;
         private const float MISSING_MAX_WIDTH = 120f;
-        private static readonly Vector2 _awardSize = new Vector2(50f, 30f);
-
         private static readonly Color32 _cornerBackground = new Color32(12, 15, 20, 220);
 
         private readonly RectTransform _holder;
@@ -398,7 +395,7 @@ namespace OpenSekai.App.UI
             Image frame = CreateCover(_holder, COVER_RADIUS, out _cover);
             LibraryUi.Stretch(frame.rectTransform);
 
-            Image corner = LibraryWidgets.Panel("Difficulty", _holder, 9f, _cornerBackground);
+            Image corner = LibraryWidgets.Panel("Difficulty", _holder, CHIP_RADIUS, _cornerBackground);
             _corner = corner.rectTransform;
             LibraryWidgets.Place(
                 _corner, Vector2.right, Vector2.right, new Vector2(-CORNER, CORNER), new Vector2(CHIP_MAX_WIDTH, CHIP_HEIGHT));
@@ -411,7 +408,9 @@ namespace OpenSekai.App.UI
                 FontStyles.Bold, TextAlignmentOptions.Right);
             LibraryUi.UseCondensedFont(_level);
 
-            _award = new LibraryAwardBadge(_holder, _awardSize);
+            // Pinned by its corner, so it stays put when the badge resizes to its letters.
+            _award = new LibraryAwardBadge(_holder, CHIP_HEIGHT, CHIP_RADIUS);
+            LibraryWidgets.Place(_award.Root, Vector2.zero, Vector2.zero, new Vector2(CORNER, CORNER), _award.Root.sizeDelta);
             _ranked = new LibraryRankedTag(_holder, 28f, 15f, _cornerBackground);
             LibraryWidgets.Place(_ranked.Root, Vector2.up, Vector2.up, new Vector2(CORNER, -CORNER), _ranked.Root.sizeDelta);
 
@@ -452,7 +451,7 @@ namespace OpenSekai.App.UI
             LayoutCorner();
         }
 
-        /// <summary>Sizes the difficulty chip to its text and puts AP / FC just left of it.</summary>
+        /// <summary>Sizes the difficulty chip to its text.</summary>
         private void LayoutCorner()
         {
             float levelWidth = Mathf.Ceil(_level.GetPreferredValues(_level.text).x);
@@ -461,10 +460,6 @@ namespace OpenSekai.App.UI
             _corner.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
             LibraryWidgets.Inset(_difficulty.rectTransform, CHIP_PADDING, 0f, CHIP_PADDING + levelWidth + CHIP_GAP, 0f);
             LibraryWidgets.Inset(_level.rectTransform, width - CHIP_PADDING - levelWidth, 0f, CHIP_PADDING, 0f);
-
-            var anchor = new Vector2(1f, 0f);
-            LibraryWidgets.Place(_award.Root, anchor, new Vector2(1f, 0.5f),
-                new Vector2(-(CORNER + width + TAG_GAP), CORNER + CHIP_HEIGHT * 0.5f), _awardSize);
         }
 
         protected override void ApplySelection(bool animate)

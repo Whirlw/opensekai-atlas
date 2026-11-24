@@ -1,48 +1,51 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.TextCore;
 using UnityEngine.UI;
 
 namespace OpenSekai.App.UI
 {
     /// <summary>
-    /// AP or FC beside a chart in the library: a pill in the award's own colors with a gloss, a
-    /// bright rim and a soft glow around it. Hidden for every other clear state.
+    /// AP or FC beside a chart in the library: a chip in the award's own colors with a gloss, a
+    /// bright rim and a soft glow around it. Its letters stand the same distance from all four
+    /// edges. Hidden for every other clear state.
     /// </summary>
     internal sealed class LibraryAwardBadge
     {
         private const float GLOW = 10f;
         private const byte GLOW_OPACITY = 170;
 
-        private readonly Vector2 _size;
+        private readonly float _radius;
         private readonly Image _glow;
-        private readonly Image _pill;
+        private readonly Image _chip;
         private readonly TextMeshProUGUI _label;
 
-        /// <param name="size">Pill size in canvas units; the glow spreads outside it.</param>
-        internal LibraryAwardBadge(Transform parent, Vector2 size)
+        /// <param name="height">Chip height in canvas units; the width follows the letters and the glow spreads outside.</param>
+        /// <param name="radius">Corner radius, the same as the chips beside it.</param>
+        internal LibraryAwardBadge(Transform parent, float height, float radius)
         {
-            _size = size;
+            _radius = radius;
             Root = LibraryUi.CreateRect("Clear", parent);
-            Root.sizeDelta = size;
-            _glow = LibraryWidgets.Shape("Glow", Root, LibraryShapes.Shadow(size.y * 0.5f, GLOW), Color.clear);
+            Root.sizeDelta = new Vector2(height, height);
+            _glow = LibraryWidgets.Shape("Glow", Root, LibraryShapes.Shadow(radius, GLOW), Color.clear);
             LibraryWidgets.Inset(_glow.rectTransform, -GLOW, -GLOW, -GLOW, -GLOW);
-            _pill = LibraryUi.CreateImage("Pill", Root, Color.white);
-            _pill.raycastTarget = false;
-            LibraryUi.Stretch(_pill.rectTransform);
+            _chip = LibraryUi.CreateImage("Chip", Root, Color.white);
+            _chip.raycastTarget = false;
+            LibraryUi.Stretch(_chip.rectTransform);
             _label = LibraryWidgets.Label(
-                "Label", Root, string.Empty, Mathf.Round(size.y * 0.66f), LibraryTheme.Colors.TextOnAccent,
+                "Label", Root, string.Empty, Mathf.Round(height * 0.66f), LibraryTheme.Colors.TextOnAccent,
                 FontStyles.Bold, TextAlignmentOptions.Center);
             LibraryUi.UseSpacedCondensedFont(_label, 1.5f * 100f / _label.fontSize);
             LibraryUi.Stretch(_label.rectTransform);
             Root.gameObject.SetActive(false);
         }
 
-        /// <summary>The caller places it; its size is the pill's.</summary>
+        /// <summary>The caller places it; <see cref="Show"/> sizes it to its letters.</summary>
         internal RectTransform Root { get; }
 
         internal bool Visible => Root.gameObject.activeSelf;
 
-        internal float Width => _size.x;
+        internal float Width => Root.sizeDelta.x;
 
         /// <param name="badge">What <see cref="LibraryModel.ClearBadge"/> returned for the chart.</param>
         internal void Show(string badge)
@@ -55,12 +58,39 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            _pill.sprite = LibraryShapes.AwardPill(allPerfect, _size);
+            if (_label.text != badge)
+            {
+                _label.text = badge;
+                FitToLetters();
+                _chip.sprite = LibraryShapes.AwardChip(allPerfect, Root.sizeDelta, _radius);
+            }
+
             Color32 glow = allPerfect ? LibraryTheme.Colors.AllPerfectGlow : LibraryTheme.Colors.FullComboGlow;
             glow.a = GLOW_OPACITY;
             _glow.color = glow;
-            _label.text = badge;
             _label.color = allPerfect ? LibraryTheme.Colors.AllPerfectInk : LibraryTheme.Colors.FullComboInk;
+        }
+
+        /// <summary>
+        /// Gives the letters' sides the margin their cap height leaves above and below, and centers
+        /// them by what is drawn: side bearings and the line box would set them off-center.
+        /// </summary>
+        private void FitToLetters()
+        {
+            _label.ForceMeshUpdate(true);
+            TMP_TextInfo text = _label.textInfo;
+            TMP_CharacterInfo first = text.characterInfo[0];
+            TMP_CharacterInfo last = text.characterInfo[text.characterCount - 1];
+            GlyphMetrics firstGlyph = first.textElement.glyph.metrics;
+            GlyphMetrics lastGlyph = last.textElement.glyph.metrics;
+            float left = first.origin + firstGlyph.horizontalBearingX * first.scale;
+            float right = last.origin + (lastGlyph.horizontalBearingX + lastGlyph.width) * last.scale;
+            float capHeight = _label.font.faceInfo.capLine * first.scale;
+
+            float height = Root.sizeDelta.y;
+            Root.sizeDelta = new Vector2(Mathf.Round(right - left + height - capHeight), height);
+            _label.rectTransform.anchoredPosition = new Vector2(
+                -(left + right) * 0.5f, -(first.baseLine + capHeight * 0.5f));
         }
     }
 
