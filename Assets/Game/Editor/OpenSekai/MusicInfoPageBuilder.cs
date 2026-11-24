@@ -42,6 +42,9 @@ namespace OpenSekai.EditorTools
 		private const float CAPTION_WIDTH = 76f;
 		private const float CHIP_HEIGHT = 42f;
 
+		/// <summary>Softness of the ground's mask; the edge fades over half of it.</summary>
+		private const int GROUND_SOFTNESS = 600;
+
 		// LibraryTheme.Colors.
 		private static readonly Color _ground = new Color32(12, 15, 20, 255);
 		private static readonly Color _coverPlaceholder = new Color32(37, 44, 56, 255);
@@ -295,9 +298,13 @@ namespace OpenSekai.EditorTools
 			viewGroup.blocksRaycasts = false;
 			viewGroup.interactable = false;
 
-			// The library's ground opens from the middle over the field, with two glows in the
-			// jacket's colors: a strong one behind the jacket and a faint one under the text.
-			RectTransform ground = Node("Ground", viewRoot);
+			// The library's ground opens from the middle over the field behind a mask with soft top
+			// and bottom edges, with two glows in the jacket's colors: a strong one behind the jacket
+			// and a faint one under the text.
+			RectTransform groundMask = Node("GroundMask", viewRoot);
+			Stretch(groundMask);
+			groundMask.gameObject.AddComponent<RectMask2D>().softness = new Vector2Int(0, GROUND_SOFTNESS);
+			RectTransform ground = Node("Ground", groundMask);
 			Stretch(ground);
 			AddImage(ground, null, _ground);
 			Image glowMain = AddImage(Node("GlowMain", ground), LoadSprite("ml_glow"), WithAlpha(_glow, 0.62f));
@@ -329,8 +336,10 @@ namespace OpenSekai.EditorTools
 			outline.type = Image.Type.Sliced;
 			Place(outline.rectTransform, Vector2.zero, new Vector2(JACKET_SIZE, JACKET_SIZE));
 
-			// Text column, left-aligned at ColumnX; rows are positioned from its origin.
+			// Text column, left-aligned at ColumnX; rows are positioned from its origin. It is drawn
+			// under the jacket, because the rows slide out from behind it.
 			RectTransform column = Node("TextColumn", viewRoot);
+			column.SetSiblingIndex(jacketGroupRect.GetSiblingIndex());
 			Place(column, new Vector2(COLUMN_X, 18f), new Vector2(COLUMN_WIDTH, 0f));
 			column.pivot = new Vector2(0f, 0.5f);
 
@@ -393,7 +402,7 @@ namespace OpenSekai.EditorTools
 			ValueLine(scoreCreator.rectTransform, 0f, 40f);
 
 			SetField(view, "viewGroup", viewGroup);
-			SetField(view, "band", ground);
+			SetField(view, "band", groundMask);
 			SetArray(view, "bandEdges", new Object[0]);
 			SetField(view, "jacketGroup", jacketGroup);
 			SetField(view, "shine", null);
@@ -422,7 +431,7 @@ namespace OpenSekai.EditorTools
 			SetArray(view, "difficultyGraphics", new Object[] { chipFill, chipRing, diffText });
 			SetArray(view, "accentGraphics", new Object[] { rule, glowSecondary });
 			SetArray(view, "glowGraphics", new Object[] { glowMain });
-			SetField(view, "jacketFadeOutDelaySec", 2.35f);
+			SetField(view, "jacketFadeOutDelaySec", 2.2f);
 		}
 
 		// ------------------------------------------------------------------ nodes

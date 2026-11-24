@@ -7,6 +7,7 @@ using Sekai;
 using Sekai.Core.Live;
 using Sekai.Live;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace OpenSekai.Tests.PlayMode
 {
@@ -125,6 +126,48 @@ namespace OpenSekai.Tests.PlayMode
             Assert.That(page.alpha, Is.EqualTo(1f).Within(0.001f));
             Assert.That(view.gameObject.activeSelf, Is.True);
             Assert.That(finished, Is.Zero);
+        }
+
+        [Test]
+        public void IntroFoldsItsContentAwayBeforeThePageTurnsTransparentAndReplaysTheSameWay()
+        {
+            MusicInfoView source = Resources.Load<GameObject>("live/view/FrontUIView").GetComponentInChildren<MusicInfoView>(true);
+            MusicInfoView view = Object.Instantiate(source, _root.transform);
+            view.Setup(null);
+            Transform root = view.transform.Find("ViewRoot");
+            var page = root.GetComponent<CanvasGroup>();
+            var mask = root.Find("GroundMask").GetComponent<RectMask2D>();
+            var jacket = root.Find("JacketGroup").GetComponent<CanvasGroup>();
+            var column = (RectTransform)root.Find("TextColumn");
+            CanvasGroup[] rows = column.GetComponentsInChildren<CanvasGroup>(true);
+            Vector2 folded = ((RectTransform)jacket.transform).anchoredPosition;
+            Assert.That(column.GetSiblingIndex(), Is.LessThan(jacket.transform.GetSiblingIndex()), "rows slide out from behind the jacket");
+
+            for (int play = 0; play < 2; play++)
+            {
+                view.Play();
+                Assert.That(((RectTransform)jacket.transform).anchoredPosition, Is.EqualTo(folded));
+                _clock.Update(1.5);
+                Assert.That(page.alpha, Is.EqualTo(1f).Within(0.001f));
+                Assert.That(jacket.alpha, Is.EqualTo(1f).Within(0.001f));
+                Assert.That(jacket.transform.localScale.x, Is.EqualTo(1f).Within(0.001f));
+                Assert.That(rows, Has.All.Property("alpha").EqualTo(1f).Within(0.001f));
+                float spare = mask.rectTransform.rect.height - ((RectTransform)root).rect.height;
+                Assert.That(spare, Is.EqualTo(mask.softness.y).Within(0.01f), "both soft edges stay outside the page");
+
+                // 0.28 s into the exit the rows are gone and the page has not begun to turn transparent.
+                _clock.Update(view.PlayDurationSeconds - 0.6 + 0.28 - 1.5);
+                Assert.That(rows, Has.All.Property("alpha").EqualTo(0f).Within(0.001f));
+                Assert.That(jacket.alpha, Is.LessThan(0.4f));
+                Assert.That(page.alpha, Is.EqualTo(1f).Within(0.001f));
+                _clock.Update(0.06);
+                Assert.That(jacket.alpha, Is.Zero.Within(0.001f));
+                Assert.That(page.alpha, Is.GreaterThan(0.9f));
+
+                _clock.Update(1);
+                Assert.That(page.alpha, Is.Zero.Within(0.001f));
+                Assert.That(view.gameObject.activeSelf, Is.False);
+            }
         }
 
         [Test]
