@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using OpenSekai.App.Server;
 using OpenSekai.App.UI;
@@ -17,6 +18,44 @@ namespace OpenSekai.Tests.PlayMode
 {
     public sealed class SonolusBrowseTests
     {
+        [UnityTest]
+        public IEnumerator LocalizesSbugaSearchLabelsAndKeepsTheServersQueryValues()
+        {
+            var info = SonolusLevelsInfo.From(JObject.Parse(@"{
+                ""searches"": [{ ""type"": ""advanced"", ""title"": ""#ADVANCED"", ""options"": [
+                    { ""query"": ""keywords"", ""name"": ""#KEYWORDS"", ""type"": ""text"", ""placeholder"": ""#KEYWORDS_PLACEHOLDER"" },
+                    { ""query"": ""category"", ""name"": ""#CATEGORY"", ""type"": ""multi"", ""def"": [true],
+                      ""values"": [{ ""name"": ""Inst.ver."", ""title"": ""Instrumental ver."" }] },
+                    { ""query"": ""difficulty"", ""name"": ""#DIFFICULTY"", ""type"": ""select"", ""def"": ""append"",
+                      ""values"": [{ ""name"": ""append"", ""title"": ""#SPECIAL"" }] },
+                    { ""query"": ""order"", ""name"": ""#SORT"", ""type"": ""select"", ""def"": ""desc"",
+                      ""values"": [{ ""name"": ""desc"", ""title"": ""Descending"" }] }
+                ] }]
+            }"));
+            var screen = ServerScreen.Create();
+            try
+            {
+                screen.SetPresented(true, false);
+                using var panel = new SonolusSearchPanel(screen, SonolusServerAddress.Parse("sonolus.sbuga.com"), null);
+                panel.SetSearch(info.Searches.Single());
+                var labels = screen.ModalLayer.Find("AdvancedSearch").GetComponentsInChildren<TMP_Text>(true)
+                    .Select(label => label.text);
+                Assert.That(labels, Is.SupersetOf(new[] { "高级搜索", "输入关键词", "演唱版本", "纯伴奏版", "APPEND", "排序顺序", "降序" }));
+
+                var query = panel.BuildQuery(out bool changed).ToDictionary(pair => pair.Key, pair => pair.Value);
+                Assert.That(changed, Is.False);
+                Assert.That(query["type"], Is.EqualTo("advanced"));
+                Assert.That(query["category"], Is.EqualTo("Inst.ver."));
+                Assert.That(query["difficulty"], Is.EqualTo("append"));
+                Assert.That(query["order"], Is.EqualTo("desc"));
+            }
+            finally
+            {
+                UnityEngine.Object.Destroy(screen.gameObject);
+            }
+            yield return null;
+        }
+
         [UnityTest]
         public IEnumerator DetailErrorFollowsTheSelectedTabAndRetryLoadsIt()
         {

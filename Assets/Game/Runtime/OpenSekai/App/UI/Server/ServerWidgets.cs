@@ -1,6 +1,5 @@
 using System;
 using LitMotion;
-using OpenSekai.Infrastructure.Sonolus;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
@@ -282,8 +281,6 @@ namespace OpenSekai.App.UI
 
         /// <summary>"3 分钟前" for a recent time, the date for anything older than a week.</summary>
         internal static string DescribeTime(DateTimeOffset? time) => time.HasValue ? HomeScreen.DescribeWhen(time.Value) : string.Empty;
-
-        internal static string Localize(string text) => SonolusText.Localize(text);
     }
 
     /// <summary>

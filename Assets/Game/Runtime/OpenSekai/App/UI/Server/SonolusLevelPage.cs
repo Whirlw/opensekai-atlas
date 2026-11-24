@@ -320,12 +320,12 @@ namespace OpenSekai.App.UI
             }
             foreach (SonolusTag tag in _level.Tags)
             {
-                string text = ServerWidgets.Localize(tag.Title);
+                string text = SonolusText.Localize(tag.Title, _session.Address);
                 LibraryIcon? icon = ServerWidgets.IconFor(tag.Icon) ?? (string.IsNullOrEmpty(text) ? (LibraryIcon?)LibraryIcon.Tag : null);
                 if (tag.Icon == "trophy" && ChartRankCache.UntitledKey(_session.Address, _level.Name) != null
                     && ChartRankCache.IsStaffPick(_level))
                 {
-                    text = "Ranked · Staff Pick";
+                    text = "Ranked · 精选";
                 }
                 else if (string.IsNullOrEmpty(text) && tag.Icon == "trophy")
                 {
@@ -916,7 +916,7 @@ namespace OpenSekai.App.UI
             var titles = new List<string>();
             foreach (SonolusLeaderboard board in boards)
             {
-                titles.Add(ServerWidgets.Localize(board.Title));
+                titles.Add(SonolusText.Localize(board.Title, _session.Address));
             }
 
             if (_board < 0 || _board >= boards.Count)

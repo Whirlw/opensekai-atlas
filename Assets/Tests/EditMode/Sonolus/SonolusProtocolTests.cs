@@ -129,8 +129,12 @@ namespace OpenSekai.Tests.EditMode.Sonolus
 
             SonolusSearch search = info.Searches.Single();
             Assert.That(search.Type, Is.EqualTo("advanced"));
+            var untitledCharts = SonolusServerAddress.Parse("untitledcharts.com");
+            Assert.That(SonolusText.Localize(search.Title, untitledCharts), Is.EqualTo("高级搜索"));
+            Assert.That(SonolusText.Localize(search.Options[1].Name, untitledCharts), Is.EqualTo("精选"));
             Assert.That(search.Options.Select(option => option.IsSupported), Is.EqualTo(new[] { true, true, true, true, true, false }));
             SonolusSearchOption slider = search.Options[2];
+            Assert.That(SonolusText.Localize(slider.Name, untitledCharts), Is.EqualTo("最低等级"));
             Assert.That(slider.Default, Is.EqualTo("-999"));
             Assert.That(slider.Min, Is.EqualTo(-999d));
             Assert.That(search.Options[1].Values.Select(value => value.Name), Is.EqualTo(new[] { "default", "true" }));
@@ -174,6 +178,7 @@ namespace OpenSekai.Tests.EditMode.Sonolus
             Assert.That(SonolusText.Localize("#SOME_NEW_THING"), Is.EqualTo("Some New Thing"));
             Assert.That(SonolusText.Localize("Plain"), Is.EqualTo("Plain"));
             Assert.That(SonolusText.Localize(null), Is.EqualTo(string.Empty));
+            Assert.That(SonolusText.Localize("Staff Pick", SonolusServerAddress.Parse("example.com")), Is.EqualTo("Staff Pick"));
         }
 
         // ---------------------------------------------------------------- installer mapping
