@@ -86,8 +86,8 @@ namespace Sekai.Live
 
 		public static string NoteBundleName;
 
-		public const string BuiltinHitSoundBundle = "live/tap_se/live_se_key";
-		public const string LiveCommonSoundBundle = "live/sound/live_se/common";
+		public const string BUILTIN_HIT_SOUND_BUNDLE = "live/tap_se/live_se_key";
+		public const string LIVE_COMMON_SOUND_BUNDLE = "live/sound/live_se/common";
 
 		public static string EffectBundleName;
 

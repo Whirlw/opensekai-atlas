@@ -58,8 +58,8 @@ namespace OpenSekai.App.UI
         private const float TAU = PI * 2f;
         private const float SIXTH = PI / 3f;
 
-        private static readonly Rgb White = new Rgb(255, 255, 255);
-        private static readonly Rgb Surface = new Rgb(21, 26, 34);
+        private static readonly Rgb _white = new Rgb(255, 255, 255);
+        private static readonly Rgb _surface = new Rgb(21, 26, 34);
 
         /// <summary>The ALL PERFECT pill's stops: pink, violet, cyan.</summary>
         private static readonly Rgb[] _prism = { new Rgb(255, 146, 214), new Rgb(186, 158, 255), new Rgb(112, 224, 255) };
@@ -187,7 +187,7 @@ namespace OpenSekai.App.UI
                     float spikes = Cover(Star4(x, y, 0.48f, 1f), pixel * 2f) * Smooth(0.5f, 0.1f, r);
                     float core = Gauss(r, 0.07f);
                     float glow = Gauss(r, 0.2f) * 0.3f;
-                    Paint.Of(White, Math.Max(spikes, Math.Max(core, glow))).Write(pixels, (row * size + column) * 4);
+                    Paint.Of(_white, Math.Max(spikes, Math.Max(core, glow))).Write(pixels, (row * size + column) * 4);
                 }
             }
 
@@ -636,8 +636,8 @@ namespace OpenSekai.App.UI
                 _prismatic = design.Prismatic;
                 Rgb tone = _prismatic ? _prism[1] : color;
                 Base = color;
-                Light = Rgb.Lerp(color, White, 0.65f);
-                Fill = Rgb.Lerp(Surface, tone, 0.22f);
+                Light = Rgb.Lerp(color, _white, 0.65f);
+                Fill = Rgb.Lerp(_surface, tone, 0.22f);
                 Glow = tone;
             }
 

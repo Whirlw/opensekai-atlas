@@ -165,7 +165,7 @@ namespace Sekai
 
 		private bool TryResolveCurrentLiveTapSeCue(string cueName, out CriAtomExAcb acb, out string resolvedCueName)
 		{
-			resolvedCueName = ResolveCueNameFromBundle(LiveConfig.BuiltinHitSoundBundle, cueName, out acb);
+			resolvedCueName = ResolveCueNameFromBundle(LiveConfig.BUILTIN_HIT_SOUND_BUNDLE, cueName, out acb);
 			return resolvedCueName != null;
 		}
 

@@ -30,10 +30,10 @@ namespace OpenSekai.Tests.EditMode.ResourceLoading
         [Test]
         public void TheManifestFilesAreGuarded()
         {
-            const string folder = "Assets/Graphics/Resources/font/SourceHanSansSC-";
-            Assert.That(GeneratedAssetSaveGuard.GuardedPaths, Does.Contain(folder + "Medium SDF_Base.asset"));
-            Assert.That(GeneratedAssetSaveGuard.GuardedPaths, Does.Contain(folder + "Bold SDF_Base.asset"));
-            Assert.That(GeneratedAssetSaveGuard.GuardedPaths, Does.Contain(folder + "Bold SDF_Dynamic.asset"));
+            const string FOLDER = "Assets/Graphics/Resources/font/SourceHanSansSC-";
+            Assert.That(GeneratedAssetSaveGuard.GuardedPaths, Does.Contain(FOLDER + "Medium SDF_Base.asset"));
+            Assert.That(GeneratedAssetSaveGuard.GuardedPaths, Does.Contain(FOLDER + "Bold SDF_Base.asset"));
+            Assert.That(GeneratedAssetSaveGuard.GuardedPaths, Does.Contain(FOLDER + "Bold SDF_Dynamic.asset"));
             Assert.That(GeneratedAssetSaveGuard.GuardedPaths, Does.Contain(MEDIUM_DYNAMIC));
             Assert.That(GeneratedAssetSaveGuard.GuardedPaths, Does.Contain(LIBERATION_FALLBACK));
             Assert.That(GeneratedAssetSaveGuard.IsGuarded(MEDIUM_DYNAMIC.Replace('/', '\\')), Is.True, "either separator");

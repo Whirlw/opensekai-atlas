@@ -21,10 +21,14 @@ namespace OpenSekai.App.Library
 
         internal sealed class RetryStart
         {
-            [JsonProperty(Required = Required.Always)] public string ScoreKey;
-            [JsonProperty(Required = Required.Always)] public string SourceId;
-            [JsonProperty(Required = Required.Always)] public string Source;
-            [JsonProperty(Required = Required.Always)] public DateTimeOffset Time;
+            [JsonProperty(Required = Required.Always)]
+            public string ScoreKey;
+            [JsonProperty(Required = Required.Always)]
+            public string SourceId;
+            [JsonProperty(Required = Required.Always)]
+            public string Source;
+            [JsonProperty(Required = Required.Always)]
+            public DateTimeOffset Time;
         }
 
         internal int Count => _times.Count;

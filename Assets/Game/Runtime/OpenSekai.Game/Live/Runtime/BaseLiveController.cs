@@ -205,7 +205,7 @@ namespace Sekai.Core.Live
 
 		protected virtual void LoadSound()
 		{
-			SoundManager.Instance.LoadSoundBundle(LiveConfig.LiveCommonSoundBundle, true);
+			SoundManager.Instance.LoadSoundBundle(LiveConfig.LIVE_COMMON_SOUND_BUNDLE, true);
 			LoadTapSeSoundBundle();
 
 			string cueName = ResolveMusicCueName();
@@ -235,7 +235,7 @@ namespace Sekai.Core.Live
 
 		private void LoadTapSeSoundBundle()
 		{
-			SoundManager.Instance.LoadSoundBundle(LiveConfig.BuiltinHitSoundBundle, true);
+			SoundManager.Instance.LoadSoundBundle(LiveConfig.BUILTIN_HIT_SOUND_BUNDLE, true);
 			SoundManager.Instance.ResumeIngameSe();
 		}
 

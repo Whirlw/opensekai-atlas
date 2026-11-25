@@ -250,8 +250,8 @@ namespace OpenSekai.App.Library
         };
 
         public static IReadOnlyList<AchievementGoal> All { get; } = Array.AsReadOnly(_all);
-        private static readonly Dictionary<string, AchievementGoal> ById = _all.ToDictionary(goal => goal.Id);
-        public static AchievementGoal Find(string id) => id != null && ById.TryGetValue(id, out var goal) ? goal : null;
+        private static readonly Dictionary<string, AchievementGoal> _byId = _all.ToDictionary(goal => goal.Id);
+        public static AchievementGoal Find(string id) => id != null && _byId.TryGetValue(id, out var goal) ? goal : null;
 
         /// <summary>The goal that gives <paramref name="avatarId"/>; null for an avatar everyone has.</summary>
         internal static AchievementGoal ForAvatar(string avatarId) =>

@@ -245,8 +245,8 @@ namespace OpenSekai.App.UI
             if (sound == null || !MaterialPackAudio.HasSlot(slot)) return false;
             try
             {
-                sound.LoadSoundBundle(LiveConfig.BuiltinHitSoundBundle, false);
-                sound.LoadSoundBundle(LiveConfig.LiveCommonSoundBundle, false);
+                sound.LoadSoundBundle(LiveConfig.BUILTIN_HIT_SOUND_BUNDLE, false);
+                sound.LoadSoundBundle(LiveConfig.LIVE_COMMON_SOUND_BUNDLE, false);
                 _builtinPlayback = sound.PlaySE(MaterialPackAudio.Cue(slot), PreviewVolume());
             }
             catch (Exception e)

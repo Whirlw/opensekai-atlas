@@ -29,12 +29,12 @@ namespace OpenSekai.Tests.PlayMode
             sound.LoadExternalSoundPack(() => loaded = true);
             yield return new WaitUntil(() => loaded);
 
-            var cues = sound.GetCueInfos(LiveConfig.BuiltinHitSoundBundle);
+            var cues = sound.GetCueInfos(LiveConfig.BUILTIN_HIT_SOUND_BUNDLE);
             string[] hits = { "tap", "perfect", "great", "good", "critical", "long", "longCritical",
                 "connect", "connectCritical", "flick", "flickCritical", "trace", "traceCritical" };
             Assert.That(cues.Select(cue => cue.name), Is.EquivalentTo(hits.Select(hit => MaterialPackAudio.Cue("audio." + hit))));
             Assert.That(cues.All(cue => cue.length > 0), Is.True);
-            Assert.That(sound.IsLoadedSoundBundle(LiveConfig.LiveCommonSoundBundle), Is.True);
+            Assert.That(sound.IsLoadedSoundBundle(LiveConfig.LIVE_COMMON_SOUND_BUNDLE), Is.True);
             Assert.That(sound.IsLoadedSoundBundle("live/tap_se/custom01"), Is.False);
             Assert.That(sound.IsLoadedSoundBundle("live/tap_se/custom02"), Is.False);
             Assert.That(sound.IsLoadedSoundBundle("live/sound/live_se/default"), Is.False);
@@ -56,7 +56,7 @@ namespace OpenSekai.Tests.PlayMode
                 var loaded = new UniTaskCompletionSource();
                 sound.LoadExternalSoundPack(() => loaded.TrySetResult());
                 await loaded.Task;
-                Assert.That(sound.IsLoadedSoundBundle(LiveConfig.BuiltinHitSoundBundle), Is.True);
+                Assert.That(sound.IsLoadedSoundBundle(LiveConfig.BUILTIN_HIT_SOUND_BUNDLE), Is.True);
                 for (int i = 0; i < styles.Length; i++)
                 {
                     string style = styles[i];

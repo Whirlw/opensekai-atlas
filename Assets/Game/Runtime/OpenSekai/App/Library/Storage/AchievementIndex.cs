@@ -66,7 +66,7 @@ namespace OpenSekai.App.Library
         private readonly HashSet<string> _windowKeys = new();
         private readonly Best30Index _ranking = new();
         private readonly List<CustomMusicScorePlayHistoryRecord> _recent = new();
-        private static readonly string[] PrismOrder = { "expert", "hard", "easy", "normal", "master" };
+        private static readonly string[] _prismOrder = { "expert", "hard", "easy", "normal", "master" };
         private long _hits, _rankingTotal;
         private int _days, _setlist, _review, _encore, _retry;
         private AchievementEvent _last;
@@ -187,7 +187,7 @@ namespace OpenSekai.App.Library
 
         private int PrismWindow()
         {
-            for (int length = Math.Min(PrismOrder.Length, _recent.Count); length > 0; length--)
+            for (int length = Math.Min(_prismOrder.Length, _recent.Count); length > 0; length--)
             {
                 _windowKeys.Clear();
                 int i = 0;
@@ -195,7 +195,7 @@ namespace OpenSekai.App.Library
                 {
                     var p = _recent[_recent.Count - length + i];
                     if (!IsClear(p) || !p.Ranked || !p.IsAllPerfect || !_windowKeys.Add(p.ScoreKey) ||
-                        !string.Equals(p.Difficulty, PrismOrder[i], StringComparison.OrdinalIgnoreCase)) break;
+                        !string.Equals(p.Difficulty, _prismOrder[i], StringComparison.OrdinalIgnoreCase)) break;
                 }
                 if (i == length) return length;
             }
