@@ -91,17 +91,17 @@ x:   0        55      100                 254      299       354
 - **直通 alpha（非预乘）**：着色器自己做 `rgb × alpha`。导出时不要预乘，透明处的 RGB 无所谓但 alpha 必须为 0。
 - **游戏不染色**：顶点颜色被用来传数据（车道中心、宽度、进度），不参与着色；材质 `_Color` 为白色。颜色就是你画的颜色。
 - 导入设置（`notes.png.meta`，两套相同）：sRGB、双线性过滤、无 mipmap、最大 2048。不要改。
-- `custom02` 由 `custom01` 换色而来（`ArtSource/Tools/NotesV2/build_palette.ps1`），逐像素 alpha 相同，所以 §3～§4 的几何自动成立。
+- 两套音符共用 `ArtSource/Tools/Notes.cs` 里的本体尺寸，各自绘制板面和标记。`ArtSource/Tools/verify.ps1` 会分别检查两套图集的边界与拉伸区。
 
 ## 7. 联动修改：想改某个数时还要改哪里
 
 | 想改的东西 | 必须同步修改 |
 | --- | --- |
-| 本体内缩 55 px | `LiveUtility.cs` 的 `NoteBodyInsetUnits`；`ArtSource/Tools/Notes/draw_notes.ps1` 的 `L` |
+| 本体内缩 55 px | `LiveUtility.cs` 的 `NoteBodyInsetUnits` 和 `ArtSource/Tools/Notes.cs` 的 `Left`、`Right` |
 | 格数 7、格高 188、PPU 108 | `note-slide.shader` 的 `AtlasCells` / `CellPixels` / `PixelsPerUnit`；两套皮肤共 14 个 `notes_N.asset` 的 `m_Rect` 与 PPU；`LiveUtility.cs` 的 `NoteSpriteHeight`（= 切片高 / PPU） |
 | 九宫格边界 100 px | 两套皮肤共 14 个 `notes_N.asset` 的 `m_Border`；内缩 55 必须仍小于它 |
-| 板面纵向位置/高度 | 只改美术（`draw_notes.ps1` 的 `y`、`h`），然后按 §8 截图核对 |
-| 车道几何（消失点、判定线、车道宽） | `note-slide.shader` 的 `LaneDepth`；`ArtSource/Tools/AstralHud.cs`（`LaneHalfWidth`）；`Tools/fit-lane-sprite-meshes.ps1`；`ArtSource/Tools/NoteEffects.cs` 的八边形框 |
+| 板面纵向位置/高度 | `Notes.cs` 中 `Make` 设置的 `Top`、`FaceHeight` 和 `Depth`，然后按 §8 截图核对 |
+| 车道几何（消失点、判定线、车道宽） | `note-slide.shader` 的 `LaneDepth`、`ArtSource/Tools/Hud.cs` 的 `HalfWidth`、`Tools/fit-lane-sprite-meshes.ps1` 及 `ArtSource/Tools/Effects.cs` 的判定线特效框 |
 
 ## 8. 怎么验证
 
@@ -120,9 +120,7 @@ powershell -File Tools/capture-screens.ps1 -Live 64.097,66.939 -Package "<DEINOS
 
 ## 9. 生成器
 
-- `ArtSource/Tools/Notes/draw_notes.ps1`：程序化画出 `ArtSource/Notes/notes.png`。几何参数集中在 `DrawRow` 开头（`y`、`h`、`L`），注释里写了来由。
-- `ArtSource/Tools/NotesV2/build_palette.ps1`：从 `Notes` 换色生成 `NotesV2`，必须在 Windows PowerShell 里运行。
-- 两者跑完后用 `ArtSource/Import-All.bat` 全量导入。
+在项目根目录运行 `powershell -NoProfile -ExecutionPolicy Bypass -File ArtSource/Tools/render.ps1 -Group Notes,NotesV2 -Only notes.png`，即可重画两套皮肤的本体图集。运行 `ArtSource/Tools/verify.ps1` 核对尺寸和切片，再用 `ArtSource/Import-All.bat` 全量导入。
 
 手绘新皮肤时不必用生成器，但画完的图要满足 §1～§6。
 

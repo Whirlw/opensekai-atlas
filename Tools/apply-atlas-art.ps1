@@ -2,13 +2,14 @@
 # PaintKit's own apply reported success but left the regions untouched, so this does the paste itself and
 # reports any sprite that has no matching kit file.
 param(
-    [string]$KitRoot = (Join-Path (Split-Path $PSScriptRoot -Parent) 'ArtSource'),
+    [string]$KitRoot = 'ArtSource',   # relative to the project, or a full path
     [string]$SpriteFolder = 'Assets\Graphics\Sprites',
     [switch]$Apply
 )
 $ErrorActionPreference = 'Stop'
 $ProjectRoot = Split-Path $PSScriptRoot -Parent
-$KitRoot = Join-Path $ProjectRoot 'ArtSource'
+if (-not [IO.Path]::IsPathRooted($KitRoot)) { $KitRoot = Join-Path $ProjectRoot $KitRoot }
+if (-not (Test-Path -LiteralPath $KitRoot)) { throw "No art folder at $KitRoot" }
 Set-Location $ProjectRoot
 Add-Type -AssemblyName System.Drawing
 
@@ -19,7 +20,8 @@ function Get-Size([string]$path) {
     return $s
 }
 $guidMap = @{}
-Get-ChildItem 'Assets\Graphics\Textures' -Filter '*.png.meta' | ForEach-Object {
+# The countdown's sprites keep their texture beside them instead of in Textures.
+Get-ChildItem 'Assets\Graphics\Textures', $SpriteFolder -Filter '*.png.meta' | ForEach-Object {
     $guid = [regex]::Match((Get-Content $_.FullName -Raw), 'guid: ([0-9a-f]{32})').Groups[1].Value
     $guidMap[$guid] = $_.FullName -replace '\.meta$', ''
 }
@@ -63,7 +65,7 @@ Get-ChildItem $SpriteFolder -Filter '*.asset' | ForEach-Object {
         if (-not $spriteByName.ContainsKey($_.BaseName)) { $spriteByName[$_.BaseName] = $_.FullName }
 }
 # Two sprite assets are both named gauge_base_h16_dbl, so the name alone picks whichever is listed last and the
-# other trough never got painted. Pin each kit file to its asset, matching the rects in ArtSource/Tools/manifest.csv:
+# other trough never got painted. Pin each kit file to the sprite with the matching rectangle:
 # gauge_base_h16_dbl.png is the score trough (1363,828), gauge_base_h16_dbl_2.png the life trough (204,1800).
 $pinnedSprites = @{ 'gauge_base_h16_dbl' = 'gauge_base_h16_dbl_0.asset'; 'gauge_base_h16_dbl_2' = 'gauge_base_h16_dbl.asset' }
 foreach ($kitName in $pinnedSprites.Keys) {
@@ -146,6 +148,7 @@ foreach ($spritePath in $kitForSprite.Keys) {
 if ($Apply) {
     foreach ($path in $dirty.Keys) {
         $bmp = $atlases[$path]
+        $bmp.SetResolution(96, 96)   # otherwise every save rounds the PNG's resolution down and the file changes
         $bmp.Save($path, [System.Drawing.Imaging.ImageFormat]::Png)
         $bmp.Dispose()
         $atlases.Remove($path)

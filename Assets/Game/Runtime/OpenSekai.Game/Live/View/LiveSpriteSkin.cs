@@ -97,14 +97,12 @@ namespace Sekai
         {
             _sprite = renderer.sprite;
             _position = renderer.transform.localPosition;
-            Order = renderer.sortingOrder;
             _mode = renderer.drawMode;
             _size = renderer.size;
             _scale = renderer.transform.localScale;
         }
 
         internal Sprite Sprite => _sprite;
-        internal int Order { get; }
         internal SpriteDrawMode Mode => _mode;
         internal Vector2 Size => _size;
         internal Vector3 Position => _position;

@@ -45,7 +45,6 @@ namespace OpenSekai.Tests.PlayMode
             typeof(BaseLiveController).GetProperty(nameof(controller.BootData)).SetValue(controller, boot);
             var view = Object.Instantiate(Resources.Load<GameObject>("live/view/Background2DView")).GetComponent<Background2DView>();
             var renderers = view.GetComponentsInChildren<SpriteRenderer>(true);
-            var floor = renderers.Single(r => r.name == "Background");
             var movie = renderers.Single(r => r.name == "Movie");
             var camera = view.GetComponentsInChildren<Camera>(true).Single(c => c.name == "jacketCamera");
             var diagnostics = new List<string>();
@@ -68,19 +67,20 @@ namespace OpenSekai.Tests.PlayMode
                 view.Retry();
                 view.MusicPlaybackStart(0);
                 view.OnUpdate(1);
-                var packed = ReadFrame(controller.BackgroundTexture);
                 if (upstream)
                 {
                     Assert.That(custom.GetComponentsInChildren<SpriteMask>(true).Length, Is.EqualTo(pack.Groups.Single().Background.Layers.Sum(l => l.Masks?.Length ?? 0)));
-                    File.WriteAllBytes(Path.Combine(folder, "pack-render.png"), packed.EncodeToPNG());
+                    CompareUpstream(folder, view, custom.GetComponentInChildren<Camera>(true));
                 }
                 else
                 {
+                    var packed = ReadFrame(controller.BackgroundTexture);
                     var center = packed.GetPixel(packed.width / 2, packed.height / 2);
                     Assert.That(center.g, Is.GreaterThan(.9f));
                     Assert.That(center.r, Is.LessThan(.1f));
                     var outside = packed.GetPixel(1, packed.height / 2);
                     Assert.That(outside.b, Is.GreaterThan(.9f));
+                    Object.Destroy(packed);
                     Assert.That(planes[1].sprite, Is.SameAs(planes[3].sprite));
                     var plane = planes[2].transform;
                     float units = 20f * Mathf.Tan(21f * Mathf.Deg2Rad) / 1080f;
@@ -104,9 +104,12 @@ namespace OpenSekai.Tests.PlayMode
                 await Load();
                 Assert.That(boot.BackgroundSkin, Is.Null);
                 Assert.That(camera.transform.parent.gameObject.activeSelf, Is.True);
-                Assert.That(renderers.Where(r => r.name == "Jacket").All(r => r.gameObject.activeSelf && r.sprite != null), Is.True);
-                if (upstream) CompareUpstream(folder, view, floor, camera, controller.BackgroundTexture, packed);
-                Object.Destroy(packed);
+                var builtIn = camera.transform.parent;
+                Assert.That(builtIn.Find("Left"), Is.Null);
+                Assert.That(builtIn.Find("Right"), Is.Null);
+                var jackets = renderers.Where(r => r.name == "Jacket").ToArray();
+                Assert.That(jackets.Select(r => r.transform.parent.name), Is.EquivalentTo(new[] { "Main", "Bottom" }));
+                Assert.That(jackets.All(r => r.gameObject.activeSelf && r.sprite != null), Is.True);
                 if (!upstream)
                 {
                     boot.ReleaseMaterialAudio();
@@ -195,62 +198,40 @@ namespace OpenSekai.Tests.PlayMode
             }
         });
 
-        private static void CompareUpstream(string folder, Background2DView view, SpriteRenderer floor, Camera camera, RenderTexture target, Texture2D actual)
+        private static void CompareUpstream(string folder, Background2DView view, Camera camera)
         {
-            var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
-            texture.LoadImage(File.ReadAllBytes(Path.Combine(folder, "source/Assets/Sekai/assetbundle/resources/startapp/live/2dmode/background/default.png")));
-            var original = Sprite.Create(texture, new Rect(0, 0, 2048, 2048), Vector2.one * .5f, 87.77143f, 0, SpriteMeshType.FullRect);
-            var assets = new List<Object>();
-            var sprites = new Dictionary<Sprite, Sprite>();
-            Sprite SourceArt(Sprite template)
-            {
-                if (sprites.TryGetValue(template, out var stored)) return stored;
-                var png = new Texture2D(2, 2, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
-                assets.Add(png);
-                Assert.That(png.LoadImage(File.ReadAllBytes(Path.Combine(folder, "source/Assets/Texture2D", template.name + ".png"))), Is.True);
-                // Preserve the original mesh and its exact mapping into the extracted PNG.
-                var dimensions = new Vector2(png.width, png.height);
-                var vertices = template.vertices;
-                var pivot = template.uv[0] * dimensions - vertices[0] * template.pixelsPerUnit;
-                var result = Sprite.Create(png, new Rect(Vector2.zero, dimensions), pivot / dimensions,
-                    template.pixelsPerUnit, 0, SpriteMeshType.FullRect);
-                result.OverrideGeometry(vertices.Select(v => Vector2.Min(dimensions, Vector2.Max(Vector2.zero, v * template.pixelsPerUnit + pivot))).ToArray(), template.triangles);
-                sprites.Add(template, result);
-                assets.Add(result);
-                return result;
-            }
+            // The reference was captured from the pinned upstream prefab with all six jacket surfaces.
+            var reference = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            var previousTarget = camera.targetTexture;
+            float previousAspect = camera.aspect;
+            bool wasActive = view.gameObject.activeSelf;
+            RenderTexture target = null;
+            Texture2D actual = null;
             try
             {
+                Assert.That(reference.LoadImage(File.ReadAllBytes(Path.Combine(folder, "reference.png"))), Is.True);
+                target = RenderTexture.GetTemporary(reference.width, reference.height, 24, RenderTextureFormat.ARGB32);
                 view.gameObject.SetActive(true);
-                foreach (var r in camera.transform.parent.GetComponentsInChildren<SpriteRenderer>(true))
-                    if (r != floor && r.name != "Jacket" && r.sprite != null) r.sprite = SourceArt(r.sprite);
-                foreach (var mask in camera.transform.parent.GetComponentsInChildren<SpriteMask>(true))
-                    mask.sprite = SourceArt(mask.sprite);
-                floor.sprite = original;
-                floor.drawMode = SpriteDrawMode.Simple;
-                floor.transform.localPosition = Vector3.zero;
-                floor.transform.localScale = new Vector3(.75f, .75f, 1);
+                camera.targetTexture = target;
+                camera.aspect = (float)reference.width / reference.height;
+                camera.ResetProjectionMatrix();
+                UnityEngine.Rendering.SortingGroup.UpdateAllSortingGroups();
                 camera.Render();
-                var expected = ReadFrame(target);
-                var pixels = expected.GetPixels32();
-                File.WriteAllBytes(Path.Combine(folder, "reference.png"), expected.EncodeToPNG());
-                Object.Destroy(expected);
+                actual = ReadFrame(target);
+                File.WriteAllBytes(Path.Combine(folder, "pack-render.png"), actual.EncodeToPNG());
+                var expected = reference.GetPixels32();
                 var observed = actual.GetPixels32();
-                int different = pixels.Where((color, i) => Diff(color, observed[i]) > 3).Count();
-                Assert.That(different, Is.LessThanOrEqualTo(pixels.Length / 1000), "Pixels differing by more than 3/255");
-                floor.enabled = false;
-                camera.Render();
-                var withoutBase = ReadFrame(target);
-                var other = withoutBase.GetPixels32();
-                Object.Destroy(withoutBase);
-                Assert.That(pixels.Where((color, i) => Diff(color, other[i]) > 3).Count(), Is.GreaterThan(pixels.Length / 100));
+                int different = expected.Where((color, i) => Diff(color, observed[i]) > 3).Count();
+                Assert.That(different, Is.LessThanOrEqualTo(expected.Length / 1000), "Pixels differing by more than 3/255");
             }
             finally
             {
-                foreach (var obj in assets) Object.Destroy(obj);
-                floor.enabled = true;
-                Object.Destroy(original);
-                Object.Destroy(texture);
+                camera.targetTexture = previousTarget;
+                camera.aspect = previousAspect;
+                view.gameObject.SetActive(wasActive);
+                if (target != null) RenderTexture.ReleaseTemporary(target);
+                Object.Destroy(actual);
+                Object.Destroy(reference);
             }
         }
 

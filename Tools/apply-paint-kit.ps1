@@ -2,12 +2,14 @@
 # Atlas sprites are handled by Tools/apply-atlas-art.ps1; this script only moves whole textures
 # (effects, note skins, 2D backgrounds) and matches them by file name inside an explicit root.
 param(
+    [string]$KitRoot = 'ArtSource',   # relative to the project, or a full path
     [switch]$Apply
 )
 
 $ErrorActionPreference = 'Stop'
 $ProjectRoot = Split-Path $PSScriptRoot -Parent
-$KitRoot = Join-Path $ProjectRoot 'ArtSource'
+if (-not [IO.Path]::IsPathRooted($KitRoot)) { $KitRoot = Join-Path $ProjectRoot $KitRoot }
+if (-not (Test-Path -LiteralPath $KitRoot)) { throw "No art folder at $KitRoot" }
 Set-Location $ProjectRoot
 Add-Type -AssemblyName System.Drawing
 
@@ -67,7 +69,12 @@ foreach ($group in $groups) {
             $packed = $target -like '*\Graphics\AtlasSprites\*'
             if ($dstSize -ne $srcSize -and -not $packed) { $mismatch += "$($file.Name) $srcSize -> $dstSize ($target)"; continue }
             if ((Get-FileHash $file.FullName).Hash -eq (Get-FileHash $target).Hash) { $same++; continue }
-            if ($Apply) { Copy-Item $file.FullName $target -Force }
+            if ($Apply) {
+                Copy-Item $file.FullName $target -Force
+                # A copy keeps the painting's date, and AssetBundleFreshnessCheck goes by dates: art painted before
+                # the last bundle build but imported after it would ship as the old art.
+                (Get-Item -LiteralPath $target).LastWriteTime = Get-Date
+            }
             $copied++
         }
     }

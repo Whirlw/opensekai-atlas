@@ -1,326 +1,272 @@
 using System;
-using System.IO;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.Drawing.Imaging;
-using System.Runtime.InteropServices;
+using System.Globalization;
+using System.IO;
 
-public static class ResultEffects {
-    static string Target;
-    static readonly System.Collections.Generic.Dictionary<string, Size> Sizes = new System.Collections.Generic.Dictionary<string, Size> {
-        { "live_result_default_ALL-PERFECT.png", new Size(1444, 182) },
-        { "live_result_default_FAILED.png", new Size(1368, 182) },
-        { "live_result_default_FULL-COMBO.png", new Size(1382, 182) },
-        { "live_result_default_LIVE-CLEAR.png", new Size(1236, 182) },
-        { "live_result_default_LIVE-FINISH.png", new Size(1236, 182) },
-        { "live_result_default_tex_allperfect_flare.png", new Size(1800, 512) },
-        { "live_result_default_tex_clear_flare.png", new Size(1400, 320) },
-        { "live_result_default_tex_common_Circle_03.png", new Size(128, 128) },
-        { "live_result_default_tex_common_Line_01.png", new Size(512, 128) },
-        { "live_result_default_tex_common_Line_02.png", new Size(512, 128) },
-        { "live_result_default_tex_common_Line_03.png", new Size(512, 128) },
-        { "live_result_default_tex_common_flare_02.png", new Size(512, 256) },
-        { "live_result_default_tex_finish_flare.png", new Size(1400, 320) },
-        { "live_result_default_tex_flash_v2_01.png", new Size(960, 540) },
-        { "live_result_default_tex_fullcombo_flare.png", new Size(1600, 384) },
-        { "live_result_default_tex_kira_v2_01.png", new Size(16, 16) },
-        { "live_result_default_txt_allperfect_line_dgr.png", new Size(1444, 182) },
-        { "live_result_default_txt_fullcombo_line_dgr.png", new Size(1382, 182) },
-        { "live_result_default_txt_liveclear_line_dgr.png", new Size(1236, 182) },
-        { "live_result_default_txt_livefailed_line_dgr.png", new Size(1368, 182) },
-        { "live_result_default_txt_livefinish_line_dgr.png", new Size(1236, 182) },
-    };
+// The banners at the end of a live and the light around them, in the result page's lettering: wide-set Barlow
+// Condensed, the prism for ALL PERFECT, the first set's hues for the others. The banners animate letter by letter, so
+// every letter stays inside its own slice (data/result-letter-slices.csv, rectangles from the bottom left).
+namespace ArtV2
+{
+    public static partial class Effects
+    {
+        private sealed class Banner
+        {
+            public string Words, Texture, Outline, Flare;
+            public int Width, FlareWidth, FlareHeight;
+            public Ink[] Stops;
+            // The halo's colour; null takes the letters' own, all along the banner.
+            public Ink? Glow;
+            // How near white the light over the letters is. Light in their own colour only adds green to gold, whose red
+            // is full already, and turns it lemon.
+            public float Pale = 0.25f;
+        }
 
-    static System.Windows.Media.GlyphTypeface Font;
-    sealed class LetterSlice { public string Name; public RectangleF Box; }
-    static Dictionary<string,List<LetterSlice>> LetterSlices=new Dictionary<string,List<LetterSlice>>();
-    static void LoadSlices(string root){
-        LetterSlices.Clear();
-        string table=Path.Combine(root,"Tools","data","result-letter-slices.csv");
-        foreach(string line in File.ReadAllLines(table)){
-            string[] cells=line.Split(',');if(cells.Length<10||cells[0]=="sprite")continue;
-            string texture=Path.GetFileNameWithoutExtension(cells[2]);
-            if(texture!="ALL-PERFECT"&&texture!="FULL-COMBO"&&texture!="FAILED"&&texture!="LIVE-CLEAR"&&texture!="LIVE-FINISH")continue;
-            float x=float.Parse(cells[3],System.Globalization.CultureInfo.InvariantCulture),y=float.Parse(cells[4],System.Globalization.CultureInfo.InvariantCulture);
-            float w=float.Parse(cells[5],System.Globalization.CultureInfo.InvariantCulture),h=float.Parse(cells[6],System.Globalization.CultureInfo.InvariantCulture);
-            string kind=Kind(texture);if(w>=MainWidth(kind))continue;
-            if(!LetterSlices.ContainsKey(kind))LetterSlices[kind]=new List<LetterSlice>();
-            // Native sprite rectangles use the bottom-left origin. The drawing CSV has incorrect negative tops.
-            LetterSlices[kind].Add(new LetterSlice{Name=cells[0],Box=new RectangleF(x,182-y-h,w,h)});
-        }
-        foreach(var pair in LetterSlices)pair.Value.Sort((a,b)=>a.Box.Left.CompareTo(b.Box.Left));
-    }
-    static Color Gold=C("#ffcc46"),Mint=C("#2bf2c5"),Purple=C("#ae81ff"),Blue=C("#65caff"),Pink=C("#ff73b3");
-    static Color C(string s){return ColorTranslator.FromHtml(s);}
-    static Color A(int a,Color c){return Color.FromArgb(Math.Max(0,Math.Min(255,a)),c);}
-    static Color Mix(Color a,Color b,float t){return Color.FromArgb((int)(a.R+(b.R-a.R)*t),(int)(a.G+(b.G-a.G)*t),(int)(a.B+(b.B-a.B)*t));}
-    static PointF P(float x,float y){return new PointF(x,y);}
-    static int Clamp(double v){return Math.Max(0,Math.Min(255,(int)Math.Round(v)));}
-    static void Stroke(Graphics g,GraphicsPath path,Color c,float width){using(var p=new Pen(c,width)){p.LineJoin=LineJoin.Bevel;g.DrawPath(p,path);}}
-    static void FineTypeGlow(Graphics g,GraphicsPath path,Color c,float gain,float radius){for(int i=(int)(radius*2);i>=2;i-=2){int alpha=(int)(gain*Math.Exp(-i*i/(2*radius*radius)));if(alpha>0)Stroke(g,path,A(alpha,c),i);}}
-    static float[] Gaussian(float[] source,int w,int h,float sigma){
-        int radius=(int)Math.Ceiling(sigma*3);var kernel=new float[radius*2+1];double total=0;
-        for(int i=-radius;i<=radius;i++){kernel[i+radius]=(float)Math.Exp(-i*i/(2*sigma*sigma));total+=kernel[i+radius];}
-        for(int i=0;i<kernel.Length;i++)kernel[i]/=(float)total;
-        var temp=new float[w*h];var result=new float[w*h];
-        for(int y=0;y<h;y++)for(int x=0;x<w;x++){
-            float value=0;int lo=Math.Max(-radius,-x),hi=Math.Min(radius,w-1-x),row=y*w;
-            for(int k=lo;k<=hi;k++)value+=source[row+x+k]*kernel[k+radius];temp[row+x]=value;
-        }
-        for(int y=0;y<h;y++)for(int x=0;x<w;x++){
-            float value=0;int lo=Math.Max(-radius,-y),hi=Math.Min(radius,h-1-y);
-            for(int k=lo;k<=hi;k++)value+=temp[(y+k)*w+x]*kernel[k+radius];result[y*w+x]=value;
-        }return result;
-    }
-    static void Bloom(Graphics g,GraphicsPath path,Color c,float gain,float radius){
-        // Rasterize the filled glyph alpha, then convolve it with a separable Gaussian.
-        // Corners and counters emit light continuously rather than stacking wide polygon strokes.
-        RectangleF bounds=path.GetBounds();int pad=(int)Math.Ceiling(radius*1.3f)+8;
-        int left=(int)Math.Floor(bounds.Left)-pad,top=(int)Math.Floor(bounds.Top)-pad;
-        int w=(int)Math.Ceiling(bounds.Right)-left+pad,h=(int)Math.Ceiling(bounds.Bottom)-top+pad;
-        var emission=new float[w*h];
-        using(var hi=new Bitmap(w*2,h*2,PixelFormat.Format32bppArgb)){
-            using(var mask=Graphics.FromImage(hi)){mask.Clear(Color.Transparent);mask.SmoothingMode=SmoothingMode.AntiAlias;mask.ScaleTransform(2,2);mask.TranslateTransform(-left,-top);using(var white=new SolidBrush(Color.White))mask.FillPath(white,path);}
-            using(var low=new Bitmap(w,h,PixelFormat.Format32bppArgb)){
-                using(var down=Graphics.FromImage(low)){down.CompositingMode=CompositingMode.SourceCopy;down.InterpolationMode=InterpolationMode.HighQualityBicubic;down.PixelOffsetMode=PixelOffsetMode.HighQuality;down.DrawImage(hi,new Rectangle(0,0,w,h),0,0,hi.Width,hi.Height,GraphicsUnit.Pixel);}
-                var pixels=new int[w*h];var data=low.LockBits(new Rectangle(0,0,w,h),ImageLockMode.ReadOnly,PixelFormat.Format32bppArgb);Marshal.Copy(data.Scan0,pixels,0,pixels.Length);low.UnlockBits(data);
-                for(int i=0;i<pixels.Length;i++)emission[i]=((uint)pixels[i]>>24)/255f;
+        private const string Res = "live_result_default_";
+        private const int BannerHeight = 182;
+
+        private static readonly Banner[] Banners =
+        {
+            new Banner
+            {
+                Words = "ALL PERFECT!!", Texture = "ALL-PERFECT", Outline = "txt_allperfect_line_dgr", Flare = "tex_allperfect_flare",
+                Width = 1444, FlareWidth = 1800, FlareHeight = 512, Stops = Theme.Prism
+            },
+            new Banner
+            {
+                Words = "FULL COMBO!", Texture = "FULL-COMBO", Outline = "txt_fullcombo_line_dgr", Flare = "tex_fullcombo_flare",
+                Width = 1382, FlareWidth = 1600, FlareHeight = 384,
+                Stops = Run(Theme.BannerPink, Theme.BannerPurple), Glow = Theme.BannerPink
+            },
+            new Banner
+            {
+                Words = "LIVE CLEAR!", Texture = "LIVE-CLEAR", Outline = "txt_liveclear_line_dgr", Flare = "tex_clear_flare",
+                Width = 1236, FlareWidth = 1400, FlareHeight = 320,
+                Stops = Run(Theme.BannerGold, Theme.BannerPeach), Glow = Theme.BannerGold, Pale = 0.95f
+            },
+            new Banner
+            {
+                Words = "LIVE FINISH", Texture = "LIVE-FINISH", Outline = "txt_livefinish_line_dgr", Flare = "tex_finish_flare",
+                Width = 1236, FlareWidth = 1400, FlareHeight = 320,
+                Stops = Run(Theme.BannerBlue, Theme.BannerPurple), Glow = Theme.BannerBlue
+            },
+            new Banner
+            {
+                Words = "LIVE FAILED...", Texture = "FAILED", Outline = "txt_livefailed_line_dgr",
+                Width = 1368, Stops = Run(Theme.BannerGrey, Theme.BannerGrey), Glow = Theme.BannerGrey
             }
-        }
-        var blurred=Gaussian(emission,w,h,Math.Max(1,radius*.4f));
-        using(var glow=new Bitmap(w,h,PixelFormat.Format32bppArgb)){
-            var pixels=new int[w*h];int rgb=c.ToArgb()&0x00ffffff;
-            for(int i=0;i<pixels.Length;i++){int alpha=Clamp(blurred[i]*gain*13);pixels[i]=alpha==0?0:(alpha<<24)|rgb;}
-            var data=glow.LockBits(new Rectangle(0,0,w,h),ImageLockMode.WriteOnly,PixelFormat.Format32bppArgb);Marshal.Copy(pixels,0,data.Scan0,pixels.Length);glow.UnlockBits(data);
-            g.DrawImage(glow,new Rectangle(left,top,w,h),0,0,w,h,GraphicsUnit.Pixel);
-        }
-    }
-    static void Line(Graphics g,Color c,float width,params PointF[] points){using(var p=new Pen(c,width))g.DrawLines(p,points);}
-    static void Star(Graphics g,float x,float y,float r,Color c){
-        using(var path=new GraphicsPath()){
-            path.AddPolygon(new[]{P(x,y-r),P(x+r*.19f,y-r*.19f),P(x+r*.82f,y),P(x+r*.19f,y+r*.19f),P(x,y+r),P(x-r*.19f,y+r*.19f),P(x-r*.82f,y),P(x-r*.19f,y-r*.19f)});
-            using(var b=new SolidBrush(c))g.FillPath(b,path);
-        }
-    }
-    static void Shine(Graphics g,float x,float y,float r,float spread=1.6f){
-        using(var p=new GraphicsPath()){
-            p.AddEllipse(x-r*spread,y-r*spread,r*spread*2,r*spread*2);
-            using(var b=new PathGradientBrush(p)){b.CenterColor=A(190,Color.White);b.SurroundColors=new[]{A(0,Color.White)};g.FillPath(b,p);}
-        }
-        Star(g,x,y,r,Color.White);
-    }
-    static GraphicsPath TextPath(string text,RectangleF box){
-        var path=new GraphicsPath(FillMode.Winding);float cursor=0;
-        foreach(char ch in text){
-            ushort index;if(!Font.CharacterToGlyphMap.TryGetValue(ch,out index))throw new Exception("Missing glyph: "+ch);
-            var outline=Font.GetGlyphOutline(index,100,100).GetFlattenedPathGeometry(.2,System.Windows.Media.ToleranceType.Absolute);
-            foreach(var f in outline.Figures){var points=new List<PointF>{P(cursor+(float)f.StartPoint.X,(float)f.StartPoint.Y)};
-                foreach(var s in f.Segments){var poly=s as System.Windows.Media.PolyLineSegment;if(poly!=null)foreach(var p in poly.Points)points.Add(P(cursor+(float)p.X,(float)p.Y));else{var line=s as System.Windows.Media.LineSegment;if(line!=null)points.Add(P(cursor+(float)line.Point.X,(float)line.Point.Y));}}
-                if(points.Count>2){path.StartFigure();path.AddLines(points.ToArray());if(f.IsClosed)path.CloseFigure();}
+        };
+
+        private static IEnumerable<Asset> Results(string data)
+        {
+            string slices = Path.Combine(data, "result-letter-slices.csv");
+            foreach (Banner item in Banners)
+            {
+                Banner b = item;
+                yield return new Asset(Res + b.Texture + ".png", b.Width, BannerHeight, 2, false, c => Caption(c, b, slices));
+                yield return new Asset(Res + b.Outline + ".png", b.Width, BannerHeight, 2, false, c => Outline(c, b, slices));
+                if (b.Flare != null)
+                    yield return new Asset(Res + b.Flare + ".png", b.FlareWidth, b.FlareHeight, 1, false, c => Flare(c, b, slices));
             }
-            cursor+=(float)Font.AdvanceWidths[index]*100+3.5f;
+
+            yield return new Asset(Res + "tex_common_Line_01.png", 512, 128, 2, false, c => Ribbons(c, false));
+            yield return new Asset(Res + "tex_common_Line_02.png", 512, 128, 2, false, c => Ribbons(c, true));
+            yield return new Asset(Res + "tex_common_Line_03.png", 512, 128, 1, false, Spectrum);
+            yield return new Asset(Res + "tex_common_Circle_03.png", 128, 128, 2, false, c => Orb(c, 128f, 128f, Theme.DefaultAccent, 0.95f, 0.16f));
+            yield return new Asset(Res + "tex_common_flare_02.png", 512, 256, 1, false, c => Lens(c, 512f, 256f, Theme.Violet));
+            yield return new Asset(Res + "tex_flash_v2_01.png", 960, 540, 1, false, c => Lens(c, 960f, 540f, Theme.Periwinkle));
+            yield return new Asset(Res + "tex_kira_v2_01.png", 16, 16, 8, false, Kira);
+            foreach (string name in new[] { "tex_common_Square_02", "tex_common_white_02" })
+                yield return Asset.Copy(Res + name + ".png", 32, 32, Path.Combine(data, "kept", Res + name + ".png"));
         }
-        RectangleF r=path.GetBounds();using(var m=new Matrix(box.Width/r.Width,0,0,box.Height/r.Height,box.X-r.X*box.Width/r.Width,box.Y-r.Y*box.Height/r.Height))path.Transform(m);
-        return path;
-    }
-    static GraphicsPath ExclamationPath(RectangleF box,RectangleF slice){
-        using(var original=TextPath("!",box))
-        using(var iterator=new GraphicsPathIterator(original))
-        using(var figure=new GraphicsPath()){
-            var result=new GraphicsPath(FillMode.Winding);bool closed;
-            while(iterator.NextSubpath(figure,out closed)>0){
-                RectangleF bounds=figure.GetBounds();
-                if(bounds.Top>box.Top+box.Height*.65f){
-                    // The dot is slightly narrower than the stem's upper edge, with breathing room in the slice.
-                    float diameter=slice.Width*.73f;
-                    float centreY=Math.Min(bounds.Top+bounds.Height*.5f,slice.Bottom-6-diameter*.5f);
-                    result.AddEllipse(slice.Left+(slice.Width-diameter)*.5f,centreY-diameter*.5f,diameter,diameter);
-                }else{
-                    float stemWidth=slice.Width*.84f;
-                    float scaleX=stemWidth/bounds.Width,scaleY=1.06f;
-                    using(var transform=new Matrix(scaleX,0,0,scaleY,slice.Left+(slice.Width-stemWidth)*.5f-bounds.Left*scaleX,bounds.Top-bounds.Top*scaleY))figure.Transform(transform);
-                    result.AddPath(figure,false);
+
+        // ------------------------------------------------------------------------------------ lettering
+
+        /// <summary>The banner's letters in texture pixels, moved by an offset.</summary>
+        private static GraphicsPath Letters(Banner b, string slices, float dx, float dy)
+        {
+            if (b.Texture == "FAILED")
+            {
+                // Shown as one sprite, so it is set as a line.
+                const float cap = 138f;
+                float tracking = (b.Width - 90f - Type.Width(b.Words, cap, 0f)) / (b.Words.Length - 1);
+                return Type.Centered(b.Words, cap, tracking, dx + b.Width * 0.5f, dy + BannerHeight * 0.5f);
+            }
+
+            List<RectangleF> cells = Slices(slices, b);
+            string letters = b.Words.Replace(" ", "");
+            if (letters.Length != cells.Count) throw new Exception("Letters and slices do not match: " + b.Words);
+            float top = 0f, bottom = BannerHeight;
+            foreach (RectangleF cell in cells)
+            {
+                top = Math.Max(top, cell.Top);
+                bottom = Math.Min(bottom, cell.Bottom);
+            }
+
+            // One cap height and one baseline for the whole banner. The letters are a little wider than the face's
+            // own, which fills the slices without breaking the result page's open spacing.
+            float height = bottom - top - 26f, baseline = (top + bottom) * 0.5f + height * 0.5f;
+            var path = new GraphicsPath(FillMode.Winding);
+            for (int i = 0; i < cells.Count; i++)
+            {
+                RectangleF cell = cells[i];
+                const float margin = 6f;
+                float natural = Type.Width(letters[i].ToString(), height, 0f);
+                float wide = Math.Min(Wide(b, letters[i]), (cell.Width - margin * 2f) / natural);
+                // ALL sits left in its slices, which opens the gap before PERFECT to a word's.
+                float room = (cell.Width - natural * wide) * 0.5f - margin;
+                float shift = b.Texture == "ALL-PERFECT" && i < 3 ? -Math.Min(16f, room) : 0f;
+                using (GraphicsPath letter = Type.Line(
+                    letters[i].ToString(), height, 0f, wide, dx + cell.Left + cell.Width * 0.5f + shift, 0f, dy + baseline))
+                    path.AddPath(letter, false);
+            }
+
+            return path;
+        }
+
+        // FULL COMBO's C and O sprites have meshes cut along an older, wider letter, holes included (verify.ps1 checks
+        // every banner sprite). The O is set wider and its stems brought back, so its counter is larger than the mesh's
+        // hole, and the ends of the C are a little shorter.
+        private const float RoundThin = 3.2f;
+
+        private static float Wide(Banner b, char letter) { return b.Texture == "FULL-COMBO" && letter == 'O' ? 1.34f : 1.12f; }
+
+        private static Func<float, float> Thin(Banner b, string slices, float dx)
+        {
+            if (b.Texture != "FULL-COMBO") return null;
+            List<RectangleF> cells = Slices(slices, b);
+            string letters = b.Words.Replace(" ", "");
+            return delegate(float x)
+            {
+                for (int i = 0; i < cells.Count; i++)
+                    if (letters[i] == 'O' && x - dx >= cells[i].Left && x - dx < cells[i].Right) return RoundThin;
+                return 0f;
+            };
+        }
+
+        private static RectangleF[] Cuts(Banner b, string slices, float dx, float dy)
+        {
+            if (b.Texture != "FULL-COMBO") return null;
+            RectangleF c = Slices(slices, b)[4];
+            return new[] { new RectangleF(dx + c.Left + 68f, dy + 54f, c.Width - 68f, 74f) };
+        }
+
+        private static List<RectangleF> Slices(string file, Banner b)
+        {
+            var cells = new List<RectangleF>();
+            foreach (string line in File.ReadAllLines(file))
+            {
+                string[] v = line.Split(',');
+                if (v.Length < 10 || Path.GetFileNameWithoutExtension(v[2]) != b.Texture) continue;
+                float x = float.Parse(v[3], CultureInfo.InvariantCulture), y = float.Parse(v[4], CultureInfo.InvariantCulture);
+                float w = float.Parse(v[5], CultureInfo.InvariantCulture), h = float.Parse(v[6], CultureInfo.InvariantCulture);
+                if (w < b.Width) cells.Add(new RectangleF(x, BannerHeight - y - h, w, h));
+            }
+
+            cells.Sort((p, q) => p.Left.CompareTo(q.Left));
+            return cells;
+        }
+
+        private static Lettering Set(Banner b, string slices, float width, float height, int scale)
+        {
+            float dx = (width - b.Width) * 0.5f, dy = (height - BannerHeight) * 0.5f;
+            using (GraphicsPath path = Letters(b, slices, dx, dy))
+                return new Lettering(path, new RectangleF(0f, 0f, width, height), scale, Thin(b, slices, dx), Cuts(b, slices, dx, dy));
+        }
+
+        private static Paint Fill(Banner b, float width, float height)
+        {
+            float left = (width - b.Width) * 0.5f, middle = height * 0.5f;
+            Paint run = Theme.Horizontal(left + 60f, left + b.Width - 60f, b.Stops);
+            if (b.Glow == null) return run;
+            // Paler at the top, the hue itself at the foot.
+            return (x, y) => Theme.Light(run(x, y), 0.5f * M.Unit((middle + 72f - y) / 144f));
+        }
+
+        // The first set goes from one colour to the other through near white, so the hue leaves the first only past the
+        // middle: these are its hues at the thirds of the banner.
+        private static Ink[] Run(Ink from, Ink to) { return new[] { from, from, Ink.Mix(from, to, 0.63f), to }; }
+
+        // No shadow: it would cross into the next letter's slice. The flare behind the banner separates it.
+        private static void Caption(Canvas c, Banner b, string slices)
+        {
+            Lettering text = Set(b, slices, b.Width, BannerHeight, 4);
+            text.Fill(c, Fill(b, b.Width, BannerHeight));
+        }
+
+        private static void Outline(Canvas c, Banner b, string slices)
+        {
+            Lettering text = Set(b, slices, b.Width, BannerHeight, 4);
+            c.Stroke(text.Field, 2.4f, Theme.Vertical(0f, Theme.White.Fade(0.92f), BannerHeight, Theme.White.Fade(0.6f)), 0f);
+        }
+
+        // The banner's own letters as light: a wide halo in its colour, a tight one near white, and the letters.
+        private static void Flare(Canvas c, Banner b, string slices)
+        {
+            bool award = b.Texture == "ALL-PERFECT" || b.Texture == "FULL-COMBO";
+            Lettering text = Set(b, slices, b.FlareWidth, b.FlareHeight, 2);
+            Paint fill = Fill(b, b.FlareWidth, b.FlareHeight);
+            Func<float, float, float> wide = text.Blur(award ? 34f : 20f), near = text.Blur(award ? 11f : 7f);
+            c.Pixels((x, y) => (b.Glow ?? fill(x, y)).Fade(Math.Min(0.8f, wide(x, y) * (award ? 1.5f : 0.9f))));
+            c.Pixels((x, y) => Theme.Light(fill(x, y), b.Pale).Fade(Math.Min(0.8f, near(x, y) * 0.6f)));
+            // The letters themselves are soft too: the game spreads the banner's letters a little under the flare, and a
+            // sharp copy would show beside them.
+            Func<float, float, float> core = text.Blur(3f);
+            c.Pixels((x, y) => Theme.Light(fill(x, y), b.Pale + 0.05f).Fade((award ? 0.4f : 0.55f) * core(x, y)));
+            // Nothing may reach the texture's edge.
+            c.Mask((x, y) => M.Smooth(0f, 36f, Math.Min(Math.Min(x, b.FlareWidth - x), Math.Min(y, b.FlareHeight - y))));
+        }
+
+        // ------------------------------------------------------------------------------------ light
+
+        // The aurora of the home page as ribbons. The mesh scrolls along u, so every wave repeats across the width.
+        private static void Ribbons(Canvas c, bool prism)
+        {
+            c.Pixels(delegate(float x, float y)
+            {
+                float u = x / 512f, v = y / 128f, light = 0f;
+                for (int i = 0; i < 4; i++)
+                {
+                    float phase = i * 1.57f;
+                    float middle = 0.5f + (0.06f + i * 0.014f) * (float)Math.Sin(u * M.PI * 2f + phase);
+                    float width = 0.011f + i * 0.006f;
+                    float swell = 0.4f + 0.6f * M.Pow((float)Math.Cos(u * M.PI * 2f + phase * 1.3f), 2f);
+                    float d = v - middle;
+                    light += swell * (0.62f * M.Gauss(d, width) + 0.16f * M.Gauss(d, width * 4.5f));
                 }
-                figure.Reset();
-            }
-            return result;
+
+                light = Math.Min(1f, light);
+                Ink ink = prism ? Ink.Mix(Theme.PrismLoop(u), Theme.White, M.Pow(light, 1.6f) * 0.7f) : Theme.White;
+                return ink.Fade(light * M.Smooth(0f, 0.12f, Math.Min(v, 1f - v)));
+            });
         }
-    }
-    static GraphicsPath CaptionPath(string kind,float offsetX,float offsetY){
-        if(kind=="fail")return TextPath(Words(kind),new RectangleF(offsetX+12,offsetY+14.5f,MainWidth(kind)-24,153));
-        string letters=Words(kind).Replace(" ","").Replace(".","");
-        List<LetterSlice> slices=LetterSlices[kind];
-        if(letters.Length!=slices.Count)throw new Exception("Letter/slice mismatch: "+kind);
-        float top=0,bottom=182;
-        foreach(var slice in slices){top=Math.Max(top,slice.Box.Top);bottom=Math.Min(bottom,slice.Box.Bottom);}
-        // Every animated letter keeps the same cap height and baseline within its slice.
-        float capHeight=bottom-top-20,capTop=(top+bottom-capHeight)*.5f;
-        var result=new GraphicsPath(FillMode.Winding);
-        for(int i=0;i<slices.Count;i++){
-            RectangleF cell=slices[i].Box;
-            var box=new RectangleF(offsetX+cell.X+8,offsetY+capTop,cell.Width-16,capHeight);
-            var screenSlice=new RectangleF(offsetX+cell.X,offsetY+cell.Y,cell.Width,cell.Height);
-            using(var glyph=letters[i]=='!'?ExclamationPath(box,screenSlice):TextPath(letters[i].ToString(),box))result.AddPath(glyph,false);
+
+        private static void Spectrum(Canvas c)
+        {
+            c.Pixels((x, y) => Theme.Light(Theme.PrismLoop(x / 512f), 0.18f));
         }
-        return result;
-    }
-    static void CaptionOutline(Graphics g,GraphicsPath path,int width,int height){
-        // Trace the actual foreground silhouette, including the narrow lower face.
-        // Both the caption and its line_dgr now share the same upright layout and visible boundary.
-        const int scale=2;int w=width*scale,h=height*scale;
-        using(var mask=new Bitmap(w,h,PixelFormat.Format32bppArgb)){
-            using(var drawing=Graphics.FromImage(mask)){
-                drawing.SmoothingMode=SmoothingMode.AntiAlias;drawing.ScaleTransform(scale,scale);
-                var state=drawing.Save();drawing.TranslateTransform(0,3.3f);
-                using(var side=new SolidBrush(Color.White))drawing.FillPath(side,path);
-                Stroke(drawing,path,Color.White,3.5f);drawing.Restore(state);
-                using(var brush=new SolidBrush(Color.White))drawing.FillPath(brush,path);
-                Stroke(drawing,path,Color.White,1.1f);
-            }
-            var data=mask.LockBits(new Rectangle(0,0,w,h),ImageLockMode.ReadOnly,PixelFormat.Format32bppArgb);
-            var pixels=new int[w*h];Marshal.Copy(data.Scan0,pixels,0,pixels.Length);mask.UnlockBits(data);
-            var alpha=new byte[pixels.Length];for(int i=0;i<alpha.Length;i++)alpha[i]=(byte)((uint)pixels[i]>>24);
-            var offsets=new List<Point>();
-            for(int dy=-3;dy<=3;dy++)for(int dx=-3;dx<=3;dx++)if(dx*dx+dy*dy<=5)offsets.Add(new Point(dx,dy));
-            for(int y=0;y<h;y++)for(int x=0;x<w;x++){
-                int low=255,high=0;
-                foreach(var delta in offsets){
-                    int xx=x+delta.X,yy=y+delta.Y;
-                    int value=xx<0||xx>=w||yy<0||yy>=h?0:alpha[yy*w+xx];
-                    low=Math.Min(low,value);high=Math.Max(high,value);
-                }
-                int opacity=Clamp((high-low)*(235-60.0*y/(h-1))/255.0);
-                pixels[y*w+x]=opacity==0?0:(opacity<<24)|0x00ffffff;
-            }
-            data=mask.LockBits(new Rectangle(0,0,w,h),ImageLockMode.WriteOnly,PixelFormat.Format32bppArgb);
-            Marshal.Copy(pixels,0,data.Scan0,pixels.Length);mask.UnlockBits(data);
-            g.DrawImage(mask,new Rectangle(0,0,width,height),0,0,w,h,GraphicsUnit.Pixel);
+
+        // A lens of light: a round core, a wide flat ray and a halo, all inside the texture.
+        private static void Lens(Canvas c, float w, float h, Ink ink)
+        {
+            c.Pixels(delegate(float x, float y)
+            {
+                float dx = x / w * 2f - 1f, dy = y / h * 2f - 1f;
+                float core = M.Gauss(M.Len(dx * w / h, dy), 0.12f);
+                float ray = M.Gauss(dx, 0.36f) * M.Gauss(dy, 0.03f);
+                float halo = M.Gauss(dx, 0.3f) * M.Gauss(dy, 0.24f);
+                float a = Math.Min(1f, core + ray * 0.95f + halo * 0.5f);
+                a *= M.Smooth(1f, 0.7f, Math.Abs(dx)) * M.Smooth(1f, 0.7f, Math.Abs(dy));
+                return Ink.Mix(ink, Theme.White, Math.Min(1f, M.Pow(core, 0.6f) + ray * 0.55f)).Fade(a);
+            });
         }
-    }
-    static string Kind(string name){if(name.Contains("allperfect")||name.Contains("ALL-PERFECT"))return "ap";if(name.Contains("fullcombo")||name.Contains("FULL-COMBO"))return "fc";if(name.Contains("livefailed")||name.Contains("FAILED"))return "fail";if(name.Contains("finish")||name.Contains("FINISH"))return "finish";return "clear";}
-    static string Words(string kind){return kind=="ap"?"ALL PERFECT!!":kind=="fc"?"FULL COMBO!":kind=="fail"?"LIVE FAILED...":kind=="finish"?"LIVE FINISH":"LIVE CLEAR!";}
-    static int MainWidth(string kind){return kind=="ap"?1444:kind=="fc"?1382:kind=="fail"?1368:1236;}
-    static Color Accent(string kind){return kind=="ap"?Purple:kind=="fc"?Pink:kind=="fail"?C("#a5b1c8"):kind=="finish"?Blue:Gold;}
-    static LinearGradientBrush TextGradient(string kind,RectangleF box,int alpha){
-        var brush=new LinearGradientBrush(P(box.Left,0),P(box.Right,0),Color.White,Color.White);
-        var blend=new ColorBlend();
-        if(kind=="ap"){
-            blend.Positions=new[]{0f,.24f,.50f,.76f,1f};blend.Colors=new[]{A(alpha,Mix(Gold,Color.White,.48f)),A(alpha,Mix(Pink,Color.White,.53f)),A(alpha,Mix(Purple,Color.White,.48f)),A(alpha,Mix(Blue,Color.White,.43f)),A(alpha,Mix(Mint,Color.White,.48f))};
-        }else{
-            Color a=Accent(kind),b=kind=="fc"?Purple:kind=="finish"?Purple:kind=="clear"?C("#ffcaa0"):C("#d5ddeb");
-            blend.Positions=new[]{0f,.5f,1f};blend.Colors=new[]{A(alpha,Mix(a,Color.White,.65f)),A(alpha,Mix(a,Color.White,.85f)),A(alpha,Mix(b,Color.White,.48f))};
+
+        private static void Kira(Canvas c)
+        {
+            c.Pixels((x, y) => Theme.White.Fade(0.5f * M.Gauss(M.Len(x - 8f, y - 8f), 2.6f) * M.Smooth(8f, 6f, M.Len(x - 8f, y - 8f))));
+            c.Fill(Shape.Star4(8f, 8f, 7.4f, 1.12f), Theme.White);
         }
-        brush.InterpolationColors=blend;return brush;
-    }
-    static void Caption(Graphics g,string name,int w,int h){
-        string kind=Kind(name);bool outline=name.Contains("_line_dgr"),flare=name.Contains("_flare");
-        float textW=MainWidth(kind)-20,textH=158;
-        var box=new RectangleF((w-textW)*.5f,(h-textH)*.5f,textW,textH);
-        Color accent=Accent(kind);
-        using(var path=CaptionPath(kind,(w-MainWidth(kind))*.5f,(h-182)*.5f)){
-            if(outline){
-                CaptionOutline(g,path,w,h);
-                return;
-            }
-            if(flare){
-                // The same glyph contour and pixel size as the foreground caption, with broad bloom.
-                bool premium=kind=="ap"||kind=="fc";
-                Bloom(g,path,accent,premium?38:7,premium?58:32);
-                Bloom(g,path,Color.White,premium?28:5,premium?27:15);
-                using(var brush=TextGradient(kind,box,255))g.FillPath(brush,path);
-                using(var white=new SolidBrush(A(premium?130:65,Color.White)))g.FillPath(white,path);
-                Stroke(g,path,Color.White,premium?2.5f:1.2f);
-                if(premium)for(int i=0;i<4;i++){
-                    float x=box.Left+box.Width*(.12f+i*.245f);
-                    bool found=false;
-                    for(float yy=box.Top+8;yy<box.Top+box.Height*.48f&&!found;yy+=2)
-                    for(float offset=0;offset<=18&&!found;offset+=3){
-                        if(path.IsVisible(x+offset,yy)){Shine(g,x+offset,yy,kind=="ap"?12:10);found=true;}
-                    }
-                }
-                return;
-            }
-            var st=g.Save();g.TranslateTransform(0,3.3f);Stroke(g,path,Mix(accent,C("#19243d"),.65f),3.5f);g.Restore(st);
-            FineTypeGlow(g,path,accent,2.4f,7);
-            using(var brush=TextGradient(kind,box,255))g.FillPath(brush,path);
-            Stroke(g,path,Mix(accent,Color.White,.4f),1.1f);
-            // Upper highlights and low-key faceted engraving stay clipped inside the glyphs.
-            var clip=g.Save();g.SetClip(path);
-            using(var brush=new LinearGradientBrush(P(0,box.Top),P(0,box.Bottom),A(85,Color.White),A(0,Color.White)))g.FillRectangle(brush,box);
-            for(float x=box.Left+24;x<box.Right;x+=92)Star(g,x,box.Top+textH*.78f,3.1f,A(110,Color.White));
-            g.Restore(clip);
-        }
-    }
-    static Color Spectral(float t){
-        Color[] colors={Gold,Pink,Purple,Blue,Mint};float position=Math.Max(0,Math.Min(.99999f,t))*4;int i=(int)position;
-        return Mix(colors[i],colors[i+1],position-i);
-    }
-    static Bitmap Field(int w,int h,int mode){
-        var output=new Bitmap(w,h,PixelFormat.Format32bppArgb);var pixels=new int[w*h];
-        for(int y=0;y<h;y++)for(int x=0;x<w;x++){
-            double u=(x+.5)/w,v=(y+.5)/h,alpha;Color color;
-            if(mode==0||mode==1){
-                double value=0,soft=0;
-                for(int i=0;i<5;i++){
-                    double centre=.5+Math.Sin(u*Math.PI*2+i*1.31)*(.065+i*.011),width=.012+i*.005;
-                    double d=(v-centre)/width;
-                    value+=Math.Exp(-d*d)*(.22+i*.035)*(.35+.65*Math.Pow(Math.Cos(u*Math.PI*2+i),2));
-                    soft+=Math.Exp(-d*d/8)*(.13+i*.018)*(.45+.55*Math.Pow(Math.Cos(u*Math.PI*2+i),2));
-                }
-                alpha=Math.Min(1,value*2.25+soft*.85);color=mode==0?Color.White:Mix(Spectral((float)u),Color.White,(float)(Math.Min(1,value*1.7)*.75));
-            }else if(mode==2){alpha=1;color=Mix(Spectral((float)u),Color.White,.38f);}
-            else{
-                double dx=(u-.5)*2,dy=(v-.5)*2;
-                double core=Math.Exp(-dx*dx/.009-dy*dy/.024);
-                double ray=Math.Exp(-dx*dx/.56-dy*dy/.003),halo=Math.Exp(-dx*dx/.28-dy*dy/.095);
-                if(mode==3){core=Math.Exp(-(dx*dx+dy*dy)/.020);ray=0;halo=Math.Exp(-(dx*dx+dy*dy)/.24);}
-                alpha=Math.Min(1,core*1.2+ray*1.15+halo*.65);
-                alpha*=Math.Pow(Math.Max(0,1-Math.Abs(dx)),.3)*Math.Pow(Math.Max(0,1-Math.Abs(dy)),.2);
-                Color tint=mode==4?Purple:Blue;color=Mix(tint,Color.White,(float)Math.Min(1,Math.Sqrt(core)*.98+ray*.38));
-            }
-            pixels[y*w+x]=A(Clamp(alpha*255),color).ToArgb();
-        }
-        var data=output.LockBits(new Rectangle(0,0,w,h),ImageLockMode.WriteOnly,PixelFormat.Format32bppArgb);Marshal.Copy(pixels,0,data.Scan0,pixels.Length);output.UnlockBits(data);return output;
-    }
-    static void Save(Bitmap hi,string name,int w,int h){using(var bmp=new Bitmap(w,h,PixelFormat.Format32bppArgb)){
-        using(var g=Graphics.FromImage(bmp)){g.CompositingMode=CompositingMode.SourceCopy;g.InterpolationMode=InterpolationMode.HighQualityBicubic;g.PixelOffsetMode=PixelOffsetMode.HighQuality;g.DrawImage(hi,new Rectangle(0,0,w,h),0,0,hi.Width,hi.Height,GraphicsUnit.Pixel);}
-        bmp.Save(Path.Combine(Target,name),ImageFormat.Png);
-    }}
-    public static void Run(string root){Run(root,null,false);}
-    public static void Run(string root,string target,bool mainOnly){
-        Target=String.IsNullOrEmpty(target)?Path.Combine(root,"Effects"):target;Directory.CreateDirectory(Target);
-        Font=new System.Windows.Media.GlyphTypeface(new Uri(Path.GetFullPath(Path.Combine(root,"..","Assets","Game","Resources","Fonts","SourceHanSansSC-Bold.otf"))));
-        LoadSlices(root);
-        int count=0;
-        foreach(string name in Sizes.Keys){
-            if(mainOnly&&(name.Contains("_tex_")||name.Contains("_txt_")))continue;
-            int w=Sizes[name].Width,h=Sizes[name].Height;
-            if(name.Contains("_tex_common_Line_")){
-                int mode=name.Contains("Line_01")?0:name.Contains("Line_02")?1:2;
-                using(var image=Field(w,h,mode))image.Save(Path.Combine(Target,name),ImageFormat.Png);
-            }else{
-                int scale=w>1000?2:4;
-                using(var hi=new Bitmap(w*scale,h*scale,PixelFormat.Format32bppArgb)){
-                    using(var g=Graphics.FromImage(hi)){
-                        g.Clear(Color.Transparent);g.SmoothingMode=SmoothingMode.AntiAlias;g.InterpolationMode=InterpolationMode.HighQualityBicubic;g.ScaleTransform(scale,scale);
-                        if(name.Contains("_tex_common_Circle_")||name.Contains("_tex_common_flare_")||name.Contains("_tex_flash_")){
-                            int mode=name.Contains("Circle_")?3:name.Contains("common_flare_")?4:5;
-                            using(var field=Field(w,h,mode))g.DrawImage(field,new Rectangle(0,0,w,h));
-                            Shine(g,w*.5f,h*.5f,Math.Min(w,h)*.075f);
-                            if(mode!=3){
-                                using(var pen=new Pen(A(70,mode==4?Pink:Blue),.7f)){
-                                    g.DrawBezier(pen,P(w*.1f,h*.52f),P(w*.35f,h*.45f),P(w*.67f,h*.57f),P(w*.9f,h*.49f));
-                                    g.DrawBezier(pen,P(w*.1f,h*.49f),P(w*.35f,h*.56f),P(w*.67f,h*.44f),P(w*.9f,h*.51f));
-                                }
-                            }
-                        }else if(name.Contains("_tex_kira_"))Shine(g,w*.5f,h*.5f,6.7f,1.16f);
-                        else Caption(g,name,w,h);
-                    }Save(hi,name,w,h);
-                }
-            }
-            count++;Console.WriteLine(name+" "+w+"x"+h);
-        }
-        Console.WriteLine("Completed "+count+" additional result textures; two utility squares excluded.");
     }
 }

@@ -2,12 +2,12 @@
 # Assets/Graphics/Sprites to the lane geometry the notes use.
 #
 # These sprites are standalone .asset files whose meshes were once traced tightly around the old
-# artwork's alpha. When the art follows the lane geometry (ArtSource/Tools/AstralHud.cs, LaneHalfWidth)
+# artwork's alpha. When the art follows the lane geometry (ArtSource/Tools/Hud.cs, HalfWidth)
 # the old meshes clip its edges, so this script replaces each mesh with a small convex polygon around the
 # perspective trapezoid plus a margin, clamped to the sprite rect.
 #
 # Geometry (LiveConfig): 12 lanes x 1.19 units judged at y -2.96, notes travelling from (0, 5.46), so a
-# lane edge at world y has half width 7.14 * (5.46 - y) / 8.42. Keep in sync with AstralHud.cs.
+# lane edge at world y has half width 7.14 * (5.46 - y) / 8.42. Keep in sync with Hud.cs.
 #
 # Only m_SubMeshes counts, m_IndexBuffer and the vertex positions change. UVs stay zero like every sprite
 # in the project: Unity derives them from uvTransform (pixels per unit and pivot).

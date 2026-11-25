@@ -17,8 +17,6 @@ namespace Sekai
             return binding.texture;
         }
 
-        internal bool HasScoreBackdrop => TryGetBinding("hud.score.base", out _) || TryGetBinding("hud.score.gaugeBase", out _);
-
         internal Vector3 Position(string key, Vector3 anchor)
         {
             if (!TryGetBinding(key, out var binding) || binding.slot.Position == null) return anchor;
@@ -90,9 +88,6 @@ namespace Sekai
                         _sprites.Add(renderer, baseline = new SpriteRendererBaseline(renderer));
                     if (skin?.Draw(entry.Key, renderer, baseline, baseline.Sprite) != true)
                         baseline.Draw(renderer, null, baseline.Sprite, true);
-                    // The score plate and its trough share a prefab order. Separate textures can reverse their batch order.
-                    if (entry.Key is "hud.score.base" or "hud.score.skill")
-                        renderer.sortingOrder = baseline.Order - (skin?.HasScoreBackdrop == true ? 1 : 0);
                 }
             }
         }

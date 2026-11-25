@@ -1,4 +1,4 @@
-> **素材源迁移：** 现行画包位于 `ArtSource/paint-kit`；生成器使用随素材源保存的尺寸和绘图参数。
+> 现行打歌画包位于 `ArtSource/`。生成器使用随素材保存的尺寸和绘图参数。
 
 # 素材来源清单
 
@@ -19,19 +19,20 @@
 
 | 资源组 | 路径 | 文件 | 体积 | 来源 / 许可 | 状态 |
 | --- | --- | --- | --- | --- | --- |
-| 音符皮肤 custom01 | `Assets/Game/Resources/live/note/custom01` | 89 | 1.55 MB | 自制（画包 `new_notes`） | 现行 |
-| 音符皮肤 custom02 | `Assets/Game/Resources/live/note/custom02` | 89 | 1.36 MB | 自制（画包 `new_notes_v2`） | 现行 |
+| 音符皮肤 custom01 | `Assets/Game/Resources/live/note/custom01` | 89 | 0.98 MB | 自制，素材目录 `ArtSource/Notes` | 现行 |
+| 音符皮肤 custom02 | `Assets/Game/Resources/live/note/custom02` | 89 | 1.36 MB | 自制，素材目录 `ArtSource/NotesV2` | 现行 |
 | 判定 / 演出音 | `Assets/StreamingAssets/sound` | 42 | 2.99 MB | 自制 CC0-1.0 wav | 现行 |
 | CRI 音频负载 | 全仓 | 0 | 0 | 已删除 | 已删 |
 | 界面音效 zen | `Assets/Game/Resources/UiSound/Zen` | 19 | 0.07 MB | CC0-1.0，uisfx「zen」包（github.com/romainsimon/uisfx），许可见同目录 `LICENSE-AUDIO.txt` | 现行 |
-| live 背景 2dmode | `Assets/Game/AssetBundles/resources/startapp/live/2dmode` | 2 | 2.72 MB | 自制（画包 `new_backgrounds`） | 现行 |
+| live 背景 2dmode | `Assets/Game/AssetBundles/resources/startapp/live/2dmode` | 2 | 2.61 MB | 自制（`ArtSource/Backgrounds`） | 现行 |
 | 加载背景 longLoading | `Assets/Graphics/Resources/loading` | 0 | 0 | 已删除（页面不存在） | 已删 |
 | HUD / UI 大图 | `Assets/Graphics/Resources/screen` | 8 | 6.01 MB | 自制 | 现行 |
 | 通用背景 commonbg | `Assets/Graphics/Resources/commonbg` | 0 | 0 | 已删除 | 已删 |
 | live UI 预制 | `Assets/Graphics/Resources/live` | 10 | 3.82 MB | 自制（画包 `new_effects`） | 现行 |
-| HUD sprite | `Assets/Graphics/Sprites` | 176 | 1.04 MB | 自制（画包 `new_hud` + 程序化替身） | 现行 |
+| HUD sprite | `Assets/Graphics/Sprites` | 14 | 0.09 MB | 自制（画包 `new_hud` + 程序化替身） | 现行 |
 | 图集精灵 | `Assets/Graphics/Textures/sactx-*.png` | 153 | 5.2 MB | 自制 / CC0 | 现行 |
 | 示例封面 | `ArtSource/SampleCovers` | 22 | 2.4 MB | 自制，`ArtSource/Tools/SampleCovers/render_covers.js` 用几何图形画出；只用于截图和宣传片，不进安装包 | 现行 |
+| 打歌素材 | `ArtSource` 下的五个打歌素材目录 | 218 | 14.57 MB | 自制，`ArtSource/Tools/render.ps1` 按界面风格绘制，两套皮肤各含紫色 Damage 键身和节点。字形取自 Barlow Condensed（OFL）。预览目录另存 3 张示例工作区截图和 3 张音符预览 | 现行 |
 | 文档截图 | `docs/images/ui-style` | 81 | 6.2 MB | 自制界面与示例封面的截图，不含第三方素材，见[截图工具](screenshot-tools.md#示例工作区) | 现行 |
 | 应用图标 | `Assets/Graphics/Icons` | 3 | 0.95 MB | 程序生成（`BrandArt`，菜单 `OpenSekai/Brand/Export App Icons`；原 398 B 占位图已删） | 现行 |
 | 字体 | `Assets/Game/Resources/Fonts` | 5 | 32.07 MB | OFL（思源黑体 SC；Barlow Condensed SemiBold，许可见 `BarlowCondensed-OFL.txt`） | 保留 |

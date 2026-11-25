@@ -1909,6 +1909,7 @@ namespace OpenSekai.Tests.EditMode.Charts
                 var frictionSprites = renderers.Select(r => r.sprite).ToArray();
                 view.Spawn(score.NoteArray[0], 0);
                 var body = renderers.Single(r => r.enabled);
+                Assert.That(body.sprite.texture, Is.SameAs(Resources.Load<Texture2D>("live/note/" + skin + "/textures/notes_damage")));
                 Assert.That(body.sprite.texture.name, Is.EqualTo("notes_damage"));
                 Assert.That(body.sprite.border, Is.EqualTo(frictionSprites[Array.IndexOf(renderers, body)].border));
                 view.Unspawn();
