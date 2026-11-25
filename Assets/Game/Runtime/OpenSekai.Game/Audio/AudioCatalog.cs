@@ -17,7 +17,6 @@ namespace Sekai
 		private const string LIVE_DEFAULT_SOUND_BUNDLE_NAME = "live/sound/live_se/default";
 		private const string LIVE_DEFAULT_COMMON_ACB_FILE_NAME = "se_live_common.acb.bytes";
 		private const string LIVE_TAP_SE_BUNDLE_NAME_PREFIX = "live/tap_se";
-		private const string LIVE_TAP_SE_CUSTOM01_BUNDLE_NAME = "live/tap_se/custom01";
 		private const string LIVE_MUSIC_BUNDLE_NAME_BASE = "music/long/{0}";
 		private static readonly string[] _liveTapPredecodeCueNames =
 		{
@@ -63,8 +62,7 @@ namespace Sekai
 		private static readonly Dictionary<string, string[]> _predecodeCueNamesByBundleName = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
 		{
 			{ LIVE_DEFAULT_SOUND_BUNDLE_NAME, _liveDefaultPredecodeCueNames },
-			{ LIVE_TAP_SE_BUNDLE_NAME_PREFIX, _liveTapPredecodeCueNames },
-			{ LIVE_TAP_SE_CUSTOM01_BUNDLE_NAME, _liveTapPredecodeCueNames }
+			{ LIVE_TAP_SE_BUNDLE_NAME_PREFIX, _liveTapPredecodeCueNames }
 		};
 		private static readonly HashSet<string> _liveTapCueNameSet = new HashSet<string>(_liveTapPredecodeCueNames, StringComparer.OrdinalIgnoreCase);
 
@@ -198,8 +196,7 @@ namespace Sekai
 
 		private bool TryResolveCurrentLiveTapSeCue(string cueName, out CriAtomExAcb acb, out string resolvedCueName)
 		{
-			string bundleName = LIVE_TAP_SE_BUNDLE_NAME_PREFIX + "/" + LiveConfig.NoteSeName;
-			resolvedCueName = ResolveCueNameFromBundle(bundleName, cueName, out acb);
+			resolvedCueName = ResolveCueNameFromBundle(LiveConfig.BuiltinHitSoundBundle, cueName, out acb);
 			return resolvedCueName != null;
 		}
 

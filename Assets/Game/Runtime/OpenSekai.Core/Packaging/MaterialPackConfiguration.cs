@@ -7,8 +7,7 @@ namespace OpenSekai.MaterialPacks
 {
     /// <summary>
     /// The nine categories a resource pack can replace, in the order the resource pack page lists
-    /// them, with their slot registries. Three of them (note skin, hit effects, hit sounds) ship two
-    /// built-in sets; the other six have a single game default.
+    /// them, with their slot registries. Note skins and hit effects ship two styles. Hit sounds share one built-in bank.
     /// </summary>
     public static class MaterialCategories
     {
@@ -29,8 +28,10 @@ namespace OpenSekai.MaterialPacks
 
         public static bool IsKnown(string category) => category != null && All.Contains(category);
 
-        /// <summary>True for the three categories with two selectable built-in sets.</summary>
+        /// <summary>Categories with previewable groups in the built-in bundle.</summary>
         public static bool HasBuiltinSets(string category) => category is NOTES or HIT_FX or AUDIO;
+
+        public static int BuiltinSetCount(string category) => category == AUDIO ? 1 : BUILTIN_SET_COUNT;
 
         public static IEnumerable<string> Slots(string category) => category switch
         {
@@ -55,14 +56,15 @@ namespace OpenSekai.MaterialPacks
     }
 
     /// <summary>
-    /// Which built-in set each of the three two-set categories falls back to when no external group
+    /// Which built-in set each category falls back to when no external group
     /// provides a slot. Set numbers are 1 or 2; the legacy settings stored 0-based indices.
     /// </summary>
     public sealed class MaterialBuiltinSelection
     {
         public int Notes { get; set; } = 1;
         public int HitFx { get; set; } = 1;
-        public int Audio { get; set; } = 1;
+        // Older indexes can contain Audio = 2. Both historical choices use the same bank.
+        public int Audio => 1;
 
         public int Get(string category) => category switch
         {
@@ -79,23 +81,23 @@ namespace OpenSekai.MaterialPacks
             {
                 case MaterialCategories.NOTES: Notes = set; break;
                 case MaterialCategories.HIT_FX: HitFx = set; break;
-                case MaterialCategories.AUDIO: Audio = set; break;
+                case MaterialCategories.AUDIO: break;
                 default: throw new InvalidDataException(category + " 没有可选的内置套装。");
             }
         }
 
-        public bool IsValid() => InRange(Notes) && InRange(HitFx) && InRange(Audio);
+        public bool IsValid() => InRange(Notes) && InRange(HitFx);
 
         /// <summary>Reads the three 0-based indices the settings page used to store (note skin, hit effect, hit sound).</summary>
         public static MaterialBuiltinSelection FromLegacy(int noteSkinIndex, int noteEffectIndex, int noteSeIndex) => new()
         {
-            Notes = Clamp(noteSkinIndex + 1), HitFx = Clamp(noteEffectIndex + 1), Audio = Clamp(noteSeIndex + 1)
+            Notes = Clamp(noteSkinIndex + 1), HitFx = Clamp(noteEffectIndex + 1)
         };
 
-        public MaterialBuiltinSelection Copy() => new() { Notes = Notes, HitFx = HitFx, Audio = Audio };
+        public MaterialBuiltinSelection Copy() => new() { Notes = Notes, HitFx = HitFx };
 
         public bool SameAs(MaterialBuiltinSelection other) =>
-            other != null && Notes == other.Notes && HitFx == other.HitFx && Audio == other.Audio;
+            other != null && Notes == other.Notes && HitFx == other.HitFx;
 
         private static bool InRange(int set) => set is >= 1 and <= MaterialCategories.BUILTIN_SET_COUNT;
         private static int Clamp(int set) => Math.Min(MaterialCategories.BUILTIN_SET_COUNT, Math.Max(1, set));
@@ -134,7 +136,7 @@ namespace OpenSekai.MaterialPacks
             new() { BuiltinSet = sets.Notes, BuiltinSets = sets.Copy() };
 
         public MaterialBuiltinSelection GetBuiltinSets() => BuiltinSets?.Copy() ??
-            new MaterialBuiltinSelection { Notes = BuiltinSet, HitFx = BuiltinSet, Audio = BuiltinSet };
+            new MaterialBuiltinSelection { Notes = BuiltinSet, HitFx = BuiltinSet };
 
         public static MaterialPresetChoice FromPack(string packId, string digest) => new() { PackId = packId, Digest = digest };
 

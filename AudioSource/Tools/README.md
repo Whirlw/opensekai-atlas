@@ -1,12 +1,12 @@
 # 音效生成工具
 
-`make_se_pack.py` 用 `samples/` 里的 CC0 录音和合成音生成 `AudioSource/` 下全部 43 个 WAV（48000 Hz、16 位 PCM）。只用 Python 标准库，结果是确定的：同样的输入每次生成相同的文件。`dsp.py` 是它用到的滤波、重采样、混响和循环处理函数。
+`make_se_pack.py` 用 `samples/` 里的 CC0 录音和合成音生成三组历史源素材及现行共享演出音，共 43 个 WAV（48000 Hz、16 位 PCM）。只用 Python 标准库，结果是确定的：同样的输入每次生成相同的文件。`dsp.py` 是它用到的滤波、重采样、混响和循环处理函数。
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File AudioSource/Tools/render_se_pack.ps1
 ```
 
-生成器会直接覆盖 `custom01`、`custom02`、`default`、`live_se_common` 里的成品，请先保存手工修改。生成后双击 `AudioSource/Import-All.bat` 导入。如果只想先听，可以传一个输出目录：`render_se_pack.ps1 -OutDir LocalPacks/se-pack`。
+生成器会直接覆盖 `custom01`、`custom02`、`default`、`live_se_common` 里的成品，请先保存手工修改。当前打击音 `custom03` 由作者单独制作。生成后双击 `AudioSource/Import-All.bat` 导入。如果只想先听，可以传一个输出目录：`render_se_pack.ps1 -OutDir LocalPacks/se-pack`。
 
 ## 各组设计
 

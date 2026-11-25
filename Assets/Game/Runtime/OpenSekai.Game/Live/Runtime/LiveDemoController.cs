@@ -119,10 +119,8 @@ namespace Sekai.Core.Live
 
 		private void LoadSounds()
 		{
-			SoundManager.Instance.LoadSoundBundle("live/sound/live_se/default", true);
-			int set = Mathf.Clamp(Settings?.NoteSeIndex ?? 0, 0, 1);
-			LiveConfig.SetNoteSeName(set);
-			SoundManager.Instance.LoadSoundBundle("live/tap_se/" + LiveConfig.NoteSeName, true);
+			SoundManager.Instance.LoadSoundBundle(LiveConfig.LiveCommonSoundBundle, true);
+			SoundManager.Instance.LoadSoundBundle(LiveConfig.BuiltinHitSoundBundle, true);
 		}
 
 		/// <summary>

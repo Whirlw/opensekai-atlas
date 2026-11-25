@@ -21,7 +21,8 @@
 | --- | --- | --- | --- | --- | --- |
 | 音符皮肤 custom01 | `Assets/Game/Resources/live/note/custom01` | 89 | 0.98 MB | 自制，素材目录 `ArtSource/Notes` | 现行 |
 | 音符皮肤 custom02 | `Assets/Game/Resources/live/note/custom02` | 89 | 1.36 MB | 自制，素材目录 `ArtSource/NotesV2` | 现行 |
-| 判定 / 演出音 | `Assets/StreamingAssets/sound` | 42 | 2.99 MB | 自制 CC0-1.0 wav | 现行 |
+| 打击音 custom03 | `Assets/StreamingAssets/sound/live/tap_se/custom03` | 13 | 2.23 MB | AI 生成后由作者手动编辑，授权未提供 | 现行 |
+| 共享演出音 | `Assets/StreamingAssets/sound/live/sound/live_se/common` | 5 | 2.36 MB | 自制与 CC0 素材，详见音频署名 | 现行 |
 | CRI 音频负载 | 全仓 | 0 | 0 | 已删除 | 已删 |
 | 界面音效 zen | `Assets/Game/Resources/UiSound/Zen` | 19 | 0.07 MB | CC0-1.0，uisfx「zen」包（github.com/romainsimon/uisfx），许可见同目录 `LICENSE-AUDIO.txt` | 现行 |
 | live 背景 2dmode | `Assets/Game/AssetBundles/resources/startapp/live/2dmode` | 2 | 2.61 MB | 自制（`ArtSource/Backgrounds`） | 现行 |
@@ -43,7 +44,7 @@
 ## 维护规则
 
 1. **新增美术**：先画进画包目录，再走 `Tools/apply-atlas-art.ps1` 或 `Tools/replace-note-skins.ps1`；源文件与许可记进本表。不要直接引用来源不明的贴图、prefab 或 shader。
-2. **新增音频**：按 `StreamingAssets/sound/<bundle>/<cue>.wav` 落盘，并在 `docs/reference/audio-credits.md` 加一行署名（自制 / CC0 / 作者 / 日期 / 处理说明）。`Tools/audit-audio-provenance.ps1` 会检查 42 条署名是否齐全。
+2. **新增音频**：按 `StreamingAssets/sound/<bundle>/<cue>.wav` 落盘，并在 `docs/reference/audio-credits.md` 加一行署名（自制 / CC0 / 作者 / 日期 / 处理说明）。`Tools/audit-audio-provenance.ps1` 会检查 18 条署名是否齐全。
 3. **新增第三方代码**：只允许放进 `Assets/Vendor/`，并在本表登记包名、版本与许可；不要改写成项目自有代码。
 4. **发布前**：跑下面三条命令，全部通过才推 GitHub / 出 APK。
 
@@ -51,7 +52,7 @@
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File Tools/audit-asset-provenance.ps1   # 分组体积与许可
-powershell -NoProfile -ExecutionPolicy Bypass -File Tools/audit-audio-provenance.ps1   # 音频应有 42 条署名
+powershell -NoProfile -ExecutionPolicy Bypass -File Tools/audit-audio-provenance.ps1   # 音频应有 18 条署名
 powershell -NoProfile -ExecutionPolicy Bypass -File Tools/audit-atlas-coverage.ps1     # 图集还有多少精灵未被画包覆盖
 ```
 

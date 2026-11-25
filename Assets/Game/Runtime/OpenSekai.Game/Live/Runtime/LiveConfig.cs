@@ -86,13 +86,11 @@ namespace Sekai.Live
 
 		public static string NoteBundleName;
 
-		public static string NoteSeName;
+		public const string BuiltinHitSoundBundle = "live/tap_se/custom03";
+		public const string LiveCommonSoundBundle = "live/sound/live_se/common";
 
 		public static string EffectBundleName;
 
-
-
-		public static string NoteSeViewName;
 
 		public static readonly string ResultBundleName;
 
@@ -211,16 +209,6 @@ namespace Sekai.Live
 			return string.Format("live/note/custom{0:00}", index + 1);
 		}
 
-		public static string GetNoteSeName(int index)
-		{
-			return string.Format("custom{0:00}", index + 1);
-		}
-
-		public static string GetNoteSeViewName(int index)
-		{
-			return string.Format("SOUND{0:00}", index + 1);
-		}
-
 		public static string GetEffectBundleName(int index)
 		{
 			return string.Format("effect_asset/live/tap_effect/{0}", index);
@@ -234,12 +222,6 @@ namespace Sekai.Live
 		public static void SetNoteSkinAssetBundleName(int index)
 		{
 			NoteBundleName = GetNoteBundleName(index);
-		}
-
-		public static void SetNoteSeName(int index)
-		{
-			NoteSeName = GetNoteSeName(index);
-			NoteSeViewName = GetNoteSeViewName(index);
 		}
 
 		public static void SetNoteEffectName(int index)
@@ -332,7 +314,6 @@ namespace Sekai.Live
 			GuideAlpha = liveSettingData.GetGuideAlpha();
 			JudgeLineAlpha = liveSettingData.GetJudgeLineAlpha();
 			SetNoteSkinAssetBundleName(Mathf.Clamp(liveSettingData.NoteSkinIndex, 0, 1));
-			SetNoteSeName(liveSettingData.NoteSeIndex);
 			SetNoteEffectName(liveSettingData.NoteEffect);
 			SetFeverEffectName(liveSettingData.FeverEffectTypeIndex);
 			ScoreMakerPreviewModeIndex = liveSettingData.ScoreMakerPreviewModeIndex;
@@ -475,9 +456,7 @@ namespace Sekai.Live
 			NoteSpeedCoefficient = 0.22f;
 			ConfigBundleNamePath = "Live/Config/LiveBundleBuildData";
 			NoteBundleName = "live/note/custom01";
-			NoteSeName = "custom01";
 			EffectBundleName = "effect_asset/live/tap_effect/0";
-			NoteSeViewName = "custom01";
 			ResultBundleName = "effect_asset/live/result/default";
 			CutinBundleName = "effect_asset/live/cutin/default";
 			FeverBundleName = "effect_asset/live/fever/0";

@@ -198,7 +198,7 @@ namespace OpenSekai.App.UI
                     string key = "builtin/" + set + "/" + slot;
                     AddAudioRow(slot, "内置 · " + label, key, () =>
                     {
-                        if (!_screen.Media.ToggleBuiltin(key, set, slot))
+                        if (!_screen.Media.ToggleBuiltin(key, slot))
                         {
                             UiSound.Play(UiCue.Error);
                             _screen.ShowToast("这个内置音效暂时无法试听，打歌时照常使用。");

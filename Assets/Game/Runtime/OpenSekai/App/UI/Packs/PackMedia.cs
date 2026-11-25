@@ -231,8 +231,8 @@ namespace OpenSekai.App.UI
             }
         }
 
-        /// <summary>Plays the built-in sound of <paramref name="slot"/> in set <paramref name="set"/>; false when the game cannot.</summary>
-        internal bool ToggleBuiltin(string key, int set, string slot)
+        /// <summary>Plays the built-in sound of <paramref name="slot"/>; false when the game cannot.</summary>
+        internal bool ToggleBuiltin(string key, string slot)
         {
             if (PlayingKey == key)
             {
@@ -245,10 +245,8 @@ namespace OpenSekai.App.UI
             if (sound == null || !MaterialPackAudio.HasSlot(slot)) return false;
             try
             {
-                // The live sets the tap-sound set again from its own snapshot when it starts.
-                LiveConfig.SetNoteSeName(Mathf.Clamp(set - 1, 0, 1));
-                sound.LoadSoundBundle("live/tap_se/" + LiveConfig.NoteSeName, false);
-                sound.LoadSoundBundle("live/sound/live_se/default", false);
+                sound.LoadSoundBundle(LiveConfig.BuiltinHitSoundBundle, false);
+                sound.LoadSoundBundle(LiveConfig.LiveCommonSoundBundle, false);
                 _builtinPlayback = sound.PlaySE(MaterialPackAudio.Cue(slot), PreviewVolume());
             }
             catch (Exception e)

@@ -22,7 +22,26 @@ namespace OpenSekai.Tests.PlayMode
     public sealed class MaterialPackPlaybackTests
     {
         [UnityTest]
-        public IEnumerator SelectedHitSoundPackPlaysItsOwnBankWithOppositeBuiltInSetting() => UniTask.ToCoroutine(async () =>
+        public IEnumerator ShippedHitSoundsLoadFromCustom03()
+        {
+            var sound = new SoundManager();
+            bool loaded = false;
+            sound.LoadExternalSoundPack(() => loaded = true);
+            yield return new WaitUntil(() => loaded);
+
+            var cues = sound.GetCueInfos(LiveConfig.BuiltinHitSoundBundle);
+            string[] hits = { "tap", "perfect", "great", "good", "critical", "long", "longCritical",
+                "connect", "connectCritical", "flick", "flickCritical", "trace", "traceCritical" };
+            Assert.That(cues.Select(cue => cue.name), Is.EquivalentTo(hits.Select(hit => MaterialPackAudio.Cue("audio." + hit))));
+            Assert.That(cues.All(cue => cue.length > 0), Is.True);
+            Assert.That(sound.IsLoadedSoundBundle(LiveConfig.LiveCommonSoundBundle), Is.True);
+            Assert.That(sound.IsLoadedSoundBundle("live/tap_se/custom01"), Is.False);
+            Assert.That(sound.IsLoadedSoundBundle("live/tap_se/custom02"), Is.False);
+            Assert.That(sound.IsLoadedSoundBundle("live/sound/live_se/default"), Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator SelectedHitSoundPackPlaysItsOwnBankOverBuiltInHitSounds() => UniTask.ToCoroutine(async () =>
         {
             string folder = Path.GetFullPath("LocalPacks/upstream-audio/32c91d9");
             var styles = new[] { "custom01", "custom02" };
@@ -31,15 +50,16 @@ namespace OpenSekai.Tests.PlayMode
             string root = Path.Combine(Application.temporaryCachePath, "hit-sounds-" + Guid.NewGuid().ToString("N"));
             var store = new MaterialPackStore(root);
             var previous = UserDataManager.Instance.FreeLiveBootData;
-            string previousSe = LiveConfig.NoteSeName, previousView = LiveConfig.NoteSeViewName;
             var sound = SoundManager.Instance;
             try
             {
+                var loaded = new UniTaskCompletionSource();
+                sound.LoadExternalSoundPack(() => loaded.TrySetResult());
+                await loaded.Task;
+                Assert.That(sound.IsLoadedSoundBundle(LiveConfig.BuiltinHitSoundBundle), Is.True);
                 for (int i = 0; i < styles.Length; i++)
                 {
                     string style = styles[i];
-                    LiveConfig.SetNoteSeName(1 - i);
-                    sound.LoadSoundBundle("live/tap_se/" + LiveConfig.NoteSeName, true);
                     var pack = await store.ImportAsync(Path.Combine(folder, "hit-sounds", style + ".zip"));
                     var group = pack.Groups.Single();
                     var bank = AcbFile.Load(Path.Combine(folder, "source", style + ".acb"));
@@ -75,8 +95,6 @@ namespace OpenSekai.Tests.PlayMode
             finally
             {
                 UserDataManager.Instance.FreeLiveBootData = previous;
-                LiveConfig.NoteSeName = previousSe;
-                LiveConfig.NoteSeViewName = previousView;
                 if (Directory.Exists(root)) Directory.Delete(root, true);
             }
         });

@@ -178,7 +178,7 @@ namespace OpenSekai.App.UI
                 _title.text = _name.text = PackScreen.BUILTIN_BUNDLE_NAME;
                 _subtitle.text = "游戏自带资源";
                 _meta.text = string.Join("、", categories.Select(c => MaterialSlotCatalog.Category(c).Title));
-                _counts.text = categories.Count + " 个可选类别  ·  " + categories.Count * MaterialCategories.BUILTIN_SET_COUNT + " 个资源组";
+                _counts.text = categories.Count + " 个类别  ·  " + categories.Sum(MaterialCategories.BuiltinSetCount) + " 个资源组";
                 _presetName.text = string.Join(" · ", categories.Select(c => MaterialSlotCatalog.BuiltinLabel(c, sets)));
                 _presetText.text = "右侧选用的资源组也用于补全其他整合包和混搭缺少的资源。";
                 bool selected = state.IsPresetMode ? state.Preset.IsBuiltin :
@@ -254,7 +254,7 @@ namespace OpenSekai.App.UI
                 foreach (string category in MaterialCategories.All.Where(MaterialCategories.HasBuiltinSets))
                 {
                     AddCaption(category);
-                    for (int i = 1; i <= MaterialCategories.BUILTIN_SET_COUNT; i++)
+                    for (int i = 1; i <= MaterialCategories.BuiltinSetCount(category); i++)
                     {
                         int set = i;
                         bool selected = sets.Get(category) == set;

@@ -309,7 +309,7 @@ namespace OpenSekai.Infrastructure.Packages
         {
             var builtin = state.Builtin;
             bool mixed = MaterialCategories.All.Any(c => state.Selection(c).Groups.Count > 0 || state.Selection(c).Overrides.Count > 0)
-                || builtin.Notes != builtin.HitFx || builtin.HitFx != builtin.Audio;
+                || builtin.Notes != builtin.HitFx;
             if (mixed) return MaterialPackModes.MIX;
             state.Preset = MaterialPresetChoice.Builtin(builtin.Notes);
             return MaterialPackModes.PRESET;

@@ -49,7 +49,7 @@
 | 旧字段 | 取值 | 对应资源 |
 | --- | --- | --- |
 | `NoteSkinIndex` | 0 / 1 | `live/note/custom01|02` |
-| `NoteSeIndex` | 0 / 1 | `live/tap_se/custom01|02` |
+| `NoteSeIndex` | 历史字段 | 内置打击音统一使用 `live/tap_se/custom03` |
 | `NoteEffect` | 0 / 1 | `effect_asset/live/tap_effect/0|1` |
 
 ### 其余常用字段（无界面入口）
