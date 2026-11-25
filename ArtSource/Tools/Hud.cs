@@ -136,8 +136,8 @@ namespace ArtV2
                 Seat(c, text.Field, 4.5f, 0.6f, 1.5f);
                 c.Glow(text.Field, 5f, prism ? 0.22f : 0.14f, 1f, accent);
                 float top = s.PivotY - cap * 0.5f;
-                if (prism) text.Fill(c, PrismRun(top, cap));
-                else text.Fill(c, Theme.Vertical(top, Theme.Light(accent, 0.42f), top + cap, accent));
+                Paint face = prism ? PrismRun(top, cap) : Theme.Vertical(top, Theme.Light(accent, 0.42f), top + cap, accent);
+                text.Fill(c, (x, y) => Theme.Light(face(x, y), 0.26f));
             }
         }
 
@@ -162,7 +162,7 @@ namespace ArtV2
             float middle = top + height * 0.5f;
             Sdf pill = Shape.Pill(3f, top, s.W - 6f, height);
             Chip(c, pill, 0.32f, accent);
-            Ink ink = Theme.Light(accent, 0.45f);
+            Ink ink = Theme.Light(accent, 0.60f);
             using (GraphicsPath path = Type.Centered(word, cap, 5f, s.W * 0.5f + 10f, middle))
                 new Lettering(path, Whole(s), 8, 0f).Fill(c, ink);
             float x = s.W * 0.5f - Type.Width(word, cap, 5f) * 0.5f - 8f;
@@ -340,15 +340,18 @@ namespace ArtV2
 
         private static void Gauge(Canvas c, Slot s, bool life)
         {
-            const float top = 28f, height = 46f;
-            Sdf pill = Shape.Pill(2f, top, s.W - 4f, height);
+            const float top = 28f, height = 46f, stroke = 2.2f;
+            const float starRadiusX = 4.5f, starRadiusY = 6.3f;
+            // Leave room for the outward point where the star crosses the exposed end of the rim.
+            float left = life ? starRadiusX : 2f, right = s.W - (life ? 2f : starRadiusX);
+            Sdf pill = Shape.Pill(left, top, right - left, height);
             Seat(c, pill, 2.6f, 0.55f, 1f);
             // The seat ends inside the texture: the score panel is tiled a pixel taller than it, so whatever is in the
             // last row shows again as a line above the panel.
             c.Mask((px, py) => M.Smooth(0.5f, 5f, s.H - py) * M.Smooth(0f, 2.4f, life ? px : s.W - px));
-            Panel(c, pill, top, height, 2.2f, Ink.Mix(Theme.Ground, Theme.HudBlue, 0.95f), Ink.Mix(Theme.Ground, Theme.HudBlue, 0.45f));
-            // The judge line's mark, between the open end and what stands in the panel.
-            c.Fill(Shape.Diamond(life ? 9.5f : s.W - 9.5f, top + height * 0.5f, 3.2f, 4.6f, 0.5f), Theme.White);
+            Panel(c, pill, top, height, stroke, Ink.Mix(Theme.Ground, Theme.HudBlue, 0.95f), Ink.Mix(Theme.Ground, Theme.HudBlue, 0.45f));
+            float starX = life ? left + stroke * 0.5f : right - stroke * 0.5f;
+            c.Fill(Shape.Star4(starX, top + height * 0.5f, starRadiusX, starRadiusY, 1.16f, 0f), Theme.White);
 
             // The eyebrow: a diamond in the part's colour and the name, inside the border that does not stretch.
             Ink accent = life ? Theme.Success : Theme.Periwinkle;
@@ -454,7 +457,7 @@ namespace ArtV2
                 float center = LaneX + (2f * index / (count - 1f) - 1f) * half;
                 float cover = c.Line(x - center, outer ? 4.2f : 1.9f);
                 if (cover <= 0f) return default(Ink);
-                Ink ink = outer ? Theme.Light(Theme.Periwinkle, 0.1f) : Theme.Light(Theme.Violet, 0.62f);
+                Ink ink = outer ? Theme.LaneEdge : Theme.Light(Theme.Violet, 0.62f);
                 float strength = outer ? M.Lerp(0.3f, 0.86f, M.Smooth(0.05f, 0.72f, depth)) : M.Lerp(0.16f, 0.3f, depth);
                 return ink.Fade(cover * fade * strength);
             });
@@ -599,15 +602,16 @@ namespace ArtV2
             float top = outer[0].Y, height = outer[2].Y - top;
             if (mirror) { top += height; height = -height; }
 
-            // The cover shadow, then the rank card's face and edge.
+            // Keep a readable rim around the darker, muted jacket panel.
+            Paint face = Theme.HudCard(top, height);
             if (!mirror) c.Glow(Shape.Move(card, 0f, 4f), 14f, 0.34f, 1f, Theme.Black);
-            c.Fill(card, Theme.HudCard(top, height));
-            c.Stroke(card, 2.4f, Theme.HudEdge(top, height), -1f);
+            c.Fill(card, (x, y) => JacketInk(face(x, y), 0.65f));
+            c.Stroke(card, 2.4f, Theme.LaneEdge, -1f);
 
             // The rank card's line in the header: a white diamond between two fading lines.
             PointF a = corners[mirror ? 2 : 0], b = corners[mirror ? 3 : 1];
             float cx = (a.X + b.X) * 0.5f, cy = (a.Y + b.Y) * 0.5f + (mirror ? 0.5f : -0.5f) * header;
-            Ink ink = Theme.Light(Theme.Periwinkle, 0.4f);
+            Ink ink = JacketInk(Theme.Light(Theme.Periwinkle, 0.4f), 0.65f);
             c.Pixels(delegate(float x, float y)
             {
                 float d = Math.Abs(x - cx);
@@ -615,7 +619,14 @@ namespace ArtV2
                 return ink.Fade(c.Line(y - cy, 1.4f) * 0.7f * M.Pow(1f - (d - 13f) / 79f, 1.2f));
             });
             foreach (float offset in new[] { -26f, 26f }) c.Fill(Shape.Diamond(cx + offset, cy, 3f, 3f, 0.3f), ink.Fade(0.8f));
-            c.Fill(Shape.Diamond(cx, cy, 6.5f, 6.5f, 0.6f), Theme.White);
+            c.Fill(Shape.Diamond(cx, cy, 6.5f, 6.5f, 0.6f), JacketInk(Theme.White, 0.65f));
+        }
+
+        private static Ink JacketInk(Ink ink, float brightness)
+        {
+            float grey = 0.2126f * ink.R + 0.7152f * ink.G + 0.0722f * ink.B;
+            Ink muted = Ink.Mix(ink, new Ink(grey, grey, grey, ink.A), 0.25f);
+            return new Ink(muted.R * brightness, muted.G * brightness, muted.B * brightness, ink.A);
         }
 
         // ------------------------------------------------------------------------------------ screen effects

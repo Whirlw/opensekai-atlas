@@ -4,7 +4,7 @@ using System.Drawing;
 using System.IO;
 
 // The note skins. Both have a pale face that runs from one hue to another, the full run at
-// both ends, and a side below the face. Notes carries its marks on wide ends, NotesV2 on the face beside thin ones; the
+// both ends, and a side below the face. Notes carries its marks on the inset face, NotesV2 on the wide ends; the
 // arrows, the nodes and the lines are the same for both. Where things sit comes from docs/operations/notes-atlas-spec.md.
 namespace ArtV2
 {
@@ -49,10 +49,10 @@ namespace ArtV2
             }
         }
 
-        /// <summary>One skin: Notes, or NotesV2 when <paramref name="second"/>.</summary>
-        public static IEnumerable<Asset> All(string data, bool second)
+        /// <summary>Draws a skin with inset or banded note bodies.</summary>
+        public static IEnumerable<Asset> All(string data, bool inset)
         {
-            yield return new Asset("notes.png", 354, 1316, 4, false, c => Atlas(c, second));
+            yield return new Asset("notes.png", 354, 1316, 4, false, c => Atlas(c, inset));
             yield return new Asset("longNoteLine.png", 306, 16, 1, false, LongLine);
             yield return new Asset("traceLine_eff.png", 306, 224, 1, false, TraceLine);
             yield return new Asset("simultaneousLine.png", 10, 40, 4, false, Simultaneous);
@@ -63,7 +63,7 @@ namespace ArtV2
             yield return new Asset("notes_friction_among_crtcl.png", 104, 112, 4, false, c => Node(c, true, Make(0)));
             const int frictionRow = 4;
             Note damage = Make(frictionRow, damage: true);
-            yield return new Asset("notes_damage.png", 354, 1316, 4, false, c => DrawCell(c, frictionRow, damage, second));
+            yield return new Asset("notes_damage.png", 354, 1316, 4, false, c => DrawCell(c, frictionRow, damage, inset));
             yield return new Asset("notes_damage_friction.png", 104, 112, 4, false, c => Node(c, true, damage));
             foreach (KeyValuePair<string, Arrow> pair in Arrow.Load(Path.Combine(data, "flick-arrows.csv")))
                 foreach (bool critical in new[] { false, true })
@@ -81,19 +81,19 @@ namespace ArtV2
         // trace (slim). The body runs from x 55 to 299, the parts that must not stretch stay inside the 100 px
         // borders, and everything between 100 and 254 is the same at every x. A wide body covers rows 50..133 and a
         // slim one 72..116, which is where the judge line is. The side below the face is part of the body.
-        private static void Atlas(Canvas canvas, bool second)
+        private static void Atlas(Canvas canvas, bool inset)
         {
             for (int row = 0; row < 7; row++)
             {
-                DrawCell(canvas, row, Make(row), second);
+                DrawCell(canvas, row, Make(row), inset);
             }
         }
 
-        private static void DrawCell(Canvas canvas, int row, Note note, bool second)
+        private static void DrawCell(Canvas canvas, int row, Note note, bool inset)
         {
             // Rows 0 and 187 stay clear so adjacent cells do not bleed into each other.
             Canvas cell = canvas.View(0f, row * 188f, 354f, 188f).View(0f, 1f, 354f, 186f).Shift(0f, -1f);
-            if (second) Inset(cell, note);
+            if (inset) Inset(cell, note);
             else Banded(cell, note);
         }
 
@@ -192,7 +192,7 @@ namespace ArtV2
             }
         }
 
-        // ------------------------------------------------------------------------------------ the first skin
+        // ------------------------------------------------------------------------------------ banded notes
         // Wide ends that carry the marks, a white rim around the face.
         private static void Banded(Canvas c, Note n)
         {
@@ -211,7 +211,7 @@ namespace ArtV2
             Marks(c, n, n.Slim ? 17f : 20f, n.Slim ? 0.96f : 1f, n.Slim ? n.Line : Theme.White);
         }
 
-        // ------------------------------------------------------------------------------------ the second skin
+        // ------------------------------------------------------------------------------------ inset notes
         // A frame around an inset plate: thin ends with a bar, the marks on the plate.
         private static void Inset(Canvas c, Note n)
         {
@@ -338,6 +338,7 @@ namespace ArtV2
         private static void FlickArrow(Canvas c, Arrow arrow, Note n)
         {
             const float depth = 6f;
+            Ink top = Theme.Light(n.From, 0.22f), bottom = Theme.Light(n.To, 0.22f);
             Sdf face = Shape.Polygon(arrow.Face, 8f), body = Dragged(face, depth);
             float start = arrow.Height * 0.3f, lean = arrow.Diagonal ? 0.58f : 0f;
 
@@ -348,12 +349,12 @@ namespace ArtV2
                 float d = Shape.PolygonDistance(sweep, x, y);
                 if (y <= start || d > 1f) return default(Ink);
                 float t = (y - start) / (arrow.Height - start);
-                return Theme.Light(n.To, 0.3f * (1f - t)).Fade(M.Smooth(0f, 18f, -d) * M.Pow(1f - t, 1.5f) * 0.62f);
+                return Theme.Light(bottom, 0.3f * (1f - t)).Fade(M.Smooth(0f, 18f, -d) * M.Pow(1f - t, 1.5f) * 0.62f);
             });
 
-            Paint run = Theme.Vertical(31f, n.From, arrow.Bottom - 4f, n.To);
+            Paint run = Theme.Vertical(31f, top, arrow.Bottom - 4f, bottom);
             c.Glow(body, 8.5f, 0.42f, 1f, Light(n, run));
-            c.Fill(body, Theme.Vertical(27f, n.To, arrow.Bottom + depth, Shade(n)));
+            c.Fill(body, Theme.Vertical(27f, bottom, arrow.Bottom + depth, Theme.Light(Shade(n), 0.14f)));
             c.Fill(face, run);
             c.Stroke(face, 6f, Theme.Light(n.Accent, 0.92f), -1f);
         }

@@ -8,7 +8,7 @@ NextRUSH 的 Damage 键身和节点沿用 Friction 的轮廓，使用紫色配�
 
 [更多打歌画面](Preview/live-more.jpg) · [收尾演出](Preview/result.jpg)（示例工作区里拍的，曲目和封面都是虚构的）
 
-打歌画面里的音符是换新之前的样子。现在的两套音符：[轨道模拟](Preview/notes-stage.png)（上 `Notes`，下 `NotesV2`，离线按音符着色器的公式摆放）· [平铺](Preview/notes-sheet.png) · [箭头和连接点](Preview/notes-parts.png)
+打歌画面里的音符是换新之前的样子。现在的两套音符：[轨道模拟](Preview/notes-stage.png)（上为宽端帽的 `NotesV2`，下为内嵌板面的 `Notes`，离线按音符着色器的公式摆放）· [平铺](Preview/notes-sheet.png) · [箭头和连接点](Preview/notes-parts.png)
 
 `SampleCovers` 存放截图和宣传片使用的 22 张虚构曲目封面。从项目根目录运行 `node ArtSource/Tools/SampleCovers/render_covers.js` 可用 Edge 重画封面，命令末尾加曲目 ID 可只画一张。
 
@@ -61,7 +61,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File Tools/import-all-art.ps1
 | 车道、判定线 | 消失点 y 5.46、判定 y −2.96、12 道 × 1.19，写在 `Hud.cs` |
 | `lane_mask` 的上下渐隐 | `data/lane-mask-profile.csv`，逐行照搬，只有左右边按车道重画 |
 | 封面和倒影的四边形 | 第一套的手工坐标，写在 `Hud.cs` 的 `Plane` |
-| 封面后面的卡片 `bg_2dmode_window_*` | 从 `Background2DView` 里封面遮罩的位置往外留边：两侧和近地面的一边 21 px，带菱形的一边 48 px |
+| 封面后面的卡片 `bg_2dmode_window_*` | 从 `Background2DView` 里封面遮罩的位置往外留边：两侧和近地面的一边 21 px，带菱形的一边 48 px。正面和倒影的板面使用 `JacketInk` 调成暗蓝灰色，描边与轨道外侧边线共用 `Theme.LaneEdge` |
 | 评级牌 `ui_scorerank_plate` | 只画评级牌。贴图最上面 52 行在屏幕外，左、右、下各留约 24 px 透明边 |
 | 分数面板 `bg_scoreGauge` | 整条圆角面板由 `FrontUIView` 的 ScoreBase 绘制。面板向左延长 32 个 HUD 像素，左端叠在评级牌后面。右端保持原位，SCORE 标签及阴影位于左侧固定切片内 |
 | 打击特效的格子 | 第一套的切片表，配色按打击特效预制体实际播放的格子分配 |
@@ -85,10 +85,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File Tools/import-all-art.ps1
 | 品牌渐变，收在 S 的金色 | 分数条（蓝 → 紫 → 粉 → 金） |
 | 眉题和大数字（Barlow Condensed） | SCORE / LIFE / RANK、分数、连击、倒计时、判定字、收尾横幅 |
 | 判定色 | GREAT `#FF8CBA`、GOOD `#7AB6FF`、BAD `#7BD88F`、MISS `#9AA6B5` |
-| ALL PERFECT 棱镜（`#FF92D6` → `#BA9EFF` → `#70E0FF`） | PERFECT 判定字（和 AP 连击数字同一条竖向渐变）、AP 连击、ALL PERFECT 横幅和光带 |
+| ALL PERFECT 棱镜（`#FF92D6` → `#BA9EFF` → `#70E0FF`） | PERFECT 判定字（沿用 AP 连击数字的竖向渐变，字面进一步提亮）、AP 连击、ALL PERFECT 横幅和光带 |
 | 深色底加一团光 | `default.png`、`bg_sekai.png` |
 
-收尾横幅的字，除 ALL PERFECT 外色相沿用第一套，不取界面的颜色：FULL COMBO `#FF73B3` → `#AE81FF`，LIVE CLEAR `#FFCC46` → `#FFCAA0`，LIVE FINISH `#65CAFF` → `#AE81FF`，LIVE FAILED `#A5B1C8`。深浅按这一版：上浅下深，字脚是原色，不像第一套那样提到接近白色。字母光（`tex_*_flare`）叠在字上，跟着字的颜色走；LIVE CLEAR 的字光接近白色，因为金字叠金光会偏成柠檬黄。
+收尾横幅的字，除 ALL PERFECT 外色相沿用第一套，不取界面的颜色：FULL COMBO `#FF73B3` → `#AE81FF`，LIVE CLEAR `#FFCC46` → `#FFCAA0`，LIVE FINISH `#65CAFF` → `#AE81FF`，LIVE FAILED `#A5B1C8`。深浅按这一版：字面整体提亮，上浅下深，字脚保留较浓的色相。字母光（`tex_*_flare`）叠在字上，跟着字的颜色走；LIVE CLEAR 的字光接近白色，因为金字叠金光会偏成柠檬黄。
 
 音符用圆角 19 / 13 而不是满圆角的药丸：音符着色器会把两端顺着车道拉斜，满圆角拉斜后成了叶片形。
 
@@ -97,7 +97,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File Tools/import-all-art.ps1
 ## 改的时候
 
 - 颜色先在 `Theme.cs` 里加，再用。
-- 两套音符本体各格的最低平均明度记录在 `Tools/verify.ps1`。箭头保持简单，不加中线、端帽、嵌板；箭头面不要用浅板面，太亮。
+- 两套音符本体各格的最低平均明度记录在 `Tools/verify.ps1`。箭头保持简单，不加中线、端帽、嵌板；普通箭头提亮粉色渐变，关键箭头提亮金色渐变，侧面略暗以勾出轮廓。
 - `notes.png` 里随横向变化的内容都要在离端点 45 px 以内结束（`Reach`），再往里会被拉伸，斜条和中线的端点会折弯。
 - HUD 面板靠亮描边和背景分开（对比至少 4），面要保持颜色（饱和度至少 0.5）：深色半透明的面看不出边界，提亮的灰蓝面会发灰，都试过。面用 `Theme.HudBlue` / `HudViolet`，整张的牌和卡片用 `Theme.HudCard`，描边用 `Theme.HudEdge`，槽用 `Theme.HudWell`。
 - 大面积深色渐变把 `Asset` 的 `dither` 设为 `true`；导入时也要关掉压缩，否则手机上会出色带。

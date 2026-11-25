@@ -349,7 +349,15 @@ foreach ($n in @('bg_scoreGauge', 138, 34, 28, 72), @('bg_lifeGauge', 139, 34, 2
     $q = Pic $(if ($n[0] -eq 'ui_scorerank_plate') { 'Backgrounds' } else { 'HUD' }) "$($n[0]).png"
     $edge = [Math]::Min((Contrast ($q.Luminance($n[1], $n[3], 2, 2, $stage)) $stage), (Contrast ($q.Luminance($n[1], $n[4], 2, 2, $stage)) $stage))
     $colour = $q.Saturation($n[1], $n[2])
-    Check "$($n[0]) stands clear of the stage" ($edge -ge 4 -and $colour -ge 0.5) ('edge {0:N2}, saturation {1:N2}' -f $edge, $colour)
+    Check "$($n[0]) stands clear of the stage" ($edge -ge 4) ('edge {0:N2}' -f $edge)
+    if ($n[0] -ne 'bg_2dmode_window_nml') {
+        Check "$($n[0]) keeps its HUD colour" ($colour -ge 0.5) ('saturation {0:N2}' -f $colour)
+    }
+}
+foreach ($name in 'bg_2dmode_window_nml', 'bg_2dmode_window_mirror') {
+    $card = Pic 'HUD' "$name.png"
+    $colour = $card.Saturation(300, 400)
+    Check "$name keeps its muted tint" ($colour -gt 0 -and $colour -lt 0.5) ('saturation {0:N2}' -f $colour)
 }
 # The rank card and the score panel each have their own silhouette.
 $p = Pic 'Backgrounds' 'ui_scorerank_plate.png'; $q = Pic 'HUD' 'bg_scoreGauge.png'

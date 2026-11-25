@@ -81,8 +81,8 @@ namespace ArtV2
         {
             switch (group)
             {
-                case "Notes": return Notes.All(data, false);
-                case "NotesV2": return Notes.All(data, true);
+                case "Notes": return Notes.All(data, inset: true);
+                case "NotesV2": return Notes.All(data, inset: false);
                 case "HUD": return Hud.All(data);
                 case "Effects": return Effects.All(data);
                 case "Backgrounds": return Backgrounds.All(data);

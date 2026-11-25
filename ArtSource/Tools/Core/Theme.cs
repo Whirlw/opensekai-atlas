@@ -27,6 +27,9 @@ namespace ArtV2
         public static readonly Ink Gold = Ink.Rgb(255, 198, 112);
         public static readonly Ink DefaultAccent = Ink.Rgb(157, 184, 255);
 
+        // Shared by the two outer lane rails and the jacket window outlines.
+        public static readonly Ink LaneEdge = Light(Periwinkle, 0.1f);
+
         // Ranking tiers and judgements that the play field needs too.
         public static readonly Ink Teal = Ink.Rgb(110, 214, 192);
         public static readonly Ink Stardust = Ink.Rgb(150, 163, 186);

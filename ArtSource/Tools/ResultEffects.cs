@@ -180,9 +180,9 @@ namespace ArtV2
         {
             float left = (width - b.Width) * 0.5f, middle = height * 0.5f;
             Paint run = Theme.Horizontal(left + 60f, left + b.Width - 60f, b.Stops);
-            if (b.Glow == null) return run;
-            // Paler at the top, the hue itself at the foot.
-            return (x, y) => Theme.Light(run(x, y), 0.5f * M.Unit((middle + 72f - y) / 144f));
+            // The prism keeps its horizontal run. The other banners also catch light along the top.
+            if (b.Glow == null) return (x, y) => Theme.Light(run(x, y), 0.24f);
+            return (x, y) => Theme.Light(run(x, y), M.Lerp(0.24f, 0.62f, M.Unit((middle + 72f - y) / 144f)));
         }
 
         // The first set goes from one colour to the other through near white, so the hue leaves the first only past the
