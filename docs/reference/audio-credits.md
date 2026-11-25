@@ -12,25 +12,25 @@
 - `CC BY` / `CC BY-SA` = **必须**在游戏内致谢处署名，并在本表写全：标题、作者、URL、授权版本、改动说明。
 - 发布前本表不允许出现 `待定`。
 
-custom03 的日期为原件登记日期。作者提供了制作方式，未单独说明授权条款。
+custom03 的日期为原件登记日期。作者于 2026-11-25 主动将这 13 个 WAV 原件及其随包发行的 PCM16 版本以 [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/) 公开。
 
 ## 清单
 
 | bundle | cue | 来源 | 作者 | 授权 | URL | 取得日期 | 改动 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| live/tap_se/custom03 | se_live_connect | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | 未提供 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
-| live/tap_se/custom03 | se_live_connect_critical | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | 未提供 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
-| live/tap_se/custom03 | se_live_critical | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | 未提供 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
-| live/tap_se/custom03 | se_live_flick | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | 未提供 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
-| live/tap_se/custom03 | se_live_flick_critical | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | 未提供 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
-| live/tap_se/custom03 | se_live_good | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | 未提供 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
-| live/tap_se/custom03 | se_live_great | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | 未提供 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
-| live/tap_se/custom03 | se_live_long | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | 未提供 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
-| live/tap_se/custom03 | se_live_long_critical | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | 未提供 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
-| live/tap_se/custom03 | se_live_perfect | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | 未提供 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
-| live/tap_se/custom03 | se_live_tap | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | 未提供 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
-| live/tap_se/custom03 | se_live_trace | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | 未提供 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
-| live/tap_se/custom03 | se_live_trace_critical | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | 未提供 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
+| live/tap_se/custom03 | se_live_connect | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | CC0-1.0 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
+| live/tap_se/custom03 | se_live_connect_critical | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | CC0-1.0 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
+| live/tap_se/custom03 | se_live_critical | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | CC0-1.0 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
+| live/tap_se/custom03 | se_live_flick | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | CC0-1.0 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
+| live/tap_se/custom03 | se_live_flick_critical | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | CC0-1.0 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
+| live/tap_se/custom03 | se_live_good | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | CC0-1.0 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
+| live/tap_se/custom03 | se_live_great | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | CC0-1.0 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
+| live/tap_se/custom03 | se_live_long | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | CC0-1.0 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
+| live/tap_se/custom03 | se_live_long_critical | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | CC0-1.0 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
+| live/tap_se/custom03 | se_live_perfect | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | CC0-1.0 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
+| live/tap_se/custom03 | se_live_tap | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | CC0-1.0 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
+| live/tap_se/custom03 | se_live_trace | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | CC0-1.0 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
+| live/tap_se/custom03 | se_live_trace_critical | AI 生成后由作者手动编辑 | OpenSekai 音效贡献者 | CC0-1.0 | — | 2026-11-25 | 按同名参考音效匹配响度，导出 PCM16 |
 | live/sound/live_se/common | SE_LIVE_COUNT_DOWN | CC0 Freesound: hat-2 (876729) + 自制 | cat-fox_alex; OpenSekai procedural audio pack | CC0-1.0 | https://freesound.org/s/876729/ | 2026-11-15 | Single A5 bell beep over filtered hat; 0.22 s |
 | live/sound/live_se/common | se_live_clear | CC0 Freesound: hat-2 (876729) + 36-bar sweep ascend 01 (874685) + 自制 | cat-fox_alex, loganzsound; OpenSekai procedural audio pack | CC0-1.0 | https://freesound.org/s/876729/ https://freesound.org/s/874685/ | 2026-11-15 | Original A-major bell arpeggio + excerpted chime sweep, stereo reverb; no melodic quotation |
 | live/sound/live_se/common | se_live_full_combo | CC0 Freesound: hat-2 (876729) + 36-bar sweep ascend 01 (874685) + 自制 | cat-fox_alex, loganzsound; OpenSekai procedural audio pack | CC0-1.0 | https://freesound.org/s/876729/ https://freesound.org/s/874685/ | 2026-11-15 | Longer original A-major bell arpeggio and chord + excerpted chime sweep, stereo reverb; no melodic quotation |
