@@ -161,6 +161,44 @@ namespace OpenSekai.App.UI
             _silent = false;
         }
 
+        internal bool CaptureCrestsReady => _ranking == null ||
+            (CrestReady(_ranking.Before.TierId) && CrestReady(_ranking.After.TierId));
+
+        private static bool CrestReady(int tier) =>
+            !RankingCrestArt.HasCrest(tier) || RankingCrests.TryGet(tier, BADGE_SIZE, out _);
+
+        internal void PrepareCapture()
+        {
+            // The first opening can measure labels before TMP has populated the canvas at its final scale.
+            Seek(_end);
+            Canvas.ForceUpdateCanvases();
+            Bind(_current);
+            BindRanking();
+            BindUnlocks();
+            ApplyAccent();
+            Seek(0f);
+        }
+
+        internal void SeekCapture(float time)
+        {
+            Seek(time);
+            if (_ranking != null)
+            {
+                _badge.Advance(1f);
+                _badge.Tick(time);
+                _badge.Root.GetComponent<RankingBadgeClock>().enabled = false;
+            }
+            // TMP normally rescales its distance fields incrementally. Rebuild at the actual scale
+            // so seeking directly and stepping through a tag's spring produce identical glyphs.
+            Canvas.ForceUpdateCanvases();
+            foreach (TMP_Text label in GetComponentsInChildren<TMP_Text>()) label.ForceMeshUpdate();
+        }
+
+        internal void ResumeCaptureBadge()
+        {
+            if (_ranking != null) _badge.Root.GetComponent<RankingBadgeClock>().Wake();
+        }
+
         /// <summary>The Android back key: closes the page the way its back button does.</summary>
         internal void Dismiss()
         {

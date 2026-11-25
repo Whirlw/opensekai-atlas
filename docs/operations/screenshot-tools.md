@@ -3,7 +3,7 @@
 > 目的：不上真机，直接把打歌画面、曲目信息页、曲库、设置页、结算页渲染成 PNG，用来快速检查素材改动（音符皮肤、HUD、判定特效、界面）。
 > 适用读者：美术、改界面/素材的开发者、写回归的测试者。
 > 前置条件：工程能在 Unity 6000.6.7f1 里打开且无编译错误；用户数据目录里至少装有一首曲包（或用 `Tools/fixtures/` 里的样例）。
-> 最后更新：2026-11-24
+> 最后更新：2026-11-25
 
 ## 概述
 
@@ -71,6 +71,28 @@
 
 退出码：全部成功 `0`，否则 `1`（失败原因打印在末尾，也写在 `report.json`）。
 
+### 导出 AE / Premiere 可导入的 PNG 序列
+
+在工程根目录运行，下面的命令会导出七次独立的评级升级、一次「三曲耐久」授牌和一次「全连达人」解锁：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Tools/capture-screens.ps1 -Clip tier-upgrade,dan-award,achievement-unlock -Width 3840 -Height 2160 -Fps 60 -TimeoutSec 3600
+```
+
+`-Intro`、`-Live`、`-Info`、`-Finish`、`-ResultAt` 都接受秒数区间，可以用逗号混排单帧和多段区间。在 PowerShell 里直接调用脚本时，给区间列表加引号，例如 `./Tools/capture-screens.ps1 -Intro '0..3.1,1.0' -Result ap -ResultAt '0..3.4'`。打歌、信息页和收尾仍需 `-Package`。区间内的打歌时间必须位于谱面的可播放范围内。
+
+| `-Clip` 名称 | 默认秒数 | 输出 |
+| --- | --- | --- |
+| `tier-upgrade` | −0.5 至 1.5 | 七档各一段，0 秒切换徽章 |
+| `dan-award` | 0 至 4 | 「三曲耐久」授牌；`-Clean` 隐藏下方说明和按钮 |
+| `achievement-unlock` | 0 至 2.6 | 临时样例档案中 FC-01 所在行的解锁动画 |
+| `achievement-card` | 0 至 4.6 | 单项和三项合并提示卡，各一段 |
+| `special-medals` | 0 至 4 | 11 块特殊奖牌的待机画廊 |
+
+例如 `-Clip 'tier-upgrade:-0.28..0.6'` 只导出蓄力到收住这一段。`-Alpha` 对评级升级、提示卡和特殊奖牌输出透明 RGBA，默认底色为 `#0C0F14`。剪辑软件选择某段文件夹的第一张 PNG，勾选「图像序列」，按导出帧率解释素材即可。
+
+每段独占一个文件夹。例如 `intro_0.000-3.100/intro_0.000-3.100_00000.png` 在 60 fps 下共 186 张，末帧编号 00185。第 i 帧位于 `from + i / fps` 秒，总帧数按 `round((to - from) × fps)` 取整，终点不入片。每段在 `report.json` 中占一条，包含帧数、帧率、起止秒数和用时。失败条目给出已写帧数。再次使用同一目录时，新序列文件夹会追加 `-2`、`-3` 等后缀，保留上次的 PNG。脚本启动前打印总帧数，长时间 4K 导出可用 `-TimeoutSec` 延长等待。
+
 ### 四类时间分别从哪算
 
 | 类型 | 时间的含义 | 注意 |
@@ -117,6 +139,8 @@
     { "kind": "library" },
     { "kind": "settings" },
     { "kind": "settings-trace" },
+    { "kind": "intro", "from": 0, "to": 3.1, "fps": 60 },
+    { "kind": "clip", "name": "tier-upgrade", "from": -0.5, "to": 1.5, "alpha": true },
     { "kind": "result", "name": "result-fc",
       "result": { "kind": "Completed", "score": 1112806, "rank": "S", "maxCombo": 1250,
                   "totalCombo": 1250, "perfect": 1206, "great": 44, "good": 0, "bad": 0, "miss": 0 } },
@@ -140,13 +164,15 @@
 
 | 字段 | 适用 | 含义 | 默认 |
 | --- | --- | --- | --- |
-| `kind` | 全部 | `live` / `info` / `finish` / `library` / `settings` / `settings-trace` / `result` / `actions` / `loading` / `return` / `home` / `intro` / `handoff` / `about` / `achievements` / `medals` / `ranking` / `sample` / `library-states` | — |
-| `name` | 全部 | 文件名前缀 | 等于 `kind` |
+| `kind` | 全部 | `clip` / `live` / `info` / `finish` / `library` / `settings` / `settings-trace` / `result` / `actions` / `loading` / `return` / `home` / `intro` / `handoff` / `about` / `achievements` / `medals` / `ranking` / `sample` / `library-states` | — |
+| `name` | 全部 | `kind: "clip"` 时填上表中的动画名；其余类型为文件名前缀 | 等于 `kind` |
 | `package` | live / info / finish | 曲包（匹配规则同 `-Package`） | — |
 | `difficulty` | live / info / finish | 难度覆盖 | 曲包自带 |
 | `times` | live / info / finish | 时间列表（秒），会按升序拍，同一局里连续拍 | live `30`、info `1.5`、finish `2` |
 | `lead` | live | 目标前按 `fps` 逐帧播放的秒数 | `1.5` |
-| `fps` | live / info / finish | 模拟帧率（10～240） | `60` |
+| `from` / `to` | 五种按时间拍摄的类型、clip | 有 `to` 时忽略 `times`，`from` 默认 0；clip 省略区间时使用上表默认值 | 秒 |
+| `fps` | 所有序列、live / info / finish 单帧 | 序列帧率 1～240；单帧打歌步进 10～240 | `60` |
+| `alpha` / `clean` | clip | 分别对应 `-Alpha` 和 `-Clean` | `false` |
 | `fakePerfect` | live / finish | 自动游玩显示为 PERFECT + 连击 | `true` |
 | `finishAnimation` | finish | `allperfect` / `fullcombo` / `clear` / `finish` / `none` | `allperfect` |
 | `result` | result | 结算样例，见下表 | 见下表 |
@@ -306,7 +332,8 @@ powershell -File Tools/capture-screens.ps1 -All -Package DEINOS -Difficulty expe
 ## 已知限制
 
 - **部分像素可能有渲染差异**：少数着色器按游戏累计时间（`_Time`）闪烁。以 `baseline_tap` 重拍时，差异出现在部分信息页文字的字形边缘和打歌画面的轨道边线。
-- **信息页要求编辑器至少约 18 fps 真实帧率**：打歌控制器给信息页留的最长真实等待是 10 s，信息页按帧推进要约 2.9 s × 60 帧；编辑器太慢时打歌会提前开始，`report.json` 的 `note` 会提示「HUD 可能正在淡入」。
+- **4K 评级徽章**：纹章以较高密度生成。星尘底面、六边形光环和闪白沿用游戏的 320 像素源图，原尺寸查看时边缘会比纹章柔和。
+- **信息页**：序列用模拟时间计算页面等待上限，4K 编码耗时不会提前结束页面。旧单帧模式仍按真实时间等待，编辑器低于约 18 fps 时可能提前开打，报告会标注。
 - **短谱**：时间超过最后一个音符就拍不到打歌画面（例如 Test3 约 22 s 就判完了），报错会写出判完的时刻，改用 `finish`。
 - **运行中重新编译会中断**：脚本重编译会让 Unity 退出 Play 模式，本次运行记为失败（`status.json` 里写明），不会一直占着。
 - **难度只改显示**：每个曲包只有一张谱，`difficulty` 只改难度标签和配色，不换谱面。

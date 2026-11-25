@@ -54,6 +54,8 @@ namespace OpenSekai.EditorTools.Screenshots
             UnityEngine.Object.DontDestroyOnLoad(host);
             var runner = host.AddComponent<UnityEngine.EventSystems.EventTrigger>();
             var driver = new ScreenshotDriver { _request = request, _onDone = onDone, _host = host };
+            _active = driver;
+            driver._previousDelta = Time.captureDeltaTime;
             PlayerLoopHelper.AddAction(PlayerLoopTiming.LastPreLateUpdate, driver);
             runner.StartCoroutine(driver.Run());
         }
@@ -66,13 +68,28 @@ namespace OpenSekai.EditorTools.Screenshots
             Log("output " + _request.outDir + " at " + _request.width + "x" + _request.height);
 
             yield return WaitForLibrary();
-            int index = 0;
             foreach (Shot shot in _request.shots)
             {
-                index++;
+                if (shot == null)
+                {
+                    Fail(new Shot(), "Empty shot in request.");
+                    continue;
+                }
+                try
+                {
+                    if (shot.to.HasValue || string.Equals(shot.kind, "clip", StringComparison.OrdinalIgnoreCase))
+                        shot.kind = shot.kind?.ToLowerInvariant();
+                    shot.PrepareSequence();
+                }
+                catch (Exception error)
+                {
+                    Fail(shot, error.Message);
+                    continue;
+                }
                 IEnumerator body;
                 switch ((shot.kind ?? string.Empty).ToLowerInvariant())
                 {
+                    case "clip": body = ClipShot(shot); break;
                     case "live": body = LiveShot(shot, false); break;
                     case "info": body = LiveShot(shot, true); break;
                     case "finish": body = FinishShot(shot); break;
@@ -101,11 +118,20 @@ namespace OpenSekai.EditorTools.Screenshots
                         Fail(shot, "unknown kind '" + shot.kind + "'");
                         continue;
                 }
-                yield return Guard(body, shot);
+                yield return Guard(WithSequence(shot, body), shot);
             }
 
-            Time.captureDeltaTime = 0f;
+            _active = null;
+            Time.captureDeltaTime = _previousDelta;
             AudioListener.volume = _previousVolume;
+            RunReport report = SaveReport();
+            Log("done: " + _reports.Count(r => r.ok) + " ok, " + _reports.Count(r => !r.ok) + " failed");
+            _onDone?.Invoke(report);
+            UnityEngine.Object.Destroy(_host);
+        }
+
+        private RunReport SaveReport()
+        {
             var report = new RunReport
             {
                 outDir = _request.outDir,
@@ -116,15 +142,13 @@ namespace OpenSekai.EditorTools.Screenshots
                 shots = _reports
             };
             File.WriteAllText(Path.Combine(_request.outDir, "report.json"), JsonConvert.SerializeObject(report, Formatting.Indented));
-            Log("done: " + _reports.Count(r => r.ok) + " ok, " + _reports.Count(r => !r.ok) + " failed");
-            _onDone?.Invoke(report);
-            UnityEngine.Object.Destroy(_host);
+            return report;
         }
 
         /// <summary>Runs one shot; an exception fails that shot and puts the game back on the library.</summary>
         private IEnumerator Guard(IEnumerator body, Shot shot)
         {
-            var stack = new Stack<IEnumerator>();
+            var stack = _stack;
             stack.Push(body);
             while (stack.Count > 0)
             {
@@ -136,7 +160,9 @@ namespace OpenSekai.EditorTools.Screenshots
                 }
                 catch (Exception exception)
                 {
-                    Fail(shot, exception.Message);
+                    if (_sequence != null) EndSequence(exception.Message);
+                    else Fail(shot, exception.Message);
+                    DisposeStack();
                     Debug.LogException(exception);
                     break;
                 }
@@ -157,6 +183,7 @@ namespace OpenSekai.EditorTools.Screenshots
 
             yield return LeaveLive();
             StopMotionClock();
+            Time.captureDeltaTime = _previousDelta;
         }
 
         // ---------------------------------------------------------------- library pages
@@ -227,15 +254,37 @@ namespace OpenSekai.EditorTools.Screenshots
             // opening motion to finish and the jacket to decode.
             yield return null;
             yield return null;
-            yield return new WaitForSecondsRealtime(1.1f);
-            if (panel == "result" && shot.times != null && shot.times.Count > 0)
+            bool timedResult = panel == "result" && (shot.to.HasValue || shot.times?.Count > 0);
+            if (timedResult)
+            {
+                yield return WaitUntil(() => resultPage.CaptureCrestsReady && !((LibraryView)view).IsPanelArtworkPending,
+                    "result artwork and crests");
+                resultPage.PrepareCapture();
+            }
+            else yield return new WaitForSecondsRealtime(1.1f);
+            if (panel == "result" && shot.to.HasValue)
+            {
+                try { yield return DrawSequence(shot, resultPage.SeekCapture); }
+                finally { resultPage.ResumeCaptureBadge(); }
+            }
+            else if (panel == "result" && shot.times != null && shot.times.Count > 0)
             {
                 // Frames of the result page's opening, each drawn at its time on the page's timeline.
                 foreach (float time in shot.times)
                 {
-                    resultPage.Seek(time);
-                    yield return null;
-                    yield return Capture(shot, FileStem(shot, time), detail, null);
+                    float? previousHeld = MedalClock.Held;
+                    try
+                    {
+                        MedalClock.Held = time;
+                        resultPage.SeekCapture(time);
+                        yield return null;
+                        yield return Capture(shot, FileStem(shot, time), detail, null);
+                    }
+                    finally
+                    {
+                        resultPage.ResumeCaptureBadge();
+                        MedalClock.Held = previousHeld;
+                    }
                 }
             }
             else
@@ -256,7 +305,7 @@ namespace OpenSekai.EditorTools.Screenshots
         }
 
         /// <param name="title">The selected package's title; the sample's own when there is none.</param>
-        private static PlayResult ToResult(ResultSample sample, string packageDirectory = null, string title = null)
+        internal static PlayResult ToResult(ResultSample sample, string packageDirectory = null, string title = null)
         {
             packageDirectory = packageDirectory ?? string.Empty;
             title = string.IsNullOrWhiteSpace(title) ? sample.title : title;
@@ -269,7 +318,8 @@ namespace OpenSekai.EditorTools.Screenshots
             if (Enum.TryParse(sample.settlement, true, out SettlementExample example))
             {
                 // The backend's sample run, moved onto the selected package so the page shows its jacket.
-                PlayResult played = SettlementSamples.Create(example);
+                // Each opening is a new sample run. Reusing a play id suppresses the tier upgrade and unlock card.
+                PlayResult played = SettlementSamples.Create(example, Guid.NewGuid().ToString("N"));
                 var counts = new LiveScore
                 {
                     totalScore = played.Score, rank = played.Rank, maxCombo = played.MaxCombo,
@@ -337,9 +387,15 @@ namespace OpenSekai.EditorTools.Screenshots
             float[] times = intro
                 ? (shot.times != null && shot.times.Count > 0 ? shot.times.ToArray() : _defaultIntroTimes)
                 : new[] { HomeScreen.IntroLength };
-            home.SeekIntro(times[0]);
+            home.SeekIntro(shot.to.HasValue ? (float)shot.from.Value : times[0]);
             // The emblem is drawn on worker threads and the jackets load from disk; let both land.
             yield return WaitUntil(() => home.IsBrandReady, "the brand emblem");
+            if (shot.to.HasValue)
+            {
+                yield return DrawSequence(shot, home.SeekIntro);
+                home.ShowLibraryImmediately();
+                yield break;
+            }
             yield return new WaitForSecondsRealtime(1.2f);
 
             foreach (float time in times)
@@ -598,12 +654,7 @@ namespace OpenSekai.EditorTools.Screenshots
 
         private IEnumerator LiveShot(Shot shot, bool infoPage)
         {
-            List<float> times = (shot.times ?? new List<float>()).OrderBy(t => t).ToList();
-            if (times.Count == 0)
-            {
-                times.Add(infoPage ? 1.5f : 30f);
-            }
-            float frame = 1f / Mathf.Clamp(shot.fps <= 0 ? 60 : shot.fps, 10, 240);
+            float frame = CaptureStep(shot);
 
             StartMotionClock(frame);
             yield return StartLive(shot, infoPage, null);
@@ -615,8 +666,13 @@ namespace OpenSekai.EditorTools.Screenshots
                 // The page starts in the same step that starts the live clock.
                 yield return WaitUntil(() => { KeepMusicOff(controller); return controller.CapturePhase != BaseLiveController.MusicPhase.NotStarted; }, "the info page");
                 yield return new WaitForEndOfFrame();
+                if (shot.to.HasValue)
+                {
+                    yield return CaptureLiveOffsets(shot, controller, true);
+                    yield break;
+                }
                 int startFrame = Time.frameCount;
-                foreach (float offset in times)
+                foreach (float offset in CaptureTimes(shot, 1.5f))
                 {
                     int target = startFrame + Mathf.RoundToInt(offset / frame);
                     while (Time.frameCount < target)
@@ -636,9 +692,11 @@ namespace OpenSekai.EditorTools.Screenshots
             yield return StartLiveClock(controller);
             long startMs = controller.CaptureTimeMs;
             double frameMs = 1000d * frame;
-            foreach (float seconds in times)
+            foreach (double seconds in CaptureTimes(shot, 30f))
             {
                 long targetMs = (long)Math.Round(seconds * 1000d);
+                if (shot.to.HasValue && targetMs < startMs)
+                    throw new InvalidOperationException("Range begins before the playable clock at " + startMs + " ms.");
                 long leadMs = (long)Math.Round(Mathf.Max(0f, shot.lead) * 1000d);
                 long playFromMs = Math.Max(targetMs - leadMs, controller.CaptureTimeMs);
                 string note = targetMs < startMs
@@ -659,13 +717,17 @@ namespace OpenSekai.EditorTools.Screenshots
                     }
                     // Fast-forward to exactly lead seconds before the target, then step at fps, so the
                     // frames that matter are the same whatever the live's start point was.
-                    long next = now < playFromMs
-                        ? Math.Min(now + (long)(FAST_FORWARD_STEP * 1000f), playFromMs)
-                        : Math.Min(targetMs, Math.Max(now + 1, playFromMs + (long)Math.Round(++frameIndex * frameMs)));
+                    long next = targetMs;
+                    if (_sequence == null || _sequence.frames == 0)
+                    {
+                        next = now < playFromMs
+                            ? Math.Min(now + (long)(FAST_FORWARD_STEP * 1000f), playFromMs)
+                            : Math.Min(targetMs, Math.Max(now + 1, playFromMs + (long)Math.Round(++frameIndex * frameMs)));
+                    }
                     yield return Step(controller, next - now);
                 }
                 long captured = controller.CaptureTimeMs;
-                CaptureFrame(shot, FileStem(shot, seconds), "music " + (captured / 1000d).ToString("0.000") + "s", note, captured / 1000f);
+                CaptureFrame(shot, FileStem(shot, (float)seconds), "music " + (captured / 1000d).ToString("0.000") + "s", note, captured / 1000f);
             }
         }
 
@@ -789,12 +851,7 @@ namespace OpenSekai.EditorTools.Screenshots
         /// <summary>The end of a live: fast-forward until every note is done, then count frames from there.</summary>
         private IEnumerator FinishShot(Shot shot)
         {
-            List<float> times = (shot.times ?? new List<float>()).OrderBy(t => t).ToList();
-            if (times.Count == 0)
-            {
-                times.Add(2f);
-            }
-            float frame = 1f / Mathf.Clamp(shot.fps <= 0 ? 60 : shot.fps, 10, 240);
+            float frame = CaptureStep(shot);
 
             StartMotionClock(FAST_FORWARD_STEP);
             yield return StartLive(shot, false, string.IsNullOrWhiteSpace(shot.finishAnimation) ? "allperfect" : shot.finishAnimation);
@@ -809,9 +866,14 @@ namespace OpenSekai.EditorTools.Screenshots
             }
             // From here on only scaled time matters: the result coroutine waits with WaitForSeconds.
             Time.captureDeltaTime = frame;
+            if (shot.to.HasValue)
+            {
+                yield return CaptureLiveOffsets(shot, controller, false);
+                yield break;
+            }
             long endedAt = controller.CaptureTimeMs;
             int startFrame = Time.frameCount;
-            foreach (float offset in times)
+            foreach (float offset in CaptureTimes(shot, 2f))
             {
                 int target = startFrame + Mathf.RoundToInt(offset / frame);
                 while (Time.frameCount < target)
@@ -911,6 +973,11 @@ namespace OpenSekai.EditorTools.Screenshots
             yield return WaitForLibrary();
             Time.captureDeltaTime = 0f;
             UnityEngine.Object.FindFirstObjectByType<ResultPage>(FindObjectsInactive.Include)?.Hide();
+            RestoreLiveSettings();
+        }
+
+        private void RestoreLiveSettings()
+        {
             if (_settingsChanged)
             {
                 LiveSettingData shared = OpenSekai.Shared.Settings.LiveSettingsStore.Shared.Load();
@@ -1012,6 +1079,12 @@ namespace OpenSekai.EditorTools.Screenshots
 
         private void CaptureFrame(Shot shot, string stem, string detail, string note, float? time = null)
         {
+            if (_sequence != null)
+            {
+                if (note != null) throw new InvalidOperationException(note);
+                WriteSequenceFrame();
+                return;
+            }
             Texture2D texture = ScreenCapture.CaptureScreenshotAsTexture();
             string path = Path.Combine(_request.outDir, stem + ".png");
             File.WriteAllBytes(path, texture.EncodeToPNG());
@@ -1072,7 +1145,7 @@ namespace OpenSekai.EditorTools.Screenshots
     }
 
     [Serializable]
-    internal sealed class ShotReport
+    internal class ShotReport
     {
         public bool ok;
         public string kind;

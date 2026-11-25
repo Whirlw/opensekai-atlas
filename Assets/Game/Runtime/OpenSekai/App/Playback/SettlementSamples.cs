@@ -15,7 +15,9 @@ namespace OpenSekai.App.Playback
     /// <summary>Deterministic, memory-only results for the result screen. Safe to call from a preview.</summary>
     public static class SettlementSamples
     {
-        public static PlayResult Create(SettlementExample example)
+        public static PlayResult Create(SettlementExample example) => Create(example, "preview-" + example);
+
+        internal static PlayResult Create(SettlementExample example, string playId)
         {
             var board = new Best30Index();
             var prior = new List<CustomMusicScorePlayHistoryRecord>();
@@ -74,7 +76,7 @@ namespace OpenSekai.App.Playback
             }
 
             string title = "联调谱面 · " + level;
-            var record = Record("preview-" + example, key, title, level, score, kind);
+            var record = Record(playId, key, title, level, score, kind);
             IReadOnlyList<string> reached = Array.Empty<string>();
             if (state == HistorySaveState.Saved)
             {

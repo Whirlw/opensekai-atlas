@@ -17,6 +17,9 @@
 # Output: TestResults/screenshots/<stamp>/*.png plus report.json (actual times, sizes, notes).
 #
 # Examples
+#   # Export independent 4K PNG sequences for editing at 60 fps (run in the project folder)
+#   powershell -File Tools/capture-screens.ps1 -Clip tier-upgrade,dan-award,achievement-unlock -Width 3840 -Height 2160 -Fps 60 -TimeoutSec 3600
+#   powershell -File Tools/capture-screens.ps1 -Intro 0..3.1,1.0 -Result ap -ResultAt 0..3.4 -Fps 60
 #   # Everything with sample data, phone resolution
 #   powershell -File Tools/capture-screens.ps1 -All -Package DEINOS
 #
@@ -46,6 +49,11 @@
 #   powershell -File Tools/capture-screens.ps1 -Request my-shots.json
 #
 # Parameters
+#   -Clip         tier-upgrade | dan-award | achievement-unlock | achievement-card | special-medals.
+#                 Override the range with e.g. -Clip tier-upgrade:-0.5..1.5.
+#   -Fps          Sequence frame rate (1..240, default 60). Intro/Live/Info/Finish/ResultAt accept start..end.
+#   -Alpha        Transparent background for tier-upgrade, achievement-card and special-medals.
+#   -Clean        Hide the dan-award caption and buttons.
 #   -Package      Package to play: id, folder name (or part of it), title, or a folder path.
 #                 Installed packages are searched first, then Tools/fixtures.
 #   -Difficulty   easy|normal|hard|expert|master|append; overrides the package's own (badge colours etc.).
@@ -117,6 +125,10 @@ param(
     [switch]$Sample,
     [switch]$StyleGuide,
     [string[]]$Intro,
+    [string[]]$Clip,
+    [ValidateRange(1,240)][int]$Fps = 60,
+    [switch]$Alpha,
+    [switch]$Clean,
     [switch]$All,
     [switch]$PlainAuto,
     [int]$Width = 2800,
@@ -132,10 +144,12 @@ $ErrorActionPreference = 'Stop'
 if (-not $ProjectPath) { $ProjectPath = Split-Path -Parent $PSScriptRoot }
 
 # "-Live 45,92.5" arrives as one string under `powershell -File`; accept both forms.
-function ConvertTo-Seconds([string[]]$values) {
-    if (-not $values) { return $null }
-    return @($values | ForEach-Object { $_ -split '[,\s]+' } | Where-Object { $_ } |
-        ForEach-Object { [double]::Parse($_, [Globalization.CultureInfo]::InvariantCulture) })
+function Split-Values([string[]]$values) {
+    $values | ForEach-Object { $_ -split '[,\s]+' } | Where-Object { $_ }
+}
+. (Join-Path $PSScriptRoot 'screenshot-time-ranges.ps1')
+function Add-TimedShot([hashtable]$shot, $values) {
+    foreach ($item in (ConvertTo-ScreenshotShots $shot $values $Fps)) { [void]$shots.Add($item) }
 }
 # Runs the Unity CLI and returns stdout only. Windows PowerShell turns a native command's stderr into
 # an error under 'Stop', and the CLI writes hints there, so stderr is dropped here.
@@ -146,12 +160,12 @@ function Invoke-UnityCli([string[]]$arguments) {
 }
 $env:UNITY_NO_AGENT_HINTS = '1'
 
-$liveTimes = ConvertTo-Seconds $Live
-$infoTimes = ConvertTo-Seconds $Info
-$finishTimes = ConvertTo-Seconds $Finish
-$resultTimes = ConvertTo-Seconds $ResultAt
+$liveTimes = Split-Values $Live
+$infoTimes = Split-Values $Info
+$finishTimes = Split-Values $Finish
+$resultTimes = Split-Values $ResultAt
 $introDefault = $Intro -and (($Intro -join ',') -eq 'default')
-$introTimes = if ($introDefault) { $null } else { ConvertTo-Seconds $Intro }
+$introTimes = if (-not $introDefault) { Split-Values $Intro }
 $ProjectPath = (Resolve-Path $ProjectPath).Path
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 if (-not $OutDir) { $OutDir = "TestResults/screenshots/$stamp" }
@@ -195,7 +209,15 @@ if ($Request) {
     if ($MedalsPage) { [void]$shots.Add(@{ kind = 'medals' }) }
     if ($RankingTiers) { [void]$shots.Add(@{ kind = 'ranking' }) }
     if ($introDefault) { [void]$shots.Add(@{ kind = 'intro' }) }
-    elseif ($introTimes) { [void]$shots.Add(@{ kind = 'intro'; times = @($introTimes) }) }
+    elseif ($null -ne $introTimes) { Add-TimedShot @{ kind = 'intro' } $introTimes }
+    foreach ($item in (Split-Values $Clip)) {
+        $parts = $item -split ':', 2
+        $shot = @{ kind = 'clip'; name = $parts[0].ToLowerInvariant(); fps = $Fps }
+        if ($Alpha -and $shot.name -in 'tier-upgrade','special-medals','achievement-card') { $shot.alpha = $true }
+        if ($Clean -and $shot.name -eq 'dan-award') { $shot.clean = $true }
+        if ($parts.Count -eq 2 -and $parts[1] -notmatch '\.\.') { throw "Expected a range in '$item'." }
+        Add-TimedShot $shot $parts[1]
+    }
     if ($Library) { [void]$shots.Add(@{ kind = 'library' }) }
     if ($Settings) { [void]$shots.Add(@{ kind = 'settings' }) }
     if ($SettingsTrace) { [void]$shots.Add(@{ kind = 'settings-trace' }) }
@@ -216,27 +238,26 @@ if ($Request) {
             $name = $name.ToLowerInvariant()
             if (-not $presets.ContainsKey($name)) { throw "Unknown -Result preset '$name'." }
             $shot = @{ kind = 'result'; name = "result-$name"; result = $presets[$name] }
-            if ($resultTimes) { $shot.times = @($resultTimes) }
-            [void]$shots.Add($shot)
+            Add-TimedShot $shot $resultTimes
         }
     }
     if ($infoTimes -or $liveTimes -or $finishTimes) {
         if (-not $Package) { throw '-Live, -Info and -Finish need -Package.' }
     }
     if ($infoTimes) {
-        $shot = @{ kind = 'info'; package = $Package; times = @($infoTimes) }
+        $shot = @{ kind = 'info'; package = $Package }
         if ($Difficulty) { $shot.difficulty = $Difficulty }
-        [void]$shots.Add($shot)
+        Add-TimedShot $shot $infoTimes
     }
     if ($liveTimes) {
-        $shot = @{ kind = 'live'; package = $Package; times = @($liveTimes); fakePerfect = (-not $PlainAuto) }
+        $shot = @{ kind = 'live'; package = $Package; fakePerfect = (-not $PlainAuto) }
         if ($Difficulty) { $shot.difficulty = $Difficulty }
-        [void]$shots.Add($shot)
+        Add-TimedShot $shot $liveTimes
     }
     if ($finishTimes) {
-        $shot = @{ kind = 'finish'; package = $Package; times = @($finishTimes); finishAnimation = $FinishAnimation }
+        $shot = @{ kind = 'finish'; package = $Package; finishAnimation = $FinishAnimation }
         if ($Difficulty) { $shot.difficulty = $Difficulty }
-        [void]$shots.Add($shot)
+        Add-TimedShot $shot $finishTimes
     }
     if ($shots.Count -eq 0) { throw 'Nothing to capture: pass -All, -HomePage, -Server, -Packs, -ProfilePage, -DanPage, -AchievementsPage, -MedalsPage, -RankingTiers, -Sample, -StyleGuide, -Intro, -Live, -Info, -Finish, -Library, -Settings, -SettingsTrace, -Result or -Request.' }
 
@@ -248,6 +269,30 @@ if ($Request) {
 $statusPath = [IO.Path]::ChangeExtension($requestPath, $null).TrimEnd('.') + '.status.json'
 if (Test-Path $statusPath) { Remove-Item $statusPath -Force }
 Write-Host "[shots] request: $requestPath"
+
+$estimate = 0
+foreach ($shot in (Get-Content -Raw -Encoding UTF8 -LiteralPath $requestPath | ConvertFrom-Json).shots) {
+    $start = [double]$shot.from
+    $end = $shot.to
+    $count = 1
+    if ($shot.kind -eq 'clip') {
+        switch ($shot.name) {
+            'tier-upgrade' { $count = 7; if ($null -eq $end) { $end = 1.5; if ($null -eq $shot.from) { $start = -0.5 } } }
+            'dan-award' { if ($null -eq $end) { $end = 4 } }
+            'special-medals' { if ($null -eq $end) { $end = 4 } }
+            'achievement-card' { $count = 2; if ($null -eq $end) { $end = 4.6 } }
+            'achievement-unlock' { if ($null -eq $end) { $end = 2.6 } }
+            default { throw "Unknown clip '$($shot.name)'." }
+        }
+    }
+    if ($null -ne $end) {
+        $rate = if ($null -eq $shot.fps) { 60 } else { $shot.fps }
+        $frames = [Math]::Round(([double]$end - $start) * $rate, [MidpointRounding]::AwayFromZero)
+        if ($rate -lt 1 -or $rate -gt 240 -or $frames -lt 1) { throw "Invalid sequence range or fps in $($shot.kind)." }
+        $estimate += $frames * $count
+    }
+}
+if ($estimate) { Write-Host "[shots] expecting $estimate sequence frames" }
 
 # Is an editor open on this project?
 $editorOpen = $false
@@ -293,7 +338,7 @@ while ($true) {
         if ($state -and $state.status -ne 'running') { break }
     }
     if ($process -and $process.HasExited) { break }
-    if (((Get-Date) - $started).TotalSeconds -gt $TimeoutSec) { throw "Timed out after $TimeoutSec s; see the editor console." }
+    if (((Get-Date) - $started).TotalSeconds -gt $TimeoutSec) { throw "Timed out after $TimeoutSec s. The editor may still be exporting. Check its log and use a larger -TimeoutSec for long sequences." }
 }
 if ($process) { $process.WaitForExit(60000) | Out-Null }
 

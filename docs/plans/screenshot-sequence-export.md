@@ -3,7 +3,7 @@
 > 目的：让 `Tools/capture-screens.ps1` 能把游戏动画导出成可直接放进 AE / Premiere 的 PNG 序列，供宣传片使用。
 > 适用读者：实现这个功能的开发者或 AI 助手。
 > 前置条件：读过[截图工具](../operations/screenshot-tools.md)。
-> 最后更新：2026-11-25（基线 `9eb01aba`，尚未实现）
+> 最后更新：2026-11-25（需求基线 `9eb01aba`；功能已实现，使用方法见[截图工具](../operations/screenshot-tools.md)）
 
 ## 背景
 

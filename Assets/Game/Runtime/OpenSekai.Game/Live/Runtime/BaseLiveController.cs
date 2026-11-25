@@ -89,8 +89,12 @@ namespace Sekai.Core.Live
 
 #if UNITY_EDITOR
 		internal bool CaptureFinished => state == LiveControllerState.Finish;
+		internal static Func<float> CaptureIntroClock { get; set; }
+		private static float IntroClock => CaptureIntroClock?.Invoke() ?? Time.realtimeSinceStartup;
 		internal long CaptureTimeMs { get => currentMusicTimeMs; set => currentMusicTimeMs = value; }
 		internal MusicPhase CapturePhase { get => musicPhase; set => musicPhase = value; }
+#else
+		private static float IntroClock => Time.realtimeSinceStartup;
 #endif
 
 		/// <summary>The music and chart spans read when the chart loaded. See <see cref="BuildTimelineSpan"/>.</summary>
@@ -264,8 +268,8 @@ namespace Sekai.Core.Live
 
 				// Let the file's silence play during the info page, but wait for the actual fade-out
 				// callback before letting the clock advance past the playable start.
-				float deadline = Time.realtimeSinceStartup + Mathf.Max(waitTime, introSeconds) + INTRO_WAIT_SLACK_SECONDS;
-				while (!IsIntroFinished() && Time.realtimeSinceStartup < deadline)
+				float deadline = IntroClock + Mathf.Max(waitTime, introSeconds) + INTRO_WAIT_SLACK_SECONDS;
+				while (!IsIntroFinished() && IntroClock < deadline)
 				{
 					yield return null;
 					if (heldAtStart) continue;

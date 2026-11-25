@@ -12,6 +12,7 @@ namespace OpenSekai.App.Library
         internal const string ACHIEVEMENTS_FILE = "achievements.json";
         private string ClaimsPath => Path.Combine(_directory, ACHIEVEMENTS_FILE);
         private AchievementClaims _cachedClaims;
+        internal DateTimeOffset? SampleClaimTime { get; set; }
         private AchievementClaims ReadClaims() => _cachedClaims ??= LoadClaims();
         private AchievementClaims LoadClaims() => File.Exists(ClaimsPath)
             ? AchievementClaims.Decode(File.ReadAllText(ClaimsPath)) : new AchievementClaims();
@@ -37,7 +38,7 @@ namespace OpenSekai.App.Library
                 throw new InvalidOperationException("该成就还不能解锁。");
             var goal = series.Steps[step].Goal;
             var avatar = goal.AvatarId != null && !OwnsAvatar(goal.AvatarId) ? goal.AvatarId : null;
-            WriteClaims(ReadClaims().With(id, DateTimeOffset.UtcNow));
+            WriteClaims(ReadClaims().With(id, SampleClaimTime ?? DateTimeOffset.UtcNow));
             return (true, goal.GivesMedal ? Medal.AchievementKey(id) : null, avatar);
         }
 

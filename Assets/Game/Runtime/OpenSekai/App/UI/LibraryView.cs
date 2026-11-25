@@ -379,6 +379,8 @@ namespace OpenSekai.App.UI
             LoadPanelArtworkAsync(jacketPath, version, apply, _panelArtworkLoad.Token).Forget();
         }
 
+        internal bool IsPanelArtworkPending => _panelArtworkLoad != null;
+
         private async UniTaskVoid LoadPanelArtworkAsync(
             string jacketPath, long version, Action<Sprite, Color32> apply, CancellationToken cancellationToken)
         {
@@ -394,6 +396,14 @@ namespace OpenSekai.App.UI
             {
                 // The panel closed, or another one opened, before the jacket arrived.
             }
+            finally
+            {
+                if (_panelArtworkLoad != null && _panelArtworkLoad.Token == cancellationToken)
+                {
+                    _panelArtworkLoad.Dispose();
+                    _panelArtworkLoad = null;
+                }
+            }
         }
 
         private void CancelPanelArtworkLoad()
@@ -403,9 +413,10 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            _panelArtworkLoad.Cancel();
-            _panelArtworkLoad.Dispose();
+            var pending = _panelArtworkLoad;
             _panelArtworkLoad = null;
+            pending.Cancel();
+            pending.Dispose();
         }
 
         /// <summary>The package in this folder: from the list on screen, else from the whole library.</summary>

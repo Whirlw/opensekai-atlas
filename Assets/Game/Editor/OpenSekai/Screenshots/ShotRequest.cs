@@ -4,6 +4,8 @@ using System.IO;
 using Newtonsoft.Json;
 using UnityEngine;
 
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("OpenSekai.Tests.EditMode")]
+
 namespace OpenSekai.EditorTools.Screenshots
 {
     /// <summary>
@@ -55,10 +57,10 @@ namespace OpenSekai.EditorTools.Screenshots
     [Serializable]
     public sealed class Shot
     {
-        /// <summary>live | info | finish | library | settings | settings-trace | result | actions | loading | return | home | intro | handoff | about | server | packs | profile | dan | achievements | medals | ranking | sample | library-states</summary>
+        /// <summary>clip | live | info | finish | library | settings | settings-trace | result | actions | loading | return | home | intro | handoff | about | server | packs | profile | dan | achievements | medals | ranking | sample | library-states</summary>
         public string kind;
 
-        /// <summary>File name stem; defaults to the kind (plus the time for live/info).</summary>
+        /// <summary>For clip, the animation name. Otherwise the file name stem; defaults to the kind.</summary>
         public string name;
 
         /// <summary>
@@ -78,6 +80,49 @@ namespace OpenSekai.EditorTools.Screenshots
         /// result: seconds into the result page's opening, one frame each; none shows where it settles.
         /// </summary>
         public List<float> times = new List<float>();
+
+        /// <summary>Start and exclusive end of an independent sequence in seconds. With to set, times is ignored.</summary>
+        public double? from;
+        public double? to;
+        public bool alpha;
+        public bool clean;
+
+        internal void PrepareSequence()
+        {
+            if (kind == "clip")
+            {
+                (double start, double end) = name switch
+                {
+                    "tier-upgrade" => (-0.5, 1.5),
+                    "dan-award" or "special-medals" => (0.0, 4.0),
+                    "achievement-unlock" => (0.0, 2.6),
+                    "achievement-card" => (0.0, 4.6),
+                    _ => throw new ArgumentException("Unknown clip: " + name)
+                };
+                from ??= to.HasValue ? 0d : start;
+                to ??= end;
+            }
+            if (!to.HasValue)
+            {
+                if (from.HasValue) throw new ArgumentException("from requires to.");
+                return;
+            }
+            if (kind != "clip" && kind != "intro" && kind != "result" && kind != "info" && kind != "live" && kind != "finish")
+                throw new ArgumentException("Unsupported sequence kind: " + kind);
+            from ??= 0d;
+            if (from.Value < 0 && !(kind == "clip" && name == "tier-upgrade"))
+                throw new ArgumentException("Only tier-upgrade accepts negative time.");
+            if (fps < 1 || fps > 240) throw new ArgumentException("Sequence fps must be 1..240.");
+            if (FrameCount < 1) throw new ArgumentException("The requested range must contain at least one frame.");
+            if (alpha && !(kind == "clip" && (name == "tier-upgrade" || name == "special-medals" || name == "achievement-card")))
+                throw new ArgumentException("alpha requires a tier-upgrade, special-medals or achievement-card clip.");
+            if (clean && !(kind == "clip" && name == "dan-award")) throw new ArgumentException("clean requires dan-award.");
+        }
+
+        internal int FrameCount => checked((int)Math.Round((to.Value - from.Value) * fps, MidpointRounding.AwayFromZero));
+        internal double FrameTime(int index) => from.Value + (double)index / fps;
+        internal string RangeStem(string stem) => FormattableString.Invariant($"{stem}_{from:0.000}-{to:0.000}");
+        internal static string FrameName(string stem, int index) => FormattableString.Invariant($"{stem}_{index:D5}.png");
 
         /// <summary>live: seconds before each time that are played at the capture frame rate (judgement effects need them).</summary>
         public float lead = 1.5f;

@@ -233,11 +233,11 @@ namespace OpenSekai.EditorTools.Screenshots
     /// </summary>
     internal static partial class AchievementSamples
     {
-        internal static PlayerProfileStore Build(string root)
+        internal static PlayerProfileStore Build(string root, DateTimeOffset? sampleTime = null)
         {
-            var store = new PlayerProfileStore(root);
+            var store = new PlayerProfileStore(root) { SampleClaimTime = sampleTime };
             store.SetAppearance("Atlas", "halo");
-            DateTime now = DateTime.UtcNow;
+            DateTime now = (sampleTime ?? DateTimeOffset.UtcNow).UtcDateTime;
             (string Title, int Level, double DaysAgo)[] fullCombos =
             {
                 ("Aurora Line", 26, 9.2), ("Night Signal", 28, 6.4), ("Paper Comet", 29, 3.1), ("Glass Garden", 30, 1.3)
@@ -272,7 +272,7 @@ namespace OpenSekai.EditorTools.Screenshots
                     perfectCount = notes - 4, greatCount = 4
                 };
                 attempt = attempt.Append(course, new DanSongResult("achievement-dan-" + i, titles[i], PlayResultKind.Completed,
-                    124000 + i * 9000, life, score, DateTimeOffset.UtcNow.AddMinutes(-40 + i * 3)));
+                    124000 + i * 9000, life, score, (sampleTime ?? DateTimeOffset.UtcNow).AddMinutes(-40 + i * 3)));
                 life -= 4;
             }
 
