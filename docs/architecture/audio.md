@@ -11,7 +11,7 @@
 
 1. **曲包音频**（用户导入的歌）：`PackageAudio` 用 `UnityWebRequestMultimedia` 读文件 → `AudioClip` →
    `SoundManager.RegisterExternalAudioClip` 注册成一个 cue，live 直接播。
-2. **内置判定和演出音**：`SoundManager` 按 `Assets/StreamingAssets/sound/manifest.csv` 注册 13 个 custom03 打击音和 5 个共享演出音。
+2. **内置判定和演出音**：`SoundManager` 按 `Assets/StreamingAssets/sound/manifest.csv` 注册 13 个 live_se_key 打击音和 5 个共享演出音。
    本地 `CriAtomShim` 提供 cue 播放接口。
 
 ## 核心内容

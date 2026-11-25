@@ -16,7 +16,7 @@ $groups = @(
     @{ Name = '音符皮肤 custom01';   Path = 'Assets/Game/Resources/live/note/custom01';  Judgement = '自制（画包）' }
     @{ Name = '音符皮肤 custom02';   Path = 'Assets/Game/Resources/live/note/custom02';  Judgement = '自制（画包）' }
     @{ Name = '共享演出音';        Path = 'Assets/StreamingAssets/sound/live/sound/live_se/common'; Judgement = '自制与 CC0 素材' }
-    @{ Name = 'tap 音效';           Path = 'Assets/StreamingAssets/sound/live/tap_se/custom03'; Judgement = 'AI 生成后手动编辑，CC0-1.0' }
+    @{ Name = 'tap 音效';           Path = 'Assets/StreamingAssets/sound/live/tap_se/live_se_key'; Judgement = 'AI 生成后手动编辑，CC0-1.0' }
     @{ Name = 'live 背景 2dmode';    Path = 'Assets/Game/AssetBundles/resources/startapp/live/2dmode'; Judgement = '自制（画包）' }
     @{ Name = '加载背景 longLoading'; Path = 'Assets/Graphics/Resources/loading';        Judgement = '已删除' }
     @{ Name = 'HUD / UI 大图';        Path = 'Assets/Graphics/Resources/screen';         Judgement = '自制' }

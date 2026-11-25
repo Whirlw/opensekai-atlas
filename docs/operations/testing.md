@@ -93,7 +93,7 @@ PlayMode：
 
 - `LibrarySmokeTests.LibrarySceneBootsAndShowsThePage`：载入 `Assets/Game/Scenes/Library.unity`，等 `LibraryScreen` 起来并断言 `IsReady` 与 `ScreenManager.ExistsInstance`。单独跑 0.43 s，不依赖同一轮里前面的用例留下的场景。
 - `LibrarySmokeTests.BaselineTapAutoplaysAndReturnsToTheLibrary`：**整首打歌**。从曲库结算面板的「再玩一次」触发 `PlayService` 自动开局，等 Core 场景建出 `SoloLiveController`，再等返回 Library 并检查结算 `Completed / IsAuto / Score=1,000,000 / Rank S`；谱面用仓库里的 `Tools/fixtures/baseline_tap`。约 47.5 s。
-- `LibrarySmokeTests.ShippedWavePackRegistersEveryManifestCue`：按 `StreamingAssets/sound/manifest.csv` 核对 42 个内置 WAV 全部注册、长度非零、结算音能起播，以及缺失 cue 只警告一次并返回 0。
+- `LibrarySmokeTests.ShippedWavePackRegistersEveryManifestCue`：按 `StreamingAssets/sound/manifest.csv` 核对清单内的 WAV 全部注册、长度非零、结算音能起播，以及缺失 cue 只警告一次并返回 0。
 
 跑 PlayMode **必须走异步**：进播放模式会触发域重载，同步请求会被丢掉（CLI 会直接拒绝并提示改用 `--async_tests`）。
 

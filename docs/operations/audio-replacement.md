@@ -9,7 +9,7 @@
 
 | 源目录 | 运行时 bundle | cue 数 | 用途 |
 | --- | --- | ---: | --- |
-| `AudioSource/custom03` | `live/tap_se/custom03` | 13 | 默认打击音，也是外部资源包缺少某个打击音时的回退 |
+| `AudioSource/live_se_key` | `live/tap_se/live_se_key` | 13 | 默认打击音，也是外部资源包缺少某个打击音时的回退 |
 | `AudioSource/live_se_common` | `live/sound/live_se/common` | 5 | 倒计时、场景切换与结算 |
 
 `SoundManager.LoadExternalSoundPack()` 读取 `Assets/StreamingAssets/sound/manifest.csv`，按 bundle 注册 WAV。正式打歌、资源包演示和试听使用同一个内置打击音包。

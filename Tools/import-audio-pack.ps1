@@ -8,7 +8,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $bundles = [ordered]@{
-    'custom03' = 'live/tap_se/custom03'
+    'live_se_key' = 'live/tap_se/live_se_key'
     'live_se_common' = 'live/sound/live_se/common'
 }
 
@@ -72,18 +72,18 @@ foreach ($folder in $bundles.Keys) {
         $file = [IO.FileInfo]$path
         $header = Read-WavHeader $file.FullName
         $pcm16 = $null -ne $header -and $header.Format -eq 1 -and $header.Bits -eq 16
-        $hitFloat = $folder -eq 'custom03' -and $null -ne $header -and $header.Format -eq 3 -and $header.Bits -eq 32
+        $hitFloat = $folder -eq 'live_se_key' -and $null -ne $header -and $header.Format -eq 3 -and $header.Bits -eq 32
         if ((-not $pcm16 -and -not $hitFloat) -or $header.Rate -notin @(44100, 48000) -or $header.Channels -notin @(1, 2)) {
-            $problems += "$($file.FullName): expected 44100 or 48000 Hz mono/stereo PCM16 WAV (custom03 also accepts float32)"
+            $problems += "$($file.FullName): expected 44100 or 48000 Hz mono/stereo PCM16 WAV (live_se_key also accepts float32)"
             continue
         }
-        if ($folder -eq 'custom03' -and -not $targets.ContainsKey($file.BaseName)) { $problems += "missing loudness target: $($file.Name)"; continue }
+        if ($folder -eq 'live_se_key' -and -not $targets.ContainsKey($file.BaseName)) { $problems += "missing loudness target: $($file.Name)"; continue }
         if ($file.BaseName -match '[,\r\n]') { $problems += "invalid cue name: $($file.Name)"; continue }
         $rows += [pscustomobject]@{ Bundle = $bundles[$folder]; Cue = $file.BaseName; Source = $file.FullName; Name = $file.Name }
     }
 }
 foreach ($cue in $targets.Keys) {
-    if (-not (Test-Path -LiteralPath (Join-Path $Pack "custom03/$cue.wav") -PathType Leaf)) { $problems += "missing hit sound: $cue" }
+    if (-not (Test-Path -LiteralPath (Join-Path $Pack "live_se_key/$cue.wav") -PathType Leaf)) { $problems += "missing hit sound: $cue" }
 }
 $manifest = Join-Path $Target 'manifest.csv'
 if ((Test-Path -LiteralPath $manifest) -and -not $AllowRemove) {
@@ -101,7 +101,7 @@ if ($problems.Count) {
 $staging = New-Item -ItemType Directory -Path (Join-Path ([IO.Path]::GetTempPath()) ('opensekai-audio-' + [Guid]::NewGuid()))
 try {
     foreach ($row in $rows) {
-        if ($row.Bundle -ne $bundles['custom03']) { continue }
+        if ($row.Bundle -ne $bundles['live_se_key']) { continue }
         $targetLufs = $targets[$row.Cue]
         $inputLevel = Measure-HitSound $row.Source
         $gain = ($targetLufs - $inputLevel.Lufs).ToString('F4', [Globalization.CultureInfo]::InvariantCulture)

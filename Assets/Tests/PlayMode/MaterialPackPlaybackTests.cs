@@ -22,7 +22,7 @@ namespace OpenSekai.Tests.PlayMode
     public sealed class MaterialPackPlaybackTests
     {
         [UnityTest]
-        public IEnumerator ShippedHitSoundsLoadFromCustom03()
+        public IEnumerator ShippedHitSoundsLoadFromLiveSeKey()
         {
             var sound = new SoundManager();
             bool loaded = false;

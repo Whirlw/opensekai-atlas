@@ -49,7 +49,7 @@ long revision = store.SaveSelection(state.Audio, state.Revision);
 
 ## 已接入的音效槽
 
-下表的名称都以 `audio.` 开头。内置回退沿用所选的打击音套装和原有 cue 查找顺序。所有槽均沿用原播放入口的音量与触发时机。
+下表的名称都以 `audio.` 开头。某个打击音槽位缺失或其 WAV 读取失败时，游戏播放内置 `live_se_key` 的同名 cue。所有槽均沿用原播放入口的音量与触发时机。
 
 | 槽位后缀 | 使用处和内置 cue | 验收场景 |
 | --- | --- | --- |

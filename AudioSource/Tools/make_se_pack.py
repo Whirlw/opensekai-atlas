@@ -1,49 +1,28 @@
-"""Build the OpenSekai SE pack described in docs/operations/audio-spec.md.
+"""Render the five shared live sounds from CC0 samples and synthesized tones.
 
-Usage:  python AudioSource/Tools/make_se_pack.py [output_dir]
-        (or AudioSource/Tools/render_se_pack.ps1)
-Default output: AudioSource/ itself (custom01, custom02, default,
-live_se_common), overwriting the finished WAVs, like the ArtSource renderers.
-Inputs: the CC0 recordings in AudioSource/Tools/samples (see README.md there).
-Pure standard library; deterministic.
-
-custom01  "Crystal Hat"  - hi-hat hits; flick adds a quiet swoosh; connect /
-          trace are a fricative + scissors snip; holds are rain / phase-90
-          loops over steady chime loops; criticals add light reverb.
-custom02  "Glass Marimba" - fully synthetic: marimba-like mallets in D major,
-          detuned stereo chords, zips; holds are exactly periodic glass pads
-          and airy glints.
-default   custom01 at -3 dB (12 cues, no se_live_trace_critical).
-live_se_common - countdown/transition/results built from bells, the hat and
-          the loganzsound chimes with reverb.
+Run python AudioSource/Tools/make_se_pack.py [output_dir] to write WAVs
+under live_se_common in the output directory (AudioSource by default).
 """
 import math
 import os
-import random
 import sys
-import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from dsp import *  # noqa: E402,F401,F403
+from dsp import (
+    SR, biquad, fade, mix, noise, normalize, note, onset, pan, pan_sweep,
+    read_wav, reverb, sweep_bp, tone, trim, widen, write_wav,
+)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 AUDIO_SOURCE = os.path.dirname(HERE)
 SE = os.path.join(HERE, "samples")
-CHIMES = SE
 SRC_HAT = os.path.join(SE, "876729__cat-fox_alex__hat-2.wav")
-SRC_SHAKE = os.path.join(CHIMES, "873723__loganzsound__chime-ball-pendant-sparkle-shakes-rapid-01.wav")
-SRC_SWEEP = os.path.join(CHIMES, "874685__loganzsound__36-bar-chimes-sweep-ascend-01.wav")
-SRC_RINGOUT = os.path.join(CHIMES, "874687__loganzsound__36-bar-chimes-sweep-ascend-long-ring-out-01.wav")
-SRC_BELLS = os.path.join(CHIMES, "874637__loganzsound__decorative-bell-shakes-long.wav")
-SRC_RAIN = os.path.join(SE, "766859__zusisking__ambrain-ext_rainytrainstation_zus_owsfx_loop.wav")
-SRC_PHASE = os.path.join(SE, "466098__humanoisemaker__phase-90-loop-w-amp-bypassed.wav")
-SRC_BRASS = os.path.join(CHIMES, "874639__loganzsound__homemade-brass-wind-chimes-light-handling-02.wav")
-SRC_FRIC = os.path.join(SE, "876185__rasputinero__hh_s_s-alveolar-ejective-fricative.wav")
-SRC_SCISSORS = os.path.join(SE, "737698__ibaffette__scissors-one-hit.wav")
+SRC_SHAKE = os.path.join(SE, "873723__loganzsound__chime-ball-pendant-sparkle-shakes-rapid-01.wav")
+SRC_SWEEP = os.path.join(SE, "874685__loganzsound__36-bar-chimes-sweep-ascend-01.wav")
+SRC_RINGOUT = os.path.join(SE, "874687__loganzsound__36-bar-chimes-sweep-ascend-long-ring-out-01.wav")
+SRC_BRASS = os.path.join(SE, "874639__loganzsound__homemade-brass-wind-chimes-light-handling-02.wav")
 
-PING = ((1, 1.0, 1.0), (2.0, 0.30, 0.6), (3.0, 0.10, 0.4), (4.2, 0.05, 0.3))
 BELL = ((1, 1.0, 1.0), (2.0, 0.45, 0.7), (2.76, 0.30, 0.5), (5.4, 0.12, 0.3), (8.93, 0.05, 0.2))
-MALLET = ((1, 1.0, 1.0), (3.93, 0.22, 0.3), (9.2, 0.05, 0.12))
 
 N = note
 
@@ -67,16 +46,8 @@ def load_sources():
     s.sweep = normalize(sweep[onset(sweep, 0.02):], 0)
     ring = read_wav(SRC_RINGOUT, 0, 8.0, taps=10)
     s.ring = normalize(ring[onset(ring, 0.02):], 0)
-    bells = read_wav(SRC_BELLS, 0, 15.0, taps=8)
-    s.bells = normalize(bells[onset(bells, 0.02):], 0)
-    s.rain = read_loop(SRC_RAIN)
-    s.phase = read_loop(SRC_PHASE)
     brass = read_wav(SRC_BRASS, 0, 8.0, taps=8)
     s.brass = normalize(brass[onset(brass, 0.02):], 0)
-    fric = read_wav(SRC_FRIC)
-    s.fric = normalize(fric[onset(fric, 0.02):], 0)
-    scis = read_wav(SRC_SCISSORS)
-    s.scissors = normalize(scis[onset(scis, 0.02):], 0)
     return s
 
 
@@ -103,254 +74,12 @@ def sparkle(S, sec, hp=5000, seed_offset=0.0):
     return fade(g, 0.002, sec * 0.6)
 
 
-def periodic_tone(freq, L, harmonics=((1, 1.0),), lfo_cycles=0, depth=0.0, phase=0.0):
-    """A tone that is exactly periodic over L seconds (for seamless loops)."""
-    n = int(L * SR)
-    f = round(freq * L) / L
-    out = [0.0] * n
-    for h, amp in harmonics:
-        fh = f * h
-        if fh > SR * 0.45:
-            continue
-        w = 2 * math.pi * fh / SR
-        for i in range(n):
-            out[i] += amp * math.sin(w * i + phase * h)
-    if lfo_cycles:
-        wl = 2 * math.pi * lfo_cycles / n
-        out = [v * (1 - depth * 0.5 * (1 + math.cos(wl * i + phase))) for i, v in enumerate(out)]
-    return out
-
-
-def circular_add(dst, src, at):
-    n = len(dst)
-    for i, v in enumerate(src):
-        dst[(at + i) % n] += v
-
-
 def finish(sig, dur, peak_db, fout=None):
     sig = trim(sig, dur)
     sig = fade(sig, 0.0, fout if fout is not None else min(0.04, dur * 0.3))
     return normalize(sig, peak_db)
 
 
-# ============================================================ custom01
-def set1(S):
-    hat = S.hat
-    out = {}
-
-    def ping(f, tau, sec=0.3, amp=1.0):
-        return gain(tone(f, sec, tau, PING, attack=0.0008), amp)
-
-    out["se_live_tap"] = finish(fade(biquad(hat, "hp", 2500), 0, 0.03), 0.07, -10)
-
-    # perfect and critical are both the plain hit: the hat on its own
-    out["se_live_perfect"] = finish(biquad(hat, "hp", 500), 0.20, -1)
-    out["se_live_critical"] = list(out["se_live_perfect"])
-
-    out["se_live_great"] = finish(biquad(hat, "lp", 9000), 0.17, -2)
-
-    out["se_live_good"] = finish(biquad(pitch(hat, -3), "lp", 4500), 0.15, -4)
-
-    # the other critical cues = their normal version plus a little room
-    def verb(sig, dur):
-        return finish(reverb(sig, 0.72, 0.4, 0.22, 0.35), dur, -1, fout=0.12)
-
-    def loop_verb(lp):
-        """Reverb that wraps around the loop: run three periods, keep the middle."""
-        L = length(lp)
-        r = reverb(tuple(c * 3 for c in lp), 0.72, 0.4, 0.22, 0.0)
-        return tuple(c[L:2 * L] for c in r)
-
-    # connect and trace: the "ts" fricative layered with the scissors snip
-    fric = biquad(S.fric, "hp", 1500)
-    scis = biquad(S.scissors, "hp", 700)
-    out["se_live_connect"] = finish(widen(mix(
-        (fade(scis, 0, 0.05)[: int(0.1 * SR)], 0, 0.8),
-        (fade(fric, 0, 0.04)[: int(0.08 * SR)], 0, 0.6),
-    ), 0.5, 0.2), 0.12, -5, fout=0.03)
-    out["se_live_connect_critical"] = verb(out["se_live_connect"], 0.40)
-
-    out["se_live_trace"] = finish(widen(mix(
-        (fade(scis, 0, 0.12)[: int(0.25 * SR)], 0, 0.8),
-        (fric, 0, 0.75),
-    ), 0.6, 0.25), 0.26, -2, fout=0.08)
-    out["se_live_trace_critical"] = verb(out["se_live_trace"], 0.55)
-
-    swoosh = noise(0.18, 11)
-    swoosh = sweep_bp(swoosh, 1500, 9000, 1.5)
-    n = len(swoosh)
-    swoosh = [v * math.sin(math.pi * i / n) ** 1.5 for i, v in enumerate(swoosh)]
-    out["se_live_flick"] = finish(mix(
-        (out["se_live_perfect"], 0, 1.0),
-        (out["se_live_great"], 0, 0.8),
-        (normalize(mix(
-            (pan_sweep(swoosh, -0.6, 0.6), 0, 0.9),
-            (biquad(pitch(hat, 5), "hp", 800), 0, 0.6)), -2), 0, 0.35),
-    ), 0.22, -1)
-    out["se_live_flick_critical"] = verb(out["se_live_flick"], 0.50)
-
-    # one short, steady stretch of the shakes, looped on itself and tiled to
-    # fill the file (the WAV path plays it once today; it also loops cleanly)
-    XF = 0.15
-
-    def steady_cell(src, hp, cell_n):
-        cell = (cell_n + 0.5) / SR
-        x = biquad(src, "hp", hp)
-        x = biquad(x, "hshelf", 9000, 0.7, -3)
-        st = steadiest(x, cell + XF + 0.05)
-        x = level_ride(x[int(st * SR):int((st + cell + XF + 0.1) * SR)], 0.012, 0.9)
-        c = make_loop(x, 0.02, cell, XF)
-        return (c, circular_delay(c, 0.011))
-
-    def tiles_for(n):
-        """Split an n-sample loop into k equal cells of about 0.6 s."""
-        k = min((k for k in range(2, 40) if n % k == 0), key=lambda k: abs(n / k - 0.6 * SR))
-        return k, n // k
-
-    def at_rms(sig, target):
-        return gain(sig, db(target) / rms(sig))
-
-    def hold(body, layer):
-        """Main loop + the previous hold sound 6 dB under it, same period."""
-        return mix((at_rms(body, -20), 0, 1.0), (at_rms(layer, -26), 0, 1.0))
-
-    # normal hold body: the rainy train station ambience, cut to a 7.2 s seamless loop
-    rain = biquad_st(level_ride_st(S.rain, 0.1, 0.5), "hp", 120)
-    rain = make_loop(rain, 0.8, (7.2 * SR + 0.5) / SR, 0.8)
-    k, cn = tiles_for(length(rain))
-    bc = steady_cell(S.bells, 1500, cn)
-    # the bell shakes are discrete hits: layer the cell with uneven circular copies
-    bc = tuple([a + b + c for a, b, c in zip(ch, circular_delay(ch, 0.213), circular_delay(ch, 0.437))] for ch in bc)
-    out["se_live_long"] = normalize(fade(hold(rain, tuple(ch * k for ch in bc)), 0.003, 0), -9)
-
-    # critical hold body: the phase-90 loop as it is (already seamless)
-    ph = biquad_st(S.phase, "hp", 80)
-    k, cn = tiles_for(length(ph))
-    sc = loop_verb(steady_cell(S.shake, 2000, cn))
-    out["se_live_long_critical"] = normalize(fade(hold(ph, tuple(ch * k for ch in sc)), 0.003, 0), -9)
-    return out
-
-
-# ============================================================ custom02
-def set2(S):
-    out = {}
-
-    def click(seed, amp=1.0):
-        x = biquad(noise(0.006, seed), "bp", 3500, 1.0)
-        return gain(mul(x, env_exp(0.006, 0.0008, 0.0001)), amp * 4)
-
-    def mallet(f, tau, sec=0.35, detune_cents=0.0):
-        return tone(f * 2 ** (detune_cents / 1200), sec, tau, MALLET, attack=0.0006)
-
-    def st_mallet(f, tau, cents=5.0, sec=0.35):
-        return (mallet(f, tau, sec, -cents), mallet(f, tau, sec, cents))
-
-    out["se_live_tap"] = finish(mix(
-        (click(1), 0, 0.8), (tone(1600, 0.03, 0.008), 0, 0.6)), 0.04, -10, fout=0.01)
-
-    out["se_live_perfect"] = finish(mix(
-        (mallet(N("D6"), 0.09), 0, 1.0),
-        (tone(N("D7"), 0.1, 0.05), 0, 0.25),
-        (click(2), 0, 0.5)), 0.22, -1)
-
-    out["se_live_great"] = finish(mix(
-        (mallet(N("A5"), 0.07), 0, 1.0), (click(3), 0, 0.4)), 0.19, -2)
-
-    out["se_live_good"] = finish(biquad(mix(
-        (mallet(N("D5"), 0.045), 0, 1.0), (click(4), 0, 0.2)), "lp", 3000), 0.15, -4)
-
-    chord = mix(*[(st_mallet(N(nm), 0.11 - 0.01 * k), 0.004 * k, g)
-                  for k, (nm, g) in enumerate((("D6", 0.6), ("F#6", 0.45), ("A6", 0.45)))])
-    out["se_live_critical"] = finish(mix(
-        (chord, 0, 1.0),
-        (widen(tone(N("D7"), 0.25, 0.06, ((1, 1, 1), (3.0, 0.4, 0.5), (5.0, 0.15, 0.3)))), 0.0, 0.25),
-        (click(5), 0, 0.5)), 0.34, -1, fout=0.08)
-
-    out["se_live_connect"] = finish(mix(
-        (mallet(N("A6"), 0.03), 0, 1.0), (click(6), 0, 0.3)), 0.12, -5)
-
-    out["se_live_connect_critical"] = finish(mix(
-        (st_mallet(N("A6"), 0.04), 0, 0.7),
-        (st_mallet(N("D7"), 0.035, 7), 0.003, 0.5),
-        (click(7), 0, 0.3)), 0.15, -3)
-
-    zip_ = tone(700, 0.09, 0.05, ((1, 1, 1), (2, 0.3, 0.6)), glide=3000)
-    nz = sweep_bp(noise(0.12, 21), 1000, 7000, 1.4)
-    n = len(nz)
-    nz = [v * math.sin(math.pi * i / n) for i, v in enumerate(nz)]
-    base_flick = mix((pan_sweep(zip_, -0.5, 0.5), 0, 0.5), (pan_sweep(nz, -0.6, 0.6), 0, 0.7))
-    out["se_live_flick"] = finish(mix(
-        (out["se_live_perfect"], 0, 1.0),
-        (normalize(mix((base_flick, 0, 1.0), (mallet(N("D7"), 0.04), 0.07, 0.5)), -2), 0, 0.8)),
-        0.22, -1)
-
-    arp = mix(*[(pan(mallet(N(nm), 0.06), -0.5 + 0.33 * k), 0.018 * k, 0.5)
-                for k, nm in enumerate(("D6", "A6", "D7", "F#7"))])
-    out["se_live_flick_critical"] = finish(mix(
-        (out["se_live_critical"], 0, 1.0),
-        (normalize(mix((base_flick, 0, 0.9), (arp, 0.03, 1.0)), -1), 0, 0.8)),
-        0.34, -1, fout=0.08)
-
-    # ---- hold loops: exactly periodic pads + seamless noise layers
-    def pad(L, notes, lfo):
-        Lc, Rc = [0.0] * int(L * SR), [0.0] * int(L * SR)
-        for k, f in enumerate(notes):
-            harm = ((1, 1.0), (2, 0.25), (3, 0.08))
-            a = periodic_tone(f, L, harm, lfo, 0.5, phase=k * 0.9)
-            b = periodic_tone(f + 0.75, L, harm, lfo, 0.5, phase=k * 0.9 + 1.7)
-            Lc = [x + y * (0.6 / (k + 1)) for x, y in zip(Lc, a)]
-            Rc = [x + y * (0.6 / (k + 1)) for x, y in zip(Rc, b)]
-        return (Lc, Rc)
-
-    def air(L, f, seed, amp):
-        x = biquad(noise(L + 0.6, seed), "bp", f, 0.9)
-        x = make_loop(x, 0.1, L, 0.4)
-        return gain((x, circular_delay(x, 0.013)), amp)
-
-    def glints(L, notes, count, seed, amp):
-        r = random.Random(seed)
-        Lc, Rc = [0.0] * int(L * SR), [0.0] * int(L * SR)
-        for _ in range(count):
-            f = N(r.choice(notes))
-            t = tone(f, 0.3, 0.06, ((1, 1, 1), (2.0, 0.2, 0.5)), attack=0.002)
-            at = r.randrange(len(Lc))
-            p = r.uniform(-0.7, 0.7)
-            a = (p + 1) * math.pi / 4
-            circular_add(Lc, [v * amp * math.cos(a) for v in t], at)
-            circular_add(Rc, [v * amp * math.sin(a) for v in t], at)
-        return (Lc, Rc)
-
-    lo = mix((pad(4.0, [N("D5"), N("A5"), N("D6")], 2), 0, 1.0), (air(4.0, 5000, 31, 0.06), 0, 1.0))
-    out["se_live_long"] = normalize(fade(lo, 0.003, 0), -10)
-
-    lc = mix((pad(4.0, [N("D5"), N("A5"), N("D6"), N("F#6"), N("A6")], 2), 0, 1.0),
-             (pad(4.0, [N("D7")], 4), 0, 0.35),
-             (air(4.0, 6500, 32, 0.08), 0, 1.0))
-    out["se_live_long_critical"] = normalize(fade(lc, 0.003, 0), -9)
-
-    penta = ["D6", "E6", "F#6", "A6", "B6", "D7"]
-    tr = mix((air(4.0, 7000, 33, 0.25), 0, 1.0), (glints(4.0, penta, 24, 41, 0.35), 0, 1.0),
-             (mallet(N("D7"), 0.04, 0.2), 0, 0.2))
-    out["se_live_trace"] = normalize(fade(tr, 0.002, 0), -8)
-
-    tc = mix((air(4.0, 8000, 34, 0.25), 0, 1.0),
-             (glints(4.0, ["A6", "B6", "D7", "E7", "F#7", "A7"], 40, 42, 0.35), 0, 1.0),
-             (pad(4.0, [N("D7"), N("A7")], 3), 0, 0.12),
-             (st_mallet(N("A7"), 0.04, 6, 0.2), 0, 0.17),
-             (st_mallet(N("D7"), 0.05, 6, 0.2), 0, 0.17))
-    out["se_live_trace_critical"] = normalize(fade(tc, 0.002, 0), -7)
-    return out
-
-
-def biquad_st(sig, *a):
-    return tuple(biquad(c, *a) for c in sig)
-
-
-def level_ride_st(sig, *a):
-    return tuple(level_ride(c, *a) for c in sig)
-
-
-# ====================================================== live_se_common
 def common(S):
     out = {}
 
@@ -420,70 +149,14 @@ def common(S):
     return out
 
 
-# ================================================================= main
-
-
-# Loudness targets shared by both note sets so switching sets in settings
-# keeps the same balance. One-shots: RMS of the first 80 ms (the part that
-# reads as the hit). Holds: RMS of the whole loop, transients soft-limited.
-ONESHOT_RMS = {
-    "se_live_tap": -25.0, "se_live_perfect": -15.0, "se_live_great": -16.5,
-    "se_live_good": -19.0, "se_live_critical": -14.3, "se_live_connect": -21.0,
-    "se_live_connect_critical": -18.5, "se_live_flick": -14.5, "se_live_flick_critical": -13.8,
-}
-HOLD_RMS = {
-    # long holds: offsets from the set's balanced perfect (its 80 ms hit RMS),
-    # i.e. the whole loop sits 15 dB (critical 13.5 dB) under the perfect hit
-    "se_live_long": -15.0, "se_live_long_critical": -13.5,
-    # set 2's trace loops follow the same rule (set 1's trace cues are one-shots)
-    "se_live_trace": -10.0, "se_live_trace_critical": -8.5,
-}
-# set 1 trace cues are one-shot snips, not loops
-SET1_ONESHOT_EXTRA = {"se_live_trace": -17.0, "se_live_trace_critical": -15.5}
-
-
-CONNECT_TRACE_DB = -6.0  # connect / trace cues sit at half the volume of the rest
-
-
-def balance(cues, oneshot_boost_db=0.0, extra_oneshots=None, long_extra_db=0.0):
-    """oneshot_boost_db > 0 lifts the hit sounds and soft-limits the peaks."""
-    oneshots = dict(ONESHOT_RMS, **(extra_oneshots or {}))
-    out = {}
-    order = sorted(cues, key=lambda n: n not in oneshots)  # one-shots (perfect) first
-    for name in order:
-        sig = cues[name]
-        trim_db = CONNECT_TRACE_DB if name.startswith(("se_live_connect", "se_live_trace")) else 0.0
-        if name in oneshots:
-            out[name] = level(sig, oneshots[name] + oneshot_boost_db + trim_db, 0.08, -1.0,
-                              limit=oneshot_boost_db > 0)
-        else:
-            ref = 20 * math.log10(rms(out["se_live_perfect"], 0, 0.08))
-            extra = long_extra_db if name.startswith("se_live_long") else 0.0
-            out[name] = level(sig, HOLD_RMS[name] + ref + extra, None, -4.0, limit=True)
-    return {n: out[n] for n in cues}
-
-
 def main():
-    out_dir = sys.argv[1] if len(sys.argv) > 1 else AUDIO_SOURCE
-    t0 = time.time()
-    S = load_sources()
-    print(f"sources loaded ({time.time() - t0:.1f}s)")
-    groups = {}
-    groups["custom01"] = balance(set1(S), oneshot_boost_db=3.0, extra_oneshots=SET1_ONESHOT_EXTRA)
-    print(f"custom01 ({time.time() - t0:.1f}s)")
-    groups["custom02"] = balance(set2(S))
-    print(f"custom02 ({time.time() - t0:.1f}s)")
-    groups["default"] = {k: gain(v, db(-3)) for k, v in groups["custom01"].items()
-                         if k != "se_live_trace_critical"}
-    groups["live_se_common"] = common(S)
-    print(f"live_se_common ({time.time() - t0:.1f}s)")
-    for g, cues in groups.items():
-        d = os.path.join(out_dir, g)
-        os.makedirs(d, exist_ok=True)
-        for name, sig in cues.items():
-            write_wav(os.path.join(d, name + ".wav"), sig)
-    total = sum(len(c) for c in groups.values())
-    print(f"wrote {total} files to {out_dir} ({time.time() - t0:.1f}s)")
+    root = sys.argv[1] if len(sys.argv) > 1 else AUDIO_SOURCE
+    output = os.path.join(root, "live_se_common")
+    cues = common(load_sources())
+    os.makedirs(output, exist_ok=True)
+    for name, signal in cues.items():
+        write_wav(os.path.join(output, name + ".wav"), signal)
+    print(f"Wrote {len(cues)} shared sounds to {output}")
 
 
 if __name__ == "__main__":

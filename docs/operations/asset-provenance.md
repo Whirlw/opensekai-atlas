@@ -21,7 +21,7 @@
 | --- | --- | --- | --- | --- | --- |
 | 音符皮肤 custom01 | `Assets/Game/Resources/live/note/custom01` | 89 | 0.98 MB | 自制，素材目录 `ArtSource/Notes` | 现行 |
 | 音符皮肤 custom02 | `Assets/Game/Resources/live/note/custom02` | 89 | 1.36 MB | 自制，素材目录 `ArtSource/NotesV2` | 现行 |
-| 打击音 custom03 | `Assets/StreamingAssets/sound/live/tap_se/custom03` | 13 | 2.23 MB | AI 生成后由作者手动编辑，CC0-1.0 | 现行 |
+| 打击音 live_se_key | `Assets/StreamingAssets/sound/live/tap_se/live_se_key` | 13 | 2.23 MB | AI 生成后由作者手动编辑，CC0-1.0 | 现行 |
 | 共享演出音 | `Assets/StreamingAssets/sound/live/sound/live_se/common` | 5 | 2.36 MB | 自制与 CC0 素材，详见音频署名 | 现行 |
 | CRI 音频负载 | 全仓 | 0 | 0 | 已删除 | 已删 |
 | 界面音效 zen | `Assets/Game/Resources/UiSound/Zen` | 19 | 0.07 MB | CC0-1.0，uisfx「zen」包（github.com/romainsimon/uisfx），许可见同目录 `LICENSE-AUDIO.txt` | 现行 |

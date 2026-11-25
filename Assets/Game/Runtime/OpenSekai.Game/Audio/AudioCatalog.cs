@@ -14,8 +14,6 @@ namespace Sekai
 		private const string MENU_COMMON_ACB_FILE_NAME = "MenuCommon.acb";
 		private const string MENU_COMMON_BUILT_IN_CUE_SHEET_NAME = "MenuCommon_Built_in";
 		private const string MENU_COMMON_BUILT_IN_ACB_FILE_NAME = "MenuCommon_Built_in.acb";
-		private const string LIVE_DEFAULT_SOUND_BUNDLE_NAME = "live/sound/live_se/default";
-		private const string LIVE_DEFAULT_COMMON_ACB_FILE_NAME = "se_live_common.acb.bytes";
 		private const string LIVE_TAP_SE_BUNDLE_NAME_PREFIX = "live/tap_se";
 		private const string LIVE_MUSIC_BUNDLE_NAME_BASE = "music/long/{0}";
 		private static readonly string[] _liveTapPredecodeCueNames =
@@ -35,35 +33,6 @@ namespace Sekai
 			"se_live_trace_critical"
 		};
 
-		private static readonly string[] _liveDefaultPredecodeCueNames =
-		{
-			"se_live_long",
-			"se_live_long_critical",
-			"se_live_perfect",
-			"se_live_tap",
-			"se_live_great",
-			"se_live_good",
-			"se_live_critical",
-			"se_live_connect",
-			"se_live_connect_critical",
-			"se_live_flick",
-			"se_live_flick_critical",
-			"se_live_trace",
-			"se_live_trace_critical",
-			"se_live_clear",
-			"se_live_full_combo",
-			"se_live_all_perfect",
-			"se_live_end_finish",
-			"se_live_end_clear",
-			"se_live_end_perfect",
-			"se_live_end_all_perfect"
-		};
-
-		private static readonly Dictionary<string, string[]> _predecodeCueNamesByBundleName = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
-		{
-			{ LIVE_DEFAULT_SOUND_BUNDLE_NAME, _liveDefaultPredecodeCueNames },
-			{ LIVE_TAP_SE_BUNDLE_NAME_PREFIX, _liveTapPredecodeCueNames }
-		};
 		private static readonly HashSet<string> _liveTapCueNameSet = new HashSet<string>(_liveTapPredecodeCueNames, StringComparer.OrdinalIgnoreCase);
 
 		private readonly HashSet<string> _loadedBundles = new HashSet<string>();
@@ -433,10 +402,6 @@ namespace Sekai
 		{
 			List<string> candidates = new List<string>();
 			AddAcbFileNameCandidateWithVariants(candidates, GetAcbFileName(bundleName));
-			if (string.Equals(bundleName, LIVE_DEFAULT_SOUND_BUNDLE_NAME, StringComparison.OrdinalIgnoreCase))
-			{
-				AddAcbFileNameCandidateWithVariants(candidates, LIVE_DEFAULT_COMMON_ACB_FILE_NAME);
-			}
 			if (string.Equals(bundleName, MENU_COMMON_BUILT_IN_CUE_SHEET_NAME, StringComparison.OrdinalIgnoreCase))
 			{
 				AddAcbFileNameCandidateWithVariants(candidates, MENU_COMMON_BUILT_IN_ACB_FILE_NAME);
@@ -572,47 +537,21 @@ namespace Sekai
 				return;
 			}
 
-			string[] cueNames = GetPredecodeCueNames(bundleName);
-			if (cueNames == null || cueNames.Length == 0)
+			string normalized = bundleName.Replace('\\', '/').Trim('/');
+			if (!normalized.Equals(LIVE_TAP_SE_BUNDLE_NAME_PREFIX, StringComparison.OrdinalIgnoreCase)
+				&& !normalized.StartsWith(LIVE_TAP_SE_BUNDLE_NAME_PREFIX + "/", StringComparison.OrdinalIgnoreCase))
 			{
 				return;
 			}
 
 			try
 			{
-				acb.PreloadAudioClips(cueNames);
+				acb.PreloadAudioClips(_liveTapPredecodeCueNames);
 			}
 			catch (Exception exception)
 			{
 				Debug.LogException(exception);
 			}
-		}
-
-		private static string[] GetPredecodeCueNames(string bundleName)
-		{
-			if (string.IsNullOrEmpty(bundleName))
-			{
-				return null;
-			}
-
-			string normalized = bundleName.Replace('\\', '/').Trim('/');
-			if (_predecodeCueNamesByBundleName.TryGetValue(normalized, out string[] cueNames))
-			{
-				return cueNames;
-			}
-
-			int slashIndex = normalized.LastIndexOf('/');
-			while (slashIndex > 0)
-			{
-				normalized = normalized.Substring(0, slashIndex);
-				if (_predecodeCueNamesByBundleName.TryGetValue(normalized, out cueNames))
-				{
-					return cueNames;
-				}
-				slashIndex = normalized.LastIndexOf('/');
-			}
-
-			return null;
 		}
 
 		private void LogMissingBundle(string bundleName, string acbFileName)

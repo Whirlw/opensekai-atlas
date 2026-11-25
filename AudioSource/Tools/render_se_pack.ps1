@@ -1,4 +1,4 @@
-# Regenerate every WAV in AudioSource/<group>/ from the samples in Tools/samples.
+# Regenerate the five shared live sounds in live_se_common from the samples in Tools/samples.
 # Overwrites the finished files; run AudioSource/Import-All.bat afterwards.
 param([string]$OutDir)
 $ErrorActionPreference = 'Stop'
