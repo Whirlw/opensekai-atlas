@@ -265,13 +265,18 @@ namespace OpenSekai.Infrastructure.Packages
 
         /// <summary>Call on Unity's main thread. Extraction reports progress on a worker thread;
         /// callbacks that access Unity objects must dispatch to the main thread. Publication resumes on Unity's context.</summary>
-        public async Task<SongPackage> ImportDownloadedZipAsync(string zipPath, string downloadId, Action<float> progress = null)
+        public async Task<SongPackage> ImportDownloadedZipAsync(string zipPath, string downloadId, Action<float> progress = null,
+            SongPackageSource source = null)
         {
             // A deterministic receipt allows a completed download to be acknowledged after a process restart.
             string receipt = "server-" + long.Parse(downloadId).ToString();
             string installed = RequirePackageDirectory(Path.Combine(RootDirectory, receipt));
             if (File.Exists(Path.Combine(installed, SongPackageStorage.MANIFEST_FILE_NAME)))
-                return Track(SongPackageStorage.LoadEntry(installed)) ?? throw new InvalidDataException("已安装曲包的清单无效。");
+            {
+                var existing = SongPackageStorage.LoadEntry(installed) ?? throw new InvalidDataException("已安装曲包的清单无效。");
+                source?.WriteWeb(installed);
+                return Track(existing);
+            }
             string staging = ImportStagingPath(Guid.NewGuid());
             try
             {
@@ -292,6 +297,7 @@ namespace OpenSekai.Infrastructure.Packages
                     else if (!needsSusConversion && ChartFileReader.Read(entry) == null) throw new InvalidDataException("谱面内容无效。");
                     manifest.importedAtUtc = DateTimeOffset.UtcNow;
                     WriteManifest(folder, manifest);
+                    source?.WriteWeb(folder);
                     return (entry, needsSusConversion);
                 });
                 // SUS conversion loads the game's resource configuration and must stay on Unity's thread.
@@ -338,7 +344,18 @@ namespace OpenSekai.Infrastructure.Packages
 				File.Delete(destinationPath);
 			}
 
-			ZipFile.CreateFromDirectory(entry.RootDirectory, destinationPath, System.IO.Compression.CompressionLevel.Optimal, false);
+			string privateSource = Path.Combine(entry.RootDirectory, SongPackageSource.WEB_FILE_NAME);
+			using var archive = ZipFile.Open(destinationPath, ZipArchiveMode.Create);
+			WalkPackageTree(entry.RootDirectory, item =>
+			{
+				if (item is FileInfo && PathsEqual(item.FullName, privateSource)) return;
+				string name = GetRelativePath(entry.RootDirectory, item.FullName).Replace(Path.DirectorySeparatorChar, '/');
+				if (item is DirectoryInfo directoryInfo)
+				{
+					if (!directoryInfo.EnumerateFileSystemInfos().Any()) archive.CreateEntry(name + "/");
+				}
+				else archive.CreateEntryFromFile(item.FullName, name, System.IO.Compression.CompressionLevel.Optimal);
+			});
 			return destinationPath;
 		}
 

@@ -145,7 +145,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(bar.LaneStartF, Is.EqualTo(3f).Within(1e-5f));
             Assert.That(bar.LaneEndF, Is.EqualTo(4f).Within(1e-5f));
 
-            bar.Head.Settle((NoteResult.JustPerfect, NoteResultDescription.None));
+            bar.Head.Settle((NoteResult.Perfect, NoteResultDescription.None));
             bar.Excute(halfway, 1f);
             Assert.That(bar.LaneStartF, Is.EqualTo(3f).Within(1e-5f));
             Assert.That(bar.LaneEndF, Is.EqualTo(4f).Within(1e-5f));
@@ -268,7 +268,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(_bar.State, Is.EqualTo(NoteState.Done));
             Assert.That(_view.Removals(Tail), Is.Zero);
             Step(TailTime + 0.02f, TouchPhase.Ended);
-            Assert.That(Tail.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(Tail.Result, Is.EqualTo(NoteResult.Perfect));
             Assert.That(_view.Removals(Tail), Is.EqualTo(1));
         }
 
@@ -301,7 +301,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Step(TailTime - 0.02f, TouchPhase.Moved, new Vector2(0f, 200f));
             Assert.That(Tail.Result, Is.EqualTo(NoteResult.None), "an early swipe is only recorded");
             Step(TailTime, TouchPhase.Stationary);
-            Assert.That(Tail.Result, Is.EqualTo(NoteResult.JustPerfect), "the finger is still on the lane at the tail time");
+            Assert.That(Tail.Result, Is.EqualTo(NoteResult.Perfect), "the finger is still on the lane at the tail time");
             Step(TailTime + 0.4f);
             Step(TailTime + 0.5f);
             Assert.That(_view.Removals(Tail), Is.EqualTo(1));

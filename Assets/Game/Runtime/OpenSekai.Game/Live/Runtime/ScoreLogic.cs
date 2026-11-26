@@ -2,27 +2,79 @@ using OpenSekai.Shared.Settings;
 using Sekai.Live;
 using OpenSekai.Shared.Scoring;
 using Sekai;
+using System.Collections.Generic;
 
 namespace Sekai.Core.Live
 {
 	public class ScoreLogic
 	{
-		private const int DEFAULT_TOTAL_SCORE = 1000000;
+		private const int DEFAULT_TOTAL_SCORE = ScoreGauge.MAXIMUM_SCORE;
+		private const int DAMAGE_REFERENCE_NOTE_COUNT = 1000;
+		private const int MAX_STANDARD_NOTE_DAMAGE = 500;
 
 		private readonly LiveBundleBuildData _liveBundleBuildData;
-		private MasterPlayLevelScore _scoreInfo;
+		private ScoreGauge _gauge = ScoreGauge.Standard;
 
 		/// <summary>
 		/// 已经分配过分数的音符数（不含装饰音符）。用于把 1,000,000 均匀摊到每个音符上：
-		/// 第 i 个音符拿 round(1e6*(i+1)/n) - round(1e6*i/n)，n 个音符全 JustPerfect 时总分正好 =
+		/// 第 i 个音符拿 round(1e6*(i+1)/n) - round(1e6*i/n)，n 个音符全 Perfect 时总分正好 =
 		/// 1,000,000。直接按 1e6/n 取整会让每音符少一点，n=2019 的谱面满分只有 999,405。
 		/// </summary>
 		private int _scoredNoteCount;
+		internal int RemainingNoteCount { get; private set; }
+		internal bool UseSubtractiveScore { get; private set; }
+
+		internal LiveScore HudScore
+		{
+			get
+			{
+				if (!UseSubtractiveScore) return _score;
+				// A timed-out hold head consumes a judgement but no additive score slot.
+				// Price the remaining Perfects starting at the next actual score slot.
+				var hud = _score;
+				hud.totalScore += _score.totalComboCount > 0
+					? CumulativeBaseScore(_scoredNoteCount + RemainingNoteCount) - CumulativeBaseScore(_scoredNoteCount)
+					: DEFAULT_TOTAL_SCORE;
+				hud.rank = _gauge.RankOf(hud.totalScore);
+				return hud;
+			}
+		}
 
 		/// <summary>Live snapshot of the running session. Read-only from outside: only the board may write it.</summary>
 		public LiveScore Score => _score;
 
 		private LiveScore _score;
+		private readonly HashSet<NoteBase> _flicks = new();
+		private readonly HashSet<NoteBase> _holdPoints = new();
+
+		private void CountChartJudgments(MusicScore chart)
+		{
+			_flicks.Clear();
+			_holdPoints.Clear();
+			if (chart?.NoteArray == null) return;
+			foreach (var root in chart.NoteArray)
+			{
+				if (root?.NoteList == null) continue;
+				foreach (var part in root.NoteList)
+					if (part is FlickNote or FrictionFlickNote && part.HasJudgment) _flicks.Add(part);
+				if (chart.ScoringHoldChains != null || root is not LongNote bar || bar is GuideNote || bar.IsDecoration || bar.LinkedPointTail == null) continue;
+				bool hasPoints = false;
+				foreach (var point in bar.JudgedPoints)
+				{
+					if (!point.HasJudgment || point is not HoldPointNote) continue;
+					_holdPoints.Add(point);
+					hasPoints = true;
+				}
+				if (hasPoints) _score.holdChains++;
+			}
+			if (chart.ScoringHoldChains != null)
+			{
+				_score.holdChains = chart.ScoringHoldChains.Length;
+				foreach (var chain in chart.ScoringHoldChains) _holdPoints.UnionWith(chain);
+			}
+			_score.flickJudgments = _flicks.Count;
+			_score.holdPoints = _holdPoints.Count;
+		}
 
 		public int BaseNoteScore { get; set; }
 
@@ -61,6 +113,7 @@ namespace Sekai.Core.Live
 		}
 
 		private bool _fakePerfect;
+		private OpenSekai.Shared.Playback.DanLiveSong _dan;
 
 		public ScoreLogic(LiveBundleBuildData data)
 		{
@@ -72,17 +125,21 @@ namespace Sekai.Core.Live
 		public virtual void Setup(LiveBootDataBase bootData, MusicScore musicScore)
 		{
 			_score = default;
-			_scoreInfo = bootData?.MusicData?.Score;
+			CountChartJudgments(musicScore);
+			_gauge = ScoreGauge.Create(bootData?.MusicData?.Score);
 			// The live's own settings snapshot decides; the stored settings only when there is none.
-			_fakePerfect = bootData?.LiveSettingData?.UsesAutoFakePerfectMode
-				?? LiveSettingsStore.Shared.Load()?.UsesAutoFakePerfectMode == true;
+			var settings = bootData?.LiveSettingData ?? LiveSettingsStore.Shared.Load();
+			_fakePerfect = settings.UsesAutoFakePerfectMode;
+			UseSubtractiveScore = settings.UseSubtractiveScore;
 			int totalCombo = LiveUtility.CalculateTotalComboCount(musicScore);
 			if (totalCombo <= 0)
 			{
 				totalCombo = bootData?.MusicData?.TotalNoteCount ?? 0;
 			}
 			_score.totalComboCount = totalCombo;
-			_score.life = musicScore?.InitialLife
+			RemainingNoteCount = totalCombo;
+			_dan = (bootData as FreeLiveBootData)?.DanSong;
+			_score.life = _dan?.StartingLife ?? musicScore?.InitialLife
 				?? (_liveBundleBuildData != null && _liveBundleBuildData.Life > 0 ? _liveBundleBuildData.Life : 1000);
 			_score.rank = ScoreRank.D;
 			_score.totalScore = 0;
@@ -102,6 +159,7 @@ namespace Sekai.Core.Live
 				return;
 			}
 
+			RemainingNoteCount = System.Math.Max(0, RemainingNoteCount - 1);
 			NoteResult effectiveResult = note.Result;
 			// In Fake Perfect mode, treat Auto as Perfect for combo counting
 			if (effectiveResult == NoteResult.Auto && _fakePerfect)
@@ -126,11 +184,9 @@ namespace Sekai.Core.Live
 
 			switch (note?.Result)
 			{
-				case NoteResult.JustPerfect:
-					_score.justPerfectCount++;
-					_score.perfectCount++;
-					break;
 				case NoteResult.Perfect:
+					if (_flicks.Remove(note)) _score.perfectFlicks++;
+					if (_holdPoints.Remove(note)) _score.perfectHoldPoints++;
 					_score.perfectCount++;
 					break;
 				case NoteResult.Great:
@@ -175,13 +231,10 @@ namespace Sekai.Core.Live
 			int noteBaseScore = TakeNextNoteBaseScore();
 			int addScore = note.Result switch
 			{
-				// A just-perfect hit and a perfect hit pay the same: the tighter window is a visual
-				// nuance, not a scoring one. Paying perfect only 90% made every all-PERFECT play fall
-				// short of 1,000,000.
-				NoteResult.JustPerfect => noteBaseScore,
 				NoteResult.Perfect => noteBaseScore,
-				NoteResult.Great => UnityEngine.Mathf.RoundToInt(noteBaseScore * 0.7f),
+				NoteResult.Great => UnityEngine.Mathf.RoundToInt(noteBaseScore * 0.85f),
 				NoteResult.Good => UnityEngine.Mathf.RoundToInt(noteBaseScore * 0.5f),
+				NoteResult.Bad => UnityEngine.Mathf.RoundToInt(noteBaseScore * 0.2f),
 				NoteResult.Auto => noteBaseScore,
 				NoteResult.Pass => 0,
 				_ => 0
@@ -194,7 +247,7 @@ namespace Sekai.Core.Live
 
 		/// <summary>
 		/// 取当前音符应得的基分：把 1,000,000 累积摊分，第 i 个音符 = round(1e6*(i+1)/n) - round(1e6*i/n)。
-		/// 这样 n 个音符全 JustPerfect 时最后一次正好补上前面所有截断误差，总分严格等于 1,000,000。
+		/// 这样 n 个音符全 Perfect 时最后一次正好补上前面所有截断误差，总分严格等于 1,000,000。
 		/// </summary>
 		private int TakeNextNoteBaseScore()
 		{
@@ -207,20 +260,12 @@ namespace Sekai.Core.Live
 
 			int index = _scoredNoteCount;
 			int nextIndex = index + 1;
-			long weightNow = (long)DEFAULT_TOTAL_SCORE * index;
-			long weightNext = (long)DEFAULT_TOTAL_SCORE * nextIndex;
-			// 四舍五入到最近的整数分值，避免误差全部堆在最后一个音符上
-			int cumulativeNow = (int)((weightNow + total / 2) / total);
-			int cumulativeNext = (int)((weightNext + total / 2) / total);
-			int baseScore = cumulativeNext - cumulativeNow;
-			if (baseScore < 0)
-			{
-				baseScore = 0;
-			}
-
 			_scoredNoteCount = nextIndex;
-			return baseScore;
+			return System.Math.Max(0, CumulativeBaseScore(nextIndex) - CumulativeBaseScore(index));
 		}
+
+		private int CumulativeBaseScore(int count) =>
+			(int)(((long)DEFAULT_TOTAL_SCORE * count + _score.totalComboCount / 2) / _score.totalComboCount);
 
 		public virtual void Damage(NoteBase note)
 		{
@@ -229,35 +274,40 @@ namespace Sekai.Core.Live
 				return;
 			}
 
+			if (_dan != null)
+			{
+				if (!note.HasJudgment || note is NextRushDamageNote && note.Result != NoteResult.Miss) return;
+				int life = System.Math.Max(0, _score.life - _dan.Damage.For(note.Result));
+				if (life == _score.life) return;
+				_score.life = life;
+				_dan.LifeChanged?.Invoke(life);
+				return;
+			}
+
 			if (note is NextRushDamageNote)
 			{
 				if (note.Result == NoteResult.Miss)
 					_score.life = UnityEngine.Mathf.Max(0, _score.life - NextRushDamageNote.LIFE_PENALTY);
+				return;
 			}
-			else if (LiveConfig.Damages.TryGetValue(note.Result, out int damage))
+
+			int totalCombo = _score.totalComboCount;
+			if (totalCombo <= 0) return;
+
+			int referenceDamage = note.Result switch
 			{
-				_score.life = UnityEngine.Mathf.Max(0, _score.life - damage);
-			}
+				NoteResult.Bad => 15,
+				NoteResult.Miss => 20,
+				_ => 0
+			};
+			int damage = (int)System.Math.Ceiling((double)referenceDamage * DAMAGE_REFERENCE_NOTE_COUNT / totalCombo);
+			damage = System.Math.Min(MAX_STANDARD_NOTE_DAMAGE, damage);
+			_score.life = UnityEngine.Mathf.Max(0, _score.life - damage);
 		}
 
 		public virtual void UpdateScoreRank()
 		{
-			if (_scoreInfo != null && (_scoreInfo.s > 0 || _scoreInfo.a > 0 || _scoreInfo.b > 0 || _scoreInfo.c > 0))
-			{
-				_score.rank = ScoreGauge.GetRank(_scoreInfo, _score.totalScore);
-				return;
-			}
-
-			// OpenSekai fallback for custom scores: keep rank thresholds aligned with ScoreGaugeCalculator.Create(1000000).
-			int rankS = UnityEngine.Mathf.FloorToInt(ScoreGauge.RANK_RATE_S * DEFAULT_TOTAL_SCORE);
-			int rankA = UnityEngine.Mathf.FloorToInt(ScoreGauge.RANK_RATE_A * DEFAULT_TOTAL_SCORE);
-			int rankB = UnityEngine.Mathf.FloorToInt(ScoreGauge.RANK_RATE_B * DEFAULT_TOTAL_SCORE);
-			int rankC = UnityEngine.Mathf.FloorToInt(ScoreGauge.RANK_RATE_C * DEFAULT_TOTAL_SCORE);
-			_score.rank = _score.totalScore >= rankS ? ScoreRank.S
-				: _score.totalScore >= rankA ? ScoreRank.A
-				: _score.totalScore >= rankB ? ScoreRank.B
-				: _score.totalScore >= rankC ? ScoreRank.C
-				: ScoreRank.D;
+			_score.rank = _gauge.RankOf(_score.totalScore);
 		}
 	}
 }

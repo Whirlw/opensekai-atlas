@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
+using OpenSekai.Shared.Playback;
 using Sekai.Core.Live;
 using UnityEngine;
 using OpenSekai.Infrastructure.Packages;
@@ -13,7 +14,7 @@ namespace OpenSekai.App.Library
 {
 	public static class CustomMusicScorePlayHistoryStorage
 	{
-		private static readonly PlayHistorySummaryCache _cache = new PlayHistorySummaryCache();
+		private static PlayHistorySummaryCache Cache => PlayerProfileStore.Local.Summaries;
 
 		/// <summary>
 		/// Raised after a run was appended, with its score key and that package's updated summary, so
@@ -21,55 +22,45 @@ namespace OpenSekai.App.Library
 		/// </summary>
 		public static event Action<string, CustomMusicScorePlayHistorySummary> Recorded;
 
-		public static void AppendLiveResult(FreeLiveBootData bootData, LiveScore score, long musicTimeMs, long musicLengthMs)
+		private static RankingHistory _ranking;
+		internal static RankingHistory Ranking
 		{
-			AppendLiveResult(bootData, score, musicTimeMs, musicLengthMs, null, null, 0);
+			get => _ranking ?? PlayerProfileStore.Local.History;
+			set => _ranking = ReferenceEquals(value, PlayerProfileStore.Local.History) ? null : value;
 		}
 
-		/// <summary>
-		/// Records one finished run. The extra arguments keep the same JSONL schema and only add
-		/// fields, so older readers keep working: chartHash identifies the source chart content,
-		/// rulesVersion marks the judgement/scoring rules, sessionId links to one live session.
-		/// </summary>
-		public static void AppendLiveResult(
-			FreeLiveBootData bootData, LiveScore score, long musicTimeMs, long musicLengthMs,
-			string sessionId, string chartHash, int rulesVersion)
+		public static Best30Snapshot ReadBest30() => Ranking.Read();
+
+		public static RankingSettlement RetrySave(string playId)
 		{
-			if (bootData == null || bootData.IsAuto || bootData.IsCustomMusicScore != true || bootData.MusicData?.IsTestPlay == true)
-			{
-				return;
-			}
+			var receipt = Ranking.Retry(playId, out var summary);
+			if (summary != null) Recorded?.Invoke(receipt.ScoreKey, summary);
+			return receipt;
+		}
 
-			if (string.IsNullOrEmpty(bootData.CustomMusicScoreKey))
-			{
-				// Without the content hash the run could not be shown for any package.
-				return;
-			}
+		/// <summary>Entry point for a result page, including a load error before the live scene started.</summary>
+		public static RankingSettlement ForDisplay(PlayResult result)
+		{
+			if (result.Settlement != null) return result.Settlement;
+			if (result.Kind != PlayResultKind.LoadError)
+				throw new InvalidOperationException("This result was produced without a history recorder.");
+			var standing = new RankingStanding(ReadBest30().Total, null, null);
+			return new RankingSettlement(string.Empty, string.Empty, RankingEligibility.LoadError,
+				HistorySaveState.NotRecorded, ClearAward.None, 0, standing, standing);
+		}
 
-			CustomMusicScorePlayHistorySummary summary;
-			string scoreKey;
-			try
-			{
-				Directory.CreateDirectory(CustomMusicScoreStorage.RootDirectory);
-				// The manifest as the library caches it; only a package outside the library is read from disk.
-				SongPackage package = SongPackageManager.Shared.FindCachedItem(bootData.CustomMusicScorePath)?.Entry
-					?? SongPackageStorage.LoadEntry(bootData.CustomMusicScorePath);
-				CustomMusicScoreManifest manifest = CustomMusicScoreEntry.FromPackage(package)?.Manifest;
-				CustomMusicScorePlayHistoryRecord record = CreateRecord(bootData, manifest, score, musicTimeMs, musicLengthMs,
-					sessionId, chartHash, rulesVersion);
-				scoreKey = record.ScoreKey;
-				summary = _cache.Append(CustomMusicScoreStorage.PlayHistoryPath, record);
-			}
-			catch (Exception exception)
-			{
-				Debug.LogWarningFormat("Failed to append custom music score play history. path:{0} error:{1}", CustomMusicScoreStorage.PlayHistoryPath, exception.Message);
-				return;
-			}
-
-			if (summary != null)
-			{
-				Recorded?.Invoke(scoreKey, summary);
-			}
+		internal static RankingSettlement Finish(FreeLiveBootData boot, LiveScore score, PlayResultKind kind,
+			long musicTimeMs, long musicLengthMs, string sessionId, string chartHash, int rulesVersion)
+		{
+			var manifest = string.IsNullOrEmpty(boot.CustomMusicScorePath) ? null
+				: CustomMusicScoreStorage.LoadEntry(boot.CustomMusicScorePath)?.Manifest;
+			var record = CreateRecord(boot, manifest, score, kind, musicTimeMs, musicLengthMs, sessionId, chartHash, rulesVersion);
+			RankingEligibility? exclusion = null;
+			if (!boot.IsCustomMusicScore || boot.MusicData?.IsTestPlay == true) exclusion = RankingEligibility.TestPlay;
+			else if (boot.IsAuto) exclusion = RankingEligibility.Auto;
+			var receipt = Ranking.Submit(record, exclusion, out var summary);
+			if (summary != null) Recorded?.Invoke(record.ScoreKey, summary);
+			return receipt;
 		}
 
 		/// <summary>
@@ -82,7 +73,7 @@ namespace OpenSekai.App.Library
 		{
 			try
 			{
-				return _cache.Load(CustomMusicScoreStorage.PlayHistoryPath);
+				return Cache.Load(CustomMusicScoreStorage.PlayHistoryPath);
 			}
 			catch (Exception exception)
 			{
@@ -97,7 +88,7 @@ namespace OpenSekai.App.Library
 		{
 			try
 			{
-				return _cache.Reload(CustomMusicScoreStorage.PlayHistoryPath);
+				return Cache.Reload(CustomMusicScoreStorage.PlayHistoryPath);
 			}
 			catch (Exception exception)
 			{
@@ -141,7 +132,8 @@ namespace OpenSekai.App.Library
 		internal static CustomMusicScorePlayHistorySummary Fold(
 			Dictionary<string, CustomMusicScorePlayHistorySummary> summaries, CustomMusicScorePlayHistoryRecord record)
 		{
-			if (record == null || string.IsNullOrEmpty(record.ScoreKey))
+			if (record == null || string.IsNullOrEmpty(record.ScoreKey) ||
+				(record.EndReason.HasValue && record.EndReason != PlayResultKind.Completed))
 			{
 				return null;
 			}
@@ -199,29 +191,42 @@ namespace OpenSekai.App.Library
 			return string.CompareOrdinal(current.PlayedAtUtc, best.PlayedAtUtc) > 0;
 		}
 
+		internal static string GameDayOf(DateTimeOffset localTime) =>
+			localTime.DateTime.AddHours(-4).ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+
 		private static CustomMusicScorePlayHistoryRecord CreateRecord(FreeLiveBootData bootData, CustomMusicScoreManifest manifest, LiveScore score,
-			long musicTimeMs, long musicLengthMs, string sessionId, string chartHash, int rulesVersion)
+			PlayResultKind kind, long musicTimeMs, long musicLengthMs, string sessionId, string chartHash, int rulesVersion)
 		{
-			bool isAllPerfect = score.totalComboCount > 0
-				&& score.totalComboCount == score.perfectCount
-				&& score.greatCount == 0
-				&& score.goodCount == 0
-				&& score.badCount == 0
-				&& score.missCount == 0;
-			bool isFullCombo = score.totalComboCount > 0 && score.maxCombo >= score.totalComboCount;
-			string clearType = isAllPerfect ? "all_perfect" : isFullCombo ? "full_combo" : score.life > 0 ? "clear" : "life_zero";
+			var finished = DateTimeOffset.Now;
+			var award = RankingRules.Award(kind, bootData.IsAuto, score);
+			bool isAllPerfect = award == ClearAward.AllPerfect;
+			bool isFullCombo = isAllPerfect || award == ClearAward.FullCombo;
+			string clearType = isAllPerfect ? "all_perfect" : isFullCombo ? "full_combo"
+				: kind == PlayResultKind.Completed ? "clear" : kind == PlayResultKind.Retired ? "retired" : "life_zero";
 
 			return new CustomMusicScorePlayHistoryRecord
 			{
-				SchemaVersion = 2,
+				SchemaVersion = 3,
+				EndReason = kind,
+				MaximumScore = RankingRules.MAXIMUM_SCORE,
+				FormulaVersion = RankingRules.FORMULA_VERSION,
 				SessionId = sessionId ?? string.Empty,
 				ChartHash = chartHash ?? string.Empty,
 				RulesVersion = rulesVersion,
-				RecordId = Guid.NewGuid().ToString("N"),
-				PlayedAtUtc = DateTime.UtcNow.ToString("O"),
+				RecordId = sessionId,
+				PlayedAtUtc = finished.UtcDateTime.ToString("O"),
+				GameDay = GameDayOf(finished),
+				RetrySourceId = bootData.RetrySourceId,
+				RetrySource = bootData.RetrySource,
+				FlickJudgments = score.flickJudgments,
+				PerfectFlicks = score.perfectFlicks,
+				HoldChains = score.holdChains,
+				HoldPoints = score.holdPoints,
+				PerfectHoldPoints = score.perfectHoldPoints,
 				AppVersion = Application.version,
 				LivePlayMode = bootData.LivePlayMode.ToString(),
 				ScoreKey = bootData.CustomMusicScoreKey,
+				Ranked = bootData.CustomMusicScoreRanked,
 				CustomMusicScoreId = bootData.CustomMusicScoreId,
 				CustomMusicScorePath = bootData.CustomMusicScorePath ?? string.Empty,
 				Title = bootData.MusicData?.Music?.title ?? manifest?.title ?? string.Empty,
@@ -243,7 +248,6 @@ namespace OpenSekai.App.Library
 				IsAllPerfect = isAllPerfect,
 				MaxCombo = score.maxCombo,
 				TotalComboCount = score.totalComboCount,
-				JustPerfectCount = score.justPerfectCount,
 				PerfectCount = score.perfectCount,
 				GreatCount = score.greatCount,
 				GoodCount = score.goodCount,
@@ -280,6 +284,9 @@ namespace OpenSekai.App.Library
 
 	public sealed class CustomMusicScorePlayHistoryRecord
 	{
+		// Locates a legacy run without an ID, even if another line has identical contents.
+		internal int SourceLine { get; set; }
+
 		[JsonProperty("schemaVersion")]
 		public int SchemaVersion { get; init; }
 
@@ -305,8 +312,28 @@ namespace OpenSekai.App.Library
 		[JsonProperty("scoreKey")]
 		public string ScoreKey { get; init; }
 
+		[JsonProperty("ranked")]
+		public bool Ranked { get; init; }
+
 		[JsonProperty("playedAtUtc")]
 		public string PlayedAtUtc { get; init; }
+
+		[JsonProperty("gameDay")]
+		public string GameDay { get; init; }
+		[JsonProperty("retrySourceId")]
+		public string RetrySourceId { get; init; }
+		[JsonProperty("retrySource")]
+		public string RetrySource { get; init; }
+		[JsonProperty("flickJudgments")]
+		public int? FlickJudgments { get; init; }
+		[JsonProperty("perfectFlicks")]
+		public int? PerfectFlicks { get; init; }
+		[JsonProperty("holdChains")]
+		public int? HoldChains { get; init; }
+		[JsonProperty("holdPoints")]
+		public int? HoldPoints { get; init; }
+		[JsonProperty("perfectHoldPoints")]
+		public int? PerfectHoldPoints { get; init; }
 
 		[JsonProperty("appVersion")]
 		public string AppVersion { get; init; }
@@ -377,8 +404,21 @@ namespace OpenSekai.App.Library
 		[JsonProperty("totalComboCount")]
 		public int TotalComboCount { get; init; }
 
-		[JsonProperty("justPerfectCount")]
-		public int JustPerfectCount { get; init; }
+		[JsonProperty("endReason")]
+		public PlayResultKind? EndReason { get; init; }
+
+		[JsonProperty("maximumScore")]
+		public int MaximumScore { get; init; }
+
+		[JsonProperty("formulaVersion")]
+		public int FormulaVersion { get; init; }
+
+		internal ClearAward Award()
+		{
+			if (EndReason != PlayResultKind.Completed || AutoCount != 0) return ClearAward.None;
+			if (IsAllPerfect) return ClearAward.AllPerfect;
+			return IsFullCombo ? ClearAward.FullCombo : ClearAward.Clear;
+		}
 
 		[JsonProperty("perfectCount")]
 		public int PerfectCount { get; init; }

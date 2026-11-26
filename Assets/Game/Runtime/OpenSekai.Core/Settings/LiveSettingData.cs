@@ -67,6 +67,8 @@ namespace Sekai
 
 		public bool UseSimultaneousPushingLine { get; set; }
 
+		public bool UseSubtractiveScore { get; set; }
+
 		public bool UseVibration { get; set; }
 
 		public bool UseAllPerfectEffect { get; set; }
@@ -91,7 +93,16 @@ namespace Sekai
 
 		public MVQualityType QualityType { get; set; }
 
-		public bool IsFastLateFlick { get; set; }
+		public bool ShowFastLate { get; set; }
+
+		public bool ShowFlickMiss { get; set; }
+
+		// Older settings used one switch for both captions. Only read that key during migration.
+		[JsonProperty("IsFastLateFlick")]
+		private bool LegacyFastLateFlick
+		{
+			set { ShowFastLate = ShowFlickMiss = value; }
+		}
 
 		/// <summary>
 		/// Frame rate cap for live play, in Hz. 0 follows the display refresh rate.

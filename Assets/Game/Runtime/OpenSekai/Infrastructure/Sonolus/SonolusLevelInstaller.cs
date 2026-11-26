@@ -60,6 +60,7 @@ namespace OpenSekai.Infrastructure.Sonolus
             new LinkedList<(string, SonolusLevel, TemporarySongPackage)>();
 
         private readonly SongPackageManager _packages;
+        internal SongPackageManager Packages => _packages;
         private readonly string _indexPath;
         private readonly string _stagingRoot;
         private Dictionary<string, IndexEntry> _index;
@@ -117,6 +118,14 @@ namespace OpenSekai.Infrastructure.Sonolus
             return TryGetEntry(server, levelName, out IndexEntry entry) ? entry.Directory : null;
         }
 
+        // A manifest can outlive a deleted score or audio file. Keep the index entry so publication
+        // can replace the broken package, but treat it as a miss for actual playback and download.
+        internal SongPackage FindPlayableInstalled(SonolusServerAddress server, string levelName)
+        {
+            var entry = SongPackageStorage.LoadEntry(FindInstalled(server, levelName));
+            return entry != null && File.Exists(entry.ScorePath) && File.Exists(entry.AudioPath) ? entry : null;
+        }
+
         public SonolusInstallState StateOf(SonolusServerAddress server, SonolusLevel level)
         {
             if (level == null || !TryGetEntry(server, level.Name, out IndexEntry entry))
@@ -159,6 +168,7 @@ namespace OpenSekai.Infrastructure.Sonolus
             SongPackage current = FindCurrentPackage(server, level);
             if (current != null)
             {
+                await ObserveRankAsync(server, level, cancellationToken);
                 progress?.Invoke(1f, "已在曲库中");
                 return current;
             }
@@ -206,6 +216,35 @@ namespace OpenSekai.Infrastructure.Sonolus
             }
         }
 
+        internal async UniTask RestoreSbugaRankAsync(SonolusServerAddress server, string name, SongPackage package)
+        {
+            if (!ChartRankCache.IsSbuga(server) || !TryGetEntry(server, name, out var original)
+                || original.Directory != package.RootDirectory || string.IsNullOrEmpty(original.Data?.Hash)) return;
+            var level = SongPackageSource.ReadSavedLevel(package);
+            if (level?.Name != name || !string.Equals(level.Data?.Hash, original.Data.Hash, StringComparison.OrdinalIgnoreCase)) return;
+            await ObserveRankAsync(server, level, CancellationToken.None);
+        }
+
+        // Reuse the detail response when visiting an installed chart, including a withdrawn Staff Pick.
+        internal async UniTask ObserveRankAsync(SonolusServerAddress server, SonolusLevel level, CancellationToken token)
+        {
+            string key = ChartRankCache.SonolusKey(server, level.Name);
+            if (key == null) return;
+            var installed = FindPlayableInstalled(server, level.Name);
+            if (installed == null) return;
+            var prior = ChartRankCache.Read(key);
+            string hash = prior?.ScoreKey;
+            bool ranked = ChartRankCache.IsRankedLevel(server, level);
+            if (ranked && (hash == null || prior.DataHash != level.Data?.Hash))
+            {
+                try { hash = await ChartRankLookup.VerifyLocalAsync(installed, level); }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException) { hash = null; }
+            }
+            token.ThrowIfCancellationRequested();
+            if (ReferenceEquals(ChartRankCache.Read(key), prior))
+                ChartRankCache.Save(key, ChartRankCache.FromLevel(server, level, ranked ? hash : null));
+        }
+
         private async UniTask<SongPackage> SaveDownloadedAsync(SonolusServerAddress server, SonolusLevelDetails details,
             byte[] data, byte[] audio, byte[] cover, Action<float, string> progress, CancellationToken token,
             bool chartValidated = false)
@@ -215,7 +254,7 @@ namespace OpenSekai.Infrastructure.Sonolus
             progress?.Invoke(0.95f, chartValidated ? "正在保存已缓存的谱面…" : "正在检查谱面…");
             string manifestJson = BuildManifest(details, audioExtension, coverExtension);
             string sourceJson = BuildSource(server, details);
-            return await StageAndPublishAsync(server, details.Level, staging =>
+            var installed = await StageAndPublishAsync(server, details.Level, staging =>
             {
                 string chartPath = Path.Combine(staging, DATA_FILE_NAME);
                 File.WriteAllBytes(chartPath, data);
@@ -226,6 +265,10 @@ namespace OpenSekai.Infrastructure.Sonolus
                 File.WriteAllText(Path.Combine(staging, SongPackageStorage.MANIFEST_FILE_NAME), manifestJson, new UTF8Encoding(false));
                 File.WriteAllText(Path.Combine(staging, SOURCE_FILE_NAME), sourceJson, new UTF8Encoding(false));
             }, progress, token);
+            string rankKey = ChartRankCache.SonolusKey(server, details.Level.Name);
+            if (rankKey != null)
+                ChartRankCache.Save(rankKey, ChartRankCache.FromLevel(server, details.Level, _packages.ScoreKeyOf(installed)));
+            return installed;
         }
 
         private static void ForgetTemporary(TemporarySongPackage package)
@@ -267,7 +310,12 @@ namespace OpenSekai.Infrastructure.Sonolus
             token.ThrowIfCancellationRequested();
 
             var cached = FindTemporary(client.Address, level);
-            if (cached != null) return cached;
+            bool ranked = ChartRankCache.IsRankedLevel(client.Address, level);
+            if (cached != null)
+            {
+                cached.Ranked = ranked && cached.Metadata.Manifest.playLevel == (int)Math.Round(level.Rating);
+                return cached;
+            }
 
             progress?.Invoke(0f, "正在读取临时谱面…");
             byte[] data = await client.DownloadAsync(level.Data, MAX_DATA_BYTES,
@@ -291,7 +339,7 @@ namespace OpenSekai.Infrastructure.Sonolus
                 var metadata = new SongPackage(null, CreateManifest(details, extension, null));
                 using var sha = SHA256.Create();
                 string chartHash = BitConverter.ToString(sha.ComputeHash(data)).Replace("-", "").ToLowerInvariant();
-                var package = new TemporarySongPackage(metadata, chart, chartHash, audio.Clip, data, audio.Data, cover);
+                var package = new TemporarySongPackage(metadata, chart, chartHash, audio.Clip, data, audio.Data, cover) { Ranked = ranked };
                 RememberTemporary(client.Address, level, package);
                 return package;
             }
@@ -354,7 +402,7 @@ namespace OpenSekai.Infrastructure.Sonolus
         private SongPackage FindCurrentPackage(SonolusServerAddress server, SonolusLevel level)
         {
             return StateOf(server, level) == SonolusInstallState.Installed
-                ? SongPackageStorage.LoadEntry(FindInstalled(server, level.Name)) : null;
+                ? FindPlayableInstalled(server, level.Name) : null;
         }
 
         internal SongPackage PublishPackage(string staging, SonolusServerAddress server, SonolusLevel level, bool ownsDownloadStage = false)

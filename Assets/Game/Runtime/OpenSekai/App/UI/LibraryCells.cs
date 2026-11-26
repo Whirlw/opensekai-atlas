@@ -83,8 +83,11 @@ namespace OpenSekai.App.UI
             LoadCoverAsync(thumbnails, jacketPath, version, _coverLoad.Token).Forget();
         }
 
-        /// <summary>Redraws the labels for a new play-history summary; the cover and motion are left alone.</summary>
-        internal void UpdateScore(CustomMusicScorePlayHistorySummary summary)
+        /// <summary>
+        /// Redraws the labels for a new play-history summary or Ranked verdict; the cover and motion
+        /// are left alone.
+        /// </summary>
+        internal void UpdateLabels(CustomMusicScorePlayHistorySummary summary)
         {
             if (Item != null)
             {
@@ -198,7 +201,10 @@ namespace OpenSekai.App.UI
         }
     }
 
-    /// <summary>Full-width row: jacket, title, credits, clear badge, difficulty and level.</summary>
+    /// <summary>
+    /// Full-width row: jacket, title and credits, then from the right edge the level, the
+    /// difficulty chip, the RANKED tag and the AP / FC badge.
+    /// </summary>
     internal sealed class LibraryRowCell : LibraryCell
     {
         private const float PADDING = 14f;
@@ -208,6 +214,8 @@ namespace OpenSekai.App.UI
         private const float CHIP_MAX_WIDTH = 104f;
         private const float LABEL_SPACING = 1.5f;
         private const float COLUMN_GAP = 20f;
+        private const float TAG_GAP = 10f;
+        private static readonly Color32 _rankedBackground = new Color32(255, 210, 122, 22);
 
         private readonly Image _background;
         private readonly Image _shadow;
@@ -215,7 +223,8 @@ namespace OpenSekai.App.UI
         private readonly Image _cover;
         private readonly TextMeshProUGUI _title;
         private readonly TextMeshProUGUI _meta;
-        private readonly TextMeshProUGUI _badge;
+        private readonly LibraryAwardBadge _award;
+        private readonly LibraryRankedTag _ranked;
         private readonly TextMeshProUGUI _difficulty;
         private readonly RectTransform _difficultyChip;
         private readonly TextMeshProUGUI _level;
@@ -253,15 +262,11 @@ namespace OpenSekai.App.UI
             _difficulty = LibraryWidgets.Label(
                 "Label", chip.transform, string.Empty, LibraryTheme.FontSize.CAPTION, LibraryTheme.Colors.TextSecondary,
                 FontStyles.Bold, TextAlignmentOptions.Center);
-            LibraryUi.UseCondensedFont(_difficulty);
-            _difficulty.characterSpacing = LABEL_SPACING * 100f / _difficulty.fontSize;
+            LibraryUi.UseSpacedCondensedFont(_difficulty, LABEL_SPACING * 100f / _difficulty.fontSize);
             LibraryWidgets.Inset(_difficulty.rectTransform, CHIP_PADDING, 0f, CHIP_PADDING, 0f);
 
-            _badge = LibraryWidgets.Label(
-                "Clear", Body, string.Empty, LibraryTheme.FontSize.CAPTION, LibraryTheme.Colors.TextSecondary,
-                FontStyles.Bold, TextAlignmentOptions.Right);
-            LibraryUi.UseCondensedFont(_badge);
-            _badge.characterSpacing = LABEL_SPACING * 100f / _badge.fontSize;
+            _ranked = new LibraryRankedTag(Body, CHIP_HEIGHT, 16f, _rankedBackground);
+            _award = new LibraryAwardBadge(Body, CHIP_HEIGHT, LibraryTheme.Radius.CHIP);
 
             _title = LibraryWidgets.Label(
                 "Title", Body, string.Empty, LibraryTheme.FontSize.ROW_TITLE, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
@@ -276,7 +281,8 @@ namespace OpenSekai.App.UI
             _title.text = LibraryModel.BuildTitle(item);
             _meta.text = LibraryModel.BuildMeta(item);
             _meta.color = LibraryModel.IsPlayable(item) ? LibraryTheme.Colors.TextMuted : LibraryTheme.Colors.Warning;
-            _badge.text = LibraryModel.ClearBadge(summary);
+            _award.Show(LibraryModel.ClearBadge(summary));
+            _ranked.Show(LibraryModel.IsRanked(item));
             _difficulty.text = LibraryModel.DifficultyLabel(item);
             _difficulty.color = LibraryTheme.Colors.Difficulty(item.Entry?.Manifest?.musicDifficultyType);
             int level = LibraryModel.PlayLevelOf(item);
@@ -290,16 +296,24 @@ namespace OpenSekai.App.UI
                 Mathf.Ceil(_difficulty.GetPreferredValues().x) + CHIP_PADDING * 2f);
             _difficultyChip.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, chipWidth);
 
-            float textRight = -_difficultyChip.anchoredPosition.x + chipWidth + COLUMN_GAP;
-            _badge.enabled = _badge.text.Length > 0;
-            if (_badge.enabled)
+            // Tags line up leftward from the chip: RANKED first, then AP / FC.
+            float right = -_difficultyChip.anchoredPosition.x + chipWidth;
+            Vector2 anchor = new Vector2(1f, 0.5f);
+            if (_ranked.Visible)
             {
-                float width = Mathf.Ceil(_badge.GetPreferredValues().x);
-                Vector2 anchor = new Vector2(1f, 0.5f);
-                LibraryWidgets.Place(_badge.rectTransform, anchor, anchor,
-                    new Vector2(-textRight, 0f), new Vector2(width, CHIP_HEIGHT));
-                textRight += width + COLUMN_GAP;
+                right += TAG_GAP;
+                LibraryWidgets.Place(_ranked.Root, anchor, anchor, new Vector2(-right, 0f), _ranked.Root.sizeDelta);
+                right += _ranked.Width;
             }
+
+            if (_award.Visible)
+            {
+                right += TAG_GAP;
+                LibraryWidgets.Place(_award.Root, anchor, anchor, new Vector2(-right, 0f), _award.Root.sizeDelta);
+                right += _award.Width;
+            }
+
+            float textRight = right + COLUMN_GAP;
 
             float textLeft = PADDING + LibraryTheme.Layout.ROW_COVER_SIZE + COLUMN_GAP;
             LibraryWidgets.TopStrip(_title.rectTransform, textLeft, textRight, 16f, 36f);
@@ -335,24 +349,34 @@ namespace OpenSekai.App.UI
         }
     }
 
-    /// <summary>Grid tile: a square jacket with difficulty and level in its corner, and the title under it.</summary>
+    /// <summary>
+    /// Grid tile: a square jacket with RANKED in its top-left corner, AP / FC in its bottom-left
+    /// corner, difficulty and level in its bottom-right corner, and the title under it.
+    /// </summary>
     internal sealed class LibraryTileCell : LibraryCell
     {
         private const float CORNER = 10f;
         private const float RING_WIDTH = 4f;
         private const float COVER_RADIUS = 18f;
-
+        private const float CHIP_HEIGHT = 32f;
+        private const float CHIP_RADIUS = 9f;
+        private const float CHIP_PADDING = 10f;
+        private const float CHIP_GAP = 8f;
+        private const float CHIP_MAX_WIDTH = 126f;
+        private const float MISSING_PADDING = 12f;
+        private const float MISSING_MAX_WIDTH = 120f;
         private static readonly Color32 _cornerBackground = new Color32(12, 15, 20, 220);
 
         private readonly RectTransform _holder;
         private readonly Image _shadow;
         private readonly Image _ring;
         private readonly Image _cover;
+        private readonly RectTransform _corner;
         private readonly TextMeshProUGUI _difficulty;
         private readonly TextMeshProUGUI _level;
-        private readonly GameObject _badgeRoot;
-        private readonly TextMeshProUGUI _badge;
-        private readonly GameObject _missing;
+        private readonly LibraryAwardBadge _award;
+        private readonly LibraryRankedTag _ranked;
+        private readonly RectTransform _missing;
         private readonly TextMeshProUGUI _missingLabel;
         private readonly TextMeshProUGUI _title;
         private MotionHandle _scaleMotion;
@@ -371,37 +395,28 @@ namespace OpenSekai.App.UI
             Image frame = CreateCover(_holder, COVER_RADIUS, out _cover);
             LibraryUi.Stretch(frame.rectTransform);
 
-            Image corner = LibraryWidgets.Panel("Difficulty", _holder, 9f, _cornerBackground);
+            Image corner = LibraryWidgets.Panel("Difficulty", _holder, CHIP_RADIUS, _cornerBackground);
+            _corner = corner.rectTransform;
             LibraryWidgets.Place(
-                corner.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(CORNER, -CORNER), new Vector2(126f, 32f));
+                _corner, Vector2.right, Vector2.right, new Vector2(-CORNER, CORNER), new Vector2(CHIP_MAX_WIDTH, CHIP_HEIGHT));
             _difficulty = LibraryWidgets.Label(
                 "Label", corner.transform, string.Empty, LibraryTheme.FontSize.CAPTION, LibraryTheme.Colors.TextSecondary,
                 FontStyles.Bold);
-            LibraryUi.UseCondensedFont(_difficulty);
-            LibraryWidgets.Inset(_difficulty.rectTransform, 10f, 0f, 40f, 0f);
+            LibraryUi.UseSpacedCondensedFont(_difficulty, 0f);
             _level = LibraryWidgets.Label(
                 "Level", corner.transform, string.Empty, 21f, LibraryTheme.Colors.TextPrimary,
                 FontStyles.Bold, TextAlignmentOptions.Right);
             LibraryUi.UseCondensedFont(_level);
-            LibraryWidgets.Inset(_level.rectTransform, 70f, 0f, 10f, 0f);
 
-            Image badge = LibraryWidgets.Panel("Clear", _holder, 14f, _cornerBackground);
-            LibraryWidgets.Place(
-                badge.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f),
-                new Vector2(-CORNER, CORNER), new Vector2(48f, 28f));
-            _badgeRoot = badge.gameObject;
-            _badge = LibraryWidgets.Label(
-                "Label", badge.transform, string.Empty, 17f, LibraryTheme.Colors.TextPrimary,
-                FontStyles.Bold, TextAlignmentOptions.Center);
-            LibraryUi.UseCondensedFont(_badge);
-            LibraryUi.Stretch(_badge.rectTransform);
+            // Pinned by its corner, so it stays put when the badge resizes to its letters.
+            _award = new LibraryAwardBadge(_holder, CHIP_HEIGHT, CHIP_RADIUS);
+            LibraryWidgets.Place(_award.Root, Vector2.zero, Vector2.zero, new Vector2(CORNER, CORNER), _award.Root.sizeDelta);
+            _ranked = new LibraryRankedTag(_holder, 28f, 15f, _cornerBackground);
+            LibraryWidgets.Place(_ranked.Root, Vector2.up, Vector2.up, new Vector2(CORNER, -CORNER), _ranked.Root.sizeDelta);
 
             Image missing = LibraryWidgets.Panel("Missing", _holder, 14f, _cornerBackground);
-            LibraryWidgets.Place(
-                missing.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f),
-                new Vector2(CORNER, CORNER), new Vector2(96f, 28f));
-            _missing = missing.gameObject;
+            _missing = missing.rectTransform;
+            LibraryWidgets.Place(_missing, Vector2.one, Vector2.one, new Vector2(-CORNER, -CORNER), new Vector2(96f, 28f));
             _missingLabel = LibraryWidgets.Label(
                 "Label", missing.transform, string.Empty, 15f, LibraryTheme.Colors.Warning,
                 FontStyles.Normal, TextAlignmentOptions.Center);
@@ -421,12 +436,30 @@ namespace OpenSekai.App.UI
             _difficulty.color = LibraryTheme.Colors.Difficulty(item.Entry?.Manifest?.musicDifficultyType);
             int level = LibraryModel.PlayLevelOf(item);
             _level.text = level > 0 ? level.ToString() : "—";
+            _ranked.Show(LibraryModel.IsRanked(item));
+            _award.Show(LibraryModel.ClearBadge(summary));
 
-            string badge = LibraryModel.ClearBadge(summary);
-            _badgeRoot.SetActive(badge.Length > 0);
-            _badge.text = badge;
-            _missing.SetActive(!LibraryModel.IsPlayable(item));
-            _missingLabel.text = item.StatusText;
+            bool missing = !LibraryModel.IsPlayable(item);
+            _missing.gameObject.SetActive(missing);
+            _missingLabel.text = missing ? item.StatusText : string.Empty;
+            if (missing)
+            {
+                float width = Mathf.Ceil(_missingLabel.GetPreferredValues(_missingLabel.text).x) + MISSING_PADDING * 2f;
+                _missing.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, Mathf.Min(MISSING_MAX_WIDTH, width));
+            }
+
+            LayoutCorner();
+        }
+
+        /// <summary>Sizes the difficulty chip to its text.</summary>
+        private void LayoutCorner()
+        {
+            float levelWidth = Mathf.Ceil(_level.GetPreferredValues(_level.text).x);
+            float difficultyWidth = Mathf.Ceil(_difficulty.GetPreferredValues(_difficulty.text).x);
+            float width = Mathf.Min(CHIP_MAX_WIDTH, CHIP_PADDING * 2f + difficultyWidth + CHIP_GAP + levelWidth);
+            _corner.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
+            LibraryWidgets.Inset(_difficulty.rectTransform, CHIP_PADDING, 0f, CHIP_PADDING + levelWidth + CHIP_GAP, 0f);
+            LibraryWidgets.Inset(_level.rectTransform, width - CHIP_PADDING - levelWidth, 0f, CHIP_PADDING, 0f);
         }
 
         protected override void ApplySelection(bool animate)

@@ -9,7 +9,6 @@ namespace Sekai.Live
 		Auto = 4,
 		Good = 5,
 		Great = 6,
-		Perfect = 7,
-		JustPerfect = 8
+		Perfect = 7
 	}
 }

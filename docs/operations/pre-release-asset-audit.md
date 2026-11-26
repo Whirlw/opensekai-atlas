@@ -11,7 +11,7 @@
 | --- | --- | --- |
 | 代码 | **MIT**，无第三方源码 | 全仓 `.cs` 为本项目自写；`Assets/Vendor` 仅保留可按许可分发的第三方运行库 |
 | 字体 | **OFL** | `Assets/Game/Resources/Fonts` 为 Source Han Sans SC（OFL-1.1），已随附许可 |
-| 音频 | **全自制 CC0** | 42 个 wav（`Assets/StreamingAssets/sound`），`docs/reference/audio-credits.md` 42/42 行，`Tools/audit-audio-provenance.ps1` 报 `AUDIT OK`；工程内 `.acb` 数量 **0** |
+| 音频 | **全自制 CC0** | 13 个打击音和 5 个共享演出音（`Assets/StreamingAssets/sound`），`docs/reference/audio-credits.md` 18/18 行，`Tools/audit-audio-provenance.ps1` 报 `AUDIT OK`；工程内 `.acb` 数量 **0** |
 | 音符皮肤两套 | **自制** | `Assets/Game/Resources/live/note/custom01|custom02`，来自画包 `new_notes` / `new_notes_v2`，两套哈希不同 |
 | HUD / 判定字 / 特效 / 背景 | **自制** | 加载背景与通用背景为程序生成；图集精灵画包覆盖 **152 / 153**，剩 1 个（`bg_base_circle_h48_wh`）由同名带后缀的画包文件覆盖，属统计口径问题而非缺口（见下表脚注） |
 | 已删除的遗留资源 | 见「本轮删除」 | — |
@@ -59,7 +59,7 @@ powershell -File Tools\audit-unused-atlas-sprites.ps1
 | `Assets/Graphics/Resources/maimusicinfo.ogg` + `PlayMaimaiMusicInfoSe()` | 130 KB | 另一款游戏的音效，功能默认关闭，属于遗留 |
 | `MusicScoreMakerAtlas` + 149 个精灵 | 0.91 MB | 谱面编辑器已整体移除，精灵 0 引用 |
 | `FrameAtlas` + 5 个精灵（`cardFrame_S_*`） | 0.23 MB | 卡框，0 引用 |
-| 4 个 ACB（custom01/custom02/se_live_default/se_live_common） | 1.41 MB | 由自制 wav 包取代 |
+| 4 个旧版打歌音效 ACB | 1.41 MB | 由自制 wav 包取代 |
 | 6 张 `longLoading_bg_*.png` + `bg_common_color.png` | 12.7 + 3.9 MB → 0.4 MB | 换成程序生成的同尺寸背景 |
 | 3 张 MenuCommon 音频表 | 9.35 MB | UI 音从未触发 |
 

@@ -38,6 +38,20 @@ namespace OpenSekai.Tests.EditMode.Live
             return bar;
         }
 
+        private static HoldPointNote AddPoint(LongNote bar, float time, bool connection)
+        {
+            if (connection)
+            {
+                var point = new ConnectionNote(Info(time), 3, 4, 5, NoteCategory.Connection, NoteType.Default, 1f, 0f);
+                bar.AddConnectionNote(point);
+                return point;
+            }
+
+            var combo = new LongHoldCombo(Info(time), NoteType.Default, 1f, 0f);
+            bar.AddHoldCombo(combo);
+            return combo;
+        }
+
         private static LiveLogic Drive(LongNote bar, float now, float touchTime)
         {
             var logic = new LiveLogic(null);
@@ -83,18 +97,19 @@ namespace OpenSekai.Tests.EditMode.Live
                 Assert.That(point.Result, Is.EqualTo(NoteResult.Miss));
                 Assert.That(point.State, Is.EqualTo(NoteState.Done));
             }
-            Assert.That(due.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(due.Result, Is.EqualTo(NoteResult.Perfect));
             Assert.That(scored, Is.EqualTo(1), "three expired points must not join the one live point, even on a repeated refresh");
         }
 
-        [TestCase(NoteState.InputBegan)]
-        [TestCase(NoteState.Input)]
-        [TestCase(NoteState.Last)]
-        public void ANearlyHeldOrGraceStateCountsWithoutAnotherTouch(NoteState state)
+        [TestCase(NoteState.InputBegan, false)]
+        [TestCase(NoteState.Input, false)]
+        [TestCase(NoteState.Last, false)]
+        [TestCase(NoteState.Input, true)]
+        [TestCase(NoteState.Last, true)]
+        public void ANearlyHeldOrGraceStateCountsWithoutAnotherTouch(NoteState state, bool connection)
         {
             var bar = Bar();
-            var point = new LongHoldCombo(Info(1f), NoteType.Default, 1f, 0f);
-            bar.AddHoldCombo(point);
+            var point = AddPoint(bar, 1f, connection);
 
             bar.SetStateUnnotice(state);
             point.Excute(Info(0.95f), 0f);
@@ -102,7 +117,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             bar.SetStateUnnotice(NoteState.Release);
             point.Excute(Info(1f), 0f);
-            Assert.That(point.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(point.Result, Is.EqualTo(NoteResult.Perfect));
         }
 
         [TestCase(false)]
@@ -118,28 +133,29 @@ namespace OpenSekai.Tests.EditMode.Live
             point.Excute(Info(1f), 0f);
             point.Excute(Info(1.084f), 0f);
 
-            Assert.That(point.Result, Is.EqualTo(covered ? NoteResult.JustPerfect : NoteResult.Miss));
+            Assert.That(point.Result, Is.EqualTo(covered ? NoteResult.Perfect : NoteResult.Miss));
         }
 
-        [TestCase(false, false)]
-        [TestCase(false, true)]
-        [TestCase(true, false)]
-        [TestCase(true, true)]
-        public void EndingAHoldUsesTailInputForPendingComboPoints(bool hiddenHead, bool tailHit)
+        [TestCase(false, false, false)]
+        [TestCase(false, true, false)]
+        [TestCase(true, false, false)]
+        [TestCase(true, true, false)]
+        [TestCase(false, false, true)]
+        [TestCase(false, true, true)]
+        public void EndingAHoldUsesTailInputForPendingPoints(bool hiddenHead, bool tailHit, bool connection)
         {
             LongNote bar = hiddenHead
                 ? new FrictionHideLongNote(Info(0), 1, 4, 5, NoteCategory.FrictionHideLong, NoteType.Default, null, 1)
                 : new LongNote(Info(0), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1, 0);
-            var expired = new LongHoldCombo(Info(1f), NoteType.Default, 1, 0);
-            var due = new LongHoldCombo(Info(1.05f), NoteType.Default, 1, 0);
-            var upcoming = new LongHoldCombo(Info(1.13f), NoteType.Default, 1, 0);
+            var expired = AddPoint(bar, 1f, connection);
+            var due = AddPoint(bar, 1.05f, connection);
+            var upcoming = AddPoint(bar, 1.13f, connection);
             bar.AddNoteListAndSetupChildNote(new NormalNote(Info(1.2f), 2, 4, 5, NoteCategory.Normal, 1, NoteType.Default, 0));
             var judged = new List<NoteBase>();
             bar.SetStateUnnotice(NoteState.Release);
             MusicScore.CurrentFrameInfo = Info(1.084f);
             foreach (var point in new[] { expired, due, upcoming })
             {
-                bar.AddHoldCombo(point);
                 point.OnJudgment = judged.Add;
                 point.Excute(MusicScore.CurrentFrameInfo, 0);
             }
@@ -183,7 +199,7 @@ namespace OpenSekai.Tests.EditMode.Live
                 harness.Step(1.364f, 11.364);
 
             Assert.That(point.Result, Is.EqualTo(lift ? NoteResult.Perfect : NoteResult.Miss));
-            Assert.That(tail.Result, Is.EqualTo(lift ? NoteResult.JustPerfect : NoteResult.None));
+            Assert.That(tail.Result, Is.EqualTo(lift ? NoteResult.Perfect : NoteResult.None));
         }
 
         [Test]
@@ -225,7 +241,7 @@ namespace OpenSekai.Tests.EditMode.Live
             harness.Step(1.039f, 11.039, LiveHarness.Touch(1, LiveConfig.JudgmentPositions[4], 11.032));
 
             Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.Perfect));
-            Assert.That(point.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(point.Result, Is.EqualTo(NoteResult.Perfect));
         }
 
         [TestCase(-0.084f, false)]
@@ -245,7 +261,7 @@ namespace OpenSekai.Tests.EditMode.Live
                 if (expected) key.Judgment(ref touch, 4.5f);
                 if (offset < 0f) Assert.That(key.Result, Is.EqualTo(NoteResult.None));
                 key.Excute(Info(1.1f), 0.5f);
-                Assert.That(key.Result, Is.EqualTo(expected ? NoteResult.JustPerfect : NoteResult.Miss));
+                Assert.That(key.Result, Is.EqualTo(expected ? NoteResult.Perfect : NoteResult.Miss));
             }
         }
 
@@ -263,11 +279,12 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         [Test]
-        public void CompletedTailSettlesOnlyUnansweredVisibleTicks()
+        public void CompletedTailSettlesOnlyUnansweredNativeVisibleTicks()
         {
             var bar = Bar();
             var answered = new ConnectionNote(Info(1f), 2, 4, 5, NoteCategory.Connection, NoteType.Default, 1f, 0f);
             var pending = new ConnectionNote(Info(2f), 3, 4, 5, NoteCategory.Connection, NoteType.Default, 1f, 0f);
+            answered.UsesNextRushJudgment = pending.UsesNextRushJudgment = true;
             bar.AddConnectionNote(answered);
             bar.AddConnectionNote(pending);
             answered.Excute(Info(1f), 0.5f);
@@ -275,16 +292,17 @@ namespace OpenSekai.Tests.EditMode.Live
             bar.SetStateUnnotice(NoteState.Release);
             Assert.That(bar.FailTail(), Is.True);
             bar.AdvanceTailLinkedComboPoints(Info(1.5f));
-            Assert.That(pending.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(pending.Result, Is.EqualTo(NoteResult.Perfect));
             Assert.That(answered.Result, Is.EqualTo(NoteResult.Miss));
         }
 
         [TestCase(0.004f)]
         [TestCase(0.033f)]
-        public void ConnectedVisibleTickOnlyAcceptsTheCrossingFrame(float frameDuration)
+        public void NativeConnectedVisibleTickOnlyAcceptsTheCrossingFrame(float frameDuration)
         {
             var bar = Bar();
             var point = new ConnectionNote(Info(1f), 2, 4, 5, NoteCategory.Connection, NoteType.Default, 1f, 0f);
+            point.UsesNextRushJudgment = true;
             bar.AddConnectionNote(point);
             var touch = new LiveTouch { phase = TouchPhase.Stationary };
             point.Excute(Info(0.99f), 0.5f);
@@ -293,6 +311,24 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(point.IsJudgment(ref touch, 4.5f), Is.True);
             point.Excute(Info(1.002f + frameDuration), 0.5f);
             Assert.That(point.Result, Is.EqualTo(NoteResult.Miss));
+        }
+
+        [TestCase(1.082f, NoteResult.Perfect)]
+        [TestCase(1.084f, NoteResult.Miss)]
+        public void AConnectionPointCanBeCaughtAfterItsCrossingFrame(float time, NoteResult expected)
+        {
+            var bar = Bar();
+            var point = AddPoint(bar, 1f, connection: true);
+            bar.SortNoteList();
+            bar.SetStateUnnotice(NoteState.Release);
+            bar.Excute(Info(1f), 0.5f);
+            bar.Excute(Info(1.01f), 0.5f);
+            Assert.That(point.Result, Is.EqualTo(NoteResult.None));
+
+            Drive(bar, time, time);
+            bar.Excute(Info(time), 0.5f);
+
+            Assert.That(point.Result, Is.EqualTo(expected));
         }
 
         [Test]
@@ -315,7 +351,7 @@ namespace OpenSekai.Tests.EditMode.Live
                 var logic = Drive(bar, 0.125f, stamp);
                 Refresh(logic);
 
-                Assert.That(point.Result, Is.EqualTo(NoteResult.JustPerfect), $"touch stamp {stamp} must not replace the frame clock");
+                Assert.That(point.Result, Is.EqualTo(NoteResult.Perfect), $"touch stamp {stamp} must not replace the frame clock");
                 Assert.That(point.State, Is.EqualTo(NoteState.Done));
                 Assert.That(scored, Is.EqualTo(1));
             }

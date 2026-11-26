@@ -12,9 +12,10 @@ namespace OpenSekai.Shared.Playback
     {
         /// <summary>
         /// Bump when judgement windows or scoring coefficients change.
+        /// 3 = Great 得 85% 基分，Bad 得 20% 基分。
         /// 2 = 1,000,000 改为按音符累积摊分（满判严格等于 1,000,000）；1 = 旧的 floor(1e6/n) 取整。
         /// </summary>
-        public const int RULES_VERSION = 2;
+        public const int RULES_VERSION = 3;
 
         public static string SessionId { get; private set; } = string.Empty;
         public static string ChartHash { get; private set; } = string.Empty;

@@ -98,7 +98,7 @@ namespace OpenSekai.Tests.EditMode
         public async Task TheOldSettingsBecomeTheBuiltinSetsOnceAndExternalChoicesStay()
         {
             var store = Store(MaterialBuiltinSelection.FromLegacy(1, 0, 1));
-            Assert.That(Sets(store.List().Builtin), Is.EqualTo((2, 1, 2)));
+            Assert.That(Sets(store.List().Builtin), Is.EqualTo((2, 1, 1)));
             Assert.That(Sets(Store().List().Builtin), Is.EqualTo((1, 1, 1)), "新档沿用游戏原默认值");
 
             // An index written before the page existed: external groups and overrides, no sets.
@@ -147,12 +147,12 @@ namespace OpenSekai.Tests.EditMode
             var second = Store(MaterialBuiltinSelection.FromLegacy(1, 1, 1)).List();
             Assert.That(second.Mode, Is.EqualTo(MaterialPackModes.PRESET));
             Assert.That(second.Preset.BuiltinSet, Is.EqualTo(2), "旧设置三项都是第二套：内置预设第二套");
-            Assert.That(Sets(second.ActiveConfiguration().Builtin), Is.EqualTo((2, 2, 2)));
+            Assert.That(Sets(second.ActiveConfiguration().Builtin), Is.EqualTo((2, 2, 1)));
             if (Directory.Exists(_root)) Directory.Delete(_root, true);
 
             var split = Store(MaterialBuiltinSelection.FromLegacy(1, 0, 1)).List();
             Assert.That(split.Mode, Is.EqualTo(MaterialPackModes.MIX), "旧设置各项不同：混搭保留原样");
-            Assert.That(Sets(split.ActiveConfiguration().Builtin), Is.EqualTo((2, 1, 2)));
+            Assert.That(Sets(split.ActiveConfiguration().Builtin), Is.EqualTo((2, 1, 1)));
         }
 
         // ------------------------------------------------------------------ saving
@@ -195,7 +195,7 @@ namespace OpenSekai.Tests.EditMode
             var preset = await store.ImportAsync(PresetPack());
             var mixed = store.List().MixConfiguration();
             mixed.Audio.Groups.Add(other.GroupReference("holds"));
-            mixed.Builtin = new MaterialBuiltinSelection { Notes = 2, HitFx = 2, Audio = 1 };
+            mixed.Builtin = new MaterialBuiltinSelection { Notes = 2, HitFx = 2 };
             store.SaveConfiguration(mixed, store.List().Revision);
 
             var candidate = store.ResolvePreset(preset.PackId, preset.Digest);
@@ -226,7 +226,7 @@ namespace OpenSekai.Tests.EditMode
             Assert.That(store.List().Mode, Is.EqualTo(MaterialPackModes.MIX), "改动一个类别即使用混搭");
 
             store.ChoosePreset(MaterialPresetChoice.Builtin(2), store.List().Revision);
-            Assert.That(Sets(store.List().ActiveConfiguration().Builtin), Is.EqualTo((2, 2, 2)));
+            Assert.That(Sets(store.List().ActiveConfiguration().Builtin), Is.EqualTo((2, 2, 1)));
             Assert.That(store.List().ActiveConfiguration().Audio.Groups, Is.Empty);
             long revision = store.List().Revision;
             Assert.Throws<InvalidDataException>(() => store.ApplyPreset(other.PackId, other.Digest, revision), "没有预设的包");
@@ -241,9 +241,9 @@ namespace OpenSekai.Tests.EditMode
             var store = Store();
             var pack = await store.ImportAsync(PresetPack());
             store.ChoosePreset(MaterialPresetChoice.Builtin(2), store.List().Revision);
-            Assert.That(Sets(Store().List().ActiveConfiguration().Builtin), Is.EqualTo((2, 2, 2)), "旧版整套选择");
+            Assert.That(Sets(Store().List().ActiveConfiguration().Builtin), Is.EqualTo((2, 2, 1)), "旧版整套选择");
             store.ApplyPreset(pack.PackId, pack.Digest, store.List().Revision);
-            var sets = new MaterialBuiltinSelection { Notes = 2, HitFx = 1, Audio = 1 };
+            var sets = new MaterialBuiltinSelection { Notes = 2, HitFx = 1 };
             long before = store.List().Revision;
             long saved = store.SaveBuiltinBundle(sets, before);
             Assert.Throws<MaterialPackConflictException>(() => store.SaveBuiltinBundle(new MaterialBuiltinSelection(), before));
@@ -266,6 +266,62 @@ namespace OpenSekai.Tests.EditMode
             store.SetMode(MaterialPackModes.MIX, store.List().Revision);
             Assert.That(store.List().ActiveConfiguration().SameChoicesAs(MaterialPresets.BuildBuiltin(1)), Is.True);
             Assert.That(Sets(store.List().Preset.GetBuiltinSets()), Is.EqualTo((2, 1, 1)));
+        }
+
+        [Test]
+        public async Task TheMixFallsBackToTheBuiltinBundlesSets()
+        {
+            var store = Store();
+            var preset = await store.ImportAsync(PresetPack());
+            store.ApplyPreset(preset.PackId, preset.Digest, store.List().Revision);
+            var sets = new MaterialBuiltinSelection { Notes = 2, HitFx = 1 };
+            store.SaveBuiltinBundle(sets, store.List().Revision);
+            Assert.That(store.List().Mode, Is.EqualTo(MaterialPackModes.PRESET), "保存内置整合包不切换模式");
+
+            store.SetMode(MaterialPackModes.MIX, store.List().Revision);
+            var state = Store().List();
+            Assert.That(state.Notes.Groups, Is.EqualTo(new[] { preset.GroupReference("keys") }), "改过内置套装后，第一次进入混搭仍从预设开始");
+            Assert.That(Sets(state.MixConfiguration().Builtin), Is.EqualTo((2, 1, 1)));
+
+            store.SaveBuiltinBundle(new MaterialBuiltinSelection { Notes = 1, HitFx = 2 }, store.List().Revision);
+            state = store.List();
+            Assert.That(state.Mode, Is.EqualTo(MaterialPackModes.MIX));
+            Assert.That(state.Notes.Groups, Is.EqualTo(new[] { preset.GroupReference("keys") }), "混搭的资源组不变");
+            Assert.That(Sets(store.Builtin), Is.EqualTo((1, 2, 1)), "混搭随内置整合包回退");
+        }
+
+        [Test]
+        public async Task ABundleKeepsItsChosenGroupPerCategoryUntilUninstalled()
+        {
+            var store = Store();
+            var pack = await store.ImportAsync(PresetPack());
+            var state = store.List();
+            Assert.That(MaterialPresets.Options(pack, "audio").Select(g => g.Id), Does.Contain("clicks").And.Contain("holds"));
+            Assert.That(MaterialPresets.Options(pack, "notes").Count, Is.EqualTo(1), "只有一个资源组的类别无需选择");
+            Assert.That(MaterialPresets.Options(pack, "judgment"), Is.Empty, "预设未声明的类别");
+            Assert.That(MaterialPresets.MainGroup(pack, "audio", null), Is.EqualTo("clicks"));
+
+            long revision = store.SaveBundleGroup(pack.PackId, pack.Digest, "audio", "holds", state.Revision);
+            Assert.That(revision, Is.EqualTo(state.Revision + 1));
+            Assert.That(store.List().IsPresetMode, Is.True, "保存整合包设置不切换模式");
+            Assert.That(store.List().ActiveConfiguration().Audio.Groups, Is.Empty, "未使用的整合包不影响下一局");
+            Assert.That(store.SaveBundleGroup(pack.PackId, pack.Digest, "audio", "holds", revision), Is.EqualTo(revision), "已选用时不写入");
+            Assert.Throws<InvalidDataException>(() => store.SaveBundleGroup(pack.PackId, pack.Digest, "notes", "holds", revision), "音效组不能用于音符");
+            Assert.Throws<MaterialPackConflictException>(() => store.SaveBundleGroup(pack.PackId, pack.Digest, "audio", "clicks", state.Revision));
+
+            var bundle = Store().ResolvePreset(pack.PackId, pack.Digest);
+            Assert.That(bundle.Audio.Groups, Is.EqualTo(new[] { pack.GroupReference("holds") }));
+            Assert.That(bundle.Notes.Groups, Is.EqualTo(new[] { pack.GroupReference("keys") }));
+            store.ApplyPreset(pack.PackId, pack.Digest, store.List().Revision);
+            Assert.That(store.List().ActiveConfiguration().Audio.Groups, Is.EqualTo(new[] { pack.GroupReference("holds") }));
+
+            store.SaveBundleGroup(pack.PackId, pack.Digest, "audio", "clicks", store.List().Revision);
+            Assert.That(store.List().BundleGroupsOf(pack.PackId, pack.Digest), Is.Null, "选回预设自带的组不留记录");
+            Assert.That(store.List().ActiveConfiguration().Audio.Groups, Is.EqualTo(new[] { pack.GroupReference("clicks") }));
+
+            store.SaveBundleGroup(pack.PackId, pack.Digest, "audio", "holds", store.List().Revision);
+            store.Uninstall(pack.PackId, pack.Digest, store.List().Revision);
+            Assert.That(Store().List().BundleGroups, Is.Empty, "卸载时移除整合包设置");
         }
 
         [Test]

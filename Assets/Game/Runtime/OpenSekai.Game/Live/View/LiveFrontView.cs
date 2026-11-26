@@ -136,7 +136,7 @@ namespace Sekai.Live
 		internal void SetupHud(LiveHudSkin skin, LiveMusicData musicData)
 		{
 			_hudBindings.Setup(transform, skin);
-			lifeView?.Setup(OnPause);
+			lifeView?.Setup(OnPause, (_baseController?.BootData as FreeLiveBootData)?.DanSong?.InitialLife);
 			scoreView?.Setup(musicData, skin);
 		}
 
@@ -156,7 +156,7 @@ namespace Sekai.Live
 			SetupHud(boot?.HudSkin, controller?.BootData?.MusicData);
 			comboView?.Setup(controller?.Settings?.UseAllPerfectEffect ?? false, boot?.ComboSkin);
 			judgmentView?.Setup(boot?.JudgmentSkin, controller?.Settings?.UsesAutoFakePerfectMode ?? false);
-			judgmentDescriptionView?.Setup(boot?.JudgmentSkin, controller?.Settings?.IsFastLateFlick ?? true);
+			judgmentDescriptionView?.Setup(boot?.JudgmentSkin, controller?.Settings);
 			countdownView?.Setup();
 			_hitFxSkin = boot?.HitFxSkin;
 			screenEffectView?.Setup(_hitFxSkin);

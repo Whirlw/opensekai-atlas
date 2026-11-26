@@ -44,10 +44,14 @@ namespace OpenSekai.App.UI
         void Render(LibraryViewState state);
 
         /// <summary>Moves the selection inside the list that is already on screen.</summary>
-        void SetSelection(SongPackageItem selected);
+        /// <param name="reveal">Also scroll the list just far enough to show it.</param>
+        void SetSelection(SongPackageItem selected, bool reveal = false);
 
         /// <summary>Redraws the visible cells and the detail side of the package with this score key.</summary>
         void RefreshScore(string scoreKey);
+
+        /// <summary>Redraws the visible cells and the 详情 button of the packages with this Ranked key.</summary>
+        void RefreshRank(string rankKey);
 
         void SetStatus(string message);
         void ShowSettings();

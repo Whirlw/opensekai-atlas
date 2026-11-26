@@ -5,7 +5,6 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using OpenSekai.Shared.Diagnostics;
 using Sekai;
@@ -116,7 +115,10 @@ namespace OpenSekai.Tests.EditMode.Live
                         });
                         break;
                     case "J":
-                        replay.DeviceResults[int.Parse(f[1], c)] = Enum.Parse<NoteResult>(f[2]);
+                        // The original device capture uses the old name for centered hits.
+                        replay.DeviceResults[int.Parse(f[1], c)] = f[2] == "JustPerfect"
+                            ? NoteResult.Perfect
+                            : Enum.Parse<NoteResult>(f[2]);
                         break;
                     case "P":
                         replay.DevicePressErrors[int.Parse(f[1], c)] = double.Parse(f[3], c);
@@ -194,11 +196,12 @@ namespace OpenSekai.Tests.EditMode.Live
         {
             MusicScore score = AutoplayCompletionTests.LoadFixture(FIXTURE);
             var bundle = Resources.Load<LiveBundleBuildData>("live/config/LiveBundleBuildData");
+            bool testMode = LiveTrace.Enabled;
+            LiveTraceCategory categories = LiveTrace.Categories;
             bool captureEnabled = LatencyCapture.Enabled;
             bool mix = LatencyCapture.MixProbeEnabled;
             string marker = "stall-replay-" + Guid.NewGuid().ToString("N");
             string logs = Path.Combine(Application.persistentDataPath, "logs");
-            Task export = Task.CompletedTask;
             var recorder = new GameObject("stall-replay-recorder").AddComponent<JudgmentRecorder>();
             try
             {
@@ -210,6 +213,8 @@ namespace OpenSekai.Tests.EditMode.Live
                 scoreLogic.Setup(null, score);
                 harness.BindViews(recorder);
 
+                LiveTrace.Categories = LiveTraceCategory.None;
+                LiveTrace.Enabled = true;
                 LatencyCapture.Enabled = true;
                 LatencyCapture.MixProbeEnabled = false;
                 LatencyCapture.Begin(marker, "master", false, 0f, 0f, 0f, false);
@@ -245,21 +250,35 @@ namespace OpenSekai.Tests.EditMode.Live
             {
                 LiveUtility.FrameDeltaTimeOverride = float.NaN;
                 UnityEngine.Object.DestroyImmediate(recorder.gameObject);
-                export = LatencyCapture.End("stall_replay");
-                export.GetAwaiter().GetResult();
-                LatencyCapture.MixProbeEnabled = mix;
-                LatencyCapture.Enabled = captureEnabled;
-                if (Directory.Exists(logs))
+                try
                 {
-                    foreach (string file in Directory.GetFiles(logs, "latency-*.tsv"))
+                    LatencyCapture.End("stall_replay").GetAwaiter().GetResult();
+                }
+                finally
+                {
+                    LatencyCapture.MixProbeEnabled = mix;
+                    LatencyCapture.Enabled = captureEnabled;
+                    LiveTrace.Categories = categories;
+                    try
                     {
-                        if (File.ReadLines(file).FirstOrDefault()?.Contains($" chart={marker} ") == true)
-                            File.Delete(file);
+                        LiveTrace.Enabled = testMode;
+                    }
+                    finally
+                    {
+                        DeleteReplayExports(logs, marker);
                     }
                 }
             }
 
             return recorder.Outcome;
+        }
+
+        private static void DeleteReplayExports(string logs, string marker)
+        {
+            if (!Directory.Exists(logs)) return;
+            foreach (string file in Directory.GetFiles(logs, "latency-*.tsv"))
+                if (File.ReadLines(file).FirstOrDefault()?.Contains($" chart={marker} ") == true)
+                    File.Delete(file);
         }
 
         private static string Compare(Outcome baseline, Outcome run, out int resultChanges, out int errorChanges)
@@ -297,7 +316,7 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         private static string Summary(Outcome o) => FormattableString.Invariant(
-            $"score={o.Score.totalScore} maxCombo={o.Score.maxCombo} JP={o.Score.justPerfectCount} P={o.Score.perfectCount} Gr={o.Score.greatCount} Go={o.Score.goodCount} Bad={o.Score.badCount} Miss={o.Score.missCount} judged={o.Judged.Count} presses={o.PressErrors.Count}");
+            $"score={o.Score.totalScore} maxCombo={o.Score.maxCombo} P={o.Score.perfectCount} Gr={o.Score.greatCount} Go={o.Score.goodCount} Bad={o.Score.badCount} Miss={o.Score.missCount} judged={o.Judged.Count} presses={o.PressErrors.Count}");
 
         [Test]
         public void TheDeviceRunReplaysToTheDevicesJudgments()
@@ -306,14 +325,12 @@ namespace OpenSekai.Tests.EditMode.Live
             Replay replay = Load();
             Outcome baseline = Baseline(replay, frameMatching: true);
             var both = replay.DeviceResults.Where(pair => baseline.Judged.ContainsKey(pair.Key)).ToArray();
-            var mismatched = both.Where(pair => baseline.Judged[pair.Key].Result != pair.Value
-                && !(baseline.Judged[pair.Key].Kind == nameof(FrictionFlickNote)
-                    && baseline.Judged[pair.Key].Result == NoteResult.Perfect && pair.Value == NoteResult.JustPerfect)).ToArray();
+            var mismatched = both.Where(pair => baseline.Judged[pair.Key].Result != pair.Value).ToArray();
             string differing = string.Join("\n", mismatched.Take(15)
                 .Select(pair => FormattableString.Invariant($"    note {pair.Key} {baseline.Judged[pair.Key].Kind}: device {pair.Value}, replay {baseline.Judged[pair.Key].Result}")));
             // A flick's swipe threshold is Screen.dpi-based and the capture predates the dpi header field, so
             // flicks are compared loosely. Any other difference must be a press the replay matches to 0.05 ms
-            // that sits on a grade edge (16586: -8.331 ms against the 8.333 ms Just Perfect edge).
+            // that sits on a grade edge.
             var taps = mismatched.Where(pair => !(baseline.Judged[pair.Key].Kind is nameof(FlickNote) or nameof(FrictionFlickNote))).ToArray();
             int pressSame = replay.DevicePressErrors.Count(pair =>
                 baseline.PressErrors.TryGetValue(pair.Key, out double e) && Math.Abs(e - pair.Value) < 0.05);

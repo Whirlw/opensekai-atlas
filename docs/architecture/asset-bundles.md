@@ -21,12 +21,10 @@
 | `effect_asset/live/tap_effect/0`、`/1` | 两套打击特效 |
 | `effect_asset/live/result/default` | 结算特效 |
 | `live/2dmode/background/default` | 2D 背景 |
-| `live/sound/live_se/default` | live 音效 |
-| `live/tap_se/custom01`、`custom02` | 两套打击音 |
 | `shader/live`、`shader/particles`、`shader/sandbox` | shader 变体 |
 | `sound/menu/menu_common` | 仍在白名单中，0.3.0 清单无对应条目 |
 
-两套音符皮肤 prefab 位于 `Assets/Game/Resources/live/note/`。内置判定和演出音 WAV 位于 `Assets/StreamingAssets/sound/`。
+两套音符皮肤 prefab 位于 `Assets/Game/Resources/live/note/`。内置判定和演出音 WAV 由 `Assets/StreamingAssets/sound/manifest.csv` 注册，其中打击音使用 `live/tap_se/live_se_key`。
 
 重构前是 `AssetDatabase.GetAllAssetBundleNames()` 全量打包（473 个带标签资源 / 15 个 bundle 名）。
 现在按白名单组 `AssetBundleBuild[]` 传给 `BuildPipeline.BuildAssetBundles` ——

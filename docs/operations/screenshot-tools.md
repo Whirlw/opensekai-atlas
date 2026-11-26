@@ -3,7 +3,7 @@
 > 目的：不上真机，直接把打歌画面、曲目信息页、曲库、设置页、结算页渲染成 PNG，用来快速检查素材改动（音符皮肤、HUD、判定特效、界面）。
 > 适用读者：美术、改界面/素材的开发者、写回归的测试者。
 > 前置条件：工程能在 Unity 6000.6.7f1 里打开且无编译错误；用户数据目录里至少装有一首曲包（或用 `Tools/fixtures/` 里的样例）。
-> 最后更新：2026-11-17
+> 最后更新：2026-11-25
 
 ## 概述
 
@@ -49,10 +49,18 @@
 | `-Library` | 拍曲库页 | 关 |
 | `-Settings` | 拍设置页 | 关 |
 | `-SettingsTrace` | 拍设置页里的「追踪选项」子页 | 关 |
-| `-Result` | 拍结算面板，取样例：`default` / `fc` / `ap` / `auto` / `failed` / `retired` / `loaderror` | — |
+| `-Result` | 拍结算页，可逗号分隔多个样例：`default`（首次通关）/ `fc`（同谱刷新）/ `ap`（新谱挤入第 30 名并跨档）/ `outside`（榜外谱刷新）/ `auto` / `failed` / `retired` / `savefailed` / `loaderror`。除 `loaderror` 外都取后端的 `SettlementSamples`，只换上当前选中曲包的封面和曲名。默认拍动画结束后的定格 | — |
+| `-ResultAt` | 结算页开场时间线上的秒数，可多个，每个时间拍一帧（如 `-Result ap -ResultAt 2.45,2.7` 拍升级动画） | — |
 | `-HomePage` | 拍首页（开屏时间线的最后一帧） | 关 |
 | `-Packs` | 拍资源包页面（只读，不保存）：卡片放大两帧、总览、一个资源包的详情和首组预览、音效 / 音符 / HUD / 结算四个类别页、一个槽位的选项卡片、内置样式 2 的预览，最后返回首页。内容取决于编辑器数据目录中已安装的资源包 | 关 |
-| `-Server` | 拍服务器页面：卡片放大两帧、列表、添加卡，再连 UntitledCharts 拍首页栏目、高级搜索、全部谱面、一首谱面的简介 / 社区 / 排行榜，最后返回首页（需要联网；含第三方封面，只作本地检查，不要提交或发布） | 关 |
+| `-ProfilePage` | 拍首页第二页与个人信息（用临时目录里的样例档案，不读也不改本机档案）：第二页、滑动中途、个人信息卡放大两帧、点进个人页、Best 30、全部历史、编辑资料卡、评级徽章弹窗、备份合并预览、返回后停在第二页，最后是新档案的卡片与页面。样例曲目优先取已安装曲包（带封面），不足时补虚构曲名 | 关 |
+| `-DanPage` | 拍段位页（用临时目录里的样例段位，不读也不改本机档案）：首页第二页的段位卡与放大一帧、未挑战 / 已通过并佩戴 / 失败两次的段位、删除确认卡、编辑、选择等级与新建、粘贴分享文本与链接错误、准备卡与准备失败、曲间休息页、通过的结算与授牌特效三帧（0.45 s、0.75 s、2.1 s）、失败与中途放弃的结算，再是佩戴两块奖牌的个人页与选择奖牌卡，最后是全部奖牌阶位（段位牌、其他奖牌、未取得及小尺寸）和 34 个等级的对照 | 关 |
+| `-AchievementsPage` | 拍成就页（用临时目录里的样例档案，不读也不改本机档案）：首页第二页的成就卡、奖牌未点亮一帧与有成就可解锁时的四帧（0.11 s 到 2.4 s）、卡片放大一帧、全部成就与练习曲库 / 单谱技巧 / 稳定发挥 / 段位组曲 / 特殊奖牌五个筛选、单项与双项奖励弹窗、高阶全连解锁动画的七帧（0.2 s 到 1.9 s）和解锁后的列表、点击解锁初获段位的过程与排序后的列表、左滑查看前一等级、一到八级的星星对照、单项提示卡、三项合并的提示卡、提示卡落下中途（0.3 s）、返回后停在第二页，最后是新档案的成就页 | 关 |
+| `-MedalsPage` | 拍成就的奖牌与头像（样例档案在临时目录）：28 个系列的普通奖牌、11 块特殊奖牌在各尺寸下的四个动画时刻、18 个成就头像，再到首页、个人信息、选择奖牌、编辑资料、成就页和奖励弹窗里各拍一遍。动画由 `MedalClock.Held` 定格 | 关 |
+| `-RankingTiers` | 拍 Ranking Score 的七个评级（用临时目录里的空档案，不读也不改本机档案）：首页第二页的个人信息卡在每个评级下各一张（星空的待机动画停在同一时刻），再拍一张各评级徽章在 200 / 148 / 118 / 58 单位下的对照，每档升级动画并排的三帧（展开到 0.12、0.3、0.55），以及个人页徽章打开的「评级徽章」弹窗（样例分数 8,405，落在银河）静止一张、寰宇重播蓄力和展开各一张。拍摄前会等所有徽章在后台画完 | 关 |
+| `-Sample` | 先装入示例曲库（虚构曲目、自绘封面、成绩、服务器和资源包），后面的截图都显示它；顺带拍一张空的服务器列表。只能在[示例工作区](#示例工作区)里用 | 关 |
+| `-StyleGuide` | 在示例工作区拍打歌以外的全部界面，给[界面美术风格指南](../reference/ui-style-guide.md)配图。等于 `-Sample` 加上曲库各状态和所有界面类开关 | 关 |
+| `-Server` | 拍服务器页面：卡片放大两帧、列表、添加卡，再连 UntitledCharts 拍首页栏目、高级搜索、全部谱面、一首谱面的简介 / 社区 / 排行榜，最后返回首页（需要联网；含第三方封面，只作本地检查，不要提交或发布）。在示例工作区里改连编辑器内的示例服务器，不联网，画面可以公开 | 关 |
 | `-Intro` | 开屏动画开始后的秒数，可多个；`-Intro default` 拍覆盖整段开屏的 8 帧（约 4.4 s 交接到首页） | — |
 | `-All` | 一次拍全：曲库、设置、结算（`default`）、信息页 `0.3,0.8,1.5,2.7`、打歌 `30,60`（需 `-Package`；已给的时间不会被覆盖） | 关 |
 | `-Width` / `-Height` | 分辨率。真机是 `2800x1272`，另一常用尺寸 `1750x795` | `2800` / `1272` |
@@ -63,14 +71,37 @@
 
 退出码：全部成功 `0`，否则 `1`（失败原因打印在末尾，也写在 `report.json`）。
 
+### 导出 AE / Premiere 可导入的 PNG 序列
+
+在工程根目录运行，下面的命令会导出七次独立的评级升级、一次「三曲耐久」授牌和一次「全连达人」解锁：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Tools/capture-screens.ps1 -Clip tier-upgrade,dan-award,achievement-unlock -Width 3840 -Height 2160 -Fps 60 -TimeoutSec 3600
+```
+
+`-Intro`、`-Live`、`-Info`、`-Finish`、`-ResultAt` 都接受秒数区间，可以用逗号混排单帧和多段区间。在 PowerShell 里直接调用脚本时，给区间列表加引号，例如 `./Tools/capture-screens.ps1 -Intro '0..3.1,1.0' -Result ap -ResultAt '0..3.4'`。打歌、信息页和收尾仍需 `-Package`。区间内的打歌时间必须位于谱面的可播放范围内。
+
+| `-Clip` 名称 | 默认秒数 | 输出 |
+| --- | --- | --- |
+| `tier-upgrade` | −0.5 至 1.5 | 七档各一段，0 秒切换徽章 |
+| `dan-award` | 0 至 4 | 「三曲耐久」授牌；`-Clean` 隐藏下方说明和按钮 |
+| `achievement-unlock` | 0 至 2.6 | 临时样例档案中 FC-01 所在行的解锁动画 |
+| `achievement-card` | 0 至 4.6 | 单项和三项合并提示卡，各一段 |
+| `special-medals` | 0 至 4 | 11 块特殊奖牌的待机画廊 |
+
+例如 `-Clip 'tier-upgrade:-0.28..0.6'` 只导出蓄力到收住这一段。`-Alpha` 对评级升级、提示卡和特殊奖牌输出透明 RGBA，默认底色为 `#0C0F14`。剪辑软件选择某段文件夹的第一张 PNG，勾选「图像序列」，按导出帧率解释素材即可。
+
+每段独占一个文件夹。例如 `intro_0.000-3.100/intro_0.000-3.100_00000.png` 在 60 fps 下共 186 张，末帧编号 00185。第 i 帧位于 `from + i / fps` 秒，总帧数按 `round((to - from) × fps)` 取整，终点不入片。每段在 `report.json` 中占一条，包含帧数、帧率、起止秒数和用时。失败条目给出已写帧数。再次使用同一目录时，新序列文件夹会追加 `-2`、`-3` 等后缀，保留上次的 PNG。脚本启动前打印总帧数，长时间 4K 导出可用 `-TimeoutSec` 延长等待。
+
 ### 四类时间分别从哪算
 
 | 类型 | 时间的含义 | 注意 |
 | --- | --- | --- |
 | 打歌 `live` | 音乐时钟，即音频文件自身的时间（含 `fillerSec`） | 早于开局点（第一个音符减提前量）的时间，拍到的是开局第一帧，`report.json` 会注明；晚于全部音符判完的时间会失败，改用 `finish` |
-| 信息页 `info` | 信息页被要求开始播放的那一刻起 | 页面约 2.9 s 后淡出完毕：0.1 + 0.01 + `JacketFadeOutDelaySec`（`FrontUIView.prefab` 里为 2.35）+ 0.45 |
+| 信息页 `info` | 信息页被要求开始播放的那一刻起 | 页面约 2.9 s 后淡出完毕：0.1 + 0.01 + `JacketFadeOutDelaySec`（`FrontUIView.prefab` 里为 2.2）+ 收起 0.6 |
 | 收尾 `finish` | 最后一个音符判完起 | 收尾演出（ALL PERFECT 等）在 +1 s 开始，`+1.6`～`+3` 比较好看 |
-| 曲库 / 设置 / 结算 | 无时间 | 面板打开后等两帧排版再拍 |
+| 曲库 / 设置 | 无时间 | 面板打开后等两帧排版再拍 |
+| 结算 `result` | 结算页开场时间线的秒数（`-ResultAt`） | 不给时间就跳到定格再拍；升级动画约在 2.3 s 开始、3.3 s 结束 |
 | 开屏 `intro` | 开屏时间线的秒数 | 时间线与背景漂移同时定格，同一时间点画面相同；`home` 即最后一帧 |
 | 交接 `handoff` | 无时间 | 曲库卡放大到 0.35 与 0.70 各一帧，然后走真实的「点曲库卡 → 曲库」「返回 → 首页」各拍一张 |
 | 关于 `about` | 无时间 | 首页的「关于」卡，以及点「资源包」后弹出的提示条（`-soon`） |
@@ -108,6 +139,8 @@
     { "kind": "library" },
     { "kind": "settings" },
     { "kind": "settings-trace" },
+    { "kind": "intro", "from": 0, "to": 3.1, "fps": 60 },
+    { "kind": "clip", "name": "tier-upgrade", "from": -0.5, "to": 1.5, "alpha": true },
     { "kind": "result", "name": "result-fc",
       "result": { "kind": "Completed", "score": 1112806, "rank": "S", "maxCombo": 1250,
                   "totalCombo": 1250, "perfect": 1206, "great": 44, "good": 0, "bad": 0, "miss": 0 } },
@@ -131,13 +164,15 @@
 
 | 字段 | 适用 | 含义 | 默认 |
 | --- | --- | --- | --- |
-| `kind` | 全部 | `live` / `info` / `finish` / `library` / `settings` / `settings-trace` / `result` / `actions` / `loading` / `return` / `home` / `intro` / `handoff` / `about` | — |
-| `name` | 全部 | 文件名前缀 | 等于 `kind` |
+| `kind` | 全部 | `clip` / `live` / `info` / `finish` / `library` / `settings` / `settings-trace` / `result` / `actions` / `loading` / `return` / `home` / `intro` / `handoff` / `about` / `achievements` / `medals` / `ranking` / `sample` / `library-states` | — |
+| `name` | 全部 | `kind: "clip"` 时填上表中的动画名；其余类型为文件名前缀 | 等于 `kind` |
 | `package` | live / info / finish | 曲包（匹配规则同 `-Package`） | — |
 | `difficulty` | live / info / finish | 难度覆盖 | 曲包自带 |
 | `times` | live / info / finish | 时间列表（秒），会按升序拍，同一局里连续拍 | live `30`、info `1.5`、finish `2` |
 | `lead` | live | 目标前按 `fps` 逐帧播放的秒数 | `1.5` |
-| `fps` | live / info / finish | 模拟帧率（10～240） | `60` |
+| `from` / `to` | 五种按时间拍摄的类型、clip | 有 `to` 时忽略 `times`，`from` 默认 0；clip 省略区间时使用上表默认值 | 秒 |
+| `fps` | 所有序列、live / info / finish 单帧 | 序列帧率 1～240；单帧打歌步进 10～240 | `60` |
+| `alpha` / `clean` | clip | 分别对应 `-Alpha` 和 `-Clean` | `false` |
 | `fakePerfect` | live / finish | 自动游玩显示为 PERFECT + 连击 | `true` |
 | `finishAnimation` | finish | `allperfect` / `fullcombo` / `clear` / `finish` / `none` | `allperfect` |
 | `result` | result | 结算样例，见下表 | 见下表 |
@@ -215,6 +250,41 @@ unity command script eval_file --project-path . --result-only -- --file Temp/Ope
 
 `start.cs` 内容就是上面那行 `ScreenshotSession.Start(...)`，前面加 `return`。
 
+## 示例工作区
+
+截图会进仓库、文档或宣传片时，画面里不能有第三方的封面和谱面。示例工作区是工程的一份副本，有自己的数据目录，里面只有为本项目虚构的内容：
+
+| 内容 | 来源 |
+| --- | --- |
+| 22 首虚构曲目和封面 | `SampleLibrary.cs` 里的曲目表；封面在 `ArtSource/SampleCovers/`，由 `ArtSource/Tools/SampleCovers/render_covers.js` 画出 |
+| 音频 | 装入时生成的两音长音，只为有时长和试听，录片时自行换音乐 |
+| 成绩、Ranked 状态、资料 | 装入时生成；已有游玩记录时不再添加 |
+| 示例服务器 | `SampleServer.cs`。对 `https://charts.example.com` 的请求由本地文件应答，不发到网络 |
+| 资源包 | 四组生成的打击音 |
+
+做一个并打开：
+
+```powershell
+powershell -File Tools/new-sample-workspace.ps1
+```
+
+脚本用 `git worktree` 建副本（默认在工程旁边，名为 `<工程>-sample`），把公司名改成 `OpenSekaiSample`，并复制包缓存。第一次在 Unity 里打开要导入几分钟。副本只含已提交的文件。之后在副本目录里运行：
+
+```powershell
+powershell -File Tools/capture-screens.ps1 -StyleGuide -OutDir TestResults/screenshots/style-guide
+```
+
+这一条拍 181 张（2800x1272），要几分钟。录宣传片时先用 `-Sample` 装入内容，再在编辑器里播放 `Library.unity` 录制。
+
+保护措施：
+
+- 示例内容只在公司名为 `OpenSekaiSample` 的工程里安装，示例服务器也只在那里应答。在普通工程里用 `-Sample` 会报错，不会写入你的曲库。
+- `Tools/export-style-guide-images.ps1` 只接受装过示例曲库的那次输出。
+- 副本里的 `ProjectSettings.asset` 是有意改过的，不要从副本提交它。
+- 加曲目时封面要自己画，不临摹任何已有的封面、标志或角色。
+
+用完先关掉它的编辑器，再 `git worktree remove --force <路径>`；数据在 `%USERPROFILE%/AppData/LocalLow/OpenSekaiSample`，可以整个删除。
+
 ## 示例
 
 改了音符皮肤，看真机分辨率下中段和高潮各一帧：
@@ -262,7 +332,8 @@ powershell -File Tools/capture-screens.ps1 -All -Package DEINOS -Difficulty expe
 ## 已知限制
 
 - **部分像素可能有渲染差异**：少数着色器按游戏累计时间（`_Time`）闪烁。以 `baseline_tap` 重拍时，差异出现在部分信息页文字的字形边缘和打歌画面的轨道边线。
-- **信息页要求编辑器至少约 18 fps 真实帧率**：打歌控制器给信息页留的最长真实等待是 10 s，信息页按帧推进要约 2.9 s × 60 帧；编辑器太慢时打歌会提前开始，`report.json` 的 `note` 会提示「HUD 可能正在淡入」。
+- **4K 评级徽章**：纹章以较高密度生成。星尘底面、六边形光环和闪白沿用游戏的 320 像素源图，原尺寸查看时边缘会比纹章柔和。
+- **信息页**：序列用模拟时间计算页面等待上限，4K 编码耗时不会提前结束页面。旧单帧模式仍按真实时间等待，编辑器低于约 18 fps 时可能提前开打，报告会标注。
 - **短谱**：时间超过最后一个音符就拍不到打歌画面（例如 Test3 约 22 s 就判完了），报错会写出判完的时刻，改用 `finish`。
 - **运行中重新编译会中断**：脚本重编译会让 Unity 退出 Play 模式，本次运行记为失败（`status.json` 里写明），不会一直占着。
 - **难度只改显示**：每个曲包只有一张谱，`difficulty` 只改难度标签和配色，不换谱面。
@@ -279,6 +350,7 @@ powershell -File Tools/capture-screens.ps1 -All -Package DEINOS -Difficulty expe
 
 ## 相关文档
 
+- [界面美术风格指南](../reference/ui-style-guide.md)
 - [编辑器菜单](editor-menus.md)
 - [音符皮肤制作](note-skin-authoring.md)
 - [材质包导入](material-pack-import.md)

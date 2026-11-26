@@ -56,6 +56,8 @@ namespace OpenSekai.Shared.Diagnostics
         private static StreamWriter _sink;
         private static string _logFilePath;
 
+        public static event Action<bool> EnabledChanged;
+
         public static bool HighlightLast
         {
             get { EnsureLoaded(); return _highlightLast; }
@@ -104,6 +106,8 @@ namespace OpenSekai.Shared.Diagnostics
                 {
                     CloseSink();
                 }
+
+                EnabledChanged?.Invoke(value);
             }
         }
 

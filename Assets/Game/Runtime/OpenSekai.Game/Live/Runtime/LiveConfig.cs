@@ -57,7 +57,7 @@ namespace Sekai.Live
 
 		public static readonly int Life;
 
-		public static readonly float JustPerfectJudgeTimeHalf;
+		public static readonly float OnTimeWindowHalfSeconds;
 
 		public static readonly float JudgeTime;
 
@@ -81,19 +81,16 @@ namespace Sekai.Live
 
 		public static readonly float LotteryIntervalFactor;
 
-		public static readonly Dictionary<NoteResult, int> Damages;
 
 		public static readonly string ConfigBundleNamePath;
 
 		public static string NoteBundleName;
 
-		public static string NoteSeName;
+		public const string BUILTIN_HIT_SOUND_BUNDLE = "live/tap_se/live_se_key";
+		public const string LIVE_COMMON_SOUND_BUNDLE = "live/sound/live_se/common";
 
 		public static string EffectBundleName;
 
-
-
-		public static string NoteSeViewName;
 
 		public static readonly string ResultBundleName;
 
@@ -156,11 +153,12 @@ namespace Sekai.Live
 			return OpenSekai.Shared.Live.Simulation.TimingCompensation.ViewProgress(note.Progress, offsetTime, ViewLeadSeconds);
 		}
 
-		internal static float ViewProgressOf(INote note, float time)
+		// Callers in the view receive chart time with visual latency already applied.
+		internal static float ViewProgressOf(INote note, float viewTime)
 		{
 			if (note is NoteBase native && native.NativeScroll != null)
 			{
-				double now = (double)time + ViewLeadSeconds;
+				double now = viewTime;
 				if (native.IsNextRushConnectorHeadVisual) return 1f;
 				if (native.IsNextRushHeadKey && now >= native.NativeTarget.Time) return 0f;
 				if (native.IsDecoration && native is not LongNote && now >= native.NativeTarget.Time)
@@ -190,7 +188,7 @@ namespace Sekai.Live
 			if (ViewLeadSeconds != 0f && note is NoteBase scrolling && scrolling.State == NoteState.Scrolling
 				&& scrolling.offsetTime > 0f)
 			{
-				return 1f + (time - scrolling.MusicScoreInfo.time + ViewLeadSeconds) / scrolling.offsetTime;
+				return 1f + (viewTime - scrolling.MusicScoreInfo.time) / scrolling.offsetTime;
 			}
 			return ViewProgressOf(note);
 		}
@@ -211,16 +209,6 @@ namespace Sekai.Live
 			return string.Format("live/note/custom{0:00}", index + 1);
 		}
 
-		public static string GetNoteSeName(int index)
-		{
-			return string.Format("custom{0:00}", index + 1);
-		}
-
-		public static string GetNoteSeViewName(int index)
-		{
-			return string.Format("SOUND{0:00}", index + 1);
-		}
-
 		public static string GetEffectBundleName(int index)
 		{
 			return string.Format("effect_asset/live/tap_effect/{0}", index);
@@ -234,12 +222,6 @@ namespace Sekai.Live
 		public static void SetNoteSkinAssetBundleName(int index)
 		{
 			NoteBundleName = GetNoteBundleName(index);
-		}
-
-		public static void SetNoteSeName(int index)
-		{
-			NoteSeName = GetNoteSeName(index);
-			NoteSeViewName = GetNoteSeViewName(index);
 		}
 
 		public static void SetNoteEffectName(int index)
@@ -332,7 +314,6 @@ namespace Sekai.Live
 			GuideAlpha = liveSettingData.GetGuideAlpha();
 			JudgeLineAlpha = liveSettingData.GetJudgeLineAlpha();
 			SetNoteSkinAssetBundleName(Mathf.Clamp(liveSettingData.NoteSkinIndex, 0, 1));
-			SetNoteSeName(liveSettingData.NoteSeIndex);
 			SetNoteEffectName(liveSettingData.NoteEffect);
 			SetFeverEffectName(liveSettingData.FeverEffectTypeIndex);
 			ScoreMakerPreviewModeIndex = liveSettingData.ScoreMakerPreviewModeIndex;
@@ -447,7 +428,7 @@ namespace Sekai.Live
 			OpenSekai.Shared.Scoring.JudgeWindow.IsPast(GetJudgeWindow(type), noteMinusNow);
 
 		private static (NoteResult, NoteResultDescription) GetJudgeResultInternal(float offset, JudgeFrameType judgeFrameType, bool isDirection) =>
-			OpenSekai.Shared.Scoring.JudgeWindow.ResultFor(GetJudgeWindow(judgeFrameType), offset, isDirection, JustPerfectJudgeTimeHalf);
+			OpenSekai.Shared.Scoring.JudgeWindow.ResultFor(GetJudgeWindow(judgeFrameType), offset, isDirection, OnTimeWindowHalfSeconds);
 
 		static LiveConfig()
 		{
@@ -461,7 +442,7 @@ namespace Sekai.Live
 			ContinueNoDamageTime = 1f;
 			MaxSkillCount = 6;
 			Life = 1000;
-			JustPerfectJudgeTimeHalf = 1f / 120f;
+			OnTimeWindowHalfSeconds = 1f / 120f;
 			JudgeTime = 0.125f;
 			LotteryPraiseCount = 5;
 			PraiseComboRate = 0.3f;
@@ -473,16 +454,9 @@ namespace Sekai.Live
 			CacheTimingTime = 0f;
 			NoteSpeedOffset = 0.04f;
 			NoteSpeedCoefficient = 0.22f;
-			Damages = new Dictionary<NoteResult, int>
-			{
-				{ NoteResult.Bad, 60 },
-				{ NoteResult.Miss, 80 }
-			};
 			ConfigBundleNamePath = "Live/Config/LiveBundleBuildData";
 			NoteBundleName = "live/note/custom01";
-			NoteSeName = "custom01";
 			EffectBundleName = "effect_asset/live/tap_effect/0";
-			NoteSeViewName = "custom01";
 			ResultBundleName = "effect_asset/live/result/default";
 			CutinBundleName = "effect_asset/live/cutin/default";
 			FeverBundleName = "effect_asset/live/fever/0";

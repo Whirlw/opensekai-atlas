@@ -22,6 +22,51 @@ namespace OpenSekai.Tests.PlayMode
 {
     public sealed class MaterialPackJudgmentTests
     {
+        [Test]
+        public void BuiltinTimingCaptionFollowsTheDisplayedGrade()
+        {
+            var source = Resources.Load<GameObject>("live/view/FrontUIView");
+            var main = Object.Instantiate(source.GetComponentInChildren<JudgmentView>(true));
+            var timing = Object.Instantiate(source.GetComponentInChildren<JudgmentDescriptionView>(true));
+            try
+            {
+                var grade = main.GetComponentInChildren<SpriteRenderer>(true);
+                var caption = timing.GetComponentInChildren<SpriteRenderer>(true);
+                main.Setup(null, false);
+                timing.Setup(null, new LiveSettingData { ShowFastLate = true });
+                foreach (var result in new[] { NoteResult.Great, NoteResult.Good, NoteResult.Bad })
+                {
+                    Assert.That(main.Excute((result, default)), Is.True);
+                    foreach (var direction in new[] { NoteResultDescription.Fast, NoteResultDescription.Late })
+                    {
+                        timing.Excute((result, direction));
+                        Assert.That(caption.sprite.name, Is.EqualTo("judge_timing_" + direction.ToString().ToLowerInvariant()));
+                        float gradeTop = grade.transform.localPosition.y + grade.sprite.bounds.max.y;
+                        float captionBottom = caption.transform.localPosition.y + caption.sprite.bounds.min.y;
+                        Assert.That(captionBottom, Is.GreaterThan(gradeTop));
+                    }
+                }
+                foreach (var result in new[] { NoteResult.Perfect, NoteResult.Miss, NoteResult.Auto })
+                {
+                    timing.Excute((NoteResult.Bad, NoteResultDescription.Fast));
+                    timing.Excute((result, NoteResultDescription.Late));
+                    Assert.That(caption.sprite, Is.Null);
+                }
+                timing.Excute((NoteResult.Great, NoteResultDescription.FlickMiss));
+                Assert.That(caption.sprite, Is.Null);
+                timing.Setup(null, new LiveSettingData { ShowFlickMiss = true });
+                timing.Excute((NoteResult.Great, NoteResultDescription.FlickMiss));
+                Assert.That(caption.sprite.name, Is.EqualTo("judge_timing_flick"));
+                timing.Excute((NoteResult.Great, NoteResultDescription.Fast));
+                Assert.That(caption.sprite, Is.Null);
+            }
+            finally
+            {
+                Object.Destroy(main.gameObject);
+                Object.Destroy(timing.gameObject);
+            }
+        }
+
         [UnityTest]
         public IEnumerator DrawsNineSlotsWithConfiguredLayoutAndRestoresBuiltinOnRetry() => UniTask.ToCoroutine(async () =>
         {
@@ -71,7 +116,7 @@ namespace OpenSekai.Tests.PlayMode
                 main.Excute((NoteResult.Miss, default));
                 var builtinMiss = renderer.sprite;
                 main.Setup(boot.JudgmentSkin, false);
-                timing.Setup(boot.JudgmentSkin, true);
+                timing.Setup(boot.JudgmentSkin, new LiveSettingData { ShowFastLate = true, ShowFlickMiss = true });
                 foreach (var result in new[] { NoteResult.Auto, NoteResult.Perfect, NoteResult.Great, NoteResult.Good, NoteResult.Bad, NoteResult.Miss })
                 {
                     Assert.That(main.Excute((result, default)), Is.True);
@@ -86,9 +131,11 @@ namespace OpenSekai.Tests.PlayMode
                     timing.Excute((NoteResult.Great, description));
                     Check(caption, slot);
                 }
-                timing.Setup(boot.JudgmentSkin, false);
+                timing.Setup(boot.JudgmentSkin, new LiveSettingData());
+                timing.Excute((NoteResult.Great, NoteResultDescription.FlickMiss));
+                Assert.That(caption.sprite, Is.Null);
                 timing.Excute((NoteResult.Bad, NoteResultDescription.Fast));
-                Assert.That(caption.sprite.name, Is.EqualTo("judgment.flickMiss"));
+                Assert.That(caption.sprite, Is.Null);
                 main.Setup(boot.JudgmentSkin, true);
                 main.Excute((NoteResult.Auto, default));
                 Check(renderer, "perfect");

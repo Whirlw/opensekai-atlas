@@ -15,8 +15,8 @@ Set-Location $Root
 $groups = @(
     @{ Name = '音符皮肤 custom01';   Path = 'Assets/Game/Resources/live/note/custom01';  Judgement = '自制（画包）' }
     @{ Name = '音符皮肤 custom02';   Path = 'Assets/Game/Resources/live/note/custom02';  Judgement = '自制（画包）' }
-    @{ Name = 'live 打击音';        Path = 'Assets/Game/AssetBundles/resources/startapp/live/sound'; Judgement = '自制 CC0 wav' }
-    @{ Name = 'tap 音效';           Path = 'Assets/Game/AssetBundles/resources/startapp/live/tap_se'; Judgement = '自制 CC0 wav' }
+    @{ Name = '共享演出音';        Path = 'Assets/StreamingAssets/sound/live/sound/live_se/common'; Judgement = '自制与 CC0 素材' }
+    @{ Name = 'tap 音效';           Path = 'Assets/StreamingAssets/sound/live/tap_se/live_se_key'; Judgement = 'AI 生成后手动编辑，CC0-1.0' }
     @{ Name = 'live 背景 2dmode';    Path = 'Assets/Game/AssetBundles/resources/startapp/live/2dmode'; Judgement = '自制（画包）' }
     @{ Name = '加载背景 longLoading'; Path = 'Assets/Graphics/Resources/loading';        Judgement = '已删除' }
     @{ Name = 'HUD / UI 大图';        Path = 'Assets/Graphics/Resources/screen';         Judgement = '自制' }
@@ -25,7 +25,6 @@ $groups = @(
     @{ Name = 'HUD sprite';           Path = 'Assets/Graphics/Sprites';                  Judgement = '自制（画包 + 程序化替身）' }
     @{ Name = '应用图标';             Path = 'Assets/Graphics/Icons';                    Judgement = '程序生成（BrandArt）' }
     @{ Name = '字体';                 Path = 'Assets/Game/Resources/Fonts';              Judgement = 'OFL' }
-    @{ Name = '音频 wav 包';          Path = 'Assets/StreamingAssets/sound';             Judgement = '自制 CC0' }
     @{ Name = '代码';                 Path = 'Assets/Game/Runtime';                      Judgement = 'MIT' }
 )
 

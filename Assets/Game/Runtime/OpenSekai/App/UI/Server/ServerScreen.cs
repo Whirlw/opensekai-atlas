@@ -29,7 +29,7 @@ namespace OpenSekai.App.UI
         private GraphicRaycaster _raycaster;
         private CanvasGroup _pagesGroup;
         private LibrarySettingsPanel _settings;
-        private LibraryResultPanel _result;
+        private ResultPage _result;
         private TemporarySongPackage _temporaryPlay;
         private Image _glowMain;
         private Image _glowSecondary;
@@ -52,13 +52,15 @@ namespace OpenSekai.App.UI
             internal readonly string Title;
             internal readonly bool IsAuto;
             internal readonly TemporarySongPackage Temporary;
+            internal readonly RankingSettlement RetryFrom;
 
-            internal PlayRequest(string directory, string title, bool isAuto, TemporarySongPackage temporary)
+            internal PlayRequest(string directory, string title, bool isAuto, TemporarySongPackage temporary, RankingSettlement retryFrom = null)
             {
                 PackageDirectory = directory;
                 Title = title;
                 IsAuto = isAuto;
                 Temporary = temporary;
+                RetryFrom = retryFrom;
             }
         }
 
@@ -320,8 +322,8 @@ namespace OpenSekai.App.UI
             if (result == null) return;
             if (_result == null)
             {
-                _result = LibraryResultPanel.Create(ModalLayer,
-                    retry => RaisePlayRequested(new PlayRequest(retry.PackageDirectory, retry.Title, retry.IsAuto, _temporaryPlay)), "返回服务器");
+                _result = ResultPage.Create(ModalLayer,
+                    retry => RaisePlayRequested(new PlayRequest(retry.PackageDirectory, retry.Title, retry.IsAuto, _temporaryPlay, retry.Settlement)), "返回服务器");
                 _result.OnClose = () => _temporaryPlay = null;
             }
 

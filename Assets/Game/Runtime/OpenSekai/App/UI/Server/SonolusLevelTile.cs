@@ -71,8 +71,7 @@ namespace OpenSekai.App.UI
             LibraryWidgets.Place(_levelChip, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(CORNER, -CORNER), new Vector2(84f, 32f));
             _level = LibraryWidgets.Label("Label", chip.transform, string.Empty, 21f, LibraryTheme.Colors.TextPrimary,
                 FontStyles.Bold, TextAlignmentOptions.Center);
-            LibraryUi.UseCondensedFont(_level);
-            _level.characterSpacing = 4f;
+            LibraryUi.UseSpacedCondensedFont(_level, 4f);
             LibraryUi.Stretch(_level.rectTransform);
 
             Image installed = LibraryWidgets.Panel("Installed", _holder, 16f, _cornerBackground);

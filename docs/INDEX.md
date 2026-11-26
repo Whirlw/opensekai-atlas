@@ -64,6 +64,7 @@
 - [开发计划](plans/README.md)
 - [OpenSekai Android 延迟优化计划](plans/android-latency-optimization-plan.md)
 - [NextRUSH+ 完整谱面支持计划](plans/next-rush-support-plan.md)
+- [截图工具连续帧导出需求](plans/screenshot-sequence-export.md)
 - [OpenSekai 代码规范审查与整改计划](plans/coding-standards-audit-2026-11-20.md)
 - [OpenSekai 代码审查最终方案](plans/code-review-2026-11-20-final.md)（过程文档归档在 [plans/archive-review-2026-11-20/](plans/archive-review-2026-11-20/README.md)）
 
@@ -75,6 +76,7 @@
 - [builtin-symbols.md](reference/builtin-symbols.md)
 - [字体](reference/fonts.md)
 - [术语表](reference/glossary.md)
+- [界面美术风格指南](reference/ui-style-guide.md)
 - [判定窗口](reference/judging.md)
 - [设置项](reference/live-settings.md)
 

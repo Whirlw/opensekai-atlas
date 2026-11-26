@@ -331,15 +331,8 @@ namespace Sekai.Live
 		internal bool HasSlideEndInputAt(float now) =>
 			(Result >= NoteResult.Bad && Result != NoteResult.Auto) || now <= _slideEndInputUntil;
 
-		private (NoteResult result, NoteResultDescription description) _judgeInfo;
-
 		[JsonIgnore]
-		public (NoteResult result, NoteResultDescription description) JudgeInfo
-		{
-			get => _judgeInfo;
-			protected set => _judgeInfo = UsesNextRushJudgment && value.result == NoteResult.JustPerfect
-				? (NoteResult.Perfect, value.description) : value;
-		}
+		public (NoteResult result, NoteResultDescription description) JudgeInfo { get; protected set; }
 
 		[JsonIgnore]
 		public NoteResult Result
@@ -558,10 +551,12 @@ namespace Sekai.Live
 		/// Finishes this note with an explicit result. Used by a long note that has to score its tail
 		/// itself: the tail is a separate note and carries its own judgment.
 		/// </summary>
-		internal void FinishWith(NoteResult result)
+		internal void FinishWith(NoteResult result) => FinishWith((result, NoteResultDescription.None));
+
+		internal void FinishWith((NoteResult result, NoteResultDescription description) judgeInfo)
 		{
 			if (State == NoteState.Done) return;
-			JudgeInfo = (result, NoteResultDescription.None);
+			JudgeInfo = judgeInfo;
 			State = NoteState.Done;
 		}
 
@@ -782,7 +777,9 @@ namespace Sekai.Live
 			ResultPublication.Publish(this, Callbacks, this, PublishShape.Key);
 
 		/// <summary>This note's four result callbacks, for <see cref="ResultPublication"/>.</summary>
-		internal ResultCallbacks Callbacks => new ResultCallbacks(onJudgment, onUpdateCombo, onUpdateScore, onDamage);
+		internal ResultCallbacks Callbacks => new ResultCallbacks(onJudgment, onUpdateCombo, onUpdateScore, onDamage, CanPublishResult);
+
+		internal Func<bool> CanPublishResult { private get; set; }
 
 		private bool _resultPublished;
 

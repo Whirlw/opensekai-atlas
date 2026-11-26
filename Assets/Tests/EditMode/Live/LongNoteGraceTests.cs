@@ -102,7 +102,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
 			Assert.That(tail.Result, Is.EqualTo(NoteResult.None));
 			Step(tailTime, 3, TouchPhase.Ended);
-			Assert.That(tail.Result, Is.EqualTo(NoteResult.JustPerfect), "the returning finger can finish the tail on time");
+			Assert.That(tail.Result, Is.EqualTo(NoteResult.Perfect), "the returning finger can finish the tail on time");
 			Assert.That(bar.State, Is.EqualTo(NoteState.Done));
 		}
 

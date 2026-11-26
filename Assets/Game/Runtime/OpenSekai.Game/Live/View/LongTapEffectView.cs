@@ -213,7 +213,8 @@ namespace Sekai
 				bool held = IsHeldForVisuals(note, time);
 				if (held)
 				{
-					RenderPair(pair, note.LaneStartF, note.LaneEndF, note is NoteBase styled ? styled.NativeStyle : 0);
+					Vector2 lanes = note is LongNote bar ? bar.ViewLanes(time) : new Vector2(note.LaneStartF, note.LaneEndF);
+					RenderPair(pair, lanes.x, lanes.y, note is NoteBase styled ? styled.NativeStyle : 0);
 
 					if (!_autoplay && !pair.SoundRequested)
 					{
@@ -252,9 +253,8 @@ namespace Sekai
 
 		private void UpdateNativeHold(LongNote note, NativeHold hold, float time)
 		{
-			double viewTime = (double)time + LiveConfig.ViewLeadSeconds;
 			if (note.State == NoteState.Done
-				|| !note.TryConnectorPresentation(viewTime, out var segment, out float left, out float right)
+				|| !note.TryConnectorPresentation(time, out var segment, out float left, out float right)
 				|| segment.IsDamage || !segment.HasActiveInterval
 				|| !segment.IsFake && !IsHeldForVisuals(note, time))
 			{

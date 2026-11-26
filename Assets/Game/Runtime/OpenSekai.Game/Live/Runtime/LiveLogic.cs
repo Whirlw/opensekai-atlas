@@ -125,6 +125,7 @@ namespace Sekai.Core.Live
 		public LiveNoteSession Notes => Session.Notes;
 
 		private int _result;
+		private int _lastShownRemainingNotes;
 		public int TapCount
 		{
 			get => Session.TapCount;
@@ -201,7 +202,8 @@ namespace Sekai.Core.Live
 		{
 			scoreLogic = logic;
 			scoreLogic?.Setup(Session.BootData, Session.MusicScore);
-			_presentation.SetupScore(Session.Views, Score);
+			_lastShownRemainingNotes = logic?.RemainingNoteCount ?? 0;
+			_presentation.SetupScore(Session.Views, logic?.HudScore ?? default);
 		}
 
 		public void RefreshInput()
@@ -252,7 +254,17 @@ namespace Sekai.Core.Live
 		/// The view block, the last one of the frame: what the two blocks above decided is drawn now,
 		/// once.
 		/// </summary>
-		public void OnView() => NoteFrame.TickViews();
+		public void OnView()
+		{
+			NoteFrame.TickViews();
+			// Combo and score callbacks can arrive in either order. Draw after both have settled.
+			var board = scoreLogic;
+			if (board?.UseSubtractiveScore == true && board.RemainingNoteCount != _lastShownRemainingNotes)
+			{
+				_lastShownRemainingNotes = board.RemainingNoteCount;
+				_presentation.UpdateScore(Session.Views, board.HudScore, 0);
+			}
+		}
 
 		/// <summary>
 		/// The touch block: collect this frame's raw samples, then let the judge answer them. Both steps

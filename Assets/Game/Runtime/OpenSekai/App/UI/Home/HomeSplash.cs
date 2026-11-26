@@ -34,6 +34,7 @@ namespace OpenSekai.App.UI
         private const float NOTE_DROP_START = 1.8f;
         private const float MOON_START = 2.15f;
         private const float WORDMARK_START = 1.9f;
+        private const float WORDMARK_START_SPACING = 64f;
         private const float TAGLINE_START = 2.25f;
 
         /// <summary>Where a tap on the splash jumps to: the start of the flight into the header.</summary>
@@ -156,16 +157,14 @@ namespace OpenSekai.App.UI
             _emblemHost = LibraryUi.CreateRect("EmblemHost", _stage);
             LibraryUi.Stretch(_emblemHost);
 
-            _wordmark = LibraryWidgets.Label("Wordmark", _stage, HomeView.Wordmark, HomeTheme.Layout.SPLASH_WORDMARK_SIZE,
-                LibraryTheme.Colors.TextPrimary, FontStyles.Normal, TextAlignmentOptions.Center);
-            LibraryUi.UseCondensedFont(_wordmark);
-            _wordmark.richText = true;
+            _wordmark = HomeView.CreateWordmark("Wordmark", _stage, HomeTheme.Layout.SPLASH_WORDMARK_SIZE, WORDMARK_START_SPACING,
+                TextAlignmentOptions.Center);
             _wordmark.overflowMode = TextOverflowModes.Overflow;
             LibraryWidgets.Place(_wordmark.rectTransform, center, center, Vector2.zero, new Vector2(1400f, 110f));
 
             _tagline = LibraryWidgets.Label("Tagline", _stage, "开源下落式音游播放器", 24f, LibraryTheme.Colors.TextMuted,
                 FontStyles.Normal, TextAlignmentOptions.Center);
-            _tagline.characterSpacing = 24f;
+            LibraryUi.SetLetterSpacing(_tagline, 24f);
             LibraryWidgets.Place(_tagline.rectTransform, center, center, Vector2.zero, new Vector2(900f, 40f));
 
             Image catcher = LibraryUi.CreateImage("Skip", _stage, new Color32(0, 0, 0, 0));
@@ -385,7 +384,11 @@ namespace OpenSekai.App.UI
             float word = HomeMotion.Span(time, WORDMARK_START, 0.7f, Ease.OutCubic);
             float wordY = EMBLEM_Y - EMBLEM_SIZE * 0.5f - 66f;
             _wordmark.alpha = HomeMotion.Span(time, WORDMARK_START, 0.5f, Ease.OutQuad) * (1f - leave);
-            _wordmark.characterSpacing = Mathf.Lerp(64f, 18f, word);
+            float spacing = Mathf.Lerp(WORDMARK_START_SPACING, 18f, word);
+            if (_wordmark.characterSpacing != spacing)
+            {
+                LibraryUi.SetLetterSpacing(_wordmark, spacing);
+            }
             _wordmark.rectTransform.anchoredPosition = new Vector2(0f, wordY - 16f * (1f - word) + 14f * leave);
             float tag = HomeMotion.Span(time, TAGLINE_START, 0.55f, Ease.OutCubic);
             _tagline.alpha = tag * (1f - leave);

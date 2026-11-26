@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using Cysharp.Threading.Tasks;
+using OpenSekai.App.Library;
 using UnityEngine;
 
 #if UNITY_EDITOR
@@ -9,9 +11,7 @@ using UnityEditor;
 namespace OpenSekai.App.UI
 {
     /// <summary>
-    /// Thin platform wrapper for the two pickers the project actually ships: Android/iOS use
-    /// NativeFilePicker, and the editor uses its own dialogs. There is no desktop player build,
-    /// so no standalone file browser is needed.
+    /// Platform file dialogs for importing and exporting song packages.
     /// </summary>
     public static class LibraryImport
     {
@@ -21,15 +21,17 @@ namespace OpenSekai.App.UI
             || Application.platform == RuntimePlatform.OSXEditor
             || Application.platform == RuntimePlatform.LinuxEditor;
 
-        /// <summary>Opens a picker for a package archive (.zip or the .oskp alias); null when cancelled.</summary>
-        public static void PickZip(Action<string> onPicked)
+        /// <summary>Consume the selected .zip or .oskp during the callback. Cancellation yields null.</summary>
+        public static void PickZip(Action<string> onPicked, Action<Exception> onError = null)
         {
             if (onPicked == null)
             {
                 return;
             }
 
-#if UNITY_ANDROID || UNITY_IOS
+#if UNITY_ANDROID && !UNITY_EDITOR
+            PickAndroidZipAsync(onPicked).Forget(onError ?? Debug.LogException);
+#elif UNITY_IOS && !UNITY_EDITOR
             if (NativeFilePicker.IsFilePickerBusy())
             {
                 onPicked(null);
@@ -47,6 +49,26 @@ namespace OpenSekai.App.UI
             onPicked(null);
 #endif
         }
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+        private static async UniTask PickAndroidZipAsync(Action<string> onPicked)
+        {
+            string path = await AndroidDocumentPicker.OpenSongPackageAsync();
+            try
+            {
+                onPicked(path);
+            }
+            finally
+            {
+                if (path != null)
+                {
+                    try { File.Delete(path); }
+                    catch (IOException exception) { Debug.LogWarning(exception); }
+                    catch (UnauthorizedAccessException exception) { Debug.LogWarning(exception); }
+                }
+            }
+        }
+#endif
 
         /// <summary>Opens a folder picker; only valid when <see cref="SupportsFolderPick"/> is true.</summary>
         public static void PickFolder(Action<string> onPicked)

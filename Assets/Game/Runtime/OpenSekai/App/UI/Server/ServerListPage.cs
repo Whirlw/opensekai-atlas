@@ -204,8 +204,7 @@ namespace OpenSekai.App.UI
 
                 float pad = 36f;
                 TextMeshProUGUI eyebrow = LibraryWidgets.Label("Eyebrow", content, sonolus ? "SONOLUS" : "WEB", 20f, tint);
-                LibraryUi.UseCondensedFont(eyebrow);
-                eyebrow.characterSpacing = 26f;
+                LibraryUi.UseSpacedCondensedFont(eyebrow, 26f);
                 LibraryWidgets.TopStrip(eyebrow.rectTransform, pad, pad + 120f, pad - 4f, 28f);
 
                 TextMeshProUGUI title = LibraryWidgets.Label("Title", content, entry.Name, 40f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);

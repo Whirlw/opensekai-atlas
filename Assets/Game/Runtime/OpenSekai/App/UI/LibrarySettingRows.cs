@@ -81,6 +81,8 @@ namespace OpenSekai.App.UI
             Image group = LibraryWidgets.Panel("Section-" + caption, parent, LibraryTheme.Radius.ROW, LibraryTheme.Colors.Control);
             LibraryWidgets.TopStrip(group.rectTransform, left, right,
                 top + LibraryTheme.Layout.SECTION_CAPTION_HEIGHT, rows * LibraryTheme.Layout.SETTING_ROW_HEIGHT);
+            // Clip full-row press highlights to the group's current rounded outline.
+            group.gameObject.AddComponent<Mask>().showMaskGraphic = true;
             LibraryWidgets.Outline(group, LibraryTheme.Radius.ROW);
             return new Section(group.rectTransform);
         }
@@ -93,6 +95,11 @@ namespace OpenSekai.App.UI
             internal Section(RectTransform group)
             {
                 _group = group;
+            }
+
+            internal void SetVisibleRowCount(int rows)
+            {
+                _group.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, rows * LibraryTheme.Layout.SETTING_ROW_HEIGHT);
             }
 
             /// <summary>Next line of the group, with its label; the control goes on its right.</summary>
@@ -552,7 +559,7 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>A line that opens a sub-page: a muted summary and a chevron.</summary>
-        internal void AddLink(Section section, string label, Func<string> describe, Action open)
+        internal GameObject AddLink(Section section, string label, Func<string> describe, Action open)
         {
             RectTransform row = section.AddRow(label, out TextMeshProUGUI labelText);
             labelText.rectTransform.offsetMax = new Vector2(-260f, 0f);
@@ -572,6 +579,7 @@ namespace OpenSekai.App.UI
             {
                 _refreshers.Add(() => value.text = describe());
             }
+            return row.gameObject;
         }
 
         // ------------------------------------------------------------------ pieces

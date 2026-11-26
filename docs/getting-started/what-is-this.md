@@ -20,11 +20,11 @@ Open Sekai Atlas 是开源下落式音游，Android 应用显示为 OpenSekai。
 | 能力 | 位置 | 说明 |
 | --- | --- | --- |
 | 曲库首页 | `Assets/Game/Runtime/OpenSekai/App/UI/LibraryScreen.cs` | 代码构建的 UGUI 页面，含封面、手动/自动入口 |
-| 曲包导入 | `Assets/Game/Runtime/OpenSekai/App/UI/LibraryImport.cs` | ZIP / 文件夹（桌面用 StandaloneFileBrowser，移动端用 NativeFilePicker） |
+| 曲包导入 | `Assets/Game/Runtime/OpenSekai/App/UI/LibraryImport.cs` | Android 通过系统文档选择器导入 `.zip` / `.oskp`，Unity 编辑器也支持选择曲包文件夹 |
 | 设置面板 | `Assets/Game/Runtime/OpenSekai/App/UI/LibrarySettingsPanel.cs` | 流速、判定延迟、帧率、亮度、音量和打歌素材 |
 | 加载浮层 | `Assets/Game/Runtime/OpenSekai/App/UI/LibraryLoadingOverlay.cs` | 开局进度文案 + 取消 |
 | 打歌运行时 | `Assets/Game/Runtime/OpenSekai.Game/Live/Runtime/` | `SoloLiveController` / `LiveLogic` / `ScoreLogic` |
-| 结果面板 | `Assets/Game/Runtime/OpenSekai/App/UI/LibraryResultPanel.cs` | 分数、评级、连击、判定、再玩一次 / 返回来源页 |
+| 结算页 | `Assets/Game/Runtime/OpenSekai/App/UI/Result/ResultPage.cs` | 曲库与服务器共用的全屏页：分数、评级、FC/AP、判定、本次成绩分与 Ranking Score 变化、再玩一次 / 返回来源页 |
 | 暂停层 | `Assets/Game/Runtime/Shared/UI/LivePauseOverlay.cs` | 继续 / 重开 / 退出到曲库 |
 | 成绩历史 | `Assets/Game/Runtime/OpenSekai/App/Library/Storage/CustomMusicScorePlayHistoryStorage.cs` | JSONL，含 `chartHash` / `rulesVersion` / `sessionId` |
 

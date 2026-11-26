@@ -26,7 +26,15 @@ namespace OpenSekai.Tests.EditMode.Live
         private const double CLOCK = 10d;
         private LiveHarness _harness;
         private Recorder _board;
+        private ScoreDisplay _hud;
         private readonly Dictionary<object, string> _labels = new Dictionary<object, string>();
+
+        private sealed class ScoreDisplay : LiveViewBase
+        {
+            internal int Total { get; private set; }
+            public override void SetupScore(LiveScore score) => Total = score.totalScore;
+            public override void UpdateScore(LiveScore score) => Total = score.totalScore;
+        }
 
         /// <summary>The score board, recording each call and the base score index it moved.</summary>
         private sealed class Recorder : ScoreLogic
@@ -77,7 +85,11 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         [TearDown]
-        public void TearDown() => _harness.Dispose();
+        public void TearDown()
+        {
+            if (_hud != null) UnityEngine.Object.DestroyImmediate(_hud.gameObject);
+            _harness.Dispose();
+        }
 
         private static MusicScoreInfo Info(float time) => new MusicScoreInfo(0, time / 2f, time, 120f, 4f, 1f, 1f);
 
@@ -154,10 +166,10 @@ namespace OpenSekai.Tests.EditMode.Live
 
             Assert.That(board.Log, Is.EqualTo(new[]
             {
-                "J tap JustPerfect",
-                "C tap JustPerfect",
-                "S tap JustPerfect #0->1 +1000000",
-                "D tap JustPerfect",
+                "J tap Perfect",
+                "C tap Perfect",
+                "S tap Perfect #0->1 +1000000",
+                "D tap Perfect",
             }));
             Assert.That(board.Score.totalScore, Is.EqualTo(1000000));
             Assert.That(board.Score.combo, Is.EqualTo(1));
@@ -182,7 +194,7 @@ namespace OpenSekai.Tests.EditMode.Live
                 "D tap Miss",
             }));
             Assert.That(board.Score.combo, Is.Zero);
-            Assert.That(board.Score.life, Is.EqualTo(1000 - LiveConfig.Damages[NoteResult.Miss]));
+            Assert.That(board.Score.life, Is.EqualTo(500));
         }
 
         [Test]
@@ -201,14 +213,14 @@ namespace OpenSekai.Tests.EditMode.Live
 
             Assert.That(board.Log, Is.EqualTo(new[]
             {
-                "D head JustPerfect",
-                "C head JustPerfect",
-                "J bar JustPerfect",
-                "S head JustPerfect #0->1 +500000",
-                "J tail JustPerfect",
-                "C tail JustPerfect",
-                "S tail JustPerfect #1->2 +500000",
-                "D tail JustPerfect",
+                "D head Perfect",
+                "C head Perfect",
+                "J bar Perfect",
+                "S head Perfect #0->1 +500000",
+                "J tail Perfect",
+                "C tail Perfect",
+                "S tail Perfect #1->2 +500000",
+                "D tail Perfect",
             }));
             Assert.That(board.Score.totalScore, Is.EqualTo(1000000));
             Assert.That(board.Score.combo, Is.EqualTo(2));
@@ -225,8 +237,20 @@ namespace OpenSekai.Tests.EditMode.Live
             LongNote bar = Bar(tail);
             var tap = Named(new NormalNote(Info(2.0f), 3, 8, 8, NoteCategory.Normal, 1f, NoteType.Default, 0f), "tap");
             Recorder board = Arrange(false, bar, tap);
+            var boot = new Sekai.FreeLiveBootData(1, "master", 1)
+            {
+                LiveSettingData = new Sekai.LiveSettingData { UseSubtractiveScore = true }
+            };
+            boot.MusicData.MusicScore = _harness.Logic.Session.MusicScore;
+            _hud = new GameObject("Score HUD").AddComponent<ScoreDisplay>();
+            _harness.Logic.Setup(boot, new LiveViewBase[] { _hud });
+            _harness.Logic.SetScoreLogic(board);
+            Assert.That(_hud.Total, Is.EqualTo(1_000_000));
 
-            for (float t = 0.4f; t < 2.0f - 1e-4f; t += 0.05f) Frame(t);
+            Frame(0.4f);
+            Frame(0.8f);
+            Assert.That(_hud.Total, Is.EqualTo(666_667), "the expired head alone has missed");
+            for (float t = 0.85f; t < 2.0f - 1e-4f; t += 0.05f) Frame(t);
             Frame(2.0f, Sample(2, 8f, 2.0f, InputTouchPhase.Began));
             Frame(2.1f);
 
@@ -238,10 +262,12 @@ namespace OpenSekai.Tests.EditMode.Live
             }));
             Assert.That(Of(board, "tap"), Is.EqualTo(new[]
             {
-                "J tap JustPerfect", "C tap JustPerfect", "S tap JustPerfect #1->2 +333334", "D tap JustPerfect",
+                "J tap Perfect", "C tap Perfect", "S tap Perfect #1->2 +333334", "D tap Perfect",
             }));
             Assert.That(board.Log.Take(3), Is.EqualTo(new[] { "D head Miss", "C head Miss", "J bar Miss" }),
                 "the head is the first verdict on the board");
+            Assert.That(_hud.Total, Is.EqualTo(333_334));
+            Assert.That(_hud.Total, Is.EqualTo(board.Score.totalScore));
         }
 
         /// <summary>
@@ -299,9 +325,9 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(tailEntries, Has.Length.EqualTo(4), string.Join(" | ", board.Log));
             Assert.That(Of(board, "late"), Is.EqualTo(new[]
             {
-                "S late JustPerfect #2->3 +333333", "C late JustPerfect", "D late JustPerfect", "J late JustPerfect",
+                "S late Perfect #2->3 +333333", "C late Perfect", "D late Perfect", "J late Perfect",
             }), string.Join(" | ", board.Log));
-            Assert.That(board.Log.IndexOf(tailEntries[3]), Is.LessThan(board.Log.IndexOf("S late JustPerfect #2->3 +333333")),
+            Assert.That(board.Log.IndexOf(tailEntries[3]), Is.LessThan(board.Log.IndexOf("S late Perfect #2->3 +333333")),
                 "the tail's verdict ends the bar, and the bar's end settles the point");
         }
 
@@ -321,7 +347,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(Of(board, "hidden"), Is.Empty);
             Assert.That(board.Log, Is.EqualTo(new[]
             {
-                "D head JustPerfect", "C head JustPerfect", "J bar JustPerfect", "S head JustPerfect #0->1 +1000000",
+                "D head Perfect", "C head Perfect", "J bar Perfect", "S head Perfect #0->1 +1000000",
             }));
             Assert.That(bar.State, Is.EqualTo(NoteState.Done));
         }
@@ -506,9 +532,9 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(Of(board, "bar"), Has.Length.EqualTo(1));
             Assert.That(Of(board, "tap"), Has.Length.EqualTo(4));
             Assert.That(Of(board, "tail"), Has.Length.EqualTo(4));
-            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.JustPerfect));
-            Assert.That(tap.Result, Is.EqualTo(NoteResult.JustPerfect));
-            Assert.That(tail.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.Perfect));
+            Assert.That(tap.Result, Is.EqualTo(NoteResult.Perfect));
+            Assert.That(tail.Result, Is.EqualTo(NoteResult.Perfect));
         }
     }
 }

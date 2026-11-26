@@ -9,6 +9,7 @@ namespace Sekai.Live
 		public static MusicScoreInfo CurrentFrameInfo = new MusicScoreInfo { speedRatio = 1f };
 
 		public int? InitialLife { get; }
+		internal NoteBase[][] ScoringHoldChains { get; }
 		internal bool UseExtendedLanes { get; }
 		internal NextRushConnectorSound[] ConnectorSounds { get; } = Array.Empty<NextRushConnectorSound>();
 		internal (NoteBase left, NoteBase right)[] HiddenSimLines { get; }
@@ -55,13 +56,14 @@ namespace Sekai.Live
 
 		public MusicScore(MusicScoreInfo[] musicScoreInfoArray, EventBase[] eventArray, NoteBase[] noteArray,
 			int? initialLife = null, bool useExtendedLanes = false, NextRushConnectorSound[] connectorSounds = null,
-			(NoteBase left, NoteBase right)[] hiddenSimLines = null)
+			(NoteBase left, NoteBase right)[] hiddenSimLines = null, NoteBase[][] scoringHoldChains = null)
 			: this()
 		{
 			this.musicScoreInfoArray = musicScoreInfoArray;
 			EventArray = eventArray;
 			NoteArray = noteArray;
 			InitialLife = initialLife;
+			ScoringHoldChains = scoringHoldChains;
 			UseExtendedLanes = useExtendedLanes;
 			ConnectorSounds = connectorSounds ?? Array.Empty<NextRushConnectorSound>();
 			HiddenSimLines = hiddenSimLines;

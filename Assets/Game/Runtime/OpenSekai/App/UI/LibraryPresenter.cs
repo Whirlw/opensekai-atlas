@@ -37,6 +37,7 @@ namespace OpenSekai.App.UI
         private LibraryViewMode _viewMode = LibraryViewMode.List;
         private CancellationTokenSource _playbackCts;
         private bool _isStartingPlayback;
+        private bool _disposed;
 
         /// <param name="view">The page to draw on.</param>
         /// <param name="packages">The package store the library lists.</param>
@@ -68,6 +69,19 @@ namespace OpenSekai.App.UI
                 _viewMode = ReadPreference(VIEW_PREFERENCE, _viewMode);
             }
             CustomMusicScorePlayHistoryStorage.Recorded += OnScoreRecorded;
+            ChartRankCache.Changed += OnRankChanged;
+        }
+
+        private void OnRankChanged(string key)
+        {
+            foreach (var item in _items)
+            {
+                if (item.RankKey != key) continue;
+                // Regrouping redraws every cell already; the RANKED tags still need it otherwise.
+                if (_model.GroupKey == LibraryGroupKey.RankStatus) Render();
+                _view.RefreshRank(key);
+                return;
+            }
         }
 
         /// <summary>
@@ -162,7 +176,9 @@ namespace OpenSekai.App.UI
 
         public void Dispose()
         {
+            _disposed = true;
             CustomMusicScorePlayHistoryStorage.Recorded -= OnScoreRecorded;
+            ChartRankCache.Changed -= OnRankChanged;
             _loudness?.Dispose();
             _playbackCts?.Cancel();
             _playbackCts?.Dispose();
@@ -176,8 +192,37 @@ namespace OpenSekai.App.UI
                 return;
             }
 
+            SelectPlayed(result.PackageDirectory);
             _view.SetStatus(result.Title + "  ·  " + result.KindText);
             _view.ShowResult(result);
+        }
+
+        /// <summary>
+        /// The page is rebuilt on the way back from a live and starts on its first row; put the
+        /// selection and the list back on the package that was played, ready for when the result closes.
+        /// </summary>
+        private void SelectPlayed(string packageDirectory)
+        {
+            if (string.IsNullOrEmpty(packageDirectory) || _listing == null)
+            {
+                return;
+            }
+
+            IReadOnlyList<SongPackageItem> items = _listing.Items;
+            for (int i = 0; i < items.Count; i++)
+            {
+                string directory = items[i].Entry?.RootDirectory;
+                if (!string.IsNullOrEmpty(directory) && _packages.PathsEqual(directory, packageDirectory))
+                {
+                    if (!ReferenceEquals(items[i], _selected))
+                    {
+                        _selected = items[i];
+                        _view.SetSelection(items[i], reveal: true);
+                    }
+
+                    return;
+                }
+            }
         }
 
         internal void OpenActions(SongPackageItem item)
@@ -297,7 +342,7 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            StartPlayback(result.PackageDirectory, result.Title, result.IsAuto);
+            StartPlayback(result.PackageDirectory, result.Title, result.IsAuto, result.Settlement);
         }
 
         private void ExportPackage(SongPackageItem item)
@@ -392,6 +437,7 @@ namespace OpenSekai.App.UI
             _view.SetStatus("请选择曲包文件（.zip / .oskp）…");
             LibraryImport.PickZip(path =>
             {
+                if (_disposed) return;
                 if (string.IsNullOrEmpty(path))
                 {
                     _view.SetStatus("已取消导入。");
@@ -399,6 +445,12 @@ namespace OpenSekai.App.UI
                 }
 
                 StartImport(path, false);
+            }, exception =>
+            {
+                if (_disposed) return;
+                Debug.LogWarning("[LibraryImport] " + exception);
+                _view.SetStatus("无法打开或读取曲包文件：" + exception.Message);
+                UiSound.Play(UiCue.Error);
             });
         }
 
@@ -457,12 +509,12 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>Starts a session for a package directory; used by rows and by 再玩一次.</summary>
-        private void StartPlayback(string packageDirectory, string title, bool isAuto)
+        private void StartPlayback(string packageDirectory, string title, bool isAuto, RankingSettlement retryFrom = null)
         {
             _playbackCts?.Cancel();
             _playbackCts?.Dispose();
             _playbackCts = new CancellationTokenSource();
-            PlayAsync(packageDirectory, title, isAuto, _playbackCts.Token).Forget();
+            PlayAsync(packageDirectory, title, isAuto, _playbackCts.Token, retryFrom).Forget();
         }
 
         internal void OnCancelPlayback()
@@ -471,7 +523,7 @@ namespace OpenSekai.App.UI
         }
 
         private async UniTaskVoid PlayAsync(
-            string packageDirectory, string title, bool isAuto, CancellationToken cancellationToken)
+            string packageDirectory, string title, bool isAuto, CancellationToken cancellationToken, RankingSettlement retryFrom)
         {
             _isStartingPlayback = true;
             // Decoding a song to measure it would compete with the live's own loading.
@@ -482,7 +534,7 @@ namespace OpenSekai.App.UI
                 _view.SetStatus((isAuto ? "自动" : "手动") + "：" + title + " — 准备中…");
                 _view.ShowLoading(title, packageDirectory);
                 PlayStartResult result = await _startPlay(
-                    new PlayRequest(packageDirectory, isAuto, SceneManager.Scene.Library),
+                    new PlayRequest(packageDirectory, isAuto, SceneManager.Scene.Library) { RetryFrom = retryFrom },
                     cancellationToken,
                     message =>
                     {

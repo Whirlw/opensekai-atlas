@@ -1,6 +1,5 @@
 using System;
 using LitMotion;
-using OpenSekai.Infrastructure.Sonolus;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
@@ -135,8 +134,7 @@ namespace OpenSekai.App.UI
             TextMeshProUGUI label = LibraryWidgets.Label("Label", chip.transform, text, fontSize, foreground, FontStyles.Bold);
             if (condensed)
             {
-                LibraryUi.UseCondensedFont(label);
-                label.characterSpacing = 4f;
+                LibraryUi.UseSpacedCondensedFont(label, 4f);
             }
 
             label.overflowMode = TextOverflowModes.Overflow;
@@ -283,8 +281,6 @@ namespace OpenSekai.App.UI
 
         /// <summary>"3 分钟前" for a recent time, the date for anything older than a week.</summary>
         internal static string DescribeTime(DateTimeOffset? time) => time.HasValue ? HomeScreen.DescribeWhen(time.Value) : string.Empty;
-
-        internal static string Localize(string text) => SonolusText.Localize(text);
     }
 
     /// <summary>

@@ -116,15 +116,17 @@ namespace OpenSekai.Tests.EditMode
 
         private sealed class FakeRecorder : IPlayHistoryRecorder
         {
-            public void AppendLiveResult(
+            public RankingSettlement Finish(
                 FreeLiveBootData bootData,
                 LiveScore score,
+                PlayResultKind kind,
                 long musicTimeMs,
                 long musicLengthMs,
                 string sessionId,
                 string chartHash,
                 int rulesVersion)
             {
+                return null;
             }
         }
     }

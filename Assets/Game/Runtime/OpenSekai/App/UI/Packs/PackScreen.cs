@@ -63,8 +63,6 @@ namespace OpenSekai.App.UI
 
         internal PackPreviewPanel Preview { get; private set; }
 
-        internal PackChoicePanel Choices { get; private set; }
-
         /// <summary>The demo the top page shows, if it shows one.</summary>
         internal PackDemo Demo { get; private set; }
 
@@ -97,7 +95,6 @@ namespace OpenSekai.App.UI
             {
                 _settings?.Hide();
                 Preview.Close();
-                Choices.Close();
                 Media.Stop();
                 _toast.Hide();
                 _backfill?.Cancel();
@@ -191,13 +188,6 @@ namespace OpenSekai.App.UI
             if (Preview.IsOpen)
             {
                 Preview.Close();
-                UiSound.Play(UiCue.Close);
-                return true;
-            }
-
-            if (Choices.IsOpen)
-            {
-                Choices.Close();
                 UiSound.Play(UiCue.Close);
                 return true;
             }
@@ -378,6 +368,7 @@ namespace OpenSekai.App.UI
             }
         }
 
+        /// <summary>Saves the built-in bundle's sets, which every bundle and 混搭 fall back to.</summary>
         internal bool SaveBuiltinBundle(MaterialBuiltinSelection sets, long revision)
         {
             if (!CanWrite()) return false;
@@ -385,11 +376,38 @@ namespace OpenSekai.App.UI
             {
                 Store.SaveBuiltinBundle(sets, revision);
                 Reload();
-                ShowToast(State?.IsPresetMode == false ? "已保存内置套装，点整合包可重新载入混搭" : "已保存内置整合包，下一次开局生效");
+                UiSound.Play(UiCue.Select);
+                ShowToast("已保存内置整合包，下一次开局生效");
                 return true;
             }
             catch (Exception e) when (IsWriteFailure(e))
             {
+                UiSound.Play(UiCue.Error);
+                Reload();
+                ShowToast(PackImport.DescribeWrite(e));
+                return false;
+            }
+        }
+
+        /// <summary>Chooses the main group a bundle's preset uses for one category; the mode stays.</summary>
+        internal bool SaveBundleGroup(InstalledMaterialPack pack, string category, string groupId)
+        {
+            if (pack == null || !CanWrite()) return false;
+            try
+            {
+                long before = State.Revision;
+                if (Store.SaveBundleGroup(pack.PackId, pack.Digest, category, groupId, before) == before) return false;
+                Reload();
+                UiSound.Play(UiCue.Select);
+                bool used = State != null && State.IsPresetMode && State.Preset.IsFrom(pack.PackId, pack.Digest);
+                ShowToast(used ? "已保存整合包设置，下一次开局生效"
+                    : State?.IsPresetMode == false ? "已保存整合包设置，点整合包可载入混搭"
+                    : "已保存整合包设置，使用此整合包时生效");
+                return true;
+            }
+            catch (Exception e) when (IsWriteFailure(e))
+            {
+                UiSound.Play(UiCue.Error);
                 Reload();
                 ShowToast(PackImport.DescribeWrite(e));
                 return false;
@@ -405,7 +423,7 @@ namespace OpenSekai.App.UI
                 if (!State.IsPresetMode)
                 {
                     MaterialPackConfiguration candidate = State.BundleConfiguration(choice);
-                    return candidate.SameChoicesAs(State.MixConfiguration()) || Save(candidate, "已载入整合包，可继续调整各模块");
+                    return candidate.SameChoicesAs(State.MixConfiguration()) || Save(candidate, "已套用整合包的配置，可继续调整各类别");
                 }
                 if (State.Preset.SameAs(choice)) return true;
                 Store.ChoosePreset(choice, State.Revision);
@@ -646,7 +664,6 @@ namespace OpenSekai.App.UI
             ModalLayer = LibraryUi.CreateRect("Modals", root);
             LibraryUi.Stretch(ModalLayer);
             Preview = new PackPreviewPanel(this);
-            Choices = new PackChoicePanel(ModalLayer);
             Demo = new PackDemo(transform, () => Store);
             _importPanel = new PackImportPanel(ModalLayer);
             _toast = new UiToast(root, 48f, HomeTheme.Colors.Rose);
@@ -747,7 +764,6 @@ namespace OpenSekai.App.UI
 
             _pages.Clear();
             Preview?.Dispose();
-            Choices?.Dispose();
             Demo?.Dispose();
             _importPanel?.Dispose();
             Media?.Dispose();

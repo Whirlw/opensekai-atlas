@@ -62,7 +62,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			bar.SetStateUnnotice(NoteState.Last);
 			point.ObserveBarContact(1.008f);
 
-			Assert.That(point.Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(point.Result, Is.EqualTo(NoteResult.Perfect));
 			StringAssert.Contains("pointHit id=51", LiveTrace.Recent(20));
 		}
 

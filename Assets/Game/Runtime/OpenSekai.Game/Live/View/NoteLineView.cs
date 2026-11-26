@@ -237,7 +237,7 @@ namespace Sekai
 				}
 
 				if (note.State != NoteState.Done
-					|| note is LongNote bar && (double)time + LiveConfig.ViewLeadSeconds < bar.NativeConnectorDisplayEnd)
+					|| note is LongNote bar && time < bar.NativeConnectorDisplayEnd)
 				{
 					native |= note.NativeScroll != null;
 					layers |= LayerMaskFor(note);
@@ -378,11 +378,10 @@ namespace Sekai
 
 		private void DrawFullScreen(float time, LongNote bar, NoteBase start, NoteBase end, NextRushConnectorSegment segment)
 		{
-			double now = (double)time + LiveConfig.ViewLeadSeconds;
 			if (_viewCamera == null
 				|| bar?.TailNote is { HasJudgment: true, State: NoteState.Done }
-				|| !segment.TryFullScreenAlpha(now, start.NativeTarget.Time, end.NativeTarget.Time, out float alpha)
-				|| segment.IsHidden(now, start.NativeScroll.SampleFrame(now).Hidden)) return;
+				|| !segment.TryFullScreenAlpha(time, start.NativeTarget.Time, end.NativeTarget.Time, out float alpha)
+				|| segment.IsHidden(time, start.NativeScroll.SampleFrame(time).Hidden)) return;
 			if (!_hasViewport)
 			{
 				float depth = _viewCamera.WorldToViewportPoint(transform.position).z;
@@ -428,7 +427,7 @@ namespace Sekai
 		/// </summary>
 		private Color GetNoteColor(INote baseNote)
 		{
-			if (baseNote is LongNote && baseNote.State == NoteState.Last && LiveTrace.HighlightLast)
+			if (baseNote is LongNote && baseNote.State == NoteState.Last && LiveTrace.Enabled && LiveTrace.HighlightLast)
 			{
 				return Color.red;
 			}
@@ -639,14 +638,13 @@ namespace Sekai
 			return Mathf.Min(sampleCount, _meshSettingBuffer.Length);
 		}
 
-		private int SampleNativeSegment(float time, NoteBase start, NoteBase end)
+		private int SampleNativeSegment(double now, NoteBase start, NoteBase end)
 		{
 			var segment = start.NativeConnector;
 			if (segment != null && segment.StartAlpha == 0 && segment.EndAlpha == 0) return 0;
 			var owner = start as LongNote ?? start.ParentNote as LongNote;
 			if (segment?.ThroughJudgeLine == true
 				&& owner?.TailNote is { HasJudgment: true, State: NoteState.Done }) return 0;
-			double now = (double)time + LiveConfig.ViewLeadSeconds;
 			double a = start.NativeViewProgress(now, out bool hidden);
 			double b = end.NativeViewProgress(now, out _);
 			if ((segment?.IsHidden(now, hidden) ?? hidden)

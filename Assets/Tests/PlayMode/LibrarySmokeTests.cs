@@ -8,11 +8,13 @@ using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using OpenSekai.App;
 using OpenSekai.App.Playback;
+using OpenSekai.App.Library;
 using OpenSekai.App.UI;
 using OpenSekai.Charts;
 using OpenSekai.Infrastructure.Packages;
 using OpenSekai.Infrastructure.Sonolus;
 using OpenSekai.Shared.Live.Simulation;
+using OpenSekai.Shared.Packages;
 using OpenSekai.Shared.Playback;
 using Sekai;
 using Sekai.Core.Live;
@@ -32,6 +34,24 @@ namespace OpenSekai.Tests.PlayMode
     {
         private const string LIBRARY_SCENE_PATH = "Assets/Game/Scenes/Library.unity";
         private const float BOOT_TIMEOUT_SECONDS = 15f;
+        private RankingHistory _previousHistory;
+        private string _historyRoot;
+
+        [OneTimeSetUp]
+        public void UseScratchHistory()
+        {
+            _previousHistory = CustomMusicScorePlayHistoryStorage.Ranking;
+            _historyRoot = Path.Combine(Path.GetTempPath(), "OpenSekai-SmokeHistory-" + System.Guid.NewGuid().ToString("N"));
+            CustomMusicScorePlayHistoryStorage.Ranking = new RankingHistory(
+                Path.Combine(_historyRoot, "PlayHistory.jsonl"), new PlayHistorySummaryCache());
+        }
+
+        [OneTimeTearDown]
+        public void RestorePlayerHistory()
+        {
+            CustomMusicScorePlayHistoryStorage.Ranking = _previousHistory;
+            if (Directory.Exists(_historyRoot)) Directory.Delete(_historyRoot, true);
+        }
 
         [Test]
         public void LiveBackgroundCoverFillsTheMasksAtAnySourceResolution()
@@ -392,7 +412,7 @@ namespace OpenSekai.Tests.PlayMode
             yield return WaitFor(() => !head.IsPlaying, 5f, "finishing the resumed long head hit");
 
             yield return WaitFor(
-                () => SceneLoader.GetActiveScene().name == "Library" && Object.FindFirstObjectByType<LibraryResultPanel>() != null,
+                () => SceneLoader.GetActiveScene().name == "Library" && Object.FindFirstObjectByType<ResultPage>() != null,
                 90f, "returning to Library and showing the result");
             var returnedLibrary = Object.FindFirstObjectByType<LibraryScreen>();
             Assert.That(returnedLibrary, Is.Not.Null);
@@ -400,9 +420,8 @@ namespace OpenSekai.Tests.PlayMode
             Assert.That(SoundManager.Instance.IsLoadedSoundBundle(songCue), Is.False,
                 "returning to Library releases the completed song from the process-wide audio catalog");
 
-            var panel = Object.FindFirstObjectByType<LibraryResultPanel>();
-            var result = (PlayResult)typeof(LibraryResultPanel)
-                .GetField("_current", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(panel);
+            var panel = Object.FindFirstObjectByType<ResultPage>();
+            var result = panel.Current;
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Kind, Is.EqualTo(PlayResultKind.Completed));
             Assert.That(result.IsAuto, Is.True);
@@ -510,10 +529,10 @@ namespace OpenSekai.Tests.PlayMode
             Assert.That(server.IsPresented, Is.False);
             Assert.That(originalHome == null, Is.True);
 
-            LibraryResultPanel panel = null;
+            ResultPage panel = null;
             yield return WaitFor(() =>
             {
-                panel = Object.FindFirstObjectByType<LibraryResultPanel>();
+                panel = Object.FindFirstObjectByType<ResultPage>();
                 return SceneLoader.GetActiveScene().name == "Library" && panel != null && panel.IsOpen;
             }, 90f, "showing the server result");
 
@@ -579,11 +598,10 @@ namespace OpenSekai.Tests.PlayMode
                 Assert.That(SoundManager.Instance.IsLoadedSoundBundle(unpublished.AudioCueName), Is.False);
 
                 yield return WaitFor(() => SceneLoader.GetActiveScene().name == "Library"
-                    && Object.FindFirstObjectByType<LibraryResultPanel>() != null,
+                    && Object.FindFirstObjectByType<ResultPage>() != null,
                     90f, "showing the recovered package's autoplay result");
-                var panel = Object.FindFirstObjectByType<LibraryResultPanel>();
-                var result = (PlayResult)typeof(LibraryResultPanel)
-                    .GetField("_current", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(panel);
+                var panel = Object.FindFirstObjectByType<ResultPage>();
+                var result = panel.Current;
                 Assert.That(result, Is.Not.Null);
                 Assert.That(result.PackageDirectory, Is.EqualTo(recoveredDirectory));
                 Assert.That(result.Kind, Is.EqualTo(PlayResultKind.Completed));
@@ -669,9 +687,16 @@ namespace OpenSekai.Tests.PlayMode
                 yield return WaitFor(
                     () => SceneLoader.GetActiveScene().name == "Core" && Object.FindFirstObjectByType<SoloLiveController>() != null,
                     BOOT_TIMEOUT_SECONDS, "playing the temporary chart without a package folder");
+                var boot = (FreeLiveBootData)Object.FindFirstObjectByType<SoloLiveController>().BootData;
+                Assert.That(boot.CustomMusicScoreKey, Is.EqualTo(cached.ChartHash));
                 yield return WaitFor(
                     () => SceneLoader.GetActiveScene().name == "Library" && screen.IsPresented,
                     90f, "returning to the server after temporary play");
+                var panel = Object.FindFirstObjectByType<ResultPage>();
+                var played = panel.Current;
+                Assert.That(played.Settlement.ScoreKey, Is.EqualTo(cached.ChartHash));
+                Assert.That(played.Settlement.PlayId, Is.Not.Empty);
+                Assert.That(played.Settlement.SaveState, Is.EqualTo(HistorySaveState.Saved));
                 Assert.That(clip != null, Is.True, "releasing live audio must leave the cache usable");
                 Assert.That(installer.FindInstalled(address, details.Level.Name), Is.Null);
 
@@ -680,6 +705,7 @@ namespace OpenSekai.Tests.PlayMode
                     installed =>
                     {
                         Assert.That(File.ReadAllBytes(installed.ScorePath), Is.EqualTo(chartData));
+                        Assert.That(SongPackageHash.Compute(installed.ScorePath), Is.EqualTo(boot.CustomMusicScoreKey));
                         Assert.That(File.ReadAllBytes(installed.AudioPath), Is.EqualTo(audioData));
                     });
                 yield return install;
@@ -692,6 +718,423 @@ namespace OpenSekai.Tests.PlayMode
             {
                 Directory.Delete(root, recursive: true);
             }
+        }
+
+        [UnityTest]
+        public IEnumerator DanCoursePreflightsAllSongsCarriesLifeAndFailsOnTheLastMiss()
+        {
+            yield return PlayTwoSongDan(2, DanOutcome.Failed);
+        }
+
+        [UnityTest]
+        public IEnumerator WebChartShowsBothSourceLinksAndCanPrepareALegacyChartForDan()
+        {
+            string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "DanWeb-" + System.Guid.NewGuid().ToString("N"))).FullName;
+            var canvas = new GameObject("Source canvas", typeof(RectTransform), typeof(Canvas));
+            canvas.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
+            try
+            {
+                var library = new SongPackageManager(Path.Combine(root, "library"));
+                var draft = library.CreateNewEntry();
+                string audioFixture = Directory.CreateDirectory(Path.Combine(root, "audio")).FullName;
+                WriteNextRushTimingPackage(audioFixture);
+                draft = library.ReplaceAudioFile(draft, Path.Combine(audioFixture, "audio.wav"));
+                var chart = OpenSekai.Infrastructure.Charts.ChartFileReader.Read(draft);
+                chart.NoteList.Add(new ChartNote(1, 480, 4, 6, NoteCategory.Normal));
+                OpenSekai.Infrastructure.Charts.ChartFileReader.Write(draft, chart);
+                string zip = library.ExportZip(draft, Path.Combine(root, "download.zip"));
+                const string PAGE = "https://charts.test/song/1";
+                const string DOWNLOAD = "https://cdn.test/chart.zip?token=a%2Fb";
+                var import = library.ImportDownloadedZipAsync(zip, "51", source: SongPackageSource.FromWeb(PAGE, DOWNLOAD));
+                while (!import.IsCompleted) yield return null;
+                var installed = import.GetAwaiter().GetResult();
+                var item = library.LoadItems().Single(item => item.Entry.RootDirectory == installed.RootDirectory);
+
+                using var panel = new LibraryChartInfoPanel(canvas.transform, _ => UniTask.FromResult(RankCheck.Known));
+                using var detail = new LibraryDetailPanel((RectTransform)canvas.transform, 0f, null, null, () => panel.Show(item));
+                detail.Show(item, null, animate: false);
+                var info = canvas.transform.Find("Detail/Info");
+                var details = (RectTransform)info.Find("Details");
+                var difficulty = (RectTransform)info.Find("Difficulty");
+                var level = (RectTransform)info.Find("Level");
+                var length = (RectTransform)info.Find("Length");
+                var detailsLabel = details.GetComponentInChildren<TextMeshProUGUI>();
+                Assert.That(details.gameObject.activeInHierarchy, Is.True);
+                Assert.That(details.anchorMin.x, Is.EqualTo(1f));
+                Assert.That(details.anchorMax.x, Is.EqualTo(1f));
+                Assert.That(details.offsetMax.x, Is.Zero);
+                Assert.That(details.anchoredPosition.y, Is.EqualTo(difficulty.anchoredPosition.y - difficulty.rect.height / 2f + LibraryDetailPanel.DETAILS_LIFT));
+                Assert.That(difficulty.anchoredPosition.x, Is.Zero);
+                Assert.That(level.anchoredPosition.x, Is.GreaterThan(difficulty.anchoredPosition.x + difficulty.rect.width));
+                Assert.That(length.offsetMin.x, Is.GreaterThan(level.anchoredPosition.x + level.rect.width));
+                Assert.That(length.offsetMax.x, Is.LessThan(details.offsetMin.x));
+                Assert.That(detailsLabel.text, Is.EqualTo("详情"));
+                detail.SetAccess(ChartInfoAccess.Check);
+                Assert.That(detailsLabel.text, Is.EqualTo("检查"));
+                detail.SetAccess(ChartInfoAccess.Blocked);
+                Assert.That(detailsLabel.text, Is.EqualTo("详情"));
+                Assert.That(details.GetComponent<Button>().interactable, Is.True, "a blocked tap still explains itself");
+                detail.ShowHint("未记录下载地址，没有可查看的详情");
+                Assert.That(info.Find("Hint").gameObject.activeSelf, Is.True);
+                detail.Show(item, null, animate: false);
+                Assert.That(info.Find("Hint").gameObject.activeSelf, Is.False);
+
+                detail.SetAccess(ChartInfoAccess.Open);
+                details.GetComponent<Button>().onClick.Invoke();
+                yield return null;
+                Canvas.ForceUpdateCanvases();
+                var urls = canvas.GetComponentsInChildren<TextMeshProUGUI>().Where(label => label.name == "Url").ToArray();
+                Assert.That(urls.Select(label => label.text), Is.EqualTo(new[] { PAGE, DOWNLOAD }));
+                Assert.That(urls.All(label => label.rectTransform.rect.width > 0 && label.rectTransform.rect.height > 0), Is.True);
+                Assert.That(canvas.GetComponentsInChildren<Button>().Count(button => button.name == "Copy"), Is.EqualTo(2));
+                Assert.That(canvas.GetComponentsInChildren<Button>().Any(button => button.name == "RefreshRank"), Is.False);
+                var labels = canvas.GetComponentsInChildren<TextMeshProUGUI>();
+                Assert.That(labels.Single(label => label.name == "Verdict").text, Is.EqualTo(LibraryChartInfoPanel.UNRANKED_BANNER));
+                Assert.That(labels.Single(label => label.name == "Note").text, Is.EqualTo("此来源不提供 Ranked 谱面"));
+                canvas.GetComponentsInChildren<Button>().Single(button => button.name == "Rules").onClick.Invoke();
+                yield return null;
+                var rules = canvas.transform.Find("LibraryRankRules");
+                Assert.That(rules.gameObject.activeSelf, Is.True);
+                var rulesText = rules.GetComponentsInChildren<TextMeshProUGUI>().Single(label => label.name == "Text");
+                Assert.That(rulesText.text, Is.EqualTo(LibraryRankRulesPanel.RULES));
+                Assert.That(rulesText.rectTransform.rect.height, Is.GreaterThan(400f));
+                panel.Back();
+                Assert.That(rules.gameObject.activeSelf, Is.False);
+                Assert.That(panel.IsOpen, Is.True);
+                panel.Back();
+                Assert.That(panel.IsOpen, Is.False);
+
+                var installer = new SonolusLevelInstaller(library, Path.Combine(root, "index"), Path.Combine(root, "staging"));
+                using var preparation = new DanSongPreparation(installer, Path.Combine(root, "pinned"));
+                yield return preparation.PrepareAsync(DanLibrarySong.ReferenceFor(item), CancellationToken.None).ToCoroutine(prepared =>
+                {
+                    Assert.That(prepared.ScoreKey, Is.EqualTo(item.ScoreKey));
+                    Assert.That(File.Exists(Path.Combine(prepared.Directory, "score.json")), Is.True);
+                });
+            }
+            finally
+            {
+                Object.Destroy(canvas);
+                Directory.Delete(root, true);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ChartDetailsFitsTheLinksUntilTheyExceedTheAvailableHeight()
+        {
+            var canvas = new GameObject("Chart details canvas", typeof(RectTransform), typeof(Canvas));
+            canvas.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
+            var page = new GameObject("Page", typeof(RectTransform)).GetComponent<RectTransform>();
+            page.SetParent(canvas.transform, false);
+            page.sizeDelta = new Vector2(1200f, 900f);
+            try
+            {
+                const string PAGE = "https://charts.test/song/1";
+                const string DOWNLOAD = "https://charts.test/download?token=";
+                var package = new SongPackage("chart-links", new SongPackageManifest { title = "Chart links" });
+                SongPackageItem WithLinks(string sourcePage, string download) =>
+                    new SongPackageItem(package, default, true, true, true, false, default, "original",
+                        SongPackageSource.FromWeb(sourcePage, download));
+
+                using var panel = new LibraryChartInfoPanel(page, _ => UniTask.FromResult(RankCheck.Known));
+                panel.Show(WithLinks(null, DOWNLOAD + "short"));
+                yield return null;
+                Canvas.ForceUpdateCanvases();
+
+                var card = (RectTransform)page.Find("LibraryChartInfo/Frame/Card");
+                var scroll = card.GetComponentInChildren<ScrollRect>();
+                var lastRow = (RectTransform)scroll.content.Find("SecondLink");
+                float shortCardHeight = card.rect.height;
+                Assert.That(scroll.vertical, Is.False);
+                Assert.That(scroll.viewport.rect.height, Is.EqualTo(scroll.content.rect.height));
+                Assert.That(scroll.content.rect.height, Is.EqualTo(lastRow.rect.height));
+                Assert.That(lastRow.offsetMax.y, Is.Zero);
+
+                panel.Show(WithLinks(PAGE, DOWNLOAD + new string('W', 180)));
+                yield return null;
+                Canvas.ForceUpdateCanvases();
+                Assert.That(card.rect.height, Is.GreaterThan(shortCardHeight));
+                Assert.That(scroll.vertical, Is.False);
+                Assert.That(scroll.viewport.rect.height, Is.EqualTo(scroll.content.rect.height));
+                Assert.That(scroll.content.rect.height, Is.EqualTo(-lastRow.offsetMin.y));
+                Assert.That(lastRow.Find("Url").GetComponent<TextMeshProUGUI>().textInfo.lineCount, Is.GreaterThan(1));
+
+                panel.Show(WithLinks(PAGE, DOWNLOAD + new string('W', 2400)));
+                yield return null;
+                Canvas.ForceUpdateCanvases();
+                float fullWidthContentHeight = scroll.content.rect.height;
+                Assert.That(card.rect.height, Is.EqualTo(((RectTransform)card.parent).rect.height));
+                Assert.That(scroll.vertical, Is.True);
+                Assert.That(scroll.viewport.rect.height, Is.LessThan(fullWidthContentHeight));
+                scroll.verticalNormalizedPosition = 0f;
+                Assert.That(scroll.content.anchoredPosition.y, Is.GreaterThan(0f));
+
+                page.sizeDelta = new Vector2(800f, 720f);
+                yield return null;
+                Canvas.ForceUpdateCanvases();
+                Assert.That(card.rect.height, Is.EqualTo(((RectTransform)card.parent).rect.height));
+                Assert.That(scroll.content.rect.height, Is.GreaterThan(fullWidthContentHeight));
+                Assert.That(scroll.vertical, Is.True);
+
+                panel.Show(WithLinks(null, DOWNLOAD + "short"));
+                yield return null;
+                Canvas.ForceUpdateCanvases();
+                Assert.That(card.rect.height, Is.EqualTo(shortCardHeight));
+                Assert.That(scroll.vertical, Is.False);
+                Assert.That(scroll.viewport.rect.height, Is.EqualTo(scroll.content.rect.height));
+                Assert.That(scroll.content.anchoredPosition, Is.EqualTo(Vector2.zero));
+            }
+            finally
+            {
+                Object.Destroy(canvas);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ChartDetailsRefreshesOnlyOnRequestAndKeepsTheLocalVerdictOnFailure()
+        {
+            var canvas = new GameObject("Ranked details canvas", typeof(RectTransform), typeof(Canvas));
+            canvas.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
+            // A fixed page: the Game view may be too short for the whole card.
+            var page = new GameObject("Page", typeof(RectTransform)).GetComponent<RectTransform>();
+            page.SetParent(canvas.transform, false);
+            page.sizeDelta = new Vector2(1200f, 900f);
+            string id = (1L + (uint)System.Guid.NewGuid().GetHashCode()).ToString();
+            var source = SongPackageSource.FromWeb("https://opensekai.com/chart?id=" + id, "https://opensekai.com/download?id=" + id);
+            var package = new SongPackage("ranked-details", new SongPackageManifest { title = "Ranked details", playLevel = 30 });
+            var item = new SongPackageItem(package, default, true, true, true, false, default, "original", source);
+            string key = item.RankKey;
+            string rankFile = Path.Combine(Application.persistentDataPath, "ChartRanks", key + ".json");
+            try
+            {
+                ChartRankCache.Save(key, ChartRankCache.FromWeb("quality", 30, item.ScoreKey));
+                var request = new UniTaskCompletionSource<RankCheck>();
+                int checks = 0;
+                using var panel = new LibraryChartInfoPanel(page, actual =>
+                {
+                    Assert.That(actual, Is.SameAs(item));
+                    checks++;
+                    return request.Task;
+                });
+                panel.Show(item);
+                yield return null;
+                Canvas.ForceUpdateCanvases();
+
+                var labels = canvas.GetComponentsInChildren<TextMeshProUGUI>();
+                var verdict = labels.Single(label => label.name == "Verdict");
+                var note = labels.Single(label => label.name == "Note");
+                var banner = (RectTransform)verdict.transform.parent;
+                var links = (RectTransform)banner.parent.Find("Links");
+                var refresh = canvas.GetComponentsInChildren<Button>().Single(button => button.name == "RefreshRank");
+                var refreshRect = (RectTransform)refresh.transform;
+                var rulesRect = (RectTransform)banner.parent.Find("Rules");
+                Assert.That(links.offsetMin.y, Is.GreaterThan(banner.offsetMax.y));
+                Assert.That(note.rectTransform.offsetMax.y, Is.EqualTo(banner.offsetMin.y));
+                Assert.That(refreshRect.offsetMax.y, Is.LessThan(note.rectTransform.offsetMin.y));
+                Assert.That(refreshRect.offsetMax.x, Is.LessThan(rulesRect.offsetMin.x));
+                Assert.That(refreshRect.offsetMin.y, Is.EqualTo(rulesRect.offsetMin.y));
+                Assert.That(refreshRect.rect.size, Is.EqualTo(new Vector2(196f, 56f)));
+                var refreshLabel = refresh.GetComponentInChildren<TextMeshProUGUI>();
+                Assert.That(refreshLabel.text, Is.EqualTo("刷新Ranked状态"));
+                Assert.That(checks, Is.Zero, "opening details must only read the local verdict");
+                Assert.That(verdict.text, Is.EqualTo(LibraryChartInfoPanel.RANKED_BANNER));
+
+                refresh.onClick.Invoke();
+                Assert.That(refresh.interactable, Is.False);
+                refresh.onClick.Invoke();
+                Assert.That(checks, Is.EqualTo(1));
+                request.TrySetResult(new RankCheck(RankCheckOutcome.RetryLater, "连接失败"));
+                yield return null;
+                Assert.That(refresh.interactable, Is.True);
+                Assert.That(verdict.text, Is.EqualTo(LibraryChartInfoPanel.RANKED_BANNER));
+                Assert.That(note.text, Is.EqualTo("连接失败"));
+                Assert.That(refreshLabel.text, Is.EqualTo("刷新Ranked状态"));
+
+                request = new UniTaskCompletionSource<RankCheck>();
+                refresh.onClick.Invoke();
+                Assert.That(checks, Is.EqualTo(2));
+                ChartRankCache.Save(key, ChartRankCache.FromWeb("quality", 31, item.ScoreKey));
+                request.TrySetResult(RankCheck.Known);
+                yield return null;
+                Assert.That(refresh.interactable, Is.True);
+                Assert.That(verdict.text, Is.EqualTo(LibraryChartInfoPanel.UNRANKED_BANNER));
+            }
+            finally
+            {
+                File.Delete(rankFile);
+                Object.Destroy(canvas);
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator DanCourseAwardsTheBadgeWhenOneLifeRemains()
+        {
+            yield return PlayTwoSongDan(3, DanOutcome.Passed);
+        }
+
+        [UnityTest]
+        public IEnumerator DanPauseRetryStartsANewCourseAndQuitLeavesBothAttemptsUnawarded()
+        {
+            yield return PlayTwoSongDan(3, DanOutcome.Interrupted);
+        }
+
+        private static IEnumerator PlayTwoSongDan(int life, DanOutcome expected)
+        {
+            // A previous interrupted smoke test can leave Core live. Let its controller unload
+            // before resetting the persistent scene manager for the next cold home.
+            var previous = Object.FindFirstObjectByType<SoloLiveController>();
+            if (previous != null && SceneLoader.GetActiveScene().name == "Core")
+            {
+                previous.Exit();
+                yield return WaitFor(() => SceneLoader.GetActiveScene().name == "Library",
+                    BOOT_TIMEOUT_SECONDS, "leaving the previous live");
+            }
+            yield return LoadColdHome();
+            string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "DanLive-" + System.Guid.NewGuid().ToString("N"))).FullName;
+            try
+            {
+                var address = SonolusServerAddress.Parse("https://dan.test");
+                var profile = new PlayerProfileStore(Path.Combine(root, "player"));
+                var installer = new SonolusLevelInstaller(new SongPackageManager(Path.Combine(root, "library")),
+                    Path.Combine(root, "index"), Path.Combine(root, "staging"));
+                var service = new DanChallengeService(profile, installer, Path.Combine(root, "pinned"));
+                // The rest between songs lasts up to 50 s; the player can skip it, and so does the test.
+                var restSongs = new System.Collections.Generic.List<int>();
+                service.Changed += () =>
+                {
+                    if (service.Phase != DanPhase.BetweenSongs) return;
+                    restSongs.Add(service.SongNumber);
+                    service.ContinueNow();
+                };
+                var links = new string[2];
+                string secondChart = null;
+                for (int i = 0; i < links.Length; i++)
+                {
+                    string dir = Directory.CreateDirectory(Path.Combine(root, "song" + i)).FullName;
+                    WriteNextRushTimingPackage(dir);
+                    var level = SonolusLevel.From(new JObject { ["name"] = "test" + i });
+                    links[i] = address.LevelPage(level.Name);
+                    var package = OpenSekai.Shared.Packages.SongPackageStorage.LoadEntry(dir);
+                    var data = JObject.Parse(File.ReadAllText(package.ScorePath));
+                    data["entities"] = new JArray(((JArray)data["entities"]).Where(e =>
+                        (string)e["archetype"] == "Initialization" || (string)e["archetype"] == "#BPM_CHANGE" ||
+                        (string)e["archetype"] == "NormalTapNote").Take(3));
+                    File.WriteAllText(package.ScorePath, data.ToString());
+                    installer.CommitPublication(address, level, package);
+                    secondChart = package.ScorePath;
+                }
+                int ordinaryPlays = CustomMusicScorePlayHistoryStorage.Ranking.ReadPage(0, 1).TotalCount;
+                var definition = new DanDefinition(life, new DanDamage(0, 0, 0, 0, 1), links, "双曲", "diamond", "#112233");
+                string chart = File.ReadAllText(secondChart);
+                File.WriteAllText(secondChart, "{}");
+                yield return service.StartAsync(definition).ToCoroutine(result => Assert.That(result.Started, Is.False));
+                Assert.That(service.SongNumber, Is.EqualTo(2));
+                Assert.That(profile.ReadDanHistory(), Is.Empty);
+                File.WriteAllText(secondChart, chart);
+                int coreEntries = 0;
+                int libraryEntries = 0;
+                void Loaded(Scene scene, LoadSceneMode mode)
+                {
+                    if (scene.name == "Core") coreEntries++;
+                    if (scene.name == "Library") libraryEntries++;
+                }
+                SceneLoader.sceneLoaded += Loaded;
+                DanCourseOverlay overlay = null;
+                try
+                {
+                    if (expected == DanOutcome.Interrupted) overlay = DanCourseOverlay.Ensure(service);
+                    yield return service.StartAsync(definition).ToCoroutine(result => Assert.That(result.Started, Is.True, result.Message));
+                    File.Delete(secondChart); // Song two plays the copy fixed before the first scene load.
+                    if (expected != DanOutcome.Interrupted)
+                        yield return CheckDanOutro(service, skip: expected == DanOutcome.Failed);
+                    if (expected == DanOutcome.Interrupted)
+                    {
+                        string original = service.Attempt.Id;
+                        SoloLiveController controller = null;
+                        yield return WaitFor(() => coreEntries == 2 &&
+                            (controller = Object.FindFirstObjectByType<SoloLiveController>()) != null && controller.JustPlayingState,
+                            35f, "reaching the second chart");
+                        controller.Pause();
+                        yield return null;
+                        Assert.That(service.Attempt.Id, Is.EqualTo(original));
+                        Assert.That(service.RemainingLife, Is.EqualTo(life - 1));
+                        var retry = controller.GetComponentInChildren<LivePausePanel>()
+                            .GetComponentsInChildren<Button>().Single(button => button.name == "Retry");
+                        retry.onClick.Invoke();
+                        retry.onClick.Invoke();
+                        LibraryLoadingOverlay loading = null;
+                        yield return WaitFor(() => (loading = Object.FindFirstObjectByType<LibraryLoadingOverlay>()) != null,
+                            BOOT_TIMEOUT_SECONDS, "showing the first song loading screen on retry");
+                        Assert.That(overlay.IsRestShown, Is.False);
+                        Assert.That(loading.GetComponentsInChildren<TextMeshProUGUI>().Select(label => label.text),
+                            Does.Contain("正在载入第 1 首…"));
+                        yield return WaitFor(() => coreEntries == 3 && service.Phase == DanPhase.Playing, BOOT_TIMEOUT_SECONDS,
+                            "restarting at the first chart");
+                        Assert.That(loading == null, Is.True, "The old scene's loading screen must leave with it.");
+                        Assert.That(service.SongNumber, Is.EqualTo(1));
+                        Assert.That(service.RemainingLife, Is.EqualTo(life));
+                        Assert.That(service.Attempt.Id, Is.Not.EqualTo(original));
+                        service.Quit();
+                    }
+                    yield return WaitFor(() => service.Phase == DanPhase.Finished || service.Phase == DanPhase.Error,
+                        55f, "completing two manual charts");
+                    Assert.That(service.Error, Is.Null);
+                    yield return WaitFor(() => libraryEntries == 1, BOOT_TIMEOUT_SECONDS, "returning directly from the course");
+                }
+                finally
+                {
+                    SceneLoader.sceneLoaded -= Loaded;
+                    if (overlay != null) Object.Destroy(overlay.gameObject);
+                }
+                Assert.That(restSongs, Is.EqualTo(new[] { 2 }), "Only advancing to the second chart should show the rest screen.");
+                Assert.That(CustomMusicScorePlayHistoryStorage.Ranking.ReadPage(0, 1).TotalCount, Is.EqualTo(ordinaryPlays));
+                if (expected == DanOutcome.Interrupted)
+                {
+                    var history = profile.ReadDanHistory();
+                    Assert.That(history.Count, Is.EqualTo(2));
+                    Assert.That(history.All(a => a.Outcome == DanOutcome.Interrupted), Is.True);
+                    Assert.That(history.Select(a => a.Songs.Count), Is.EquivalentTo(new[] { 1, 2 }));
+                    Assert.That(profile.Read().EarnedDanIds, Is.Empty);
+                    yield break;
+                }
+                Assert.That(coreEntries, Is.EqualTo(2));
+                var attempt = profile.ReadDanHistory().Single();
+                Assert.That(attempt.Songs.Select(s => s.StartingLife), Is.EqualTo(new[] { life, life - 1 }));
+                Assert.That(attempt.Songs.Select(s => s.Score.life), Is.EqualTo(new[] { life - 1, life - 2 }));
+                Assert.That(attempt.Outcome, Is.EqualTo(expected));
+                Assert.That(attempt.Songs.All(song => song.Ranked.HasValue), Is.True);
+                Assert.That(attempt.Songs.Select(song => song.PlayLevel), Is.EqualTo(new[] { 33, 33 }));
+                Assert.That(service.NewlyAwarded, Is.EqualTo(expected == DanOutcome.Passed));
+                Assert.That(service.ReachedAchievementIds.Contains("DAN-01"), Is.EqualTo(expected == DanOutcome.Passed));
+                Assert.That(PlayResultHandoff.Pending, Is.Null);
+            }
+            finally { Directory.Delete(root, true); }
+        }
+
+        private static IEnumerator CheckDanOutro(DanChallengeService service, bool skip)
+        {
+            // The first song has a long audible tail and enough life to finish in both courses.
+            yield return WaitFor(() => service.Attempt.Songs.Count == 1, BOOT_TIMEOUT_SECONDS, "judging the last note");
+            var controller = Object.FindFirstObjectByType<SoloLiveController>();
+            var life = Object.FindFirstObjectByType<LifeView>();
+            var front = Object.FindFirstObjectByType<LiveFrontView>();
+            var result = Object.FindFirstObjectByType<LiveResultView>(FindObjectsInactive.Include);
+            const BindingFlags FIELDS = BindingFlags.Instance | BindingFlags.NonPublic;
+            var span = (LiveTimelineSpan)typeof(BaseLiveController).GetField("timelineSpan", FIELDS).GetValue(controller);
+            var fade = (SpriteRenderer)typeof(LiveFrontView).GetField("fade", FIELDS).GetValue(front);
+            var resultBackground = (SpriteRenderer)typeof(LiveResultView).GetField("background", FIELDS).GetValue(result);
+            Assert.That(fade.enabled, Is.False);
+            yield return WaitFor(() => life.IsSkipShown, 4f, "offering to skip the course outro");
+            Assert.That(fade.enabled, Is.False);
+            if (skip) controller.SkipOutro();
+            yield return WaitFor(() => fade.enabled, 5f, "starting the black fade");
+            double fadeAt = controller.CaptureTimeMs / 1000d;
+            if (skip) Assert.That(fadeAt, Is.LessThan(span.ResultEffectSeconds));
+            else Assert.That(fadeAt, Is.EqualTo(span.ResultEffectSeconds).Within(0.15d));
+            Assert.That(life.IsSkipShown, Is.False);
+            Assert.That(resultBackground.gameObject.activeSelf, Is.False);
+            yield return WaitFor(() => fade.color.a > 0f && fade.color.a < 1f, 1f, "fading through partial black");
+            Assert.That(service.Phase, Is.EqualTo(DanPhase.Playing));
         }
 
         private static SonolusLevel BaselineSonolusLevel(int version) => SonolusLevel.From(new JObject
@@ -719,13 +1162,12 @@ namespace OpenSekai.Tests.PlayMode
                 StartThroughLibraryRetry(directory);
 
                 const BindingFlags FIELDS = BindingFlags.Instance | BindingFlags.NonPublic;
-                var panelResultField = typeof(LibraryResultPanel).GetField("_current", FIELDS);
                 SoloLiveController controller = null;
                 yield return WaitFor(
                     () =>
                     {
-                        var activePanel = Object.FindFirstObjectByType<LibraryResultPanel>();
-                        var loadResult = activePanel == null ? null : (PlayResult)panelResultField.GetValue(activePanel);
+                        var activePanel = Object.FindFirstObjectByType<ResultPage>();
+                        var loadResult = activePanel == null ? null : activePanel.Current;
                         if (loadResult?.Kind == PlayResultKind.LoadError)
                             Assert.Fail(loadResult.Message);
                         controller = Object.FindFirstObjectByType<SoloLiveController>();
@@ -815,10 +1257,10 @@ namespace OpenSekai.Tests.PlayMode
                 Assert.That(Time.timeAsDouble - resultStarted, Is.GreaterThanOrEqualTo(5.9d));
 
                 yield return WaitFor(
-                    () => SceneLoader.GetActiveScene().name == "Library" && Object.FindFirstObjectByType<LibraryResultPanel>() != null,
+                    () => SceneLoader.GetActiveScene().name == "Library" && Object.FindFirstObjectByType<ResultPage>() != null,
                     BOOT_TIMEOUT_SECONDS, "showing the NextRUSH+ result");
-                var panel = Object.FindFirstObjectByType<LibraryResultPanel>();
-                var result = (PlayResult)panelResultField.GetValue(panel);
+                var panel = Object.FindFirstObjectByType<ResultPage>();
+                var result = panel.Current;
                 Assert.That(result.Kind, Is.EqualTo(PlayResultKind.Completed));
                 Assert.That(result.AutoCount, Is.EqualTo(3));
             }
@@ -841,18 +1283,18 @@ namespace OpenSekai.Tests.PlayMode
             try
             {
                 WriteNextRushTimingPackage(directory);
+                // Leave enough life to reach the outro even when both notes are missed in manual mode.
                 File.WriteAllText(Path.Combine(directory, "level-data.json"), @"{
                     ""bgmOffset"": 0,
                     ""entities"": [
-                        { ""archetype"": ""Initialization"", ""data"": [{ ""name"": ""initialLife"", ""value"": 1000 }] },
+                        { ""archetype"": ""Initialization"", ""data"": [{ ""name"": ""initialLife"", ""value"": 1500 }] },
                         { ""archetype"": ""#BPM_CHANGE"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 0 }, { ""name"": ""#BPM"", ""value"": 120 }] },
-                        { ""archetype"": ""NormalTapNote"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 4 }, { ""name"": ""lane"", ""value"": 0 }, { ""name"": ""size"", ""value"": 1 }] },
-                        { ""archetype"": ""NormalTapNote"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 5 }, { ""name"": ""lane"", ""value"": 0 }, { ""name"": ""size"", ""value"": 1 }] }
+                        { ""archetype"": ""NormalTapNote"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 3.5 }, { ""name"": ""lane"", ""value"": 0 }, { ""name"": ""size"", ""value"": 1 }] },
+                        { ""archetype"": ""NormalTapNote"", ""data"": [{ ""name"": ""#BEAT"", ""value"": 3.75 }, { ""name"": ""lane"", ""value"": 0 }, { ""name"": ""size"", ""value"": 1 }] }
                     ]
                 }");
 
                 const BindingFlags FIELDS = BindingFlags.Instance | BindingFlags.NonPublic;
-                var resultField = typeof(LibraryResultPanel).GetField("_current", FIELDS);
                 var clock = typeof(BaseLiveController).GetField("currentMusicTimeMs", FIELDS);
                 var spanField = typeof(BaseLiveController).GetField("timelineSpan", FIELDS);
                 var skipShown = typeof(SoloLiveController).GetField("_skipShown", FIELDS);
@@ -866,8 +1308,8 @@ namespace OpenSekai.Tests.PlayMode
                     SoloLiveController controller = null;
                     yield return WaitFor(() =>
                     {
-                        var panel = Object.FindFirstObjectByType<LibraryResultPanel>();
-                        if (panel != null && resultField.GetValue(panel) is PlayResult { Kind: PlayResultKind.LoadError } error)
+                        var panel = Object.FindFirstObjectByType<ResultPage>();
+                        if (panel != null && panel.Current is PlayResult { Kind: PlayResultKind.LoadError } error)
                             Assert.Fail(error.Message);
                         controller = Object.FindFirstObjectByType<SoloLiveController>();
                         return controller != null && controller.JustPlayingState;
@@ -890,7 +1332,7 @@ namespace OpenSekai.Tests.PlayMode
                     Assert.That((bool)skipShown.GetValue(controller), Is.False);
 
                     yield return WaitFor(() => SceneLoader.GetActiveScene().name == "Library"
-                        && Object.FindFirstObjectByType<LibraryResultPanel>() != null,
+                        && Object.FindFirstObjectByType<ResultPage>() != null,
                         BOOT_TIMEOUT_SECONDS, "opening the result panel");
                 }
             }
@@ -905,10 +1347,10 @@ namespace OpenSekai.Tests.PlayMode
         {
             var library = Object.FindFirstObjectByType<LibraryScreen>();
             library.ShowResult(PlayResult.FromLoadError("Playback test", isAuto, directory, "Retry smoke setup"));
-            var panel = Object.FindFirstObjectByType<LibraryResultPanel>();
-            Assert.That(panel, Is.Not.Null, "the library should display the retry panel");
+            var panel = Object.FindFirstObjectByType<ResultPage>();
+            Assert.That(panel, Is.Not.Null, "the library should display the result page");
             var retry = panel.GetComponentsInChildren<Button>(true).SingleOrDefault(button => button.name == "Retry");
-            Assert.That(retry, Is.Not.Null, "the result panel should wire its retry button");
+            Assert.That(retry, Is.Not.Null, "the result page should wire its retry button");
             retry.onClick.Invoke();
         }
 
@@ -916,7 +1358,7 @@ namespace OpenSekai.Tests.PlayMode
         {
             File.WriteAllText(Path.Combine(directory, "manifest.json"),
                 "{\"formatVersion\":1,\"id\":\"next-rush-p1-" + System.Guid.NewGuid().ToString("N") +
-                "\",\"chartFormat\":\"next-rush\",\"title\":\"Native timing test\",\"scoreFileName\":\"level-data.json\",\"audioFileName\":\"audio.wav\"}");
+                "\",\"chartFormat\":\"next-rush\",\"playLevel\":33,\"title\":\"Native timing test\",\"scoreFileName\":\"level-data.json\",\"audioFileName\":\"audio.wav\"}");
             File.WriteAllText(Path.Combine(directory, "level-data.json"), @"{
                 ""bgmOffset"": 0.51,
                 ""entities"": [

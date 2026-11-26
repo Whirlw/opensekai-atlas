@@ -126,7 +126,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(bar.Result, Is.EqualTo(NoteResult.None), "the previous Miss must not leak into another use");
             bar.SetStateUnnotice(NoteState.Scrolling);
             bar.Judgment(ref touch, 4.5f);
-            Assert.That(bar.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(bar.Result, Is.EqualTo(NoteResult.Perfect));
             LongNoteGraceTests.AssertHeldBody(bar);
         }
 
@@ -175,7 +175,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(bar.OffsetJudgeTime, Is.EqualTo(0.123f));
             Assert.That(combo.ParentNote, Is.SameAs(bar));
             Assert.That(combo.ParentRole, Is.EqualTo(boundRole));
-            Assert.That(combo.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(combo.Result, Is.EqualTo(NoteResult.Perfect));
             Assert.That(points, Is.EqualTo(1));
             Assert.That(heads, Is.Zero);
         }
@@ -189,13 +189,13 @@ namespace OpenSekai.Tests.EditMode.Live
             var touch = Touch();
 
             Assert.That(bar.Head.Judgment(ref touch, 4.5f), Is.True, "the head's own entry takes the press");
-            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.JustPerfect));
-            Assert.That(bar.Result, Is.EqualTo(NoteResult.JustPerfect), "the picture mirror follows");
+            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.Perfect));
+            Assert.That(bar.Result, Is.EqualTo(NoteResult.Perfect), "the picture mirror follows");
             Assert.That(bar.HasFinger, Is.True, "and the bar is held by that press, exactly as before");
 
             bar.Excute(Info(0.5f), 0);
             bar.Head.Judgment(ref touch, 4.5f);
-            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.JustPerfect), "a second frame does not re-settle it");
+            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.Perfect), "a second frame does not re-settle it");
         }
 
         [Test]
@@ -217,11 +217,11 @@ namespace OpenSekai.Tests.EditMode.Live
 
             Assert.That(scored, Has.Count.EqualTo(3), "damage, combo and score each fire once");
             Assert.That(scored, Has.None.SameAs(bar), "and none of them answers about the bar");
-            Assert.That(scored.Select(n => n.Result), Is.All.EqualTo(NoteResult.JustPerfect));
+            Assert.That(scored.Select(n => n.Result), Is.All.EqualTo(NoteResult.Perfect));
             Assert.That(scored, Has.All.SameAs(bar.Head.Identity), "all three read the head's own result");
             Assert.That(visual, Is.EqualTo(new[] { bar }), "the judgement effect still plays on the bar");
-            Assert.That(bar.Head.Identity.Result, Is.EqualTo(NoteResult.JustPerfect));
-            Assert.That(bar.Result, Is.EqualTo(NoteResult.JustPerfect), "the bar's mirror is unchanged");
+            Assert.That(bar.Head.Identity.Result, Is.EqualTo(NoteResult.Perfect));
+            Assert.That(bar.Result, Is.EqualTo(NoteResult.Perfect), "the bar's mirror is unchanged");
         }
 
         [Test]
@@ -238,7 +238,7 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(candidate.IsJudgment(ref touch, 4.5f), Is.True);
             Assert.That(candidate.Judgment(ref touch, 4.5f), Is.True);
 
-            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.JustPerfect));
+            Assert.That(bar.Head.Result, Is.EqualTo(NoteResult.Perfect));
             Assert.That(bar.HasFinger, Is.True, "the same frame still takes the hold");
             Assert.That(candidate.IsJudgment(ref touch, 4.5f), Is.False, "a settled head leaves the candidate list");
         }
@@ -261,7 +261,7 @@ namespace OpenSekai.Tests.EditMode.Live
             var rubVisual = new List<NoteBase>();
             rub.OnJudgment = n => rubVisual.Add(n);
             rub.Excute(Info(0), 0);
-            rub.Head.Settle((NoteResult.JustPerfect, NoteResultDescription.None));
+            rub.Head.Settle((NoteResult.Perfect, NoteResultDescription.None));
 
             Assert.That(rubVisual.Count, Is.EqualTo(1));
             Assert.That(rubVisual[0], Is.SameAs(rub.Head.Identity), "a rub head speaks for itself");

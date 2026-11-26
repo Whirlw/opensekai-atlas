@@ -49,6 +49,10 @@
 
 双击 `ArtSource/Import-All.bat`，脚本会从固定的 `ArtSource` 分类目录依次导入散图和图集。也可在项目根目录运行 `powershell -NoProfile -ExecutionPolicy Bypass -File Tools/import-all-art.ps1`。导入后在 Unity 刷新资源，并按需重建 AssetBundle。查看输出中未匹配和尺寸不符的项目。
 
+`ArtSource/Notes` 导入 custom01，`ArtSource/NotesV2` 导入 custom02。截图工具单独读取 `ArtSource/SampleCovers`。生成与校验命令见[美术素材说明](../../ArtSource/README.md)。
+
+3 张倒计时数字（`HUD/tex_live_countdown_1..3`）是合并贴图 `tex_live_countdown.png` 里的格子，由 `apply-atlas-art.ps1 -SpriteFolder` 贴入，第一步输出里的 `missed=3` 就是它们。`fit-countdown-sprite-meshes.ps1` 把它们的精灵网格改为完整矩形，旧网格沿旧字形描过边，会裁掉新字。
+
 `Notes`、`NotesV2`、`Effects`、`Backgrounds` 和 `HUD` 均为平铺目录；生成器和清单位于 `ArtSource/Tools`。单独检查可运行 `Tools/apply-paint-kit.ps1` 和 `Tools/apply-atlas-art.ps1`（不加 `-Apply`）。
 
 以下为历史记录，其中旧路径、递归与镜像操作已被上述流程取代。

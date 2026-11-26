@@ -435,7 +435,7 @@ namespace Sekai.Core.Live
 
 			// A decorative note is not judged, exactly like a guide bar: when its time comes it is retired
 			// with an internal Pass, and it plays no effect, no sound and no text. It used to be graded
-			// JustPerfect here and handed to the views, so a note nobody played still flashed and clicked.
+			// Perfect here and handed to the views, so a note nobody played still flashed and clicked.
 			if (note is LongNote longNote)
 			{
 				DecorationLongNoteJudgment(longNote);

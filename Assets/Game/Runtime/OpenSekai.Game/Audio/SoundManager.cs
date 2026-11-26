@@ -18,7 +18,7 @@ namespace Sekai
 		{
 		}
 
-		private static readonly SoundManager _instance = new SoundManager();
+		private static SoundManager _instance;
 		private readonly AudioCatalog _catalog = new AudioCatalog();
 		private readonly ExternalSoundPack _externalSoundPack;
 		private readonly VolumeService _volume = new VolumeService();
@@ -36,7 +36,22 @@ namespace Sekai
 			_externalSoundPack = new ExternalSoundPack(_catalog);
 		}
 
-		public static SoundManager Instance => _instance;
+		public static SoundManager Instance => _instance ??= new SoundManager();
+
+		[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+		private static void BeginSession()
+		{
+			EndSession();
+			Application.quitting -= EndSession;
+			Application.quitting += EndSession;
+		}
+
+		private static void EndSession()
+		{
+			// The editor can retain statics after Play Mode has destroyed the catalog's AudioClips.
+			_instance = null;
+			CriAtomPlugin.FinalizeLibrary();
+		}
 
 		/// <summary>Refresh fallback ownership when a scene creates its own listener after loading.</summary>
 		public static void NotifySceneAudioListenersChanged() =>

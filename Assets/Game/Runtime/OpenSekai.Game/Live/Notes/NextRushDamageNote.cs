@@ -68,7 +68,7 @@ namespace Sekai.Live
 
 		internal void Resolve(bool touched)
 		{
-			JudgeInfo = (touched ? NoteResult.Miss : NoteResult.JustPerfect, NoteResultDescription.None);
+			JudgeInfo = (touched ? NoteResult.Miss : NoteResult.Perfect, NoteResultDescription.None);
 			State = NoteState.Done;
 		}
 	}

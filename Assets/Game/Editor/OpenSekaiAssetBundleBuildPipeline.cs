@@ -34,9 +34,6 @@ namespace Sekai.EditorTools
 			// live under Assets/Game/Resources/note so the player build packs them directly.
 			// That keeps Assets/StreamingAssets/data down to the bundles whose content can
 			// change without republishing the player.
-			"live/sound/live_se/default",
-			"live/tap_se/custom01",
-			"live/tap_se/custom02",
 			"shader/live",
 			"shader/particles",
 			"shader/sandbox",

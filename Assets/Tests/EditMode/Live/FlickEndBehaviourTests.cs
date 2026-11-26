@@ -889,7 +889,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
             // The tail grades itself. The bar ends at the chart endpoint.
 
-            tail.FinishWith(NoteResult.JustPerfect);
+            tail.FinishWith(NoteResult.Perfect);
 
             Assert.That(tail.State, Is.EqualTo(NoteState.Done), "the tail settles itself");
 
@@ -978,9 +978,9 @@ namespace OpenSekai.Tests.EditMode.Live
 
             Assert.That(bar.ExpireTail(1f), Is.False, "and the bar's own ending on the same frame adds nothing");
 
-            Assert.That(bar.Result, Is.EqualTo(NoteResult.JustPerfect), "the verdict stands");
+            Assert.That(bar.Result, Is.EqualTo(NoteResult.Perfect), "the verdict stands");
 
-            Assert.That(tail.Result, Is.EqualTo(NoteResult.JustPerfect), "for the note too");
+            Assert.That(tail.Result, Is.EqualTo(NoteResult.Perfect), "for the note too");
 
         }
 

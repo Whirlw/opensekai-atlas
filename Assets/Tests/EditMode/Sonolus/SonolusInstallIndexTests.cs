@@ -32,6 +32,35 @@ namespace OpenSekai.Tests.EditMode.Sonolus
         [TearDown]
         public void TearDown() => Directory.Delete(_root, recursive: true);
 
+        [UnityTest]
+        public IEnumerator ExistingSbugaDownloadRestoresRankFromLocalFiles() => UniTask.ToCoroutine(async () =>
+        {
+            var server = SonolusServerAddress.Parse("sonolus.sbuga.com");
+            string name = "rank-test-" + Guid.NewGuid().ToString("N");
+            string stage = StagePackage(withCover: false);
+            var item = Level(name: name).Raw;
+            item["rating"] = 30;
+            item["data"]["hash"] = SonolusLevelInstaller.Sha1Hex(File.ReadAllBytes(Path.Combine(stage, "score.json")));
+            var level = SonolusLevel.From(item);
+            var source = new JObject { ["server"] = server.BaseUrl, ["name"] = name, ["details"] = new JObject { ["item"] = item } };
+            File.WriteAllText(Path.Combine(stage, SonolusLevelInstaller.SOURCE_FILE_NAME), source.ToString());
+            var package = CreateInstaller().PublishPackage(stage, server, level);
+            string key = ChartRankCache.Key(SongPackageSource.Read(package));
+            Assert.That(key, Is.EqualTo(ChartRankCache.SonolusKey(server, name)));
+            try
+            {
+                await CreateInstaller().RestoreSbugaRankAsync(server, name, package);
+                var restored = ChartRankCache.Read(key);
+                Assert.That(restored.Matches(SongPackageHash.Compute(package.ScorePath), 30), Is.True);
+                File.AppendAllText(package.ScorePath, " ");
+                Assert.That(restored.Matches(SongPackageHash.Compute(package.ScorePath), 30), Is.False);
+            }
+            finally
+            {
+                File.Delete(Path.Combine(UnityEngine.Application.persistentDataPath, "ChartRanks", key + ".json"));
+            }
+        });
+
         [Test]
         public void MusicAndCoverChangesAreDetectedAfterRestart()
         {
@@ -61,6 +90,19 @@ namespace OpenSekai.Tests.EditMode.Sonolus
             Assert.That(fresh.FindInstalled(_server, first.Name), Is.EqualTo(previous.RootDirectory));
             Assert.That(fresh.FindInstalled(_server, Level().Name), Is.EqualTo(next.RootDirectory));
             Assert.That(File.ReadAllBytes(Directory.GetFiles(_indexDirectory, "*.bak").Single()), Is.EqualTo(before));
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void MissingSongDataOrAudioRequiresPreparationAgain(bool removeChart)
+        {
+            var installer = CreateInstaller();
+            var level = Level();
+            var package = installer.PublishPackage(StagePackage(withCover: true), _server, level);
+            Assert.That(installer.FindPlayableInstalled(_server, level.Name), Is.Not.Null);
+            File.Delete(removeChart ? package.ScorePath : package.AudioPath);
+            Assert.That(installer.FindPlayableInstalled(_server, level.Name), Is.Null);
+            Assert.That(installer.FindInstalled(_server, level.Name), Is.EqualTo(package.RootDirectory));
         }
 
         [Test]

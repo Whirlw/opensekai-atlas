@@ -209,13 +209,14 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(File.Exists(entry.ManifestPath), Is.True);
         }
 
-        [Test]
-        public void ExportThenImportKeepsTheNotesAndTitle()
+        [TestCase(".zip")]
+        [TestCase(".oskp")]
+        public void ExportThenImportKeepsTheNotesAndTitle(string extension)
         {
             SongPackage entry = _manager.CreateNewEntry();
             ChartFileReader.Write(entry, TwoNoteDocument());
             string title = entry.Manifest.title;
-            string destination = Path.Combine(_root, "roundtrip.oskp");
+            string destination = Path.Combine(_root, "roundtrip" + extension);
             _manager.ExportZip(entry, destination);
 
             SongPackage imported = _manager.ImportZip(destination);

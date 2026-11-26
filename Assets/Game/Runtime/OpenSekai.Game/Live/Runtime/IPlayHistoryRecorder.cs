@@ -1,3 +1,4 @@
+using OpenSekai.Shared.Playback;
 namespace Sekai.Core.Live
 {
     /// <summary>
@@ -7,9 +8,10 @@ namespace Sekai.Core.Live
     /// </summary>
     public interface IPlayHistoryRecorder
     {
-        void AppendLiveResult(
+        RankingSettlement Finish(
             FreeLiveBootData bootData,
             LiveScore score,
+            PlayResultKind kind,
             long musicTimeMs,
             long musicLengthMs,
             string sessionId,

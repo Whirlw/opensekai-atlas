@@ -147,7 +147,7 @@ namespace OpenSekai.App.UI
             _gridScroll.onValueChanged.AddListener(_ => MaybeLoadMore());
 
             _status = new ServerStatusView(body);
-            _searchPanel = new SonolusSearchPanel(screen, RunAdvancedSearch);
+            _searchPanel = new SonolusSearchPanel(screen, session.Address, RunAdvancedSearch);
             ApplyMode();
         }
 
@@ -634,12 +634,14 @@ namespace OpenSekai.App.UI
                 textLeft = 44f;
             }
 
-            TextMeshProUGUI title = LibraryWidgets.Label("Title", block, ServerWidgets.Localize(section.Title), 30f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
+            TextMeshProUGUI title = LibraryWidgets.Label("Title", block, SonolusText.Localize(section.Title, _session.Address),
+                30f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
             float titleWidth = Mathf.Ceil(title.GetPreferredValues(title.text).x) + 4f;
             LibraryWidgets.Place(title.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 0.5f), new Vector2(textLeft, -24f), new Vector2(titleWidth, 44f));
             if (!string.IsNullOrWhiteSpace(section.Description))
             {
-                TextMeshProUGUI description = LibraryWidgets.Label("Description", block, section.Description.Replace('\n', ' '),
+                string text = SonolusText.Localize(section.Description, _session.Address).Replace('\n', ' ');
+                TextMeshProUGUI description = LibraryWidgets.Label("Description", block, text,
                     LibraryTheme.FontSize.CAPTION, LibraryTheme.Colors.TextMuted);
                 description.rectTransform.anchorMin = new Vector2(0f, 1f);
                 description.rectTransform.anchorMax = new Vector2(1f, 1f);

@@ -55,7 +55,8 @@ public final class MiniWebView {
             activity.startActivity(intent);
         });
     }
-    static void download(Activity activity, String url, String agent, String disposition, String mime, String referer, Set<String> hosts) throws Exception {
+    static void download(Activity activity, String url, String agent, String disposition, String mime, String referer,
+                         Set<String> hosts, String chartZone, int chartLevel) throws Exception {
         // The page that started the download must be the site itself; the file may come from its
         // CDN over HTTPS. What arrives is checked as a chart package before it is imported.
         Uri target = Uri.parse(url);
@@ -83,8 +84,16 @@ public final class MiniWebView {
         request.addRequestHeader("Referer", referer);
         Context c = activity.getApplicationContext();
         DownloadManager manager = (DownloadManager)c.getSystemService(Context.DOWNLOAD_SERVICE);
+        JSONObject task = new JSONObject();
+        task.put("path", file.getCanonicalPath());
+        task.put("pageUrl", referer);
+        task.put("downloadUrl", url);
+        if (chartZone != null) {
+            task.put("chartZone", chartZone);
+            task.put("chartLevel", chartLevel);
+        }
         long id = manager.enqueue(request);
-        if (!records(c).edit().putString(Long.toString(id), file.getCanonicalPath()).commit()) {
+        if (!records(c).edit().putString(Long.toString(id), task.toString()).commit()) {
             manager.remove(id);
             throw new java.io.IOException("无法保存下载任务。");
         }
@@ -95,8 +104,10 @@ public final class MiniWebView {
         JSONArray result = new JSONArray();
         for (Map.Entry<String, ?> record : records(c).getAll().entrySet()) {
             long id = Long.parseLong(record.getKey());
-            JSONObject item = new JSONObject();
-            item.put("id", record.getKey()); item.put("path", record.getValue());
+            String saved = (String)record.getValue();
+            JSONObject item = saved.startsWith("{") ? new JSONObject(saved) : new JSONObject();
+            if (!item.has("path")) item.put("path", saved); // Downloads queued before source tracking.
+            item.put("id", record.getKey());
             try (Cursor cursor = manager.query(new DownloadManager.Query().setFilterById(id))) {
                 if (cursor != null && cursor.moveToFirst()) {
                     item.put("status", cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)));

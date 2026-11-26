@@ -36,7 +36,7 @@ namespace OpenSekai.Tests.Core
             var span = new LiveTimelineSpan(0f, 100f, 0.5f, 90f, 1.5f);
             Assert.That(span.StartSeconds, Is.EqualTo(-2f).Within(1e-5f), "the music is first and gets its two seconds");
             Assert.That(span.IntroSkipTargetSeconds, Is.EqualTo(-1.5f));
-            Assert.That(span.HasIntroSkip, Is.True);
+            Assert.That(span.HasIntroSkip, Is.False);
         }
 
         [Test]
@@ -54,7 +54,6 @@ namespace OpenSekai.Tests.Core
             var span = new LiveTimelineSpan(0f, 100f, 12f, 90f, 1f);
             Assert.That(span.HasIntroSkip, Is.True);
             Assert.That(span.IntroSkipTargetSeconds, Is.EqualTo(10f).Within(1e-5f));
-            Assert.That(new LiveTimelineSpan(0f, 100f, 0.01f, 90f, 1f).HasIntroSkip, Is.True);
         }
 
         [Test]
@@ -69,10 +68,20 @@ namespace OpenSekai.Tests.Core
         public void OutroSkipAppearsOneSecondAfterTheLastNote()
         {
             Assert.That(new LiveTimelineSpan(0f, 100f, 5f, 100f, 1f).HasOutroSkip, Is.False);
-            var span = new LiveTimelineSpan(0f, 100f, 5f, 99.5f, 1f);
+            var span = new LiveTimelineSpan(0f, 100f, 5f, 99f, 1f);
             Assert.That(span.HasOutroSkip, Is.True);
-            Assert.That(span.OutroSkipAvailableSeconds, Is.EqualTo(100.5f));
+            Assert.That(span.OutroSkipAvailableSeconds, Is.EqualTo(100f));
             Assert.That(span.ResultEffectSeconds, Is.EqualTo(101f));
+        }
+
+        [TestCase(0.999f, false)]
+        [TestCase(1f, true)]
+        [TestCase(1.001f, true)]
+        public void BothSkipWindowsRequireOneFullSecond(float duration, bool visible)
+        {
+            var span = new LiveTimelineSpan(0f, 100f, duration, 100f - duration, 1f);
+            Assert.That(span.HasIntroSkip, Is.EqualTo(visible));
+            Assert.That(span.HasOutroSkip, Is.EqualTo(visible));
         }
 
         [Test]

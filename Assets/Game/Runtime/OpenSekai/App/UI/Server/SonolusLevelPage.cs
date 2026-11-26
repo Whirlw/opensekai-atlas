@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using OpenSekai.Infrastructure.Packages;
 using OpenSekai.Infrastructure.Sonolus;
 using OpenSekai.Shared.Packages;
 using TMPro;
@@ -311,11 +312,22 @@ namespace OpenSekai.App.UI
         {
             Clear(_tags);
             float x = 0f;
+            if (ChartRankCache.IsSbuga(_session.Address))
+            {
+                var chip = ServerWidgets.Chip(_tags, "Ranked", LibraryIcon.Trophy, LibraryTheme.Colors.Control,
+                    LibraryTheme.Colors.TextSecondary, out float width);
+                x = PlaceChip(_tags, chip, x, width);
+            }
             foreach (SonolusTag tag in _level.Tags)
             {
-                string text = ServerWidgets.Localize(tag.Title);
+                string text = SonolusText.Localize(tag.Title, _session.Address);
                 LibraryIcon? icon = ServerWidgets.IconFor(tag.Icon) ?? (string.IsNullOrEmpty(text) ? (LibraryIcon?)LibraryIcon.Tag : null);
-                if (string.IsNullOrEmpty(text) && tag.Icon == "trophy")
+                if (tag.Icon == "trophy" && ChartRankCache.UntitledKey(_session.Address, _level.Name) != null
+                    && ChartRankCache.IsStaffPick(_level))
+                {
+                    text = "Ranked · 精选";
+                }
+                else if (string.IsNullOrEmpty(text) && tag.Icon == "trophy")
                 {
                     text = "精选";
                 }
@@ -362,6 +374,8 @@ namespace OpenSekai.App.UI
             try
             {
                 SonolusLevelDetails details = await _getDetails(_level.Name, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+                await Screen.Installer.ObserveRankAsync(_session.Address, details.Level, cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();
                 _details = details;
                 _detailStatus.Hide();
@@ -902,7 +916,7 @@ namespace OpenSekai.App.UI
             var titles = new List<string>();
             foreach (SonolusLeaderboard board in boards)
             {
-                titles.Add(ServerWidgets.Localize(board.Title));
+                titles.Add(SonolusText.Localize(board.Title, _session.Address));
             }
 
             if (_board < 0 || _board >= boards.Count)
@@ -1041,8 +1055,7 @@ namespace OpenSekai.App.UI
             LibraryWidgets.Inset(player.rectTransform, 120f, 0f, 380f, 0f);
             TextMeshProUGUI value = LibraryWidgets.Label("Value", row, record.Value, 24f, LibraryTheme.Colors.TextSecondary,
                 FontStyles.Normal, TextAlignmentOptions.Right);
-            LibraryUi.UseCondensedFont(value);
-            value.characterSpacing = 2f;
+            LibraryUi.UseSpacedCondensedFont(value, 2f);
             LibraryWidgets.Place(value.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-24f, 0f), new Vector2(360f, 64f));
         }
 

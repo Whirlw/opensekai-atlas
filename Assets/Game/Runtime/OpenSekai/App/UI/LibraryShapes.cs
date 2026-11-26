@@ -7,7 +7,7 @@ namespace OpenSekai.App.UI
     {
         Back, Search, Add, Refresh, Settings, List, Grid, Check, Wave, Play, More,
         Close, Minus, ChevronRight, Export, Trash, Info, Forward,
-        Heart, Comment, Clock, Trophy, Tag, Globe, Download, Browser, User, Bundle
+        Heart, Comment, Clock, Trophy, Tag, Globe, Download, Browser, User, Bundle, Star, Lock
     }
 
     /// <summary>
@@ -21,12 +21,17 @@ namespace OpenSekai.App.UI
         private const int SCALE = 2;
         private const float PIXELS_PER_UNIT = 100f * SCALE;
         private const int GLOW_SIZE = 256;
+        private const int HEXAGON_SIZE = 320;
 
         private static readonly Dictionary<int, Sprite> _roundedRects = new Dictionary<int, Sprite>();
+        private static readonly Dictionary<int, Sprite> _hexagons = new Dictionary<int, Sprite>();
         private static readonly Dictionary<long, Sprite> _rings = new Dictionary<long, Sprite>();
         private static readonly Dictionary<long, Sprite> _shadows = new Dictionary<long, Sprite>();
         private static readonly Dictionary<LibraryIcon, Sprite> _icons = new Dictionary<LibraryIcon, Sprite>();
+        private static readonly Dictionary<(bool, int, int, int), Sprite> _awardChips = new Dictionary<(bool, int, int, int), Sprite>();
+        private static readonly Dictionary<byte, Sprite> _ditheredBands = new Dictionary<byte, Sprite>();
         private static Sprite _glow;
+        private static Sprite _band;
         private static Sprite _chevron;
 
         /// <summary>Filled rectangle with the given corner radius, in canvas units.</summary>
@@ -100,6 +105,171 @@ namespace OpenSekai.App.UI
             return _glow;
         }
 
+        /// <summary>
+        /// Horizontal strip, solid through the middle and fading out toward both ends: the band
+        /// and the edge lines of a banner. Stretch it to any size.
+        /// </summary>
+        internal static Sprite Band()
+        {
+            if (_band == null)
+            {
+                const int WIDTH = 512;
+                const float FADE = 0.3f;
+                var pixels = new Color32[WIDTH];
+                for (int x = 0; x < WIDTH; x++)
+                {
+                    float t = (x + 0.5f) / WIDTH;
+                    float edge = Mathf.Clamp01(Mathf.Min(t, 1f - t) / FADE);
+                    float alpha = edge * edge * (3f - 2f * edge);
+                    pixels[x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(alpha * 255f));
+                }
+
+                Texture2D texture = CreateTexture("Band", WIDTH, 1, pixels);
+                _band = Sprite.Create(texture, new Rect(0f, 0f, WIDTH, 1f), new Vector2(0.5f, 0.5f), 100f);
+            }
+
+            return _band;
+        }
+
+        /// <summary>
+        /// <see cref="Band"/> with <paramref name="opacity"/> baked in and the ramp dithered: a faint
+        /// band tinted by alpha alone shows each 8-bit step as a stripe. Tint it with an opaque color.
+        /// </summary>
+        internal static Sprite DitheredBand(byte opacity)
+        {
+            if (_ditheredBands.TryGetValue(opacity, out Sprite sprite) && sprite != null)
+            {
+                return sprite;
+            }
+
+            const int WIDTH = 1024;
+            const int HEIGHT = 48;
+            const float FADE = 0.3f;
+            var pixels = new Color32[WIDTH * HEIGHT];
+            // A fixed seed keeps the dither identical between runs, so screenshots stay comparable.
+            var random = new System.Random(20261123 + opacity);
+            for (int x = 0; x < WIDTH; x++)
+            {
+                float t = (x + 0.5f) / WIDTH;
+                float edge = Mathf.Clamp01(Mathf.Min(t, 1f - t) / FADE);
+                float alpha = edge * edge * (3f - 2f * edge) * opacity;
+                for (int y = 0; y < HEIGHT; y++)
+                {
+                    float dithered = alpha + (float)random.NextDouble() - 0.5f;
+                    pixels[y * WIDTH + x] = new Color32(255, 255, 255, (byte)Mathf.Clamp(Mathf.RoundToInt(dithered), 0, opacity));
+                }
+            }
+
+            Texture2D texture = CreateTexture("Band" + opacity, WIDTH, HEIGHT, pixels);
+            sprite = Sprite.Create(texture, new Rect(0f, 0f, WIDTH, HEIGHT), new Vector2(0.5f, 0.5f), 100f);
+            _ditheredBands[opacity] = sprite;
+            return sprite;
+        }
+
+        /// <summary>
+        /// Rounded rectangle in an award's own colors, drawn at exactly <paramref name="size"/> canvas
+        /// units: ALL PERFECT runs its prism across, FULL COMBO a gold ramp upward. Both carry a gloss
+        /// over the upper half and a bright rim, equally thick on every side. Use it untinted.
+        /// </summary>
+        internal static Sprite AwardChip(bool allPerfect, Vector2 size, float radius)
+        {
+            const float RIM = 1.5f * SCALE;
+            int width = Mathf.Max(2, Mathf.RoundToInt(size.x * SCALE));
+            int height = Mathf.Max(2, Mathf.RoundToInt(size.y * SCALE));
+            int corner = Mathf.Min(Mathf.RoundToInt(radius * SCALE), Mathf.Min(width, height) / 2);
+            (bool, int, int, int) key = (allPerfect, width, height, corner);
+            if (_awardChips.TryGetValue(key, out Sprite sprite) && sprite != null)
+            {
+                return sprite;
+            }
+
+            var pixels = new Color32[width * height];
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    float px = x + 0.5f;
+                    float py = y + 0.5f;
+                    float dx = px - Mathf.Clamp(px, corner, width - corner);
+                    float dy = py - Mathf.Clamp(py, corner, height - corner);
+                    float distance = Mathf.Sqrt(dx * dx + dy * dy);
+                    float alpha = Mathf.Clamp01(corner - distance + 0.5f);
+                    float u = px / width;
+                    float v = py / height;
+                    Color color = allPerfect
+                        ? LibraryTheme.Colors.AllPerfectAt(u * 0.85f + (1f - v) * 0.15f)
+                        : Color.Lerp(LibraryTheme.Colors.FullComboBottom, LibraryTheme.Colors.FullComboTop, v);
+                    float gloss = Mathf.SmoothStep(0f, 1f, (v - 0.48f) / 0.52f) * 0.42f;
+                    float edge = Mathf.Clamp01(distance - (corner - RIM) + 0.5f);
+                    color = Color.Lerp(Color.Lerp(color, Color.white, gloss), Color.white, edge * 0.6f);
+                    color.a = alpha;
+                    pixels[y * width + x] = color;
+                }
+            }
+
+            Texture2D texture = CreateTexture((allPerfect ? "AllPerfect" : "FullCombo") + width + "x" + height, width, height, pixels);
+            sprite = Sprite.Create(texture, new Rect(0f, 0f, width, height), new Vector2(0.5f, 0.5f), PIXELS_PER_UNIT);
+            _awardChips[key] = sprite;
+            return sprite;
+        }
+
+        /// <summary>
+        /// Pointy-top hexagon with softened corners, filling a square sprite top to bottom. A
+        /// <paramref name="stroke"/> above zero draws only its outline, that fraction of the height thick.
+        /// </summary>
+        internal static Sprite Hexagon(float stroke = 0f)
+        {
+            int key = Mathf.RoundToInt(stroke * 1000f);
+            if (_hexagons.TryGetValue(key, out Sprite sprite) && sprite != null)
+            {
+                return sprite;
+            }
+
+            const int SIZE = HEXAGON_SIZE;
+            const float ROUNDING = SIZE * 0.035f;
+            float center = SIZE * 0.5f;
+            // Circumradius just inside the square, so the top and bottom corners keep their antialiasing.
+            float inradius = (center - 1.5f) * 0.8660254f - ROUNDING;
+            float strokePixels = stroke * SIZE;
+            var pixels = new Color32[SIZE * SIZE];
+            for (int y = 0; y < SIZE; y++)
+            {
+                for (int x = 0; x < SIZE; x++)
+                {
+                    float distance = HexagonDistance(x + 0.5f - center, y + 0.5f - center, inradius) - ROUNDING;
+                    float alpha = Mathf.Clamp01(0.5f - distance);
+                    if (strokePixels > 0f)
+                    {
+                        alpha -= Mathf.Clamp01(0.5f - (distance + strokePixels));
+                    }
+
+                    pixels[y * SIZE + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(Mathf.Clamp01(alpha) * 255f));
+                }
+            }
+
+            Texture2D texture = CreateTexture("Hexagon" + key, SIZE, SIZE, pixels);
+            sprite = Sprite.Create(texture, new Rect(0f, 0f, SIZE, SIZE), new Vector2(0.5f, 0.5f), PIXELS_PER_UNIT);
+            _hexagons[key] = sprite;
+            return sprite;
+        }
+
+        /// <summary>Signed distance to a pointy-top hexagon centred on the origin.</summary>
+        private static float HexagonDistance(float x, float y, float inradius)
+        {
+            // The flat-top fold, run on swapped axes so the corners point up and down.
+            const float KX = -0.8660254f;
+            const float KY = 0.5f;
+            const float KZ = 0.57735027f;
+            float px = Mathf.Abs(y);
+            float py = Mathf.Abs(x);
+            float fold = 2f * Mathf.Min(KX * px + KY * py, 0f);
+            px -= fold * KX;
+            py -= fold * KY;
+            px -= Mathf.Clamp(px, -KZ * inradius, KZ * inradius);
+            py -= inradius;
+            return Mathf.Sqrt(px * px + py * py) * Mathf.Sign(py);
+        }
+
         /// <summary>Small downward chevron for dropdown buttons.</summary>
         internal static Sprite Chevron()
         {
@@ -119,8 +289,8 @@ namespace OpenSekai.App.UI
             }
 
             const int VIEW_SIZE = 24;
-            // The bundle also appears at 120 canvas units on the mode card.
-            int scale = icon == LibraryIcon.Bundle ? 8 : SCALE;
+            // The bundle also appears at 120 canvas units on the mode card; a star pops to twice its size.
+            int scale = icon == LibraryIcon.Bundle ? 8 : icon == LibraryIcon.Star ? 4 : SCALE;
             int size = VIEW_SIZE * scale;
             var pixels = new Color32[size * size];
             for (int y = 0; y < size; y++)
@@ -133,7 +303,8 @@ namespace OpenSekai.App.UI
                 }
             }
 
-            Texture2D texture = CreateTexture(icon.ToString(), size, size, pixels);
+            // A star mostly shows at a quarter of its texture; without mipmaps its thin points go ragged there.
+            Texture2D texture = CreateTexture(icon.ToString(), size, size, pixels, icon == LibraryIcon.Star);
             sprite = Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f * scale);
             _icons[icon] = sprite;
             return sprite;
@@ -236,9 +407,34 @@ namespace OpenSekai.App.UI
                         Line(3.5f, 9f, 20.5f, 9f));
                 case LibraryIcon.User:
                     return Mathf.Min(Ring(12, 8.2f, 3.6f), Mathf.Max(Ring(12, 21.5f, 7.5f), point.y - 20.5f));
+                case LibraryIcon.Star:
+                    return Star(point - new Vector2(12f, 12f), 10.4f, 12.8f) - 1f;
+                case LibraryIcon.Lock:
+                    // A solid body under a tall shackle.
+                    return Mathf.Min(RoundedRectRing(point, new Vector2(12f, 15.7f), new Vector2(6.6f, 4.8f), 1.4f, true),
+                        Mathf.Min(Mathf.Max(Ring(12, 7.6f, 3.9f), point.y - 7.6f), Mathf.Min(Line(8.1f, 7.6f, 8.1f, 12f), Line(15.9f, 7.6f, 15.9f, 12f))));
                 default:
                     return Mathf.Min(Circle(5, 12, 1.9f), Mathf.Min(Circle(12, 12, 1.9f), Circle(19, 12, 1.9f)));
             }
+        }
+
+        /// <summary>
+        /// Signed distance to a four-pointed star about the origin, points up, down and sideways:
+        /// <paramref name="radius"/> to its points. Each side is an arc about the spot
+        /// <paramref name="center"/> along both axes; farther out than the points makes the waist fuller.
+        /// </summary>
+        private static float Star(Vector2 point, float radius, float center)
+        {
+            float x = Mathf.Abs(point.x);
+            float y = Mathf.Abs(point.y);
+            var p = new Vector2(Mathf.Max(x, y), Mathf.Min(x, y));
+            var tip = new Vector2(radius, 0f);
+            Vector2 toTip = tip - new Vector2(center, center);
+            Vector2 toPoint = p - new Vector2(center, center);
+
+            // Past the end of the arc the tip is nearest.
+            bool pastTip = toTip.x * toPoint.y > toTip.y * toPoint.x;
+            return pastTip ? Vector2.Distance(p, tip) : toTip.magnitude - toPoint.magnitude;
         }
 
         /// <summary>Signed distance to a filled triangle (negative inside).</summary>
@@ -251,12 +447,12 @@ namespace OpenSekai.App.UI
             return inside ? -edge : edge;
         }
 
-        /// <summary>Distance to the stroke of a rounded rectangle, one unit either side of its edge.</summary>
-        private static float RoundedRectRing(Vector2 point, Vector2 center, Vector2 halfSize, float radius)
+        /// <summary>Distance to the stroke of a rounded rectangle, one unit either side of its edge, or to its <paramref name="filled"/> area.</summary>
+        private static float RoundedRectRing(Vector2 point, Vector2 center, Vector2 halfSize, float radius, bool filled = false)
         {
             Vector2 d = new Vector2(Mathf.Abs(point.x - center.x), Mathf.Abs(point.y - center.y)) - halfSize + new Vector2(radius, radius);
             float outside = new Vector2(Mathf.Max(d.x, 0f), Mathf.Max(d.y, 0f)).magnitude + Mathf.Min(Mathf.Max(d.x, d.y), 0f) - radius;
-            return Mathf.Abs(outside) - 1f;
+            return filled ? outside - 1f : Mathf.Abs(outside) - 1f;
         }
 
         /// <summary>Approximate signed distance to an ellipse's outline.</summary>
@@ -374,18 +570,18 @@ namespace OpenSekai.App.UI
             return Vector2.Distance(point, a + segment * t);
         }
 
-        private static Texture2D CreateTexture(string name, int width, int height, Color32[] pixels)
+        private static Texture2D CreateTexture(string name, int width, int height, Color32[] pixels, bool mipmaps = false)
         {
             // Uncompressed on purpose: block compression bands soft alpha ramps.
-            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false)
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, mipmaps)
             {
                 name = "LibraryShape-" + name,
                 wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Bilinear,
+                filterMode = mipmaps ? FilterMode.Trilinear : FilterMode.Bilinear,
                 hideFlags = HideFlags.HideAndDontSave
             };
             texture.SetPixels32(pixels);
-            texture.Apply(false, true);
+            texture.Apply(mipmaps, true);
             return texture;
         }
     }

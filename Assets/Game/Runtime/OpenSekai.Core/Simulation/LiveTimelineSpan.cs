@@ -27,6 +27,9 @@ namespace OpenSekai.Shared.Live.Simulation
 		/// <summary>Time after the last note before the outro skip is available.</summary>
 		public const float OUTRO_SKIP_DELAY_SECONDS = 1f;
 
+		/// <summary>Minimum time the player must have to press a skip button.</summary>
+		public const int MIN_SKIP_VISIBLE_SECONDS = 1;
+
 		/// <summary>From the info page going away to the first of the music and the first note.</summary>
 		public const float RUN_IN_SECONDS = 2f;
 
@@ -106,9 +109,9 @@ namespace OpenSekai.Shared.Live.Simulation
 
 		public float OutroSkipAvailableSeconds => LastNoteSeconds + OUTRO_SKIP_DELAY_SECONDS;
 
-		public bool HasIntroSkip => HasNotes && StartSeconds < IntroSkipTargetSeconds;
+		public bool HasIntroSkip => HasNotes && IntroSkipTargetSeconds - StartSeconds >= MIN_SKIP_VISIBLE_SECONDS;
 
-		public bool HasOutroSkip => HasNotes && OutroSkipAvailableSeconds < ResultEffectSeconds;
+		public bool HasOutroSkip => HasNotes && ResultEffectSeconds - OutroSkipAvailableSeconds >= MIN_SKIP_VISIBLE_SECONDS;
 
 		public override string ToString() => string.Concat(
 			"music=", MusicStartSeconds.ToString("F3"), "..", MusicEndSeconds.ToString("F3"),

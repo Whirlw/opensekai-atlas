@@ -35,7 +35,7 @@ BaseNoteScore = totalCombo > 0 ? Mathf.Max(1, 1_000_000 / totalCombo) : 0;
 base(i) = round(1e6 * (i+1) / n) - round(1e6 * i / n)
 ```
 
-n 个音符全 JustPerfect 时前后项抵消，总分严格等于 1,000,000；单音符基分在相邻两值间跳动
+n 个音符全 Perfect 时前后项抵消，总分严格等于 1,000,000；单音符基分在相邻两值间跳动
 （n=2019 时 495/496），误差不再堆到末尾。
 
 实现：`ScoreLogic` 新增 `scoredNoteCount` 与 `TakeNextNoteBaseScore()`，`Setup()` 清零；

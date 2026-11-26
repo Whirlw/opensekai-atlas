@@ -16,6 +16,7 @@ namespace OpenSekai.Tests.EditMode.ResourceLoading
     public sealed class GeneratedAssetSaveGuardTests
     {
         private const string MEDIUM_DYNAMIC = "Assets/Graphics/Resources/font/SourceHanSansSC-Medium SDF_Dynamic.asset";
+        private const string LIBERATION_FALLBACK = "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Fallback.asset";
 
         private static string Sha(string path)
         {
@@ -29,8 +30,12 @@ namespace OpenSekai.Tests.EditMode.ResourceLoading
         [Test]
         public void TheManifestFilesAreGuarded()
         {
-            Assert.That(GeneratedAssetSaveGuard.GuardedPaths.Count, Is.EqualTo(4));
-            Assert.That(GeneratedAssetSaveGuard.IsGuarded(MEDIUM_DYNAMIC), Is.True);
+            const string FOLDER = "Assets/Graphics/Resources/font/SourceHanSansSC-";
+            Assert.That(GeneratedAssetSaveGuard.GuardedPaths, Does.Contain(FOLDER + "Medium SDF_Base.asset"));
+            Assert.That(GeneratedAssetSaveGuard.GuardedPaths, Does.Contain(FOLDER + "Bold SDF_Base.asset"));
+            Assert.That(GeneratedAssetSaveGuard.GuardedPaths, Does.Contain(FOLDER + "Bold SDF_Dynamic.asset"));
+            Assert.That(GeneratedAssetSaveGuard.GuardedPaths, Does.Contain(MEDIUM_DYNAMIC));
+            Assert.That(GeneratedAssetSaveGuard.GuardedPaths, Does.Contain(LIBERATION_FALLBACK));
             Assert.That(GeneratedAssetSaveGuard.IsGuarded(MEDIUM_DYNAMIC.Replace('/', '\\')), Is.True, "either separator");
             Assert.That(GeneratedAssetSaveGuard.IsGuarded("Assets/Scenes/Library.unity"), Is.False);
         }
@@ -59,31 +64,42 @@ namespace OpenSekai.Tests.EditMode.ResourceLoading
             Assert.That(new SerializedObject(font).FindProperty("m_ClearDynamicDataOnBuild").boolValue, Is.False);
         }
 
-        [Test]
-        public void WhatASessionBakesNeverReachesTheFileAndIsDroppedAfterwards()
+        [TestCase(MEDIUM_DYNAMIC, "曦鑫")]
+        [TestCase(LIBERATION_FALLBACK, "→")]
+        public void WhatASessionBakesNeverReachesTheFileAndIsDroppedAfterwards(string path, string glyphs)
         {
-            string before = Sha(MEDIUM_DYNAMIC);
-            var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(MEDIUM_DYNAMIC);
+            // Start from the committed asset: earlier tests that draw text may already have baked glyphs into it in memory.
+            GeneratedAssetSaveGuard.DiscardInMemoryChanges();
+            byte[] original = File.ReadAllBytes(path);
+            string before = Sha(path);
+            var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(path);
             int characters = font.characterTable.Count;
             try
             {
                 // What a play session does: TMP rasterises new characters into the dynamic asset.
-                font.TryAddCharacters("曦鑫", out string missing);
-                Assume.That(font.characterTable.Count, Is.GreaterThan(characters), "the font baked something (missing: " + missing + ")");
+                font.TryAddCharacters(glyphs, out string missing);
+                Assert.That(font.characterTable.Count, Is.GreaterThan(characters), "the font baked something (missing: " + missing + ")");
                 EditorUtility.SetDirty(font);
 
                 AssetDatabase.SaveAssets();
-                Assert.That(Sha(MEDIUM_DYNAMIC), Is.EqualTo(before), "a save does not write the baked glyphs");
+                Assert.That(Sha(path), Is.EqualTo(before), "a save does not write the baked glyphs");
             }
             finally
             {
+                // Keep even a failing save-guard regression from leaving a tracked atlas on disk.
+                if (Sha(path) != before)
+                {
+                    File.WriteAllBytes(path, original);
+                    AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+                }
                 GeneratedAssetSaveGuard.DiscardInMemoryChanges();
             }
 
-            var reloaded = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(MEDIUM_DYNAMIC);
+            var reloaded = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(path);
             Assert.That(reloaded.characterTable.Count, Is.EqualTo(characters), "the in-memory bake is dropped");
-            Assert.That(reloaded.HasCharacter('…'), Is.True, "the committed ellipsis is still there");
-            Assert.That(Sha(MEDIUM_DYNAMIC), Is.EqualTo(before));
+            if (path == MEDIUM_DYNAMIC)
+                Assert.That(reloaded.HasCharacter('…'), Is.True, "the committed ellipsis is still there");
+            Assert.That(Sha(path), Is.EqualTo(before));
         }
     }
 }

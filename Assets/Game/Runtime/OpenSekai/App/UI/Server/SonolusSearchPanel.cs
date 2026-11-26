@@ -22,6 +22,7 @@ namespace OpenSekai.App.UI
         private const float FOOTER = 104f;
 
         private readonly ServerScreen _screen;
+        private readonly SonolusServerAddress _address;
         private readonly Action<List<KeyValuePair<string, string>>, bool> _run;
         private readonly RectTransform _root;
         private readonly LibraryModal _modal;
@@ -33,9 +34,10 @@ namespace OpenSekai.App.UI
         private SonolusSearch _search;
 
         /// <param name="run">Runs the search; the flag says whether any field differs from its default.</param>
-        internal SonolusSearchPanel(ServerScreen screen, Action<List<KeyValuePair<string, string>>, bool> run)
+        internal SonolusSearchPanel(ServerScreen screen, SonolusServerAddress address, Action<List<KeyValuePair<string, string>>, bool> run)
         {
             _screen = screen;
+            _address = address;
             _run = run;
             _root = LibraryUi.CreateRect("AdvancedSearch", screen.ModalLayer);
             LibraryUi.Stretch(_root);
@@ -62,7 +64,7 @@ namespace OpenSekai.App.UI
         internal void SetSearch(SonolusSearch search, JObject saved = null)
         {
             _search = search;
-            _modal.Title.text = search != null ? ServerWidgets.Localize(search.Title) : "高级搜索";
+            _modal.Title.text = search != null ? SonolusText.Localize(search.Title, _address) : "高级搜索";
             ResetValues();
             RestoreValues(saved);
             Rebuild();
@@ -260,10 +262,12 @@ namespace OpenSekai.App.UI
 
         private void AddRow(LibrarySettingRows.Section section, SonolusSearchOption option)
         {
-            string label = ServerWidgets.Localize(option.Name);
+            string label = option.Query == "order" && option.Name == "#SORT"
+                ? "排序顺序"
+                : SonolusText.Localize(option.Name, _address);
             if (!string.IsNullOrEmpty(option.Unit))
             {
-                label += "（" + ServerWidgets.Localize(option.Unit) + "）";
+                label += "（" + SonolusText.Localize(option.Unit, _address) + "）";
             }
 
             string key = option.Query;
@@ -271,7 +275,7 @@ namespace OpenSekai.App.UI
             {
                 case "text":
                 case "textArea":
-                    _rows.AddText(section, label, ServerWidgets.Localize(option.Placeholder), option.Limit,
+                    _rows.AddText(section, label, SonolusText.Localize(option.Placeholder, _address), option.Limit,
                         () => Get(key), value => _values[key] = value ?? string.Empty);
                     break;
                 case "toggle":
@@ -289,7 +293,10 @@ namespace OpenSekai.App.UI
                     var titles = new List<string>();
                     foreach (SonolusOptionValue value in option.Values)
                     {
-                        titles.Add(ServerWidgets.Localize(value.Title));
+                        string title = option.Query == "difficulty" && value.Name == "append" && value.Title == "#SPECIAL"
+                            ? "#APPEND"
+                            : value.Title;
+                        titles.Add(SonolusText.Localize(title, _address));
                     }
 
                     _rows.AddDropdown(section, label, _screen.Overlay, titles,
@@ -302,7 +309,7 @@ namespace OpenSekai.App.UI
                     var titles = new List<string>();
                     foreach (SonolusOptionValue value in option.Values)
                     {
-                        titles.Add(ServerWidgets.Localize(value.Title));
+                        titles.Add(SonolusText.Localize(value.Title, _address));
                     }
 
                     _rows.AddChips(section, label, titles, index => _flags[key][index], (index, on) => _flags[key][index] = on);

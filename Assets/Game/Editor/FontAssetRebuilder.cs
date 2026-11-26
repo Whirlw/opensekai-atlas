@@ -82,7 +82,6 @@ namespace OpenSekai.EditorTools
                 CreateFontAsset(bold, NEW_BOLD_BASE, "SourceHanSansSC-Bold SDF_Base");
                 CreateFontAsset(bold, NEW_BOLD_DYNAMIC, "SourceHanSansSC-Bold SDF_Dynamic");
 
-                AssetDatabase.SaveAssets();
                 AssetDatabase.Refresh();
             }
 
@@ -217,6 +216,8 @@ namespace OpenSekai.EditorTools
             }
 
             EditorUtility.SetDirty(asset);
+            // Save only this rebake while the guard is lifted. Other fonts may have pending TMP glyphs.
+            AssetDatabase.SaveAssetIfDirty(asset);
             AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
         }
 

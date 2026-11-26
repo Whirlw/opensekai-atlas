@@ -139,18 +139,17 @@ namespace Sekai
 				return;
 			}
 
-			double now = (double)musicTime + LiveConfig.ViewLeadSeconds;
-			while (_scheduledLines != null && _nextLine < _scheduledLines.Length && _scheduledLines[_nextLine].start <= now)
+			while (_scheduledLines != null && _nextLine < _scheduledLines.Length && _scheduledLines[_nextLine].start <= musicTime)
 			{
 				var line = _scheduledLines[_nextLine++];
-				if (now <= line.left.NativeTarget.Time) AddAuthoredLine(line.left, line.right);
+				if (musicTime <= line.left.NativeTarget.Time) AddAuthoredLine(line.left, line.right);
 			}
 			for (int i = 0; i < _pairNotes.Count; i++)
 			{
 				var (note, pair, independentTrajectories) = _pairNotes[i];
 				if (independentTrajectories
 					? note.State == NoteState.Done || pair.State == NoteState.Done ||
-					  (double)musicTime + LiveConfig.ViewLeadSeconds > ((NoteBase)note).NativeTarget.Time
+					  musicTime > ((NoteBase)note).NativeTarget.Time
 					: note.State > NoteState.Scrolling || pair.State >= NoteState.InputBegan)
 				{
 					_pairNotes.RemoveAt(i--);
@@ -187,7 +186,7 @@ namespace Sekai
 				if (note.State == NoteState.Scrolling && LiveConfig.IsKeyVisible(note, musicTime))
 				{
 					float progress = LiveConfig.GetNoteViewProgress(LiveConfig.ViewProgressOf(note, musicTime));
-					if (musicTime + LiveConfig.ViewLeadSeconds >= note.MusicScoreInfo.time && note is LongNote)
+					if (musicTime >= note.MusicScoreInfo.time && note is LongNote)
 					{
 						progress = 1f;
 					}
@@ -221,9 +220,8 @@ namespace Sekai
 			DrawStrip(LaneCenter(note), LaneCenter(pair), a, b, vertex);
 		}
 
-		private void DrawAuthoredPair(NoteBase left, NoteBase right, float time, int vertex)
+		private void DrawAuthoredPair(NoteBase left, NoteBase right, double now, int vertex)
 		{
-			double now = (double)time + LiveConfig.ViewLeadSeconds;
 			float a = (float)left.NativeViewProgress(now, out bool leftHidden);
 			float b = (float)right.NativeViewProgress(now, out bool rightHidden);
 			float cutoff = (float)LiveConfig.NATIVE_KEY_PROGRESS_END;

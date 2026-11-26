@@ -1,3 +1,4 @@
+using OpenSekai.Shared.Playback;
 using Sekai;
 using Sekai.Core.Live;
 
@@ -10,17 +11,18 @@ namespace OpenSekai.App.Library
     /// </summary>
     internal sealed class CustomScorePlayHistoryRecorder : IPlayHistoryRecorder
     {
-        public void AppendLiveResult(
+        public RankingSettlement Finish(
             FreeLiveBootData bootData,
             LiveScore score,
+            PlayResultKind kind,
             long musicTimeMs,
             long musicLengthMs,
             string sessionId,
             string chartHash,
             int rulesVersion)
         {
-            CustomMusicScorePlayHistoryStorage.AppendLiveResult(
-                bootData, score, musicTimeMs, musicLengthMs, sessionId, chartHash, rulesVersion);
+            return CustomMusicScorePlayHistoryStorage.Finish(
+                bootData, score, kind, musicTimeMs, musicLengthMs, sessionId, chartHash, rulesVersion);
         }
     }
 }

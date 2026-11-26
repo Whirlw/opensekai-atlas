@@ -39,8 +39,8 @@ namespace OpenSekai.App.UI
                 "音头、长条、方向箭头、同时线", HomeTheme.Colors.Rose, "样式 1", "样式 2"),
             [MaterialCategories.HIT_FX] = new CategoryInfo(MaterialCategories.HIT_FX, "打击特效", "HIT EFFECTS",
                 "打击、长按、轨道反馈与演出", HomeTheme.Colors.Violet, "特效 1", "特效 2"),
-            [MaterialCategories.AUDIO] = new CategoryInfo(MaterialCategories.AUDIO, "打歌音效", "SOUNDS",
-                "打击、循环、倒数、结算与语音", HomeTheme.Colors.Periwinkle, "音效 1", "音效 2"),
+            [MaterialCategories.AUDIO] = new CategoryInfo(MaterialCategories.AUDIO, "音效", "SOUNDS",
+                "打击、循环、倒数、结算与语音", HomeTheme.Colors.Periwinkle, "默认音效"),
             [MaterialCategories.JUDGMENT] = new CategoryInfo(MaterialCategories.JUDGMENT, "判定文字", "JUDGMENT",
                 "判定文字与快慢提示", HomeTheme.Colors.Rose),
             [MaterialCategories.COMBO] = new CategoryInfo(MaterialCategories.COMBO, "COMBO", "COMBO COUNTER",
@@ -49,7 +49,7 @@ namespace OpenSekai.App.UI
                 "轨道底板、分道线、判定线", HomeTheme.Colors.Periwinkle),
             [MaterialCategories.BACKGROUND] = new CategoryInfo(MaterialCategories.BACKGROUND, "背景", "BACKGROUND",
                 "整组背景图层", HomeTheme.Colors.Rose),
-            [MaterialCategories.HUD] = new CategoryInfo(MaterialCategories.HUD, "打歌界面", "HUD",
+            [MaterialCategories.HUD] = new CategoryInfo(MaterialCategories.HUD, "界面", "HUD",
                 "分数、生命、暂停、倒数与 AUTO", HomeTheme.Colors.Violet),
             [MaterialCategories.RESULT_FX] = new CategoryInfo(MaterialCategories.RESULT_FX, "结算特效", "RESULT FX",
                 "结算模板部件与整段演出", HomeTheme.Colors.Periwinkle),
@@ -58,7 +58,7 @@ namespace OpenSekai.App.UI
         internal static CategoryInfo Category(string id) =>
             _categories.TryGetValue(id ?? string.Empty, out CategoryInfo info) ? info : new CategoryInfo(id, id, id?.ToUpperInvariant(), string.Empty, HomeTheme.Colors.Violet);
 
-        /// <summary>"音效 2" for a two-set category, "游戏默认" for the others.</summary>
+        /// <summary>The named set for a built-in category, "游戏默认" for the others.</summary>
         internal static string BuiltinLabel(string category, int set)
         {
             CategoryInfo info = Category(category);

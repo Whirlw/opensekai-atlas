@@ -57,7 +57,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			var views = new LiveViewBase[] { _view };
 			tail.OnUnspawn = note => LiveViewExt.UnspawnNote(views, note);
 
-			tail.FinishWith(NoteResult.JustPerfect);
+			tail.FinishWith(NoteResult.Perfect);
 
 			Assert.That(_view.Unspawned, Does.Contain(tail), "a judged end key releases its own view");
 		}
@@ -101,7 +101,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(_view.Spawned, Does.Contain(tail), "the key was drawn");
 
 			// The bar is done, which is one of the two conditions, whatever the note's own state is.
-			tail.FinishWith(NoteResult.JustPerfect);
+			tail.FinishWith(NoteResult.Perfect);
 			bridge.TickTailKeys(bar.MusicScoreInfo.time);
 
 			Assert.That(_view.Unspawned, Does.Contain(tail), "a settled end key leaves the line");

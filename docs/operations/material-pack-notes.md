@@ -49,7 +49,7 @@
 | `notes.notes_flick_arrow_crtcl_01` 至 `06` | critical 直划箭头，六种宽度均有对应的 `_diagonal` 斜划槽位。 |
 | `notes.notes_long_among`、`notes.notes_long_among_crtcl` | 普通、critical 长条连接点。 |
 | `notes.notes_friction_among_long`、`notes.notes_friction_among_flick`、`notes.notes_friction_among_crtcl` | 摩擦、摩擦划键和 critical 摩擦的中心图标，按预制体实际引用共享。 |
-| `notes.notes_damage` | 本项目的 NextRUSH 伤害音符。两套上游样包均保留内置伤害音符。 |
+| `notes.notes_damage` | 本项目的 NextRUSH 伤害音符。材质包缺少该槽位时，使用当前内置皮肤的紫色 Friction 键身。 |
 | `notes.line.long`、`notes.line.guide`、`notes.line.simultaneous` | 长条条身、引导线、同时线。三者使用整张材质贴图，布局字段为 `scale` 和 `position`。 |
 
 长条与引导线的横向倍率围绕每个截面的中心调整，纵向倍率以判定线为基准。全屏段以视口中心缩放。同时线的横向倍率调整两端间距，纵向倍率调整线厚。条身沿用原材质的分区采样，制作时可以从样包中的 `longNoteLine.png`、`traceLine_eff.png` 和 `simultaneousLine.png` 开始。NextRUSH 谱面指定的纯色 Guide 使用谱面颜色和透明度，同样接受引导线槽位的几何布局。

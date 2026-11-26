@@ -129,7 +129,7 @@ namespace OpenSekai.Tests.EditMode.Live
 		{
 			LongNote bar = Arrange(RubBar());
 			float settledAt = RunUntilHeadSettles(bar, auto: false, touch: true, until: 1.3f);
-			AssertKeyLeftWithTheEffect(bar, settledAt, NoteResult.JustPerfect, effect: true);
+			AssertKeyLeftWithTheEffect(bar, settledAt, NoteResult.Perfect, effect: true);
 		}
 
 		[Test]
@@ -151,8 +151,8 @@ namespace OpenSekai.Tests.EditMode.Live
 		}
 
 		[TestCase(-0.09f, NoteResult.Miss)]
-		[TestCase(-0.08f, NoteResult.JustPerfect)]
-		[TestCase(0.08f, NoteResult.JustPerfect)]
+		[TestCase(-0.08f, NoteResult.Perfect)]
+		[TestCase(0.08f, NoteResult.Perfect)]
 		[TestCase(0.09f, NoteResult.Miss)]
 		public void RubHeadUsesTheTraceContactWindow(float offset, NoteResult expected)
 		{

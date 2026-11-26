@@ -16,6 +16,9 @@ namespace OpenSekai.App.UI
             internal static readonly Color32 Violet = ToColor32(BrandArt.Violet);
             internal static readonly Color32 Rose = ToColor32(BrandArt.Rose);
 
+            /// <summary>The 成就 card's tint; the same gold as the 天穹 Ranking Score tier.</summary>
+            internal static readonly Color32 Gold = new Color32(255, 198, 112, 255);
+
             /// <summary>Card body: a step above the library's surface so cards lift off the aurora.</summary>
             internal static readonly Color32 Card = new Color32(23, 28, 39, 255);
 
@@ -88,6 +91,18 @@ namespace OpenSekai.App.UI
 
             /// <summary>Second press of back within this window quits the app.</summary>
             internal const float QUIT_WINDOW = 2f;
+
+            /// <summary>The pages sliding to the other page of the home page once the finger lifts, or on a tap.</summary>
+            internal const float PAGE_TURN = 0.42f;
+
+            /// <summary>Canvas units a finger moves sideways before a touch becomes a swipe and stops being a tap.</summary>
+            internal const float SWIPE_SLOP = 28f;
+
+            /// <summary>Share of the page width a swipe has to cover to turn the page.</summary>
+            internal const float PAGE_TURN_DISTANCE = 0.18f;
+
+            /// <summary>Canvas units per second above which a short flick turns the page anyway.</summary>
+            internal const float PAGE_FLICK_SPEED = 1100f;
         }
     }
 }

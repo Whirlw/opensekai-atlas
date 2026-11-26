@@ -11,6 +11,19 @@ using UnityEngine.UI;
 
 namespace OpenSekai.App.UI
 {
+    /// <summary>What the button at the end of the metadata row does for the chart on screen.</summary>
+    internal enum ChartInfoAccess
+    {
+        /// <summary>Reads 详情 and opens the chart's 详情 card.</summary>
+        Open,
+        /// <summary>Reads 检查: the Ranked status is not on record yet, and one tap looks it up.</summary>
+        Check,
+        /// <summary>Reads 检查中 while that lookup runs.</summary>
+        Checking,
+        /// <summary>Reads 详情 but greyed out; a tap only says why.</summary>
+        Blocked
+    }
+
     /// <summary>
     /// Right side of the library page: the selected package's jacket, credits and best record, and
     /// the controls that start it. The accent color follows the jacket.
@@ -29,10 +42,17 @@ namespace OpenSekai.App.UI
         private const float DIFFICULTY_PADDING = 14f;
         private const float DIFFICULTY_MAX_WIDTH = 120f;
         private const float METADATA_GAP = 12f;
+        /// <summary>Optical lift of the 详情 button above the difficulty chip's centre line.</summary>
+        internal const float DETAILS_LIFT = 2f;
+        private const float DETAILS_WIDTH = 106f;
+        private const float HINT_HEIGHT = 44f;
+        private const float HINT_HOLD = 2.4f;
 
         private static readonly string[] _judgeNames = { "PERFECT", "GREAT", "GOOD", "BAD", "MISS" };
         private static readonly Color32 _cardColor = new Color32(16, 20, 27, 184);
         private static readonly Color32 _switchOff = new Color32(255, 255, 255, 56);
+        private static readonly Color32 _blockedControl = new Color32(255, 255, 255, 7);
+        private static readonly Color32 _blockedLabel = new Color32(154, 166, 181, 140);
 
         private readonly Action<bool> _play;
         private readonly RectTransform _content;
@@ -40,6 +60,11 @@ namespace OpenSekai.App.UI
         private readonly RectTransform _coverFrame;
         private readonly Image _cover;
         private readonly GameObject _coverPlaceholder;
+        private readonly Image _details;
+        private readonly TextMeshProUGUI _detailsLabel;
+        private readonly RectTransform _hint;
+        private readonly CanvasGroup _hintGroup;
+        private readonly TextMeshProUGUI _hintText;
         private readonly RectTransform _difficultyChip;
         private readonly TextMeshProUGUI _difficulty;
         private readonly TextMeshProUGUI _level;
@@ -73,6 +98,7 @@ namespace OpenSekai.App.UI
         private MotionHandle _showMotion;
         private MotionHandle _accentMotion;
         private MotionHandle _autoMotion;
+        private MotionHandle _hintMotion;
         private Color _accent = LibraryTheme.Colors.DefaultAccent;
         private bool _isAuto;
         private bool _playable;
@@ -81,7 +107,8 @@ namespace OpenSekai.App.UI
         /// <param name="coverTop">Top inset of the first song when grouping is off.</param>
         /// <param name="play">Starts the selected package; the argument is the 自动演奏 switch.</param>
         /// <param name="more">Opens export and delete for the selected package.</param>
-        internal LibraryDetailPanel(RectTransform root, float coverTop, Action<bool> play, Action more)
+        /// <param name="details">The 详情 / 检查 button; the owner decides from <see cref="Access"/> what a tap does.</param>
+        internal LibraryDetailPanel(RectTransform root, float coverTop, Action<bool> play, Action more, Action details)
         {
             _play = play;
             _content = LibraryUi.CreateRect("Detail", root);
@@ -116,22 +143,25 @@ namespace OpenSekai.App.UI
             _cover.raycastTarget = false;
             _cover.enabled = false;
             LibraryUi.Stretch(_cover.rectTransform);
-
             // Title and credits, to the right of the jacket.
             RectTransform info = LibraryUi.CreateRect("Info", _content);
             _info = info;
             LibraryWidgets.TopStrip(info, coverSize + INFO_LEFT, 0f, coverTop + 8f, coverSize - 8f);
 
+            // Stays tappable when blocked, so the tap can explain itself.
+            Button detailsButton = LibraryWidgets.PillButton("Details", info, "详情", () => details?.Invoke(), DETAILS_WIDTH, 48f,
+                LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, 21f, sound: UiCue.None);
+            _details = (Image)detailsButton.targetGraphic;
+            _detailsLabel = detailsButton.GetComponentInChildren<TextMeshProUGUI>();
+            LibraryWidgets.Place(_details.rectTransform, Vector2.one, new Vector2(1f, 0.5f),
+                new Vector2(0f, -DIFFICULTY_HEIGHT * 0.5f + DETAILS_LIFT), _details.rectTransform.sizeDelta);
+
             Image chip = LibraryWidgets.Panel("Difficulty", info, LibraryTheme.Radius.CHIP, LibraryTheme.Colors.Hairline);
             _difficultyChip = chip.rectTransform;
-            Vector2 topLeft = new Vector2(0f, 1f);
-            LibraryWidgets.Place(_difficultyChip, topLeft, topLeft, Vector2.zero,
-                new Vector2(DIFFICULTY_MAX_WIDTH, DIFFICULTY_HEIGHT));
             _difficulty = LibraryWidgets.Label(
                 "Label", chip.transform, string.Empty, 22f, LibraryTheme.Colors.TextSecondary,
                 FontStyles.Bold, TextAlignmentOptions.Center);
-            LibraryUi.UseCondensedFont(_difficulty);
-            _difficulty.characterSpacing = 2f * 100f / _difficulty.fontSize;
+            LibraryUi.UseSpacedCondensedFont(_difficulty, 2f * 100f / _difficulty.fontSize);
             LibraryWidgets.Inset(_difficulty.rectTransform, DIFFICULTY_PADDING, 0f, DIFFICULTY_PADDING, 0f);
             _level = LibraryWidgets.Label("Level", info, string.Empty, 22f, LibraryTheme.Colors.TextSecondary, FontStyles.Bold);
             LibraryUi.UseCondensedFont(_level);
@@ -159,6 +189,17 @@ namespace OpenSekai.App.UI
                 _credits[i] = LibraryWidgets.Label(
                     "Credit" + i, info, string.Empty, LibraryTheme.FontSize.BODY, LibraryTheme.Colors.TextSecondary);
             }
+
+            Image hint = LibraryWidgets.Panel("Hint", info, HINT_HEIGHT * 0.5f, LibraryTheme.Colors.SurfaceRaised);
+            LibraryWidgets.Outline(hint, HINT_HEIGHT * 0.5f);
+            _hint = hint.rectTransform;
+            _hintGroup = hint.gameObject.AddComponent<CanvasGroup>();
+            _hintGroup.blocksRaycasts = false;
+            _hintText = LibraryWidgets.Label(
+                "Text", _hint, string.Empty, LibraryTheme.FontSize.CAPTION, LibraryTheme.Colors.TextPrimary,
+                alignment: TextAlignmentOptions.Center);
+            LibraryWidgets.Inset(_hintText.rectTransform, 20f, 0f, 20f, 0f);
+            _hint.gameObject.SetActive(false);
 
             _previewRow = LibraryUi.CreateRect("Preview", info);
             LibraryWidgets.BottomStrip(_previewRow, 0f, 0f, 0f, 26f);
@@ -305,9 +346,58 @@ namespace OpenSekai.App.UI
             Show(null, null, false);
         }
 
+        internal ChartInfoAccess Access { get; private set; }
+
+        internal void SetAccess(ChartInfoAccess access)
+        {
+            Access = access;
+            bool blocked = access == ChartInfoAccess.Blocked;
+            _details.color = blocked ? _blockedControl : LibraryTheme.Colors.Control;
+            _detailsLabel.color = blocked ? _blockedLabel
+                : access == ChartInfoAccess.Checking ? LibraryTheme.Colors.TextMuted : LibraryTheme.Colors.TextPrimary;
+            _detailsLabel.text = access == ChartInfoAccess.Check ? "检查" : access == ChartInfoAccess.Checking ? "检查中" : "详情";
+        }
+
+        /// <summary>A short note under the 详情 button, gone again after a moment.</summary>
+        internal void ShowHint(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+
+            _hintText.text = text;
+            float width = Mathf.Ceil(_hintText.GetPreferredValues(text).x) + 40f;
+            if (_info.rect.width > 0f) width = Mathf.Min(width, _info.rect.width);
+            LibraryWidgets.Place(_hint, Vector2.one, Vector2.one,
+                new Vector2(0f, -DIFFICULTY_HEIGHT - 14f + DETAILS_LIFT), new Vector2(width, HINT_HEIGHT));
+            _hint.SetAsLastSibling();
+            _hint.gameObject.SetActive(true);
+            _hintMotion.TryCancel();
+            const float FADE_IN = 0.15f;
+            const float FADE_OUT = 0.3f;
+            const float TOTAL = FADE_IN + HINT_HOLD + FADE_OUT;
+            _hintMotion = LMotion.Create(0f, TOTAL, TOTAL)
+                .WithOnComplete(() => _hint.gameObject.SetActive(false))
+                .Bind(this, static (time, panel) =>
+                {
+                    float shown = Mathf.Min(Mathf.Clamp01(time / FADE_IN), Mathf.Clamp01((TOTAL - time) / FADE_OUT));
+                    panel._hintGroup.alpha = shown;
+                    panel._hint.anchoredPosition = new Vector2(0f, -DIFFICULTY_HEIGHT - 14f + DETAILS_LIFT + 6f * (1f - shown));
+                });
+        }
+
+        internal void HideHint()
+        {
+            _hintMotion.TryCancel();
+            _hintMotion = default;
+            _hint.gameObject.SetActive(false);
+        }
+
         /// <summary>Fills the panel for a package; null clears it for an empty list.</summary>
         internal void Show(SongPackageItem item, CustomMusicScorePlayHistorySummary summary, bool animate)
         {
+            HideHint();
             _contentGroup.gameObject.SetActive(item != null);
             _cover.sprite = null;
             _cover.enabled = false;
@@ -409,9 +499,9 @@ namespace OpenSekai.App.UI
         {
             float chipWidth = Mathf.Min(DIFFICULTY_MAX_WIDTH,
                 Mathf.Ceil(_difficulty.GetPreferredValues(_difficulty.text).x) + DIFFICULTY_PADDING * 2f);
-            _difficultyChip.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, chipWidth);
-
             Vector2 topLeft = new Vector2(0f, 1f);
+            LibraryWidgets.Place(_difficultyChip, topLeft, topLeft, Vector2.zero,
+                new Vector2(chipWidth, DIFFICULTY_HEIGHT));
             float cursor = chipWidth + METADATA_GAP;
             if (_level.text.Length > 0)
             {
@@ -421,7 +511,7 @@ namespace OpenSekai.App.UI
                 cursor += levelWidth + METADATA_GAP;
             }
 
-            LibraryWidgets.TopStrip(_length.rectTransform, cursor, 0f, 0f, DIFFICULTY_HEIGHT);
+            LibraryWidgets.TopStrip(_length.rectTransform, cursor, DETAILS_WIDTH + METADATA_GAP, 0f, DIFFICULTY_HEIGHT);
         }
 
         private void LayoutTitleAndCredits()
@@ -497,6 +587,7 @@ namespace OpenSekai.App.UI
             _showMotion.TryCancel();
             _accentMotion.TryCancel();
             _autoMotion.TryCancel();
+            _hintMotion.TryCancel();
         }
 
         private void ApplyAccent()

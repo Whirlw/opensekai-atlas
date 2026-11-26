@@ -1,3 +1,4 @@
+using OpenSekai.Shared.Playback;
 using OpenSekai.MaterialPacks;
 using System;
 using System.IO;
@@ -86,7 +87,7 @@ namespace OpenSekai.Tests.EditMode
         {
             var store = new OpenSekai.Infrastructure.Packages.MaterialPackStore(Path.Combine(_root, "material-packs"));
             var configuration = store.List().MixConfiguration();
-            configuration.Builtin = new MaterialBuiltinSelection { Notes = 2, HitFx = 2, Audio = 2 };
+            configuration.Builtin = new MaterialBuiltinSelection { Notes = 2, HitFx = 2 };
             store.SaveConfiguration(configuration, store.List().Revision);
             _service = new PlayService(new OpenSekai.Infrastructure.Packages.SongPackageManager(_root),
                 _settings, _boot, _surface, _audio, _deck, _playHistory, () => store);
@@ -99,7 +100,7 @@ namespace OpenSekai.Tests.EditMode
             {
                 Assert.That(boot.LiveSettingData.NoteSkinIndex, Is.EqualTo(1));
                 Assert.That(boot.LiveSettingData.NoteEffect, Is.EqualTo(1));
-                Assert.That(boot.LiveSettingData.NoteSeIndex, Is.EqualTo(1));
+                Assert.That(boot.LiveSettingData.NoteSeIndex, Is.Zero);
                 Assert.That(_settings.Load().NoteSkinIndex, Is.Zero, "旧设置不被改写");
             }
             finally { boot.ReleaseMaterialAudio(); }
@@ -414,15 +415,17 @@ namespace OpenSekai.Tests.EditMode
 
         private sealed class FakePlayHistoryRecorder : IPlayHistoryRecorder
         {
-            public void AppendLiveResult(
+            public RankingSettlement Finish(
                 FreeLiveBootData bootData,
                 LiveScore score,
+                PlayResultKind kind,
                 long musicTimeMs,
                 long musicLengthMs,
                 string sessionId,
                 string chartHash,
                 int rulesVersion)
             {
+                return null;
             }
         }
 
@@ -454,6 +457,7 @@ namespace OpenSekai.Tests.EditMode
             {
             }
 
+            public void EnterCore() => PushLiveLoading();
             public void PushLiveLoading()
             {
                 if (FailOnPush)

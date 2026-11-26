@@ -19,7 +19,21 @@ namespace OpenSekai.Shared.Packages
 
 		public static string RootDirectory => Path.Combine(Application.persistentDataPath, DIRECTORY_NAME);
 
-		public static string PlayHistoryPath => Path.Combine(RootDirectory, PLAY_HISTORY_FILE_NAME);
+		public static string PlayHistoryPath => Path.Combine(ActivePlayerDirectory(RootDirectory), PLAY_HISTORY_FILE_NAME);
+
+		// Before the first restore, games continue appending to the original history file.
+		public static string ActivePlayerDirectory(string root)
+		{
+			string pointer = Path.Combine(root, "PlayerArchives", "active");
+			if (!File.Exists(pointer)) return root;
+			string generation = File.ReadAllText(pointer);
+			if (!Guid.TryParseExact(generation, "N", out _))
+				throw new InvalidDataException("Invalid player archive identifier.");
+			string directory = Path.Combine(root, "PlayerArchives", generation);
+			if (!File.Exists(Path.Combine(directory, PLAY_HISTORY_FILE_NAME)))
+				throw new InvalidDataException("Active player archive is missing.");
+			return directory;
+		}
 
 		public static SongPackage[] LoadAllEntries()
 		{

@@ -62,7 +62,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			LongNote bar = Bar();
 			bar.Head.Settle((NoteResult.Great, NoteResultDescription.None));
 			Bind(bar, new FrictionFlickNote(Info(1f), 96, 4, 5, NoteCategory.FrictionFlick, 1f, NoteType.Default, NoteDirection.Default, 0.0833f, 0f));
-			((NoteBase)bar.ChildNote).FinishWith(NoteResult.JustPerfect);
+			((NoteBase)bar.ChildNote).FinishWith(NoteResult.Perfect);
 
 			bool settled = bar.TailBehaviour.TryFinish(bar, new TailFrame(2f, false));
 
@@ -99,7 +99,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			tail.OnJudgment = _ => published++;
 
 			Assert.That(bar.JudgeTailAsRelease(1f), Is.True, "the lift at the tail grades it");
-			Assert.That(tail.Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(tail.Result, Is.EqualTo(NoteResult.Perfect));
 			Assert.That(published, Is.EqualTo(1));
 			NoteResult barResult = bar.Result;
 
@@ -111,7 +111,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(bar.DetachStandaloneTail(2f), Is.False, "nor may the standalone detach");
 
 			Assert.That(published, Is.EqualTo(1), "the tail is published exactly once");
-			Assert.That(tail.Result, Is.EqualTo(NoteResult.JustPerfect), "and keeps its verdict");
+			Assert.That(tail.Result, Is.EqualTo(NoteResult.Perfect), "and keeps its verdict");
 			Assert.That(bar.Result, Is.EqualTo(barResult), "the bar keeps it too");
 		}
 
@@ -131,7 +131,7 @@ namespace OpenSekai.Tests.EditMode.Live
 
 			Assert.That(bar.JudgeTailAsRelease(1f), Is.True, "a reused bar has to grade its tail again");
 			Assert.That(published, Is.EqualTo(2), "one publication per run");
-			Assert.That(tail.Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(tail.Result, Is.EqualTo(NoteResult.Perfect));
 		}
 
 		[Test]
@@ -150,7 +150,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(bar.DetachStandaloneTail(2f), Is.False);
 
 			Assert.That(published, Is.EqualTo(1));
-			Assert.That(tail.Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(tail.Result, Is.EqualTo(NoteResult.Perfect));
 			Assert.That(bar.State, Is.EqualTo(NoteState.Done), "nor is the bar brought back");
 		}
 

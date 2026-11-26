@@ -22,6 +22,9 @@ namespace OpenSekai.Infrastructure.Packages
 		/// <summary>Content hash of the score file; the key the play history is stored under, shared by packages with the same chart.</summary>
 		public string ScoreKey { get; }
 
+		internal SongPackageSource Source { get; }
+		internal string RankKey { get; }
+
 		/// <summary>True once the audio has been measured, even when it came out silent or unreadable.</summary>
 		public bool LoudnessMeasured { get; internal set; }
 
@@ -62,8 +65,11 @@ namespace OpenSekai.Infrastructure.Packages
 			bool hasAudio,
 			bool hasJacket,
 			DateTimeOffset importedAt,
-			string scoreKey = null)
+			string scoreKey = null,
+			SongPackageSource source = null)
 		{
+			Source = source;
+			RankKey = ChartRankCache.Key(source);
 			ScoreKey = scoreKey ?? string.Empty;
 			Entry = entry;
 			LastWriteTime = lastWriteTime;

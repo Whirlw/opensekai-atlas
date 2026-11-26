@@ -7,7 +7,7 @@ namespace OpenSekai.Shared.Live
     /// sits on top of it). The popup can only show one label, and the worst result of the frame is the one
     /// the player has to see: showing the Perfect that happened to be judged last hides the Miss.
     ///
-    /// <see cref="NoteResult"/> is ordered from worst (Miss) to best (JustPerfect), with two entries that
+    /// <see cref="NoteResult"/> is ordered from worst (Miss) to best (Perfect), with two entries that
     /// are not part of that ladder: None means "not judged yet" and Auto means the note was never in the
     /// player's hands, so neither may outrank a real judgement.
     /// </summary>

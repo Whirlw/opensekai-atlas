@@ -83,9 +83,11 @@ namespace OpenSekai.App.UI
         private MotionHandle _curtainMotion;
 
         private LibrarySettingsPanel _settingsPanel;
-        private LibraryResultPanel _resultPanel;
+        private ResultPage _resultPage;
         private LibraryLoadingOverlay _loadingOverlay;
         private LibraryActionsPanel _actionsPanel;
+        private LibraryChartInfoPanel _chartInfo;
+        private readonly HashSet<SongPackageItem> _checking = new HashSet<SongPackageItem>();
 
         /// <param name="presented">Whether the page starts on screen; see <see cref="SetPresented"/>.</param>
         internal LibraryView(GameObject page, bool presented = true)
@@ -155,7 +157,7 @@ namespace OpenSekai.App.UI
             detailRoot.anchorMax = new Vector2(1f, 1f);
             detailRoot.offsetMin = Vector2.zero;
             detailRoot.offsetMax = Vector2.zero;
-            _detail = new LibraryDetailPanel(detailRoot, LIST_PADDING_TOP, PlaySelected, presenter.OpenActionsForSelected);
+            _detail = new LibraryDetailPanel(detailRoot, LIST_PADDING_TOP, PlaySelected, presenter.OpenActionsForSelected, OnDetailsButton);
             _preview = _page.AddComponent<LibraryPreview>();
             _preview.Initialize(_detail);
 
@@ -186,6 +188,8 @@ namespace OpenSekai.App.UI
             }
             _rowList.DeferBinding = _tileList.DeferBinding = false;
         }
+
+        internal bool HasListing => _state != null;
 
         public void Render(LibraryViewState state)
         {
@@ -249,7 +253,7 @@ namespace OpenSekai.App.UI
                 RectTransform root = list.CellAt(i);
                 if (root != null && _cells.TryGetValue(root, out LibraryCell cell))
                 {
-                    cell.UpdateScore(LibraryModel.SummaryOf(item, _state.History));
+                    cell.UpdateLabels(LibraryModel.SummaryOf(item, _state.History));
                 }
             }
 
@@ -259,10 +263,44 @@ namespace OpenSekai.App.UI
             }
         }
 
-        public void SetSelection(SongPackageItem selected)
+        public void RefreshRank(string rankKey)
+        {
+            if (_state == null || rankKey == null)
+            {
+                return;
+            }
+
+            VirtualListView list = ActiveList;
+            for (int i = 0; i < _items.Count; i++)
+            {
+                SongPackageItem item = _items[i];
+                RectTransform root = item.RankKey == rankKey ? list.CellAt(i) : null;
+                if (root != null && _cells.TryGetValue(root, out LibraryCell cell))
+                {
+                    cell.UpdateLabels(LibraryModel.SummaryOf(item, _state.History));
+                }
+            }
+
+            if (_selected?.RankKey == rankKey)
+            {
+                RefreshAccess(_selected);
+            }
+
+            if (_chartInfo != null && _chartInfo.IsOpen && _chartInfo.Item?.RankKey == rankKey)
+            {
+                _chartInfo.ShowRank(null);
+            }
+        }
+
+        public void SetSelection(SongPackageItem selected, bool reveal = false)
         {
             SongPackageItem previous = _selected;
             _selected = selected;
+            if (reveal && selected != null && _indexByItem.TryGetValue(selected, out int index))
+            {
+                ActiveList.ScrollTo(index);
+            }
+
             CellOf(previous)?.SetSelected(false, true);
             CellOf(selected)?.SetSelected(true, true);
             ShowDetail();
@@ -285,13 +323,13 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            if (_resultPanel == null)
+            if (_resultPage == null)
             {
-                _resultPanel = LibraryResultPanel.Create(_page.transform, _presenter.OnResultRetry);
-                _resultPanel.OnClose = ResumePreview;
+                _resultPage = ResultPage.Create(_page.transform, _presenter.OnResultRetry, "返回曲库");
+                _resultPage.OnClose = ResumePreview;
             }
-            _resultPanel.Show(result, null, Accent);
-            LoadPanelArtwork(result.PackageDirectory, _resultPanel.SetArtwork);
+            _resultPage.Show(result, null, Accent);
+            LoadPanelArtwork(result.PackageDirectory, _resultPage.SetArtwork);
         }
 
         public void ShowLoading(string title, string packageDirectory)
@@ -341,6 +379,8 @@ namespace OpenSekai.App.UI
             LoadPanelArtworkAsync(jacketPath, version, apply, _panelArtworkLoad.Token).Forget();
         }
 
+        internal bool IsPanelArtworkPending => _panelArtworkLoad != null;
+
         private async UniTaskVoid LoadPanelArtworkAsync(
             string jacketPath, long version, Action<Sprite, Color32> apply, CancellationToken cancellationToken)
         {
@@ -356,6 +396,14 @@ namespace OpenSekai.App.UI
             {
                 // The panel closed, or another one opened, before the jacket arrived.
             }
+            finally
+            {
+                if (_panelArtworkLoad != null && _panelArtworkLoad.Token == cancellationToken)
+                {
+                    _panelArtworkLoad.Dispose();
+                    _panelArtworkLoad = null;
+                }
+            }
         }
 
         private void CancelPanelArtworkLoad()
@@ -365,9 +413,10 @@ namespace OpenSekai.App.UI
                 return;
             }
 
-            _panelArtworkLoad.Cancel();
-            _panelArtworkLoad.Dispose();
+            var pending = _panelArtworkLoad;
             _panelArtworkLoad = null;
+            pending.Cancel();
+            pending.Dispose();
         }
 
         /// <summary>The package in this folder: from the list on screen, else from the whole library.</summary>
@@ -426,7 +475,7 @@ namespace OpenSekai.App.UI
         internal void ResumePreview()
         {
             if (_visible && _presented && !_startingPlayback && !_applicationPaused && _preview != null
-                && (_resultPanel == null || !_resultPanel.isActiveAndEnabled))
+                && (_resultPage == null || !_resultPage.isActiveAndEnabled))
             {
                 _preview.Select(_selected);
             }
@@ -539,15 +588,22 @@ namespace OpenSekai.App.UI
                 return true;
             }
 
+            if (_chartInfo != null && _chartInfo.IsOpen)
+            {
+                _chartInfo.Back();
+                UiSound.Play(UiCue.Close);
+                return true;
+            }
+
             if (_settingsPanel != null && _settingsPanel.IsOpen)
             {
                 _settingsPanel.Back();
                 return true;
             }
 
-            if (_resultPanel != null && _resultPanel.IsOpen)
+            if (_resultPage != null && _resultPage.IsOpen)
             {
-                _resultPanel.Dismiss();
+                _resultPage.Dismiss();
                 return true;
             }
 
@@ -599,6 +655,80 @@ namespace OpenSekai.App.UI
             _actionsPanel.Show(LibraryModel.BuildTitle(item), DescribePackage(item), cover, Accent, export, delete);
         }
 
+        /// <summary>
+        /// What the 详情 button does for a chart: open the card once its Ranked status is on
+        /// record, look the status up once while it is not, and otherwise only say why not.
+        /// </summary>
+        private ChartInfoAccess AccessOf(SongPackageItem item) => ChartInfoAccessFor(item, _checking.Contains(item));
+
+        internal static ChartInfoAccess ChartInfoAccessFor(SongPackageItem item, bool checking)
+        {
+            if (item?.Source == null) return ChartInfoAccess.Blocked;
+            if (ChartRankLookup.CachedLabel(item) != ChartRankLookup.PENDING) return ChartInfoAccess.Open;
+            return checking ? ChartInfoAccess.Checking : ChartInfoAccess.Check;
+        }
+
+        private void RefreshAccess(SongPackageItem item)
+        {
+            if (_detail != null && item != null && item == _selected)
+            {
+                _detail.SetAccess(AccessOf(item));
+            }
+        }
+
+        private void OnDetailsButton()
+        {
+            SongPackageItem item = _selected;
+            if (item == null) return;
+            switch (AccessOf(item))
+            {
+                case ChartInfoAccess.Open:
+                    UiSound.Play(UiCue.Press);
+                    _chartInfo ??= new LibraryChartInfoPanel(_page.transform, CheckChartRankAsync);
+                    _chartInfo.Show(item);
+                    break;
+                case ChartInfoAccess.Check:
+                    UiSound.Play(UiCue.Press);
+                    CheckRank(item).Forget();
+                    break;
+                case ChartInfoAccess.Checking:
+                    UiSound.Play(UiCue.Blocked);
+                    _detail.ShowHint("正在核验 Ranked 状态…");
+                    break;
+                default:
+                    UiSound.Play(UiCue.Blocked);
+                    _detail.ShowHint("未记录来源链接，没有可查看的详情");
+                    break;
+            }
+        }
+
+        /// <summary>The one lookup behind 检查; the button turns into 详情 once a verdict is on record.</summary>
+        private async UniTaskVoid CheckRank(SongPackageItem item)
+        {
+            _checking.Add(item);
+            RefreshAccess(item);
+            RankCheck result;
+            try
+            {
+                result = await CheckChartRankAsync(item);
+            }
+            finally
+            {
+                _checking.Remove(item);
+                RefreshAccess(item);
+            }
+
+            if (_detail != null && item == _selected)
+            {
+                _detail.ShowHint(result.Outcome == RankCheckOutcome.Known
+                    ? "已确认：" + ChartRankLookup.CachedLabel(item)
+                    : result.Reason);
+            }
+        }
+
+        private static UniTask<RankCheck> CheckChartRankAsync(SongPackageItem item) =>
+            ChartRankLookup.CheckAsync(item.Source, item.Entry, item.ScoreKey);
+
         /// <summary>Difficulty, level and charter, the line under a package's title in its action card.</summary>
         private static string DescribePackage(SongPackageItem item)
         {
@@ -639,6 +769,9 @@ namespace OpenSekai.App.UI
             }
 
             _detail?.Dispose();
+            _detail = null;
+            _chartInfo?.Dispose();
+            _chartInfo = null;
             _thumbnails?.Dispose();
             _thumbnails = null;
             _detailThumbnails?.Dispose();
@@ -1002,7 +1135,14 @@ namespace OpenSekai.App.UI
         {
             CancelDetailLoad();
             SongPackageItem item = _selected;
-            _detail.Show(item, LibraryModel.SummaryOf(item, _state?.History), true);
+            _detail.Show(item, LibraryModel.SummaryOf(item, _state?.History), animate: true);
+            RefreshAccess(item);
+            if (item?.RankKey != null)
+            {
+                // An Sbuga download keeps the server's answer beside the chart; restoring it raises
+                // ChartRankCache.Changed, which redraws this button and the cell.
+                ChartRankLookup.ReadInstalledAsync(item.Source, item.Entry).Forget();
+            }
             ResumePreview();
             if (item == null || !item.HasJacket || item.Entry == null)
             {

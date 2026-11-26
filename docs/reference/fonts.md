@@ -56,6 +56,12 @@ Medium 和 Bold 两份 SDF_Dynamic 随包提供曲库常用字形，包括省略
 3. 若行高不对，用 SerializedObject 把 `m_FaceInfo` 的 `m_LineHeight` / `m_AscentLine` / `m_DescentLine` 设成目标值。
 4. 材质子集：以新字体资产的主材质为模板 `new Material(target.material)`，`CopyPropertiesFromMaterial(old)` 后把 `_MainTex` 指到 `target.atlasTextures[0]`，覆盖原 `.mat`。
 
+### 运行时 UI 的字距
+
+`OpenSekai/App/UI` 的窄体英文标签用 `LibraryUi.UseSpacedCondensedFont(label, spacing)`。沿用当前字体或在动画中改变字距时，用 `LibraryUi.SetLetterSpacing(label, spacing)`。创建品牌字标用 `HomeView.CreateWordmark`。
+
+TMP 的字偶距记录可以让某些字母对忽略显式字距。公共入口会在当前标签上关闭该特性，并在排版后均分单行大写字母间的空隙。新增页面直接给 `characterSpacing` 赋值会触发 C# 检查。`BrandArtTests` 另外测量实际字形间隙，覆盖字体新增字形和开场动画反复设置字距的情况。
+
 ## 示例
 
 `FontAssetManager.SetupBuiltinFontAsset()` 在启动时把 Base 资产与 Dynamic 资产串成 fallback 链：
@@ -73,6 +79,8 @@ AddFallbackFontAsset(_baseFontDB, _dynamicFontDB);
 TMP 会在运行时把 kerning、连字和字形按需烘进资产文件本身。这四份资产被 prefab 和材质按 GUID 引用，所以必须留在仓库里，但内容一般只应是最初的冷状态（1×1 占位图集、空的特性表）。
 
 实测（2026-11-12）：`SourceHanSansSC-Medium SDF_Dynamic.asset` 跑过一次后从 6,516 字节涨到约 967 KB——2,316 条 kerning 对、113 条连字替换，共 35,222 行 YAML，而字形表仍是空的；`SourceHanSansSC-Medium SDF_Base.asset` 同时丢掉一条连字记录。提交这种缓存会让仓库和安装包都变大，diff 无法审阅、无法合并，换台机器内容还不一样。
+
+TMP 自带的 `LiberationSans SDF - Fallback.asset` 也受同一清单保护。历史提交 `63ffa63e` 的字符表只增加了右箭头 `→`（U+2192），一张动态生成的图集就让文件从 9,748 字节涨到 534,540 字节。成就说明和结算分数都会显示这个字符。回归测试在真实后备字体上烘入右箭头并保存，检查磁盘哈希和丢弃缓存后的字符表。
 
 ### 省略号为什么要预烘
 

@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using OpenSekai.App.Library;
 using OpenSekai.Charts;
@@ -122,6 +123,32 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(File.Exists(Path.Combine(_library, SongLibraryCache.FILE_NAME)), Is.True);
             Assert.That(relaunched.LoadItems().Single().Entry.Manifest.title, Is.EqualTo(title));
             Assert.That(relaunched.RescanItems().Single().Entry.Manifest.title, Is.EqualTo("Edited Elsewhere"));
+        }
+
+        [Test]
+        public void VersionThreeBackfillsSourcesOnceAndKeepsScoreKeysAndLoudness()
+        {
+            SongPackage entry = EntryWithAudio();
+            var original = _manager.LoadItems().Single();
+            _manager.SetLoudness(original, -9f);
+            _manager.SaveLoudness();
+            string path = Path.Combine(_library, SongLibraryCache.FILE_NAME);
+            var legacy = JObject.Parse(File.ReadAllText(path));
+            legacy["version"] = 3;
+            File.WriteAllText(path, legacy.ToString());
+            SongPackageSource.FromWeb("https://opensekai.com/chart?id=751", "https://cdn.test/song.zip")
+                .WriteWeb(entry.RootDirectory);
+            File.WriteAllText(entry.ScorePath, "externally changed");
+
+            var migrated = new SongPackageManager(_library).LoadItems().Single();
+            Assert.That(migrated.RankKey, Is.EqualTo("os-751"));
+            Assert.That(migrated.LoudnessLufs, Is.EqualTo(-9f));
+            Assert.That(migrated.ScoreKey, Is.EqualTo(original.ScoreKey));
+            File.Delete(Path.Combine(entry.RootDirectory, SongPackageSource.WEB_FILE_NAME));
+
+            var relaunched = new SongPackageManager(_library);
+            Assert.That(relaunched.LoadItems().Single().RankKey, Is.EqualTo("os-751"));
+            Assert.That(relaunched.RescanItems().Single().RankKey, Is.Null);
         }
 
         [Test]

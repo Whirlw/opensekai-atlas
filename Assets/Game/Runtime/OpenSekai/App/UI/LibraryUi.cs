@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using Sekai;
 using TMPro;
 using UnityEngine;
+using UnityEngine.TextCore;
 using UnityEngine.UI;
 
 namespace OpenSekai.App.UI
 {
     internal static class LibraryUi
     {
+        private static readonly Action<TMP_TextInfo> _evenLetterGaps = EvenLetterGaps;
         private static readonly Color32 _buttonColor = new Color32(54, 67, 80, 255);
         private static readonly Color32 _accentColor = new Color32(72, 148, 214, 255);
         private static readonly string[] _cjkFontCandidates =
@@ -43,6 +45,78 @@ namespace OpenSekai.App.UI
                 label.font = _condensedFontAsset;
                 label.fontStyle &= ~FontStyles.Bold;
             }
+        }
+
+        internal static void UseSpacedCondensedFont(TextMeshProUGUI label, float spacing)
+        {
+            UseCondensedFont(label);
+            SetLetterSpacing(label, spacing);
+        }
+
+        internal static void SetLetterSpacing(TextMeshProUGUI label, float spacing)
+        {
+            // TMP can suppress characterSpacing on a kern pair. Keep explicit tracking independent
+            // of which pair records the shared dynamic font has loaded when this label rebuilds.
+            label.fontFeatures.Remove(OTL_FeatureTag.kern);
+            // Animation and recycled rows may reapply the style to the same label.
+            label.OnPreRenderText -= _evenLetterGaps;
+            label.OnPreRenderText += _evenLetterGaps;
+            label.characterSpacing = spacing;
+            label.havePropertiesChanged = true;
+        }
+
+        private static void EvenLetterGaps(TMP_TextInfo textInfo)
+        {
+            if (textInfo.lineCount != 1)
+            {
+                return;
+            }
+
+            TMP_CharacterInfo[] characters = textInfo.characterInfo;
+            float totalGap = 0f;
+            int gapCount = 0;
+            for (int i = 1; i < textInfo.characterCount; i++)
+            {
+                if (IsUppercaseLetterPair(characters[i - 1], characters[i]))
+                {
+                    totalGap += characters[i].bottomLeft.x - characters[i - 1].topRight.x;
+                    gapCount++;
+                }
+            }
+
+            if (gapCount == 0)
+            {
+                return;
+            }
+
+            // Redistribute the space between uppercase letters, keeping other gaps and the total width.
+            float gap = totalGap / gapCount;
+            float offset = 0f;
+            for (int i = 1; i < textInfo.characterCount; i++)
+            {
+                TMP_CharacterInfo character = characters[i];
+                if (!character.isVisible)
+                {
+                    continue;
+                }
+
+                TMP_CharacterInfo previous = characters[i - 1];
+                if (IsUppercaseLetterPair(previous, character))
+                {
+                    offset += gap - (character.bottomLeft.x - previous.topRight.x);
+                }
+
+                Vector3[] vertices = textInfo.meshInfo[character.materialReferenceIndex].vertices;
+                for (int corner = 0; corner < 4; corner++)
+                {
+                    vertices[character.vertexIndex + corner].x += offset;
+                }
+            }
+        }
+
+        private static bool IsUppercaseLetterPair(TMP_CharacterInfo left, TMP_CharacterInfo right)
+        {
+            return left.isVisible && right.isVisible && left.character is >= 'A' and <= 'Z' && right.character is >= 'A' and <= 'Z';
         }
 
         internal static RectTransform CreateRect(string name, Transform parent)

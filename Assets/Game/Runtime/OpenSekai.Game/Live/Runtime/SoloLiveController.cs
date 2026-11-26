@@ -1,4 +1,5 @@
 using System.Collections;
+using OpenSekai.Shared.Live.Simulation;
 using Sekai.Live;
 using UnityEngine;
 using OpenSekai.Shared.Playback;
@@ -13,8 +14,11 @@ namespace Sekai.Core.Live
 	{
 		private Coroutine _finishCoroutine;
 		private Coroutine _resumeCoroutine;
-		private bool _playHistoryRecorded;
+		private string _playId;
+		private RankingSettlement _settlement;
 		private bool _retiredByPlayer;
+		private bool _restartDan;
+		private DanLiveSong DanSong => (BootData as FreeLiveBootData)?.DanSong;
 		private ILivePauseMenu _pauseOverlay;
 		private MusicInfoView _musicInfoView;
 		private LiveViewBase[] _liveViews;
@@ -49,6 +53,7 @@ namespace Sekai.Core.Live
 			}
 
 			_context = context;
+			_playId = string.IsNullOrEmpty(context.SessionId) ? System.Guid.NewGuid().ToString("N") : context.SessionId;
 			BootData = context.BootData;
 			if (BootData != null)
 			{
@@ -72,6 +77,8 @@ namespace Sekai.Core.Live
 			liveOutUIController?.Initialize(BootData.LivePlayMode, BaseCamera);
 			LiveViewExt.OnLoad(_liveViews);
 			StartCoroutine(LiveStart(6f));
+			DanSong?.BindRetire(OnRetireByMySelf);
+			RecordRetryStart();
 		}
 
 		protected override void OnMusicStart()
@@ -103,9 +110,9 @@ namespace Sekai.Core.Live
 			_liveLogic?.RefreshInput();
 			BeginLatencyCapture();
 			_forcedFinish = false;
-			if (timelineSpan.HasIntroSkip && currentMusicTimeMs < IntroSkipTargetMs)
+			if (timelineSpan.HasIntroSkip)
 			{
-				ShowSkip(SkipIntro);
+				ShowSkip(SkipIntro, IntroSkipTargetMs);
 			}
 		}
 
@@ -125,8 +132,12 @@ namespace Sekai.Core.Live
 		private float _pendingFinishWait;
 
 		/// <summary>The skip button takes the pause button's place until it is pressed or hidden.</summary>
-		private void ShowSkip(System.Action onPress)
+		private void ShowSkip(System.Action onPress, long untilMs)
 		{
+			if (untilMs - currentMusicTimeMs < LiveTimelineSpan.MIN_SKIP_VISIBLE_SECONDS * 1000L)
+			{
+				return;
+			}
 			_skipShown = true;
 			LiveViewExt.ShowSkip(_liveViews, onPress);
 		}
@@ -160,7 +171,7 @@ namespace Sekai.Core.Live
 			LiveViewExt.MusicSeek(_liveViews, CurrentViewTimeSeconds);
 		}
 
-		/// <summary>Cuts the rest of the music and plays the result effect now, then the usual fade to the result.</summary>
+		/// <summary>Cuts the rest of the music and starts the song's ending immediately.</summary>
 		internal void SkipOutro()
 		{
 			HideSkip();
@@ -184,16 +195,16 @@ namespace Sekai.Core.Live
 		protected override void OnUpdate()
 		{
 			base.OnUpdate();
-			if (state == LiveControllerState.Finish && _resultEffectAtMs.HasValue)
+			if (state == LiveControllerState.Finish && _resultEffectAtMs is long dueMs)
 			{
 				// The result effect and outro skip both use the same clock as the music and chart.
 				UpdateMusicTime();
 				if (_outroSkipAtMs is long skipAtMs && currentMusicTimeMs >= skipAtMs)
 				{
 					_outroSkipAtMs = null;
-					if (_resultEffectPending && currentMusicTimeMs < ResultEffectMs)
+					if (_resultEffectPending)
 					{
-						ShowSkip(SkipOutro);
+						ShowSkip(SkipOutro, dueMs);
 					}
 				}
 			}
@@ -398,6 +409,12 @@ namespace Sekai.Core.Live
 
 		protected override void OnRetry()
 		{
+			if (DanSong != null)
+			{
+				_restartDan = true;
+				OnRetireByMySelf();
+				return;
+			}
 			(BootData as FreeLiveBootData)?.MaterialAudio?.Stop();
 			LatencyCapture.End("retry");
 			_pauseOverlay?.Hide();
@@ -407,13 +424,29 @@ namespace Sekai.Core.Live
 			_resultEffectAtMs = null;
 			liveOutUIController?.Destroy();
 			SoundManager.Instance.StopIngame();
-			_playHistoryRecorded = false;
+			FinishAttempt(PlayResultKind.Retired);
+			if (BootData is FreeLiveBootData boot)
+			{
+				boot.RetrySourceId = _playId;
+				boot.RetrySource = "pause";
+			}
+			_playId = System.Guid.NewGuid().ToString("N");
+			_settlement = null;
+			_retiredByPlayer = false;
 			result = 0;
 			state = LiveControllerState.None;
 			currentMusicTimeMs = System.Math.Max(0L, BootData?.MusicData?.StartMusicTimeMs ?? 0L);
 			LiveViewExt.Retry(_liveViews);
 			RetryProcess();
 			StartCoroutine(LiveStart(6f));
+			RecordRetryStart();
+		}
+
+		private void RecordRetryStart()
+		{
+			if (BootData is FreeLiveBootData boot && !boot.IsAuto && boot.DanSong == null &&
+				boot.IsCustomMusicScore && boot.MusicData?.IsTestPlay != true && !string.IsNullOrEmpty(boot.RetrySourceId))
+				boot.RecordRetryStart?.Invoke(_playId, boot.CustomMusicScoreKey, boot.RetrySourceId, boot.RetrySource);
 		}
 
 		private void RetryProcess()
@@ -496,6 +529,13 @@ namespace Sekai.Core.Live
 
 		private void OnFailed()
 		{
+			if (DanSong != null)
+			{
+				result = 2;
+				SoundManager.Instance.StopIngame();
+				PreExit(0f, 0f);
+				return;
+			}
 			// Only while the audio drives the clock: before and after it the timer reads 0, which used
 			// to throw the clock back to the start of the song.
 			long audioTime = musicPhase == MusicPhase.Playing ? SoundManager.Instance.GetAudioSyncedUnityTimer() : -1L;
@@ -524,62 +564,51 @@ namespace Sekai.Core.Live
 			}
 
 			double historyStart = LatencyCapture.Active ? Time.realtimeSinceStartupAsDouble : 0d;
-			TryAppendPlayHistory();
-			if (LatencyCapture.Active)
-				LatencyCapture.Record("finish_history", value: (Time.realtimeSinceStartupAsDouble - historyStart) * 1000d);
-			PublishPlayResultForLibrary();
+			LiveScore score = _liveLogic?.Score ?? default;
+			var kind = _retiredByPlayer || DanSong != null && _forcedFinish ? PlayResultKind.Retired
+				: result == 3 && score.life > 0 ? PlayResultKind.Completed : PlayResultKind.Failed;
 			state = LiveControllerState.Finish;
-			SetFinish(delay, waitTime, 2f, resultEffectAtMs);
+			HideSkip();
+			if (DanSong != null)
+			{
+				DanSong.BindRetire(null);
+				DanSong.Finish(kind, score, currentMusicTimeMs);
+				if (_retiredByPlayer)
+				{
+					StartCoroutine(ExitDanSong());
+					return;
+				}
+			}
+			else
+			{
+				FinishAttempt(kind);
+				if (LatencyCapture.Active)
+					LatencyCapture.Record("finish_history", value: (Time.realtimeSinceStartupAsDouble - historyStart) * 1000d);
+				if (BootData is FreeLiveBootData free && free.ReturnScene == SceneManager.Scene.Library)
+					PlayResultHandoff.Publish(PlayResult.FromBootData(free, kind, score, _settlement));
+			}
 
 			// The chart is done but the music runs on: the result effect waits for it unless the player
 			// skips. The button only comes up the margin after the last note, so the end of the chart is
 			// seen, and not at all when the effect is due within that margin.
-			HideSkip();
 			_outroSkipAtMs = result == 3 && resultEffectAtMs.HasValue && timelineSpan.HasOutroSkip
 				? (long)System.Math.Ceiling(timelineSpan.OutroSkipAvailableSeconds * 1000d)
 				: null;
+			SetFinish(delay, waitTime, 2f, resultEffectAtMs);
 		}
 
-		private void TryAppendPlayHistory()
+		private IEnumerator ExitDanSong()
 		{
-			// The recorder is the App layer's; without one the run simply is not written down. Both
-			// halves of the guard are checked before _playHistoryRecorded is set, so a recorder that
-			// arrives later still gets the run.
-			if (_playHistoryRecorded || result != 3 || BootData?.IsAuto == true || _context?.PlayHistory == null)
-			{
-				return;
-			}
-
-			_playHistoryRecorded = true;
-			if (BootData is FreeLiveBootData freeLiveBootData)
-			{
-				_context.PlayHistory.AppendLiveResult(
-					freeLiveBootData,
-					_liveLogic?.Score ?? default,
-					currentMusicTimeMs,
-					musicLength,
-					_context.SessionId,
-					_context.ChartHash,
-					_context.RulesVersion);
-			}
+			// Let the judgement frame finish before unloading the current chart.
+			yield return null;
+			Exit();
 		}
 
-		/// <summary>
-		/// Hand the finished session to the lightweight library scene. Only the Library return
-		/// path is covered: the editor's test-play flow keeps its own dialogs.
-		/// result: 1 = retired by the player, 2 = failed (life zero / forced retire), 3 = completed.
-		/// </summary>
-		private void PublishPlayResultForLibrary()
+		private void FinishAttempt(PlayResultKind kind)
 		{
-			if (!(BootData is FreeLiveBootData free) || free.ReturnScene != SceneManager.Scene.Library)
-			{
-				return;
-			}
-
-			LiveScore score = _liveLogic != null ? _liveLogic.Score : default;
-			PlayResultKind kind = _retiredByPlayer ? PlayResultKind.Retired
-				: result == 3 && score.life > 0 ? PlayResultKind.Completed : PlayResultKind.Failed;
-			PlayResultHandoff.Publish(PlayResult.FromBootData(free, kind, score));
+			if (_settlement == null && BootData is FreeLiveBootData free && _context?.PlayHistory != null)
+				_settlement = _context.PlayHistory.Finish(free, _liveLogic?.Score ?? default, kind,
+					currentMusicTimeMs, musicLength, _playId, _context.ChartHash, _context.RulesVersion);
 		}
 
 		protected override void OnExit()
@@ -588,7 +617,12 @@ namespace Sekai.Core.Live
 			LiveViewExt.OnUnload(_liveViews);
 			SceneManager.Scene returnScene = (BootData as FreeLiveBootData)?.ReturnScene ?? SceneManager.Scene.Library;
 			base.OnExit();
-			SceneManager.Instance.RequestScene(returnScene);
+			if (DanSong != null)
+			{
+				DanSong.BindRetire(null);
+				DanSong.Exit(_restartDan);
+			}
+			else SceneManager.Instance.RequestScene(returnScene);
 		}
 
 		private void SetFinish(float delay, float waitTime, float finishWaitSeconds, long? resultEffectAtMs)
@@ -646,7 +680,7 @@ namespace Sekai.Core.Live
 
 		private LiveResultAnimationType GetLiveResultAnimationType()
 		{
-			if (result < 2)
+			if (DanSong != null || result < 2)
 			{
 				return LiveResultAnimationType.None;
 			}

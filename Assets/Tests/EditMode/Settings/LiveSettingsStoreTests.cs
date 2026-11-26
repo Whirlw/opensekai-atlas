@@ -48,6 +48,9 @@ namespace OpenSekai.Tests.EditMode.Settings
             var store = new LiveSettingsStore(_path);
             var settings = store.Load();
             Assert.That(settings.NoteShowRate, Is.EqualTo(0.75f));
+            Assert.That(settings.UseSubtractiveScore, Is.False);
+            Assert.That(settings.ShowFastLate, Is.False);
+            Assert.That(settings.ShowFlickMiss, Is.False);
             settings.NoteShowRate = 0.5f;
             Assert.That(store.Save(settings), Is.True);
             var saved = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(_path));
@@ -64,6 +67,8 @@ namespace OpenSekai.Tests.EditMode.Settings
             data.NoteSeIndex = 1;
             data.NoteEffect = 1;
             data.FrameRateLimit = 120;
+            data.UseSubtractiveScore = true;
+            data.ShowFastLate = true;
             data.NoteEffect = 2;
             Assert.That(store.Save(data), Is.True);
 
@@ -73,6 +78,27 @@ namespace OpenSekai.Tests.EditMode.Settings
             Assert.That(reloaded.NoteSeIndex, Is.EqualTo(1));
             Assert.That(reloaded.NoteEffect, Is.EqualTo(2));
             Assert.That(reloaded.FrameRateLimit, Is.EqualTo(120));
+            Assert.That(reloaded.UseSubtractiveScore, Is.True);
+            Assert.That(reloaded.ShowFastLate, Is.True);
+            Assert.That(reloaded.ShowFlickMiss, Is.False);
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void LegacyCaptionPreferenceSplitsIntoIndependentSwitches(bool enabled)
+        {
+            File.WriteAllText(_path, enabled ? "{\"IsFastLateFlick\":true}" : "{\"IsFastLateFlick\":false}");
+            var store = new LiveSettingsStore(_path);
+            var settings = store.Load();
+            Assert.That(settings.ShowFastLate, Is.EqualTo(enabled));
+            Assert.That(settings.ShowFlickMiss, Is.EqualTo(enabled));
+
+            settings.ShowFlickMiss = !enabled;
+            Assert.That(store.Save(settings), Is.True);
+            Assert.That(File.ReadAllText(_path), Does.Not.Contain("IsFastLateFlick"));
+            var nextPlay = new LiveSettingsStore(_path).CaptureSnapshot().ToLegacyData();
+            Assert.That(nextPlay.ShowFastLate, Is.EqualTo(enabled));
+            Assert.That(nextPlay.ShowFlickMiss, Is.EqualTo(!enabled));
         }
 
         [Test]

@@ -25,19 +25,21 @@ namespace OpenSekai.Shared.Playback
         public string PackageDirectory { get; }
         public string Title { get; }
         public int PlayLevel { get; }
+        public string Difficulty { get; }
         public int Score { get; }
         public int MaxCombo { get; }
         public int TotalCombo { get; }
         public ScoreRank Rank { get; }
         public int Life { get; }
-        public int JustPerfect { get; }
+        public ClearAward Award { get; }
+        public RankingSettlement Settlement { get; }
         public int Perfect { get; }
         public int Great { get; }
         public int Good { get; }
         public int Bad { get; }
         public int Miss { get; }
         public int AutoCount { get; }
-        public bool IsAllPerfect { get; }
+        public bool IsAllPerfect => Award == ClearAward.AllPerfect;
 
         /// <summary>User-facing failure text; only set for <see cref="PlayResultKind.LoadError"/>.</summary>
         public string Message { get; }
@@ -46,11 +48,7 @@ namespace OpenSekai.Shared.Playback
         public bool HasScore => Kind != PlayResultKind.LoadError;
 
         /// <summary>True only for a finished manual run with every note in the Perfect window.</summary>
-        public bool IsAllPerfectClear =>
-            Kind == PlayResultKind.Completed
-            && TotalCombo > 0
-            && Miss == 0 && Bad == 0 && Good == 0 && Great == 0
-            && JustPerfect + Perfect >= TotalCombo;
+        public bool IsAllPerfectClear => Award == ClearAward.AllPerfect;
 
         public string KindText
         {
@@ -73,27 +71,28 @@ namespace OpenSekai.Shared.Playback
             string title,
             int playLevel,
             LiveScore score,
-            string message = null)
+            string message = null, RankingSettlement settlement = null, string difficulty = null)
         {
             Kind = kind;
             IsAuto = isAuto;
             PackageDirectory = packageDirectory ?? string.Empty;
             Title = string.IsNullOrWhiteSpace(title) ? "未命名曲目" : title;
             PlayLevel = playLevel;
+            Difficulty = difficulty ?? string.Empty;
             Message = message ?? string.Empty;
             Score = score.totalScore;
             MaxCombo = score.maxCombo;
             TotalCombo = score.totalComboCount;
             Rank = score.rank;
             Life = score.life;
-            JustPerfect = score.justPerfectCount;
+            Award = RankingRules.Award(kind, isAuto, score);
+            Settlement = settlement;
             Perfect = score.perfectCount;
             Great = score.greatCount;
             Good = score.goodCount;
             Bad = score.badCount;
             Miss = score.missCount;
             AutoCount = score.autoCount;
-            IsAllPerfect = score.IsAllPerfect;
         }
 
         public static PlayResult FromLoadError(string title, bool isAuto, string packageDirectory, string message)
@@ -101,7 +100,8 @@ namespace OpenSekai.Shared.Playback
             return new PlayResult(PlayResultKind.LoadError, isAuto, packageDirectory, title, 0, default, message);
         }
 
-        public static PlayResult FromBootData(Sekai.FreeLiveBootData boot, PlayResultKind kind, LiveScore score)
+        public static PlayResult FromBootData(Sekai.FreeLiveBootData boot, PlayResultKind kind, LiveScore score,
+            RankingSettlement settlement = null)
         {
             if (boot == null)
             {
@@ -120,7 +120,7 @@ namespace OpenSekai.Shared.Playback
                 boot.CustomMusicScorePath,
                 title,
                 boot.MusicData != null ? boot.MusicData.PlayLevel : 0,
-                score);
+                score, settlement: settlement, difficulty: boot.MusicData?.DifficultyString);
         }
     }
 

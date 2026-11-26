@@ -1,5 +1,4 @@
 using System;
-using LitMotion;
 using OpenSekai.Shared.UI;
 using TMPro;
 using UnityEngine;
@@ -19,9 +18,6 @@ namespace OpenSekai.App.UI
         private const float CARD_WIDTH = 780f;
         private const float CARD_HEIGHT = 492f;
         private const float COVER_SIZE = 64f;
-        private const float ACTION_HEIGHT = 104f;
-        private const float ACTION_GAP = 12f;
-        private const float ICON_SIZE = 60f;
         private const float RESUME_HEIGHT = LibraryTheme.Layout.PRIMARY_BUTTON_HEIGHT;
         private const float STATUS_WIDTH = 140f;
 
@@ -29,8 +25,8 @@ namespace OpenSekai.App.UI
         private RawImage _cover;
         private Image _coverPlaceholder;
         private Image _resumeBackground;
-        private ArmableRow _retry;
-        private ArmableRow _quit;
+        private LibraryActionRow _retry;
+        private LibraryActionRow _quit;
 
         private Action _onResume;
         private Action _onRetry;
@@ -62,6 +58,7 @@ namespace OpenSekai.App.UI
 
             _modal.Title.text = string.IsNullOrWhiteSpace(info.Title) ? "未命名曲目" : info.Title;
             _modal.Subtitle.text = Subtitle(info);
+            ApplyCourse();
             _cover.texture = info.Jacket;
             _cover.enabled = info.Jacket != null;
             _coverPlaceholder.enabled = info.Jacket == null;
@@ -83,6 +80,24 @@ namespace OpenSekai.App.UI
             _retry?.SetArmed(false, false);
             _quit?.SetArmed(false, false);
             _modal?.Close();
+        }
+
+        /// <summary>In a 段位 course retry restarts the whole course and quitting gives it up; the rows say so.</summary>
+        private void ApplyCourse()
+        {
+            OpenSekai.App.Playback.DanChallengeService course = OpenSekai.App.Playback.DanChallengeService.Local;
+            bool inCourse = course.Phase == OpenSekai.App.Playback.DanPhase.Playing && course.Definition != null;
+            if (!inCourse)
+            {
+                _retry.SetText("重新开始", "从头再打一次", "再点一次重新开始", "这一局的进度会清空");
+                _quit.SetText("返回曲库", "结束这一局，回到曲库", "再点一次返回曲库", "这一局会按中途退出结算");
+                return;
+            }
+
+            _retry.SetText("从第一首重来", "整场段位重新开始，生命回满", "再点一次从第一首重来", "这一场会记为未完成");
+            _quit.SetText("放弃挑战", "结束这场段位，查看结算", "再点一次放弃挑战", "这一场会记为未完成，不授予段位牌");
+            string line = "段位「" + course.Definition.Label + "」第 " + course.SongNumber + " / " + course.Definition.Songs.Count + " 首";
+            _modal.Subtitle.text = string.IsNullOrEmpty(_modal.Subtitle.text) ? line : line + "  ·  " + _modal.Subtitle.text;
         }
 
         private void OnDestroy()
@@ -134,19 +149,18 @@ namespace OpenSekai.App.UI
 
             TextMeshProUGUI status = LibraryWidgets.Label(
                 "Status", _modal.Card, "PAUSED", 22f, LibraryTheme.Colors.TextMuted, FontStyles.Bold, TextAlignmentOptions.Right);
-            LibraryUi.UseCondensedFont(status);
-            status.characterSpacing = 6f;
+            LibraryUi.UseSpacedCondensedFont(status, 6f);
             LibraryWidgets.Place(status.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 0.5f),
                 new Vector2(-padding, -header * 0.5f), new Vector2(STATUS_WIDTH, 32f));
 
             RectTransform body = _modal.Body;
             body.offsetMax = new Vector2(body.offsetMax.x, -header - 8f);
 
-            _retry = new ArmableRow(body, 0, "Retry", LibraryIcon.Refresh,
+            _retry = new LibraryActionRow(body, 0, "Retry", LibraryIcon.Refresh,
                 "重新开始", "从头再打一次",
                 "再点一次重新开始", "这一局的进度会清空",
                 LibraryTheme.Colors.Warning, LibraryTheme.Colors.TextPrimary, OnRetryClicked);
-            _quit = new ArmableRow(body, 1, "Quit", LibraryIcon.Back,
+            _quit = new LibraryActionRow(body, 1, "Quit", LibraryIcon.Back,
                 "返回曲库", "结束这一局，回到曲库",
                 "再点一次返回曲库", "这一局会按中途退出结算",
                 LibraryTheme.Colors.Danger, LibraryTheme.Colors.TextPrimary, OnQuitClicked);
@@ -231,108 +245,6 @@ namespace OpenSekai.App.UI
         {
             rect.offsetMin = new Vector2(left, rect.offsetMin.y);
             rect.offsetMax = new Vector2(-right, rect.offsetMax.y);
-        }
-
-        private static Color32 WithAlpha(Color32 color, byte alpha)
-        {
-            color.a = alpha;
-            return color;
-        }
-
-        /// <summary>
-        /// An action row in the package action card's shape (icon disc, title, one line of detail,
-        /// chevron) that needs a second tap: the first one turns it to <c>armedColor</c> and shakes it.
-        /// </summary>
-        private sealed class ArmableRow : IDisposable
-        {
-            private readonly RectTransform _row;
-            private readonly Image _background;
-            private readonly Image _outline;
-            private readonly Image _iconBackground;
-            private readonly Image _icon;
-            private readonly TextMeshProUGUI _title;
-            private readonly TextMeshProUGUI _body;
-            private readonly string _idleTitle;
-            private readonly string _idleBody;
-            private readonly string _armedTitle;
-            private readonly string _armedBody;
-            private readonly Color32 _armedColor;
-            private readonly Color32 _idleColor;
-            private MotionHandle _armMotion;
-
-            internal bool Armed { get; private set; }
-
-            internal ArmableRow(
-                RectTransform parent, int index, string name, LibraryIcon icon,
-                string idleTitle, string idleBody, string armedTitle, string armedBody,
-                Color32 armedColor, Color32 idleColor, UnityEngine.Events.UnityAction onClick)
-            {
-                _idleTitle = idleTitle;
-                _idleBody = idleBody;
-                _armedTitle = armedTitle;
-                _armedBody = armedBody;
-                _armedColor = armedColor;
-                _idleColor = idleColor;
-
-                // Each click picks its own sound: the first arms with a warning, the second confirms.
-                Button button = LibraryWidgets.PillButton(
-                    name, parent, string.Empty, onClick, 0f, ACTION_HEIGHT,
-                    LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, sound: UiCue.None);
-                _background = (Image)button.targetGraphic;
-                _background.sprite = LibraryShapes.RoundedRect(LibraryTheme.Radius.ROW);
-                _row = _background.rectTransform;
-                LibraryWidgets.TopStrip(_row, 0f, 0f, index * (ACTION_HEIGHT + ACTION_GAP), ACTION_HEIGHT);
-
-                _outline = LibraryWidgets.Shape("Outline", _background.transform,
-                    LibraryShapes.Ring(LibraryTheme.Radius.ROW, 1f), LibraryTheme.Colors.Hairline);
-                LibraryUi.Stretch(_outline.rectTransform);
-
-                _iconBackground = LibraryWidgets.Panel("IconBackground", _background.transform, ICON_SIZE * 0.5f, LibraryTheme.Colors.Control);
-                LibraryWidgets.Place(_iconBackground.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-                    new Vector2(24f, 0f), new Vector2(ICON_SIZE, ICON_SIZE));
-                _icon = LibraryWidgets.Icon(_iconBackground.transform, icon, LibraryTheme.Colors.TextPrimary, 28f);
-
-                float textLeft = 24f + ICON_SIZE + 22f;
-                _title = LibraryWidgets.Label("Title", _background.transform, idleTitle, 24f, LibraryTheme.Colors.TextPrimary, FontStyles.Bold);
-                LibraryWidgets.Place(_title.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0f),
-                    new Vector2(textLeft, 2f), new Vector2(520f, 34f));
-                _body = LibraryWidgets.Label("Body", _background.transform, idleBody, LibraryTheme.FontSize.CAPTION, LibraryTheme.Colors.TextMuted);
-                LibraryWidgets.Place(_body.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 1f),
-                    new Vector2(textLeft, -4f), new Vector2(520f, 28f));
-
-                Image chevron = LibraryWidgets.Icon(_background.transform, LibraryIcon.ChevronRight, LibraryTheme.Colors.TextMuted, 26f);
-                LibraryWidgets.Place(chevron.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
-                    new Vector2(-26f, 0f), new Vector2(26f, 26f));
-            }
-
-            internal void SetArmed(bool armed, bool animate)
-            {
-                Armed = armed;
-                _title.text = armed ? _armedTitle : _idleTitle;
-                _body.text = armed ? _armedBody : _idleBody;
-                _title.color = armed ? _armedColor : _idleColor;
-                _icon.color = armed ? _armedColor : _idleColor;
-                _body.color = armed ? _armedColor : LibraryTheme.Colors.TextMuted;
-                _background.color = armed ? WithAlpha(_armedColor, 36) : LibraryTheme.Colors.Control;
-                _outline.color = armed ? WithAlpha(_armedColor, 110) : LibraryTheme.Colors.Hairline;
-                _iconBackground.color = armed ? WithAlpha(_armedColor, 60) : LibraryTheme.Colors.Control;
-
-                _armMotion.TryCancel();
-                _armMotion = default;
-                _row.localRotation = Quaternion.identity;
-                if (animate)
-                {
-                    _armMotion = LMotion.Punch.Create(0f, 1.6f, 0.36f)
-                        .WithFrequency(8)
-                        .WithDampingRatio(1f)
-                        .Bind(_row, static (z, row) => row.localRotation = Quaternion.Euler(0f, 0f, z));
-                }
-            }
-
-            public void Dispose()
-            {
-                _armMotion.TryCancel();
-            }
         }
     }
 }

@@ -416,7 +416,11 @@ namespace OpenSekai.Tests.EditMode.Charts
 
             using var harness = new LiveHarness();
             harness.Arrange(score);
+            harness.BindViews();
             var lane = LiveConfig.JudgmentPositions[mirror ? 7 : 4];
+            var board = new ScoreLogic(_config);
+            board.Setup(null, score);
+            harness.Logic.Session.ScoreLogic = board;
             float originalFrameDelta = LiveUtility.FrameDeltaTimeOverride;
             try
             {
@@ -438,6 +442,8 @@ namespace OpenSekai.Tests.EditMode.Charts
                     harness.Step(2.04f, 12.04);
                 }
                 Assert.That(key.Result, Is.EqualTo(expected));
+                Assert.That(board.Score.flickJudgments, Is.EqualTo(1));
+                Assert.That(board.Score.perfectFlicks, Is.EqualTo(expected == NoteResult.Perfect ? 1 : 0));
             }
             finally { LiveUtility.FrameDeltaTimeOverride = originalFrameDelta; }
         }
@@ -540,6 +546,9 @@ namespace OpenSekai.Tests.EditMode.Charts
             var result = Load(Hold());
             var head = (LongNote)result.Score.NoteArray.Single();
             Assert.That(head.ChildNote, Is.TypeOf<NormalNote>());
+            var board = new ScoreLogic(_config);
+            board.Setup(null, result.Score);
+            Assert.That((board.Score.holdChains, board.Score.holdPoints), Is.EqualTo((1, 2)));
             Assert.That(head.NoteList.Count, Is.EqualTo(4));
             Assert.That(result.TotalNoteCount, Is.EqualTo(4));
             var hidden = head.NoteList.OfType<LongHoldCombo>().Single();
@@ -1391,8 +1400,20 @@ namespace OpenSekai.Tests.EditMode.Charts
             var right = LiveConfig.JudgmentPositions[8];
             harness.Step(.8f, 10.8, LiveHarness.Touch(1, right, 10.8));
             if (touchOwner) harness.Step(1f, 11, LiveHarness.Touch(2, LiveConfig.JudgmentPositions[2], 11));
-            if (swipe) harness.Step(1.02f, 11.02, new LiveTouchSample(2, new Vector2(800, 660),
-                LiveConfig.JudgmentPositions[2], 11.02, InputTouchPhase.Moved, new Vector2(0, 60)));
+            if (swipe)
+            {
+                var owner = chart.Score.NoteArray.OfType<FrictionFlickNote>().Single();
+                var delta = Vector2.up * (2f * owner.FlickDistance + 1f);
+                float previous = LiveUtility.FrameDeltaTimeOverride;
+                try
+                {
+                    LiveUtility.FrameDeltaTimeOverride = 0.02f; // The replay advances from 1.00s to 1.02s.
+                    harness.Step(1.02f, 11.02, new LiveTouchSample(2, new Vector2(800, 600) + delta,
+                        LiveConfig.JudgmentPositions[2], 11.02, InputTouchPhase.Moved, delta));
+                }
+                finally { LiveUtility.FrameDeltaTimeOverride = previous; }
+                Assert.That(owner.Result, Is.EqualTo(NoteResult.Perfect), "swipe before the other finger lifts");
+            }
             harness.Step(1.06f, 11.06, LiveHarness.Touch(1, right, 11.06, InputTouchPhase.Ended));
             Assert.That(chart.Score.NoteArray.OfType<NormalNote>().Single().Result,
                 Is.EqualTo((archetype == "CriticalTailTraceFlickNote" ? swipe : touchOwner) ? NoteResult.Perfect : NoteResult.None));
@@ -1888,6 +1909,7 @@ namespace OpenSekai.Tests.EditMode.Charts
                 var frictionSprites = renderers.Select(r => r.sprite).ToArray();
                 view.Spawn(score.NoteArray[0], 0);
                 var body = renderers.Single(r => r.enabled);
+                Assert.That(body.sprite.texture, Is.SameAs(Resources.Load<Texture2D>("live/note/" + skin + "/textures/notes_damage")));
                 Assert.That(body.sprite.texture.name, Is.EqualTo("notes_damage"));
                 Assert.That(body.sprite.border, Is.EqualTo(frictionSprites[Array.IndexOf(renderers, body)].border));
                 view.Unspawn();
@@ -2687,12 +2709,17 @@ namespace OpenSekai.Tests.EditMode.Charts
             using var harness = new LiveHarness();
             harness.Arrange(chart.Score);
             harness.BindViews();
+            var board = new ScoreLogic(_config);
+            board.Setup(null, chart.Score);
+            harness.Logic.Session.ScoreLogic = board;
             var ownerLane = LiveConfig.NativeLanePosition(1.5f);
             harness.Step(1, 11, LiveHarness.Touch(1, ownerLane, 11));
             harness.Step(2, 12, LiveHarness.Touch(1, ownerLane, 12, InputTouchPhase.Stationary),
                 LiveHarness.Touch(2, touchGuide ? LiveConfig.NativeLanePosition(8.5f) : ownerLane, 12));
             harness.Step(2.02f, 12.02);
             Assert.That(ticks.Select(t => t.Result), Is.All.EqualTo(touchGuide ? NoteResult.Perfect : NoteResult.Miss));
+            Assert.That((board.Score.holdChains, board.Score.holdPoints, board.Score.perfectHoldPoints),
+                Is.EqualTo((1, 2, touchGuide ? 2 : 0)));
             var replay = Load(json);
             AssertCompletesAutoplay(replay);
             Assert.That(replay.Score.NoteArray.OfType<NextRushConnectorTickNote>().Select(t => t.Result), Is.All.EqualTo(NoteResult.Auto));
@@ -3276,7 +3303,6 @@ namespace OpenSekai.Tests.EditMode.Charts
             harness.Step(1f, 11, LiveHarness.Touch(1, lane, 11));
             harness.Step(2.117f, 12.117, LiveHarness.Touch(2, lane, 12.117));
             Assert.That(score.NoteArray.Select(n => n.Result), Is.EqualTo(new[] { NoteResult.Perfect, NoteResult.Bad }));
-            Assert.That(board.Score.justPerfectCount, Is.Zero);
             Assert.That(board.Score.perfectCount, Is.EqualTo(1));
             Assert.That(board.Score.badCount, Is.EqualTo(1));
         }
@@ -4019,6 +4045,37 @@ namespace OpenSekai.Tests.EditMode.Charts
         }
 
         [Test]
+        public void GuideCanReferenceTheHoldStartingAtItsFarEnd()
+        {
+            var tap = N("CriticalTapNote", "tap", 1);
+            Add(tap, V("segmentKind", 105), R("next", "trace"));
+            var trace = N("CriticalTraceNote", "trace", 1.25);
+            Add(trace, R("next", "head"));
+            var head = N("CriticalHeadTraceNote", "head", 1.5);
+            Add(head, V("segmentAlpha", 0.2), V("isSeparator", 1), R("next", "tail"));
+            var tail = N("CriticalTailFlickNote", "tail", 2.5);
+            Add(tail, R("activeHead", "head"));
+            var tick = E("TransientHiddenTickNote", null, V("#BEAT", 2), V("isAttached", 1),
+                R("attachHead", "head"), R("attachTail", "tail"));
+            var chart = Load(Chart(tap, trace, head, tail, tick,
+                Segment("tap", "trace", "tap", "head"),
+                Segment("trace", "head", "tap", "head", "head", "tail"),
+                Segment("head", "tail", "head", "tail", "head", "tail")));
+
+            var guide = chart.Score.NoteArray.OfType<GuideNote>().Single();
+            var leadIn = ((NoteBase)guide.LineNoteList[1]).NativeConnector;
+            Assert.That(leadIn.Kind, Is.EqualTo(105));
+            Assert.That(leadIn.EndAlpha, Is.EqualTo(0.2f).Within(0.0001f));
+            Assert.That(guide.NoteList.All(n => !n.HasJudgment), Is.True);
+            var hold = chart.Score.NoteArray.OfType<FrictionHideLongNote>().Single();
+            Assert.That(hold.MusicScoreInfo.time, Is.EqualTo(0.75f));
+            Assert.That(hold.JudgedPoints.Single().MusicScoreInfo.time, Is.EqualTo(1f));
+            Assert.That(chart.Score.ConnectorSounds.Single().Start, Is.EqualTo(0.75f));
+            Assert.That(chart.TotalNoteCount, Is.EqualTo(5));
+            AssertCompletesAutoplay(chart);
+        }
+
+        [Test]
         public void ActiveEndpointsCanSitOutsideTheDrawnEdges()
         {
             var head = N("NormalHeadTapNote", "h", 1);
@@ -4245,6 +4302,27 @@ namespace OpenSekai.Tests.EditMode.Charts
                 Assert.That(hold.TailNote.Result, Is.EqualTo(NoteResult.Perfect));
             }
             AssertCompletesAutoplay(Load(json));
+        }
+
+        [Test]
+        public void GuideSpansMultipleAttachedTraceKeysInTheNoteChain()
+        {
+            var head = N("CriticalTapNote", "head", 1, -3);
+            Add(head, V("segmentKind", 105), R("next", "first"));
+            var first = E("CriticalTraceNote", "first", V("#BEAT", 2), V("isAttached", 1),
+                R("attachHead", "head"), R("attachTail", "tail"), R("next", "second"));
+            var second = E("CriticalTraceNote", "second", V("#BEAT", 3), V("isAttached", 1),
+                R("attachHead", "head"), R("attachTail", "tail"), R("next", "tail"));
+            var tail = N("CriticalTraceNote", "tail", 4, 3);
+            var chart = Load(Chart(tail, second, head, first, Segment("head", "tail", "head", "tail")));
+
+            var guide = chart.Score.NoteArray.OfType<GuideNote>().Single();
+            Assert.That(guide.LineNoteList, Has.Count.EqualTo(2));
+            Assert.That(guide.NativeConnector.Kind, Is.EqualTo(105));
+            Assert.That(chart.TotalNoteCount, Is.EqualTo(4));
+            AssertCompletesAutoplay(chart);
+            Assert.That(chart.Score.NoteArray.Where(n => n.HasJudgment).Select(n => n.Result),
+                Is.All.EqualTo(NoteResult.Auto));
         }
 
         [Test]

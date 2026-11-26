@@ -289,9 +289,51 @@ namespace OpenSekai.Infrastructure.Charts
                         note.UsesNextRushJudgment = true;
                 var score = new MusicScore(_timing.Points, Array.Empty<EventBase>(),
                     roots.OrderBy(n => n.MusicScoreInfo.time).ToArray(), compatibility.InitialLife, useExtendedLanes: true,
-                    connectorSounds: BuildConnectorSounds(), hiddenSimLines: hiddenLines.ToArray());
+                    connectorSounds: BuildConnectorSounds(), hiddenSimLines: hiddenLines.ToArray(), scoringHoldChains: ScoringHoldChains());
                 double lastBeat = _notes.Keys.Select(e => Beat(e)).DefaultIfEmpty(0).Max();
                 return RuntimeChartDefinition.CreateNative(_source, score, checked((long)Math.Round(lastBeat * ChartTimeline.TICKS_PER_BEAT)), compatibility);
+            }
+
+            // One authored interval can span several runtime bars. A tick may also judge on its own
+            // root while borrowing geometry from a different interval.
+            private NoteBase[][] ScoringHoldChains()
+            {
+                var sections = new Dictionary<LongNote, (NextRushEntity head, NextRushEntity tail)>();
+                void Register(LongNote bar, ConnectorEdge edge)
+                {
+                    if (edge.activeHead != null && edge.activeTail != null && bar is not GuideNote &&
+                        !edge.segment.IsFake && !edge.segment.IsDamage && edge.segment.Kind < 101)
+                        sections[bar] = (edge.activeHead, edge.activeTail);
+                }
+                foreach (var (entity, edge) in _edges) Register(_outgoingBars[entity], edge);
+                foreach (var (pair, edge) in _graphEdges) Register(_graphBars[pair], edge);
+                if (sections.Count == 0) return Array.Empty<NoteBase[]>();
+                var byHead = sections.Values.Distinct().ToLookup(section => section.head);
+                var chains = new Dictionary<(NextRushEntity head, NextRushEntity tail), HashSet<NoteBase>>();
+                foreach (var (entity, point) in _notes)
+                {
+                    if (point is not HoldPointNote || !point.HasJudgment ||
+                        Kind(entity) != "TickNote" && entity.Archetype != "TransientHiddenTickNote") continue;
+                    void Add((NextRushEntity head, NextRushEntity tail) section)
+                    {
+                        if (entity == section.head || entity == section.tail || Beat(entity) < Beat(section.head) ||
+                            Beat(entity) > Beat(section.tail)) return;
+                        if (!chains.TryGetValue(section, out var points)) chains.Add(section, points = new HashSet<NoteBase>());
+                        points.Add(point);
+                    }
+
+                    var owner = Resolve(entity, "activeHead", false);
+                    if (point.ParentNote is LongNote parent && sections.TryGetValue(parent, out var bound))
+                        Add(bound);
+                    else if (owner != null)
+                        foreach (var section in byHead[owner]) Add(section);
+                    else if (_incomingBars.TryGetValue(entity, out var incoming) && sections.TryGetValue(incoming, out var preceding))
+                        Add(preceding);
+                    else if (_graphNodes.Contains(entity))
+                        foreach (var edge in JunctionEdges[entity])
+                            if (sections.TryGetValue(_graphBars[edge], out var branch)) Add(branch);
+                }
+                return chains.Values.Select(points => points.ToArray()).ToArray();
             }
 
             private sealed class TimingMap
@@ -1409,15 +1451,22 @@ namespace OpenSekai.Infrastructure.Charts
                     if (!_notes.TryGetValue(a, out var styleHead) || !_notes.ContainsKey(b)
                         || Beat(a) > Beat(head) || Beat(b) < Beat(tail))
                         throw Invalid("Connector 的样式区间没有覆盖连接");
+                    double defaultKind = activeHead == null ? 101 : TypeOf(a) == NoteType.Critical ? 2 : 1;
+                    int kind = (int)a.Number("segmentKind", defaultKind);
+                    // A guide ending at the next hold head can already reference that hold.
+                    bool guideLeadIn = kind is >= 101 and <= 108 && tail == activeHead && Beat(head) < Beat(tail);
                     if ((activeHead == null) != (activeTail == null)
                         || activeHead != null && (!_notes.ContainsKey(activeHead) || !_notes.ContainsKey(activeTail)
-                            || Beat(activeHead) > Beat(head) || Beat(activeTail) < Beat(tail)))
+                            || Beat(activeHead) > Beat(head) && !guideLeadIn || Beat(activeTail) < Beat(tail)))
                         throw Invalid("Connector 的判定区间没有覆盖连接");
-                    double defaultKind = activeHead == null ? 101 : TypeOf(a) == NoteType.Critical ? 2 : 1;
+                    if (guideLeadIn)
+                    {
+                        activeHead = null;
+                        activeTail = null;
+                    }
                     bool headAttached = _attachments.TryGetValue(head, out var headAttachment);
                     bool tailAttached = _attachments.TryGetValue(tail, out var tailAttachment);
                     bool sameBeat = Beat(head) == Beat(tail);
-                    int kind = (int)a.Number("segmentKind", defaultKind);
                     if (activeHead != null && Beat(activeHead) < Beat(activeTail))
                     {
                         _soundEdges.Add((head, tail, activeHead, activeTail));
@@ -1431,7 +1480,7 @@ namespace OpenSekai.Infrastructure.Charts
                         (NextRushConnectorLayer)(int)a.Number("segmentLayer"), a.Number("segmentPresentation") == 1,
                         headAttached && !sameBeat ? headAttachment.fraction : 0f,
                         tailAttached && !sameBeat ? tailAttachment.fraction : 1f, activeHead != null, legacyPop == 1);
-                    if (activeHead == null && !headAttached && !tailAttached && Resolve(head, "next", false) != tail)
+                    if (activeHead == null && !headAttached && !tailAttached && !FollowsNoteChain(head, tail))
                     {
                         if (_graphEdges.ContainsKey((head, tail)) || !_crossChainGuides.TryAdd((head, tail), segment))
                             throw Invalid("重复的跨链 Connector");
@@ -1440,6 +1489,20 @@ namespace OpenSekai.Infrastructure.Charts
                         || !_graphEdges.TryAdd((head, tail), new ConnectorEdge(tail, activeHead, activeTail, segment)))
                         throw Invalid("重复的长条连接片段");
                 }
+            }
+
+            private bool FollowsNoteChain(NextRushEntity head, NextRushEntity tail)
+            {
+                // The note chain may visit keys attached to this edge without splitting its geometry.
+                var next = Resolve(head, "next", false);
+                int visited = 0;
+                while (next != null && _attachments.TryGetValue(next, out var attachment)
+                    && attachment.head == head && attachment.tail == tail)
+                {
+                    if (++visited > _attachments.Count) throw Invalid("附着节点的 next 引用存在循环");
+                    next = Resolve(next, "next", false);
+                }
+                return next == tail;
             }
 
             private NextRushConnectorSound[] BuildConnectorSounds()

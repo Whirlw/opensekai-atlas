@@ -6,7 +6,7 @@ Open Sekai Atlas 是一款以社区自制谱面为主的开源下落式音游。
 
 本项目基于上游 [cubeww/OpenSekai](https://github.com/cubeww/OpenSekai) 进行大规模重构与扩展。
 
-**当前项目版本 0.7.0** · [Android 下载](https://github.com/Whirlw/opensekai-atlas/releases) · [游玩指南](docs/guides/play-a-chart.md)
+**当前项目版本 0.8.0** · [Android 下载](https://github.com/Whirlw/opensekai-atlas/releases) · [游玩指南](docs/guides/play-a-chart.md)
 
 ## 游戏功能
 

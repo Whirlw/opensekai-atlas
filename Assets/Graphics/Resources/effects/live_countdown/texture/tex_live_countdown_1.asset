@@ -33,18 +33,18 @@ Sprite:
     m_SubMeshes:
     - serializedVersion: 2
       firstByte: 0
-      indexCount: 21
+      indexCount: 6
       topology: 0
       baseVertex: 0
       firstVertex: 0
-      vertexCount: 9
+      vertexCount: 4
       localAABB:
         m_Center: {x: 0, y: 0, z: 0}
         m_Extent: {x: 0, y: 0, z: 0}
-    m_IndexBuffer: 080004000300070006000500000005000600040005000000030004000000010003000000020001000000
+    m_IndexBuffer: 000001000200000002000300
     m_VertexData:
       serializedVersion: 3
-      m_VertexCount: 9
+      m_VertexCount: 4
       m_Channels:
       - stream: 0
         offset: 0
@@ -102,8 +102,8 @@ Sprite:
         offset: 0
         format: 0
         dimension: 0
-      m_DataSize: 184
-      _typelessdata: 2fa13dbe682f813f000000004c68af3e682f81bf000000004c68af3e682f813f00000000682fa1be682f81bf0000000009eda5be682f213e00000000c7711cbfa1bd843d000000001cc731bf398e233f000000001cc731bf721cc73e00000000ed25b4be000080bf0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+      m_DataSize: 80
+      _typelessdata: e0b631bf5118813f00000000d647af3e5118813f00000000d647af3e4a2781bf00000000e0b631bf4a2781bf000000000000000000000000000000000000000000000000000000000000000000000000
     m_Bindpose: []
     textureRect:
       serializedVersion: 2

@@ -94,10 +94,10 @@ namespace Sekai
 			{
 				_scoreGaugeSizeCache = scoreGauge.size;
 			}
-			SetupGaugeRankPosition(gaugeRankS, ScoreGauge.RANK_RATE_S, "hud.score.marker.S.base");
-			SetupGaugeRankPosition(gaugeRankA, ScoreGauge.RANK_RATE_A, "hud.score.marker.A.base");
-			SetupGaugeRankPosition(gaugeRankB, ScoreGauge.RANK_RATE_B, "hud.score.marker.B.base");
-			SetupGaugeRankPosition(gaugeRankC, ScoreGauge.RANK_RATE_C, "hud.score.marker.C.base");
+			SetupGaugeRankPosition(gaugeRankS, ScoreGauge.MARKER_S, "hud.score.marker.S.base");
+			SetupGaugeRankPosition(gaugeRankA, ScoreGauge.MARKER_A, "hud.score.marker.A.base");
+			SetupGaugeRankPosition(gaugeRankB, ScoreGauge.MARKER_B, "hud.score.marker.B.base");
+			SetupGaugeRankPosition(gaugeRankC, ScoreGauge.MARKER_C, "hud.score.marker.C.base");
 			_scoreGaugeCalculator = ScoreGauge.Create(musicData?.Score);
 			_inverseScale = addScoreRoot != null && addScoreRoot.localScale.y < 0f;
 			Clear();
@@ -105,7 +105,7 @@ namespace Sekai
 
 		public void ChangeScoreCalculator(ScoreGauge newCalculator)
 		{
-			_scoreGaugeCalculator = newCalculator ?? ScoreGauge.Create(1);
+			_scoreGaugeCalculator = newCalculator ?? ScoreGauge.Standard;
 		}
 
 		public void SetupScore(LiveScore score)
@@ -156,7 +156,7 @@ namespace Sekai
 		{
 			if (_scoreGaugeCalculator == null)
 			{
-				_scoreGaugeCalculator = ScoreGauge.Create(1);
+				_scoreGaugeCalculator = ScoreGauge.Standard;
 			}
 			if (scoreGauge != null)
 			{

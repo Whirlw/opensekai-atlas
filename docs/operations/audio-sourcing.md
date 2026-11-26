@@ -1,9 +1,9 @@
 # 判定音与演出音的素材来源建议（CC0 / CC BY）
 
-> 目的：在「不能带第三方权利素材」的前提下，给判定音（62 个 cue 里的 46 个）与演出/结算音（16 个）选出可用的来源，并说明各自要付出的合规动作。
+> 目的：为 13 个内置打击音和 5 个共享演出音提供选材与署名建议。
 > 适用读者：要做音频替换的人、发版前做合规检查的人。
 > 前置条件：读过 [音频素材替换](audio-replacement.md)、[素材来源清单](asset-provenance.md)。
-> 最后更新：2026-11-09
+> 最后更新：2026-11-25
 
 ## 结论先说
 
@@ -61,17 +61,10 @@
 
 ## 三、无论走哪条路线都要做的事
 
-1. **每个入库音频一行记录**，落在 `docs/reference/audio-credits.md`：
-
-   ```
-   cue                 | 文件                      | 来源 | 作者 | 授权 | URL | 取得日期 | 改动
-   se_live_tap         | custom01/se_live_tap.wav  | 自制 | —    | 本项目 | —   | 2026-11-09 | 合成
-   se_live_flick       | custom01/se_live_flick.wav| Freesound | @xxx | CC0 | https://... | 2026-11-09 | 裁剪 0.25s + 降 3dB
-   ```
-
+1. 每个随包音频在 `docs/reference/audio-credits.md` 中占一行，登记 bundle、cue、来源、作者、授权、链接、日期和改动。
 2. **CC BY 的作品必须能被用户看到署名**：在「设置」或关于页放一段致谢文本（本项目已有 `docs` 与仓库 README，可在游戏内加一个只读面板）。只写在仓库里通常被认为不够。
 3. **保留原始下载件**：放到 `LocalPacks/audio-sources/`（不进 git），只把处理后的成品入库，便于将来复核授权链条。
-4. **合规自检**：建议加一条 EditMode 测试或 `Tools/audit-audio-provenance.ps1`——遍历 `StreamingAssets/sound/**` 与 4 个 ACB 的 cue，断言每个都在 `audio-credits.md` 里有记录；缺一条就失败。
+4. 运行 `Tools/audit-audio-provenance.ps1`，核对 `docs/reference/audio-cues.csv` 中每个随包 cue 的署名记录。
 
 ## 四、按 cue 的取材建议（如果去库里找）
 
@@ -85,14 +78,6 @@
 | `se_live_perfect / great / good` | 同一素材三个亮度 | 用同一个源，改低通截止（8k / 4k / 1.5k Hz）保证是一家人 |
 | `se_live_clear / full_combo / all_perfect / end_*` | 上行琶音、镲片、欢呼类 | 与判定音同调性（同一基音或五度关系），避免结算时突兀 |
 
-## 五、推荐的最小方案
+## 随包素材
 
-1. 判定音 **13 + 13（两套皮肤）+ 12（兜底）**：自制合成，一套为主，第二套通过换波形/升调区分，兜底直接用第一套的弱化版
-2. 演出/结算 **16 个**：用 CC0 的乐器采样（Sonatina 之类）自己做琶音，或直接用 Kenney 的短提示音叠加
-3. 全程零 CC BY → **不需要游戏内致谢**，只需要 `audio-credits.md` 里写清「自制」，合规成本最低
-
-## 当前状态
-
-- 本文件只是选型建议，**尚未引入任何新音频**
-- 要换的 4 个 ACB / 62 个 cue 见 [音频素材替换](audio-replacement.md)
-- 到货后的导入方式见同文档「路线 A」：散装 wav + `RegisterExternalAudioClip`（该分支尚未实现）
+`AudioSource/live_se_key` 提供全部 13 个打击音，外部资源包可以逐项覆盖。`AudioSource/live_se_common` 提供倒计时、过场和三种结算音。替换素材后按导入说明更新运行时 WAV 和署名记录。[音频素材替换](audio-replacement.md)

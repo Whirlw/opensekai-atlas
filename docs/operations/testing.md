@@ -11,6 +11,12 @@
 
 ## 怎么跑
 
+编辑器已打开时，可以在项目根目录用 PowerShell 7.3 或以上版本运行以下命令。验证器比对游戏、编辑器与测试程序集实际加载的模块 ID、匹配的 PDB，以及其中每份项目 C# 源码的 SHA-256。它也核对新增和删除的脚本。`-Repair` 在发现过期源码时定向导入并复验；省略它就只检查。验证通过才运行测试，已同步的工程会保留当前脚本域，适合截图退出 Play 模式后复测。
+
+```powershell
+pwsh -NoProfile -File Tools/verify-editor-scripts.ps1 -Repair && unity command test run --mode editor --timeout 560 --project-path .
+```
+
 Unity 命令行（`unity test`）会另起一个编辑器实例，**与本机已打开的编辑器互斥**，所以日常用工程内的桥接菜单：
 
 1. 编辑器里 `OpenSekai/Dev/Run EditMode Tests`（或 `Run PlayMode Tests`）。
@@ -59,7 +65,7 @@ EditMode：
 - `Packages/SongPackageStorageTests`：目录名生成（空白折叠、裁剪、空标题回落）、12 位短 id、`SongPackage` 的派生路径与 `MusicId` 稳定性。
 - `Packages/ChartFileReaderTests`：写读往返、`MusicId` 打戳、迁移、缺失文件、null 参数、拒绝非谱面扩展名。
 - `Playback/PlaySessionTests`：四个 `ArgumentNullException` 守卫、session 字段保持同一引用、`PlaybackSettingsSnapshot` 与后续编辑解耦。
-- `Live/ScoreLogicTests`：1/7/64/221/348/1000/2019 音符全 JustPerfect 严格合计 1,000,000、Perfect/Great/Good 的 0.9/0.7/0.5、技能倍率、装饰音符不计分、连击在 Great 及以上累加、空谱基分为 0。
+- `Live/ScoreLogicTests`：1/7/64/221/348/1000/2019 音符全 Perfect 严格合计 1,000,000、Perfect/Great/Good/Bad/Miss 的 100%/85%/50%/20%/0%、技能倍率、装饰音符不计分、连击在 Great 及以上累加、空谱基分为 0。
 - `Live/ScoreGaugeCalculatorTests`：S/A/B/C 阈值、gauge 单调与夹紧。
 - `Live/PlayResultTests`：`IsAllPerfectClear` 的六种边界、`KindText`、`PlayResultHandoff` 单槽语义。
 - `Charts/RuntimeChartConverterTests`：七类 `noteBaseType` 到具体 Note 的映射、长条是「一个 root + hold 子节点」、连接音符并入同一 root、装饰音符不参与计数、Critical 保留类型、BPM 事件进时间轴、只有链头成为 root、孤立尾巴被丢弃、悬空 `nextConnectionId` 不致命、环形连接抛 `InvalidDataException`、FrictionLong 对折叠成 `FrictionHideLongNote`。
@@ -69,7 +75,7 @@ EditMode：
 - `Live/DecorationTailFromChartTests`：**真实谱面驱动**——读 `Tools/fixtures/deco-tail-test10/score.json`（取自报告者 `Test10.zip`），`ChartJson.Read` → `RuntimeChartConverter.Convert` → 用真实 `OnUpdate`/`OnInput` 把手指依次送到每根 `GuideNote` 条的尾时间（flick / friction-flick 给划动采样，普通尾给按下），断言每种尾都判出结果。这是目前唯一能验证「尾进不进候选」的用例，**动到 `_judgmentNoteList` 注册时必须跑它**。
 - `Live/DecorationTailJudgmentTests`：装饰条的四种尾（普通尾按下、划键尾划动、摩擦尾触摸、摩擦划键尾划动）各一条，用手工音符经 `LiveHarness` 走真实 `OnUpdate` / `OnInput`，另有两条对照：不碰的尾不被判、划键尾只按不划不被判。旧版手工 `new` 后反射调内部阶段、进不了候选，曾被停放，现已改写恢复。谱面版本见 `DecorationTailFromChartTests`。
 - `Live/TailReleaseLaneTests`：真实谱面 + `LiveHarness` 逐帧驱动一根普通尾长条，验证**抬手归属**——另一根手指在别的轨道按下再抬起时尾不许被判定、条也不许结束；持握者自己在条内抬手时尾必须被判。拥挤的尾：范围内还有其他触摸时只认 Perfect 区间的抬手，单独抬手任何评级都判；范围外的触摸、同帧也抬起的触摸、同一触摸的多个样本都不算拥挤。**动到 `CoverHoldsWithAnyFinger` 的松手分支时必须跑它**。
-- `Live/LongHeadGradeTests`：真实循环里按不同偏移按下普通长条头，断言实际评级（`Long` 表，对称）：±4 ms 以内 JustPerfect，±30 ms Perfect，±60/±80 ms Great，±95 ms Good，±118 ms Bad；晚 150 ms 的按下不进候选、头记 Miss；早 150 ms 的按下不判头，头在窗口关闭后记 Miss。**动到头的窗口表、`PressCandidateWindow` 或 `LongNoteHead.TryJudge` 时必须跑它**。
+- `Live/LongHeadGradeTests`：真实循环里按不同偏移按下普通长条头，断言实际评级（`Long` 表，对称）：±4 ms 和 ±30 ms 均为 Perfect，±60/±80 ms Great，±95 ms Good，±118 ms Bad；晚 150 ms 的按下不进候选、头记 Miss；早 150 ms 的按下不判头，头在窗口关闭后记 Miss。**动到头的窗口表、`PressCandidateWindow` 或 `LongNoteHead.TryJudge` 时必须跑它**。
 - `Live/PressCandidateRuleTests`：候选硬标准。按下只收单键、未推进的独立划键、长条普通头（条身、尾、内部点、摩擦键、挂在条上的划键都不收），判定过的键立刻离开；车道（头用条的扩展车道）；时间窗口边界（单键与头 ±125 ms，划键早 125 ms / 晚 141.7 ms）；抬起只收普通尾。真实循环里：一次按下推进划键并在它身上消费，紧随其后的单键不被这次按下判；推进后另一根手指在划键车道内的滑动也能完成它（即使推进它的手指排在本帧前面），车道外的滑动不行；晚 150 ms 的按下推进不了划键。**动到 `IsPressStep` / `AdmitsPress`、`FlickNote.IsJudgment`、`DriveIndependentNotes` 或 `IsReleaseKey` 时必须跑它**。
 - `Live/PressOwnershipTests`：按下归属。收集候选不写 `_judgedTouchTimes`、尚未命中的候选不挡后续候选；同帧双押各取更近的音符；去重三步（只剩一个键的手指优先并级联、两指两键按谱面顺序配对、配对的键从其他手指剔除，三指三键与两指三键不配对、其余按车道中心距离再按较小 `fingerId`）；单指按谱面时间、再按 `ChartOrder` 取最早的键，最早的只能拿 Good 及以下而后面的能拿 Great 及以上时让给后者；头按所属条的起点窗口评级；同一手指同帧多个 `Began` 样本共用一个按下额度；「两指争同一音符、其中一指还够得到更早一颗」时两颗都被判，与注册顺序无关。**动到 `LiveCandidatePipeline.Collect` / `SortPressCandidates` 或 `JudgmentScheduler.EvaluateJudgment` 的消费路径时必须跑它**。
 - `Live/FrictionHeadLifetimeTests`：摩擦头的键与独立 friction 音符同生命周期。手动搓到、自动播放、未碰到 Miss 三种情况下，头判定的那一帧 `HeadKeyLeftWithItsVerdict` 变真、条身仍在；搓到与自动时判定以 `FrictionLong` 身份在同一帧到达视图一次；普通头的键仍停在线上。视图一侧由 `LongNoteKeyLifetimeTests.ARubHeadsKeyIsTakenOffWithItsVerdict` 固定。
@@ -80,14 +86,14 @@ EditMode：
 - `Live/FlickEndBehaviourTests`：划键尾的窗口、延迟结算、方向与速度门槛。其中的独立尾（摩擦划）几条按 `tail-classes.md` §3 的 R1/R2/R3 改写：尾自己写 Miss（条只驱动与读取）、尾判定不结束条、条结束把没判的中间点判 Perfect。**动到 `DetachStandaloneTail`、`ForceTerminate` 对尾的判定、或 `SettleLeftoverAsPerfect` 时必须跑它**。
 - `App/PlayServiceDependencyTests`：开局路径依赖全部换成假端口，覆盖四种前置拒绝（曲库未就绪、加载界面未就绪、请求目标不是曲库、当前不在曲库场景）、推入加载界面失败后的回滚与锁释放、开局成功后的持锁与场景退场释放、以及连续两局；并断言发布的 `FreeLiveBootData.DeckData.UserInfo.DeckId` 取自端口而不是单例。**动开局流程或 `PlayService` 的前置判断时必须跑它**。
 - `LiveContextTests`：`LiveContext.FromRetainedBoot()` 把 `UserDataManager`、`EntryPoint.PlayMode`、`PlaySessionContext` 的五个事实逐项抄进上下文；缺 Boot 时其余字段仍完整，null 会话字段降级成空串，两次读取互不影响。用例在 `[SetUp]/[TearDown]` 里存旧值并写回，不会污染同一进程里的其它用例。
-- `Resources/GeneratedAssetSaveGuardTests`：`Tools/generated-assets.txt` 里的文件受保存拦截保护。四个字体资产都在清单里；保存请求会把它们剔除，`AllowSaves()` 范围内不剔除，范围结束后恢复；`Medium SDF_Dynamic` 关掉了 Clear Dynamic Data on Build；往真实资产里烘入新字符后 `SaveAssets`，文件哈希不变，`DiscardInMemoryChanges` 之后内存里的字符表回到提交时的状态，省略号还在。**动到 `GeneratedAssetSaveGuard`、字体资产或清单时必须跑它**。
+- `Resources/GeneratedAssetSaveGuardTests` 覆盖四个思源字体和 TMP 的 LiberationSans 后备字体，包括有意重烘的保存范围、预烘省略号的构建设置，以及真实字体写入新字后的磁盘哈希和内存还原。**动到 `GeneratedAssetSaveGuard`、字体资产或清单时必须跑它**。
 - `Resources/ResourceCatalogTests`：`ResourceCatalog` 里每条固定 `Resources` 路径都能加载、类型正确、回退只在主路径失败时生效；另含两条字体相关断言——`Fonts/SourceHanSansSC-Medium` 能被 TMP 建成字面、以及 `LibraryUi.EnsureRequiredGlyphs` 能对三条来源（bundled / OS / 项目资产）补上省略号字形。项目 SDF 资产在用例里是**克隆**后操作的，避免编辑器回写被跟踪的 `.asset`。
 
 PlayMode：
 
 - `LibrarySmokeTests.LibrarySceneBootsAndShowsThePage`：载入 `Assets/Game/Scenes/Library.unity`，等 `LibraryScreen` 起来并断言 `IsReady` 与 `ScreenManager.ExistsInstance`。单独跑 0.43 s，不依赖同一轮里前面的用例留下的场景。
 - `LibrarySmokeTests.BaselineTapAutoplaysAndReturnsToTheLibrary`：**整首打歌**。从曲库结算面板的「再玩一次」触发 `PlayService` 自动开局，等 Core 场景建出 `SoloLiveController`，再等返回 Library 并检查结算 `Completed / IsAuto / Score=1,000,000 / Rank S`；谱面用仓库里的 `Tools/fixtures/baseline_tap`。约 47.5 s。
-- `LibrarySmokeTests.ShippedWavePackRegistersEveryManifestCue`：按 `StreamingAssets/sound/manifest.csv` 核对 42 个内置 WAV 全部注册、长度非零、结算音能起播，以及缺失 cue 只警告一次并返回 0。
+- `LibrarySmokeTests.ShippedWavePackRegistersEveryManifestCue`：按 `StreamingAssets/sound/manifest.csv` 核对清单内的 WAV 全部注册、长度非零、结算音能起播，以及缺失 cue 只警告一次并返回 0。
 
 跑 PlayMode **必须走异步**：进播放模式会触发域重载，同步请求会被丢掉（CLI 会直接拒绝并提示改用 `--async_tests`）。
 
@@ -157,7 +163,7 @@ $rsp    = (Get-ChildItem 'Library\Bee\artifacts' -Recurse -Filter 'OpenSekai.Gam
 - 没有 `Editor\Data\Tools\Roslyn\csc.exe`，只有 `DotNetSdk\...\Roslyn\bincore\csc.dll`，要经 `dotnet.exe` 起。
 - `.rsp` 是这次编译实际用的文件列表，**新增的 `.cs` 不在里面**时它会报 `CS0246` 找不到类型：先在 Unity 里 `AssetDatabase.Refresh(ForceSynchronousImport)` + `CompilationPipeline.RequestScriptCompilation()`，等 rsp 重新生成再跑。
 - 一条命令就能拿到全部错误（含 `CS0051` 这类可访问性不一致），比在编辑器里翻 Console 快得多。
-- 这条路径**只验证语法与类型**：它不重新生成 `Library/ScriptAssemblies`。要通过还要回到 Unity 确认 `OpenSekai.Game.dll` 的时间戳变新，再跑测试。
+- 这条路径只验证语法与类型。运行测试前，用本页开头的验证命令核对编辑器实际加载的代码。DLL 的修改时间和 `script recompile` 的 `up_to_date` 都无法证明某份源码已被编入。
 
 ## 「整首打歌」的自动化
 

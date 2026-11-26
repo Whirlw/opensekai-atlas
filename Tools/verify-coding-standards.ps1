@@ -19,13 +19,26 @@ $files = foreach ($entry in $Path) {
     Get-ChildItem -LiteralPath $entry -File -Recurse | Where-Object Extension -eq '.cs'
 }
 $options = [Microsoft.CodeAnalysis.CSharp.CSharpParseOptions]::Default
+$repoRoot = Split-Path -Parent $PSScriptRoot
 foreach ($item in $files) {
     $file = [IO.Path]::GetRelativePath($PWD, $item.FullName)
+    $relative = [IO.Path]::GetRelativePath($repoRoot, $item.FullName).Replace('\', '/')
+    $checkSpacing = $relative.StartsWith('Assets/Game/Runtime/OpenSekai/App/UI/') -and
+        $relative -ne 'Assets/Game/Runtime/OpenSekai/App/UI/LibraryUi.cs'
     $source = [IO.File]::ReadAllText($item.FullName)
     foreach ($symbols in @('UNITY_EDITOR,UNITY_STANDALONE,UNITY_INCLUDE_TESTS', 'UNITY_ANDROID')) {
         $tree = [Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree]::ParseText(
             $source, $options.WithPreprocessorSymbols([string[]]($symbols.Split(',') + 'UNITY_5_3_OR_NEWER' + 'UNITY_2022_2_OR_NEWER')))
         foreach ($node in $tree.GetRoot().DescendantNodes()) {
+            if ($checkSpacing) {
+                $target = if ($node -is [Microsoft.CodeAnalysis.CSharp.Syntax.AssignmentExpressionSyntax]) { $node.Left }
+                    elseif (($node -is [Microsoft.CodeAnalysis.CSharp.Syntax.PrefixUnaryExpressionSyntax] -or
+                             $node -is [Microsoft.CodeAnalysis.CSharp.Syntax.PostfixUnaryExpressionSyntax]) -and
+                            $node.OperatorToken.Text -in '++', '--') { $node.Operand }
+                if ($null -ne $target -and $target.GetLastToken().ValueText -ceq 'characterSpacing') {
+                    Report $target.GetLastToken() 'Set UI letter spacing through LibraryUi.UseSpacedCondensedFont or LibraryUi.SetLetterSpacing.'
+                }
+            }
             if ($node -is [Microsoft.CodeAnalysis.CSharp.Syntax.AttributeListSyntax] -and
                 $node.Parent -is [Microsoft.CodeAnalysis.CSharp.Syntax.MemberDeclarationSyntax]) {
                 $end = $node.CloseBracketToken

@@ -396,7 +396,7 @@ namespace Sekai
 		}
 
 		// The note body in the notes atlas (notes_0..6, 108 px per unit) ends 55 px in from both sprite edges
-		// (ArtSource/Tools/Notes/draw_notes.ps1), so a note spanning lanes start..end draws its body exactly
+		// (ArtSource/Tools/Notes.cs), so a note spanning lanes start..end draws its body exactly
 		// over (end - start + 1) lanes of LiveConfig.widthX. The old 1.2178 * span + 2.06 drew 1-6 lane notes
 		// up to 9 px narrower than their lanes and full-width notes wider.
 		private const float NOTE_BODY_INSET_UNITS = 55f / 108f;

@@ -173,11 +173,11 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 | `Friction_Flick` | 复制对应的 `Flick` 表，含 Critical 版本 | — | — | — | — | — |
 | `Friction_Long` / `Friction_Long_End` | 分别复制对应的 `Long` / `Long_End` 表，含 Critical 版本 | — | — | — | — | — |
 
-按下候选先以 `touch.time − note.time` 检查 `PressCandidateWindow`；其常量边界含等号并有 0.001 ms 的浮点容差。随后还会经过音符自己的 `IsJudgmentTiming`：该检查使用 `note.time − touch.time`（正值表示早），外边界是开区间。因此不能只凭候选窗口含等号断言恰在边界的按下一定会被接收。普通尾和划键尾使用 `LongEndJudgement`。普通尾的偏差为抬手样本映射的音乐时间减尾键时间，条内划键尾按驱动手势的帧时间减尾键时间。负值表示早。该表的 Perfect、Great、Good 早侧为 58.3 / 108.3 / 125 ms，晚侧为 66.7 / 133.3 / 141.7 ms，边界包含等号；它没有 Bad 档，Perfect 区间返回 `JustPerfect`。
+按下候选先以 `touch.time − note.time` 检查 `PressCandidateWindow`；其常量边界含等号并有 0.001 ms 的浮点容差。随后还会经过音符自己的 `IsJudgmentTiming`：该检查使用 `note.time − touch.time`（正值表示早），外边界是开区间。因此不能只凭候选窗口含等号断言恰在边界的按下一定会被接收。普通尾和划键尾使用 `LongEndJudgement`。普通尾的偏差为抬手样本映射的音乐时间减尾键时间，条内划键尾按驱动手势的帧时间减尾键时间。负值表示早。该表的 Perfect、Great、Good 早侧为 58.3 / 108.3 / 125 ms，晚侧为 66.7 / 133.3 / 141.7 ms，边界包含等号；它没有 Bad 档，Perfect 区间返回 `Perfect`。
 
-通用结果表在方向有效时，正中 ±1/120 秒（约 ±8.33 ms）返回 `JustPerfect`，其余表内 Perfect 区间返回 `Perfect`；显示统计中 `perfectCount` 已包含 `JustPerfect`。有方向划键若方向不符，在 Perfect 区间返回 Great / `FlickMiss`，更宽的时间区间仍按 Great、Good、Bad 表评级。无方向的 `Default` 划键接受任意方向。`onUpdateResult` 保留技能修正接口。当前单人演奏在导入时过滤技能与 Fever 事件，谱面不会通过该接口触发技能判定修正。
+通用结果表在方向有效且时间落在 Perfect 区间时返回 `Perfect`。正中 ±1/120 秒（约 ±8.33 ms）只用于区分 Fast、Late 和正中。有方向划键若方向不符，在 Perfect 区间返回 Great / `FlickMiss`，更宽的时间区间仍按 Great、Good、Bad 表评级。无方向的 `Default` 划键接受任意方向。`onUpdateResult` 保留技能修正接口。当前单人演奏在导入时过滤技能与 Fever 事件，谱面不会通过该接口触发技能判定修正。
 
-单键与普通头的准入、评级和超时从同一类型表取窗口。跨窗口掉帧时，本帧已收到的按下先按样本时间判定。摩擦单键和摩擦头在 ±83.3 ms 内接收接触，摩擦尾在早 108.3 / 晚 133.3 ms 内接收。摩擦划键的评分窗为早 108.3 / 晚 125 ms，正向为 Perfect，反向可降为 Great。摩擦划尾的手势登记窗扩大到早 125 / 晚 141.7 ms，评分仍用摩擦划键窗口。独立可见 Tick 在 ±83.3 ms 内接收接触并保留早触。连接的可见 Tick 在首次跨过目标时刻的帧检查接触，下一帧未命中即 Miss。
+单键与普通头的准入、评级和超时从同一类型表取窗口。跨窗口掉帧时，本帧已收到的按下先按样本时间判定。摩擦单键和摩擦头在 ±83.3 ms 内接收接触，摩擦尾在早 108.3 / 晚 133.3 ms 内接收。摩擦划键的评分窗为早 108.3 / 晚 125 ms，正向为 Perfect，反向可降为 Great。摩擦划尾的手势登记窗扩大到早 125 / 晚 141.7 ms，评分仍用摩擦划键窗口。独立可见 Tick 在 ±83.3 ms 内接收接触并保留早触。NextRUSH+ 连接型可见 Tick 在首次跨过目标时刻的帧检查接触，下一帧未命中即 Miss。
 
 > 头部的偏移曾经写成 `touch.time − note.time`（符号反了），于是「早一点」被当成「晚一点」、「晚一点」又落在早侧边界外，表现为早/晚都判不上。现在头部与 `NormalNote` 用同一个符号、同一个门。
 
@@ -238,11 +238,11 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 
 ### 6.4 条内点与条身状态
 
-`LongHoldCombo` 使用相对谱面时间前后各 5 个参考帧（±83.3 ms）的开区间。普通和高亮共用此窗口。
+普通谱面的自动点、添加点（`LongHoldCombo`）和预设连接点（`ConnectionNote`）共用条身判定，使用相对谱面时间前后各 5 个参考帧（±83.3 ms）的开区间。普通和高亮共用此窗口。
 
 1. 窗内父条处于按住状态或丢手宽限 `Last` 即记录接触。手指已经重新覆盖但状态仍显示为 `Release` 时，实际覆盖也算接触。`Last` 可以在没有触摸样本时命中。
-2. 提前记录的接触到点结算为 `JustPerfect`。到点后的首次有效接触立即结算。一直未接触的点到达晚界时判 `Miss`。
-3. 到点后，未结算的点可由关联尾键的有效输入补 `Perfect`。尾键先结算时可一并结算未决点，已有接触仍给 `JustPerfect`，只有尾键输入给 `Perfect`，两者都没有则给 `Miss`。划尾可在登记到输入时提供这条记录。已经判定的点保留原结果。
+2. 提前记录的接触到点结算为 `Perfect`。到点后的首次有效接触立即结算。一直未接触的点到达晚界时判 `Miss`。
+3. 到点后，未结算的点可由关联尾键的有效输入补 `Perfect`。尾键先结算时可一并结算未决点，已有接触或收到有效尾键输入时给 `Perfect`，两者都没有则给 `Miss`。划尾可在登记到输入时提供这条记录。已经判定的点保留原结果。
 
 其他类型的连接点仍由各自状态和时间窗判定。
 
@@ -340,7 +340,7 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 | 类型 | 接触与评分 |
 | --- | --- |
 | 独立 `FlickNote` | 先由按下推进到 `Input`；之后活动输入中的任意手指可在自身车道和时间门内提供有效位移。有效位移达到速度门槛即可结算，方向错误按通用表降级。 |
-| `FrictionNote` | 常驻接触可在到点前进入 `Input`；到点执行时给 `JustPerfect`。到点后符合条件的接触也可完成；没有接触则超时 Miss。 |
+| `FrictionNote` | 常驻接触可在到点前进入 `Input`；到点执行时给 `Perfect`。到点后符合条件的接触也可完成；没有接触则超时 Miss。 |
 | `FrictionFlickNote` | 由常驻输入记录有效位移；已记录手势可在到点时结算，满足条件的正确方向晚划也可即时完成。其评级使用 `GetINoteToJudgeFrameType` 所选表，不把摩擦尾一律当成普通尾。 |
 | 普通条的 `FlickNote` 尾 | 自判定尾（`FlickTailJudge`），条不判定它。见第八节的划键尾一行与下方说明。装饰条（Guide、装饰标记）末端的划键仍按独立划键处理。 |
 
@@ -376,12 +376,12 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 | 尾 | 尾音符自己的 `Done` 转换走 `Key` 发布。条侧的 `LongNoteTail.PublishTail` 只写条的镜像结果并结束条，不触发回调，它有自己的 `_tailPublished` 守卫 |
 | 不发布 | `HasJudgment` 为假的判定点（隐藏点、`GuideNote`、载体、装饰音符）在 `Publish` 入口被拦下，不执行任何回调。`IsSkip` 的 `ConnectionNote` 不发布。结果为 `None` 的内部点不发布 |
 | 基分 | 累计计分每次分数回调推进一个基分序号（`ScoreLogic.TakeNextNoteBaseScore`）。超时头不调用分数回调，因此不消耗基分 |
-| 条身结束 | 未结算的 `LongHoldCombo` 根据接触和关联尾键的输入收尾。条身到达几何终点后仍可等待尾键输入。如果尾键结果触发结束，尾键先发布 |
+| 条身结束 | 未结算的条身计分点根据接触和关联尾键的输入收尾。条身到达几何终点后仍可等待尾键输入。如果尾键结果触发结束，尾键先发布 |
 | Miss 也发 combo | 断连击来自「结果发布」，不是来自视觉效果；谁发布结果谁断连击 |
 
 回调次数、顺序、基分序号、总分、连击和伤害由 `ResultPublicationTests` 固定，手动和自动播放各有用例。
 
-`ScoreLogic` 将 `JustPerfect`、`Perfect`、`Auto` 按基分的 100% 计分，Great 为 70%、Good 为 50%，Bad / Miss 等为 0；计分器也接受调用方提供的技能倍率，当前单人谱面不会发动技能。基分通过累计差分把 1,000,000 分摊到谱面总连击点数，避免每点固定取整造成的尾差。Great 及以上维持连击，Good、Bad、Miss 重置连击；不判定的音符（含装饰）和 `None` 不参与普通连击统计。这里的分摊依赖实际分数回调次数，不能把“满分 1,000,000”推广成所有带技能、漏判、特殊回调或异常谱面都必然得到同一个结果。更完整的计分口径见 [累计计分决策](../decisions/0004-cumulative-scoring.md)。
+`ScoreLogic` 将 `Perfect`、`Auto` 按基分的 100% 计分，Great 为 85%、Good 为 50%、Bad 为 20%、Miss 为 0%。计分器也接受调用方提供的技能倍率，当前单人谱面不会发动技能。基分通过累计差分把 1,000,000 分摊到谱面总连击点数，避免每点固定取整造成的尾差。Great 及以上维持连击，Good、Bad、Miss 重置连击；不判定的音符（含装饰）和 `None` 不参与普通连击统计。这里的分摊依赖实际分数回调次数，不能把“满分 1,000,000”推广成所有带技能、漏判、特殊回调或异常谱面都必然得到同一个结果。更完整的计分口径见 [累计计分决策](../decisions/0004-cumulative-scoring.md)。
 
 ---
 
@@ -423,7 +423,7 @@ LiveLogic.OnView() → NoteFrame.TickViews()
 | 长条持握 `Hold`、长条尾键 `Tail`、划动 `Swipe` | 条身状态变化、尾窗／尾结算、划动方向与速度等专项信息 | 必要时组合开启；不自动包含按下或抬起候选。 |
 | 对象回收 `Pool`、画面表现 `View`、画面逐帧 `Frame` | 回收、几何／显示以及逐帧视图状态 | 画面状态不是判定结果；`Frame` 是高频项。 |
 
-「性能 HUD」和「Last 长条标红」各有独立开关，均不依赖测试模式。性能 HUD 显示 FPS、最差帧时、分辨率和当前 Tick；Tick 根据当前逻辑帧的小节与进度以及谱面时间签名换算，非活动打歌或缺少谱面时显示 `--`。标红只把 `State == Last` 的长条**条身**画成红色，不改变状态或判定；退出 Last 或关掉选项恢复原色。长条的 Last 是丢手宽限，内部 combo 点的 Last 是到点待判，普通音符的 Last 通常是超时流程中的状态；不要仅凭名称把三者混为一谈。日志提取方法见 [Android 日志](../operations/android-logs.md)。
+「追踪选项」只在测试模式开启时显示，性能 HUD、Last 长条标红、延迟采样和打击音混音采样也都受测试模式控制。性能 HUD 显示 FPS、最差帧时、分辨率和当前 Tick；Tick 根据当前逻辑帧的小节与进度以及谱面时间签名换算，非活动打歌或缺少谱面时显示 `--`。标红只把 `State == Last` 的长条**条身**画成红色，不改变状态或判定；退出 Last 或关掉选项恢复原色。长条的 Last 是丢手宽限，内部 combo 点的 Last 是到点待判，普通音符的 Last 通常是超时流程中的状态；不要仅凭名称把三者混为一谈。日志提取方法见 [Android 日志](../operations/android-logs.md)。
 
 ---
 

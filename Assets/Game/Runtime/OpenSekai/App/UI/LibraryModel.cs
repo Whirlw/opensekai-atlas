@@ -23,7 +23,8 @@ namespace OpenSekai.App.UI
         Level,
         Charter,
         Singer,
-        ClearStatus
+        ClearStatus,
+        RankStatus
     }
 
     internal enum LibraryViewMode
@@ -86,6 +87,8 @@ namespace OpenSekai.App.UI
         private const string LEVEL_MID = "Lv 20–29";
         private const string LEVEL_HIGH = "Lv 30+";
         private const string LEVEL_NONE = "未定级";
+        internal const string BADGE_ALL_PERFECT = "AP";
+        internal const string BADGE_FULL_COMBO = "FC";
         private const string CLEAR_ALL_PERFECT = "ALL PERFECT";
         private const string CLEAR_FULL_COMBO = "FULL COMBO";
         private const string CLEAR_CLEARED = "已通关";
@@ -94,6 +97,7 @@ namespace OpenSekai.App.UI
 
         private static readonly string[] _difficultyOrder = { "EASY", "NORMAL", "HARD", "EXPERT", "MASTER", "APPEND" };
         private static readonly string[] _levelOrder = { LEVEL_LOW, LEVEL_MID, LEVEL_HIGH, LEVEL_NONE };
+        private static readonly string[] _rankOrder = { ChartRankLookup.RANKED, ChartRankLookup.UNRANKED, ChartRankLookup.PENDING };
         private static readonly string[] _clearOrder =
         {
             CLEAR_ALL_PERFECT, CLEAR_FULL_COMBO, CLEAR_CLEARED, CLEAR_FAILED, CLEAR_UNPLAYED
@@ -111,7 +115,7 @@ namespace OpenSekai.App.UI
         internal static readonly IReadOnlyList<LibraryGroupKey> GroupKeys = new[]
         {
             LibraryGroupKey.None, LibraryGroupKey.Difficulty, LibraryGroupKey.Level,
-            LibraryGroupKey.Charter, LibraryGroupKey.Singer, LibraryGroupKey.ClearStatus
+            LibraryGroupKey.Charter, LibraryGroupKey.Singer, LibraryGroupKey.ClearStatus, LibraryGroupKey.RankStatus
         };
 
         internal LibrarySortKey SortKey { get; set; } = LibrarySortKey.Title;
@@ -152,6 +156,7 @@ namespace OpenSekai.App.UI
                 case LibraryGroupKey.Charter: return "谱面作者";
                 case LibraryGroupKey.Singer: return "演唱";
                 case LibraryGroupKey.ClearStatus: return "通关状态";
+                case LibraryGroupKey.RankStatus: return "Ranked 状态";
                 default: return "不分组";
             }
         }
@@ -253,8 +258,12 @@ namespace OpenSekai.App.UI
             {
                 return string.Empty;
             }
-            return best.IsAllPerfect ? "AP" : best.IsFullCombo ? "FC" : string.Empty;
+            return best.IsAllPerfect ? BADGE_ALL_PERFECT : best.IsFullCombo ? BADGE_FULL_COMBO : string.Empty;
         }
+
+        /// <summary>True when the local record says this copy plays Ranked; unverified charts are not.</summary>
+        internal static bool IsRanked(SongPackageItem item) =>
+            item != null && ChartRankLookup.CachedLabel(item) == ChartRankLookup.RANKED;
 
         internal static string ClearLabel(CustomMusicScorePlayHistorySummary summary)
         {
@@ -341,6 +350,7 @@ namespace OpenSekai.App.UI
                 case LibraryGroupKey.Difficulty: return _difficultyOrder;
                 case LibraryGroupKey.Level: return _levelOrder;
                 case LibraryGroupKey.ClearStatus: return _clearOrder;
+                case LibraryGroupKey.RankStatus: return _rankOrder;
                 default: return Array.Empty<string>();
             }
         }
@@ -389,6 +399,8 @@ namespace OpenSekai.App.UI
                     return string.IsNullOrWhiteSpace(manifest?.singer) ? UNSET_FIELD : manifest.singer.Trim();
                 case LibraryGroupKey.ClearStatus:
                     return ClearLabel(SummaryOf(item, history));
+                case LibraryGroupKey.RankStatus:
+                    return ChartRankLookup.CachedLabel(item);
                 default:
                     return string.Empty;
             }

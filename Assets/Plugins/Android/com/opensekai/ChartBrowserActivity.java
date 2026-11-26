@@ -17,6 +17,7 @@ import android.widget.*;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
+import org.json.JSONArray;
 
 /**
  * A chart website in the system WebView, in its own Activity. The bar on top matches the game:
@@ -39,6 +40,9 @@ public final class ChartBrowserActivity extends Activity {
     private ProgressBar progress;
     private final Set<String> hosts = new HashSet<>();
     private String startUrl;
+    private String rankedChartId;
+    private String chartZone;
+    private int chartLevel;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -122,6 +126,7 @@ public final class ChartBrowserActivity extends Activity {
             @Override public boolean shouldOverrideUrlLoading(WebView view, String url) { return block(url); }
             @Override public void onPageFinished(WebView view, String url) {
                 CookieManager.getInstance().flush();
+                captureChart(view, url);
                 progress.setVisibility(View.INVISIBLE);
             }
             @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
@@ -136,7 +141,17 @@ public final class ChartBrowserActivity extends Activity {
         });
         web.setDownloadListener((url, agent, disposition, mime, size) -> {
             try {
-                MiniWebView.download(this, url, agent, disposition, mime, web.getUrl(), hosts);
+                String page = web.getUrl();
+                String id = chartId(page);
+                Uri file = Uri.parse(url);
+                boolean publisherFile = "https".equalsIgnoreCase(file.getScheme()) && file.getUserInfo() == null
+                    && (file.getPort() == -1 || file.getPort() == 443)
+                    && ("tzi998.oss-cn-shanghai.aliyuncs.com".equalsIgnoreCase(file.getHost())
+                        || (id != null && id.equals(chartId(url)) && "/download".equals(file.getPath())));
+                boolean matched = id != null && id.equals(rankedChartId) && publisherFile
+                    && ("/download".equals(Uri.parse(page).getPath()) || id.equals(chartId(url)));
+                MiniWebView.download(this, url, agent, disposition, mime, page, hosts,
+                    matched ? chartZone : null, matched ? chartLevel : 0);
                 status.setText("已开始下载，返回游戏后自动导入");
                 Toast.makeText(this, "下载已开始，可继续选谱或返回游戏", Toast.LENGTH_LONG).show();
             } catch (Exception e) { status.setText(e.getMessage()); }
@@ -144,6 +159,39 @@ public final class ChartBrowserActivity extends Activity {
         if (state == null || web.restoreState(state) == null) web.loadUrl(startUrl);
         if (android.os.Build.VERSION.SDK_INT >= 33)
             getOnBackInvokedDispatcher().registerOnBackInvokedCallback(0, () -> goBack());
+    }
+
+    private static String chartId(String page) {
+        if (page == null) return null;
+        Uri uri = Uri.parse(page);
+        if (!"https".equals(uri.getScheme()) || !"opensekai.com".equalsIgnoreCase(uri.getHost())
+            || uri.getUserInfo() != null || (uri.getPort() != -1 && uri.getPort() != 443)
+            || !("/chart".equals(uri.getPath()) || "/download".equals(uri.getPath()))
+            || uri.getQueryParameters("id").size() != 1) return null;
+        String id = uri.getQueryParameter("id");
+        return id != null && id.matches("[1-9][0-9]{0,15}") ? id : null;
+    }
+
+    private void captureChart(WebView view, String page) {
+        String id = chartId(page);
+        if (id == null || !"/chart".equals(Uri.parse(page).getPath())) return;
+        rankedChartId = null;
+        // Return only metadata already rendered by this exact chart page. Never expose a JS bridge.
+        view.evaluateJavascript("(() => {const u=new URL(location.href);"
+            + "if(u.origin!=='https://opensekai.com'||u.pathname!=='/chart')return null;"
+            + "const box=document.querySelector('section.detail .detail-labels');if(!box)return null;"
+            + "const b=box.querySelector('.zone-badge'), l=box.querySelector('.badge');"
+            + "const z=['quality','beginner','abstract'].find(x=>b&&b.classList.contains(x));"
+            + "const m=l&&l.textContent.match(/·\\s*(\\d+)\\s*$/);"
+            + "return z&&m?[u.searchParams.get('id'),z,Number(m[1])]:null})()", result -> {
+                try {
+                    JSONArray values = new JSONArray(result);
+                    if (!id.equals(values.getString(0))) return;
+                    rankedChartId = id;
+                    chartZone = values.getString(1);
+                    chartLevel = values.getInt(2);
+                } catch (org.json.JSONException ignored) { /* Unknown until checked by chart ID. */ }
+            });
     }
 
     private ImageView barButton(int icon, String description) {

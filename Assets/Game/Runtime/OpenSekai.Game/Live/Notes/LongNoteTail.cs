@@ -235,13 +235,13 @@ namespace Sekai.Live
 				return false;
 			}
 
-			NoteResult result = LongEndJudgement.Evaluate(currentTime - Child.MusicScoreInfo.time);
+			var hit = LongEndJudgement.EvaluateHit(currentTime - Child.MusicScoreInfo.time);
 			if (Child.Result == NoteResult.None)
 			{
-				Child.FinishWith(result);
+				Child.FinishWith(hit);
 			}
 
-			return PublishTail(result);
+			return PublishTail(hit.result);
 		}
 
 		internal bool DetachStandaloneTail(float currentTime)

@@ -4,6 +4,8 @@ using System.IO;
 using Newtonsoft.Json;
 using UnityEngine;
 
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("OpenSekai.Tests.EditMode")]
+
 namespace OpenSekai.EditorTools.Screenshots
 {
     /// <summary>
@@ -55,10 +57,10 @@ namespace OpenSekai.EditorTools.Screenshots
     [Serializable]
     public sealed class Shot
     {
-        /// <summary>live | info | finish | library | settings | settings-trace | result | actions | loading | return | home | intro | handoff | about | server | packs</summary>
+        /// <summary>clip | live | info | finish | library | settings | settings-trace | result | actions | loading | return | home | intro | handoff | about | server | packs | profile | dan | achievements | medals | ranking | sample | library-states</summary>
         public string kind;
 
-        /// <summary>File name stem; defaults to the kind (plus the time for live/info).</summary>
+        /// <summary>For clip, the animation name. Otherwise the file name stem; defaults to the kind.</summary>
         public string name;
 
         /// <summary>
@@ -75,8 +77,52 @@ namespace OpenSekai.EditorTools.Screenshots
         /// info: seconds since the info page was asked to start (it fades out at about 2.9 s).
         /// finish: seconds since the last note was done (the result animation starts 1 s later).
         /// intro: seconds into the splash (it hands over to the settled home page at about 4.4 s).
+        /// result: seconds into the result page's opening, one frame each; none shows where it settles.
         /// </summary>
         public List<float> times = new List<float>();
+
+        /// <summary>Start and exclusive end of an independent sequence in seconds. With to set, times is ignored.</summary>
+        public double? from;
+        public double? to;
+        public bool alpha;
+        public bool clean;
+
+        internal void PrepareSequence()
+        {
+            if (kind == "clip")
+            {
+                (double start, double end) = name switch
+                {
+                    "tier-upgrade" => (-0.5, 1.5),
+                    "dan-award" or "special-medals" => (0.0, 4.0),
+                    "achievement-unlock" => (0.0, 2.6),
+                    "achievement-card" => (0.0, 4.6),
+                    _ => throw new ArgumentException("Unknown clip: " + name)
+                };
+                from ??= to.HasValue ? 0d : start;
+                to ??= end;
+            }
+            if (!to.HasValue)
+            {
+                if (from.HasValue) throw new ArgumentException("from requires to.");
+                return;
+            }
+            if (kind != "clip" && kind != "intro" && kind != "result" && kind != "info" && kind != "live" && kind != "finish")
+                throw new ArgumentException("Unsupported sequence kind: " + kind);
+            from ??= 0d;
+            if (from.Value < 0 && !(kind == "clip" && name == "tier-upgrade"))
+                throw new ArgumentException("Only tier-upgrade accepts negative time.");
+            if (fps < 1 || fps > 240) throw new ArgumentException("Sequence fps must be 1..240.");
+            if (FrameCount < 1) throw new ArgumentException("The requested range must contain at least one frame.");
+            if (alpha && !(kind == "clip" && (name == "tier-upgrade" || name == "special-medals" || name == "achievement-card")))
+                throw new ArgumentException("alpha requires a tier-upgrade, special-medals or achievement-card clip.");
+            if (clean && !(kind == "clip" && name == "dan-award")) throw new ArgumentException("clean requires dan-award.");
+        }
+
+        internal int FrameCount => checked((int)Math.Round((to.Value - from.Value) * fps, MidpointRounding.AwayFromZero));
+        internal double FrameTime(int index) => from.Value + (double)index / fps;
+        internal string RangeStem(string stem) => FormattableString.Invariant($"{stem}_{from:0.000}-{to:0.000}");
+        internal static string FrameName(string stem, int index) => FormattableString.Invariant($"{stem}_{index:D5}.png");
 
         /// <summary>live: seconds before each time that are played at the capture frame rate (judgement effects need them).</summary>
         public float lead = 1.5f;
@@ -94,14 +140,21 @@ namespace OpenSekai.EditorTools.Screenshots
         /// <summary>live/info/finish: the simulated frame rate the frames are stepped at.</summary>
         public int fps = 60;
 
-        /// <summary>result: the sample shown on the result panel.</summary>
+        /// <summary>result: the sample shown on the result page.</summary>
         public ResultSample result;
     }
 
-    /// <summary>Sample data for the library result panel. Every field has a plausible default.</summary>
+    /// <summary>
+    /// Sample data for the result page. With <see cref="settlement"/> set, the run and its ranking
+    /// are the backend's matching SettlementSamples case and the counts below are ignored; without
+    /// it the counts are shown with no ranking ("本局未记录成绩"). Every field has a plausible default.
+    /// </summary>
     [Serializable]
     public sealed class ResultSample
     {
+        /// <summary>A SettlementExample name: FirstClear | SameChartFullCombo | NewChartAllPerfectTierUp | OutsideBest30 | Auto | Failed | Retired | SaveFailed.</summary>
+        public string settlement;
+
         /// <summary>Completed | Failed | Retired | LoadError</summary>
         public string kind = "Completed";
         public bool auto;
@@ -120,36 +173,26 @@ namespace OpenSekai.EditorTools.Screenshots
         public int life = 820;
         public string message = "找不到音频文件。";
 
-        /// <summary>Fills the counts for a named preset: fc, ap, auto, failed, retired, loaderror.</summary>
+        /// <summary>
+        /// A named preset: default (first clear) | fc | ap (new chart, tier up) | outside | auto |
+        /// failed | retired | savefailed | loaderror.
+        /// </summary>
         public static ResultSample Preset(string preset)
         {
             var sample = new ResultSample();
             switch ((preset ?? string.Empty).ToLowerInvariant())
             {
-                case "ap":
-                    sample.score = 1135420; sample.maxCombo = 1250; sample.perfect = 1250;
-                    sample.great = sample.good = sample.bad = sample.miss = 0;
-                    break;
-                case "fc":
-                    sample.score = 1112806; sample.maxCombo = 1250; sample.perfect = 1206;
-                    sample.great = 44; sample.good = sample.bad = sample.miss = 0;
-                    break;
-                case "auto":
-                    sample.auto = true; sample.score = 1135420; sample.maxCombo = 1250;
-                    sample.perfect = sample.great = sample.good = sample.bad = sample.miss = 0;
-                    break;
-                case "failed":
-                    sample.kind = "Failed"; sample.score = 412803; sample.rank = "C"; sample.maxCombo = 96;
-                    sample.totalCombo = 1250; sample.perfect = 402; sample.great = 87; sample.good = 31;
-                    sample.bad = 22; sample.miss = 58; sample.life = 0;
-                    break;
-                case "retired":
-                    sample.kind = "Retired"; sample.score = 233118; sample.rank = "D"; sample.maxCombo = 207;
-                    sample.perfect = 220; sample.great = 12; sample.good = 1; sample.bad = 0; sample.miss = 1;
-                    break;
-                case "loaderror":
-                    sample.kind = "LoadError";
-                    break;
+                case "":
+                case "default": sample.settlement = "FirstClear"; break;
+                case "fc": sample.settlement = "SameChartFullCombo"; break;
+                case "ap": sample.settlement = "NewChartAllPerfectTierUp"; break;
+                case "outside": sample.settlement = "OutsideBest30"; break;
+                case "auto": sample.settlement = "Auto"; break;
+                case "failed": sample.settlement = "Failed"; break;
+                case "retired": sample.settlement = "Retired"; break;
+                case "savefailed": sample.settlement = "SaveFailed"; break;
+                case "loaderror": sample.kind = "LoadError"; break;
+                default: throw new ArgumentException("Unknown result preset: " + preset, nameof(preset));
             }
             return sample;
         }

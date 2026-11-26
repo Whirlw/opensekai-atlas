@@ -40,6 +40,10 @@ namespace OpenSekai.App.UI
         private ServerScreen _server;
         private PackScreen _packs;
         private PackOrigin _packsOrigin;
+        private ProfileScreen _profile;
+        private DanScreen _dan;
+        private AchievementScreen _achievements;
+        private PlayerProfileStore _profileStore;
         private CancellationTokenSource _serverPlayCancellation;
         private LibraryLoadingOverlay _serverLoading;
         private Camera _camera;
@@ -73,12 +77,43 @@ namespace OpenSekai.App.UI
         /// <summary>True while the resource pack part is on screen.</summary>
         public bool IsPacksShown => _packs != null && _packs.IsPresented;
 
+        /// <summary>True while the 个人信息 part is on screen.</summary>
+        public bool IsProfileShown => _profile != null && _profile.IsPresented;
+
+        /// <summary>True while the 段位 part is on screen.</summary>
+        public bool IsDanShown => _dan != null && _dan.IsPresented;
+
+        /// <summary>True while the 成就 part is on screen.</summary>
+        public bool IsAchievementsShown => _achievements != null && _achievements.IsPresented;
+
+        /// <summary>The home page that is on screen once it settles: 0 the first, 1 the second.</summary>
+        public int HomePage => _view.Page;
+
+        /// <summary>
+        /// The profile the 个人信息 card and part read; the local one unless a tool swapped in another
+        /// (screenshots use a sample so they never show or change the player's own).
+        /// </summary>
+        internal PlayerProfileStore ProfileStore
+        {
+            get => _profileStore ?? PlayerProfileStore.Local;
+            set
+            {
+                _profileStore = value;
+                if (_profile != null) _profile.Store = value;
+                if (_dan != null) _dan.Store = value;
+                if (_achievements != null) _achievements.Store = value;
+            }
+        }
+
         /// <summary>Where back from the resource pack part leads: the page it was opened from.</summary>
         private enum PackOrigin
         {
             Home,
             Library,
-            Server
+            Server,
+            Profile,
+            Dan,
+            Achievements
         }
 
         /// <summary>True once the emblem has its bundled layers.</summary>
@@ -98,7 +133,7 @@ namespace OpenSekai.App.UI
             else
             {
                 screen.HideHome();
-                if (!screen.RestoreServerAfterLive()) screen.ShowReadyLibrary(false);
+                if (!screen.RestoreDanAfterCourse() && !screen.RestoreServerAfterLive()) screen.ShowReadyLibrary(false);
             }
 
             return screen;
@@ -115,7 +150,11 @@ namespace OpenSekai.App.UI
             _navigating = false;
             HideServer();
             HidePacks();
+            HideProfile();
+            HideDan();
+            HideAchievements();
             HideHome();
+            _view.TurnTo(0, false);
             ShowReadyLibrary(false);
         }
 
@@ -130,6 +169,9 @@ namespace OpenSekai.App.UI
             _library?.SetPresented(false, false);
             HideServer();
             HidePacks();
+            HideProfile();
+            HideDan();
+            HideAchievements();
             ShowHome(refreshSummary);
             _about.Hide();
             _splash.Evaluate(HomeSplash.Length);
@@ -143,6 +185,7 @@ namespace OpenSekai.App.UI
         /// </summary>
         public void SeekIntro(float seconds)
         {
+            _view.TurnTo(0, false);
             if (!_homeShown)
             {
                 _library?.SetPresented(false, false);
@@ -165,6 +208,7 @@ namespace OpenSekai.App.UI
             _idle.TryCancel();
             _idle = default;
             TickIdle(IntroLength);
+            _view.TurnTo(0, false);
             _view.ApplyExpansion(Mathf.Clamp01(amount));
         }
 
@@ -177,6 +221,9 @@ namespace OpenSekai.App.UI
             _navigating = false;
             _library?.SetPresented(false, false);
             HidePacks();
+            HideProfile();
+            HideDan();
+            HideAchievements();
             HideHome();
             EnsureServer().SetPresented(true, false);
         }
@@ -191,6 +238,7 @@ namespace OpenSekai.App.UI
             _idle.TryCancel();
             _idle = default;
             TickIdle(IntroLength);
+            _view.TurnTo(0, false);
             _view.ApplyExpansion(HomeDestination.Server, Mathf.Clamp01(amount));
         }
 
@@ -203,6 +251,9 @@ namespace OpenSekai.App.UI
             _navigating = false;
             _library?.SetPresented(false, false);
             HideServer();
+            HideProfile();
+            HideDan();
+            HideAchievements();
             HideHome();
             _packsOrigin = PackOrigin.Home;
             EnsurePacks().SetPresented(true, false);
@@ -218,8 +269,151 @@ namespace OpenSekai.App.UI
             _idle.TryCancel();
             _idle = default;
             TickIdle(IntroLength);
+            _view.TurnTo(0, false);
             _view.ApplyExpansion(HomeDestination.Packs, Mathf.Clamp01(amount));
         }
+
+        /// <summary>Shows the 个人信息 part at once, as if the player had gone in.</summary>
+        public void ShowProfileImmediately()
+        {
+            _view.StopTransition();
+            _splash.Stop();
+            _splash.Evaluate(HomeSplash.Length);
+            _navigating = false;
+            _library?.SetPresented(false, false);
+            HideServer();
+            HidePacks();
+            HideDan();
+            HideAchievements();
+            HideHome();
+            _view.TurnTo(1, false);
+            EnsureProfile().SetPresented(true, false);
+        }
+
+        /// <summary>Shows the 段位 part at once, as if the player had gone in.</summary>
+        public void ShowDanImmediately()
+        {
+            _view.StopTransition();
+            _splash.Stop();
+            _splash.Evaluate(HomeSplash.Length);
+            _navigating = false;
+            _library?.SetPresented(false, false);
+            HideServer();
+            HidePacks();
+            HideProfile();
+            HideAchievements();
+            HideHome();
+            _view.TurnTo(1, false);
+            EnsureDan().SetPresented(true, false);
+        }
+
+        /// <summary>Shows the 成就 part at once, as if the player had gone in.</summary>
+        public void ShowAchievementsImmediately()
+        {
+            _view.StopTransition();
+            _splash.Stop();
+            _splash.Evaluate(HomeSplash.Length);
+            _navigating = false;
+            _library?.SetPresented(false, false);
+            HideServer();
+            HidePacks();
+            HideProfile();
+            HideDan();
+            HideHome();
+            _view.TurnTo(1, false);
+            EnsureAchievements().SetPresented(true, false);
+        }
+
+        /// <summary>
+        /// Holds the hand-over to the 成就 part at <paramref name="amount"/> (0 the second page at
+        /// rest, 1 the 成就 card covering the screen), for screenshots of the transition.
+        /// </summary>
+        public void SeekAchievementsHandoff(float amount)
+        {
+            ShowHomeImmediately();
+            _idle.TryCancel();
+            _idle = default;
+            TickIdle(IntroLength);
+            _view.TurnTo(1, false);
+            _view.ApplyExpansion(HomeDestination.Achievements, Mathf.Clamp01(amount));
+        }
+
+        /// <summary>
+        /// Holds the hand-over to the 段位 part at <paramref name="amount"/> (0 the second page at
+        /// rest, 1 the 段位 card covering the screen), for screenshots of the transition.
+        /// </summary>
+        public void SeekDanHandoff(float amount)
+        {
+            ShowHomeImmediately();
+            _idle.TryCancel();
+            _idle = default;
+            TickIdle(IntroLength);
+            _view.TurnTo(1, false);
+            _view.ApplyExpansion(HomeDestination.Dan, Mathf.Clamp01(amount));
+        }
+
+        /// <summary>
+        /// Holds the hand-over to the 个人信息 part at <paramref name="amount"/> (0 the second page at
+        /// rest, 1 the 个人信息 card covering the screen), for screenshots of the transition.
+        /// </summary>
+        public void SeekProfileHandoff(float amount)
+        {
+            ShowHomeImmediately();
+            _idle.TryCancel();
+            _idle = default;
+            TickIdle(IntroLength);
+            _view.TurnTo(1, false);
+            _view.ApplyExpansion(HomeDestination.Profile, Mathf.Clamp01(amount));
+        }
+
+        /// <summary>
+        /// Puts <paramref name="summary"/> on the 个人信息 card and holds the page's idle motion at
+        /// <paramref name="time"/> seconds, for screenshots of each Ranking Score tier. The next
+        /// <see cref="ShowHomeImmediately"/> reads the real profile again.
+        /// </summary>
+        internal void PreviewProfileCard(HomeProfileSummary summary, double time)
+        {
+            _view.SetProfile(summary);
+            HoldIdle(time);
+        }
+
+        /// <summary>
+        /// Holds the page's idle motion at <paramref name="time"/> seconds, for screenshots; the next
+        /// <see cref="ShowHomeImmediately"/> sets it going again.
+        /// </summary>
+        internal void HoldIdle(double time)
+        {
+            _idle.TryCancel();
+            _idle = default;
+            TickIdle(time);
+        }
+
+        /// <summary>
+        /// Holds the home page between its two pages: 0 the first, 1 the second, in between part of
+        /// each, as a swipe leaves them. Whole numbers settle on that page.
+        /// </summary>
+        public void SeekHomePage(float progress)
+        {
+            if (Mathf.Approximately(progress, Mathf.Round(progress)))
+            {
+                _view.TurnTo(Mathf.RoundToInt(progress), false);
+                return;
+            }
+
+            _view.SeekPage(progress);
+        }
+
+        /// <summary>What a swipe or the footer's tabs do: turn the home page to <paramref name="page"/>.</summary>
+        public void TurnHomePage(int page) => _view.TurnTo(page, true);
+
+        /// <summary>What tapping the 个人信息 card does.</summary>
+        public void EnterProfile() => OpenProfile();
+
+        /// <summary>What tapping the 段位 card does.</summary>
+        public void EnterDan() => OpenDan();
+
+        /// <summary>What tapping the 成就 card does.</summary>
+        public void EnterAchievements() => OpenAchievements();
 
         /// <summary>What tapping the 资源包 card does.</summary>
         public void EnterPacks() => OpenPacks();
@@ -257,7 +451,8 @@ namespace OpenSekai.App.UI
 
             var root = (RectTransform)_canvasRoot.transform;
             _backdrop = new HomeBackdrop(root);
-            _view = new HomeView(root, OpenLibrary, OpenAbout, OpenSettings, ShowComingSoon, OpenServer, OpenPacks);
+            _view = new HomeView(root, OpenLibrary, OpenAbout, OpenSettings, ShowComingSoon, OpenServer, OpenPacks, OpenProfile, OpenDan,
+                OpenAchievements);
             if (ServerChartDownloads.Current != null)
             {
                 ServerChartDownloads.Current.StatusChanged += ShowServerStatus;
@@ -274,6 +469,7 @@ namespace OpenSekai.App.UI
         private void StartIntro()
         {
             _library?.SetPresented(false, false);
+            _view.TurnTo(0, false);
             ShowHome(refreshSummary: false);
             _introSummaryPending = true;
             _view.Interactable = false;
@@ -425,7 +621,27 @@ namespace OpenSekai.App.UI
                     _splash.Evaluate(HomeSplash.Length);
                 }
 
+                // The 资源包 card is on the first page.
+                _view.TurnTo(0, false);
                 OpenPacks();
+                return;
+            }
+
+            if (_profile != null && _profile.IsPresented)
+            {
+                CoverThenShowPacks(PackOrigin.Profile, _profile.PlayExit, () => _profile.SetPresented(false, false));
+                return;
+            }
+
+            if (_dan != null && _dan.IsPresented)
+            {
+                CoverThenShowPacks(PackOrigin.Dan, _dan.PlayExit, () => _dan.SetPresented(false, false));
+                return;
+            }
+
+            if (_achievements != null && _achievements.IsPresented)
+            {
+                CoverThenShowPacks(PackOrigin.Achievements, _achievements.PlayExit, () => _achievements.SetPresented(false, false));
                 return;
             }
 
@@ -483,6 +699,27 @@ namespace OpenSekai.App.UI
                     return;
                 }
 
+                if (origin == PackOrigin.Profile && _profile != null)
+                {
+                    _profile.SetPresented(true, true);
+                    _navigating = false;
+                    return;
+                }
+
+                if (origin == PackOrigin.Dan && _dan != null)
+                {
+                    _dan.SetPresented(true, true);
+                    _navigating = false;
+                    return;
+                }
+
+                if (origin == PackOrigin.Achievements && _achievements != null)
+                {
+                    _achievements.SetPresented(true, true);
+                    _navigating = false;
+                    return;
+                }
+
                 ShowHome();
                 _splash.Evaluate(HomeSplash.Length);
                 _view.PlayCollapse(HomeDestination.Packs, () => _navigating = false);
@@ -512,13 +749,215 @@ namespace OpenSekai.App.UI
             _packsOrigin = PackOrigin.Home;
         }
 
+        /// <summary>The 个人信息 card grows over the second page, then the part rises out of it.</summary>
+        private void OpenProfile()
+        {
+            if (_navigating || !_homeShown)
+            {
+                return;
+            }
+
+            _navigating = true;
+            UiSound.Play(UiCue.Forward);
+            ProfileScreen profile = EnsureProfile();
+            _view.PlayExpand(HomeDestination.Profile, () =>
+            {
+                HideHome();
+                profile.SetPresented(true, true);
+                _navigating = false;
+            });
+        }
+
+        /// <summary>The 个人信息 part falls into the ground, then its card shrinks back into the second page.</summary>
+        private void ReturnFromProfile()
+        {
+            if (_navigating || _profile == null || !_profile.IsPresented)
+            {
+                return;
+            }
+
+            _navigating = true;
+            _profile.PlayExit(() =>
+            {
+                _profile.SetPresented(false, false);
+                ShowHome();
+                _splash.Evaluate(HomeSplash.Length);
+                _view.PlayCollapse(HomeDestination.Profile, () => _navigating = false);
+            });
+        }
+
+        private ProfileScreen EnsureProfile()
+        {
+            if (_profile != null)
+            {
+                return _profile;
+            }
+
+            _profile = ProfileScreen.Create(() => _context.Packages.LoadItems());
+            _profile.transform.SetParent(transform, false);
+            _profile.Store = _profileStore;
+            _profile.BackRequested += ReturnFromProfile;
+            _profile.DataChanged += OnProfileChanged;
+            return _profile;
+        }
+
+        private void HideProfile()
+        {
+            if (_profile != null && _profile.IsPresented)
+            {
+                _profile.SetPresented(false, false);
+            }
+        }
+
+        /// <summary>The 段位 card grows over the second page, then the part rises out of it.</summary>
+        private void OpenDan()
+        {
+            if (_navigating || !_homeShown)
+            {
+                return;
+            }
+
+            _navigating = true;
+            UiSound.Play(UiCue.Forward);
+            DanScreen dan = EnsureDan();
+            _view.PlayExpand(HomeDestination.Dan, () =>
+            {
+                HideHome();
+                dan.SetPresented(true, true);
+                _navigating = false;
+            });
+        }
+
+        /// <summary>The 段位 part falls into the ground, then its card shrinks back into the second page.</summary>
+        private void ReturnFromDan()
+        {
+            if (_navigating || _dan == null || !_dan.IsPresented)
+            {
+                return;
+            }
+
+            _navigating = true;
+            _dan.PlayExit(() =>
+            {
+                _dan.SetPresented(false, false);
+                ShowHome();
+                _splash.Evaluate(HomeSplash.Length);
+                _view.PlayCollapse(HomeDestination.Dan, () => _navigating = false);
+            });
+        }
+
+        private DanScreen EnsureDan()
+        {
+            if (_dan != null)
+            {
+                return _dan;
+            }
+
+            _dan = DanScreen.Create();
+            _dan.transform.SetParent(transform, false);
+            _dan.Store = _profileStore;
+            _dan.BackRequested += ReturnFromDan;
+            return _dan;
+        }
+
+        private void HideDan()
+        {
+            if (_dan != null && _dan.IsPresented)
+            {
+                _dan.SetPresented(false, false);
+            }
+        }
+
+        /// <summary>The 成就 card grows over the second page, then the part rises out of it.</summary>
+        private void OpenAchievements()
+        {
+            if (_navigating || !_homeShown)
+            {
+                return;
+            }
+
+            _navigating = true;
+            UiSound.Play(UiCue.Forward);
+            AchievementScreen achievements = EnsureAchievements();
+            _view.PlayExpand(HomeDestination.Achievements, () =>
+            {
+                HideHome();
+                achievements.SetPresented(true, true);
+                _navigating = false;
+            });
+        }
+
+        /// <summary>The 成就 part falls into the ground, then its card shrinks back into the second page.</summary>
+        private void ReturnFromAchievements()
+        {
+            if (_navigating || _achievements == null || !_achievements.IsPresented)
+            {
+                return;
+            }
+
+            _navigating = true;
+            _achievements.PlayExit(() =>
+            {
+                _achievements.SetPresented(false, false);
+                ShowHome();
+                _splash.Evaluate(HomeSplash.Length);
+                _view.PlayCollapse(HomeDestination.Achievements, () => _navigating = false);
+            });
+        }
+
+        private AchievementScreen EnsureAchievements()
+        {
+            if (_achievements != null)
+            {
+                return _achievements;
+            }
+
+            _achievements = AchievementScreen.Create();
+            _achievements.transform.SetParent(transform, false);
+            _achievements.Store = _profileStore;
+            _achievements.BackRequested += ReturnFromAchievements;
+            return _achievements;
+        }
+
+        private void HideAchievements()
+        {
+            if (_achievements != null && _achievements.IsPresented)
+            {
+                _achievements.SetPresented(false, false);
+            }
+        }
+
+        /// <summary>
+        /// After a 段位 course the library scene opens on the 段位 part and its result, once; the
+        /// second home page waits underneath for the part's back button.
+        /// </summary>
+        private bool RestoreDanAfterCourse()
+        {
+            if (!DanResultHandoff.TakeFinished(DanChallengeService.Local)) return false;
+            _library?.SetPresented(false, false);
+            _view.TurnTo(1, false);
+            DanScreen dan = EnsureDan();
+            dan.SetPresented(true, false);
+            dan.ShowCourseResult();
+            return true;
+        }
+
+        /// <summary>Redraws the library after a history change. The home cards refresh on return.</summary>
+        private void OnProfileChanged(bool history)
+        {
+            if (history)
+            {
+                _library?.Refresh();
+            }
+        }
+
         private void OnServerPlayRequested(ServerScreen.PlayRequest request)
         {
             if (_navigating || _server == null || (request.Temporary == null && string.IsNullOrEmpty(request.PackageDirectory))) return;
-            StartServerLive(request.PackageDirectory, request.Title, request.IsAuto, request.Temporary).Forget();
+            StartServerLive(request.PackageDirectory, request.Title, request.IsAuto, request.Temporary, request.RetryFrom).Forget();
         }
 
-        private async UniTaskVoid StartServerLive(string packageDirectory, string title, bool isAuto, TemporarySongPackage temporary)
+        private async UniTaskVoid StartServerLive(string packageDirectory, string title, bool isAuto, TemporarySongPackage temporary, RankingSettlement retryFrom)
         {
             _navigating = true;
             var cancellation = new CancellationTokenSource();
@@ -539,7 +978,7 @@ namespace OpenSekai.App.UI
                 _serverReturningFromLive = server;
 
                 PlayStartResult result = await _context.Playback.StartAsync(
-                    new PlayRequest(packageDirectory, isAuto, Sekai.SceneManager.Scene.Library, temporary),
+                    new PlayRequest(packageDirectory, isAuto, Sekai.SceneManager.Scene.Library, temporary) { RetryFrom = retryFrom },
                     cancellation.Token, _serverLoading.SetMessage);
                 started = result.Started;
                 if (started)
@@ -753,6 +1192,39 @@ namespace OpenSekai.App.UI
                 return;
             }
 
+            if (_profile != null && _profile.IsPresented)
+            {
+                if (!_profile.TryHandleBack())
+                {
+                    UiSound.Play(UiCue.Back);
+                    ReturnFromProfile();
+                }
+
+                return;
+            }
+
+            if (_dan != null && _dan.IsPresented)
+            {
+                if (!_dan.TryHandleBack())
+                {
+                    UiSound.Play(UiCue.Back);
+                    ReturnFromDan();
+                }
+
+                return;
+            }
+
+            if (_achievements != null && _achievements.IsPresented)
+            {
+                if (!_achievements.TryHandleBack())
+                {
+                    UiSound.Play(UiCue.Back);
+                    ReturnFromAchievements();
+                }
+
+                return;
+            }
+
             if (_server != null && _server.IsPresented)
             {
                 if (!_server.TryHandleBack())
@@ -848,6 +1320,7 @@ namespace OpenSekai.App.UI
         /// </summary>
         private void RefreshLibrarySummary()
         {
+            RefreshProfileSummary();
             _homeJacketsReady = false;
             CancelJacketLoad();
             IReadOnlyList<SongPackageItem> items;
@@ -905,6 +1378,37 @@ namespace OpenSekai.App.UI
 
             _jacketLoad = new CancellationTokenSource();
             LoadJacketsAsync(jackets, recent, _jacketLoad.Token).Forget();
+        }
+
+        /// <summary>Reads the profile for the 个人信息 card; a profile that cannot be read says so on the card.</summary>
+        private void RefreshProfileSummary()
+        {
+            try
+            {
+                PlayerProfileStore store = ProfileStore;
+                PlayerProfileSnapshot snapshot = store.Read();
+                int plays = store.ReadHistory(0, 1).TotalCount;
+                _view.SetProfile(new HomeProfileSummary(snapshot.Appearance.Nickname, snapshot.Appearance.AvatarId,
+                    snapshot.Best30.Total, snapshot.Best30.TierId, snapshot.Best30.Entries.Count, plays, MedalLook.Of(snapshot.WornMedals), false));
+                int courses = store.ReadDanDefinitions().Count;
+                _view.SetDanStatus(courses == 0 ? "开始挑战" : courses + " 个段位  ·  已通过 " + snapshot.EarnedDanIds.Count);
+                int goals = 0;
+                int unlocked = 0;
+                int claimable = 0;
+                foreach (AchievementSeries series in AchievementSeries.Group(store.ReadAchievements()))
+                {
+                    goals += series.Steps.Count;
+                    unlocked += series.UnlockedCount;
+                    if (series.State == AchievementState.Claimable) claimable++;
+                }
+
+                _view.SetAchievementStatus(unlocked, goals, claimable);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning("[Home] Could not read the player profile: " + exception.Message);
+                _view.SetProfile(new HomeProfileSummary(HomeProfileSummary.Empty.Nickname, ProfileAvatars.DEFAULT_ID, 0L, 0, 0, 0, null, true));
+            }
         }
 
         private static void AddJacket(List<SongPackageItem> jackets, SongPackageItem item)
@@ -1029,6 +1533,22 @@ namespace OpenSekai.App.UI
             if (_packs != null)
             {
                 _packs.BackRequested -= ReturnFromPacks;
+            }
+
+            if (_profile != null)
+            {
+                _profile.BackRequested -= ReturnFromProfile;
+                _profile.DataChanged -= OnProfileChanged;
+            }
+
+            if (_dan != null)
+            {
+                _dan.BackRequested -= ReturnFromDan;
+            }
+
+            if (_achievements != null)
+            {
+                _achievements.BackRequested -= ReturnFromAchievements;
             }
 
             if (_server != null)

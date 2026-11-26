@@ -89,8 +89,8 @@ namespace Sekai.Live
 					var childOffsetTime = CalcTimeOffset?.Invoke(note) ?? offsetTime;
 					if (currentFrameInfo.time < note.MusicScoreInfo.time - childOffsetTime)
 					{
-					if (currentFrameInfo.time < note.MusicScoreInfo.time - ConnectionNote.CONTACT_WINDOW_SECONDS) break;
-					if (note is not LongHoldCombo) continue;
+						if (currentFrameInfo.time < note.MusicScoreInfo.time - ConnectionNote.CONTACT_WINDOW_SECONDS) break;
+						if (note is not HoldPointNote { UsesHoldPointJudgment: true }) continue;
 					}
 
 					// A judged end note that judges itself has its own clock in the session (LiveNoteSession
@@ -183,7 +183,7 @@ namespace Sekai.Live
 				// leaves the head to close itself.
 				JudgeInfo = childNote != null
 					&& (childNote.Result > NoteResult.Pass || childNote.State == NoteState.Input)
-						? (NoteResult.JustPerfect, NoteResultDescription.None)
+						? (NoteResult.Perfect, NoteResultDescription.None)
 						: (NoteResult.Miss, NoteResultDescription.None);
 				State = NoteState.Done;
 			}

@@ -89,8 +89,12 @@ namespace Sekai.Core.Live
 
 #if UNITY_EDITOR
 		internal bool CaptureFinished => state == LiveControllerState.Finish;
+		internal static Func<float> CaptureIntroClock { get; set; }
+		private static float IntroClock => CaptureIntroClock?.Invoke() ?? Time.realtimeSinceStartup;
 		internal long CaptureTimeMs { get => currentMusicTimeMs; set => currentMusicTimeMs = value; }
 		internal MusicPhase CapturePhase { get => musicPhase; set => musicPhase = value; }
+#else
+		private static float IntroClock => Time.realtimeSinceStartup;
 #endif
 
 		/// <summary>The music and chart spans read when the chart loaded. See <see cref="BuildTimelineSpan"/>.</summary>
@@ -201,7 +205,7 @@ namespace Sekai.Core.Live
 
 		protected virtual void LoadSound()
 		{
-			SoundManager.Instance.LoadSoundBundle("live/sound/live_se/default", true);
+			SoundManager.Instance.LoadSoundBundle(LiveConfig.LIVE_COMMON_SOUND_BUNDLE, true);
 			LoadTapSeSoundBundle();
 
 			string cueName = ResolveMusicCueName();
@@ -213,7 +217,7 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>
-		/// The note skin, hit effect and hit sound sets come from this live's own settings snapshot
+		/// The note skin and hit effect sets come from this live's own settings snapshot
 		/// (the resource pack page's choice, fixed when the live started), not from the stored
 		/// settings that <see cref="LiveConfig.LoadOptionData"/> read. Retries reuse the same boot.
 		/// </summary>
@@ -231,9 +235,7 @@ namespace Sekai.Core.Live
 
 		private void LoadTapSeSoundBundle()
 		{
-			int noteSeIndex = Mathf.Clamp(BootData?.LiveSettingData?.NoteSeIndex ?? Settings?.NoteSeIndex ?? 0, 0, 1);
-			LiveConfig.SetNoteSeName(noteSeIndex);
-			SoundManager.Instance.LoadSoundBundle("live/tap_se/" + LiveConfig.NoteSeName, true);
+			SoundManager.Instance.LoadSoundBundle(LiveConfig.BUILTIN_HIT_SOUND_BUNDLE, true);
 			SoundManager.Instance.ResumeIngameSe();
 		}
 
@@ -266,8 +268,8 @@ namespace Sekai.Core.Live
 
 				// Let the file's silence play during the info page, but wait for the actual fade-out
 				// callback before letting the clock advance past the playable start.
-				float deadline = Time.realtimeSinceStartup + Mathf.Max(waitTime, introSeconds) + INTRO_WAIT_SLACK_SECONDS;
-				while (!IsIntroFinished() && Time.realtimeSinceStartup < deadline)
+				float deadline = IntroClock + Mathf.Max(waitTime, introSeconds) + INTRO_WAIT_SLACK_SECONDS;
+				while (!IsIntroFinished() && IntroClock < deadline)
 				{
 					yield return null;
 					if (heldAtStart) continue;
@@ -603,6 +605,15 @@ namespace Sekai.Core.Live
 			// last note, whichever ends last. The outro skip brings it forward.
 			if (state == LiveControllerState.Playing)
 			{
+#if UNITY_EDITOR
+				// Finish captures park the music clock at the last judgment. Time their run-out
+				// on the scaled frame clock that the screenshot driver advances for each export.
+				if (BootData is FreeLiveBootData { ResultAnimationPreviewOverride: int })
+				{
+					PreExit(OpenSekai.Shared.Live.Simulation.LiveTimelineSpan.RUN_OUT_SECONDS, RESULT_EFFECT_HOLD_SECONDS);
+					return;
+				}
+#endif
 				PreExit(0f, RESULT_EFFECT_HOLD_SECONDS, ResultEffectMs);
 			}
 			else

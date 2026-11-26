@@ -90,10 +90,10 @@ namespace OpenSekai.Tests.EditMode.Live
 
 			StepTo(TailTime + 0.06f, LiveHarness.Touch(1, position, 10d + TailTime, TouchPhase.Ended));
 
-			Assert.That(Tail.Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(Tail.Result, Is.EqualTo(NoteResult.Perfect));
 		}
 
-		[TestCase(TouchPhase.Ended, NoteResult.JustPerfect)]
+		[TestCase(TouchPhase.Ended, NoteResult.Perfect)]
 		[TestCase(TouchPhase.Canceled, NoteResult.None)]
 		public void AContactCanEndAtTheSameTimestampAsItsLastSample(TouchPhase phase, NoteResult expected)
 		{
@@ -173,7 +173,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			StepTo(1f, Sample(1, endPosition, 1f, TouchPhase.Ended, 700f),
 				Sample(2, rightPosition, 1f, TouchPhase.Stationary));
 
-			Assert.That(((NoteBase)left.ChildNote).Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(((NoteBase)left.ChildNote).Result, Is.EqualTo(NoteResult.Perfect));
 			Assert.That(((NoteBase)right.ChildNote).Result, Is.EqualTo(NoteResult.None));
 		}
 
@@ -198,7 +198,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			StepTo(0.96f, Sample(2, position, 0.96f, TouchPhase.Stationary));
 			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.None));
 			StepTo(0.98f, Sample(2, position, 0.98f, TouchPhase.Stationary));
-			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(((NoteBase)bar.ChildNote).Result, Is.EqualTo(NoteResult.Perfect));
 		}
 
 
@@ -224,8 +224,8 @@ namespace OpenSekai.Tests.EditMode.Live
 
 		// The tail is at 1.0. A lift within one sixth of a second of the key press is the end of that tap and may only
 		// release the tail inside its Perfect band; a later lift is an ordinary release.
-		[TestCase(false, 0.95f, 1.03f, NoteResult.JustPerfect)]
-		[TestCase(true, 0.95f, 1.03f, NoteResult.JustPerfect)]
+		[TestCase(false, 0.95f, 1.03f, NoteResult.Perfect)]
+		[TestCase(true, 0.95f, 1.03f, NoteResult.Perfect)]
 		[TestCase(false, 1.00f, 1.09f, NoteResult.None)]
 		[TestCase(true, 1.00f, 1.09f, NoteResult.None)]
 		// Pressed before the tail's window opened, lifted 35 ms later inside it (device log, tail 3813):
@@ -251,7 +251,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			if (key is FlickNote flickKey)
 				Assert.That(flickKey.IsArmedBy(2), Is.True);
 			else
-				Assert.That(key.Result, Is.EqualTo(NoteResult.JustPerfect));
+				Assert.That(key.Result, Is.EqualTo(NoteResult.Perfect));
 
 			// The key was in another lane, and the lifting contact is now alone in the tail's lane.
 			StepTo(liftTime, Sample(1, LanePosition(KEY_LANE), liftTime, TouchPhase.Stationary),
@@ -267,7 +267,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			LongNote bar = ArrangeHeldNormalBar(4, 0.9f, tap);
 			Vector3 position = LanePosition(4);
 			StepTo(0.9f, Sample(1, position, 0.9f, TouchPhase.Stationary), Sample(2, position, 0.9f, TouchPhase.Began));
-			Assert.That(tap.Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(tap.Result, Is.EqualTo(NoteResult.Perfect));
 
 			StepTo(1.1f, Sample(1, position, 1.1f, TouchPhase.Ended), Sample(2, position, 1.1f, TouchPhase.Stationary));
 			Assert.That(bar.TailNote.Result, Is.EqualTo(NoteResult.Great));
@@ -281,7 +281,7 @@ namespace OpenSekai.Tests.EditMode.Live
 			LongNote bar = ArrangeHeldNormalBar(4, 0.9f, tap);
 			Vector3 position = LanePosition(4);
 			StepTo(0.9f, Sample(1, position, 0.9f, TouchPhase.Stationary), Sample(2, position, 0.9f, TouchPhase.Began));
-			Assert.That(tap.Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(tap.Result, Is.EqualTo(NoteResult.Perfect));
 
 			StepTo(0.91f, Sample(1, position, 0.91f, TouchPhase.Stationary), Sample(2, position, 0.91f, TouchPhase.Ended));
 			Assert.That(bar.TailNote.Result, Is.EqualTo(NoteResult.None));
@@ -309,8 +309,8 @@ namespace OpenSekai.Tests.EditMode.Live
 			later.TailNote.OnJudgment = resultOrder.Add;
 			StepTo(1f, Sample(2, position, 1f, TouchPhase.Ended), Sample(1, position, 1f, TouchPhase.Ended));
 
-			Assert.That(earlier.TailNote.Result, Is.EqualTo(NoteResult.JustPerfect));
-			Assert.That(later.TailNote.Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(earlier.TailNote.Result, Is.EqualTo(NoteResult.Perfect));
+			Assert.That(later.TailNote.Result, Is.EqualTo(NoteResult.Perfect));
 			Assert.That(resultOrder, Is.EqualTo(new[] { later.TailNote, earlier.TailNote }),
 				"the smaller finger id gets the earlier tail at equal distance, even when reported second");
 		}
@@ -329,12 +329,12 @@ namespace OpenSekai.Tests.EditMode.Live
 			Vector3 position = LanePosition(4);
 			StepTo(PRESS_TIME, Sample(1, position, PRESS_TIME, TouchPhase.Stationary),
 				Sample(2, LanePosition(10), PRESS_TIME, TouchPhase.Began));
-			Assert.That(tap.Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(tap.Result, Is.EqualTo(NoteResult.Perfect));
 
 			StepTo(LIFT_TIME, Sample(1, position, LIFT_TIME, TouchPhase.Stationary),
 				Sample(2, position, LIFT_TIME, TouchPhase.Ended));
 			Assert.That(earlier.TailNote.Result, Is.EqualTo(NoteResult.None));
-			Assert.That(later.TailNote.Result, Is.EqualTo(NoteResult.JustPerfect));
+			Assert.That(later.TailNote.Result, Is.EqualTo(NoteResult.Perfect));
 		}
 
 		[Test]
