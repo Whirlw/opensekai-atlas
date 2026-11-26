@@ -121,6 +121,13 @@ namespace Sekai.Core.Live
 		private long _preparedMusicStartMs;
 		private bool _viewPlaybackStarted;
 		private double _freeClockRemainderMs;
+		protected double TimelinePlaybackRate { get; set; } = 1d;
+
+		protected void SetTimelinePosition(long timelineMs)
+		{
+			currentMusicTimeMs = timelineMs;
+			_freeClockRemainderMs = 0d;
+		}
 
 		protected override void OnAwake()
 		{
@@ -561,7 +568,7 @@ namespace Sekai.Core.Live
 
 		private void AdvanceFreeClock()
 		{
-			double stepMs = Math.Min(Time.unscaledDeltaTime, MAX_FREE_CLOCK_STEP_SECONDS) * 1000d + _freeClockRemainderMs;
+			double stepMs = Math.Min(Time.unscaledDeltaTime, MAX_FREE_CLOCK_STEP_SECONDS) * TimelinePlaybackRate * 1000d + _freeClockRemainderMs;
 			long wholeMs = (long)stepMs;
 			currentMusicTimeMs += wholeMs;
 			_freeClockRemainderMs = stepMs - wholeMs;

@@ -7,6 +7,7 @@ namespace Sekai.Core.Live
 	{
 		internal const float REFERENCE_FRAME_SECONDS = 1f / 60f;
 
+		internal double PlaybackRate { get; set; } = 1d;
 		internal double GameTime { get; set; }
 		internal MusicScoreInfo Frame { get; private set; }
 		internal float PreviousFrameTime { get; private set; }
@@ -33,8 +34,8 @@ namespace Sekai.Core.Live
 		internal float ResolveInputMusicTime(MusicScoreInfo frame, double inputTime)
 		{
 			return LiveConfig.UseLegacyJudgeTiming
-				? InputTimeMapping.FromLegacyClock(frame.time, GameTime, inputTime)
-				: InputTimeMapping.FromClock(frame.time, GameTime, inputTime);
+				? InputTimeMapping.FromLegacyClock(frame.time, GameTime, inputTime, PlaybackRate)
+				: InputTimeMapping.FromClock(frame.time, GameTime, inputTime, PlaybackRate);
 		}
 	}
 }

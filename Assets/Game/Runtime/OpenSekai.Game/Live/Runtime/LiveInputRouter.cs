@@ -58,14 +58,17 @@ namespace Sekai.Core.Live
 			_deviceTouchSource.Camera = camera;
 		}
 
+		internal OpenSekai.Shared.Playback.IPracticeInputArea PracticeInputArea { set => _collector.PracticeInputArea = value; }
+
 		internal void SetTouchSource(ILiveTouchSource source) => _touchSource = source ?? _deviceTouchSource;
 
-		internal void Reset()
+		internal void Reset(bool resetDevices = true)
 		{
-			NativeInput.ResetPointerButtons();
-			foreach (var device in InputSystem.devices)
+			if (resetDevices)
 			{
-				InputSystem.ResetDevice(device);
+				NativeInput.ResetPointerButtons();
+				foreach (var device in InputSystem.devices)
+					InputSystem.ResetDevice(device);
 			}
 
 			NativeInput.Enable();

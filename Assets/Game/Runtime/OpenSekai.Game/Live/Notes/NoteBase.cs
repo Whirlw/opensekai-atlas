@@ -692,6 +692,12 @@ namespace Sekai.Live
 			}
 		}
 
+		internal void PreviewPosition(MusicScoreInfo frame, float lead)
+		{
+			offsetTime = lead;
+			Progress = CalcProgress(frame, lead);
+		}
+
 		protected float CalcProgress(MusicScoreInfo currentFrameInfo, float offsetTime)
 		{
 			if (offsetTime.Equals(0f))

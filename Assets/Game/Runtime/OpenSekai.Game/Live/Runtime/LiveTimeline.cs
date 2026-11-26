@@ -10,6 +10,12 @@ namespace Sekai.Core.Live
 
 		internal void Reset() => _eventIndex = 0;
 
+		internal void SkipEventsBefore(EventBase[] events, float time)
+		{
+			while (_eventIndex < events.Length && events[_eventIndex].MusicScoreInfo.time < time)
+				_eventIndex++;
+		}
+
 		/// <summary>
 		/// Runs every event that is due at or before the current frame. Events are ordered, so this
 		/// is a cursor walk rather than a scan; an event that is not finished stays at the cursor and

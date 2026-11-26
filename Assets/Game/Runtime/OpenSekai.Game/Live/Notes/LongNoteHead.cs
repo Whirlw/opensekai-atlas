@@ -40,6 +40,11 @@ namespace Sekai.Live
 			_bar = bar;
 		}
 
+		internal void SkipForPractice()
+		{
+			_result = (NoteResult.Auto, NoteResultDescription.None);
+		}
+
 		internal void Reset()
 		{
 			_result = (NoteResult.None, NoteResultDescription.None);

@@ -427,7 +427,7 @@ namespace Sekai.Live
 			_hitFxSkin?.SetPaused(false);
 		}
 
-		public override void Retry()
+		internal void ClearPracticeFrame()
 		{
 			_hitFxSkin?.ResetPlayback();
 			CancelMotions();
@@ -439,6 +439,11 @@ namespace Sekai.Live
 			_tapEffect?.Clear();
 			_longTapEffectView?.Clear();
 			_life = LiveConfig.Life;
+		}
+
+		public override void Retry()
+		{
+			ClearPracticeFrame();
 			if (autoLabel != null)
 			{
 				autoLabel.SetActive(false);

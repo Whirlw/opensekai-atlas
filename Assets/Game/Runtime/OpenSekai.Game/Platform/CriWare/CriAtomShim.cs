@@ -784,6 +784,7 @@ namespace CriWare
 				source.Stop();
 				source.playOnAwake = false;
 				source.loop = loop;
+				source.pitch = 1f;
 				source.spatialBlend = 0f;
 				source.clip = clip;
 				source.volume = Mathf.Max(0f, _volume * clips[i].VolumeScale);
@@ -1084,6 +1085,13 @@ namespace CriWare
 				return;
 			}
 
+			if (float.IsNaN(pitch) || float.IsInfinity(pitch) || pitch <= 0f) return;
+			pitch = Mathf.Clamp(pitch, 0.01f, 3f);
+			// The stopwatch counts from the previous anchor. Changing its multiplier without
+			// moving the anchor would rescale everything already played.
+			state.BaseTimeSeconds = GetMonotonicPlaybackTimeSeconds(state);
+			state.BaseStopwatchTicks = Stopwatch.GetTimestamp();
+			ResetDriftWindow(state);
 			if (state.Sources != null)
 			{
 				for (int i = 0; i < state.Sources.Length; i++)
@@ -1091,10 +1099,29 @@ namespace CriWare
 					AudioSource source = state.Sources[i];
 					if (source != null)
 					{
-						source.pitch = Mathf.Max(0.1f, pitch);
+						source.pitch = pitch;
 					}
 				}
 			}
+		}
+
+		// Every layer of a cue stops on the same mixer clock, even while the main thread stalls.
+		internal static double ScheduleEnd(uint id, double endSeconds)
+		{
+			if (!_playbacks.TryGetValue(id, out PlaybackState state) || state.PrimarySource == null
+				|| state.Paused || state.Sources == null) return double.PositiveInfinity;
+
+			AudioSource primary = state.PrimarySource;
+			if (primary.clip == null) return double.PositiveInfinity;
+			// Use the actual sample cursor here. The monotonic presentation clock may be slewing.
+			double cursorSeconds = (double)primary.timeSamples / primary.clip.frequency;
+			double remaining = Math.Max(0d, endSeconds - cursorSeconds);
+			double stopAt = AudioSettings.dspTime + remaining / primary.pitch;
+			foreach (AudioSource source in state.Sources)
+			{
+				if (source != null && source.clip != null) source.SetScheduledEndTime(stopAt);
+			}
+			return stopAt;
 		}
 
 		public static void SetVolume(uint id, float _volume)

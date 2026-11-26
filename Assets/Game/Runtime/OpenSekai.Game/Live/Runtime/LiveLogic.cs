@@ -279,8 +279,31 @@ namespace Sekai.Core.Live
 		}
 
 		/// <summary>Reads the frame that just ran and moves the session out of play when it has to.</summary>
+		internal bool IsPractice { get; private set; }
+
+		internal void PreviewPractice(float chartSeconds, double gameTime)
+		{
+			currentFrameInfo = Clock.Sample(Session.MusicScore, chartSeconds, gameTime, true);
+			NoteFrame.PreviewPractice();
+		}
+
+		internal void SeekPractice(float chartSeconds)
+		{
+			IsPractice = true;
+			ConnectorAudio.Reset();
+			Session.Reset(_presentation);
+			Session.SkipBefore(chartSeconds);
+			Result = 0;
+			SetScoreLogic(scoreLogic);
+			SetSkillLogic(skillLogic);
+			Input.Reset(resetDevices: false);
+			Scheduler.ResetDamageInputs();
+			Clock.ResetFrameHistory();
+		}
+
 		internal void ApplyFrameOutcome()
 		{
+			if (IsPractice) return;
 			if (scoreLogic != null && scoreLogic.Score.life <= 0)
 			{
 				Result = 2;

@@ -386,6 +386,9 @@ namespace Sekai
 			}
 		}
 
+		internal double ScheduleIngameEnd(double playbackSeconds) =>
+			CriAtomAudioRuntime.ScheduleEnd(_currentIngamePlayback.id, playbackSeconds);
+
 		public void SetIngameBgmVolume(float volume)
 		{
 			if (_currentIngamePlayback.id != 0)

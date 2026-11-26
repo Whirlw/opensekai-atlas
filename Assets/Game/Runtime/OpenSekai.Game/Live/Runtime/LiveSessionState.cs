@@ -62,6 +62,29 @@ namespace Sekai.Core.Live
 			MusicScore?.ResetEvent();
 		}
 
+		internal void SkipBefore(float chartSeconds)
+		{
+			_timeline.SkipEventsBefore(_events, chartSeconds);
+			foreach (NoteBase note in Notes.Notes)
+			{
+				if (note.MusicScoreInfo.time >= chartSeconds) continue;
+				if (note is LongNote bar && bar.TailNote != null && bar.TailNote.MusicScoreInfo.time >= chartSeconds)
+				{
+					// A held note may cross the cut. Keep its body and future ticks playable,
+					// without demanding a press at a head that occurred before this take.
+					bar.Head.SkipForPractice();
+					foreach (NoteBase child in bar.NoteList)
+						if (child != bar && child.MusicScoreInfo.time < chartSeconds)
+							child.SetStateUnnotice(NoteState.Done);
+				}
+				else
+				{
+					foreach (NoteBase child in note.NoteList)
+						child.SetStateUnnotice(NoteState.Done);
+				}
+			}
+		}
+
 		internal void UpdateEvents(MusicScoreInfo frame) => _timeline.AdvanceEvents(frame, _events, ExecuteEvent);
 
 		internal void AdvanceAutoJudgment(MusicScoreInfo frame, bool skipDecoration = false) =>

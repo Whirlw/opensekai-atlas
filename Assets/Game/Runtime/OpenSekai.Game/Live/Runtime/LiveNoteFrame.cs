@@ -23,6 +23,26 @@ namespace Sekai.Core.Live
 
 		private MusicScoreInfo Frame => _logic.currentFrameInfo;
 
+		internal void PreviewPractice()
+		{
+			// This runs on the discontinuity, never in steady-state playback. Reconstruct the
+			// visible slice without advancing a judgment, event, input or effect.
+			foreach (NoteBase root in _session.Notes.Notes)
+			{
+				if (root.State == NoteState.Done) continue;
+				foreach (NoteBase note in root.NoteList)
+				{
+					if (note.NativeScroll != null || note.State == NoteState.Done) continue;
+					float lead = DisplayOffsetForFrame(note, note.IsHighSpeedNote);
+					if (lead <= 0f || note.MusicScoreInfo.time - Frame.time > lead + PRELOAD_MARGIN_SECONDS) continue;
+					note.PreviewPosition(Frame, lead);
+					PreloadView(note, lead);
+				}
+			}
+			_nativeViewTime = (double)Frame.time + LiveConfig.ViewLeadSeconds;
+			_session.Notes.WalkNativeVisuals(_nativeViewTime, _visitNativeVisual);
+		}
+
 		internal void TickViews()
 		{
 			_presentation.TickTailKeys(Frame.time);

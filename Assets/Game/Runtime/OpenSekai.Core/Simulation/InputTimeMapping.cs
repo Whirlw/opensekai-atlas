@@ -21,18 +21,18 @@ namespace OpenSekai.Shared.Live.Simulation
 		/// music time. Kept verbatim behind the "legacy judge timing" option so the old feel stays
 		/// available.
 		/// </summary>
-		public static float FromLegacyClock(double frameMusicTime, double frameGameTime, double inputTime)
+		public static float FromLegacyClock(double frameMusicTime, double frameGameTime, double inputTime, double playbackRate = 1d)
 		{
 			// One frame time at the judge table's fixed rate, matching the legacy formula.
 			const double ONE_FRAME_SECONDS = 1d / 60d;
-			return (float)(frameMusicTime + (inputTime - frameGameTime) * ONE_FRAME_SECONDS);
+			return (float)(frameMusicTime + (inputTime - frameGameTime) * ONE_FRAME_SECONDS * playbackRate);
 		}
 
 		/// <summary>
 		/// Passes the measured latency through and clamps it to [-250 ms, 0 ms]: a touch stamped after
 		/// the frame's clock reading is treated as this frame, one older than the floor is clamped.
 		/// </summary>
-		public static float FromClock(double frameMusicTime, double frameGameTime, double inputTime)
+		public static float FromClock(double frameMusicTime, double frameGameTime, double inputTime, double playbackRate = 1d)
 		{
 			double deltaSeconds = inputTime - frameGameTime;
 			if (deltaSeconds > 0d)
@@ -44,7 +44,7 @@ namespace OpenSekai.Shared.Live.Simulation
 				deltaSeconds = -MAX_INPUT_LATENCY_SECONDS;
 			}
 
-			return (float)(frameMusicTime + deltaSeconds);
+			return (float)(frameMusicTime + deltaSeconds * playbackRate);
 		}
 	}
 }
