@@ -46,11 +46,13 @@ namespace OpenSekai.App.Library
             return next;
         }
 
-        internal AchievementClaims WithoutRetry(string id)
+        internal AchievementClaims AfterHistoryDeletion(CustomMusicScorePlayHistoryRecord deleted)
         {
+            // A missing selection clears the journal. A selected legacy row can itself have no ID.
+            if (deleted != null && (deleted.RecordId == null || !_retryStarts.ContainsKey(deleted.RecordId))) return this;
             var next = Copy();
-            if (id == null) next._retryStarts.Clear();
-            else next._retryStarts.Remove(id);
+            if (deleted == null) next._retryStarts.Clear();
+            else next._retryStarts.Remove(deleted.RecordId);
             return next;
         }
 

@@ -83,6 +83,39 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(board.Snapshot().Total, Is.EqualTo(220));
         }
 
+        [TestCase("2026-01-01T12:00:00+09:00", "2026-01-01T09:00:00Z")]
+        [TestCase("2026-01-01T10:00:00Z", "2026-01-01T10:00:00.1Z")]
+        public void ImportedTimestampsOrderHistoryAndBreakBestTiesByInstant(string early, string late)
+        {
+            string root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"))).FullName;
+            try
+            {
+                string path = Path.Combine(root, "history.jsonl");
+                var history = new RankingHistory(path, new PlayHistorySummaryCache());
+                history.Submit(Play("first", "song", 970000, early), null, out _);
+                history.Submit(Play("second", "song", 970000, late), null, out var song);
+                var rebuilt = new RankingHistory(path, new PlayHistorySummaryCache());
+                foreach (var index in new[] { history, rebuilt })
+                {
+                    Assert.That(index.ReadPage(0, 2).Records.Select(row => row.RecordId),
+                        Is.EqualTo(new[] { "second", "first" }), "history lists later plays first");
+                    Assert.That(index.Read().Entries.Single().Play.RecordId, Is.EqualTo("first"), "earlier score wins a tie");
+                }
+                Assert.That(song.LastPlayedAtUtc, Is.EqualTo(late));
+                Assert.That(song.Best.RecordId, Is.EqualTo("second"), "song summaries use the latest equivalent performance");
+            }
+            finally { Directory.Delete(root, true); }
+        }
+
+        [Test]
+        public void DifferentTimestampFormatsOfOneInstantBreakTiesByStableRecordId()
+        {
+            var board = new Best30Index();
+            board.Evaluate(Play("z", "song", 970000, "2026-01-01T00:00:00.000Z"), HistorySaveState.Saved);
+            board.Evaluate(Play("a", "song", 970000, "2026-01-01T01:00:00+01:00"), HistorySaveState.Saved);
+            Assert.That(board.Snapshot().Entries.Single().Play.RecordId, Is.EqualTo("a"));
+        }
+
         [Test]
         public void ReplayAndRetryNeverCountTheSamePlayOrChartTwice()
         {

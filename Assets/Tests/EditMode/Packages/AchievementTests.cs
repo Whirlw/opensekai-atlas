@@ -159,6 +159,43 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(_store.OwnsAvatar("sparkle"), Is.True);
         }
 
+        [TestCase("sparkle", "default")]
+        [TestCase("note", "note")]
+        public void DeletingTheLastUnlockingRunShowsOnlyAnOwnedAvatarAfterReload(string selected, string expected)
+        {
+            Save(Play(1, "ap", 500, ap: true));
+            _store.UnlockAchievement("AP-01");
+            _store.UnlockAchievement("AP-02");
+            _store.SetAppearance("歌手", selected);
+            _store.DeleteHistory(_store.ReadHistory(0, 1).Records.Single());
+            foreach (var archive in new[] { _store, new PlayerProfileStore(_root) })
+            {
+                Assert.That(archive.OwnsAvatar("sparkle"), Is.False);
+                Assert.That(archive.Read().Appearance.Nickname, Is.EqualTo("歌手"));
+                Assert.That(archive.Read().Appearance.AvatarId, Is.EqualTo(expected));
+                Assert.Throws<InvalidOperationException>(() => archive.SetAppearance("歌手", "sparkle"));
+            }
+        }
+
+        [Test]
+        public void DeletingAnUnidentifiedLegacyLinePreservesIndependentRetryEvidence()
+        {
+            string journal = Path.Combine(_root, OpenSekai.Shared.Packages.SongPackageStorage.PLAY_HISTORY_FILE_NAME);
+            File.WriteAllText(journal, "{\"schemaVersion\":2,\"scoreKey\":\"legacy\"}\n");
+            Save(Play(1, "chart"));
+            _store.RecordRetryStart("run-1", "chart", "prior", "pause");
+            _store.RecordRetryStart("never-settled", "chart", "prior", "pause");
+            Assert.That(Item("RETRY-02").Current, Is.EqualTo(2));
+            _store.DeleteHistory(_store.ReadHistory(0, 10).Records.Single(p => p.RecordId == null));
+            Assert.That(Item("RETRY-02").Current, Is.EqualTo(2));
+            _store.DeleteHistory(_store.ReadHistory(0, 10).Records.Single());
+            _store = new PlayerProfileStore(_root);
+            Assert.That(Item("RETRY-02").Current, Is.EqualTo(1));
+            _store.ExportBackup(Path.Combine(_root, "retry-retained.zip"));
+            _store.DeleteAllHistory();
+            Assert.That(Item("RETRY-02").Current, Is.Zero);
+        }
+
         [Test]
         public void LevelsAreUnlockedInOrderAndTheNextOneOpens()
         {

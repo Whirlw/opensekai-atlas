@@ -19,7 +19,7 @@ namespace OpenSekai.App.Library
 	/// </summary>
 	internal sealed class PlayHistorySummaryCache
 	{
-		private const int SNAPSHOT_VERSION = 2;
+		private const int SNAPSHOT_VERSION = 3;
 
 		private Dictionary<string, CustomMusicScorePlayHistorySummary> _summaries;
 		private IReadOnlyDictionary<string, CustomMusicScorePlayHistorySummary> _view;

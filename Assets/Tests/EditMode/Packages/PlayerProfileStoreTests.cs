@@ -203,18 +203,58 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.Throws<InvalidOperationException>(() => _source.DeleteAllHistory());
         }
 
+        [TestCase("{}")]
+        [TestCase("{\"schemaVersion\":99,\"title\":\"future\"}")]
+        [TestCase("{torn")]
+        public void UnrestorableJournalCannotReplaceAGoodBackupOrAuthorizeClearing(string unsupported)
+        {
+            _source.ExportBackup(_backup);
+            byte[] good = File.ReadAllBytes(_backup);
+            string path = Path.Combine(_sourceRoot, "PlayHistory.jsonl");
+            File.AppendAllLines(path, new[] { unsupported });
+            byte[] original = File.ReadAllBytes(path);
+            Assert.Throws<InvalidDataException>(() => _source.ExportBackup(_backup));
+            Assert.That(File.ReadAllBytes(_backup), Is.EqualTo(good));
+            Assert.That(_source.HasCurrentBackup, Is.False);
+            Assert.Throws<InvalidOperationException>(() => _source.DeleteAllHistory());
+            Assert.That(File.ReadAllBytes(path), Is.EqualTo(original));
+            _target.ConfirmImport(_target.PreviewBackup(_backup).Id);
+            Assert.That(_target.ReadHistory(0, 10).TotalCount, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ALegacyLengthMarkerCannotAuthorizeDeletingAnUnrestorableJournal()
+        {
+            string path = Path.Combine(_sourceRoot, "PlayHistory.jsonl");
+            File.AppendAllLines(path, new[] { "{}" });
+            File.WriteAllText(Path.Combine(_sourceRoot, "history-backup.bytes"),
+                new FileInfo(path).Length.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            Assert.That(_source.HasCurrentBackup, Is.False);
+            Assert.Throws<InvalidOperationException>(() => _source.DeleteAllHistory());
+        }
+
+        [Test]
+        public void DeletingOneRunPreservesUnrelatedUnreadableLines()
+        {
+            string path = Path.Combine(_sourceRoot, "PlayHistory.jsonl");
+            File.AppendAllLines(path, new[] { "{torn" });
+            _source.DeleteHistory(_source.ReadHistory(0, 10).Records.First());
+            string current = Path.Combine(SongPackageStorage.ActivePlayerDirectory(_sourceRoot), "PlayHistory.jsonl");
+            Assert.That(File.ReadAllLines(current), Does.Contain("{torn"));
+            Assert.That(_source.HasCurrentBackup, Is.False);
+        }
+
         [Test]
         public void IdenticalIdlessLegacyPlaysCanBeDeletedIndividuallyAndRestoredAfterClearing()
         {
             string path = Path.Combine(_sourceRoot, "PlayHistory.jsonl");
             const string LEGACY_PLAY = "{\"schemaVersion\":1,\"title\":\"legacy\"}";
-            File.AppendAllLines(path, new[] { LEGACY_PLAY, "{torn", LEGACY_PLAY });
+            File.AppendAllLines(path, new[] { LEGACY_PLAY, LEGACY_PLAY });
             _source.ExportBackup(_backup);
             var selected = _source.ReadHistory(0, 10).Records.Last(p => p.Title == "legacy");
             _source.DeleteHistory(selected);
             string current = Path.Combine(SongPackageStorage.ActivePlayerDirectory(_sourceRoot), "PlayHistory.jsonl");
             Assert.That(File.ReadAllLines(current).Count(line => line == LEGACY_PLAY), Is.EqualTo(1));
-            Assert.That(File.ReadAllLines(current), Does.Contain("{torn"));
             _source.DeleteAllHistory();
             _source.ConfirmImport(_source.PreviewBackup(_backup).Id);
             Assert.That(_source.ReadHistory(0, 10).Records.Count(p => p.Title == "legacy"), Is.EqualTo(2));

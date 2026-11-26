@@ -55,7 +55,8 @@ namespace OpenSekai.App.Library
         internal PlayerProfileSnapshot(ProfileAppearance appearance, Best30Snapshot best30, DanArchive archive,
             Func<IReadOnlyList<AchievementProgress>> achievements)
         {
-            Appearance = appearance;
+            Appearance = PlayerProfileStore.OwnsAvatar(appearance.AvatarId, achievements) ? appearance
+                : new ProfileAppearance(appearance.Nickname, PlayerProfileStore.DEFAULT_AVATAR);
             Best30 = best30;
             EarnedDanIds = new List<string>(archive.Earned()).AsReadOnly();
             WornMedals = Array.AsReadOnly(PlayerProfileStore.WornMedals(archive, achievements));
@@ -83,7 +84,8 @@ namespace OpenSekai.App.Library
         private string HistoryPath => Path.Combine(_directory, SongPackageStorage.PLAY_HISTORY_FILE_NAME);
         private string ProfilePath => Path.Combine(_directory, PROFILE_FILE);
         private string Archives => Path.Combine(_root, "PlayerArchives");
-        private static readonly ProfileAppearance _default = new("Player", "default");
+        internal const string DEFAULT_AVATAR = "default";
+        private static readonly ProfileAppearance _default = new("Player", DEFAULT_AVATAR);
 
         internal PlayerProfileStore(string root)
         {
@@ -100,7 +102,7 @@ namespace OpenSekai.App.Library
         {
             RequireIdle();
             var appearance = new ProfileAppearance(nickname, avatarId);
-            if (appearance.AvatarId != ReadAppearance().AvatarId && !OwnsAvatar(appearance.AvatarId))
+            if (!OwnsAvatar(appearance.AvatarId))
                 throw new InvalidOperationException("尚未取得该头像。");
             AtomicFile.WriteAllText(ProfilePath, JsonConvert.SerializeObject(appearance));
             CancelPendingPreview();

@@ -143,7 +143,7 @@ namespace OpenSekai.App.Library
 			string lastPlayed = previous?.LastPlayedAtUtc ?? string.Empty;
 			var summary = new CustomMusicScorePlayHistorySummary(
 				best == null || IsBetterResult(record, best) ? record : best,
-				string.CompareOrdinal(record.PlayedAtUtc, lastPlayed) > 0 ? record.PlayedAtUtc : lastPlayed,
+				record.PlayedAtTicks > CustomMusicScorePlayHistoryRecord.UtcTicks(lastPlayed) ? record.PlayedAtUtc : lastPlayed,
 				(previous?.PlayCount ?? 0) + 1);
 			summaries[record.ScoreKey] = summary;
 
@@ -188,7 +188,7 @@ namespace OpenSekai.App.Library
 				return comparison < 0;
 			}
 
-			return string.CompareOrdinal(current.PlayedAtUtc, best.PlayedAtUtc) > 0;
+			return current.PlayedAtTicks > best.PlayedAtTicks;
 		}
 
 		internal static string GameDayOf(DateTimeOffset localTime) =>
@@ -316,7 +316,24 @@ namespace OpenSekai.App.Library
 		public bool Ranked { get; init; }
 
 		[JsonProperty("playedAtUtc")]
-		public string PlayedAtUtc { get; init; }
+		public string PlayedAtUtc
+		{
+			get => _playedAtUtc;
+			init
+			{
+				_playedAtUtc = value;
+				PlayedAtTicks = UtcTicks(value);
+			}
+		}
+
+		private readonly string _playedAtUtc;
+		internal long PlayedAtTicks { get; private init; } = long.MinValue;
+
+		// Old rows may have no usable timestamp. They sort below every dated run.
+		internal static long UtcTicks(string value) =>
+			DateTimeOffset.TryParse(value, System.Globalization.CultureInfo.InvariantCulture,
+				System.Globalization.DateTimeStyles.AssumeUniversal, out var when)
+				? when.UtcDateTime.Ticks : long.MinValue;
 
 		[JsonProperty("gameDay")]
 		public string GameDay { get; init; }

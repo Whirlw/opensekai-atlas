@@ -195,7 +195,7 @@ namespace OpenSekai.App.Library
 
         private static int CompareTime(CustomMusicScorePlayHistoryRecord a, CustomMusicScorePlayHistoryRecord b)
         {
-            int order = string.CompareOrdinal(b.PlayedAtUtc, a.PlayedAtUtc);
+            int order = b.PlayedAtTicks.CompareTo(a.PlayedAtTicks);
             return order != 0 ? order : string.CompareOrdinal(a.RecordId, b.RecordId);
         }
     }

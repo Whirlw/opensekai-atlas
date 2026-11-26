@@ -43,10 +43,12 @@ namespace OpenSekai.App.Library
         }
 
         /// <summary>False for an avatar that an achievement gives and the player has not unlocked.</summary>
-        public bool OwnsAvatar(string avatarId)
+        public bool OwnsAvatar(string avatarId) => OwnsAvatar(avatarId, RewardAchievements);
+
+        internal static bool OwnsAvatar(string avatarId, Func<IReadOnlyList<AchievementProgress>> rewards)
         {
             var goal = AchievementGoals.ForAvatar(avatarId);
-            return goal == null || RewardAchievements().Any(item => item.Goal.AvatarId == avatarId && item.State == AchievementState.Unlocked);
+            return goal == null || rewards().Any(item => item.Goal.AvatarId == avatarId && item.State == AchievementState.Unlocked);
         }
 
         private IReadOnlyList<AchievementProgress> RewardAchievements() => ReadClaims().Rewards(History);

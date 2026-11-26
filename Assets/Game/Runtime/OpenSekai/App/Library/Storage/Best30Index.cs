@@ -103,7 +103,7 @@ namespace OpenSekai.App.Library
         {
             int order = b.Points.CompareTo(a.Points);
             if (order != 0) return order;
-            order = string.CompareOrdinal(a.Play.PlayedAtUtc, b.Play.PlayedAtUtc);
+            order = a.Play.PlayedAtTicks.CompareTo(b.Play.PlayedAtTicks);
             return order != 0 ? order : string.CompareOrdinal(a.Play.RecordId, b.Play.RecordId);
         }
     }

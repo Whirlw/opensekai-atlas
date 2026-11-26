@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using OpenSekai.Shared.Packages;
-using OpenSekai.Shared.Playback;
 using OpenSekai.Shared.Storage;
 using UnityEngine;
 
@@ -238,9 +237,7 @@ namespace OpenSekai.App.Library
             {
                 cancel.ThrowIfCancellationRequested();
                 lineNumber++;
-                var row = ProfileBackupArchive.Parse(line);
-                var record = row.ToObject<CustomMusicScorePlayHistoryRecord>();
-                ValidateRecord(row, record, lineNumber);
+                var (row, record) = ProfileBackupArchive.ReadHistoryRow(line, lineNumber);
                 if (string.IsNullOrWhiteSpace(record.RecordId))
                 {
                     // In an empty journal even identical legacy runs can be restored verbatim.
@@ -265,22 +262,5 @@ namespace OpenSekai.App.Library
             return preview;
         }
 
-        private static void ValidateRecord(JObject row, CustomMusicScorePlayHistoryRecord record, int line)
-        {
-            if (row["schemaVersion"]?.Type != JTokenType.Integer || record.SchemaVersion < 1 || record.SchemaVersion > 3 ||
-                row["recordId"] != null && row["recordId"].Type != JTokenType.Null && row["recordId"].Type != JTokenType.String)
-                throw new InvalidDataException("Invalid history schema at line " + line);
-            if (record.SchemaVersion != 3) return;
-            if (!record.EndReason.HasValue || !Enum.IsDefined(typeof(PlayResultKind), record.EndReason.Value) ||
-                record.EndReason == PlayResultKind.LoadError || record.MaximumScore <= 0 ||
-                !RankingRules.SupportsFormula(record.FormulaVersion) || string.IsNullOrWhiteSpace(record.PlayedAtUtc))
-                throw new InvalidDataException("Invalid play at line " + line);
-            foreach (string field in _judgementFields)
-                if (row[field]?.Type != JTokenType.Integer || (long)row[field] < 0)
-                    throw new InvalidDataException("Invalid " + field + " at line " + line);
-        }
-
-        private static readonly string[] _judgementFields =
-            { "perfectCount", "greatCount", "goodCount", "badCount", "missCount", "totalScore", "totalComboCount" };
     }
 }

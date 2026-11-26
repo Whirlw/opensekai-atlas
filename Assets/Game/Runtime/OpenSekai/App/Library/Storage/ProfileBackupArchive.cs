@@ -8,6 +8,7 @@ using System.Threading;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using OpenSekai.Shared.Storage;
+using OpenSekai.Shared.Playback;
 
 namespace OpenSekai.App.Library
 {
@@ -37,11 +38,12 @@ namespace OpenSekai.App.Library
                 using (var writer = new StreamWriter(hashed, Utf8))
                 {
                     long bytes = 0;
+                    int lineNumber = 0;
                     if (File.Exists(historyPath))
                         foreach (string line in LocalLines(historyPath))
                         {
                             cancel.ThrowIfCancellationRequested();
-                            if (TryLocalRow(line) == null) continue;
+                            ReadHistoryRow(line, ++lineNumber);
                             bytes += Utf8.GetByteCount(line) + 1;
                             if (bytes > HISTORY_LIMIT) throw new InvalidDataException("History exceeds backup size limit.");
                             writer.Write(line);
@@ -151,6 +153,41 @@ namespace OpenSekai.App.Library
             if (reader.Read()) throw new InvalidDataException("Trailing JSON content.");
             return row;
         }
+
+        // An export authorizes clearing the journal. Prove that every exported row can use
+        // the same import path before the atomic writer replaces the last good backup.
+        internal static (JObject, CustomMusicScorePlayHistoryRecord) ReadHistoryRow(string line, int lineNumber)
+        {
+            try
+            {
+                var row = Parse(line);
+                var record = row.ToObject<CustomMusicScorePlayHistoryRecord>();
+                ValidateRecord(row, record, lineNumber);
+                return (row, record);
+            }
+            catch (Exception e) when (e is JsonException or FormatException or OverflowException or InvalidCastException)
+            {
+                throw new InvalidDataException("Invalid history record at line " + lineNumber, e);
+            }
+        }
+
+        private static void ValidateRecord(JObject row, CustomMusicScorePlayHistoryRecord record, int line)
+        {
+            if (row["schemaVersion"]?.Type != JTokenType.Integer || record.SchemaVersion < 1 || record.SchemaVersion > 3 ||
+                row["recordId"] != null && row["recordId"].Type != JTokenType.Null && row["recordId"].Type != JTokenType.String)
+                throw new InvalidDataException("Invalid history schema at line " + line);
+            if (record.SchemaVersion != 3) return;
+            if (!record.EndReason.HasValue || !Enum.IsDefined(typeof(PlayResultKind), record.EndReason.Value) ||
+                record.EndReason == PlayResultKind.LoadError || record.MaximumScore <= 0 ||
+                !RankingRules.SupportsFormula(record.FormulaVersion) || string.IsNullOrWhiteSpace(record.PlayedAtUtc))
+                throw new InvalidDataException("Invalid play at line " + line);
+            foreach (string field in _judgementFields)
+                if (row[field]?.Type != JTokenType.Integer || (long)row[field] < 0)
+                    throw new InvalidDataException("Invalid " + field + " at line " + line);
+        }
+
+        private static readonly string[] _judgementFields =
+            { "perfectCount", "greatCount", "goodCount", "badCount", "missCount", "totalScore", "totalComboCount" };
 
         internal static JObject TryLocalRow(string line)
         {

@@ -13,19 +13,23 @@ namespace OpenSekai.App.Library
         // Within an archive the journal is append-only. Any rewrite selects a fresh archive.
         private const string BACKUP_MARKER = "history-backup.bytes";
 
+        // Older byte-only markers could describe an export that silently omitted a damaged
+        // row or included a row the importer rejects. Require one verified export.
+        private static string BackupMarker(long bytes) => "validated:" + bytes.ToString(CultureInfo.InvariantCulture);
+
         public bool HasCurrentBackup
         {
             get
             {
                 string marker = Path.Combine(_directory, BACKUP_MARKER);
-                return File.Exists(marker) && File.ReadAllText(marker) == HistoryLength().ToString(CultureInfo.InvariantCulture);
+                return File.Exists(marker) && File.ReadAllText(marker) == BackupMarker(HistoryLength());
             }
         }
 
         internal void MarkBackupSaved(string directory, long bytes)
         {
             if (_directory == directory && HistoryLength() == bytes && SongPackageStorage.ActivePlayerDirectory(_root) == directory)
-                AtomicFile.WriteAllText(Path.Combine(directory, BACKUP_MARKER), bytes.ToString(CultureInfo.InvariantCulture));
+                AtomicFile.WriteAllText(Path.Combine(directory, BACKUP_MARKER), BackupMarker(bytes));
         }
 
         public void DeleteHistory(CustomMusicScorePlayHistoryRecord play)
@@ -60,13 +64,13 @@ namespace OpenSekai.App.Library
                 if (File.Exists(ProfilePath)) File.Copy(ProfilePath, Path.Combine(stage, PROFILE_FILE));
                 var (history, summaries) = IndexHistory(path);
                 history.DanSource = ReadDanArchive;
-                var retained = ReadClaims().WithoutRetry(play?.RecordId);
+                var retained = ReadClaims().AfterHistoryDeletion(play);
                 history.ClaimsSource = () => retained;
                 var claims = retained.WithoutUnreached(history);
                 if (claims.Count > 0 || claims.RetryCount > 0) File.WriteAllText(Path.Combine(stage, ACHIEVEMENTS_FILE), JsonConvert.SerializeObject(claims));
                 if (play != null) History.TransferPendingTo(history, play.RecordId);
                 if (play != null && backedUp)
-                    File.WriteAllText(Path.Combine(stage, BACKUP_MARKER), new FileInfo(path).Length.ToString(CultureInfo.InvariantCulture));
+                    File.WriteAllText(Path.Combine(stage, BACKUP_MARKER), BackupMarker(new FileInfo(path).Length));
                 ActivateHistory(id, history, summaries);
             }
             catch
