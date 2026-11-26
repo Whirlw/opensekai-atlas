@@ -165,6 +165,21 @@ namespace OpenSekai.Infrastructure.Packages
 
         private static string Hex(byte[] digest) => BitConverter.ToString(digest).Replace("-", "").ToLowerInvariant();
 
+        internal static Uri PreviewRedirect(UnityWebRequest.Result result, long status, string error, string location)
+        {
+            // With redirectLimit = 0 Unity may report an intentional 302 stop as a connection error.
+            // Preserve an HTTP refusal as a retryable lookup, regardless of any Location header.
+            if (status >= 400)
+                throw new SonolusException(SonolusClient.DescribeStatus(status), status);
+            bool redirect = status is 301 or 302 or 303 or 307 or 308;
+            if (!redirect && result == UnityWebRequest.Result.ConnectionError)
+                throw SonolusException.ConnectionFailure(error);
+            if (!redirect || !SongPackageSource.TryHttps(location, out var uri) || !uri.IsDefaultPort
+                || uri.Host != "chartview.unipjsk.com" || uri.AbsolutePath != "/preview")
+                throw new InvalidDataException("未取得谱面预览");
+            return uri;
+        }
+
         private static async UniTask<string> PreviewHashAsync(string id)
         {
             // Read only the redirect. The preview editor, jacket and audio are not needed.
@@ -173,12 +188,7 @@ namespace OpenSekai.Infrastructure.Packages
             preview.timeout = 8;
             var operation = preview.SendWebRequest();
             while (!operation.isDone) await UniTask.Yield();
-            if (preview.result == UnityWebRequest.Result.ConnectionError && preview.responseCode <= 0)
-                throw SonolusException.ConnectionFailure(preview.error);
-            string target = preview.GetResponseHeader("Location");
-            if (!SongPackageSource.TryHttps(target, out var uri) || !uri.IsDefaultPort
-                || uri.Host != "chartview.unipjsk.com" || uri.AbsolutePath != "/preview")
-                throw new InvalidDataException("未取得谱面预览");
+            var uri = PreviewRedirect(preview.result, preview.responseCode, preview.error, preview.GetResponseHeader("Location"));
             foreach (string field in uri.Query.TrimStart('?').Split('&'))
             {
                 if (!field.StartsWith("cfg=", StringComparison.Ordinal)) continue;
