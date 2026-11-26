@@ -43,6 +43,7 @@ namespace Sekai.Core.Live
         public bool Completed { get; private set; }
         public bool Resting => !_free && _sequence?.Phase == PracticePhase.Resting;
         public bool IsPlaying => !_closed && !Paused && !Resting && !Completed;
+        internal bool AtSegmentEnd => IsPlaying && _position() >= (_free ? MaximumSeconds : _sequence.EndSeconds);
         public double Rate => _rate;
 
         public void Restart()

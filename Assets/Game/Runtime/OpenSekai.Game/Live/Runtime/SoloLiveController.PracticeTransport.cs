@@ -10,6 +10,8 @@ namespace Sekai.Core.Live
 		private bool _practiceHeld;
 		private long _practiceEndMs = long.MaxValue;
 		private double _practiceDspEnd = double.PositiveInfinity;
+		private double _practiceEndChart = double.PositiveInfinity;
+		private double _practiceOvershoot;
 
 		private long PracticeTimelineMs(double chartSeconds) =>
 			(long)Math.Round(BootData.MusicData.ChartToAudioTime(chartSeconds) * 1000d);
@@ -50,6 +52,7 @@ namespace Sekai.Core.Live
 
 		private void PracticeBoundary(double endChartSeconds)
 		{
+			_practiceEndChart = endChartSeconds;
 			_practiceEndMs = PracticeEndTimelineMs(BootData.MusicData, endChartSeconds);
 			ArmPracticeCut();
 		}
@@ -68,12 +71,13 @@ namespace Sekai.Core.Live
 		private void PracticeJump(double chartSeconds, bool playing)
 		{
 			SetTimelinePosition(PracticeTimelineMs(chartSeconds));
+			_practiceOvershoot = 0;
 			ResetPracticeHistory();
 			RefreshPracticeViewLead();
 			_practiceHeld = !playing;
 			foreach (LiveViewBase view in _liveViews)
 				if (view is LiveFrontView front) front.ClearPracticeFrame();
-			_liveLogic.SeekPractice((float)chartSeconds);
+			_liveLogic.SeekPractice((float)chartSeconds, _practiceEndChart);
 			// Drawing a paused scrub must never hit the key at the cursor, even in autoplay.
 			_liveLogic.PreviewPractice(CurrentLogicChartTime, currentGameTime);
 			LiveViewExt.MusicSeek(_liveViews, CurrentViewTimeSeconds);
@@ -132,7 +136,26 @@ namespace Sekai.Core.Live
 			if (_practice == null) return;
 			RefreshPracticeViewLead();
 			if (previous == MusicPhase.RunIn && musicPhase == MusicPhase.Playing) ArmPracticeCut();
+			_practiceOvershoot = _practiceEndMs == long.MaxValue ? 0 : Math.Max(0,
+				(currentMusicTimeMs - _practiceEndMs) / (TimelinePlaybackRate * 1000d));
 			currentMusicTimeMs = LimitPracticeTimeMs(currentMusicTimeMs, _practiceEndMs, AudioSettings.dspTime, _practiceDspEnd);
+		}
+
+		// The mixer can stop between two render frames. Input System may already have
+		// queued a valid press in that last fraction of the selection. Judge it before
+		// the sequence resets the old take, excluding physically later input samples.
+		private void FinishPracticeFrame()
+		{
+			double late = double.IsPositiveInfinity(_practiceDspEnd)
+				? Math.Max(_practiceOvershoot, (currentMusicTimeMs - _practiceEndMs) / (1000d * TimelinePlaybackRate))
+				: Math.Max(0, AudioSettings.dspTime - _practiceDspEnd);
+			double cutoff = currentGameTime - late;
+			currentGameTime = cutoff;
+			_liveLogic.OnUpdate((float)(_practiceEndChart + LogicClockOffset), cutoff);
+			if (BootData.IsAuto) _liveLogic.OnAutoInput();
+			else _liveLogic.OnInputBefore(cutoff);
+			_liveLogic.OnView();
+			LiveViewExt.OnUpdate(_liveViews, CurrentViewTimeSeconds);
 		}
 
 		internal static long LimitPracticeTimeMs(long timeMs, long segmentEndMs, double dspNow, double scheduledEnd)

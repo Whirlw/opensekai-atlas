@@ -6,6 +6,7 @@ namespace Sekai.Core.Live
 {
 	internal sealed class LiveSessionState
 	{
+		private double _endExclusive = double.PositiveInfinity;
 		private EventBase[] _events = Array.Empty<EventBase>();
 		private readonly LiveTimeline _timeline = new LiveTimeline();
 
@@ -56,17 +57,31 @@ namespace Sekai.Core.Live
 			// Setting only the two cursors left a retry ticking notes from the take that had just ended.
 			Notes.Reset();
 			_timeline.Reset();
+			_endExclusive = double.PositiveInfinity;
 			TapCount = 0;
 			presentation.Reset();
 			MusicScore?.ResetNote();
 			MusicScore?.ResetEvent();
 		}
 
-		internal void SkipBefore(float chartSeconds)
+		internal void SelectPracticeRange(float chartSeconds, double endChartSeconds)
 		{
+			_endExclusive = endChartSeconds;
 			_timeline.SkipEventsBefore(_events, chartSeconds);
 			foreach (NoteBase note in Notes.Notes)
 			{
+				if (note.MusicScoreInfo.time >= endChartSeconds)
+				{
+					// A future note's early window must not take an in-segment press.
+					note.SetStateUnnotice(NoteState.Done);
+					continue;
+				}
+
+				if (note is LongNote clipped && clipped.NoteList != null)
+				{
+					foreach (NoteBase part in clipped.NoteList)
+						if (part.MusicScoreInfo.time >= endChartSeconds) part.ClaimPublication();
+				}
 				if (note.MusicScoreInfo.time >= chartSeconds) continue;
 				if (note is LongNote bar && bar.TailNote != null && bar.TailNote.MusicScoreInfo.time >= chartSeconds)
 				{
@@ -85,7 +100,7 @@ namespace Sekai.Core.Live
 			}
 		}
 
-		internal void UpdateEvents(MusicScoreInfo frame) => _timeline.AdvanceEvents(frame, _events, ExecuteEvent);
+		internal void UpdateEvents(MusicScoreInfo frame) => _timeline.AdvanceEvents(frame, _events, ExecuteEvent, _endExclusive);
 
 		internal void AdvanceAutoJudgment(MusicScoreInfo frame, bool skipDecoration = false) =>
 			_timeline.AdvanceAutoJudgment(frame, Notes, skipDecoration);

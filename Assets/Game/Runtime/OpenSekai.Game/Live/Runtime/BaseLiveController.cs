@@ -62,7 +62,7 @@ namespace Sekai.Core.Live
 			: timingCompensation.VisualLatencyMs / 1000d;
 		protected double PracticeInputWallOffset =>
 			-(timingCompensation.AudioLatencyMs + timingCompensation.JudgeOffsetMs) / 1000d;
-		private double LogicClockOffset => IsPracticeTransport
+		protected double LogicClockOffset => IsPracticeTransport
 			? PracticeWallOffset(PracticeInputWallOffset) : -timingCompensation.LogicDelaySeconds;
 
 		private double PracticeWallOffset(double seconds) => PracticeRates?.Distance(currentGameTime, currentGameTime + seconds)

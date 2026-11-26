@@ -80,8 +80,9 @@ namespace Sekai.Core.Live
 			SilencedTouches.Clear();
 		}
 
-		internal void CollectTouches()
+		internal void CollectTouches(double sampleEndTime = double.PositiveInfinity)
 		{
+			_collector.SampleEndTime = sampleEndTime;
 			int activeInputCount = 0;
 			ActiveInputs.Clear();
 			_collector.Collect(_touchSource, _camera, _logic.ResolveInputMusicTime, OnProcessTouch, ref activeInputCount);

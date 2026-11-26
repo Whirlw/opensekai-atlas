@@ -20,6 +20,7 @@ namespace Sekai.Core.Live
 	{
 		private readonly TouchDeduplication _deduplication;
 		private readonly Dictionary<int, bool> _practiceContacts = new Dictionary<int, bool>();
+		internal double SampleEndTime { get; set; } = double.PositiveInfinity;
 		internal IPracticeInputArea PracticeInputArea { private get; set; }
 		private readonly Dictionary<int, (double time, Vector2 position)> _positions;
 
@@ -102,6 +103,7 @@ namespace Sekai.Core.Live
 			int touchId = touch.touchId;
 			InputTouchPhase phase = touch.phase;
 			double time = touch.time;
+			if (time >= SampleEndTime) return;
 			// The device can report a contact that is still down with its previous event timestamp.
 			bool residentSample = phase == InputTouchPhase.Stationary
 				|| !IsEndedOrCanceled(phase) && _positions.TryGetValue(touchId, out var last) && last.time == time;
@@ -164,7 +166,8 @@ namespace Sekai.Core.Live
 
 			Vector2 screenPosition = mouse.position.ReadValue();
 			if (IsPracticeControlTouch(MOUSE_FALLBACK_TOUCH_ID, phase, screenPosition)) return;
-			double time = Time.realtimeSinceStartupAsDouble;
+			double time = double.IsPositiveInfinity(SampleEndTime) ? Time.realtimeSinceStartupAsDouble : mouse.lastUpdateTime;
+			if (time >= SampleEndTime) return;
 			Vector2 delta = mouse.delta.ReadValue();
 			if (phase == InputTouchPhase.Began)
 			{

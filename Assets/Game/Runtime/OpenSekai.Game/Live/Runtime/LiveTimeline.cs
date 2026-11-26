@@ -21,7 +21,7 @@ namespace Sekai.Core.Live
 		/// is a cursor walk rather than a scan; an event that is not finished stays at the cursor and
 		/// is retried next frame.
 		/// </summary>
-		internal void AdvanceEvents(MusicScoreInfo frame, EventBase[] events, Action<EventBase> onEventDone)
+		internal void AdvanceEvents(MusicScoreInfo frame, EventBase[] events, Action<EventBase> onEventDone, double endExclusive = double.PositiveInfinity)
 		{
 			if (events == null)
 			{
@@ -37,7 +37,7 @@ namespace Sekai.Core.Live
 					continue;
 				}
 
-				if (eventBase.MusicScoreInfo.time > frame.time)
+				if (eventBase.MusicScoreInfo.time > frame.time || eventBase.MusicScoreInfo.time >= endExclusive)
 				{
 					return;
 				}

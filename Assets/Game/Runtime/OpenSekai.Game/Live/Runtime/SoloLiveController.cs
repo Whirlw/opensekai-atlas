@@ -228,7 +228,12 @@ namespace Sekai.Core.Live
 			}
 
 			UpdateMusicTime();
-			if (_practice != null && _practice.Tick(Time.unscaledDeltaTime)) return;
+			if (_practice != null && _practice.AtSegmentEnd)
+			{
+				FinishPracticeFrame();
+				_practice.Tick(Time.unscaledDeltaTime);
+				return;
+			}
 			if (_skipShown && currentMusicTimeMs >= IntroSkipTargetMs)
 			{
 				HideSkip();

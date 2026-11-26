@@ -271,9 +271,11 @@ namespace Sekai.Core.Live
 		/// belong to the block; this only connects them, and keeps them separate so a caller can drive
 		/// the judge with inputs it built itself.
 		/// </summary>
-		public void OnInput()
+		public void OnInput() => OnInputBefore(double.PositiveInfinity);
+
+		internal void OnInputBefore(double sampleEndTime)
 		{
-			Input.CollectTouches();
+			Input.CollectTouches(sampleEndTime);
 			Scheduler.Run();
 			ApplyFrameOutcome();
 		}
@@ -287,12 +289,12 @@ namespace Sekai.Core.Live
 			NoteFrame.PreviewPractice();
 		}
 
-		internal void SeekPractice(float chartSeconds)
+		internal void SeekPractice(float chartSeconds, double endChartSeconds = double.PositiveInfinity)
 		{
 			IsPractice = true;
 			ConnectorAudio.Reset();
 			Session.Reset(_presentation);
-			Session.SkipBefore(chartSeconds);
+			Session.SelectPracticeRange(chartSeconds, endChartSeconds);
 			Result = 0;
 			SetScoreLogic(scoreLogic);
 			SetSkillLogic(skillLogic);
