@@ -605,6 +605,15 @@ namespace Sekai.Core.Live
 			// last note, whichever ends last. The outro skip brings it forward.
 			if (state == LiveControllerState.Playing)
 			{
+#if UNITY_EDITOR
+				// Finish captures park the music clock at the last judgment. Time their run-out
+				// on the scaled frame clock that the screenshot driver advances for each export.
+				if (BootData is FreeLiveBootData { ResultAnimationPreviewOverride: int })
+				{
+					PreExit(OpenSekai.Shared.Live.Simulation.LiveTimelineSpan.RUN_OUT_SECONDS, RESULT_EFFECT_HOLD_SECONDS);
+					return;
+				}
+#endif
 				PreExit(0f, RESULT_EFFECT_HOLD_SECONDS, ResultEffectMs);
 			}
 			else
