@@ -83,9 +83,14 @@ namespace OpenSekai.Tests.PlayMode
                     Object.Destroy(packed);
                     Assert.That(planes[1].sprite, Is.SameAs(planes[3].sprite));
                     var plane = planes[2].transform;
-                    float units = 20f * Mathf.Tan(21f * Mathf.Deg2Rad) / 1080f;
-                    CheckVector(plane.localPosition, new Vector2(108, -54) * units);
-                    CheckVector(Vector3.Scale(planes[2].sprite.bounds.size, plane.localScale), new Vector2(972, 216) * units);
+                    var compositionCamera = custom.GetComponentInChildren<Camera>(true);
+                    // The pack defines a 1080-high canvas in the rendered view. Narrow screens change the camera FOV.
+                    Vector2 canvas = new Vector2(1080f * compositionCamera.aspect, 1080f);
+                    Vector2 position = compositionCamera.WorldToViewportPoint(plane.position);
+                    CheckVector(position, Vector2.one * .5f + new Vector2(108, -54) / canvas);
+                    var bounds = planes[2].sprite.bounds;
+                    Vector2 ProjectCorner(Vector2 corner) => compositionCamera.WorldToViewportPoint(plane.TransformPoint(corner));
+                    CheckVector(ProjectCorner(bounds.max) - ProjectCorner(bounds.min), new Vector2(972, 216) / canvas);
                     var oldTexture = planes[2].sprite.texture;
                     boot.ReleaseMaterialAudio();
                     await UniTask.NextFrame();
