@@ -25,6 +25,15 @@ namespace OpenSekai.Tests.EditMode.Playback
             Assert.That(output, Is.All.Zero);
         }
 
+        [TestCase(48000 * 180, 2, 4)]
+        [TestCase(48000 * 3600, 2, 64)]
+        [TestCase(int.MaxValue, 8, 1024)]
+        public void RealisticAndMaximumClipLengthsChooseTheFinestLevelWithinBudget(int frames, int channels, int expected)
+        {
+            Assert.That(PracticeAudioBank.FirstStrideForBudget(frames, channels, 96L * 1024 * 1024),
+                Is.EqualTo(expected));
+        }
+
         [Test]
         public void LongStereoSongDoesNotNeedASecondFullLengthPcmBuffer()
         {

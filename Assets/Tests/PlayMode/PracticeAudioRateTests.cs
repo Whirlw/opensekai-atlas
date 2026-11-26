@@ -57,6 +57,59 @@ namespace OpenSekai.Tests.PlayMode
             });
 
         [UnityTest]
+        public IEnumerator AConstrainedBankBuildsItsFirstProxyDirectlyAndKeepsEveryPlaybackRate() =>
+            UniTask.ToCoroutine(async () =>
+            {
+                const int FRAMES = 2 * 8192 + 7;
+                const int BUDGET = 3500;
+                var original = AudioClip.Create("practice-stride-budget", FRAMES, 2, 48000, false);
+                var samples = new float[FRAMES * 2];
+                for (int frame = 0; frame < FRAMES; frame++)
+                {
+                    samples[2 * frame] = (float)frame / FRAMES;
+                    samples[2 * frame + 1] = -samples[2 * frame];
+                }
+                original.SetData(samples, 0);
+                var proxies = new System.Collections.Generic.HashSet<AudioClip>();
+                try
+                {
+                    using (var bank = await PracticeAudioBank.PrepareAsync(original, CancellationToken.None, BUDGET))
+                    {
+                        foreach (float rate in new[] { .001f, .5f, 3f, 3.001f, 4f, 8f, 16f, 192f, 192.01f, 768f, 768.01f, 3072f })
+                        {
+                            var clip = bank.Select(rate, out int stride);
+                            if (rate <= 3)
+                            {
+                                Assert.That(clip, Is.SameAs(original));
+                                Assert.That(stride, Is.EqualTo(1));
+                                continue;
+                            }
+                            Assert.That(stride, Is.EqualTo(rate <= 192 ? 64 : rate <= 768 ? 256 : 1024));
+                            Assert.That(rate / stride, Is.InRange(.001f, 3f));
+                            Assert.That(clip.samples, Is.EqualTo(1 + (FRAMES - 1) / stride));
+                            proxies.Add(clip);
+                        }
+                        Assert.That(proxies.Sum(clip => clip.samples * clip.channels * sizeof(float)), Is.LessThanOrEqualTo(BUDGET));
+                        var first = bank.Select(4, out int firstStride);
+                        var pair = new float[2];
+                        foreach (int outputFrame in new[] { 0, 127, 128, 255, 256 })
+                        {
+                            int start = outputFrame * firstStride;
+                            int count = Math.Min(firstStride, FRAMES - start);
+                            float expected = (start + (count - 1) / 2f) / FRAMES;
+                            Assert.That(first.GetData(pair, outputFrame), Is.True);
+                            Assert.That(pair[0], Is.EqualTo(expected).Within(.0001));
+                            Assert.That(pair[1], Is.EqualTo(-expected).Within(.0001));
+                        }
+                    }
+                    await UniTask.NextFrame();
+                    Assert.That(proxies.All(clip => clip == null), Is.True);
+                    Assert.That(original != null, Is.True);
+                }
+                finally { Object.Destroy(original); }
+            });
+
+        [UnityTest]
         public IEnumerator ActualSourceAndDeadlinesUseSongSecondsOnBothSidesOfNativePitchLimit() =>
             UniTask.ToCoroutine(async () =>
             {
@@ -98,6 +151,29 @@ namespace OpenSekai.Tests.PlayMode
                     sound.ReleasePackageAudio();
                     Object.Destroy(original);
                 }
+            });
+
+        [UnityTest]
+        public IEnumerator CancellingDuringReductionReleasesThePartiallyWrittenProxy() =>
+            UniTask.ToCoroutine(async () =>
+            {
+                var original = AudioClip.Create("practice-cancel-proxy", 20000, 1, 48000, false);
+                using var cancel = new CancellationTokenSource();
+                try
+                {
+                    var pending = PracticeAudioBank.PrepareAsync(original, cancel.Token, 2500);
+                    var partial = Resources.FindObjectsOfTypeAll<AudioClip>().Single(clip =>
+                        clip.name.StartsWith(original.name + "-practice-", StringComparison.Ordinal));
+                    cancel.Cancel();
+                    bool cancelled = false;
+                    try { using var unexpected = await pending; }
+                    catch (OperationCanceledException) { cancelled = true; }
+                    Assert.That(cancelled, Is.True);
+                    await UniTask.NextFrame();
+                    Assert.That(partial == null, Is.True);
+                    Assert.That(original != null, Is.True);
+                }
+                finally { Object.Destroy(original); }
             });
 
         [Test]
