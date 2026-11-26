@@ -20,8 +20,7 @@ using Sekai;
 using Sekai.Core.Live;
 using Sekai.Live;
 using UnityEngine;
-using UnityEngine.InputSystem;
-using UnityEngine.InputSystem.LowLevel;
+using UnityEngine.EventSystems;
 using SceneLoader = UnityEngine.SceneManagement.SceneManager;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
@@ -264,59 +263,65 @@ namespace OpenSekai.Tests.PlayMode
             Assert.That(home.IsPracticeShown, Is.False);
 
             var canvas = home.transform.Find("HomeCanvas").GetComponent<Canvas>();
-            var settings = InputSystem.settings;
-            var previousBackgroundBehavior = settings.backgroundBehavior;
-            var previousEditorRouting = settings.editorInputBehaviorInPlayMode;
-            Mouse mouse = null;
+            var events = EventSystem.current;
+            Assert.That(events, Is.Not.Null);
             Transform setup = null;
             try
             {
-                // A batchmode Editor has no focused Game view to receive the synthetic mouse.
-                settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
-                settings.editorInputBehaviorInPlayMode = InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView;
-                mouse = InputSystem.AddDevice<Mouse>();
-                // Each state goes through the scene's input module in its own frame.
-                Vector2 from = new Vector2(Screen.width * 0.75f, Screen.height * 0.5f);
-                Vector2 to = new Vector2(Screen.width * 0.25f, from.y);
-                Send(from, false);
-                yield return null;
-                Send(from, true);
-                yield return null;
-                Assert.That(mouse.leftButton.isPressed, Is.True, "the player received the initial pointer press");
+                // Start inside the library card even when the test player uses a 4:3 viewport.
+                var libraryCard = home.GetComponentsInChildren<RectTransform>().Single(rect => rect.name == "LibraryCard");
+                var libraryButton = libraryCard.GetComponentInChildren<Button>();
+                Vector2 from = RectTransformUtility.WorldToScreenPoint(canvas.worldCamera,
+                    libraryCard.TransformPoint(libraryCard.rect.center + Vector2.right * libraryCard.rect.width * 0.35f));
+                Vector2 to = from - Vector2.right * Screen.width * 0.4f;
+                yield return WaitFor(() => ExecuteEvents.GetEventHandler<IPointerClickHandler>(Hit(from).gameObject) == libraryButton.gameObject,
+                    BOOT_TIMEOUT_SECONDS, "waiting for the library card to receive input");
+                var drag = Press(from);
+                drag.pointerDrag = ExecuteEvents.GetEventHandler<IDragHandler>(drag.pointerPressRaycast.gameObject);
+                Assert.That(drag.pointerDrag, Is.EqualTo(libraryButton.gameObject));
+                ExecuteEvents.Execute(drag.pointerDrag, drag, ExecuteEvents.initializePotentialDrag);
                 for (int i = 1; i <= 4; i++)
                 {
-                    Send(Vector2.Lerp(from, to, i / 4f), true);
+                    Vector2 position = Vector2.Lerp(from, to, i / 4f);
+                    drag.delta = position - drag.position;
+                    drag.position = position;
+                    drag.pointerCurrentRaycast = Hit(position);
+                    if (!drag.dragging)
+                    {
+                        ExecuteEvents.Execute(drag.pointerDrag, drag, ExecuteEvents.beginDragHandler);
+                        drag.dragging = true;
+                    }
+                    ExecuteEvents.Execute(drag.pointerDrag, drag, ExecuteEvents.dragHandler);
                     yield return null;
                 }
-                Send(to, false);
-                yield return null;
+                ExecuteEvents.Execute(drag.pointerDrag, drag, ExecuteEvents.endDragHandler);
+                Assert.That(drag.eligibleForClick, Is.False, "a swipe cancels the library card press");
+                Assert.That(home.HomePage, Is.EqualTo(-1), "a leftward drag selects the practice page");
 
                 var card = home.GetComponentsInChildren<RectTransform>(true).Single(rect => rect.name == "PracticeCard");
                 var button = card.GetComponentInChildren<Button>(true);
-                yield return WaitFor(() => home.HomePage == -1 && button.IsInteractable(),
+                yield return WaitFor(() => button.IsInteractable(),
                     BOOT_TIMEOUT_SECONDS, "settling on the practice page after a left swipe");
                 Vector2 center = Center(card);
                 Assert.That(center.x, Is.InRange(0f, Screen.width * 0.5f), "the practice card occupies the left side");
                 Assert.That(card.rect.width, Is.GreaterThan(((RectTransform)canvas.transform).rect.width * 0.4f),
                     "the practice entry uses the large card");
-                yield return Click(center);
+                Click(button);
                 yield return WaitFor(() => home.IsPracticeShown, BOOT_TIMEOUT_SECONDS, "opening practice settings");
+                yield return null;
 
                 setup = canvas.transform.Find("PracticeSetup");
                 Assert.That(setup.Find("Frame/Card/Title").GetComponent<TextMeshProUGUI>().text, Is.EqualTo("练习模式"));
                 var picker = setup.Find("DanLibraryPicker");
                 Assert.That(picker.gameObject.activeInHierarchy, Is.False);
                 var song = setup.Find("Frame/Card/Body/Song").GetComponent<Button>();
-                yield return Click(Center((RectTransform)song.transform));
+                Click(song);
                 yield return WaitFor(() => picker.gameObject.activeInHierarchy, BOOT_TIMEOUT_SECONDS, "opening the chart picker");
                 Assert.That(picker.Find("Frame/Card/Title").GetComponent<TextMeshProUGUI>().text, Is.EqualTo("选择练习谱面"));
                 Assert.That(picker.GetComponentInChildren<TMP_InputField>().IsInteractable(), Is.True);
             }
             finally
             {
-                if (mouse != null) InputSystem.RemoveDevice(mouse);
-                settings.editorInputBehaviorInPlayMode = previousEditorRouting;
-                settings.backgroundBehavior = previousBackgroundBehavior;
                 if (setup != null) setup.Find("Frame/Card/Close").GetComponent<Button>().onClick.Invoke();
                 home.SeekHomePage(0);
             }
@@ -324,17 +329,37 @@ namespace OpenSekai.Tests.PlayMode
             Vector2 Center(RectTransform rect) =>
                 RectTransformUtility.WorldToScreenPoint(canvas.worldCamera, rect.TransformPoint(rect.rect.center));
 
-            void Send(Vector2 position, bool pressed) =>
-                InputSystem.QueueStateEvent(mouse, new MouseState { position = position }.WithButton(MouseButton.Left, pressed));
-
-            IEnumerator Click(Vector2 position)
+            RaycastResult Hit(Vector2 position)
             {
-                Send(position, false);
-                yield return null;
-                Send(position, true);
-                yield return null;
-                Send(position, false);
-                yield return null;
+                var hits = new System.Collections.Generic.List<RaycastResult>();
+                events.RaycastAll(new PointerEventData(events) { position = position }, hits);
+                return hits.Count > 0 ? hits[0] : default;
+            }
+
+            PointerEventData Press(Vector2 position)
+            {
+                var hit = Hit(position);
+                Assert.That(hit.gameObject, Is.Not.Null, "no UI at " + position);
+                var pointer = new PointerEventData(events)
+                {
+                    position = position, pressPosition = position, pointerId = 1, eligibleForClick = true,
+                    button = PointerEventData.InputButton.Left, pointerPressRaycast = hit, pointerCurrentRaycast = hit
+                };
+                pointer.rawPointerPress = hit.gameObject;
+                pointer.pointerPress = ExecuteEvents.ExecuteHierarchy(hit.gameObject, pointer, ExecuteEvents.pointerDownHandler)
+                    ?? ExecuteEvents.GetEventHandler<IPointerClickHandler>(hit.gameObject);
+                return pointer;
+            }
+
+            void Click(Button expected)
+            {
+                Vector2 position = Center((RectTransform)expected.transform);
+                var pointer = Press(position);
+                var target = ExecuteEvents.GetEventHandler<IPointerClickHandler>(Hit(position).gameObject);
+                Assert.That(pointer.pointerPress, Is.EqualTo(expected.gameObject), "pressed at " + position);
+                ExecuteEvents.Execute(pointer.pointerPress, pointer, ExecuteEvents.pointerUpHandler);
+                Assert.That(pointer.eligibleForClick && pointer.pointerPress == target, Is.True, "release on the pressed control");
+                ExecuteEvents.Execute(target, pointer, ExecuteEvents.pointerClickHandler);
             }
         }
 
