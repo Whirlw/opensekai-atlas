@@ -42,6 +42,23 @@ namespace OpenSekai.App.Playback
         public void ContinueNow() => _skipRest = true;
 
         private bool _skipRest;
+        private bool _applicationPaused;
+        private double _restTick;
+
+        internal void SetApplicationPaused(bool paused, double now)
+        {
+            if (paused == _applicationPaused) return;
+            if (Phase == DanPhase.BetweenSongs) UpdateRest(now);
+            _applicationPaused = paused;
+            _restTick = now;
+        }
+
+        internal void UpdateRest(double now)
+        {
+            if (!_applicationPaused)
+                RestRemaining = RestAfterFrame(RestRemaining, (float)(now - _restTick));
+            _restTick = now;
+        }
 
         private readonly PlayerProfileStore _profile;
         private readonly SonolusLevelInstaller _installer;
@@ -195,17 +212,20 @@ namespace OpenSekai.App.Playback
             SceneManager.Instance.RequestScene(SceneManager.Scene.Library);
         }
 
+        internal static float RestAfterFrame(float remaining, float elapsed) =>
+            Math.Max(0f, remaining - Math.Max(0f, elapsed));
+
         private async UniTask RestBetweenSongs(CancellationToken token)
         {
             // Reset before the phase change: a page may skip the rest from its Changed handler.
             _skipRest = false;
             RestRemaining = REST_SECONDS;
+            _restTick = Time.realtimeSinceStartupAsDouble;
             SetPhase(DanPhase.BetweenSongs);
             while (RestRemaining > 0f && !_skipRest)
             {
                 await UniTask.Yield(PlayerLoopTiming.Update, token);
-                // A long frame (or coming back from the background) must not swallow the rest.
-                RestRemaining = Math.Max(0f, RestRemaining - Math.Min(Time.unscaledDeltaTime, 0.1f));
+                UpdateRest(Time.realtimeSinceStartupAsDouble);
             }
             RestRemaining = 0f;
         }

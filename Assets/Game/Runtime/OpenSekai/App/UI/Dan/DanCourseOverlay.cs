@@ -206,6 +206,9 @@ namespace OpenSekai.App.UI
             }
         }
 
+        private void OnApplicationPause(bool paused) =>
+            _service?.SetApplicationPaused(paused, Time.realtimeSinceStartupAsDouble);
+
         private void Update()
         {
             if (_preview || !_restShown) return;

@@ -21,6 +21,29 @@ namespace OpenSekai.Tests.EditMode.Packages
             new(100, new DanDamage(0, 1, 3, 6, 10), _songs, "双曲", "diamond", "#526dc8", MedalTiers.TOP, "ω");
 
         [Test]
+        public void DanRestExcludesTimeBetweenBackgroundAndResume()
+        {
+            var service = new DanChallengeService();
+            typeof(DanChallengeService).GetProperty(nameof(service.RestRemaining)).SetValue(service, 50f);
+            typeof(DanChallengeService).GetProperty(nameof(service.Phase)).SetValue(service, DanPhase.BetweenSongs);
+            service.UpdateRest(1);
+            service.SetApplicationPaused(true, 2);
+            service.UpdateRest(10);
+            service.SetApplicationPaused(false, 100);
+            service.UpdateRest(101);
+            Assert.That(service.RestRemaining, Is.EqualTo(47));
+        }
+
+        [Test]
+        public void DanRestCountsTheFullForegroundIntervalAtFourFramesPerSecond()
+        {
+            float remaining = DanChallengeService.REST_SECONDS;
+            for (int frame = 0; frame < 200; frame++)
+                remaining = DanChallengeService.RestAfterFrame(remaining, 0.25f);
+            Assert.That(remaining, Is.Zero);
+        }
+
+        [Test]
         public void ShareRoundTripCanonicalizesWrappersButPreservesSongOrderAndStyle()
         {
             var dan = Definition();
