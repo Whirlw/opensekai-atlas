@@ -15,9 +15,9 @@ namespace OpenSekai.Shared.Playback
     [JsonObject(MemberSerialization.OptIn)]
     public sealed class PracticeStep
     {
-        // AudioSource.pitch supports forward playback up to 3x.
-        public const float MIN_SPEED = 0.01f;
-        public const float MAX_SPEED = 3f;
+        // PracticeAudioBank combines a native pitch with precomputed sample-rate reductions.
+        public const float MIN_SPEED = 0.001f;
+        public const float MAX_SPEED = 3072f;
 
         [JsonProperty("kind", Required = Required.Always)]
         public PracticeStepKind Kind { get; }

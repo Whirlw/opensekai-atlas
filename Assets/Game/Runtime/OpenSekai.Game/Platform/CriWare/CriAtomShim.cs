@@ -6,6 +6,7 @@ using AcbDecoder;
 using UnityEngine;
 using UnityEngine.Networking;
 using OpenSekai.Shared.Diagnostics;
+using OpenSekai.Shared.Audio;
 using OpenSekai.Shared.Live.Simulation;
 using Sekai;
 
@@ -686,6 +687,11 @@ namespace CriWare
 			public int LastObservedSamples = -1;
 			public readonly AudioClockDrift Drift = new AudioClockDrift();
 			public float RateScale = 1f;
+			// A practice proxy stores SourceStride original frames in each playable frame.
+			public int SourceStride = 1;
+			public AudioClip OriginalClip;
+			public float SongRate => PrimarySource.pitch * SourceStride;
+			public float SongLength => (OriginalClip != null ? OriginalClip : PrimarySource.clip).length;
 
 			// Set while the app itself is paused (backgrounded, screen off). Independent of Paused,
 			// which is the game's own pause: the OS stops the audio whether or not the game asked.
@@ -799,6 +805,8 @@ namespace CriWare
 			}
 
 			state.PrimarySource = sources[0];
+			state.SourceStride = 1;
+			state.OriginalClip = null;
 			state.Stopped = false;
 			state.InUse = true;
 			state.BaseTimeSeconds = primaryStartTimeSeconds;
@@ -896,6 +904,7 @@ namespace CriWare
 			}
 
 			state.InUse = false;
+			state.OriginalClip = null;
 			state.Stopped = true;
 			if (state.MixProbe != null)
 				state.MixProbe.Disarm();
@@ -985,7 +994,7 @@ namespace CriWare
 
 			ReconcileWithAudio(state, id);
 			playbackTime = (long)(GetMonotonicPlaybackTimeSeconds(state) * 1000f);
-			timeScale = state.PrimarySource.pitch;
+			timeScale = state.SongRate;
 			if (timeScale <= 0f)
 			{
 				timeScale = 1f;
@@ -1105,6 +1114,40 @@ namespace CriWare
 			}
 		}
 
+		private static int ClipFrame(AudioClip clip, double songSeconds, int stride)
+		{
+			double frame = Math.Round(songSeconds * clip.frequency / stride);
+			return (int)Math.Clamp(frame, 0d, clip.samples - 1d);
+		}
+
+		internal static void SetPracticePitch(uint id, float rate, PracticeAudioBank bank)
+		{
+			if (!_playbacks.TryGetValue(id, out PlaybackState state)) return;
+			var source = state.PrimarySource;
+			if (source == null || (state.OriginalClip ?? source.clip) != bank.Original) return;
+
+			AudioClip clip = bank.Select(rate, out int stride);
+			float position = GetMonotonicPlaybackTimeSeconds(state);
+			bool changeClip = source.clip != clip;
+			if (changeClip)
+			{
+				source.Stop();
+				source.clip = clip;
+				source.timeSamples = ClipFrame(clip, position, stride);
+			}
+			source.pitch = rate / stride;
+			state.SourceStride = stride;
+			state.OriginalClip = bank.Original;
+			state.BaseTimeSeconds = position;
+			state.BaseStopwatchTicks = Stopwatch.GetTimestamp();
+			ResetDriftWindow(state);
+			if (changeClip)
+			{
+				source.Play();
+				if (state.Paused) source.Pause();
+			}
+		}
+
 		// Every layer of a cue stops on the same mixer clock, even while the main thread stalls.
 		internal static double ScheduleEnd(uint id, double endSeconds)
 		{
@@ -1114,9 +1157,9 @@ namespace CriWare
 			AudioSource primary = state.PrimarySource;
 			if (primary.clip == null) return double.PositiveInfinity;
 			// Use the actual sample cursor here. The monotonic presentation clock may be slewing.
-			double cursorSeconds = (double)primary.timeSamples / primary.clip.frequency;
+			double cursorSeconds = (double)primary.timeSamples * state.SourceStride / primary.clip.frequency;
 			double remaining = Math.Max(0d, endSeconds - cursorSeconds);
-			double stopAt = AudioSettings.dspTime + remaining / primary.pitch;
+			double stopAt = AudioSettings.dspTime + remaining / state.SongRate;
 			foreach (AudioSource source in state.Sources)
 			{
 				if (source != null && source.clip != null) source.SetScheduledEndTime(stopAt);
@@ -1161,7 +1204,7 @@ namespace CriWare
 				return state.SuspendedTimeSeconds;
 			}
 
-			float pitch = state.PrimarySource.pitch;
+			float pitch = state.SongRate;
 			if (pitch <= 0f)
 			{
 				pitch = 1f;
@@ -1173,7 +1216,7 @@ namespace CriWare
 			AudioClip clip = state.PrimarySource.clip;
 			if (clip != null && clip.length > 0f)
 			{
-				playbackTimeSeconds = Mathf.Min(playbackTimeSeconds, clip.length);
+				playbackTimeSeconds = Mathf.Min(playbackTimeSeconds, state.SongLength);
 			}
 
 			return Mathf.Max(0f, playbackTimeSeconds);
@@ -1195,8 +1238,7 @@ namespace CriWare
 					continue;
 				}
 
-				int samples = (int)Math.Round((double)timeSeconds * clip.frequency);
-				source.timeSamples = Mathf.Clamp(samples, 0, clip.samples - 1);
+				source.timeSamples = ClipFrame(clip, timeSeconds, state.SourceStride);
 			}
 		}
 
@@ -1250,12 +1292,12 @@ namespace CriWare
 				return;
 			}
 
-			float audioSeconds = (float)samples / clip.frequency;
+			float audioSeconds = (float)((double)samples * state.SourceStride / clip.frequency);
 			float clockSeconds = GetMonotonicPlaybackTimeSeconds(state);
 			if (LatencyCapture.Active)
 				LatencyCapture.Record("audio_sample", noteId: (int)id, song: clockSeconds, note: audioSeconds,
 					value: (clockSeconds - audioSeconds) * 1000d);
-			if (clip.length > 0f && clockSeconds >= clip.length)
+			if (state.SongLength > 0f && clockSeconds >= state.SongLength)
 			{
 				// The clock is clamped at the end of the clip, so the offset there is meaningless.
 				return;
@@ -1270,7 +1312,7 @@ namespace CriWare
 		private static void ApplyDriftCorrection(PlaybackState state, uint id, long now, float clockSeconds, float audioSeconds,
 			AudioClockCorrection correction)
 		{
-			float pitch = state.PrimarySource.pitch;
+			float pitch = state.SongRate;
 			if (pitch <= 0f)
 			{
 				pitch = 1f;
@@ -1344,7 +1386,7 @@ namespace CriWare
 						// arrives (0.9 s on a test device). Freezing at the clock would then skip that
 						// much music on return; freeze where the audio actually stopped instead.
 						float clock = GetMonotonicPlaybackTimeSeconds(state);
-						float audio = state.PrimarySource.time;
+						float audio = state.PrimarySource.time * state.SourceStride;
 						state.SuspendedTimeSeconds = clock - audio > SUSPEND_FREEZE_THRESHOLD_SECONDS && audio > 0f
 							? audio
 							: clock;
@@ -1409,7 +1451,7 @@ namespace CriWare
 
 			AudioSource source = state.PrimarySource;
 			float clock = GetMonotonicPlaybackTimeSeconds(state);
-			float audio = source.time;
+			float audio = source.time * state.SourceStride;
 			LiveTrace.Write(LiveTraceCategory.Audio, string.Concat("sync ", reason, " id=", id.ToString(),
 				" clock=", clock.ToString("F3"), " audio=", audio.ToString("F3"),
 				" diff=", ((clock - audio) * 1000f).ToString("F0"), "ms paused=", state.Paused ? "1" : "0",

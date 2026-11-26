@@ -132,8 +132,8 @@ namespace OpenSekai.Tests.EditMode.Playback
 
         [TestCase(0f)]
         [TestCase(-1f)]
-        [TestCase(0.001f)]
-        [TestCase(3.01f)]
+        [TestCase(0.0009f)]
+        [TestCase(3072.01f)]
         [TestCase(float.NaN)]
         [TestCase(float.PositiveInfinity)]
         public void InvalidSpeedsCannotEnterATemplateOrChangeARunningPass(float speed)
@@ -144,7 +144,14 @@ namespace OpenSekai.Tests.EditMode.Playback
             Assert.That(run.Speed, Is.EqualTo(1));
         }
 
+        [TestCase(0.001f)]
+        [TestCase(0.005f)]
         [TestCase(0.01f)]
+        [TestCase(3.01f)]
+        [TestCase(4f)]
+        [TestCase(8f)]
+        [TestCase(16f)]
+        [TestCase(3072f)]
         [TestCase(0.6137f)]
         [TestCase(3f)]
         public void DoesNotSnapPositiveSpeedsToAPreset(float speed)

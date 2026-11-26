@@ -1,5 +1,9 @@
 using System;
 using CriWare;
+using System.IO;
+using System.Threading;
+using Cysharp.Threading.Tasks;
+using OpenSekai.Shared.Audio;
 using Sekai.Live;
 using UnityEngine;
 
@@ -28,6 +32,7 @@ namespace Sekai
 		private CriAtomExAcb _packageAudio;
 		private AudioClip _packageClip;
 		private bool _ownsPackageClip;
+		private PracticeAudioBank _practiceAudio;
 		private CriAtomExPlayback _currentIngamePlayback = CriAtomExPlayback.Invalid;
 		private uint _currentIngamePlaybackRequestId;
 		private AudioSyncedUnityTimer _audioSyncedUnityTimer;
@@ -94,11 +99,29 @@ namespace Sekai
 		public void ReleasePackageAudio()
 		{
 			StopIngame();
+			_practiceAudio?.Dispose();
+			_practiceAudio = null;
 			if (_packageAudio != null) _catalog.Unregister(_packageAudio);
 			if (_ownsPackageClip && _packageClip != null) UnityEngine.Object.Destroy(_packageClip);
 			_packageAudio = null;
 			_packageClip = null;
 			_ownsPackageClip = false;
+		}
+
+		public async UniTask PreparePracticeAudioAsync(CancellationToken token)
+		{
+			token.ThrowIfCancellationRequested();
+			if (_practiceAudio != null) return;
+			AudioClip original = _packageClip;
+			var prepared = await PracticeAudioBank.PrepareAsync(original, token);
+			if (_packageClip != original || original == null || token.IsCancellationRequested)
+			{
+				prepared.Dispose();
+				token.ThrowIfCancellationRequested();
+				throw new InvalidDataException("歌曲已更换，请重新开始练习。");
+			}
+			if (_practiceAudio == null) _practiceAudio = prepared;
+			else prepared.Dispose();
 		}
 
 		public bool ExistsCueName(string cueName) => _catalog.ExistsCueName(cueName);
@@ -382,7 +405,8 @@ namespace Sekai
 		{
 			if (_currentIngamePlayback.id != 0)
 			{
-				CriAtomAudioRuntime.SetPitch(_currentIngamePlayback.id, pitch);
+				if (_practiceAudio == null) CriAtomAudioRuntime.SetPitch(_currentIngamePlayback.id, pitch);
+				else CriAtomAudioRuntime.SetPracticePitch(_currentIngamePlayback.id, pitch, _practiceAudio);
 			}
 		}
 

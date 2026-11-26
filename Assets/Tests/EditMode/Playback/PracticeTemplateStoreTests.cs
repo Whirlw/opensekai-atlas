@@ -64,7 +64,7 @@ namespace OpenSekai.Tests.EditMode.Playback
         [TestCase("[null]")]
         [TestCase("[{\"name\":\"a\",\"steps\":[]}]")]
         [TestCase("[{\"name\":\"a\",\"steps\":[{\"speed\":1}]}]")]
-        [TestCase("[{\"name\":\"a\",\"steps\":[{\"kind\":\"Play\",\"speed\":4}]}]")]
+        [TestCase("[{\"name\":\"a\",\"steps\":[{\"kind\":\"Play\",\"speed\":4000}]}]")]
         [TestCase("[{\"name\":\"a\",\"steps\":[{\"kind\":\"Play\",\"speed\":1}]},{\"name\":\"a\",\"steps\":[{\"kind\":\"Play\",\"speed\":2}]}]")]
         public void SavingDoesNotOverwriteAnUnreadableOrInvalidLibrary(string original)
         {
