@@ -20,6 +20,7 @@ namespace OpenSekai.App.Library
         private const string MANIFEST = "manifest.json";
         private const int HISTORY_LIMIT = 64 * 1024 * 1024;
         private const int DAN_LIMIT = 64 * 1024 * 1024;
+        internal const long MAX_ARCHIVE_BYTES = 2L * HISTORY_LIMIT + DAN_LIMIT + 1024 * 1024;
         private const int JSON_LIMIT = 16 * 1024;
         internal static readonly UTF8Encoding Utf8 = new(false, true);
 
@@ -70,7 +71,7 @@ namespace OpenSekai.App.Library
         internal static (ProfileAppearance, DanArchive, AchievementClaims) Unpack(string path, string stagedHistory)
         {
             using var file = File.OpenRead(path);
-            if (file.Length > 2L * HISTORY_LIMIT + DAN_LIMIT + 1024 * 1024) throw new InvalidDataException("Backup exceeds size limit.");
+            if (file.Length > MAX_ARCHIVE_BYTES) throw new InvalidDataException("Backup exceeds size limit.");
             using var zip = new ZipArchive(file, ZipArchiveMode.Read);
             using var json = new MemoryStream();
             Copy(zip, MANIFEST, json, JSON_LIMIT);

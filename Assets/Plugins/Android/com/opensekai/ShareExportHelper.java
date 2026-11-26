@@ -25,8 +25,8 @@ public class ShareExportHelper {
         pick(REQUEST_CODE_OPEN, null, callbackObject, callbackMethod, Long.MAX_VALUE);
     }
 
-    public static void OpenPlayerBackup(String callbackObject, String callbackMethod) {
-        pick(REQUEST_CODE_OPEN, null, callbackObject, callbackMethod, 65L * 1024 * 1024);
+    public static void OpenPlayerBackup(String callbackObject, String callbackMethod, long maxArchiveBytes) {
+        pick(REQUEST_CODE_OPEN, null, callbackObject, callbackMethod, maxArchiveBytes);
     }
 
     public static void OpenSongPackage(String callbackObject, String callbackMethod) {

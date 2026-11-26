@@ -12,11 +12,16 @@ namespace OpenSekai.App.Library
         private static AndroidDocumentPicker _active;
         private readonly TaskCompletionSource<string> _result = new TaskCompletionSource<string>();
 
-        internal static Task<string> OpenSongPackageAsync() => PickAsync("OpenSongPackage");
-        internal static Task<string> OpenPlayerBackupAsync() => PickAsync("OpenPlayerBackup");
-        internal static Task<string> SaveAsync(string source) => PickAsync("SaveAndShare", source);
+        internal static Task<string> OpenSongPackageAsync() =>
+            PickAsync("OpenSongPackage", receiver => new object[] { receiver, nameof(OnDocument) });
+        internal static Task<string> OpenPlayerBackupAsync() => PickAsync("OpenPlayerBackup", PlayerBackupArguments);
+        internal static Task<string> SaveAsync(string source) =>
+            PickAsync("SaveAndShare", receiver => new object[] { source, receiver, nameof(OnDocument) });
 
-        private static async Task<string> PickAsync(string method, string source = null)
+        internal static object[] PlayerBackupArguments(string receiver) =>
+            new object[] { receiver, nameof(OnDocument), ProfileBackupArchive.MAX_ARCHIVE_BYTES };
+
+        private static async Task<string> PickAsync(string method, Func<string, object[]> arguments)
         {
             if (_active != null) throw new InvalidOperationException("已有文件选择操作正在进行。");
             var receiver = new GameObject("OpenSekaiDocumentPicker-" + Guid.NewGuid().ToString("N"));
@@ -25,8 +30,7 @@ namespace OpenSekai.App.Library
             try
             {
                 using var java = new AndroidJavaClass("com.opensekai.ShareExportHelper");
-                if (source == null) java.CallStatic(method, receiver.name, nameof(OnDocument));
-                else java.CallStatic(method, source, receiver.name, nameof(OnDocument));
+                java.CallStatic(method, arguments(receiver.name));
                 return await _active._result.Task;
             }
             finally
