@@ -190,14 +190,16 @@ namespace OpenSekai.App.Library
             for (int length = Math.Min(_prismOrder.Length, _recent.Count); length > 0; length--)
             {
                 _windowKeys.Clear();
+                long levelSum = 0;
                 int i = 0;
                 for (; i < length; i++)
                 {
                     var p = _recent[_recent.Count - length + i];
                     if (!IsClear(p) || !p.Ranked || !p.IsAllPerfect || !_windowKeys.Add(p.ScoreKey) ||
                         !string.Equals(p.Difficulty, _prismOrder[i], StringComparison.OrdinalIgnoreCase)) break;
+                    levelSum += p.PlayLevel;
                 }
-                if (i == length) return length;
+                if (i == length && (length < _prismOrder.Length || levelSum >= 111)) return length;
             }
             return 0;
         }

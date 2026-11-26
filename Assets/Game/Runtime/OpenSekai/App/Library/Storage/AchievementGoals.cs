@@ -244,7 +244,7 @@ namespace OpenSekai.App.Library
             new("GOLRIOLE-03", AchievementMetric.PerfectRateCourses, 5, "后光 · 3", "通过 5 次任意段位，每次整套中每首的 PERFECT 率 ≥ 99%。", medalName: "后光", tier: 1, grade: "I"),
             new("GOLRIOLE-04", AchievementMetric.PerfectRateCourses, 10, "后光 · 4", "通过 10 次任意段位，每次整套中每首的 PERFECT 率 ≥ 99%。", medalName: "后光", tier: 2, grade: "II"),
             new("GOLRIOLE-05", AchievementMetric.PerfectRateCourses, 20, "后光 · 5", "通过 20 次任意段位，每次整套中每首的 PERFECT 率 ≥ 99%。", medalName: "后光", tier: 3, grade: "III", avatarId: "aureole", avatarName: "后光"),
-            new("PRISM-01", AchievementMetric.Prism, 5, "白昼折光", "按红→黄→绿→蓝→紫的顺序，在 5 张互不相同的 Ranked 谱面连续取得 AP（EXPERT→HARD→EASY→NORMAL→MASTER）。", medalName: "白昼折光", tier: 5, grade: "ω", avatarId: "prism_eye", avatarName: "折光之眼"),
+            new("PRISM-01", AchievementMetric.Prism, 5, "白昼折光", "按红→黄→绿→蓝→紫的顺序，在 5 张互不相同的 Ranked 谱面连续取得 AP（EXPERT→HARD→EASY→NORMAL→MASTER），且这 5 张谱面的等级之和至少为 111。", medalName: "白昼折光", tier: 5, grade: "ω", avatarId: "prism_eye", avatarName: "折光之眼"),
             new("ENCORE-01", AchievementMetric.Encore, 100, "不落幕的安可", "在同一张 Lv.33+ 的 Ranked 谱面上累计手动通关 100 次，可以跨游戏日。", minimumLevel: 33, medalName: "不落幕的安可", tier: 5, grade: "ω", avatarId: "seventh_light", avatarName: "第七束光"),
             new("CODA-01", AchievementMetric.Coda, 1, "终乐章", "一次通过至少 4 首的段位组曲，每首均为 Lv.32+ 的 Ranked 谱面，且每首均取得 AP。", medalName: "终乐章", tier: 5, grade: "ω", avatarId: "final_barline", avatarName: "终止双线"),
         };

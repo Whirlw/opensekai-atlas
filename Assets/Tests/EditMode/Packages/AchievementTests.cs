@@ -377,13 +377,16 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(Item("FLICK-01").Current, Is.EqualTo(1));
         }
 
-        [Test]
-        public void PrismAndCalendarRequireOrderedAndDatedEvidence()
+        [TestCase(31, false)]
+        [TestCase(32, true)]
+        [TestCase(33, true)]
+        public void PrismAndCalendarRequireOrderedAndDatedEvidence(int masterLevel, bool prismReached)
         {
             string[] colors = { "expert", "hard", "easy", "normal", "master" };
+            int[] levels = { 27, 21, 12, 19, masterLevel };
             for (int i = 0; i < colors.Length; i++)
-                Save(With(Play(i, colors[i], ap: true), ("difficulty", colors[i]), ("gameDay", i < 2 ? "2026-01-01" : "2026-01-02")));
-            Assert.That(Item("PRISM-01").ReachedAtUtc, Is.Not.Null);
+                Save(With(Play(i, colors[i], level: levels[i], ap: true), ("difficulty", colors[i]), ("gameDay", i < 2 ? "2026-01-01" : "2026-01-02")));
+            Assert.That(Item("PRISM-01").ReachedAtUtc.HasValue, Is.EqualTo(prismReached));
             Assert.That(Item("DAY-01").Current, Is.EqualTo(1));
             Assert.That(CustomMusicScorePlayHistoryStorage.GameDayOf(new DateTimeOffset(2026, 1, 2, 3, 59, 0, TimeSpan.FromHours(8))),
                 Is.EqualTo("2026-01-01"));
