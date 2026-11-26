@@ -21,6 +21,53 @@ namespace OpenSekai.Tests.EditMode.Packages
             new(100, new DanDamage(0, 1, 3, 6, 10), _songs, "双曲", "diamond", "#526dc8", MedalTiers.TOP, "ω");
 
         [Test]
+        public void CourseRulesAndSongRatesRoundTripWithoutChangingLegacyIdentity()
+        {
+            var legacy = Definition();
+            var same = new DanDefinition(legacy.InitialLife, legacy.Damage, legacy.Songs, legacy.Label, legacy.Emblem,
+                legacy.Color, songRates: new[] { 1f, 1f });
+            Assert.That(same.ShareText, Is.EqualTo(legacy.ShareText));
+            Assert.That(same.Id, Is.EqualTo(legacy.Id));
+            var options = new DanDefinition(legacy.InitialLife, legacy.Damage, legacy.Songs, legacy.Label, legacy.Emblem,
+                legacy.Color, allowPause: false, failOnZero: false, restEnabled: false, restSeconds: 2.5f,
+                songRates: new[] { 0.5f, 4f });
+            var restored = DanDefinition.Parse(options.ShareText);
+            Assert.That(restored.SongRates, Is.EqualTo(new[] { 0.5f, 4f }));
+            Assert.That(restored.RestSeconds, Is.EqualTo(2.5f));
+            Assert.That(restored.RestEnabled || restored.AllowPause || restored.FailOnZero, Is.False);
+            Assert.That(restored.Id, Is.EqualTo(options.Id).And.Not.EqualTo(legacy.Id));
+        }
+
+        [TestCase("allowPause", "1")]
+        [TestCase("failOnZero", "null")]
+        [TestCase("restEnabled", "\"off\"")]
+        [TestCase("restSeconds", "-1")]
+        [TestCase("songRates", "[1]")]
+        [TestCase("songRates", "[0,1]")]
+        [TestCase("songRates", "[1,3073]")]
+        public void InvalidRulePayloadIsRejected(string field, string value)
+        {
+            var original = Definition().ShareText.Split('\n');
+            var body = JObject.Parse(original[1]);
+            body[field] = JToken.Parse(value);
+            Assert.Throws<DanFieldException>(() => DanDefinition.Parse(original[0] + "\n" + body));
+        }
+
+        [Test]
+        public void AZeroLifeCheckpointCanContinueOnlyInFinishAllMode()
+        {
+            var old = Definition();
+            var dan = new DanDefinition(1, old.Damage, old.Songs, old.Label, old.Emblem, old.Color, failOnZero: false);
+            var prefix = DanAttempt.Begin(dan).Append(dan, Row(1, 0, PlayResultKind.Completed));
+            prefix.Validate(dan);
+            var end = prefix.Append(dan, Row(0, 0, PlayResultKind.Failed));
+            end.Validate(dan);
+            Assert.That(end.Outcome, Is.EqualTo(DanOutcome.Failed));
+            Assert.Throws<InvalidDataException>(() => DanAttempt.Begin(dan).Append(dan, Row(1, 0, PlayResultKind.Failed)).Validate(dan));
+            Assert.Throws<InvalidDataException>(() => DanAttempt.Begin(old).Append(old, Row(old.InitialLife, 0, PlayResultKind.Completed)).Validate(old));
+        }
+
+        [Test]
         public void DanRestExcludesTimeBetweenBackgroundAndResume()
         {
             var service = new DanChallengeService();
@@ -37,7 +84,7 @@ namespace OpenSekai.Tests.EditMode.Packages
         [Test]
         public void DanRestCountsTheFullForegroundIntervalAtFourFramesPerSecond()
         {
-            float remaining = DanChallengeService.REST_SECONDS;
+            double remaining = DanChallengeService.REST_SECONDS;
             for (int frame = 0; frame < 200; frame++)
                 remaining = DanChallengeService.RestAfterFrame(remaining, 0.25f);
             Assert.That(remaining, Is.Zero);

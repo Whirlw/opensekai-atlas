@@ -458,6 +458,7 @@ namespace OpenSekai.App.UI
                     return "完成全部 " + count + " 首";
                 case DanOutcome.Failed:
                 {
+                    if (!model.Definition.FailOnZero) return "已打完全部 " + count + " 首，结算生命为 0";
                     DanSongResult last = attempt.Songs[attempt.Songs.Count - 1];
                     return "第 " + attempt.Songs.Count + " 首「" + last.Title + "」生命耗尽  ·  " + DanCopy.Clock(last.PositionMs);
                 }

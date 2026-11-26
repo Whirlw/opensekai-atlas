@@ -40,6 +40,14 @@ namespace OpenSekai.App.UI
         private readonly TextMeshProUGUI _songCount;
         private readonly List<SongRow> _rows = new List<SongRow>();
         private readonly List<string> _links = new List<string>();
+        private readonly List<string> _rates = new List<string>();
+        private readonly TMP_InputField _restSeconds;
+        private readonly Button _pauseToggle;
+        private readonly Button _failToggle;
+        private readonly Button _restToggle;
+        private bool _allowPause;
+        private bool _failOnZero;
+        private bool _restEnabled;
         private readonly MedalPlate _preview;
         private readonly TMP_InputField _label;
         private readonly TMP_InputField _color;
@@ -98,8 +106,24 @@ namespace OpenSekai.App.UI
                 new Vector2(176f, SMALL_HEIGHT));
             _libraryPicker = new DanLibraryPicker(layer, PickLibrarySong);
 
+            RectTransform rules = LibraryUi.CreateRect("Rules", left);
+            LibraryWidgets.TopStrip(rules, 0f, 0f, SMALL_HEIGHT + 12f, SMALL_HEIGHT);
+            Button Rule(string id, float x, float width, Action toggle)
+            {
+                var button = LibraryWidgets.PillButton(id, rules, string.Empty, () => { toggle(); RefreshRules(); }, width, SMALL_HEIGHT,
+                    LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, 18f);
+                LibraryWidgets.Place((RectTransform)button.transform, topLeft, topLeft, new Vector2(x, 0f), new Vector2(width, SMALL_HEIGHT));
+                return button;
+            }
+            _pauseToggle = Rule("AllowPause", 0f, 175f, () => _allowPause = !_allowPause);
+            _failToggle = Rule("FailOnZero", 183f, 220f, () => _failOnZero = !_failOnZero);
+            _restToggle = Rule("RestEnabled", 411f, 190f, () => _restEnabled = !_restEnabled);
+            _restSeconds = LibraryWidgets.TextField("RestSeconds", rules, SMALL_HEIGHT, "休息秒数", null, 20f);
+            _restSeconds.contentType = TMP_InputField.ContentType.DecimalNumber;
+            LibraryWidgets.Place((RectTransform)_restSeconds.transform, topLeft, topLeft, new Vector2(609f, 0f), new Vector2(165f, SMALL_HEIGHT));
+
             Image well = PackWidgets.Group(left, "Well");
-            LibraryWidgets.Inset(well.rectTransform, 0f, 0f, 0f, SMALL_HEIGHT + 16f);
+            LibraryWidgets.Inset(well.rectTransform, 0f, 0f, 0f, 2f * SMALL_HEIGHT + 24f);
             RectTransform listArea = LibraryUi.CreateRect("ListArea", well.transform);
             LibraryWidgets.Inset(listArea, 12f, 12f, 12f, 12f);
             _songContent = PackWidgets.Scroll(listArea, out _songScroll);
@@ -297,11 +321,31 @@ namespace OpenSekai.App.UI
 
         // ---------------------------------------------------------------- the form
 
+        private void RefreshRules()
+        {
+            _pauseToggle.GetComponentInChildren<TextMeshProUGUI>().text = _allowPause ? "暂停：允许" : "暂停：禁止";
+            _failToggle.GetComponentInChildren<TextMeshProUGUI>().text = _failOnZero ? "清零：立即失败" : "清零：打完整套";
+            _restToggle.GetComponentInChildren<TextMeshProUGUI>().text = _restEnabled ? "曲间休息（秒）" : "曲间休息：关";
+            _restSeconds.interactable = _restEnabled;
+        }
+
+        private void AddRow(string link)
+        {
+            _links.Add(link);
+            _rates.Add("1");
+        }
+
         private void LoadFresh()
         {
             _links.Clear();
-            _links.Add(string.Empty);
-            _links.Add(string.Empty);
+            _rates.Clear();
+            AddRow(string.Empty);
+            AddRow(string.Empty);
+            _allowPause = true;
+            _failOnZero = false;
+            _restEnabled = true;
+            _restSeconds.SetTextWithoutNotify(DanDefinition.DEFAULT_REST_SECONDS.ToString(CultureInfo.InvariantCulture));
+            RefreshRules();
             _label.SetTextWithoutNotify(string.Empty);
             _life.SetTextWithoutNotify("100");
             int[] costs = { 0, 1, 3, 6, 10 };
@@ -318,6 +362,13 @@ namespace OpenSekai.App.UI
         {
             _links.Clear();
             _links.AddRange(definition.Songs);
+            _rates.Clear();
+            foreach (float rate in definition.SongRates) _rates.Add(rate.ToString("R", CultureInfo.InvariantCulture));
+            _allowPause = definition.AllowPause;
+            _failOnZero = definition.FailOnZero;
+            _restEnabled = definition.RestEnabled;
+            _restSeconds.SetTextWithoutNotify(definition.RestSeconds.ToString("R", CultureInfo.InvariantCulture));
+            RefreshRules();
             _label.SetTextWithoutNotify(definition.Label);
             _life.SetTextWithoutNotify(definition.InitialLife.ToString(CultureInfo.InvariantCulture));
             for (int i = 0; i < 5; i++)
@@ -430,7 +481,7 @@ namespace OpenSekai.App.UI
 
         private void AddEmpty()
         {
-            _links.Add(string.Empty);
+            AddRow(string.Empty);
             RebuildRows();
             ScrollToEnd();
             ClearMessage();
@@ -458,7 +509,7 @@ namespace OpenSekai.App.UI
             }
 
             int empty = _links.FindIndex(string.IsNullOrWhiteSpace);
-            if (empty < 0) _links.Add(reference);
+            if (empty < 0) AddRow(reference);
             else _links[empty] = reference;
             _libraryPicker.Close();
             RebuildRows();
@@ -500,7 +551,7 @@ namespace OpenSekai.App.UI
             {
                 while (next < _links.Count && !string.IsNullOrWhiteSpace(_links[next])) next++;
                 if (next < _links.Count) _links[next] = link;
-                else _links.Add(link);
+                else AddRow(link);
             }
 
             RebuildRows();
@@ -514,6 +565,7 @@ namespace OpenSekai.App.UI
         {
             int target = index + direction;
             if (target < 0 || target >= _links.Count) return;
+            (_rates[index], _rates[target]) = (_rates[target], _rates[index]);
             (_links[index], _links[target]) = (_links[target], _links[index]);
             UiSound.Play(UiCue.Select);
             RebuildRows();
@@ -523,8 +575,9 @@ namespace OpenSekai.App.UI
         private void Remove(int index)
         {
             if (index < 0 || index >= _links.Count) return;
+            _rates.RemoveAt(index);
             _links.RemoveAt(index);
-            if (_links.Count == 0) _links.Add(string.Empty);
+            if (_links.Count == 0) AddRow(string.Empty);
             UiSound.Play(UiCue.Delete);
             RebuildRows();
             ClearMessage();
@@ -591,13 +644,33 @@ namespace OpenSekai.App.UI
             ClearMessage();
             var links = new List<string>();
             var rows = new List<int>();
+            var rates = new List<float>();
             for (int i = 0; i < _links.Count; i++)
             {
                 if (string.IsNullOrWhiteSpace(_links[i])) continue;
+                if (!float.TryParse(_rates[i], NumberStyles.Float, CultureInfo.InvariantCulture, out float rate) ||
+                    !(rate >= PracticeStep.MIN_SPEED && rate <= PracticeStep.MAX_SPEED))
+                {
+                    DanWidgets.SetFieldError(_rows[i].Rate, true);
+                    ShowError($"第 {i + 1} 首的播放倍速须在 {PracticeStep.MIN_SPEED} 至 {PracticeStep.MAX_SPEED} 之间。");
+                    return null;
+                }
+                rates.Add(rate);
                 links.Add(_links[i].Trim());
                 rows.Add(i);
             }
 
+            if (!float.TryParse(_restSeconds.text, NumberStyles.Float, CultureInfo.InvariantCulture, out float seconds) ||
+                !float.IsFinite(seconds) || seconds < 0)
+            {
+                if (_restEnabled)
+                {
+                    DanWidgets.SetFieldError(_restSeconds, true);
+                    ShowError("请填写非负的休息秒数。");
+                    return null;
+                }
+                seconds = DanDefinition.DEFAULT_REST_SECONDS;
+            }
             int? life = DanWidgets.ReadNumber(_life);
             if (life == null || life.Value <= 0)
             {
@@ -623,7 +696,7 @@ namespace OpenSekai.App.UI
             try
             {
                 return new DanDefinition(life.Value, new DanDamage(costs[0], costs[1], costs[2], costs[3], costs[4]), links,
-                    _label.text, _emblem, _colorHex, _tier, _grade);
+                    _label.text, _emblem, _colorHex, _tier, _grade, _allowPause, _failOnZero, _restEnabled, seconds, rates);
             }
             catch (DanFieldException exception)
             {
@@ -662,12 +735,17 @@ namespace OpenSekai.App.UI
 
         private void ClearMessage()
         {
-            _message.text = "每次判定按上表扣血，生命在哪一首归零就止步在哪一首";
+            _message.text = string.Empty;
             _message.color = LibraryTheme.Colors.TextMuted;
             DanWidgets.SetFieldError(_life, false);
             foreach (TMP_InputField field in _damage) DanWidgets.SetFieldError(field, false);
             DanWidgets.SetFieldError(_label, false);
-            foreach (SongRow row in _rows) row.SetError(false);
+            DanWidgets.SetFieldError(_restSeconds, false);
+            foreach (SongRow row in _rows)
+            {
+                row.SetError(false);
+                DanWidgets.SetFieldError(row.Rate, false);
+            }
         }
 
         private void DeactivateFields()
@@ -676,7 +754,12 @@ namespace OpenSekai.App.UI
             _color.DeactivateInputField();
             _life.DeactivateInputField();
             foreach (TMP_InputField field in _damage) field.DeactivateInputField();
-            foreach (SongRow row in _rows) row.Link.DeactivateInputField();
+            _restSeconds.DeactivateInputField();
+            foreach (SongRow row in _rows)
+            {
+                row.Link.DeactivateInputField();
+                row.Rate.DeactivateInputField();
+            }
         }
 
         /// <summary>One song of the form: its number, the link, what the link names, and the move and remove buttons.</summary>
@@ -712,6 +795,18 @@ namespace OpenSekai.App.UI
                 LibraryUi.Stretch(_number.rectTransform);
 
                 float right = 14f + BUTTON * 3f + 16f;
+                Rate = LibraryWidgets.TextField("PlaybackRate", Root, 52f, "倍速", null, 19f);
+                Rate.contentType = TMP_InputField.ContentType.DecimalNumber;
+                LibraryWidgets.Place((RectTransform)Rate.transform, Vector2.one, Vector2.one,
+                    new Vector2(-right, -12f), new Vector2(112f, 52f));
+                Rate.onValueChanged.AddListener(value =>
+                {
+                    if (_index < _owner._rates.Count) _owner._rates[_index] = value;
+                    DanWidgets.SetFieldError(Rate, false);
+                });
+                var rateLabel = LibraryWidgets.Label("RateLabel", Root, "播放倍速", 16f, LibraryTheme.Colors.TextMuted);
+                LibraryWidgets.Place(rateLabel.rectTransform, Vector2.one, Vector2.one, new Vector2(-right, -68f), new Vector2(112f, 24f));
+                right += 120f;
                 Link = LibraryWidgets.TextField("Link", Root, 52f, "粘贴谱面分享链接", null, 19f);
                 Link.textComponent.richText = false;
                 Link.characterLimit = 2048;
@@ -736,10 +831,12 @@ namespace OpenSekai.App.UI
 
             internal RectTransform Root { get; }
             internal TMP_InputField Link { get; }
+            internal TMP_InputField Rate { get; }
 
             internal void Bind(int index, string link, int count)
             {
                 _index = index;
+                Rate.SetTextWithoutNotify(_owner._rates[index]);
                 _number.text = (index + 1).ToString(CultureInfo.InvariantCulture);
                 Link.readOnly = DanLibrarySong.TryParse(link, out var librarySong);
                 Link.SetTextWithoutNotify(librarySong?.Title ?? link ?? string.Empty);
@@ -766,6 +863,7 @@ namespace OpenSekai.App.UI
             /// <param name="lookUp">Also check whether the chart is already on this device (reads the install index).</param>
             private void Describe(bool lookUp)
             {
+                if (_index >= _owner._links.Count) return;
                 string link = _owner._links[_index];
                 if (string.IsNullOrWhiteSpace(link))
                 {

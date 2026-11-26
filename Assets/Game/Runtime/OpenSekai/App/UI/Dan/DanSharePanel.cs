@@ -202,7 +202,7 @@ namespace OpenSekai.App.UI
                 if (!used) continue;
                 DanSongInfo info = DanSongInfo.Resolve(definition.Songs[i]);
                 string meta = info.LevelName != null ? info.Host + "  ·  " + info.LevelName : info.Host;
-                _lines[i].Bind(i + 1, info.Title, meta, info.Availability,
+                _lines[i].Bind(i + 1, info.Title, meta + $"  ·  {definition.SongRates[i]}×", info.Availability,
                     info.Installed ? DanCopy.Life : LibraryTheme.Colors.TextMuted, HomeTheme.Colors.Chip);
             }
 

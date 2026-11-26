@@ -711,7 +711,7 @@ namespace Sekai.Core.Live
 			note.OnUpdateCombo = OnUpdateCombo;
 			note.OnUpdateScore = OnUpdateScore;
 			note.OnDamage = OnDamage;
-			note.CanPublishResult = _session.BootData is FreeLiveBootData { DanSong: not null } ? _hasDanLife : null;
+			note.CanPublishResult = _session.BootData is FreeLiveBootData { DanSong: { FailOnZero: true } } ? _hasDanLife : null;
 			note.OnUpdateResult = OnUpdateResult;
 			note.CalcTimeOffset = _noteFrame.CalcTimeOffset;
 			if (note.NativeScroll == null)

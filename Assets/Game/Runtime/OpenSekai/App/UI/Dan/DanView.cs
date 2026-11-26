@@ -297,6 +297,7 @@ namespace OpenSekai.App.UI
                 : record.Attempts.Count > 0 ? "最远完成 " + record.FurthestCleared + " / " + definition.Songs.Count + " 首" : "开打前检查所有曲目是否就绪";
 
             float top = 0f;
+            _songsCaption.text = "曲目顺序  ·  " + DanCopy.Rules(definition);
             _songsCaption.rectTransform.anchoredPosition = new Vector2(_songsCaption.rectTransform.anchoredPosition.x, -top);
             top += 34f;
             IReadOnlyList<DanSongInfo> songs = _screen.SongsOf(record);
@@ -310,6 +311,7 @@ namespace OpenSekai.App.UI
                 if (!used) continue;
                 DanSongInfo info = songs[i];
                 string meta = (info.Difficulty != null ? info.Difficulty + "  ·  " : string.Empty) + info.Host;
+                meta += $"  ·  {definition.SongRates[i]}×";
                 string best = BestScore(record, i);
                 _songLines[i].Bind(i + 1, info.Title, meta, info.Availability,
                     info.Installed ? DanCopy.Life : LibraryTheme.Colors.TextMuted, HomeTheme.Colors.WithAlpha(tint, 46),

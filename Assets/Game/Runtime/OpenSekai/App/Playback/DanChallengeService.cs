@@ -17,8 +17,8 @@ namespace OpenSekai.App.Playback
     /// <summary>Main-thread course owner. It survives Core scene swaps. Changed is raised on the main thread.</summary>
     public sealed class DanChallengeService
     {
-        /// <summary>Longest rest between two songs. <see cref="ContinueNow"/> ends it sooner.</summary>
-        public const float REST_SECONDS = 50f;
+        /// <summary>Default rest between two songs. <see cref="ContinueNow"/> ends it sooner.</summary>
+        public const float REST_SECONDS = DanDefinition.DEFAULT_REST_SECONDS;
 
         public static DanChallengeService Local { get; private set; } = new();
         public event Action Changed;
@@ -32,7 +32,7 @@ namespace OpenSekai.App.Playback
         public string Error { get; private set; }
 
         /// <summary>Seconds left of the rest while <see cref="DanPhase.BetweenSongs"/>; counts unscaled time, paused in the background.</summary>
-        public float RestRemaining { get; private set; }
+        public float RestRemaining { get => (float)_restRemaining; private set => _restRemaining = value; }
 
         /// <summary>The pinned package folder of song <paramref name="number"/> (from 1) while a course runs; null otherwise.</summary>
         public string SongDirectory(int number) =>
@@ -44,6 +44,7 @@ namespace OpenSekai.App.Playback
         private bool _skipRest;
         private bool _applicationPaused;
         private double _restTick;
+        private double _restRemaining;
 
         internal void SetApplicationPaused(bool paused, double now)
         {
@@ -56,7 +57,7 @@ namespace OpenSekai.App.Playback
         internal void UpdateRest(double now)
         {
             if (!_applicationPaused)
-                RestRemaining = RestAfterFrame(RestRemaining, (float)(now - _restTick));
+                _restRemaining = RestAfterFrame(_restRemaining, now - _restTick);
             _restTick = now;
         }
 
@@ -164,7 +165,7 @@ namespace OpenSekai.App.Playback
                     }
                     catch (Exception e) { Error = e.Message; }
                 },
-                restart => LeaveSongAsync(restart).Forget());
+                restart => LeaveSongAsync(restart).Forget(), Definition.AllowPause, Definition.FailOnZero, Definition.SongRates[SongNumber - 1], SongNumber == _songs.Length);
             _live = live;
             SetPhase(DanPhase.StartingSong);
             var result = await PlayService.Instance.StartAsync(new PlayRequest(song.Directory, live, source, song.Ranked), token);
@@ -198,7 +199,7 @@ namespace OpenSekai.App.Playback
                         else
                         {
                             SongNumber++;
-                            await RestBetweenSongs(token);
+                            if (Definition.RestEnabled && Definition.RestSeconds > 0) await RestBetweenSongs(token);
                         }
                         var result = await StartSong(SceneManager.Scene.Core, token);
                         if (result.Started) return;
@@ -212,14 +213,14 @@ namespace OpenSekai.App.Playback
             SceneManager.Instance.RequestScene(SceneManager.Scene.Library);
         }
 
-        internal static float RestAfterFrame(float remaining, float elapsed) =>
+        internal static double RestAfterFrame(double remaining, double elapsed) =>
             Math.Max(0f, remaining - Math.Max(0f, elapsed));
 
         private async UniTask RestBetweenSongs(CancellationToken token)
         {
             // Reset before the phase change: a page may skip the rest from its Changed handler.
             _skipRest = false;
-            RestRemaining = REST_SECONDS;
+            RestRemaining = Definition.RestSeconds;
             _restTick = Time.realtimeSinceStartupAsDouble;
             SetPhase(DanPhase.BetweenSongs);
             while (RestRemaining > 0f && !_skipRest)

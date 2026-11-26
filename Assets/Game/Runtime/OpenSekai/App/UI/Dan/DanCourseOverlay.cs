@@ -18,7 +18,7 @@ namespace OpenSekai.App.UI
     /// <summary>
     /// The rest screen a running 段位 course shows between songs. It lives across scene loads and
     /// follows <see cref="DanChallengeService.Local"/>: for up to
-    /// <see cref="DanChallengeService.REST_SECONDS"/> it shows the next song (jacket, title,
+    /// <see cref="DanDefinition.RestSeconds"/> seconds it shows the next song (jacket, title,
     /// difficulty), the life left and what the last song cost, every song of the course, 立即开始,
     /// 设置 (changes apply from the next song) and 放弃挑战. It stays up while the next song loads and
     /// fades once the new live scene is in. During a song it draws nothing: the live HUD's own life
@@ -287,6 +287,7 @@ namespace OpenSekai.App.UI
 
         private void BindRest(DanDefinition definition, DanAttempt attempt, int songNumber, int life, IReadOnlyList<DanSongInfo> songs)
         {
+            _restDuration = definition.RestSeconds;
             DisarmQuit();
             _backArmedUntil = -1f;
             Color32 tint = DanStyles.ParseColor(definition.Color);
@@ -365,11 +366,13 @@ namespace OpenSekai.App.UI
             }
         }
 
+        private float _restDuration;
+
         private void SetCountdown(float remaining)
         {
             float seconds = Mathf.Max(0f, remaining);
-            _countdown.text = Mathf.CeilToInt(seconds).ToString(CultureInfo.InvariantCulture) + " 秒后自动开始";
-            _countdownFill.rectTransform.anchorMax = new Vector2(Mathf.Clamp01(seconds / DanChallengeService.REST_SECONDS), 1f);
+            _countdown.text = Math.Ceiling(seconds).ToString(CultureInfo.InvariantCulture) + " 秒后自动开始";
+            _countdownFill.rectTransform.anchorMax = new Vector2(_restDuration > 0 ? Mathf.Clamp01(seconds / _restDuration) : 0f, 1f);
         }
 
         private void SetLoading(string message)

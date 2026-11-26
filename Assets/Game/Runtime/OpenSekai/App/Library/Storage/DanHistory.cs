@@ -101,9 +101,9 @@ namespace OpenSekai.App.Library
                 life = song.Score.life;
                 expected = song.Kind switch
                 {
-                    PlayResultKind.Failed when life == 0 => DanOutcome.Failed,
+                    PlayResultKind.Failed when life == 0 && (definition.FailOnZero || i + 1 == definition.Songs.Count) => DanOutcome.Failed,
                     PlayResultKind.Retired => DanOutcome.Interrupted,
-                    PlayResultKind.Completed when life > 0 => i + 1 == definition.Songs.Count ? DanOutcome.Passed : DanOutcome.Interrupted,
+                    PlayResultKind.Completed when life > 0 || !definition.FailOnZero && i + 1 < definition.Songs.Count => i + 1 == definition.Songs.Count ? DanOutcome.Passed : DanOutcome.Interrupted,
                     _ => throw new InvalidDataException("Invalid challenge end reason.")
                 };
             }

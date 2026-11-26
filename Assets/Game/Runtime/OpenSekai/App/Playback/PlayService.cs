@@ -150,7 +150,7 @@ namespace OpenSekai.App.Playback
                     return Result(PlayStartStatus.Failed, "无法加载音频文件。");
                 }
                 cancellationToken.ThrowIfCancellationRequested();
-                double audioDuration = request.Practice != null ? await _audio.PreparePracticeAsync(cancellationToken) : 0;
+                double audioDuration = request.Practice != null || request.DanSong is { Rate: not 1f } ? await _audio.PreparePracticeAsync(cancellationToken) : 0;
                 if (material != null) await material.PrepareAsync(materialDiagnostics, cancellationToken);
                 PlaySession session = PlaySession.FromChart(request, entry, chart, config, settings, material?.Audio, material?.Combo, material?.Judgment, material?.HitFx, material?.Notes, material?.Lane, material?.Background, material?.Hud, material?.ResultFx);
                 FreeLiveBootData boot = LegacyLiveBootAdapter.Create(session, _deckSelection.SelectedDeckId);

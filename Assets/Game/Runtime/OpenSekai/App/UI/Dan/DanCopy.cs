@@ -296,6 +296,11 @@ namespace OpenSekai.App.UI
             return "最远完成 " + record.FurthestCleared + " / " + count + " 首  ·  挑战 " + record.Attempts.Count + " 次";
         }
 
+        internal static string Rules(DanDefinition definition) => string.Join("  ·  ",
+            definition.AllowPause ? "允许暂停" : "禁止暂停",
+            definition.FailOnZero ? "清零立即失败" : "清零可打完整套",
+            definition.RestEnabled && definition.RestSeconds > 0 ? $"曲间休息 {definition.RestSeconds} 秒" : "无曲间休息");
+
         /// <summary>One attempt in a line: how far it got and what was left.</summary>
         internal static string Attempt(DanAttempt attempt, DanDefinition definition)
         {
@@ -306,7 +311,7 @@ namespace OpenSekai.App.UI
                 case DanOutcome.Passed:
                     return "完成全部 " + count + " 首  ·  剩余生命 " + Number(life) + " / " + Number(definition.InitialLife);
                 case DanOutcome.Failed:
-                    return "第 " + attempt.Songs.Count + " 首生命耗尽";
+                    return definition.FailOnZero ? "第 " + attempt.Songs.Count + " 首生命耗尽" : "已打完整套，结算生命为 0";
                 default:
                     return attempt.Songs.Count == 0 || attempt.Songs[attempt.Songs.Count - 1].Kind == PlayResultKind.Completed
                         ? "完成 " + Cleared(attempt) + " / " + count + " 首后中断"

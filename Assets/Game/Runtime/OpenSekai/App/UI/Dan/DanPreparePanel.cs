@@ -74,6 +74,7 @@ namespace OpenSekai.App.UI
 
         internal void Show(DanDefinition definition, IReadOnlyList<DanSongInfo> songs)
         {
+            _modal.Subtitle.text = DanCopy.Rules(definition);
             _songs = songs ?? Array.Empty<DanSongInfo>();
             _plate.SetLook(MedalLook.Of(definition));
             _plate.SetLocked(false);

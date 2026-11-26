@@ -52,17 +52,15 @@ namespace Sekai.Core.Live
 		/// Not clamped at zero: a chart that starts before its music runs the clock from below zero.
 		protected float CurrentViewTimeSeconds => (float)(currentMusicTimeMs / 1000d + ViewClockOffset);
 
-		// A practice selection cuts the actual source, independent of hardware settings. Its
-		// timeline is the raw source clock; the device calibration belongs on the picture and
-		// the input. An ordinary live keeps its existing audio-advanced timeline.
-		private bool IsPracticeTransport => BootData is FreeLiveBootData { Practice: not null };
+		// Practice and variable-speed courses calibrate the picture and input against source time.
+		private bool UsesSourceClock => BootData is FreeLiveBootData { Practice: not null } or FreeLiveBootData { DanSong: { Rate: not 1f } };
 		internal PracticeRateHistory PracticeRates { get; private set; }
-		private double ViewClockOffset => IsPracticeTransport
+		private double ViewClockOffset => UsesSourceClock
 			? PracticeWallOffset((timingCompensation.VisualLatencyMs - timingCompensation.AudioLatencyMs) / 1000d)
 			: timingCompensation.VisualLatencyMs / 1000d;
 		protected double PracticeInputWallOffset =>
 			-(timingCompensation.AudioLatencyMs + timingCompensation.JudgeOffsetMs) / 1000d;
-		protected double LogicClockOffset => IsPracticeTransport
+		protected double LogicClockOffset => UsesSourceClock
 			? PracticeWallOffset(PracticeInputWallOffset) : -timingCompensation.LogicDelaySeconds;
 
 		private double PracticeWallOffset(double seconds) => PracticeRates?.Distance(currentGameTime, currentGameTime + seconds)
@@ -79,8 +77,8 @@ namespace Sekai.Core.Live
 
 		protected void RefreshPracticeViewLead() => LiveConfig.ViewLeadSeconds = (float)(ViewClockOffset - LogicClockOffset);
 
-		private long TimelineForPlayback(long ms) => IsPracticeTransport ? ms : timingCompensation.TimelineAtPlayback(ms);
-		private long PlaybackForTimeline(long ms) => IsPracticeTransport ? ms : timingCompensation.PlaybackAt(ms);
+		private long TimelineForPlayback(long ms) => UsesSourceClock ? ms : timingCompensation.TimelineAtPlayback(ms);
+		private long PlaybackForTimeline(long ms) => UsesSourceClock ? ms : timingCompensation.PlaybackAt(ms);
 
 		/// <summary>The signed chart clock used for note execution and judgment.</summary>
 		protected float CurrentLogicChartTime
@@ -109,7 +107,7 @@ namespace Sekai.Core.Live
 		private const float MAX_FREE_CLOCK_STEP_SECONDS = 0.1f;
 
 		/// <summary>How long the result effect stays up before the fade to the result.</summary>
-		private const float RESULT_EFFECT_HOLD_SECONDS = 4f;
+		protected const float RESULT_EFFECT_HOLD_SECONDS = 4f;
 
 		/// <summary>How much longer than the start wait the info page may take before the live goes on without it.</summary>
 		private const float INTRO_WAIT_SLACK_SECONDS = 4f;
@@ -347,6 +345,7 @@ namespace Sekai.Core.Live
 			if (!string.IsNullOrEmpty(cueName))
 			{
 				cueId = SoundManager.Instance.PrepareIngameBGM(cueName, currentMusicTimeMs / 1000f);
+				if (BootData is FreeLiveBootData { DanSong: { Rate: not 1f } dan }) SoundManager.Instance.SetIngameBgmPitch(dan.Rate);
 			}
 
 			musicPhase = MusicPhase.NotStarted;
@@ -482,8 +481,8 @@ namespace Sekai.Core.Live
 			}
 
 			float leadIn = LiveConfig.GetNoteDisplayOffsetTime(BootData?.LiveSettingData?.NoteSpeed ?? 6f);
-			float audioAdvance = timingCompensation.AudioAdvanceMs / 1000f;
-			float lastJudgement = last + Math.Max(0f, timingCompensation.LogicDelaySeconds);
+			float audioAdvance = UsesSourceClock ? 0f : timingCompensation.AudioAdvanceMs / 1000f;
+			float lastJudgement = last + Math.Max(0f, (float)-LogicClockOffset);
 			timelineSpan = new OpenSekai.Shared.Live.Simulation.LiveTimelineSpan(
 				musicStart, musicEnd - audioAdvance, first, lastJudgement, leadIn, playbackStart, playbackEnd);
 			TraceTimeline("span " + timelineSpan);

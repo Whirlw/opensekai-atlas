@@ -1129,7 +1129,66 @@ namespace OpenSekai.Tests.PlayMode
             yield return PlayTwoSongDan(3, DanOutcome.Interrupted);
         }
 
-        private static IEnumerator PlayTwoSongDan(int life, DanOutcome expected)
+        [UnityTest]
+        public IEnumerator DanEditorKeepsEachRateWithItsSongAndRestoresSavedRules()
+        {
+            yield return LoadColdHome();
+            var home = HomeScreen.Current;
+            home.ShowDanImmediately();
+            var parent = (RectTransform)home.transform.Find("HomeCanvas");
+            var layer = LibraryUi.CreateRect("CourseEditorTest", parent);
+            LibraryUi.Stretch(layer);
+            DanDefinition saved = null;
+            using var editor = new DanEditorPanel(layer, (_, updated) => { saved = updated; return true; }, null);
+            try
+            {
+                var legacy = new DanDefinition(20, new DanDamage(0, 0, 1, 2, 3),
+                    new[] { "https://charts.test/levels/one", "https://charts.test/levels/two" }, "双曲", "diamond", "#112233");
+                editor.Open(legacy);
+                yield return null;
+                var root = layer.Find("DanEditor");
+                T Control<T>(Transform owner, string name) where T : Component =>
+                    owner.GetComponentsInChildren<T>(true).Single(control => control.name == name);
+                var first = root.GetComponentsInChildren<RectTransform>(true).Single(rect => rect.name == "Song0");
+                var second = root.GetComponentsInChildren<RectTransform>(true).Single(rect => rect.name == "Song1");
+                Control<TMP_InputField>(first, "PlaybackRate").text = "0.5";
+                Control<TMP_InputField>(second, "PlaybackRate").text = "1.25";
+                Control<Button>(first, "Down").onClick.Invoke();
+                Assert.That(Control<TMP_InputField>(first, "PlaybackRate").text, Is.EqualTo("1.25"));
+                Control<Button>(root, "AllowPause").onClick.Invoke();
+                Control<Button>(root, "FailOnZero").onClick.Invoke();
+                var duration = Control<TMP_InputField>(root, "RestSeconds");
+                duration.text = "2.5";
+                Control<Button>(root, "RestEnabled").onClick.Invoke();
+                Assert.That(duration.interactable, Is.False);
+                Control<Button>(root, "Save").onClick.Invoke();
+                Assert.That(saved, Is.Not.Null);
+                Assert.That(saved.Songs, Is.EqualTo(legacy.Songs.Reverse()));
+                Assert.That(saved.SongRates, Is.EqualTo(new[] { 1.25f, 0.5f }));
+                Assert.That(saved.AllowPause || saved.FailOnZero || saved.RestEnabled, Is.False);
+                Assert.That(saved.RestSeconds, Is.EqualTo(2.5f));
+                editor.Open(DanDefinition.Parse(saved.ShareText));
+                Control<Button>(root, "RestEnabled").onClick.Invoke();
+                Assert.That(duration.interactable, Is.True);
+                Assert.That(duration.text, Is.EqualTo("2.5"));
+                yield return null;
+            }
+            finally { Object.Destroy(layer.gameObject); }
+        }
+
+        [UnityTest]
+        public IEnumerator DanCanPlayBothSongsAtZeroLifeWithIndependentRatesAndNoPauseOrRest()
+        {
+            yield return PlayTwoSongDan(1, DanOutcome.Failed, finishAll: true);
+        }
+
+        [UnityTest]
+        public IEnumerator DanZeroLifeBeforeTheLastNoteShowsFailedAndSkipsTheRemainingSongs()
+        {
+            yield return PlayTwoSongDan(1, DanOutcome.Failed, earlyFailure: true);
+        }
+
+        private static IEnumerator PlayTwoSongDan(int life, DanOutcome expected, bool finishAll = false, bool earlyFailure = false)
         {
             // A previous interrupted smoke test can leave Core live. Let its controller unload
             // before resetting the persistent scene manager for the next cold home.
@@ -1149,13 +1208,21 @@ namespace OpenSekai.Tests.PlayMode
                 var installer = new SonolusLevelInstaller(new SongPackageManager(Path.Combine(root, "library")),
                     Path.Combine(root, "index"), Path.Combine(root, "staging"));
                 var service = new DanChallengeService(profile, installer, Path.Combine(root, "pinned"));
-                // The rest between songs lasts up to 50 s; the player can skip it, and so does the test.
+                float restSeconds = expected == DanOutcome.Passed ? 0.3f : DanDefinition.DEFAULT_REST_SECONDS;
+                double restStarted = 0;
+                double elapsedRest = 0;
+                float initialRest = 0;
+                // Let the custom rest expire. Other enabled rests exercise the skip button.
                 var restSongs = new System.Collections.Generic.List<int>();
                 service.Changed += () =>
                 {
+                    if (service.Phase == DanPhase.StartingSong && service.SongNumber == 2 && expected == DanOutcome.Passed)
+                        elapsedRest = Time.realtimeSinceStartupAsDouble - restStarted;
                     if (service.Phase != DanPhase.BetweenSongs) return;
                     restSongs.Add(service.SongNumber);
-                    service.ContinueNow();
+                    initialRest = service.RestRemaining;
+                    restStarted = Time.realtimeSinceStartupAsDouble;
+                    if (expected != DanOutcome.Passed) service.ContinueNow();
                 };
                 var links = new string[2];
                 string secondChart = null;
@@ -1169,13 +1236,15 @@ namespace OpenSekai.Tests.PlayMode
                     var data = JObject.Parse(File.ReadAllText(package.ScorePath));
                     data["entities"] = new JArray(((JArray)data["entities"]).Where(e =>
                         (string)e["archetype"] == "Initialization" || (string)e["archetype"] == "#BPM_CHANGE" ||
-                        (string)e["archetype"] == "NormalTapNote").Take(3));
+                        (string)e["archetype"] == "NormalTapNote").Take(i == 0 && (earlyFailure || finishAll) ? 4 : 3));
                     File.WriteAllText(package.ScorePath, data.ToString());
                     installer.CommitPublication(address, level, package);
                     secondChart = package.ScorePath;
                 }
                 int ordinaryPlays = CustomMusicScorePlayHistoryStorage.Ranking.ReadPage(0, 1).TotalCount;
-                var definition = new DanDefinition(life, new DanDamage(0, 0, 0, 0, 1), links, "双曲", "diamond", "#112233");
+                var definition = new DanDefinition(life, new DanDamage(0, 0, 0, 0, 1), links, "双曲", "diamond", "#112233",
+                    allowPause: !finishAll, failOnZero: !finishAll, restEnabled: !finishAll, restSeconds: restSeconds,
+                    songRates: finishAll ? new[] { 1.5f, 0.75f } : null);
                 string chart = File.ReadAllText(secondChart);
                 File.WriteAllText(secondChart, "{}");
                 yield return service.StartAsync(definition).ToCoroutine(result => Assert.That(result.Started, Is.False));
@@ -1196,7 +1265,22 @@ namespace OpenSekai.Tests.PlayMode
                     if (expected == DanOutcome.Interrupted) overlay = DanCourseOverlay.Ensure(service);
                     yield return service.StartAsync(definition).ToCoroutine(result => Assert.That(result.Started, Is.True, result.Message));
                     File.Delete(secondChart); // Song two plays the copy fixed before the first scene load.
-                    if (expected != DanOutcome.Interrupted)
+                    if (finishAll)
+                    {
+                        for (int number = 1; number <= 2; number++)
+                        {
+                            SoloLiveController live = null;
+                            float rate = definition.SongRates[number - 1];
+                            yield return WaitFor(() => service.SongNumber == number && coreEntries == number &&
+                                (live = Object.FindFirstObjectByType<SoloLiveController>()) != null && live.JustPlayingState &&
+                                Object.FindObjectsByType<AudioSource>(FindObjectsSortMode.None).Any(source =>
+                                    source.isPlaying && Mathf.Abs(source.pitch - rate) < 0.001f), 45f, "playing course audio at " + rate);
+                            live.Pause();
+                            Assert.That(live.JustPlayingState, Is.True);
+                            if (number == 2) Assert.That(service.RemainingLife, Is.Zero);
+                        }
+                    }
+                    else if (!earlyFailure && expected != DanOutcome.Interrupted)
                         yield return CheckDanOutro(service, skip: expected == DanOutcome.Failed);
                     if (expected == DanOutcome.Interrupted)
                     {
@@ -1227,6 +1311,14 @@ namespace OpenSekai.Tests.PlayMode
                         Assert.That(service.Attempt.Id, Is.Not.EqualTo(original));
                         service.Quit();
                     }
+                    if (expected == DanOutcome.Failed)
+                    {
+                        yield return WaitFor(() => service.Attempt.Outcome == DanOutcome.Failed, 55f, "judging the failing note");
+                        var resultView = Object.FindFirstObjectByType<LiveResultView>(FindObjectsInactive.Include);
+                        Assert.That(resultView, Is.Not.Null);
+                        yield return WaitFor(() => resultView != null && resultView.GetComponentsInChildren<Transform>()
+                            .Any(t => t.name.StartsWith("fx_result_failed_v2")), 4f, "showing LIVE FAILED before leaving Core");
+                    }
                     yield return WaitFor(() => service.Phase == DanPhase.Finished || service.Phase == DanPhase.Error,
                         55f, "completing two manual charts");
                     Assert.That(service.Error, Is.Null);
@@ -1237,7 +1329,22 @@ namespace OpenSekai.Tests.PlayMode
                     SceneLoader.sceneLoaded -= Loaded;
                     if (overlay != null) Object.Destroy(overlay.gameObject);
                 }
-                Assert.That(restSongs, Is.EqualTo(new[] { 2 }), "Only advancing to the second chart should show the rest screen.");
+                if (earlyFailure)
+                {
+                    Assert.That(coreEntries, Is.EqualTo(1));
+                    Assert.That(restSongs, Is.Empty);
+                    var failed = profile.ReadDanHistory().Single();
+                    Assert.That(failed.Outcome, Is.EqualTo(DanOutcome.Failed));
+                    Assert.That(failed.Songs.Single().Score.missCount, Is.EqualTo(1));
+                    Assert.That(service.NewlyAwarded, Is.False);
+                    yield break;
+                }
+                if (!finishAll)
+                {
+                    Assert.That(initialRest, Is.EqualTo(restSeconds));
+                    if (expected == DanOutcome.Passed) Assert.That(elapsedRest, Is.GreaterThanOrEqualTo(restSeconds - 0.001));
+                }
+                Assert.That(restSongs, Is.EqualTo(finishAll ? System.Array.Empty<int>() : new[] { 2 }), "Only advancing to the second chart should show the rest screen.");
                 Assert.That(CustomMusicScorePlayHistoryStorage.Ranking.ReadPage(0, 1).TotalCount, Is.EqualTo(ordinaryPlays));
                 if (expected == DanOutcome.Interrupted)
                 {
@@ -1251,8 +1358,13 @@ namespace OpenSekai.Tests.PlayMode
                 Assert.That(coreEntries, Is.EqualTo(2));
                 var attempt = profile.ReadDanHistory().Single();
                 Assert.That(attempt.Songs.Select(s => s.StartingLife), Is.EqualTo(new[] { life, life - 1 }));
-                Assert.That(attempt.Songs.Select(s => s.Score.life), Is.EqualTo(new[] { life - 1, life - 2 }));
+                Assert.That(attempt.Songs.Select(s => s.Score.life), Is.EqualTo(new[] { life - 1, Mathf.Max(0, life - 2) }));
                 Assert.That(attempt.Outcome, Is.EqualTo(expected));
+                if (finishAll)
+                {
+                    Assert.That(attempt.Songs.Select(s => s.Kind), Is.EqualTo(new[] { PlayResultKind.Completed, PlayResultKind.Failed }));
+                    Assert.That(attempt.Songs.Select(song => song.Score.missCount), Is.EqualTo(new[] { 2, 1 }), "zero life still judges every song");
+                }
                 Assert.That(attempt.Songs.All(song => song.Ranked.HasValue), Is.True);
                 Assert.That(attempt.Songs.Select(song => song.PlayLevel), Is.EqualTo(new[] { 33, 33 }));
                 Assert.That(service.NewlyAwarded, Is.EqualTo(expected == DanOutcome.Passed));

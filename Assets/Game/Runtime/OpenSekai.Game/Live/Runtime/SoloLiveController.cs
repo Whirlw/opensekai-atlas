@@ -248,7 +248,7 @@ namespace Sekai.Core.Live
 			{
 				_liveLogic?.OnInput();
 			}
-			if (_practice == null && _liveLogic?.Result == 2 && _liveLogic.IsNotesAllFinished)
+			if (state == LiveControllerState.Playing && _practice == null && _liveLogic?.Result == 2 && _liveLogic.IsNotesAllFinished)
 			{
 				OnFinished();
 			}
@@ -295,6 +295,7 @@ namespace Sekai.Core.Live
 
 		protected override void OnPause()
 		{
+			if (DanSong?.AllowPause == false) return;
 			if (_practice != null)
 			{
 				if (!_practice.Paused && !_practice.Completed) _practice.TogglePause();
@@ -319,6 +320,7 @@ namespace Sekai.Core.Live
 
 		public void ShowPauseDialog()
 		{
+			if (DanSong?.AllowPause == false) return;
 			if (IsLibraryPlaybackFlow())
 			{
 				ShowLibraryPauseOverlay();
@@ -486,6 +488,15 @@ namespace Sekai.Core.Live
 
 			_liveLogic = new LiveLogic(liveBundleBuildData);
 			_liveLogic.Setup(BootData, _liveViews);
+			if (DanSong is { Rate: not 1f } dan)
+			{
+				ChangePracticeRate(dan.Rate, Time.realtimeSinceStartupAsDouble);
+				ResetPracticeHistory();
+				_liveLogic.Clock.Rates = PracticeRates;
+				_liveLogic.Clock.PlaybackRate = dan.Rate;
+				_liveLogic.Clock.InputWallOffset = PracticeInputWallOffset;
+				RefreshPracticeViewLead();
+			}
 			_liveLogic.SetSkillLogic(new SkillLogic());
 			_liveLogic.SetScoreLogic(new ScoreLogic(liveBundleBuildData));
 			_liveLogic.Finished += OnFinished;
@@ -561,7 +572,7 @@ namespace Sekai.Core.Live
 			{
 				result = 2;
 				SoundManager.Instance.StopIngame();
-				PreExit(0f, 0f);
+				PreExit(0f, RESULT_EFFECT_HOLD_SECONDS);
 				return;
 			}
 			// Only while the audio drives the clock: before and after it the timer reads 0, which used
@@ -575,6 +586,11 @@ namespace Sekai.Core.Live
 
 		protected override void OnFinished()
 		{
+			if (!_forcedFinish && DanSong is { IsLastSong: true } && _liveLogic.Score.life == 0)
+			{
+				OnFailed();
+				return;
+			}
 			if (PracticePlan == null) base.OnFinished();
 		}
 
@@ -600,7 +616,7 @@ namespace Sekai.Core.Live
 			double historyStart = LatencyCapture.Active ? Time.realtimeSinceStartupAsDouble : 0d;
 			LiveScore score = _liveLogic?.Score ?? default;
 			var kind = _retiredByPlayer || DanSong != null && _forcedFinish ? PlayResultKind.Retired
-				: result == 3 && score.life > 0 ? PlayResultKind.Completed : PlayResultKind.Failed;
+				: result == 3 && (score.life > 0 || DanSong?.FailOnZero == false) ? PlayResultKind.Completed : PlayResultKind.Failed;
 			state = LiveControllerState.Finish;
 			HideSkip();
 			if (DanSong != null)
@@ -714,7 +730,8 @@ namespace Sekai.Core.Live
 
 		private LiveResultAnimationType GetLiveResultAnimationType()
 		{
-			if (DanSong != null || result < 2)
+			if (DanSong != null) return result == 2 && !_retiredByPlayer ? LiveResultAnimationType.Failure : LiveResultAnimationType.None;
+			if (result < 2)
 			{
 				return LiveResultAnimationType.None;
 			}

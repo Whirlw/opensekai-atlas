@@ -40,6 +40,10 @@ namespace OpenSekai.Shared.Playback
     {
         public int InitialLife { get; }
         public int StartingLife { get; }
+        public bool AllowPause { get; }
+        public bool FailOnZero { get; }
+        public bool IsLastSong { get; }
+        public float Rate { get; }
         public DanDamage Damage { get; }
         public Action<int> LifeChanged { get; }
         public Action<PlayResultKind, LiveScore, long> Finish { get; }
@@ -60,8 +64,13 @@ namespace OpenSekai.Shared.Playback
         }
 
         public DanLiveSong(int initialLife, int startingLife, DanDamage damage, Action<int> lifeChanged,
-            Action<PlayResultKind, LiveScore, long> finish, Action<bool> exit)
+            Action<PlayResultKind, LiveScore, long> finish, Action<bool> exit, bool allowPause = true, bool failOnZero = true, float rate = 1f, bool isLastSong = false)
         {
+            PracticeStep.ValidateSpeed(rate);
+            Rate = rate;
+            IsLastSong = isLastSong;
+            AllowPause = allowPause;
+            FailOnZero = failOnZero;
             InitialLife = initialLife;
             StartingLife = startingLife;
             Damage = damage;
