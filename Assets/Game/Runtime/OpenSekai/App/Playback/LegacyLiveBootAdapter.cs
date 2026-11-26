@@ -37,6 +37,7 @@ namespace OpenSekai.App.Playback
                 MVQualityType = settings.QualityType,
                 MusicCategory = category,
                 IsAuto = request.IsAuto,
+                Practice = request.Practice,
                 IsCustomMusicScore = true,
                 IsOfficialMusicScore = false,
                 ReturnScreenType = MenuScreenType.MusicScoreMakerTop,
@@ -64,7 +65,7 @@ namespace OpenSekai.App.Playback
             boot.MusicData.MusicScore = score;
             boot.MusicData.StartMusicTimeMs = 0L;
             boot.MusicData.NativeBgmOffsetSeconds = session.Chart.NextRush?.BgmOffset;
-            boot.MusicData.PlayStartEffectEnabled = !settings.SkipsCustomMusicScoreMusicInfo;
+            boot.MusicData.PlayStartEffectEnabled = request.Practice == null && !settings.SkipsCustomMusicScoreMusicInfo;
             return boot;
         }
 

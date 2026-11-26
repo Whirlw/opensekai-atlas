@@ -56,6 +56,23 @@ namespace OpenSekai.Tests.EditMode
         }
 
         [Test]
+        public async System.Threading.Tasks.Task PracticeBootHasNoRankedHistoryOrStartEffect()
+        {
+            var plan = new PracticePlan(0, 1, new PracticeTemplate("warmup", new[] { PracticeStep.Play(0.7f) }),
+                (_, __) => { });
+            var request = new PlayRequest(_fixtureDirectory, false, SceneManager.Scene.Library) { Practice = plan };
+
+            var started = await _service.StartAsync(request, CancellationToken.None);
+
+            Assert.That(started.Started, Is.True, started.Message);
+            var boot = (FreeLiveBootData)_boot.State.Boot;
+            Assert.That(boot.Practice, Is.SameAs(plan));
+            Assert.That(boot.CustomMusicScoreRanked, Is.False);
+            Assert.That(boot.MusicData.PlayStartEffectEnabled, Is.False);
+            Assert.That(new LiveContext(boot, PlayMode.None, "attempt", "chart", 1, _playHistory).PlayHistory, Is.Null);
+        }
+
+        [Test]
         public async System.Threading.Tasks.Task MaterialSelectionFollowsTheBootAndReleasesOnFailedTransition()
         {
             var store = new OpenSekai.Infrastructure.Packages.MaterialPackStore(Path.Combine(_root, "material-packs"));
@@ -404,6 +421,8 @@ namespace OpenSekai.Tests.EditMode
                 OnRegister?.Invoke();
                 return UniTask.FromResult(Result);
             }
+
+            public UniTask PreparePracticeAsync(CancellationToken cancellationToken) => UniTask.CompletedTask;
 
             public void Release() => ReleaseCount++;
         }

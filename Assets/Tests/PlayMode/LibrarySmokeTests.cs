@@ -378,6 +378,45 @@ namespace OpenSekai.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator PracticeCanScrubChangeSpeedRestReplayAndExitWithoutResults()
+        {
+            yield return LibrarySceneBootsAndShowsThePage();
+            string directory = Path.GetFullPath("Tools/fixtures/baseline_tap");
+            IPracticeControls controls = null;
+            var template = new PracticeTemplate("smoke", new[]
+            {
+                PracticeStep.Play(0.5f), PracticeStep.Rest(0.75), PracticeStep.Play(0.7f)
+            });
+            var request = new PlayRequest(directory, false, Sekai.SceneManager.Scene.Library)
+            {
+                Practice = new PracticePlan(1, 2, template, (_, player) => controls = player)
+            };
+            var start = PlayService.Instance.StartAsync(request, CancellationToken.None).AsTask();
+            yield return WaitFor(() => start.IsCompleted, BOOT_TIMEOUT_SECONDS, "preparing practice from the library");
+            Assert.That(start.Result.Started, Is.True, start.Result.Message);
+            yield return WaitFor(() => controls != null, BOOT_TIMEOUT_SECONDS, "opening practice controls in Core");
+            Assert.That(controls.Rate, Is.EqualTo(0.5));
+            controls.TogglePause();
+            controls.Seek(1.3);
+            double paused = controls.PositionSeconds;
+            yield return new WaitForSecondsRealtime(0.1f);
+            Assert.That(controls.PositionSeconds, Is.EqualTo(paused).Within(0.002));
+            Assert.That(paused, Is.EqualTo(1.3).Within(0.002));
+            controls.TogglePause();
+            controls.SetRate(2);
+            yield return WaitFor(() => controls.Resting, 6, "finishing the first take");
+            yield return WaitFor(() => !controls.Resting, 6, "finishing the unscaled rest");
+            Assert.That(controls.Rate, Is.EqualTo(0.7).Within(0.001));
+            yield return WaitFor(() => controls.Completed, 6, "finishing the second take");
+            controls.Restart();
+            Assert.That(controls.Rate, Is.EqualTo(0.5));
+            controls.Quit();
+            yield return WaitFor(() => SceneLoader.GetActiveScene().name == "Library", BOOT_TIMEOUT_SECONDS, "returning from practice");
+            Assert.That(PlayResultHandoff.Pending, Is.Null);
+            Assert.That(Object.FindFirstObjectByType<ResultPage>(), Is.Null);
+        }
+
+        [UnityTest]
         public IEnumerator BaselineTapAutoplaysAndReturnsToTheLibrary()
         {
             yield return LibrarySceneBootsAndShowsThePage();

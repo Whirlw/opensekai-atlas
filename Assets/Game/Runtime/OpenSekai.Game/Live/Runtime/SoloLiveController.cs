@@ -10,7 +10,7 @@ using OpenSekai.Shared.Diagnostics;
 
 namespace Sekai.Core.Live
 {
-	public class SoloLiveController : BaseLiveController
+	public partial class SoloLiveController : BaseLiveController
 	{
 		private Coroutine _finishCoroutine;
 		private Coroutine _resumeCoroutine;
@@ -110,6 +110,11 @@ namespace Sekai.Core.Live
 			_liveLogic?.RefreshInput();
 			BeginLatencyCapture();
 			_forcedFinish = false;
+			if (PracticePlan != null)
+			{
+				StartPractice();
+				return;
+			}
 			if (timelineSpan.HasIntroSkip)
 			{
 				ShowSkip(SkipIntro, IntroSkipTargetMs);
@@ -195,6 +200,11 @@ namespace Sekai.Core.Live
 		protected override void OnUpdate()
 		{
 			base.OnUpdate();
+			if (_practice != null && !_practice.IsPlaying)
+			{
+				_practice.Tick(Time.unscaledDeltaTime);
+				return;
+			}
 			if (state == LiveControllerState.Finish && _resultEffectAtMs is long dueMs)
 			{
 				// The result effect and outro skip both use the same clock as the music and chart.
@@ -218,6 +228,7 @@ namespace Sekai.Core.Live
 			}
 
 			UpdateMusicTime();
+			if (_practice != null && _practice.Tick(Time.unscaledDeltaTime)) return;
 			if (_skipShown && currentMusicTimeMs >= IntroSkipTargetMs)
 			{
 				HideSkip();
@@ -232,11 +243,11 @@ namespace Sekai.Core.Live
 			{
 				_liveLogic?.OnInput();
 			}
-			if (_liveLogic?.Result == 2 && _liveLogic.IsNotesAllFinished)
+			if (_practice == null && _liveLogic?.Result == 2 && _liveLogic.IsNotesAllFinished)
 			{
 				OnFinished();
 			}
-			else if (!_forcedFinish && state == LiveControllerState.Playing && _liveLogic != null
+			else if (_practice == null && !_forcedFinish && state == LiveControllerState.Playing && _liveLogic != null
 				&& !_liveLogic.IsNotesAllFinished && currentMusicTimeMs > TimelineEndMs + STALLED_FINISH_GRACE_MS)
 			{
 				// The clock is well past the last note and the music, and something is still open: a
@@ -279,6 +290,11 @@ namespace Sekai.Core.Live
 
 		protected override void OnPause()
 		{
+			if (_practice != null)
+			{
+				if (!_practice.Paused && !_practice.Completed) _practice.TogglePause();
+				return;
+			}
 			if ((state == LiveControllerState.Playing || state == LiveControllerState.ResumeCountDown) && result == 0)
 			{
 				// A pause during the resume countdown has to cancel it, or the countdown runs out
@@ -370,6 +386,11 @@ namespace Sekai.Core.Live
 
 		protected override void OnResume()
 		{
+			if (_practice != null)
+			{
+				if (_practice.Paused) _practice.TogglePause();
+				return;
+			}
 			if (state != LiveControllerState.Pause)
 			{
 				return;
@@ -444,7 +465,7 @@ namespace Sekai.Core.Live
 
 		private void RecordRetryStart()
 		{
-			if (BootData is FreeLiveBootData boot && !boot.IsAuto && boot.DanSong == null &&
+			if (BootData is FreeLiveBootData boot && boot.Practice == null && !boot.IsAuto && boot.DanSong == null &&
 				boot.IsCustomMusicScore && boot.MusicData?.IsTestPlay != true && !string.IsNullOrEmpty(boot.RetrySourceId))
 				boot.RecordRetryStart?.Invoke(_playId, boot.CustomMusicScoreKey, boot.RetrySourceId, boot.RetrySource);
 		}
@@ -521,6 +542,7 @@ namespace Sekai.Core.Live
 
 		protected override void OnDestroy()
 		{
+			if (_practice != null) ResetPracticeRate();
 			_liveLogic?.ConnectorAudio.Reset();
 			(BootData as FreeLiveBootData)?.ReleaseMaterialAudio();
 			LatencyCapture.End("destroy");
@@ -529,6 +551,7 @@ namespace Sekai.Core.Live
 
 		private void OnFailed()
 		{
+			if (PracticePlan != null) return;
 			if (DanSong != null)
 			{
 				result = 2;
@@ -547,7 +570,7 @@ namespace Sekai.Core.Live
 
 		protected override void OnFinished()
 		{
-			base.OnFinished();
+			if (PracticePlan == null) base.OnFinished();
 		}
 
 		protected override void PreExit(float delay, float waitTime, long? resultEffectAtMs = null)
@@ -561,6 +584,12 @@ namespace Sekai.Core.Live
 			if (result == 0)
 			{
 				result = 3;
+			}
+
+			if (PracticePlan != null)
+			{
+				QuitPractice();
+				return;
 			}
 
 			double historyStart = LatencyCapture.Active ? Time.realtimeSinceStartupAsDouble : 0d;

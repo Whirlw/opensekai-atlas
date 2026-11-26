@@ -4,6 +4,8 @@ namespace Sekai
 	{
 		public OpenSekai.Shared.Playback.DanLiveSong DanSong { get; set; }
 
+		public OpenSekai.Shared.Playback.PracticePlan Practice { get; set; }
+
 		public string RetrySourceId { get; set; }
 		public string RetrySource { get; set; }
 		public System.Action<string, string, string, string> RecordRetryStart { get; set; }

@@ -11,6 +11,7 @@ namespace OpenSekai.App.Playback
     public interface IPackageAudioRegistrar
     {
         UniTask<bool> RegisterAsync(SongPackage package, CancellationToken cancellationToken);
+        UniTask PreparePracticeAsync(CancellationToken cancellationToken);
         void Release();
     }
 }
