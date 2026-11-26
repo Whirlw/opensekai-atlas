@@ -18,10 +18,12 @@ namespace OpenSekai.Tests.EditMode.Live
             _position = _boundary = _rate = 0;
             _jumps = _exits = 0;
             _audioPlaying = false;
-            var template = new PracticeTemplate("two speeds", new[]
-            {
-                PracticeStep.Play(0.5f), PracticeStep.Rest(2), PracticeStep.Play(0.7f), PracticeStep.Rest(2)
-            });
+            Start(PracticeStep.Play(0.5f), PracticeStep.Rest(2), PracticeStep.Play(0.7f), PracticeStep.Rest(2));
+        }
+
+        private void Start(params PracticeStep[] steps)
+        {
+            var template = new PracticeTemplate("exercise", steps);
             _player = new PracticePlayback(new PracticePlan(10, 15, template, (_, __) => { }), -2, 40,
                 () => _position, (position, playing) => { _position = position; _audioPlaying = playing; _jumps++; },
                 rate => _rate = rate, end => _boundary = end, () => _audioPlaying = false,
@@ -103,6 +105,59 @@ namespace OpenSekai.Tests.EditMode.Live
             Assert.That(_player.Paused, Is.True);
             _player.Restart();
             Assert.That((_position, _boundary, _rate), Is.EqualTo((10d,15d,0.5d)));
+        }
+
+        [Test]
+        public void ScrubbingInsidePausedRestKeepsTheRemainingTemplateAndResumesAtCursor()
+        {
+            _position = 15;
+            _player.Tick(0);
+            _player.TogglePause();
+            _player.Seek(12);
+            Assert.That(_player.Resting, Is.True);
+            _player.TogglePause();
+            Assert.That(_audioPlaying, Is.False);
+            _player.Tick(2);
+            Assert.That(_position, Is.EqualTo(12));
+            Assert.That(_rate, Is.EqualTo(0.7).Within(0.00001));
+            _position = 15;
+            _player.Tick(0);
+            Assert.That(_player.Resting, Is.True);
+        }
+
+        [Test]
+        public void RestScrubOnlyChangesTheNextPassAndDoesNotResetRemainingRest()
+        {
+            Start(PracticeStep.Rest(2), PracticeStep.Play(1), PracticeStep.Play(2));
+            _player.Tick(0.75);
+            _player.TogglePause();
+            _player.Seek(11);
+            _player.Seek(14);
+            _player.Tick(10);
+            _player.TogglePause();
+            _player.Tick(1);
+            Assert.That(_player.Resting, Is.True);
+            _player.Tick(0.25);
+            Assert.That((_position, _rate, _audioPlaying), Is.EqualTo((14d, 1d, true)));
+            _position = 15;
+            _player.Tick(0);
+            Assert.That((_position, _rate, _audioPlaying), Is.EqualTo((10d, 2d, true)));
+        }
+
+        [TestCase(9d)]
+        [TestCase(15d)]
+        public void RestScrubOutsideTheSliceStillStartsFreePractice(double outside)
+        {
+            _position = 15;
+            _player.Tick(0);
+            _player.TogglePause();
+            _player.Seek(12);
+            _player.Seek(outside);
+            Assert.That((_position, _boundary, _player.Resting), Is.EqualTo((outside, 40d, false)));
+            _player.TogglePause();
+            Assert.That(_audioPlaying, Is.True);
+            _player.Restart();
+            Assert.That(_position, Is.EqualTo(10d));
         }
 
         [Test]

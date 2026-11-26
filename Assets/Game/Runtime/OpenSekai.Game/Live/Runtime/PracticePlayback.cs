@@ -17,6 +17,7 @@ namespace Sekai.Core.Live
         private PracticeSequence _sequence;
         private bool _free;
         private bool _closed;
+        private double? _nextPassStart;
         private double _rate = 1;
 
         public PracticePlayback(PracticePlan plan, double minimum, double maximum, Func<double> position,
@@ -49,6 +50,7 @@ namespace Sekai.Core.Live
             if (_closed) return;
             Paused = false;
             _free = false;
+            _nextPassStart = null;
             double start = Math.Max(_plan.StartSeconds, MinimumSeconds);
             double end = Math.Min(_plan.EndSeconds ?? MaximumSeconds, MaximumSeconds);
             Completed = end <= start;
@@ -74,7 +76,8 @@ namespace Sekai.Core.Live
             }
 
             SetRate(_sequence.Speed);
-            _jump(_sequence.StartSeconds, true);
+            _jump(_nextPassStart ?? _sequence.StartSeconds, true);
+            _nextPassStart = null;
         }
 
         public void SetRate(double speed)
@@ -98,10 +101,16 @@ namespace Sekai.Core.Live
         {
             if (_closed || (!Paused && !Completed) || !double.IsFinite(chartSeconds)) return;
             double target = Math.Clamp(chartSeconds, MinimumSeconds, MaximumSeconds);
-            if (_free || Completed || Resting || target < _sequence.StartSeconds || target >= _sequence.EndSeconds)
+            if (_free || Completed || target < _sequence.StartSeconds || target >= _sequence.EndSeconds)
             {
                 _free = true;
                 _setBoundary(MaximumSeconds);
+                _nextPassStart = null;
+            }
+            else if (Resting)
+            {
+                // Keep the remaining silence. Only the next audible pass starts at the cursor.
+                _nextPassStart = target;
             }
             Completed = false;
             Paused = true;
