@@ -238,6 +238,7 @@ namespace Sekai.Live
 			var hit = LongEndJudgement.EvaluateHit(currentTime - Child.MusicScoreInfo.time);
 			if (Child.Result == NoteResult.None)
 			{
+				Child.TimingSample = currentTime;
 				Child.FinishWith(hit);
 			}
 

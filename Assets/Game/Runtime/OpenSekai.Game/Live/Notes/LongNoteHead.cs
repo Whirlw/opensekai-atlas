@@ -74,6 +74,7 @@ namespace Sekai.Live
 			// NoteBase's JudgeInfo setter is protected, so this uses its one public write. It is the same
 			// assignment: the head's own object carries the head's own verdict.
 			Identity.SetJudgeInfoForDecoration(_result.result);
+			Identity.TimingSample = _bar.TimingSample;
 			Identity.NativeStyle = _bar.NativeStyle;
 			Identity.NativeEffectKind = _bar.NativeEffectKind;
 			Identity.HasNextRushHit = _bar.HasNextRushHit = _bar.IsNextRush && updateScore;
@@ -159,6 +160,7 @@ namespace Sekai.Live
 				return false;
 			}
 
+			_bar.TimingSample = touch.musicTime;
 			var judgeInfo = LiveConfig.CalculateLongStartNoteResult(_bar, touch.musicTime);
 			Settle(_bar.HeadResultUpdater != null ? _bar.HeadResultUpdater(judgeInfo) : judgeInfo);
 			return true;

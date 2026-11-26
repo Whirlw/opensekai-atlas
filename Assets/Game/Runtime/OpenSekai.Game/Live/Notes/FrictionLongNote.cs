@@ -95,6 +95,7 @@ namespace Sekai.Live
 			float now = MusicScore.CurrentFrameInfo.time;
 			if (!HasJudgment || ConnectionNote.InContactWindow(now, MusicScoreInfo.time))
 			{
+				if (HasJudgment) TimingSample ??= now;
 				isTouched = true;
 				if (HasJudgment && !Head.IsSettled && (LiveConfig.HasVisualLatency || now >= MusicScoreInfo.time))
 					SettleRubHead();

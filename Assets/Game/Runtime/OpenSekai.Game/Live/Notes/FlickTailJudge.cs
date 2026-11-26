@@ -34,6 +34,7 @@ namespace Sekai.Live
 			public bool Armed;
 			public bool TrueDirection;
 			public float? LeftAt;
+			public float SwipeTime;
 		}
 
 		private readonly FlickNote _note;
@@ -134,6 +135,7 @@ namespace Sekai.Live
 					{
 						// Early: remember it. A newer swipe of the same finger overrides the direction.
 						_fingers[slot].Armed = true;
+						_fingers[slot].SwipeTime = now;
 						_fingers[slot].TrueDirection = trueDirection;
 					}
 					else
@@ -220,6 +222,7 @@ namespace Sekai.Live
 
 			float tailTime = _note.MusicScoreInfo.time;
 			bool found = false;
+			float? bestSample = swipeTime;
 			(NoteResult result, NoteResultDescription description) best = default;
 
 			if (swipeTime is float recordedSwipeTime)
@@ -247,6 +250,7 @@ namespace Sekai.Live
 				if (grade.result != NoteResult.None && (!found || grade.result > best.result))
 				{
 					best = grade;
+					bestSample = finger.SwipeTime;
 					found = true;
 				}
 			}
@@ -257,6 +261,7 @@ namespace Sekai.Live
 			}
 
 			_note.HasNextRushHit = _note.IsNextRush;
+			_note.TimingSample = bestSample;
 			_note.FinishAsTail(best);
 			ClearFingers();
 			return true;

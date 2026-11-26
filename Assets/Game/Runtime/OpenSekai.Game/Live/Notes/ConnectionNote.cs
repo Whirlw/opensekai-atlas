@@ -161,6 +161,7 @@ namespace Sekai.Live
 			if (UsesContactWindow)
 			{
 				if (!IsJudgment(ref touch, lane)) return false;
+				TimingSample ??= MusicScoreInfo.time + OffsetJudgeTime;
 				HasRecordedContact = true;
 				if (OffsetJudgeTime < 0f && !(LiveConfig.HasVisualLatency && UsesTraceFeedback))
 				{

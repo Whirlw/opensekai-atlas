@@ -35,6 +35,8 @@
 | 音符流速 | `NoteSpeed` | 步进 0.1 | 下次开局 |
 | 长条条身不透明度 | `LongNoteBodyOpacity` | 0–100%，每步 10%。默认 100% 使用皮肤原有的不透明度，0% 隐藏条身 | 下次开局 |
 | 同时押线 | `UseSimultaneousPushingLine` | 开 / 关 | 下次开局（构建运行时谱面时读取） |
+| 显示准度条 | `ShowAccuracyBar` | 默认关。手动演奏时，判定线下显示最近 24 次命中的位置，指针标出最新一击。左早右晚，九档次数按普通点按的时间窗累计。练习跳转及重开会清空统计 | 下次开局 |
+| 准度条高度 | `AccuracyBarHeight` | 0–100%，每步 5%。100% 为默认位置，靠近判定线；0% 靠近屏幕安全区域底部 | 下次开局 |
 | 显示 FAST / LATE | `ShowFastLate` | 默认关。开启后，GREAT、GOOD、BAD 上方显示 FAST（偏早）或 LATE（偏晚） | 下次开局 |
 | 显示滑反提示 | `ShowFlickMiss` | 默认关。有方向的 Flick 判为滑反时，在 GREAT 上方显示滑反图标。旧存档的两个开关均继承原快慢提示设置 | 下次开局 |
 | 帧率 | `FrameRateLimit` | 跟随屏幕 / 120 / 144 / 165 / 185 / 240 | **立即**（`FramerateUtility.ApplyFrameRateLimit`） |

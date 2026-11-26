@@ -48,6 +48,7 @@ namespace OpenSekai.Tests.EditMode.Settings
             var store = new LiveSettingsStore(_path);
             var settings = store.Load();
             Assert.That(settings.NoteShowRate, Is.EqualTo(0.75f));
+            Assert.That(settings.AccuracyBarHeight, Is.EqualTo(1f));
             Assert.That(settings.UseSubtractiveScore, Is.False);
             Assert.That(settings.ShowFastLate, Is.False);
             Assert.That(settings.ShowFlickMiss, Is.False);
@@ -84,6 +85,7 @@ namespace OpenSekai.Tests.EditMode.Settings
             data.FrameRateLimit = 120;
             data.UseSubtractiveScore = true;
             data.ShowFastLate = true;
+            data.AccuracyBarHeight = 0f;
             data.NoteEffect = 2;
             Assert.That(store.Save(data), Is.True);
 
@@ -95,6 +97,7 @@ namespace OpenSekai.Tests.EditMode.Settings
             Assert.That(reloaded.FrameRateLimit, Is.EqualTo(120));
             Assert.That(reloaded.UseSubtractiveScore, Is.True);
             Assert.That(reloaded.ShowFastLate, Is.True);
+            Assert.That(reloaded.AccuracyBarHeight, Is.Zero);
             Assert.That(reloaded.ShowFlickMiss, Is.False);
         }
 

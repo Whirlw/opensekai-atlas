@@ -106,6 +106,10 @@ namespace Sekai
 
 		public MVQualityType QualityType { get; set; }
 
+		public bool ShowAccuracyBar { get; set; }
+
+		public float AccuracyBarHeight { get; set; } = 1f;
+
 		public bool ShowFastLate { get; set; }
 
 		public bool ShowFlickMiss { get; set; }

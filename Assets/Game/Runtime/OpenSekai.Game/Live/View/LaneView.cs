@@ -22,6 +22,9 @@ namespace Sekai
 		private SpriteRendererBaseline _dividerBaseline;
 		private SpriteRendererBaseline _judgeBaseline;
 
+		internal Bounds? JudgeLineBounds => defaultJudgeLine != null && defaultJudgeLine.enabled
+			? defaultJudgeLine.bounds : (Bounds?)null;
+
 		public void Setup(LiveSettingData liveSetting, LiveSpriteSkin skin = null)
 		{
 			if (liveSetting == null) return;

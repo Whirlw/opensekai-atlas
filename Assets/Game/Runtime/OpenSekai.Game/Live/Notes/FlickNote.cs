@@ -262,6 +262,7 @@ namespace Sekai.Live
 					return false;
 				}
 
+				TimingSample = touch.musicTime;
 				AddInputResult(ref touch, ref isUpdatedDelta, ref isTrueDirection);
 				return FinishFlick(touch.musicTime);
 			}
@@ -269,6 +270,7 @@ namespace Sekai.Live
 			UpdateDelta(touch.delta, ref isUpdatedDelta, ref isTrueDirection);
 			if (isUpdatedDelta)
 			{
+				TimingSample = touch.musicTime;
 				AddInputResult(ref touch, ref isUpdatedDelta, ref isTrueDirection);
 			}
 

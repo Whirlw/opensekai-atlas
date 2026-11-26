@@ -118,6 +118,7 @@ namespace Sekai.Live
 		private readonly Dictionary<SpriteRenderer, float> _spriteRendererAlphaDict = new Dictionary<SpriteRenderer, float>();
 		private LiveMusicData.CollaborationModeState _collaborationModeState;
 		private bool _isAuto;
+		private AccuracyBarView _accuracyBar;
 		private bool _isPlayedHaptic;
 		private int _life;
 		private int _lastScreenWidth;
@@ -154,6 +155,8 @@ namespace Sekai.Live
 			SetupDeadMask();
 			ResolveChildViews();
 			var boot = controller?.BootData as FreeLiveBootData;
+			if (controller?.Settings?.ShowAccuracyBar == true && !_isAuto)
+				_accuracyBar = AccuracyBarView.Create(transform);
 			SetupHud(boot?.HudSkin, controller?.BootData?.MusicData);
 			comboView?.Setup(controller?.Settings?.UseAllPerfectEffect ?? false, boot?.ComboSkin);
 			judgmentView?.Setup(boot?.JudgmentSkin, controller?.Settings?.UsesAutoFakePerfectMode ?? false);
@@ -187,6 +190,7 @@ namespace Sekai.Live
 
 		public override void OnUnload()
 		{
+			if (_accuracyBar != null) _accuracyBar.Remove();
 			_hitFxSkin?.ResetPlayback();
 			_longTapEffectView?.Clear();
 			CancelMotions();
@@ -281,6 +285,7 @@ namespace Sekai.Live
 
 		public override void RhythmGameStart()
 		{
+			if (_accuracyBar != null) _accuracyBar.gameObject.SetActive(true);
 			lifeView?.CalculateButtonBounds(frontViewCamera);
 			consecutiveAutoLiveView?.CalculateButtonBounds(frontViewCamera);
 			FadeIn();
@@ -335,9 +340,17 @@ namespace Sekai.Live
 
 		public override void NativeHitSound(NoteBase note, string cue) => _tapEffect?.PlayNativeCue(note, cue);
 
-		internal override void TraceInputFeedback(NoteBase note) => _tapEffect?.TraceInputFeedback(note, CheckPlayedHaptic);
+		internal override void TraceInputFeedback(NoteBase note)
+		{
+			_accuracyBar?.Record(note);
+			_tapEffect?.TraceInputFeedback(note, CheckPlayedHaptic);
+		}
 		internal override void TraceVisualFeedback(NoteBase note) => PresentJudgment(note, playInputFeedback: false);
-		public override void JudgmentNote(NoteBase note) => PresentJudgment(note, playInputFeedback: true);
+		public override void JudgmentNote(NoteBase note)
+		{
+			_accuracyBar?.Record(note);
+			PresentJudgment(note, playInputFeedback: true);
+		}
 
 		private void PresentJudgment(NoteBase note, bool playInputFeedback)
 		{
@@ -435,6 +448,7 @@ namespace Sekai.Live
 
 		internal void ClearPracticeFrame()
 		{
+			_accuracyBar?.ClearSamples();
 			_hitFxSkin?.ResetPlayback();
 			CancelMotions();
 			comboView?.Clear();
@@ -449,6 +463,7 @@ namespace Sekai.Live
 
 		public override void Retry()
 		{
+			if (_accuracyBar != null) _accuracyBar.gameObject.SetActive(false);
 			ClearPracticeFrame();
 			if (autoLabel != null)
 			{
@@ -551,6 +566,15 @@ namespace Sekai.Live
 			UpdateBackgroundScale();
 			SetupDeadMask();
 			RefreshTapEffectProjection();
+			if (_accuracyBar != null && frontViewCamera != null)
+			{
+				var line = new Vector3(0f, LiveConfig.JudgmentPositions[0].y, 0f);
+				var point = (liveRoot != null ? liveRoot : transform).TransformPoint(line);
+				if (laneView?.JudgeLineBounds is Bounds bounds)
+					point.y = Mathf.Min(point.y, bounds.min.y);
+				var screen = frontViewCamera.WorldToScreenPoint(point);
+				_accuracyBar.PlaceBelowLine(screen, Screen.safeArea, _baseController.Settings.AccuracyBarHeight);
+			}
 			screenEffectView?.RefreshScreenSize();
 			lifeView?.CalculateButtonBounds(frontViewCamera);
 			consecutiveAutoLiveView?.CalculateButtonBounds(frontViewCamera);
@@ -657,6 +681,7 @@ namespace Sekai.Live
 
 		private void FadeOut(float duration)
 		{
+			if (_accuracyBar != null) _accuracyBar.gameObject.SetActive(false);
 			_hitFxSkin?.ResetPlayback();
 			if (autoLabel != null)
 			{

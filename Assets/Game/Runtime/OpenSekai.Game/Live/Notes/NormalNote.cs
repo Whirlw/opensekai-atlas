@@ -109,6 +109,7 @@ namespace Sekai.Live
 			{
 				if (!IsJudgment(ref touch, lane)) return false;
 				HasNextRushHit = IsNextRush;
+				TimingSample = touch.musicTime;
 				FinishWith(LongEndJudgement.EvaluateHit(touch.musicTime - MusicScoreInfo.time));
 				return true;
 			}
@@ -119,6 +120,7 @@ namespace Sekai.Live
 				return false;
 			}
 
+			TimingSample = touch.musicTime;
 			var judgeInfo = GradesAsBarPart
 				? LiveConfig.CalculateLongEndNoteResult(this, touch.musicTime)
 				: LiveConfig.CalculateDefaultNoteResult(this, touch.musicTime);

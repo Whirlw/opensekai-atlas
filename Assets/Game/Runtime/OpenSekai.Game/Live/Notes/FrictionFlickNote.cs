@@ -100,6 +100,7 @@ namespace Sekai.Live
 			State = NoteState.Input;
 			bool moved = false, correct = false;
 			UpdateDelta(touch.delta, ref moved, ref correct);
+			if (moved && (correct || !_everCorrect)) TimingSample = sampleTime;
 			if (unregistered || moved) AddInputResult(ref touch, ref moved, ref correct);
 			if (correct)
 			{

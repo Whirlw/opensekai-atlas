@@ -26,6 +26,9 @@ namespace Sekai.Live
 		internal bool UsesTraceFeedback => this is FrictionNote { HasJudgment: true }
 			or FrictionFlickNote { Category: NoteCategory.FrictionFlick }
 			or ConnectionNote { UsesNextRushContactWindow: true } || Category == NoteCategory.FrictionLong;
+		// Chart-clock time of the input that qualified, independent of the presentation frame.
+		internal float? TimingSample { get; set; }
+
 		internal bool HasTimedTraceFeedback => LiveConfig.HasVisualLatency && UsesTraceFeedback
 			&& Result is NoteResult.Perfect or NoteResult.Auto;
 
@@ -845,6 +848,7 @@ namespace Sekai.Live
 
 		public virtual void ResetNote()
 		{
+			TimingSample = null;
 			HasNextRushHit = false;
 			State = NoteState.Wait;
 			OffsetJudgeTime = 0f;
