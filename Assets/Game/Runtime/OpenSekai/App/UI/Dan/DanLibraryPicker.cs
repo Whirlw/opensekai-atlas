@@ -20,16 +20,19 @@ namespace OpenSekai.App.UI
         private readonly RectTransform _content;
         private readonly ScrollRect _scroll;
         private readonly Action<SongPackageItem> _pick;
+        private readonly Func<SongPackageItem, bool> _isCandidate;
         private readonly List<PickerRow> _rows = new();
         private SongPackageItem[] _items = Array.Empty<SongPackageItem>();
         private SongPackageItem[] _matches = Array.Empty<SongPackageItem>();
 
-        internal DanLibraryPicker(RectTransform parent, Action<SongPackageItem> pick)
+        internal DanLibraryPicker(RectTransform parent, Action<SongPackageItem> pick,
+            Func<SongPackageItem, bool> isCandidate = null, string title = "从曲库添加")
         {
+            _isCandidate = isCandidate ?? DanLibrarySong.IsCandidate;
             _pick = pick;
             RectTransform root = LibraryUi.CreateRect("DanLibraryPicker", parent);
             LibraryUi.Stretch(root);
-            _modal = new LibraryModal(root, new Vector2(1000f, 760f), "从曲库添加", Close);
+            _modal = new LibraryModal(root, new Vector2(1000f, 760f), title, Close);
             _search = LibraryWidgets.TextField("Search", _modal.Body, 58f, "搜索曲名或谱师", LibraryIcon.Search, 22f);
             _search.textComponent.richText = false;
             LibraryWidgets.TopStrip((RectTransform)_search.transform, 0f, 0f, 0f, 58f);
@@ -48,7 +51,7 @@ namespace OpenSekai.App.UI
         internal void Show()
         {
             string error = null;
-            try { _items = SongPackageManager.Shared.LoadItems().Where(DanLibrarySong.IsCandidate).ToArray(); }
+            try { _items = SongPackageManager.Shared.LoadItems().Where(_isCandidate).ToArray(); }
             catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
             {
                 _items = Array.Empty<SongPackageItem>();

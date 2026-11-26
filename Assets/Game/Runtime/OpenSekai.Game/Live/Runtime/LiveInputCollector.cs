@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using OpenSekai.Shared.Playback;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using Sekai.Live;
@@ -18,6 +19,8 @@ namespace Sekai.Core.Live
 	internal sealed class LiveInputCollector
 	{
 		private readonly TouchDeduplication _deduplication;
+		private readonly Dictionary<int, bool> _practiceContacts = new Dictionary<int, bool>();
+		internal IPracticeInputArea PracticeInputArea { private get; set; }
 		private readonly Dictionary<int, (double time, Vector2 position)> _positions;
 
 		public LiveInputCollector(int fingerCapacity)
@@ -73,7 +76,8 @@ namespace Sekai.Core.Live
 
 				if (process)
 				{
-					TouchExecution(in touch, resolveMusicTime, sink, ref activeInputCount);
+					if (!IsPracticeControlTouch(touch.touchId, touch.phase, touch.startScreenPosition))
+						TouchExecution(in touch, resolveMusicTime, sink, ref activeInputCount);
 					Commit(in touch);
 				}
 			}
@@ -159,6 +163,7 @@ namespace Sekai.Core.Live
 			}
 
 			Vector2 screenPosition = mouse.position.ReadValue();
+			if (IsPracticeControlTouch(MOUSE_FALLBACK_TOUCH_ID, phase, screenPosition)) return;
 			double time = Time.realtimeSinceStartupAsDouble;
 			Vector2 delta = mouse.delta.ReadValue();
 			if (phase == InputTouchPhase.Began)
@@ -192,6 +197,20 @@ namespace Sekai.Core.Live
 			}
 		}
 #endif
+
+		// The gameplay collector reads devices independently of uGUI. A control press owns its
+		// contact through release, even when it moves over the lanes or resets the practice take.
+		internal bool IsPracticeControlTouch(int id, InputTouchPhase phase, Vector2 startPosition)
+		{
+			if (PracticeInputArea == null) return false;
+			if (phase == InputTouchPhase.Began || !_practiceContacts.TryGetValue(id, out bool captured))
+			{
+				captured = PracticeInputArea.ContainsControl(startPosition);
+				_practiceContacts[id] = captured;
+			}
+			if (IsEndedOrCanceled(phase)) _practiceContacts.Remove(id);
+			return captured;
+		}
 
 		public bool ShouldProcess(in LiveTouchSample touch)
 		{

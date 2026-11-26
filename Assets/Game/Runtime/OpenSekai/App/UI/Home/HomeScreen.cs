@@ -53,6 +53,7 @@ namespace OpenSekai.App.UI
         private HomeSplash _splash;
         private BrandEmblem _emblem;
         private HomeAboutPanel _about;
+        private PracticeSetupPanel _practice;
         private LibrarySettingsPanel _settings;
         private JacketThumbnails _thumbnails;
         private CancellationTokenSource _jacketLoad;
@@ -70,6 +71,7 @@ namespace OpenSekai.App.UI
         public static float IntroLength => HomeSplash.Length;
 
         public bool IsHomeShown => _homeShown;
+        internal bool IsPracticeShown => _homeShown && _practice?.IsOpen == true;
 
         /// <summary>True while the server part is on screen.</summary>
         public bool IsServerShown => _server != null && _server.IsPresented;
@@ -86,8 +88,8 @@ namespace OpenSekai.App.UI
         /// <summary>True while the 成就 part is on screen.</summary>
         public bool IsAchievementsShown => _achievements != null && _achievements.IsPresented;
 
-        /// <summary>The home page that is on screen once it settles: 0 the first, 1 the second.</summary>
-        public int HomePage => _view.Page;
+        /// <summary>Capture coordinates retain 0 for the library and 1 for the profile. Practice is -1.</summary>
+        public int HomePage => HomeView.PageOf(HomeDestination.Library) - _view.Page;
 
         /// <summary>
         /// The profile the 个人信息 card and part read; the local one unless a tool swapped in another
@@ -154,7 +156,7 @@ namespace OpenSekai.App.UI
             HideDan();
             HideAchievements();
             HideHome();
-            _view.TurnTo(0, false);
+            _view.TurnTo(HomeView.PageOf(HomeDestination.Library), false);
             ShowReadyLibrary(false);
         }
 
@@ -185,7 +187,7 @@ namespace OpenSekai.App.UI
         /// </summary>
         public void SeekIntro(float seconds)
         {
-            _view.TurnTo(0, false);
+            _view.TurnTo(HomeView.PageOf(HomeDestination.Library), false);
             if (!_homeShown)
             {
                 _library?.SetPresented(false, false);
@@ -208,7 +210,7 @@ namespace OpenSekai.App.UI
             _idle.TryCancel();
             _idle = default;
             TickIdle(IntroLength);
-            _view.TurnTo(0, false);
+            _view.TurnTo(HomeView.PageOf(HomeDestination.Library), false);
             _view.ApplyExpansion(Mathf.Clamp01(amount));
         }
 
@@ -238,7 +240,7 @@ namespace OpenSekai.App.UI
             _idle.TryCancel();
             _idle = default;
             TickIdle(IntroLength);
-            _view.TurnTo(0, false);
+            _view.TurnTo(HomeView.PageOf(HomeDestination.Library), false);
             _view.ApplyExpansion(HomeDestination.Server, Mathf.Clamp01(amount));
         }
 
@@ -269,7 +271,7 @@ namespace OpenSekai.App.UI
             _idle.TryCancel();
             _idle = default;
             TickIdle(IntroLength);
-            _view.TurnTo(0, false);
+            _view.TurnTo(HomeView.PageOf(HomeDestination.Library), false);
             _view.ApplyExpansion(HomeDestination.Packs, Mathf.Clamp01(amount));
         }
 
@@ -286,7 +288,7 @@ namespace OpenSekai.App.UI
             HideDan();
             HideAchievements();
             HideHome();
-            _view.TurnTo(1, false);
+            _view.TurnTo(HomeView.PageOf(HomeDestination.Profile), false);
             EnsureProfile().SetPresented(true, false);
         }
 
@@ -303,7 +305,7 @@ namespace OpenSekai.App.UI
             HideProfile();
             HideAchievements();
             HideHome();
-            _view.TurnTo(1, false);
+            _view.TurnTo(HomeView.PageOf(HomeDestination.Profile), false);
             EnsureDan().SetPresented(true, false);
         }
 
@@ -320,7 +322,7 @@ namespace OpenSekai.App.UI
             HideProfile();
             HideDan();
             HideHome();
-            _view.TurnTo(1, false);
+            _view.TurnTo(HomeView.PageOf(HomeDestination.Profile), false);
             EnsureAchievements().SetPresented(true, false);
         }
 
@@ -334,7 +336,7 @@ namespace OpenSekai.App.UI
             _idle.TryCancel();
             _idle = default;
             TickIdle(IntroLength);
-            _view.TurnTo(1, false);
+            _view.TurnTo(HomeView.PageOf(HomeDestination.Profile), false);
             _view.ApplyExpansion(HomeDestination.Achievements, Mathf.Clamp01(amount));
         }
 
@@ -348,7 +350,7 @@ namespace OpenSekai.App.UI
             _idle.TryCancel();
             _idle = default;
             TickIdle(IntroLength);
-            _view.TurnTo(1, false);
+            _view.TurnTo(HomeView.PageOf(HomeDestination.Profile), false);
             _view.ApplyExpansion(HomeDestination.Dan, Mathf.Clamp01(amount));
         }
 
@@ -362,7 +364,7 @@ namespace OpenSekai.App.UI
             _idle.TryCancel();
             _idle = default;
             TickIdle(IntroLength);
-            _view.TurnTo(1, false);
+            _view.TurnTo(HomeView.PageOf(HomeDestination.Profile), false);
             _view.ApplyExpansion(HomeDestination.Profile, Mathf.Clamp01(amount));
         }
 
@@ -389,22 +391,22 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>
-        /// Holds the home page between its two pages: 0 the first, 1 the second, in between part of
-        /// each, as a swipe leaves them. Whole numbers settle on that page.
+        /// Selects a capture position: 0 for the library, 1 for the profile, -1 for practice.
+        /// Fractional positions hold a swipe between pages.
         /// </summary>
         public void SeekHomePage(float progress)
         {
             if (Mathf.Approximately(progress, Mathf.Round(progress)))
             {
-                _view.TurnTo(Mathf.RoundToInt(progress), false);
+                _view.TurnTo(HomeView.PageOf(HomeDestination.Library) - Mathf.RoundToInt(progress), false);
                 return;
             }
 
-            _view.SeekPage(progress);
+            _view.SeekPage(HomeView.PageOf(HomeDestination.Library) - progress);
         }
 
         /// <summary>What a swipe or the footer's tabs do: turn the home page to <paramref name="page"/>.</summary>
-        public void TurnHomePage(int page) => _view.TurnTo(page, true);
+        public void TurnHomePage(int page) => _view.TurnTo(HomeView.PageOf(HomeDestination.Library) - page, true);
 
         /// <summary>What tapping the 个人信息 card does.</summary>
         public void EnterProfile() => OpenProfile();
@@ -452,7 +454,7 @@ namespace OpenSekai.App.UI
             var root = (RectTransform)_canvasRoot.transform;
             _backdrop = new HomeBackdrop(root);
             _view = new HomeView(root, OpenLibrary, OpenAbout, OpenSettings, ShowComingSoon, OpenServer, OpenPacks, OpenProfile, OpenDan,
-                OpenAchievements);
+                OpenAchievements, OpenPractice);
             if (ServerChartDownloads.Current != null)
             {
                 ServerChartDownloads.Current.StatusChanged += ShowServerStatus;
@@ -469,7 +471,7 @@ namespace OpenSekai.App.UI
         private void StartIntro()
         {
             _library?.SetPresented(false, false);
-            _view.TurnTo(0, false);
+            _view.TurnTo(HomeView.PageOf(HomeDestination.Library), false);
             ShowHome(refreshSummary: false);
             _introSummaryPending = true;
             _view.Interactable = false;
@@ -506,6 +508,13 @@ namespace OpenSekai.App.UI
             }
 
             return _library;
+        }
+
+        private void OpenPractice()
+        {
+            if (_navigating || !_homeShown) return;
+            _practice ??= new PracticeSetupPanel((RectTransform)_canvasRoot.transform, _context.Playback);
+            _practice.Open();
         }
 
         private void OpenLibrary()
@@ -622,7 +631,7 @@ namespace OpenSekai.App.UI
                 }
 
                 // The 资源包 card is on the first page.
-                _view.TurnTo(0, false);
+                _view.TurnTo(HomeView.PageOf(HomeDestination.Library), false);
                 OpenPacks();
                 return;
             }
@@ -935,7 +944,7 @@ namespace OpenSekai.App.UI
         {
             if (!DanResultHandoff.TakeFinished(DanChallengeService.Local)) return false;
             _library?.SetPresented(false, false);
-            _view.TurnTo(1, false);
+            _view.TurnTo(HomeView.PageOf(HomeDestination.Profile), false);
             DanScreen dan = EnsureDan();
             dan.SetPresented(true, false);
             dan.ShowCourseResult();
@@ -1257,6 +1266,8 @@ namespace OpenSekai.App.UI
                 return;
             }
 
+            if (_practice?.TryHandleBack() == true) return;
+
             if (_about.IsOpen)
             {
                 _about.Hide();
@@ -1515,6 +1526,7 @@ namespace OpenSekai.App.UI
 
         private void OnDestroy()
         {
+            _practice?.Dispose();
             if (ServerChartDownloads.Current != null)
             {
                 ServerChartDownloads.Current.StatusChanged -= ShowServerStatus;

@@ -57,7 +57,8 @@ namespace OpenSekai.App.Playback
         {
             get
             {
-                if (UI.HomeScreen.Current != null && UI.HomeScreen.Current.IsServerShown) return true;
+                var home = UI.HomeScreen.Current;
+                if (home != null && (home.IsServerShown || home.IsPracticeShown)) return true;
                 ILibraryPage page = LibraryPageRegistry.Current;
                 if (page != null)
                 {
@@ -155,6 +156,9 @@ namespace OpenSekai.App.Playback
             SoundManager.Instance.IngameBgmGain = LoudnessNormalization.GainFor(lufs);
             return true;
         }
+
+        public UniTask PreparePracticeAsync(CancellationToken cancellationToken) =>
+            SoundManager.Instance.PreparePracticeAudioAsync(cancellationToken);
 
         public void Release() => SoundManager.Instance.ReleasePackageAudio();
     }

@@ -24,7 +24,7 @@ namespace Sekai.Core.Live
                 var screenPoint = new Vector3(position.x, position.y, 0f);
                 Vector3 worldPosition = Camera != null ? Camera.ScreenToWorldPoint(screenPoint) : screenPoint;
                 return new LiveTouchSample(touch.touchId, position, worldPosition,
-                    time, touch.phase, touch.delta, touch.finger != null ? touch.finger.index : touch.touchId);
+                    time, touch.phase, touch.delta, touch.finger != null ? touch.finger.index : touch.touchId, touch.startScreenPosition);
             }
         }
     }
