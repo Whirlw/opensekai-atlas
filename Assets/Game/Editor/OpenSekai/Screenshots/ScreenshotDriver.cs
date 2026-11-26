@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using LitMotion;
@@ -42,6 +43,7 @@ namespace OpenSekai.EditorTools.Screenshots
         private readonly List<ShotReport> _reports = new List<ShotReport>();
         private Action<RunReport> _onDone;
         private GameObject _host;
+        private bool _sampleLibraryReady;
         private float _previousVolume;
         private bool _settingsChanged;
         private int? _previousFakePerfect;
@@ -137,6 +139,7 @@ namespace OpenSekai.EditorTools.Screenshots
                 outDir = _request.outDir,
                 width = _request.width,
                 height = _request.height,
+                sampleLibrary = _sampleLibraryReady,
                 screenWidth = Screen.width,
                 screenHeight = Screen.height,
                 shots = _reports
@@ -1087,7 +1090,8 @@ namespace OpenSekai.EditorTools.Screenshots
             }
             Texture2D texture = ScreenCapture.CaptureScreenshotAsTexture();
             string path = Path.Combine(_request.outDir, stem + ".png");
-            File.WriteAllBytes(path, texture.EncodeToPNG());
+            byte[] png = texture.EncodeToPNG();
+            File.WriteAllBytes(path, png);
             var report = new ShotReport
             {
                 ok = true,
@@ -1099,6 +1103,11 @@ namespace OpenSekai.EditorTools.Screenshots
                 detail = detail,
                 note = note
             };
+            if (_sampleLibraryReady || string.Equals(shot.kind, "sample", StringComparison.OrdinalIgnoreCase) && SampleLibrary.IsWorkspace)
+            {
+                using var digest = SHA256.Create();
+                report.sha256 = BitConverter.ToString(digest.ComputeHash(png)).Replace("-", string.Empty);
+            }
             if (texture.width != _request.width || texture.height != _request.height)
             {
                 report.note = (note == null ? string.Empty : note + "; ") + "captured at " + texture.width + "x" + texture.height
@@ -1139,6 +1148,7 @@ namespace OpenSekai.EditorTools.Screenshots
         public string outDir;
         public int width;
         public int height;
+        public bool sampleLibrary;
         public int screenWidth;
         public int screenHeight;
         public List<ShotReport> shots;
@@ -1155,5 +1165,7 @@ namespace OpenSekai.EditorTools.Screenshots
         public float? time;
         public string detail;
         public string note;
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public string sha256;
     }
 }

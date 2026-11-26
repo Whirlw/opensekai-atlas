@@ -4,8 +4,7 @@
 #   powershell -File Tools/export-style-guide-images.ps1 -Source TestResults/screenshots/style-guide
 #
 # The run has to come from a sample workspace (Tools/new-sample-workspace.ps1): a player's own library shows
-# other people's covers, which must not go into the repository. The run says so itself: without the sample
-# library's marker file this script stops.
+# other people's covers, which must not go into the repository. Verify the required PNGs against the sample run's report.
 #
 # Crops are in pixels of a 2800x1272 frame. A picture is never scaled up.
 
@@ -19,13 +18,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-Add-Type -AssemblyName System.Drawing
 $root = Split-Path -Parent $PSScriptRoot
 if (-not $Destination) { $Destination = Join-Path $root 'docs/images/ui-style' }
 if (-not [IO.Path]::IsPathRooted($Source)) { $Source = Join-Path $root $Source }
-if (-not (Test-Path -LiteralPath (Join-Path $Source 'sample/sample-pack.zip'))) {
-    throw "$Source was not captured on the sample library (no sample/sample-pack.zip). Run Tools/capture-screens.ps1 -StyleGuide in a sample workspace."
-}
+. (Join-Path $PSScriptRoot 'style-guide-frames.ps1')
 
 # name in docs = frame[, crop x, y, width, height]
 $images = [ordered]@{
@@ -122,39 +118,39 @@ $images = [ordered]@{
     'part-chips'              = 'server-level', 700, 160, 1300, 75
 }
 
-$codec = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq 'image/jpeg' }
-$options = New-Object System.Drawing.Imaging.EncoderParameters 1
-$options.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter ([System.Drawing.Imaging.Encoder]::Quality, [long]$Quality)
-New-Item -ItemType Directory -Force -Path $Destination | Out-Null
+$files = foreach ($entry in $images.Values) { @($entry)[0] + '.png' }
+Use-StyleGuideFrames $Source $files {
+    param($streams)
+    Add-Type -AssemblyName System.Drawing
+    $codec = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq 'image/jpeg' }
+    $options = New-Object System.Drawing.Imaging.EncoderParameters 1
+    $options.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter ([System.Drawing.Imaging.Encoder]::Quality, [long]$Quality)
+    New-Item -ItemType Directory -Force -Path $Destination | Out-Null
 
-$missing = @()
-$total = 0
-foreach ($name in $images.Keys) {
-    $entry = @($images[$name])
-    $file = Join-Path $Source ($entry[0] + '.png')
-    if (-not (Test-Path -LiteralPath $file)) { $missing += $entry[0]; continue }
-    $frame = [System.Drawing.Image]::FromFile($file)
-    try {
-        $area = if ($entry.Count -eq 5) { New-Object System.Drawing.Rectangle $entry[1], $entry[2], $entry[3], $entry[4] }
-                else { New-Object System.Drawing.Rectangle 0, 0, $frame.Width, $frame.Height }
-        $outWidth = [Math]::Min($Width, $area.Width)
-        $outHeight = [int][Math]::Round($area.Height * $outWidth / $area.Width)
-        $bitmap = New-Object System.Drawing.Bitmap $outWidth, $outHeight, ([System.Drawing.Imaging.PixelFormat]::Format24bppRgb)
-        $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+    $total = 0
+    foreach ($name in $images.Keys) {
+        $entry = @($images[$name])
+        $stream = $streams[$entry[0] + '.png']
+        $stream.Position = 0
+        $frame = [System.Drawing.Image]::FromStream($stream)
         try {
-            $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-            $graphics.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
-            $target = New-Object System.Drawing.Rectangle 0, 0, $outWidth, $outHeight
-            $graphics.DrawImage($frame, $target, $area, [System.Drawing.GraphicsUnit]::Pixel)
-            $path = Join-Path $Destination ($name + '.jpg')
-            $bitmap.Save($path, $codec, $options)
-            $total += (Get-Item -LiteralPath $path).Length
-        } finally { $graphics.Dispose(); $bitmap.Dispose() }
-    } finally { $frame.Dispose() }
-}
+            $area = if ($entry.Count -eq 5) { New-Object System.Drawing.Rectangle $entry[1], $entry[2], $entry[3], $entry[4] }
+                    else { New-Object System.Drawing.Rectangle 0, 0, $frame.Width, $frame.Height }
+            $outWidth = [Math]::Min($Width, $area.Width)
+            $outHeight = [int][Math]::Round($area.Height * $outWidth / $area.Width)
+            $bitmap = New-Object System.Drawing.Bitmap $outWidth, $outHeight, ([System.Drawing.Imaging.PixelFormat]::Format24bppRgb)
+            $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+            try {
+                $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+                $graphics.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+                $target = New-Object System.Drawing.Rectangle 0, 0, $outWidth, $outHeight
+                $graphics.DrawImage($frame, $target, $area, [System.Drawing.GraphicsUnit]::Pixel)
+                $path = Join-Path $Destination ($name + '.jpg')
+                $bitmap.Save($path, $codec, $options)
+                $total += (Get-Item -LiteralPath $path).Length
+            } finally { $graphics.Dispose(); $bitmap.Dispose() }
+        } finally { $frame.Dispose() }
+    }
 
-Write-Host ("[style-guide] {0} pictures, {1:N1} MB -> {2}" -f ($images.Count - $missing.Count), ($total / 1MB), $Destination)
-if ($missing.Count -gt 0) {
-    Write-Host ('[style-guide] frames missing from the run: ' + ($missing -join ', '))
-    exit 1
+    Write-Host ("[style-guide] {0} pictures, {1:N1} MB -> {2}" -f $images.Count, ($total / 1MB), $Destination)
 }

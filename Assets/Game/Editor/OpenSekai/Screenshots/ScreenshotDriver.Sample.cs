@@ -44,6 +44,7 @@ namespace OpenSekai.EditorTools.Screenshots
             Resync();
             // New songs are scanned for loudness, which the status line reports; let the scan finish.
             yield return new WaitForSecondsRealtime(6f);
+            _sampleLibraryReady = true;
             Log("sample library: " + SampleLibrary.Songs.Count + " songs");
         }
 

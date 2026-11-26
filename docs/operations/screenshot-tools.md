@@ -279,7 +279,7 @@ powershell -File Tools/capture-screens.ps1 -StyleGuide -OutDir TestResults/scree
 保护措施：
 
 - 示例内容只在公司名为 `OpenSekaiSample` 的工程里安装，示例服务器也只在那里应答。在普通工程里用 `-Sample` 会报错，不会写入你的曲库。
-- `Tools/export-style-guide-images.ps1` 只接受装过示例曲库的那次输出。
+- `Tools/export-style-guide-images.ps1` 从当次 `report.json` 读取示例曲库安装状态，并校验每张源 PNG 的 SHA-256。缺少校验值的旧截图需要重新运行 `-StyleGuide`。
 - 副本里的 `ProjectSettings.asset` 是有意改过的，不要从副本提交它。
 - 加曲目时封面要自己画，不临摹任何已有的封面、标志或角色。
 
