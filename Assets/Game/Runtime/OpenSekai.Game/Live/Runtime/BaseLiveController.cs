@@ -50,15 +50,44 @@ namespace Sekai.Core.Live
 
 		/// <summary>The clock the views draw with, in seconds: the timeline advanced by visual latency.</summary>
 		/// Not clamped at zero: a chart that starts before its music runs the clock from below zero.
-		protected float CurrentViewTimeSeconds =>
-			currentMusicTimeMs / 1000f + timingCompensation.VisualLatencyMs / 1000f;
+		protected float CurrentViewTimeSeconds => (float)(currentMusicTimeMs / 1000d + ViewClockOffset);
+
+		// A practice selection cuts the actual source, independent of hardware settings. Its
+		// timeline is the raw source clock; the device calibration belongs on the picture and
+		// the input. An ordinary live keeps its existing audio-advanced timeline.
+		private bool IsPracticeTransport => BootData is FreeLiveBootData { Practice: not null };
+		internal PracticeRateHistory PracticeRates { get; private set; }
+		private double ViewClockOffset => IsPracticeTransport
+			? PracticeWallOffset((timingCompensation.VisualLatencyMs - timingCompensation.AudioLatencyMs) / 1000d)
+			: timingCompensation.VisualLatencyMs / 1000d;
+		protected double PracticeInputWallOffset =>
+			-(timingCompensation.AudioLatencyMs + timingCompensation.JudgeOffsetMs) / 1000d;
+		private double LogicClockOffset => IsPracticeTransport
+			? PracticeWallOffset(PracticeInputWallOffset) : -timingCompensation.LogicDelaySeconds;
+
+		private double PracticeWallOffset(double seconds) => PracticeRates?.Distance(currentGameTime, currentGameTime + seconds)
+			?? seconds * TimelinePlaybackRate;
+
+		protected void ChangePracticeRate(double rate, double wallTime)
+		{
+			PracticeRates ??= new PracticeRateHistory(TimelinePlaybackRate);
+			PracticeRates.Change(wallTime, rate);
+			TimelinePlaybackRate = rate;
+		}
+
+		protected void ResetPracticeHistory() => PracticeRates?.Reset(TimelinePlaybackRate);
+
+		protected void RefreshPracticeViewLead() => LiveConfig.ViewLeadSeconds = (float)(ViewClockOffset - LogicClockOffset);
+
+		private long TimelineForPlayback(long ms) => IsPracticeTransport ? ms : timingCompensation.TimelineAtPlayback(ms);
+		private long PlaybackForTimeline(long ms) => IsPracticeTransport ? ms : timingCompensation.PlaybackAt(ms);
 
 		/// <summary>The signed chart clock used for note execution and judgment.</summary>
 		protected float CurrentLogicChartTime
 		{
 			get
 			{
-				double audioSeconds = currentMusicTimeMs / 1000d - timingCompensation.LogicDelaySeconds;
+				double audioSeconds = currentMusicTimeMs / 1000d + LogicClockOffset;
 				return (float)(BootData?.MusicData?.AudioToChartTime(audioSeconds) ?? audioSeconds);
 			}
 		}
@@ -108,7 +137,7 @@ namespace Sekai.Core.Live
 		protected long ResultEffectMs => (long)Math.Ceiling(timelineSpan.ResultEffectSeconds * 1000d);
 
 		/// <summary>Where the audio file starts playing (its leading silence included).</summary>
-		protected long MusicStartMs => timingCompensation.TimelineAtPlayback((long)Math.Round(timelineSpan.PlaybackStartSeconds * 1000d));
+		protected long MusicStartMs => TimelineForPlayback((long)Math.Round(timelineSpan.PlaybackStartSeconds * 1000d));
 
 		/// <summary>
 		/// Where the music's sound ends: the result waits for it, not for the silence after it. The
@@ -376,7 +405,7 @@ namespace Sekai.Core.Live
 		{
 			musicPhase = MusicPhase.Playing;
 			_freeClockRemainderMs = 0d;
-			long playbackMs = timingCompensation.PlaybackAt(currentMusicTimeMs);
+			long playbackMs = PlaybackForTimeline(currentMusicTimeMs);
 			if (playbackMs != _preparedMusicStartMs)
 			{
 				// The run-in overshot the start of the file by part of a frame; begin the audio where the
@@ -410,7 +439,7 @@ namespace Sekai.Core.Live
 				return;
 			}
 
-			SoundManager.Instance.SeekIngame(Math.Max(0L, timingCompensation.PlaybackAt(targetMs)));
+			SoundManager.Instance.SeekIngame(Math.Max(0L, PlaybackForTimeline(targetMs)));
 			currentMusicTimeMs = targetMs;
 			StartViewPlaybackIfDue();
 		}
@@ -420,7 +449,7 @@ namespace Sekai.Core.Live
 		{
 			if (musicPhase == MusicPhase.Playing)
 			{
-				SoundManager.Instance.ResumeIngame(timingCompensation.PlaybackAt(currentMusicTimeMs));
+				SoundManager.Instance.ResumeIngame(PlaybackForTimeline(currentMusicTimeMs));
 			}
 		}
 
@@ -550,7 +579,7 @@ namespace Sekai.Core.Live
 						long audioTime = SoundManager.Instance.GetAudioSyncedUnityTimer();
 						if (audioTime >= 0L)
 						{
-							currentMusicTimeMs = timingCompensation.TimelineAtPlayback(audioTime);
+							currentMusicTimeMs = TimelineForPlayback(audioTime);
 						}
 						return;
 					}

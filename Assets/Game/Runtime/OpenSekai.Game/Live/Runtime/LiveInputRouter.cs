@@ -69,9 +69,8 @@ namespace Sekai.Core.Live
 				NativeInput.ResetPointerButtons();
 				foreach (var device in InputSystem.devices)
 					InputSystem.ResetDevice(device);
+				NativeInput.Enable();
 			}
-
-			NativeInput.Enable();
 			_collector.Reset();
 			ActiveInputs.Clear();
 			_judgedTouchTimes.Clear();

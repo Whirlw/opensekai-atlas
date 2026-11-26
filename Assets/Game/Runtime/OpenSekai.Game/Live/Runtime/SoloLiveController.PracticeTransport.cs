@@ -17,7 +17,9 @@ namespace Sekai.Core.Live
 		private void PracticeRate(double rate)
 		{
 			if (!(rate >= PracticeStep.MIN_SPEED && rate <= PracticeStep.MAX_SPEED)) throw new ArgumentOutOfRangeException(nameof(rate));
-			TimelinePlaybackRate = rate;
+			ChangePracticeRate(rate, Time.realtimeSinceStartupAsDouble);
+			_liveLogic.Clock.Rates = PracticeRates;
+			_liveLogic.Clock.InputWallOffset = PracticeInputWallOffset;
 			_liveLogic.Clock.PlaybackRate = rate;
 			SoundManager.Instance.SetIngameBgmPitch((float)rate);
 			ArmPracticeCut();
@@ -26,7 +28,11 @@ namespace Sekai.Core.Live
 		private void ResetPracticeRate()
 		{
 			TimelinePlaybackRate = 1d;
-			if (_liveLogic != null) _liveLogic.Clock.PlaybackRate = 1d;
+			if (_liveLogic != null)
+			{
+				_liveLogic.Clock.PlaybackRate = 1d;
+				_liveLogic.Clock.Rates = null;
+			}
 			SoundManager.Instance.StopIngame();
 			_practiceDspEnd = double.PositiveInfinity;
 			_practiceEndMs = long.MaxValue;
@@ -54,7 +60,7 @@ namespace Sekai.Core.Live
 			if (_practiceHeld || musicPhase != MusicPhase.Playing) return;
 			// Even a free take has a finite clip. Replacing a shorter scheduled stop with
 			// the physical file end also cancels that old stop when the segment is extended.
-			long end = _practiceEndMs == long.MaxValue ? musicLength : timingCompensation.PlaybackAt(_practiceEndMs);
+			long end = _practiceEndMs == long.MaxValue ? musicLength : _practiceEndMs;
 			double stop = SoundManager.Instance.ScheduleIngameEnd(Math.Min(end, musicLength) / 1000d);
 			if (_practiceEndMs != long.MaxValue && end <= musicLength) _practiceDspEnd = stop;
 		}
@@ -62,6 +68,8 @@ namespace Sekai.Core.Live
 		private void PracticeJump(double chartSeconds, bool playing)
 		{
 			SetTimelinePosition(PracticeTimelineMs(chartSeconds));
+			ResetPracticeHistory();
+			RefreshPracticeViewLead();
 			_practiceHeld = !playing;
 			foreach (LiveViewBase view in _liveViews)
 				if (view is LiveFrontView front) front.ClearPracticeFrame();
@@ -83,14 +91,15 @@ namespace Sekai.Core.Live
 			LiveViewExt.Pause(_liveViews);
 		}
 
-		private void PracticeContinue()
+		internal void PracticeContinue()
 		{
 			_practiceHeld = false;
+			ResetPracticeHistory();
 			LiveViewExt.Resume(_liveViews, CurrentViewTimeSeconds);
 			// Prepare a new transport for every take. The old source may have reached its
 			// scheduled stop and returned to the pool, or still have a deadline from before a seek.
 			long start = Math.Max(0, BootData.MusicData.StartMusicTimeMs);
-			long playback = timingCompensation.PlaybackAt(currentMusicTimeMs);
+			long playback = currentMusicTimeMs;
 			if (playback >= musicLength)
 			{
 				SoundManager.Instance.StopIngame();
@@ -121,9 +130,17 @@ namespace Sekai.Core.Live
 			MusicPhase previous = musicPhase;
 			base.UpdateMusicTime();
 			if (_practice == null) return;
+			RefreshPracticeViewLead();
 			if (previous == MusicPhase.RunIn && musicPhase == MusicPhase.Playing) ArmPracticeCut();
-			if (AudioSettings.dspTime >= _practiceDspEnd) currentMusicTimeMs = _practiceEndMs;
-			else currentMusicTimeMs = Math.Min(_practiceEndMs, currentMusicTimeMs);
+			currentMusicTimeMs = LimitPracticeTimeMs(currentMusicTimeMs, _practiceEndMs, AudioSettings.dspTime, _practiceDspEnd);
+		}
+
+		internal static long LimitPracticeTimeMs(long timeMs, long segmentEndMs, double dspNow, double scheduledEnd)
+		{
+			if (double.IsPositiveInfinity(scheduledEnd)) return Math.Min(segmentEndMs, timeMs);
+			// The approximate presentation clock can lead the mixer's actual samples by
+			// a buffer. Keep the segment open until its scheduled last sample is played.
+			return dspNow >= scheduledEnd ? segmentEndMs : Math.Min(segmentEndMs - 1, timeMs);
 		}
 	}
 }
