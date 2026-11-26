@@ -33,6 +33,7 @@
 | 判定延迟 | `JudgeOffsetMs` | 毫秒，正值让手动判定窗口推迟 | 下次开局 |
 | 判定时机 / 多押分配 | `UseLegacyJudgeTiming` / `UseFramePressMatching` | 旧判定时机会锁定为逐帧分配 | 下次开局 |
 | 音符流速 | `NoteSpeed` | 步进 0.1 | 下次开局 |
+| 长条条身不透明度 | `LongNoteBodyOpacity` | 0–100%，每步 10%。默认 100% 使用皮肤原有的不透明度，0% 隐藏条身 | 下次开局 |
 | 同时押线 | `UseSimultaneousPushingLine` | 开 / 关 | 下次开局（构建运行时谱面时读取） |
 | 显示 FAST / LATE | `ShowFastLate` | 默认关。开启后，GREAT、GOOD、BAD 上方显示 FAST（偏早）或 LATE（偏晚） | 下次开局 |
 | 显示滑反提示 | `ShowFlickMiss` | 默认关。有方向的 Flick 判为滑反时，在 GREAT 上方显示滑反图标。旧存档的两个开关均继承原快慢提示设置 | 下次开局 |
@@ -58,7 +59,7 @@
 | --- | --- | --- |
 | `Brightness` | float | 背景亮度 |
 | `LaneTransparent` | float | 轨道透明度 |
-| `NoteAlpha` / `GuideAlpha` / `JudgeLineAlpha` | float | 各类元素透明度 |
+| `GuideAlpha` / `JudgeLineAlpha` | float | 引导线和判定线的不透明度 |
 | `UseCutIn` | bool | 是否播放 cut-in |
 | `UseVibration` | bool | 打击震动 |
 | `UseAllPerfectEffect` | bool | AP 特效 |

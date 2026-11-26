@@ -284,7 +284,7 @@ namespace ArtV2
                 float t = (y - band * 4f - 0.5f) / 3f;
                 bool held = band % 2 == 0;
                 Ink accent = band < 2 ? Theme.Hold : Theme.Critical;
-                return Ribbon(x, accent, (held ? 0.85f : 0.06f) + 0.06f * t, (held ? 0.66f : 0.5f) + 0.05f * t, 0.98f, 0.3f);
+                return Ribbon(x, accent, (held ? 0.85f : 0.06f) + 0.06f * t, 0.70f + 0.05f * t, 0.98f, 0.3f);
             });
         }
 

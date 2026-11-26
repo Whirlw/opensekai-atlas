@@ -164,7 +164,7 @@ namespace OpenSekai.App.UI
                 locked: () => _settings.UseLegacyJudgeTiming);
             top += LibrarySettingRows.SectionHeight(5) + gap;
 
-            const int DISPLAY_ROWS = 8;
+            const int DISPLAY_ROWS = 9;
             LibrarySettingRows.Section display = _rows.AddSection(content, "画面", DISPLAY_ROWS, 0f, rightStart, top);
             _rows.AddSwitch(display, "播放开场动画",
                 () => _localSettings.PlayStartupAnimation,
@@ -173,6 +173,10 @@ namespace OpenSekai.App.UI
                 () => _settings.NoteSpeed,
                 value => { _settings.NoteSpeed = value; SaveSettings(); },
                 0.5f, 12f, 0.1f, "0.0");
+            _rows.AddStepper(display, "长条条身不透明度",
+                () => _settings.LongNoteBodyOpacity,
+                value => { _settings.LongNoteBodyOpacity = value; SaveSettings(); },
+                0f, 1f, 0.1f, "0.0", Percent);
             _rows.AddSwitch(display, "同时押线",
                 () => _settings.UseSimultaneousPushingLine,
                 value => { _settings.UseSimultaneousPushingLine = value; SaveSettings(); });

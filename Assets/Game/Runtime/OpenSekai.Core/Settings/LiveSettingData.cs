@@ -75,7 +75,20 @@ namespace Sekai
 
 		public LiveModeType LiveMode { get; set; }
 
-		public float NoteAlpha { get; set; }
+		private float _longNoteBodyOpacity = 1f;
+
+		public float LongNoteBodyOpacity
+		{
+			get => _longNoteBodyOpacity;
+			set => _longNoteBodyOpacity = System.Math.Clamp(value, 0f, 1f);
+		}
+
+		// Older files used zero to select the default. The new setting allows a fully hidden body.
+		[JsonProperty("NoteAlpha")]
+		private float LegacyNoteAlpha
+		{
+			set => LongNoteBodyOpacity = value == 0f ? 1f : value;
+		}
 
 		public float GuideAlpha { get; set; }
 
@@ -224,7 +237,6 @@ namespace Sekai
 		public LiveSettingData()
 		{
 			ShowsRoomId = true;
-			NoteAlpha = 1f;
 			GuideAlpha = 0.6f;
 			JudgeLineAlpha = 1f;
 			AutoSaveIntervalIndex = 0;
@@ -278,11 +290,6 @@ namespace Sekai
 				default:
 					return "WORD_3DMV";
 			}
-		}
-
-		public float GetNoteAlpha()
-		{
-			return NoteAlpha == 0f ? 1f : NoteAlpha;
 		}
 
 		public float GetGuideAlpha()

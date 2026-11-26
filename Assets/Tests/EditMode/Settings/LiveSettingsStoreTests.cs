@@ -58,6 +58,21 @@ namespace OpenSekai.Tests.EditMode.Settings
             Assert.That(saved.Property("NoteShowRate"), Is.Null);
         }
 
+        [TestCase("{}", 1f)]
+        [TestCase("{\"NoteAlpha\":0}", 1f)]
+        [TestCase("{\"NoteAlpha\":0.4}", 0.4f)]
+        public void LongNoteBodyOpacityPreservesLegacyAppearanceAndCanBeHidden(string json, float expected)
+        {
+            File.WriteAllText(_path, json);
+            var store = new LiveSettingsStore(_path);
+            var settings = store.Load();
+            Assert.That(settings.LongNoteBodyOpacity, Is.EqualTo(expected));
+            settings.LongNoteBodyOpacity = 0f;
+            Assert.That(store.Save(settings), Is.True);
+            var nextPlay = new LiveSettingsStore(_path).CaptureSnapshot().ToLegacyData();
+            Assert.That(nextPlay.LongNoteBodyOpacity, Is.Zero);
+        }
+
         [Test]
         public void SavedValuesComeBack()
         {

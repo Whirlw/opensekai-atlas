@@ -311,7 +311,7 @@ namespace Sekai.Live
 		public static void LoadOptionData()
 		{
 			LiveSettingData liveSettingData = LiveSettingsStore.Shared.Load();
-			LongNoteAlpha = liveSettingData.GetNoteAlpha();
+			LongNoteAlpha = liveSettingData.LongNoteBodyOpacity;
 			GuideAlpha = liveSettingData.GetGuideAlpha();
 			JudgeLineAlpha = liveSettingData.GetJudgeLineAlpha();
 			SetNoteSkinAssetBundleName(Mathf.Clamp(liveSettingData.NoteSkinIndex, 0, 1));
