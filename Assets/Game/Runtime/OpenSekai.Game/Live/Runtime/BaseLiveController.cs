@@ -460,42 +460,9 @@ namespace Sekai.Core.Live
 		protected void BuildTimelineSpan(MusicScore musicScore)
 		{
 			LiveMusicData music = BootData?.MusicData;
-			float first = float.NaN;
-			float last = float.NaN;
-			if (musicScore?.HiddenSimLines?.Length > 0)
-			{
-				first = (float)(music?.ChartToAudioTime(musicScore.FirstHiddenLineTime) ?? musicScore.FirstHiddenLineTime);
-				last = (float)(music?.ChartToAudioTime(musicScore.LastHiddenLineTime) ?? musicScore.LastHiddenLineTime);
-			}
-			NoteBase[] roots = musicScore?.NoteArray;
-			if (roots != null)
-			{
-				foreach (NoteBase root in roots)
-				{
-					if (root?.NoteList == null)
-					{
-						continue;
-					}
-
-					foreach (NoteBase note in root.NoteList)
-					{
-						if (note == null)
-						{
-							continue;
-						}
-
-						float time = (float)(music?.ChartToAudioTime(note.MusicScoreInfo.time) ?? note.MusicScoreInfo.time);
-						if (float.IsNaN(first) || time < first)
-						{
-							first = time;
-						}
-						if (float.IsNaN(last) || time > last)
-						{
-							last = time;
-						}
-					}
-				}
-			}
+			var notes = LiveMusicData.ChartNoteBounds(musicScore);
+			float first = (float)(music?.ChartToAudioTime(notes.first) ?? notes.first);
+			float last = (float)(music?.ChartToAudioTime(notes.last) ?? notes.last);
 
 			// The music counts from its first audible sample to its last: that decides the start and end
 			// points and the skips, so silence at either end of a file changes nothing. The silence is

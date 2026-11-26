@@ -55,6 +55,20 @@ namespace OpenSekai.Tests.EditMode
             if (Directory.Exists(_root)) Directory.Delete(_root, true);
         }
 
+        [TestCase(600d, 700d)]
+        [TestCase(-700d, -600d)]
+        public async System.Threading.Tasks.Task PracticeOutsideSongIsRejectedBeforeSceneTransition(double start, double end)
+        {
+            var plan = new PracticePlan(start, end, new PracticeTemplate("range", new[] { PracticeStep.Play(1) }),
+                (_, __) => { });
+            var request = new PlayRequest(_fixtureDirectory, false, SceneManager.Scene.Library) { Practice = plan };
+            var result = await _service.StartAsync(request, CancellationToken.None);
+            Assert.That(result.Started, Is.False);
+            Assert.That(result.Message, Does.Contain("片段"));
+            Assert.That(_boot.PublishCount, Is.Zero);
+            Assert.That(_audio.ReleaseCount, Is.EqualTo(1));
+        }
+
         [Test]
         public async System.Threading.Tasks.Task PracticeBootHasNoRankedHistoryOrStartEffect()
         {
@@ -422,7 +436,7 @@ namespace OpenSekai.Tests.EditMode
                 return UniTask.FromResult(Result);
             }
 
-            public UniTask PreparePracticeAsync(CancellationToken cancellationToken) => UniTask.CompletedTask;
+            public UniTask<double> PreparePracticeAsync(CancellationToken cancellationToken) => UniTask.FromResult(40d);
 
             public void Release() => ReleaseCount++;
         }

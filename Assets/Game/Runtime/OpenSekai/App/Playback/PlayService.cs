@@ -150,10 +150,12 @@ namespace OpenSekai.App.Playback
                     return Result(PlayStartStatus.Failed, "无法加载音频文件。");
                 }
                 cancellationToken.ThrowIfCancellationRequested();
-                if (request.Practice != null) await _audio.PreparePracticeAsync(cancellationToken);
+                double audioDuration = request.Practice != null ? await _audio.PreparePracticeAsync(cancellationToken) : 0;
                 if (material != null) await material.PrepareAsync(materialDiagnostics, cancellationToken);
                 PlaySession session = PlaySession.FromChart(request, entry, chart, config, settings, material?.Audio, material?.Combo, material?.Judgment, material?.HitFx, material?.Notes, material?.Lane, material?.Background, material?.Hud, material?.ResultFx);
                 FreeLiveBootData boot = LegacyLiveBootAdapter.Create(session, _deckSelection.SelectedDeckId);
+                if (boot.Practice != null && !boot.ResolvePracticeRange(audioDuration))
+                    return Result(PlayStartStatus.Failed, "练习片段超出谱面与歌曲的范围，请调整起止时间。");
                 boot.CustomMusicScoreKey = chartHash;
                 boot.CustomMusicScoreRanked = request.Practice == null && (request.DanRanked ?? temporary?.Ranked ??
                     ((await ChartRankLookup.ReadInstalledAsync(SongPackageSource.Read(entry), entry))?.Matches(chartHash, entry.Manifest.playLevel) == true));

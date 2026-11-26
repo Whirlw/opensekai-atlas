@@ -108,10 +108,10 @@ namespace Sekai
 			_ownsPackageClip = false;
 		}
 
-		public async UniTask PreparePracticeAudioAsync(CancellationToken token)
+		public async UniTask<double> PreparePracticeAudioAsync(CancellationToken token)
 		{
 			token.ThrowIfCancellationRequested();
-			if (_practiceAudio != null) return;
+			if (_practiceAudio != null) return (double)_packageClip.samples / _packageClip.frequency;
 			AudioClip original = _packageClip;
 			var prepared = await PracticeAudioBank.PrepareAsync(original, token);
 			if (_packageClip != original || original == null || token.IsCancellationRequested)
@@ -122,6 +122,7 @@ namespace Sekai
 			}
 			if (_practiceAudio == null) _practiceAudio = prepared;
 			else prepared.Dispose();
+            return (double)original.samples / original.frequency;
 		}
 
 		public bool ExistsCueName(string cueName) => _catalog.ExistsCueName(cueName);

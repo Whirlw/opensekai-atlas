@@ -157,7 +157,7 @@ namespace OpenSekai.App.Playback
             return true;
         }
 
-        public UniTask PreparePracticeAsync(CancellationToken cancellationToken) =>
+        public UniTask<double> PreparePracticeAsync(CancellationToken cancellationToken) =>
             SoundManager.Instance.PreparePracticeAudioAsync(cancellationToken);
 
         public void Release() => SoundManager.Instance.ReleasePackageAudio();

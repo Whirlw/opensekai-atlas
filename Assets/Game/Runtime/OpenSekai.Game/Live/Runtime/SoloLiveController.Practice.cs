@@ -1,4 +1,3 @@
-using System;
 using OpenSekai.Shared.Playback;
 
 namespace Sekai.Core.Live
@@ -11,11 +10,8 @@ namespace Sekai.Core.Live
         private void StartPractice()
         {
             var music = BootData.MusicData;
-            double first = timelineSpan.HasNotes ? timelineSpan.FirstNoteSeconds : 0;
-            double min = Math.Min(0, music.AudioToChartTime(Math.Min(0, first)));
-            double endAudio = Math.Max(timelineSpan.EndSeconds, timelineSpan.PlaybackEndSeconds);
-            double max = Math.Max(min, music.AudioToChartTime(endAudio));
-            _practice = new PracticePlayback(PracticePlan, min, max,
+            var boot = (FreeLiveBootData)BootData;
+            _practice = new PracticePlayback(PracticePlan, boot.PracticeMinimum, boot.PracticeMaximum,
                 () => music.AudioToChartTime(currentMusicTimeMs / 1000d),
                 PracticeJump, PracticeRate, PracticeBoundary, PracticeHold, PracticeContinue, QuitPractice);
             _practice.Restart();

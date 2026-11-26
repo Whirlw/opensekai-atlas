@@ -63,7 +63,7 @@ namespace OpenSekai.Tests.EditMode.Live
             var player = new PracticePlayback(plan, 0, 10, () => _position,
                 (target, playing) => _position = target, _ => { }, _ => { }, () => { }, () => { }, () => { });
             player.Restart();
-            var music = new Sekai.LiveMusicData { NativeBgmOffsetSeconds = 0.12013 };
+            var music = new Sekai.LiveMusicData(0, "master", 0, "solo", Sekai.LiveMusicData.CollaborationModeState.Off) { NativeBgmOffsetSeconds = 0.12013 };
             long stop = SoloLiveController.PracticeEndTimelineMs(music, plan.EndSeconds.Value);
             _position = music.AudioToChartTime(stop / 1000d);
             player.Tick(0.016);

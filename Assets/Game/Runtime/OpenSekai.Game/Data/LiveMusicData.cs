@@ -38,6 +38,48 @@ namespace Sekai
 			}
 		}
 
+		internal static (float first, float last) ChartNoteBounds(MusicScore musicScore)
+		{
+			float first = float.NaN;
+			float last = float.NaN;
+			if (musicScore?.HiddenSimLines?.Length > 0)
+			{
+				first = musicScore.FirstHiddenLineTime;
+				last = musicScore.LastHiddenLineTime;
+			}
+			NoteBase[] roots = musicScore?.NoteArray;
+			if (roots != null)
+			{
+				foreach (NoteBase root in roots)
+				{
+					if (root?.NoteList == null)
+					{
+						continue;
+					}
+
+					foreach (NoteBase note in root.NoteList)
+					{
+						if (note == null)
+						{
+							continue;
+						}
+
+						float time = note.MusicScoreInfo.time;
+						if (float.IsNaN(first) || time < first)
+						{
+							first = time;
+						}
+						if (float.IsNaN(last) || time > last)
+						{
+							last = time;
+						}
+					}
+				}
+			}
+
+			return (first, last);
+		}
+
 		public long StartMusicTimeMs { get; set; }
 
 		/// <summary>For a NextRUSH+ chart, the audio-file time of chart second zero.</summary>

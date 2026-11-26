@@ -6,6 +6,25 @@ namespace Sekai
 
 		public OpenSekai.Shared.Playback.PracticePlan Practice { get; set; }
 
+		internal double PracticeMinimum { get; private set; }
+		internal double PracticeMaximum { get; private set; }
+
+		public bool ResolvePracticeRange(double audioLengthSeconds)
+		{
+			var notes = LiveMusicData.ChartNoteBounds(MusicData.MusicScore);
+			PracticeMinimum = System.Math.Min(0, MusicData.AudioToChartTime(0));
+			PracticeMaximum = MusicData.AudioToChartTime(audioLengthSeconds);
+			if (!float.IsNaN(notes.first))
+			{
+				PracticeMinimum = System.Math.Min(PracticeMinimum, notes.first);
+				// Let the last note be judged when the chart continues past the audio.
+				PracticeMaximum = System.Math.Max(PracticeMaximum, notes.last +
+					OpenSekai.Shared.Live.Simulation.LiveTimelineSpan.RUN_OUT_SECONDS);
+			}
+			return System.Math.Max(Practice.StartSeconds, PracticeMinimum) <
+				System.Math.Min(Practice.EndSeconds ?? PracticeMaximum, PracticeMaximum);
+		}
+
 		public string RetrySourceId { get; set; }
 		public string RetrySource { get; set; }
 		public System.Action<string, string, string, string> RecordRetryStart { get; set; }
