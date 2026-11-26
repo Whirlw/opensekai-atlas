@@ -43,6 +43,26 @@ namespace OpenSekai.Tests.EditMode.Live
 			Assert.That(note.Result, Is.EqualTo(offset > 0.125f ? NoteResult.Miss : NoteResult.Perfect));
 		}
 
+		[TestCase(-0.120f, true)]
+		[TestCase(0.138f, true)]
+		[TestCase(-0.126f, false)]
+		[TestCase(0.142f, false)]
+		public void CompensatedTraceTailUsesItsOwnSwipeWindow(float offset, bool accepted)
+		{
+			bool previous = LiveConfig.HasVisualLatency;
+			try
+			{
+				LiveConfig.HasVisualLatency = true;
+				var tail = new FrictionFlickNote(Info(1f), 1, 4, 5, NoteCategory.FrictionFlick, 1f,
+					NoteType.Critical, NoteDirection.Left, 0.0833f, 0f, isTraceTail: true);
+				tail.Excute(Info(0.8f), 0.5f);
+				var swipe = Touch(1f + offset, new Vector2(-240f, 0f), TouchPhase.Moved);
+				Assert.That(tail.ReadNextRushHeadSample(ref swipe, 5f, swipe.musicTime), Is.EqualTo(accepted));
+				Assert.That(tail.Result, Is.EqualTo(accepted ? NoteResult.Perfect : NoteResult.None));
+			}
+			finally { LiveConfig.HasVisualLatency = previous; }
+		}
+
 		[Test]
 		public void ACaughtNoteWithNoFlickAtAllStillMisses()
 		{

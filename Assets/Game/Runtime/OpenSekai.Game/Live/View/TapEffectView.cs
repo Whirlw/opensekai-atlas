@@ -299,7 +299,7 @@ namespace Sekai
 			}
 		}
 
-		public void Excute(INote note, Func<bool> checkPlayedHaptic)
+		public void Excute(INote note, Func<bool> checkPlayedHaptic, bool playInputFeedback = true)
 		{
 			if (note == null)
 			{
@@ -326,21 +326,7 @@ namespace Sekai
 					"tapFx cat=" + note.Category + " type=" + note.Type + " res=" + result + " id=" + note.Id);
 			}
 
-			var visual = note is LongNote { IsNextRush: true } bar
-				? (bar.NativeLeft, bar.NativeRight) : (note.LaneStartF, note.LaneEndF);
-			_noteInfo = new NoteInfo
-			{
-				result = result,
-				category = note.Category,
-				type = note.Type,
-				direction = note.Direction,
-				style = note is NoteBase styled ? styled.NativeStyle : 0,
-				native = native,
-				laneStart = native ? visual.Item1 : note.LaneStart,
-				laneEnd = native ? visual.Item2 : note.LaneEnd,
-				pairNote = note.PairNote,
-				noteId = note.Id
-			};
+			SetNoteInfo(note, native);
 			switch (_noteInfo.category)
 			{
 				case NoteCategory.FrictionHide:
@@ -377,7 +363,37 @@ namespace Sekai
 			}
 
 			LatencyCapture.Record("note_effect", noteId: note.Id, result: result);
-			if (!native)
+			if (playInputFeedback) PlayInputFeedback(checkPlayedHaptic);
+		}
+
+		internal void TraceInputFeedback(NoteBase note, Func<bool> checkPlayedHaptic)
+		{
+			SetNoteInfo(note, note.IsNextRush);
+			PlayInputFeedback(checkPlayedHaptic);
+		}
+
+		private void SetNoteInfo(INote note, bool native)
+		{
+			var visual = note is LongNote { IsNextRush: true } bar
+				? (bar.NativeLeft, bar.NativeRight) : (note.LaneStartF, note.LaneEndF);
+			_noteInfo = new NoteInfo
+			{
+				result = note.Result,
+				category = note.Category,
+				type = note.Type,
+				direction = note.Direction,
+				style = note is NoteBase styled ? styled.NativeStyle : 0,
+				native = native,
+				laneStart = native ? visual.Item1 : note.LaneStart,
+				laneEnd = native ? visual.Item2 : note.LaneEnd,
+				pairNote = note.PairNote,
+				noteId = note.Id
+			};
+		}
+
+		private void PlayInputFeedback(Func<bool> checkPlayedHaptic)
+		{
+			if (!_noteInfo.native)
 				_playSeAction?.Invoke();
 			if (checkPlayedHaptic == null || !checkPlayedHaptic())
 			{

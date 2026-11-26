@@ -162,7 +162,7 @@ namespace Sekai.Live
 			{
 				if (!IsJudgment(ref touch, lane)) return false;
 				HasRecordedContact = true;
-				if (OffsetJudgeTime < 0f)
+				if (OffsetJudgeTime < 0f && !(LiveConfig.HasVisualLatency && UsesTraceFeedback))
 				{
 					State = NoteState.Input;
 					return false;

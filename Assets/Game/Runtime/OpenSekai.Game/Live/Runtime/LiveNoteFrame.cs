@@ -45,7 +45,8 @@ namespace Sekai.Core.Live
 
 		internal void TickViews()
 		{
-			_presentation.TickTailKeys(Frame.time);
+			_presentation.PresentDue(_session.Views);
+			_presentation.TickTailKeys(LiveConfig.HasVisualLatency ? (float)_presentation.ViewTime : Frame.time);
 			_presentation.TickRetiring(Frame);
 		}
 
@@ -54,10 +55,11 @@ namespace Sekai.Core.Live
 		/// autoplay answer what is already due, then walk the notes. It does not touch the view - that is
 		/// the third block, and it runs after the touch block has settled this frame of judgement.
 		/// </summary>
-		internal void UpdateState(float scoreInfoTime, double currentGameTime)
+		internal void UpdateState(float scoreInfoTime, double currentGameTime, float? viewChartTime)
 		{
 			bool isActive = _logic.Result <= 2;
 			_logic.currentFrameInfo = _logic.Clock.Sample(_session.MusicScore, scoreInfoTime, currentGameTime, isActive);
+			_presentation.ViewTime = viewChartTime ?? (Frame.time + LiveConfig.ViewLeadSeconds);
 			if (!isActive)
 			{
 				// Nothing is judged and no input arrives any more, so the view is the only thing left
@@ -81,7 +83,7 @@ namespace Sekai.Core.Live
 			}
 
 			UpdateNotes();
-			_nativeViewTime = (double)Frame.time + LiveConfig.ViewLeadSeconds;
+			_nativeViewTime = LiveConfig.HasVisualLatency ? _presentation.ViewTime : (double)Frame.time + LiveConfig.ViewLeadSeconds;
 			_session.Notes.WalkNativeVisuals(_nativeViewTime, _visitNativeVisual);
 			if (_session.IsAuto)
 			{
@@ -327,7 +329,7 @@ namespace Sekai.Core.Live
 		private void PreloadNativeVisual(NoteBase note)
 		{
 			double progress = note.NativeViewProgress(_nativeViewTime, out bool hidden);
-			bool visible = note.State != NoteState.Done && !hidden && progress > 0 && progress <= LiveConfig.NATIVE_KEY_PROGRESS_END
+			bool visible = (note.State != NoteState.Done || note.HasTimedTraceFeedback && _nativeViewTime < note.VisualTargetTime) && !hidden && progress > 0 && progress <= LiveConfig.NATIVE_KEY_PROGRESS_END
 				&& (note is LongNote || note.IsVisible && (!note.IsDecoration || _nativeViewTime < note.NativeTarget.Time));
 			if (note is LongNote bar)
 			{
@@ -364,7 +366,7 @@ namespace Sekai.Core.Live
 								node.NativeTarget.Time, ref a, ref b, out _, out _);
 						}
 					}
-					if (!node.HasNativeAttachment && node.IsVisible && node.State != NoteState.Done && !childHidden
+					if (!node.HasNativeAttachment && node.IsVisible && (node.State != NoteState.Done || node.HasTimedTraceFeedback) && !childHidden
 						&& next > 0 && next <= LiveConfig.NATIVE_KEY_PROGRESS_END
 						&& _nativeViewTime < node.NativeTarget.Time && bar.ViewNoteList.Contains(node))
 						_presentation.Spawn(_session.Views, node, Frame.time);
@@ -376,7 +378,7 @@ namespace Sekai.Core.Live
 				foreach (var child in bar.ViewNoteList)
 				{
 					if (child is not NoteBase { HasNativeAttachment: true, IsVisible: true } attached
-						|| attached.State == NoteState.Done || _nativeViewTime >= attached.NativeTarget.Time)
+						|| attached.State == NoteState.Done && !attached.HasTimedTraceFeedback || _nativeViewTime >= attached.NativeTarget.Time)
 						continue;
 					double next = attached.NativeViewProgress(_nativeViewTime, out bool childHidden);
 					if (!childHidden && next > 0 && next <= LiveConfig.NATIVE_KEY_PROGRESS_END)

@@ -105,7 +105,13 @@ namespace Sekai.Live
 			{
 				_everCorrect = true;
 				_nextRushCorrectTime = sampleTime;
-				if (!IsTailFlickOwner && sampleTime >= MusicScoreInfo.time + LiveConfig.OnTimeWindowHalfSeconds)
+				if (LiveConfig.HasVisualLatency && UsesTraceFeedback
+					&& sampleTime > MusicScoreInfo.time - NextRushEarlyWindow && sampleTime < MusicScoreInfo.time + NextRushLateWindow)
+				{
+					HasNextRushHit = IsNextRush;
+					FinishNextRushHead((NoteResult.Perfect, NoteResultDescription.None));
+				}
+				else if (!IsTailFlickOwner && sampleTime >= MusicScoreInfo.time + LiveConfig.OnTimeWindowHalfSeconds)
 					FinishTraceFlick(sampleTime, true);
 			}
 			return true;

@@ -335,7 +335,11 @@ namespace Sekai.Live
 
 		public override void NativeHitSound(NoteBase note, string cue) => _tapEffect?.PlayNativeCue(note, cue);
 
-		public override void JudgmentNote(NoteBase note)
+		internal override void TraceInputFeedback(NoteBase note) => _tapEffect?.TraceInputFeedback(note, CheckPlayedHaptic);
+		internal override void TraceVisualFeedback(NoteBase note) => PresentJudgment(note, playInputFeedback: false);
+		public override void JudgmentNote(NoteBase note) => PresentJudgment(note, playInputFeedback: true);
+
+		private void PresentJudgment(NoteBase note, bool playInputFeedback)
 		{
 			if (note == null)
 			{
@@ -351,7 +355,8 @@ namespace Sekai.Live
 
 			// Normal notes: play effect and show judgment text. Several notes can land on the same frame;
 			// only the worst of them owns the popup, and the fast/late caption follows that same note.
-			Effect(note);
+			_tapEffect?.Excute(note, CheckPlayedHaptic, playInputFeedback);
+			screenEffectView?.Excute(note);
 			ShowJudgmentText(note);
 		}
 
@@ -948,12 +953,6 @@ namespace Sekai.Live
 			{
 				_baseController?.CallPreExit();
 			}
-		}
-
-		private void Effect(INote note)
-		{
-			_tapEffect?.Excute(note, CheckPlayedHaptic);
-			screenEffectView?.Excute(note);
 		}
 
 		private bool CheckPlayedHaptic()

@@ -90,6 +90,8 @@ if (!barAnswersInput && tailNote != null) judgmentNotes.Add(tailNote);
 
 一次性的打击音只对**有判定的**摩擦音符成立；载体上的摩擦是全静音的，`TapEffectView` 对 `FrictionHide*` 类别显式 `return`。
 
+设置非零画面延迟后，Friction 的有效接触和 FrictionFlick 的有效划动会在输入时记为 Perfect。NextRUSH+ 的 Trace、TraceFlick 及其长条端点也遵循此规则。提前命中时，音符继续移动，到画面判定线时显示判定文字和特效。已经到线时命中，文字和特效随输入显示。吸附在判定线上的条头在画面中的条尾到线时消失。画面延迟为 0 时沿用原有时序。
+
 ## 长条尾巴怎么判
 
 普通尾在抬手阶段结算。

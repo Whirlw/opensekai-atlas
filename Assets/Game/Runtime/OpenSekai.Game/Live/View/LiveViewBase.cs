@@ -75,6 +75,9 @@ namespace Sekai.Core.Live
 		{
 		}
 
+		internal virtual void TraceInputFeedback(NoteBase note) { }
+		internal virtual void TraceVisualFeedback(NoteBase note) => JudgmentNote(note);
+
 		public virtual void JudgmentNote(NoteBase note)
 		{
 		}

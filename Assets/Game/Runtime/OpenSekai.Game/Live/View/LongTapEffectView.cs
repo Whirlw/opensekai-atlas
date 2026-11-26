@@ -216,7 +216,7 @@ namespace Sekai
 					Vector2 lanes = note is LongNote bar ? bar.ViewLanes(time) : new Vector2(note.LaneStartF, note.LaneEndF);
 					RenderPair(pair, lanes.x, lanes.y, note is NoteBase styled ? styled.NativeStyle : 0);
 
-					if (!_autoplay && !pair.SoundRequested)
+					if (!_autoplay && note.State != NoteState.Done && !pair.SoundRequested)
 					{
 						pair.SoundRequested = true;
 						string cue = HoldCueName(note);
@@ -227,7 +227,7 @@ namespace Sekai
 								+ " sound=" + (cue == null ? "none" : "start"));
 					}
 				}
-				else if (note.ShowsAsReleased || _autoplay && (pair.Gen?.IsPlaying == true || pair.Aura?.IsPlaying == true))
+				else if (note.ShowsAsReleased || (_autoplay || LiveConfig.HasVisualLatency && note is LongNote ended && time >= ended.VisualTailTime) && (pair.Gen?.IsPlaying == true || pair.Aura?.IsPlaying == true))
 				{
 					pair.Gen?.ReleaseHold();
 					pair.Aura?.ReleaseHold();
@@ -235,7 +235,7 @@ namespace Sekai
 
 				// The sound only stops once the bar is really let go: the grey window is grace,
 				// and a finger coming back inside it should not restart the hold from silence.
-				if (note.State == NoteState.Release)
+				if (note.State == NoteState.Release || LiveConfig.HasVisualLatency && note.State == NoteState.Done && pair.SoundRequested)
 				{
 					pair.StopSound();
 				}
@@ -244,6 +244,12 @@ namespace Sekai
 
 		private bool IsHeldForVisuals(INote note, float time)
 		{
+			if (LiveConfig.HasVisualLatency && note is LongNote held && held.TailNote != null)
+			{
+				if (time >= held.VisualTailTime) return false;
+				if (_autoplay) return time >= held.VisualTargetTime && (held.NativeConnector != null || !held.IsDecorativeBar);
+				if (held.State == NoteState.Done) return time >= held.VisualTargetTime && held.WasHoldingWhenTerminated;
+			}
 			if (!_autoplay) return LiveUtility.IsBeingHeldForEffect(note, time);
 			// Native guide carriers can contain playable segments. Their segment decides visibility.
 			return note is LongNote bar && bar.State != NoteState.Done
@@ -253,7 +259,7 @@ namespace Sekai
 
 		private void UpdateNativeHold(LongNote note, NativeHold hold, float time)
 		{
-			if (note.State == NoteState.Done
+			if (note.State == NoteState.Done && !note.KeepsBarVisual(time)
 				|| !note.TryConnectorPresentation(time, out var segment, out float left, out float right)
 				|| segment.IsDamage || !segment.HasActiveInterval
 				|| !segment.IsFake && !IsHeldForVisuals(note, time))

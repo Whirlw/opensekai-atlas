@@ -17,9 +17,35 @@ namespace Sekai.Core.Live
 
 		private readonly List<NoteBase> _retiring = new List<NoteBase>();
 
+		// Keep hit feedback and pooled sprites alive independently of the already settled note.
+		private readonly List<(double time, NoteBase note, bool unspawn)> _pending = new();
+		internal bool HasPendingVisuals => _pending.Count != 0;
+		internal double ViewTime { get; set; }
+
+		private void Queue(double time, NoteBase note, bool unspawn)
+		{
+			int index = _pending.Count;
+			while (index > 0 && _pending[index - 1].time > time) index--;
+			_pending.Insert(index, (time, note, unspawn));
+		}
+
+		internal void PresentDue(LiveViewBase[] views)
+		{
+			int count = 0;
+			while (count < _pending.Count && _pending[count].time <= ViewTime)
+			{
+				var item = _pending[count++];
+				if (item.unspawn) LiveViewExt.UnspawnNote(views, item.note);
+				else if (views != null)
+					foreach (var view in views) view?.TraceVisualFeedback(item.note);
+			}
+			if (count > 0) _pending.RemoveRange(0, count);
+		}
+
 		/// <summary>Forgets every tracked key; the views themselves are reset by a new score.</summary>
 		public void Reset()
 		{
+			_pending.Clear();
 			_tailKeys.Clear();
 			_retiring.Clear();
 		}
@@ -59,7 +85,11 @@ namespace Sekai.Core.Live
 				return;
 			}
 
-			LiveViewExt.UnspawnNote(views, note);
+			if (note is LongNote bar && bar.KeepsBarVisual(ViewTime))
+				Queue(bar.VisualTailTime, note, true);
+			else if (note.HasTimedTraceFeedback && ViewTime < note.VisualTargetTime)
+				Queue(note.VisualTargetTime, note, true);
+			else LiveViewExt.UnspawnNote(views, note);
 		}
 
 		/// <summary>Hands the views the pool sizes the score needs before the first note spawns.</summary>
@@ -82,7 +112,13 @@ namespace Sekai.Core.Live
 				return;
 			}
 
-			LiveViewExt.JudgmentNote(views, note);
+			if (note.HasTimedTraceFeedback && ViewTime < note.VisualTargetTime)
+			{
+				if (views != null)
+					foreach (var view in views) view?.TraceInputFeedback(note);
+				Queue(note.VisualTargetTime, note, false);
+			}
+			else LiveViewExt.JudgmentNote(views, note);
 		}
 
 		/// <summary>A silent marker was graded; only the judgement text updates.</summary>
@@ -131,7 +167,8 @@ namespace Sekai.Core.Live
 			foreach (NoteBase tail in _tailKeys)
 			{
 				LongNote bar = tail.ParentNote as LongNote;
-				if (bar == null || bar.State == NoteState.Done || now >= tail.MusicScoreInfo.time)
+				double target = LiveConfig.HasVisualLatency ? tail.VisualTargetTime : tail.MusicScoreInfo.time;
+				if (bar == null || bar.State == NoteState.Done && !bar.KeepsBarVisual(now) || now >= target)
 				{
 					(leaving ??= new List<NoteBase>()).Add(tail);
 					continue;

@@ -160,7 +160,7 @@ namespace Sekai.Live
 				else if (longNote is GuideNote) _guideLineView?.Add(longNote);
 				else _noteLineView?.Add(longNote);
 
-				if (longNote is GuideNote || longNote.State == NoteState.Done) return;
+				if (longNote is GuideNote || longNote.State == NoteState.Done && !longNote.KeepsBarVisual(MusicScore.CurrentFrameInfo.time + LiveConfig.ViewLeadSeconds)) return;
 			}
 
 			NotePool pool = FindPool(note.Category, note.Type);

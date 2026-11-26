@@ -38,6 +38,10 @@ namespace Sekai.Live
 			return new Vector2(LaneStartF, LaneEndF);
 		}
 
+		// The native visual endpoint can differ from its judgement time.
+		internal double VisualTailTime => childNote?.VisualTargetTime ?? double.NegativeInfinity;
+		internal bool KeepsBarVisual(double viewTime) => LiveConfig.HasVisualLatency && viewTime < VisualTailTime;
+
 		internal NoteBase ConnectorHeadViewNote { get; private set; }
 		private int _connectorHeadStyle;
 		private NoteType _connectorHeadType;

@@ -106,6 +106,7 @@ namespace Sekai.Core.Live
 			LiveConfig.CacheSpeedTime = 0f;
 			ApplyBuiltinSets();
 			timingCompensation = new TimingCompensation(0f, 0f, 0f);
+			LiveConfig.HasVisualLatency = false;
 			LiveConfig.ViewLeadSeconds = 0f;
 			LoadSounds();
 
@@ -258,6 +259,7 @@ namespace Sekai.Core.Live
 				Current = null;
 			}
 
+			LiveConfig.HasVisualLatency = false;
 			LiveConfig.ViewLeadSeconds = 0f;
 			(BootData as FreeLiveBootData)?.ReleaseMaterialAudio();
 			if (BackgroundTexture != null)

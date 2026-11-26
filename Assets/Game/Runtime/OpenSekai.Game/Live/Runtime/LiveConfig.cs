@@ -136,6 +136,7 @@ namespace Sekai.Live
 		/// <see cref="OpenSekai.Shared.Live.Simulation.TimingCompensation"/>). Set by the live controller.
 		/// </summary>
 		public static float ViewLeadSeconds { get; set; }
+		internal static bool HasVisualLatency { get; set; }
 		internal const double NATIVE_KEY_PROGRESS_END = 1.35;
 
 		internal static Vector2 NativeLanePosition(float lane) =>
@@ -185,8 +186,8 @@ namespace Sekai.Live
 			}
 			// A scrolling legacy key can cross the line on either clock first. Sample its
 			// trajectory at display time even after the logic position has crossed it.
-			if (ViewLeadSeconds != 0f && note is NoteBase scrolling && scrolling.State == NoteState.Scrolling
-				&& scrolling.offsetTime > 0f)
+			if (note is NoteBase scrolling && scrolling.offsetTime > 0f && (ViewLeadSeconds != 0f && scrolling.State == NoteState.Scrolling
+				|| scrolling.HasTimedTraceFeedback || scrolling is LongNote barWithTail && barWithTail.KeepsBarVisual(viewTime)))
 			{
 				return 1f + (viewTime - scrolling.MusicScoreInfo.time) / scrolling.offsetTime;
 			}

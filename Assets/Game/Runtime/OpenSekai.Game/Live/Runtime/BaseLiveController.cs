@@ -190,6 +190,7 @@ namespace Sekai.Core.Live
 				Settings?.AudioLatencyMs ?? 0f,
 				Settings?.VisualLatencyMs ?? 0f,
 				auto ? 0f : Settings?.JudgeOffsetMs ?? 0f);
+			LiveConfig.HasVisualLatency = timingCompensation.VisualLatencyMs != 0f;
 			LiveConfig.ViewLeadSeconds = timingCompensation.ViewLeadSeconds;
 		}
 
@@ -679,6 +680,7 @@ namespace Sekai.Core.Live
 
 		protected override void OnExit()
 		{
+			LiveConfig.HasVisualLatency = false;
 			LiveConfig.ViewLeadSeconds = 0f;
 			SoundManager.Instance.StopAll();
 			GarbageCollector.GCMode = GarbageCollector.Mode.Enabled;

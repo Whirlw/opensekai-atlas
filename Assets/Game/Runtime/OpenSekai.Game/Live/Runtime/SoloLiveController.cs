@@ -239,7 +239,9 @@ namespace Sekai.Core.Live
 				HideSkip();
 			}
 			LatencyCapture.RecordFrame(currentGameTime, currentMusicTimeMs / 1000d, musicPhase == MusicPhase.Playing);
-			_liveLogic?.OnUpdate(CurrentLogicChartTime, currentGameTime);
+			float viewTime = CurrentViewTimeSeconds;
+			float viewChartTime = (float)(BootData?.MusicData?.AudioToChartTime(viewTime) ?? viewTime);
+			_liveLogic?.OnUpdate(CurrentLogicChartTime, currentGameTime, viewChartTime);
 			if (BootData?.IsAuto == true)
 			{
 				_liveLogic?.OnAutoInput();
@@ -267,7 +269,7 @@ namespace Sekai.Core.Live
 
 			// The view block, last: it draws what the two blocks above decided.
 			_liveLogic?.OnView();
-			LiveViewExt.OnUpdate(_liveViews, CurrentViewTimeSeconds);
+			LiveViewExt.OnUpdate(_liveViews, viewTime);
 		}
 
 		private new void OnApplicationPause(bool pauseStatus)

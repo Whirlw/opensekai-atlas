@@ -22,6 +22,13 @@ namespace Sekai.Live
 		public NextRushEffectKind NativeEffectKind { get; set; }
 		public bool IsNextRushHeadKey { get; set; }
 		internal bool IsNextRushConnectorHeadVisual { get; set; }
+		internal double VisualTargetTime => NativeScroll == null ? MusicScoreInfo.time : NativeTarget.Time;
+		internal bool UsesTraceFeedback => this is FrictionNote { HasJudgment: true }
+			or FrictionFlickNote { Category: NoteCategory.FrictionFlick }
+			or ConnectionNote { UsesNextRushContactWindow: true } || Category == NoteCategory.FrictionLong;
+		internal bool HasTimedTraceFeedback => LiveConfig.HasVisualLatency && UsesTraceFeedback
+			&& Result is NoteResult.Perfect or NoteResult.Auto;
+
 		internal bool IsNextRush => NativeEffectKind != NextRushEffectKind.Default;
 		internal bool HasNextRushHit { get; set; }
 		internal List<NoteBase> NativeSimLineTargets { get; private set; }

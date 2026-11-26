@@ -130,7 +130,8 @@ namespace Sekai.Core.Live
 			{
 				var note = _activeNativeVisuals[i];
 				if (note.State == NoteState.Done
-					&& !(note is LongNote bar && now < bar.NativeConnectorDisplayEnd))
+					&& !(note.HasTimedTraceFeedback && now < note.VisualTargetTime)
+					&& !(note is LongNote bar && (now < bar.NativeConnectorDisplayEnd || bar.KeepsBarVisual(now))))
 				{
 					int last = _activeNativeVisuals.Count - 1;
 					_activeNativeVisuals[i] = _activeNativeVisuals[last];

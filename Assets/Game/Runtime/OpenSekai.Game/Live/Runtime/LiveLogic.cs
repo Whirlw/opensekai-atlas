@@ -141,7 +141,7 @@ namespace Sekai.Core.Live
 		public MusicScoreInfo currentFrameInfo;
 
 		public LiveScore Score => Session.Score;
-		public bool IsNotesAllFinished => Session.AreNotesFinished
+		public bool IsNotesAllFinished => !_presentation.HasPendingVisuals && Session.AreNotesFinished
 			&& (Session.MusicScore == null || currentFrameInfo.time >= Session.MusicScore.LastHiddenLineTime);
 
 		/// <summary>What is still holding the live open, for the trace of a live that had to be ended by force.</summary>
@@ -217,8 +217,8 @@ namespace Sekai.Core.Live
 		/// The state block of the frame. It lives in <see cref="LiveNoteFrame"/> because that is what
 		/// owns the note walk; this only connects the call.
 		/// </summary>
-		public void OnUpdate(float scoreInfoTime, double currentGameTime) =>
-			NoteFrame.UpdateState(scoreInfoTime, currentGameTime);
+		public void OnUpdate(float scoreInfoTime, double currentGameTime, float? viewChartTime = null) =>
+			NoteFrame.UpdateState(scoreInfoTime, currentGameTime, viewChartTime);
 
 		public int Result
 		{

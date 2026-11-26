@@ -29,8 +29,8 @@ namespace Sekai
 			// first), the key has nothing left to show and is taken off instead of staying pinned there with
 			// the body.
 			// A rub head's key goes the moment the head is judged, like a standalone friction note.
-			if (note.State == NoteState.Done
-				|| (note is LongNote endedBar && (endedBar.HeadKeyLeftWithItsVerdict
+			if (note.State == NoteState.Done && !(note is LongNote finished && finished.KeepsBarVisual(musicTime))
+				|| (note is LongNote endedBar && (endedBar.HeadKeyLeftWithItsVerdict && (!LiveConfig.HasVisualLatency || musicTime >= endedBar.VisualTargetTime)
 					|| (endedBar.NativeScroll == null && endedBar.ChildNote != null
 						&& musicTime >= endedBar.ChildNote.MusicScoreInfo.time))))
 			{
@@ -70,7 +70,7 @@ namespace Sekai
 			}
 
 			float progress = LiveConfig.ViewProgressOf(note, musicTime);
-			if (note.State == NoteState.Done)
+			if (note.State == NoteState.Done && !(note is LongNote finished && finished.KeepsBarVisual(musicTime)))
 			{
 				return LiveConfig.GetNoteViewProgress(progress);
 			}

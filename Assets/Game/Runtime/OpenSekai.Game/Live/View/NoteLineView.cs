@@ -237,7 +237,7 @@ namespace Sekai
 				}
 
 				if (note.State != NoteState.Done
-					|| note is LongNote bar && time < bar.NativeConnectorDisplayEnd)
+					|| note is LongNote bar && (time < bar.NativeConnectorDisplayEnd || bar.KeepsBarVisual(time)))
 				{
 					native |= note.NativeScroll != null;
 					layers |= LayerMaskFor(note);

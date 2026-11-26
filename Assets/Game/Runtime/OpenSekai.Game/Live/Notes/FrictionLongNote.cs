@@ -96,7 +96,7 @@ namespace Sekai.Live
 			if (!HasJudgment || ConnectionNote.InContactWindow(now, MusicScoreInfo.time))
 			{
 				isTouched = true;
-				if (HasJudgment && !Head.IsSettled && now >= MusicScoreInfo.time)
+				if (HasJudgment && !Head.IsSettled && (LiveConfig.HasVisualLatency || now >= MusicScoreInfo.time))
 					SettleRubHead();
 			}
 			RecordHoldingInput(touch.musicTime);

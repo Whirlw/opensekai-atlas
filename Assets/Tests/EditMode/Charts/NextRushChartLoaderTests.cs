@@ -1419,6 +1419,98 @@ namespace OpenSekai.Tests.EditMode.Charts
                 Is.EqualTo((archetype == "CriticalTailTraceFlickNote" ? swipe : touchOwner) ? NoteResult.Perfect : NoteResult.None));
         }
 
+        [TestCase("NormalTraceNote", false)]
+        [TestCase("CriticalTraceNote", true)]
+        [TestCase("NormalTraceFlickNote", false)]
+        [TestCase("CriticalTraceFlickNote", true)]
+        public void ImportedTraceScoresAtInputOnlyWhenVisualLatencyIsEnabled(string archetype, bool compensate)
+        {
+            var chart = Load(Chart(N(archetype, "key", 2)));
+            NoteBase key = chart.Score.NoteArray.Single();
+            bool previous = LiveConfig.HasVisualLatency;
+            float previousLead = LiveConfig.ViewLeadSeconds;
+            try
+            {
+                using var harness = new LiveHarness(_config);
+                harness.Arrange(chart.Score);
+                harness.BindViews();
+                harness.Logic.SetScoreLogic(new ScoreLogic(_config));
+                LiveConfig.HasVisualLatency = compensate;
+                LiveConfig.ViewLeadSeconds = compensate ? -0.08f : 0f;
+                var lane = LiveConfig.NativeLanePosition((key.LaneStartF + key.LaneEndF) * 0.5f);
+                harness.Step(0.8f, 10.8);
+                harness.Step(0.94f, 10.94, LiveHarness.Touch(1, lane, 10.94));
+                harness.Step(0.95f, 10.95, new LiveTouchSample(1, new Vector2(800, 660), lane,
+                    10.95, InputTouchPhase.Moved, new Vector2(0, 60)));
+                Assert.That(key.Result, Is.EqualTo(compensate ? NoteResult.Perfect : NoteResult.None));
+                Assert.That(harness.Logic.Score.perfectCount, Is.EqualTo(compensate ? 1 : 0));
+                harness.Step(1f, 11);
+                harness.Step(1.09f, 11.09);
+                Assert.That(key.Result, Is.EqualTo(NoteResult.Perfect));
+                Assert.That(harness.Logic.Score.perfectCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                LiveConfig.HasVisualLatency = previous;
+                LiveConfig.ViewLeadSeconds = previousLead;
+            }
+        }
+
+        private sealed class ConnectorHeadRecorder : LiveViewBase
+        {
+            internal LongNote Bar;
+            internal bool Visible;
+            public override void SpawnNote(NoteBase note)
+            {
+                if (note == Bar.ConnectorHeadViewNote) Visible = true;
+            }
+            public override void UnspawnNote(NoteBase note)
+            {
+                if (note == Bar || note == Bar.ConnectorHeadViewNote) Visible = false;
+            }
+        }
+
+        [TestCase(-0.1f)]
+        [TestCase(0.1f)]
+        public void NativeConnectorHeadLeavesWhenItsRenderedTailCrosses(float visualLead)
+        {
+            var score = Load(FlickHeadHold("CriticalTraceFlickNote")).Score;
+            var bar = score.NoteArray.OfType<FrictionHideLongNote>().Single();
+            var host = new GameObject("connector head observer");
+            bool previous = LiveConfig.HasVisualLatency;
+            float previousLead = LiveConfig.ViewLeadSeconds;
+            try
+            {
+                using var harness = new LiveHarness(_config);
+                harness.Arrange(score, auto: true);
+                harness.Logic.Notes.BindNativeVisuals(1);
+                var view = host.AddComponent<ConnectorHeadRecorder>();
+                view.Bar = bar;
+                harness.BindViews(view);
+                LiveConfig.HasVisualLatency = true;
+                LiveConfig.ViewLeadSeconds = visualLead;
+                void Frame(float time)
+                {
+                    harness.OnUpdate(time, 10d + time);
+                    harness.Logic.OnAutoInput();
+                    harness.OnView();
+                }
+                Frame(1.5f);
+                Assert.That(view.Visible, Is.True);
+                float end = (float)bar.VisualTailTime;
+                Frame(end - visualLead - 0.01f);
+                Assert.That(view.Visible, Is.True, "the head stays attached until the rendered tail arrives");
+                Frame(end - visualLead + 0.001f);
+                Assert.That(view.Visible, Is.False);
+            }
+            finally
+            {
+                LiveConfig.HasVisualLatency = previous;
+                LiveConfig.ViewLeadSeconds = previousLead;
+                UnityEngine.Object.DestroyImmediate(host);
+            }
+        }
+
         private static JObject FlickHeadHold(string archetype)
         {
             var head = N(archetype, "head", 2, -3);

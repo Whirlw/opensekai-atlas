@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using NUnit.Framework;
+using OpenSekai.Charts;
 using Sekai;
 using Sekai.Core.Live;
 using Sekai.Live;
@@ -27,6 +28,10 @@ namespace OpenSekai.Tests.EditMode.Live
 		{
 			internal readonly List<(NoteCategory category, NoteResult result, float at)> Judged = new();
 			internal float Now;
+			internal int InputFeedbackCount;
+			internal override void TraceInputFeedback(NoteBase note) => InputFeedbackCount++;
+			internal readonly List<NoteBase> Removed = new();
+			public override void UnspawnNote(NoteBase note) => Removed.Add(note);
 
 			public override void JudgmentNote(NoteBase note) => Judged.Add((note.Category, note.Result, Now));
 		}
@@ -42,6 +47,8 @@ namespace OpenSekai.Tests.EditMode.Live
 		[TearDown]
 		public void TearDown()
 		{
+			LiveConfig.HasVisualLatency = false;
+			LiveConfig.ViewLeadSeconds = 0;
 			_harness.Dispose();
 			Object.DestroyImmediate(_viewObject);
 		}
@@ -163,6 +170,104 @@ namespace OpenSekai.Tests.EditMode.Live
 			Step(contact + 0.001f, false, Rest(contact + 0.001f, TouchPhase.Ended));
 			Step(1.2f, false);
 			Assert.That(bar.Head.Result, Is.EqualTo(expected));
+		}
+
+		[TestCase(false, false, -0.1f, 0.95f, false)]
+		[TestCase(true, false, -0.1f, 0.95f, false)]
+		[TestCase(false, true, -0.1f, 0.95f, false)]
+		[TestCase(true, true, -0.1f, 0.95f, false)]
+		[TestCase(false, false, -0.04f, 1.06f, true)]
+		[TestCase(true, true, -0.04f, 1.06f, true)]
+		[TestCase(false, false, 0f, 0.95f, false)] // Opposing visual and judge offsets cancel on the chart clock.
+		[TestCase(true, false, 0.1f, 0.95f, true)]
+		[TestCase(false, true, 0.1f, 0.95f, true)]
+		public void TraceSettlesOnInputAndPresentsOnceAtTheVisibleLine(bool flick, bool native, float lead, float hit, bool alreadyAtLine)
+		{
+			LiveConfig.HasVisualLatency = true;
+			LiveConfig.ViewLeadSeconds = lead;
+			NoteBase key = flick
+				? new FrictionFlickNote(Info(1f), 1, 4, 5, NoteCategory.FrictionFlick, 1f, NoteType.Default, NoteDirection.Left, 0.0833f, 0f)
+				: new FrictionNote(Info(1f), 1, 4, 5, NoteCategory.Friction, 0f, NoteType.Default, 1f);
+			if (native)
+			{
+				key.SetNextRushScroll(new NextRushScrollTimeline(System.Array.Empty<NextRushScrollTimeline.Change>(), 0), 1.01);
+				key.NativeEffectKind = NextRushEffectKind.Trace;
+			}
+			_harness.Arrange(new MusicScore(new[] { key.MusicScoreInfo }, System.Array.Empty<EventBase>(), new[] { key }));
+			_harness.Logic.Notes.BindNativeVisuals(1);
+			_harness.BindViews(_view);
+			_harness.Logic.SetScoreLogic(new ScoreLogic(null));
+			Step(0.8f, false);
+			if (flick) Step(hit - 0.01f, false, Rest(hit - 0.01f, TouchPhase.Began));
+			Step(hit, false, new LiveTouchSample(1, new Vector2(flick ? 560f : 800f, 600f), Position, INPUT_BASE + hit,
+				flick ? TouchPhase.Moved : TouchPhase.Began, flick ? new Vector2(-240f, 0f) : Vector2.zero));
+			Assert.That(key.Result, Is.EqualTo(NoteResult.Perfect), "input settles this frame");
+			Assert.That(_harness.Logic.Score.perfectCount, Is.EqualTo(1));
+			Assert.That(_view.Judged.Count, Is.EqualTo(alreadyAtLine ? 1 : 0));
+			Assert.That(_view.Removed.Contains(key), Is.EqualTo(alreadyAtLine));
+			Assert.That(_view.InputFeedbackCount, Is.EqualTo(alreadyAtLine ? 0 : 1));
+			if (!alreadyAtLine)
+			{
+				float crossing = (float)key.VisualTargetTime - lead;
+				Step(crossing - 0.002f, false);
+				Assert.That(_view.Judged, Is.Empty);
+				Assert.That(LiveConfig.ViewProgressOf(key, (float)key.VisualTargetTime - 0.002f), Is.GreaterThan(0f).And.LessThan(1f));
+				Assert.That(_harness.Logic.IsNotesAllFinished, Is.False);
+				Step(crossing + 0.001f, false);
+			}
+			Step(1.3f, false);
+			Assert.That(_view.Judged.Count, Is.EqualTo(1));
+			Assert.That(_view.Removed.FindAll(n => n == key).Count, Is.EqualTo(1));
+		}
+
+		[Test]
+		public void PracticeSeekDropsPendingTraceFeedback()
+		{
+			LiveConfig.HasVisualLatency = true;
+			LiveConfig.ViewLeadSeconds = -0.1f;
+			var key = new FrictionNote(Info(1f), 1, 4, 5, NoteCategory.Friction, 0f, NoteType.Default, 1f);
+			_harness.Arrange(new MusicScore(new[] { key.MusicScoreInfo }, System.Array.Empty<EventBase>(), new NoteBase[] { key }));
+			_harness.BindViews(_view);
+			Step(0.8f, false);
+			Step(0.95f, false, Rest(0.95f, TouchPhase.Began));
+			Assert.That(key.Result, Is.EqualTo(NoteResult.Perfect));
+			_harness.Logic.SeekPractice(1.5f);
+			Step(1.5f, false);
+			Assert.That(_view.Judged, Is.Empty);
+		}
+
+		[TestCase(false)]
+		[TestCase(true)]
+		public void SettledBarKeepsItsPinnedHeadUntilTheVisibleTail(bool native)
+		{
+			LiveConfig.HasVisualLatency = true;
+			LiveConfig.ViewLeadSeconds = -0.1f;
+			var bar = new LongNote(Info(1f), 1, 4, 5, NoteCategory.Long, NoteType.Default, 1f, 0f);
+			var tail = new FrictionNote(Info(2f), 2, 4, 5, NoteCategory.Friction, 0f, NoteType.Default, 1f);
+			if (native)
+			{
+				var scroll = new NextRushScrollTimeline(System.Array.Empty<NextRushScrollTimeline.Change>(), 0);
+				bar.SetNextRushScroll(scroll, 1);
+				tail.SetNextRushScroll(scroll, 2.025);
+			}
+			bar.AddNoteListAndSetupChildNote(tail);
+			_harness.Arrange(new MusicScore(new[] { bar.MusicScoreInfo }, System.Array.Empty<EventBase>(), new NoteBase[] { bar }), auto: true);
+			_harness.Logic.Notes.BindNativeVisuals(1);
+			_harness.BindViews(_view);
+			var key = _viewObject.AddComponent<LongNoteView>();
+			key.Spawn(bar, 0);
+			Step(0.8f, true);
+			Step(1.2f, true);
+			Step(2.01f, true);
+			Assert.That(bar.State, Is.EqualTo(NoteState.Done));
+			float before = (float)bar.VisualTailTime - 0.01f;
+			key.Move(before);
+			Assert.That(key.transform.localScale.x, Is.GreaterThan(0));
+			Assert.That(_view.Removed, Has.No.Member(bar));
+			Step((float)bar.VisualTailTime + 0.101f, true);
+			key.Move((float)bar.VisualTailTime + 0.001f);
+			Assert.That(key.transform.localScale.x, Is.Zero);
+			Assert.That(_view.Removed, Has.Member(bar));
 		}
 
 		[Test]
