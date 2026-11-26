@@ -28,7 +28,7 @@ namespace OpenSekai.Shared.Playback
         public PracticeSequence(PracticeTemplate template, double startSeconds, double endSeconds, bool repeat = false)
         {
             _template = template ?? throw new ArgumentNullException(nameof(template));
-            if (!(startSeconds >= 0) || double.IsInfinity(startSeconds))
+            if (!double.IsFinite(startSeconds))
                 throw new ArgumentOutOfRangeException(nameof(startSeconds));
             if (!(endSeconds > startSeconds) || double.IsInfinity(endSeconds))
                 throw new ArgumentOutOfRangeException(nameof(endSeconds));

@@ -109,7 +109,17 @@ namespace OpenSekai.Tests.EditMode.Playback
             Assert.That(template.Steps[0].Kind, Is.EqualTo(PracticeStepKind.Play));
         }
 
-        [TestCase(-1, 1)]
+        [Test]
+        public void ASelectionBeforeTheBgmBeginsCanPlayAcrossZero()
+        {
+            var run = new PracticeSequence(Template(PracticeStep.Play(1)), -2.25, 0.5);
+            Assert.That(run.StartSeconds, Is.EqualTo(-2.25));
+            Assert.That(run.Advance(-1, 1.25), Is.False);
+            Assert.That(run.Advance(0, 1), Is.False);
+            Assert.That(run.Advance(0.5, 0.5), Is.True);
+        }
+
+        [TestCase(double.NegativeInfinity, 1)]
         [TestCase(3, 3)]
         [TestCase(4, 2)]
         [TestCase(double.NaN, 1)]
