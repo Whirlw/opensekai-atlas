@@ -71,10 +71,11 @@ namespace OpenSekai.App.UI
 
         internal PackPage Top => _pages.Count > 0 ? _pages[_pages.Count - 1] : null;
 
-        internal static PackScreen Create()
+        internal static PackScreen Create(MaterialPackStore store = null)
         {
             var host = new GameObject("PackScreen");
             PackScreen screen = host.AddComponent<PackScreen>();
+            screen.Store = store;
             screen.Build();
             return screen;
         }
@@ -546,7 +547,7 @@ namespace OpenSekai.App.UI
             });
         }
 
-        private async UniTaskVoid RunImport(string path)
+        internal async UniTask RunImport(string path)
         {
             var cancellation = new CancellationTokenSource();
             _importCancel = cancellation;

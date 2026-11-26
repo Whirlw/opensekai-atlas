@@ -12,6 +12,7 @@ using OpenSekai.App.Library;
 using OpenSekai.App.UI;
 using OpenSekai.Charts;
 using OpenSekai.Infrastructure.Packages;
+using OpenSekai.MaterialPacks;
 using OpenSekai.Infrastructure.Sonolus;
 using OpenSekai.Shared.Live.Simulation;
 using OpenSekai.Shared.Packages;
@@ -526,6 +527,94 @@ namespace OpenSekai.Tests.PlayMode
             yield return WaitFor(() => SceneLoader.GetActiveScene().name == "Library", BOOT_TIMEOUT_SECONDS, "returning from practice");
             Assert.That(PlayResultHandoff.Pending, Is.Null);
             Assert.That(Object.FindFirstObjectByType<ResultPage>(), Is.Null);
+        }
+
+        [UnityTest]
+        public IEnumerator PresetAudioPreviewMatchesNewLive()
+        {
+            yield return LibrarySceneBootsAndShowsThePage();
+            string original = System.Environment.GetEnvironmentVariable("OPENSEKAI_COLLECTION_TEST_ZIP");
+            string zip = original ?? Path.GetFullPath("Tools/fixtures/material-audio-preset.zip");
+            string root = Path.Combine(Path.GetTempPath(), "preset-preview-" + System.Guid.NewGuid().ToString("N"));
+            var store = new MaterialPackStore(root);
+            var packs = PackScreen.Create(store);
+            try
+            {
+                packs.SetPresented(true, false);
+                yield return packs.RunImport(zip).ToCoroutine();
+                var pack = store.List().Installed.Single();
+                if (original != null) Assert.That(pack.Groups.Count, Is.EqualTo(13));
+                yield return null;
+                var detail = packs.Top.Root;
+                void SelectMain(string id) => detail.GetComponentsInChildren<Button>().Single(b =>
+                    b.name == "Use" && b.transform.parent.name == "Group-" + id).onClick.Invoke();
+                SelectMain("sounds-1");
+                var firstSet = store.Describe("audio", store.ResolvePreset(pack.PackId, pack.Digest).Audio);
+                Assert.That(firstSet.Single(b => b.Slot == "audio.tap").Reason, Is.EqualTo("override"));
+                Assert.That(firstSet.Single(b => b.Slot == "audio.tap").Source, Is.Null);
+                Assert.That(firstSet.Single(b => b.Slot == "audio.perfect").Source, Is.EqualTo(pack.GroupReference("sounds-1")));
+                Assert.That(firstSet.Single(b => b.Slot == "audio.countdown").Source, Is.EqualTo(pack.GroupReference("sounds-common")));
+                yield return null; // Rebuilding the group list destroys the old rows at the end of the frame.
+                SelectMain("sounds-2");
+                yield return null;
+                detail.GetComponentsInChildren<Button>().Single(b => b.name == "Review").onClick.Invoke();
+                var audio = packs.ModalLayer.GetComponentsInChildren<Button>().Single(b => b.name == "PreviewAudio");
+                audio.onClick.Invoke();
+                Assert.That(packs.Preview.IsOpen, Is.True);
+
+                // The shipped WAV may have no Unity object name. Identify the built-in clip by
+                // playing its cue directly, independently of the preset and its display labels.
+                var sound = SoundManager.Instance;
+                var occupied = Resources.FindObjectsOfTypeAll<AudioSource>().Where(a => a.clip != null).ToHashSet();
+                uint probe = sound.PlaySE(MaterialPackAudio.Cue("audio.tap"));
+                Assert.That(probe, Is.Not.Zero);
+                var builtin = Resources.FindObjectsOfTypeAll<AudioSource>().Single(a => !occupied.Contains(a) && a.clip != null).clip;
+                sound.StopSE(probe);
+                var expected = new System.Collections.Generic.Dictionary<string, string>();
+                foreach (var (slot, group) in new[] { ("audio.tap", (string)null), ("audio.perfect", "sounds-2"), ("audio.countdown", "sounds-common") })
+                {
+                    var row = packs.ModalLayer.GetComponentsInChildren<Transform>().Single(t => t.name == "Audio-" + slot);
+                    var meta = row.Find("Meta").GetComponent<TMP_Text>().text;
+                    string source = group == null ? "指定内置" : packs.DescribeGroup(pack.GroupReference(group));
+                    Assert.That(meta, Does.Contain(source));
+                    row.Find("Play").GetComponent<Button>().onClick.Invoke();
+                    string clip = group == null ? null : pack.Groups.Single(g => g.Id == group).Slots[slot].File;
+                    expected.Add(slot, clip);
+                    yield return WaitFor(() => Resources.FindObjectsOfTypeAll<AudioSource>().Any(a => clip == null ? a.clip == builtin : a.clip != null && a.clip.name == clip),
+                        BOOT_TIMEOUT_SECONDS, "previewing " + slot);
+                    packs.Media.Stop();
+                }
+                packs.Preview.Close();
+                packs.ModalLayer.GetComponentsInChildren<Button>().Single(b => b.name == "Apply").onClick.Invoke();
+                Assert.That(store.List().Preset.IsFrom(pack.PackId, pack.Digest), Is.True);
+                packs.SetPresented(false, false);
+
+                var packages = SongPackageManager.Shared;
+                var service = new PlayService(packages, OpenSekai.Shared.Settings.LiveSettingsStore.Shared,
+                    new LegacyPlayBootPublisher(), new LegacyPlaySurface(), new LegacyPackageAudioRegistrar(packages),
+                    new LegacyLiveDeckSelection(), new CustomScorePlayHistoryRecorder(), () => store);
+                var request = new PlayRequest(Path.GetFullPath("Tools/fixtures/baseline_tap"), true, Sekai.SceneManager.Scene.Library);
+                var start = service.StartAsync(request, CancellationToken.None).AsTask();
+                yield return WaitFor(() => start.IsCompleted, 60f, "preparing the live with the preset");
+                Assert.That(start.Result.Started, Is.True, start.Result.Message);
+                Assert.That(start.Result.MaterialPackDiagnostics, Is.Empty);
+                yield return WaitFor(() => SceneLoader.GetActiveScene().name == "Core" && Object.FindFirstObjectByType<SoloLiveController>() != null,
+                    BOOT_TIMEOUT_SECONDS, "opening the live with the preset");
+                foreach (var slot in expected)
+                {
+                    uint playback = sound.PlayIngameSE(MaterialPackAudio.Cue(slot.Key));
+                    Assert.That(playback, Is.Not.Zero, slot.Key);
+                    Assert.That(Resources.FindObjectsOfTypeAll<AudioSource>().Any(a => slot.Value == null ? a.clip == builtin : a.clip != null && a.clip.name == slot.Value),
+                        Is.True, slot.Key);
+                    SoundManager.Instance.StopSE(playback);
+                }
+                yield return WaitFor(() => SceneLoader.GetActiveScene().name == "Library" && !store.IsInSession, 90f, "finishing the live");
+            }
+            finally
+            {
+                if (packs != null) Object.Destroy(packs.gameObject);
+                if (Directory.Exists(root)) Directory.Delete(root, true);
+            }
         }
 
         [UnityTest]

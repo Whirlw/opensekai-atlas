@@ -31,6 +31,27 @@ ZIP 根目录放 UTF-8 的 `pack.json`。音效文件使用 16 位 PCM WAV、44.
 }
 ```
 
+### 随包预设的音效来源
+
+在 v1 清单的 `extensions["opensekai.preset"].categories.audio` 中，可以为单个槽位指定来源。例如，下面的第二套以 `sounds-2` 为主组，倒计时由补充组 `sounds-common` 提供，空击始终使用玩家的内置音效。Perfect 随玩家选择的主组切换。
+
+```json
+{
+  "groups": ["sounds-2", "sounds-common"],
+  "overrides": { "audio.tap": null }
+}
+```
+
+如果 Perfect 也要固定，可将同一对象中的 `overrides` 改为：
+
+```json
+{ "audio.tap": null, "audio.perfect": "sounds-1" }
+```
+
+键须为已注册的音效槽位。字符串须为本包内实际提供该槽位的音效组 ID，可以填写主组和补充组以外的组。游戏在应用预设时将该 ID 绑定到预设所属的安装修订。省略的槽位依次查找主组、补充组，最后回退到内置音效。省略整个 `overrides` 或填写 `{}` 均沿用这一查找顺序。
+
+从「资源包」页导入样包，进入「查看预设 → 音效 → 试听」可逐项查看来源并播放。把该预设载入混搭后，可以独立编辑复制过来的逐槽选择。[最小测试包](../../Tools/fixtures/material-audio-preset.zip)
+
 从 Unity 主线程调用管理接口。单独导入只增加可选修订，显式保存才改变之后的开局。组引用由 `GroupReference` 生成，包含包 ID、内容摘要和组 ID。同类别列表中先提供该槽的组优先，逐槽指定的优先级更高，值为 `null` 表示强制使用内置音效。
 
 ```csharp

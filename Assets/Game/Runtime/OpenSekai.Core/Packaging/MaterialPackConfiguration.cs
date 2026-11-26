@@ -227,6 +227,7 @@ namespace OpenSekai.MaterialPacks
     {
         public List<string> Groups { get; set; } = new();
         public int? BuiltinSet { get; set; }
+        public Dictionary<string, string> Overrides { get; set; } = new(StringComparer.Ordinal);
     }
 
     /// <summary>The pack icon from <c>extensions["opensekai.metadata"].icon</c>, a PNG checked at import.</summary>
@@ -265,6 +266,16 @@ namespace OpenSekai.MaterialPacks
                     if (!groups.TryGetValue(id, out var group) || group.Category != category)
                         throw Error(category + " 引用了不属于本包该类别的组 " + id);
                 }
+                if (value.Overrides == null) throw Error("需要逐槽选择对象", ".categories." + category + ".overrides");
+                foreach (var slot in value.Overrides)
+                {
+                    string path = ".categories." + category + ".overrides['" + slot.Key + "']";
+                    if (category != MaterialCategories.AUDIO || !MaterialPackAudio.HasSlot(slot.Key))
+                        throw Error("未知音效槽位", path);
+                    if (slot.Value != null && (!groups.TryGetValue(slot.Value, out var source)
+                        || source.Category != category || !source.Provides(slot.Key)))
+                        throw Error("本包需要提供此槽位的音效组：" + slot.Value, path);
+                }
                 if (value.BuiltinSet.HasValue && (!MaterialCategories.HasBuiltinSets(category)
                     || value.BuiltinSet is < 1 or > MaterialCategories.BUILTIN_SET_COUNT))
                     throw Error(category + " 的 builtinSet 不适用于此类别");
@@ -289,7 +300,10 @@ namespace OpenSekai.MaterialPacks
                 List<string> groups = item.Value.Groups;
                 string main = MainGroup(pack, item.Key, chosen);
                 IEnumerable<string> ids = main == null ? groups : new[] { main }.Concat(groups.Skip(1).Where(id => id != main));
-                configuration.Get(item.Key).Groups.AddRange(ids.Select(pack.GroupReference));
+                var selection = configuration.Get(item.Key);
+                selection.Groups.AddRange(ids.Select(pack.GroupReference));
+                foreach (var slot in item.Value.Overrides)
+                    selection.Overrides.Add(slot.Key, slot.Value == null ? null : pack.GroupReference(slot.Value));
             }
             return configuration;
         }
@@ -345,6 +359,7 @@ namespace OpenSekai.MaterialPacks
             return pack?.Preset == null ? new MaterialPackConfiguration { Builtin = choice.GetBuiltinSets() } : Build(pack, choice.GetBuiltinSets(), chosen);
         }
 
-        private static InvalidDataException Error(string message) => new("随包预设：" + message);
+        private static InvalidDataException Error(string message, string path = "") =>
+            new($"pack.json extensions['{MaterialPackManifest.PRESET_EXTENSION}']{path}：{message}");
     }
 }

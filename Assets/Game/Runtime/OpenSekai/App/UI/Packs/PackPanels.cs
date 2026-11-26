@@ -196,20 +196,45 @@ namespace OpenSekai.App.UI
                 foreach (string slot in slots)
                 {
                     string key = "builtin/" + set + "/" + slot;
-                    AddAudioRow(slot, "内置 · " + label, key, () =>
-                    {
-                        if (!_screen.Media.ToggleBuiltin(key, slot))
-                        {
-                            UiSound.Play(UiCue.Error);
-                            _screen.ShowToast("这个内置音效暂时无法试听，打歌时照常使用。");
-                        }
-                    });
+                    AddBuiltinAudioRow(slot, "内置 · " + label, key);
                 }
 
                 return;
             }
 
             ShowNothing("内置" + info.Title + "是打歌画面中的动态演出与界面元素，此处没有可单独预览的图片。\n未被资源包替换的部分会照常使用它们。");
+        }
+
+        internal void OpenPresetAudio(InstalledMaterialPack pack, MaterialPackConfiguration configuration)
+        {
+            var slots = _screen.Store.Describe(MaterialCategories.AUDIO, configuration.Audio);
+            Begin(pack.Preset.Name, PackWidgets.PackName(pack) + "  ·  " + PackWidgets.Revision(pack),
+                "预设音效", PackWidgets.Accent, "各槽位的生效来源与试听", MaterialCategories.AUDIO);
+            ShowList();
+            foreach (var slot in slots)
+            {
+                if (slot.Source == null)
+                {
+                    string detail = slot.Reason == "override" ? "指定内置" : "内置回退";
+                    AddBuiltinAudioRow(slot.Slot, detail, "builtin/" + configuration.Builtin.Audio + "/" + slot.Slot);
+                    continue;
+                }
+
+                var item = MaterialPackStore.PreviewOf(slot).Single();
+                string key = item.Path + "#" + item.Slot;
+                string source = (slot.Reason == "override" ? "指定组 · " : "") + _screen.DescribeGroup(slot.Source);
+                AddAudioRow(item.Slot, source, key, () => Play(key, item).Forget());
+            }
+        }
+
+        private void AddBuiltinAudioRow(string slot, string detail, string key)
+        {
+            AddAudioRow(slot, detail, key, () =>
+            {
+                if (_screen.Media.ToggleBuiltin(key, slot)) return;
+                UiSound.Play(UiCue.Error);
+                _screen.ShowToast("这个内置音效暂时无法试听，打歌时照常使用。");
+            });
         }
 
         internal void Close()
@@ -551,7 +576,7 @@ namespace OpenSekai.App.UI
                 candidate?.SameChoicesAs(current) == true;
             foreach (string category in MaterialCategories.All)
             {
-                AddRow(category, pack, candidate, current);
+                AddRow(category, pack, candidate, current, error == null);
             }
 
             if (error != null)
@@ -600,7 +625,7 @@ namespace OpenSekai.App.UI
             catch (InvalidDataException) { return MaterialPresets.BuildBuiltin(1); }
         }
 
-        private void AddRow(string category, InstalledMaterialPack pack, MaterialPackConfiguration candidate, MaterialPackConfiguration current)
+        private void AddRow(string category, InstalledMaterialPack pack, MaterialPackConfiguration candidate, MaterialPackConfiguration current, bool canPreview)
         {
             MaterialSlotCatalog.CategoryInfo info = MaterialSlotCatalog.Category(category);
             RectTransform row = ServerWidgets.ListItem(_content, "Row-" + category, ROW_HEIGHT);
@@ -616,7 +641,16 @@ namespace OpenSekai.App.UI
             string text = declared ? DescribeDeclared(category, pack, value, candidate) : "内置整合包 · " + MaterialSlotCatalog.BuiltinLabel(category, candidate?.Builtin);
             TextMeshProUGUI detail = PackWidgets.UserLabel("Detail", row, text, 19f,
                 declared ? LibraryTheme.Colors.TextSecondary : LibraryTheme.Colors.TextMuted);
-            LibraryWidgets.Inset(detail.rectTransform, 230f, 0f, 150f, 0f);
+            bool previewAudio = category == MaterialCategories.AUDIO && canPreview;
+            LibraryWidgets.Inset(detail.rectTransform, 230f, 0f, previewAudio ? 310f : 150f, 0f);
+            if (previewAudio)
+            {
+                var listen = ServerWidgets.LabelledButton(row, "PreviewAudio", "试听", LibraryIcon.Play,
+                    () => _screen.Preview.OpenPresetAudio(pack, candidate), 120f, 52f,
+                    LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, UiCue.Select);
+                LibraryWidgets.Place((RectTransform)listen.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
+                    new Vector2(-164f, 0f), new Vector2(120f, 52f));
+            }
 
             bool changes = candidate == null || !candidate.Get(category).SameAs(current.Get(category))
                 || MaterialCategories.HasBuiltinSets(category) && candidate.Builtin.Get(category) != current.Builtin.Get(category);
@@ -631,7 +665,7 @@ namespace OpenSekai.App.UI
             var parts = new List<string>();
             List<string> groups = candidate?.Get(category).Groups.Select(r =>
                 InstalledMaterialPack.TryParseReference(r, out _, out _, out string id) ? id : r).ToList() ?? value.Groups;
-            if (groups.Count == 0) parts.Add("仅用内置");
+            if (groups.Count == 0 && value.Overrides.Count == 0) parts.Add("仅用内置");
             for (int i = 0; i < groups.Count; i++)
             {
                 string id = groups[i];
@@ -639,6 +673,7 @@ namespace OpenSekai.App.UI
                 parts.Add((i == 0 ? "选用 " : "补充 ") + PackWidgets.GroupName(group));
             }
 
+            if (value.Overrides.Count > 0) parts.Add(value.Overrides.Count + " 项逐槽指定");
             if (MaterialCategories.HasBuiltinSets(category))
             {
                 parts.Add("内置整合包 · " + MaterialSlotCatalog.BuiltinLabel(category, candidate?.Builtin));

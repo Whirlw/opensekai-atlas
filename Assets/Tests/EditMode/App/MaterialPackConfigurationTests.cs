@@ -75,7 +75,6 @@ namespace OpenSekai.Tests.EditMode
         [TestCase("builtinOnJudgment")]
         [TestCase("builtinRange")]
         [TestCase("unknownCategory")]
-        [TestCase("overridesField")]
         [TestCase("missingIcon")]
         [TestCase("metadataField")]
         [TestCase("presetName")]
@@ -90,6 +89,83 @@ namespace OpenSekai.Tests.EditMode
             catch (InvalidDataException) { }
 
             Assert.That(store.List().Installed, Is.Empty);
+        }
+
+        [Test]
+        public async Task PresetTapStaysBuiltinWhenTheMainGroupChanges()
+        {
+            var store = Store();
+            var pack = await store.ImportAsync("Tools/fixtures/material-audio-preset.zip");
+            store.ApplyPreset(pack.PackId, pack.Digest, store.List().Revision);
+            foreach (string main in new[] { "sounds-2", "sounds-1" })
+            {
+                store.SaveBundleGroup(pack.PackId, pack.Digest, "audio", main, store.List().Revision);
+                store = Store();
+                var preview = store.Describe("audio", store.ResolvePreset(pack.PackId, pack.Digest).Audio);
+                var tap = preview.Single(s => s.Slot == "audio.tap");
+                Assert.That(tap.Source, Is.Null);
+                Assert.That(tap.Reason, Is.EqualTo("override"));
+                Assert.That(preview.Single(s => s.Slot == "audio.perfect").Source, Is.EqualTo(pack.GroupReference(main)));
+                Assert.That(preview.Single(s => s.Slot == "audio.countdown").Source, Is.EqualTo(pack.GroupReference("sounds-common")));
+                var live = store.Capture();
+                try { Assert.That(live.Audio.Select(b => (b.Slot, b.Source, b.Reason)), Is.EqualTo(preview.Select(b => (b.Slot, b.Source, b.Reason)))); }
+                finally { store.Release(); }
+            }
+        }
+
+        [Test]
+        public async Task PinnedGroupFollowsItsOwnRevisionAndCopiesIntoMix()
+        {
+            var store = Store();
+            var original = await store.ImportAsync(PresetPack(editCategories: c => c["audio"]["overrides"] = new JObject()));
+            var revised = await store.ImportAsync(PresetPack(editCategories: c =>
+            {
+                c["audio"]["groups"] = new JArray("holds");
+                c["audio"]["overrides"] = new JObject { ["audio.tap"] = null, ["audio.perfect"] = "clicks" };
+            }));
+            var empty = store.ResolvePreset(original.PackId, original.Digest);
+            Assert.That(empty.Audio.Overrides, Is.Empty);
+            var pinned = store.ResolvePreset(revised.PackId, revised.Digest);
+            Assert.That(store.Resolve(pinned.Audio).Single(b => b.Slot == "audio.perfect").Source, Is.EqualTo(revised.GroupReference("clicks")));
+            store.SaveConfiguration(pinned, store.List().Revision);
+            store = Store();
+            var mix = store.List().MixConfiguration();
+            Assert.That(mix.SameChoicesAs(pinned), Is.True);
+            mix.Audio.Overrides.Remove("audio.tap");
+            store.SaveConfiguration(mix, store.List().Revision);
+            Assert.That(store.ResolvePreset(revised.PackId, revised.Digest).Audio.Overrides.ContainsKey("audio.tap"), Is.True);
+            store.Uninstall(original.PackId, original.Digest, store.List().Revision);
+            Assert.That(Store().List().MixConfiguration().Audio.Overrides["audio.perfect"], Is.EqualTo(revised.GroupReference("clicks")));
+            store.Uninstall(revised.PackId, revised.Digest, store.List().Revision);
+            Assert.That(Store().List().MixConfiguration().Audio.Overrides, Is.Empty);
+        }
+
+        [TestCase("audio", "{'audio.typo':null}", "['audio.typo']")]
+        [TestCase("audio", "{'audio.tap':'keys'}", "['audio.tap']")]
+        [TestCase("audio", "{'audio.tap':'holds'}", "['audio.tap']")]
+        [TestCase("audio", "{'audio.tap':'unknown'}", "['audio.tap']")]
+        [TestCase("audio", "{'audio.tap':false}", "['audio.tap']")]
+        [TestCase("audio", "null", "")]
+        [TestCase("notes", "{}", "")]
+        public async Task InvalidOverridesRejectOnlyTheNewRevision(string category, string json, string suffix)
+        {
+            var store = Store();
+            var valid = await store.ImportAsync(PresetPack());
+            store.ApplyPreset(valid.PackId, valid.Digest, store.List().Revision);
+            long revision = store.List().Revision;
+            try
+            {
+                await store.ImportAsync(PresetPack(editCategories: c => c[category]["overrides"] = JToken.Parse(json)));
+                Assert.Fail("应拒绝无效的逐槽指定");
+            }
+            catch (InvalidDataException error)
+            {
+                Assert.That(error.Message, Does.Contain("extensions['opensekai.preset'].categories." + category + ".overrides" + suffix));
+            }
+            var saved = Store().List();
+            Assert.That(saved.Revision, Is.EqualTo(revision));
+            Assert.That(saved.Installed.Single().Digest, Is.EqualTo(valid.Digest));
+            Assert.That(saved.ActiveConfiguration().Audio.Groups, Is.EqualTo(new[] { valid.GroupReference("clicks") }));
         }
 
         // ------------------------------------------------------------------ built-in sets
@@ -544,7 +620,7 @@ namespace OpenSekai.Tests.EditMode
         }
 
         /// <summary>The audio fixture plus a notes group, an icon and the metadata and preset extensions.</summary>
-        private string PresetPack(string fault = null)
+        private string PresetPack(string fault = null, Action<JObject> editCategories = null)
         {
             string path = Path.Combine(_root, Guid.NewGuid().ToString("N") + ".zip");
             using var input = ZipFile.OpenRead(SAMPLE);
@@ -560,11 +636,10 @@ namespace OpenSekai.Tests.EditMode
                 ["groups"] = new JArray(fault switch { "foreignGroup" => "nope", "wrongCategory" => "keys", _ => "clicks" }),
                 ["builtinSet"] = fault == "builtinRange" ? 3 : 2
             };
-            // Per-slot choices are not part of a preset.
-            if (fault == "overridesField") audio["overrides"] = new JObject { ["audio.long"] = null };
             var categories = new JObject { ["audio"] = audio, ["notes"] = new JObject { ["groups"] = new JArray("keys") } };
             if (fault == "builtinOnJudgment") categories["judgment"] = new JObject { ["builtinSet"] = 1 };
             if (fault == "unknownCategory") categories["theme"] = new JObject();
+            editCategories?.Invoke(categories);
             var metadata = new JObject { ["displayName"] = "墨色打歌", ["icon"] = fault == "missingIcon" ? "art/none.png" : "art/icon.png" };
             if (fault == "metadataField") metadata["author"] = "x";
             var presetObject = new JObject { ["name"] = fault == "presetName" ? " " : "清脆打击", ["categories"] = categories };

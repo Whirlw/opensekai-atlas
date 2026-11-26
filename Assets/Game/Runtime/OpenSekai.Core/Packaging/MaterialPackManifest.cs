@@ -206,7 +206,7 @@ namespace OpenSekai.MaterialPacks
                 foreach (var property in categories.Properties())
                 {
                     if (property.Value is not JObject category) throw Error(property, "需要类别对象");
-                    Fields(category, "groups", "builtinSet", "extensions");
+                    Fields(category, "groups", "builtinSet", "overrides", "extensions");
                     var value = new MaterialPresetCategory();
                     if (category["groups"] != null)
                     {
@@ -218,11 +218,21 @@ namespace OpenSekai.MaterialPacks
                         }
                     }
                     if (category["builtinSet"] != null) value.BuiltinSet = Integer(category["builtinSet"]);
+                    if (category.TryGetValue("overrides", out var overridesToken))
+                    {
+                        if (property.Name != MaterialCategories.AUDIO || overridesToken is not JObject overrides)
+                            throw Error(overridesToken, "overrides 仅适用于音效类别，且必须是对象");
+                        foreach (var slot in overrides.Properties())
+                        {
+                            if (slot.Value.Type is not (JTokenType.Null or JTokenType.String))
+                                throw Error(slot, "需要本包音效组 ID 或 null");
+                            value.Overrides.Add(slot.Name, (string)slot.Value);
+                        }
+                    }
                     preset.Categories.Add(property.Name, value);
                 }
                 pack.Preset = preset;
-                try { MaterialPresets.Validate(pack); }
-                catch (InvalidDataException e) { throw Error(presetObject, e.Message); }
+                MaterialPresets.Validate(pack);
             }
         }
 
