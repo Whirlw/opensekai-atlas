@@ -264,10 +264,17 @@ namespace OpenSekai.Tests.PlayMode
             Assert.That(home.IsPracticeShown, Is.False);
 
             var canvas = home.transform.Find("HomeCanvas").GetComponent<Canvas>();
-            var mouse = InputSystem.AddDevice<Mouse>();
+            var settings = InputSystem.settings;
+            var previousBackgroundBehavior = settings.backgroundBehavior;
+            var previousEditorRouting = settings.editorInputBehaviorInPlayMode;
+            Mouse mouse = null;
             Transform setup = null;
             try
             {
+                // A batchmode Editor has no focused Game view to receive the synthetic mouse.
+                settings.backgroundBehavior = InputSettings.BackgroundBehavior.IgnoreFocus;
+                settings.editorInputBehaviorInPlayMode = InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView;
+                mouse = InputSystem.AddDevice<Mouse>();
                 // Each state goes through the scene's input module in its own frame.
                 Vector2 from = new Vector2(Screen.width * 0.75f, Screen.height * 0.5f);
                 Vector2 to = new Vector2(Screen.width * 0.25f, from.y);
@@ -275,6 +282,7 @@ namespace OpenSekai.Tests.PlayMode
                 yield return null;
                 Send(from, true);
                 yield return null;
+                Assert.That(mouse.leftButton.isPressed, Is.True, "the player received the initial pointer press");
                 for (int i = 1; i <= 4; i++)
                 {
                     Send(Vector2.Lerp(from, to, i / 4f), true);
@@ -306,7 +314,9 @@ namespace OpenSekai.Tests.PlayMode
             }
             finally
             {
-                InputSystem.RemoveDevice(mouse);
+                if (mouse != null) InputSystem.RemoveDevice(mouse);
+                settings.editorInputBehaviorInPlayMode = previousEditorRouting;
+                settings.backgroundBehavior = previousBackgroundBehavior;
                 if (setup != null) setup.Find("Frame/Card/Close").GetComponent<Button>().onClick.Invoke();
                 home.SeekHomePage(0);
             }
