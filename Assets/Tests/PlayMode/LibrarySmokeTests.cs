@@ -20,6 +20,8 @@ using Sekai;
 using Sekai.Core.Live;
 using Sekai.Live;
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
 using SceneLoader = UnityEngine.SceneManagement.SceneManager;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
@@ -249,6 +251,81 @@ namespace OpenSekai.Tests.PlayMode
             yield return null;
             yield return SceneLoader.LoadSceneAsync(LIBRARY_SCENE_PATH, LoadSceneMode.Single);
             yield return WaitFor(() => HomeScreen.Current != null, BOOT_TIMEOUT_SECONDS, "building the home page");
+        }
+
+        [UnityTest]
+        public IEnumerator SwipingLeftOnHomeOpensPracticeSetupAndItsLibraryPicker()
+        {
+            yield return LoadColdHome();
+            var home = HomeScreen.Current;
+            home.ShowHomeImmediately();
+            yield return null;
+            Assert.That(home.HomePage, Is.Zero);
+            Assert.That(home.IsPracticeShown, Is.False);
+
+            var canvas = home.transform.Find("HomeCanvas").GetComponent<Canvas>();
+            var mouse = InputSystem.AddDevice<Mouse>();
+            Transform setup = null;
+            try
+            {
+                // Each state goes through the scene's input module in its own frame.
+                Vector2 from = new Vector2(Screen.width * 0.75f, Screen.height * 0.5f);
+                Vector2 to = new Vector2(Screen.width * 0.25f, from.y);
+                Send(from, false);
+                yield return null;
+                Send(from, true);
+                yield return null;
+                for (int i = 1; i <= 4; i++)
+                {
+                    Send(Vector2.Lerp(from, to, i / 4f), true);
+                    yield return null;
+                }
+                Send(to, false);
+                yield return null;
+
+                var card = home.GetComponentsInChildren<RectTransform>(true).Single(rect => rect.name == "PracticeCard");
+                var button = card.GetComponentInChildren<Button>(true);
+                yield return WaitFor(() => home.HomePage == -1 && button.IsInteractable(),
+                    BOOT_TIMEOUT_SECONDS, "settling on the practice page after a left swipe");
+                Vector2 center = Center(card);
+                Assert.That(center.x, Is.InRange(0f, Screen.width * 0.5f), "the practice card occupies the left side");
+                Assert.That(card.rect.width, Is.GreaterThan(((RectTransform)canvas.transform).rect.width * 0.4f),
+                    "the practice entry uses the large card");
+                yield return Click(center);
+                yield return WaitFor(() => home.IsPracticeShown, BOOT_TIMEOUT_SECONDS, "opening practice settings");
+
+                setup = canvas.transform.Find("PracticeSetup");
+                Assert.That(setup.Find("Frame/Card/Title").GetComponent<TextMeshProUGUI>().text, Is.EqualTo("练习模式"));
+                var picker = setup.Find("DanLibraryPicker");
+                Assert.That(picker.gameObject.activeInHierarchy, Is.False);
+                var song = setup.Find("Frame/Card/Body/Song").GetComponent<Button>();
+                yield return Click(Center((RectTransform)song.transform));
+                yield return WaitFor(() => picker.gameObject.activeInHierarchy, BOOT_TIMEOUT_SECONDS, "opening the chart picker");
+                Assert.That(picker.Find("Frame/Card/Title").GetComponent<TextMeshProUGUI>().text, Is.EqualTo("选择练习谱面"));
+                Assert.That(picker.GetComponentInChildren<TMP_InputField>().IsInteractable(), Is.True);
+            }
+            finally
+            {
+                InputSystem.RemoveDevice(mouse);
+                if (setup != null) setup.Find("Frame/Card/Close").GetComponent<Button>().onClick.Invoke();
+                home.SeekHomePage(0);
+            }
+
+            Vector2 Center(RectTransform rect) =>
+                RectTransformUtility.WorldToScreenPoint(canvas.worldCamera, rect.TransformPoint(rect.rect.center));
+
+            void Send(Vector2 position, bool pressed) =>
+                InputSystem.QueueStateEvent(mouse, new MouseState { position = position }.WithButton(MouseButton.Left, pressed));
+
+            IEnumerator Click(Vector2 position)
+            {
+                Send(position, false);
+                yield return null;
+                Send(position, true);
+                yield return null;
+                Send(position, false);
+                yield return null;
+            }
         }
 
         [UnityTest]
