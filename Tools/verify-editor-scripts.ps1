@@ -6,6 +6,7 @@ param([switch]$Repair)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $assets = Join-Path $root 'Assets'
+$pathComparer = if ($IsWindows) { [StringComparer]::OrdinalIgnoreCase } else { [StringComparer]::Ordinal }
 $definitions = Get-ChildItem (Join-Path $assets Game), (Join-Path $assets Tests) -Recurse -Filter 'OpenSekai.*.asmdef'
 if (!$definitions) { throw "No OpenSekai assembly definitions found under $assets." }
 
@@ -39,7 +40,7 @@ return string.Join("\n", AppDomain.CurrentDomain.GetAssemblies()
                 throw "Missing or mismatched portable PDB for $name."
             }
             $reader = $symbols.GetMetadataReader()
-            $inputs = @{}
+            $inputs = [Collections.Generic.Dictionary[string,string]]::new($pathComparer)
             foreach ($handle in $reader.Documents) {
                 $doc = $reader.GetDocument($handle)
                 $path = $reader.GetString($doc.Name)
@@ -53,7 +54,7 @@ return string.Join("\n", AppDomain.CurrentDomain.GetAssemblies()
             foreach ($source in Get-ChildItem -LiteralPath $definition.DirectoryName -Recurse -File -Filter '*.cs') {
                 $hash = (Get-FileHash -LiteralPath $source.FullName -Algorithm SHA256).Hash
                 if ($inputs[$source.FullName] -ne $hash) { $source.FullName }
-                $inputs.Remove($source.FullName)
+                [void]$inputs.Remove($source.FullName)
             }
             # Remaining documents belonged to sources that were moved or removed.
             $inputs.Keys
@@ -64,7 +65,7 @@ return string.Join("\n", AppDomain.CurrentDomain.GetAssemblies()
     }
 }
 
-$stale = @(Get-StaleInputs | Sort-Object -Unique)
+$stale = @(Get-StaleInputs | Sort-Object -Unique -CaseSensitive:(!$IsWindows))
 if ($stale.Count -and $Repair) {
     # Force the individual imports that Refresh() alone can miss.
     $inputList = Join-Path $root "Temp/verify-scripts-$([guid]::NewGuid()).txt"
@@ -92,7 +93,7 @@ return true;
     do {
         Start-Sleep -Seconds 2
         try {
-            $stale = @(Get-StaleInputs | Sort-Object -Unique)
+            $stale = @(Get-StaleInputs | Sort-Object -Unique -CaseSensitive:(!$IsWindows))
         } catch {
             if ([DateTime]::UtcNow -ge $deadline) { throw }
         }
