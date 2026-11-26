@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 
 namespace OpenSekai.Infrastructure.Packages
 {
@@ -22,6 +23,8 @@ namespace OpenSekai.Infrastructure.Packages
             // Query the actual destination filesystem, not the root mount's available space.
             using var stat = new UnityEngine.AndroidJavaObject("android.os.StatFs", directory);
             return stat.Call<long>("getAvailableBytes");
+#elif UNITY_EDITOR_LINUX || (UNITY_STANDALONE_LINUX && !UNITY_EDITOR)
+            return LinuxAvailableBytes(directory);
 #elif UNITY_EDITOR || (UNITY_STANDALONE && !ENABLE_IL2CPP)
             return new DriveInfo(Path.GetPathRoot(directory)).AvailableFreeSpace;
 #else
@@ -29,6 +32,32 @@ namespace OpenSekai.Infrastructure.Packages
             return null;
 #endif
         }
+
+#if UNITY_EDITOR_LINUX || (UNITY_STANDALONE_LINUX && !UNITY_EDITOR)
+        // Linux Unity targets are 64-bit. In the LP64 statvfs ABI, f_frsize and f_bavail
+        // measure bytes per fragment and fragments available to an unprivileged caller.
+        // Supplying the complete 112-byte struct size leaves room for the other fields.
+        [StructLayout(LayoutKind.Explicit, Size = 112)]
+        private struct LinuxVolume
+        {
+            [FieldOffset(8)] public ulong FragmentBytes;
+            [FieldOffset(32)] public ulong AvailableFragments;
+        }
+
+        [DllImport("libc", EntryPoint = "statvfs")]
+        private static extern int StatVfs([MarshalAs(UnmanagedType.LPUTF8Str)] string path, out LinuxVolume volume);
+
+        internal static long? LinuxAvailableBytes(string directory)
+        {
+            // Look up the path itself: a nested mount, bind mount or symlink can point at a
+            // different filesystem from /. Mono DriveInfo can also omit overlay mounts.
+            if (IntPtr.Size != 8 || StatVfs(directory, out var volume) != 0 || volume.FragmentBytes == 0)
+                return null;
+            if (volume.AvailableFragments > (ulong)long.MaxValue / volume.FragmentBytes)
+                return null;
+            return (long)(volume.AvailableFragments * volume.FragmentBytes);
+        }
+#endif
 
         public static void Extract(string archivePath, string destination, Action<float> progress = null, long? availableBytes = null)
         {
