@@ -57,6 +57,28 @@ namespace OpenSekai.Tests.EditMode.Live
         }
 
         [Test]
+        public void RewindingClearsThePreviousTakesScoreComboAndPublishedJudgments()
+        {
+            using var h = new LiveHarness();
+            var note = Tap(2, 1);
+            var score = new MusicScore(null, null, new NoteBase[] { note });
+            h.Arrange(score);
+            h.BindViews();
+            h.Logic.SetScoreLogic(new ScoreLogic(null));
+            foreach (double wall in new[] { 100d, 200d })
+            {
+                h.Logic.SeekPractice(1);
+                Assert.That(h.Logic.Score.combo, Is.Zero);
+                Assert.That(h.Logic.Score.totalScore, Is.Zero);
+                Assert.That(h.Logic.Score.perfectCount, Is.Zero);
+                h.Step(2, wall, LiveHarness.Touch(1, LiveConfig.JudgmentPositions[4], wall));
+                Assert.That(h.Logic.Score.combo, Is.EqualTo(1));
+                Assert.That(h.Logic.Score.perfectCount, Is.EqualTo(1));
+                Assert.That(h.Logic.Score.totalScore, Is.GreaterThan(0));
+            }
+        }
+
+        [Test]
         public void EmptyPracticeCanContinueThroughSilenceWithoutFinishing()
         {
             using var h = new LiveHarness();

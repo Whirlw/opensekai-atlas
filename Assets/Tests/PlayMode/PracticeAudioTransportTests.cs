@@ -33,13 +33,13 @@ namespace OpenSekai.Tests.PlayMode
         [UnityTest]
         public IEnumerator ClipStartsAtTheRequestedSourceSampleEvenWithOutputCalibration()
         {
-            const string cue = "custom_practice_calibration";
+            const string CUE = "custom_practice_calibration";
             var sound = SoundManager.Instance;
-            var clip = AudioClip.Create(cue, 44100 * 12, 1, 44100, false);
+            var clip = AudioClip.Create(CUE, 44100 * 12, 1, 44100, false);
             var obj = new GameObject();
             try
             {
-                sound.RegisterPackageAudioClip(cue, clip);
+                sound.RegisterPackageAudioClip(CUE, clip);
                 obj.AddComponent<CalibratedPlayer>().Begin();
                 var source = Object.FindObjectsByType<AudioSource>(FindObjectsSortMode.None).Single(s => s.clip == clip);
                 double sampleTime = (double)source.timeSamples / clip.frequency;
@@ -58,12 +58,12 @@ namespace OpenSekai.Tests.PlayMode
         public IEnumerator ChangingRatePreservesPositionAndPauseSeekKeepsAudioAligned()
         {
             var sound = SoundManager.Instance;
-            const string cue = "practice_audio_transport";
-            var clip = AudioClip.Create(cue, 44100 * 10, 1, 44100, false);
+            const string CUE = "practice_audio_transport";
+            var clip = AudioClip.Create(CUE, 44100 * 10, 1, 44100, false);
             try
             {
-                sound.RegisterPackageAudioClip(cue, clip);
-                sound.PrepareIngameBGM(cue, 1f);
+                sound.RegisterPackageAudioClip(CUE, clip);
+                sound.PrepareIngameBGM(CUE, 1f);
                 sound.ResumePreparedPlaybackIngame();
                 yield return new WaitForSecondsRealtime(.3f);
                 long before = sound.GetAudioSyncedUnityTimer();
@@ -84,7 +84,7 @@ namespace OpenSekai.Tests.PlayMode
                 Assert.That(audioSeconds, Is.GreaterThan(3.25));
                 Assert.That(sound.GetAudioSyncedUnityTimer() / 1000d, Is.EqualTo(audioSeconds).Within(.14));
                 sound.StopIngame();
-                sound.PrepareIngameBGM(cue, 0f);
+                sound.PrepareIngameBGM(CUE, 0f);
                 Assert.That(source.pitch, Is.EqualTo(1f), "pooled sources used by subsequent ordinary songs start at 1x");
             }
             finally
@@ -97,15 +97,15 @@ namespace OpenSekai.Tests.PlayMode
         [UnityTest]
         public IEnumerator SegmentStopsOnMixerClockAndCanReplayEarlierAtAnotherRate()
         {
-            const string cue = "practice_segment_end";
+            const string CUE = "practice_segment_end";
             var sound = SoundManager.Instance;
-            var clip = AudioClip.Create(cue, 44100 * 5, 1, 44100, false);
+            var clip = AudioClip.Create(CUE, 44100 * 5, 1, 44100, false);
             try
             {
-                sound.RegisterPackageAudioClip(cue, clip);
+                sound.RegisterPackageAudioClip(CUE, clip);
                 foreach (float rate in new[] { .5f, 1.5f })
                 {
-                    sound.PrepareIngameBGM(cue, 1f);
+                    sound.PrepareIngameBGM(CUE, 1f);
                     sound.SetIngameBgmPitch(rate);
                     sound.ResumePreparedPlaybackIngame();
                     double deadline = sound.ScheduleIngameEnd(1.2);
