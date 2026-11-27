@@ -70,8 +70,12 @@ namespace OpenSekai.App.Playback
             Instance.ReleaseStartLock();
         }
 
-        public async UniTask<PlayStartResult> StartAsync(
-            PlayRequest request, CancellationToken cancellationToken, Action<string> progress = null)
+        public UniTask<PlayStartResult> StartAsync(
+            PlayRequest request, CancellationToken cancellationToken, Action<string> progress = null) =>
+            StartAsync(request, cancellationToken, progress, null, null);
+
+        internal async UniTask<PlayStartResult> StartAsync(PlayRequest request, CancellationToken cancellationToken,
+            Action<string> progress, MaterialPackStore previewStore, PlaybackSettingsSnapshot previewSettings)
         {
             if (IsStarting)
             {
@@ -109,10 +113,10 @@ namespace OpenSekai.App.Playback
                 }
 
                 SongPackage cached = temporary?.Metadata ?? _packages.FindCachedItem(request.PackageDirectory)?.Entry;
-                PlaybackSettingsSnapshot settings = _settings.CaptureSnapshot();
-                if (_materialStore != null)
+                PlaybackSettingsSnapshot settings = previewSettings ?? _settings.CaptureSnapshot();
+                if (previewStore != null || _materialStore != null)
                 {
-                    try { material = new MaterialAudioPreparation(_materialStore()); }
+                    try { material = new MaterialAudioPreparation(previewStore ?? _materialStore()); }
                     catch (Exception e) when (e is IOException or InvalidDataException or JsonException or UnauthorizedAccessException)
                     {
                         materialDiagnostics.Add("资源包索引：" + e.Message);

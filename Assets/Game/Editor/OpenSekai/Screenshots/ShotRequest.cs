@@ -25,6 +25,18 @@ namespace OpenSekai.EditorTools.Screenshots
         /// <summary>Quit the editor when done (used when the script launched the editor itself).</summary>
         public bool quitWhenDone;
 
+        public EditorPackPreview editorPreview;
+
+        public sealed class EditorPackPreview
+        {
+            public string id;
+            public string packId;
+            public Dictionary<string, OpenSekai.MaterialPacks.MaterialPresetCategory> categories;
+            public float noteSpeed = 6f;
+            public float brightness = 1f;
+            [JsonIgnore] internal string Directory;
+        }
+
         public List<Shot> shots = new List<Shot>();
 
         public static ShotRequest Load(string path)
@@ -33,6 +45,19 @@ namespace OpenSekai.EditorTools.Screenshots
             if (request == null)
             {
                 throw new InvalidDataException("Empty screenshot request: " + path);
+            }
+            if (request.editorPreview != null)
+            {
+                var preview = request.editorPreview;
+                if (!Guid.TryParse(preview.id, out _) || string.IsNullOrWhiteSpace(preview.packId) ||
+                    preview.categories == null || !(preview.noteSpeed >= 1 && preview.noteSpeed <= 12) ||
+                    !(preview.brightness >= 0 && preview.brightness <= 1) ||
+                    request.shots == null || request.shots.Count != 1 ||
+                    request.shots[0]?.kind is not ("live" or "finish"))
+                    throw new InvalidDataException("Invalid editor frame request.");
+                preview.Directory = Path.GetDirectoryName(Path.GetFullPath(path));
+                request.shots[0].package = Path.Combine(preview.Directory, "song");
+                request.outDir = Path.Combine(preview.Directory, "frames");
             }
             request.Normalize();
             return request;

@@ -40,6 +40,8 @@ namespace OpenSekai.EditorTools.Screenshots
         private static readonly ManualMotionDispatcher _motionClock = new ManualMotionDispatcher();
 
         private ShotRequest _request;
+        private string _previewStoreRoot;
+        private string _previewDigest;
         private readonly List<ShotReport> _reports = new List<ShotReport>();
         private Action<RunReport> _onDone;
         private GameObject _host;
@@ -142,6 +144,8 @@ namespace OpenSekai.EditorTools.Screenshots
                 sampleLibrary = _sampleLibraryReady,
                 screenWidth = Screen.width,
                 screenHeight = Screen.height,
+                editorPreviewId = _request.editorPreview?.id,
+                materialPackDigest = _previewDigest,
                 shots = _reports
             };
             File.WriteAllText(Path.Combine(_request.outDir, "report.json"), JsonConvert.SerializeObject(report, Formatting.Indented));
@@ -185,6 +189,13 @@ namespace OpenSekai.EditorTools.Screenshots
             }
 
             yield return LeaveLive();
+            if (_previewStoreRoot != null)
+            {
+                try { if (Directory.Exists(_previewStoreRoot)) Directory.Delete(_previewStoreRoot, true); }
+                catch (IOException e) { Debug.LogWarning("Temporary preview pack: " + e.Message); }
+                catch (UnauthorizedAccessException e) { Debug.LogWarning("Temporary preview pack: " + e.Message); }
+                _previewStoreRoot = null;
+            }
             StopMotionClock();
             Time.captureDeltaTime = _previousDelta;
         }
@@ -889,20 +900,58 @@ namespace OpenSekai.EditorTools.Screenshots
             }
         }
 
+        private async UniTask<MaterialPackStore> PrepareEditorPreview(ShotRequest.EditorPackPreview preview)
+        {
+            _previewStoreRoot = Path.Combine(Application.temporaryCachePath, "OpenSekaiPreview", Guid.NewGuid().ToString("N"));
+            var store = new MaterialPackStore(_previewStoreRoot);
+            var pack = await store.ImportAsync(Path.Combine(preview.Directory, "pack.zip"));
+            if (pack.PackId != preview.packId) throw new InvalidDataException("Resource pack ID differs from the request.");
+            var config = new OpenSekai.MaterialPacks.MaterialPackConfiguration();
+            foreach (var item in preview.categories)
+            {
+                var selection = config.Get(item.Key);
+                selection.Groups.AddRange(item.Value.Groups.Select(pack.GroupReference));
+                foreach (var slot in item.Value.Overrides)
+                    selection.Overrides.Add(slot.Key, slot.Value == null ? null : pack.GroupReference(slot.Value));
+            }
+            store.SaveConfiguration(config, store.List().Revision);
+            _previewDigest = pack.Digest;
+            return store;
+        }
+
+        private OpenSekai.Shared.Settings.PlaybackSettingsSnapshot PreviewSettings(ShotRequest.EditorPackPreview preview)
+        {
+            var settings = new OpenSekai.Shared.Settings.LiveSettingsStore(Path.Combine(_previewStoreRoot, "settings.json"));
+            var live = settings.Load();
+            live.NoteSpeed = preview.noteSpeed;
+            live.Brightness = live.MovieBrightness = preview.brightness;
+            return settings.CaptureSnapshot();
+        }
+
         private IEnumerator StartLive(Shot shot, bool infoPage, string finishAnimation)
         {
             yield return WaitForLibrary();
             string directory = ResolvePackage(shot.package);
             PlayStartResult result = null;
             Exception error = null;
+            MaterialPackStore store = null;
+            OpenSekai.Shared.Settings.PlaybackSettingsSnapshot settings = null;
+            if (_request.editorPreview != null)
+            {
+                yield return PrepareEditorPreview(_request.editorPreview).ToCoroutine(s => store = s, e => error = e);
+                if (error != null) throw new InvalidOperationException("Preview pack could not be prepared.", error);
+                settings = PreviewSettings(_request.editorPreview);
+            }
             yield return PlayService.Instance
-                .StartAsync(new PlayRequest(directory, true, SceneManager.Scene.Library), CancellationToken.None)
+                .StartAsync(new PlayRequest(directory, true, SceneManager.Scene.Library), CancellationToken.None, null, store, settings)
                 .ToCoroutine(r => result = r, e => error = e);
             if (error != null || result == null || !result.Started)
             {
                 throw new InvalidOperationException("The live did not start: " + (error?.Message ?? result?.Message));
             }
 
+            if (_request.editorPreview != null && result.MaterialPackDiagnostics.Count > 0)
+                throw new InvalidDataException(string.Join(" / ", result.MaterialPackDiagnostics));
             FreeLiveBootData boot = UserDataManager.Instance.FreeLiveBootData;
             if (!string.IsNullOrWhiteSpace(shot.difficulty))
             {
@@ -1151,6 +1200,8 @@ namespace OpenSekai.EditorTools.Screenshots
         public bool sampleLibrary;
         public int screenWidth;
         public int screenHeight;
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public string editorPreviewId;
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)] public string materialPackDigest;
         public List<ShotReport> shots;
     }
 

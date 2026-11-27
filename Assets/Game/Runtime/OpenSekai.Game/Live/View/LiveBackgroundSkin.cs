@@ -40,6 +40,7 @@ namespace Sekai
         private readonly Material _material;
         private readonly List<(Transform transform, MaterialBackgroundLayer layout, Sprite sprite)> _planes = new();
         private readonly Dictionary<Vector2, Sprite> _jackets = new();
+        private bool _needsMaskWarmup;
         internal bool HasVisibleLayers => _planes.Count > 0;
 
         internal LiveBackgroundComposition(Camera reference, Transform parent, Material material)
@@ -78,6 +79,7 @@ namespace Sekai
             renderer.flipY = layer.FlipY;
             if (layer.Color != null) renderer.color = new Color(layer.Color[0], layer.Color[1], layer.Color[2], layer.Color[3]);
             if (masks == null) return;
+            _needsMaskWarmup = true;
             renderer.maskInteraction = SpriteMaskInteraction.VisibleInsideMask;
             for (int i = 0; i < masks.Length; i++)
             {
@@ -122,6 +124,13 @@ namespace Sekai
                 if (layout.Rotation != null) plane.localRotation = Quaternion.Euler(layout.Rotation[0], layout.Rotation[1], layout.Rotation[2]);
             }
             SortingGroup.UpdateAllSortingGroups();
+            if (_needsMaskWarmup)
+            {
+                // A cold camera draw can miss the sprite stencil masks. Prime them before
+                // baking the texture that the live scene will sample.
+                _camera.Render();
+                _needsMaskWarmup = false;
+            }
             _camera.Render();
         }
 

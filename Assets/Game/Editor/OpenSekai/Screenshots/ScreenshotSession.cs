@@ -162,6 +162,16 @@ namespace OpenSekai.EditorTools.Screenshots
             }
         }
 
+        // A separate entry point also prevents an older checkout ignoring editorPreview and capturing its active pack.
+        public static void CaptureMaterialPreviewFromCommandLine()
+        {
+            var args = Environment.GetCommandLineArgs();
+            int at = Array.IndexOf(args, "-shotRequest");
+            if (at < 0 || at + 1 >= args.Length || ShotRequest.Load(args[at + 1]).editorPreview == null)
+                throw new InvalidDataException("A material preview request is required.");
+            CaptureFromCommandLine();
+        }
+
         [MenuItem("OpenSekai/Screenshots/Capture Sample Set (2800x1272)", priority = 300)]
         private static void CaptureSamplePhone() => StartSample(2800, 1272);
 
