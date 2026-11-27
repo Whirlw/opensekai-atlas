@@ -279,15 +279,20 @@ namespace OpenSekai.Tests.PlayMode
                 var button = shopCard.GetComponentInChildren<Button>();
                 Assert.That(button.IsInteractable(), Is.True);
                 button.onClick.Invoke();
-                yield return null;
-                var shop = home.transform.Find("HomeCanvas/Shop");
-                Assert.That(shop.gameObject.activeInHierarchy, Is.True);
+                yield return WaitFor(() => home.IsShopShown, BOOT_TIMEOUT_SECONDS, "opening the shop");
+                var shop = home.GetComponentInChildren<ShopScreen>();
                 var labels = shop.GetComponentsInChildren<TextMeshProUGUI>();
-                Assert.That(labels.Single(label => label.name == "Balance").text, Is.EqualTo("100"));
+                var balance = labels.Single(label => label.name == "Balance");
+                // The balance counts up as the page rises.
+                yield return WaitFor(() => balance.text == "100", BOOT_TIMEOUT_SECONDS, "the balance settling");
                 Assert.That(labels.Single(label => label.name == "Item").text, Is.EqualTo("节拍头像"));
                 Assert.That(labels.Single(label => label.name == "Amount").text, Is.EqualTo("−40 金币"));
-                shop.GetComponentsInChildren<Button>().Single(b => b.name == "Close").onClick.Invoke();
-                Assert.That(shop.gameObject.activeSelf, Is.False);
+                Assert.That(shop.GetComponentsInChildren<RectTransform>().Count(rect => rect.name.StartsWith("Shelf") && rect.name != "Shelves"
+                    && rect.name != "ShelfTitle"), Is.EqualTo(3), "nothing is on sale yet");
+                shop.Back();
+                yield return WaitFor(() => !home.IsShopShown && home.IsHomeShown && home.HomePage == 1, BOOT_TIMEOUT_SECONDS, "back from the shop");
+                // The 商店 card is still shrinking back into its page; settle it.
+                home.ShowHomeImmediately();
 
                 home.SeekHomePage(-1f);
                 yield return null;

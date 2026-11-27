@@ -80,6 +80,10 @@
 #                 card and hand-over, every achievement and each filter, two reward cards, an unlock frame by
 #                 frame and one with a tap, an earlier level, rows with one to eight levels, the card for one
 #                 goal reached, for three at once and mid-entrance, back to page 2, and a new profile.
+#   -ShopPage     The 商店 part on a sample profile in a temp folder (never the player's own): the home card
+#                 at three times and its hand-over, the page with nothing on sale (every kind's shelf, then
+#                 one kind's), a sample catalog with each kind, the exchange card for something affordable,
+#                 something owned and something too dear, one purchase landing, back to page 2, a new profile.
 #   -MedalsPage   The achievements' medals and avatars on a sample profile in a temp folder: every series'
 #                 emblem, the special medals at every size with their motions held at four times, the
 #                 avatars, and the home card, profile, medal and avatar pickers and 成就 rows showing them.
@@ -120,6 +124,7 @@ param(
     [switch]$ProfilePage,
     [switch]$DanPage,
     [switch]$AchievementsPage,
+    [switch]$ShopPage,
     [switch]$MedalsPage,
     [switch]$RankingTiers,
     [switch]$Sample,
@@ -186,7 +191,7 @@ if ($Request) {
     }
     if ($StyleGuide) {
         $Sample = $true; $HomePage = $true; $Server = $true; $Packs = $true; $ProfilePage = $true; $DanPage = $true
-        $AchievementsPage = $true; $MedalsPage = $true; $RankingTiers = $true; $SettingsTrace = $true; $introDefault = $true
+        $AchievementsPage = $true; $ShopPage = $true; $MedalsPage = $true; $RankingTiers = $true; $SettingsTrace = $true; $introDefault = $true
         if (-not $Result) { $Result = 'default,fc,ap,outside,auto,failed,retired,savefailed,loaderror' }
         if (-not $infoTimes) { $infoTimes = @(0.3, 1.5) }
         if (-not $Package) { $Package = 'Aurora Line' }
@@ -206,6 +211,7 @@ if ($Request) {
     if ($ProfilePage) { [void]$shots.Add(@{ kind = 'profile' }) }
     if ($DanPage) { [void]$shots.Add(@{ kind = 'dan' }) }
     if ($AchievementsPage) { [void]$shots.Add(@{ kind = 'achievements' }) }
+    if ($ShopPage) { [void]$shots.Add(@{ kind = 'shop' }) }
     if ($MedalsPage) { [void]$shots.Add(@{ kind = 'medals' }) }
     if ($RankingTiers) { [void]$shots.Add(@{ kind = 'ranking' }) }
     if ($introDefault) { [void]$shots.Add(@{ kind = 'intro' }) }
@@ -259,7 +265,7 @@ if ($Request) {
         if ($Difficulty) { $shot.difficulty = $Difficulty }
         Add-TimedShot $shot $finishTimes
     }
-    if ($shots.Count -eq 0) { throw 'Nothing to capture: pass -All, -HomePage, -Server, -Packs, -ProfilePage, -DanPage, -AchievementsPage, -MedalsPage, -RankingTiers, -Sample, -StyleGuide, -Intro, -Live, -Info, -Finish, -Library, -Settings, -SettingsTrace, -Result or -Request.' }
+    if ($shots.Count -eq 0) { throw 'Nothing to capture: pass -All, -HomePage, -Server, -Packs, -ProfilePage, -DanPage, -AchievementsPage, -ShopPage, -MedalsPage, -RankingTiers, -Sample, -StyleGuide, -Intro, -Live, -Info, -Finish, -Library, -Settings, -SettingsTrace, -Result or -Request.' }
 
     $requestPath = Join-Path $requestDir "request-$stamp.json"
     $body = @{ outDir = $OutDir; width = $Width; height = $Height; shots = @($shots) }

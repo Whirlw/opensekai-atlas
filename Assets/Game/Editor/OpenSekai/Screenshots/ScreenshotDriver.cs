@@ -114,6 +114,7 @@ namespace OpenSekai.EditorTools.Screenshots
                     case "profile": body = ProfileShot(shot); break;
                     case "dan": body = DanShot(shot); break;
                     case "achievements": body = AchievementsShot(shot); break;
+                    case "shop": body = ShopShot(shot); break;
                     case "medals": body = MedalsShot(shot); break;
                     case "ranking": body = RankingShot(shot); break;
                     case "sample": body = SampleShot(shot); break;

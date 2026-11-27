@@ -43,6 +43,7 @@ namespace OpenSekai.App.UI
         private ProfileScreen _profile;
         private DanScreen _dan;
         private AchievementScreen _achievements;
+        private ShopScreen _shop;
         private PlayerProfileStore _profileStore;
         private CancellationTokenSource _serverPlayCancellation;
         private LibraryLoadingOverlay _serverLoading;
@@ -53,7 +54,6 @@ namespace OpenSekai.App.UI
         private HomeSplash _splash;
         private BrandEmblem _emblem;
         private HomeAboutPanel _about;
-        private HomeShop _shop;
         private PracticeSetupPanel _practice;
         private LibrarySettingsPanel _settings;
         private JacketThumbnails _thumbnails;
@@ -89,6 +89,9 @@ namespace OpenSekai.App.UI
         /// <summary>True while the 成就 part is on screen.</summary>
         public bool IsAchievementsShown => _achievements != null && _achievements.IsPresented;
 
+        /// <summary>True while the 商店 part is on screen.</summary>
+        public bool IsShopShown => _shop != null && _shop.IsPresented;
+
         /// <summary>Capture coordinates retain 0 for the library and 1 for the profile. Practice is -1.</summary>
         public int HomePage => _view.Page - HomeView.PageOf(HomeDestination.Library);
 
@@ -105,6 +108,7 @@ namespace OpenSekai.App.UI
                 if (_profile != null) _profile.Store = value;
                 if (_dan != null) _dan.Store = value;
                 if (_achievements != null) _achievements.Store = value;
+                if (_shop != null) _shop.Store = value;
             }
         }
 
@@ -116,7 +120,8 @@ namespace OpenSekai.App.UI
             Server,
             Profile,
             Dan,
-            Achievements
+            Achievements,
+            Shop
         }
 
         /// <summary>True once the emblem has its bundled layers.</summary>
@@ -156,6 +161,7 @@ namespace OpenSekai.App.UI
             HideProfile();
             HideDan();
             HideAchievements();
+            HideShop();
             HideHome();
             _view.TurnTo(HomeView.PageOf(HomeDestination.Library), false);
             ShowReadyLibrary(false);
@@ -175,6 +181,7 @@ namespace OpenSekai.App.UI
             HideProfile();
             HideDan();
             HideAchievements();
+            HideShop();
             ShowHome(refreshSummary);
             _about.Hide();
             _splash.Evaluate(HomeSplash.Length);
@@ -227,6 +234,7 @@ namespace OpenSekai.App.UI
             HideProfile();
             HideDan();
             HideAchievements();
+            HideShop();
             HideHome();
             EnsureServer().SetPresented(true, false);
         }
@@ -257,6 +265,7 @@ namespace OpenSekai.App.UI
             HideProfile();
             HideDan();
             HideAchievements();
+            HideShop();
             HideHome();
             _packsOrigin = PackOrigin.Home;
             EnsurePacks().SetPresented(true, false);
@@ -288,6 +297,7 @@ namespace OpenSekai.App.UI
             HidePacks();
             HideDan();
             HideAchievements();
+            HideShop();
             HideHome();
             _view.TurnTo(HomeView.PageOf(HomeDestination.Profile), false);
             EnsureProfile().SetPresented(true, false);
@@ -305,6 +315,7 @@ namespace OpenSekai.App.UI
             HidePacks();
             HideProfile();
             HideAchievements();
+            HideShop();
             HideHome();
             _view.TurnTo(HomeView.PageOf(HomeDestination.Dan), false);
             EnsureDan().SetPresented(true, false);
@@ -322,9 +333,42 @@ namespace OpenSekai.App.UI
             HidePacks();
             HideProfile();
             HideDan();
+            HideShop();
             HideHome();
             _view.TurnTo(HomeView.PageOf(HomeDestination.Profile), false);
             EnsureAchievements().SetPresented(true, false);
+        }
+
+        /// <summary>Shows the 商店 part at once, as if the player had gone in.</summary>
+        public void ShowShopImmediately()
+        {
+            _view.StopTransition();
+            _splash.Stop();
+            _splash.Evaluate(HomeSplash.Length);
+            _navigating = false;
+            _library?.SetPresented(false, false);
+            HideServer();
+            HidePacks();
+            HideProfile();
+            HideDan();
+            HideAchievements();
+            HideHome();
+            _view.TurnTo(HomeView.PageOf(HomeDestination.Shop), false);
+            EnsureShop().SetPresented(true, false);
+        }
+
+        /// <summary>
+        /// Holds the hand-over to the 商店 part at <paramref name="amount"/> (0 the second page at
+        /// rest, 1 the 商店 card covering the screen), for screenshots of the transition.
+        /// </summary>
+        public void SeekShopHandoff(float amount)
+        {
+            ShowHomeImmediately();
+            _idle.TryCancel();
+            _idle = default;
+            TickIdle(IntroLength);
+            _view.TurnTo(HomeView.PageOf(HomeDestination.Shop), false);
+            _view.ApplyExpansion(HomeDestination.Shop, Mathf.Clamp01(amount));
         }
 
         /// <summary>
@@ -417,6 +461,9 @@ namespace OpenSekai.App.UI
 
         /// <summary>What tapping the 成就 card does.</summary>
         public void EnterAchievements() => OpenAchievements();
+
+        /// <summary>What tapping the 商店 card does.</summary>
+        public void EnterShop() => OpenShop();
 
         /// <summary>What tapping the 资源包 card does.</summary>
         public void EnterPacks() => OpenPacks();
@@ -680,6 +727,12 @@ namespace OpenSekai.App.UI
                 return;
             }
 
+            if (_shop != null && _shop.IsPresented)
+            {
+                CoverThenShowPacks(PackOrigin.Shop, _shop.PlayExit, () => _shop.SetPresented(false, false));
+                return;
+            }
+
             if (_server != null && _server.IsPresented)
             {
                 CoverThenShowPacks(PackOrigin.Server, _server.PlayExit, () => _server.SetPresented(false, false));
@@ -751,6 +804,13 @@ namespace OpenSekai.App.UI
                 if (origin == PackOrigin.Achievements && _achievements != null)
                 {
                     _achievements.SetPresented(true, true);
+                    _navigating = false;
+                    return;
+                }
+
+                if (origin == PackOrigin.Shop && _shop != null)
+                {
+                    _shop.SetPresented(true, true);
                     _navigating = false;
                     return;
                 }
@@ -1108,18 +1168,62 @@ namespace OpenSekai.App.UI
             }
         }
 
+        /// <summary>The 商店 card grows over the second page, then the part rises out of it.</summary>
         private void OpenShop()
         {
-            if (_navigating || _splash.IsPlaying) return;
-            try
+            if (_navigating || !_homeShown)
             {
-                _shop ??= new HomeShop((RectTransform)_canvasRoot.transform);
-                _shop.Open(ProfileStore);
+                return;
             }
-            catch (Exception error)
+
+            _navigating = true;
+            UiSound.Play(UiCue.Forward);
+            ShopScreen shop = EnsureShop();
+            _view.PlayExpand(HomeDestination.Shop, () =>
             {
-                Debug.LogWarning("[Shop] " + error.Message);
-                _view.ShowToast("无法读取金币记录");
+                HideHome();
+                shop.SetPresented(true, true);
+                _navigating = false;
+            });
+        }
+
+        /// <summary>The 商店 part falls into the ground, then its card shrinks back into the second page.</summary>
+        private void ReturnFromShop()
+        {
+            if (_navigating || _shop == null || !_shop.IsPresented)
+            {
+                return;
+            }
+
+            _navigating = true;
+            _shop.PlayExit(() =>
+            {
+                _shop.SetPresented(false, false);
+                ShowHome();
+                _splash.Evaluate(HomeSplash.Length);
+                _view.PlayCollapse(HomeDestination.Shop, () => _navigating = false);
+            });
+        }
+
+        private ShopScreen EnsureShop()
+        {
+            if (_shop != null)
+            {
+                return _shop;
+            }
+
+            _shop = ShopScreen.Create();
+            _shop.transform.SetParent(transform, false);
+            _shop.Store = _profileStore;
+            _shop.BackRequested += ReturnFromShop;
+            return _shop;
+        }
+
+        private void HideShop()
+        {
+            if (_shop != null && _shop.IsPresented)
+            {
+                _shop.SetPresented(false, false);
             }
         }
 
@@ -1178,7 +1282,6 @@ namespace OpenSekai.App.UI
             _idle = default;
             _about.Hide();
             _settings?.Hide();
-            _shop?.Close();
             _canvasRoot.SetActive(false);
             _camera.enabled = false;
         }
@@ -1277,6 +1380,17 @@ namespace OpenSekai.App.UI
                 return;
             }
 
+            if (_shop != null && _shop.IsPresented)
+            {
+                if (!_shop.TryHandleBack())
+                {
+                    UiSound.Play(UiCue.Back);
+                    ReturnFromShop();
+                }
+
+                return;
+            }
+
             if (_server != null && _server.IsPresented)
             {
                 if (!_server.TryHandleBack())
@@ -1310,12 +1424,6 @@ namespace OpenSekai.App.UI
             }
 
             if (_practice?.TryHandleBack() == true) return;
-
-            if (_shop?.IsOpen == true)
-            {
-                _shop.Close();
-                return;
-            }
 
             if (_about.IsOpen)
             {
@@ -1614,6 +1722,11 @@ namespace OpenSekai.App.UI
                 _achievements.BackRequested -= ReturnFromAchievements;
             }
 
+            if (_shop != null)
+            {
+                _shop.BackRequested -= ReturnFromShop;
+            }
+
             if (_server != null)
             {
                 _server.BackRequested -= ReturnFromServer;
@@ -1627,7 +1740,6 @@ namespace OpenSekai.App.UI
             _splash?.Dispose();
             _view?.Dispose();
             _about?.Dispose();
-            _shop?.Dispose();
             _thumbnails?.Dispose();
             if (_camera != null)
             {

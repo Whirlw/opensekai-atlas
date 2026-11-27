@@ -143,12 +143,14 @@ namespace OpenSekai.App.UI
                     else comingSoon?.Invoke("段位");
                 },
                 available: openDan != null, status: openDan != null ? "开始挑战" : null);
-            _shop = new HomeFeatureCard(Slot(2, 1).Rect, "ShopCard", "SHOP", "商店", "金币余额 · 消费记录",
-                HomeTheme.Colors.Gold, root =>
+            _shop = new HomeFeatureCard(Slot(2, 1).Rect, "ShopCard", "SHOP", "商店", "头像 · 主题 · 游戏背景",
+                HomeTheme.Colors.Gold, root => new HomeShopArt(root),
+                () =>
                 {
-                    LibraryWidgets.CoinIcon(root, 132f);
-                    return null;
-                }, () => openShop?.Invoke(), available: openShop != null, status: "查看商店");
+                    if (openShop != null) openShop();
+                    else comingSoon?.Invoke("商店");
+                },
+                available: openShop != null, status: openShop != null ? "用金币兑换" : null);
             _achievements = new HomeFeatureCard(Slot(2, 2).Rect, "AchievementsCard", "ACHIEVEMENTS", "成就", "练习 · 技巧 · 段位 · 特殊奖牌",
                 HomeTheme.Colors.Gold, root => _medal = new HomeMedalArt(root),
                 () =>
