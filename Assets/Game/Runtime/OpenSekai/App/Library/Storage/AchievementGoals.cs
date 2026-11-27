@@ -260,15 +260,13 @@ namespace OpenSekai.App.Library
 
     public sealed class AchievementProgress
     {
-        private readonly DateTimeOffset? _claimedAtUtc;
-
         internal AchievementProgress(AchievementGoal goal, long current = 0, DateTimeOffset? reachedAtUtc = null,
             DateTimeOffset? claimedAtUtc = null)
         {
             Goal = goal;
-            Current = current;
-            ReachedAtUtc = reachedAtUtc;
-            _claimedAtUtc = claimedAtUtc;
+            Current = claimedAtUtc.HasValue ? Math.Max(current, goal.Target) : current;
+            ReachedAtUtc = reachedAtUtc ?? claimedAtUtc;
+            UnlockedAtUtc = claimedAtUtc;
         }
 
         internal AchievementProgress(string id, AchievementMetric metric, int minimumLevel, int target, long current = 0,
@@ -284,17 +282,17 @@ namespace OpenSekai.App.Library
         public int Target => Goal.Target;
         public long Current { get; }
 
-        /// <summary>When the play or course that first reached the goal ended; null while it is under way.</summary>
+        /// <summary>The first recorded completion, falling back to the claim time when its history is unavailable.</summary>
         public DateTimeOffset? ReachedAtUtc { get; }
 
-        /// <summary>When the player unlocked it; null until they do, and again if the runs behind it are deleted.</summary>
-        public DateTimeOffset? UnlockedAtUtc => ReachedAtUtc.HasValue ? _claimedAtUtc : null;
+        /// <summary>When the player claimed the reward.</summary>
+        public DateTimeOffset? UnlockedAtUtc { get; }
 
-        public AchievementState State => !ReachedAtUtc.HasValue ? AchievementState.InProgress
-            : _claimedAtUtc.HasValue ? AchievementState.Unlocked : AchievementState.Claimable;
+        public AchievementState State => UnlockedAtUtc.HasValue ? AchievementState.Unlocked
+            : ReachedAtUtc.HasValue ? AchievementState.Claimable : AchievementState.InProgress;
 
         internal AchievementProgress WithValue(long current, DateTimeOffset time) =>
-            new(Goal, current, ReachedAtUtc ?? (current >= Target ? time : (DateTimeOffset?)null), _claimedAtUtc);
+            new(Goal, current, ReachedAtUtc ?? (current >= Target ? time : (DateTimeOffset?)null), UnlockedAtUtc);
 
         internal AchievementProgress WithClaim(DateTimeOffset? time) => new(Goal, Current, ReachedAtUtc, time);
     }

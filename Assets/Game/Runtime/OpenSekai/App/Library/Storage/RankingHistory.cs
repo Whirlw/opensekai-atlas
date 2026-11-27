@@ -47,7 +47,7 @@ namespace OpenSekai.App.Library
         private RankingSettlement WithReached(RankingSettlement receipt)
         {
             var ids = Achievements.ForPlay(receipt.PlayId);
-            if (ids.Count > 0 && ClaimsSource != null) ids = ClaimsSource().WithoutLegacyUnlocks(ids, this);
+            if (ids.Count > 0 && ClaimsSource != null) ids = ClaimsSource().WithoutUnlocks(ids);
             return ids.Count == 0 ? receipt : new RankingSettlement(receipt.PlayId, receipt.ScoreKey, receipt.Eligibility,
                 receipt.SaveState, receipt.Award, receipt.BasePoints, receipt.Before, receipt.After, ids);
         }

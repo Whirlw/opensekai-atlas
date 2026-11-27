@@ -135,7 +135,6 @@ namespace OpenSekai.App.Library
             next.TakeOff(Medal.DanKey(id));
             WriteDan(next);
             History.InvalidateAchievements();
-            ForgetUnreachedClaims();
         }
 
         internal bool SaveDanAttempt(DanDefinition definition, DanAttempt attempt) =>

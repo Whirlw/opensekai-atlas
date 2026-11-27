@@ -277,8 +277,9 @@ namespace OpenSekai.Tests.EditMode
         public void AnAchievementWithoutAnotherLevelStaysUnlockedAtTheEndOfTheList()
         {
             PlayerProfileStore store = FourFullCombos();
-            foreach (var pair in new[] { "expert", "hard", "easy", "normal", "master" }.Select((difficulty, index) => (difficulty, index)))
-                store.History.Submit(FullCombo(9 + pair.index, 20, true, pair.difficulty), null, out _);
+            (string difficulty, int level)[] charts = { ("expert", 27), ("hard", 21), ("easy", 12), ("normal", 19), ("master", 32) };
+            for (int i = 0; i < charts.Length; i++)
+                store.History.Submit(FullCombo(9 + i, charts[i].level, true, charts[i].difficulty), null, out _);
             store.UnlockAchievement("FC-01");
             AchievementScreen screen = Open(store);
             AchievementRow row = screen.View.FindRow("PRISM-01");

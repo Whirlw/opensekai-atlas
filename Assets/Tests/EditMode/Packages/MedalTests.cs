@@ -76,7 +76,7 @@ namespace OpenSekai.Tests.EditMode.Packages
         }
 
         [Test]
-        public void ALostMedalStopsShowingAndItsSlotCountsAsFree()
+        public void DeletedCourseFreesItsSlotAndTheClaimedAchievementStaysWorn()
         {
             string first = Pass("一段");
             string second = Pass("二段");
@@ -85,8 +85,7 @@ namespace OpenSekai.Tests.EditMode.Packages
             _store.DeleteDanDefinition(Medal.DanIdOf(first));
             AssertWorn(null, _dan);
             _store.DeleteDanDefinition(Medal.DanIdOf(second));
-            // The achievement went with the last pass.
-            AssertWorn(null, null);
+            AssertWorn(null, _dan);
             string third = Pass("三段");
             AssertWorn(null, _dan);
             Assert.That(_store.WearMedal(third), Is.EqualTo(0));

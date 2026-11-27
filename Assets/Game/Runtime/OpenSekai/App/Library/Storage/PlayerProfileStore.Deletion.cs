@@ -64,9 +64,7 @@ namespace OpenSekai.App.Library
                 if (File.Exists(ProfilePath)) File.Copy(ProfilePath, Path.Combine(stage, PROFILE_FILE));
                 var (history, summaries) = IndexHistory(path);
                 history.DanSource = ReadDanArchive;
-                var retained = ReadClaims().AfterHistoryDeletion(play);
-                history.ClaimsSource = () => retained;
-                var claims = retained.WithoutUnreached(history);
+                var claims = ReadClaims().AfterHistoryDeletion(play);
                 if (claims.Count > 0 || claims.RetryCount > 0) File.WriteAllText(Path.Combine(stage, ACHIEVEMENTS_FILE), JsonConvert.SerializeObject(claims));
                 if (play != null) History.TransferPendingTo(history, play.RecordId);
                 if (play != null && backedUp)

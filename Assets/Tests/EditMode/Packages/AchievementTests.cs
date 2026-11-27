@@ -103,6 +103,7 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(repeat.ReachedAchievementIds, Is.Empty);
             Assert.Throws<InvalidOperationException>(() => target.DeleteDanDefinition(dan.Id));
             target.CancelImport(repeat.Id);
+            target.UnlockAchievement("DAN-01");
             target.WearMedal(Medal.DanKey(dan.Id));
             target.DeleteDanDefinition(dan.Id);
             target.DeleteDanDefinition(dan.Id);
@@ -112,7 +113,8 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(_store.Read().WornMedals, Is.All.Null);
             Assert.That(_store.Read().EarnedDanIds, Is.Empty);
             Assert.That(Item("HIT-01").Current, Is.EqualTo(9970));
-            Assert.That(_store.ReadAchievements().All(a => a.ReachedAtUtc == null), Is.True);
+            Assert.That(Item("DAN-01").State, Is.EqualTo(AchievementState.Unlocked));
+            Assert.That(Item("DANPASS-01").State, Is.EqualTo(AchievementState.InProgress));
         }
 
         [Test]
@@ -159,9 +161,9 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(_store.OwnsAvatar("sparkle"), Is.True);
         }
 
-        [TestCase("sparkle", "default")]
-        [TestCase("note", "note")]
-        public void DeletingTheLastUnlockingRunShowsOnlyAnOwnedAvatarAfterReload(string selected, string expected)
+        [TestCase("sparkle")]
+        [TestCase("note")]
+        public void ClaimedAvatarSurvivesDeletingTheLastRunAndReloading(string selected)
         {
             Save(Play(1, "ap", 500, ap: true));
             _store.UnlockAchievement("AP-01");
@@ -170,11 +172,11 @@ namespace OpenSekai.Tests.EditMode.Packages
             _store.DeleteHistory(_store.ReadHistory(0, 1).Records.Single());
             foreach (var archive in new[] { _store, new PlayerProfileStore(_root) })
             {
-                Assert.That(archive.OwnsAvatar("sparkle"), Is.False);
+                Assert.That(archive.OwnsAvatar("sparkle"), Is.True);
                 Assert.That(archive.Read().Appearance.Nickname, Is.EqualTo("歌手"));
-                Assert.That(archive.Read().Appearance.AvatarId, Is.EqualTo(expected));
-                Assert.Throws<InvalidOperationException>(() => archive.SetAppearance("歌手", "sparkle"));
+                Assert.That(archive.Read().Appearance.AvatarId, Is.EqualTo(selected));
             }
+            Assert.DoesNotThrow(() => _store.SetAppearance("歌手", "sparkle"));
         }
 
         [Test]
@@ -226,7 +228,7 @@ namespace OpenSekai.Tests.EditMode.Packages
         }
 
         [Test]
-        public void DeletingTheRunBehindAnUnlockTakesItBackForGood()
+        public void DeletingTheRunBehindAClaimPreservesItWithoutAnnouncingItAgain()
         {
             var ap = Play(1, "ap", ap: true);
             Save(ap);
@@ -234,10 +236,10 @@ namespace OpenSekai.Tests.EditMode.Packages
             _store.UnlockAchievement("AP-01");
             _store.UnlockAchievement("FC-01");
             _store.DeleteHistory(_store.ReadHistory(0, 10).Records.Single(play => play.RecordId == ap.RecordId));
-            Assert.That(Item("AP-01").State, Is.EqualTo(AchievementState.InProgress));
+            Assert.That(Item("AP-01").State, Is.EqualTo(AchievementState.Unlocked));
             Assert.That(Item("FC-01").State, Is.EqualTo(AchievementState.Unlocked), "another run still reaches it");
-            Save(Play(3, "ap", ap: true));
-            Assert.That(Item("AP-01").State, Is.EqualTo(AchievementState.Claimable), "reached again, it is unlocked again");
+            Assert.That(Save(Play(3, "ap", ap: true)).ReachedAchievementIds, Does.Not.Contain("AP-01"));
+            Assert.That(_store.ClaimAchievement("AP-01").NewlyClaimed, Is.False);
             _store = new PlayerProfileStore(_root);
             Assert.That(Item("FC-01").State, Is.EqualTo(AchievementState.Unlocked));
         }
@@ -377,6 +379,37 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(Item("FLICK-01").Current, Is.EqualTo(1));
         }
 
+        [Test]
+        public void PrismClaimSurvivesAHigherThresholdAndRestoresWithoutPlayHistory()
+        {
+            string[] difficulties = { "expert", "hard", "easy", "normal", "master" };
+            for (int i = 0; i < difficulties.Length; i++)
+                Save(With(Play(i, difficulties[i], level: 20, ap: true), ("difficulty", difficulties[i])));
+            Assert.That(Item("PRISM-01").State, Is.EqualTo(AchievementState.InProgress));
+
+            File.WriteAllText(Path.Combine(_root, PlayerProfileStore.ACHIEVEMENTS_FILE),
+                "{'unlocked':{'PRISM-01':'2026-01-01T00:00:00Z'}}");
+            _store = new PlayerProfileStore(_root);
+            Assert.That(Item("PRISM-01").State, Is.EqualTo(AchievementState.Unlocked));
+            string medal = Medal.AchievementKey("PRISM-01");
+            _store.WearMedal(0, medal);
+            string zip = Path.Combine(_root, "prism.zip");
+            _store.ExportBackup(zip);
+            _store.DeleteAllHistory();
+            _store.ExportBackup(zip);
+            _store = new PlayerProfileStore(Path.Combine(_root, "restored"));
+            var preview = _store.PreviewBackup(zip);
+            Assert.That(preview.ReachedAchievementIds, Is.Empty);
+            _store.ConfirmImport(preview.Id);
+            Assert.That(_store.ReadHistory(0, 1).TotalCount, Is.Zero);
+            var prism = Item("PRISM-01");
+            Assert.That(prism.State, Is.EqualTo(AchievementState.Unlocked));
+            Assert.That(prism.UnlockedAtUtc, Is.EqualTo(_epoch));
+            Assert.That(prism.Current, Is.EqualTo(prism.Target));
+            Assert.That(_store.Read().WornMedals[0]?.Key, Is.EqualTo(medal));
+            Assert.That(_store.OwnsAvatar("prism_eye"), Is.True);
+        }
+
         [TestCase(31, false)]
         [TestCase(32, true)]
         [TestCase(33, true)]
@@ -408,7 +441,7 @@ namespace OpenSekai.Tests.EditMode.Packages
         }
 
         [Test]
-        public void LegacyClaimsRequireEvidenceAndPreserveWornKeysInBackup()
+        public void LegacyClaimsPreserveWornKeysAcrossRestoreAndHistoryDeletion()
         {
             Save(With(Play(1, "old", 50000, ap: true), ("ranked", false)));
             File.WriteAllText(Path.Combine(_root, PlayerProfileStore.ACHIEVEMENTS_FILE),
@@ -430,12 +463,13 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(claim, Is.EqualTo((true, Medal.AchievementKey("AP-02"), (string)null)));
             Assert.That(_store.ReadMedals().Count, Is.EqualTo(3));
             _store.DeleteHistory(_store.ReadHistory(0, 10).Records.Single(r => r.RecordId == "run-1"));
-            Assert.That(_store.Read().WornMedals[0], Is.Null);
+            Assert.That(_store.Read().WornMedals[0]?.Key, Is.EqualTo(Medal.AchievementKey("manual_hits_50000")));
             Assert.That(_store.Read().WornMedals[1]?.Key, Is.EqualTo(Medal.AchievementKey("first_ap")));
             Assert.That(_store.OwnsAvatar("sparkle"), Is.True);
             _store.DeleteHistory(_store.ReadHistory(0, 10).Records.Single());
-            Assert.That(_store.Read().WornMedals, Is.All.Null);
-            Assert.That(_store.OwnsAvatar("sparkle"), Is.False);
+            Assert.That(_store.Read().WornMedals.Select(m => m.Key),
+                Is.EqualTo(new[] { Medal.AchievementKey("manual_hits_50000"), Medal.AchievementKey("first_ap") }));
+            Assert.That(_store.OwnsAvatar("sparkle"), Is.True);
         }
 
         [Test]
@@ -461,8 +495,9 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(Item("FC-03").Current, Is.Zero);
             Assert.That(_store.OwnsAvatar("crest"), Is.True);
             _store.DeleteHistory(_store.ReadHistory(0, 1).Records.Single());
-            Assert.That(Item("FC-01").State, Is.EqualTo(AchievementState.InProgress));
-            Assert.That(_store.OwnsAvatar("crest"), Is.False);
+            Assert.That(Item("FC-02").State, Is.EqualTo(AchievementState.Unlocked));
+            Assert.That(Item("FC-01").State, Is.EqualTo(AchievementState.Unlocked));
+            Assert.That(_store.OwnsAvatar("crest"), Is.True);
         }
 
         [TestCase(4, 32, true, 1000, true, true)]

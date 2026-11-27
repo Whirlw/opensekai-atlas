@@ -150,7 +150,7 @@ RankingSettlement ranking = CustomMusicScorePlayHistoryStorage.ForDisplay(play);
 
 段位牌已改为通用的奖牌体系：段位和成就都能得到奖牌，玩家选两块展示在个人信息页和首页。后端在 `App/Library/Storage/Medal.cs` 和 `PlayerProfileStore.Medals.cs`，前端在 `App/UI/Medals/`。
 
-- **来源。** 通过的段位和已解锁的成就各是一块奖牌（`Medal`，`Kind` 为 `Dan` 或 `Achievement`）。成就达成后要在成就页点击解锁才会给出奖牌（见[成就的等级与解锁](#成就的等级与解锁)）。奖牌不单独存档，由段位记录、游玩历史和已解锁的成就推出，删除记录后随之收回。新来源在 `PlayerProfileStore.Medals` 里加入，并在 `MedalLook` 里给出牌面。
+- **来源。** 通过的段位和已解锁的成就各是一块奖牌（`Medal`，`Kind` 为 `Dan` 或 `Achievement`）。成就达成后要在成就页点击解锁才会给出奖牌（见[成就的等级与解锁](#成就的等级与解锁)）。段位奖牌由段位通关记录决定，成就奖牌由领取记录决定。新来源在 `PlayerProfileStore.Medals` 里加入，并在 `MedalLook` 里给出牌面。
 - **佩戴。** `Medal.SLOTS` 为 2。`dan.json` 的 `Worn` 按位置保存奖牌键（`dan:<段位 ID>` 或 `achievement:<成就 ID>`）。`WearMedal(slot, key)` 指定位置，已戴在另一位置的奖牌与它对调，传 `null` 卸下；`WearMedal(key)` 放进第一个空位，满了换下第二块；`RemoveMedal(key)` 卸下。失去的奖牌不再显示，它的位置视为空位，重新取得后恢复。旧档案的 `Equipped` 读入第一个位置。空档恢复备份时一并恢复两个位置，已有档案保留本机选择。
 - **阶位。** `MedalTiers` 0–4，名称为初阶、进阶、高阶、星阶、虹阶，只决定边框。初阶是原有的单线边框，往上逐级累加（`MedalArt`）：进阶加内线和两端菱形；高阶加四角的角饰和上下居中的菱形；星阶把角饰连成完整外框，加四角菱形和两端的成排菱形；虹阶的线条改用 ALL PERFECT 渐变，加第二道外框、上下的四角星和柔光。各阶的牌面（内框）一样大，固定内缩 `MedalArt.INSET`，四周留给最高阶的边框，所以低阶整块看起来更小。
 - **等级。** `MedalGrades` 依次是 I 到 X、α 到 ω，共 34 级，显示在牌面右侧，可以不显示。
@@ -199,7 +199,7 @@ RankingSettlement ranking = CustomMusicScorePlayHistoryStorage.ForDisplay(play);
 2026-11-24 起，成就分为未达成、可解锁、已解锁三种状态，同一项成就可以有多个等级。后端在 `AchievementGoals.cs`、`AchievementClaims.cs` 和 `PlayerProfileStore.Achievements.cs`，前端在 `App/UI/Achievements/`。
 
 - **目标表。** `AchievementGoals` 列出全部目标。`Series` 相同的目标是同一项成就的各等级，按表中顺序由低到高，后一级的条件必须包含前一级。每个目标写明是否给奖牌（`GivesMedal`）和给哪个头像（`AvatarId`）。累计击打有 5 级（1 万到 100 万），全连有 2 级（高阶全连、十面全连），完美无缺和初获段位各 1 级，共 4 项 9 级。新增等级只需在表里加一行，并在 `AchievementCopy` 里补文案。
-- **解锁与存档。** 达成后为 `Claimable`，玩家点击后调用 `UnlockAchievement(id)` 变为 `Unlocked`，必须按等级顺序。解锁时间存在 `achievements.json`，其余仍由记录推出。删除记录使目标不再达成时，对应的解锁一并清除，重新达成后要再点一次。清除前佩戴的奖牌在重新解锁后恢复到原位置。
+- **解锁与存档。** 达成后为 `Claimable`，玩家点击后调用 `UnlockAchievement(id)` 变为 `Unlocked`，必须按等级顺序。领取记录保存在 `achievements.json`，包含成就 ID 和领取时间。已有领取记录的成就永久解锁，调整条件、删除游玩历史或段位后仍保留奖励。未领取的进度由现存记录按当前条件计算。
 - **计数。** 解锁进度按等级计，只算已解锁的；标签上的数字按成就计。
 - **备份。** 备份格式升为 v3，增加 `achievements.json` 与校验值，v1、v2 仍可导入。合并时取两边解锁的并集，时间保留本机的。
 - **头像奖励。** 十万键之路给 `beat`，十面全连给 `crest`，完美无缺给 `sparkle`。未解锁时在「编辑资料」里变暗并带锁，点按说明由哪项成就给出；`SetAppearance` 也会拒绝。原有 12 个头像不受影响。

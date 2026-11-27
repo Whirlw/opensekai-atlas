@@ -7,8 +7,7 @@ using Newtonsoft.Json;
 namespace OpenSekai.App.Library
 {
     /// <summary>
-    /// The goals the player unlocked and when, the one thing about achievements that is saved;
-    /// progress follows from the records. A goal counts as unlocked only while it is also reached.
+    /// Permanent reward claims and the retry starts used to calculate progress.
     /// </summary>
     [JsonObject(MemberSerialization.OptIn)]
     internal sealed class AchievementClaims
@@ -56,8 +55,7 @@ namespace OpenSekai.App.Library
             return next;
         }
 
-        // Legacy keys stay intact for old medal slots and for backup merges. Only a supported,
-        // previously claimed entitlement can grandfather a new goal.
+        // Legacy keys keep their original medal slots and grant the corresponding modern goals.
         internal IReadOnlyList<AchievementProgress> Apply(RankingHistory history)
         {
             var legacy = LegacyRewards(history);
@@ -76,11 +74,11 @@ namespace OpenSekai.App.Library
             }).ToArray());
         }
 
-        internal IReadOnlyList<string> WithoutLegacyUnlocks(IReadOnlyList<string> reached, RankingHistory history)
+        internal IReadOnlyList<string> WithoutUnlocks(IReadOnlyList<string> reached)
         {
-            if (!AchievementGoals.Legacy.Any(goal => _times.ContainsKey(goal.Id))) return reached;
-            var inherited = LegacyRewards(history).SelectMany(goal => Successors(goal.Id)).ToHashSet();
-            return Array.AsReadOnly(reached.Where(id => !inherited.Contains(id)).ToArray());
+            if (_times.Count == 0) return reached;
+            var inherited = _times.Keys.SelectMany(Successors).ToHashSet();
+            return Array.AsReadOnly(reached.Where(id => !_times.ContainsKey(id) && !inherited.Contains(id)).ToArray());
         }
 
         internal AchievementProgress[] LegacyRewards(RankingHistory history) => history.ReadLegacyAchievements()
@@ -118,15 +116,6 @@ namespace OpenSekai.App.Library
         {
             var next = Copy();
             next._times[id] = time.ToUniversalTime();
-            return next;
-        }
-
-        /// <summary>Removes claims that lost their supporting history. Unknown IDs survive.</summary>
-        internal AchievementClaims WithoutUnreached(RankingHistory history)
-        {
-            var next = Copy();
-            foreach (var goal in Apply(history).Concat(history.ReadLegacyAchievements()))
-                if (!goal.ReachedAtUtc.HasValue) next._times.Remove(goal.Id);
             return next;
         }
 

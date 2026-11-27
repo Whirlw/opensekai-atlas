@@ -53,12 +53,6 @@ namespace OpenSekai.App.Library
 
         private IReadOnlyList<AchievementProgress> RewardAchievements() => ReadClaims().Rewards(History);
 
-        private void ForgetUnreachedClaims()
-        {
-            var claims = ReadClaims().WithoutUnreached(History);
-            if (claims.Count != ReadClaims().Count) WriteClaims(claims);
-        }
-
         internal void RecordRetryStart(string id, string scoreKey, string sourceId, string source)
         {
             if (string.IsNullOrEmpty(scoreKey) || string.IsNullOrEmpty(id) || string.IsNullOrEmpty(sourceId)) return;
