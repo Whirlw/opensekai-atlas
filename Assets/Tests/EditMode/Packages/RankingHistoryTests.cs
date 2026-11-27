@@ -77,6 +77,7 @@ namespace OpenSekai.Tests.EditMode.Packages
             Assert.That(below.Eligibility, Is.EqualTo(RankingEligibility.BelowRankC));
             Assert.That(below.Award, Is.EqualTo(ClearAward.FullCombo));
             Assert.That(below.Points, Is.Zero);
+            Assert.That(below.CoinReward, Is.EqualTo(150));
             Assert.That(board.Snapshot().Entries, Is.Empty);
             var old = board.Evaluate(Play("old", "chart", 900000, formulaVersion: 1), HistorySaveState.Saved);
             Assert.That(old.Eligibility, Is.EqualTo(RankingEligibility.Eligible));
@@ -159,10 +160,12 @@ namespace OpenSekai.Tests.EditMode.Packages
                 var failed = history.Submit(Play("retry", "chart", 1000000), null, out _);
                 Assert.That(failed.SaveState, Is.EqualTo(HistorySaveState.SaveFailed));
                 Assert.That(failed.Delta, Is.Zero);
+                Assert.That(failed.CoinReward, Is.Zero);
                 File.Delete(blocked);
                 Assert.That(history.Retry("retry", out _).Delta, Is.EqualTo(300));
                 Assert.That(history.Retry("retry", out var duplicate).Delta, Is.EqualTo(300));
                 Assert.That(duplicate, Is.Null);
+                Assert.That(history.PlayCoins, Is.EqualTo(30));
                 Assert.That(history.Read().Entries.Count, Is.EqualTo(1));
             }
             finally { Directory.Delete(root, true); }
@@ -202,6 +205,7 @@ namespace OpenSekai.Tests.EditMode.Packages
                 var play = legacy.ToObject<CustomMusicScorePlayHistoryRecord>();
                 var receipt = history.Submit(play, null, out var summary);
                 Assert.That(receipt.Eligibility, Is.EqualTo(RankingEligibility.Unranked));
+                Assert.That(receipt.CoinReward, Is.Zero);
                 Assert.That(receipt.Points, Is.Zero);
                 Assert.That(summary.Best.RecordId, Is.EqualTo("old"));
                 Assert.That(receipt.SaveState, Is.EqualTo(HistorySaveState.Saved));

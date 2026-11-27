@@ -30,6 +30,9 @@ namespace OpenSekai.App.Library
             public DateTimeOffset Time;
         }
 
+        internal long CoinRewards => _times.Keys.Concat(_times.Keys.SelectMany(Successors)).Distinct(StringComparer.Ordinal)
+            .Sum(id => (long)(AchievementGoals.Find(id)?.CoinReward ?? 0));
+
         internal int Count => _times.Count;
         internal int RetryCount => _retryStarts.Count;
         internal IEnumerable<AchievementEvent> RetryEvents => _retryStarts.Select(pair => new AchievementEvent

@@ -40,6 +40,26 @@ namespace OpenSekai.Tests.EditMode.Packages
         private AchievementProgress Item(string id) => _store.ReadAchievements().Single(a => a.Id == id);
 
         [Test]
+        public void CoinsCountEachRankedRunAndOnlyClaimedGoals()
+        {
+            var fc = Play(1, "same");
+            Assert.That(Save(fc).CoinReward, Is.EqualTo(140));
+            Assert.That(Save(Play(2, "same", ap: true)).CoinReward, Is.EqualTo(700));
+            Save(fc);
+            _store.History.Retry(fc.RecordId, out _);
+            Assert.That(Save(Play(3, "failed", kind: PlayResultKind.Failed)).CoinReward, Is.Zero);
+            Assert.That(Save(Play(4, "auto", auto: 1)).CoinReward, Is.Zero);
+            Assert.That(_store.ReadCoins(), Is.EqualTo(840));
+            _store.UnlockAchievement("FC-01");
+            _store.UnlockAchievement("FC-01");
+            long reward = AchievementGoals.Find("FC-01").CoinReward;
+            Assert.That(new PlayerProfileStore(_root).ReadCoins(), Is.EqualTo(840 + reward));
+            _store.ExportBackup(Path.Combine(_root, "coins.zip"));
+            _store.DeleteAllHistory();
+            Assert.That(_store.ReadCoins(), Is.EqualTo(reward));
+        }
+
+        [Test]
         public void ManualHitsAndDistinctChartsAgreeWithReplayAndOlderReceipt()
         {
             Save(Play(1, "failed", 9900, kind: PlayResultKind.Failed));

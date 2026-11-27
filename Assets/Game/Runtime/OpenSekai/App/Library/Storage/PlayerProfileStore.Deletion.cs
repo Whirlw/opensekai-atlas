@@ -61,6 +61,7 @@ namespace OpenSekai.App.Library
                     if (play != null) CopyExcept(play, writer);
                 }
                 if (File.Exists(DanPath)) File.Copy(DanPath, Path.Combine(stage, DAN_FILE));
+                if (File.Exists(SpendingPath)) File.Copy(SpendingPath, Path.Combine(stage, SPENDING_FILE));
                 if (File.Exists(ProfilePath)) File.Copy(ProfilePath, Path.Combine(stage, PROFILE_FILE));
                 var (history, summaries) = IndexHistory(path);
                 history.DanSource = ReadDanArchive;
@@ -115,6 +116,7 @@ namespace OpenSekai.App.Library
             _directory = next;
             _cachedDan = null;
             _cachedClaims = null;
+            _spending = null;
             History = history;
             History.DanSource = ReadDanArchive;
             History.ClaimsSource = ReadClaims;

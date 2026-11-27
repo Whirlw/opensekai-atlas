@@ -93,6 +93,7 @@ namespace OpenSekai.Shared.Playback
         public RankingEligibility Eligibility { get; }
         public HistorySaveState SaveState { get; }
         public ClearAward Award { get; }
+        public long CoinReward { get; }
         public long BasePoints { get; }
         public int Bonus => Eligibility == RankingEligibility.Eligible ? RankingRules.Bonus(Award) : 0;
         public long Points => BasePoints + Bonus;
@@ -106,13 +107,14 @@ namespace OpenSekai.Shared.Playback
 
         public RankingSettlement(string playId, string scoreKey, RankingEligibility eligibility,
             HistorySaveState saveState, ClearAward award, long basePoints, RankingStanding before, RankingStanding after,
-            IReadOnlyList<string> reachedAchievementIds = null)
+            IReadOnlyList<string> reachedAchievementIds = null, long coinReward = 0)
         {
             PlayId = playId;
             ScoreKey = scoreKey;
             Eligibility = eligibility;
             SaveState = saveState;
             Award = award;
+            CoinReward = coinReward;
             BasePoints = basePoints;
             Before = before;
             After = after;

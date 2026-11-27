@@ -27,6 +27,18 @@ namespace OpenSekai.App.UI
             return Shape(name, parent, LibraryShapes.RoundedRect(radius), color);
         }
 
+        internal static RectTransform CoinIcon(Transform parent, float size)
+        {
+            var face = Panel("Coin", parent, size * 0.5f, HomeTheme.Colors.Gold);
+            Vector2 center = new Vector2(0.5f, 0.5f);
+            Place(face.rectTransform, center, center, Vector2.zero, Vector2.one * size);
+            var rim = Shape("Rim", face.transform, LibraryShapes.Ring(size * 0.41f, size * 0.025f),
+                new Color32(160, 103, 39, 255));
+            Place(rim.rectTransform, center, center, Vector2.zero, Vector2.one * (size * 0.82f));
+            Icon(face.transform, LibraryIcon.Star, new Color32(135, 83, 30, 255), size * 0.45f);
+            return face.rectTransform;
+        }
+
         internal static Image Icon(Transform parent, LibraryIcon icon, Color32 color, float size)
         {
             Image image = LibraryUi.CreateImage(icon + "Icon", parent, color);

@@ -254,6 +254,62 @@ namespace OpenSekai.Tests.PlayMode
         }
 
         [UnityTest]
+        public IEnumerator HomeOpensShopWithRecordedBalanceAndDanBelowClips()
+        {
+            yield return LoadColdHome();
+            var home = HomeScreen.Current;
+            var store = new PlayerProfileStore(Path.Combine(_historyRoot, System.Guid.NewGuid().ToString("N")));
+            store.History.Submit(new CustomMusicScorePlayHistoryRecord
+            {
+                SchemaVersion = 3, RecordId = "shop-run", ScoreKey = "shop-song", Ranked = true,
+                PlayedAtUtc = "2026-11-22T00:00:00Z", FormulaVersion = RankingRules.FORMULA_VERSION,
+                EndReason = PlayResultKind.Completed, MaximumScore = 1000000, Life = 100, PlayLevel = 28,
+                TotalComboCount = 10, TotalScore = 1000000, IsFullCombo = true
+            }, null, out _);
+            store.SpendCoins("receipt", "节拍头像", 40);
+            var original = home.ProfileStore;
+            try
+            {
+                home.ProfileStore = store;
+                home.ShowHomeImmediately();
+                home.SeekHomePage(1f);
+                yield return null;
+                var shopCard = Card("ShopCard");
+                Assert.That(shopCard.parent.name, Is.EqualTo("TopSlot"));
+                var button = shopCard.GetComponentInChildren<Button>();
+                Assert.That(button.IsInteractable(), Is.True);
+                button.onClick.Invoke();
+                yield return null;
+                var shop = home.transform.Find("HomeCanvas/Shop");
+                Assert.That(shop.gameObject.activeInHierarchy, Is.True);
+                var labels = shop.GetComponentsInChildren<TextMeshProUGUI>();
+                Assert.That(labels.Single(label => label.name == "Balance").text, Is.EqualTo("100"));
+                Assert.That(labels.Single(label => label.name == "Item").text, Is.EqualTo("节拍头像"));
+                Assert.That(labels.Single(label => label.name == "Amount").text, Is.EqualTo("−40 金币"));
+                shop.GetComponentsInChildren<Button>().Single(b => b.name == "Close").onClick.Invoke();
+                Assert.That(shop.gameObject.activeSelf, Is.False);
+
+                home.SeekHomePage(-1f);
+                yield return null;
+                var clips = Card("ClipsCard");
+                var dan = Card("DanCard");
+                Assert.That(dan.parent.parent, Is.EqualTo(clips.parent.parent));
+                Assert.That(dan.parent.name, Is.EqualTo("BottomSlot"));
+                Assert.That(clips.parent.name, Is.EqualTo("TopSlot"));
+                Assert.That(dan.GetComponentInChildren<Button>().IsInteractable(), Is.True);
+                dan.GetComponentInChildren<Button>().onClick.Invoke();
+                yield return WaitFor(() => home.IsDanShown, BOOT_TIMEOUT_SECONDS, "opening dan below clips");
+            }
+            finally
+            {
+                home.ProfileStore = original;
+                home.ShowHomeImmediately();
+            }
+
+            RectTransform Card(string name) => home.GetComponentsInChildren<RectTransform>(true).Single(rect => rect.name == name);
+        }
+
+        [UnityTest]
         public IEnumerator SwipingRightOnHomeOpensTheClipsPageAndItsLibraryPicker()
         {
             yield return LoadColdHome();

@@ -25,7 +25,8 @@ namespace OpenSekai.App.Library
         public IReadOnlyList<string> DanConflictingIds { get; internal set; }
         public int AchievementsAdded { get; internal set; }
         public int RetryStartsAdded { get; internal set; }
-        public bool HasChanges => RetryStartsAdded > 0 || Added > 0 || RestoresAppearance || DanDefinitionsAdded > 0 || DanAttemptsAdded > 0 || AchievementsAdded > 0;
+        public int PurchasesAdded { get; internal set; }
+        public bool HasChanges => PurchasesAdded > 0 || RetryStartsAdded > 0 || Added > 0 || RestoresAppearance || DanDefinitionsAdded > 0 || DanAttemptsAdded > 0 || AchievementsAdded > 0;
         public bool RestoresAppearance { get; internal set; }
         public PlayerProfileSnapshot Result { get; internal set; }
 
@@ -50,7 +51,7 @@ namespace OpenSekai.App.Library
         {
             RequireIdle();
             long bytes = HistoryLength();
-            ProfileBackupArchive.Write(destination, HistoryPath, ReadAppearance(), ReadDanArchive(), ReadClaims());
+            ProfileBackupArchive.Write(destination, HistoryPath, ReadAppearance(), ReadDanArchive(), ReadClaims(), Spending);
             MarkBackupSaved(_directory, bytes);
         }
 
@@ -69,9 +70,10 @@ namespace OpenSekai.App.Library
             var appearance = ReadAppearance();
             var dan = ReadDanArchive();
             var claims = ReadClaims();
+            var spending = Spending;
             return RunBackupAsync(() =>
             {
-                ProfileBackupArchive.Write(destination, history, appearance, dan, claims, cancel);
+                ProfileBackupArchive.Write(destination, history, appearance, dan, claims, spending, cancel);
                 return (directory, bytes);
             }, cancel);
         }
@@ -115,7 +117,7 @@ namespace OpenSekai.App.Library
             try
             {
                 string incoming = Path.Combine(stage, "incoming.jsonl");
-                var (appearance, incomingDan, incomingClaims) = ProfileBackupArchive.Unpack(zipPath, incoming);
+                var (appearance, incomingDan, incomingClaims, incomingSpending) = ProfileBackupArchive.Unpack(zipPath, incoming);
                 string merged = Path.Combine(stage, ProfileBackupArchive.HISTORY);
                 var preview = Merge(incoming, merged, cancel);
                 File.Delete(incoming);
@@ -128,6 +130,10 @@ namespace OpenSekai.App.Library
                 preview.AchievementsAdded = claims.Merge(incomingClaims);
                 preview.RetryStartsAdded = claims.RetryCount - priorRetries;
                 File.WriteAllText(Path.Combine(stage, ACHIEVEMENTS_FILE), JsonConvert.SerializeObject(claims));
+                var spending = LoadSpending();
+                preview.PurchasesAdded = spending.Merge(incomingSpending);
+                if (spending.Count > 0)
+                    File.WriteAllText(Path.Combine(stage, SPENDING_FILE), JsonConvert.SerializeObject(spending));
                 if (!preview.RestoresAppearance) appearance = ReadAppearance();
                 File.WriteAllText(Path.Combine(stage, PROFILE_FILE), JsonConvert.SerializeObject(appearance));
                 var (history, summaries) = IndexHistory(merged);
@@ -136,7 +142,8 @@ namespace OpenSekai.App.Library
                 var after = claims.Apply(history);
                 var pending = new HashSet<string>(after.Where(goal => goal.State == AchievementState.Claimable).Select(goal => goal.Id));
                 preview.ReachedAchievementIds = AchievementIndex.NewlyReached(before, after).Where(pending.Contains).ToList().AsReadOnly();
-                preview.Result = new PlayerProfileSnapshot(appearance, history.Read(), dan, () => claims.Rewards(history));
+                preview.Result = new PlayerProfileSnapshot(appearance, history.Read(), dan, () => claims.Rewards(history),
+                    CoinBalance(history, claims, spending));
                 cancel.ThrowIfCancellationRequested();
                 preview.Id = id;
                 _previewHistoryLength = bytes;

@@ -60,6 +60,50 @@ namespace OpenSekai.Tests.EditMode.Packages
         }
 
         [Test]
+        public void SpendingAndBalanceFollowTheRecordsAcrossRestartsDeletionAndBackupMerges()
+        {
+            Assert.That(_source.ReadCoins(), Is.EqualTo(60));
+            Assert.That(_source.SpendCoins("order-1", "头像", 40), Is.True);
+            Assert.That(_source.SpendCoins("order-1", "头像", 40), Is.False);
+            Assert.Throws<InvalidDataException>(() => _source.SpendCoins("order-1", "头像", 41));
+            Assert.Throws<InvalidOperationException>(() => _source.SpendCoins("order-2", "头像", 21));
+            Assert.Throws<ArgumentException>(() => _source.SpendCoins("order-2", "头像", -1));
+            Assert.That(new PlayerProfileStore(_sourceRoot).ReadCoins(), Is.EqualTo(20));
+            _source.ExportBackup(_backup);
+            var preview = _target.PreviewBackup(_backup);
+            Assert.That(preview.PurchasesAdded, Is.EqualTo(1));
+            Assert.That(_target.ConfirmImport(preview.Id).Coins, Is.EqualTo(20));
+            _target.DeleteHistory(_target.ReadHistory(0, 1).Records.Single());
+            Assert.That(_target.ReadCoins(), Is.EqualTo(-10));
+            Assert.That(_target.ReadPurchases().Single().Item, Is.EqualTo("头像"));
+            preview = _target.PreviewBackup(_backup);
+            Assert.That(preview.PurchasesAdded, Is.Zero);
+            Assert.That(_target.ConfirmImport(preview.Id).Coins, Is.EqualTo(20));
+            preview = _target.PreviewBackup(_backup);
+            Assert.That(preview.HasChanges, Is.False);
+            Assert.That(_target.ConfirmImport(preview.Id).Coins, Is.EqualTo(20));
+        }
+
+        [Test]
+        public void PurchaseOnlyMergeCanBeCancelledAndConflictingReceiptsLeaveTheWalletIntact()
+        {
+            _source.ExportBackup(_backup);
+            _target.ConfirmImport(_target.PreviewBackup(_backup).Id);
+            _source.SpendCoins("one", "头像", 10);
+            _source.ExportBackup(_backup);
+            var preview = _target.PreviewBackup(_backup);
+            Assert.That(preview.Added, Is.Zero);
+            Assert.That(preview.PurchasesAdded, Is.EqualTo(1));
+            Assert.That(preview.HasChanges, Is.True);
+            Assert.That(preview.Result.Coins, Is.EqualTo(50));
+            _target.CancelImport(preview.Id);
+            Assert.That(_target.ReadCoins(), Is.EqualTo(60));
+            _target.SpendCoins("one", "皮肤", 20);
+            Assert.Throws<InvalidDataException>(() => _target.PreviewBackup(_backup));
+            Assert.That(_target.ReadCoins(), Is.EqualTo(40));
+        }
+
+        [Test]
         public void ConflictsKeepLocalAndMissingLegacyIdsAreReported()
         {
             File.AppendAllText(Path.Combine(_sourceRoot, "PlayHistory.jsonl"),

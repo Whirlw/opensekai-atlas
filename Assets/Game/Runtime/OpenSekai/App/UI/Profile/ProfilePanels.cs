@@ -425,6 +425,11 @@ namespace OpenSekai.App.UI
             }
 
             var notes = new StringBuilder();
+            if (preview.PurchasesAdded > 0)
+                notes.Append("新增 ").Append(preview.PurchasesAdded).Append(" 笔消费记录。\n");
+            if (before != null && preview.Result != null && before.Coins != preview.Result.Coins)
+                notes.Append("金币余额 ").Append(ProfileCopy.Number(before.Coins)).Append(" → ")
+                    .Append(ProfileCopy.Number(preview.Result.Coins)).Append("。\n");
             if (conflicts > 0)
             {
                 notes.Append("与本机同一局但内容不同：").Append(ProfileCopy.Ids(preview.ConflictingIds)).Append("。这些局保留本机记录。\n");
@@ -559,7 +564,7 @@ namespace OpenSekai.App.UI
             Present(ProfileCopy.Title(play),
                 ProfileCopy.Difficulty(play) + "  ·  " + when + "  ·  " + ProfileCopy.Number(play.TotalScore), delete, null);
             _delete.SetText("删除这条记录",
-                standing > 0 ? "Best 30 第 " + standing + " 名，删除后 Ranking Score 会重新计算" : "从全部历史中移除这一局",
+                standing > 0 ? "Best 30 第 " + standing + " 名，删除后重算排名与金币" : "删除后将按剩余记录重算金币",
                 "再点一次确认删除",
                 backedUp ? "可从已导出的备份恢复" : "此操作无法撤销");
         }
@@ -570,7 +575,7 @@ namespace OpenSekai.App.UI
             if (backedUp)
             {
                 Present("清空全部历史", "共 " + ProfileCopy.Number(count) + " 局游玩记录，当前历史已备份", delete, null);
-                _delete.SetText("删除全部记录", "Best 30 与 Ranking Score 会一并清零",
+                _delete.SetText("删除全部记录", "Best 30 清零，金币扣除全部打歌收入",
                     "再点一次确认清空", "可从已导出的备份恢复");
             }
             else

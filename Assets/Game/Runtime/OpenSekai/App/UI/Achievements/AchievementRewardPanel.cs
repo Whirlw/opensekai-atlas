@@ -24,6 +24,7 @@ namespace OpenSekai.App.UI
         private readonly RectTransform _root;
         private readonly LibraryModal _modal;
         private readonly Item _medalItem;
+        private readonly Item _coinItem;
         private readonly Item _avatarItem;
         private readonly MedalPlate _medal;
         private readonly ProfileAvatarView _avatar;
@@ -38,6 +39,8 @@ namespace OpenSekai.App.UI
             _modal = new LibraryModal(_root, new Vector2(WIDTH, HEIGHT), "成就奖励", Close, withSubtitle: true);
             RectTransform stage = LibraryUi.CreateRect("Stage", _modal.Body);
             LibraryWidgets.Inset(stage, 0f, FOOTER + 16f, 0f, 0f);
+            _coinItem = new Item(stage, "CoinItem");
+            LibraryWidgets.CoinIcon(_coinItem.Picture, 134f);
             _medalItem = new Item(stage, "MedalItem");
             _medal = new MedalPlate(_medalItem.Picture, "RewardMedal", _medalSize, glow: true);
             _avatarItem = new Item(stage, "AvatarItem");
@@ -67,6 +70,12 @@ namespace OpenSekai.App.UI
             float body = WIDTH - PAD * 2f;
             float medalWidth = avatar ? body - AVATAR - COLUMN_GAP : _medalSize.x;
             float left = avatar && medal ? -(medalWidth + COLUMN_GAP + AVATAR) * 0.5f : 0f;
+            _coinItem.Root.gameObject.SetActive(!medal && !avatar);
+            if (!medal && !avatar)
+            {
+                _coinItem.Place(0f, body, 1f);
+                _coinItem.Bind(ProfileCopy.Number(progress.Goal.CoinReward) + " 金币", string.Empty);
+            }
             _medalItem.Root.gameObject.SetActive(medal);
             if (medal)
             {
@@ -93,6 +102,7 @@ namespace OpenSekai.App.UI
                 : state == AchievementState.Claimable ? "目标已达成，点击这项成就解锁后领取"
                 : AchievementCopy.IsOneShot(progress) ? "尚未达成，解锁成就后领取"
                 : "尚未达成（" + AchievementCopy.Count(progress) + "），解锁成就后领取";
+            if (medal || avatar) _state.text = ProfileCopy.Number(progress.Goal.CoinReward) + " 金币  ·  " + _state.text;
             _modal.Open();
         }
 

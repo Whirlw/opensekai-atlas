@@ -44,16 +44,16 @@ namespace OpenSekai.EditorTools.Screenshots
                 yield return new WaitForSecondsRealtime(1.2f);
 
                 home.ShowHomeImmediately();
-                home.SeekHomePage(1f);
+                home.SeekHomePage(-1f);
                 yield return new WaitForSecondsRealtime(0.3f);
-                yield return Capture(shot, stem + "-page2", "second home page with the 段位 card", null);
+                yield return Capture(shot, stem + "-page2", "practice page with the 段位 card", null);
                 home.SeekDanHandoff(0.5f);
                 yield return null;
                 yield return null;
                 yield return Capture(shot, stem + "-handoff", "段位 card grown halfway", null, 0.5f);
 
                 home.ShowHomeImmediately();
-                home.SeekHomePage(1f);
+                home.SeekHomePage(-1f);
                 yield return null;
                 home.EnterDan();
                 yield return WaitUntil(() => home.IsDanShown, "the 段位 page after the hand-over");

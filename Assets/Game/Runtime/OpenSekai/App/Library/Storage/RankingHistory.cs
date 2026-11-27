@@ -15,6 +15,12 @@ namespace OpenSekai.App.Library
         private Best30Index _board = new();
         private readonly HashSet<string> _ids = new(StringComparer.Ordinal);
         private readonly Dictionary<string, CustomMusicScorePlayHistoryRecord> _pending = new(StringComparer.Ordinal);
+        private long _playCoins;
+        internal long PlayCoins
+        {
+            get { EnsureLoaded(); return _playCoins; }
+        }
+
         private long _bytes = -1;
         private RankingSettlement _last;
         private List<CustomMusicScorePlayHistoryRecord> _timeline = new();
@@ -49,7 +55,7 @@ namespace OpenSekai.App.Library
             var ids = Achievements.ForPlay(receipt.PlayId);
             if (ids.Count > 0 && ClaimsSource != null) ids = ClaimsSource().WithoutUnlocks(ids);
             return ids.Count == 0 ? receipt : new RankingSettlement(receipt.PlayId, receipt.ScoreKey, receipt.Eligibility,
-                receipt.SaveState, receipt.Award, receipt.BasePoints, receipt.Before, receipt.After, ids);
+                receipt.SaveState, receipt.Award, receipt.BasePoints, receipt.Before, receipt.After, ids, receipt.CoinReward);
         }
 
         internal bool Contains(CustomMusicScorePlayHistoryRecord record)
@@ -111,6 +117,7 @@ namespace OpenSekai.App.Library
                 _timeline.Insert(index < 0 ? ~index : index, play);
                 _pending.Remove(play.RecordId);
                 _last = _board.Evaluate(play, HistorySaveState.Saved);
+                _playCoins += _last.CoinReward;
                 AppendAchievement(AchievementEvent.FromPlay(play));
             }
             catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
@@ -142,12 +149,17 @@ namespace OpenSekai.App.Library
             var board = new Best30Index();
             var ids = new HashSet<string>(StringComparer.Ordinal);
             RankingSettlement last = null;
+            long playCoins = 0;
             var timeline = new List<CustomMusicScorePlayHistoryRecord>();
             foreach (var record in Records())
             {
                 if (!string.IsNullOrWhiteSpace(record.RecordId) && !ids.Add(record.RecordId)) continue;
                 timeline.Add(record);
-                if (CanRank(record)) last = board.Evaluate(record, HistorySaveState.Saved);
+                if (CanRank(record))
+                {
+                    last = board.Evaluate(record, HistorySaveState.Saved);
+                    playCoins += last.CoinReward;
+                }
             }
             timeline.Sort(CompareTime);
             _timeline = timeline;
@@ -156,6 +168,7 @@ namespace OpenSekai.App.Library
             _ids.Clear();
             _ids.UnionWith(ids);
             _last = last;
+            _playCoins = playCoins;
             _bytes = bytes;
         }
 

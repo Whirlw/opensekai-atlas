@@ -100,6 +100,7 @@ namespace OpenSekai.App.UI
         private readonly MedalThumb _medal;
         private readonly RectTransform _avatarSlot;
         private readonly TextMeshProUGUI _caption;
+        private readonly RectTransform _coin;
         private readonly Image _badge;
         private readonly Image _lock;
         private readonly Image _check;
@@ -126,6 +127,8 @@ namespace OpenSekai.App.UI
             _content = content.gameObject.AddComponent<CanvasGroup>();
             _content.blocksRaycasts = false;
             _medal = new MedalThumb(content, "Medal", _medalSize);
+            _coin = LibraryWidgets.CoinIcon(content, 46f);
+            _coin.anchoredPosition = new Vector2(0f, CAPTION * 0.5f);
             _avatarSlot = LibraryUi.CreateRect("AvatarSlot", content);
             _caption = LibraryWidgets.Label("RewardCaption", Root, string.Empty, 15f, LibraryTheme.Colors.TextMuted, FontStyles.Normal,
                 TextAlignmentOptions.Center);
@@ -150,8 +153,7 @@ namespace OpenSekai.App.UI
             string avatarId = progress.Goal.AvatarId;
             bool medal = progress.Goal.GivesMedal;
             bool avatar = avatarId != null;
-            Root.gameObject.SetActive(medal || avatar);
-            if (!medal && !avatar) return;
+            _coin.gameObject.SetActive(!medal && !avatar);
 
             _tint = look.Tint;
             Vector2 center = new Vector2(0.5f, 0.5f);
@@ -180,7 +182,7 @@ namespace OpenSekai.App.UI
                 _avatarSlot.localScale = new Vector3(size / 76f, size / 76f, 1f);
             }
 
-            _caption.text = AchievementCopy.RewardKinds(progress);
+            _caption.text = "+" + ProfileCopy.Number(progress.Goal.CoinReward) + " 金币";
             AchievementState state = progress.State;
             bool unlocked = state == AchievementState.Unlocked;
             bool under = state == AchievementState.InProgress;

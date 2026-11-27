@@ -300,7 +300,8 @@ namespace OpenSekai.Tests.EditMode
             foreach (AchievementProgress goal in screen.Items)
             {
                 Assert.That(goal.Goal.AvatarId == null || !string.IsNullOrEmpty(goal.Goal.AvatarName), Is.True, goal.Id);
-                Assert.That(AchievementCopy.RewardKinds(goal).Length > 0, Is.EqualTo(goal.Goal.GivesMedal || goal.Goal.AvatarId != null), goal.Id);
+                Assert.That(goal.Goal.CoinReward, Is.Positive, goal.Id);
+                Assert.That(AchievementCopy.Received(goal), Does.Contain(ProfileCopy.Number(goal.Goal.CoinReward) + " 金币"), goal.Id);
             }
 
             screen.ShowReward(screen.Items.Single(goal => goal.Id == "FC-03"));

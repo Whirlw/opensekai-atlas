@@ -55,8 +55,20 @@ namespace OpenSekai.App.Library
                 if (state == HistorySaveState.Saved)
                     Consider(new Best30Entry(play, points + RankingRules.Bonus(award), award));
             }
+            long coins = 0;
+            if (state == HistorySaveState.Saved && !string.IsNullOrWhiteSpace(play.RecordId) &&
+                eligibility is (RankingEligibility.Eligible or RankingEligibility.BelowRankC))
+            {
+                coins = (long)play.PlayLevel * (award switch
+                {
+                    ClearAward.AllPerfect => 25,
+                    ClearAward.FullCombo => 5,
+                    ClearAward.Clear => 1,
+                    _ => 0
+                });
+            }
             return new RankingSettlement(play.RecordId, play.ScoreKey, eligibility, state, award, points,
-                before, Standing(play.ScoreKey), unlocks);
+                before, Standing(play.ScoreKey), unlocks, coins);
         }
 
         private static RankingEligibility Eligibility(CustomMusicScorePlayHistoryRecord play)

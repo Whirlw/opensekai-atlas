@@ -170,20 +170,13 @@ namespace OpenSekai.App.UI
 
         internal static bool IsReached(AchievementProgress progress) => progress?.ReachedAtUtc.HasValue == true;
 
-        /// <summary>What a goal hands over, as its box names it; empty when it gives nothing.</summary>
-        internal static string RewardKinds(AchievementProgress progress)
-        {
-            bool avatar = progress.Goal.AvatarId != null;
-            if (!progress.Goal.GivesMedal) return avatar ? "头像" : string.Empty;
-            return avatar ? "奖牌 · 头像" : "奖牌";
-        }
-
-        /// <summary>"已领取奖牌「十万键之路」和头像" once <paramref name="progress"/> is unlocked; null when it gives nothing.</summary>
+        /// <summary>Rewards delivered when the player unlocks this goal.</summary>
         internal static string Received(AchievementProgress progress)
         {
             bool avatar = progress.Goal.AvatarId != null;
-            if (!progress.Goal.GivesMedal) return avatar ? "已领取头像，可以在编辑资料里使用" : null;
-            return "已领取奖牌「" + (progress.Goal.MedalDisplayName ?? For(progress).Title) + "」" + (avatar ? "和头像" : string.Empty) + "，可以到个人信息页使用";
+            string received = "已获得 " + ProfileCopy.Number(progress.Goal.CoinReward) + " 金币";
+            if (progress.Goal.GivesMedal) received += " · 奖牌「" + (progress.Goal.MedalDisplayName ?? For(progress).Title) + "」";
+            return avatar ? received + " · 头像" : received;
         }
 
         /// <summary>True when the goal is reached once or not at all, so a bar would say nothing.</summary>

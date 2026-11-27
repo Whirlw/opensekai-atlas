@@ -45,6 +45,7 @@ namespace OpenSekai.App.Library
 
     public sealed class PlayerProfileSnapshot
     {
+        public long Coins { get; }
         public ProfileAppearance Appearance { get; }
         public Best30Snapshot Best30 { get; }
         public IReadOnlyList<string> EarnedDanIds { get; }
@@ -53,8 +54,9 @@ namespace OpenSekai.App.Library
         public IReadOnlyList<Medal> WornMedals { get; }
 
         internal PlayerProfileSnapshot(ProfileAppearance appearance, Best30Snapshot best30, DanArchive archive,
-            Func<IReadOnlyList<AchievementProgress>> achievements)
+            Func<IReadOnlyList<AchievementProgress>> achievements, long coins)
         {
+            Coins = coins;
             Appearance = PlayerProfileStore.OwnsAvatar(appearance.AvatarId, achievements) ? appearance
                 : new ProfileAppearance(appearance.Nickname, PlayerProfileStore.DEFAULT_AVATAR);
             Best30 = best30;
@@ -95,7 +97,7 @@ namespace OpenSekai.App.Library
             History = new RankingHistory(HistoryPath, Summaries) { DanSource = ReadDanArchive, ClaimsSource = ReadClaims };
         }
 
-        public PlayerProfileSnapshot Read() => new(ReadAppearance(), History.Read(), ReadDanArchive(), RewardAchievements);
+        public PlayerProfileSnapshot Read() => new(ReadAppearance(), History.Read(), ReadDanArchive(), RewardAchievements, ReadCoins());
         public HistoryPage ReadHistory(int offset, int limit) => History.ReadPage(offset, limit);
 
         public void SetAppearance(string nickname, string avatarId)

@@ -433,6 +433,7 @@ namespace OpenSekai.App.UI
             _points.text = counted ? ResultCopy.Number(0) : finalPoints;
             _points.color = counted ? LibraryTheme.Colors.TextPrimary : LibraryTheme.Colors.TextMuted;
             _breakdown.text = ResultCopy.Breakdown(_ranking);
+            if (_ranking.CoinReward > 0) _breakdown.text += "   金币 +" + ResultCopy.Number(_ranking.CoinReward);
             RectTransform breakdown = _breakdown.rectTransform;
             breakdown.anchoredPosition = new Vector2(Mathf.Ceil(_points.GetPreferredValues(finalPoints).x) + 20f, -BREAKDOWN_TOP);
 

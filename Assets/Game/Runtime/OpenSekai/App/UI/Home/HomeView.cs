@@ -14,17 +14,18 @@ namespace OpenSekai.App.UI
     {
         Practice,
         Clips,
-        Library = 3,
+        Dan,
+        Library,
         Server,
         Packs,
         Profile,
-        Dan,
+        Shop,
         Achievements
     }
 
     /// <summary>
     /// The home menu opens on the library. Swiping right reveals the practice card,
-    /// while swiping left reveals the profile, course and achievement cards.
+    /// while swiping left reveals the profile, shop and achievement cards.
     /// </summary>
     internal sealed class HomeView : IDisposable, IHomeSwipeTarget
     {
@@ -47,6 +48,7 @@ namespace OpenSekai.App.UI
         private readonly HomeFeatureCard _packs;
         private readonly HomeProfileCard _profile;
         private readonly HomeFeatureCard _dan;
+        private readonly HomeFeatureCard _shop;
         private readonly HomeFeatureCard _achievements;
         private readonly HomeFeatureCard _practice;
         private readonly HomeFeatureCard _clips;
@@ -81,7 +83,7 @@ namespace OpenSekai.App.UI
         /// <param name="openAchievements">The 成就 card was tapped.</param>
         internal HomeView(RectTransform parent, Action openLibrary, Action openAbout, Action openSettings, Action<string> comingSoon,
             Action openServer = null, Action openPacks = null, Action openProfile = null, Action openDan = null,
-            Action openAchievements = null, Action openPractice = null, Action openClips = null)
+            Action openAchievements = null, Action openPractice = null, Action openClips = null, Action openShop = null)
         {
             _root = LibraryUi.CreateRect("Home", parent);
             LibraryUi.Stretch(_root);
@@ -133,7 +135,7 @@ namespace OpenSekai.App.UI
                 available: openPacks != null, status: openPacks != null ? "管理资源" : null);
             _library = new HomeLibraryCard(Slot(1, 0).Rect, openLibrary);
 
-            _dan = new HomeFeatureCard(Slot(2, 1).Rect, "DanCard", "DAN", "段位", "多曲连打 · 生命延续 · 段位牌",
+            _dan = new HomeFeatureCard(Slot(0, 2).Rect, "DanCard", "DAN", "段位", "多曲连打 · 生命延续 · 段位牌",
                 HomeTheme.Colors.Violet, root => new HomePlateArt(root),
                 () =>
                 {
@@ -141,6 +143,12 @@ namespace OpenSekai.App.UI
                     else comingSoon?.Invoke("段位");
                 },
                 available: openDan != null, status: openDan != null ? "开始挑战" : null);
+            _shop = new HomeFeatureCard(Slot(2, 1).Rect, "ShopCard", "SHOP", "商店", "金币余额 · 消费记录",
+                HomeTheme.Colors.Gold, root =>
+                {
+                    LibraryWidgets.CoinIcon(root, 132f);
+                    return null;
+                }, () => openShop?.Invoke(), available: openShop != null, status: "查看商店");
             _achievements = new HomeFeatureCard(Slot(2, 2).Rect, "AchievementsCard", "ACHIEVEMENTS", "成就", "练习 · 技巧 · 段位 · 特殊奖牌",
                 HomeTheme.Colors.Gold, root => _medal = new HomeMedalArt(root),
                 () =>
@@ -157,13 +165,14 @@ namespace OpenSekai.App.UI
             _clips = new HomeFeatureCard(Slot(0, 1).Rect, "ClipsCard", "CLIPS", "剪辑",
                 "保存歌曲片段 · 应用练习模板", HomeTheme.Colors.Violet, root => new HomeStackArt(root),
                 () => openClips?.Invoke(), available: openClips != null, status: "管理片段");
-            Bind(0, 1, _clips);
             Bind(0, 0, _practice);
+            Bind(0, 1, _clips);
+            Bind(0, 2, _dan);
             Bind(1, 0, _library);
             Bind(1, 1, _server);
             Bind(1, 2, _packs);
             Bind(2, 0, _profile);
-            Bind(2, 1, _dan);
+            Bind(2, 1, _shop);
             Bind(2, 2, _achievements);
 
             RectTransform chrome = LibraryUi.CreateRect("Chrome", _root);
@@ -211,6 +220,8 @@ namespace OpenSekai.App.UI
         internal void SetAccent(Color32 accent, Color32 glow) => _library.SetAccent(accent, glow);
 
         internal void SetProfile(HomeProfileSummary summary) => _profile.SetSummary(summary);
+
+        internal void SetShopStatus(string status) => _shop.SetStatus(status);
 
         /// <summary>The 段位 card's chip: how many courses there are and how many are passed.</summary>
         internal void SetDanStatus(string status) => _dan.SetStatus(status);
@@ -561,6 +572,7 @@ namespace OpenSekai.App.UI
             _server.Dispose();
             _packs.Dispose();
             _dan.Dispose();
+            _shop.Dispose();
             _achievements.Dispose();
             _practice.Dispose();
             _clips.Dispose();

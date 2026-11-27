@@ -20,12 +20,12 @@ namespace OpenSekai.App.Library
         private const string MANIFEST = "manifest.json";
         private const int HISTORY_LIMIT = 64 * 1024 * 1024;
         private const int DAN_LIMIT = 64 * 1024 * 1024;
-        internal const long MAX_ARCHIVE_BYTES = 2L * HISTORY_LIMIT + DAN_LIMIT + 1024 * 1024;
+        internal const long MAX_ARCHIVE_BYTES = 3L * HISTORY_LIMIT + DAN_LIMIT + 1024 * 1024;
         private const int JSON_LIMIT = 16 * 1024;
         internal static readonly UTF8Encoding Utf8 = new(false, true);
 
         internal static void Write(string destination, string historyPath, ProfileAppearance appearance, DanArchive dan,
-            AchievementClaims claims, CancellationToken cancel = default)
+            AchievementClaims claims, CoinSpending spending, CancellationToken cancel = default)
         {
             AtomicFile.Write(destination, temp =>
             {
@@ -62,13 +62,22 @@ namespace OpenSekai.App.Library
                     ["format"] = FORMAT, ["version"] = 3, ["danSha256"] = Hash(challenges), ["achievementsSha256"] = Hash(unlocks),
                     ["profileSha256"] = Hash(profile), ["historySha256"] = Convert.ToBase64String(digest.Hash)
                 };
+                if (spending.Count > 0)
+                {
+                    byte[] purchases = Utf8.GetBytes(JsonConvert.SerializeObject(spending));
+                    if (purchases.Length > HISTORY_LIMIT) throw new InvalidDataException("Spending history exceeds backup size limit.");
+                    using var target = zip.CreateEntry(PlayerProfileStore.SPENDING_FILE).Open();
+                    target.Write(purchases, 0, purchases.Length);
+                    manifest["version"] = 4;
+                    manifest["spendingSha256"] = Hash(purchases);
+                }
                 using var metadata = new StreamWriter(zip.CreateEntry(MANIFEST).Open(), Utf8);
                 metadata.Write(manifest.ToString(Formatting.None));
                 cancel.ThrowIfCancellationRequested();
             });
         }
 
-        internal static (ProfileAppearance, DanArchive, AchievementClaims) Unpack(string path, string stagedHistory)
+        internal static (ProfileAppearance, DanArchive, AchievementClaims, CoinSpending) Unpack(string path, string stagedHistory)
         {
             using var file = File.OpenRead(path);
             if (file.Length > MAX_ARCHIVE_BYTES) throw new InvalidDataException("Backup exceeds size limit.");
@@ -77,8 +86,8 @@ namespace OpenSekai.App.Library
             Copy(zip, MANIFEST, json, JSON_LIMIT);
             var manifest = Parse(Utf8.GetString(json.ToArray()));
             if ((string)manifest["format"] != FORMAT || manifest["version"]?.Type != JTokenType.Integer ||
-                (int)manifest["version"] is not (1 or 2 or 3)) throw new InvalidDataException("Unsupported player backup.");
-            // Version 2 added the challenges, version 3 the unlocked achievements.
+                (int)manifest["version"] is not (1 or 2 or 3 or 4)) throw new InvalidDataException("Unsupported player backup.");
+            // Each version adds one entry: challenges, then unlocks, then spending.
             int version = (int)manifest["version"];
             if (zip.Entries.Count != version + 2) throw new InvalidDataException("Unexpected player backup entries.");
             var dan = new DanArchive();
@@ -99,6 +108,15 @@ namespace OpenSekai.App.Library
                 if (Hash(bytes) != (string)manifest["achievementsSha256"]) throw new InvalidDataException("Achievement checksum mismatch.");
                 claims = AchievementClaims.Decode(Utf8.GetString(bytes));
             }
+            var spending = new CoinSpending();
+            if (version >= 4)
+            {
+                json.SetLength(0);
+                Copy(zip, PlayerProfileStore.SPENDING_FILE, json, HISTORY_LIMIT);
+                byte[] bytes = json.ToArray();
+                if (Hash(bytes) != (string)manifest["spendingSha256"]) throw new InvalidDataException("Spending checksum mismatch.");
+                spending = CoinSpending.Decode(Utf8.GetString(bytes));
+            }
             json.SetLength(0);
             Copy(zip, PROFILE, json, JSON_LIMIT);
             byte[] profile = json.ToArray();
@@ -112,7 +130,7 @@ namespace OpenSekai.App.Library
             var fields = Parse(Utf8.GetString(profile));
             if (fields["nickname"]?.Type != JTokenType.String || fields["avatarId"]?.Type != JTokenType.String)
                 throw new InvalidDataException("Invalid player appearance.");
-            return (new ProfileAppearance((string)fields["nickname"], (string)fields["avatarId"]), dan, claims);
+            return (new ProfileAppearance((string)fields["nickname"], (string)fields["avatarId"]), dan, claims, spending);
         }
 
         internal static IEnumerable<string> LocalLines(string path)

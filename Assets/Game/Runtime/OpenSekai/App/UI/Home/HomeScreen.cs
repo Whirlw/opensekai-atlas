@@ -53,6 +53,7 @@ namespace OpenSekai.App.UI
         private HomeSplash _splash;
         private BrandEmblem _emblem;
         private HomeAboutPanel _about;
+        private HomeShop _shop;
         private PracticeSetupPanel _practice;
         private LibrarySettingsPanel _settings;
         private JacketThumbnails _thumbnails;
@@ -305,7 +306,7 @@ namespace OpenSekai.App.UI
             HideProfile();
             HideAchievements();
             HideHome();
-            _view.TurnTo(HomeView.PageOf(HomeDestination.Profile), false);
+            _view.TurnTo(HomeView.PageOf(HomeDestination.Dan), false);
             EnsureDan().SetPresented(true, false);
         }
 
@@ -341,7 +342,7 @@ namespace OpenSekai.App.UI
         }
 
         /// <summary>
-        /// Holds the hand-over to the 段位 part at <paramref name="amount"/> (0 the second page at
+        /// Holds the hand-over to the 段位 part at <paramref name="amount"/> (0 the practice page at
         /// rest, 1 the 段位 card covering the screen), for screenshots of the transition.
         /// </summary>
         public void SeekDanHandoff(float amount)
@@ -350,7 +351,7 @@ namespace OpenSekai.App.UI
             _idle.TryCancel();
             _idle = default;
             TickIdle(IntroLength);
-            _view.TurnTo(HomeView.PageOf(HomeDestination.Profile), false);
+            _view.TurnTo(HomeView.PageOf(HomeDestination.Dan), false);
             _view.ApplyExpansion(HomeDestination.Dan, Mathf.Clamp01(amount));
         }
 
@@ -454,7 +455,7 @@ namespace OpenSekai.App.UI
             var root = (RectTransform)_canvasRoot.transform;
             _backdrop = new HomeBackdrop(root);
             _view = new HomeView(root, OpenLibrary, OpenAbout, OpenSettings, ShowComingSoon, OpenServer, OpenPacks, OpenProfile, OpenDan,
-                OpenAchievements, OpenPracticeLibrary, OpenPractice);
+                OpenAchievements, OpenPracticeLibrary, OpenPractice, OpenShop);
             if (ServerChartDownloads.Current != null)
             {
                 ServerChartDownloads.Current.StatusChanged += ShowServerStatus;
@@ -843,7 +844,7 @@ namespace OpenSekai.App.UI
             }
         }
 
-        /// <summary>The 段位 card grows over the second page, then the part rises out of it.</summary>
+        /// <summary>The 段位 card grows over the practice page, then the part rises out of it.</summary>
         private void OpenDan()
         {
             if (_navigating || !_homeShown)
@@ -862,7 +863,7 @@ namespace OpenSekai.App.UI
             });
         }
 
-        /// <summary>The 段位 part falls into the ground, then its card shrinks back into the second page.</summary>
+        /// <summary>The 段位 card returns to its slot below 剪辑.</summary>
         private void ReturnFromDan()
         {
             if (_navigating || _dan == null || !_dan.IsPresented)
@@ -963,13 +964,13 @@ namespace OpenSekai.App.UI
 
         /// <summary>
         /// After a 段位 course the library scene opens on the 段位 part and its result, once; the
-        /// second home page waits underneath for the part's back button.
+        /// practice page waits underneath for the part's back button.
         /// </summary>
         private bool RestoreDanAfterCourse()
         {
             if (!DanResultHandoff.TakeFinished(DanChallengeService.Local)) return false;
             _library?.SetPresented(false, false);
-            _view.TurnTo(HomeView.PageOf(HomeDestination.Profile), false);
+            _view.TurnTo(HomeView.PageOf(HomeDestination.Dan), false);
             DanScreen dan = EnsureDan();
             dan.SetPresented(true, false);
             dan.ShowCourseResult();
@@ -1107,6 +1108,21 @@ namespace OpenSekai.App.UI
             }
         }
 
+        private void OpenShop()
+        {
+            if (_navigating || _splash.IsPlaying) return;
+            try
+            {
+                _shop ??= new HomeShop((RectTransform)_canvasRoot.transform);
+                _shop.Open(ProfileStore);
+            }
+            catch (Exception error)
+            {
+                Debug.LogWarning("[Shop] " + error.Message);
+                _view.ShowToast("无法读取金币记录");
+            }
+        }
+
         private void OpenSettings()
         {
             if (_navigating || _splash.IsPlaying) return;
@@ -1162,6 +1178,7 @@ namespace OpenSekai.App.UI
             _idle = default;
             _about.Hide();
             _settings?.Hide();
+            _shop?.Close();
             _canvasRoot.SetActive(false);
             _camera.enabled = false;
         }
@@ -1293,6 +1310,12 @@ namespace OpenSekai.App.UI
             }
 
             if (_practice?.TryHandleBack() == true) return;
+
+            if (_shop?.IsOpen == true)
+            {
+                _shop.Close();
+                return;
+            }
 
             if (_about.IsOpen)
             {
@@ -1427,6 +1450,7 @@ namespace OpenSekai.App.UI
                 int plays = store.ReadHistory(0, 1).TotalCount;
                 _view.SetProfile(new HomeProfileSummary(snapshot.Appearance.Nickname, snapshot.Appearance.AvatarId,
                     snapshot.Best30.Total, snapshot.Best30.TierId, snapshot.Best30.Entries.Count, plays, MedalLook.Of(snapshot.WornMedals), false));
+                _view.SetShopStatus("金币 " + ProfileCopy.Number(snapshot.Coins));
                 int courses = store.ReadDanDefinitions().Count;
                 _view.SetDanStatus(courses == 0 ? "开始挑战" : courses + " 个段位  ·  已通过 " + snapshot.EarnedDanIds.Count);
                 int goals = 0;
@@ -1443,6 +1467,7 @@ namespace OpenSekai.App.UI
             }
             catch (Exception exception)
             {
+                _view.SetShopStatus("余额读取失败");
                 Debug.LogWarning("[Home] Could not read the player profile: " + exception.Message);
                 _view.SetProfile(new HomeProfileSummary(HomeProfileSummary.Empty.Nickname, ProfileAvatars.DEFAULT_ID, 0L, 0, 0, 0, null, true));
             }
@@ -1602,6 +1627,7 @@ namespace OpenSekai.App.UI
             _splash?.Dispose();
             _view?.Dispose();
             _about?.Dispose();
+            _shop?.Dispose();
             _thumbnails?.Dispose();
             if (_camera != null)
             {
