@@ -7,18 +7,24 @@ namespace OpenSekai.Shared.Playback
     public sealed class PracticePlan
     {
         public PracticePlan(double startSeconds, double? endSeconds, PracticeTemplate template,
-            Action<Transform, IPracticeControls> createControls)
+            Action<Transform, IPracticeControls> createControls, bool speedFollows = true, bool judgmentFollows = true, bool recordResult = false)
         {
             if (double.IsInfinity(startSeconds) || double.IsNaN(startSeconds))
                 throw new ArgumentOutOfRangeException(nameof(startSeconds));
             if (endSeconds.HasValue && (double.IsInfinity(endSeconds.Value) || !(endSeconds > startSeconds)))
                 throw new ArgumentOutOfRangeException(nameof(endSeconds));
+            RecordResult = recordResult;
+            SpeedFollows = speedFollows;
+            JudgmentFollows = judgmentFollows;
             StartSeconds = startSeconds;
             EndSeconds = endSeconds;
             Template = template ?? throw new ArgumentNullException(nameof(template));
             CreateControls = createControls ?? throw new ArgumentNullException(nameof(createControls));
         }
 
+        public bool RecordResult { get; }
+        public bool SpeedFollows { get; }
+        public bool JudgmentFollows { get; }
         public double StartSeconds { get; }
         public double? EndSeconds { get; }
         public PracticeTemplate Template { get; }

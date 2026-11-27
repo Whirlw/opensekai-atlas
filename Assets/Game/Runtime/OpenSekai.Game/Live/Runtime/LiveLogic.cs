@@ -306,7 +306,7 @@ namespace Sekai.Core.Live
 		internal void ApplyFrameOutcome()
 		{
 			if (IsPractice) return;
-			if (scoreLogic != null && scoreLogic.Score.life <= 0 && Session.BootData is not FreeLiveBootData { DanSong: { FailOnZero: false } })
+			if (Session.ComboBroken || (scoreLogic != null && scoreLogic.Score.life <= 0 && Session.BootData is not FreeLiveBootData { DanSong: { FailOnZero: false } }))
 			{
 				Result = 2;
 			}

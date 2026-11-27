@@ -71,7 +71,7 @@
 				return;
 			}
 
-			if (OffsetJudgeTime > LiveConfig.noteTypeJudgeData.JudgeTimeAfter)
+			if (OffsetJudgeTime > LiveConfig.noteTypeJudgeData.JudgeTimeAfter * LiveConfig.PracticeWindowScale)
 			{
 				State = NoteState.Last;
 			}

@@ -28,6 +28,13 @@ namespace Sekai.Core.Live
         private void QuitPractice()
         {
             if (state == LiveControllerState.Finish) return;
+            if (PracticePlan.RecordResult)
+            {
+                _retiredByPlayer = !_practice.Completed;
+                result = _retiredByPlayer ? 1 : 3;
+                PreExit(0f, 0f);
+                return;
+            }
             state = LiveControllerState.Finish;
             Exit();
         }

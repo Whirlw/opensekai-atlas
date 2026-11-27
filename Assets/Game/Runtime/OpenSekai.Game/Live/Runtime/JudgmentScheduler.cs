@@ -10,6 +10,7 @@ namespace Sekai.Core.Live
 	{
 		private readonly LiveLogic _logic;
 		private readonly System.Func<bool> _hasDanLife;
+		private readonly System.Func<bool> _comboIntact;
 		private readonly LiveSessionState _session;
 		private readonly LiveInputRouter _input;
 		private readonly LiveNoteFrame _noteFrame;
@@ -35,6 +36,7 @@ namespace Sekai.Core.Live
 			LiveNoteFrame noteFrame, LivePresentationBridge presentation)
 		{
 			_logic = logic;
+			_comboIntact = () => !_session.ComboBroken;
 			_hasDanLife = () => _session.ScoreLogic?.Score.life > 0;
 			_session = session;
 			_input = input;
@@ -659,6 +661,9 @@ namespace Sekai.Core.Live
 			}
 
 			_session.ScoreLogic?.UpdateCombo(note);
+			if (_session.BootData is FreeLiveBootData { Death: true } && note.HasJudgment
+				&& note.Result != NoteResult.None && _session.Score.combo == 0)
+				_session.ComboBroken = true;
 			_presentation.UpdateCombo(_session.Views, _session.ScoreLogic?.Score ?? default);
 		}
 
@@ -711,7 +716,8 @@ namespace Sekai.Core.Live
 			note.OnUpdateCombo = OnUpdateCombo;
 			note.OnUpdateScore = OnUpdateScore;
 			note.OnDamage = OnDamage;
-			note.CanPublishResult = _session.BootData is FreeLiveBootData { DanSong: { FailOnZero: true } } ? _hasDanLife : null;
+			note.CanPublishResult = _session.BootData is FreeLiveBootData { DanSong: { FailOnZero: true } } ? _hasDanLife
+				: _session.BootData is FreeLiveBootData { Death: true } ? _comboIntact : null;
 			note.OnUpdateResult = OnUpdateResult;
 			note.CalcTimeOffset = _noteFrame.CalcTimeOffset;
 			if (note.NativeScroll == null)

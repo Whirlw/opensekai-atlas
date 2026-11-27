@@ -89,7 +89,7 @@ namespace OpenSekai.App.UI
         public bool IsAchievementsShown => _achievements != null && _achievements.IsPresented;
 
         /// <summary>Capture coordinates retain 0 for the library and 1 for the profile. Practice is -1.</summary>
-        public int HomePage => HomeView.PageOf(HomeDestination.Library) - _view.Page;
+        public int HomePage => _view.Page - HomeView.PageOf(HomeDestination.Library);
 
         /// <summary>
         /// The profile the 个人信息 card and part read; the local one unless a tool swapped in another
@@ -398,15 +398,15 @@ namespace OpenSekai.App.UI
         {
             if (Mathf.Approximately(progress, Mathf.Round(progress)))
             {
-                _view.TurnTo(HomeView.PageOf(HomeDestination.Library) - Mathf.RoundToInt(progress), false);
+                _view.TurnTo(HomeView.PageOf(HomeDestination.Library) + Mathf.RoundToInt(progress), false);
                 return;
             }
 
-            _view.SeekPage(HomeView.PageOf(HomeDestination.Library) - progress);
+            _view.SeekPage(HomeView.PageOf(HomeDestination.Library) + progress);
         }
 
         /// <summary>What a swipe or the footer's tabs do: turn the home page to <paramref name="page"/>.</summary>
-        public void TurnHomePage(int page) => _view.TurnTo(HomeView.PageOf(HomeDestination.Library) - page, true);
+        public void TurnHomePage(int page) => _view.TurnTo(HomeView.PageOf(HomeDestination.Library) + page, true);
 
         /// <summary>What tapping the 个人信息 card does.</summary>
         public void EnterProfile() => OpenProfile();
@@ -454,7 +454,7 @@ namespace OpenSekai.App.UI
             var root = (RectTransform)_canvasRoot.transform;
             _backdrop = new HomeBackdrop(root);
             _view = new HomeView(root, OpenLibrary, OpenAbout, OpenSettings, ShowComingSoon, OpenServer, OpenPacks, OpenProfile, OpenDan,
-                OpenAchievements, OpenPractice);
+                OpenAchievements, OpenPracticeLibrary, OpenPractice);
             if (ServerChartDownloads.Current != null)
             {
                 ServerChartDownloads.Current.StatusChanged += ShowServerStatus;
@@ -510,14 +510,38 @@ namespace OpenSekai.App.UI
             return _library;
         }
 
+        private HomeDestination _libraryOrigin = HomeDestination.Library;
+
+        private void OpenPracticeLibrary()
+        {
+            if (_navigating || !_homeShown) return;
+            if (LibraryModes.Locked(LibraryMode.Practice))
+            {
+                _view.ShowToast("请先在曲库的「模式」中关闭死亡模式");
+                return;
+            }
+            if (!LibraryModes.Enabled(LibraryMode.Practice)) LibraryModes.Toggle(LibraryMode.Practice);
+            EnterLibraryFrom(HomeDestination.Practice);
+        }
+
         private void OpenPractice()
         {
             if (_navigating || !_homeShown) return;
-            _practice ??= new PracticeSetupPanel((RectTransform)_canvasRoot.transform, _context.Playback);
+            _practice ??= new PracticeSetupPanel(transform, _camera, _context.Playback, _context.Packages.LoadItems, RestorePracticeHome);
+            _canvasRoot.SetActive(false);
+            _camera.enabled = false;
             _practice.Open();
         }
 
-        private void OpenLibrary()
+        private void RestorePracticeHome()
+        {
+            _canvasRoot.SetActive(_homeShown);
+            _camera.enabled = _homeShown;
+        }
+
+        private void OpenLibrary() => EnterLibraryFrom(HomeDestination.Library);
+
+        private void EnterLibraryFrom(HomeDestination origin)
         {
             if (_navigating || !_homeShown)
             {
@@ -532,7 +556,8 @@ namespace OpenSekai.App.UI
                 _splash.Evaluate(HomeSplash.Length);
             }
             UiSound.Play(UiCue.Forward);
-            _view.PlayExpand(() => _libraryCovered = true);
+            _libraryOrigin = origin;
+            _view.PlayExpand(origin, () => _libraryCovered = true);
         }
 
         private void GoHome()
@@ -548,7 +573,7 @@ namespace OpenSekai.App.UI
                 _library.SetPresented(false, false);
                 ShowHome();
                 _splash.Evaluate(HomeSplash.Length);
-                _view.PlayCollapse(() => _navigating = false);
+                _view.PlayCollapse(_libraryOrigin, () => _navigating = false);
             });
         }
 
@@ -1130,6 +1155,7 @@ namespace OpenSekai.App.UI
         {
             _showHomeWhenReady = false;
             _homeShown = false;
+            if (_practice?.IsOpen == true) _practice.Close();
             _libraryCovered = false;
             _splash.Stop();
             _idle.TryCancel();

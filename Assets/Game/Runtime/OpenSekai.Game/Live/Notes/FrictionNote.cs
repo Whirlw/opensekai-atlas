@@ -6,8 +6,8 @@ namespace Sekai.Live
 		public bool IsTailTraceOwner { get; }
 		private readonly bool _isTraceTail;
 		private bool UsesTailWindow => _isTraceTail || IsTailTraceOwner || GradesAsBarPart && ParentRole == OpenSekai.Shared.Live.NoteParentRole.Tail;
-		internal override float EarlyContactSeconds => UsesTailWindow ? 6.5f / 60f : base.EarlyContactSeconds;
-		internal override float LateContactSeconds => UsesTailWindow ? 8f / 60f : base.LateContactSeconds;
+		internal override float EarlyContactSeconds => UsesTailWindow ? 6.5f / 60f * LiveConfig.PracticeWindowScale : base.EarlyContactSeconds;
+		internal override float LateContactSeconds => UsesTailWindow ? 8f / 60f * LiveConfig.PracticeWindowScale : base.LateContactSeconds;
 
 		public override NoteState State
 		{

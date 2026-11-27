@@ -61,7 +61,13 @@ namespace OpenSekai.Live.Conversion
 		{
 			ChartDocument conversionData = _document.Copy();
 			conversionData.MusicScoreEventDataList ??= new List<ChartEvent>();
-			ChartEvent existingTimeSignature = conversionData.MusicScoreEventDataList.Find(e => e != null && e.eventType == ChartEventType.TimeSignature);
+			if (settings.ConstantScroll)
+            {
+                conversionData.MusicScoreEventDataList.RemoveAll(e => e?.eventType == ChartEventType.HighSpeed);
+                foreach (var note in conversionData.NoteList)
+                    if (note != null) note.speedRatio = 1f;
+            }
+            ChartEvent existingTimeSignature = conversionData.MusicScoreEventDataList.Find(e => e != null && e.eventType == ChartEventType.TimeSignature);
 			int timeSignatureId = existingTimeSignature != null ? existingTimeSignature.id : ++_idCount;
 			conversionData.MusicScoreEventDataList.RemoveAll(e => e != null && e.eventType == ChartEventType.TimeSignature);
 			conversionData.MusicScoreEventDataList.Add(new ChartEvent

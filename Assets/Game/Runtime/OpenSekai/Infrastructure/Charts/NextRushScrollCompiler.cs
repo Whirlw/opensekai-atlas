@@ -11,7 +11,7 @@ namespace OpenSekai.Infrastructure.Charts
         private const string MARKER = "#TIMESCALE_CHANGE";
 
         internal static Dictionary<NextRushEntity, NextRushScrollTimeline> Compile(
-            NextRushChart chart, Func<double, (double time, double bpm)> timingAt)
+            NextRushChart chart, Func<double, (double time, double bpm)> timingAt, bool constantScroll = false)
         {
             var groups = new Dictionary<NextRushEntity, NextRushScrollTimeline>();
             var visited = new HashSet<NextRushEntity>();
@@ -42,13 +42,14 @@ namespace OpenSekai.Infrastructure.Charts
                     if (ease < 0 || ease > 41 || ease % 1 != 0 || ease >= 30 && ease <= 37)
                         throw Invalid("变速缓动无效", marker);
                     if (style != 0 && style != 1) throw Invalid("变速模式无效", marker);
-                    changes.Add(new NextRushScrollTimeline.Change(time, speed, skip, (int)ease, style == 1,
+                    changes.Add(new NextRushScrollTimeline.Change(time, constantScroll ? 1d : speed, constantScroll ? 0d : skip,
+                        constantScroll ? 0 : (int)ease, !constantScroll && style == 1,
                         marker.Number("hideNotes") != 0));
                     marker = Resolve(chart, marker, "next", MARKER);
                 }
                 double forceSpeed = group.Number("forceNoteSpeed");
                 if (changes.Count > 0 || forceSpeed > 0)
-                    groups.Add(group, new NextRushScrollTimeline(changes, forceSpeed));
+                    groups.Add(group, new NextRushScrollTimeline(changes, constantScroll ? 0d : forceSpeed));
             }
             foreach (var entity in chart.Entities)
                 if (entity.Archetype == MARKER && !visited.Contains(entity))

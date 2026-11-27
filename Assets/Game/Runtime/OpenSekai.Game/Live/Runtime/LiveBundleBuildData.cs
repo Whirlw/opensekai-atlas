@@ -10,8 +10,11 @@ namespace Sekai.Live
 		public readonly float FlickPixels;
 		public readonly int LongNoteComboBeat;
 
-		public ChartConversionSettings(LiveBundleBuildData config)
+		public readonly bool ConstantScroll;
+
+		public ChartConversionSettings(LiveBundleBuildData config, bool constantScroll = false)
 		{
+			ConstantScroll = constantScroll;
 			_tuning = LiveBundleBuildData.GetJudgeTuning(config);
 			FlickPixels = _tuning.FlickDistanceInPixels(Screen.dpi);
 			LongNoteComboBeat = config == null ? 0 : config.LongNoteComboBeat;

@@ -353,7 +353,7 @@ namespace Sekai.Live
 
 		public static bool IsLongEndJudgeTime(float offsetTime)
 		{
-			return -noteTypeJudgeData.JudgeTimeAfter <= offsetTime && noteTypeJudgeData.JudgeTimeBefore >= offsetTime;
+			return -noteTypeJudgeData.JudgeTimeAfter * PracticeWindowScale <= offsetTime && noteTypeJudgeData.JudgeTimeBefore * PracticeWindowScale >= offsetTime;
 		}
 
 		public static float GetNoteViewProgress(float progress)
@@ -420,16 +420,27 @@ namespace Sekai.Live
 			return GetJudgeResultInternal(note.MusicScoreInfo.time - time, LiveUtility.GetINoteToJudgeFrameType(note), isDirection);
 		}
 
-		internal static JudgeTimeData GetJudgeWindow(JudgeFrameType type) =>
-			noteTypeJudgeData.JudgeTimes.TryGetValue(type, out var judgeTimeData)
+		internal static float PracticeScrollScale { get; set; } = 1f;
+
+		internal static float PracticeWindowScale { get; set; } = 1f;
+
+		internal static JudgeTimeData GetJudgeWindow(JudgeFrameType type)
+		{
+			var window = noteTypeJudgeData.JudgeTimes.TryGetValue(type, out var judgeTimeData)
 				? judgeTimeData
 				: noteTypeJudgeData.JudgeTimes[JudgeFrameType.Normal];
+			float scale = PracticeWindowScale;
+			if (scale == 1f) return window;
+			return new JudgeTimeData(window.NoteType, window.PerfectBeforeJudgeTime * scale, window.PerfectAfterJudgeTime * scale,
+				window.GreatBeforeJudgeTime * scale, window.GreatAfterJudgeTime * scale, window.GoodBeforeJudgeTime * scale,
+				window.GoodAfterJudgeTime * scale, window.BadBeforeJudgeTime * scale, window.BadAfterJudgeTime * scale);
+		}
 
 		internal static bool IsPastJudgeWindow(JudgeFrameType type, float noteMinusNow) =>
 			OpenSekai.Shared.Scoring.JudgeWindow.IsPast(GetJudgeWindow(type), noteMinusNow);
 
 		private static (NoteResult, NoteResultDescription) GetJudgeResultInternal(float offset, JudgeFrameType judgeFrameType, bool isDirection) =>
-			OpenSekai.Shared.Scoring.JudgeWindow.ResultFor(GetJudgeWindow(judgeFrameType), offset, isDirection, OnTimeWindowHalfSeconds);
+			OpenSekai.Shared.Scoring.JudgeWindow.ResultFor(GetJudgeWindow(judgeFrameType), offset, isDirection, OnTimeWindowHalfSeconds * PracticeWindowScale);
 
 		static LiveConfig()
 		{

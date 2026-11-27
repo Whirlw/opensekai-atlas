@@ -25,6 +25,8 @@ namespace Sekai
 				System.Math.Min(Practice.EndSeconds ?? PracticeMaximum, PracticeMaximum);
 		}
 
+		public bool Death { get; set; }
+
 		public string RetrySourceId { get; set; }
 		public string RetrySource { get; set; }
 		public System.Action<string, string, string, string> RecordRetryStart { get; set; }

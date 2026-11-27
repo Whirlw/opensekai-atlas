@@ -17,6 +17,7 @@ namespace Sekai.Core.Live
 		internal ScoreLogic ScoreLogic { get; set; }
 		internal SkillLogic SkillLogic { get; set; } = new NullSkillLogic();
 		internal float NoteDisplayTimeOffset { get; set; }
+		internal bool ComboBroken { get; set; }
 		internal int TapCount { get; set; }
 
 		/// <summary>
@@ -58,6 +59,7 @@ namespace Sekai.Core.Live
 			Notes.Reset();
 			_timeline.Reset();
 			_endExclusive = double.PositiveInfinity;
+			ComboBroken = false;
 			TapCount = 0;
 			presentation.Reset();
 			MusicScore?.ResetNote();

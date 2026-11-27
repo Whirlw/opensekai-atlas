@@ -17,6 +17,22 @@ namespace OpenSekai.Tests.EditMode.Live
             new NormalNote(new MusicScoreInfo(0, 0f, seconds, 120f, 4f, 1f, 1f), id, 4, 4,
                 NoteCategory.Normal, 1f, NoteType.Default, 0f);
 
+        [Test]
+        public void ConstantScrollLeavesLegacyChartTimesAndAuthoredSpeedsIntact()
+        {
+            var document = new OpenSekai.Charts.ChartDocument();
+            document.MusicScoreEventDataList.Add(new OpenSekai.Charts.ChartEvent
+                { eventType = OpenSekai.Charts.ChartEventType.HighSpeed, ticks = 0, changeValue = "2" });
+            document.NoteList.Add(new OpenSekai.Charts.ChartNote(1, 480, 4, 4, NoteCategory.Normal, speedRatio: 3f));
+            var standard = RuntimeChartConverter.Convert(document, new ChartConversionSettings(null), false, false);
+            var constant = RuntimeChartConverter.Convert(document, new ChartConversionSettings(null, true), false, false);
+            Assert.That(standard.NoteArray.Single().speedRatio, Is.EqualTo(3f));
+            Assert.That(constant.NoteArray.Single().speedRatio, Is.EqualTo(1f));
+            Assert.That(constant.NoteArray.Single().MusicScoreInfo.time, Is.EqualTo(standard.NoteArray.Single().MusicScoreInfo.time));
+            Assert.That(constant.musicScoreInfoArray.All(frame => frame.speedRatio == 1f), Is.True);
+            Assert.That(document.NoteList.Single().speedRatio, Is.EqualTo(3f));
+        }
+
         [TestCase(0.01d)]
         [TestCase(0.5d)]
         [TestCase(0.7d)]

@@ -23,6 +23,8 @@ namespace OpenSekai.App.Playback
         internal OpenSekai.Shared.Playback.RankingSettlement RetryFrom { get; init; }
 
         public OpenSekai.Shared.Playback.PracticePlan Practice { get; init; }
+        internal bool ConstantScroll { get; init; }
+        internal bool Death { get; init; }
         public bool IsAuto { get; }
         public SceneManager.Scene ReturnScene { get; }
 

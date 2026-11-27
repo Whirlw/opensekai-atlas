@@ -254,7 +254,7 @@ namespace OpenSekai.Tests.PlayMode
         }
 
         [UnityTest]
-        public IEnumerator SwipingLeftOnHomeOpensPracticeSetupAndItsLibraryPicker()
+        public IEnumerator SwipingRightOnHomeOpensTheClipsPageAndItsLibraryPicker()
         {
             yield return LoadColdHome();
             var home = HomeScreen.Current;
@@ -273,8 +273,8 @@ namespace OpenSekai.Tests.PlayMode
                 var libraryCard = home.GetComponentsInChildren<RectTransform>().Single(rect => rect.name == "LibraryCard");
                 var libraryButton = libraryCard.GetComponentInChildren<Button>();
                 Vector2 from = RectTransformUtility.WorldToScreenPoint(canvas.worldCamera,
-                    libraryCard.TransformPoint(libraryCard.rect.center + Vector2.right * libraryCard.rect.width * 0.35f));
-                Vector2 to = from - Vector2.right * Screen.width * 0.4f;
+                    libraryCard.TransformPoint(libraryCard.rect.center));
+                Vector2 to = from + Vector2.right * Screen.width * 0.4f;
                 yield return WaitFor(() => ExecuteEvents.GetEventHandler<IPointerClickHandler>(Hit(from).gameObject) == libraryButton.gameObject,
                     BOOT_TIMEOUT_SECONDS, "waiting for the library card to receive input");
                 var drag = Press(from);
@@ -297,25 +297,25 @@ namespace OpenSekai.Tests.PlayMode
                 }
                 ExecuteEvents.Execute(drag.pointerDrag, drag, ExecuteEvents.endDragHandler);
                 Assert.That(drag.eligibleForClick, Is.False, "a swipe cancels the library card press");
-                Assert.That(home.HomePage, Is.EqualTo(-1), "a leftward drag selects the practice page");
+                Assert.That(home.HomePage, Is.EqualTo(-1), "a rightward drag selects the practice page");
 
-                var card = home.GetComponentsInChildren<RectTransform>(true).Single(rect => rect.name == "PracticeCard");
+                var card = home.GetComponentsInChildren<RectTransform>(true).Single(rect => rect.name == "ClipsCard");
                 var button = card.GetComponentInChildren<Button>(true);
                 yield return WaitFor(() => button.IsInteractable(),
-                    BOOT_TIMEOUT_SECONDS, "settling on the practice page after a left swipe");
+                    BOOT_TIMEOUT_SECONDS, "settling on the practice page after a right swipe");
                 Vector2 center = Center(card);
-                Assert.That(center.x, Is.InRange(0f, Screen.width * 0.5f), "the practice card occupies the left side");
-                Assert.That(card.rect.width, Is.GreaterThan(((RectTransform)canvas.transform).rect.width * 0.4f),
-                    "the practice entry uses the large card");
+                Assert.That(center.x, Is.GreaterThan(Screen.width * 0.5f), "剪辑 occupies the right column");
+                Assert.That(center.y, Is.GreaterThan(Screen.height * 0.5f), "剪辑 occupies the upper card");
                 Click(button);
                 yield return WaitFor(() => home.IsPracticeShown, BOOT_TIMEOUT_SECONDS, "opening practice settings");
                 yield return null;
 
-                setup = canvas.transform.Find("PracticeSetup");
-                Assert.That(setup.Find("Frame/Card/Title").GetComponent<TextMeshProUGUI>().text, Is.EqualTo("练习模式"));
+                setup = home.transform.Find("ClipsScreen/PracticeSetup");
+                Assert.That(canvas.gameObject.activeInHierarchy, Is.False);
+                Assert.That(setup.Find("Title").GetComponent<TextMeshProUGUI>().text, Is.EqualTo("剪辑"));
                 var picker = setup.Find("DanLibraryPicker");
                 Assert.That(picker.gameObject.activeInHierarchy, Is.False);
-                var song = setup.Find("Frame/Card/Body/Song").GetComponent<Button>();
+                var song = setup.Find("Columns/Editor/Body/Song").GetComponent<Button>();
                 Click(song);
                 yield return WaitFor(() => picker.gameObject.activeInHierarchy, BOOT_TIMEOUT_SECONDS, "opening the chart picker");
                 Assert.That(picker.Find("Frame/Card/Title").GetComponent<TextMeshProUGUI>().text, Is.EqualTo("选择练习谱面"));
@@ -323,12 +323,12 @@ namespace OpenSekai.Tests.PlayMode
             }
             finally
             {
-                if (setup != null) setup.Find("Frame/Card/Close").GetComponent<Button>().onClick.Invoke();
+                if (setup != null) setup.Find("Close").GetComponent<Button>().onClick.Invoke();
                 home.SeekHomePage(0);
             }
 
             Vector2 Center(RectTransform rect) =>
-                RectTransformUtility.WorldToScreenPoint(canvas.worldCamera, rect.TransformPoint(rect.rect.center));
+                RectTransformUtility.WorldToScreenPoint(rect.GetComponentInParent<Canvas>().worldCamera, rect.TransformPoint(rect.rect.center));
 
             RaycastResult Hit(Vector2 position)
             {
@@ -488,6 +488,56 @@ namespace OpenSekai.Tests.PlayMode
                     Directory.Delete(root, recursive: true);
                 }
             }
+        }
+
+        [UnityTest]
+        public IEnumerator DeathModeStopsOnFirstBrokenComboWithLifeRemaining()
+        {
+            yield return LibrarySceneBootsAndShowsThePage();
+            string directory = Path.GetFullPath("Tools/fixtures/baseline_tap");
+            var request = new PlayRequest(directory, false, Sekai.SceneManager.Scene.Library) { Death = true };
+            var start = PlayService.Instance.StartAsync(request, CancellationToken.None).AsTask();
+            yield return WaitFor(() => start.IsCompleted, BOOT_TIMEOUT_SECONDS, "starting death mode");
+            Assert.That(start.Result.Started, Is.True, start.Result.Message);
+            yield return WaitFor(() => Object.FindFirstObjectByType<ResultPage>()?.Current != null, 90f, "settling the first miss");
+            var result = Object.FindFirstObjectByType<ResultPage>().Current;
+            Assert.That(result.Kind, Is.EqualTo(PlayResultKind.Failed));
+            Assert.That(result.Miss, Is.EqualTo(1));
+            Assert.That(result.Life, Is.GreaterThan(0));
+        }
+
+        [UnityTest]
+        public IEnumerator FullSongPracticeRecordsAnUnrankedResultAfterPausingAndSeeking()
+        {
+            yield return LibrarySceneBootsAndShowsThePage();
+            IPracticeControls controls = null;
+            var plan = new PracticePlan(0d, null, PracticeForm.ReadSequence("全曲", "1x"), (parent, player) =>
+            {
+                controls = player;
+                PracticeLiveControls.CreateForSong(parent, player);
+            }, speedFollows: false, judgmentFollows: false, recordResult: true);
+            var request = new PlayRequest(Path.GetFullPath("Tools/fixtures/baseline_tap"), false, Sekai.SceneManager.Scene.Library)
+            { Practice = plan, ConstantScroll = true };
+            var start = PlayService.Instance.StartAsync(request, CancellationToken.None).AsTask();
+            yield return WaitFor(() => start.IsCompleted, BOOT_TIMEOUT_SECONDS, "starting full song practice");
+            Assert.That(start.Result.Started, Is.True, start.Result.Message);
+            yield return WaitFor(() => controls != null, BOOT_TIMEOUT_SECONDS, "creating practice controls");
+            var live = Object.FindFirstObjectByType<SoloLiveController>();
+            var menu = live.GetComponentInChildren<PracticeLiveControls>().transform.Find("PauseMenu");
+            Assert.That(menu.gameObject.activeSelf, Is.False);
+            live.Pause();
+            yield return WaitFor(() => menu.gameObject.activeSelf, 5f, "opening the practice pause menu");
+            controls.SetRate(2d);
+            Assert.That(LiveConfig.PracticeWindowScale, Is.EqualTo(2f));
+            Assert.That(((FreeLiveBootData)live.BootData).CustomMusicScoreRanked, Is.False);
+            controls.Seek(controls.MaximumSeconds - 0.25d);
+            controls.TogglePause();
+            yield return WaitFor(() => !menu.gameObject.activeSelf, 5f, "clearing the lane on resume");
+            yield return WaitFor(() => Object.FindFirstObjectByType<ResultPage>()?.Current != null, BOOT_TIMEOUT_SECONDS, "settling full song practice");
+            var result = Object.FindFirstObjectByType<ResultPage>().Current;
+            Assert.That(result.Settlement, Is.Not.Null);
+            Assert.That(result.Settlement.Eligibility, Is.EqualTo(RankingEligibility.Unranked));
+            Assert.That(LiveConfig.PracticeWindowScale, Is.EqualTo(1f));
         }
 
         [UnityTest]
@@ -825,10 +875,13 @@ namespace OpenSekai.Tests.PlayMode
                 recoveredLibrary = LibraryScreen.Create(new AppContext(recoveredPackages, OpenSekai.Shared.Settings.LiveSettingsStore.Shared));
                 Transform actions = recoveredLibrary.transform.Find("Main/DetailColumn/Detail/Actions");
                 Assert.That(actions, Is.Not.Null);
-                var auto = actions.Find("Auto").GetComponent<Button>();
+                var modes = actions.Find("Modes").GetComponent<Button>();
                 var start = actions.Find("Start").GetComponent<Button>();
                 Assert.That(start.interactable, Is.True, "the recovered package should be selected and playable");
-                auto.onClick.Invoke();
+                modes.onClick.Invoke();
+                var modePanel = recoveredLibrary.GetComponentsInChildren<RectTransform>().Single(rect => rect.name == "ModeSelection");
+                if (!LibraryModes.Enabled(LibraryMode.Auto)) modePanel.Find("Frame/Card/Body/Auto").GetComponent<Button>().onClick.Invoke();
+                modePanel.Find("Frame/Card/Close").GetComponent<Button>().onClick.Invoke();
                 start.onClick.Invoke();
 
                 yield return WaitFor(() => SceneLoader.GetActiveScene().name == "Core"

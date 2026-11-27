@@ -174,7 +174,7 @@ namespace OpenSekai.App.UI
         /// <param name="problem">The refresh failure message, if any.</param>
         internal void ShowRank(string problem)
         {
-            bool ranked = LibraryModel.IsRanked(Item);
+            bool ranked = !LibraryModes.Unranked && LibraryModel.IsRanked(Item);
             _bannerText.text = ranked ? RANKED_BANNER : UNRANKED_BANNER;
             _bannerText.enableVertexGradient = ranked;
             if (ranked)
@@ -220,6 +220,7 @@ namespace OpenSekai.App.UI
         /// <summary>The line under the banner: why the chart is or is not Ranked.</summary>
         internal static string RankNote(SongPackageItem item)
         {
+            if (LibraryModes.Unranked) return "当前模式的成绩按 Unranked 记录";
             if (item?.Source == null) return "未记录下载地址，不能参与 Ranked";
             if (LibraryModel.IsRanked(item)) return "已与发布版本核对，成绩可计入 Best 30";
             if (item.RankKey == null) return "此来源不提供 Ranked 谱面";

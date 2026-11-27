@@ -26,6 +26,21 @@ namespace OpenSekai.Tests.EditMode.Playback
         }
 
         [Test]
+        public void ClipsKeepIndependentRangesAndTemplateSnapshotsOnTheSameChart()
+        {
+            var store = new PracticeClipStore(Path.Combine(_directory, "clips.json"));
+            var template = new PracticeTemplate("热身", new[] { PracticeStep.Play(0.75f) });
+            var first = new PracticeClip { Id = "a", Song = "练习曲", ChartKey = "chart", From = -1, To = 3, Template = template };
+            store.Save(first);
+            store.Save(new PracticeClip { Id = "b", Song = first.Song, ChartKey = first.ChartKey, From = 4, Template = template });
+            first.To = 2;
+            store.Save(first);
+            var clips = store.Load();
+            Assert.That(clips.Select(c => c.To), Is.EqualTo(new double?[] { 2, null }));
+            Assert.That(clips[1].Template.Steps[0].Speed, Is.EqualTo(0.75f));
+        }
+
+        [Test]
         public void FreshStoreReadsTheSameSpeedsAndRestsInOrder()
         {
             var store = new PracticeTemplateStore(_path);

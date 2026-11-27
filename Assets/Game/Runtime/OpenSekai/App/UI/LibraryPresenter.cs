@@ -534,7 +534,13 @@ namespace OpenSekai.App.UI
                 _view.SetStatus((isAuto ? "自动" : "手动") + "：" + title + " — 准备中…");
                 _view.ShowLoading(title, packageDirectory);
                 PlayStartResult result = await _startPlay(
-                    new PlayRequest(packageDirectory, isAuto, SceneManager.Scene.Library) { RetryFrom = retryFrom },
+                    new PlayRequest(packageDirectory, isAuto, SceneManager.Scene.Library) {
+                        RetryFrom = retryFrom,
+                        ConstantScroll = LibraryModes.Enabled(LibraryMode.ConstantScroll),
+                        Death = LibraryModes.Enabled(LibraryMode.Death),
+                        Practice = LibraryModes.Enabled(LibraryMode.Practice)
+                            ? LibraryModes.FullSong() : null
+                    },
                     cancellationToken,
                     message =>
                     {

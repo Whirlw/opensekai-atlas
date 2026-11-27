@@ -14,6 +14,8 @@ namespace OpenSekai.App.UI
         private TextMeshProUGUI _pauseLabel;
         private TextMeshProUGUI _position;
         private TextMeshProUGUI _message;
+        private LibraryModal _modal;
+        private bool _hideCompleted;
         private RectTransform _transport;
         private RectTransform _seeking;
         private PracticeSeekSlider _slider;
@@ -24,9 +26,17 @@ namespace OpenSekai.App.UI
 
         internal static void Create(Transform parent, IPracticeControls controls)
         {
+            Create(parent, controls, false);
+        }
+
+        internal static void CreateForSong(Transform parent, IPracticeControls controls) => Create(parent, controls, true);
+
+        private static void Create(Transform parent, IPracticeControls controls, bool hideCompleted)
+        {
             var root = new GameObject("PracticeControls", typeof(RectTransform));
             root.transform.SetParent(parent, false);
             var view = root.AddComponent<PracticeLiveControls>();
+            view._hideCompleted = hideCompleted;
             view.Build(controls);
         }
 
@@ -42,7 +52,11 @@ namespace OpenSekai.App.UI
             scaler.matchWidthOrHeight = 0.5f;
             gameObject.AddComponent<GraphicRaycaster>();
 
-            RectTransform bar = _transport = Bar("Transport", 10f, 76f);
+            var panel = LibraryUi.CreateRect("PauseMenu", transform);
+            LibraryUi.Stretch(panel);
+            _modal = new LibraryModal(panel, new Vector2(1220f, 408f), "练习暂停", null);
+            RectTransform bar = _transport = LibraryUi.CreateRect("Transport", _modal.Body);
+            PracticeWidgets.Place(bar, 0f, 0.55f, 1f, 1f);
             var status = LibraryWidgets.Label("Time", bar, "", 21f, LibraryTheme.Colors.TextPrimary,
                 alignment: TextAlignmentOptions.Center);
             _position = status;
@@ -60,7 +74,8 @@ namespace OpenSekai.App.UI
             _pauseLabel = pause.GetComponentInChildren<TextMeshProUGUI>();
             AddButton(bar, "Restart", "重练片段", 0.67f, 0.85f, _controls.Restart);
             AddButton(bar, "Quit", "退出练习", 0.85f, 1f, _controls.Quit);
-            _seeking = Bar("Scrub", 86f, 100f);
+            _seeking = LibraryUi.CreateRect("Scrub", _modal.Body);
+            PracticeWidgets.Place(_seeking, 0f, 0f, 1f, 0.53f);
             _slider = CreateSlider(_seeking);
             _message = LibraryWidgets.Label("Hint", _seeking, "", 19f, LibraryTheme.Colors.TextSecondary,
                 alignment: TextAlignmentOptions.Center);
@@ -76,17 +91,6 @@ namespace OpenSekai.App.UI
                 }
             });
             Refresh();
-        }
-
-        private RectTransform Bar(string id, float top, float height)
-        {
-            var panel = LibraryWidgets.Panel(id, transform, 18f, LibraryTheme.Colors.Ground);
-            var rect = panel.rectTransform;
-            rect.anchorMin = new Vector2(0.16f, 1f);
-            rect.anchorMax = new Vector2(0.84f, 1f);
-            rect.offsetMin = new Vector2(0f, -top - height);
-            rect.offsetMax = new Vector2(0f, -top);
-            return rect;
         }
 
         private static Button AddButton(RectTransform parent, string id, string text, float left, float right,
@@ -134,14 +138,23 @@ namespace OpenSekai.App.UI
         }
 
         public bool ContainsControl(Vector2 position) =>
-            RectTransformUtility.RectangleContainsScreenPoint(_transport, position)
-            || (_seeking.gameObject.activeInHierarchy && RectTransformUtility.RectangleContainsScreenPoint(_seeking, position));
+            _modal.IsOpen;
+
+        private void OnDestroy() => _modal?.Dispose();
 
         private void Update() => Refresh();
 
         private void Refresh()
         {
             if (_controls == null) return;
+            bool visible = _controls.Paused || (_controls.Completed && !_hideCompleted);
+            if (visible != _modal.IsOpen)
+            {
+                if (visible) _modal.Open();
+                else _modal.Close();
+            }
+            if (!visible) return;
+            _modal.Title.text = _controls.Completed ? "练习完成" : "练习暂停";
             if (!_speed.isFocused && _displayedRate != _controls.Rate)
             {
                 _displayedRate = _controls.Rate;

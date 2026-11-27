@@ -157,7 +157,8 @@ namespace OpenSekai.App.UI
             detailRoot.anchorMax = new Vector2(1f, 1f);
             detailRoot.offsetMin = Vector2.zero;
             detailRoot.offsetMax = Vector2.zero;
-            _detail = new LibraryDetailPanel(detailRoot, LIST_PADDING_TOP, PlaySelected, presenter.OpenActionsForSelected, OnDetailsButton);
+            _detail = new LibraryDetailPanel(detailRoot, LIST_PADDING_TOP, PlaySelected, presenter.OpenActionsForSelected, OnDetailsButton, OpenModes);
+            BuildModes(overlay);
             _preview = _page.AddComponent<LibraryPreview>();
             _preview.Initialize(_detail);
 
@@ -508,6 +509,8 @@ namespace OpenSekai.App.UI
         internal void SetPresented(bool presented, bool animate)
         {
             _presented = presented;
+            if (presented && _modes != null) RefreshModes();
+            else if (!presented) _modes?.Close();
             _curtainMotion.TryCancel();
             _curtainMotion = default;
             if (_curtain != null)
@@ -560,8 +563,77 @@ namespace OpenSekai.App.UI
         /// Closes whatever sits on top of the page for the Android back key. True when something
         /// took the key; while playback is starting the key is swallowed.
         /// </summary>
+        private LibraryModal _modes;
+        private readonly List<Action> _modeLabels = new();
+
+        private void OpenModes() { RefreshModes(); _modes.Open(); }
+
+        private void BuildModes(RectTransform parent)
+        {
+            var modalRoot = LibraryUi.CreateRect("ModeSelection", parent);
+            LibraryUi.Stretch(modalRoot);
+            _modes = new LibraryModal(modalRoot, new Vector2(850f, 680f), "游玩模式", () => _modes.Close());
+            ModeRow(0, LibraryMode.Auto, "自动演奏");
+            ModeRow(1, LibraryMode.Practice, "练习");
+            ModeRow(2, LibraryMode.ConstantScroll, "无变速");
+            ModeRow(3, LibraryMode.Death, "死亡");
+            FollowRow(4, "下落速度跟随倍速", true);
+            FollowRow(5, "判定窗口跟随倍速", false);
+            _modes.Close();
+        }
+
+        private void ModeRow(int index, LibraryMode mode, string title)
+        {
+            var button = PracticeWidgets.Button(_modes.Body, mode.ToString(), title, () =>
+            {
+                LibraryModes.Toggle(mode);
+                RefreshModes();
+            });
+            var label = button.GetComponentInChildren<TextMeshProUGUI>();
+            var group = button.gameObject.AddComponent<CanvasGroup>();
+            _modeLabels.Add(() =>
+            {
+                PlaceModeRow(button, index);
+                bool locked = LibraryModes.Locked(mode);
+                button.targetGraphic.color = LibraryModes.Enabled(mode) ? LibraryTheme.Colors.ControlActive : LibraryTheme.Colors.Control;
+                button.interactable = !locked;
+                group.alpha = locked ? 0.38f : 1f;
+                label.text = title + (locked ? "  ·  互斥" : LibraryModes.Enabled(mode) ? "  ·  已开启" : "  ·  关闭");
+            });
+        }
+
+        private void FollowRow(int index, string title, bool speed)
+        {
+            var button = PracticeWidgets.Button(_modes.Body, speed ? "SpeedFollows" : "JudgmentFollows", title, () =>
+            {
+                if (speed) LibraryModes.SpeedFollows = !LibraryModes.SpeedFollows;
+                else LibraryModes.JudgmentFollows = !LibraryModes.JudgmentFollows;
+                RefreshModes();
+            });
+            var label = button.GetComponentInChildren<TextMeshProUGUI>();
+            _modeLabels.Add(() =>
+            {
+                PlaceModeRow(button, index);
+                button.gameObject.SetActive(LibraryModes.Enabled(LibraryMode.Practice));
+                label.text = title + ((speed ? LibraryModes.SpeedFollows : LibraryModes.JudgmentFollows) ? "  ·  开" : "  ·  关");
+            });
+        }
+
+        private static int ModeRows => LibraryModes.Enabled(LibraryMode.Practice) ? 6 : 4;
+
+        private static void PlaceModeRow(Button button, int index) =>
+            PracticeWidgets.Place(button.transform, 0f, 1f - (index + 1f) / ModeRows, 1f, 1f - (float)index / ModeRows);
+
+        private void RefreshModes()
+        {
+            _modes.FitToBody(_ => ModeRows * 76f);
+            foreach (var refresh in _modeLabels) refresh();
+            foreach (var tag in _page.GetComponentsInChildren<LibraryRankedTint>(true)) tag.Refresh();
+        }
+
         internal bool TryHandleBack()
         {
+            if (_modes?.IsOpen == true) { _modes.Close(); return true; }
             if (_startingPlayback || (_loadingOverlay != null && _loadingOverlay.isActiveAndEnabled))
             {
                 return true;
@@ -768,6 +840,7 @@ namespace OpenSekai.App.UI
                 cell.Release();
             }
 
+            _modes?.Dispose();
             _detail?.Dispose();
             _detail = null;
             _chartInfo?.Dispose();

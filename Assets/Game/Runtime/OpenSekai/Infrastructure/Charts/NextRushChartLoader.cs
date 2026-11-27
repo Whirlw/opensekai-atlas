@@ -145,7 +145,7 @@ namespace OpenSekai.Infrastructure.Charts
             public RuntimeChartDefinition Build(NextRushCompatibilityReport compatibility)
             {
                 _timing = new TimingMap(_source);
-                _groups = NextRushScrollCompiler.Compile(_source, _timing.TimingAt);
+                _groups = NextRushScrollCompiler.Compile(_source, _timing.TimingAt, _config.ConstantScroll);
                 if (_groups.Count != 0 || _source.Entities.Any(e => e.Archetype is
                     "Connector" or "DamageNote" or "TransientHiddenDamageTickNote"
                     || e.Archetype == "SimLine" && NeedsSimLineTimeline(e)

@@ -446,6 +446,8 @@ namespace Sekai.Live
 			_hitFxSkin?.SetPaused(false);
 		}
 
+		internal void SchedulePracticeLines(MusicScore score, float lead) => _notesViewManager?.SchedulePracticeLines(score, lead);
+
 		internal void ClearPracticeFrame()
 		{
 			_accuracyBar?.ClearSamples();

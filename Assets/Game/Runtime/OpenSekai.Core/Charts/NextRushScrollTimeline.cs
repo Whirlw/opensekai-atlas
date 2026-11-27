@@ -136,7 +136,8 @@ namespace OpenSekai.Charts
             }
         }
 
-        public double Preempt(double playerPreempt) => _forcePreempt > 0 ? _forcePreempt : playerPreempt;
+        public double Preempt(double playerPreempt, double forcedSpeedScale = 1d) =>
+            _forcePreempt > 0 ? _forcePreempt * forcedSpeedScale : playerPreempt;
 
         private Dictionary<double, double> _legacySpawnTimes;
         private double _legacyDuration;

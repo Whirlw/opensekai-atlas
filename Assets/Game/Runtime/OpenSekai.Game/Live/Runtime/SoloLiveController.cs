@@ -200,6 +200,11 @@ namespace Sekai.Core.Live
 		protected override void OnUpdate()
 		{
 			base.OnUpdate();
+			if (_practice?.Completed == true && PracticePlan.RecordResult && state == LiveControllerState.Playing)
+			{
+				QuitPractice();
+				return;
+			}
 			if (_practice != null && !_practice.IsPlaying)
 			{
 				_practice.Tick(Time.unscaledDeltaTime);
@@ -570,7 +575,7 @@ namespace Sekai.Core.Live
 		private void OnFailed()
 		{
 			if (PracticePlan != null) return;
-			if (DanSong != null)
+			if (DanSong != null || BootData is FreeLiveBootData { Death: true })
 			{
 				result = 2;
 				SoundManager.Instance.StopIngame();
@@ -609,7 +614,7 @@ namespace Sekai.Core.Live
 				result = 3;
 			}
 
-			if (PracticePlan != null)
+			if (PracticePlan is { RecordResult: false })
 			{
 				QuitPractice();
 				return;

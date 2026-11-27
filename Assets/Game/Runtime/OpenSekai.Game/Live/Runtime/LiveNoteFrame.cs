@@ -561,6 +561,8 @@ namespace Sekai.Core.Live
 			}
 
 			float lead = Mathf.Max(timeOffset, _session.NoteDisplayTimeOffset);
+			if (LiveConfig.PracticeWindowScale > 1f)
+				lead = Mathf.Max(lead, OpenSekai.Shared.Live.JudgeListLead.SECONDS * LiveConfig.PracticeWindowScale);
 			return Frame.time + lead + LiveClock.REFERENCE_FRAME_SECONDS <= note.MusicScoreInfo.time;
 		}
 
@@ -591,7 +593,7 @@ namespace Sekai.Core.Live
 				return 0f;
 			}
 			if (note.NativeScroll != null)
-				return OpenSekai.Shared.Live.JudgeListLead.SECONDS;
+				return OpenSekai.Shared.Live.JudgeListLead.SECONDS * LiveConfig.PracticeWindowScale;
 
 			float currentProgress = Frame.bar + Frame.barProgress;
 			float noteProgress = note.MusicScoreInfo.bar + note.MusicScoreInfo.barProgress;

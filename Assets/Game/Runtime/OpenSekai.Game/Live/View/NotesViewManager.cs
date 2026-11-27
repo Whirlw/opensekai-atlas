@@ -128,6 +128,8 @@ namespace Sekai.Live
 			}
 		}
 
+		internal void SchedulePracticeLines(MusicScore score, float lead) => _pairNoteLineView?.ScheduleLines(score, lead);
+
 		public void Clear()
 		{
 			if (_spawnNoteDict != null)

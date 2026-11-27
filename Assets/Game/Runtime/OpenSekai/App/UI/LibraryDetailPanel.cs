@@ -33,7 +33,7 @@ namespace OpenSekai.App.UI
         private const float GAP = 32f;
         private const float INFO_LEFT = 40f;
         private const float ACTION_HEIGHT = LibraryTheme.Layout.PRIMARY_BUTTON_HEIGHT;
-        private const float AUTO_WIDTH = 212f;
+        private const float MODE_WIDTH = 212f;
         private const float CARD_PADDING_X = 36f;
         private const float CARD_PADDING_Y = 28f;
         private const float JUDGE_WIDTH = 108f;
@@ -50,7 +50,6 @@ namespace OpenSekai.App.UI
 
         private static readonly string[] _judgeNames = { "PERFECT", "GREAT", "GOOD", "BAD", "MISS" };
         private static readonly Color32 _cardColor = new Color32(16, 20, 27, 184);
-        private static readonly Color32 _switchOff = new Color32(255, 255, 255, 56);
         private static readonly Color32 _blockedControl = new Color32(255, 255, 255, 7);
         private static readonly Color32 _blockedLabel = new Color32(154, 166, 181, 140);
 
@@ -88,8 +87,6 @@ namespace OpenSekai.App.UI
         private readonly TextMeshProUGUI _noRecordTitle;
         private readonly TextMeshProUGUI _noRecordBody;
 
-        private readonly Image _autoTrack;
-        private readonly RectTransform _autoKnob;
         private readonly Button _startButton;
         private readonly Image _startBackground;
         private readonly TextMeshProUGUI _startLabel;
@@ -97,10 +94,8 @@ namespace OpenSekai.App.UI
 
         private MotionHandle _showMotion;
         private MotionHandle _accentMotion;
-        private MotionHandle _autoMotion;
         private MotionHandle _hintMotion;
         private Color _accent = LibraryTheme.Colors.DefaultAccent;
-        private bool _isAuto;
         private bool _playable;
 
         /// <param name="root">Rect the panel fills.</param>
@@ -108,7 +103,7 @@ namespace OpenSekai.App.UI
         /// <param name="play">Starts the selected package; the argument is the 自动演奏 switch.</param>
         /// <param name="more">Opens export and delete for the selected package.</param>
         /// <param name="details">The 详情 / 检查 button; the owner decides from <see cref="Access"/> what a tap does.</param>
-        internal LibraryDetailPanel(RectTransform root, float coverTop, Action<bool> play, Action more, Action details)
+        internal LibraryDetailPanel(RectTransform root, float coverTop, Action<bool> play, Action more, Action details, Action openModes = null)
         {
             _play = play;
             _content = LibraryUi.CreateRect("Detail", root);
@@ -310,21 +305,11 @@ namespace OpenSekai.App.UI
             RectTransform actions = LibraryUi.CreateRect("Actions", _content);
             LibraryWidgets.BottomStrip(actions, 0f, 0f, 0f, ACTION_HEIGHT);
 
-            Button auto = LibraryWidgets.PillButton(
-                "Auto", actions, string.Empty, ToggleAuto, AUTO_WIDTH, ACTION_HEIGHT,
-                LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary, sound: UiCue.None);
-            LibraryWidgets.Place(
-                (RectTransform)auto.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero,
-                new Vector2(AUTO_WIDTH, ACTION_HEIGHT));
-            _autoTrack = LibraryWidgets.Panel("Track", auto.transform, 16f, _switchOff);
-            LibraryWidgets.Place(
-                _autoTrack.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(24f, 0f), new Vector2(56f, 32f));
-            Image knob = LibraryWidgets.Panel("Knob", _autoTrack.transform, 12f, LibraryTheme.Colors.TextPrimary);
-            _autoKnob = knob.rectTransform;
-            LibraryWidgets.Place(_autoKnob, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(4f, 0f), new Vector2(24f, 24f));
-            TextMeshProUGUI autoLabel = LibraryWidgets.Label(
-                "Caption", auto.transform, "自动演奏", 22f, LibraryTheme.Colors.TextPrimary);
-            LibraryWidgets.Inset(autoLabel.rectTransform, 96f, 0f, 16f, 0f);
+            Button modes = LibraryWidgets.PillButton(
+                "Modes", actions, "模式", () => openModes?.Invoke(), MODE_WIDTH, ACTION_HEIGHT,
+                LibraryTheme.Colors.Control, LibraryTheme.Colors.TextPrimary);
+            LibraryWidgets.Place((RectTransform)modes.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
+                Vector2.zero, new Vector2(MODE_WIDTH, ACTION_HEIGHT));
 
             Button moreButton = LibraryWidgets.PillButton(
                 "More", actions, string.Empty, () => more?.Invoke(), ACTION_HEIGHT, ACTION_HEIGHT,
@@ -337,7 +322,7 @@ namespace OpenSekai.App.UI
             _startButton = LibraryWidgets.PillButton(
                 "Start", actions, "开始演奏", Start, 0f, ACTION_HEIGHT,
                 LibraryTheme.Colors.DefaultAccent, LibraryTheme.Colors.TextOnAccent, 28f, FontStyles.Bold, UiCue.None);
-            LibraryWidgets.Inset((RectTransform)_startButton.transform, AUTO_WIDTH + 20f, 0f, ACTION_HEIGHT + 20f, 0f);
+            LibraryWidgets.Inset((RectTransform)_startButton.transform, MODE_WIDTH + 20f, 0f, ACTION_HEIGHT + 20f, 0f);
             _startBackground = (Image)_startButton.targetGraphic;
             _startLabel = _startButton.GetComponentInChildren<TextMeshProUGUI>();
             _startIcon = LibraryWidgets.Icon(_startButton.transform, LibraryIcon.Play, LibraryTheme.Colors.TextOnAccent, 26f);
@@ -586,7 +571,6 @@ namespace OpenSekai.App.UI
         {
             _showMotion.TryCancel();
             _accentMotion.TryCancel();
-            _autoMotion.TryCancel();
             _hintMotion.TryCancel();
         }
 
@@ -595,20 +579,8 @@ namespace OpenSekai.App.UI
             _rank.color = _accent;
             _startBackground.color = _playable ? _accent : (Color)LibraryTheme.Colors.Control;
             _startLabel.color = _playable ? LibraryTheme.Colors.TextOnAccent : LibraryTheme.Colors.TextSecondary;
-            _autoTrack.color = _isAuto ? _accent : (Color)_switchOff;
             _previewIcon.color = _accent;
             _previewFill.color = _accent;
-        }
-
-        private void ToggleAuto()
-        {
-            _isAuto = !_isAuto;
-            UiSound.Play(_isAuto ? UiCue.ToggleOn : UiCue.ToggleOff);
-            ApplyAccent();
-            _autoMotion.TryCancel();
-            _autoMotion = LMotion.Create(_autoKnob.anchoredPosition.x, _isAuto ? 28f : 4f, LibraryTheme.Motion.STANDARD)
-                .WithEase(LibraryTheme.Motion.SELECT_EASE)
-                .BindToAnchoredPositionX(_autoKnob);
         }
 
         private void Start()
@@ -616,7 +588,7 @@ namespace OpenSekai.App.UI
             if (_playable)
             {
                 UiSound.Play(UiCue.Start);
-                _play?.Invoke(_isAuto);
+                _play?.Invoke(LibraryModes.Enabled(LibraryMode.Auto));
             }
             else
             {

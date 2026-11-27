@@ -59,12 +59,59 @@ namespace OpenSekai.Tests.EditMode
             Assert.Throws<FormatException>(() => PracticeForm.ReadSequence("模板", sequence));
 
         [Test]
-        public void SwipingLeftFromTheLibraryReachesThePracticeHero()
+        public void PracticeAndClipsAreOnTheLeftAndProfileIsOnTheRight()
         {
             int library = HomeView.PageOf(HomeDestination.Library);
-            Assert.That(HomeView.PageOf(HomeDestination.Profile), Is.EqualTo(library - 1));
-            Assert.That(HomeView.PageOf(HomeDestination.Practice), Is.EqualTo(library + 1));
+            Assert.That(HomeView.PageOf(HomeDestination.Profile), Is.EqualTo(library + 1));
+            Assert.That(HomeView.PageOf(HomeDestination.Practice), Is.EqualTo(library - 1));
             Assert.That((int)HomeDestination.Practice % 3, Is.Zero);
+        }
+
+        [Test]
+        public void DeathLocksAutomaticAndPracticeWhileConstantScrollStacks()
+        {
+            LibraryMode previous = LibraryModes.Selected;
+            void Clear()
+            {
+                foreach (var mode in new[] { LibraryMode.Auto, LibraryMode.Practice, LibraryMode.ConstantScroll, LibraryMode.Death })
+                    if (LibraryModes.Enabled(mode)) LibraryModes.Toggle(mode);
+            }
+            try
+            {
+                Clear();
+                LibraryModes.Toggle(LibraryMode.Death);
+                Assert.That(LibraryModes.Unranked, Is.False);
+                LibraryModes.Toggle(LibraryMode.Practice);
+                LibraryModes.Toggle(LibraryMode.Auto);
+                Assert.That(LibraryModes.Selected, Is.EqualTo(LibraryMode.Death));
+                LibraryModes.Toggle(LibraryMode.ConstantScroll);
+                Assert.That(LibraryModes.Unranked, Is.True);
+                LibraryModes.Toggle(LibraryMode.Death);
+                LibraryModes.Toggle(LibraryMode.Practice);
+                LibraryModes.Toggle(LibraryMode.Auto);
+                Assert.That(LibraryModes.Locked(LibraryMode.Death), Is.True);
+                Assert.That(LibraryModes.Selected, Is.EqualTo(LibraryMode.Practice | LibraryMode.Auto | LibraryMode.ConstantScroll));
+            }
+            finally
+            {
+                Clear();
+                foreach (LibraryMode mode in Enum.GetValues(typeof(LibraryMode)))
+                    if ((previous & mode) != 0) LibraryModes.Toggle(mode);
+            }
+        }
+
+        [Test]
+        public void PlayingPracticeKeepsThePauseMenuHiddenAndLeavesTheLaneTouchable()
+        {
+            var root = new GameObject("Live");
+            try
+            {
+                PracticeLiveControls.Create(root.transform, new Controls { Paused = false });
+                var view = root.GetComponentInChildren<PracticeLiveControls>();
+                Assert.That(view.transform.Find("PauseMenu").gameObject.activeSelf, Is.False);
+                Assert.That(view.ContainsControl(Vector2.zero), Is.False);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(root); }
         }
 
         private sealed class Area : IPracticeInputArea

@@ -40,13 +40,19 @@ namespace Sekai
 			skin?.BindLine("notes.line.simultaneous", Material, out _skinScale, out _skinOffset);
 
 			_pairNotes = new List<(INote, INote, bool)>(POOL_COUNT);
-			_scheduledLines = score?.HiddenSimLines?.Select(line =>
-				(start: System.Math.Min(line.left.PrepareNativeVisual(displayLead), line.right.PrepareNativeVisual(displayLead)),
-				 line.left, line.right)).OrderBy(line => line.start).ToArray();
+			ScheduleLines(score, displayLead);
 			_mesh = new Mesh { name = name + "Mesh" };
 			SetMeshCapacity(POOL_COUNT);
 			_mesh.MarkDynamic();
 			_filter.mesh = _mesh;
+		}
+
+		internal void ScheduleLines(MusicScore score, double displayLead)
+		{
+			_nextLine = 0;
+			_scheduledLines = score?.HiddenSimLines?.Select(line =>
+				(start: System.Math.Min(line.left.PrepareNativeVisual(displayLead), line.right.PrepareNativeVisual(displayLead)),
+				 line.left, line.right)).OrderBy(line => line.start).ToArray();
 		}
 
 		private void SetMeshCapacity(int count)

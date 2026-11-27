@@ -35,7 +35,7 @@
 				if (!isDecorationConnection)
 				{
 					OffsetJudgeTime = currentFrameInfo.time - MusicScoreInfo.time;
-					if (OffsetJudgeTime > ConnectionNote.SLIDE_LATE_WINDOW_SECONDS)
+					if (OffsetJudgeTime > ConnectionNote.SLIDE_LATE_WINDOW_SECONDS * LiveConfig.PracticeWindowScale)
 					{
 						JudgeInfo = (NoteResult.Pass, NoteResultDescription.None);
 						State = NoteState.Done;

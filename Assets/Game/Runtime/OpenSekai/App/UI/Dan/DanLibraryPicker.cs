@@ -48,10 +48,12 @@ namespace OpenSekai.App.UI
 
         internal bool IsOpen => _modal.IsOpen;
 
-        internal void Show()
+        internal void Show() => Show(SongPackageManager.Shared.LoadItems);
+
+        internal void Show(Func<IReadOnlyList<SongPackageItem>> loadItems)
         {
             string error = null;
-            try { _items = SongPackageManager.Shared.LoadItems().Where(_isCandidate).ToArray(); }
+            try { _items = loadItems().Where(_isCandidate).ToArray(); }
             catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
             {
                 _items = Array.Empty<SongPackageItem>();

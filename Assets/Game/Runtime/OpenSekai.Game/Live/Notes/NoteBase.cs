@@ -88,7 +88,7 @@ namespace Sekai.Live
 
 		private double PrepareBasicVisual(double displayLead)
 		{
-			NativePreempt = NativeScroll.Preempt(displayLead);
+			NativePreempt = NativeScroll.Preempt(displayLead, LiveConfig.PracticeScrollScale);
 			return NativeScroll.ActivationTime(NativeTarget, NativePreempt);
 		}
 

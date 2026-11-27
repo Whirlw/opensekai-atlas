@@ -403,7 +403,7 @@ namespace Sekai.Core.Live
 			// late (its display lead is divided by the speed ratio) but must still be judgeable 0.35 s
 			// early; tying registration to the display lead put a rub behind a flick into the list only
 			// ~130 ms before its time, already past the edge of the bad window.
-			if (OpenSekai.Shared.Live.JudgeListLead.IsStillTooFarAhead(frameTime, note.MusicScoreInfo.time))
+			if (OpenSekai.Shared.Live.JudgeListLead.IsStillTooFarAhead(frameTime, note.MusicScoreInfo.time, OpenSekai.Shared.Live.JudgeListLead.SECONDS * LiveConfig.PracticeWindowScale))
 			{
 				if (OpenSekai.Shared.Diagnostics.LiveTrace.IsOn(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Resident))
 					OpenSekai.Shared.Diagnostics.LiveTrace.Write(OpenSekai.Shared.Diagnostics.LiveTraceCategory.Resident, $"regSkip id={note.Id} t={note.MusicScoreInfo.time:F3} now={frameTime:F3}");

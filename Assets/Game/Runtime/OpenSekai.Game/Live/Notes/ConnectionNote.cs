@@ -5,7 +5,7 @@ namespace Sekai.Live
 	public class ConnectionNote : HoldPointNote
 	{
 		internal const float CONTACT_WINDOW_FRAMES = 5f;
-		internal const float CONTACT_WINDOW_SECONDS = CONTACT_WINDOW_FRAMES / 60f;
+		internal static float CONTACT_WINDOW_SECONDS => CONTACT_WINDOW_FRAMES / 60f * LiveConfig.PracticeWindowScale;
 		private LongNote _endpointSection;
 		private NextRushTickPathPoint _connectorInputHead;
 		private NextRushTickPathPoint _connectorInputTail;

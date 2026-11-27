@@ -128,7 +128,7 @@ namespace OpenSekai.App.Playback
                     settings = settings.WithBuiltinSets(material.Builtin.Notes - 1, material.Builtin.HitFx - 1, material.Builtin.Audio - 1);
                 LiveBundleBuildData config = ResourceCatalog.LiveBundleConfig.Load();
                 if (config == null) throw new InvalidOperationException("Live bundle configuration is missing.");
-                var conversion = new ChartConversionSettings(config);
+                var conversion = new ChartConversionSettings(config, request.ConstantScroll);
                 var (entry, chart, chartHash) = await Task.Run(
                     () => PrepareChart(request, cached, conversion, settings, cancellationToken), cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();
@@ -161,7 +161,8 @@ namespace OpenSekai.App.Playback
                 if (boot.Practice != null && !boot.ResolvePracticeRange(audioDuration))
                     return Result(PlayStartStatus.Failed, "练习片段超出谱面与歌曲的范围，请调整起止时间。");
                 boot.CustomMusicScoreKey = chartHash;
-                boot.CustomMusicScoreRanked = request.Practice == null && (request.DanRanked ?? temporary?.Ranked ??
+                boot.Death = request.Death;
+                boot.CustomMusicScoreRanked = !request.ConstantScroll && !request.IsAuto && request.Practice == null && (request.DanRanked ?? temporary?.Ranked ??
                     ((await ChartRankLookup.ReadInstalledAsync(SongPackageSource.Read(entry), entry))?.Matches(chartHash, entry.Manifest.playLevel) == true));
                 boot.DanSong = request.DanSong;
                 boot.RecordRetryStart = OpenSekai.App.Library.PlayerProfileStore.Local.RecordRetryStart;

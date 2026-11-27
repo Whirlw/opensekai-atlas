@@ -24,7 +24,7 @@ namespace Sekai.Core.Live
             SessionId = sessionId ?? string.Empty;
             ChartHash = chartHash ?? string.Empty;
             RulesVersion = rulesVersion;
-            PlayHistory = (bootData as FreeLiveBootData)?.Practice == null ? playHistory : null;
+            PlayHistory = (bootData as FreeLiveBootData)?.Practice?.RecordResult == false ? null : playHistory;
         }
 
         public LiveBootDataBase BootData { get; }

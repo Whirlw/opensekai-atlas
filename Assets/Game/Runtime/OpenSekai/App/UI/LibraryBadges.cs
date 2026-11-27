@@ -119,6 +119,12 @@ namespace OpenSekai.App.UI
                 LibraryTheme.Colors.Ranked, LibraryTheme.Colors.Ranked);
             LibraryUi.Stretch(label.rectTransform);
 
+            var tint = Root.gameObject.AddComponent<LibraryRankedTint>();
+            tint.Label = label;
+            tint.Ring = ring;
+            tint.Background = panel;
+            tint.NormalBackground = background;
+            tint.NormalRing = line;
             Width = Mathf.Ceil(label.GetPreferredValues(TEXT).x) + PADDING * 2f;
             Root.sizeDelta = new Vector2(Width, height);
             Root.gameObject.SetActive(false);
@@ -133,4 +139,25 @@ namespace OpenSekai.App.UI
 
         internal void Show(bool ranked) => Root.gameObject.SetActive(ranked);
     }
+    internal sealed class LibraryRankedTint : MonoBehaviour
+    {
+        internal Image Background;
+        internal Image Ring;
+        internal TextMeshProUGUI Label;
+        internal Color NormalBackground;
+        internal Color NormalRing;
+
+        private void OnEnable() => Refresh();
+
+        internal void Refresh()
+        {
+            if (Label == null) return;
+            bool muted = LibraryModes.Unranked;
+            Label.enableVertexGradient = !muted;
+            Label.color = muted ? LibraryTheme.Colors.TextMuted : Color.white;
+            Ring.color = muted ? LibraryTheme.Colors.Hairline : NormalRing;
+            Background.color = muted ? LibraryTheme.Colors.Control : NormalBackground;
+        }
+    }
+
 }

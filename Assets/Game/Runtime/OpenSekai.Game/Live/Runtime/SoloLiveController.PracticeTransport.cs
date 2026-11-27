@@ -19,6 +19,19 @@ namespace Sekai.Core.Live
 		private void PracticeRate(double rate)
 		{
 			if (!(rate >= PracticeStep.MIN_SPEED && rate <= PracticeStep.MAX_SPEED)) throw new ArgumentOutOfRangeException(nameof(rate));
+			LiveConfig.PracticeWindowScale = PracticePlan.JudgmentFollows ? 1f : (float)rate;
+			LiveConfig.PracticeScrollScale = PracticePlan.SpeedFollows ? 1f : (float)rate;
+			var session = _liveLogic.Session;
+			float lead = LiveConfig.GetNoteDisplayOffsetTime(BootData.LiveSettingData?.NoteSpeed ?? 6f)
+				* LiveConfig.PracticeScrollScale;
+			if (session.NoteDisplayTimeOffset != lead)
+			{
+				session.NoteDisplayTimeOffset = lead;
+				session.Notes.BindNativeVisuals(lead);
+				foreach (var view in _liveViews)
+					if (view is LiveFrontView front) front.SchedulePracticeLines(session.MusicScore, lead);
+				_liveLogic.Scheduler.BindNoteCallbacks(session.Notes.Notes);
+			}
 			ChangePracticeRate(rate, Time.realtimeSinceStartupAsDouble);
 			_liveLogic.Clock.Rates = PracticeRates;
 			_liveLogic.Clock.InputWallOffset = PracticeInputWallOffset;
@@ -29,6 +42,7 @@ namespace Sekai.Core.Live
 
 		private void ResetPracticeRate()
 		{
+			LiveConfig.PracticeWindowScale = LiveConfig.PracticeScrollScale = 1f;
 			TimelinePlaybackRate = 1d;
 			if (_liveLogic != null)
 			{

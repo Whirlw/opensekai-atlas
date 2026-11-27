@@ -12,18 +12,19 @@ namespace OpenSekai.App.UI
     /// </summary>
     internal enum HomeDestination
     {
-        Profile,
-        Dan,
-        Achievements,
-        Library,
+        Practice,
+        Clips,
+        Library = 3,
         Server,
         Packs,
-        Practice
+        Profile,
+        Dan,
+        Achievements
     }
 
     /// <summary>
-    /// The home menu opens on the library. Swiping left reveals the practice card,
-    /// while swiping right reveals the profile, course and achievement cards.
+    /// The home menu opens on the library. Swiping right reveals the practice card,
+    /// while swiping left reveals the profile, course and achievement cards.
     /// </summary>
     internal sealed class HomeView : IDisposable, IHomeSwipeTarget
     {
@@ -31,7 +32,7 @@ namespace OpenSekai.App.UI
         private const int CARDS_PER_PAGE = 3;
         private const int NO_POINTER = int.MinValue;
         private const float RUBBER = 0.3f;
-        private static readonly string[] _pageNames = { "个人", "游玩", "练习" };
+        private static readonly string[] _pageNames = { "练习", "游玩", "个人" };
 
         private readonly RectTransform _root;
         private readonly CanvasGroup _group;
@@ -40,7 +41,7 @@ namespace OpenSekai.App.UI
         private readonly CanvasGroup _footer;
         private readonly CanvasGroup _chrome;
         private readonly RectTransform[] _pages = new RectTransform[PAGE_COUNT];
-        private readonly HomeSlot[] _slots = new HomeSlot[(int)HomeDestination.Practice + 1];
+        private readonly HomeSlot[] _slots = new HomeSlot[(int)HomeDestination.Achievements + 1];
         private readonly HomeLibraryCard _library;
         private readonly HomeFeatureCard _server;
         private readonly HomeFeatureCard _packs;
@@ -48,6 +49,7 @@ namespace OpenSekai.App.UI
         private readonly HomeFeatureCard _dan;
         private readonly HomeFeatureCard _achievements;
         private readonly HomeFeatureCard _practice;
+        private readonly HomeFeatureCard _clips;
         private HomeMedalArt _medal;
         private readonly HomePageTabs _tabs;
         private readonly HomeEdgeHandle _next;
@@ -79,7 +81,7 @@ namespace OpenSekai.App.UI
         /// <param name="openAchievements">The 成就 card was tapped.</param>
         internal HomeView(RectTransform parent, Action openLibrary, Action openAbout, Action openSettings, Action<string> comingSoon,
             Action openServer = null, Action openPacks = null, Action openProfile = null, Action openDan = null,
-            Action openAchievements = null, Action openPractice = null)
+            Action openAchievements = null, Action openPractice = null, Action openClips = null)
         {
             _root = LibraryUi.CreateRect("Home", parent);
             LibraryUi.Stretch(_root);
@@ -131,7 +133,7 @@ namespace OpenSekai.App.UI
                 available: openPacks != null, status: openPacks != null ? "管理资源" : null);
             _library = new HomeLibraryCard(Slot(1, 0).Rect, openLibrary);
 
-            _dan = new HomeFeatureCard(Slot(0, 1).Rect, "DanCard", "DAN", "段位", "多曲连打 · 生命延续 · 段位牌",
+            _dan = new HomeFeatureCard(Slot(2, 1).Rect, "DanCard", "DAN", "段位", "多曲连打 · 生命延续 · 段位牌",
                 HomeTheme.Colors.Violet, root => new HomePlateArt(root),
                 () =>
                 {
@@ -139,7 +141,7 @@ namespace OpenSekai.App.UI
                     else comingSoon?.Invoke("段位");
                 },
                 available: openDan != null, status: openDan != null ? "开始挑战" : null);
-            _achievements = new HomeFeatureCard(Slot(0, 2).Rect, "AchievementsCard", "ACHIEVEMENTS", "成就", "练习 · 技巧 · 段位 · 特殊奖牌",
+            _achievements = new HomeFeatureCard(Slot(2, 2).Rect, "AchievementsCard", "ACHIEVEMENTS", "成就", "练习 · 技巧 · 段位 · 特殊奖牌",
                 HomeTheme.Colors.Gold, root => _medal = new HomeMedalArt(root),
                 () =>
                 {
@@ -147,18 +149,22 @@ namespace OpenSekai.App.UI
                     else comingSoon?.Invoke("成就");
                 },
                 available: openAchievements != null, status: openAchievements != null ? "查看进度" : null);
-            _profile = new HomeProfileCard(Slot(0, 0).Rect, () => openProfile?.Invoke());
+            _profile = new HomeProfileCard(Slot(2, 0).Rect, () => openProfile?.Invoke());
 
-            _practice = new HomeFeatureCard(Slot(2, 0).Rect, "PracticeCard", "PRACTICE", "练习模式",
-                "选取谱面片段 · 调整倍速 · 重复练习", HomeTheme.Colors.Periwinkle, root => new HomeStackArt(root),
-                () => openPractice?.Invoke(), available: openPractice != null, status: "选择片段");
-            Bind(2, 0, _practice);
+            _practice = new HomeFeatureCard(Slot(0, 0).Rect, "PracticeCard", "PRACTICE", "练习模式",
+                "选择谱面 · 调整倍速 · 全曲练习", HomeTheme.Colors.Periwinkle, root => new HomeStackArt(root),
+                () => openPractice?.Invoke(), available: openPractice != null, status: "选择谱面");
+            _clips = new HomeFeatureCard(Slot(0, 1).Rect, "ClipsCard", "CLIPS", "剪辑",
+                "保存歌曲片段 · 应用练习模板", HomeTheme.Colors.Violet, root => new HomeStackArt(root),
+                () => openClips?.Invoke(), available: openClips != null, status: "管理片段");
+            Bind(0, 1, _clips);
+            Bind(0, 0, _practice);
             Bind(1, 0, _library);
             Bind(1, 1, _server);
             Bind(1, 2, _packs);
-            Bind(0, 0, _profile);
-            Bind(0, 1, _dan);
-            Bind(0, 2, _achievements);
+            Bind(2, 0, _profile);
+            Bind(2, 1, _dan);
+            Bind(2, 2, _achievements);
 
             RectTransform chrome = LibraryUi.CreateRect("Chrome", _root);
             LibraryWidgets.Inset(chrome, 0f, HomeTheme.Layout.FOOTER_HEIGHT, 0f, HomeTheme.Layout.HEADER_HEIGHT);
@@ -224,7 +230,7 @@ namespace OpenSekai.App.UI
             {
                 if (Mathf.Abs(i / CARDS_PER_PAGE - _pageProgress) < 1f)
                 {
-                    _slots[i].Card.Tick(time);
+                    _slots[i]?.Card.Tick(time);
                 }
             }
 
@@ -288,6 +294,7 @@ namespace OpenSekai.App.UI
             for (int i = 0; i < _slots.Length; i++)
             {
                 HomeSlot slot = _slots[i];
+                if (slot == null) continue;
                 bool isTarget = i == targetIndex;
                 slot.Apply(isTarget ? amount : 0f, bleedMin, bleedMax);
                 IHomeCard card = slot.Card;
@@ -432,7 +439,7 @@ namespace OpenSekai.App.UI
             bool usable = settled && !(_expansion > 0f);
             for (int i = 0; i < _slots.Length; i++)
             {
-                _slots[i].Card.Interactable = usable && i / CARDS_PER_PAGE == _page;
+                if (_slots[i] != null) _slots[i].Card.Interactable = usable && i / CARDS_PER_PAGE == _page;
             }
         }
 
@@ -556,6 +563,7 @@ namespace OpenSekai.App.UI
             _dan.Dispose();
             _achievements.Dispose();
             _practice.Dispose();
+            _clips.Dispose();
         }
 
         private void Run(float from, float to, float duration, Action<float> apply, Action onDone, Ease ease)

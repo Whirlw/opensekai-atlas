@@ -287,6 +287,23 @@ namespace OpenSekai.Tests.EditMode.Charts
             Assert.That(() => Load(chart), Throws.TypeOf<InvalidDataException>().With.Message.Contains("meter"));
         }
 
+        [Test]
+        public void ConstantScrollUsesSongSecondsAndKeepsTheNativeTargetsAndSourceGroup()
+        {
+            var tap = N("NormalTapNote", "tap", 8);
+            Add(tap, R("#TIMESCALE_GROUP", "group"));
+            var source = NextRushChart.Parse(Chart(tap,
+                E("#TIMESCALE_GROUP", "group", R("first", "fast")),
+                E("#TIMESCALE_CHANGE", "fast", V("#BEAT", 0), V("#TIMESCALE", 2), V("hideNotes", 1))).ToString());
+            var constant = NextRushChartLoader.Load(source, new ChartConversionSettings(_config, true), true, false).Score.NoteArray.Single();
+            var normal = NextRushChartLoader.Load(source, _config).Score.NoteArray.Single();
+            Assert.That(constant.NativeTarget.Hidden, Is.True);
+            Assert.That(constant.NativeTarget.Time, Is.EqualTo(normal.NativeTarget.Time));
+            double sample = constant.NativeTarget.Time - 0.5;
+            Assert.That(constant.NativeScroll.Distance(constant.NativeScroll.Sample(sample), constant.NativeTarget), Is.EqualTo(0.5).Within(1e-6));
+            Assert.That(normal.NativeScroll.Distance(normal.NativeScroll.Sample(sample), normal.NativeTarget), Is.EqualTo(1).Within(1e-6));
+        }
+
         [TestCase(0)]
         [TestCase(1)]
         public void MeterChangesPreserveGroupedScrollDistance(int transitionStyle)
